@@ -3981,37 +3981,76 @@ mod tests {
     }
 
     #[test]
-    fn postpositive_able_infinitive_modifies_the_nominal() {
-        let infinitive = parse_nonterminal(
-            "to attack",
-            &fixture_catalogs(),
-            Nonterminal::InfinitiveClause,
-        )
-        .expect("the infinitive parses independently");
-        assert!(infinitive.infinitive_clause().is_some());
-        let adjective = parse_nonterminal(
-            "able to attack",
-            &fixture_catalogs(),
-            Nonterminal::AdjectivePhrase,
-        )
-        .expect("the adjective and infinitive compose independently");
-        assert!(adjective.adjective_phrase().is_some());
-        let parsed = parse("all creatures able to block this creature");
-        let noun_phrase = parsed
-            .noun_phrase()
-            .expect("fixture must select a noun phrase");
-        let NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
-            panic!("fixture must retain its nominal head")
-        };
-        assert!(matches!(
-            nominal.complements(),
-            [NominalComplement::Adjective(adjective)]
-                if matches!(adjective.head(), Adjective::Word(Vocab::Able))
-                    && matches!(
-                        adjective.complements(),
-                        [AdjectiveComplement::Infinitive(_)]
-                    )
-        ));
+    fn adjective_infinitive_valency_is_registration_order_neutral() {
+        let catalogs = fixture_catalogs();
+        for order in [
+            super::super::rules::RegistrationOrder::Normal,
+            super::super::rules::RegistrationOrder::Reversed,
+            super::super::rules::RegistrationOrder::FixedShuffle,
+        ] {
+            let parse_exact = |source, nonterminal| {
+                super::super::parse_support::parse_nonterminal_with_registration_order(
+                    source,
+                    &catalogs,
+                    nonterminal,
+                    order,
+                    super::super::generated::GeneratedActivation::Production,
+                )
+            };
+
+            let infinitive = parse_exact("to attack", Nonterminal::InfinitiveClause)
+                .expect("the infinitive parses independently");
+            assert!(infinitive.infinitive_clause().is_some());
+            let adjective = parse_exact("able to attack", Nonterminal::AdjectivePhrase)
+                .expect("the selected adjective and infinitive compose independently");
+            assert!(matches!(
+                adjective.adjective_phrase(),
+                Some(adjective)
+                    if matches!(adjective.head(), Adjective::Word(Vocab::Able))
+                        && matches!(
+                            adjective.complements(),
+                            [AdjectiveComplement::Infinitive(_)]
+                        )
+            ));
+
+            let parsed = parse_exact(
+                "all creatures able to block this creature",
+                Nonterminal::NounPhrase,
+            )
+            .expect("the selected adjective complement modifies the nominal");
+            let noun_phrase = parsed
+                .noun_phrase()
+                .expect("fixture must select a noun phrase");
+            let NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
+                panic!("fixture must retain its nominal head")
+            };
+            assert!(matches!(
+                nominal.complements(),
+                [NominalComplement::Adjective(adjective)]
+                    if matches!(adjective.head(), Adjective::Word(Vocab::Able))
+                        && matches!(
+                            adjective.complements(),
+                            [AdjectiveComplement::Infinitive(_)]
+                        )
+            ));
+
+            assert!(
+                parse_exact(
+                    "All creatures able to block this creature do so.",
+                    Nonterminal::Sentence,
+                )
+                .is_ok(),
+                "the supported full sentence must parse in {order:?}",
+            );
+            assert!(
+                parse_exact(
+                    "All creatures red to block this creature do so.",
+                    Nonterminal::Sentence,
+                )
+                .is_err(),
+                "an unselected adjective infinitive parsed in {order:?}",
+            );
+        }
     }
 
     /// Parses a noun phrase as the legendary face `Nissa Revane` (nickname

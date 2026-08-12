@@ -16,6 +16,7 @@ mod opacity;
 #[path = "tests/nominal.rs"]
 mod nominal;
 
+pub(crate) mod diagnostic;
 mod generated;
 pub(crate) use generated::GeneratedActivation;
 
@@ -34,6 +35,10 @@ mod scan;
 #[cfg(test)]
 #[path = "tests/litaudit.rs"]
 mod litaudit_tests;
+
+#[cfg(test)]
+#[path = "tests/failure_fingerprint.rs"]
+mod failure_fingerprint_tests;
 
 use std::collections::HashMap;
 
@@ -1644,6 +1649,8 @@ pub(crate) enum Features {
         initial_sound: InitialSound,
         comparison: AdjectiveComparisonState,
         card_orientation: bool,
+        /// Whether the lexical head selects a following infinitive clause.
+        infinitive_complement: bool,
         /// True only for a lexically scanned past participle. The generated
         /// postpositive adjective-plus-PP construction uses this semantic bit
         /// to admit only the `blocked by ...` family.
@@ -2580,6 +2587,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
     type Features = Features;
     type Meaning = MeaningKey;
     type SurfaceWitness = EnglishSurfaceWitness;
+    type Rejection = reduction::GeneratedRejection;
 
     fn start(&self) -> Self::Nonterminal {
         self.start
@@ -3316,6 +3324,22 @@ impl Grammar for EnglishGrammar<'_, '_> {
         }
     }
 
+    fn reduction_rejection(
+        &self,
+        rule: RuleId,
+        children: &[Child<'_, Self>],
+    ) -> Option<Self::Rejection> {
+        Some(match self.impls.get(rule.index()).copied() {
+            Some(RuleImpl::Generated(generated)) => {
+                reduction::reduce_generated_traced(generated, children).err()?
+            }
+            Some(RuleImpl::GeneratedAux(generated)) => {
+                reduction::reduce_generated_aux_traced(generated, children).err()?
+            }
+            None => reduction::GeneratedRejection::MissingDeclaration,
+        })
+    }
+
     fn intermediate_cost(
         &self,
         rule: RuleId,
@@ -3390,6 +3414,24 @@ impl Grammar for EnglishGrammar<'_, '_> {
             Some(RuleImpl::GeneratedAux(_)) => true,
             None => false,
         }
+    }
+
+    fn prefix_rejection(
+        &self,
+        rule: RuleId,
+        completed_children: usize,
+        latest_child: &Self::Features,
+    ) -> Option<Self::Rejection> {
+        Some(match self.impls.get(rule.index()).copied() {
+            Some(RuleImpl::Generated(generated)) => reduction::generated_accepts_prefix_traced(
+                generated,
+                completed_children,
+                latest_child,
+            )
+            .err()?,
+            Some(RuleImpl::GeneratedAux(_)) => return None,
+            None => reduction::GeneratedRejection::MissingDeclaration,
+        })
     }
 
     fn state_limit(&self) -> Option<usize> {

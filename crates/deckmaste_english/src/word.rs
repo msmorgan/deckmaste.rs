@@ -21,6 +21,7 @@ use closed_class::auxiliary_instances;
 pub use modifier::Adjective;
 use modifier::AdjectiveComparison;
 pub(crate) use modifier::AdjectiveComparisonClass;
+pub(crate) use modifier::AdjectiveComplementKind;
 pub use modifier::CardOrientation;
 pub use modifier::ColorWord;
 pub use modifier::InitialSound;
@@ -86,6 +87,7 @@ struct VocabDefinition {
     predicate_frames: &'static [PredicateFrame],
     bare_nominal_adjunct: Option<BareNominalAdjunct>,
     adjective: bool,
+    adjective_complements: &'static [AdjectiveComplementKind],
     adverb: bool,
     sentence_adverbial: bool,
     comparison: Option<AdjectiveComparison>,
@@ -102,6 +104,7 @@ impl VocabDefinition {
             predicate_frames: &[],
             bare_nominal_adjunct: None,
             adjective: false,
+            adjective_complements: &[],
             adverb: false,
             sentence_adverbial: false,
             comparison: None,
@@ -150,6 +153,15 @@ impl VocabDefinition {
 
     const fn adjective(mut self) -> Self {
         self.adjective = true;
+        self
+    }
+
+    const fn adjective_complements(
+        mut self,
+        complements: &'static [AdjectiveComplementKind],
+    ) -> Self {
+        self.adjective = true;
+        self.adjective_complements = complements;
         self
     }
 
@@ -331,6 +343,13 @@ macro_rules! vocabulary {
                 self.definition().comparison
             }
 
+            pub(crate) fn licenses_adjective_complement(
+                self,
+                complement: AdjectiveComplementKind,
+            ) -> bool {
+                self.definition().adjective_complements.contains(&complement)
+            }
+
             /// Whether this vocabulary item is licensed in an adverb slot.
             pub(crate) fn is_adverb(self) -> bool {
                 self.definition().adverb
@@ -361,7 +380,7 @@ macro_rules! vocabulary {
 vocabulary! {
     Abandon("abandon").verb(VerbForm::Regular);
     Ability("ability").noun(NounDeclension::Regular, Countability::Count);
-    Able("able").adjective();
+    Able("able").adjective_complements(&[AdjectiveComplementKind::Infinitive]);
     Activate("activate").verb(VerbForm::Regular);
     Adapt("adapt").verb(VerbForm::Regular);
     Add("add").verb(VerbForm::Regular);

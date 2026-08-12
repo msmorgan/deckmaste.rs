@@ -2,6 +2,7 @@ use super::reduction::*;
 use super::*;
 use crate::catalog::CatalogKind;
 use crate::catalog::Catalogs;
+use crate::features::Comma;
 use crate::identity::SelfReference;
 use crate::syntax::AbilityKind;
 use crate::syntax::AdjectiveComplement;
@@ -3156,27 +3157,25 @@ fn single_only_if_restriction_keeps_its_dependent_attachment() {
     ));
 }
 
-#[test]
-fn repeated_if_disjunction_is_one_generated_subordinate_attachment() {
-    let source = "Activate only if this land entered this turn or if you control a basic land.";
+fn assert_repeated_if_fixture(
+    source: &str,
+    expected_position: AttachmentPosition,
+    expected_comma: Comma,
+    expected_conjunction: Conjunction,
+    expected_construction: &str,
+) {
     let catalogs = fixture_catalogs().with_catalog(CatalogKind::Supertype, ["Basic"]);
     let parsed = parse_nonterminal(source, &catalogs, Nonterminal::Sentence)
         .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+    assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source:?}");
     let SentenceBody::Independent(IndependentClause::Complex(complex)) =
         &parsed.sentence().expect("sentence root").body
     else {
         panic!("expected a complex clause");
     };
-    let Predicate::Intransitive(predicate) = imperative_predicate(complex.host()) else {
-        panic!("expected an imperative intransitive matrix");
-    };
-    assert!(matches!(
-        predicate.elements(),
-        [PredicateElement::Adjunct(PredicateAdjunct::Adverb(
-            Vocab::Only
-        ))]
-    ));
-    assert!(!complex.attachment().comma().is_present());
+    let _ = imperative_predicate(complex.host());
+    assert_eq!(complex.attachment().position(), expected_position);
+    assert_eq!(complex.attachment().comma(), expected_comma);
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::If,
         SubordinateBody::CoordinatedFinite(conditions),
@@ -3188,11 +3187,11 @@ fn repeated_if_disjunction_is_one_generated_subordinate_attachment() {
         );
     };
     assert!(matches!(conditions.first(), IndependentClause::Finite(_)));
-    assert_eq!(conditions.conjunction(), Conjunction::Or);
+    assert_eq!(conditions.conjunction(), expected_conjunction);
     assert_eq!(conditions.repeated_subordinator(), Subordinator::If);
     assert!(matches!(conditions.next(), IndependentClause::Finite(_)));
     assert!(parsed.construction_decisions().iter().any(|decision| {
-        decision.selected().as_str() == "clause_subordinate_after_repeated"
+        decision.selected().as_str() == expected_construction
             && decision.backend() == crate::ConstructionBackend::Chart
     }));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -3214,13 +3213,62 @@ fn repeated_if_disjunction_is_one_generated_subordinate_attachment() {
             .collect::<std::collections::BTreeSet<_>>()
     });
     assert!(!canonical[0].is_empty(), "no exact parse for {source:?}");
-    assert_eq!(canonical[1], canonical[0], "reversed registration changed");
-    assert_eq!(canonical[2], canonical[0], "fixed shuffle changed");
+    assert_eq!(
+        canonical[1], canonical[0],
+        "reversed registration changed {source:?}"
+    );
+    assert_eq!(
+        canonical[2], canonical[0],
+        "fixed shuffle changed {source:?}"
+    );
     assert!(orders.iter().all(|parses| {
         parses
             .iter()
             .all(|parse| render_sentence(&parse.ast().value) == source)
     }));
+}
+
+#[test]
+fn repeated_if_conditions_are_one_generated_subordinate_attachment() {
+    for (source, position, comma, conjunction, construction) in [
+        (
+            "Activate only if this land entered this turn or if you control a basic land.",
+            AttachmentPosition::AfterMatrix,
+            Comma::Absent,
+            Conjunction::Or,
+            "clause_subordinate_after_repeated",
+        ),
+        (
+            "Draw a card if you control a Plains and if you control a Swamp.",
+            AttachmentPosition::AfterMatrix,
+            Comma::Absent,
+            Conjunction::And,
+            "clause_subordinate_after_repeated",
+        ),
+        (
+            "If you control a Plains or if you control a Swamp, draw a card.",
+            AttachmentPosition::BeforeMatrix,
+            Comma::Present,
+            Conjunction::Or,
+            "clause_subordinate_before_repeated",
+        ),
+    ] {
+        assert_repeated_if_fixture(source, position, comma, conjunction, construction);
+    }
+}
+
+#[test]
+fn repeated_condition_construction_rejects_wrong_connectives_and_punctuation() {
+    for source in [
+        "Draw a card unless you control a Plains or unless you control a Swamp.",
+        "If you control a Plains or if you control a Swamp draw a card.",
+    ] {
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
+        assert!(
+            parsed.is_err(),
+            "{source:?} must not parse as a repeated if-condition: {parsed:#?}"
+        );
+    }
 }
 
 #[test]

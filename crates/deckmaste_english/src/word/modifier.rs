@@ -46,6 +46,25 @@ pub enum Adjective {
     Ordinal(i32),
 }
 
+/// A lexically selected post-head complement of an adjective.
+///
+/// Prepositional phrases remain the grammar's general post-head attachment;
+/// infinitives are selected by the adjective itself and therefore require an
+/// explicit vocabulary capability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
+pub(crate) enum AdjectiveComplementKind {
+    Infinitive,
+}
+
+impl Adjective {
+    pub(crate) fn licenses_complement(&self, complement: AdjectiveComplementKind) -> bool {
+        matches!(
+            self,
+            Self::Word(vocab) if vocab.licenses_adjective_complement(complement)
+        )
+    }
+}
+
 /// The initial sound of a surface string, read off its first character.
 /// Shared by every site that derives an onset from spelling rather than from
 /// a lexical entry's overridden `initial_sound`.

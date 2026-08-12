@@ -379,7 +379,6 @@ where
         &self.nodes[node.index()]
     }
 
-    #[cfg(test)]
     pub(crate) fn nodes(&self) -> impl Iterator<Item = &ForestNode<N, L, F, M, W>> {
         self.nodes.iter()
     }
