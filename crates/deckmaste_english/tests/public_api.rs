@@ -7890,7 +7890,7 @@ fn public_inventory_records_the_complete_backend_boundary() {
             .iter()
             .filter(|family| family.backend() == ConstructionBackend::Chart)
             .count(),
-        226,
+        227,
         "all remaining declarations are fan-out-one chart families"
     );
 }
