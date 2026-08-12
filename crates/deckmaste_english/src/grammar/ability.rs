@@ -1506,7 +1506,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             let component = parser.parse_cost_component(tokens);
             (!matches!(component, CostComponent::Recovered(_))).then_some(component)
         });
-        let mut components = if whole.is_none() {
+        let mut components = if let Some(whole) = whole {
+            vec![whole]
+        } else {
             let comma_parts = split_top_level(tokens, &[Punctuation::Comma]);
             // One or more ordinary components can precede a clause whose own
             // surface contains commas. Give the longest complete suffix back
@@ -1544,8 +1546,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     .map(|component| self.parse_cost_component(component))
                     .collect::<Vec<_>>()
             })
-        } else {
-            vec![whole.expect("the holistic cost component was accepted")]
         };
         if components.is_empty() {
             components.push(CostComponent::Recovered(self.recovered_text(tokens)));
@@ -2335,15 +2335,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             let tail_candidate = !apparent_list
                 || (preceding_separator.is_none()
                     && find_first_top_level_sentence_terminal(argument_tokens).is_some());
-            let argument = if !tail_candidate {
-                self.parse_keyword_argument(
-                    argument_tokens,
-                    ability_end,
-                    apparent_list,
-                    carries_from,
-                    bare_object,
-                )?
-            } else {
+            let argument = if tail_candidate {
                 let (argument, tail) = self.parse_keyword_argument_with_tail(
                     argument_tokens,
                     ability_end,
@@ -2352,6 +2344,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 )?;
                 trailing = tail;
                 argument
+            } else {
+                self.parse_keyword_argument(
+                    argument_tokens,
+                    ability_end,
+                    apparent_list,
+                    carries_from,
+                    bare_object,
+                )?
             };
             abilities.push((
                 preceding_separator,
@@ -2553,8 +2553,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                             bare_object,
                         )
                     }
-                    KeywordArgumentSeparator::Space => None,
-                    KeywordArgumentSeparator::SpacedEmDash => None,
+                    KeywordArgumentSeparator::Space | KeywordArgumentSeparator::SpacedEmDash => {
+                        None
+                    }
                 }?;
                 if !matches!(
                     &candidate,

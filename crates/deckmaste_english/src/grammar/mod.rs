@@ -1141,17 +1141,19 @@ impl EnglishLexicalSlot {
             Self::CombatStepDeclare => &["declare"],
             Self::CombatStepParticipants => &["attackers", "blockers"],
             Self::CombatStepHead => &["step"],
-            Self::VerbParticle(VerbParticle::Down) => &["down"],
+            Self::VerbParticle(VerbParticle::Down)
+            | Self::Down
+            | Self::Rounding(crate::syntax::Rounding::Down) => &["down"],
             Self::VerbParticle(VerbParticle::In) => &["in"],
             Self::VerbParticle(VerbParticle::Out) => &["out"],
-            Self::VerbParticle(VerbParticle::Up) => &["up"],
+            Self::VerbParticle(VerbParticle::Up)
+            | Self::Up
+            | Self::Rounding(crate::syntax::Rounding::Up) => &["up"],
             Self::CoinResult(crate::syntax::CoinSide::Heads) => &["up", "heads"],
             Self::CoinResult(crate::syntax::CoinSide::Tails) => &["up", "tails"],
             Self::FromWord => &["from"],
             Self::DeterminerTarget => &["target"],
             Self::RelativeMarker => &["who", "that"],
-            Self::Up | Self::Rounding(crate::syntax::Rounding::Up) => &["up"],
-            Self::Down | Self::Rounding(crate::syntax::Rounding::Down) => &["down"],
             Self::Not => &["not"],
             Self::To => &["to"],
             Self::Of => &["of"],
