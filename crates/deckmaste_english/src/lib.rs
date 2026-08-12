@@ -83,6 +83,7 @@ pub use grammar::diagnostic::NearDeclaration;
 pub use grammar::diagnostic::UncoveredBoundary;
 pub use grammar::diagnostic::diagnose_nonterminal_failure;
 pub use grammar::diagnostic::diagnose_nonterminal_failure_with_identity;
+pub use input::normalize_loyalty_minus;
 pub use input::normalize_roll_row_dashes;
 pub use input::normalize_sentence_case;
 pub use input::normalize_typographic_quotes;

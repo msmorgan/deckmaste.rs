@@ -493,6 +493,7 @@ mod tests {
     use std::path::Path;
     use std::time::Duration;
 
+    use deckmaste_english::normalize_loyalty_minus;
     use deckmaste_english::normalize_roll_row_dashes;
     use deckmaste_english::normalize_sentence_case;
     use deckmaste_english::normalize_typographic_quotes;
@@ -2444,8 +2445,8 @@ mod tests {
     fn normalized_rules_text(text: &str) -> String {
         // Sentence case is normalized last, after reminder text is gone, so a
         // stripped reminder can never shift a sentence boundary's position.
-        normalize_sentence_case(&normalize_roll_row_dashes(&normalize_typographic_quotes(
-            &strip_reminder_text(text),
+        normalize_sentence_case(&normalize_loyalty_minus(&normalize_roll_row_dashes(
+            &normalize_typographic_quotes(&strip_reminder_text(text)),
         )))
     }
 }

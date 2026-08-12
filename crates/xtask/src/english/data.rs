@@ -9,6 +9,7 @@ use anyhow::Result;
 use clap::Args;
 use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
+use deckmaste_english::normalize_loyalty_minus;
 use deckmaste_english::normalize_roll_row_dashes;
 use deckmaste_english::normalize_sentence_case;
 use deckmaste_english::normalize_typographic_quotes;
@@ -161,8 +162,9 @@ impl From<RawCardFace> for CardFace {
         // self-reference (rather than substituted for a sigil). Sentence case
         // is normalized last, after reminder text is gone, so a stripped
         // reminder can never shift a sentence boundary's position.
-        let normalized_source =
-            normalize_roll_row_dashes(&normalize_typographic_quotes(&source_text));
+        let normalized_source = normalize_loyalty_minus(&normalize_roll_row_dashes(
+            &normalize_typographic_quotes(&source_text),
+        ));
         let oracle_text = normalize_sentence_case(&strip_reminder_text(&normalized_source));
         Self {
             card_name: raw.name,

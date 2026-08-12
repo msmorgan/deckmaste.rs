@@ -33,7 +33,7 @@ use crate::player::FloatingManaId;
 use crate::stack::Frame;
 use crate::state::GameState;
 
-/// Return the outstanding obligations currently admitted by CR 601.2h. The
+/// Return the outstanding obligations currently admitted by [CR#601.2h]. The
 /// nonrandom/nonlibrary tier must finish before any remaining obligation that
 /// introduces randomness or moves a card out of a library.
 pub(super) fn current_tier(outstanding: &[PaymentIou]) -> Vec<&PaymentIou> {
