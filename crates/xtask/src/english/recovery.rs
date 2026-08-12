@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Args;
+use deckmaste_english::DiagnosticLimits;
 use deckmaste_english::ParseReport;
 use deckmaste_english::parse_with_identity;
 use deckmaste_english::syntax::LexicalOpacityKind;
@@ -14,6 +15,7 @@ use serde::Serialize;
 use crate::english::data::OracleDataArgs;
 use crate::english::data::map_supported_faces_with_workers;
 use crate::english::data::supported_face_jobs;
+use crate::english::recovery_fingerprints::RecoveryFingerprintInput;
 use crate::english::recovery_worklist::RuntimeRecoveryGroup;
 
 #[derive(Debug, Args)]
@@ -48,6 +50,26 @@ pub(super) struct RecoveryArgs {
         conflicts_with_all = ["json", "list", "worklist"]
     )]
     verify_worklist: Option<PathBuf>,
+
+    /// Export one bounded diagnostic fingerprint per exact recovery group.
+    #[arg(
+        long,
+        value_name = "PATH",
+        conflicts_with_all = ["json", "list", "worklist", "verify_worklist"]
+    )]
+    fingerprints: Option<PathBuf>,
+
+    /// Maximum rejection events retained by each fingerprint attempt.
+    #[arg(long, default_value_t = 256, requires = "fingerprints")]
+    fingerprint_max_events: usize,
+
+    /// Maximum frontier constituents retained by each fingerprint attempt.
+    #[arg(long, default_value_t = 64, requires = "fingerprints")]
+    fingerprint_max_frontier: usize,
+
+    /// Maximum chart-lattice states built by each fingerprint attempt.
+    #[arg(long, default_value_t = 250_000, requires = "fingerprints")]
+    fingerprint_max_lattice_states: usize,
 
     /// Fail unless the supported corpus has no structural recovery.
     #[arg(long)]
@@ -99,15 +121,26 @@ struct RecoveryGroup {
     occurrences: usize,
     source_tokens: usize,
     face_names: BTreeSet<String>,
+    exemplar: RecoveryExemplar,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RecoveryExemplar {
+    corpus_index: usize,
+    face_name: String,
+    is_legendary: bool,
 }
 
 impl RecoveryGroup {
-    fn observe(&mut self, source_tokens: usize, face_name: &str) {
+    fn observe(&mut self, source_tokens: usize, exemplar: RecoveryExemplar) {
         self.occurrences += 1;
         self.source_tokens += source_tokens;
-        self.face_names.insert(face_name.to_owned());
+        self.face_names.insert(exemplar.face_name.clone());
         while self.face_names.len() > LISTED_FACE_NAMES {
             self.face_names.pop_last();
+        }
+        if exemplar.corpus_index < self.exemplar.corpus_index {
+            self.exemplar = exemplar;
         }
     }
 
@@ -118,6 +151,9 @@ impl RecoveryGroup {
         while self.face_names.len() > LISTED_FACE_NAMES {
             self.face_names.pop_last();
         }
+        if other.exemplar.corpus_index < self.exemplar.corpus_index {
+            self.exemplar = other.exemplar;
+        }
     }
 }
 
@@ -127,7 +163,13 @@ struct RecoveryListing {
 }
 
 impl RecoveryListing {
-    fn observe(&mut self, role: RecoveryRole, text: &str, source_tokens: usize, face_name: &str) {
+    fn observe(
+        &mut self,
+        role: RecoveryRole,
+        text: &str,
+        source_tokens: usize,
+        exemplar: RecoveryExemplar,
+    ) {
         let key = (role, text.to_owned());
         let group = self.groups.entry(key).or_insert_with(|| RecoveryGroup {
             role,
@@ -135,8 +177,9 @@ impl RecoveryListing {
             occurrences: 0,
             source_tokens: 0,
             face_names: BTreeSet::new(),
+            exemplar: exemplar.clone(),
         });
-        group.observe(source_tokens, face_name);
+        group.observe(source_tokens, exemplar);
     }
 
     fn add(&mut self, other: Self) {
@@ -174,6 +217,20 @@ impl RecoveryListing {
                 occurrences: group.occurrences,
                 source_tokens: group.source_tokens,
                 face_names: group.face_names.iter().cloned().collect(),
+            })
+            .collect()
+    }
+
+    fn fingerprint_inputs(&self) -> Vec<RecoveryFingerprintInput> {
+        self.sorted_groups()
+            .into_iter()
+            .map(|group| RecoveryFingerprintInput {
+                role: group.role,
+                text: group.text.clone(),
+                occurrences: group.occurrences,
+                source_tokens: group.source_tokens,
+                exemplar_face_name: group.exemplar.face_name.clone(),
+                exemplar_is_legendary: group.exemplar.is_legendary,
             })
             .collect()
     }
@@ -315,7 +372,14 @@ struct FaceAudit {
 }
 
 impl FaceAudit {
-    fn observe_report(&mut self, report: &ParseReport, face_name: &str, list: bool) {
+    fn observe_report(
+        &mut self,
+        report: &ParseReport,
+        corpus_index: usize,
+        face_name: &str,
+        is_legendary: bool,
+        list: bool,
+    ) {
         self.census.observe_report(report);
         if list {
             let listing = self
@@ -326,7 +390,11 @@ impl FaceAudit {
                     recovery.role,
                     recovery.text,
                     recovery.source_tokens,
-                    face_name,
+                    RecoveryExemplar {
+                        corpus_index,
+                        face_name: face_name.to_owned(),
+                        is_legendary,
+                    },
                 );
             }
         }
@@ -354,7 +422,7 @@ pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
         args.workers,
         data.faces.iter().filter(|card| card.supported).count(),
     );
-    let audit = map_supported_faces_with_workers(&data.faces, args.workers, |_, card| {
+    let audit = map_supported_faces_with_workers(&data.faces, args.workers, |index, card| {
         let report = parse_with_identity(
             &card.oracle_text,
             &data.catalogs,
@@ -364,8 +432,13 @@ pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
         let mut audit = FaceAudit::default();
         audit.observe_report(
             &report,
+            index,
             card.printed_name(),
-            args.list || args.worklist.is_some() || args.verify_worklist.is_some(),
+            card.is_legendary,
+            args.list
+                || args.worklist.is_some()
+                || args.verify_worklist.is_some()
+                || args.fingerprints.is_some(),
         );
         audit
     })
@@ -378,7 +451,8 @@ pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
             },
             recovery_listing: (args.list
                 || args.worklist.is_some()
-                || args.verify_worklist.is_some())
+                || args.verify_worklist.is_some()
+                || args.fingerprints.is_some())
             .then(RecoveryListing::default),
         },
         |mut audit, card| {
@@ -410,6 +484,23 @@ pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
         println!(
             "verified {} audited recovery groups: {} implemented, {} assigned to follow-up; {} groups remain at runtime",
             summary.audited, summary.implemented, summary.follow_up, summary.current,
+        );
+    } else if let Some(path) = args.fingerprints.as_deref() {
+        let listing = recovery_listing
+            .as_ref()
+            .expect("fingerprint export requested recovery collection");
+        let groups = listing.fingerprint_inputs();
+        let limits = DiagnosticLimits {
+            max_events: args.fingerprint_max_events,
+            max_frontier: args.fingerprint_max_frontier,
+            max_lattice_states: args.fingerprint_max_lattice_states,
+        };
+        let json = crate::english::recovery_fingerprints::export(&groups, &data.catalogs, limits)?;
+        std::fs::write(path, json)?;
+        println!(
+            "exported {} diagnostic recovery fingerprints to {} (transient corpus artifact; do not commit)",
+            groups.len(),
+            path.display()
         );
     } else if args.json {
         println!("{}", serde_json::to_string_pretty(&census)?);
@@ -515,6 +606,14 @@ mod tests {
 
     use super::*;
 
+    fn exemplar(corpus_index: usize, face_name: &str) -> RecoveryExemplar {
+        RecoveryExemplar {
+            corpus_index,
+            face_name: face_name.to_owned(),
+            is_legendary: false,
+        }
+    }
+
     #[test]
     fn census_separates_clause_recovery_from_opaque_nouns() {
         let mut census = Census::default();
@@ -557,15 +656,28 @@ mod tests {
     #[test]
     fn recovery_listing_groups_exact_text_and_keeps_sorted_face_names_bounded() {
         let mut listing = RecoveryListing::default();
-        for face_name in ["Zeta", "Gamma", "Epsilon", "Alpha", "Beta", "Delta"] {
-            listing.observe(RecoveryRole::Clause, "You frobnitz a card.", 5, face_name);
+        for (index, face_name) in ["Zeta", "Gamma", "Epsilon", "Alpha", "Beta", "Delta"]
+            .into_iter()
+            .enumerate()
+        {
+            listing.observe(
+                RecoveryRole::Clause,
+                "You frobnitz a card.",
+                5,
+                exemplar(index, face_name),
+            );
         }
-        listing.observe(RecoveryRole::Clause, "You glorp a card.", 5, "Other");
+        listing.observe(
+            RecoveryRole::Clause,
+            "You glorp a card.",
+            5,
+            exemplar(6, "Other"),
+        );
         listing.observe(
             RecoveryRole::ActivationCost,
             "Pay a mystery cost.",
             4,
-            "Costly",
+            exemplar(7, "Costly"),
         );
 
         let groups = listing.sorted_groups();
@@ -574,6 +686,7 @@ mod tests {
         assert_eq!(groups[0].text, "You frobnitz a card.");
         assert_eq!(groups[0].occurrences, 6);
         assert_eq!(groups[0].source_tokens, 30);
+        assert_eq!(groups[0].exemplar.face_name, "Zeta");
         assert_eq!(
             groups[0]
                 .face_names
@@ -589,11 +702,29 @@ mod tests {
     #[test]
     fn recovery_listing_merge_preserves_counts_and_bounded_face_names() {
         let mut left = RecoveryListing::default();
-        left.observe(RecoveryRole::Clause, "You frobnitz a card.", 5, "Zeta");
-        left.observe(RecoveryRole::Clause, "You frobnitz a card.", 5, "Gamma");
+        left.observe(
+            RecoveryRole::Clause,
+            "You frobnitz a card.",
+            5,
+            exemplar(9, "Zeta"),
+        );
+        left.observe(
+            RecoveryRole::Clause,
+            "You frobnitz a card.",
+            5,
+            exemplar(8, "Gamma"),
+        );
         let mut right = RecoveryListing::default();
-        for face_name in ["Epsilon", "Alpha", "Beta", "Delta"] {
-            right.observe(RecoveryRole::Clause, "You frobnitz a card.", 5, face_name);
+        for (index, face_name) in ["Epsilon", "Alpha", "Beta", "Delta"]
+            .into_iter()
+            .enumerate()
+        {
+            right.observe(
+                RecoveryRole::Clause,
+                "You frobnitz a card.",
+                5,
+                exemplar(index, face_name),
+            );
         }
 
         left.add(right);
@@ -601,6 +732,7 @@ mod tests {
         let group = &left.sorted_groups()[0];
         assert_eq!(group.occurrences, 6);
         assert_eq!(group.source_tokens, 30);
+        assert_eq!(group.exemplar.face_name, "Epsilon");
         assert_eq!(
             group
                 .face_names
