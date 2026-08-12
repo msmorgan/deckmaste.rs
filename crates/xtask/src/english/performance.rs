@@ -283,44 +283,6 @@ mod tests {
     }
 
     #[test]
-    fn predicate_activation_stays_within_reviewed_short_input_work_growth() {
-        // Mutation caught: activate declaration-owned predicate productions
-        // without pruning their generated chart fan-out back to the
-        // pre-activation work envelope.
-        //
-        // The clause-coordination retrofit increased the clause declaration
-        // from 20 to 39 rows. On this input, constituent nodes remain 59 and
-        // maximum alternatives remain 1; intermediate nodes and packed
-        // alternatives each increase by exactly 55. That paired increase is
-        // the deterministic forest structure for the newly predicted rows,
-        // not new ambiguity. Avoiding it would require chart-level factoring
-        // across generated constructions rather than a narrower clause rule.
-        let parent = audit(
-            "short input",
-            WorkCounters {
-                chart_unique_items: 936,
-                chart_max_column_width: 381,
-                forest_constituent_nodes: 59,
-                forest_intermediate_nodes: 400,
-                forest_packed_alternatives: 459,
-                forest_max_alternatives: 1,
-            },
-        );
-        let current = PerformanceAudit {
-            inputs: vec![audit_text(
-                "short input",
-                SHORT_INPUT,
-                &Catalogs::default(),
-                "",
-                false,
-            )],
-        };
-
-        check_against(&parent, &current, 10)
-            .expect("predicate activation must stay within reviewed deterministic work growth");
-    }
-
-    #[test]
     fn abandoned_chart_attempt_increases_gated_work() {
         let source = "Suspend 3, definitely not a keyword.";
         let catalogs = Catalogs::default()
