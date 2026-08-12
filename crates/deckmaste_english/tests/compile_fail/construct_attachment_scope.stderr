@@ -1,9 +1,9 @@
 error[E0451]: fields `host` and `attachment` of struct `AttachmentScope` are private
- --> tests/compile_fail/construct_attachment_scope.rs:7:9
-  |
-6 |     AttachmentScope {
-  |     --------------- in this type
-7 |         host: Box::new(host),
-  |         ^^^^ private field
-8 |         attachment: Box::new(attachment),
-  |         ^^^^^^^^^^ private field
+  --> tests/compile_fail/construct_attachment_scope.rs:10:9
+   |
+ 9 |     AttachmentScope {
+   |     --------------- in this type
+10 |         host: Box::new(host),
+   |         ^^^^ private field
+11 |         attachment: Box::new(attachment),
+   |         ^^^^^^^^^^ private field
