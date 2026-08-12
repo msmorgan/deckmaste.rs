@@ -4,7 +4,8 @@
   },
   "enabledPlugins": {
     "mtg-rules@mtg-rules": true,
-    "idris2-guide@idris2-guide": true
+    "idris2-guide@idris2-guide": true,
+    "jj-workflow@jj-workflow": true
   },
   "extraKnownMarketplaces": {
     "mtg-rules": {
