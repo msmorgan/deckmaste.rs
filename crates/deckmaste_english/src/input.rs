@@ -14,6 +14,46 @@ pub fn normalize_typographic_quotes(text: &str) -> String {
         .collect()
 }
 
+/// Normalizes an ASCII minus in a loyalty-cost header to the canonical minus
+/// sign.
+///
+/// Oracle normally prints negative loyalty costs as `[−N]:` (U+2212), which is
+/// also the form emitted by the renderer. A source-data outlier instead spells
+/// the cost as `[-N]:`. This boundary rewrite is restricted to a complete
+/// loyalty header, so arithmetic hyphens and ordinary punctuation are left
+/// untouched. Round-trip callers apply it to expected text as well as parser
+/// input.
+#[must_use]
+pub fn normalize_loyalty_minus(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut output = String::with_capacity(text.len());
+    let mut cursor = 0;
+
+    while let Some(relative_open) = text[cursor..].find("[-") {
+        let open = cursor + relative_open;
+        let value_start = open + 2;
+        let mut value_end = value_start;
+        while bytes.get(value_end).is_some_and(u8::is_ascii_digit) {
+            value_end += 1;
+        }
+        if value_end == value_start && bytes.get(value_end) == Some(&b'X') {
+            value_end += 1;
+        }
+
+        if value_end > value_start && bytes.get(value_end..value_end + 2) == Some(b"]:") {
+            output.push_str(&text[cursor..=open]);
+            output.push('−');
+            cursor = value_start;
+        } else {
+            output.push_str(&text[cursor..value_start]);
+            cursor = value_start;
+        }
+    }
+
+    output.push_str(&text[cursor..]);
+    output
+}
+
 /// Normalizes a die-roll result-row range separator to a single en dash.
 ///
 /// A roll-table row is printed as `RANGE | body`. Oracle text draws an
@@ -187,6 +227,24 @@ mod tests {
             "Other permanents you control have \"{T}: Add one mana of any color.\""
         );
         assert_eq!(normalize_typographic_quotes("It can’t."), "It can't.");
+    }
+
+    #[test]
+    fn ascii_loyalty_minus_normalizes_to_the_renderer_spelling() {
+        assert_eq!(
+            normalize_loyalty_minus(
+                "Planeswalkers have \"[-12]: Take an extra turn.\" and [-X]: Draw a card."
+            ),
+            "Planeswalkers have \"[−12]: Take an extra turn.\" and [−X]: Draw a card."
+        );
+    }
+
+    #[test]
+    fn hyphens_outside_complete_loyalty_headers_are_left_alone() {
+        assert_eq!(
+            normalize_loyalty_minus("Deal 3-4 damage. [-2] is quoted. [-A]: No. [−2]: Yes."),
+            "Deal 3-4 damage. [-2] is quoted. [-A]: No. [−2]: Yes."
+        );
     }
 
     #[test]

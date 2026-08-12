@@ -154,7 +154,7 @@ pub struct PaymentPrompt {
     pub fulfilled: Vec<IouId>,
     pub floating_mana: Vec<ManaUnit>,
     pub coverage: Option<ManaCoverage>,
-    /// Outstanding IOUs in the currently legal CR 601.2h tier.
+    /// Outstanding IOUs in the currently legal [CR#601.2h] tier.
     pub fulfillable: Vec<IouId>,
     pub mana_abilities: Vec<(ObjectId, usize)>,
     pub rescindable: Vec<IouId>,

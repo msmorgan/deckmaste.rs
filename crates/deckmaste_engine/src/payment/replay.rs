@@ -106,7 +106,7 @@ pub enum ReplayCommand {
     },
 }
 
-/// A concrete CR 733 prohibition found after replacements finished.
+/// A concrete [CR#733.1] prohibition found after replacements finished.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ReversalBarrier {
     MovedToLibrary,
@@ -134,7 +134,7 @@ pub struct TransactionRecord {
     pub object_inputs: HashMap<ObjectId, LogicalObject>,
     /// Transaction records owned by this command's nested payment frame.
     /// They replay at their recorded transcript boundary. Nested mana actions
-    /// remain separately selectable CR 733 reversal units.
+    /// remain separately selectable [CR#733.1] reversal units.
     pub children: Vec<TransactionRecord>,
     pub facts: Vec<GameEvent>,
     pub produced_mana: Vec<QualifiedManaId>,
@@ -2152,7 +2152,7 @@ pub(crate) fn barriers_for(facts: &[GameEvent]) -> (Vec<ReversalBarrier>, Vec<Ob
 
 /// Classify information-sensitive facts while their referenced objects still
 /// have the zones they occupied at observation time. A bare `Revealed` fact
-/// does not encode its source zone, so CR 733's library-only reveal barrier
+/// does not encode its source zone, so [CR#733.1]'s library-only reveal barrier
 /// cannot be recovered later from the fact alone.
 pub(crate) fn contextual_barriers_for(
     state: &GameState,

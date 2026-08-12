@@ -1035,6 +1035,9 @@ fn decline_unannounces_while_retaining_a_barred_root_fulfillment() {
     assert_eq!(state.payment_depth(), 0);
     assert!(!state.zones.battlefield.contains(&source));
     assert_eq!(state.zones.libraries[payer.index()].len(), 1);
+    // The activation reverses only as far as the library barrier permits,
+    // then returns priority so the player may take another action
+    // ([CR#733.1,733.2]).
     assert!(matches!(state.pending, Some(PendingDecision::Priority(_))));
     assert!(matches!(
         state.incidents(),

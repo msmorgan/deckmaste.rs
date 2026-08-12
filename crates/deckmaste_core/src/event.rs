@@ -441,7 +441,7 @@ pub enum EventFilter {
         what: Predicate,
     },
     /// A lowering-classified activated mana ability was activated. Kept
-    /// distinct from `ActivatedAb` so CR 605.1b classification can prove the
+    /// distinct from `ActivatedAb` so [CR#605.1b] classification can prove the
     /// trigger is caused only by a mana ability.
     ManaAbilityActivated {
         #[serde(default = "Predicate::any")]

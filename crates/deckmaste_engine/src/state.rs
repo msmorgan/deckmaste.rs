@@ -208,8 +208,9 @@ pub enum EngineIncident {
 }
 
 /// A spell or activated-ability announcement abandoned before payment was
-/// submitted. Task-local replay metadata records whether CR 733 forced any
-/// speculative operations to survive the recovery.
+/// submitted. Task-local replay metadata records whether [CR#733.1] forced any
+/// speculative operations to survive recovery before the player receives
+/// priority again and may take a different action ([CR#733.2]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PaymentDeclined {
     pub player: crate::player::PlayerId,
@@ -272,7 +273,7 @@ pub struct ReplaceState {
 }
 
 /// Resolution-local registers suspended while a stackless mana ability runs.
-/// A mana ability has its own resolution under CR 605.3b/605.4a even when it
+/// A mana ability has its own resolution under [CR#605.3b,605.4a] even when it
 /// interrupts another resolving effect, so its anaphora and lookback state
 /// must not overwrite the containing resolution's registers.
 #[derive(Debug, Clone)]

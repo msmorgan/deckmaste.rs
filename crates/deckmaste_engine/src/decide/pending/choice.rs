@@ -147,7 +147,9 @@ impl DecisionHandler for Division {
     }
 }
 
-/// Vote, each player in turn order ([CR#701.38a]) — shell.
+/// Vote, each player in turn order ([CR#701.38a]) — shell. A resolver must
+/// collect multiple votes granted to one player in the same turn
+/// ([CR#701.38d]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Vote {
     pub player: PlayerId,
