@@ -53,6 +53,8 @@ pub(crate) use verb::PredicateComplementKind;
 pub(crate) use verb::PredicateFrame;
 use verb::RECIPIENT_PASSIVE_PREDICATE_FRAMES;
 use verb::REQUIRED_OBJECT_PREDICATE_FRAMES;
+use verb::ROUND_PREDICATE_FRAMES;
+use verb::SEPARATE_PREDICATE_FRAMES;
 pub(crate) use verb::VERB_SLOTS;
 pub use verb::Verb;
 pub use verb::VerbDefinition;
@@ -725,6 +727,9 @@ vocabulary! {
     Roll("roll")
         .noun(NounDeclension::Regular, Countability::Count)
         .verb(VerbForm::Regular);
+    Round("round")
+        .verb(VerbForm::NonPast)
+        .predicate_frames(ROUND_PREDICATE_FRAMES);
     Sacrifice("sacrifice").verb(VerbForm::Regular);
     Saddle("saddle").verb(VerbForm::Regular);
     Same("same").adjective();
@@ -736,6 +741,9 @@ vocabulary! {
             .with_past("sought")
             .with_past_participle("sought")
     ));
+    Separate("separate")
+        .verb(VerbForm::Regular)
+        .predicate_frames(SEPARATE_PREDICATE_FRAMES);
     Set("set").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("set")
@@ -1434,7 +1442,9 @@ mod tests {
                         verb: Verb::Word(vocab),
                         slot,
                     };
-                    let surface = vocabulary.render_verb(vocab, slot).unwrap();
+                    let Some(surface) = vocabulary.render_verb(vocab, slot) else {
+                        continue;
+                    };
                     assert!(
                         vocabulary
                             .matches(&surface, LexicalSlot::Verb(slot))
@@ -1483,5 +1493,26 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn defective_nonpast_verbs_do_not_invent_participles() {
+        let vocabulary = Vocabulary::new();
+        assert_eq!(
+            vocabulary.render_verb(Vocab::Round, VerbSlot::Imperative),
+            Some("round".to_owned())
+        );
+        assert_eq!(
+            vocabulary.render_verb(Vocab::Round, VerbSlot::PastParticiple),
+            None
+        );
+        assert!(
+            !vocabulary
+                .matches("rounded", LexicalSlot::Verb(VerbSlot::PastParticiple))
+                .contains(&WordMatch::Verb(VerbInstance {
+                    verb: Verb::Word(Vocab::Round),
+                    slot: VerbSlot::PastParticiple,
+                }))
+        );
     }
 }

@@ -128,6 +128,14 @@ impl ParsedNonterminal {
     }
 
     #[cfg(test)]
+    pub(crate) fn coordinated_modifier(&self) -> Option<&crate::syntax::CoordinatedModifier> {
+        match &self.syntax {
+            Lowered::CoordinatedModifier(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    #[cfg(test)]
     pub(crate) fn verb_phrase(&self) -> Option<&super::VerbPhrase> {
         match &self.syntax {
             Lowered::VerbPhrase(predicate) => Some(predicate),

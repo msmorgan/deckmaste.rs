@@ -288,6 +288,9 @@ pub(super) const ASK_PREDICATE_FRAMES: &[PredicateFrame] = &[
         .with_direct_object(ArgumentRequirement::Required)
         .with_indirect_object(ArgumentRequirement::Required),
 ];
+pub(super) const SEPARATE_PREDICATE_FRAMES: &[PredicateFrame] = &[PredicateFrame::OPEN
+    .with_direct_object(ArgumentRequirement::Required)
+    .with_selected_prepositions(ArgumentRequirement::Required, &[Preposition::Into])];
 /// `deal` is ditransitive in the rules idiom: the theme is the direct object
 /// and the recipient surfaces in a `to` phrase in the active voice. Its
 /// passive promotes the RECIPIENT and retains the theme (`an opponent was
@@ -312,10 +315,21 @@ pub(super) const LOOK_PREDICATE_FRAMES: &[PredicateFrame] = &[
 ];
 pub(super) const PHASE_PREDICATE_FRAMES: &[PredicateFrame] =
     &[PredicateFrame::OPEN.with_particles(&[VerbParticle::In, VerbParticle::Out])];
+pub(super) const ROUND_PREDICATE_FRAMES: &[PredicateFrame] = &[
+    INTRANSITIVE_PREDICATE_FRAME.with_particles(&[VerbParticle::Down, VerbParticle::Up]),
+    PredicateFrame::OPEN
+        .with_direct_object(ArgumentRequirement::Required)
+        .with_particles(&[VerbParticle::Down, VerbParticle::Up]),
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum VerbForm {
     Regular,
+    /// A defective lexical verb admitted in nonpast finite and base forms.
+    ///
+    /// This is narrower than an ordinary regular paradigm: it must not make a
+    /// coincidentally spelled participial rider available as a finite verb.
+    NonPast,
     Irregular(IrregularVerbDef),
 }
 
@@ -429,13 +443,14 @@ impl Vocabulary {
 
     pub(crate) fn render_regular_verb(lemma: &str, slot: VerbSlot) -> String {
         render_verb_form(lemma, VerbForm::Regular, slot)
+            .expect("a regular verb has every inflected form")
     }
 
     #[must_use]
     pub fn render_verb(self, vocab: Vocab, slot: VerbSlot) -> Option<String> {
         let definition = vocab.definition();
         let form = definition.verb?;
-        Some(render_verb_form(definition.spelling, form, slot))
+        render_verb_form(definition.spelling, form, slot)
     }
 
     #[must_use]
@@ -490,7 +505,20 @@ pub(crate) const VERB_SLOTS: [VerbSlot; 12] = [
     VerbSlot::PastParticiple,
 ];
 
-pub(super) fn render_verb_form(lemma: &str, form: VerbForm, slot: VerbSlot) -> String {
+pub(super) fn render_verb_form(lemma: &str, form: VerbForm, slot: VerbSlot) -> Option<String> {
+    if form == VerbForm::NonPast {
+        return matches!(
+            slot,
+            VerbSlot::Infinitive | VerbSlot::Imperative | VerbSlot::Present { .. }
+        )
+        .then(|| match slot {
+            VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Singular,
+            } => regular_third_person_singular(lemma),
+            _ => lemma.to_owned(),
+        });
+    }
     if let VerbForm::Irregular(irregular) = form {
         let override_form = match slot {
             VerbSlot::Infinitive | VerbSlot::Imperative => None,
@@ -522,11 +550,11 @@ pub(super) fn render_verb_form(lemma: &str, form: VerbForm, slot: VerbSlot) -> S
             VerbSlot::PastParticiple => irregular.past_participle,
         };
         if let Some(surface) = override_form {
-            return surface.to_owned();
+            return Some(surface.to_owned());
         }
     }
 
-    match slot {
+    Some(match slot {
         VerbSlot::Present {
             person: Person::Third,
             number: Number::Singular,
@@ -534,7 +562,7 @@ pub(super) fn render_verb_form(lemma: &str, form: VerbForm, slot: VerbSlot) -> S
         VerbSlot::Infinitive | VerbSlot::Imperative | VerbSlot::Present { .. } => lemma.to_owned(),
         VerbSlot::Past { .. } | VerbSlot::PastParticiple => regular_past(lemma),
         VerbSlot::PresentParticiple => regular_present_participle(lemma),
-    }
+    })
 }
 
 fn regular_third_person_singular(verb: &str) -> String {

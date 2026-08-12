@@ -1216,8 +1216,10 @@ fn admit_particle_prefix(predicate: &Features) -> Option<Features> {
     admit_attachment_prefix(
         predicate,
         [
+            PredicateAttachment::Particle(VerbParticle::Down),
             PredicateAttachment::Particle(VerbParticle::In),
             PredicateAttachment::Particle(VerbParticle::Out),
+            PredicateAttachment::Particle(VerbParticle::Up),
         ],
     )
 }
@@ -2967,6 +2969,7 @@ fn is_verb_phrase_prepositional(value: &VerbPhrase) -> bool {
         ))
     ) && !is_passive_shared_prepositional(value)
         && !is_pronominal_resultative_prepositional(value)
+        && !is_pronominal_coordinated_resultative_prepositional(value)
         && value.declaration_core_features().is_some()
 }
 
@@ -3084,6 +3087,173 @@ fn is_pronominal_resultative_prepositional(value: &VerbPhrase) -> bool {
     pronominal_destination_continuation(&predicate)
         && past_participle_resultative(&adjective)
         && make_pronominal_resultative_prepositional(predicate, adjective, preposition).is_ok()
+}
+
+fn reduce_pronominal_coordinated_resultative_prepositional_features(
+    predicate: &Features,
+    first: &Features,
+    conjunction: &Features,
+    second: &Features,
+    preposition: &Features,
+) -> Option<Features> {
+    if !matches!(
+        predicate,
+        Features::VerbPhrase {
+            object: crate::grammar::PredicateObjectState::PronominalDirect,
+            phase: crate::grammar::PredicateAttachmentPhase::PrepositionalTail,
+            ..
+        }
+    ) || !matches!(
+        first,
+        Features::Adjective {
+            past_participle: true,
+            ..
+        }
+    ) || !matches!(
+        second,
+        Features::Adjective {
+            past_participle: true,
+            ..
+        }
+    ) || !matches!(
+        conjunction,
+        Features::Conjunction(Conjunction::And | Conjunction::Or)
+    ) {
+        return None;
+    }
+    let predicate = extend_predicate_features(predicate, PredicateAttachment::AdjectiveComplement)?;
+    reduce_verb_phrase_prepositional_features(&predicate, preposition)
+}
+
+fn complete_pronominal_coordinated_resultative_prepositional(
+    predicate: &Features,
+    first: &Features,
+    conjunction: &Features,
+    second: &Features,
+    preposition: &Features,
+) -> Option<Features> {
+    admit_argument_complete(
+        reduce_pronominal_coordinated_resultative_prepositional_features(
+            predicate,
+            first,
+            conjunction,
+            second,
+            preposition,
+        ),
+    )
+}
+
+fn make_pronominal_coordinated_resultative_prepositional(
+    predicate: VerbPhrase,
+    first: AdjectivePhrase,
+    conjunction: Conjunction,
+    second: AdjectivePhrase,
+    preposition: PrepositionalPhrase,
+) -> Result<VerbPhrase, DeclarationViolation> {
+    if !pronominal_destination_continuation(&predicate)
+        || !past_participle_resultative(&first)
+        || !past_participle_resultative(&second)
+        || !matches!(conjunction, Conjunction::And | Conjunction::Or)
+    {
+        return Err(violation(
+            "verb_phrase_pronominal_coordinated_resultative_prepositional",
+            "the destination follows a pronominal direct object and every coordinated resultative is a past participle",
+        ));
+    }
+    let adjective = crate::constructions::coordination::build_coordinated_adjective_members(
+        first,
+        vec![(Some(conjunction), second)],
+    )?;
+    let predicate = crate::constructions::coordination::build_verb_phrase_coordinated_adjective(
+        predicate, adjective,
+    )?;
+    let Some(features) = predicate.declaration_core_features() else {
+        return Err(violation(
+            "verb_phrase_pronominal_coordinated_resultative_prepositional",
+            "the coordinated resultative predicate has valid attachment features",
+        ));
+    };
+    extend_predicate_features(
+        &features,
+        PredicateAttachment::Prepositional(preposition.head().preposition),
+    )
+    .ok_or_else(|| {
+        violation(
+            "verb_phrase_pronominal_coordinated_resultative_prepositional",
+            "the trailing preposition is licensed after the coordinated resultative",
+        )
+    })?;
+    let dependent = prepositional_dependent(&predicate, preposition).ok_or_else(|| {
+        violation(
+            "verb_phrase_pronominal_coordinated_resultative_prepositional",
+            "the trailing preposition has a selected or adjunct role",
+        )
+    })?;
+    let (mut dependents, shell) = predicate.declaration_into_dependent_projection();
+    dependents.push(dependent);
+    Ok(VerbPhrase::declaration_from_dependent_projection(
+        shell, dependents,
+    ))
+}
+
+fn pronominal_coordinated_resultative_prepositional_parts(
+    value: &VerbPhrase,
+) -> (
+    VerbPhrase,
+    AdjectivePhrase,
+    Conjunction,
+    AdjectivePhrase,
+    PrepositionalPhrase,
+) {
+    let (predicate, preposition) = parts_verb_phrase_prepositional(value)
+        .expect("coordinated resultative continuation ends with its trailing preposition");
+    let (predicate, dependent) = predicate.declaration_last_dependent_parts().expect(
+        "coordinated resultative continuation keeps its adjective immediately before the PP",
+    );
+    let VerbDependent::CoordinatedAdjective(adjective) = dependent else {
+        unreachable!("the coordinated resultative projection is typed")
+    };
+    let [member] = adjective.rest() else {
+        unreachable!("the coordinated resultative pair has one continuation")
+    };
+    let conjunction = member
+        .conjunction()
+        .expect("the coordinated resultative pair has one conjunction");
+    (
+        predicate,
+        adjective.first().clone(),
+        conjunction,
+        member.phrase().clone(),
+        preposition,
+    )
+}
+
+fn is_pronominal_coordinated_resultative_prepositional(value: &VerbPhrase) -> bool {
+    let Some((predicate, preposition)) = parts_verb_phrase_prepositional(value) else {
+        return false;
+    };
+    let Some((predicate, VerbDependent::CoordinatedAdjective(adjective))) =
+        predicate.declaration_last_dependent_parts()
+    else {
+        return false;
+    };
+    let [member] = adjective.rest() else {
+        return false;
+    };
+    let Some(conjunction) = member.conjunction() else {
+        return false;
+    };
+    pronominal_destination_continuation(&predicate)
+        && past_participle_resultative(adjective.first())
+        && past_participle_resultative(member.phrase())
+        && make_pronominal_coordinated_resultative_prepositional(
+            predicate,
+            adjective.first().clone(),
+            conjunction,
+            member.phrase().clone(),
+            preposition,
+        )
+        .is_ok()
 }
 
 fn is_verb_phrase_adverb(value: &VerbPhrase) -> bool {
@@ -3301,6 +3471,21 @@ deckmaste_constructions_macro::constructions! {
         derive features: Features = reduce_pronominal_resultative_prepositional_features(predicate, adjective, preposition);
         derive argument_complete: Features = complete_pronominal_resultative_prepositional(predicate, adjective, preposition);
         form only @ 0 inverse check(is_pronominal_resultative_prepositional) = predicate adjective preposition;
+        selection unique;
+    }
+
+    construction verb_phrase_pronominal_coordinated_resultative_prepositional: VerbPhrase {
+        bind VerbPhrase via make_pronominal_coordinated_resultative_prepositional, pronominal_coordinated_resultative_prepositional_parts {
+            predicate: hole VerbPhrase,
+            first: hole AdjectivePhrase,
+            conjunction: lex Conjunction,
+            second: hole AdjectivePhrase,
+            preposition: hole PrepositionalPhrase,
+        }
+        require conjunction in [And, Or];
+        derive features: Features = reduce_pronominal_coordinated_resultative_prepositional_features(predicate, first, conjunction, second, preposition);
+        derive argument_complete: Features = complete_pronominal_coordinated_resultative_prepositional(predicate, first, conjunction, second, preposition);
+        form only @ 0 inverse check(is_pronominal_coordinated_resultative_prepositional) = predicate first lex(conjunction) second preposition;
         selection unique;
     }
 
@@ -4262,9 +4447,9 @@ mod tests {
 
     #[allow(
         clippy::too_many_lines,
-        reason = "the explicit table keeps all 37 declaration rows and their typed witnesses reviewable in declaration order"
+        reason = "the explicit table keeps all 38 declaration rows and their typed witnesses reviewable in declaration order"
     )]
-    fn all_37_predicate_family_witnesses(catalogs: &Catalogs) -> Vec<PredicateFamilyWitness> {
+    fn all_38_predicate_family_witnesses(catalogs: &Catalogs) -> Vec<PredicateFamilyWitness> {
         let verb = |vocab, slot, frame| {
             build_verb(lexical_head(vocab, slot, frame)).expect("the witness verb builds")
         };
@@ -4313,7 +4498,7 @@ mod tests {
         };
         let ability = test_ability_atom(catalogs);
         let quoted_tap = test_quoted_ability("{T}: Draw a card.", catalogs);
-        let quoted_flying = test_quoted_ability("Flying", catalogs);
+        let quoted_flying = test_quoted_ability("Flying.", catalogs);
         let white = test_symbol("{W}");
         let blue = test_symbol("{U}");
         let black = test_symbol("{B}");
@@ -4443,6 +4628,37 @@ mod tests {
                             parsed_preposition("to the battlefield"),
                         )
                         .unwrap(),
+                        crate::adjective::build_adjective_phrase(Adjective::Participle(
+                            Tense::Past,
+                            crate::word::Verb::Word(Vocab::Transform),
+                        ))
+                        .unwrap(),
+                        parsed_preposition("under your control"),
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_pronominal_coordinated_resultative_prepositional",
+                category: "VerbPhrase",
+                surface: "return it to the battlefield tapped and transformed under your control",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_pronominal_coordinated_resultative_prepositional(
+                        build_verb_phrase_prepositional(
+                            build_verb_phrase_direct_object(
+                                open_predicate(Vocab::Return),
+                                object_it(),
+                            )
+                            .unwrap(),
+                            parsed_preposition("to the battlefield"),
+                        )
+                        .unwrap(),
+                        crate::adjective::build_adjective_phrase(Adjective::Participle(
+                            Tense::Past,
+                            crate::word::Verb::Word(Vocab::Tap),
+                        ))
+                        .unwrap(),
+                        Conjunction::And,
                         crate::adjective::build_adjective_phrase(Adjective::Participle(
                             Tense::Past,
                             crate::word::Verb::Word(Vocab::Transform),
@@ -4615,7 +4831,7 @@ mod tests {
             PredicateFamilyWitness {
                 id: "verb_phrase_quoted_ability_coordination",
                 category: "VerbPhrase",
-                surface: "have \"{T}: Draw a card.\" or \"Flying\"",
+                surface: "have \"{T}: Draw a card.\" or \"Flying.\"",
                 value: PredicateFamilyWitnessValue::VerbPhrase(
                     build_verb_phrase_quoted_ability_coordination(
                         open_predicate(Vocab::Have),
@@ -4774,7 +4990,7 @@ mod tests {
     #[test]
     #[allow(
         clippy::too_many_lines,
-        reason = "one explicit behavioral law checks all 37 declaration rows"
+        reason = "one explicit behavioral law checks all 38 declaration rows"
     )]
     fn every_predicate_row_has_a_typed_generated_inverse_and_exact_reparse() {
         // Mutations caught: omit a row from the category visitor, route any
@@ -4782,8 +4998,8 @@ mod tests {
         // ordinal, lower a row to a sibling typed value, or make registration
         // order choose a different generated construction.
         let catalogs = crate::grammar::fixture_catalogs();
-        let witnesses = all_37_predicate_family_witnesses(&catalogs);
-        assert_eq!(witnesses.len(), 37);
+        let witnesses = all_38_predicate_family_witnesses(&catalogs);
+        assert_eq!(witnesses.len(), 38);
         assert_eq!(
             witnesses
                 .iter()
@@ -5334,7 +5550,7 @@ mod tests {
 
         let ability = test_ability_atom(&catalogs);
         let quoted_tap = test_quoted_ability("{T}: Draw a card.", &catalogs);
-        let quoted_flying = test_quoted_ability("Flying", &catalogs);
+        let quoted_flying = test_quoted_ability("Flying.", &catalogs);
         exact_row!(
             "verb_phrase_ability",
             "gain flying",
@@ -5350,7 +5566,7 @@ mod tests {
         );
         exact_row!(
             "verb_phrase_quoted_ability_coordination",
-            "have \"{T}: Draw a card.\" or \"Flying\"",
+            "have \"{T}: Draw a card.\" or \"Flying.\"",
             "VerbPhrase",
             build_verb_phrase_quoted_ability_coordination(
                 open_predicate(Vocab::Have),
@@ -6758,7 +6974,7 @@ mod tests {
     }
 
     #[test]
-    fn predicate_family_has_exactly_the_required_37_id_census() {
+    fn predicate_family_has_exactly_the_required_38_id_census() {
         // Mutation caught: omit or rename the final causative declaration, or
         // accidentally admit an extra predicate-family owner while the group
         // is admitted to the production group.
@@ -6777,6 +6993,7 @@ mod tests {
                 "verb_phrase_indirect_object",
                 "verb_phrase_adjective",
                 "verb_phrase_pronominal_resultative_prepositional",
+                "verb_phrase_pronominal_coordinated_resultative_prepositional",
                 "verb_phrase_prepositional",
                 "verb_phrase_passive_shared_determiner_prepositional",
                 "verb_phrase_except_by",
