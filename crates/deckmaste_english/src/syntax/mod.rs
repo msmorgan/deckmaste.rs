@@ -71,6 +71,15 @@ impl OracleText {
     }
 }
 
+impl Paragraph {
+    /// Whether this paragraph contains any recovery node at any nested role.
+    pub(crate) fn has_recovery(&self) -> bool {
+        let mut walker = RecoveryWalker::default();
+        walker.paragraph(self, None);
+        !walker.phrases.is_empty()
+    }
+}
+
 impl crate::fragment::Fragment {
     /// Every recovered span inside this fragment, the same census
     /// [`OracleText::recoveries`] reports for a whole card.
@@ -220,7 +229,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
             } => {
                 self.noun_phrase(restriction, inner);
                 match cost {
-                    KeywordCost::Symbols(_) => {}
+                    KeywordCost::Symbols(_) | KeywordCost::CoordinatedSymbols { .. } => {}
                     KeywordCost::Sentence { ability, .. } => self.ability(ability, inner),
                     KeywordCost::Components { cost, .. } => self.cost(cost, inner),
                 }
@@ -239,6 +248,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
             KeywordArgument::Absent
             | KeywordArgument::Counted(_)
             | KeywordArgument::Costed(KeywordCost::Symbols(_))
+            | KeywordArgument::Costed(KeywordCost::CoordinatedSymbols { .. })
             | KeywordArgument::CountedCost { .. }
             | KeywordArgument::Statted { .. }
             | KeywordArgument::Named { .. } => {}
