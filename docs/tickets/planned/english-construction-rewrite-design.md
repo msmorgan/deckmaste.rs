@@ -10,8 +10,17 @@ inside the parser-generator core. Design its replacement before porting more
 grammar.
 
 This ticket is intentionally independent of completing the current recovery
-sweep. Existing code, tests, and corpus observations are research inputs, not a
-compatibility contract or a dependency.
+sweep. Derive the replacement grammar primarily from
+[`docs/oracle-style-guide.md`](../../oracle-style-guide.md), then test it against
+the current authoritative Oracle corpus. Consult the CR where a grammatical
+distinction depends on rules meaning. The legacy regex migrations, old parser
+acceptance, recovered trees, and their tests are not grammar evidence or a
+corpus of prior examples. Inspect the old implementation for independently
+useful mechanisms and engineering lessons, including catalog and vocabulary
+design, source/span handling, rendering and diagnostic infrastructure, and
+failure modes worth avoiding. Salvage an idea only after justifying it against
+the rewrite's requirements; never retain it because old output or compatibility
+depends on it.
 
 ## Do not inherit decisions by default
 
@@ -32,6 +41,8 @@ In particular, reopen rather than assume:
   values;
 - whether packed ambiguity is part of the public model or development tooling;
 - whether any recovery/partial-parse representation should exist;
+- whether serialization is needed at any actual boundary; Serde must not be
+  used as a tree-walking or control-flow mechanism;
 - which old consumers and public APIs deserve continuity at cutover.
 
 ## Current direction to evaluate
@@ -72,8 +83,9 @@ coherent model better meets the project objective:
 1. **Minimal macro language.** Write a one-page grammar and semantics for the
    smallest useful declaration algebra. Start from typed categories, recursive
    holes, sums/products/sequences, lexical fields, feature admission, reversible
-   surface forms, and packed alternatives. Every additional facility needs an
-   independent grammar reason—not an old-layout or migration reason.
+   surface forms, and packed alternatives. Derive the necessary constructions
+   from the style guide and current Oracle corpus. Every additional facility
+   needs an independent grammar reason—not an old-layout or migration reason.
 2. **Canonical AST ownership.** Decide which values the macro generates and
    which English types remain handwritten. Make checked semantic owners the
    normal output; do not begin with constructor/destructor adapters or lenses
@@ -108,16 +120,23 @@ coherent model better meets the project objective:
 
 - A tracked architecture decision with the crate/dependency diagram, core data
   types, public APIs, invariants, rejected alternatives, and an explicit audit
-  of which prior decisions it reaffirms or supersedes.
+  of which prior decisions it reaffirms or supersedes. It must record the source
+  hierarchy: style guide first, current Oracle corpus as conformance evidence,
+  rules meaning where necessary, and no evidentiary role for legacy migrations.
 - A representative vertical slice—at least ability, sentence, clause, noun
   phrase, and verb phrase—shown as proposed macro invocations with the resulting
   AST and exact inverse rendering. A disposable prototype is allowed when prose
   cannot settle a question, but this ticket does not port the corpus grammar.
 - A salvage ledger that evaluates ideas independently. Copy no implementation
-  wholesale. In particular, explicitly justify retaining or rejecting typed
-  categories, sequence invariants, feature combinators, inverse forms,
-  dominance, lenses, bind adapters, projection metadata, evidence/witness
-  metadata, serde policy, and recovery nodes.
+  wholesale. Begin by examining catalogs, vocabulary and lexical indexing,
+  source/span tracking, renderer organization, ambiguity representation, and
+  diagnostic tooling for reusable mechanisms. Also explicitly justify retaining
+  or rejecting typed categories, sequence invariants, feature combinators,
+  inverse forms, dominance, lenses, bind adapters, projection metadata,
+  evidence/witness metadata, and recovery nodes. Prefer ordinary typed traversal
+  APIs; evaluate Serde only for a real serialization boundary, never as a tree
+  walker. Old acceptance, parse trees, recovery output, and migration behavior
+  are never salvage criteria.
 - A small implementation sequence with measurable vertical milestones. Do not
   mint additional tickets from that sequence without explicit user approval.
 

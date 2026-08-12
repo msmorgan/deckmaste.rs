@@ -37,3 +37,13 @@ before changing the grammar, annotate every exact group, and retain it outside
 the repository. Final `--verify-worklist` verification must prove that every
 implemented group disappeared, every retained group names its focused
 follow-up, and no unaudited group entered the current corpus result.
+
+## Resolution
+
+Superseded by `english-construction-rewrite-design`. The preservation-heavy
+construction architecture and exhaustive recovery-disposition approach are no
+longer the direction of the project. This feature retains only the grammar
+improvements and diagnostic experiments that are independently useful as an
+interim snapshot or rewrite reference; it does not claim completion of the
+original all-family worklist. No recovery baseline becomes a compatibility
+contract, and no bulk family-ticket expansion is retained.
