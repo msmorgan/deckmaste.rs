@@ -3515,6 +3515,18 @@ impl<'identity> Renderer<'identity> {
             rendered.push_str(&self.keyword_argument(&ability.argument)?);
         }
         if let Some(paragraph) = list.trailing() {
+            if matches!(
+                &abilities
+                    .rest()
+                    .last()
+                    .map(|continuation| &continuation.value().argument)
+                    .unwrap_or(&abilities.first().argument),
+                KeywordArgument::Costed(
+                    KeywordCost::Symbols(_) | KeywordCost::CoordinatedSymbols { .. }
+                )
+            ) {
+                rendered.push('.');
+            }
             rendered.push(' ');
             rendered.push_str(&self.paragraph_with_suffix(
                 paragraph,
@@ -3536,6 +3548,16 @@ impl<'identity> Renderer<'identity> {
     fn keyword_cost(&self, cost: &KeywordCost) -> Result<String, RenderError> {
         Ok(match cost {
             KeywordCost::Symbols(symbols) => format!(" {}", render_symbol_sequence(symbols)),
+            KeywordCost::CoordinatedSymbols {
+                first,
+                conjunction,
+                second,
+            } => format!(
+                " {} {} {}",
+                render_symbol_sequence(first),
+                render_nominal_conjunction(*conjunction)?,
+                render_symbol_sequence(second)
+            ),
             // `Sentence`'s separator is always the spaced em dash; see the
             // variant's doc comment.
             KeywordCost::Sentence { ability } => format!(

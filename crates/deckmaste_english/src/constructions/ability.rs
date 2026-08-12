@@ -10,6 +10,7 @@ use deckmaste_construction_compiler::runtime::SeparatedNonEmpty;
 )]
 use crate::Numeral;
 use crate::catalog::CatalogAtom;
+use crate::features::Conjunction;
 use crate::syntax::Ability;
 use crate::syntax::AbilityHeader;
 use crate::syntax::AbilityKind;
@@ -257,6 +258,11 @@ deckmaste_constructions_macro::constructions! {
     }
     element keyword_cost bind KeywordCost {
         variant Symbols: hole Vec<OracleSymbol>,
+        variant CoordinatedSymbols {
+            first: hole Vec<OracleSymbol>,
+            conjunction: identity Conjunction via Conjunction,
+            second: hole Vec<OracleSymbol>,
+        },
         variant Sentence {
             ability: hole box Ability,
         },

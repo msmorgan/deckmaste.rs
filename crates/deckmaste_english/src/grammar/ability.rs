@@ -1494,11 +1494,59 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     fn parse_cost(&mut self, tokens: &[Token]) -> Cost {
         let all_tokens = tokens;
         let (flavor_header, tokens) = self.peel_cost_flavor_header(tokens);
-        let mut components = split_top_level(tokens, &[Punctuation::Comma])
-            .into_iter()
-            .filter(|component| !component.is_empty())
-            .map(|component| self.parse_cost_component(component))
-            .collect::<Vec<_>>();
+        // A comma inside one imperative cost belongs first to the clause
+        // grammar: object coordination (`Sacrifice a white creature, a blue
+        // creature, and a black creature`) and arithmetic attachments (`Pay
+        // half your life, rounded up`) are each one generated clause, not a
+        // list of independent activation-cost components. Only split after
+        // that holistic constituent declines; symbol-led and genuinely
+        // multi-component costs cannot parse as a clause and still take the
+        // comma-separated path below.
+        let whole = self.attempt(|parser| {
+            let component = parser.parse_cost_component(tokens);
+            (!matches!(component, CostComponent::Recovered(_))).then_some(component)
+        });
+        let mut components = if whole.is_none() {
+            let comma_parts = split_top_level(tokens, &[Punctuation::Comma]);
+            // One or more ordinary components can precede a clause whose own
+            // surface contains commas. Give the longest complete suffix back
+            // to the clause grammar before flattening all commas into sibling
+            // costs: `{2}{U}, {T}, Sacrifice a white creature, a blue creature,
+            // and a black creature` has three components, not five.
+            let prefix_and_clause = (1..comma_parts.len()).find_map(|split| {
+                self.attempt(|parser| {
+                    let mut components = comma_parts[..split]
+                        .iter()
+                        .map(|part| parser.parse_cost_component(part))
+                        .collect::<Vec<_>>();
+                    if components
+                        .iter()
+                        .any(|component| matches!(component, CostComponent::Recovered(_)))
+                    {
+                        return None;
+                    }
+                    let remainder_start = comma_parts.get(split)?.first()?.span.start;
+                    let remainder_index = tokens
+                        .iter()
+                        .position(|token| token.span.start == remainder_start)?;
+                    let remainder = parser.parse_cost_component(&tokens[remainder_index..]);
+                    if matches!(remainder, CostComponent::Recovered(_)) {
+                        return None;
+                    }
+                    components.push(remainder);
+                    Some(components)
+                })
+            });
+            prefix_and_clause.unwrap_or_else(|| {
+                comma_parts
+                    .into_iter()
+                    .filter(|component| !component.is_empty())
+                    .map(|component| self.parse_cost_component(component))
+                    .collect::<Vec<_>>()
+            })
+        } else {
+            vec![whole.expect("the holistic cost component was accepted")]
+        };
         if components.is_empty() {
             components.push(CostComponent::Recovered(self.recovered_text(tokens)));
         }
@@ -2239,7 +2287,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         {
             parts
         } else {
-            // Fallback: a single unsplit line whose sole item is a Stage B
+            // Fallback: a single unsplit line whose sole item is a
             // restriction-plus-cost whose restriction is itself a comma-
             // coordinated quality list (`Equip Shaman, Warlock, or Wizard {1}`,
             // `Craft with a Dinosaur, a Merfolk, a Pirate, and a Vampire {4}`).
@@ -2272,7 +2320,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         Option<Paragraph>,
     )> {
         let chunks = self.split_keyword_items(tokens);
-        let in_list = chunks.len() > 1;
+        let apparent_list = chunks.len() > 1;
         let mut abilities = Vec::with_capacity(chunks.len());
         let mut trailing = None;
         for (preceding_separator, chunk) in chunks {
@@ -2284,11 +2332,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             let bare_object = !super::keyword_atom_carries_preposition(&atom);
             let argument_tokens = &chunk[matched_end..];
             let ability_end = chunk.get(matched_end.checked_sub(1)?)?.span.end;
-            let argument = if in_list {
+            let tail_candidate = !apparent_list
+                || (preceding_separator.is_none()
+                    && find_first_top_level_sentence_terminal(argument_tokens).is_some());
+            let argument = if !tail_candidate {
                 self.parse_keyword_argument(
                     argument_tokens,
                     ability_end,
-                    in_list,
+                    apparent_list,
                     carries_from,
                     bare_object,
                 )?
@@ -2309,6 +2360,13 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     argument,
                 },
             ));
+            if trailing.is_some() && apparent_list {
+                // The apparent later "items" are sentences following the
+                // first keyword, not members of a keyword list. Retain the
+                // recognized host item and ignore the splitter's obsolete
+                // view of the trailing sentence.
+                break;
+            }
         }
         let mut abilities = abilities.into_iter();
         let (first_separator, first) = abilities.next()?;
@@ -2367,8 +2425,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let mut preceding = None;
         let mut depth = Nesting::default();
         let mut tight_cost: Option<bool> = None;
+        let mut after_sentence_terminal = false;
         for (index, token) in tokens.iter().enumerate() {
-            let separator = if depth.is_top_level() {
+            let separator = if depth.is_top_level() && !after_sentence_terminal {
                 match token.kind {
                     TokenKind::Punctuation(Punctuation::Comma) => Some(KeywordListSeparator::Comma),
                     TokenKind::Punctuation(Punctuation::Semicolon) => {
@@ -2397,7 +2456,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     start = index + 1;
                     tight_cost = None;
                 }
-                None => depth.observe(token.kind),
+                None => {
+                    if depth.is_top_level() && is_sentence_terminal(token.kind) {
+                        after_sentence_terminal = true;
+                    }
+                    depth.observe(token.kind);
+                }
             }
         }
         chunks.push((preceding, &tokens[start..]));
@@ -2452,12 +2516,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     /// Like [`Self::parse_keyword_argument`], but licensed only for a
-    /// single-keyword list (`!in_list`): if the argument is a tight em-dash
-    /// cost whose body contains a top-level sentence terminal with more
-    /// tokens after it on the same line, split the tail off as a same-line
-    /// trailing paragraph rather than feeding it to `parse_cost`. The split
-    /// is committed only when the prefix actually shapes as the structured
-    /// cost; otherwise this falls back to the ordinary single path.
+    /// single-keyword list (`!in_list`): if a cost argument contains a
+    /// top-level sentence terminal with more tokens after it on the same
+    /// line, split the tail off as a same-line trailing paragraph. Tight
+    /// em-dash sentence costs retain their terminal inside `Components`;
+    /// space-separated symbol costs leave it at the keyword-line boundary,
+    /// where the renderer joins the typed cost and trailing paragraph. The
+    /// split is committed only when the prefix actually shapes as the
+    /// corresponding cost; otherwise this falls back to the ordinary path.
     fn parse_keyword_argument_with_tail(
         &mut self,
         argument_tokens: &[Token],
@@ -2466,20 +2532,55 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         bare_object: bool,
     ) -> Option<(KeywordArgument, Option<Paragraph>)> {
         let (separator, body) = split_keyword_argument_separator(argument_tokens, ability_end);
-        if separator == KeywordArgumentSeparator::EmDash
-            && let Some(split_index) = find_first_top_level_sentence_terminal(body)
+        if let Some(split_index) = find_first_top_level_sentence_terminal(body)
             && split_index + 1 < body.len()
+            && let Some(split) = self.attempt(|parser| {
+                let tail_part = &body[split_index + 1..];
+                let candidate = match separator {
+                    KeywordArgumentSeparator::EmDash => {
+                        Some(parser.parse_tight_keyword_cost(&body[..=split_index]))
+                    }
+                    KeywordArgumentSeparator::Space
+                        if matches!(
+                            body[split_index].kind,
+                            TokenKind::Punctuation(Punctuation::Period)
+                        ) =>
+                    {
+                        parser.parse_space_argument(
+                            &body[..split_index],
+                            false,
+                            carries_from,
+                            bare_object,
+                        )
+                    }
+                    KeywordArgumentSeparator::Space => None,
+                    KeywordArgumentSeparator::SpacedEmDash => None,
+                }?;
+                if !matches!(
+                    &candidate,
+                    KeywordArgument::Costed(
+                        KeywordCost::Symbols(_)
+                            | KeywordCost::CoordinatedSymbols { .. }
+                            | KeywordCost::Components { .. }
+                    )
+                ) {
+                    return None;
+                }
+                let tail = parser.parse_paragraph(tail_part);
+                let candidate_is_complete = match &candidate {
+                    KeywordArgument::Costed(KeywordCost::Components { cost, .. }) => !cost
+                        .components()
+                        .iter()
+                        .any(|component| matches!(component, CostComponent::Recovered(_))),
+                    KeywordArgument::Costed(
+                        KeywordCost::Symbols(_) | KeywordCost::CoordinatedSymbols { .. },
+                    ) => true,
+                    _ => false,
+                };
+                (candidate_is_complete && !tail.has_recovery()).then_some((candidate, tail))
+            })
         {
-            let cost_part = &body[..=split_index];
-            let tail_part = &body[split_index + 1..];
-            let candidate = self.parse_tight_keyword_cost(cost_part);
-            if matches!(
-                candidate,
-                KeywordArgument::Costed(KeywordCost::Components { .. })
-            ) {
-                let tail = self.parse_paragraph(tail_part);
-                return Some((candidate, Some(tail)));
-            }
+            return Some((split.0, Some(split.1)));
         }
         let argument = self.parse_keyword_argument(
             argument_tokens,
@@ -2535,7 +2636,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             .split_last()
             .and_then(|(terminal, body)| is_sentence_terminal(terminal.kind).then_some(body));
         if without_terminal == Some(&[]) {
-            return None;
+            return (self.quoted_fragment && in_list).then_some(KeywordArgument::Absent);
         }
         let argument_tokens = without_terminal
             .filter(|tokens| {
@@ -2703,6 +2804,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if let Some(symbols) = symbol_cost(self.tokens_text(body)) {
             return Some(KeywordArgument::Costed(KeywordCost::Symbols(symbols)));
         }
+        if let Some(coordinated) = self.parse_coordinated_symbol_cost(body) {
+            return Some(KeywordArgument::Costed(coordinated));
+        }
         if let Some(restricted) = self.parse_restricted_cost(body) {
             return Some(restricted);
         }
@@ -2710,6 +2814,22 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return Some(predicated);
         }
         self.parse_qualified(body, in_list, bare_object)
+    }
+
+    fn parse_coordinated_symbol_cost(&self, body: &[Token]) -> Option<KeywordCost> {
+        let [first, conjunction, second] = body else {
+            return None;
+        };
+        let conjunction = match self.token_text(conjunction).to_ascii_lowercase().as_str() {
+            "or" => Conjunction::Or,
+            "and/or" => Conjunction::AndOr,
+            _ => return None,
+        };
+        Some(KeywordCost::CoordinatedSymbols {
+            first: symbol_cost(self.token_text(first))?,
+            conjunction,
+            second: symbol_cost(self.token_text(second))?,
+        })
     }
 
     /// The bare noun-phrase argument [CR#702.5a] gives enchant (`Enchant
@@ -2738,13 +2858,13 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         })
     }
 
-    /// Stage B's restriction-plus-final-symbol-cost shape: a quality
-    /// restriction (optionally introduced by `onto`/`with`) followed by a
-    /// bare mana/symbol cost with no internal em dash — `craft with artifact
-    /// {1}{U}`, `equip legendary creature {1}`. The final symbol run is the
-    /// categorical surface gate: only tried after the whole-body symbol-cost
-    /// and counted-cost attempts above have already declined, so `Equip {3}`
-    /// never reaches here.
+    /// A restriction-plus-final-symbol-cost shape: a quality
+    /// restriction (optionally introduced by `onto`/`with`/`from`) followed by
+    /// a bare mana/symbol cost with no internal em dash — `craft with
+    /// artifact {1}{U}`, `emerge from artifact {5}{B}{B}`. The final symbol
+    /// run is the categorical surface gate: only tried after the whole-body
+    /// symbol-cost and counted-cost attempts above have already declined,
+    /// so `Equip {3}` never reaches here.
     fn parse_restricted_cost(&mut self, body: &[Token]) -> Option<KeywordArgument> {
         let (last, rest) = body.split_last()?;
         if !matches!(
@@ -2779,7 +2899,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         })
     }
 
-    /// Stage A′'s composition: a restriction joined to a tight em-dash
+    /// A restriction joined to a tight em-dash
     /// structured cost by an internal dash — `splice onto Arcane—Exile four
     /// cards from your graveyard.`. Tried only after `parse_counted_cost`
     /// and `parse_statted` have already declined on this same internal
@@ -2806,7 +2926,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return None;
         }
         let (preposition, restriction_tokens) = peel_restriction_preposition(left, self.source);
-        preposition?;
+        if !matches!(preposition, Some(Preposition::Onto | Preposition::With)) {
+            return None;
+        }
         if restriction_tokens.is_empty() {
             return None;
         }
@@ -2882,9 +3004,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         // other prepositional or bare quality (`hexproof from blue`, where the
         // keyword atom carries the `from`; a `Champion of Freedom` name fragment a
         // comma split off) reads only inside a keyword list, or on a single line
-        // whose matched atom itself carries a final `from` (Stage C, `kwgrant`
-        // round) — the closed catalog-surface property `carries_from`, never a
-        // keyword-name list.
+        // whose matched atom itself carries a final `from` — the closed
+        // catalog-surface property `carries_from`, never a keyword-name list.
         let starts_from_for = body
             .first()
             .is_some_and(|token| predicated_preposition(self.token_text(token)).is_some());
@@ -2915,6 +3036,23 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return Some(PredicatedQuality {
                 preposition: Some(Preposition::From),
                 quality: Phrase::ColorWord(color),
+            });
+        }
+        // A preposition may select an adjective quality directly (`from
+        // monocolored`). Such a quality is not a prepositional phrase because
+        // it has no nominal object, but both pieces are already closed lexical
+        // constituents and the predicated-argument shape owns their
+        // composition.
+        if let Some((first, rest)) = segment.split_first()
+            && let Some(preposition) = predicated_preposition(self.token_text(first))
+            && let Some(adjective) =
+                self.accept_exact(rest, Nonterminal::AdjectivePhrase, |parsed| {
+                    parsed.adjective_phrase().cloned()
+                })
+        {
+            return Some(PredicatedQuality {
+                preposition: Some(preposition),
+                quality: Phrase::AdjectivePhrase(Box::new(adjective)),
             });
         }
         // Any prepositional phrase, carrying its actual preposition.
@@ -2951,8 +3089,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 quality: Phrase::ColorWord(color),
             });
         }
-        // A bare adjective quality (`monocolored`) — `kwgrant` round Stage C.
-        // `monocolored` is an adjective (`regular-vocabulary.tsv:526`), not a
+        // A bare adjective quality (`monocolored`). It is an adjective
+        // (`regular-vocabulary.tsv:526`), not a
         // noun, so it needs its own exact-parse arm between the color and
         // noun-phrase cases or it falls through to the noun-phrase attempt
         // and fails.
@@ -3471,8 +3609,8 @@ fn em_dash_keyword_label_is_bare(text: &str) -> bool {
     !text.is_empty() && !text.contains(['.', '!', '?', ':'])
 }
 
-/// Peels exactly one leading `onto` or `with` preposition off a Stage B
-/// restriction, or leaves the tokens untouched for any other leading word —
+/// Peels exactly one leading `onto`, `with`, or `from` preposition off a Stage
+/// B restriction, or leaves the tokens untouched for any other leading word —
 /// widening to other prepositions is explicitly not licensed by the shape.
 fn peel_restriction_preposition<'tokens>(
     tokens: &'tokens [Token],
@@ -3486,6 +3624,8 @@ fn peel_restriction_preposition<'tokens>(
         (Some(Preposition::Onto), &tokens[1..])
     } else if text.eq_ignore_ascii_case("with") {
         (Some(Preposition::With), &tokens[1..])
+    } else if text.eq_ignore_ascii_case("from") {
+        (Some(Preposition::From), &tokens[1..])
     } else {
         (None, tokens)
     }
@@ -3639,6 +3779,101 @@ mod tests {
     }
 
     #[test]
+    fn holistic_imperative_costs_own_internal_commas_in_every_registration_order() {
+        for (source, expected_symbols, expected_clauses, internal_comma_owner) in [
+            ("Pay half your life, rounded up: Draw a card.", 0, 1, true),
+            (
+                "{B}{B}, Pay half your life, rounded up: Destroy target nonblack creature.",
+                1,
+                1,
+                true,
+            ),
+            (
+                "{2}{U}, {T}, Sacrifice a white creature, a blue creature, and a black creature: Search your library for a card.",
+                2,
+                1,
+                true,
+            ),
+            (
+                "Discard a card, Sacrifice this creature: Draw a card.",
+                0,
+                2,
+                false,
+            ),
+        ] {
+            let activations = [
+                crate::grammar::GeneratedActivation::Groups(crate::constructions::ALL_GROUPS),
+                crate::grammar::GeneratedActivation::GroupsReversed(
+                    crate::constructions::ALL_GROUPS,
+                ),
+                crate::grammar::GeneratedActivation::GroupsFixedShuffle(
+                    crate::constructions::ALL_GROUPS,
+                ),
+            ];
+            let reports =
+                activations.map(|activation| parse_with_activation_for_test(source, activation));
+            assert_eq!(reports[0].ast, reports[1].ast, "{source}");
+            assert_eq!(reports[0].ast, reports[2].ast, "{source}");
+            assert_eq!(reports[0].diagnostics, reports[1].diagnostics, "{source}");
+            assert_eq!(reports[0].diagnostics, reports[2].diagnostics, "{source}");
+            assert!(reports[0].diagnostics.is_empty(), "{source}");
+            assert_eq!(reports[0].selections, reports[1].selections, "{source}");
+            assert_eq!(reports[0].selections, reports[2].selections, "{source}");
+
+            let [ability] = reports[0].ast.abilities.as_slice() else {
+                panic!("expected one ability: {:#?}", reports[0].ast);
+            };
+            let AbilityKind::Activated(activated) = ability.kind() else {
+                panic!("expected activated ability: {ability:#?}");
+            };
+            assert_eq!(
+                activated.cost.components().len(),
+                expected_symbols + expected_clauses
+            );
+            assert_eq!(
+                activated
+                    .cost
+                    .components()
+                    .iter()
+                    .filter(|component| matches!(component, CostComponent::Symbols(_)))
+                    .count(),
+                expected_symbols
+            );
+            assert_eq!(
+                activated
+                    .cost
+                    .components()
+                    .iter()
+                    .filter(|component| matches!(component, CostComponent::Clause(_)))
+                    .count(),
+                expected_clauses
+            );
+            assert!(
+                activated.cost.components()[..expected_symbols]
+                    .iter()
+                    .all(|component| matches!(component, CostComponent::Symbols(_)))
+            );
+            if internal_comma_owner {
+                assert!(
+                    reports[0]
+                        .selections
+                        .iter()
+                        .flat_map(|selection| &selection.constructions)
+                        .any(|decision| {
+                            let id = decision.selected().as_str();
+                            id == "noun_phrase_half_rounded_up"
+                                || id.starts_with("noun_phrase_coordination")
+                                || id.starts_with("coordination_")
+                        }),
+                    "a generated internal-comma owner must be selected: {:#?}",
+                    reports[0].selections
+                );
+            }
+            assert_eq!(reports[0].ast.render(FIXTURE_NAME, true).unwrap(), source);
+        }
+    }
+
+    #[test]
     fn symbol_cost_round_trips_through_structured_symbols() {
         // The keyword symbol cost is now carried as `Vec<OracleSymbol>`, never a
         // raw string; it must reproduce its spelling byte-exactly by
@@ -3657,6 +3892,154 @@ mod tests {
             "{2}{W}"
         );
         assert_eq!(render(&report), "Morph {2}{W}");
+    }
+
+    #[test]
+    fn coordinated_symbol_keyword_costs_are_typed_and_order_neutral() {
+        for (source, expected) in [
+            ("Cumulative upkeep {G} or {W}", Conjunction::Or),
+            ("Kicker {1}{B} and/or {G}", Conjunction::AndOr),
+        ] {
+            let activations = [
+                crate::grammar::GeneratedActivation::Groups(crate::constructions::ALL_GROUPS),
+                crate::grammar::GeneratedActivation::GroupsReversed(
+                    crate::constructions::ALL_GROUPS,
+                ),
+                crate::grammar::GeneratedActivation::GroupsFixedShuffle(
+                    crate::constructions::ALL_GROUPS,
+                ),
+            ];
+            let reports =
+                activations.map(|activation| parse_with_activation_for_test(source, activation));
+            assert_eq!(reports[0].ast, reports[1].ast, "{source}");
+            assert_eq!(reports[0].ast, reports[2].ast, "{source}");
+            assert_eq!(reports[0].diagnostics, reports[1].diagnostics, "{source}");
+            assert_eq!(reports[0].diagnostics, reports[2].diagnostics, "{source}");
+            assert_eq!(reports[0].selections, reports[1].selections, "{source}");
+            assert_eq!(reports[0].selections, reports[2].selections, "{source}");
+            let AbilityKind::Keyword(keywords) = reports[0].ast.abilities[0].kind() else {
+                panic!("expected keyword ability: {:#?}", reports[0].ast);
+            };
+            assert!(matches!(
+                &keywords.first().argument,
+                KeywordArgument::Costed(KeywordCost::CoordinatedSymbols {
+                    first,
+                    conjunction,
+                    second,
+                }) if first.len() == if source.contains("{1}") { 2 } else { 1 }
+                    && *conjunction == expected
+                    && second.len() == 1
+            ));
+            assert!(
+                reports[0].ast.recoveries().is_empty(),
+                "{source}: {:#?}",
+                reports[0].ast
+            );
+            assert_eq!(reports[0].ast.render(FIXTURE_NAME, true).unwrap(), source);
+        }
+    }
+
+    #[test]
+    fn remaining_keyword_compositions_are_typed_and_order_neutral() {
+        let catalogs = shape_catalogs();
+        let identity = SelfReference::new("Test Card", false);
+        let restriction_source = "from artifact {5}{B}{B}";
+        let restriction_surface = lex(restriction_source);
+        let mut restriction_parser =
+            super::Parser::new(restriction_source, &catalogs, &identity, false);
+        assert!(matches!(
+            restriction_parser.parse_restricted_cost(&restriction_surface.tokens),
+            Some(KeywordArgument::RestrictedCost {
+                preposition: Some(Preposition::From),
+                ..
+            })
+        ));
+        let activations = [
+            crate::grammar::GeneratedActivation::Groups(crate::constructions::ALL_GROUPS),
+            crate::grammar::GeneratedActivation::GroupsReversed(crate::constructions::ALL_GROUPS),
+            crate::grammar::GeneratedActivation::GroupsFixedShuffle(
+                crate::constructions::ALL_GROUPS,
+            ),
+        ];
+        for source in [
+            "Emerge from artifact {5}{B}{B}",
+            "Protection from monocolored",
+            "This creature has \"Cascade, cascade.\"",
+        ] {
+            let surface = lex(source);
+            let tokens =
+                crate::surface::collapse_full_names(source, surface.tokens, identity.full_name());
+            let reports = activations.map(|activation| {
+                super::Parser::new_with_activation(source, &catalogs, &identity, false, activation)
+                    .parse(&tokens)
+            });
+            assert_eq!(reports[0].ast, reports[1].ast, "{source}");
+            assert_eq!(reports[0].ast, reports[2].ast, "{source}");
+            assert_eq!(reports[0].diagnostics, reports[1].diagnostics, "{source}");
+            assert_eq!(reports[0].diagnostics, reports[2].diagnostics, "{source}");
+            assert_eq!(reports[0].selections, reports[1].selections, "{source}");
+            assert_eq!(reports[0].selections, reports[2].selections, "{source}");
+            assert!(
+                reports[0].ast.recoveries().is_empty(),
+                "{source}: {:#?}",
+                reports[0].ast
+            );
+            let rendered = reports[0]
+                .ast
+                .render("Test Card", false)
+                .unwrap_or_else(|error| panic!("failed to render {source:?}: {error:?}"));
+            assert_eq!(rendered, source);
+        }
+
+        let from = parse_with_catalogs("Emerge from artifact {5}{B}{B}", &catalogs);
+        let AbilityKind::Keyword(from_line) = from.ast.abilities[0].kind() else {
+            panic!("expected keyword line: {:#?}", from.ast);
+        };
+        assert!(matches!(
+            from_line.first().argument,
+            KeywordArgument::RestrictedCost {
+                preposition: Some(Preposition::From),
+                ..
+            }
+        ));
+
+        let quality = parse_with_catalogs("Protection from monocolored", &catalogs);
+        let AbilityKind::Keyword(quality_line) = quality.ast.abilities[0].kind() else {
+            panic!("expected keyword line: {:#?}", quality.ast);
+        };
+        assert!(matches!(
+            &quality_line.first().argument,
+            KeywordArgument::Predicated(PredicatedArgument { qualities })
+                if matches!(qualities.as_slice(), [PredicatedQuality {
+                    preposition: Some(Preposition::From),
+                    quality: Phrase::AdjectivePhrase(_),
+                }])
+        ));
+
+        let cascade = parse_with_catalogs("This creature has \"Cascade, cascade.\"", &catalogs);
+        let AbilityKind::Paragraph(paragraph) = cascade.ast.abilities[0].kind() else {
+            panic!("expected a granting clause: {:#?}", cascade.ast);
+        };
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) =
+            &paragraph.sentences[0].body
+        else {
+            panic!("expected a finite granting clause: {paragraph:#?}");
+        };
+        let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate()
+        else {
+            panic!("expected a transitive grant predicate: {finite:#?}");
+        };
+        let PredicateObject::QuotedAbility(quoted) = &predicate.object else {
+            panic!("expected a quoted keyword object: {predicate:#?}");
+        };
+        let AbilityKind::Keyword(list) = quoted.ability.kind() else {
+            panic!("expected a quoted keyword list: {quoted:#?}");
+        };
+        assert_eq!(list.len(), 2);
+        assert!(
+            list.abilities()
+                .all(|ability| ability.argument == KeywordArgument::Absent)
+        );
     }
 
     #[test]
@@ -5768,6 +6151,7 @@ mod tests {
                     "Flashback",
                     "Equip",
                     "Cumulative upkeep",
+                    "Kicker",
                     "Recover",
                     "Suspend",
                     "Prototype",
@@ -5779,8 +6163,10 @@ mod tests {
                     "Affinity",
                     "Rampage",
                     "Craft",
+                    "Emerge",
                     "Splice",
                     "Reinforce",
+                    "Cascade",
                 ],
             )
             .with_catalog(
@@ -5814,10 +6200,9 @@ mod tests {
 
     #[test]
     fn cumulative_upkeep_is_a_structured_cost_not_a_legacy_embedded_ability() {
-        // Existing-user tree gate: this exact surface parsed before Stage A
-        // too (no comma in its body), via the legacy embedded-`Ability`
-        // `Sentence` carrier. Stage A retypes it to the structured
-        // `Components` cost like every other tight-dash cost.
+        // This surface once used the legacy embedded-`Ability` `Sentence`
+        // carrier. It now has the same structured `Components` cost as every
+        // other tight-dash cost.
         assert!(matches!(
             shape_argument("Cumulative upkeep—Put a -1/-1 counter on this creature."),
             KeywordArgument::Costed(KeywordCost::Components { terminal: true, .. })
@@ -5825,7 +6210,7 @@ mod tests {
     }
 
     #[test]
-    fn stage_a_leaves_the_untouched_shapes_unchanged() {
+    fn tight_keyword_cost_does_not_claim_other_argument_shapes() {
         // `Partner—Friends forever`: a bare em-dash pairing label, still
         // caught by `parse_named_keyword_argument` before the tight-cost
         // branch is ever reached.
@@ -5862,13 +6247,9 @@ mod tests {
     }
 
     #[test]
-    fn quoted_symbol_keyword_argument_is_unaffected_by_stage_a() {
-        // The kwterm quoted-symbol case: a space-separated symbol argument
-        // quoted inside a granting clause, its own terminal kept outside the
-        // quote. No tight em dash is involved, so Stage A cannot touch it;
-        // this is the existing `quoted_symbol_keyword_argument_keeps_
-        // terminal_outside_typed_cost` surface re-run after Stage A's
-        // changes to confirm it is untouched.
+    fn quoted_symbol_keyword_argument_remains_space_separated() {
+        // A symbol argument quoted inside a granting clause keeps its terminal
+        // outside the quote and never enters the tight-em-dash cost shape.
         let source = "Target creature gains \"Ward {1}.\"";
         let report = parse_with_catalogs(source, &shape_catalogs());
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
@@ -5894,45 +6275,46 @@ mod tests {
     }
 
     #[test]
-    fn a_recovered_tight_cost_component_attributes_to_keyword_argument_not_activation_cost() {
-        // Walker fixture: a residue inside a Stage A structured cost must
-        // recover at the keyword-argument role, never activation cost —
-        // proving `inner = context.or(Some(RecoveryRole::KeywordArgument))`
-        // is honored for the new `Components` walker arm exactly as it was
-        // for the legacy `Sentence` arm.
+    fn a_tight_keyword_cost_admits_the_generated_rounded_half_clause() {
         let source = "Recover—Pay half your life, rounded up.";
         let report = parse_with_catalogs(source, &shape_catalogs());
         let recoveries = report.ast.recoveries();
         assert!(
             recoveries
                 .iter()
-                .any(|recovery| recovery.role == RecoveryRole::KeywordArgument
-                    && recovery.text == "rounded up"),
-            "expected a keyword-argument recovery of \"rounded up\": {recoveries:?}"
+                .all(|recovery| recovery.role != RecoveryRole::KeywordArgument),
+            "the generated rounded-half constituent must not recover: {recoveries:?}"
         );
+        let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
+            panic!("expected keyword ability: {:#?}", report.ast);
+        };
+        let KeywordArgument::Costed(KeywordCost::Components { cost, .. }) = &list.first().argument
+        else {
+            panic!("expected a structured keyword cost: {:#?}", list.first());
+        };
+        assert!(matches!(cost.components(), [CostComponent::Clause(_)]));
         assert!(
-            recoveries
+            report
+                .provenance
+                .selections
                 .iter()
-                .all(|recovery| recovery.role != RecoveryRole::ActivationCost),
-            "a keyword cost's residue must never attribute to activation cost: {recoveries:?}"
+                .flat_map(|selection| &selection.constructions)
+                .any(|decision| decision.selected().as_str() == "noun_phrase_half_rounded_up")
         );
+        assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
     }
 
-    // Terminal round trips: the supported corpus attests only the `Period`
-    // carrier for a tight em-dash keyword cost's own terminal. A corpus-wide
+    // The supported corpus attests only a period for a tight-em-dash keyword
+    // cost's own terminal. A corpus-wide
     // grep for a tight-dash keyword cost body ending in `!` or `?` (outside
     // reminder text) found zero hosts — `Exclamation` and `Question` are
     // unattested shapes in this population. Per instruction, this is
-    // recorded as a fact rather than backed by a fabricated synthetic test:
-    // the enum keeps both carriers for completeness (a keyword cost is not
-    // barred from ending a card's last printed sentence in `!`/`?` by any
-    // structural rule), but no round-trip test exists for either because no
-    // corpus row exercises them.
+    // recorded as a fact rather than backed by a fabricated synthetic test.
 
     #[test]
     fn tight_dash_cost_with_a_comma_boundary_recovers_structurally() {
-        // The causal Stage A regression: a tight em-dash cost whose body
-        // contains a comma used to be cut at the comma by the keyword-item
+        // A tight-em-dash cost whose body contains a comma must not be cut at
+        // that comma by the keyword-item
         // splitter before the argument was recognized, rejecting the whole
         // line. The comma is now cost-internal punctuation, not an item
         // boundary, once the item is proven to open `<atom><tight em dash>`.
@@ -6224,8 +6606,7 @@ mod tests {
         // `Quantity::unchecked_x()` with no preposition at all, so
         // `parse_restricted_tight_cost`'s explicit-preposition requirement
         // rejects it — it must not become `RestrictedCost` even though the
-        // shape (internal tight dash, symbol-run cost) otherwise resembles
-        // Stage A′'s composition.
+        // shape otherwise resembles a restricted tight-dash cost.
         for source in ["Reinforce X—{X}{W}{W}", "Reinforce X—{X}{G}{G}"] {
             let report = parse_with_catalogs(source, &shape_catalogs());
             assert!(
@@ -6259,18 +6640,13 @@ mod tests {
             shape_argument("Partner—Friends forever"),
             KeywordArgument::Named { .. }
         ));
-        // A non-`onto`/`with` leading preposition is not licensed: widening
-        // to other prepositions is explicitly out of scope. `from` opens the
-        // existing predicated-argument path instead (and fails it, given the
-        // trailing symbol run), so this recovers rather than becoming
-        // `RestrictedCost` — the point under test.
-        assert!(
-            !matches!(
-                shape_argument("Craft from artifact {1}{U}"),
-                KeywordArgument::RestrictedCost { .. }
-            ),
-            "an unlicensed leading preposition must not become a RestrictedCost"
-        );
+        assert!(matches!(
+            shape_argument("Emerge from artifact {1}{U}"),
+            KeywordArgument::RestrictedCost {
+                preposition: Some(Preposition::From),
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -6498,12 +6874,82 @@ mod tests {
     }
 
     #[test]
-    fn a_shape_outside_the_vocabulary_recovers_at_the_keyword_argument_role() {
-        // A cost with a trailing sentence is no closed shape; it opens with a
-        // symbol, so it stays a keyword argument and recovers rather than being
-        // forced into Costed.
-        let report =
-            parse_with_catalogs("Ward {3}. This ability costs {1} less.", &shape_catalogs());
+    fn symbol_cost_and_trailing_paragraph_compose_in_every_registration_order() {
+        let source = "Kicker {X}. X can't be 0.";
+        let catalogs = shape_catalogs();
+        let identity = SelfReference::new("Test Card", false);
+        let surface = lex(source);
+        let tokens =
+            crate::surface::collapse_full_names(source, surface.tokens, identity.full_name());
+        let activations = [
+            crate::grammar::GeneratedActivation::Groups(crate::constructions::ALL_GROUPS),
+            crate::grammar::GeneratedActivation::GroupsReversed(crate::constructions::ALL_GROUPS),
+            crate::grammar::GeneratedActivation::GroupsFixedShuffle(
+                crate::constructions::ALL_GROUPS,
+            ),
+        ];
+        let reports = activations.map(|activation| {
+            super::Parser::new_with_activation(source, &catalogs, &identity, false, activation)
+                .parse(&tokens)
+        });
+        assert_eq!(reports[0].ast, reports[1].ast);
+        assert_eq!(reports[0].ast, reports[2].ast);
+        assert_eq!(reports[0].diagnostics, reports[1].diagnostics);
+        assert_eq!(reports[0].diagnostics, reports[2].diagnostics);
+        assert_eq!(reports[0].selections, reports[1].selections);
+        assert_eq!(reports[0].selections, reports[2].selections);
+        let AbilityKind::Keyword(list) = reports[0].ast.abilities[0].kind() else {
+            panic!("expected a keyword ability: {:#?}", reports[0].ast);
+        };
+        assert!(matches!(
+            list.first().argument,
+            KeywordArgument::Costed(KeywordCost::Symbols(_))
+        ));
+        let trailing = list
+            .trailing()
+            .expect("the second sentence is a typed tail");
+        assert_eq!(trailing.sentences.len(), 1);
+        assert!(matches!(
+            trailing.sentences[0].body,
+            SentenceBody::Independent(IndependentClause::Finite(_))
+        ));
+        assert!(reports[0].ast.recoveries().is_empty());
+        assert_eq!(reports[0].ast.render("Test Card", false).unwrap(), source);
+    }
+
+    #[test]
+    fn a_comma_in_trailing_prose_is_not_a_keyword_list_boundary() {
+        let source = "Kicker {X}. When this creature enters, draw a card.";
+        let report = parse_with_catalogs(source, &shape_catalogs());
+        let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
+            panic!("expected a keyword ability: {:#?}", report.ast);
+        };
+        assert_eq!(list.len(), 1);
+        assert!(matches!(
+            list.first().argument,
+            KeywordArgument::Costed(KeywordCost::Symbols(_))
+        ));
+        assert!(list.trailing().is_some());
+        assert!(report.ast.recoveries().is_empty(), "{:#?}", report.ast);
+        assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
+    }
+
+    #[test]
+    fn symbol_cost_tail_does_not_normalize_an_unstored_terminal() {
+        for source in ["Kicker {X}! X can't be 0.", "Kicker {X}? X can't be 0."] {
+            let report = parse_with_catalogs(source, &shape_catalogs());
+            assert!(
+                !matches!(report.ast.abilities[0].kind(), AbilityKind::Keyword(list)
+                    if list.trailing().is_some()),
+                "an unstored terminal must not enter the keyword-tail shape: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn failed_keyword_tail_probe_does_not_leak_diagnostics() {
+        let source = "Ward {3}. Frobnicate a creature.";
+        let report = parse_with_catalogs(source, &shape_catalogs());
         let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
@@ -6511,10 +6957,8 @@ mod tests {
             list.first().argument,
             KeywordArgument::Recovered { .. }
         ));
-        assert_eq!(
-            report.ast.render("Test Card", false).unwrap(),
-            "Ward {3}. This ability costs {1} less."
-        );
+        assert_eq!(report.diagnostics.len(), 1, "{:#?}", report.diagnostics);
+        assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
     }
 
     #[test]
@@ -7149,17 +7593,9 @@ mod tests {
     }
 
     #[test]
-    fn paragraph_initial_trigger_with_a_coordinated_event_still_recovers() {
-        // Merieke Ri Berit witness, corrected by this round's Stage 0 finding
-        // (§1.2/§6.0): this trigger's blocker was never the coordinated event
-        // (`leaves the battlefield or becomes untapped`, which the event
-        // parse already handles) — it was the bare-imperative effect
-        // (`destroy that creature`) failing to lower under the `Clause`
-        // goal. It is measured residue (`midtrigger-positional-stayed.txt`),
-        // not the `midtrigger-initial.txt` must-not-move set, so this round's
-        // the lowerable-root retry now lowers it: the trigger moves from
-        // `Recovered` to `Triggered` with an `Imperative` effect, and the
-        // coordinated event is carried unchanged.
+    fn paragraph_initial_trigger_with_a_coordinated_event_lowers() {
+        // The coordinated event already parses; the lowerable-root retry must
+        // also lower its bare-imperative effect under the `Clause` goal.
         let source = "{T}: Gain control of target creature for as long as you control Merieke Ri Berit. \
              When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature.";
         let report = parse(source);
@@ -7417,9 +7853,8 @@ mod tests {
         assert_eq!(render(&report), source);
     }
 
-    // `kwgrant` round, Stage C: the atom itself carries `from`
-    // (`Hexproof from black`) — the keyword-line half of the round, gated by
-    // `keyword_atom_carries_from`, never a keyword-name list.
+    // An atom may itself carry `from` (`Hexproof from black`). This path is
+    // gated by `keyword_atom_carries_from`, never a keyword-name list.
 
     fn hexproof_from_catalogs() -> Catalogs {
         fixture_catalogs().with_catalog(CatalogKind::KeywordAbility, ["Hexproof", "Hexproof from"])
@@ -7566,6 +8001,9 @@ mod tests {
                     "Haste",
                     "Crew",
                     "Morph",
+                    "Kicker",
+                    "Cumulative upkeep",
+                    "Emerge",
                     "Tiered",
                     "Level up",
                     "Trample",

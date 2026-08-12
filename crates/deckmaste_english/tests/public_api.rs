@@ -3285,7 +3285,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
                 match cost {
                     KeywordCost::Sentence { ability, .. } => self.ability(ability),
                     KeywordCost::Components { cost, .. } => self.cost(cost),
-                    KeywordCost::Symbols(_) => {}
+                    KeywordCost::Symbols(_) | KeywordCost::CoordinatedSymbols { .. } => {}
                 }
             }
             KeywordArgument::Qualified(phrase) => self.phrase(phrase),
@@ -3300,6 +3300,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
             KeywordArgument::Statted { stats, .. } => self.power_toughness.push(*stats),
             KeywordArgument::Absent
             | KeywordArgument::Costed(KeywordCost::Symbols(_))
+            | KeywordArgument::Costed(KeywordCost::CoordinatedSymbols { .. })
             | KeywordArgument::CountedCost { .. }
             | KeywordArgument::Named { .. }
             | KeywordArgument::Recovered { .. } => {}
@@ -4997,6 +4998,9 @@ fn keyword_line_preserves_every_argument_and_surface_witness() {
             KeywordArgument::Absent => "absent",
             KeywordArgument::Counted(_) => "counted",
             KeywordArgument::Costed(KeywordCost::Symbols(_)) => "costed-symbols",
+            KeywordArgument::Costed(KeywordCost::CoordinatedSymbols { .. }) => {
+                "costed-coordinated-symbols"
+            }
             KeywordArgument::Costed(KeywordCost::Sentence { .. }) => "costed-sentence",
             KeywordArgument::Costed(KeywordCost::Components { .. }) => "costed-components",
             KeywordArgument::CountedCost { .. } => "counted-cost",

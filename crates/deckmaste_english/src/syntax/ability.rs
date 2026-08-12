@@ -605,11 +605,8 @@ pub enum KeywordArgument {
     /// reach the rest of the phrase grammar as the remaining shapes collapse
     /// into it; only the noun-phrase arm is produced today.
     Qualified(Phrase),
-    /// A symbol cost paired with power/toughness by a spaced em dash. The
-    /// shape's exemplar rules give the argument as `[cost] — [P]/[T]`
-    /// [CR#702.160a,718.1]. A shape added beyond the CR's six observed
-    /// keyword-parameter shapes for the one argument surface that needs it
-    /// (see the round's report).
+    /// A symbol cost paired with power/toughness by a spaced em dash, written
+    /// as `[cost] — [P]/[T]` [CR#702.160a,718.1].
     Statted {
         symbols: Vec<OracleSymbol>,
         stats: PowerToughness,
@@ -619,26 +616,9 @@ pub enum KeywordArgument {
     /// catalog membership. Gift's labels are whole selectors, not noun phrases
     /// [CR#702.174a,702.174d,702.174e,702.174f,702.174g,702.174h,702.174i].
     ///
-    /// **Measured, `separator` field KEPT** (surface-fact sweep, 2026-07-30):
-    /// on the supported corpus this looked like a clean per-keyword-atom
-    /// constant — `Partner`/`Modular` always pair with the tight em dash (19
-    /// `Partner—…` occurrences + `Modular—Sunburst`), every other keyword
-    /// reaching this shape (`Gift`) always pairs with a plain space (22
-    /// `Gift a…` occurrences) — and deriving it that way (threading the
-    /// owning `KeywordAbility.ability` into the renderer, a contained change)
-    /// gave 0 mismatches across all 31685 supported faces. It was reverted
-    /// anyway: `parse_named_keyword_argument`'s own license test,
-    /// `named_keyword_argument_label_license_is_exact_and_keyword_independent`,
-    /// explicitly asserts and is named for the fact that this shape is
-    /// **keyword-independent by design** — `shape_argument("Partner a Food")`
-    /// is a real, intentionally-licensed parse (`Partner` with a *space*
-    /// separator, not the em dash the corpus-only rule would force), and
-    /// forcing the per-keyword derivation makes that exact test fail its own
-    /// render round-trip (`"Partner—a Food"` vs `"Partner a Food"`). The
-    /// corpus today never exercises the combinations the grammar
-    /// deliberately admits, but the field is real, licensed variation, not a
-    /// redundant echo — deleting it would silently misrender the very shape
-    /// a previous round built and tested this parser to accept.
+    /// `separator` is stored rather than derived from the keyword identity:
+    /// the grammar intentionally licenses both space and em-dash forms by
+    /// shape, including combinations not present in the supported corpus.
     Named {
         separator: KeywordArgumentSeparator,
         label: String,
@@ -652,13 +632,15 @@ pub enum KeywordArgument {
     /// measured with 0 mismatches across all 31685 supported faces (surface-
     /// fact sweep, 2026-07-30). The renderer emits a literal space instead.
     Recovered { text: RecoveredText },
-    /// A quality restriction (optionally introduced by `onto`/`with`) paired
-    /// with a cost — `craft with artifact {1}{U}`, `splice onto Arcane
-    /// {W}`. One shape, not a sibling per surface family: the restriction
-    /// retains the full noun-phrase tree (including the legitimate headless
-    /// `NounPhraseKind::Quantity` case, `craft with one or more {5}`), and the
-    /// cost is `Symbols` or (composed with the tight em-dash structured cost)
-    /// `Components` [CR#702.6c,702.6e,702.47a,702.167a].
+    /// A quality restriction (optionally introduced by `onto`/`with`/`from`)
+    /// paired with a cost — `craft with artifact {1}{U}`, `emerge from
+    /// artifact {5}{B}{B}`, `splice onto Arcane {W}`. One shape, not a sibling
+    /// per surface family: the
+    /// restriction retains the full noun-phrase tree (including the
+    /// legitimate headless `NounPhraseKind::Quantity` case, `craft with one
+    /// or more {5}`), and the cost is `Symbols` or (composed with the tight
+    /// em-dash structured cost) `Components`
+    /// [CR#702.6c,702.6e,702.47a,702.119b,702.167a].
     RestrictedCost {
         preposition: Option<Preposition>,
         restriction: Box<NounPhrase>,
@@ -673,6 +655,16 @@ pub enum KeywordCost {
     /// run is carried as its structured oracle symbols, reproduced by
     /// concatenation.
     Symbols(Vec<OracleSymbol>),
+    /// Two symbol costs joined by `or` or `and/or` after one keyword name —
+    /// `cumulative upkeep {G} or {W}`, `kicker {1}{B} and/or {G}`. Both
+    /// members remain structured symbol runs and the conjunction is retained
+    /// explicitly; the shape is recognized from its surface, independently
+    /// of which keyword owns it.
+    CoordinatedSymbols {
+        first: Vec<OracleSymbol>,
+        conjunction: Conjunction,
+        second: Vec<OracleSymbol>,
+    },
     /// Legacy surface preservation for the spaced em-dash cost surface
     /// (`SpacedEmDash`) only — `Exhaust — {2}{G}{G}: Put two +1/+1 counters on
     /// this creature.` reads as a designation-headed embedded ability, never
@@ -719,44 +711,9 @@ pub struct PredicatedQuality {
     pub quality: Phrase,
 }
 
-/// **Re-measured, field KEPT** (surface-fact sweep-residue, 2026-07-30
-/// measurement round). The prior round's causal story — "genuine `WotC`
-/// semicolon style, likely tied to now-stripped reminder text" — was never
-/// checked against the actual 34 faces; it turns out to be half right.
-///
-/// All 34 witnesses (e.g. Longbow Archer's `First strike; reach`, Kjeldoran
-/// Skycaptain's `Flying; first strike; banding`) have the *pre-strip* source
-/// text confirmed by hand: in every one, the semicolon-joined list's final
-/// keyword is immediately followed by that keyword's own inline reminder
-/// parenthetical (`reach (This creature can block creatures with flying.)`,
-/// `banding (Any creatures with banding, and up to one without, …)`). This
-/// is not a stripping artifact — `strip_reminder_text` removes only the
-/// parenthesized group, so the semicolon (which precedes it) is a separate
-/// token that survives stripping intact and reaches this field unchanged.
-///
-/// But "reminder-bearing final keyword ⟹ semicolon" is not a rule the corpus
-/// supports: `Trample, myriad (Whenever this creature attacks, …)` (Elturel
-/// Survivors, Polygoyf), `Vigilance, trample (Attacking doesn't cause…)`
-/// (Spider-Man, Miles Morales), `Trample, haste (This creature can deal
-/// excess…)` (Spark Elemental), and `Swampwalk, forestwalk (This creature
-/// can't be blocked…)` (Stalker Hag) are the identical shape — a final
-/// keyword with its own inline reminder — joined with a plain comma. The
-/// real split is per-keyword: `banding`, `flanking`, `horsemanship`,
-/// `rampage`, `fear`, `bushido`, `reach`, `menace`, `convoke`, and the
-/// landwalk family never take a comma when reminder-bearing in this corpus
-/// (e.g. zero occurrences of `, banding` anywhere, vs. eleven of `;
-/// banding`), while `myriad`, `trample`, `haste`, and `forestwalk` never
-/// take a semicolon. Most of the semicolon set are long-retired mechanics
-/// (banding, flanking, rampage, horsemanship) whose "keyword + reminder"
-/// Oracle-text block looks frozen from an older print era, but `menace` and
-/// `convoke` are modern keywords with exactly one semicolon witness each, so
-/// "old keyword" is not the full story either. This looks like genuine,
-/// idiosyncratic `WotC` Oracle-text curation keyed to specific keyword
-/// identities — language, not a parser or stripping defect — but the
-/// governing fact (which keyword's canonical reminder block was authored
-/// with a leading semicolon) is external to anything this grammar retains
-/// post-strip, so it cannot be derived from the current AST. Field stays
-/// stored.
+/// The separator is stored because both comma and semicolon lists survive
+/// reminder-text stripping, and the retained AST contains no grammatical
+/// property from which that editorial choice can be derived.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum KeywordListSeparator {
     Comma,
