@@ -504,6 +504,18 @@ fn near_declaration_aligns_with_frontier(
         // the whole-phrase failure.
         return false;
     }
+    if candidate.stage == FailureStage::Scan
+        && candidate.progress > 0
+        && frontier.iter().any(|constituent| {
+            constituent.start_token == candidate.origin
+                && constituent.end_token == candidate.position
+        })
+    {
+        // A construction may try to extend an already complete constituent.
+        // Failure to scan that optional continuation does not explain why the
+        // containing phrase failed.
+        return false;
+    }
     candidate.origin == 0 && candidate.position == token_count
         || frontier.iter().any(|constituent| {
             constituent.start_token == candidate.origin
@@ -1067,22 +1079,4 @@ const fn relative_copular_name(value: super::RelativeCopularClass) -> &'static s
         super::RelativeCopularClass::Prepositional => "prepositional",
         super::RelativeCopularClass::CoordinatedAdjective => "coordinated_adjective",
     }
-}
-
-#[cfg(test)]
-pub(super) fn diagnose_with_registration_order(
-    source: &str,
-    catalogs: &Catalogs,
-    category: FailureCategory,
-    limits: DiagnosticLimits,
-    order: RegistrationOrder,
-) -> Result<FingerprintStatus, FailureDiagnosticError> {
-    diagnose_with_identity_and_order(
-        source,
-        catalogs,
-        category,
-        limits,
-        SelfReference::default(),
-        order,
-    )
 }

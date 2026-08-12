@@ -7884,7 +7884,7 @@ fn public_inventory_records_the_complete_backend_boundary() {
         .map(|family| family.id().as_str())
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(ability_ids, ["ability", "cost", "keyword_line"].into());
-    assert_eq!(families.len(), 229, "complete generated inventory");
+    assert_eq!(families.len(), 230, "complete generated inventory");
     assert_eq!(
         families
             .iter()

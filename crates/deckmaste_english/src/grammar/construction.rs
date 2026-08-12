@@ -116,7 +116,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(registered, declared);
-        assert_eq!(registered.len(), 229);
+        assert_eq!(registered.len(), 230);
         assert_eq!(registered.iter().filter(|id| **id == "ability").count(), 1);
     }
 
