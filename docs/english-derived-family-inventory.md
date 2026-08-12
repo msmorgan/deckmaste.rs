@@ -32,16 +32,13 @@ census comes from the three non-chart entry points documented and dispatched by
 
 | backend | registered generated families |
 |---|---:|
-| Chart | 223 |
+| Chart | 227 |
 | Ability | 3 |
-| all production families | 226 |
+| all production families | 230 |
 
-The family ledger below accounts for 198 stable chart IDs. The earlier
-`noun_phrase_coordination` and `shared_determiner_nominal` structural owners
-bring the stable chart total to 200; nine registered internal support
-declarations for phrase coordination and thirteen internal clause-continuation
-adapters, together with the internal counted-energy carrier, bring the active
-chart registry to 223. Every stable chart row is generated.
+The family ledger below, its structural owners, and the registered internal
+support declarations bring the active chart registry to 227. Every stable
+chart row is generated.
 The three ability IDs occur once in the generated ability backend. Thus the
 inventory has no unregistered row. No raw corpus query was needed for this
 accounting; the census is grounded
@@ -770,6 +767,6 @@ one change. It also runs the build-excluding parent/current
 `english performance --check` audit from `docs/english-parser-performance.md`
 so grammar work cannot hide growth in failed or abandoned paths.
 
-The executable census proves 223 Chart families plus three Ability families:
-226 generated production families in all, with no owner branch or unregistered
+The executable census proves 227 Chart families plus three Ability families:
+230 generated production families in all, with no owner branch or unregistered
 supported family left to discover.
