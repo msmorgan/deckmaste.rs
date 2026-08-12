@@ -2680,9 +2680,13 @@ fn public_nominal_builders_preserve_semantic_shapes() {
     let reduced_theme = nominal_api::build_reduced_recipient_passive_theme(damage.clone()).unwrap();
     assert_eq!(reduced_theme.as_noun_phrase(), &nominal_noun_phrase(damage));
 
-    let quality =
-        nominal_api::build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None)
-            .unwrap();
+    let quality = nominal_api::build_predicated_quality_from(
+        Preposition::From,
+        Some(ColorWord::Red),
+        None,
+        None,
+    )
+    .unwrap();
     let argument = nominal_api::build_predicated_argument_from_single(quality.clone()).unwrap();
     assert_eq!(argument.qualities, vec![quality]);
     assert_eq!(argument.qualities[0].preposition, Some(Preposition::From));

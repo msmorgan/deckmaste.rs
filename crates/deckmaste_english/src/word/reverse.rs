@@ -239,43 +239,40 @@ fn index_vocab(
                 }
                 NounSurface::Mass => unreachable!("agent nouns are count-only"),
             };
-            let surface = vocabulary
-                .render_noun(&noun)
-                .expect("derived agent noun form must render");
-            insert_index(index, &surface, IndexedWord::Agentive { vocab, form });
+            if let Some(surface) = vocabulary.render_noun(&noun) {
+                insert_index(index, &surface, IndexedWord::Agentive { vocab, form });
+            }
         }
 
         for slot in VERB_SLOTS {
-            let surface = vocabulary
-                .render_verb(vocab, slot)
-                .expect("declared verb form must render");
-            insert_index(index, &surface, IndexedWord::Verb { vocab, slot });
+            if let Some(surface) = vocabulary.render_verb(vocab, slot) {
+                insert_index(index, &surface, IndexedWord::Verb { vocab, slot });
+            }
         }
 
-        let present_participle = vocabulary
-            .render_verb(vocab, VerbSlot::PresentParticiple)
-            .expect("declared verb present participle must render");
-        insert_index(
-            index,
-            &present_participle,
-            IndexedWord::Participle {
-                vocab,
-                tense: Tense::Present,
-            },
-        );
-        insert_index(index, &present_participle, IndexedWord::Gerund(vocab));
+        if let Some(present_participle) = vocabulary.render_verb(vocab, VerbSlot::PresentParticiple)
+        {
+            insert_index(
+                index,
+                &present_participle,
+                IndexedWord::Participle {
+                    vocab,
+                    tense: Tense::Present,
+                },
+            );
+            insert_index(index, &present_participle, IndexedWord::Gerund(vocab));
+        }
 
-        let past_participle = vocabulary
-            .render_verb(vocab, VerbSlot::PastParticiple)
-            .expect("declared verb past participle must render");
-        insert_index(
-            index,
-            &past_participle,
-            IndexedWord::Participle {
-                vocab,
-                tense: Tense::Past,
-            },
-        );
+        if let Some(past_participle) = vocabulary.render_verb(vocab, VerbSlot::PastParticiple) {
+            insert_index(
+                index,
+                &past_participle,
+                IndexedWord::Participle {
+                    vocab,
+                    tense: Tense::Past,
+                },
+            );
+        }
     }
 
     if definition.adjective

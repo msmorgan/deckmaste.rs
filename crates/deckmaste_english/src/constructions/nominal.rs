@@ -728,6 +728,7 @@ fn keyword_atom_from_head(head: &NounInstance) -> Option<&CatalogAtom> {
 fn make_predicated_quality_from(
     preposition: Preposition,
     color: Option<ColorWord>,
+    adjective: Option<AdjectivePhrase>,
     noun_phrase: Option<NounPhrase>,
 ) -> Result<PredicatedQuality, DeclarationViolation> {
     if !matches!(preposition, Preposition::From | Preposition::For) {
@@ -736,13 +737,14 @@ fn make_predicated_quality_from(
             "introduced quality preposition is from or for",
         ));
     }
-    let quality = match (color, noun_phrase) {
-        (Some(color), None) => Phrase::ColorWord(color),
-        (None, Some(noun_phrase)) => Phrase::NounPhrase(Box::new(noun_phrase)),
+    let quality = match (color, adjective, noun_phrase) {
+        (Some(color), None, None) => Phrase::ColorWord(color),
+        (None, Some(adjective), None) => Phrase::AdjectivePhrase(Box::new(adjective)),
+        (None, None, Some(noun_phrase)) => Phrase::NounPhrase(Box::new(noun_phrase)),
         _ => {
             return Err(violation(
                 "predicated_quality_from",
-                "exactly one explicit-from quality is present",
+                "exactly one introduced quality is present",
             ));
         }
     };
@@ -754,14 +756,22 @@ fn make_predicated_quality_from(
 
 fn split_predicated_quality_from(
     value: &PredicatedQuality,
-) -> (Preposition, Option<ColorWord>, Option<NounPhrase>) {
+) -> (
+    Preposition,
+    Option<ColorWord>,
+    Option<AdjectivePhrase>,
+    Option<NounPhrase>,
+) {
     let preposition = value
         .preposition
         .expect("introduced predicated quality carries its preposition");
     match &value.quality {
-        Phrase::ColorWord(color) => (preposition, Some(*color), None),
-        Phrase::NounPhrase(noun_phrase) => (preposition, None, Some((**noun_phrase).clone())),
-        _ => unreachable!("explicit-from quality is a color or noun phrase"),
+        Phrase::ColorWord(color) => (preposition, Some(*color), None, None),
+        Phrase::AdjectivePhrase(adjective) => {
+            (preposition, None, Some((**adjective).clone()), None)
+        }
+        Phrase::NounPhrase(noun_phrase) => (preposition, None, None, Some((**noun_phrase).clone())),
+        _ => unreachable!("introduced quality has a declared phrase shape"),
     }
 }
 
@@ -2033,12 +2043,14 @@ deckmaste_constructions_macro::constructions! {
         bind PredicatedQuality via make_predicated_quality_from, split_predicated_quality_from {
             preposition: lex Preposition,
             color: opt lex ColorWord,
+            adjective: opt hole AdjectivePhrase,
             noun_phrase: opt hole NounPhrase,
         }
         require preposition in [From, For];
         derive features: Features = reduce_predicated_quality();
         form color @ 0 when color.is_some() inverse check(is_linearizable_predicated_quality_introduced) = lex(preposition) lex(color);
-        form noun_phrase @ 1 inverse check(is_linearizable_predicated_quality_introduced) otherwise = lex(preposition) noun_phrase;
+        form adjective @ 1 when all(color.is_none(), adjective.is_some()) inverse check(is_linearizable_predicated_quality_introduced) = lex(preposition) adjective;
+        form noun_phrase @ 2 inverse check(is_linearizable_predicated_quality_introduced) otherwise = lex(preposition) noun_phrase;
         selection unique;
     }
 
@@ -2313,7 +2325,10 @@ pub(crate) static GROUPS: &[&GroupData] = &[&NOMINAL_DECLARATION];
 
 fn is_linearizable_predicated_quality_introduced(value: &PredicatedQuality) -> bool {
     is_linearizable_predicated_preposition(value.preposition)
-        && matches!(value.quality, Phrase::ColorWord(_) | Phrase::NounPhrase(_))
+        && matches!(
+            value.quality,
+            Phrase::ColorWord(_) | Phrase::AdjectivePhrase(_) | Phrase::NounPhrase(_)
+        )
 }
 
 fn is_declared_predicated_quality_bare(value: &PredicatedQuality) -> bool {
@@ -2863,17 +2878,36 @@ mod tests {
         );
 
         let predicated_quality_from =
-            build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None).unwrap();
-        let (predicated_preposition, color, noun_phrase) =
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None, None)
+                .unwrap();
+        let (predicated_preposition, color, adjective, noun_phrase) =
             parts_predicated_quality_from(&predicated_quality_from);
         let predicated_quality_from = records!(
             "predicated_quality_from",
             predicated_quality_from,
-            build_predicated_quality_from(predicated_preposition, color, noun_phrase).unwrap(),
+            build_predicated_quality_from(predicated_preposition, color, adjective, noun_phrase)
+                .unwrap(),
+            linearize_predicated_quality_from_form_with
+        );
+        let predicated_quality_from_adjective = build_predicated_quality_from(
+            Preposition::From,
+            None,
+            Some(
+                crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Monocolored))
+                    .unwrap(),
+            ),
+            None,
+        )
+        .unwrap();
+        exact_form!(
+            "predicated_quality_from",
+            predicated_quality_from_adjective,
+            1,
             linearize_predicated_quality_from_form_with
         );
         let predicated_quality_from_noun_phrase = build_predicated_quality_from(
             Preposition::From,
+            None,
             None,
             Some(NounPhrase::from_nominal_declaration(
                 build_nominal_determiner(crate::determiner::indefinite(), card_nominal()).unwrap(),
@@ -2883,7 +2917,7 @@ mod tests {
         exact_form!(
             "predicated_quality_from",
             predicated_quality_from_noun_phrase,
-            1,
+            2,
             linearize_predicated_quality_from_form_with
         );
 
@@ -2898,7 +2932,8 @@ mod tests {
         );
 
         let second_from =
-            build_predicated_quality_from(Preposition::From, Some(ColorWord::Black), None).unwrap();
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Black), None, None)
+                .unwrap();
         let predicated_argument_from_extend = build_predicated_argument_from_extend(
             predicated_argument_from_single,
             Conjunction::And,
@@ -2974,7 +3009,8 @@ mod tests {
         );
 
         let final_from =
-            build_predicated_quality_from(Preposition::From, Some(ColorWord::Black), None).unwrap();
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Black), None, None)
+                .unwrap();
         let predicated_argument_bare_extend = build_predicated_argument_bare_extend(
             predicated_argument_bare_single,
             Conjunction::And,
@@ -3929,9 +3965,11 @@ mod tests {
         // independent qualities joined only by `and`, for either explicit-
         // from or atom-carried-first argument families.
         let first_from =
-            build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None).unwrap();
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None, None)
+                .unwrap();
         let second_from =
-            build_predicated_quality_from(Preposition::From, Some(ColorWord::Blue), None).unwrap();
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Blue), None, None)
+                .unwrap();
         let explicit = build_predicated_argument_from_single(first_from).unwrap();
         assert!(
             build_predicated_argument_from_extend(explicit, Conjunction::Or, second_from.clone())
@@ -4085,7 +4123,8 @@ mod tests {
         let bare = build_predicated_quality_bare(Some(ColorWord::Red), None, None).unwrap();
         assert!(build_predicated_argument_from_single(bare).is_err());
         let explicit =
-            build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None).unwrap();
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None, None)
+                .unwrap();
         assert!(build_predicated_argument_bare_single(explicit).is_err());
 
         let postpositive_base =

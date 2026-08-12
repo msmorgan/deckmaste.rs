@@ -3980,6 +3980,40 @@ mod tests {
             .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
     }
 
+    #[test]
+    fn postpositive_able_infinitive_modifies_the_nominal() {
+        let infinitive = parse_nonterminal(
+            "to attack",
+            &fixture_catalogs(),
+            Nonterminal::InfinitiveClause,
+        )
+        .expect("the infinitive parses independently");
+        assert!(infinitive.infinitive_clause().is_some());
+        let adjective = parse_nonterminal(
+            "able to attack",
+            &fixture_catalogs(),
+            Nonterminal::AdjectivePhrase,
+        )
+        .expect("the adjective and infinitive compose independently");
+        assert!(adjective.adjective_phrase().is_some());
+        let parsed = parse("all creatures able to block this creature");
+        let noun_phrase = parsed
+            .noun_phrase()
+            .expect("fixture must select a noun phrase");
+        let NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
+            panic!("fixture must retain its nominal head")
+        };
+        assert!(matches!(
+            nominal.complements(),
+            [NominalComplement::Adjective(adjective)]
+                if matches!(adjective.head(), Adjective::Word(Vocab::Able))
+                    && matches!(
+                        adjective.complements(),
+                        [AdjectiveComplement::Infinitive(_)]
+                    )
+        ));
+    }
+
     /// Parses a noun phrase as the legendary face `Nissa Revane` (nickname
     /// `Nissa`), so a `Nissa`/`Nissa's` self-reference is recognized.
     fn parse_self(source: &str) -> ParsedNonterminal {

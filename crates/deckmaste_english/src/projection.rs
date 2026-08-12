@@ -1020,6 +1020,7 @@ mod tests {
                     "Flying",
                     "First strike",
                     "Ward",
+                    "Kicker",
                     "Fabricate",
                     "Suspend",
                     "Protection",
@@ -1171,7 +1172,7 @@ mod tests {
             ),
             ("Exhaust — {2}{G}: Draw a card.", "Costed", Some("Sentence")),
             ("Ward—Sacrifice a creature.", "Costed", Some("Components")),
-            ("Ward {3}. This ability costs {1} less.", "Recovered", None),
+            ("Kicker {X}. X can't be 0.", "Costed", Some("Symbols")),
         ] {
             let projection = keyword_ability_projection(source, &catalogs);
             assert_eq!(projection.construction, "keyword_line", "{source}");

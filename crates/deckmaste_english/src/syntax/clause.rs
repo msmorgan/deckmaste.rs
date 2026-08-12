@@ -665,8 +665,10 @@ pub enum PredicateElement {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum VerbParticle {
+    Down,
     In,
     Out,
+    Up,
 }
 
 /// The designated side of a coin, carried only inside the closed

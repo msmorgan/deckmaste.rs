@@ -310,6 +310,7 @@ pub struct CountedEnergy {
 impl CountedEnergy {
     pub(crate) fn new(quantity: Quantity, symbol: OracleSymbol) -> Option<Self> {
         (matches!(quantity.kind(), QuantityKind::X)
+            || matches!(quantity.kind(), QuantityKind::ThatMany)
             || matches!(
                 quantity.kind(),
                 QuantityKind::Exact(number)

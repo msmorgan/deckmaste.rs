@@ -585,7 +585,7 @@ deckmaste_constructions_macro::constructions! {
         selection unique;
     }
 
-    internal construction adjective_phrase_infinitive: AdjectivePhrase {
+    construction adjective_phrase_infinitive: AdjectivePhrase {
         bind AdjectivePhrase via make_adjective_phrase_infinitive, adjective_phrase_infinitive_parts {
             owner: hole AdjectivePhrase,
             infinitive: hole InfinitiveClause,

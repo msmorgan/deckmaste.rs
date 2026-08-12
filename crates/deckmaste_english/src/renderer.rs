@@ -1968,8 +1968,10 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 .downcast_ref::<VerbParticle>()
                 .expect("the particle identity preserves VerbParticle")
             {
+                VerbParticle::Down => "down",
                 VerbParticle::In => "in",
                 VerbParticle::Out => "out",
+                VerbParticle::Up => "up",
             }
             .to_owned(),
             "CoinResult" => match value

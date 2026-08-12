@@ -401,12 +401,35 @@ mod tests {
     }
 
     #[test]
-    fn proform_selection_does_not_duplicate_do_on_render() {
-        let source = "All creatures with flying able to block this creature do so.";
-        let rendered = parse(source)
-            .into_ast()
-            .render("Test Card", false)
-            .expect("selected syntax must render");
-        assert_eq!(rendered, source);
+    fn able_infinitive_subject_and_proform_parse_structurally() {
+        let source = "All creatures able to block this creature do so.";
+        let catalogs = Catalogs::default().with_catalog(crate::CatalogKind::CardType, ["Creature"]);
+        let report = parse_with_catalogs(source, &catalogs);
+        assert!(report.ast().recoveries().is_empty());
+        assert!(report.ast().lexical_opacity().is_empty());
+        assert!(report.ast().noun_phrases().iter().any(|noun_phrase| {
+            matches!(
+                noun_phrase.kind(),
+                crate::syntax::NounPhraseKind::Nominal(nominal)
+                    if matches!(
+                        nominal.complements(),
+                        [crate::syntax::NominalComplement::Adjective(adjective)]
+                            if matches!(
+                                adjective.head(),
+                                crate::word::Adjective::Word(crate::word::Vocab::Able)
+                            ) && matches!(
+                                adjective.complements(),
+                                [crate::syntax::AdjectiveComplement::Infinitive(_)]
+                            )
+                    )
+            )
+        }));
+        assert_eq!(
+            report
+                .ast()
+                .render("Breaker of Armies", false)
+                .expect("selected syntax must render"),
+            source
+        );
     }
 }
