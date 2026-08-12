@@ -3038,24 +3038,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 quality: Phrase::ColorWord(color),
             });
         }
-        // A preposition may select an adjective quality directly (`from
-        // monocolored`). Such a quality is not a prepositional phrase because
-        // it has no nominal object, but both pieces are already closed lexical
-        // constituents and the predicated-argument shape owns their
-        // composition.
-        if let Some((first, rest)) = segment.split_first()
-            && let Some(preposition) = predicated_preposition(self.token_text(first))
-            && let Some(adjective) =
-                self.accept_exact(rest, Nonterminal::AdjectivePhrase, |parsed| {
-                    parsed.adjective_phrase().cloned()
-                })
-        {
-            return Some(PredicatedQuality {
-                preposition: Some(preposition),
-                quality: Phrase::AdjectivePhrase(Box::new(adjective)),
-            });
-        }
-        // Any prepositional phrase, carrying its actual preposition.
+        // Prefer a complete prepositional phrase so a word that is both an
+        // adjective and a catalog noun retains its typed catalog identity and
+        // canonical case (`from Arcane`).
         if let Some(prepositional) =
             self.accept_exact(segment, Nonterminal::PrepositionalPhrase, |parsed| {
                 parsed.prepositional_phrase().cloned()
@@ -3078,6 +3063,22 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     }
                     crate::syntax::PrepositionalObjectKind::Adverb(value) => Phrase::Adverb(*value),
                 },
+            });
+        }
+        // If there is no nominal object, a preposition may select an adjective
+        // quality directly (`from monocolored`). Both pieces are closed lexical
+        // constituents and the predicated-argument shape owns their
+        // composition.
+        if let Some((first, rest)) = segment.split_first()
+            && let Some(preposition) = predicated_preposition(self.token_text(first))
+            && let Some(adjective) =
+                self.accept_exact(rest, Nonterminal::AdjectivePhrase, |parsed| {
+                    parsed.adjective_phrase().cloned()
+                })
+        {
+            return Some(PredicatedQuality {
+                preposition: Some(preposition),
+                quality: Phrase::AdjectivePhrase(Box::new(adjective)),
             });
         }
         // A bare quality with no preposition (`hexproof from blue` → `blue`).
@@ -3964,6 +3965,7 @@ mod tests {
         for source in [
             "Emerge from artifact {5}{B}{B}",
             "Protection from monocolored",
+            "Protection from Spirits and from Arcane",
             "This creature has \"Cascade, cascade.\"",
         ] {
             let surface = lex(source);
@@ -6176,7 +6178,7 @@ mod tests {
             .with_catalog(CatalogKind::SpellType, ["Arcane"])
             .with_catalog(
                 CatalogKind::CreatureType,
-                ["Dinosaur", "Merfolk", "Pirate", "Vampire"],
+                ["Dinosaur", "Merfolk", "Pirate", "Spirit", "Vampire"],
             )
             .with_catalog(CatalogKind::LandType, ["Mountain"])
     }
