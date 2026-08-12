@@ -1,7 +1,5 @@
 error[E0451]: field `scope` of struct `ComplexClause` is private
- --> tests/compile_fail/construct_clause_attachment.rs:7:9
+ --> tests/compile_fail/construct_clause_attachment.rs:6:29
   |
-6 |     let _ = ComplexClause {
-  |             ------------- in this type
-7 |         scope: edge(),
-  |         ^^^^^ private field
+6 |     let _ = ComplexClause { scope: edge() };
+  |                             ^^^^^ private field
