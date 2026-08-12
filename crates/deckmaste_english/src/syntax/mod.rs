@@ -413,6 +413,10 @@ impl<'syntax> RecoveryWalker<'syntax> {
             DependentClause::Subordinate(_, SubordinateBody::Finite(clause)) => {
                 self.independent_clause(clause, context);
             }
+            DependentClause::Subordinate(_, SubordinateBody::CoordinatedFinite(body)) => {
+                self.independent_clause(body.first(), context);
+                self.independent_clause(body.next(), context);
+            }
             DependentClause::Subordinate(_, SubordinateBody::Infinitive(clause)) => {
                 self.predicate(clause.predicate(), context);
             }

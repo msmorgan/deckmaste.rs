@@ -263,6 +263,10 @@ fn collect_dependent_clause_pp_roles(clause: &DependentClause, roles: &mut BTree
     match clause {
         DependentClause::Subordinate(_, body) => match body {
             SubordinateBody::Finite(clause) => collect_predicate_pp_roles(clause, roles),
+            SubordinateBody::CoordinatedFinite(body) => {
+                collect_predicate_pp_roles(body.first(), roles);
+                collect_predicate_pp_roles(body.next(), roles);
+            }
             SubordinateBody::Infinitive(clause) => {
                 collect_predicate_roles(clause.predicate(), roles);
             }
