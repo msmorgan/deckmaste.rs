@@ -284,7 +284,7 @@ fn group_label(group: &RecoveryWorklistGroup) -> String {
     format!("{} {:?}", group.role, group.text)
 }
 
-fn group_id(role: &str, text: &str) -> String {
+pub(super) fn group_id(role: &str, text: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(role.as_bytes());
     hasher.update([0]);
