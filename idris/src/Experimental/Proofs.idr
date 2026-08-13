@@ -46,6 +46,13 @@ badChosenCardNameRead :
     (\ok => OfChosen CardName {read = ok})
 badChosenCardNameRead MkChosenQualityRead impossible
 
+public export
+badChosenNumberRead :
+  Unspellable
+    (Predicate [MkBinding AD (Quality Number) OneOf QualityP] Object)
+    (\ok => OfChosen Number {read = ok})
+badChosenNumberRead MkChosenQualityRead impossible
+
 
 -- Two creatures have no single power [CR#208.1] — the aggregate is
 -- written explicitly ("the total power of the sacrificed creatures",
@@ -161,3 +168,36 @@ badDestroyAsCost : Unspellable Ability (\ok =>
   Activated (Do (Macros.destroy (Macros.a Macros.creature)) {ok})
             Macros.drawACard)
 badDestroyAsCost MkCostAction impossible
+
+
+-- The full predicate equality table catches a keyword and its negation.
+public export
+badKeywordContradiction : Unspellable (Effect []) (\ok =>
+  Tap (Macros.target (And [Macros.creature, HasKeyword Flying,
+                            Not (HasKeyword Flying)] {cf = ok})))
+badKeywordContradiction MkContradictionFree impossible
+
+
+-- Forest presupposes land, so this conjunction contradicts itself.
+public export
+badForestNonland : Unspellable (Effect []) (\ok =>
+  Tap (Macros.target (And [HasSubtype Forest, Not Macros.land] {cf = ok})))
+badForestNonland MkContradictionFree impossible
+
+
+-- One printed line carries Basic and Snow, so the distinctness the type
+-- line asks for is per WORD and not per line — `badDuplicateSupertype`
+-- pins the same table on the row that came before these.
+public export
+badDuplicateSnow : Unspellable Card (\ok =>
+  Macros.card "" Nothing [Snow, Snow] (MkTypeLine [Forest] [Land]) [] Nothing {sp = ok})
+badDuplicateSnow MkCardSupers impossible
+
+
+-- "other" with no target before it: the presupposition has no witness.
+-- Forward and self references are unspellable the same way — there is
+-- no context in which a later mention precedes.
+public export
+badOther : Unspellable (Effect []) (\ok =>
+  DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))
+badOther Refl impossible
