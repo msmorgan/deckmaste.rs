@@ -310,3 +310,230 @@ badChosenWrongSort : Unspellable
   (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
   (\ok => OfChosen CreatureType {ok})
 badChosenWrongSort Refl impossible
+
+
+-- Two group mentions leave "them" ambiguous — the plural wildcard has
+-- the same strict-uniqueness gate as the singular.
+public export
+badThemAmbig : Unspellable (Effect []) (\ok =>
+  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature),
+               Choose (TargetGroup (Macros.exactly 2) Macros.creature),
+               Tap (Them {ok})])
+badThemAmbig Refl impossible
+
+
+-- Two predicate-inner opponents leave "that player" ambiguous — the
+-- uniqueness gate reaches inside relative clauses too. (Not
+-- oracle-legal text; the guide would repeat the noun.)
+public export
+badInnerAmbig : Unspellable (Effect []) (\ok =>
+  Sequentially [Fights (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent]))
+                       (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent])),
+               Macros.losesLife (That PlayerW {ok}) (Lit 1)])
+badInnerAmbig Refl impossible
+
+
+-- The participle's verb filter has no witness: the cost discarded,
+-- nothing was sacrificed.
+public export
+badVerbedWrongVerb : Unspellable Ability (\ok =>
+  Activated (Do (Macros.discardsACard You))
+            (Move (TheVerbed Sacrifice CardW {ok}) Macros.battlefieldZ))
+badVerbedWrongVerb Refl impossible
+
+
+-- The noun word misses on the type axis: an artifact was sacrificed,
+-- so "the sacrificed creature" has no referent.
+public export
+badVerbedWrongNoun : Unspellable Ability (\ok =>
+  Activated (Do (Macros.sacrifice You (Macros.a (HasType Artifact))))
+            (Move (TheVerbed Sacrifice (TypeW Creature) {ok}) Macros.battlefieldZ))
+badVerbedWrongNoun Refl impossible
+
+
+-- Two same-verb stamps leave the participle ambiguous — the same
+-- strict uniqueness as every read (real costs of this shape name
+-- distinct verbs, which is what the filter buys).
+public export
+badVerbedAmbig : Unspellable Ability (\ok =>
+  Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
+                       Do (Macros.sacrifice You (Macros.a Macros.creature))])
+            (Move (TheVerbed Sacrifice CardW {ok}) Macros.battlefieldZ))
+badVerbedAmbig Refl impossible
+
+
+-- Voyager Staff's shape with the bare demonstrative: two card
+-- mentions (the sacrificed self, the exiled target) make "that card"
+-- ambiguous — the participle is what real text switches to here.
+public export
+badBareCardRead : Unspellable Ability (\ok =>
+  Activated (Do (Macros.sacrifice You Macros.thisArtifact))
+            (Sequentially [Macros.exile (Macros.target Macros.creature),
+                           Delayed (BeginningOf EndStep Nothing) (Move (That CardW {ok}) Macros.battlefieldZ)]))
+badBareCardRead Refl impossible
+
+
+-- Tapping takes a battlefield object [CR#701.26a]: a graveyard card
+-- cannot be tapped.
+public export
+badTapGraveyard : Unspellable (Effect []) (\ok =>
+  Tap (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
+badTapGraveyard OnField impossible
+
+
+-- a bare status word heads nothing: "choose a tapped" / "destroy target
+-- tapped" are unwritable — the modifier needs a head beside it.
+public export
+badBareTappedHead : Unspellable (Effect []) (\ok =>
+  Macros.destroy (Macros.target Macros.tapped {hd = ok}))
+badBareTappedHead MkHeaded impossible
+
+
+-- status is only a battlefield permanent's ([CR#110.5d]): a "tapped
+-- creature card in your graveyard" places its referent in two zones at
+-- once and describes nothing.
+public export
+badTappedGraveyard : Unspellable (Effect []) (\ok =>
+  Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped,
+                                       InZone (Macros.graveyardOf You)] {zc = ok})))
+badTappedGraveyard MkZoneCoherent impossible
+
+
+-- one value per category ([CR#110.5]): "tapped untapped creature"
+-- describes nothing, and the refusal is the category clash, not a
+-- negation pair — neither word is spelled as the other's "non-".
+public export
+badTappedUntapped : Unspellable (Effect []) (\ok =>
+  Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped, Macros.untapped] {cf = ok})))
+badTappedUntapped MkContradictionFree impossible
+
+
+-- the pair is two WORDS: "nontapped" is written zero times, so the
+-- status word does not negate — the opposite value is its own row.
+public export
+badNonTapped : Unspellable (Predicate [] Object) (\ok =>
+  Not Macros.tapped {ng = ok})
+badNonTapped MkNegatable impossible
+
+
+-- "phased-in" is written zero times as a description; the value exists
+-- in the closed product ([CR#110.5]) and its surface cell refuses.
+public export
+badPhasedInWord : Unspellable (Predicate [] Object) (\ok =>
+  HasStatus PhasedIn {at = ok})
+badPhasedInWord MkStatusWord impossible
+
+
+-- untap takes a battlefield object, the tap row's own demand mirrored
+-- ([CR#701.26b]; `badTapGraveyard`'s twin).
+public export
+badUntapGraveyard : Unspellable (Effect []) (\ok =>
+  Untap (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
+badUntapGraveyard OnField impossible
+
+
+-- "permanent" beside a projected instant head describes nothing
+-- ([CR#110.4] — "instant and sorcery cards can't enter the battlefield
+-- and thus can't be permanents").
+public export
+badPermanentInstant : Unspellable (Effect []) (\ok =>
+  Macros.destroy (Macros.target (And [Permanent, HasType Instant] {cf = ok})))
+badPermanentInstant MkContradictionFree impossible
+
+
+-- "that permanent" after its referent left: destruction retags to the
+-- graveyard, [CR#110.1] takes the word away with the zone, and the
+-- current-state read reaches nothing.
+public export
+badThatPermanentDeparted : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.destroy (Macros.target Permanent),
+               Tap (That PermanentW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+badThatPermanentDeparted (Refl, _) impossible
+
+
+-- a token off the battlefield has ceased to exist ([CR#111.7]): "token
+-- card in your graveyard" describes nothing.
+public export
+badTokenGraveyard : Unspellable (Effect []) (\ok =>
+  Macros.destroy (Macros.target (And [IsToken, InZone (Macros.graveyardOf You)] {zc = ok})))
+badTokenGraveyard MkZoneCoherent impossible
+
+
+-- "nontoken token" is the negation pair the scan already refuses.
+public export
+badNontokenToken : Unspellable (Effect []) (\ok =>
+  Macros.destroy (Macros.target (And [IsToken, Macros.nontoken] {cf = ok})))
+badNontokenToken MkContradictionFree impossible
+
+
+-- a referent nothing minted as a token is never "that token": the
+-- origin field is written only by the create clause ([CR#111.1]).
+public export
+badThatTokenOfCard : Unspellable (Effect []) (\ok =>
+  Sequentially [Tap (Macros.target Macros.creature),
+               Untap (That TokenW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+badThatTokenOfCard (Refl, _) impossible
+
+
+-- the lock's subject stands on the battlefield, `badCantInGraveyard`'s
+-- twin.
+public export
+badUntapLockGraveyard : Unspellable Ability (\ok =>
+  Static (DoesntUntap (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}))
+badUntapLockGraveyard MkZoneFits impossible
+
+
+-- a durationless "doesn't untap" CLAUSE is the static ability line and
+-- not a clause at all — `badStaticCant`'s shape with the new statement.
+public export
+badUntapLockClause : Unspellable (Effect []) (\ok =>
+  Continuously (DoesntUntap (AsType Artifact This)) Nothing {sp = ok})
+badUntapLockClause SpanUnstated impossible
+
+
+-- Only battlefield creatures fight [CR#701.14b]: a graveyard card
+-- cannot.
+public export
+badFightGraveyard : Unspellable (Effect []) (\ok =>
+  Fights (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {za = ok}
+         (Macros.target Macros.creature))
+badFightGraveyard OnField impossible
+
+
+-- Only combatant types fight [CR#701.14a]: a land's TypeDef declares
+-- no fight participation.
+public export
+badFightLand : Unspellable (Effect []) (\ok =>
+  Fights (Macros.target (HasType Land)) {ta = ok} (Macros.target Macros.creatureYouDontControl))
+badFightLand Fighter impossible
+
+
+-- Dying is the battlefield-to-graveyard transition [CR#700.4]: an
+-- already-graveyard card cannot die this turn. The demand is
+-- `zoneFits`' as of chapter twenty-eight rather than `OnBattlefield`'s,
+-- and the refusal is unchanged by the loosening: a phrase that STATES
+-- the graveyard still contradicts the battlefield, while the phrase
+-- that states nothing ("this creature", the trigger corpus's own
+-- subject at two thousand four hundred seventy-three lines) passes on
+-- its silence.
+public export
+badDiesInGraveyard : Unspellable (Effect []) (\ok =>
+  Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) {span = Just ThisTurn}
+          (Move (That CardW) Macros.battlefieldZ))
+badDiesInGraveyard MkZoneFits impossible
+
+
+-- Damage reaches players and battlefield objects only [CR#120.1]:
+-- the destroyed referent sits in the graveyard.
+public export
+badDamageGraveyardCard : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.destroy (Macros.target Macros.creature),
+               DealDamage This (Lit 3) It {rk = ok}])
+badDamageGraveyardCard ObjectTakes impossible
+
+
+-- A quality cannot take damage [CR#120.1].
+public export
+badDamageToColor : Unspellable (Effect []) (\ok =>
+  DealDamage This (Lit 1) (Macros.a (QualityNoun Color)) {rk = ok})
+badDamageToColor ObjectTakes impossible
