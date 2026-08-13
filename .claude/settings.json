@@ -5,13 +5,21 @@
   "enabledPlugins": {
     "mtg-rules@mtg-rules": true,
     "idris2-guide@idris2-guide": true,
-    "jj-workflow@jj-workflow": true
+    "jj-sensei@msmorgan": true,
+    "jj-kata@msmorgan": true
   },
   "extraKnownMarketplaces": {
     "mtg-rules": {
       "source": {
         "source": "github",
         "repo": "msmorgan/mtg-rules"
+      },
+      "autoUpdate": true
+    },
+    "msmorgan": {
+      "source": {
+        "source": "github",
+        "repo": "msmorgan/marketplace"
       },
       "autoUpdate": true
     }

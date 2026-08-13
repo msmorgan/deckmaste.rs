@@ -35,10 +35,15 @@ Tickets move between folders as work progresses:
 critical/planned/maybe  →  wip  →  done
 ```
 
-`workflow claim <slug>` moves the ticket from its current folder into
-`wip/` and provisions the feature workspace `../<slug>`. `workflow
-integrate <slug>` folds the finished work into the default line and moves the
-ticket to `done/`.
+`jj-kata claim <slug>` moves the ticket from its current folder into `wip/` and
+provisions the feature workspace `.workspaces/<slug>`. `jj-kata integrate
+<slug>` folds the finished work into the default line and moves the ticket to
+`done/`.
+
+Those moves are made by jj-kata's bundled folder-Kanban driver, configured in
+`kata.toml`. It reads this tree directly — the folders above are its
+`columns`, and a ticket's `needs:` frontmatter is the graph. Nothing in this
+repository implements ticket semantics any more.
 
 ## Writing a ticket
 
@@ -51,45 +56,44 @@ the house style, they're accumulated drift. (Meta-tickets/"epics" that
 coordinate other tickets are the exception and may carry more structure —
 no formal mechanism for them yet.)
 
-## The dependency graph (`scripts/todo`)
+## The dependency graph (`jj-kata kanban`)
 
 Each ticket's frontmatter carries a `needs: [...]` list — the other tickets (by
 slug) that must reach `done/` before it can be worked. Those lists are the edges
-of a dependency graph whose nodes are the ticket files (plus the `census.md`
-mechanic rows), and whose status for any node is simply the folder it sits in.
+of a dependency graph whose nodes are the ticket files, and whose status for any
+node is simply the folder it sits in.
 
 **That `needs:` list is machine-read graph data, not a reading list.** To find
 what a ticket depends on, what it blocks, or whether it is claimable yet, **query
-the graph with `scripts/todo` — do not open the dependency tickets to work that
+the graph with `jj-kata kanban` — do not open the dependency tickets to work that
 out by hand.** (Reading a dependency's *body* to understand its design is fine
-when you actually need it; the script is for everything about dependency *status*
-and *shape*.)
+when you actually need it; the command is for everything about dependency
+*status* and *shape*.)
 
-`scripts/todo <command> [<slug>] [--slugs-only]`:
+`jj-kata kanban [--slugs-only] <command> [<slug>]`:
 
 | Command | What it prints |
 |---|---|
-| `ready` | Claimable triage items — those whose every need is in `done/`. One `slug  (folder)` per line, ordered by status then name. |
-| `blocked` | Triage items with an unmet need: `slug  <- need1 need2 …` (only the needs not yet done). |
-| `graph <slug>` | One ticket's dependency picture: recursive `needs (upstream): …` + direct `blocks (downstream): …`, each entry tagged `[folder]`. **Run this on a ticket instead of opening its `needs:` files.** |
+| `board` | Every ticket grouped by column, in the configured column order. |
+| `ready` | Claimable triage items — those whose every need is in `done/`. One `slug (folder)` per line, ordered by column then name. |
+| `blocked` | Triage items with an unmet need: `slug (folder) <- need1, need2 …` (only the needs not yet done). |
+| `order` | Every unfinished ticket (triage plus `wip/`), each prerequisite printed before its dependents. Ties break by column priority, then slug. |
+| `graph <slug>` | One ticket's dependency picture: recursive upstream needs + direct downstream blocks. **Run this on a ticket instead of opening its `needs:` files.** |
 | `needs <slug>` | That ticket's *direct* needs, one slug per line. |
-| `check` | Integrity sweep over the whole graph — reports dependency cycles and dangling needs (a need naming no node). Prints `OK: …`, or a `FAIL` line plus one problem per line and exits 1. Run it after editing any `needs:`. |
-| `mint <slug>` | Print a `wip/` ticket body for a census-only mechanic (what `workflow claim` uses when the slug is a census row, not a ticket). |
-| `iscensus <slug>` | Exit 0 iff `slug` is a census-derived node rather than a ticket file (used by `workflow claim`); prints nothing. |
+| `check` | Integrity sweep over the whole graph — reports duplicate slugs, dependency cycles, and dangling needs (a need naming no node). Prints `OK: …`, or a `FAIL` line plus one problem per line and exits 1. Run it after editing any `needs:`. |
 
-Append `--slugs-only` to reduce any line-oriented command to just the bare slug
-column — handy for piping, e.g. `scripts/todo ready --slugs-only`.
+`--slugs-only` reduces any line-oriented command to just the bare slug column —
+handy for piping. **It goes before the subcommand**, e.g. `jj-kata kanban
+--slugs-only ready`; placed after, argparse rejects it.
 
-Run the ticket graph's hermetic fixture harness locally from the repository
-root:
-
-```sh
-fish tests/todo_test.fish
-```
+Two behaviours differ from the retired `scripts/todo`, both stricter: a slug
+appearing in two folders at once is a `check` failure rather than silently
+resolving to whichever folder was read last, and a dangling need counts as
+blocking rather than only surfacing in `check`.
 
 ## Priorities
 
-When picking "the next" item, run `scripts/todo ready` to list claimable
+When picking "the next" item, run `jj-kata kanban ready` to list claimable
 tickets — those whose dependencies are all in `done/`. From that list, work
 down this ordering: take the highest tier that has an unclaimed,
 non-conflicting item; within a tier, use the "Cards" counts where available.
@@ -119,12 +123,12 @@ says otherwise.
 
 When starting work on a ticket:
 
-1. **Claim the ticket:** from `default`, run `workflow claim <slug>`.
+1. **Claim the ticket:** from `default`, run `jj-kata claim <slug>`.
    This moves `<slug>.md` from its current folder into `wip/` and provisions
-   a feature workspace at `../<slug>`.
-2. **Work in the feature workspace:** `cd ../<slug>` and do the actual
+   a feature workspace at `.workspaces/<slug>`.
+2. **Work in the feature workspace:** `cd .workspaces/<slug>` and do the actual
    implementation there.
-3. **Integrate when done:** from `default`, run `workflow integrate
+3. **Integrate when done:** from `default`, run `jj-kata integrate
    <slug>`. This folds the feature into the default line and moves the ticket
    to `done/`.
 
@@ -132,7 +136,7 @@ A ticket in `wip/` is claimed and in progress — pick the highest-priority (see
 Priorities) item from `critical/` or `planned/` (or `maybe/` if the user
 directs) that doesn't conflict with active `wip/` tickets (same files, same
 engine subsystem, or one item's dependencies naming the other). Run
-`scripts/todo ready` to filter to items whose dependencies are all in `done/`.
+`jj-kata kanban ready` to filter to items whose dependencies are all in `done/`.
 
 Tickets tagged **[design]** require a design dialogue with the user before
 implementation — claiming one means opening that conversation, not coding solo.
@@ -145,7 +149,7 @@ another todo ("oh, I guess we're fixing this too now"). Rather than spin up a
 separate workspace, fold the extra todo into the one already going:
 
 ```
-workflow claim <other-slug> --into <name>
+jj-kata claim <other-slug> --into <name>
 ```
 
 This moves `<other-slug>.md` into `wip/` and **amends `<name>`'s claim commit** to
@@ -158,9 +162,17 @@ several at once with `claim <slug-a> <slug-b> --into <name>`. Notes:
   was rewritten). That is routine: in `../<name>`, run `jj workspace
   update-stale` (commit your work first) before your next commit.
 - `integrate <name>` then finishes **every** todo the claim owns — each moves
-  `wip/ → done/`, all in one completion commit — and `drop --force <name>` reverts
-  them all back to triage. (The set is read off the claim commit's own diff, so it
-  is always exactly the todos that claim brought into `wip/`.)
+  `wip/ → done/`, all in one completion commit — and `drop --force --return-items
+  <name>` reverts them all back to triage. (Ownership is derived from the
+  feature's own tree against its base revision, so it is always exactly the todos
+  that claim brought into `wip/`.)
+
+## Census
 
 Census tables for card shapes, keyword abilities, keyword actions, and ability
-words live in `census.md` alongside this file.
+words live in `census.md` alongside this file. It is a **reference table, not a
+ticket database**: the per-mechanic Modern card counts are prioritisation data,
+and nothing reads the file mechanically. Its rows were once synthesised into
+graph nodes claimable by name; that machinery is gone, and no ticket's `needs:`
+ever pointed at one. A mechanic worth working gets a real ticket file like
+anything else.

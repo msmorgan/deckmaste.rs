@@ -154,12 +154,11 @@ set -l failed_plan (fish -C '\
 check 'provider failure propagates from fetch_data' 23 $status
 check 'provider failure stops later hosts' '' "$failed_plan"
 
-# Ubuntu's Fish 3.7 does not implement argparse's strict-longopts flag. Keep
-# both CI-invoked scripts and every function on the fetch path source-compatible.
+# Ubuntu's Fish 3.7 does not implement argparse's strict-longopts flag. Keep the
+# CI-invoked script and every function on the fetch path source-compatible.
 set -l strict_longopts
 for file in \
         scripts/fetch_data \
-        scripts/todo \
         scripts/lib/functions/fetch/download_file.fish \
         scripts/lib/functions/fetch/mtgjson.fish
     while read -l line

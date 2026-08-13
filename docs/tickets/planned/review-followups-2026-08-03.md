@@ -12,7 +12,7 @@ After every dependency is done:
   intentional survivors;
 - verify the extracted engine and English functions retained test counts,
   citations, and behavior;
-- run `fish tests/todo_test.fish` through the same path CI uses; and
+- run `fish tests/fetch_data_test.fish` through the same path CI uses; and
 - record any genuinely ad-hoc cleanup from the review, including the
   `replace.rs` test-import placement nit, rather than minting lifecycle work
   for it.

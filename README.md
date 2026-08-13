@@ -345,7 +345,7 @@ records that plan). The near-term work runs in three strands:
    then oracle-text coverage, keyword authoring, and convenience macros, with
    the noncanon suite growing alongside.
 
-`docs/tickets/` is the working queue (folder = status; `scripts/todo ready`
+`docs/tickets/` is the working queue (folder = status; `jj-kata kanban ready`
 lists the next claimable items), and `docs/decisions/` records the design
 contracts the roadmap is built on.
 

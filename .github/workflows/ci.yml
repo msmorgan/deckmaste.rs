@@ -34,8 +34,6 @@ jobs:
       - name: install data tooling
         run: |
           sudo apt-get update && sudo apt-get install -y fish xz-utils
-      - name: ticket graph harness
-        run: fish tests/todo_test.fish
       - name: fetch helper harness
         run: fish tests/fetch_data_test.fish
 

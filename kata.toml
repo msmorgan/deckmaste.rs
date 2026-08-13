@@ -1,0 +1,31 @@
+# jj-kata per-repo config (github: msmorgan/jj-kata). Requires jj-sensei's
+# workspace boundaries; see CLAUDE.md.
+#
+# Feature workspaces stay inside the coordinator checkout rather than beside it,
+# for Codex sandbox compatibility.
+workspace_dir = ".workspaces"
+
+# Set explicitly rather than relying on the default: a fresh workspace has none
+# of the gitignored fixtures the build needs (data, local docs/ dirs, generated
+# plugins/wizards) until this runs, so an unprovisioned workspace wastes the
+# work done in it. Naming it also makes a missing or non-executable hook a hard
+# error instead of a silent skip.
+provision_hook = "scripts/provision-workspace"
+
+[items]
+# Tickets are plain files whose folder is their status, so the bundled Kanban
+# driver owns the claim/complete/return moves outright.
+driver = "kanban"
+
+# Claims publish immediately through a bookmarked anchor on the default line, so
+# concurrent sessions can see what is already taken.
+visibility = "shared"
+
+[kanban]
+root = "docs/tickets"
+wip = "wip"
+done = "done"
+patterns = ["*.md"]
+
+# Triage folders in priority order; see docs/tickets/README.md.
+columns = ["critical", "planned", "maybe", "wip", "done"]

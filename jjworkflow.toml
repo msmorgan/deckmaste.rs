@@ -1,8 +1,0 @@
-# jj-workflow per-repo config (github: msmorgan/jj-workflow).
-# provision_hook uses the default, scripts/provision-workspace. Keep feature
-# workspaces inside the coordinator checkout for Codex sandbox compatibility.
-workspace_dir = ".workspaces"
-
-# Ticket/census tool `workflow claim` consults for census-only mechanics
-# (`iscensus SLUG` / `mint SLUG`).
-todo_cmd = "scripts/todo"
