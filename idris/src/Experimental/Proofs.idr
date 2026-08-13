@@ -537,3 +537,202 @@ public export
 badDamageToColor : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1) (Macros.a (QualityNoun Color)) {rk = ok})
 badDamageToColor ObjectTakes impossible
+
+
+-- Damage goes to battles, creatures, planeswalkers, or players
+-- [CR#120.1a]: a noncreature artifact takes none.
+public export
+badDamageArtifact : Unspellable (Effect []) (\ok =>
+  DealDamage This (Lit 1) (Macros.target (HasType Artifact)) {rk = ok})
+badDamageArtifact ObjectTakes impossible
+
+
+-- A phrase needs a positive head ([CR#105.1,608.2d]): "choose a
+-- noncolor" heads nothing — Not is a modifier, never a head.
+public export
+badNegatedQualityHead : Unspellable (Effect []) (\ok =>
+  Choose (Macros.a (Not (QualityNoun Color)) {hd = ok}))
+badNegatedQualityHead MkHeaded impossible
+
+
+-- "Target non-player" is refused EARLIER than headlessness now: the
+-- universal player word names one of the people in the game
+-- ([CR#102.1]), so there is no complement class for "non-" to take —
+-- the same argument the class word's row makes, and the negation is
+-- unwritable before the phrase ever reaches the head gate. Probed at
+-- the bare predicate: nested inside `target`'s auto search this
+-- failure misreports as the outer `Headed` one.
+public export
+badNegatedPlayerHead : Unspellable (Predicate [] Player) (\ok =>
+  Not AnyPlayer {ng = ok})
+badNegatedPlayerHead MkNegatable impossible
+
+
+-- Negation binds nothing: "a creature an opponent DOESN'T control"
+-- names no opponent for "that player" to read.
+public export
+badNegatedAntecedent : Unspellable (Effect []) (\ok =>
+  Sequentially [Tap (Macros.target (And [Macros.creature, Not (ControlledBy Macros.anOpponent)])),
+                Macros.losesLife (That PlayerW {ok}) (Lit 1)])
+badNegatedAntecedent Refl impossible
+
+
+-- An object is in ONE zone: contradicted zone conjuncts refuse in
+-- either order.
+public export
+badConflictingZones : Unspellable (Effect []) (\ok =>
+  Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.battlefieldZ, InZone Macros.graveyardZ] {zc = ok})))
+badConflictingZones MkZoneCoherent impossible
+
+
+-- Targets are objects and players [CR#115.1]: "target color" is
+-- unwritten — qualities are chosen, never targeted.
+public export
+badTargetColor : Unspellable (Effect []) (\ok =>
+  Choose (Macros.target (QualityNoun Color) {tk = ok}))
+badTargetColor ObjectTgt impossible
+
+
+-- The one-shot stat modification takes a battlefield object: a dead
+-- referent doesn't get +3/+3.
+public export
+badGetsGraveyard : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.destroy (Macros.target Macros.creature),
+                Macros.gets It 3 3 (Just Macros.untilEndOfTurn) {ok}])
+badGetsGraveyard MkZoneFits impossible
+
+
+-- A card never enters another player's hand [CR#400.3]: owned
+-- destinations are owner-routed, so this is unwritable.
+public export
+badMoveToTargetsHand : Unspellable (Effect []) (\ok =>
+  Move (Macros.target Macros.creature) (Macros.handOf (Macros.target AnyPlayer)) {ok})
+badMoveToTargetsHand HandOkBare impossible
+
+
+-- Only a battlefield permanent is destroyable [CR#701.8a].
+public export
+badDestroyGraveyard : Unspellable (Effect []) (\ok =>
+  Macros.destroy (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
+badDestroyGraveyard OnField impossible
+
+
+-- Discarding moves a card from a HAND [CR#701.9a]: a battlefield
+-- creature is not discardable.
+public export
+badDiscardBattlefield : Unspellable (Effect []) (\ok =>
+  Macros.discards You (Macros.a Macros.creature) {dk = ok})
+badDiscardBattlefield DiscardTracked impossible
+
+
+-- The tag and its body agree: a Destroy-tagged exile would let
+-- indestructible cant an exile [CR#701.8b,702.12b].
+public export
+badDestroyTaggedExile : Unspellable (Effect []) (\ok =>
+  Composite Destroy (Move (Macros.target Macros.creature) Macros.exileZ) {ok})
+badDestroyTaggedExile DestroyB impossible
+
+
+-- The zone demand lives on the tag-body relation: the raw Composite
+-- spelling proves what the macro proves [CR#701.8a].
+public export
+badCompositeDestroyGraveyard : Unspellable (Effect []) (\ok =>
+  Composite Destroy (Move (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Macros.graveyardZ) {ok = DestroyB {z = ok}})
+badCompositeDestroyGraveyard OnField impossible
+
+
+-- An agentive tag cannot shed its actor [CR#701.21a]: the raw
+-- Composite spelling of sacrifice is refused outright.
+public export
+badAgentlessSacrifice : Unspellable (Effect []) (\ok =>
+  Composite Sacrifice (Move (Macros.a Macros.creature) Macros.graveyardZ) {ok = SacrificeB} {na = ok})
+badAgentlessSacrifice DestroyNA impossible
+
+
+-- Discarding moves a hand card [CR#701.9a]: the demand rides the tag
+-- relation, so a battlefield "discard" is unspellable under Does too
+-- — and with it the forged stamp `TheVerbed Discard` would read.
+public export
+badDoesDiscardBattlefield : Unspellable (Effect []) (\ok =>
+  Does You Discard (Move (Macros.a Macros.creature) Macros.graveyardZ) {tb = DiscardB {d = ok}})
+badDoesDiscardBattlefield DiscardTracked impossible
+
+
+-- A written quantity permits at least one: "zero target creatures" is
+-- unwritten English, and so is the "up to zero" spelling of it — the
+-- demand is on the quantity's MAXIMUM. (One IS writable: it is the
+-- singular form the `target` macro spells, rendered without its
+-- numeral.)
+public export
+badZeroGroup : Unspellable (Effect []) (\ok =>
+  Choose (TargetGroup (Macros.exactly 0) Macros.creature {nz = Builtin.fst ok} {wf = Builtin.snd ok}))
+badZeroGroup (MaxAtLeastOne, _) impossible
+
+
+-- …and the shared zones take no possessor at all: [CR#400.1] gives
+-- each player a library, a hand, and a graveyard and shares the rest,
+-- so "your battlefield" is not a phrase. The refusal is the ZONE's,
+-- not the possessor's — the noun here is impeccable.
+public export
+badOwnedBattlefield : Unspellable (ZoneExpr []) (\ok =>
+  ZoneAt Battlefield (OwnedBy You {ps = ok}))
+badOwnedBattlefield HandIsOwned impossible
+
+
+-- A bare type word denotes a permanent [CR#109.2], and what was
+-- discarded left a HAND: "the discarded creature" is unwritten (the
+-- corpus discard family reads "the discarded card" only) — the
+-- stamp's at-verb frame refuses the type word.
+public export
+badDiscardedCreatureWord : Unspellable Ability (\ok =>
+  Activated (Do (Macros.discards You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
+            (DealDamage This
+                          (Macros.manaValueOf (TheVerbed Discard (TypeW Creature) {ok}))
+                          (Macros.target AnyTarget)))
+badDiscardedCreatureWord Refl impossible
+
+
+-- "Of their choice" is a possessive pronoun: it demands a player
+-- antecedent (a subject or one distributive group [CR#608.2d]) —
+-- bare "Destroy a creature of their choice" is unwritten.
+public export
+badUnboundTheirChoice : Unspellable (Effect []) (\ok =>
+  Macros.destroy (Macros.aTheirChoice Macros.creature {ch = ok}))
+badUnboundTheirChoice Refl impossible
+
+
+-- "That much" with nothing done yet: no outcome to read.
+public export
+badThatMuchUnbound : Unspellable (Effect []) (\ok =>
+  DealDamage This (ThatMuch {ok}) (Macros.target AnyTarget))
+badThatMuchUnbound Refl impossible
+
+
+-- Two event clauses leave "that much" ambiguous — outcomes obey the
+-- same strict uniqueness as every read.
+public export
+badThatMuchAmbig : Unspellable (Effect []) (\ok =>
+  Sequentially [DealDamage This (Lit 3) (Macros.target AnyTarget),
+                Macros.losesLife You (Lit 2),
+                Macros.gainsLife You (ThatMuch {ok})])
+badThatMuchAmbig Refl impossible
+
+
+-- ===== Chapter thirteen negatives: the refuse-nonsense wave =====
+-- (Probed at the smallest construct that carries the gate — a bare
+-- `Predicate`/`Amount`/`Noun` where one exists: an auto-search failure
+-- nested inside another auto stalls the OUTER search and misreports.)
+
+-- "Other" needs a head-COMPATIBLE anchor. The guide reserves
+-- "another" for excluding the source or first referent and writes two
+-- separately described roles WITHOUT it ("target creature and target
+-- planeswalker"); the corpus pairs "other" only with overlapping
+-- heads. A land target is no anchor for "another creature" — even
+-- though sharing an object across such slots is rules-legal
+-- ([CR#601.2c]), which is what makes this templating, gated at the
+-- conjunction where the head type is known.
+public export
+badOtherCrossHead : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.destroy (Macros.target (HasType Land)),
+                Macros.destroy (Macros.target (And [Macros.creature, Other] {oa = ok}))])
+badOtherCrossHead MkOtherAnchored impossible
