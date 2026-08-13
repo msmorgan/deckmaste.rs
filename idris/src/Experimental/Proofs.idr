@@ -201,3 +201,112 @@ public export
 badOther : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))
 badOther Refl impossible
+
+
+-- A genuinely ambiguous pronoun: two singular Object mentions precede
+-- "it", so the uniqueness gate refuses. (Not oracle-legal text — which
+-- is the point: the controlled language never writes this.)
+public export
+badIt : Unspellable (Effect []) (\ok =>
+  Sequentially [Fights (Macros.target Macros.creature) (Macros.target Macros.creature),
+                Tap (It {ok})])
+badIt Refl impossible
+
+
+-- A group is not a singular antecedent: "each creature … it" has no
+-- referent for "it" (the plurality guard).
+public export
+badTheyIt : Unspellable (Effect []) (\ok =>
+  Sequentially [DealDamage This (Lit 3) (Each Macros.creature),
+                Tap (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+badTheyIt (Refl, _) impossible
+
+
+-- The delay does not launder a dead referent: sacrifice's zone demand
+-- reads fold-state through the boundary, and the destroyed target sits
+-- in the graveyard ([CR#701.21a]; contrast Junkyo Bell, which legally
+-- delays sacrificing a LIVE target — the distinction is the referent's
+-- zone, never its determiner).
+public export
+badStale : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.destroy (Macros.target Macros.creature),
+               Delayed (BeginningOf EndStep Nothing) (Macros.sacrifice You It {ok})])
+badStale OnField impossible
+
+
+-- "Another target" inside a delayed clause can only be distinct from
+-- the DELAYED ability's own targets — it announces in its own event
+-- ([CR#603.3d,601.2c]), so the outer clause's settled targets are no
+-- witness for the presupposition. (Soundness-derived: the corpus
+-- writes no such line; Swooping Pteranodon shows the two halves — a
+-- fresh "target land" announced at delay time reading back "that
+-- creature" from the outer clause.)
+public export
+badDelayedOther : Unspellable (Effect []) (\ok =>
+  Sequentially [DealDamage This (Lit 2) (Macros.target AnyTarget),
+               Delayed (BeginningOf EndStep Nothing) (DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))])
+badDelayedOther Refl impossible
+
+
+-- After the exile, the referent no longer answers to "creature": its
+-- carrier is derived from the RETAGGED zone ([CR#110.1]), so the typed
+-- demonstrative has no antecedent — the carrier-word rule as a type
+-- error ("that card" is the spelling that resolves; see `cloudshift`).
+public export
+badStaleCarrier : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
+               Move (That (TypeW Creature) {ok}) Macros.battlefieldZ])
+badStaleCarrier Refl impossible
+
+
+-- A hidden-zone cost mention is unreadable past the colon: the card
+-- bounced to hand is not among the public survivors ([CR#400.2] —
+-- hand is hidden; no [CR#400.7] exception reaches it, and
+-- Soratami Cloudskater-family costs write no such read back).
+public export
+badHiddenCost : Unspellable Ability (\ok =>
+  Activated (Do (Move (Macros.a Macros.creature) Macros.handZ))
+            (Tap (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}))
+badHiddenCost (Refl, _) impossible
+
+
+-- Two cost moves leave two candidate antecedents ("Discard a card,
+-- Sacrifice a creature: …" — Falkenrath Pit Fighter-family): a bare
+-- "It" past the colon is ambiguous. Real costs of this shape read
+-- back with definite descriptions (the participle reads of chapter
+-- eight), never a bare pronoun. (The verb is exile — zone-blind —
+-- so the pin isolates the ambiguity, not a zone gate.)
+public export
+badTwoCostMentions : Unspellable Ability (\ok =>
+  Activated (Compound [Do (Macros.discardsACard You),
+                       Do (Macros.sacrifice You (Macros.a Macros.creature))])
+            (Macros.exile (It {ok})))
+badTwoCostMentions Refl impossible
+
+
+-- The zone half of sacrifice's implicit restriction as a type error:
+-- an exiled referent is not sacrificeable [CR#701.21a].
+public export
+badSacrificeExiled : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.exile (Macros.target Macros.creature),
+               Macros.sacrifice You It {ok}])
+badSacrificeExiled OnField impossible
+
+
+-- After the watched target dies, it no longer answers to "creature":
+-- the event retag flips the carrier ([CR#700.4,110.1]) — "that card"
+-- is the spelling that resolves (see `gracefulReprieve`).
+public export
+badDeadCreatureRead : Unspellable (Effect []) (\ok =>
+  Delayed (Dies (Macros.target Macros.creature)) {span = Just ThisTurn}
+          (Move (That (TypeW Creature) {ok}) Macros.battlefieldZ))
+badDeadCreatureRead Refl impossible
+
+
+-- "The chosen type" with only a color chosen: the quality read is
+-- sort-filtered — no witness.
+public export
+badChosenWrongSort : Unspellable
+  (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
+  (\ok => OfChosen CreatureType {ok})
+badChosenWrongSort Refl impossible
