@@ -3677,3 +3677,378 @@ youngPyromancer =
                    (Casts You (Macros.a (And [Macros.instantOrSorcery, Macros.spell])))
                    (Create You (Lit 1) (Macros.creatureTok 1 1 [Red] [Elemental]) []) ]
        (Just (2, 1))
+
+-- ===== The keyword grant to a spell =====
+
+-- Inspiring Statuary {3}, Artifact, "Nonartifact spells you cast have
+-- improvise." The whole card, and the grant at its plainest: a negated type
+-- word over the stack's carrier noun, the cast relation, and a keyword that
+-- functions while the spell is being cast ([CR#702.126a]). Its reminder text
+-- is elided as every keyword's is.
+inspiringStatuary : Card
+inspiringStatuary =
+  Macros.card "Inspiring Statuary" (Just [Macros.generic 3]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (Gains (AllOf (And [Not Macros.artifact, Macros.spell, CastBy You]))
+                       (KeywordAbility Improvise)) ]
+       Nothing
+
+-- Chief Engineer {1}{U}, Creature — Vedalken Artificer, 1/3, "Artifact spells
+-- you cast have convoke." The whole card at the TYPE head, and the family's
+-- most-written word (6 supported lines of convoke against 5 of lifelink).
+chiefEngineer : Card
+chiefEngineer =
+  Macros.card "Chief Engineer" (Just [Macros.generic 1, Macros.pip Blue]) []
+       (MkTypeLine [Vedalken, Artificer] [Creature])
+       [ Static (Gains (AllOf (And [Macros.artifact, Macros.spell, CastBy You]))
+                       (KeywordAbility Convoke)) ]
+       (Just (1, 3))
+
+-- "Red instant and sorcery spells you control have lifelink." (Firesong and
+-- Sunspeaker's grant line; its damage trigger waits on the noncombat damage
+-- event) — the RESOLUTION regime, and the round's densest single line: a
+-- color word, chapter sixty-five's union head, chapter sixty-four's widened
+-- controller relation over the stack, and a keyword whose rules "function no
+-- matter what zone an object with lifelink deals damage from" ([CR#702.15d]).
+firesongAndSunspeaker : Ability
+firesongAndSunspeaker =
+  Static (Gains (AllOf (And [ColorIs Red, Macros.instantOrSorcery, Macros.spell,
+                             ControlledBy You]))
+                (KeywordAbility Lifelink))
+
+-- "Instant and sorcery spells you cast have storm." (Prismari, the
+-- Inspiration's third line; its Flying is a keyword line and its Ward waits
+-- on the keyword catalog) — the casting regime over the same union head, and
+-- the card that shows why the two regimes cannot share a relation: storm
+-- copies the spell as it is cast ([CR#702.40a]), and a copy is controlled by
+-- the player who made it and was never cast ([CR#707.10]).
+prismariTheInspiration : Ability
+prismariTheInspiration =
+  Static (Gains (AllOf (And [Macros.instantOrSorcery, Macros.spell, CastBy You]))
+                (KeywordAbility Storm))
+
+-- ===== The layer words =====
+
+-- Maro {2}{G}{G}, Creature — Elemental, */*, "Maro's power and toughness are
+-- each equal to the number of cards in your hand." The whole card and the
+-- family's own icon: one line, one read, and the printed star the line stands
+-- behind ([CR#208.2a]). Nothing elided.
+maro : Card
+maro =
+  Macros.cardOf "Maro" (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [Elemental] [Creature])
+       [ Static (DefinesPt Macros.thisCreature BothEach
+                           (CountOf (InZone (Macros.handOf You)))) ]
+       (Just (PrintedStar, PrintedStar))
+
+-- Battle Squadron {3}{R}{R}, Creature — Goblin, */*, "Flying. Battle
+-- Squadron's power and toughness are each equal to the number of creatures
+-- you control." The whole card, and the definition beside an ordinary keyword
+-- line — the two things a card's text box may say about its own numbers, one
+-- printed in the corner and one written out.
+battleSquadron : Card
+battleSquadron =
+  Macros.cardOf "Battle Squadron" (Just [Macros.generic 3, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [Goblin] [Creature])
+       [ KeywordAbility Flying
+       , Static (DefinesPt Macros.thisCreature BothEach
+                           (CountOf Macros.creatureYouControl)) ]
+       (Just (PrintedStar, PrintedStar))
+
+-- People of the Woods {G}{G}, Creature — Human, 1/*, "People of the Woods's
+-- toughness is equal to the number of Forests you control." The whole card at
+-- the SINGLE slot, and the container's own claim in one printed box: the
+-- defined number writes the star and the undefined one writes itself, which
+-- is [CR#208.2a]'s "[power or toughness] is equal to . . ." wording and the
+-- reason the slot is an index rather than a second row.
+peopleOfTheWoods : Card
+peopleOfTheWoods =
+  Macros.cardOf "People of the Woods" (Just [Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [Human] [Creature])
+       [ Static (DefinesPt Macros.thisCreature ToughnessAlone
+                           (CountOf (And [HasSubtype Forest, ControlledBy You]))) ]
+       (Just (PrintedNum 1, PrintedStar))
+
+-- "Scourge of the Skyclaves's power and toughness are each equal to 20 minus
+-- the highest life total among players." (Scourge of the Skyclaves's third
+-- line; its kicker and the halved life loss its cast trigger deals wait on
+-- their own rounds) — the FLOOR's carve-out in one sentence: the subtraction
+-- is [CR#107.1b]'s ordinary one, and the effect consuming it sets a
+-- creature's power and toughness, which is one of the three the rule excepts,
+-- so a 21-life opponent leaves a -1/-1 creature rather than a 0/0 one.
+scourgeOfTheSkyclaves : Ability
+scourgeOfTheSkyclaves =
+  Static (DefinesPt Macros.thisCreature BothEach
+                    (Minus (Lit 20) (Aggregate MaxOf (PlayerStatAxis LifeTotal) AnyPlayer)))
+
+-- "Equipped creature has base power and toughness X/X, where X is your life
+-- total." (Aettir and Priwen's first line; its Equip cost waits on the
+-- keyword's parameter) — the SETTING with a letter in both slots, and the
+-- clearest evidence that the two slots hold amounts: the glyph the card
+-- prints between the numbers is the rider's letter, so what looks like a
+-- written pair is two reads spelled short.
+aettirAndPriwen : Ability
+aettirAndPriwen =
+  Static (WhereLetterStatic LetterX (PlayerStatOf LifeTotal You)
+                            (HasBasePt (AttachHost Equipped (TypeW Creature))
+                                       (DefinedLetter LetterX)
+                                       (DefinedLetter LetterX)))
+
+-- Diminish {U}, Instant, "Target creature has base power and toughness 1/1
+-- until end of turn." The whole card, and the setting as a CLAUSE — the frame
+-- the definition never takes, with the duration on the envelope where every
+-- other continuous clause writes it. Nothing elided.
+diminish : Card
+diminish =
+  Macros.card "Diminish" (Just [Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Continuously (HasBasePt (Macros.target Macros.creature) (Lit 1) (Lit 1))
+                             (Just Macros.untilEndOfTurn)) ]
+       Nothing
+
+-- About Face {R}, Instant, "Switch target creature's power and toughness
+-- until end of turn." The whole card, and layer 7d's only sentence: no
+-- magnitude, no direction and no second slot, which is why the row carries
+-- nothing but its subject ([CR#613.4d]). Nothing elided.
+aboutFace : Card
+aboutFace =
+  Macros.card "About Face" (Just [Macros.pip Red]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Continuously (SwitchesPt (Macros.target Macros.creature))
+                             (Just Macros.untilEndOfTurn)) ]
+       Nothing
+
+-- ===== The extremal selection =====
+
+-- Topple {2}{W}, Sorcery, "Exile target creature with the greatest power among
+-- creatures on the battlefield. (If two or more creatures are tied for greatest
+-- power, target any one of them.)" The whole card, and the round's clearest
+-- evidence that the fold's DOMAIN is its own argument: the phrase is announced
+-- over every creature on the battlefield and the modifier folds the same set,
+-- so nothing here reads a sibling. Its tie sentence is reminder text.
+topple : Card
+topple =
+  Macros.card "Topple" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Macros.exile
+                  (Macros.target
+                     (And [Macros.creature,
+                           Superlative MaxOf (CharAxis Power)
+                                       (And [Macros.creature,
+                                             InZone Macros.battlefieldZ])]))) ]
+       Nothing
+
+-- Culling Scales {3}, Artifact, "At the beginning of your upkeep, destroy
+-- target nonland permanent with the lowest mana value. (If two or more
+-- permanents are tied for lowest, target any one of them.)" The whole card at
+-- the MINIMUM, and the line that corrects chapter sixty-two's extremal-word
+-- table: mana value is a characteristic and writes "lowest", never "least".
+-- Its tie sentence is reminder text.
+cullingScales : Card
+cullingScales =
+  Macros.card "Culling Scales" (Just [Macros.generic 3]) []
+       (MkTypeLine [] [Artifact])
+       [ Triggered At (BeginningOf Upkeep (Just Yours))
+                   (Macros.destroy
+                      (Macros.target
+                         (And [Permanent, Not Macros.land,
+                               Superlative MinOf (CharAxis ManaValue)
+                                           (And [Permanent, Not Macros.land])]))) ]
+       Nothing
+
+-- "At the beginning of your upkeep, this artifact deals 2 damage to the
+-- creature with the least toughness." (Purging Scythe's line; its tie sentence
+-- is a sentence of its own and waits on the tie CONDITION) — the DEFINITE
+-- determiner, which the superlative is what licenses: "the creature" alone is
+-- not a phrase this grammar writes.
+purgingScythe : Ability
+purgingScythe =
+  Triggered At (BeginningOf Upkeep (Just Yours))
+            (DealDamage Macros.thisArtifact (Lit 2)
+                        (Definite (And [Macros.creature,
+                                        Superlative MinOf (CharAxis Toughness)
+                                                    Macros.creature])))
+
+-- "Roiling Horror's power and toughness are each equal to your life total
+-- minus the life total of an opponent with the most life." (Roiling Horror's
+-- first line; its suspend and the trigger that reads its own time counters
+-- wait on the keyword's parameter) — the card chapter sixty-seven filed here
+-- by reading it, landing on the round it was filed to. The read is
+-- well-defined under a tie because the phrase's own semantics makes it so:
+-- every opponent the description reaches has the same life total, the fold's,
+-- so the INDEFINITE picks a member and the number does not depend on which.
+roilingHorror : Ability
+roilingHorror =
+  Static (DefinesPt Macros.thisCreature BothEach
+                    (Minus (PlayerStatOf LifeTotal You)
+                           (PlayerStatOf LifeTotal
+                              (Macros.a (And [Opponent,
+                                              Superlative MaxOf
+                                                (PlayerStatAxis LifeTotal)
+                                                Opponent])))))
+
+-- Éomer of the Riddermark {4}{R}, Legendary Creature — Human Knight, 5/4,
+-- "Haste / Whenever Éomer attacks, if you control a creature with the greatest
+-- power among creatures on the battlefield, create a 1/1 white Human Soldier
+-- creature token." The whole card, and the measurement that decided the row's
+-- shape: the phrase is restricted to what YOU control and the fold runs over
+-- every creature on the battlefield, so a modifier that read its siblings for
+-- a domain would say something this card does not.
+eomerOfTheRiddermark : Card
+eomerOfTheRiddermark =
+  Macros.card "Éomer of the Riddermark" (Just [Macros.generic 4, Macros.pip Red])
+       [Legendary]
+       (MkTypeLine [Human, Knight] [Creature])
+       [ KeywordAbility Haste
+       , Triggered Whenever (Attacks Macros.thisCreature)
+                   (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Human, Soldier]))
+                   {intervening =
+                      Just (Exists (And [Macros.creature, ControlledBy You,
+                                         Superlative MaxOf (CharAxis Power)
+                                           (And [Macros.creature,
+                                                 InZone Macros.battlefieldZ])]))} ]
+       (Just (5, 4))
+
+-- "Target player sacrifices a creature with the greatest power among creatures
+-- they control. You gain life equal to its power." (the Consume half of
+-- Consecrate // Consume) — the RESTRICTED domain, where the phrase's own head
+-- says only "creature" and the fold is narrowed to one player's: the two are
+-- written apart on the card and are apart in the term.
+consume : Ability
+consume =
+  Spell (Sequentially
+           [ Macros.sacrifice (Macros.target AnyPlayer)
+               (Macros.a (And [Macros.creature,
+                               Superlative MaxOf (CharAxis Power)
+                                 (And [Macros.creature, ControlledBy They])]))
+           , Macros.gainsLife You (StatOf Power It) ])
+
+-- Coretapper {2}, Artifact Creature — Myr, 1/1, "{T}: Put a charge counter on
+-- target artifact. / Sacrifice this creature: Put two charge counters on target
+-- artifact." The whole card, and finding 85's test passed in its plainest
+-- possible form twice over: two activated abilities whose entire effect is a
+-- one-shot put of a named kind on a targeted holder. Nothing elided.
+coretapper : Card
+coretapper =
+  Macros.card "Coretapper" (Just [Macros.generic 2]) []
+       (MkTypeLine [Myr] [Artifact, Creature])
+       [ Activated TapSymbol
+                   (PutCounters (Lit 1) Charge (Macros.target Macros.artifact))
+       , Activated (Do (Macros.sacrifice You Macros.thisCreature))
+                   (PutCounters (Lit 2) Charge (Macros.target Macros.artifact)) ]
+       (Just (1, 1))
+
+-- Divine Intervention {6}{W}{W}, Enchantment, "This enchantment enters with two
+-- intervention counters on it. / At the beginning of your upkeep, remove an
+-- intervention counter from this enchantment. / When you remove the last
+-- intervention counter from this enchantment, the game is a draw." The whole
+-- card, and the older of the two debts `GameDrawn` has carried since chapter
+-- fifty-two: the row landed on [CR#104.4c]'s own sentence with no card behind
+-- it. The kind earns its row on the MIDDLE line — an ordinary one-shot remove —
+-- and the third line is what the agent slot was widened for.
+divineIntervention : Card
+divineIntervention =
+  Macros.card "Divine Intervention"
+       (Just [Macros.generic 6, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (EntersWithCounters Macros.thisEnchantment (Lit 2) Intervention)
+       , Triggered At (BeginningOf Upkeep (Just Yours))
+                   (RemoveCounters (Lit 1) Intervention Macros.thisEnchantment)
+       , Triggered When (LastCounterRemoved Intervention Macros.thisEnchantment
+                                            {by = Just You})
+                   GameDrawn ]
+       Nothing
+
+-- Celestial Convergence {2}{W}{W}, Enchantment, "This enchantment enters with
+-- seven omen counters on it. / At the beginning of your upkeep, remove an omen
+-- counter from this enchantment. If there are no omen counters on this
+-- enchantment, the player with the highest life total wins the game. If two or
+-- more players are tied for highest life total, the game is a draw." The whole
+-- card, and the campaign's OLDEST named debt: its victor line was recorded as
+-- unwritable around chapter fifty-two and has been named in every counter,
+-- outcome and extremal entry since. Four chapters meet in its second line —
+-- the counter kind minted here, chapter sixty-eight's superlative under its
+-- definite article, chapter fifty-two's `GameDrawn`, and the explicit tie
+-- SENTENCE whose condition chapter sixty-eight probed and whose draw consequent
+-- is the one of the five that needed no machinery. Nothing elided.
+celestialConvergence : Card
+celestialConvergence =
+  Macros.card "Celestial Convergence"
+       (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (EntersWithCounters Macros.thisEnchantment (Lit 7) Omen)
+       , Triggered At (BeginningOf Upkeep (Just Yours))
+           (Sequentially
+              [ RemoveCounters (Lit 1) Omen Macros.thisEnchantment
+              , If (Concludes WinGame
+                      (Definite (And [AnyPlayer,
+                                      Superlative MaxOf (PlayerStatAxis LifeTotal)
+                                                  AnyPlayer])))
+                   (CompareAmt (CountersOn Omen Macros.thisEnchantment)
+                               AtMost (Lit 0))
+                   Nothing
+              , If GameDrawn
+                   (CompareAmt (CountOf (And [AnyPlayer,
+                                              Superlative MaxOf
+                                                (PlayerStatAxis LifeTotal)
+                                                AnyPlayer]))
+                               AtLeast (Lit 2))
+                   Nothing ]) ]
+       Nothing
+
+-- ===== Subtype self-reference =====
+
+-- Angelic Gift {1}{W}, Enchantment — Aura, "Enchant creature / When this
+-- Aura enters, draw a card. / Enchanted creature has flying." The whole
+-- card ("Enchant creature" elided as keyword lines always are), and the
+-- new word in SUBJECT position: the ascription is the trigger's own
+-- subject, so [CR#109.2]'s battlefield projection is what satisfies the
+-- event's zone demand exactly as it does under a card type word.
+angelicGift : Card
+angelicGift =
+  Macros.card "Angelic Gift" (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [Aura] [Enchantment])
+       [ Triggered When (Enters Macros.thisAura) (Draw You (Lit 1))
+       , Static (Gains (AttachHost Enchanted (TypeW Creature))
+                       (KeywordAbility Flying)) ]
+       Nothing
+
+-- Lion Heart {4}, Artifact — Equipment, "When this Equipment enters, it
+-- deals 2 damage to any target. / Equipped creature gets +2/+1. / Equip
+-- {2}" The whole card but its keyword line, and the ascription at a
+-- subtype the catalog ALREADY carried: Equipment has had a row since the
+-- for-each domain bought it, so this witness pays only the ascription
+-- cell. The pronoun reads the trigger's own subject back.
+lionHeart : Card
+lionHeart =
+  Macros.card "Lion Heart" (Just [Macros.generic 4]) []
+       (MkTypeLine [Equipment] [Artifact])
+       [ Triggered When (Enters Macros.thisEquipment)
+                   (DealDamage It (Lit 2) (Macros.target AnyTarget))
+       , Static (Gets (AttachHost Enchanted (TypeW Creature))
+                      (PtUp (Lit 2)) (PtUp (Lit 1))) ]
+       Nothing
+
+-- Curse of Vengeance {B}, Enchantment — Aura Curse, "Enchant player /
+-- Whenever enchanted player casts a spell, put a spite counter on this
+-- Aura. / When enchanted player loses the game, you gain X life and draw
+-- X cards, where X is the number of spite counters on this Aura." The
+-- whole card but its keyword line, and the debt the previous chapter
+-- named: the spite counter was refused there because its HOLDER could not
+-- be written, both of its lines naming the Aura by its subtype word.
+-- Nothing else on the card was missing — the attachment host at a player,
+-- the cast event, the one-shot put, the game-loss trigger and the letter
+-- read twice were all already here.
+curseOfVengeance : Card
+curseOfVengeance =
+  Macros.card "Curse of Vengeance" (Just [Macros.pip Black]) []
+       (MkTypeLine [Aura, Curse] [Enchantment])
+       [ Triggered Whenever
+                   (Casts (AttachHost Enchanted PlayerW) (Macros.a Macros.spell))
+                   (PutCounters (Lit 1) Spite Macros.thisAura)
+       , Triggered When (LosesGame (AttachHost Enchanted PlayerW))
+                   (WhereLetter LetterX (CountersOn Spite Macros.thisAura)
+                      (Sequentially
+                         [ ChangeLife You (Up (DefinedLetter LetterX))
+                         , Draw You (DefinedLetter LetterX) ])) ]
+       Nothing

@@ -151,11 +151,34 @@ public export
 spell : Predicate bs Object
 spell = InZone stackZ
 
--- A whole CARD, with the container's four demands threaded to the call
+-- A whole CARD, with the container's five demands threaded to the call
 -- site — the record itself carries no gates, records having no room for
 -- one, so this is where a card term proves itself well formed.
 -- spelling: (construction-owned -- pass-through to Card's own printed
 -- layout; see Card)
+public export
+cardOf : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
+         (line : TypeLine) -> (text : List Ability) ->
+         (stats : Maybe (PrintedStat, PrintedStat)) ->
+         {auto 0 ln : CardLine line} ->
+         {auto 0 sp : CardSupers supers} ->
+         {auto 0 tx : CardText line text} ->
+         {auto 0 pts : CardPt line text stats} ->
+         {auto 0 mc : CardCost line cost} ->
+         Card
+cardOf name cost supers line text stats = MkCard name cost supers line text stats
+
+-- The printed box at WRITTEN numbers — the overwhelming majority, and
+-- `creatureTok`'s shape at the container: the numerals are taken as
+-- numerals and wrapped, so a call site that writes "(Just (2, 2))" goes
+-- on writing it. A card whose text defines one of its own numbers writes
+-- the star instead and takes `cardOf` (see PrintedStat).
+-- spelling: (construction-owned -- see cardOf)
+public export
+printedBox : Maybe (Integer, Integer) -> Maybe (PrintedStat, PrintedStat)
+printedBox Nothing = Nothing
+printedBox (Just (p, t)) = Just (PrintedNum p, PrintedNum t)
+
 public export
 card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
        (line : TypeLine) -> (text : List Ability) ->
@@ -163,10 +186,11 @@ card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) -
        {auto 0 ln : CardLine line} ->
        {auto 0 sp : CardSupers supers} ->
        {auto 0 tx : CardText line text} ->
-       {auto 0 pts : CardPt line stats} ->
+       {auto 0 pts : CardPt line text (printedBox stats)} ->
        {auto 0 mc : CardCost line cost} ->
        Card
-card name cost supers line text stats = MkCard name cost supers line text stats
+card name cost supers line text stats =
+  cardOf name cost supers line text (printedBox stats) {ln} {sp} {tx} {pts} {mc}
 
 -- "counter [n]" ([CR#701.6a])
 -- spelling: ["counter <Param(0)>"], kind: Sentence (CounterSpell -- see
@@ -225,6 +249,23 @@ thisEnchantment = AsType Enchantment This
 public export
 thisLand : Noun bs Object
 thisLand = AsType Land This
+
+-- The same macro at the SUBTYPE word, [CR#109.2]'s other half. The card
+-- type is written beside the subtype because the row keeps it
+-- ([CR#205.3c] correlates the two), and the capital letter is the
+-- subtype catalog's, not a decision here.
+
+-- "this Aura"
+-- spelling: ["this Aura"], kind: Nominal
+public export
+thisAura : Noun bs Object
+thisAura = AsType Enchantment This {sub = Just Aura}
+
+-- "this Equipment"
+-- spelling: ["this Equipment"], kind: Nominal
+public export
+thisEquipment : Noun bs Object
+thisEquipment = AsType Artifact This {sub = Just Equipment}
 
 -- "exiled with this artifact" — the LINKAGE read at its commonest
 -- source word ([CR#406.6,607.2a]); the creature and enchantment sources
@@ -807,7 +848,7 @@ gets n pow tou d = Continuously (Gets n pow tou {ps}) d
 -- kind: Sentence (Continuously (Gains …) d -- see StaticEffect.Gains)
 public export
 gains : (n : Noun bs Object) -> (a : Ability) -> (d : Maybe (Duration (nomIntro n))) ->
-        {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
+        {auto 0 ok : GrantSubject a n} ->
         {auto 0 gr : Grantable a} ->
         {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
 gains n a d = Continuously (Gains n a) d
@@ -818,7 +859,7 @@ gains n a d = Continuously (Gains n a) d
 -- StaticEffect.Gains)
 public export
 gainsHaste : (n : Noun bs Object) -> (d : Maybe (Duration (nomIntro n))) ->
-             {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
+             {auto 0 ok : GrantSubject (KeywordAbility Haste) n} ->
              {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
 gainsHaste n d = gains n (KeywordAbility Haste) d
 

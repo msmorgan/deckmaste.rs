@@ -10,4434 +10,10 @@
 ||| notes stay here, beside the code they describe.
 module Experimental
 
+import public Experimental.Words
+import public Experimental.Events
+
 %default total
-
--- ===== Vocabulary =====
-
-||| Card types, as catalog atoms ([CR#205.2a]). Types are intrinsic to
-||| NEITHER core nor semantics: each is DECLARED by a `TypeDef` macro
-||| carrying its rules grants (`plugins/builtin/macros/cardtype/Creature.ron`
-||| confers the combat grants, and even permanence is its `permanent: true`
-||| field), so this enum stands in for reading those declarations.
-public export
--- spelling: (construction-owned catalog -- Creature="creature", Artifact=
--- "artifact", Land="land", Enchantment="enchantment", Instant="instant",
--- Sorcery="sorcery"; each row is a TypeDef macro's own word (see
--- cardtype/Creature.ron), consumed by HasType/AsType and by the card
--- container's type line, never spelled alone)
--- Instant and Sorcery arrive with the card container rather than with a
--- clause: [CR#113.3a] defines the spell ability by what its CARD is, so
--- the container cannot ask the question without the two words.
-data CardType = Creature | Artifact | Land | Enchantment | Instant | Sorcery
-
-||| Fight participation, per type — stands in for a combat-participant
-||| grant on the TypeDef, distinct from Creature.ron's May(Attack)/
-||| May(Block): fight keys on type membership [CR#701.14a,701.14b] and
-||| deals non-combat damage [CR#701.14d].
-public export
-combatant : CardType -> Bool
-combatant Creature = True
-combatant Artifact = False
-combatant Land = False
-combatant Enchantment = False
-combatant Instant = False
-combatant Sorcery = False
-
-||| The projected-head gate the fight slots consume: an untyped head
-||| cannot prove participation.
-public export
-data FightParticipant : Maybe CardType -> Type where
-  Fighter : {auto 0 ok : combatant t = True} -> FightParticipant (Just t)
-
-||| The numeric characteristics a phrase can NAME — one axis for both
-||| readers this grammar has: the bound a phrase compares against
-||| (`Compare`) and the value an amount reads off an object (`StatOf`).
-||| Power and toughness [CR#208.1], mana value [CR#202.3]. Core's `Stat`
-||| (`deckmaste_core/src/count.rs`) carries five, adding loyalty
-||| [CR#209.1] and defense [CR#210.1]; both are absent from BOTH frames
-||| here by measurement — neither is bounded, defense is never read off
-||| an object at all, and the one loyalty read (Drain Life's cap clause)
-||| is the phrasal-standard frame this grammar does not write either way
-||| (see `Comparator`), while every other corpus "loyalty" line counts
-||| COUNTERS, a different reader.
-public export
--- spelling: (construction-owned catalog -- Power="power", Toughness=
--- "toughness", ManaValue="mana value"; each row is the characteristic's own
--- word, inside Compare's frame or after StatOf's possessive, never spelled
--- alone. Same three names core's `Stat` gives its own first three rows
--- (count.rs))
-data Characteristic = Power | Toughness | ManaValue
-
-public export
-sameChar : Characteristic -> Characteristic -> Bool
-sameChar Power Power = True
-sameChar Power _ = False
-sameChar Toughness Toughness = True
-sameChar Toughness _ = False
-sameChar ManaValue ManaValue = True
-sameChar ManaValue _ = False
-
-||| The PLAYER's own numbers — `Characteristic`'s twin one participant
-||| sort over, and a row core was built expecting: its
-||| `Count::PlayerStatOf(Reference, PlayerAttr)` carries the comment "the
-||| player-side twin of StatOf, mirroring the Idris `PlayerStatOf`"
-||| (`deckmaste_core/src/count.rs`), so the name here is settled by parity
-||| and only the contents were open.
-|||
-||| TWO rows, not core's four, and the difference is measured rather than
-||| conceded. Core's `PlayerAttr` adds `HandSize`, `HandSizeLimit` and
-||| `LandPlaysPerTurn`; this grammar has no stat READ for any of them and
-||| the corpus has none either. "Hand size" occurs 68 times and every one
-||| is the maximum-hand-size STATEMENT ("you have no maximum hand size",
-||| "your maximum hand size is eleven") — a static line about a limit, not
-||| a number a clause reads — and "equal to your hand size" is written
-||| ZERO times, the corpus counting the cards instead ("equal to the
-||| number of cards in your hand", which is `CountOf`'s reading and
-||| already writable). So the vocabulary is two rows because two are read.
-|||
-||| The STARTING total is a genuinely separate read and not a bound on the
-||| current one. The CR states it twice in the same words — "Each player
-||| begins the game with a starting life total of 20" is [CR#103.4] at the
-||| game's setup and [CR#119.1] in the life-total section, one sentence
-||| filed under both — and thirty supported lines read it as a term of its own
-||| — almost all of them comparing the current total against it. Core does
-||| NOT carry this row, so unlike the parent name this cell is a gap at
-||| both layers, and by the merge doctrine the measurement here is the
-||| core's too.
-public export
--- spelling: (construction-owned catalog -- LifeTotal="life total",
--- StartingLifeTotal="starting life total"; each row is the stat's own
--- word after PlayerStatOf's possessive, "your life total" / "that
--- player's starting life total", never spelled alone. The threshold
--- frame writes the SAME read with a different surface -- "you have 40 or
--- more life" is the dominant spelling at 31 lines against 2 for "your
--- life total is 40 or more" -- which is the frame's business and not
--- this catalog's)
-data PlayerStat = LifeTotal | StartingLifeTotal
-
-public export
-samePlayerStat : PlayerStat -> PlayerStat -> Bool
-samePlayerStat LifeTotal LifeTotal = True
-samePlayerStat LifeTotal _ = False
-samePlayerStat StartingLifeTotal StartingLifeTotal = True
-samePlayerStat StartingLifeTotal _ = False
-
-||| The four comparison RELATIONS English writes — core's `Cmp`
-||| (`condition.rs`) minus its `Eq`, and the old `Semantics` module's own
-||| five-row `Cmp` under the same four names, which is a name straddle
-||| across independent vocabularies exactly as `CountersOn` is.
-|||
-||| The relation is the vocabulary; the comparative WORD is not, because
-||| it varies perfectly with what is already written beside it — finding
-||| 275's idiom, and the reason this enum grew rather than doubled.
-||| Against a WRITTEN bound the two or-relations follow it ("4 or
-||| greater", "2 or less"; four hundred forty-one and seven hundred
-||| forty-four lines) and the long form is written ZERO times; against a
-||| READ they precede it ("greater than or equal to your starting life
-||| total", "less than or equal to the number of lands you control";
-||| seven lines and one hundred) and the short form is written zero times
-||| there. The strict pair precedes its bound either way.
-|||
-||| `Eq` stays out on its own measurement: a comparison "is equal to" is
-||| four supported lines and every one is unwritable for a second reason
-||| (a die result, unspent mana, a sum), while the corpus's enormous
-||| "equal to" mass is the AMOUNT-level copy ("gain life equal to its
-||| power") and not a condition at all.
-public export
--- spelling: (construction-owned -- the word is DERIVED from the relation,
--- the bound's class and the head's register, and is carried by no row:
--- AtLeast/AtMost follow a written bound ("4 or greater", "2 or less") and
--- precede a read ("greater than or equal to <read>"); Greater/Less always
--- precede ("less than 7", "more life than an opponent"). The register is
--- the head's and is unchanged from chapter forty-four: a stat takes
--- greater/less, a count takes more/fewer, which the english crate stores
--- rather than derives (`ComparativeWord`, syntax/phrase.rs))
-data Comparator = AtLeast | AtMost | Greater | Less
-
-public export
-sameCmp : Comparator -> Comparator -> Bool
-sameCmp AtLeast AtLeast = True
-sameCmp AtLeast _ = False
-sameCmp AtMost AtMost = True
-sameCmp AtMost _ = False
-sameCmp Greater Greater = True
-sameCmp Greater _ = False
-sameCmp Less Less = True
-sameCmp Less _ = False
-
-||| Which card type a characteristic PRESUPPOSES of the object read —
-||| the characteristic half of the closed table `deedType` writes for
-||| deeds. Power and toughness belong to creatures: a noncreature
-||| permanent has neither, and a noncreature object off the battlefield
-||| has them only if printed ([CR#208.3]). Mana value belongs to every
-||| object ([CR#202.3]; [CR#202.3a] gives even a costless object zero),
-||| so it presupposes nothing. The Vehicle case [CR#208.3] leaves open —
-||| a noncreature card CAN carry printed power in a graveyard — is never
-||| written, so the creature row is exact for what English spells.
-public export
-comparedType : Characteristic -> Maybe CardType
-comparedType Power = Just Creature
-comparedType Toughness = Just Creature
-comparedType ManaValue = Nothing
-
-||| Quality sorts — the choosable characteristics ([CR#105.1,302.3,607.2d];
-||| only what the chapters need). `QualityNoun` selects all four.
-public export
--- spelling: (construction-owned catalog -- Color="color", CreatureType=
--- "creature type", CardName="card name", Number="number"; consumed by
--- QualityNoun, and by OfChosen only where ChosenQualityRead admits it;
--- never spelled alone)
-data QualitySort = Color | CreatureType | CardName | Number
-
-public export
-sameQ : QualitySort -> QualitySort -> Bool
-sameQ Color Color = True
-sameQ Color _ = False
-sameQ CreatureType CreatureType = True
-sameQ CreatureType _ = False
-sameQ CardName CardName = True
-sameQ CardName _ = False
-sameQ Number Number = True
-sameQ Number _ = False
-
-||| Whether the surface `OfChosen` honestly reads this chosen sort.
-||| Colors and creature types take "of the chosen …"; card names and
-||| numbers use their own later equality surfaces. Linked choices remain
-||| governed by [CR#607.2d].
-public export
-chosenQualityReadOk : QualitySort -> Bool
-chosenQualityReadOk Color = True
-chosenQualityReadOk CreatureType = True
-chosenQualityReadOk CardName = False
-chosenQualityReadOk Number = False
-
-||| The erased readback-surface witness, kept named so failing catalog pins
-||| report the unavailable surface rather than a generic equality goal.
-public export
-data ChosenQualityRead : QualitySort -> Type where
-  MkChosenQualityRead : {auto 0 ok : chosenQualityReadOk q = True} ->
-                        ChosenQualityRead q
-
-||| What a binding can bind ([CR#115.1] — targets are objects and/or
-||| players; the union kind is deferred with the carrier lattice), plus
-||| chosen qualities, which enter the same discourse, and event OUTCOMES
-||| (what a clause DID, readable as "that much"), which only clauses
-||| introduce.
-|||
-||| `Letter` is the third, and the only one the TEXT names rather than
-||| computes: a value the card's own rider defines and its body reads back
-||| by a letter ([CR#107.3c]). It is counted apart from `Outcome` and `Gap`
-||| for the reason those two are counted apart from each other — an
-||| outcome is the magnitude of what a clause DID, a gap the margin by
-||| which a comparison HELD, and a letter neither: it is a name the
-||| sentence introduced, and the three are read by three different words
-||| ("that much", "the difference", "X"). Sharing a sort would let each
-||| word spell where another belongs and make each anaphor's uniqueness
-||| the others' business. The sort is `Letter` rather than `DefinedX`
-||| because [CR#107.3p] gives Y the same rules, so the second word is a
-||| second spelling of this row and not a second sort — and the row
-||| carries the WORD, which is `Quality`'s shape at the sort beside it: a
-||| letter is a name, two names in one sentence are two mentions, and the
-||| uniqueness each anaphor demands is per NAME ("X" reads the X-lettered
-||| binding while "Y" reads the Y-lettered one, Bioplasm writing both).
-||| Indexing the kind is what makes that uniqueness the existing
-||| machinery's: `sameKind` already routes `Quality` through `sameQ`, so
-||| `countLetter` is `countQuality`'s twin and nothing else changes.
-|||
-||| `Gap` is the second magnitude sort and the second clause-introduced
-||| one: the amount by which a COMPARISON was true, readable as "the
-||| difference". It is named and counted apart from `Outcome` because the
-||| two are fixed by different clauses and read by different words — an
-||| outcome is the magnitude of what a clause DID, and no condition does
-||| anything — so conflating them would let "that much" spell where
-||| English writes "the difference" and would make each anaphor's
-||| uniqueness the other's business.
-||| WHICH letter a definition rider names. Two words and no more:
-||| [CR#107.3p] says only that "some objects use the letter Y in addition
-||| to the letter X" and that "Y follows the same rules as X", and the
-||| corpus writes exactly those two — every rider line uses X, three cards
-||| add Y, and no card writes a third letter. The words differ in NO
-||| table, which is finding 275's idiom and is why this is an index on one
-||| row rather than a second sort.
-public export
-data LetterWord = LetterX | LetterY
-
-public export
-sameLetterWord : LetterWord -> LetterWord -> Bool
-sameLetterWord LetterX LetterX = True
-sameLetterWord LetterX LetterY = False
-sameLetterWord LetterY LetterX = False
-sameLetterWord LetterY LetterY = True
-
-public export
-data Kind = Object | Player | Quality QualitySort | Outcome | Gap
-          | Letter LetterWord
-
-public export
-sameKind : Kind -> Kind -> Bool
-sameKind Object Object = True
-sameKind Object Player = False
-sameKind Object (Quality _) = False
-sameKind Object Outcome = False
-sameKind Object Gap = False
-sameKind Object (Letter _) = False
-sameKind Player Object = False
-sameKind Player Player = True
-sameKind Player (Quality _) = False
-sameKind Player Outcome = False
-sameKind Player Gap = False
-sameKind Player (Letter _) = False
-sameKind (Quality _) Object = False
-sameKind (Quality _) Player = False
-sameKind (Quality a) (Quality b) = sameQ a b
-sameKind (Quality _) Outcome = False
-sameKind (Quality _) Gap = False
-sameKind (Quality _) (Letter _) = False
-sameKind Outcome Object = False
-sameKind Outcome Player = False
-sameKind Outcome (Quality _) = False
-sameKind Outcome Outcome = True
-sameKind Outcome Gap = False
-sameKind Outcome (Letter _) = False
-sameKind Gap Object = False
-sameKind Gap Player = False
-sameKind Gap (Quality _) = False
-sameKind Gap Outcome = False
-sameKind Gap Gap = True
-sameKind Gap (Letter _) = False
-sameKind (Letter _) Object = False
-sameKind (Letter _) Player = False
-sameKind (Letter _) (Quality _) = False
-sameKind (Letter _) Outcome = False
-sameKind (Letter _) Gap = False
-sameKind (Letter a) (Letter b) = sameLetterWord a b
-
-||| How a set of numbers folds to ONE. Core's `AggregateOp`
-||| (`deckmaste_core/src/count.rs`) and the old `Semantics` module's own
-||| enum both carry these names already, which is `CountersOn`'s situation
-||| at a third site: three independent vocabularies, one obvious set of
-||| words, and no import between them.
-|||
-||| THREE rows against those two catalogs' four, and the fourth is a
-||| MEASURED zero rather than a concession: the word "average" appears ZERO
-||| times in the corpus, supported and unsupported alike. What English
-||| writes is the sum ("the total power of creatures you control") and the
-||| two extremes ("the greatest power among creatures you control", "the
-||| lowest life total among all players"), and a mean would have to arrive
-||| with a rounding direction of its own ([CR#107.1a]) for no line to
-||| spell.
-|||
-||| The empty set is not this catalog's question, and the CR answers it
-||| once for every row: a number that cannot be determined uses 0 instead
-||| ([CR#107.2]), which settles the greatest of no creatures exactly as it
-||| settles the sum of none.
-public export
--- spelling: (construction-owned catalog -- the op fixes the PREPOSITION as
--- well as the word, and both are spelling facts derived from what is
--- already written (finding 275). The extremes write "among" and the sum
--- writes "of" -- "the greatest power among creatures you control" against
--- "the total power of creatures you control", neither ever the other way
--- -- and the extremal word varies perfectly with the AXIS: a
--- characteristic takes greatest/least and a life total takes
--- highest/lowest, with all four crossed spellings ("greatest life total",
--- "highest power", "least life total", "lowest power") written zero times.
--- SumOf writes "total" at both axes)
-data AggregateOp = SumOf | MinOf | MaxOf
-
-||| WHICH number a fold reads off each member of its set -- core's
-||| `Projection.by` narrowed to the reads this grammar has, and the
-||| set-generalization `StatOf`, `PlayerStatOf` and `CountersOn` have each
-||| promised in their own comment since they were minted ("a group's
-||| aggregate is written explicitly … and is future vocabulary").
-|||
-||| A CLOSED catalog and not a per-element expression, which is the one
-||| real design choice in the fold and is decided by measurement. Core and
-||| the old `Semantics` module both bind `It` to each element and read an
-||| arbitrary count through it; the corpus's "among" complement never uses
-||| that width, all 103 description-domain lines reading a characteristic
-||| off an object or a life total off a player and nothing else. What DOES
-||| want the general shape is a different construction with a different
-||| surface -- "the greatest number of creatures a player controls" (10
-||| lines) folds a count RELATIVIZED to each member and writes a relative
-||| clause where this family writes "among" -- and a general slot here
-||| would still not reach it, since the element those lines bind sits
-||| inside the domain's own description. So the width buys nothing the
-||| corpus writes (ledger).
-public export
--- spelling: (construction-owned catalog -- each row is its argument's own
--- word, "power"/"toughness"/"mana value" and "life total", exactly as it
--- is spelled after `StatOf`'s and `PlayerStatOf`'s possessive; the
--- superlative or total word before it is `AggregateOp`'s, see there)
-data ProjAxis = CharAxis Characteristic | PlayerStatAxis PlayerStat
-
-||| WHAT a projected axis may be read off -- the fold's agreement table,
-||| `counterScope`'s shape one vocabulary over and answering in `Kind` for
-||| the same reason: one row over `{k : Kind}` can then demand
-||| `projScope ax = k` and get the domain agreement for free instead of a
-||| fold per sort.
-|||
-||| Full rows, so a new axis must declare its sort before the fold will
-||| take it, and the two crossed cells the table refuses are measured
-||| zeros: "the greatest power among players" and "the highest life total
-||| among creatures you control" are written zero times, power being a
-||| creature's ([CR#208.1]) and a life total a player's ([CR#119.1]) --
-||| `badPowerAmongPlayers`, `badLifeTotalAmongObjects`.
-public export
-projScope : ProjAxis -> Kind
-projScope (CharAxis _) = Object
-projScope (PlayerStatAxis _) = Player
-
-||| The surface-projected SORT of an event outcome; its magnitude stays
-||| runtime, never stored. Mana produced, counters, and card counts are
-||| later sorts.
-public export
-data OutcomeSort = DamageDealt | LifeGained | LifeLost
-
-||| Singular mention or group mention — the guard that keeps "it" from
-||| resolving to a plural antecedent.
-public export
-data Plurality = OneOf | ManyOf
-
-public export
-isOne : Plurality -> Bool
-isOne OneOf = True
-isOne ManyOf = False
-
-||| The number a DISTRIBUTED output takes: one thing per agent, over
-||| many agents, is many things — "Each player creates a green Elephant
-||| creature token. THOSE CREATURES have …" (Elephant Resurgence). The
-||| per-agent amount is one, and the discourse mention is still plural.
-public export
-outputPlur : (agent : Plurality) -> (perAgent : Plurality) -> Plurality
-outputPlur OneOf OneOf = OneOf
-outputPlur OneOf ManyOf = ManyOf
-outputPlur ManyOf OneOf = ManyOf
-outputPlur ManyOf ManyOf = ManyOf
-
-||| How many objects a counted mention takes — core's `Quantity`
-||| (`deckmaste_core/src/quantity.rs`): ONE primitive, a range with both
-||| bounds optional (`Nothing` = unbounded that side, so "any number of"
-||| is `Range Nothing Nothing`; [CR#601.2c] has the caster announce that
-||| variable count before choosing). The readable named forms are macros
-||| over it in both frames (`exactly`/`upTo`/`anyNumber` in
-||| `Experimental.Macros`). A magnitude is not a quantity — that is
-||| `Amount`.
-public export
--- spelling: (construction-owned -- the primitive itself has no word; its
--- macros do (Experimental.Macros: exactly/upTo/anyNumber). Verified real
--- family: crates/deckmaste_english/src/constructions/quantity.rs's combinators
--- "quantity_exact" (exactly n) and "quantity_up_to" (upTo n) -- name+semantics
--- match. "any number of" (anyNumber): TODO(reason: no matching combinator
--- confirmed among that file's registered names within this pass's scope))
-data Quantity : Type where
-  Range : Maybe Nat -> Maybe Nat -> Quantity
-
-||| A written quantity permits at least one object ([CR#115.1] — a slot
-||| cannot target nothing), and the UPPER bound carries the demand: a
-||| statically zero maximum is unwritten English however it is spelled
-||| (`badZeroGroup`). An ABSENT maximum is the unbounded "any number of"
-||| and a zero LOWER bound is what every "up to" has, so neither is
-||| touched.
-public export
-data NonZeroQ : Quantity -> Type where
-  UnboundedAbove : NonZeroQ (Range lo Nothing)
-  MaxAtLeastOne : NonZeroQ (Range lo (Just (S n)))
-
-public export
-leNat : Nat -> Nat -> Bool
-leNat Z _ = True
-leNat (S _) Z = False
-leNat (S a) (S b) = leNat a b
-
-||| A written quantity also runs UPWARD, from a minimum of at least one.
-||| A DESCENDING range admits nothing at all ("between three and two
-||| target creatures" names an empty interval, and the plurality read off
-||| the maximum would lie about it besides), and a ZERO minimum spells
-||| nothing the unbounded form does not already say: [CR#107.1c] has
-||| "any number" permit zero outright, so "zero or more target creatures"
-||| is a second spelling of "any number of target creatures" — one the
-||| corpus never writes (`badDescendingRange`, `badZeroLowerRange`). An
-||| absent minimum is every "up to", untouched.
-public export
-quantWellFormed : Quantity -> Bool
-quantWellFormed (Range Nothing _) = True
-quantWellFormed (Range (Just Z) _) = False
-quantWellFormed (Range (Just (S n)) Nothing) = True
-quantWellFormed (Range (Just (S n)) (Just hi)) = leNat (S n) hi
-
-public export
-data WellFormedQ : Quantity -> Type where
-  MkWellFormedQ : {auto 0 ok : quantWellFormed q = True} -> WellFormedQ q
-
-||| A counted mention's grammatical number, read off its quantity: one
-||| is SINGULAR — "target creature" and "up to one target creature" both
-||| rement as "it" — and every wider quantity is a group. The MAXIMUM is
-||| what number reads; choosing fewer [CR#115.6] is runtime's null read,
-||| not a grammar fact.
-public export
-quantPlur : Quantity -> Plurality
-quantPlur (Range _ (Just (S Z))) = OneOf
-quantPlur (Range _ _) = ManyOf
-
-public export
-eqNat : Nat -> Nat -> Bool
-eqNat a b = leNat a b && leNat b a
-
-||| Whether a modal headcount FITS the list of modes it heads
-||| ([CR#700.2]) — two demands, both about the PAIR rather than either
-||| half, which is why they are one relation and not a widening of
-||| `WellFormedQ`. First, impossibility: a headcount cannot reach past
-||| the modes offered ("choose three" of two options names nothing), so
-||| a WRITTEN maximum is no greater than the count. Second, a modal
-||| offers a CHOICE — [CR#700.2] calls a spell modal when its bulleted
-||| options come "preceded by instructions for a player to choose a
-||| number of those options", so a headcount that fixes the whole list
-||| instructs nothing ("Choose two —" over two modes has one answer;
-||| zero cards write it, `badModalFixedWhole`). An open top escapes by
-||| having a range to choose in, as does every "up to".
-public export
-modesFit : Quantity -> Nat -> Bool
-modesFit (Range Nothing Nothing) n = True
-modesFit (Range Nothing (Just hi)) n = leNat hi n
-modesFit (Range (Just lo) Nothing) n = leNat lo n
-modesFit (Range (Just lo) (Just hi)) n = leNat hi n && not (eqNat lo hi && eqNat hi n)
-
-public export
-data ModesFit : Quantity -> Nat -> Type where
-  MkModesFit : {auto 0 ok : modesFit q n = True} -> ModesFit q n
-
-||| Which modal headcounts English WRITES — the attestation table beside
-||| `modesFit`'s well-formedness one, and a separate relation for the
-||| separate question. The attested vocabulary is the three small fixed
-||| counts ("choose one/two/three —"), the one-capped "up to", the two
-||| open tops ("one or both", "one or more"), and the unbounded head;
-||| "choose up to two —", "choose up to three —", "choose four", "two or
-||| more", and "one or two" are written zero times, all scopes, so an
-||| unattested head is refused rather than inferred from the range
-||| algebra (`badModalUpToTwo`). The two OPEN TOPS take their maximum
-||| from the list — "one or both" over exactly two modes, "one or more"
-||| over more — so the top is required to BE the count rather than
-||| merely fit under it.
-public export
-modalHead : Quantity -> Nat -> Bool
-modalHead (Range Nothing Nothing) n = True
-modalHead (Range Nothing (Just (S Z))) n = True
-modalHead (Range Nothing (Just _)) n = False
-modalHead (Range (Just (S Z)) Nothing) n = True
-modalHead (Range (Just _) Nothing) n = False
-modalHead (Range (Just lo) (Just hi)) n =
-  (eqNat lo hi && leNat lo 3) || (eqNat lo 1 && eqNat hi n)
-
-public export
-data ModalHead : Quantity -> Nat -> Type where
-  MkModalHead : {auto 0 ok : modalHead q n = True} -> ModalHead q n
-
-||| A written numeral is at least one — "for each zero creatures" is
-||| unwritten English (`badForEachZero`).
-public export
-data AtLeastOne : Nat -> Type where
-  OneUp : AtLeastOne (S n)
-
-||| A sequence runs at least two clauses — what makes it a sequence
-||| rather than a sentence (`badEmptySequence`, `badSingletonSequence`).
-public export
-data AtLeastTwo : Nat -> Type where
-  TwoUp : AtLeastTwo (S (S n))
-
-||| The introducing word of a mention — a SURFACE projection ("target",
-||| "a", "each", "all", or a definite/derived mention). Rules facts (the
-||| settled-target boundary, the "other" presupposition) are functions of
-||| it, never stored alongside it. Counted target mentions share ONE tag
-||| whatever their quantity: no consumer ever told "up to" apart, so the
-||| possible emptiness [CR#115.6] lives in the quantity, as it does in
-||| core's single announce form.
-public export
--- spelling: (construction-owned -- TargetD/AD/EachD/AllD/TheD mark WHICH Noun
--- constructor built a binding; the words live on Noun's own TargetGroup/A/
--- Each/AllOf/TheVerbed rows, not here. The english crate has its own
--- `Determiner` hole (constructions/coordination.rs's shared_determiner_nominal)
--- confirming the concept; TODO(reason: no single owning family name verified
--- for the per-word constructions within this pass's scope))
-data Determiner = TargetD | AD | EachD | AllD | TheD | PartD
-                -- the EVENT SUBJECT's own mention, minted by a trigger's
-                -- after-discourse for a self subject and by nothing else.
-                -- It is a determiner row rather than a payload flag because
-                -- what distinguishes it is exactly what a determiner
-                -- distinguishes: which construction built the binding, and
-                -- therefore which readers may see it. `It` sees it; the
-                -- DEMONSTRATIVES do not (`wordNow`), which is English's own
-                -- rule and finding 348's.
-                | SelfD
-
-||| Zone sorts ([CR#400.1] family) — the fold-state tag a binding
-||| carries. Ownership is not stored here; it lives in the surface
-||| `ZoneExpr` where English writes it. The library is the one ORDERED
-||| zone ([CR#401.2] — "a single face-down pile", whose order players may
-||| neither inspect nor change), and the order is likewise no part of the
-||| SORT: it lives on the position phrase (`LibraryAt`), exactly as
-||| ownership does. Core makes the same split (`Zone::Library` beside
-||| `Destination::Library(Anchor)`).
-|||
-||| The STACK ([CR#405.1] makes it the place a cast card goes) is a zone
-||| rather than a second object sort because [CR#112.1] identifies the
-||| two in one sentence — "a spell is a card on the stack" — so the spell
-||| WORD is this zone's carrier noun exactly as "card" is the
-||| hidden-and-graveyard zones' ([CR#108.2]) and a type word is the
-||| battlefield's ([CR#109.2]). It is never a `Move` destination
-||| (`DestOk` has no row, which is core's own `exclude(Library, Stack)`),
-||| and it is shared rather than possessed ([CR#400.1]; no `Possessable`
-||| row), so "your stack" is unwritable for the same reason "your
-||| battlefield" is. Core's `Command` row is still not ported.
-public export
-data Zone = Battlefield | Graveyard | Exile | Hand | Library | Stack
-
-public export
-sameZone : Zone -> Zone -> Bool
-sameZone Battlefield Battlefield = True
-sameZone Battlefield _ = False
-sameZone Graveyard Graveyard = True
-sameZone Graveyard _ = False
-sameZone Exile Exile = True
-sameZone Exile _ = False
-sameZone Hand Hand = True
-sameZone Hand _ = False
-sameZone Library Library = True
-sameZone Library _ = False
-sameZone Stack Stack = True
-sameZone Stack _ = False
-
-||| A position IN the ordered library ([CR#401.2]) — the two words
-||| English writes bare, and the whole of the attested position
-||| vocabulary at offset zero. Core spells the axis once with an offset
-||| (`Anchor = FromTop(Count) | FromBottom(Count)`); English writes the
-||| offset with a DIFFERENT phrase, the ordinal "second from the top"
-||| ([CR#401.7]'s own subject), so it is not this table's third row but
-||| an ordinal vocabulary this file does not have (ledger).
-public export
--- spelling: (construction-owned catalog -- each row is the position phrase
--- LibraryAt writes over its zone word: OnTop = "on top of <scope> library",
--- OnBottom = "on the bottom of <scope> library". Noun-side the same words
--- lead the slice ("the top <n> cards of <scope> library"). Never spelled
--- alone -- see LibraryAt and LibrarySlice)
-data LibPos = OnTop | OnBottom
-
-||| How a GROUP landing at a library position is arranged ([CR#401.4]):
-||| the two riders English writes. Core carries four (`Arrangement`,
-||| adding `SameOrder` and a `ChosenOrder(Reference)`) and English writes
-||| neither of the extra two — zero lines each — so this is a recorded
-||| NARROWING of core, `DividedVerb`'s discipline (finding 126) applied
-||| to the order rider. The rider is not a default made explicit:
-||| [CR#401.4] already gives the cards' owner the arrangement ("may
-||| arrange them in any order"), so "in any order" RESTATES the rule and
-||| only "in a random order" overrides it — which is why the absent rider
-||| and the any-order rider mean the same thing and both are written.
-public export
--- spelling: (construction-owned catalog -- each row is the trailing adverbial
--- on a library placement: AnyOrder = "in any order", RandomOrder = "in a
--- random order". Never spelled alone -- see LibraryAt)
-data Arrangement = AnyOrder | RandomOrder
-
-||| Keyword-action tags ([CR#701]) — core's `Composite` verb names.
-||| `Destroy` and `Discard` mirror `plugins/builtin/macros/action/`;
-||| `Sacrifice` is a core whittling candidate (see the decision record);
-||| `Exile` is speculative pending its real macro definition. (Its own
-||| namespace: the tag `Exile` and the zone `Exile` are distinct words.)
-namespace Verb
-  public export
-  -- spelling: (construction-owned catalog -- each row is a keyword-action tag
-  -- consumed by Composite/Does, spelled through its own macro: Destroy =
-  -- action/Destroy.ron's "destroy <Param(0)>" (verified against that file);
-  -- Sacrifice = core whittling candidate, spelled by the `sacrifice` macro;
-  -- Exile = speculative, spelled by `exile`; Discard = spelled by `discards`/
-  -- `discardsACard`. Never spelled alone -- see Experimental.Macros)
-  data VerbName = Destroy | Sacrifice | Exile | Discard
-
-public export
-sameVerb : VerbName -> VerbName -> Bool
-sameVerb Destroy Destroy = True
-sameVerb Destroy _ = False
-sameVerb Sacrifice Sacrifice = True
-sameVerb Sacrifice _ = False
-sameVerb Exile Exile = True
-sameVerb Exile _ = False
-sameVerb Discard Discard = True
-sameVerb Discard _ = False
-
-||| The provenance a tagged move writes: which verb took the referent,
-||| and whether it stood on the battlefield when the verb did (the
-||| at-verb frame a bare type word's participle needs — finding 29).
-public export
-record Stamp where
-  constructor MkStamp
-  verb : VerbName
-  wasField : Bool
-
-||| The representation provenance a mention can record: the referent was
-||| minted by a token-creation clause ([CR#111.1] — a token is a marker
-||| representing a permanent that isn't represented by a card). ONE row:
-||| the card-born complement has no reader, "nontoken" being a
-||| description-side negation (`Not IsToken`) and never a readback word.
-public export
-data Origin = TokenOrigin
-
-public export
-isTokenOrigin : Maybe Origin -> Bool
-isTokenOrigin (Just TokenOrigin) = True
-isTokenOrigin Nothing = False
-
-||| Per-kind mention data, kind-indexed so a binding can only record
-||| what its kind can have. The object zone is the ONE piece of
-||| fold-state — `Move` updates it, everything else is a projection of
-||| the phrase. An ill-sorted binding ("a player in your hand") is
-||| thereby unrepresentable, which is the refusal the surface grammar
-||| makes (`InZone` is Object-kinded) extended to the representation.
-public export
-data Payload : Kind -> Type where
-  ObjectP : (ty : Maybe CardType) -> (zone : Maybe Zone) ->
-            (prov : Maybe Stamp) -> (orig : Maybe Origin) -> Payload Object
-  PlayerP : Payload Player
-  QualityP : Payload (Quality q)
-  OutcomeP : (sort : OutcomeSort) -> Payload Outcome
-  -- the gap carries no sort of its own: what it measures is written in
-  -- the comparison that licensed it, one clause away, and nothing reads
-  -- it back except the one word.
-  GapP : Payload Gap
-  -- the letter carries no sort either: what it is worth is the rider's
-  -- amount, one clause away, and the mention exists so the body can say
-  -- the letter at all.
-  LetterP : Payload (Letter w)
-
-||| One discourse mention.
-public export
-record Binding where
-  constructor MkBinding
-  det : Determiner
-  kind : Kind
-  plur : Plurality
-  payload : Payload kind
-
-||| The one context: a nearest-first list of mentions.
-public export
-Bindings : Type
-Bindings = List Binding
-
-||| The zone a binding tracks — object fold-state; nothing else has one,
-||| structurally.
-public export
-bindingZone : Binding -> Maybe Zone
-bindingZone (MkBinding _ _ _ (ObjectP _ zn _ _)) = zn
-bindingZone (MkBinding _ _ _ PlayerP) = Nothing
-bindingZone (MkBinding _ _ _ QualityP) = Nothing
-bindingZone (MkBinding _ _ _ (OutcomeP _)) = Nothing
-bindingZone (MkBinding _ _ _ GapP) = Nothing
-bindingZone (MkBinding _ _ _ LetterP) = Nothing
-
-||| The projected head type a binding carries, if its kind can.
-public export
-bindingTy : Binding -> Maybe CardType
-bindingTy (MkBinding _ _ _ (ObjectP ty _ _ _)) = ty
-bindingTy (MkBinding _ _ _ PlayerP) = Nothing
-bindingTy (MkBinding _ _ _ QualityP) = Nothing
-bindingTy (MkBinding _ _ _ (OutcomeP _)) = Nothing
-bindingTy (MkBinding _ _ _ GapP) = Nothing
-bindingTy (MkBinding _ _ _ LetterP) = Nothing
-
-||| The mention an event clause prepends for what it did — sort from
-||| the clause's surface, value runtime.
-public export
-outcomeB : OutcomeSort -> Binding
-outcomeB s = MkBinding TheD Outcome OneOf (OutcomeP s)
-
-||| The mention a COMPARISON prepends for the margin by which it held --
-||| `outcomeB`'s twin at the other magnitude sort. Definite (`TheD`),
-||| which is what the surface writes: "the difference", never "a
-||| difference".
-public export
-gapB : Binding
-gapB = MkBinding TheD Gap OneOf GapP
-
-||| The mention a definition RIDER prepends for the letter it defines.
-||| Definite for the same reason the other two are: the sentence has just
-||| said which value this is. The WORD is the mention's own, so a sentence
-||| that defines both letters carries two mentions and each anaphor finds
-||| its own ([CR#107.3p]).
-public export
-letterB : LetterWord -> Binding
-letterB w = MkBinding TheD (Letter w) OneOf LetterP
-
-public export
-sameCT : CardType -> CardType -> Bool
-sameCT Creature Creature = True
-sameCT Creature _ = False
-sameCT Artifact Artifact = True
-sameCT Artifact _ = False
-sameCT Land Land = True
-sameCT Land _ = False
-sameCT Enchantment Enchantment = True
-sameCT Enchantment _ = False
-sameCT Instant Instant = True
-sameCT Instant _ = False
-sameCT Sorcery Sorcery = True
-sameCT Sorcery _ = False
-
-||| Singular mentions of a kind, counted — the wildcard pronoun's
-||| obligation is `= 1`: zero is an unbound anaphor, two an ambiguous
-||| one. Kind matching routes through `sameKind`.
-public export
-countOnes : Kind -> Bindings -> Nat
-countOnes k [] = Z
-countOnes k (MkBinding _ k' OneOf _ :: bs) =
-  if sameKind k k' then S (countOnes k bs) else countOnes k bs
-countOnes k (_ :: bs) = countOnes k bs
-
-||| Chosen-quality mentions of a sort, counted — "the chosen color"
-||| demands exactly one.
-public export
-countQuality : QualitySort -> Bindings -> Nat
-countQuality q [] = Z
-countQuality q (MkBinding _ k OneOf _ :: bs) =
-  if sameKind (Quality q) k then S (countQuality q bs) else countQuality q bs
-countQuality q (_ :: bs) = countQuality q bs
-
-||| Letter mentions of a WORD, counted — "X" demands exactly one
-||| X-lettered binding and says nothing about Y. `countQuality`'s twin at
-||| the sort beside it, and for the same reason: the kind carries the word,
-||| so the count is the ordinary one asked at one index.
-public export
-countLetter : LetterWord -> Bindings -> Nat
-countLetter w [] = Z
-countLetter w (MkBinding _ k OneOf _ :: bs) =
-  if sameKind (Letter w) k then S (countLetter w bs) else countLetter w bs
-countLetter w (_ :: bs) = countLetter w bs
-
-||| Group mentions of a kind, counted — the plural wildcard's
-||| obligation is `= 1`, the ManyOf twin of `countOnes`.
-public export
-countManys : Kind -> Bindings -> Nat
-countManys k [] = Z
-countManys k (MkBinding _ k' ManyOf _ :: bs) =
-  if sameKind k k' then S (countManys k bs) else countManys k bs
-countManys k (_ :: bs) = countManys k bs
-
-||| GROUP mentions of objects, counted — `countManys` minus the parts.
-||| A partitive ("two of them") is plural and is NOT a group the sentence
-||| may subtract from: it is what was subtracted. The complement's
-||| presupposition counts the groups only, which is why the partitive
-||| needed a determiner tag of its own.
-public export
-countGroups : Bindings -> Nat
-countGroups [] = Z
-countGroups (MkBinding PartD _ _ _ :: bs) = countGroups bs
-countGroups (MkBinding _ Object ManyOf _ :: bs) = S (countGroups bs)
-countGroups (_ :: bs) = countGroups bs
-
-||| Parts TAKEN from a group, counted — object mentions the partitive
-||| determiner announced.
-public export
-countParts : Bindings -> Nat
-countParts [] = Z
-countParts (MkBinding PartD Object _ _ :: bs) = S (countParts bs)
-countParts (_ :: bs) = countParts bs
-
-||| What "the rest" presupposes: one assembled group, and at least one
-||| part taken out of it — with no group there is nothing to be the rest
-||| OF, and with nothing taken the sentence would have written "them".
-public export
-theRestOk : Bindings -> Bool
-theRestOk bs = eqNat (countGroups bs) 1 && not (eqNat (countParts bs) Z)
-
-||| What disposing of a partition's REMAINDER leaves behind: the group
-||| mention is SPENT. "The rest" names what is outstanding of a group, so
-||| once the rest has been placed a second "the rest" in the same breath
-||| names nothing (`badRestDisposedTwice`). Dropping the group makes
-||| `theRestOk` false for every later clause on the SAME path, while a
-||| branch arm typed in the discourse BEFORE the disposition still sees
-||| it — which is what the corpus writes, its only lines with two "the
-||| rest" phrases putting them in mutually exclusive arms.
-||| The parts stay: a part that was taken is a referent that moved, and
-||| later text may still read it. Group mentions assembled some other way
-||| go with it, which costs nothing written.
-public export
-groupSpent : Bindings -> Bindings
-groupSpent [] = []
-groupSpent (b@(MkBinding PartD _ _ _) :: bs) = b :: groupSpent bs
-groupSpent (MkBinding _ Object ManyOf _ :: bs) = groupSpent bs
-groupSpent (b :: bs) = b :: groupSpent bs
-
-||| The zone of the unique group mention — what a complement read
-||| inherits, the group's own place ([CR#701.20b]: exposing a card does
-||| not move it, so a looked-at library slice is still in the library).
-public export
-zoneOfGroup : Bindings -> Maybe Zone
-zoneOfGroup [] = Nothing
-zoneOfGroup (MkBinding PartD _ _ _ :: bs) = zoneOfGroup bs
-zoneOfGroup (MkBinding _ Object ManyOf (ObjectP _ zn _ _) :: bs) = zn
-zoneOfGroup (_ :: bs) = zoneOfGroup bs
-
-||| …and its projected head type, by the same walk.
-public export
-tyOfGroup : Bindings -> Maybe CardType
-tyOfGroup [] = Nothing
-tyOfGroup (MkBinding PartD _ _ _ :: bs) = tyOfGroup bs
-tyOfGroup (MkBinding _ Object ManyOf (ObjectP ty _ _ _) :: bs) = ty
-tyOfGroup (_ :: bs) = tyOfGroup bs
-
-||| Is any target-determined mention of this kind in scope? — the
-||| presupposition of the modifier "other" ([CR#115.4]), stated entirely
-||| in target vocabulary.
-public export
-anyTargeted : Kind -> Bindings -> Bool
-anyTargeted k [] = False
-anyTargeted k (MkBinding TargetD k' _ _ :: bs) =
-  if sameKind k k' then True else anyTargeted k bs
-anyTargeted k (_ :: bs) = anyTargeted k bs
-
-||| Head-type compatibility between an "other" phrase and a candidate
-||| anchor mention: an anchor that projects no head type is compatible
-||| with any head (wildcards, "any target").
-public export
-anchorTyOk : CardType -> Maybe CardType -> Bool
-anchorTyOk t Nothing = True
-anchorTyOk t (Just t') = sameCT t t'
-
-||| Is ANY target-determined mention in scope, of any kind at all? The
-||| kind-blind twin, needed by the static ability line:
-||| [CR#115.1a..115.1e] enumerate the things that can target and a static
-||| ability is not among them, so the question is not "which kind" but
-||| "any".
-public export
-anyTargetedAt : Bindings -> Bool
-anyTargetedAt [] = False
-anyTargetedAt (MkBinding TargetD _ _ _ :: _) = True
-anyTargetedAt (_ :: bs) = anyTargetedAt bs
-
-||| The typed twin of `anyTargeted`: is a target mention of this kind
-||| AND a compatible head type in scope? The style guide writes two
-||| separately described roles WITHOUT "other" ("target creature and
-||| target planeswalker"), and the corpus pairs "other" only with
-||| overlapping heads, so a cross-head anchor is no witness.
-public export
-anyTargetedTy : Kind -> CardType -> Bindings -> Bool
-anyTargetedTy k t [] = False
-anyTargetedTy k t (b@(MkBinding TargetD k' _ _) :: bs) =
-  if sameKind k k' && anchorTyOk t (bindingTy b) then True else anyTargetedTy k t bs
-anyTargetedTy k t (_ :: bs) = anyTargetedTy k t bs
-
-||| SOME listed head type has a compatible anchor. Its own empty list is
-||| the exhausted search, not an untyped head — the two readings of `[]`
-||| have to stay apart, or every typed head would fall through to
-||| accepting anything (`badOtherCrossHead` caught exactly that).
-public export
-anchorFoundSome : Kind -> List CardType -> Bindings -> Bool
-anchorFoundSome k [] ctx = False
-anchorFoundSome k (t :: ts) ctx = anyTargetedTy k t ctx || anchorFoundSome k ts ctx
-
-||| The "other" presupposition's witness search, over the head types the
-||| phrase OFFERS. The empty set is the genuinely untyped head (Arc
-||| Trail's "any other target", a player-kind "other") and accepts any
-||| same-kind anchor, which is exactly `anyTargeted`; a written head
-||| demands a type-compatible anchor. A COORDINATED head offers one type
-||| per alternative rather than none: "another target creature or land"
-||| is anchored by an earlier creature or by an earlier land, and by an
-||| earlier artifact it is not (`badDisjunctiveOtherCrossHead`).
-public export
-anchorFound : Kind -> List CardType -> Bindings -> Bool
-anchorFound k [] ctx = anyTargeted k ctx
-anchorFound k (t :: ts) ctx = anchorFoundSome k (t :: ts) ctx
-
-||| A future clause's context: the outer clause's announced targets
-||| cross the boundary as SETTLED PARTICULARS — readable like any
-||| mention ([CR#603.7c] refers to particular objects determiner-blind)
-||| but no longer "targets", because the delayed ability announces its
-||| own in its own event ([CR#603.3d,601.2c]), which is where the
-||| "other" presupposition stops. A view derived from the determiner;
-||| no timing tag exists.
-public export
-settleTargets : Bindings -> Bindings
-settleTargets [] = []
-settleTargets (MkBinding TargetD k plur payload :: bs) =
-  MkBinding TheD k plur payload :: settleTargets bs
-settleTargets (b :: bs) = b :: settleTargets bs
-
-||| Zone visibility ([CR#400.2] — library and hand are hidden zones).
-public export
-publicZone : Zone -> Bool
-publicZone Battlefield = True
-publicZone Graveyard = True
-publicZone Exile = True
-publicZone Hand = False
-publicZone Library = False
--- [CR#400.2] lists the stack among the public zones by name.
-publicZone Stack = True
-
-||| WHICH way an exposure clause shows a card, and it is the whole of
-||| the axis: [CR#701.20a] has revealing "show that card to all players",
-||| and [CR#701.20e] has looking follow "the same rules as revealing a
-||| card, except that the card is shown only to the specified player".
-||| One operation, two audiences, and the specified player is the
-||| clause's own subject — which is why the audience is not a slot.
-|||
-||| Core draws the line in the same place from the other side, with one
-||| `Reveal { what, to }` whose optional `to` "names a player instead =
-||| 'look at'" (`deckmaste_core/src/action.rs`). A tag here rather than
-||| an optional player, because an audience slot would let the grammar
-||| write "reveal it to target opponent", which oracle does not.
-public export
--- spelling: (construction-owned catalog -- each row is the exposure clause's
--- own verb: LookAt = "<subject> look(s) at <what>", Reveal = "<subject>
--- reveal(s) <what>". Never spelled alone -- see Expose)
-data ExposeVerb = LookAt | Reveal
-
-||| Which zones English EXPOSES whole. Only the hand: a graveyard, the
-||| battlefield, and exile are public already ([CR#400.2]) so revealing
-||| one says nothing, and a library is hidden but too big to show —
-||| "reveal your library" is zero lines, what oracle exposes of a library
-||| being a positioned SLICE, which is the card complement and not this
-||| row.
-public export
-exposableZone : Zone -> Bool
-exposableZone Hand = True
-exposableZone Battlefield = False
-exposableZone Graveyard = False
-exposableZone Exile = False
-exposableZone Library = False
-exposableZone Stack = False
-
-public export
-data ExposableZone : Zone -> Type where
-  MkExposableZone : {auto 0 ok : exposableZone z = True} -> ExposableZone z
-
-||| Which zones English SEARCHES. [CR#701.23a] defines the action over
-||| any zone and says the hidden ones expressly ("even if it's a hidden
-||| zone"); the corpus writes library, graveyard, and hand — two of them
-||| hidden, which is the case the rule calls out, and one public. The
-||| battlefield and exile are zero lines each: nothing to search for in a
-||| zone everyone can already read.
-public export
-searchableZone : Zone -> Bool
-searchableZone Library = True
-searchableZone Graveyard = True
-searchableZone Hand = True
-searchableZone Battlefield = False
-searchableZone Exile = False
-searchableZone Stack = False
-
-public export
-data SearchableZone : Zone -> Type where
-  MkSearchableZone : {auto 0 ok : searchableZone z = True} -> SearchableZone z
-
-||| Colon-readability of one mention: tracked objects by zone
-||| visibility; players, qualities, and untracked objects pass —
-||| structurally, since only `ObjectP` has a zone at all.
-public export
-pubB : Binding -> Bool
-pubB (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = publicZone z
-pubB (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
-pubB (MkBinding _ _ _ PlayerP) = True
-pubB (MkBinding _ _ _ QualityP) = True
-pubB (MkBinding _ _ _ (OutcomeP _)) = True  -- what happened is a public fact
-pubB (MkBinding _ _ _ GapP) = True          -- so is a comparison's margin
-pubB (MkBinding _ _ _ LetterP) = True       -- and so is a value the text defines
-
-||| The cost boundary's filter: a mention a cost leaves in a hidden zone
-||| is unreadable past the colon; unmoved and publicly-moved mentions
-||| survive. [CR#400.7] fires only on a zone change and [CR#400.7j] is
-||| its public-zone exception, so the filter keys on the CURRENT zone,
-||| not on having moved.
-public export
-publicOnly : Bindings -> Bindings
-publicOnly [] = []
-publicOnly (b :: bs) = if pubB b then b :: publicOnly bs else publicOnly bs
-
-||| A shuffle's filter: a mention still lying in the shuffled library is
-||| gone from the discourse. [CR#701.24a] leaves the order known to no
-||| player and [CR#701.20d] makes any revealed card that was reordered
-||| "stop being revealed and become a new object". Mentions that LEFT the
-||| library first are untouched, which is what [CR#701.24b] says of the
-||| found cards. Keys on the CURRENT zone, `publicOnly`'s discipline.
-public export
-notInLibrary : Binding -> Bool
-notInLibrary (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = not (sameZone z Library)
-notInLibrary (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
-notInLibrary (MkBinding _ _ _ PlayerP) = True
-notInLibrary (MkBinding _ _ _ QualityP) = True
-notInLibrary (MkBinding _ _ _ (OutcomeP _)) = True
-notInLibrary (MkBinding _ _ _ GapP) = True
-notInLibrary (MkBinding _ _ _ LetterP) = True
-
-public export
-shuffledAway : Bindings -> Bindings
-shuffledAway [] = []
-shuffledAway (b :: bs) =
-  if notInLibrary b then b :: shuffledAway bs else shuffledAway bs
-
-||| The current zone of the wildcard pronoun's referent — the unique
-||| singular object mention (uniqueness is `It`'s own gate).
-public export
-zoneOfIt : Bindings -> Maybe Zone
-zoneOfIt [] = Nothing
-zoneOfIt (MkBinding det Object OneOf (ObjectP ty zn _ _) :: bs) = zn
-zoneOfIt (b :: bs) = zoneOfIt bs
-
-||| The current zone of the plural wildcard's group referent.
-public export
-zoneOfThem : Bindings -> Maybe Zone
-zoneOfThem [] = Nothing
-zoneOfThem (MkBinding det Object ManyOf (ObjectP ty zn _ _) :: bs) = zn
-zoneOfThem (b :: bs) = zoneOfThem bs
-
-||| The noun-word vocabulary — ONE set of words for the sorted reads,
-||| its axes kept apart (finding 27 — type words are declared catalog
-||| atoms, never intrinsic sorts; the intrinsic words are the engine's
-||| own). What differs per read is the ANCHORING: the demonstrative
-||| checks its word against the referent's current state (`wordNow`), the
-||| participle against the verb event's frame (`verbedMatch`).
-public export
--- spelling: (construction-owned catalog -- TypeW t = t's own CardType word,
--- CardW = "card", SpellW = "spell", PlayerW = "player"; PermanentW =
--- "permanent", TokenW = "token"; consumed by
--- That/Those/TheVerbed, e.g. That (TypeW Creature) = "that creature",
--- That SpellW = "that spell". Never spelled alone)
-data NounWord = TypeW CardType | CardW | SpellW | PlayerW
-              | PermanentW | TokenW
-
-||| The two SURFACES of the participle read, and the round's answer to
-||| what "this way" is. The attributive premodifier ("the exiled card")
-||| and the postnominal deictic ("the card exiled this way") pick out the
-||| same referent under this grammar's uniqueness discipline — a read's
-||| obligation is `= 1`, so there is never a second stamp of the same
-||| verb for the deictic to disambiguate against — which makes them one
-||| construction with two spellings rather than two constructions.
-|||
-||| It is a TABLE and not a free slot, because the two surfaces are not
-||| interchangeable per verb: exile, sacrifice, and discard write both,
-||| and DESTROY writes the deictic only — "the destroyed [noun]" is zero
-||| lines (`badDestroyedAttributive`).
-public export
--- spelling: ["the <verb> <noun>", "the <noun> <verb> this way"] (row
--- order: Attributive/ThisWay; the verb is VerbName's lemma inflected as
--- a past participle either way, and the marking decides only where it
--- stands and whether the deictic follows. Spelled only through
--- TheVerbed / ThoseVerbed)
-data VerbedMarking = Attributive | ThisWay
-
-||| Which surface each verb tag writes.
-public export
-verbedMarkingOk : VerbName -> VerbedMarking -> Bool
-verbedMarkingOk Destroy Attributive = False
-verbedMarkingOk Destroy ThisWay = True
-verbedMarkingOk Sacrifice Attributive = True
-verbedMarkingOk Sacrifice ThisWay = True
-verbedMarkingOk Exile Attributive = True
-verbedMarkingOk Exile ThisWay = True
-verbedMarkingOk Discard Attributive = True
-verbedMarkingOk Discard ThisWay = True
-
-||| The marking demand as a witness, named apart so a pin says which
-||| question refused.
-public export
-data VerbedMarkingOk : VerbName -> VerbedMarking -> Type where
-  MkVerbedMarkingOk : {auto 0 ok : verbedMarkingOk v m = True} -> VerbedMarkingOk v m
-
-public export
-tyIs : CardType -> Maybe CardType -> Bool
-tyIs t Nothing = False
-tyIs t (Just t') = sameCT t t'
-
-||| A tracked non-battlefield zone — where an object answers to "card"
-||| ([CR#108.2]); a new Zone must take a side here.
-public export
-isCardZone : Maybe Zone -> Bool
-isCardZone Nothing = False
-isCardZone (Just Battlefield) = False
-isCardZone (Just Graveyard) = True
-isCardZone (Just Exile) = True
-isCardZone (Just Hand) = True
-isCardZone (Just Library) = True
--- The stack is the second zone where an object does NOT answer to
--- "card": [CR#112.1] calls a card on the stack a SPELL, and the corpus
--- writes "counter target spell" and never "counter target card on the
--- stack".
-isCardZone (Just Stack) = False
-
-||| Currently on the battlefield, strictly — the typed noun's
-||| demonstrative demand ([CR#110.1]); untracked does not qualify.
-public export
-onFieldZone : Maybe Zone -> Bool
-onFieldZone Nothing = False
-onFieldZone (Just Battlefield) = True
-onFieldZone (Just Graveyard) = False
-onFieldZone (Just Exile) = False
-onFieldZone (Just Hand) = False
-onFieldZone (Just Library) = False
-onFieldZone (Just Stack) = False
-
-||| On the STACK, strictly — where an object answers to "spell"
-||| ([CR#112.1]: "a spell is a card on the stack"). Untracked does not
-||| qualify, for `isCardZone`'s and `onFieldZone`'s reason: a phrase that
-||| says nothing about where its referent is has not said it is here.
-public export
-onStackZone : Maybe Zone -> Bool
-onStackZone Nothing = False
-onStackZone (Just Battlefield) = False
-onStackZone (Just Graveyard) = False
-onStackZone (Just Exile) = False
-onStackZone (Just Hand) = False
-onStackZone (Just Library) = False
-onStackZone (Just Stack) = True
-
-||| Build the stamp a retag writes: the moving verb's tag (if any)
-||| plus whether the referent stood on the battlefield BEFORE the
-||| move — the at-verb frame.
-public export
-mkStamp : Maybe VerbName -> Maybe Zone -> Maybe Stamp
-mkStamp Nothing oldZn = Nothing
-mkStamp (Just v) oldZn = Just (MkStamp v (onFieldZone oldZn))
-
-||| The word's own test, asked once the self has been screened off.
-public export
-wordReaches : NounWord -> Binding -> Bool
-wordReaches (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _ _)) = onFieldZone zn && tyIs t ty
-wordReaches (TypeW t) (MkBinding _ _ _ PlayerP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ QualityP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches (TypeW t) (MkBinding _ _ _ GapP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ LetterP) = False
-wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _)) = isCardZone zn
-wordReaches CardW (MkBinding _ _ _ PlayerP) = False
-wordReaches CardW (MkBinding _ _ _ QualityP) = False
-wordReaches CardW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches CardW (MkBinding _ _ _ GapP) = False
-wordReaches CardW (MkBinding _ _ _ LetterP) = False
--- The stack's carrier word, and [CR#112.1]'s identity is what makes it
--- one rather than a corpus count: "a spell is a card on the stack", so
--- the same object answers to "card" nowhere the stack is and to "spell"
--- only there.
-wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ _)) = onStackZone zn
-wordReaches SpellW (MkBinding _ _ _ PlayerP) = False
-wordReaches SpellW (MkBinding _ _ _ QualityP) = False
-wordReaches SpellW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches SpellW (MkBinding _ _ _ GapP) = False
-wordReaches SpellW (MkBinding _ _ _ LetterP) = False
-wordReaches PlayerW (MkBinding _ _ _ (ObjectP _ _ _ _)) = False
-wordReaches PlayerW (MkBinding _ _ _ PlayerP) = True
-wordReaches PlayerW (MkBinding _ _ _ QualityP) = False
-wordReaches PlayerW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches PlayerW (MkBinding _ _ _ GapP) = False
-wordReaches PlayerW (MkBinding _ _ _ LetterP) = False
--- the battlefield IS the word's whole test ([CR#110.1] — "a permanent is
--- a card or token on the battlefield", and it stops being one when it
--- moves away): no type, no provenance, no other zone.
-wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn _ _)) = onFieldZone zn
-wordReaches PermanentW (MkBinding _ _ _ PlayerP) = False
-wordReaches PermanentW (MkBinding _ _ _ QualityP) = False
-wordReaches PermanentW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches PermanentW (MkBinding _ _ _ GapP) = False
-wordReaches PermanentW (MkBinding _ _ _ LetterP) = False
--- battlefield AND minted-as-token: a token that has left the battlefield
--- has ceased to exist ([CR#111.7]), so the current-state word reaches
--- nothing there; a card-born referent is never "that token" however it
--- stands ([CR#111.1]).
-wordReaches TokenW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
-  onFieldZone zn && isTokenOrigin og
-wordReaches TokenW (MkBinding _ _ _ PlayerP) = False
-wordReaches TokenW (MkBinding _ _ _ QualityP) = False
-wordReaches TokenW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches TokenW (MkBinding _ _ _ GapP) = False
-wordReaches TokenW (MkBinding _ _ _ LetterP) = False
-
-||| The demonstrative's noun check — CURRENT-state anchoring, the
-||| carrier discipline ([CR#109.2,110.1]): a type word demands the
-||| referent currently answer to it (on the battlefield, projected
-||| type matching), the CARD word a tracked non-battlefield object
-||| ([CR#108.2]), the PLAYER word a player. Quality mentions answer
-||| to no noun word.
-public export
-wordNow : NounWord -> Binding -> Bool
--- THE DEMONSTRATIVE SKIPS THE SELF, and English is why rather than a
--- convenience: "that creature" never means the speaker, so a trigger's
--- own subject is not among the things "that creature" can pick out even
--- when it is the only creature the sentence mentioned. One clause, and
--- every demonstrative reader inherits it -- the counts, the zone read,
--- and the retag scans all route through this function.
-wordNow w b = case b.det of
-                SelfD => False
-                _ => wordReaches w b
-
-
-public export
-kindOfW : NounWord -> Kind
-kindOfW (TypeW _) = Object
-kindOfW CardW = Object
-kindOfW SpellW = Object
-kindOfW PlayerW = Player
-kindOfW PermanentW = Object
-kindOfW TokenW = Object
-
-||| The PROVENANCE half of the participle read: is this mention the one
-||| the named verb event stamped? That is the whole of what the participle
-||| contributes as a determiner — "the sacrificed …" picks out the
-||| referent of the LAST sacrifice (finding 26) — and it says nothing
-||| about which word may then describe it. Core keeps the same axis apart
-||| (`Reference::Bound`/`Linked` against `That(Sort)`, `reference.rs`).
-public export
-stampedBy : VerbName -> Stamp -> Bool
-stampedBy v (MkStamp v' _) = sameVerb v v'
-
-||| The WORD half, over that same stamped mention: a TYPE word demands
-||| the referent stood on the battlefield AT the verb (the stamp's
-||| `wasField` — a bare type word denotes a permanent [CR#109.2], so "the
-||| discarded creature" is unwritten; hands lose cards, not creatures)
-||| plus its projected type; the intrinsic CARD word checks the CURRENT
-||| zone; no participle reads a player. Each row reads the word's own
-||| anchor and nothing about the verb — the axis separation the
-||| demonstrative shares (`wordNow`, finding 28).
-public export
-verbedWordOk : NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
-verbedWordOk (TypeW t) (MkStamp _ wasF) ty zn = wasF && tyIs t ty
-verbedWordOk CardW st ty zn = isCardZone zn
--- The spell word takes a participle for the same reason the card word
--- does — it names a current zone rather than a remembered state — and
--- the corpus writes one ("the spell cast this way").
-verbedWordOk SpellW st ty zn = onStackZone zn
-verbedWordOk PlayerW st ty zn = False
--- the participial read asks only that the referent stood on the
--- battlefield at the stamped event — "the sacrificed permanent" projects
--- no type (Broadside Bombardiers reads it through a possessive), which
--- is the TypeW row minus its type demand.
-verbedWordOk PermanentW (MkStamp _ wasF) ty zn = wasF
--- no participial token read is measured ("the sacrificed token" was not
--- counted by the recon), and the signature carries no origin to check;
--- closed at False and ledgered rather than widened on no line.
-verbedWordOk TokenW st ty zn = False
-
-||| The participle's two halves as the one check the scans want: the
-||| provenance picks the mention, the word describes it.
-public export
-stampWordOk : VerbName -> NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
-stampWordOk v w st ty zn = stampedBy v st && verbedWordOk w st ty zn
-
-||| Does "the [verbed] [noun]" reach this binding? Singular, stamped,
-||| noun word compatible (`stampWordOk`).
-public export
-verbedMatch : VerbName -> NounWord -> Binding -> Bool
-verbedMatch v w (MkBinding _ _ OneOf (ObjectP ty zn (Just st) _)) = stampWordOk v w st ty zn
-verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing _)) = False
-verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _ _)) = False
-verbedMatch v w (MkBinding _ _ _ PlayerP) = False
-verbedMatch v w (MkBinding _ _ _ QualityP) = False
-verbedMatch v w (MkBinding _ _ _ (OutcomeP _)) = False
-verbedMatch v w (MkBinding _ _ _ GapP) = False
-verbedMatch v w (MkBinding _ _ _ LetterP) = False
-
-||| The GROUP twin — "[the] cards [verbed] this way", and the one the
-||| participle read had been refusing since it was minted: `verbedMatch`
-||| answers `False` to every `ManyOf` binding, so a plural action's
-||| participants had no participle to be read by. The corpus writes the
-||| plural at least as often as the singular where the family lives,
-||| because the actions the construction reads back are group actions.
-public export
-verbedMatchMany : VerbName -> NounWord -> Binding -> Bool
-verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP ty zn (Just st) _)) = stampWordOk v w st ty zn
-verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP _ _ Nothing _)) = False
-verbedMatchMany v w (MkBinding _ _ OneOf (ObjectP _ _ _ _)) = False
-verbedMatchMany v w (MkBinding _ _ _ PlayerP) = False
-verbedMatchMany v w (MkBinding _ _ _ QualityP) = False
-verbedMatchMany v w (MkBinding _ _ _ (OutcomeP _)) = False
-verbedMatchMany v w (MkBinding _ _ _ GapP) = False
-verbedMatchMany v w (MkBinding _ _ _ LetterP) = False
-
-||| Mentions the definite participle read reaches — its obligation is
-||| `= 1`, the same strict uniqueness as every other read.
-public export
-countVerbed : VerbName -> NounWord -> Bindings -> Nat
-countVerbed v w [] = Z
-countVerbed v w (b :: bs) =
-  if verbedMatch v w b then S (countVerbed v w bs) else countVerbed v w bs
-
-||| Group mentions the plural participle read reaches — the same strict
-||| `= 1` uniqueness, counted over groups.
-public export
-countManyVerbed : VerbName -> NounWord -> Bindings -> Nat
-countManyVerbed v w [] = Z
-countManyVerbed v w (b :: bs) =
-  if verbedMatchMany v w b then S (countManyVerbed v w bs) else countManyVerbed v w bs
-
-||| The current zone of the plural participle read's referent.
-public export
-zoneOfManyVerbed : VerbName -> NounWord -> Bindings -> Maybe Zone
-zoneOfManyVerbed v w [] = Nothing
-zoneOfManyVerbed v w (b :: bs) =
-  if verbedMatchMany v w b then bindingZone b else zoneOfManyVerbed v w bs
-
-||| The projected head type of the plural participle read's referent.
-public export
-tyOfManyVerbed : VerbName -> NounWord -> Bindings -> Maybe CardType
-tyOfManyVerbed v w [] = Nothing
-tyOfManyVerbed v w (b :: bs) =
-  if verbedMatchMany v w b then bindingTy b else tyOfManyVerbed v w bs
-
-||| The current zone of the participle read's referent.
-public export
-zoneOfVerbed : VerbName -> NounWord -> Bindings -> Maybe Zone
-zoneOfVerbed v w [] = Nothing
-zoneOfVerbed v w (b :: bs) =
-  if verbedMatch v w b then bindingZone b else zoneOfVerbed v w bs
-
-||| Singular mentions the demonstrative's word currently reaches —
-||| `That`'s obligation is `= 1` (strict uniqueness after the filter;
-||| there is no nearest-wins).
-public export
-countWord : NounWord -> Bindings -> Nat
-countWord w [] = Z
-countWord w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (OneOf, True) => S (countWord w bs)
-    _ => countWord w bs
-
-||| Group mentions the word currently reaches — the plural twin.
-public export
-countManyWord : NounWord -> Bindings -> Nat
-countManyWord w [] = Z
-countManyWord w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (ManyOf, True) => S (countManyWord w bs)
-    _ => countManyWord w bs
-
-||| The current zone of a sorted demonstrative's referent.
-public export
-zoneOfThat : NounWord -> Bindings -> Maybe Zone
-zoneOfThat w [] = Nothing
-zoneOfThat w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (OneOf, True) => bindingZone b
-    _ => zoneOfThat w bs
-
-||| The current zone of a sorted plural demonstrative's group referent.
-public export
-zoneOfThose : NounWord -> Bindings -> Maybe Zone
-zoneOfThose w [] = Nothing
-zoneOfThose w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (ManyOf, True) => bindingZone b
-    _ => zoneOfThose w bs
-
-||| The projected-type twins of the zone-of family — what a read's
-||| referent projects, for verb slots that demand a head type.
-public export
-tyOfIt : Bindings -> Maybe CardType
-tyOfIt [] = Nothing
-tyOfIt (MkBinding det Object OneOf (ObjectP ty zn pv _) :: bs) = ty
-tyOfIt (b :: bs) = tyOfIt bs
-
-public export
-tyOfThem : Bindings -> Maybe CardType
-tyOfThem [] = Nothing
-tyOfThem (MkBinding det Object ManyOf (ObjectP ty zn pv _) :: bs) = ty
-tyOfThem (b :: bs) = tyOfThem bs
-
-public export
-tyOfThat : NounWord -> Bindings -> Maybe CardType
-tyOfThat w [] = Nothing
-tyOfThat w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (OneOf, True) => bindingTy b
-    _ => tyOfThat w bs
-
-public export
-tyOfThose : NounWord -> Bindings -> Maybe CardType
-tyOfThose w [] = Nothing
-tyOfThose w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (ManyOf, True) => bindingTy b
-    _ => tyOfThose w bs
-
-public export
-tyOfVerbed : VerbName -> NounWord -> Bindings -> Maybe CardType
-tyOfVerbed v w [] = Nothing
-tyOfVerbed v w (b :: bs) =
-  if verbedMatch v w b then bindingTy b else tyOfVerbed v w bs
-
-||| Player mentions of either number — the antecedent pool for the
-||| possessive chooser pronoun ("of THEIR choice"): a singular subject
-||| or one distributive group.
-public export
-countChoosers : Bindings -> Nat
-countChoosers bs = countOnes Player bs + countManys Player bs
-
-||| The zone half of sacrifice's implicit restriction ([CR#701.21a] —
-||| only a permanent can be sacrificed), and of every other
-||| battlefield-demanding slot: the referent's zone must BE the
-||| battlefield. The permissive untracked row is gone — it existed for
-||| the sorted self-reference, which now projects its own zone
-||| ([CR#109.2], `nounZone (AsType …)`). The controller half needs
-||| fold-state the context does not carry (not-settled).
-public export
-data OnBattlefield : Maybe Zone -> Type where
-  OnField : OnBattlefield (Just Battlefield)
-
-||| The attested next-untap-step counts — the timed restriction's one
-||| independent endpoint value, a closed table over the written number:
-||| one (66 lines; the numeral is unwritten and "step" singular) and two
-||| (one line, Telekinesis; the word "two" and plural "steps"). Three and
-||| up are unwritten English (`badUntapNextThree`), and the table is what
-||| keeps them so. Construction-owned: the endpoint occurs zero times
-||| with any non-untap restriction, so no `Duration`, `SpanOk`, or
-||| turn-part cell opens for it.
-public export
-data NextUntapCount : Nat -> Type where
-  OneNextStep : NextUntapCount 1
-  TwoNextSteps : NextUntapCount 2
-
-||| The two PLURAL PLAYER words — the bare plural "players" and the
-||| possessive plural "your opponents" — which `Noun`'s `PlayerGroup` row
-||| spells and which nothing else does. This retires `CapDomain`, the
-||| three-cell enum chapter thirty-nine minted in this vocabulary's place
-||| and promised to revisit: its third cell was "you", which is `You`, so
-||| the cap now takes an ordinary player noun and the two plural phrases
-||| are ordinary player nouns beside it.
-|||
-||| The vocabulary is CLOSED because the corpus is. Sentence-initially the
-||| bare plural is 98 cards and the possessive plural 42 segments, and
-||| there is no third phrase of this shape: "all players" as a subject is
-||| written ZERO times (its nine occurrences are the comparative "among
-||| all players" and the possessive "all players' hands") and "all
-||| opponents" likewise zero (six occurrences, all "all opponents'
-||| graveyards"). So the alternative shape — a determiner row over a
-||| PREDICATE, `AllOf`'s arrangement — is refused by the surfaces
-||| themselves: `AllOf` spells the word "all", which neither of these
-||| phrases writes, and a predicate slot would additionally mint the
-||| possessive over arbitrary descriptions ("your opponents who control an
-||| artifact", zero lines). Exactly one corpus line modifies the bare
-||| plural at all — Aurelia's Fury's "Players dealt damage this way" —
-||| and it is blocked twice over besides, so the general row would be
-||| minted for a line it still could not spell.
-|||
-||| The two words differ in DENOTATION and in nothing this grammar reads:
-||| [CR#102.1] makes a player "one of the people in the game", so the bare
-||| plural is all of them, and an opponent is someone a player is playing
-||| against ([CR#102.2,102.3]), so the possessive is all of them but you.
-||| No table in this vocabulary asks which, which is why they are one
-||| indexed row rather than two constructors — finding 275's lesson read
-||| the other way round.
-public export
--- spelling: ["players", "your opponents"] (row order:
--- AllPlayers/YourOpponents. The name of the first is its DENOTATION and
--- not its surface: the word written is the bare plural "players", never
--- "all players". Through `StaticEffect.CantUntapMoreThan` each also
--- fixes the step possessive that closes the sentence, "their untap
--- steps" -- but that is the plural agreeing with a plural subject, which
--- `You` answers "your untap step" by the same rule)
-data PlayerGroupWord = AllPlayers | YourOpponents
-
-public export
-samePlayerGroupWord : PlayerGroupWord -> PlayerGroupWord -> Bool
-samePlayerGroupWord AllPlayers AllPlayers = True
-samePlayerGroupWord AllPlayers _ = False
-samePlayerGroupWord YourOpponents YourOpponents = True
-samePlayerGroupWord YourOpponents _ = False
-
-||| The attested cap bounds — the same closed-table-over-a-written-number
-||| move `NextUntapCount` makes, and the same two cells: one (five lines;
-||| the singular set word follows) and two (two lines, Static Orb and the
-||| emblem; "permanents" plural). Three and up are unwritten English
-||| (`badUntapCapThree`). The only bound PHRASING anywhere is "can't untap
-||| more than N" — no "at most", no "untap only" (Storage Matrix's "can
-||| untap only permanents of the chosen type" is a different construction
-||| entirely, recorded and not minted) — so the comparator is
-||| construction-owned and this table carries the number alone.
-public export
-data CapBound : Nat -> Type where
-  OneUntap : CapBound 1
-  TwoUntaps : CapBound 2
-
-||| How far back a history query scans — [CR#608.2i]'s look-back-in-time
-||| window, and a SEPARATE vocabulary from `Duration` rather than a row in
-||| it. Core draws the same line in the same place and its module doc is
-||| the design's anchor: `Timing` is a permission window and `Lookback` a
-||| history window, "never conflating the duration and history readings of
-||| 'this turn'" (`deckmaste_core/src/temporal.rs`). The Idris-side
-||| evidence is `Duration`'s own forward-only commitment — every endpoint
-||| it spells is a boundary the game has not reached — so "until end of
-||| turn" and "this turn" in a lookback are two different words wearing
-||| one spelling, and a shared enum would have made the difference
-||| unsayable.
-|||
-||| Three rows, each with real membership in the CONDITION position:
-||| `ThisTurn` is the mass (296 lines), `ThisCombat` seventeen (Kytheon,
-||| the velocity Vehicles, the pack-tactics family, Tolsimir), `LastTurn`
-||| eleven ("if a player cast two or more spells last turn", "if you lost
-||| life last turn"). The last of those the round's brief did not list and
-||| the corpus does; core carries it too.
-|||
-||| Two windows core has are NOT minted here, each refused on its own
-||| measurement. `ThisGame` reads backward on twenty-four lines and almost
-||| all of them are a specialised count — "for each time you've cast your
-||| commander from the command zone this game" and its family, plus named
-||| card counts and Ring temptations — none of which routes through this
-||| query's event vocabulary. The `SinceYour` family is five lines across
-||| three spellings ("since your last turn", "since your last upkeep",
-||| "since your last turn ended"), two syntactic positions and two
-||| possessors (O-Kagachi writes "during their last turn"), which is too
-||| thin and too varied to close a row over. Both are ledgered.
-|||
-||| It lives in its OWN NAMESPACE, and that is the separation enforced
-||| rather than merely documented: `Duration` already owns the words
-||| `ThisTurn` and `LastTurn`, so a shared top-level name space would have
-||| made the two vocabularies collide on the very spelling core warns
-||| about. `Counter.Delta`'s arrangement, for the same reason — one
-||| English word, two grammatical objects, told apart by where they live.
-namespace Lookback
-  public export
-  -- spelling: ["this turn", "this combat", "last turn"] (row order:
-  -- ThisTurn/ThisCombat/LastTurn; the adverbial closing the clause, after
-  -- the past-tense verb phrase. Spelled only through Condition.Happened
-  -- and Amount.EventCount)
-  data Lookback = ThisTurn | ThisCombat | LastTurn
-
-||| The same demand at the STACK, and a separate type for `OnBattlefield`'s
-||| reason: the carrier that reaches a spell has to say the phrase names
-||| one ([CR#112.1] — "a spell is a card on the stack"), where a
-||| `zoneFits` silence would let an untracked phrase through on saying
-||| nothing. The class word is exactly that phrase — "any target" names
-||| [CR#115.4]'s damage class and places its referent nowhere — and
-||| [CR#115.4] rules it out of this position in as many words: the class
-||| spans creature, player, planeswalker and battle, and a spell "can't be
-||| chosen this way" (`badCounterAnyTarget`, `badCastsAnyTarget`).
-public export
-data OnStack : Maybe Zone -> Type where
-  OnTheStack : OnStack (Just Stack)
-
-||| WHERE a counter may be put and taken off — the closed full-row table
-||| the battlefield demand above was standing in for, and the one gate in
-||| this file that opens a SECOND zone. Chapter nineteen answered the
-||| whole question `OnBattlefield`, which was right about the graveyard
-||| and wrong about exile: the rules put counters outside the battlefield
-||| in as many words ([CR#122.1a] gives a +X/+Y counter its meaning "on a
-||| creature card in a zone other than the battlefield", [CR#122.1b] the
-||| same for a keyword counter), and English writes them there — lines
-||| exile a card WITH counters on it, and the ordinary put and remove
-||| verbs reach that card afterwards (Jhoira of the Ghitu's "Put four
-||| time counters on the exiled card").
-|||
-||| The other four zones are measured silences and stay shut. Not one
-||| corpus line puts a counter on a card in a GRAVEYARD: the lines that
-||| write "counter" and "in a graveyard" together put the counter on a
-||| battlefield object and read the graveyard for a COUNT, or return the
-||| card to the battlefield first (`badPutCountersGraveyard`,
-||| `badRemoveCountersDead`). The hand and the library are the same
-||| silence, and the STACK writes none either — which the rules explain
-||| rather than merely record: [CR#122.6] reads a bare counter instruction
-||| as the battlefield's unless something says otherwise, so a zone gets a
-||| row here only when oracle NAMES it, and exile is the one it names.
-|||
-||| Which KIND is not an axis of this table: many kinds ride an exile and
-||| more arrive by the put verb afterwards. The zone is open to counters,
-||| not to a counter.
-public export
-counterZone : Maybe Zone -> Bool
-counterZone Nothing = False
-counterZone (Just Battlefield) = True
-counterZone (Just Graveyard) = False
-counterZone (Just Exile) = True
-counterZone (Just Hand) = False
-counterZone (Just Library) = False
-counterZone (Just Stack) = False
-
-||| The counter clause's zone demand as a witness, named apart from
-||| `OnBattlefield` so a pin says which question refused — and kept a
-||| separate type rather than a widened `OnBattlefield` because the other
-||| eleven battlefield-demanding slots (destroy, sacrifice, tap, fight,
-||| the copular reads, the stat deltas) did NOT widen.
-public export
-data CounterHolder : Maybe Zone -> Type where
-  MkCounterHolder : {auto 0 ok : counterZone z = True} -> CounterHolder z
-
-||| A reference's OWN zone against the zone its description reads —
-||| `zonesAgree`'s agreement rule pointed at the one place the subject is
-||| external to the phrase. A noun phrase places its referent itself, so
-||| "creature card in your graveyard" has its zone story checked inside
-||| the conjunction; a copular condition instead says something about a
-||| referent placed somewhere else already, and "it's in a graveyard" said
-||| of a battlefield mention describes nothing ([CR#109.2a] — a
-||| description naming a zone means an object in THAT zone, so it picks
-||| out nothing the subject could be). Silence on either side is no
-||| evidence and passes.
-public export
-zoneFits : Maybe Zone -> Maybe Zone -> Bool
-zoneFits Nothing _ = True
-zoneFits (Just _) Nothing = True
-zoneFits (Just a) (Just b) = sameZone a b
-
-||| The copular condition's zone gate as a witness (`OnBattlefield`'s
-||| shape — a plain `Maybe Zone` relation, so the mutual block below can
-||| call it from a constructor's type). It is chapter twenty-one's other
-||| half of the trailing-condition timing correction: with the condition
-||| typed in `preIntro`, the subject of "Destroy target creature if it's
-||| in a graveyard" is on the battlefield where its phrase announced it,
-||| and this is what notices (`badTrailingPostStateZone`).
-public export
-data ZoneFits : Maybe Zone -> Maybe Zone -> Type where
-  MkZoneFits : {auto 0 ok : zoneFits subj desc = True} -> ZoneFits subj desc
-
-||| What "target" can take ([CR#115.1] — objects and players; a
-||| quality is choosable, never targetable).
-public export
-data Targetable : Kind -> Type where
-  ObjectTgt : Targetable Object
-  PlayerTgt : Targetable Player
-
-||| Damageable head types ([CR#120.1a] — damage can't be dealt to an
-||| object that's not a battle, a creature, or a planeswalker): one row,
-||| for the one damageable type this vocabulary has a word for. The class
-||| word "any target" does not arrive here — it names the [CR#115.4] class
-||| itself and has its own recipient row — and neither does the untyped
-||| head. That row read a missing type word as "no evidence of an illegal
-||| one", which was defensible while nothing could project `Nothing`
-||| deliberately; a disjunctive head does exactly that, and honestly
-||| ("artifact or enchantment" fixes no type), so keeping the row would
-||| have made every disjunction damageable — including the two types
-||| [CR#120.1a] names as the ones damage can't reach
-||| (`badDamageDisjunctHead`).
-public export
-data DamageableTy : Maybe CardType -> Type where
-  DamCreature : DamageableTy (Just Creature)
-
-||| The kinds a noun PHRASE can describe — objects, players, chosen
-||| qualities. Outcomes are clause-introduced only: no determiner
-||| phrase binds one, which is what keeps `bindFor` total.
-public export
-data Phrasal : Kind -> Type where
-  PhObject : Phrasal Object
-  PhPlayer : Phrasal Player
-  PhQuality : Phrasal (Quality q)
-
-public export
-targetablePhrasal : Targetable k -> Phrasal k
-targetablePhrasal ObjectTgt = PhObject
-targetablePhrasal PlayerTgt = PhPlayer
-
--- ===== Abilities (the granted-ability vocabulary, minimally) =====
-
-||| Keyword abilities, as macro NAMES mirroring
-||| `plugins/builtin/macros/keyword/` — parameterized keywords spell
-||| their parameters explicitly (e.g. a from-quality as `Maybe`, written
-||| `Nothing` in the plain form), never as defaults. A row here is
-||| STANDING, and core decides who gets it: `Trample`, `Vigilance`,
-||| `Deathtouch`, `DoubleStrike` and `FirstStrike` have NO macro under
-||| that directory because the engine implements them itself, and a word
-||| the engine owns cannot be spelled as anything else. Every keyword
-||| that DOES have a macro there is a composite of abilities, and
-||| composites are the composite carrier's to spell (ledger), never a row
-||| of their own; `Haste` and `Flying` are the two composite rows here,
-||| left where the cards that use them put them.
-public export
--- spelling: ["haste", "flying", "trample", "vigilance", "deathtouch",
--- "double strike", "first strike"] (bare keyword-ability lines, no
--- params/cost; exact row order follows Keyword)
-data Keyword = Haste | Flying | Trample | Vigilance | Deathtouch
-             | DoubleStrike | FirstStrike
-
-||| Keyword equality, per-row catch-alls. This is vocabulary only: it does
-||| not classify or implement keyword mechanics.
-public export
-sameKeyword : Keyword -> Keyword -> Bool
-sameKeyword Haste Haste = True
-sameKeyword Haste _ = False
-sameKeyword Flying Flying = True
-sameKeyword Flying _ = False
-sameKeyword Trample Trample = True
-sameKeyword Trample _ = False
-sameKeyword Vigilance Vigilance = True
-sameKeyword Vigilance _ = False
-sameKeyword Deathtouch Deathtouch = True
-sameKeyword Deathtouch _ = False
-sameKeyword DoubleStrike DoubleStrike = True
-sameKeyword DoubleStrike _ = False
-sameKeyword FirstStrike FirstStrike = True
-sameKeyword FirstStrike _ = False
-
--- (The `Ability` CONTAINER that carries these — the type above `Effect` —
--- lives in the mutual block, its activated row needing `Cost` and
--- `Effect`.)
-
--- ===== Colors, subtypes, counters, and token characteristics =====
-
-||| The five colors ([CR#105.1]; colorless is not one of them, which is
-||| why the token's color slot spells its absence as an empty list rather
-||| than growing a sixth row). Ported from core ALMOST VERBATIM by
-||| explicit ruling — `deckmaste_core/src/color.rs` opens with exactly
-||| these five rows in this order — and this is the one closed vocabulary
-||| the workbench does NOT whittle to witnessed rows: a color is a
-||| rules-fixed catalog, not a construction, so a missing row would be a
-||| hole in the rules rather than an unattested phrase.
-|||
-||| Its own namespace, the `Verb` split's reason: the color `Color` and
-||| the quality sort `Color` ("Choose a color", `QualitySort`) are
-||| distinct words, and Idris resolves the two by the type each stands in.
-namespace Chroma
-  public export
-  -- spelling: ["white", "blue", "black", "red", "green"] (row order:
-  -- White/Blue/Black/Red/Green -- each row is the color's own word, written
-  -- inside a token's characteristics and coordinated with "and" from two up
-  -- ("a 2/2 red and green Satyr creature token", Xenagos the Reveler);
-  -- never spelled alone)
-  data Color = White | Blue | Black | Red | Green
-
-  ||| A color or the absence of one — the piece chapter nineteen minted
-  ||| `Color` without and named as the mana-symbol channel's ([CR#107.4c]:
-  ||| "{C}" is one colorless mana, and colorless is not a color
-  ||| [CR#105.1]). It lands where core puts it, beside `Color` in the same
-  ||| file (`deckmaste_core/src/color.rs`) rather than beside the symbols
-  ||| that consume it, and on the same ruling: a closed rules catalog, so
-  ||| both rows stand whether or not a bench line spells them.
-  public export
-  -- spelling: (component-owned -- never a word. Written inside a symbol's
-  -- braces: "C" for Colorless, the color's own letter for OfColor -- core's
-  -- `ColorOrColorless::from_code`, whose "C" arm is the one this row adds)
-  data ColorOrColorless = Colorless | OfColor Color
-
-public export
-sameColor : Color -> Color -> Bool
-sameColor White White = True
-sameColor White _ = False
-sameColor Blue Blue = True
-sameColor Blue _ = False
-sameColor Black Black = True
-sameColor Black _ = False
-sameColor Red Red = True
-sameColor Red _ = False
-sameColor Green Green = True
-sameColor Green _ = False
-
--- ===== Mana symbols and printed mana costs =====
-
-||| The component a hybrid or Phyrexian symbol is built OUT of: a generic
-||| amount or one specific kind of mana ([CR#107.4b] makes a numeral
-||| generic, [CR#107.4a,107.4c] make the six specific pips). Ported from
-||| core almost verbatim by the same explicit ruling `Color` was
-||| (`deckmaste_core/src/mana.rs`, `SimpleManaSymbol`), and the settled
-||| Idris spec agrees row for row (`Semantics.idr`): a rules-fixed
-||| catalog, not whittled to witnessed rows.
-public export
--- spelling: (component-owned -- never spelled alone. Written inside a
--- ManaSymbol's braces: Generic n as the numeral "{2}", Specific as the
--- one-letter code "{W}"/"{C}"; the halves of a hybrid are joined by "/")
-data SimpleManaSymbol = Generic Nat | Specific ColorOrColorless
-
-||| A hybrid's two halves are DIFFERENT mana. [CR#107.4e] makes a hybrid
-||| symbol "represent a cost that can be paid in one of two ways", and two
-||| ways spelled the same word is one way: the printed set has no "{W/W}",
-||| and the generic and colorless halves clash with nothing.
-public export
-halvesDistinct : SimpleManaSymbol -> Color -> Bool
-halvesDistinct (Generic _) d = True
-halvesDistinct (Specific Colorless) d = True
-halvesDistinct (Specific (OfColor c)) d = not (sameColor c d)
-
-||| The hybrid's distinctness demand as a witness.
-public export
-data HalvesDistinct : SimpleManaSymbol -> Color -> Type where
-  MkHalvesDistinct : {auto 0 ok : halvesDistinct l r = True} -> HalvesDistinct l r
-
-||| A hybrid Phyrexian symbol names two DIFFERENT colors, and [CR#107.4f]
-||| says so by counting: it lists "ten hybrid Phyrexian mana symbols",
-||| which is the number of unordered pairs of five distinct colors. The
-||| plain five take no second color at all, so the silence passes.
-public export
-phyrexianDistinct : Color -> Maybe Color -> Bool
-phyrexianDistinct c Nothing = True
-phyrexianDistinct c (Just d) = not (sameColor c d)
-
-||| The Phyrexian symbol's distinctness demand as a witness.
-public export
-data PhyrexianDistinct : Color -> Maybe Color -> Type where
-  MkPhyrexianDistinct : {auto 0 ok : phyrexianDistinct c d = True} ->
-                        PhyrexianDistinct c d
-
-||| A printed mana symbol ([CR#107.4] lists the closed set). The five
-||| colored, the colorless, and the numerals ride `Simple`; the hybrid
-||| families are ONE compositional row, so `{W/U}` is `Hybrid (Specific
-||| (OfColor White)) Blue`, the monocolored `{2/B}` is `Hybrid (Generic 2)
-||| Black`, and the colorless-hybrid `{C/W}` is `Hybrid (Specific
-||| Colorless) White` ([CR#107.4e] — "a hybrid mana symbol is also a
-||| colored mana symbol, even if one of its components is colorless").
-||| `Phyrexian` takes a COLOR rather than a `SimpleManaSymbol` on its left,
-||| which is [CR#107.4f]'s own list making the type carry its
-||| well-formedness: the fifteen printed Phyrexian symbols are five colored
-||| and ten hybrid-colored, and there is no `{2/P}` or `{C/P}` to write.
-||| Deliberately a hair more permissive than the printed set exactly where
-||| core is — an unprinted `{5/W}` is representable — which core marks as
-||| variant headroom and this file inherits rather than re-litigates.
-|||
-||| This is the PRINTED cost language and not what a mana ability
-||| produces; core keeps `ManaSpec` apart for that, and no clause here
-||| produces mana at all (ledger).
-public export
--- spelling: (each symbol writes itself between braces, and a cost is the
--- symbols run together with no separator: Simple (Generic n) = "{n}",
--- Simple (Specific c) = "{W}".."{G}"/"{C}", Hybrid l r = "{l/r}" on the two
--- halves' own codes, Phyrexian c Nothing = "{W/P}", Phyrexian c (Just d) =
--- "{W/U/P}", Variable = "{X}", SnowMana = "{S}")
-data ManaSymbol : Type where
-  Simple : SimpleManaSymbol -> ManaSymbol
-  Hybrid : (l : SimpleManaSymbol) -> (r : Color) ->
-           {auto 0 ds : HalvesDistinct l r} -> ManaSymbol
-  Phyrexian : (c : Color) -> (d : Maybe Color) ->
-              {auto 0 ds : PhyrexianDistinct c d} -> ManaSymbol
-  Variable : ManaSymbol
-  SnowMana : ManaSymbol
-
-||| A printed mana cost: the symbol sequence, in the order the card
-||| writes it ([CR#202.1]; [CR#202.1a] makes paying it a per-symbol
-||| match). A LIST because that is all oracle's spelling is, "{1}{R}"
-||| being two symbols run together, and because core's `ManaCost` is the
-||| same newtype over a symbol slice. The empty list is the {0} cost's
-||| neighbour and not the same thing: [CR#118.5] makes "{0}" a payment of
-||| nothing, written `[Simple (Generic 0)]`, where the empty list is
-||| core's "no mana cost" ([CR#202.1b], unpayable) — a distinction the
-||| type keeps for free and no clause here exercises.
-public export
-ManaCost : Type
-ManaCost = List ManaSymbol
-
-||| A cost COMPONENT's symbol run is written — the one place the empty
-||| list is not the [CR#202.1b] "no mana cost" it is on a card. Before a
-||| colon the run IS the component's whole spelling, so an empty one
-||| spells an activation line opening on a bare colon, which no corpus
-||| line writes; the payment of nothing is "{0}" ([CR#118.5]), a symbol,
-||| and the run holding it is one element long (`badEmptyManaCost`).
-public export
-manaRunWritten : ManaCost -> Bool
-manaRunWritten [] = False
-manaRunWritten (_ :: _) = True
-
-||| The written-run demand as a witness.
-public export
-data ManaRun : ManaCost -> Type where
-  MkManaRun : {auto 0 ok : manaRunWritten c = True} -> ManaRun c
-
-||| Subtypes, as catalog atoms ([CR#205.3m] creature types;
-||| [CR#205.3i,305.6] the five basic land types). Witnessed rows, and
-||| DELIBERATELY not a port of core's shape: core declares subtypes as
-||| open plugin data (`Subtype { name, types, confers }`,
-||| `deckmaste_core/src/type.rs`) resolved through a generated catalog of
-||| hundreds, and a bench cannot witness hundreds of rows. So a subtype
-||| grows a row here exactly as `CardType` does, one card at a time; the
-||| port-the-catalog alternative is ledgered rather than taken.
-public export
--- spelling: (construction-owned catalog -- each row is the subtype's own
--- word, capitalised, written inside a token's characteristics ("Zombie
--- Army"), as a bare noun head ("an Army you control"), or after "becomes a"
--- in a type-addition clause; never spelled alone)
-data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
-             | Coward | Demon | Angel | Elemental | Plant | Dragon | Plains | Island | Swamp
-             | Mountain | Forest | Goblin | Equipment | Avatar | Insect
-             | Elder | Dinosaur | Human | Advisor | Wizard | Shaman
-
-public export
-sameSub : Subtype -> Subtype -> Bool
-sameSub Goblin Goblin = True
-sameSub Goblin _ = False
-sameSub Equipment Equipment = True
-sameSub Equipment _ = False
-sameSub Avatar Avatar = True
-sameSub Avatar _ = False
-sameSub Insect Insect = True
-sameSub Insect _ = False
-sameSub Elder Elder = True
-sameSub Elder _ = False
-sameSub Dinosaur Dinosaur = True
-sameSub Dinosaur _ = False
-sameSub Human Human = True
-sameSub Human _ = False
-sameSub Advisor Advisor = True
-sameSub Advisor _ = False
-sameSub Wizard Wizard = True
-sameSub Wizard _ = False
-sameSub Shaman Shaman = True
-sameSub Shaman _ = False
-sameSub Zombie Zombie = True
-sameSub Zombie _ = False
-sameSub Army Army = True
-sameSub Army _ = False
-sameSub Soldier Soldier = True
-sameSub Soldier _ = False
-sameSub Thopter Thopter = True
-sameSub Thopter _ = False
-sameSub Construct Construct = True
-sameSub Construct _ = False
-sameSub Fractal Fractal = True
-sameSub Fractal _ = False
-sameSub Coward Coward = True
-sameSub Coward _ = False
-sameSub Demon Demon = True
-sameSub Demon _ = False
-sameSub Angel Angel = True
-sameSub Angel _ = False
-sameSub Elemental Elemental = True
-sameSub Elemental _ = False
-sameSub Plant Plant = True
-sameSub Plant _ = False
-sameSub Dragon Dragon = True
-sameSub Dragon _ = False
-sameSub Plains Plains = True
-sameSub Plains _ = False
-sameSub Island Island = True
-sameSub Island _ = False
-sameSub Swamp Swamp = True
-sameSub Swamp _ = False
-sameSub Mountain Mountain = True
-sameSub Mountain _ = False
-sameSub Forest Forest = True
-sameSub Forest _ = False
-
-||| Which card type a subtype's set belongs to — [CR#205.1a] names the
-||| sets themselves. [CR#205.3m] supplies the creature rows;
-||| [CR#205.3i,305.6] supply Plains, Island, Swamp, Mountain, and Forest
-||| as land rows. Full rows: a subtype from another set (an artifact type
-||| like Equipment, an enchantment type like Aura) must declare its card
-||| type before it can be written.
-public export
-subtypeType : Subtype -> CardType
-subtypeType Zombie = Creature
-subtypeType Army = Creature
-subtypeType Soldier = Creature
-subtypeType Thopter = Creature
-subtypeType Construct = Creature
-subtypeType Fractal = Creature
-subtypeType Coward = Creature
-subtypeType Demon = Creature
-subtypeType Angel = Creature
-subtypeType Elemental = Creature
-subtypeType Plant = Creature
-subtypeType Dragon = Creature
-subtypeType Plains = Land
-subtypeType Island = Land
-subtypeType Swamp = Land
-subtypeType Mountain = Land
-subtypeType Forest = Land
-subtypeType Goblin = Creature
--- the first ARTIFACT type ([CR#205.3g], which sends the word on to
--- [CR#301.5]'s equipment rules): the catalog's per-set membership is
--- exactly what a for-each domain over "each Equipment you control" needs
--- said before it can be written.
-subtypeType Equipment = Artifact
-subtypeType Avatar = Creature
-subtypeType Insect = Creature
-subtypeType Elder = Creature
-subtypeType Dinosaur = Creature
-subtypeType Human = Creature
-subtypeType Advisor = Creature
-subtypeType Wizard = Creature
-subtypeType Shaman = Creature
-
-||| Binding-free counter deltas, deliberately separate from `LifeOp`'s
-||| discourse-indexed amount operations. A zero component is a valid counter
-||| component ("-0/-1", six lines); no nonzero proof belongs to this literal
-||| vocabulary. Two rows and not three: [CR#122.1a] knows "+X/+Y" and
-||| "-X/-Y" and nothing sets a stat counter to a value, so `LifeOp.SetTo`'s
-||| twin would be a phrase no card prints.
-namespace Counter
-  public export
-  -- spelling: (construction-owned literal operation -- BoostCounter owns
-  -- the surrounding counter name. Up n contributes "+n", Down n "-n".)
-  data Delta : Type where
-    Up : Nat -> Delta
-    Down : Nat -> Delta
-
-  public export
-  sameDelta : Delta -> Delta -> Bool
-  sameDelta (Up a) (Up b) = a == b
-  sameDelta (Up _) _ = False
-  sameDelta (Down a) (Down b) = a == b
-  sameDelta (Down _) _ = False
-
-||| Which bare keyword names belong to [CR#122.1b]'s named base
-||| keyword-counter family. The rule closes that list at fifteen and every
-||| row this vocabulary carries is on it, so the table answers True
-||| throughout — it is a FORCING function, not a measurement: a keyword row
-||| off [CR#122.1b]'s list (banding, phasing) must answer False here before
-||| anything can put a counter of its name on anything. Parameterized
-||| variants remain outside this vocabulary.
-public export
-keywordCounterOk : Keyword -> Bool
-keywordCounterOk Haste = True
-keywordCounterOk Flying = True
-keywordCounterOk Trample = True
-keywordCounterOk Vigilance = True
-keywordCounterOk Deathtouch = True
-keywordCounterOk DoubleStrike = True
-keywordCounterOk FirstStrike = True
-
-||| The eligibility decision is explicit for every Keyword row, so a future
-||| keyword must opt in (or out) before it can become a keyword counter.
-public export
-data KeywordCounterEligible : Keyword -> Type where
-  MkKeywordCounterEligible : {auto 0 ok : keywordCounterOk k = True} ->
-                            KeywordCounterEligible k
-
-||| SUPERTYPES ([CR#205.4a] closes the list at five: basic, legendary,
-||| ongoing, snow, world). Three rows here, whittled to what a witness
-||| needs exactly as `CardType` is whittled to six of fifteen — a
-||| supertype is an ordinary catalog word, not a rules-fixed structure
-||| like `Color`, so an unwitnessed row would be a phrase nothing here
-||| writes.
-|||
-||| The field this rides on is the CARD's and not `TypeLine`'s, and
-||| [CR#205.4b] is the reason it can be: "an object's supertype is
-||| independent of its card type and subtype", so the three lists are
-||| three facts printed on one line rather than one bundle. `TypeLine`'s
-||| two readers — the token's defined characteristics and the type
-||| ADDITION clause — write no supertype between them, and the third
-||| reader, the printed card, is the one that has them. `Legendary`,
-||| `Basic` and `Snow` have witnesses; World and Ongoing remain unminted.
-public export
--- spelling: ["legendary", "basic", "snow"] (the supertype words, printed
--- before card types; a line may carry more than one: "Snow-Covered Forest"
--- is Basic Snow Land — Forest. Spelled only through Card.)
-data Supertype = Legendary | Basic | Snow
-
-public export
-sameSupertype : Supertype -> Supertype -> Bool
-sameSupertype Legendary Legendary = True
-sameSupertype Legendary _ = False
-sameSupertype Basic Basic = True
-sameSupertype Basic _ = False
-sameSupertype Snow Snow = True
-sameSupertype Snow _ = False
-
-||| The DESIGNATIONS a player can have — [CR#725.1] and [CR#726.1] use the
-||| same six words for both ("the monarch/the initiative is a designation a
-||| player can have"), which is why they are one vocabulary and not two
-||| rows in two places.
-|||
-||| Core's designation taxonomy is COMPLETE and wired
-||| (`deckmaste_core/src/designation.rs`: `DesignationScope{Object, Player,
-||| Game}` over `DesignationDef{Stored, Derived, DerivedIf}` with shape,
-||| uniqueness and persistence metadata); the OLD module has an open
-||| `MkDesignation Scope String` carrying player and object scopes only;
-||| and this workbench, until now, had NO designation machinery of any
-||| kind. So these rows are the first Idris consumers of the axis at every
-||| scope, not merely at the game scope the plugin emitter records as
-||| absent ("Game-scoped designations have no Idris `Scope` and are simply
-||| absent", `deckmaste_plugin/src/idris_emit.rs`).
-|||
-||| Three designations the old module carries are NOT minted, and one
-||| argument covers all three: the city's blessing (28 lines, 15 of them
-||| checks), monstrous (64 / 9) and renowned (12 / 3) are each conferred
-||| by a KEYWORD -- ascend, monstrosity, renown -- so their BECOMING sits
-||| behind the keyword boundary while only their checks are ordinary card
-||| text. Minting the check alone would give this grammar a designation
-||| nothing in it can confer, which is a worse state than not having it.
-||| They wait for the keyword transition together.
-public export
--- spelling: ["the monarch", "the initiative"] (row order:
--- Monarch/TheInitiative; the definite noun phrase naming the role. The
--- BECOMING verb differs per value and the effect row carries it -- see
--- TakesDesignation)
-data PlayerDesignation = Monarch | TheInitiative
-
-public export
-samePlayerDesignation : PlayerDesignation -> PlayerDesignation -> Bool
-samePlayerDesignation Monarch Monarch = True
-samePlayerDesignation Monarch _ = False
-samePlayerDesignation TheInitiative TheInitiative = True
-samePlayerDesignation TheInitiative _ = False
-
-||| The designations an OBJECT can have, and the two the corpus writes as
-||| ordinary card text. `Goaded` is [CR#701.15b]'s -- "neither an ability
-||| nor part of the permanent's copiable values", which is what makes it a
-||| designation and not a keyword despite arriving by a keyword action.
-||| `RingBearer` is [CR#701.54a]'s, and it is the reason the READ is not a
-||| bare presence test: see YourRingBearer.
-public export
--- spelling: ["your Ring-bearer", "goaded"] (row order: RingBearer/Goaded;
--- the Ring-bearer is written as a possessed noun and never bare, goaded as
--- a prenominal participle. Spelled only through the predicate rows)
-data ObjectDesignation = RingBearer | Goaded
-
-||| The GAME's own designations ([CR#731.1] — "day and night are
-||| designations that the game itself can have. The game starts with
-||| neither"). A third scope, and the one core carries that no Idris
-||| module has ever had a consumer for.
-|||
-||| It is a two-value enum and NOT a third `Kind`. The temptation was to
-||| give the game a sort beside `Object` and `Player` so a designation
-||| read could be kind-indexed throughout; the corpus does not pay for it.
-||| Four check lines and eleven transition lines buy two rows, not a
-||| universe: nothing else in the grammar ever needs to describe, target,
-||| count or quantify over the game, and a `Kind` row would have obliged
-||| every kind-keyed table in the file to answer for it.
-public export
--- spelling: ["day", "night"] (row order: Day/Night; the bare word after
--- "it becomes" or "it's". Spelled only through BecomesTime and ItIsNow)
-data TimeOfDay = Day | Night
-
-public export
-sameTimeOfDay : TimeOfDay -> TimeOfDay -> Bool
-sameTimeOfDay Day Day = True
-sameTimeOfDay Day _ = False
-sameTimeOfDay Night Night = True
-sameTimeOfDay Night _ = False
-
-||| WHICH time-of-day the CHECK writes -- finding 246's idiom at a third
-||| site, and the sharpest asymmetry the round measured: "if it's night"
-||| and its siblings are four lines, and "if it's day" is written ZERO
-||| times. The transition writes both directions freely, so this is a fact
-||| about the check and not about the designation (`badItIsDay`).
-public export
-timeCheckOk : TimeOfDay -> Bool
-timeCheckOk Day = False
-timeCheckOk Night = True
-
-public export
-data TimeChecked : TimeOfDay -> Type where
-  MkTimeChecked : {auto 0 ok : timeCheckOk t = True} -> TimeChecked t
-
-||| The ATTACHMENT PARTICIPLE — the word a permanent uses to refer to
-||| whatever it is attached to. Three words, and the rules define all
-||| three: [CR#303.4b] ("the object or player an Aura is attached to is
-||| called enchanted"), [CR#301.5a] ("the creature an Equipment is
-||| attached to is called the 'equipped creature'"), and [CR#301.6], which
-||| applies the Equipment rules to Fortifications in relation to lands
-||| just as they apply to Equipment in relation to creatures".
-|||
-||| The word is DECOUPLED from the speaker's own type, and that is what
-||| lets this land with no Aura-subtype machinery and no attach verb:
-||| [CR#303.4m] and [CR#301.5f] both say the reference works "even if the
-||| permanent with the ability isn't an Aura"/"isn't an Equipment". So the
-||| participle is a pointer a permanent may write, not a fact about what
-||| kind of permanent it is, and nothing about attachment as a RELATION is
-||| needed to spell it. The corpus confirms the boundary: the paraphrase
-||| "the creature this is attached to" is written zero times, so the
-||| participle is the only spelling.
-|||
-||| The gap it closes is COMMON to both prior arts. Core has the
-||| reference — `Reference::AttachHostOf`, "the permanent that attachment
-||| R is attached to" (`deckmaste_core/src/reference.rs`) — and the OLD
-||| module has the same primitive with `refIntro (AttachHostOf r) =
-||| refIntro r`, a passthrough that announces nothing (`Semantics.idr`).
-||| NEITHER has a NOUN surface. This is the first one in the repo.
-public export
--- spelling: ["enchanted", "equipped", "fortified"] (row order:
--- Enchanted/Equipped/Fortified; the participle before its head word.
--- Spelled only through Noun.AttachHost)
-data AttachWord = Enchanted | Equipped | Fortified
-
-public export
-sameAttachWord : AttachWord -> AttachWord -> Bool
-sameAttachWord Enchanted Enchanted = True
-sameAttachWord Enchanted _ = False
-sameAttachWord Equipped Equipped = True
-sameAttachWord Equipped _ = False
-sameAttachWord Fortified Fortified = True
-sameAttachWord Fortified _ = False
-
-||| WHICH head word each participle takes. Full rows over (participle x
-||| head), every cell measured.
-|||
-||| The grid is lopsided in a way that follows the rules exactly.
-||| ENCHANTED spans six heads because [CR#303.4b] lets an Aura attach to
-||| an object OR a player: creature 931 lines, land 79, permanent 76,
-||| player 54 (the Curse family), artifact 22, enchantment 4. EQUIPPED is
-||| creature-only at 605, [CR#301.5a] naming no other host. FORTIFIED is
-||| land-only at 3, and those three lines mint the row rather than
-||| record it because [CR#301.6] cross-references the whole Equipment block:
-||| "fortified land" is the rules' own term with exactly the status
-||| "equipped creature" has, so the row is rules-backed vocabulary and
-||| not a corpus-thin guess -- finding 85's bar asked for a line of the
-||| right SHAPE, and these are that shape.
-||| No participle takes a card, a spell or a token head: an attachment
-||| hosts a permanent or a player and nothing else.
-public export
-attachHeadOk : AttachWord -> NounWord -> Bool
-attachHeadOk Enchanted (TypeW Creature) = True
-attachHeadOk Enchanted (TypeW Artifact) = True
-attachHeadOk Enchanted (TypeW Land) = True
-attachHeadOk Enchanted (TypeW Enchantment) = True
-attachHeadOk Enchanted (TypeW Instant) = False
-attachHeadOk Enchanted (TypeW Sorcery) = False
-attachHeadOk Enchanted CardW = False
-attachHeadOk Enchanted SpellW = False
-attachHeadOk Enchanted PlayerW = True
-attachHeadOk Enchanted PermanentW = True
-attachHeadOk Enchanted TokenW = False
-attachHeadOk Equipped (TypeW Creature) = True
-attachHeadOk Equipped (TypeW Artifact) = False
-attachHeadOk Equipped (TypeW Land) = False
-attachHeadOk Equipped (TypeW Enchantment) = False
-attachHeadOk Equipped (TypeW Instant) = False
-attachHeadOk Equipped (TypeW Sorcery) = False
-attachHeadOk Equipped CardW = False
-attachHeadOk Equipped SpellW = False
-attachHeadOk Equipped PlayerW = False
-attachHeadOk Equipped PermanentW = False
-attachHeadOk Equipped TokenW = False
-attachHeadOk Fortified (TypeW Creature) = False
-attachHeadOk Fortified (TypeW Artifact) = False
-attachHeadOk Fortified (TypeW Land) = True
-attachHeadOk Fortified (TypeW Enchantment) = False
-attachHeadOk Fortified (TypeW Instant) = False
-attachHeadOk Fortified (TypeW Sorcery) = False
-attachHeadOk Fortified CardW = False
-attachHeadOk Fortified SpellW = False
-attachHeadOk Fortified PlayerW = False
-attachHeadOk Fortified PermanentW = False
-attachHeadOk Fortified TokenW = False
-
-public export
-data AttachHeadOk : AttachWord -> NounWord -> Type where
-  MkAttachHeadOk : {auto 0 ok : attachHeadOk w h = True} -> AttachHeadOk w h
-
-||| The zone a host's head word evidences. A permanent head places its
-||| referent on the battlefield -- an Aura or Equipment is attached to a
-||| permanent there ([CR#303.4b,301.5a]) -- and a PLAYER head places
-||| nothing, players having no zone.
-public export
-attachHostZone : NounWord -> Maybe Zone
-attachHostZone PlayerW = Nothing
-attachHostZone (TypeW _) = Just Battlefield
-attachHostZone CardW = Just Battlefield
-attachHostZone SpellW = Just Battlefield
-attachHostZone PermanentW = Just Battlefield
-attachHostZone TokenW = Just Battlefield
-
-||| The card type a host's head word projects, where it writes one.
-public export
-attachHostTy : NounWord -> Maybe CardType
-attachHostTy (TypeW t) = Just t
-attachHostTy CardW = Nothing
-attachHostTy SpellW = Nothing
-attachHostTy PlayerW = Nothing
-attachHostTy PermanentW = Nothing
-attachHostTy TokenW = Nothing
-
-||| The two GAME OUTCOMES an effect may state. [CR#104.2b] and
-||| [CR#104.3e] are one sentence each and say the same thing twice — "an
-||| effect may state that a player wins the game", "…that a player loses
-||| the game" — which is why this is one indexed vocabulary and not two
-||| sibling rows (finding 246's idiom).
-|||
-||| BOTH prior arts already have it and this workbench had NOTHING: core's
-||| `Action::{WinGame, LoseGame}(Reference)`
-||| (`deckmaste_core/src/action.rs`) and the LEGACY grammar's
-||| `Outcome b = WinGame (Reference b APlayer) | LoseGame …` wrapped by
-||| `Conclude : Outcome b -> OneShotEffect b` (`Semantics.idr`), witnessed
-||| there by Platinum Angel. So this round is a port-with-measurement
-||| against two agreeing prior arts rather than an extension of anything
-||| here.
-|||
-||| NAMED APART from `OutcomeSort` (the deed telescope's DamageDealt /
-||| LifeGained / LifeLost) and from `Kind`'s own `Outcome` constructor,
-||| both of which are unrelated and neither of which this vocabulary
-||| touches — the `LifeGain`/`LifeLoss` rename's precedent.
-public export
--- spelling: ["wins the game", "loses the game"] (row order:
--- WinGame/LoseGame; the finite verb phrase after its patient, inflected
--- for the subject -- "you win the game", "that player loses the game".
--- Spelled only through Effect.Concludes)
-data OutcomeVerb = WinGame | LoseGame
-
-public export
-sameOutcomeVerb : OutcomeVerb -> OutcomeVerb -> Bool
-sameOutcomeVerb WinGame WinGame = True
-sameOutcomeVerb WinGame _ = False
-sameOutcomeVerb LoseGame LoseGame = True
-sameOutcomeVerb LoseGame _ = False
-
-||| WHICH outcome a static gate suppresses — the name both prior arts use
-||| ([CR#101.2]'s precedence over [CR#104]'s outcomes), kept verbatim for
-||| parity.
-public export
--- spelling: ["can't lose the game", "can't win the game"] (row order:
--- CantLose/CantWin; the finite phrase after its subject. Spelled only
--- through StaticEffect.OutcomeGate)
-data OutcomeGateKind = CantLose | CantWin
-
-||| Counter kinds ([CR#122.1] — "a marker placed on an object or player
-||| that modifies its characteristics and/or interacts with a rule,
-||| ability, or effect"). Core spells the kind as an open bare-identifier
-||| reference into a plugin registry (`CounterRef`,
-||| `deckmaste_core/src/counter.rs`); this vocabulary answers that
-||| openness with TWO PRODUCTS and a witnessed flat tail, never by
-||| transcribing the registry — a counter NAME sighted in a corpus line is
-||| data, and data that no construction here writes is the ledger's.
-|||
-||| `BoostCounter` is the stat product, one constructor for [CR#122.1a]'s
-||| "+X/+Y" and "-X/-Y" over the twelve printed pairs, with the everyday
-||| two spelled by macros over it (`plusOnePlusOne`, `minusOneMinusOne`).
-||| `KeywordCounter` is the keyword product, closed by [CR#122.1b]'s
-||| fifteen names through `keywordCounterOk`. A FLAT named kind earns its
-||| row one at a time and only where a corpus line writes it as a one-shot
-||| put or remove: `Stun` ([CR#122.1d]) and `Time` are the two that have,
-||| while charge, oil, fade, loyalty and shield are not rows — their lines
-||| are costs, upkeep triggers and enters-with riders, other axes
-||| (ledger). Engine `Counter.confers`, the layer system and the
-||| state-based actions stay RON-side throughout.
-public export
--- spelling: (BoostCounter delegates its two operations to Counter.Delta and
--- writes them as one word, "+1/+1" or "-0/-1"; KeywordCounter writes the
--- keyword's own lowercase word; Stun and Time write "stun" and "time". Each
--- stands between the count and the noun "counter(s)", never alone.)
-data CounterKind : Type where
-  BoostCounter : Counter.Delta -> Counter.Delta -> CounterKind
-  Stun : CounterKind
-  Time : CounterKind
-  KeywordCounter : (k : Keyword) -> {auto 0 ok : KeywordCounterEligible k} -> CounterKind
-  -- The three PLAYER kinds, [CR#122.1]'s other half read at last: a
-  -- counter is "a marker placed on an object OR PLAYER", and until this
-  -- round every row in the catalog was an object's. Each earns its row by
-  -- finding 85's test unchanged -- a one-shot line of the sort this
-  -- grammar writes -- at the player verb rather than the put verb, which
-  -- is the only adaptation the test needs and no weakening of it: poison
-  -- 25 lines ("Each opponent gets a poison counter", Prologue to
-  -- Phyresis, a whole card), rad 20 ("Whenever this creature attacks,
-  -- each player gets two rad counters", Screeching Scorchbeast),
-  -- experience 15 ("Whenever another creature you control dies, you get
-  -- an experience counter"). Poison and rad carry rules of their own
-  -- ([CR#122.1f], [CR#122.1i]); experience carries none and is `Time`'s
-  -- situation exactly -- the abilities that read it supply the meaning
-  -- (finding 200).
-  -- TICKET is REFUSED and the reason is not its two lines. Both write
-  -- "You get {TK} (a ticket counter)" -- SYMBOL notation with the counter
-  -- name in a parenthetical gloss -- which is the energy family's
-  -- spelling regime and not this verb's, so it routes with energy to the
-  -- symbol round rather than waiting on a count.
-  Poison : CounterKind
-  Rad : CounterKind
-  Experience : CounterKind
-
-||| WHAT a counter kind can sit on — the catalog's scope table, and the
-||| axis [CR#122.1] has carried since the beginning without this grammar
-||| reading it: "a marker placed on an object or player". Full rows, so a
-||| new kind must declare which it is before any verb will take it.
-|||
-||| The table is a MEASUREMENT and the corpus is unusually clean about it.
-||| Objects never "get" a counter (zero lines) and players never receive
-||| "put" (zero lines); the two verbs and the two scopes line up one to
-||| one across the whole family, which is why the scope can gate the verbs
-||| rather than each verb re-describing its own recipients
-||| (`badPutPoisonOnCreature`, `badGetsBoostCounter`). [CR#702.90b] is the
-||| one place the rules and the oracle disagree about the WORD -- infect
-||| "causes that source's controller to GIVE the player that many poison
-||| counters" where every printed line says "gets" -- and the grammar
-||| follows the oracle, this being a record of what cards say.
-|||
-||| Answering in `Kind` rather than in a scope enum of its own is what
-||| makes the count read cheap: one row over `{k : Kind}` can demand
-||| `counterScope kind = k` and get the holder agreement for free.
-public export
-counterScope : CounterKind -> Kind
-counterScope (BoostCounter _ _) = Object
-counterScope Stun = Object
-counterScope Time = Object
-counterScope (KeywordCounter _) = Object
-counterScope Poison = Player
-counterScope Rad = Player
-counterScope Experience = Player
-
-public export
-sameCounter : CounterKind -> CounterKind -> Bool
-sameCounter (BoostCounter ap at) (BoostCounter bp bt) =
-  Counter.sameDelta ap bp && Counter.sameDelta at bt
-sameCounter (BoostCounter _ _) _ = False
-sameCounter Stun Stun = True
-sameCounter Stun _ = False
-sameCounter Time Time = True
-sameCounter Time _ = False
-sameCounter (KeywordCounter a) (KeywordCounter b) = sameKeyword a b
-sameCounter (KeywordCounter _) _ = False
-sameCounter Poison Poison = True
-sameCounter Poison _ = False
-sameCounter Rad Rad = True
-sameCounter Rad _ = False
-sameCounter Experience Experience = True
-sameCounter Experience _ = False
-
-||| The TYPE LINE a token defines and a type-addition clause adds
-||| ([CR#205.1] — the line carries the card types and the subtypes). ONE
-||| record for both readers, because English writes one phrase in one
-||| order for both: "0/0 black Zombie Army creature token" and "becomes a
-||| Spirit artifact creature in addition to its other types" put the
-||| subtypes before the types alike. Core keeps the halves apart at both
-||| sites (`Token`'s `types`/`subtypes`, `Modification`'s
-||| `CardTypes`/`Subtypes`) and this record is those two lists under one
-||| name. Supertypes are a third list neither reader witnesses (ledger).
-public export
-record TypeLine where
-  constructor MkTypeLine
-  subs : List Subtype
-  tys : List CardType
-
-public export
-lineHasType : CardType -> List CardType -> Bool
-lineHasType t [] = False
-lineHasType t (u :: us) = sameCT t u || lineHasType t us
-
-||| A type line says SOMETHING — the demand a type-addition clause makes
-||| ("becomes a … in addition to its other types" names at least one
-||| word; `badBecomesNothing`). A token makes the stronger demand
-||| (`tokenTyped`).
-public export
-lineNonEmpty : TypeLine -> Bool
-lineNonEmpty (MkTypeLine [] []) = False
-lineNonEmpty (MkTypeLine _ _) = True
-
--- `TokenChars`, its four gates and `tokenHeadTy` live in the mutual
--- block below ("The token bundle"): a token's power and toughness are
--- AMOUNTS as of the round that made them computable, and `Amount` is
--- declared there. What stays here is bs-free and shared with the
--- type-addition clause: the type line, its two checks, and the color
--- list's.
-
-||| Every subtype in a line sits on a card type the same line names — the
-||| [CR#205.1a] set-membership fact as a check on the phrase: "Zombie Army
-||| creature token" writes the creature type its two subtypes belong to,
-||| and a "Zombie artifact token" would name a subtype the object's types
-||| cannot carry (`badZombieArtifactToken`).
-public export
-subsFitLine : List Subtype -> List CardType -> Bool
-subsFitLine [] tys = True
-subsFitLine (s :: ss) tys = lineHasType (subtypeType s) tys && subsFitLine ss tys
-
-
-
-||| Where a card type stands in a type line — a rank rather than a
-||| comparison table, because the corpus fixes a TOTAL order over these
-||| four words and a rank is that order written once. Measured pairwise
-||| over supported oracle: "artifact creature" against no "creature
-||| artifact", "artifact land", "land creature" (Dryad Arbor's token),
-||| "enchantment creature", and the one line that places enchantment ahead
-||| of artifact. The Enchantment/Land pair is written neither way and
-||| rides on transitivity, which is what a rank buys and a pair table
-||| would have had to guess at. The one counterexample is the Licid
-||| template's "becomes a creature enchantment … instead of a creature"
-||| (Flanking Licid), a pre-standardization wording.
-public export
-typeRank : CardType -> Nat
-typeRank Enchantment = 0
-typeRank Artifact = 1
-typeRank Land = 2
-typeRank Creature = 3
--- The two SPELL types take the last ranks and the ranks are
--- UNWITNESSED, which the comment says rather than the table hiding it:
--- no printed type line and no corpus line writes either beside another
--- card type here, so the order is a convention the rank has to pick and
--- nothing measures. ([CR#205.1a] does keep them under a type-setting
--- effect — "an object with either the instant or sorcery card type
--- retains that type" — which is the one place a mixed line could arise,
--- and it is an effect this grammar has no construction for.)
-typeRank Instant = 4
-typeRank Sorcery = 5
-
-public export
-ltNat : Nat -> Nat -> Bool
-ltNat a b = leNat (S a) b
-
-||| Strictly ascending by rank — the ORDER and the duplicate-freeness at
-||| once, a repeated word being the one thing a strict order cannot
-||| admit. [CR#111.3] makes a token's stated characteristics its text, so
-||| "creature artifact token" and "white white Soldier" are not two
-||| spellings of a bundle but two bundles oracle never writes
-||| (`badTokenTypeOrder`, `badTokenDuplicateColor`).
-public export
-typesOrdered : List CardType -> Bool
-typesOrdered [] = True
-typesOrdered (t :: []) = True
-typesOrdered (t :: u :: ts) = ltNat (typeRank t) (typeRank u) &&
-                              typesOrdered (u :: ts)
-
-||| Is this card type a PERMANENT type? [CR#110.4] gives the list —
-||| "there are six permanent types: artifact, battle, creature,
-||| enchantment, land, and planeswalker" — and names the exclusion in the
-||| next breath: "instant and sorcery cards can't enter the battlefield
-||| and thus can't be permanents". It stands here, with the type-line
-||| vocabulary, because two constructions read it: the card container's
-||| class and the placement clause's destination.
-public export
-permanentType : CardType -> Bool
-permanentType Creature = True
-permanentType Artifact = True
-permanentType Land = True
-permanentType Enchantment = True
-permanentType Instant = False
-permanentType Sorcery = False
-
-||| May a phrase under this projected head type be PLACED on the
-||| battlefield? [CR#110.4a] lists the permanent card types and [CR#110.4]
-||| rules the other two out in as many words. Asked of a `Maybe`, and the
-||| silence PASSES for `zoneFits`' reason — a phrase that writes no type
-||| word asserts nothing to contradict, and Oblivion Ring's "return the
-||| exiled card to the battlefield" is exactly that phrase.
-public export
-placeableTy : Maybe CardType -> Bool
-placeableTy Nothing = True
-placeableTy (Just t) = permanentType t
-
-||| The destination's demand on its patient, per destination zone. Only
-||| the battlefield asks: [CR#400.1] lets any object be in any of the
-||| other five, and the corpus moves instants and sorceries between them
-||| freely ("return target instant or sorcery card … to your hand").
-public export
-destTypeOk : Maybe CardType -> Zone -> Bool
-destTypeOk ty Battlefield = placeableTy ty
-destTypeOk ty Graveyard = True
-destTypeOk ty Exile = True
-destTypeOk ty Hand = True
-destTypeOk ty Library = True
-destTypeOk ty Stack = True
-
-||| The placement's type demand as a witness, so a pin says which
-||| question refused.
-public export
-data Placeable : Maybe CardType -> Zone -> Type where
-  MkPlaceable : {auto 0 ok : destTypeOk ty z = True} -> Placeable ty z
-
-||| [CR#110.5]'s status axes, closed by rule: four status categories, each
-||| with exactly two values, and every permanent has one value in each.
-||| The CATEGORY is the type's index, so "one value per category" is a
-||| fact of the representation. Status is not a characteristic
-||| ([CR#110.5a]) and persists until changed ([CR#110.5c]); only a
-||| permanent on the battlefield has any ([CR#110.5d]) — which is why the
-||| description predicate seeds the battlefield and no zone word may argue
-||| with it. The entry defaults ([CR#110.5b]) are the entry riders' and
-||| the engine's fact, not a projection of any phrase here.
-public export
-data StatusCat = TapC | FlipC | FaceC | PhaseC
-
-public export
--- spelling: (the value's own word, prenominal or predicative: "tapped",
--- "untapped", "flipped", "unflipped", "face up", "face down", "phased in",
--- "phased out"; the face pair hyphenates prenominally -- "face-down
--- creature". Which values the DESCRIPTION surface writes at all is
--- statusWordOk's answer; the paired values are each their own word, so
--- none is spelled as the other's negation)
-data StatusVal : StatusCat -> Type where
-  Tapped    : StatusVal TapC
-  Untapped  : StatusVal TapC
-  Flipped   : StatusVal FlipC
-  Unflipped : StatusVal FlipC
-  FaceUp    : StatusVal FaceC
-  FaceDown  : StatusVal FaceC
-  PhasedIn  : StatusVal PhaseC
-  PhasedOut : StatusVal PhaseC
-
-public export
-sameStatusVal : {0 c, c' : StatusCat} -> StatusVal c -> StatusVal c' -> Bool
-sameStatusVal Tapped Tapped = True
-sameStatusVal Tapped _ = False
-sameStatusVal Untapped Untapped = True
-sameStatusVal Untapped _ = False
-sameStatusVal Flipped Flipped = True
-sameStatusVal Flipped _ = False
-sameStatusVal Unflipped Unflipped = True
-sameStatusVal Unflipped _ = False
-sameStatusVal FaceUp FaceUp = True
-sameStatusVal FaceUp _ = False
-sameStatusVal FaceDown FaceDown = True
-sameStatusVal FaceDown _ = False
-sameStatusVal PhasedIn PhasedIn = True
-sameStatusVal PhasedIn _ = False
-sameStatusVal PhasedOut PhasedOut = True
-sameStatusVal PhasedOut _ = False
-
-||| Same category, opposite value — the pair [CR#110.5] forbids one
-||| permanent from holding at once. Values of DIFFERENT categories stack:
-||| a morph turned sideways is tapped AND face down, and the scan below
-||| must let it be.
-public export
-statusClash : {0 c, c' : StatusCat} -> StatusVal c -> StatusVal c' -> Bool
-statusClash Tapped Untapped = True
-statusClash Tapped _ = False
-statusClash Untapped Tapped = True
-statusClash Untapped _ = False
-statusClash Flipped Unflipped = True
-statusClash Flipped _ = False
-statusClash Unflipped Flipped = True
-statusClash Unflipped _ = False
-statusClash FaceUp FaceDown = True
-statusClash FaceUp _ = False
-statusClash FaceDown FaceUp = True
-statusClash FaceDown _ = False
-statusClash PhasedIn PhasedOut = True
-statusClash PhasedIn _ = False
-statusClash PhasedOut PhasedIn = True
-statusClash PhasedOut _ = False
-
-||| Which status values the ordinary DESCRIPTION surface writes. Full
-||| rows, each a measurement: "tapped" and "untapped" are written on
-||| creature, artifact, land, permanent and token heads, "face-down"
-||| likewise, and "face-up" once prenominally. "Unflipped" and
-||| "phased-in" are written ZERO times anywhere, "flipped" occurs once in
-||| the whole corpus, and participial "phased out" occurs in frames this
-||| round's recon did not classify — so those four cells refuse, and the
-||| single flipped line is the ledger's to reclaim with a classified
-||| frame, not this table's to guess at.
-public export
-statusWordOk : {0 c : StatusCat} -> StatusVal c -> Bool
-statusWordOk Tapped = True
-statusWordOk Untapped = True
-statusWordOk Flipped = False
-statusWordOk Unflipped = False
-statusWordOk FaceUp = True
-statusWordOk FaceDown = True
-statusWordOk PhasedIn = False
-statusWordOk PhasedOut = False
-
-public export
-data StatusWord : StatusVal c -> Type where
-  MkStatusWord : {auto 0 ok : statusWordOk v = True} -> StatusWord v
-
-||| Which status values the becomes-status EVENT spells — a second total
-||| reader of [CR#110.5]'s value product, deliberately NOT derived from
-||| `statusWordOk` beside it: the two tables disagree on the face pair,
-||| which is a real description ("face-down creature") and an unwritten
-||| event ("becomes face down" is written zero times — the face, flip,
-||| and phasing transitions have their own verb families, ledgered).
-||| Only the tap pair is written as a "becomes" transition, the frame
-||| [CR#603.2e] gives its trigger reading. The Unflipped cell is
-||| additionally rules-backed rather than merely unwritten: flipping is
-||| one-way, so no becomes-unflipped transition can occur at all
-||| ([CR#710.4]).
-public export
-statusEventOk : {0 c : StatusCat} -> StatusVal c -> Bool
-statusEventOk Tapped = True
-statusEventOk Untapped = True
-statusEventOk Flipped = False
-statusEventOk Unflipped = False
-statusEventOk FaceUp = False
-statusEventOk FaceDown = False
-statusEventOk PhasedIn = False
-statusEventOk PhasedOut = False
-
-public export
-data StatusEventVal : StatusVal c -> Type where
-  MkStatusEventVal : {auto 0 ok : statusEventOk v = True} -> StatusEventVal v
-
-||| Which FACE value the turning EVENT spells — the third total reader of
-||| [CR#110.5]'s value product, and the narrowest, its domain being the
-||| face pair alone. The index is what closes it: a table over
-||| `StatusVal FaceC` has exactly two rows and no other value can be
-||| written at all, so this asks only the question `statusEventOk` left
-||| open when it refused both face cells to the "becomes" frame.
-|||
-||| Measured, and the split is stark: 113 supported lines write a trigger
-||| header over "is turned face up" ("When this creature is turned face
-||| up, …" is the morph mass, "Whenever a permanent you control is turned
-||| face up, …" the description-subject family), and ZERO write one over
-||| "is turned face down". The zero is queried and refused here rather
-||| than left to a missing constructor, which is finding 246's discipline:
-||| a value the corpus declines is a measurement the grammar states
-||| (`badTurnedFaceDownEvent`). It is attestation only and no rule forbids
-||| the transition — [CR#708.2a] turns face-up permanents face down all
-||| day — which is exactly how it differs from the flip pair, whose
-||| unflipped cell [CR#710.4] makes impossible.
-public export
-faceEventOk : StatusVal FaceC -> Bool
-faceEventOk FaceUp = True
-faceEventOk FaceDown = False
-
-public export
-data FaceEventVal : StatusVal FaceC -> Type where
-  MkFaceEventVal : {auto 0 ok : faceEventOk v = True} -> FaceEventVal v
-
-||| Colors are duplicate-free but NOT ordered, and the corpus is why:
-||| Additive Evolution writes "a 0/0 green and blue Fractal creature
-||| token", which the mana order would have spelled the other way round.
-||| So the demand is only that no color is written twice ([CR#105.2] — a
-||| color is a property an object has or lacks and never counts).
-public export
-colorMember : Color -> List Color -> Bool
-colorMember c [] = False
-colorMember c (d :: ds) = sameColor c d || colorMember c ds
-
-public export
-colorsDistinct : List Color -> Bool
-colorsDistinct [] = True
-colorsDistinct (c :: cs) = not (colorMember c cs) && colorsDistinct cs
-
-
-||| The type-addition clause's own subtype check, which is the token's
-||| with one more place to look: a subtype the clause adds may sit on a
-||| card type the SAME clause adds ("becomes a Spirit artifact creature")
-||| or on one the subject already has (amass's "it becomes a Zombie",
-||| [CR#701.47a], said of an Army creature). A subject that projects no
-||| head type answers for nothing, so only the added types can carry the
-||| subtype there — the honest reading of silence the disjunctive head
-||| taught (finding 50).
-public export
-addedFits : Maybe CardType -> TypeLine -> Bool
-addedFits subj (MkTypeLine [] tys) = True
-addedFits subj (MkTypeLine (s :: ss) tys) =
-  (lineHasType (subtypeType s) tys ||
-   (case subj of
-      Nothing => False
-      Just t => sameCT (subtypeType s) t)) &&
-  addedFits subj (MkTypeLine ss tys)
-
-public export
-data AddedFits : Maybe CardType -> TypeLine -> Type where
-  MkAddedFits : {auto 0 ok : addedFits subj tl = True} -> AddedFits subj tl
-
-||| Does a type-addition clause ADD anything? "In addition to its other
-||| types" [CR#205.1b] retains what the object had and states what it
-||| gains, so a clause that states only what the subject already is states
-||| nothing, and the corpus writes no line where the added type is the
-||| subject's own head (Tezzeret's adds creature to an ARTIFACT). The
-||| subject's head is the only thing the discourse knows about it, so that
-||| is what "already" can mean here: a SUBTYPE is never provably redundant
-||| (no mention carries its subtypes) and an untyped subject entails
-||| nothing, both of which pass — the gate under-refuses in `predEq`'s
-||| direction. [CR#701.47a] guards the subtype case in the text instead,
-||| with a condition rather than a grammar rule (`badBecomesOwnType`).
-public export
-anyNewType : Maybe CardType -> List CardType -> Bool
-anyNewType subj [] = False
-anyNewType subj (t :: ts) = not (tyIs t subj) || anyNewType subj ts
-
-public export
-addsSomething : Maybe CardType -> TypeLine -> Bool
-addsSomething subj (MkTypeLine [] tys) = anyNewType subj tys
-addsSomething subj (MkTypeLine (_ :: _) tys) = True
-
-public export
-data AddsSomething : Maybe CardType -> TypeLine -> Type where
-  MkAddsSomething : {auto 0 ok : addsSomething subj tl = True} ->
-                    AddsSomething subj tl
-
-public export
-data LineNonEmpty : TypeLine -> Type where
-  MkLineNonEmpty : {auto 0 ok : lineNonEmpty tl = True} -> LineNonEmpty tl
-
-||| The arrival state a created token can be given ([CR#508.4] for the
-||| attacking designation; core files both as `EnterRider`s on its
-||| `Create` action rather than as replacement effects, and so does this).
-||| Two rows, and the corpus fixes their combination as much as their
-||| existence: a token is created "tapped" alone (a hundred fifty-nine
-||| lines — "target opponent creates a tapped Treasure token") or "tapped
-||| and attacking" (sixty-six), and ATTACKING WITHOUT TAPPED
-||| is written zero times, so the pair is not a free product
-||| (`ridersOk`, `badAttackingUntapped`). The enters-tapped REPLACEMENT
-||| ("This land enters tapped") is a different construction and the
-||| replacement axis's; these ride the create instruction.
-public export
--- spelling: (construction-owned -- the arrival phrase after the noun "token",
--- as a relative clause: "that's tapped", "that's tapped and attacking"
--- (plural "that are tapped and attacking"), or as the prenominal adjective
--- "a tapped Treasure token". Never spelled alone)
-data TokenRider = EntersTapped | EntersAttacking
-
-||| The attested rider combinations, enumerated rather than checked
-||| pairwise: nothing, tapped, tapped-and-attacking. Written as a closed
-||| list of shapes because that is exactly what the corpus offers, and
-||| because the ORDER is fixed too — no line writes "attacking and
-||| tapped".
-public export
-ridersOk : List TokenRider -> Bool
-ridersOk [] = True
-ridersOk [EntersTapped] = True
-ridersOk [EntersTapped, EntersAttacking] = True
-ridersOk _ = False
-
-public export
-data RidersOk : List TokenRider -> Type where
-  MkRidersOk : {auto 0 ok : ridersOk rs = True} -> RidersOk rs
-
-||| The head type a created token's mention projects — the LAST card type
-||| its line names, which is the head noun of the compound English writes
-||| ("artifact creature token" heads on "creature", and [CR#205.1b]'s own
-||| example spells the compound the same way round, "artifact land
-||| creatures"). Distinct from `seedTyAll`'s first-member rule for a
-||| conjunction, and it has to be: a modifier list has no fixed order
-||| where a type line does. A line with no types projects nothing —
-||| unreachable through `Create` (`TokenTyped`), and written out for
-||| totality.
-public export
-lastType : List CardType -> Maybe CardType
-lastType [] = Nothing
-lastType [t] = Just t
-lastType (_ :: ts) = lastType ts
-
-
-||| The parts of the turn a duration can name its endpoint by — the turn
-||| itself and the steps and phases inside it. Deliberately NOT a mirror
-||| of core's `PhaseStep` (`deckmaste_core/src/event.rs`, whose trees
-||| enumerate all thirteen): these are the parts an ENDPOINT is written
-||| against, and the corpus writes a duration-class adverbial against only
-||| these. The draw step and the two main phases carry none (ledger). This
-||| is the SHARED vocabulary — the trigger headers name the same parts and
-||| a second enum would drift from this one — so a new row is a totality
-||| error on `spanUse` and on every table the triggers chapter adds.
-public export
--- spelling: ["turn", "upkeep", "end step", "combat", "untap step",
--- "end of combat"] (row order: Turn/Upkeep/EndStep/Combat/UntapStep/
--- EndOfCombat; the bare part word -- DurationEnd's boundary and
--- possession supply everything around it. EndOfCombat is the one row
--- whose word contains its own boundary noun, which is why its beginning
--- is written "at end of combat" and not "at the beginning of …" --
--- see partUse), kind: TODO(reason: adverbial fragment -- not one of
--- Nominal/Sentence/Cost/KeywordLine/Ability)
-data TurnPart = Turn | Upkeep | EndStep | Combat | UntapStep | EndOfCombat
-              | FirstMain | PostcombatMain | DrawStep
-
-||| Whose part a possessed endpoint names. CLOSED and pronominal: the
-||| corpus possesses a duration endpoint with a possessive DETERMINER and
-||| nothing else — "your next turn", "that player's next end step" — so
-||| this is a two-word vocabulary, not a noun slot. A noun-valued
-||| possessor would make `Duration` bindings-indexed (every consumer
-||| re-indexed) to buy a form no construction here writes; the one line
-||| that needs one is a base-type SETTING clause, a layer word this
-||| grammar has no construction for, so its possessor waits with it
-||| (ledger). `ThatPlayers` is the anaphoric row: it presupposes a unique
-||| player antecedent the way `They` does, an obligation no current cell
-||| opens (`spanUse`), so the demand waits for the cell that needs it.
-public export
--- spelling: ["your", "that player's"] (row order: Yours/ThatPlayers; the
--- possessive determiner alone, always followed by "next" -- see
--- DurationEnd), kind: TODO(reason: adverbial fragment)
-data Whose = Yours | ThatPlayers
-
-||| WHOSE part a trigger header or an activation window names — and a
-||| SEPARATE vocabulary from `Whose` above rather than four rows added to
-||| it, on `Whose`'s own docstring: that type is the DURATION endpoint's,
-||| "closed and pronominal", possessing an endpoint "with a possessive
-||| DETERMINER and nothing else". The header site is not pronominal. It
-||| writes quantifiers — "each player's upkeep" 76 headers, "each
-||| opponent's upkeep" 33, "each of your postcombat main phases" 7 — and
-||| the duration endpoint writes NONE of them: "until end of each player's
-||| turn" and every sibling spelling is zero lines. Two readers, two
-||| measurements, two vocabularies, which is `statusWordOk` and
-||| `statusEventOk`'s arrangement over [CR#110.5]'s values and `Lookback`'s
-||| beside `Duration`.
-||| The concrete price of sharing was the argument's other half: `spanUse`
-||| is full rows over (boundary x part x possession) and four more
-||| possessors would have added ninety cells to it, every one `Unattested`,
-||| to a table whose whole value is that each cell is a measurement.
-|||
-||| Core's `WhoseTurn` is the prior art and this is a superset of it:
-||| `Your`, `EachPlayers` and `AnOpponents` are core's three
-||| (`deckmaste_core/src/event.rs`), and the corpus adds two more at this
-||| site — the opponent QUANTIFIER, which core's "an opponent's" does not
-||| cover, and the plural-iterated self.
-||| Finding 254's derived possessor does NOT apply here and the reason is
-||| structural: there the possessive agreed with a restricted NOUN the
-||| clause already wrote ("its controller's untap step"), so the spelling
-||| could read it off. A trigger header has no such noun — nothing in "At
-||| the beginning of each opponent's upkeep" is a phrase the possessor
-||| could derive from — so it is a slot.
-namespace Owner
-  public export
-  -- spelling: ["your", "that player's", "each player's", "each
-  -- opponent's", "each of your", "an opponent's"] (row order:
-  -- Yours/ThatPlayers/EachPlayers/EachOpponents/EachYours/AnOpponents; the
-  -- possessive determiner before the part word. EachPlayers has a SECOND
-  -- spelling that drops the possessor entirely -- "each upkeep", "each end
-  -- step", "each combat" -- which names the same moments because a turn
-  -- has exactly one of each ([CR#500.1]) and it is the active player's;
-  -- EachYours pluralises the part word after it, "each of your postcombat
-  -- main phaseS". Spelled only through BeginningOf and Timing.DuringPart)
-  data Owner = Yours | ThatPlayers | EachPlayers | EachOpponents
-             | EachYours | AnOpponents
-
-public export
-sameOwner : Owner -> Owner -> Bool
-sameOwner Yours Yours = True
-sameOwner Yours _ = False
-sameOwner ThatPlayers ThatPlayers = True
-sameOwner ThatPlayers _ = False
-sameOwner EachPlayers EachPlayers = True
-sameOwner EachPlayers _ = False
-sameOwner EachOpponents EachOpponents = True
-sameOwner EachOpponents _ = False
-sameOwner EachYours EachYours = True
-sameOwner EachYours _ = False
-sameOwner AnOpponents AnOpponents = True
-sameOwner AnOpponents _ = False
-
-||| The endpoint an "until" adverbial names: a boundary of a turn part,
-||| optionally possessed. Two axes, because the corpus writes both
-||| independently — "until end of turn" against "until your next turn" is
-||| the SAME part at opposite boundaries, and each boundary takes
-||| possession or not.
-|||
-||| "Next" is DERIVABLE, not a parameter: a possessed endpoint is always
-||| the next one (there is no "your previous upkeep" to distinguish it
-||| from), and a bare endpoint is always the current turn's. The article
-||| goes with the possession the same way, and the possessive can even
-||| land outside the part it possesses — Brazen Cannonade writes "until
-||| end of combat on your next turn", not a possessed combat. All of that
-||| is construction-assigned surface for the spelling layer, which is why
-||| none of it is structure here.
-public export
--- spelling: (construction-owned -- the boundary word and the article are
--- assigned by the pair: StartOf writes no boundary word at all ("until your
--- next turn", "until the next end step"), EndOf writes "end of" bare and
--- "the end of" possessed, and the possessed combat form extraposes its
--- possessive onto the turn ("until end of combat on your next turn",
--- Brazen Cannonade). Spelled only through Duration.)
-data DurationEnd = StartOf TurnPart (Maybe Whose)
-                 | EndOf TurnPart (Maybe Whose)
-
-||| WHICH constructions write a given duration adverbial — the fact the
-||| corpus assigns and no rule derives. The guide lists the wordings and
-||| assigns neither, so the counts are the whole evidence.
-|||
-||| Two kinds of `False` are worth telling apart, so they are separate
-||| rows: `Unattested` means no corpus line writes the phrase at all,
-||| while `Unclaimed` means the phrase is real oracle English that this
-||| grammar's constructions do not write — the endpoint exists, its clause
-||| is somewhere else (a play permission, a base-P/T setting). The rest
-||| name the observed splits, and they are strikingly clean: the
-||| current-turn adverbials divide the grants from the restrictions
-||| exactly, and the cross-turn span is the only one both families write.
-|||
-||| A row NAME is the set of constructions measured to write its cell, so
-||| a new construction renames rows or splits them; the round-by-round
-||| record is in `experiment-log.md`. Two measurements belong beside the
-||| table: the one corpus line pairing control with an end step writes it
-||| as a DELAYED clause, not a duration adverbial, which is why the
-||| end-step cells stay `Unclaimed`; and [CR#603.7b] is what puts the
-||| delayed clause on "this turn" ("unless it has a stated duration, such
-||| as 'this turn'").
-public export
-data SpanUse = Unattested | Unclaimed | GrantsAndControl | GrantsTypesControlReplacementAndPermission
-             | KeywordGrantOnly | RestrictionsShieldsPermissionsAndDelays | GrantsRestrictionsAndReplacement
-             | ControlGrantAndPermission | GrantsRestrictionsControlAndPermission
-             | PermissionOnly
-
--- ===== Event patterns (the vocabulary the "would" clause and the
--- "until" clause share) =====
-
-||| The events oracle names when it intercepts one, waits for one, or
-||| TRIGGERS off one — the vocabulary four constructions read and no rule
-||| enumerates. Closed and row-enumerated, so a new event is a totality
-||| error on every table below before anything can be written with it.
-|||
-||| Which events are HERE is the corpus's answer, counted over the whole
-||| supported corpus with the moods counted separately because they are
-||| different constructions. What sits below the minted rows is ledgered
-||| with its count rather than minted: the put-into-a-graveyard event, the
-||| becomes-the-target event, the create event, and the life-change pair.
-|||
-||| The NAMES are the event class and not any construction's spelling,
-||| which is chapter twenty-eight's correction: `GameEvent`'s rows carry
-||| the finite verb phrase ("dies", "enters") and this key carries the
-||| happening it names ("Death", "Entry"), because the round that gave the
-||| vocabulary a third and fourth reader is the round the old
-||| `Would`-prefixed spelling stopped being true of half of them.
-|||
-||| Core spells this space as ONE open filter type (`EventFilter`,
-||| `deckmaste_core/src/event.rs`) shared by triggers, replacements,
-||| durations, and condition lookbacks. The MERGE is taken here — the
-||| delayed clause's own query type is gone and reads this vocabulary like
-||| everyone else — and what stays apart from core is the table below,
-||| which records that the four constructions still disagree about which
-||| events they write.
-public export
--- spelling: (construction-owned -- each row NAMES a happening whose verb
--- phrase, subject and mood the reading construction supplies: the
--- interception writes it after "would" ("would die", "would be
--- destroyed"), the held-until rider and the trigger header write it
--- finite ("leaves the battlefield", "dies"). Spelled only through
--- GameEvent)
-data EventName = Death | Departure | Destruction | DamageTaken
-               | CardDrawn | Entry | AttackDeclaration | BlockDeclaration
-               | CombatDamage | PartBeginning | SpellCast | StatusChange
-               | TurnedFaceUp | PhasingChange | BlockedDeclaration
-               | LastCounterRemoval | LifeGain | LifeLoss | TimeShift
-               -- a player LOSING the game, named apart from three
-               -- neighbours it is not: `OutcomeVerb`'s `LoseGame`, which
-               -- is the effect that states it; `LifeLoss`, which is life
-               -- and not the game; and `Kind`'s `Outcome`. The word
-               -- "loss" is the event's, and the game is what is lost.
-               | GameLoss
-
-||| Event-name equality, the closed-vocabulary comparison every other
-||| closed word in this file already carries (`sameCounter`,
-||| `sameStatusVal`, `sameKeyword`). Minted when the history read's
-||| predicate surface needed to compare two phrases wholly: both of that
-||| row's arguments are closed words, so `predEq` can answer honestly
-||| there instead of conservatively.
-public export
-sameEventName : EventName -> EventName -> Bool
-sameEventName Death Death = True
-sameEventName Death _ = False
-sameEventName Departure Departure = True
-sameEventName Departure _ = False
-sameEventName Destruction Destruction = True
-sameEventName Destruction _ = False
-sameEventName DamageTaken DamageTaken = True
-sameEventName DamageTaken _ = False
-sameEventName CardDrawn CardDrawn = True
-sameEventName CardDrawn _ = False
-sameEventName GameLoss GameLoss = True
-sameEventName GameLoss _ = False
-sameEventName Entry Entry = True
-sameEventName Entry _ = False
-sameEventName AttackDeclaration AttackDeclaration = True
-sameEventName AttackDeclaration _ = False
-sameEventName BlockDeclaration BlockDeclaration = True
-sameEventName BlockDeclaration _ = False
-sameEventName CombatDamage CombatDamage = True
-sameEventName CombatDamage _ = False
-sameEventName PartBeginning PartBeginning = True
-sameEventName PartBeginning _ = False
-sameEventName SpellCast SpellCast = True
-sameEventName SpellCast _ = False
-sameEventName StatusChange StatusChange = True
-sameEventName StatusChange _ = False
-sameEventName TurnedFaceUp TurnedFaceUp = True
-sameEventName TurnedFaceUp _ = False
-sameEventName PhasingChange PhasingChange = True
-sameEventName PhasingChange _ = False
-sameEventName BlockedDeclaration BlockedDeclaration = True
-sameEventName BlockedDeclaration _ = False
-sameEventName LastCounterRemoval LastCounterRemoval = True
-sameEventName LastCounterRemoval _ = False
-sameEventName LifeGain LifeGain = True
-sameEventName LifeGain _ = False
-sameEventName LifeLoss LifeLoss = True
-sameEventName LifeLoss _ = False
-sameEventName TimeShift TimeShift = True
-sameEventName TimeShift _ = False
-
-||| The same for the history window.
-public export
-sameLookback : Lookback -> Lookback -> Bool
-sameLookback ThisTurn ThisTurn = True
-sameLookback ThisTurn _ = False
-sameLookback ThisCombat ThisCombat = True
-sameLookback ThisCombat _ = False
-sameLookback LastTurn LastTurn = True
-sameLookback LastTurn _ = False
-
-||| WHICH constructions write a clause over a given event — `SpanUse`'s
-||| shape asked of the event axis, and it tells the same two silences
-||| apart. `EventUnattested` means no corpus line writes any clause over
-||| the event in any mood; `EventUnclaimed` means the clause is real
-||| oracle English and no construction HERE writes it.
-|||
-||| Four readers now, and the class names spell the SET each event is
-||| written by. `Death` is the widest: the interception, nine hundred and
-||| thirty trigger headers, and Graceful Reprieve's delayed clause, while
-||| nothing anywhere ends a duration at a death. `Departure` never takes
-||| the interception outside a granted quoted ability ("It gains 'If this
-||| creature would leave the battlefield, exile it instead'"), a container
-||| this grammar has no word for, but it takes the other three: [CR#610.3]
-||| riders, trigger headers, and the delayed clause Portcullis and Stangg
-||| write. `Destruction` is the one row NO construction claims: its
-||| replacement is regeneration's four-part instruction ([CR#614.8] — tap,
-||| remove from combat, heal), none of which this vocabulary writes, and
-||| its trigger header is written zero times in the modern templating.
-||| `DamageTaken` loses the interception for the redirection family's
-||| reason ([CR#614.9] — "that damage is dealt to [other] instead", a
-||| damage clause whose amount is the intercepted event's) and keeps the
-||| trigger. The five new rows are triggers and nothing else, except the
-||| turn-part beginning, which is also the delayed clause's ordinary word
-||| — though [CR#603.7] says that word "won't usually begin" a delayed
-||| trigger, and the corpus agrees at 412 to 1.
-public export
-data EventUse = EventUnattested | EventUnclaimed | TriggeredOnly
-              | InterceptedAndTriggered | InterceptedTriggeredAndDelayed
-              | HeldTriggeredAndDelayed | TriggeredAndDelayed
-
-public export
-eventUse : EventName -> EventUse
-eventUse Death = InterceptedTriggeredAndDelayed
-eventUse Departure = HeldTriggeredAndDelayed
-eventUse Destruction = EventUnclaimed
-eventUse DamageTaken = TriggeredOnly
-eventUse CardDrawn = InterceptedAndTriggered
--- The GAME LOSS opens exactly two readers and the corpus is why. EIGHT
--- lines watch it as a trigger ("Whenever a player loses the game, put
--- five +1/+1 counters on this creature") and SEVEN replace it ("If you
--- would lose the game, instead …"), so trigger and intercept are both
--- attested and both land here. The other two are silences: no duration
--- ends at a loss, and no line writes the DELAYED form ("when a player
--- next loses the game this turn") -- which is `badDelayedGameLoss`, and
--- is not the same silence as the replacement's "next time", that being
--- the multiplicity of a replacement and not a delayed trigger.
-eventUse GameLoss = InterceptedAndTriggered
-eventUse Entry = TriggeredOnly
-eventUse AttackDeclaration = TriggeredOnly
-eventUse BlockDeclaration = TriggeredOnly
-eventUse CombatDamage = TriggeredOnly
-eventUse PartBeginning = TriggeredAndDelayed
--- The CAST event, chapter twenty-eight's biggest unminted family and the
--- first row that needed a whole zone under it. It is trigger-only, and
--- each of the other three readers is a measured silence rather than an
--- oversight: nothing INTERCEPTS a cast ([CR#614.1]'s replacements watch
--- events, and the cast is a player ACTION taken with priority -- the
--- nearest real family, "you may cast … without paying its mana cost", is
--- [CR#118.9]'s alternative cost and not a replacement of the casting);
--- no line ends a duration at one; and the DELAYED form is real ("When
--- you next cast a creature spell this turn, …") but not one line of it
--- is writable -- every body either grants an ability to an object on the
--- STACK, which `Gains` refuses by zone, or copies the spell (ledger).
-eventUse SpellCast = TriggeredOnly
--- The STATUS transition, trigger-only like the object events beside
--- it: nothing intercepts a becomes-tapped, nothing holds a zone change
--- on one, and nothing delays on one — each a measured silence — while
--- the trigger headers are the family's whole corpus ([CR#603.2e]).
-eventUse StatusChange = TriggeredOnly
--- The face-up TURNING, [CR#708.7]'s permission read as an event: the
--- ability that allowed the permanent to be face down "may also allow
--- the permanent's controller to turn it face up", and the headers watch
--- that turning happen. Trigger-only, and the other three readers are
--- measured silences: nothing replaces a turning, no [CR#610.3] rider
--- waits for one, and no delayed clause names one.
-eventUse TurnedFaceUp = TriggeredOnly
--- Phasing, the same answer against the same three silences
--- ([CR#702.26b,702.26c] — the status changes, and the trigger headers
--- are the whole corpus of clauses written over it).
-eventUse PhasingChange = TriggeredOnly
--- The BLOCKED declaration, [CR#509.1h]'s half of the turn-based action
--- read on the attacker where `BlockDeclaration` reads it on the blocker.
--- Trigger-only, and each other reader is a measured zero: nothing writes
--- "would become blocked" (the evasion abilities that keep a block from
--- happening are restrictions on the declaration, [CR#509.1b], not
--- replacements of an event), no duration ends at one, and no delayed
--- clause names one.
-eventUse BlockedDeclaration = TriggeredOnly
--- The LAST counter's removal, [CR#702.62a] and [CR#702.63a] writing the
--- canonical forms into two keywords' expansions. Trigger-only, and the
--- other three readers are measured zeroes: nothing replaces the removal
--- of a last counter, no rider waits for one, no delayed clause names one.
-eventUse LastCounterRemoval = TriggeredOnly
--- The two LIFE-CHANGE events, named apart from the OUTCOME words
--- `LifeGained`/`LifeLost` that the deed telescope already owns (the
--- nominalisation is Death's and Departure's). They are the first names
--- in this table
--- with NO PRODUCER: no `GameEvent` row makes one, the gains-life trigger
--- family being unbuilt. `EventUnclaimed` is exactly the cell for that and
--- it needed no invention -- the class means "real oracle English and no
--- construction HERE writes it", which is precisely the situation: the
--- headers are written in quantity and this vocabulary has no row for them
--- yet. The names exist because the LOOKBACK reads `EventName` directly
--- and does not go through `GameEvent` at all, so "if you gained life this
--- turn" is writable while "Whenever you gain life" is not.
-eventUse LifeGain = EventUnclaimed
-eventUse LifeLoss = EventUnclaimed
--- The day/night SHIFT, the game scope's own event ([CR#731.1a] naming the
--- two phrases). Trigger-only: nothing replaces it, no duration ends at it,
--- no delayed clause names it.
-eventUse TimeShift = TriggeredOnly
-
-||| May the would/instead clause intercept an event of this class? Full
-||| rows in the answer axis, so a new `EventUse` declares every reader.
-public export
-admitsIntercept : EventUse -> Bool
-admitsIntercept EventUnattested = False
-admitsIntercept EventUnclaimed = False
-admitsIntercept TriggeredOnly = False
-admitsIntercept InterceptedAndTriggered = True
-admitsIntercept InterceptedTriggeredAndDelayed = True
-admitsIntercept HeldTriggeredAndDelayed = False
-admitsIntercept TriggeredAndDelayed = False
-
-||| May a [CR#610.3] zone-change rider wait for an event of this class?
-public export
-admitsHold : EventUse -> Bool
-admitsHold EventUnattested = False
-admitsHold EventUnclaimed = False
-admitsHold TriggeredOnly = False
-admitsHold InterceptedAndTriggered = False
-admitsHold InterceptedTriggeredAndDelayed = False
-admitsHold HeldTriggeredAndDelayed = True
-admitsHold TriggeredAndDelayed = False
-
-||| May a TRIGGERED ability's header name an event of this class
-||| ([CR#603.1] — "[When/Whenever/At] [trigger condition or event],
-||| [effect]")? The reader chapter twenty-eight added, and the widest of
-||| the four: every event this vocabulary spells is written as a trigger
-||| header except the destruction, whose modern templating is "dies".
-public export
-admitsTrigger : EventUse -> Bool
-admitsTrigger EventUnattested = False
-admitsTrigger EventUnclaimed = False
-admitsTrigger TriggeredOnly = True
-admitsTrigger InterceptedAndTriggered = True
-admitsTrigger InterceptedTriggeredAndDelayed = True
-admitsTrigger HeldTriggeredAndDelayed = True
-admitsTrigger TriggeredAndDelayed = True
-
-||| May a DELAYED clause wait for an event of this class ([CR#603.7])?
-||| The narrowest reader: three events carry the whole family — the
-||| turn-part beginning ("at the beginning of the next end step"), the
-||| departure (Portcullis, Stangg, Mysterio), and the death (Graceful
-||| Reprieve's "when target creature dies this turn").
-public export
-admitsDelay : EventUse -> Bool
-admitsDelay EventUnattested = False
-admitsDelay EventUnclaimed = False
-admitsDelay TriggeredOnly = False
-admitsDelay InterceptedAndTriggered = False
-admitsDelay InterceptedTriggeredAndDelayed = True
-admitsDelay HeldTriggeredAndDelayed = True
-admitsDelay TriggeredAndDelayed = True
-
-||| Which duration-adverbial class an event-ended "until" phrase falls in
-||| — the event axis's own row of chapter seventeen's attestation table,
-||| and the finding is that every row is a silence.
-|||
-||| `Departure` is `Unclaimed` and the composition is why: the lines that
-||| write "until [object] leaves the battlefield" are overwhelmingly zone
-||| changes ([CR#610.3] — a one-shot exile that schedules its own undo,
-||| NOT a continuous effect) and phasings ([CR#610.4], the same shape),
-||| leaving three genuine [CR#611.2a] continuous durations: two base-TYPE
-||| settings and one becomes-a-copy, all constructions this grammar lacks,
-||| so the cell names them and claims nothing. Every other event is
-||| `Unattested`: no corpus line ends a duration at a death, a
-||| destruction, a damage event, or a draw — the lines that appear to
-||| write "until … dies" all cross a clause boundary ("until end of turn,
-||| whenever another creature dies").
-public export
-eventSpan : EventName -> SpanUse
-eventSpan Death = Unattested
-eventSpan Departure = Unclaimed
-eventSpan Destruction = Unattested
-eventSpan DamageTaken = Unattested
-eventSpan CardDrawn = Unattested
-eventSpan GameLoss = Unattested
--- The four new OBJECT events are `Unattested` for the same reason the
--- older four are: no corpus line ends a duration at an entry, an attack,
--- a block, or a combat-damage event. The turn-part beginning is the one
--- row that is neither, and its silence is a DOUBLE-SPELLING refusal
--- rather than an absence: "until the beginning of your next upkeep" is
--- real English, and the adverbial that writes it is `DurationEnd`'s own
--- `StartOf` row. One phrase, one slot (`badUntilBeginningOfUpkeep`).
-eventSpan Entry = Unattested
-eventSpan AttackDeclaration = Unattested
-eventSpan BlockDeclaration = Unattested
-eventSpan CombatDamage = Unattested
--- Zero lines end a duration at a cast: the eleven "until … cast"
--- matches are all iterated-reveal repetitions ("until they cast a
--- spell" is written none), not adverbials.
-eventSpan SpellCast = Unattested
-eventSpan PartBeginning = Unclaimed
--- Measured: no corpus line ends a duration at a status transition. The
--- tapped-STATE family is [CR#611.2b]'s "for as long as … remains
--- tapped" condition, another axis entirely; the two "until …" lines
--- that mention the transition end at a TURN boundary and merely
--- contain a becomes-tapped trigger (chapter thirty-five).
-eventSpan StatusChange = Unattested
--- Measured, and the face pair's two directions answer differently for
--- once. No line ends a duration at a turning face UP. Exactly one ends
--- at a turning face DOWN — Vesuvan Shapeshifter's "until this creature
--- is turned face down, it becomes a copy of that creature" — which is
--- the only clause of any kind written over the face-down direction and
--- is not this row's: the direction has no event constructor at all, its
--- trigger headers being zero.
-eventSpan TurnedFaceUp = Unattested
--- Measured: no line ends a duration at a phasing. The nearest lines end
--- at a DEPARTURE while their effect is a phase-out ("target creature
--- phases out until this enchantment leaves the battlefield"), which is
--- `Departure`'s cell and not this one.
-eventSpan PhasingChange = Unattested
--- Measured: no line ends a duration at a block declaration on either
--- side. The two "until … blocks" matches both cross a clause boundary
--- the way the death ones do ("Until end of turn, whenever a creature an
--- opponent controls blocks, draw a card" is a nested TRIGGER inside a
--- turn-bounded span), which is `Death`'s own reading.
-eventSpan BlockedDeclaration = Unattested
--- Measured: no duration ends at a last counter's removal. The family's
--- whole corpus is trigger headers.
-eventSpan LastCounterRemoval = Unattested
--- No duration ends at a life change; the "until you gain life" spelling is
--- written zero times.
-eventSpan LifeGain = Unattested
-eventSpan LifeLoss = Unattested
-eventSpan TimeShift = Unattested
-
-||| How many times an interception fires — [CR#614.3]'s two ways for a
-||| replacement effect to end, "used up" against "duration expired", and
-||| English marks the difference with the clause's own opening word.
-|||
-||| The word tracks the CARRIER, but the table is indexed by the EVENT,
-||| which is the one axis it has. Measured exhaustively: "the next time
-||| [someone] would [event] this turn" never occurs as a standing ability
-||| in the supported corpus — those lines are one-shots spun up by an
-||| activation cost or a trigger (the destruction ones being regeneration
-||| and nothing else, [CR#614.8]) — while the conditional is what a
-||| standing line writes, twenty-one cards printing "If you would draw a
-||| card, … instead" with no duration word at all. So a two-dimensional
-||| table cannot say what the corpus says: the carrier dimension is
-||| LEDGERED, and what stays here is the event dimension with the standing
-||| form open wherever a standing line writes one. The cell that reached
-||| past its own measurement was the draw's `Repeatedly`, justified by
-||| counting the duration-bounded "if you would draw a card THIS TURN"
-||| (zero, correctly), which says nothing about the durationless line
-||| (`thoughtReflection`). What the table still refuses is the one-shot
-||| word where no carrier writes it (`badNextTimeWouldDie`).
-public export
--- spelling: (construction-owned -- the clause's opening word: Repeatedly
--- writes "if <event>", NextTimeOnly writes "the next time <event>".
--- Consumed by StaticEffect.Intercepts, never spelled alone)
-data ReplUse = Repeatedly | NextTimeOnly
-
-public export
-replUseOk : EventName -> ReplUse -> Bool
-replUseOk Death Repeatedly = True
-replUseOk Death NextTimeOnly = False
-replUseOk Departure Repeatedly = True
-replUseOk Departure NextTimeOnly = False
--- Both words, and the carrier is what picks between them: regeneration
--- writes the one-shot ([CR#614.8], twenty-five reminder lines) from a
--- cost prefix, and four supported cards print the standing "would be
--- destroyed, … instead" as a line. Neither cell is reachable through
--- this vocabulary — `Interceptable` shuts the event at `Unclaimed`,
--- [CR#614.8]'s four-part replacement being unwritable here — so the row
--- states what is measured rather than what one carrier happens to use.
-replUseOk Destruction Repeatedly = True
-replUseOk Destruction NextTimeOnly = True
-replUseOk DamageTaken Repeatedly = True
-replUseOk DamageTaken NextTimeOnly = True
--- The standing draw replacement is twenty-one printed cards — "If you
--- would draw a card, draw two cards instead" (Thought Reflection) and
--- its family — and not one of them writes a duration. The nine "the
--- next time you would draw a card this turn" lines are all one-shots.
-replUseOk CardDrawn Repeatedly = True
-replUseOk CardDrawn NextTimeOnly = True
--- Both words, both written, and the split is one card apart: five lines
--- write the standing "If you would lose the game, instead …" (Exquisite
--- Archangel, Lich's Mirror, The Golden Throne and two unsupported) and
--- two write the bounded "The next time you would lose the game this
--- turn, instead …" (Stunning Reversal, Nira). So neither cell is a
--- convenience and neither is pinnable.
-replUseOk GameLoss Repeatedly = True
-replUseOk GameLoss NextTimeOnly = True
--- The five trigger-only events answer NEITHER, and the table says so
--- rather than the interception's own gate saying it twice: an event no
--- would/instead clause writes has no multiplicity word to choose, so
--- both cells are `False` and the refusal a writer meets is
--- `Interceptable`'s.
-replUseOk SpellCast Repeatedly = False
-replUseOk SpellCast NextTimeOnly = False
-replUseOk Entry Repeatedly = False
-replUseOk Entry NextTimeOnly = False
-replUseOk AttackDeclaration Repeatedly = False
-replUseOk AttackDeclaration NextTimeOnly = False
-replUseOk BlockDeclaration Repeatedly = False
-replUseOk BlockDeclaration NextTimeOnly = False
-replUseOk CombatDamage Repeatedly = False
-replUseOk CombatDamage NextTimeOnly = False
-replUseOk PartBeginning Repeatedly = False
-replUseOk PartBeginning NextTimeOnly = False
-replUseOk StatusChange Repeatedly = False
-replUseOk StatusChange NextTimeOnly = False
-replUseOk TurnedFaceUp Repeatedly = False
-replUseOk TurnedFaceUp NextTimeOnly = False
-replUseOk PhasingChange Repeatedly = False
-replUseOk PhasingChange NextTimeOnly = False
-replUseOk BlockedDeclaration Repeatedly = False
-replUseOk BlockedDeclaration NextTimeOnly = False
-replUseOk LastCounterRemoval Repeatedly = False
-replUseOk LastCounterRemoval NextTimeOnly = False
--- The life-change replacement IS real ("If you would gain life, …
--- instead") and is `EventUnclaimed`'s business rather than these cells':
--- with no producer there is no event term for a would/instead clause to
--- take, so the multiplicity word has nothing to choose and both cells
--- answer False. When the producer lands, these are the cells to
--- re-measure.
-replUseOk LifeGain Repeatedly = False
-replUseOk LifeGain NextTimeOnly = False
-replUseOk LifeLoss Repeatedly = False
-replUseOk LifeLoss NextTimeOnly = False
-replUseOk TimeShift Repeatedly = False
-replUseOk TimeShift NextTimeOnly = False
-
--- ===== The trigger header's opening word =====
-
-||| The word a triggered ability opens with ([CR#603.1] — "[When/
-||| Whenever/At] [trigger condition or event], [effect]"). No rule
-||| distinguishes the three: [CR#113.3c] lists them together as words a
-||| triggered ability "include(s) (and usually begin(s) with)", and
-||| nothing assigns one to an event. So the word is a SLOT and the corpus
-||| is the only evidence about which slot fillings are real.
-|||
-||| What the corpus assigns absolutely is `At`, and [CR#603.2b] is why:
-||| it gives "at the beginning of" a phase or step its own clause, and
-||| the corpus honors it without exception — every "At the beginning of"
-||| line is a turn-part beginning and no object event takes the word.
-|||
-||| What the corpus does NOT assign is the When/Whenever split. The word
-||| tracks REPEATABILITY: a once-per-object event with a fixed subject
-||| takes "When", the same event over a DESCRIPTION takes "Whenever"
-||| because the description ranges over many objects, and an event that
-||| repeats for one object takes "Whenever" even with the fixed subject.
-||| The residue is what keeps it out of the type: every counterexample is
-||| an ability that destroys its own source, so the word is answering a
-||| question about the EFFECT. A gate keyed on the event alone would have
-||| to refuse real oracle either way, so it refuses only what [CR#603.2b]
-||| settles.
-public export
--- spelling: ["When", "Whenever", "At"] (the header's first word, followed
--- by the event clause, a comma, and the effect; the turn-part event
--- supplies "the beginning of" itself -- see GameEvent.BeginningOf),
--- kind: TODO(reason: header fragment -- not one of Nominal/Sentence/
--- Cost/KeywordLine/Ability)
-data TriggerWord = When | Whenever | At
-
-||| Which opening word an event's header may take. Full rows over
-||| (event x word), so a new event declares its word before it can be
-||| triggered on. Every object event answers `True` to both English
-||| words and `False` to `At`; the turn-part beginning inverts it exactly
-||| ([CR#603.2b]). The two events no trigger writes at all answer `False`
-||| throughout, and the refusal a writer meets there is `Triggerable`'s.
-public export
-triggerWordOk : EventName -> TriggerWord -> Bool
-triggerWordOk Death When = True
-triggerWordOk Death Whenever = True
-triggerWordOk Death At = False
-triggerWordOk Departure When = True
-triggerWordOk Departure Whenever = True
-triggerWordOk Departure At = False
-triggerWordOk Destruction When = False
-triggerWordOk Destruction Whenever = False
-triggerWordOk Destruction At = False
-triggerWordOk DamageTaken When = True
-triggerWordOk DamageTaken Whenever = True
-triggerWordOk DamageTaken At = False
-triggerWordOk CardDrawn When = True
-triggerWordOk CardDrawn Whenever = True
-triggerWordOk CardDrawn At = False
--- Both words again, and the eight watching lines divide them the way
--- finding 247 said they divide everywhere: `Whenever` for the repeatable
--- class (five lines, "whenever a player loses the game") and `When` for
--- the singular occasion (two, both naming ONE player the card has
--- already fixed -- the enchanted player, the chosen player). `At` is
--- [CR#603.2b]'s and stays there (`badGameLossAtTrigger`).
-triggerWordOk GameLoss When = True
-triggerWordOk GameLoss Whenever = True
-triggerWordOk GameLoss At = False
-triggerWordOk Entry When = True
-triggerWordOk Entry Whenever = True
-triggerWordOk Entry At = False
--- Both header words, and the corpus divides them the way finding 172
--- said it would: "Whenever [someone] casts" at nine hundred forty-eight
--- against a hundred twenty-one "When", the casting being a repeatable
--- event whichever subject it takes. `At` is refused with every other
--- object event ([CR#603.2b] reserves it for phases and steps).
-triggerWordOk SpellCast When = True
-triggerWordOk SpellCast Whenever = True
-triggerWordOk SpellCast At = False
-triggerWordOk AttackDeclaration When = True
-triggerWordOk AttackDeclaration Whenever = True
-triggerWordOk AttackDeclaration At = False
-triggerWordOk BlockDeclaration When = True
-triggerWordOk BlockDeclaration Whenever = True
-triggerWordOk BlockDeclaration At = False
-triggerWordOk CombatDamage When = True
-triggerWordOk CombatDamage Whenever = True
-triggerWordOk CombatDamage At = False
-triggerWordOk PartBeginning When = False
-triggerWordOk PartBeginning Whenever = False
-triggerWordOk PartBeginning At = True
--- Both English words: the direct "Whenever … becomes tapped" mass
--- against the Aura family's "When enchanted … becomes tapped"
--- ([CR#603.1] assigns neither word; the guide's split tracks whether
--- the event is naturally singular in context, which the EFFECT decides
--- — an Aura's destroy ends the relationship — so the grammar declines
--- to encode it, tolerated over-generation). `At` is refused with every
--- other object event ([CR#603.2b]).
-triggerWordOk StatusChange When = True
-triggerWordOk StatusChange Whenever = True
-triggerWordOk StatusChange At = False
--- Both English words, and this family writes the split the other way
--- round from the mass: the morph line "When this creature is turned
--- face up, …" is the largest cell by far, "Whenever a permanent you
--- control is turned face up, …" the description-subject one. The
--- grammar declines to encode the split here as everywhere ([CR#603.1]
--- assigns no word), and refuses `At` with every other object event
--- ([CR#603.2b]).
-triggerWordOk TurnedFaceUp When = True
-triggerWordOk TurnedFaceUp Whenever = True
-triggerWordOk TurnedFaceUp At = False
--- Both again, though the corpus is nearly all `Whenever`: the one
--- `When` line ("When this creature phases out or leaves the
--- battlefield, …") writes a COORDINATED event this vocabulary has no
--- word for, so the cell is opened on the standing slot policy rather
--- than on a writable line.
-triggerWordOk PhasingChange When = True
-triggerWordOk PhasingChange Whenever = True
-triggerWordOk PhasingChange At = False
--- Both words across the whole block family, 250 `Whenever` to 20 `When`,
--- and the split is the standing tolerated one: [CR#603.1] assigns no
--- word and the guide's repeatability test keys on the effect. `At` stays
--- [CR#603.2b]'s.
-triggerWordOk BlockedDeclaration When = True
-triggerWordOk BlockedDeclaration Whenever = True
-triggerWordOk BlockedDeclaration At = False
--- Every explicit line writes `When` and none writes `Whenever`, which is
--- what a once-per-object event should look like -- but the grammar
--- declines to encode the split here as everywhere ([CR#603.1] assigns no
--- word), so the cell stays open as tolerated over-generation. `At` is
--- [CR#603.2b]'s.
-triggerWordOk LastCounterRemoval When = True
-triggerWordOk LastCounterRemoval Whenever = True
-triggerWordOk LastCounterRemoval At = False
--- Answered from the English the corpus writes ("Whenever you gain life,
--- …", "When you gain life, …") rather than left blank, though no producer
--- can reach these cells yet: a table with full rows has to say something,
--- and saying what the corpus says is the answer that stays true when the
--- producer lands. `At` is [CR#603.2b]'s as always.
-triggerWordOk LifeGain When = True
-triggerWordOk LifeGain Whenever = True
-triggerWordOk LifeGain At = False
-triggerWordOk LifeLoss When = True
-triggerWordOk LifeLoss Whenever = True
-triggerWordOk LifeLoss At = False
--- Every one of the ten lines writes `Whenever`; the cell for `When`
--- stays open on the standing slot policy ([CR#603.1] assigns no word).
-triggerWordOk TimeShift When = True
-triggerWordOk TimeShift Whenever = True
-triggerWordOk TimeShift At = False
-
-||| WHICH events a history query names, and with a subject of WHICH
-||| SORT — the lookback's attestation table, two-axis because one axis
-||| could not say what the corpus says. `replUseOk`'s and `triggerWordOk`'s
-||| shape at a third site.
-|||
-||| The second axis is forced by one family. Every other event name takes
-||| a subject of a single sort in this position, but the ATTACK
-||| declaration takes both: "if you attacked this turn" is the raid mass,
-||| thirty-eight lines with a PLAYER subject, and "if this creature
-||| attacked or blocked this turn" is six with an OBJECT one. A
-||| single-valued `EventName -> Kind` table would have had to refuse one of
-||| them, so the table is over the pair and `Happened` is indexed at the
-||| kind it answers True for.
-|||
-||| Full rows over (name x the two phrasal kinds), each cell measured in
-||| the CONDITION position and nowhere else. The Trues: death (the morbid
-||| mass), departure (12), entry, damage taken (6), block declaration (4)
-||| and attack declaration (6) on the object side; spell cast (21), card
-||| drawn, life gained (37), life lost (18) and attack declaration (38) on
-||| the player side. The zeroes are all queried and all real — no line
-||| writes a destruction, a status change, a face turning, a phasing, a
-||| becomes-blocked, a last-counter removal or a turn-part beginning as a
-||| history read, and "if an upkeep began this turn" is not English.
-|||
-||| Two cells are refused for a reason SHARPER than a zero and the
-||| distinction is worth keeping: combat damage is written twice in this
-||| position and both lines carry a RECIPIENT complement ("if this
-||| creature dealt combat damage to an opponent this turn") that a
-||| one-noun query cannot spell, and the player side of the attack
-||| declaration writes a complement too on the lines that are not bare
-||| ("if you attacked with a Hero this turn"). The complement is a real
-||| gap, ledgered, and admitting the cells on lines the row cannot finish
-||| would have hidden it.
-public export
-lookbackSubjectOk : EventName -> Kind -> Bool
-lookbackSubjectOk Death Object = True
-lookbackSubjectOk Death Player = False
-lookbackSubjectOk Departure Object = True
-lookbackSubjectOk Departure Player = False
-lookbackSubjectOk Destruction Object = False
-lookbackSubjectOk Destruction Player = False
-lookbackSubjectOk DamageTaken Object = True
--- RE-MEASURED when the second reader landed, and the only cell that
--- moved. Chapter forty-two measured every cell in the condition position
--- because that was the only reader there was, and found one line ("if you
--- haven't been dealt combat damage since your last turn") in a window this
--- vocabulary does not carry. The PREDICATE position writes the same event
--- over a player eight times -- "for each opponent who was dealt damage
--- this turn", "each player who was dealt combat damage this turn" -- so
--- the cell is True. A shared table's cells are a property of the QUERY
--- and not of a reader, which is why a new reader can only ever add Trues:
--- the union is what the table always meant, and the round that adds a
--- reader owes the re-measurement.
-lookbackSubjectOk DamageTaken Player = True
-lookbackSubjectOk CardDrawn Object = False
-lookbackSubjectOk CardDrawn Player = True
--- The loss event's history cells are CLOSED, and this round measured
--- them rather than inheriting the queue's guess that a history read
--- might exist. Two corpus lines look backward at losses and neither is
--- this query: Hot Pursuit's "if two or more players have lost the game"
--- and Rampant Frogantua's "for each player who has lost the game" both
--- COUNT PLAYERS in a standing state, and neither names a window --
--- there is no "lost the game this turn" anywhere. This row asks whether
--- an event happened inside a `Lookback`, so a windowless count over
--- players is a different reader's business (the player-set count, which
--- this grammar has no term for). Recorded, closed, and pinned at the
--- player sort (`badGameLossLookback`).
-lookbackSubjectOk GameLoss Object = False
-lookbackSubjectOk GameLoss Player = False
-lookbackSubjectOk Entry Object = True
-lookbackSubjectOk Entry Player = False
-lookbackSubjectOk AttackDeclaration Object = True
-lookbackSubjectOk AttackDeclaration Player = True
-lookbackSubjectOk BlockDeclaration Object = True
-lookbackSubjectOk BlockDeclaration Player = False
-lookbackSubjectOk CombatDamage Object = False
-lookbackSubjectOk CombatDamage Player = False
-lookbackSubjectOk PartBeginning Object = False
-lookbackSubjectOk PartBeginning Player = False
-lookbackSubjectOk SpellCast Object = False
-lookbackSubjectOk SpellCast Player = True
-lookbackSubjectOk StatusChange Object = False
-lookbackSubjectOk StatusChange Player = False
-lookbackSubjectOk TurnedFaceUp Object = False
-lookbackSubjectOk TurnedFaceUp Player = False
-lookbackSubjectOk PhasingChange Object = False
-lookbackSubjectOk PhasingChange Player = False
-lookbackSubjectOk BlockedDeclaration Object = False
-lookbackSubjectOk BlockedDeclaration Player = False
-lookbackSubjectOk LastCounterRemoval Object = False
-lookbackSubjectOk LastCounterRemoval Player = False
-lookbackSubjectOk LifeGain Object = False
-lookbackSubjectOk LifeGain Player = True
-lookbackSubjectOk LifeLoss Object = False
-lookbackSubjectOk LifeLoss Player = True
--- the shift has no SUBJECT of either sort -- the game is not a phrasal
--- kind -- so no history read can be written over it in either position.
-lookbackSubjectOk TimeShift Object = False
-lookbackSubjectOk TimeShift Player = False
--- the two non-phrasal kinds carry no subject at all: a quality names no
--- participant and an outcome is a deed's own mention.
-lookbackSubjectOk _ (Quality _) = False
-lookbackSubjectOk _ Outcome = False
-lookbackSubjectOk _ Gap = False
-lookbackSubjectOk _ (Letter _) = False
-
-public export
-data LookbackSubject : EventName -> Kind -> Type where
-  MkLookbackSubject : {auto 0 ok : lookbackSubjectOk ev k = True} ->
-                      LookbackSubject ev k
-
--- ===== Which turn-part beginnings a header names =====
-
-||| The two silences again, asked of the (part x possession) grid the
-||| turn-part trigger header writes. `PartUnattested` is a beginning no
-||| corpus line names; `PartUnclaimed` is one it names with a possessor
-||| this vocabulary has no word for.
-public export
-data PartUse = PartUnattested | PartUnclaimed | PartTriggered
-
-||| WHICH turn-part beginnings a header names, over the SHARED endpoint
-||| vocabulary chapter seventeen minted for durations and said out loud
-||| was the trigger's too. Full rows over five parts and three
-||| possessions — fifteen cells — so a new `TurnPart` or a new `Whose` is
-||| a totality error here as well as on `spanUse`.
-|||
-||| `Upkeep` is the family's centre, possessed. `EndStep` writes both the
-||| possessed form and the UNPOSSESSED one ("At the beginning of the end
-||| step, destroy all Goblins"), the one cell where the bare part word is
-||| the whole phrase. `Combat` writes the possessed form and extraposes
-||| the possessive onto the turn ("At the beginning of combat on your
-||| turn"), which is Brazen Cannonade's move in the duration table
-||| appearing here as an ordinary spelling. `Turn` and `UntapStep` are
-||| written ZERO times in every possession: the turn's own beginning is
-||| not a trigger event English names — the upkeep is what it names
-||| instead — and no line triggers at an untap step's beginning.
-|||
-||| The `PartUnclaimed` cells are the possessor gap chapter twenty-seven
-||| measured from the other side: "at the beginning of each upkeep",
-||| "each opponent's upkeep", "the upkeep of enchanted creature's
-||| controller" and "each end step" are real headers whose possessor is a
-||| QUANTIFIER or a nominal, where `Whose` is a two-word pronominal
-||| vocabulary by construction. `ThatPlayers` stays a silence here too:
-||| one line writes "at the beginning of that player's upkeep" and none
-||| writes any other part.
-public export
-partUse : TurnPart -> Maybe Owner -> PartUse
-partUse Turn Nothing = PartUnattested
-partUse Turn (Just Yours) = PartUnattested
-partUse Turn (Just ThatPlayers) = PartUnattested
-partUse Turn (Just EachPlayers) = PartUnattested
-partUse Turn (Just EachOpponents) = PartUnattested
-partUse Turn (Just EachYours) = PartUnattested
-partUse Turn (Just AnOpponents) = PartUnattested
--- RECLASSIFIED. This cell was `PartUnclaimed` -- "names it with a
--- possessor this vocabulary has no word for" -- and the words now exist,
--- so the honest answer is that NOTHING writes a possessor-less upkeep
--- header at all: the 36 "each upkeep" lines are `EachPlayers`' second
--- spelling, not this cell's (`badTriggerAtEachUpkeep` still refuses, the
--- pin unaffected by which silence it names).
-partUse Upkeep Nothing = PartUnattested
-partUse Upkeep (Just Yours) = PartTriggered
-partUse Upkeep (Just ThatPlayers) = PartUnclaimed
-partUse Upkeep (Just EachPlayers) = PartTriggered
-partUse Upkeep (Just EachOpponents) = PartTriggered
-partUse Upkeep (Just EachYours) = PartUnattested
-partUse Upkeep (Just AnOpponents) = PartUnattested
--- The possessor-less end step is the DELAYED clause's and not the
--- header's: "at the beginning of the next end step" writes no possessor
--- because it names one occurrence rather than a class, and the header's
--- bare "each end step" is `EachPlayers`' second spelling. One cell, one
--- construction, and the round that gave the header its quantifiers is
--- what made the difference sayable.
-partUse EndStep Nothing = PartTriggered
-partUse EndStep (Just Yours) = PartTriggered
-partUse EndStep (Just ThatPlayers) = PartUnattested
-partUse EndStep (Just EachPlayers) = PartTriggered
-partUse EndStep (Just EachOpponents) = PartTriggered
-partUse EndStep (Just EachYours) = PartUnattested
-partUse EndStep (Just AnOpponents) = PartUnattested
-partUse Combat Nothing = PartUnattested
-partUse Combat (Just Yours) = PartTriggered
-partUse Combat (Just ThatPlayers) = PartUnattested
-partUse Combat (Just EachPlayers) = PartTriggered
-partUse Combat (Just EachOpponents) = PartUnattested
-partUse Combat (Just EachYours) = PartUnattested
-partUse Combat (Just AnOpponents) = PartUnattested
-partUse UntapStep Nothing = PartUnattested
-partUse UntapStep (Just Yours) = PartUnattested
-partUse UntapStep (Just ThatPlayers) = PartUnattested
-partUse UntapStep (Just EachPlayers) = PartUnattested
-partUse UntapStep (Just EachOpponents) = PartUnattested
-partUse UntapStep (Just EachYours) = PartUnattested
-partUse UntapStep (Just AnOpponents) = PartUnattested
-partUse EndOfCombat Nothing = PartTriggered
-partUse EndOfCombat (Just Yours) = PartUnattested
-partUse EndOfCombat (Just ThatPlayers) = PartUnattested
-partUse EndOfCombat (Just EachPlayers) = PartUnattested
-partUse EndOfCombat (Just EachOpponents) = PartUnattested
-partUse EndOfCombat (Just EachYours) = PartUnattested
-partUse EndOfCombat (Just AnOpponents) = PartUnattested
-partUse FirstMain Nothing = PartUnattested
-partUse FirstMain (Just Yours) = PartTriggered
-partUse FirstMain (Just ThatPlayers) = PartUnattested
-partUse FirstMain (Just EachPlayers) = PartTriggered
-partUse FirstMain (Just EachOpponents) = PartUnattested
-partUse FirstMain (Just EachYours) = PartUnattested
-partUse FirstMain (Just AnOpponents) = PartUnattested
-partUse PostcombatMain Nothing = PartUnattested
--- The SPELLING SPLIT, and at this site it is perfect: the possessor
--- `Yours` writes "your second main phase" (5 headers) and `EachYours`
--- writes "each of your postcombat main phases" (7), with both cross
--- cells at zero -- no header writes "your postcombat main phase" or
--- "each of your second main phases". [CR#505.1] names the two words for
--- one phase ("the first main phase (also known as the precombat main
--- phase)"), so this is finding 275's agreement a fourth time: one part
--- row, two spellings, chosen by the possessor. The scope matters and is
--- stated -- "your postcombat main phase" occurs 8 times ELSEWHERE, so
--- the perfection is the header reader's and not the language's.
-partUse PostcombatMain (Just Yours) = PartTriggered
-partUse PostcombatMain (Just ThatPlayers) = PartUnattested
-partUse PostcombatMain (Just EachPlayers) = PartUnattested
-partUse PostcombatMain (Just EachOpponents) = PartUnattested
-partUse PostcombatMain (Just EachYours) = PartTriggered
-partUse PostcombatMain (Just AnOpponents) = PartUnattested
-partUse DrawStep Nothing = PartUnattested
-partUse DrawStep (Just Yours) = PartTriggered
-partUse DrawStep (Just ThatPlayers) = PartUnattested
-partUse DrawStep (Just EachPlayers) = PartTriggered
-partUse DrawStep (Just EachOpponents) = PartUnattested
-partUse DrawStep (Just EachYours) = PartUnattested
-partUse DrawStep (Just AnOpponents) = PartUnattested
-
-||| The answer axis, full rows, so a new `PartUse` declares its reader.
-public export
-admitsPartTrigger : PartUse -> Bool
-admitsPartTrigger PartUnattested = False
-admitsPartTrigger PartUnclaimed = False
-admitsPartTrigger PartTriggered = True
-
--- ===== Prevention shields (the damage class and the shield's size) =====
-
-||| WHICH damage a prevention shield stops. [CR#615.1] makes the shield
-||| watch "a damage event that would happen", and the only qualifier
-||| oracle puts on the noun is the combat/noncombat split ([CR#510.2] —
-||| combat damage is what the combat damage step deals, which is the whole
-||| of what the adjective names). Closed at three because no fourth
-||| qualifier is written: no line prevents "all trample damage" or "all
-||| excess damage".
-public export
--- spelling: ["damage", "combat damage", "noncombat damage"] (the bare noun
--- and its two adjectives; spelled only through StaticEffect.Prevents)
-data DamageKind = AnyDamage | CombatOnly | NoncombatOnly
-
--- ===== Deontic restrictions (the one-shot "can't" vocabulary) =====
-
-||| The deed a restriction denies — the verb alone. Core and the
-||| predecessor grammar both mark WHICH PART the subject plays by which
-||| SLOT carries the reference — `DeonticAction::Block { by, on }`
-||| (`deckmaste_core/src/deontic.rs`), `Enact Block <agent> <patient>`
-||| (`Semantics.idr`) — but a clause with ONE subject has no second slot
-||| to put it in, so English marks it in the VOICE: "can't block" against
-||| "can't be blocked". That is an axis of its own (`Role`), not a second
-||| deed word, so this enum stops at the verbs. Closed and row-enumerated,
-||| and every table over it is written out, so a new deed must declare
-||| which types carry its grant, in which voice, before it can be written
-||| at all. These lead the one-shot restrictions in the corpus; the rest
-||| of the deontic surface is either the parked ability layer or a deed
-||| with no clause of its own yet.
-public export
--- spelling: ["attack", "block"] (the bare verb; `Role` inflects it into
--- the verb phrase after "can't" -- "block" against "be blocked" -- and the
--- PAIR is what Effect.Cant spells, never this enum alone)
-data Deed = Attack | Block
-
-||| Which part the restriction's SUBJECT plays in the deed: core's two
-||| slots as one axis, since a one-subject clause has only its voice to
-||| say it with. `Agent` is the active reading and core's `by` slot
-||| ("can't block"), `Patient` the passive and core's `on` ("can't be
-||| blocked"). The words are the predecessor grammar's own
-||| (`Enact Block <agent> <patient>`, `Semantics.idr`).
-public export
--- spelling: (construction-owned -- the VOICE of Deed's verb: Agent leaves
--- it bare, Patient makes it passive ("be blocked"). Consumed by
--- Effect.Cant, never spelled alone)
-data Role = Agent | Patient
-
-||| The three POLARITIES a deed clause can carry — the convergence
-||| chapter forty-six named and deferred, executed here on its own stated
-||| trigger (finding 331: "a GATE polarity with evidence would justify
-||| refactoring both rows onto one compulsion axis").
-|||
-||| All three prior arts agree on the shape and disagree on the spine.
-||| Core has `Deontic{May, Cant, Must, Gate}` over a `DeonticAction` whose
-||| variants carry `by`/`on` predicates (`deckmaste_core/src/deontic.rs`);
-||| the OLD module has `Constrain : Compulsion -> Deed` over an eight-kind
-||| relation spine with a `Priced` sibling for gates (`Semantics.idr`);
-||| this vocabulary keeps its own narrow `Deed x Role` grid and puts the
-||| polarity on ONE axis over it. What is NOT taken from either is the
-||| PERMISSION: core's `May` is the existential floor a granted row
-||| widens, and this grammar has no line asking for it — "may attack" is
-||| written zero times, attacking being permitted by default ([CR#506.3]).
-||| Three rows, measured; a fourth would be symmetry.
-|||
-||| The GATE carries its cost on the VALUE rather than in a fourth field
-||| on the row, which is `BoostCounter`'s arrangement and for its reason:
-||| the payload exists exactly where the polarity needs it, so no other
-||| polarity has to carry an empty slot and no gate can be written without
-||| one.
-public export
-data CompTag = ForbidT | RequireT | GateT
-
-||| Whether a polarity's cell writes a PATIENT, and the answer is
-||| three-valued because the corpus is: the block restriction writes one
-||| in fourteen lines and omits it in many more, the block requirement
-||| writes one in all thirty-eight, and every other cell writes none.
-public export
-data PatientNeed = PatientRefused | PatientOptional | PatientRequired
-
-public export
-notRequired : PatientNeed -> Bool
-notRequired PatientRequired = False
-notRequired PatientOptional = True
-notRequired PatientRefused = True
-
-public export
-admitsPatient : PatientNeed -> Bool
-admitsPatient PatientRefused = False
-admitsPatient PatientOptional = True
-admitsPatient PatientRequired = True
-
-||| WHICH cell writes a patient. Full rows over (polarity x deed x role),
-||| every cell measured in its own family and none by symmetry.
-public export
-deonticPatientOk : CompTag -> Deed -> Role -> PatientNeed
--- the restriction: "can't block creatures with power 3 or greater" is
--- fourteen lines and the bare "can't block" many more, so the block
--- agent's cell is OPTIONAL. No restriction names an attack's defender in
--- this slot -- "can't attack you" writes a DEFENDING PLAYER, which is a
--- different participant and has no noun here (ledger).
-deonticPatientOk ForbidT Attack Agent = PatientRefused
-deonticPatientOk ForbidT Attack Patient = PatientRefused
-deonticPatientOk ForbidT Block Agent = PatientOptional
-deonticPatientOk ForbidT Block Patient = PatientRefused
--- the requirement: finding 334's measurement unchanged, required in one
--- cell and refused in three.
-deonticPatientOk RequireT Attack Agent = PatientRefused
-deonticPatientOk RequireT Attack Patient = PatientRefused
-deonticPatientOk RequireT Block Agent = PatientRequired
-deonticPatientOk RequireT Block Patient = PatientRefused
--- the gate: Hipparion writes one ("can't block creatures with power 3 or
--- greater unless you pay {1}") and the plural-subject lines write none,
--- so the same cell is optional here too. The attack gates write no
--- patient at all.
-deonticPatientOk GateT Attack Agent = PatientRefused
-deonticPatientOk GateT Attack Patient = PatientRefused
-deonticPatientOk GateT Block Agent = PatientOptional
-deonticPatientOk GateT Block Patient = PatientRefused
-
-||| Which card types carry a deed's grant IN A GIVEN VOICE — the stand-in
-||| for reading `May(Attack)`/`May(Block)` off the TypeDef declaration
-||| (`plugins/builtin/macros/cardtype/Creature.ron`), and a DIFFERENT
-||| table from `combatant`, which the fight chapter minted precisely
-||| because fight keys on type membership and deals non-combat damage
-||| ([CR#701.14b,701.14d]) where these deeds are combat proper.
-||| [CR#506.3] — "Only a creature can attack or block" — answers the
-||| active rows, and the passive of BLOCK too, because what a blocker
-||| blocks is an attacking creature ([CR#509.1a]). The passive of ATTACK
-||| is answered by the SECOND sentence of that same rule: only a player, a
-||| planeswalker, or a battle can be attacked, and not one of those is a
-||| card type this grammar spells. So that whole row is False — and False
-||| for a reason worth writing down, because the PHRASE is real oracle
-||| ("The Aetherspark can't be attacked" of a planeswalker, "you can't be
-||| attacked except by creatures with flying" of a player). The row waits
-||| on the planeswalker and battle card types and on the ledgered
-||| player-subject restriction, not on a corpus witness.
-public export
-deedType : Deed -> Role -> CardType -> Bool
-deedType Attack Agent Creature = True
-deedType Attack Agent Artifact = False
-deedType Attack Agent Land = False
-deedType Attack Agent Enchantment = False
--- The two SPELL types answer False everywhere for a reason no count is
--- needed for: [CR#506.3] says "only a creature can attack or block",
--- and an instant or sorcery is never even a permanent ([CR#110.4]:
--- "instant and sorcery cards can't enter the battlefield and thus
--- can't be permanents").
-deedType Attack Agent Instant = False
-deedType Attack Agent Sorcery = False
-deedType Attack Patient Creature = False
-deedType Attack Patient Artifact = False
-deedType Attack Patient Land = False
-deedType Attack Patient Enchantment = False
-deedType Attack Patient Instant = False
-deedType Attack Patient Sorcery = False
-deedType Block Agent Creature = True
-deedType Block Agent Artifact = False
-deedType Block Agent Land = False
-deedType Block Agent Enchantment = False
-deedType Block Agent Instant = False
-deedType Block Agent Sorcery = False
-deedType Block Patient Creature = True
-deedType Block Patient Artifact = False
-deedType Block Patient Land = False
-deedType Block Patient Enchantment = False
-deedType Block Patient Instant = False
-deedType Block Patient Sorcery = False
-
-||| The deed's demand on its subject's projected head, as a witness —
-||| `FightParticipant`'s shape for the combat grants, reading the voice
-||| along with the verb. There is no `Nothing` row: an UNTYPED head
-||| cannot prove participation, so a disjunctive subject, which
-||| honestly fixes no type (finding 50), is refused rather than waved
-||| through on its silence.
-public export
-data DeedParticipant : Deed -> Role -> Maybe CardType -> Type where
-  Participant : {auto 0 ok : deedType d r t = True} -> DeedParticipant d r (Just t)
-
-||| Which static effect a `Continuously` clause establishes, as the span
-||| tables' key — the axis `spanUse` classifies its adverbials against.
-||| One row per `StaticEffect` constructor (`staticKind`), so a new static
-||| row is a totality error on both tables and must declare which
-||| durations it writes before it can be written at all.
-|||
-||| `Replacement` and `Prevention` carry no subject noun where the other
-||| five do, and [CR#611.2c] is why: it cuts the continuous effects in two
-||| — those that "modify the characteristics or change the controller of
-||| any objects", whose affected set is fixed when the effect begins, and
-||| those that do neither and therefore "modify the rules of the game" —
-||| and the rule's own worked example is a prevention effect.
-|||
-||| `Conditional`, `PlayPermission` and `EntryRider` are not clause
-||| constructions at all: they answer `False` to every cell of
-||| `admitsSpan` and to `absentOk`, so no `Continuously` clause can
-||| establish one, and the only construction that writes them is the
-||| static ABILITY line (`staticAsAbility`) — a table with two readers
-||| rather than one, the same move `eventUse` makes.
-public export
-data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
-                | ControlGrant | Replacement | Prevention
-                | Conditional | PlayPermission | EntryRider
-                | CostModification
-
-||| The MARKING WORD a conditional static writes over its condition. "As
-||| long as" and "unless" are not two constructions but one construction
-||| with two spellings of the SAME negation: "unless [C]" holds the
-||| statement true while C is false, which is "as long as not [C]" with
-||| the "not" moved onto the marking word. No rule assigns either word —
-||| [CR#611.3a] licenses the wrapper and says nothing about its surface —
-||| so this is the corpus's fact, and the corpus is lopsided: the bare "as
-||| long as" is the overwhelming majority and rarely negated, while
-||| "unless" writes only the two shapes that need it, "can't … unless" and
-||| "enters tapped unless".
-public export
--- spelling: ["as long as", "unless"] (row order: AsLongAs/Unless; the
--- subordinator introducing the condition clause. Unless writes the
--- NEGATION it carries, so its condition's own words are the positive
--- ones -- "unless you control an artifact", never "unless you control no
--- artifact". Spelled only through StaticEffect.Conditionally)
-data CondMarking = AsLongAs | Unless
-
-||| The VERB a play permission writes. [CR#604.6] brackets the pair in
-||| its own templates — "You may [cast/play] [this card] …" — so this is
-||| a slot the rule itself declares, and chapter twenty-eight's reading of
-||| it needed one correction: it recorded the verb as DERIVED from the
-||| complement's kind, "cast" belonging to a spell and "play" to a card,
-||| and [CR#701.5b] says the opposite in four words — "to cast a card is
-||| to cast it as a spell". A card is what both verbs take.
-|||
-||| What separates them is the LAND, and the glossary derivation is still
-||| the right one read the other way: "playing a card" means "playing that
-||| card as a land or casting that card as a spell, whichever is
-||| appropriate" ([CR#601.1a]), so "play" is the union and "cast" the half
-||| of it that excludes lands — [CR#305.9] making that exclusion a rule,
-||| "if an object is both a land and another card type, it can be played
-||| only as a land. It can't be cast as a spell."
-public export
--- spelling: ["play", "cast"] (row order: Play/Cast; the bare verb after
--- the modal, "you may play <what>" / "you may cast <what>". Spelled only
--- through StaticEffect.MayPlay)
-data PlayVerb = Play | Cast
-
-||| Which verb may take which complement. `Play` takes anything
-||| ([CR#601.1a]'s union), `Cast` refuses a LAND-headed one outright
-||| ([CR#305.9]) and passes a silent head for `zoneFits`' reason — a
-||| phrase that names no type has not named a land (`badCastALand`).
-public export
-castableTy : PlayVerb -> Maybe CardType -> Bool
-castableTy Play _ = True
-castableTy Cast Nothing = True
-castableTy Cast (Just Creature) = True
-castableTy Cast (Just Artifact) = True
-castableTy Cast (Just Land) = False
-castableTy Cast (Just Enchantment) = True
-castableTy Cast (Just Instant) = True
-castableTy Cast (Just Sorcery) = True
-
-||| The attestation table's other half: which classes of adverbial each
-||| construction writes. Full rows in both directions. The shape is the
-||| finding — the cross-turn span is the one class both GRANTS and the
-||| RESTRICTION admit, and the two current-turn words divide those
-||| families with nothing shared, which is why the detain family's
-||| cross-turn span ("can't attack or block until your next turn") is the
-||| one place a restriction and a grant write the same words. The type
-||| addition is out of the class entirely.
-|||
-||| The `False` cells that rest on a MEASUREMENT rather than a rule. The
-||| TYPE ADDITION takes "until end of turn" and never end of combat, and
-||| Coward // Killer settles the current-turn split inside one sentence,
-||| giving the restriction "this turn" and the addition "until end of
-||| turn"; its cross-turn cell is closed because no line writes a NAKED
-||| type addition across turns, the three that look like it being
-||| otherwise explained (`badTypeAdditionAcrossTurns`). The CONTROL grant
-||| is the widest of the five yet writes "this turn" ZERO times, so the
-||| restriction's own current-turn word stays the restriction's alone.
-||| Prevention writes ONE adverbial, "this turn", and nothing writes an
-||| interception or a shield at an upkeep, at a combat endpoint, or under
-||| a for-as-long-as condition.
-public export
-admitsSpan : StaticKind -> SpanUse -> Bool
-admitsSpan PtDelta Unattested = False
-admitsSpan PtDelta Unclaimed = False
-admitsSpan PtDelta GrantsAndControl = True
-admitsSpan PtDelta GrantsTypesControlReplacementAndPermission = True
-admitsSpan PtDelta KeywordGrantOnly = False
-admitsSpan PtDelta RestrictionsShieldsPermissionsAndDelays = False
-admitsSpan PtDelta GrantsRestrictionsAndReplacement = True
-admitsSpan PtDelta ControlGrantAndPermission = False
-admitsSpan PtDelta GrantsRestrictionsControlAndPermission = True
-admitsSpan PtDelta PermissionOnly = False
-admitsSpan KeywordGrant Unattested = False
-admitsSpan KeywordGrant Unclaimed = False
-admitsSpan KeywordGrant GrantsAndControl = True
-admitsSpan KeywordGrant GrantsTypesControlReplacementAndPermission = True
-admitsSpan KeywordGrant KeywordGrantOnly = True
-admitsSpan KeywordGrant RestrictionsShieldsPermissionsAndDelays = False
-admitsSpan KeywordGrant GrantsRestrictionsAndReplacement = True
-admitsSpan KeywordGrant ControlGrantAndPermission = False
-admitsSpan KeywordGrant GrantsRestrictionsControlAndPermission = True
-admitsSpan KeywordGrant PermissionOnly = False
-admitsSpan DeedRestriction Unattested = False
-admitsSpan DeedRestriction Unclaimed = False
-admitsSpan DeedRestriction GrantsAndControl = False
-admitsSpan DeedRestriction GrantsTypesControlReplacementAndPermission = False
-admitsSpan DeedRestriction KeywordGrantOnly = False
-admitsSpan DeedRestriction RestrictionsShieldsPermissionsAndDelays = True
-admitsSpan DeedRestriction GrantsRestrictionsAndReplacement = True
-admitsSpan DeedRestriction ControlGrantAndPermission = False
-admitsSpan DeedRestriction GrantsRestrictionsControlAndPermission = True
-admitsSpan DeedRestriction PermissionOnly = False
-admitsSpan TypeAddition Unattested = False
-admitsSpan TypeAddition Unclaimed = False
-admitsSpan TypeAddition GrantsAndControl = False
-admitsSpan TypeAddition GrantsTypesControlReplacementAndPermission = True
-admitsSpan TypeAddition KeywordGrantOnly = False
-admitsSpan TypeAddition RestrictionsShieldsPermissionsAndDelays = False
-admitsSpan TypeAddition GrantsRestrictionsAndReplacement = False
-admitsSpan TypeAddition ControlGrantAndPermission = False
-admitsSpan TypeAddition GrantsRestrictionsControlAndPermission = False
-admitsSpan TypeAddition PermissionOnly = False
-admitsSpan ControlGrant Unattested = False
-admitsSpan ControlGrant Unclaimed = False
-admitsSpan ControlGrant GrantsAndControl = True
-admitsSpan ControlGrant GrantsTypesControlReplacementAndPermission = True
-admitsSpan ControlGrant KeywordGrantOnly = False
-admitsSpan ControlGrant RestrictionsShieldsPermissionsAndDelays = False
-admitsSpan ControlGrant GrantsRestrictionsAndReplacement = False
-admitsSpan ControlGrant ControlGrantAndPermission = True
-admitsSpan ControlGrant GrantsRestrictionsControlAndPermission = True
-admitsSpan ControlGrant PermissionOnly = False
-admitsSpan Replacement Unattested = False
-admitsSpan Replacement Unclaimed = False
-admitsSpan Replacement GrantsAndControl = False
-admitsSpan Replacement GrantsTypesControlReplacementAndPermission = True
-admitsSpan Replacement KeywordGrantOnly = False
-admitsSpan Replacement RestrictionsShieldsPermissionsAndDelays = True
-admitsSpan Replacement GrantsRestrictionsAndReplacement = True
-admitsSpan Replacement ControlGrantAndPermission = False
-admitsSpan Replacement GrantsRestrictionsControlAndPermission = False
-admitsSpan Replacement PermissionOnly = False
-admitsSpan Prevention Unattested = False
-admitsSpan Prevention Unclaimed = False
-admitsSpan Prevention GrantsAndControl = False
-admitsSpan Prevention GrantsTypesControlReplacementAndPermission = False
-admitsSpan Prevention KeywordGrantOnly = False
-admitsSpan Prevention RestrictionsShieldsPermissionsAndDelays = True
-admitsSpan Prevention GrantsRestrictionsAndReplacement = False
-admitsSpan Prevention ControlGrantAndPermission = False
-admitsSpan Prevention GrantsRestrictionsControlAndPermission = False
-admitsSpan Prevention PermissionOnly = False
-admitsSpan Conditional Unattested = False
-admitsSpan Conditional Unclaimed = False
-admitsSpan Conditional GrantsAndControl = False
-admitsSpan Conditional GrantsTypesControlReplacementAndPermission = False
-admitsSpan Conditional KeywordGrantOnly = False
-admitsSpan Conditional RestrictionsShieldsPermissionsAndDelays = False
-admitsSpan Conditional GrantsRestrictionsAndReplacement = False
-admitsSpan Conditional ControlGrantAndPermission = False
-admitsSpan Conditional GrantsRestrictionsControlAndPermission = False
-admitsSpan Conditional PermissionOnly = False
-admitsSpan PlayPermission Unattested = False
-admitsSpan PlayPermission Unclaimed = False
-admitsSpan PlayPermission GrantsAndControl = False
-admitsSpan PlayPermission GrantsTypesControlReplacementAndPermission = True
-admitsSpan PlayPermission KeywordGrantOnly = False
-admitsSpan PlayPermission RestrictionsShieldsPermissionsAndDelays = True
-admitsSpan PlayPermission GrantsRestrictionsAndReplacement = False
-admitsSpan PlayPermission ControlGrantAndPermission = True
-admitsSpan PlayPermission GrantsRestrictionsControlAndPermission = True
-admitsSpan PlayPermission PermissionOnly = True
-admitsSpan EntryRider Unattested = False
-admitsSpan EntryRider Unclaimed = False
-admitsSpan EntryRider GrantsAndControl = False
-admitsSpan EntryRider GrantsTypesControlReplacementAndPermission = False
-admitsSpan EntryRider KeywordGrantOnly = False
-admitsSpan EntryRider RestrictionsShieldsPermissionsAndDelays = False
-admitsSpan EntryRider GrantsRestrictionsAndReplacement = False
-admitsSpan EntryRider ControlGrantAndPermission = False
-admitsSpan EntryRider GrantsRestrictionsControlAndPermission = False
-admitsSpan EntryRider PermissionOnly = False
--- The cost statement writes NO adverbial, and the row is all False on a
--- measurement rather than on a principle. Of six hundred and fifty-three
--- supported cost-modification lines, exactly ONE carries a duration --
--- "Spells with the chosen name cost {1} less to cast this turn" (Cheering
--- Fanatic), which is unwritable for its chosen-name subject anyway -- and
--- flipping its cell would rename a `SpanUse` row that currently tells the
--- truth about which constructions write "this turn". So the one line is
--- recorded rather than admitted (ledger), and the two "during your turn"
--- lines are not durations at all but a window on when the reduction
--- applies.
-admitsSpan CostModification Unattested = False
-admitsSpan CostModification Unclaimed = False
-admitsSpan CostModification GrantsAndControl = False
-admitsSpan CostModification GrantsTypesControlReplacementAndPermission = False
-admitsSpan CostModification KeywordGrantOnly = False
-admitsSpan CostModification RestrictionsShieldsPermissionsAndDelays = False
-admitsSpan CostModification GrantsRestrictionsAndReplacement = False
-admitsSpan CostModification ControlGrantAndPermission = False
-admitsSpan CostModification GrantsRestrictionsControlAndPermission = False
-admitsSpan CostModification PermissionOnly = False
-
-||| Whether a construction can write NO duration at all. A grant can: the
-||| unwritten span is [CR#611.2a]'s end-of-game default, which the guide
-||| permits where the effect is "intentionally indefinite under the
-||| rules" (Through the Breach's bare "It gains haste."). A restriction
-||| cannot — a durationless "can't" is the STATIC ability line
-||| ("Enchanted creature can't attack", Pacifism), a different
-||| construction and the parked ability layer's, so the whole clause is
-||| unwritable here rather than the span being optional (`badStaticCant`).
-|||
-||| The type addition and the control grant answer `True`, and there the
-||| unwritten span is the NORM rather than the exception: most "in
-||| addition to its other types" lines and the bare "Gain control of
-||| target creature." state no duration, with Memnarch and Phyrexian
-||| Infiltrator printing [CR#611.2a]'s default out loud in reminder text —
-||| "(This effect lasts indefinitely.)"
-|||
-||| Both SHIELD rows answer `False`, for the deed restriction's reason
-||| exactly: a durationless interception or shield is the STATIC ABILITY
-||| line and not a clause at all. [CR#603.6d] says so for the entry riders
-||| in as many words and [CR#611.3] for the rest — a continuous effect
-||| from a static ability carries no duration because it lasts while the
-||| ability functions. The corpus divides on the same line: every one-shot
-||| interception and every one-shot shield states a span, while the
-||| durationless "Prevent all …" lines are static abilities to a line and
-||| the standing interceptions are the permanent's own ability. So the
-||| whole clause is unwritable here rather than the span being optional
-||| (`badStandingIntercept`, `badStandingPrevention`).
-public export
-absentOk : StaticKind -> Bool
-absentOk PtDelta = True
-absentOk KeywordGrant = True
-absentOk DeedRestriction = False
-absentOk TypeAddition = True
-absentOk ControlGrant = True
-absentOk Replacement = False
-absentOk Prevention = False
--- The three new rows answer `False` for the restriction's reason taken
--- one step further: they are not clause constructions at all. A
--- durationless "as long as" static, a durationless entry rider and a
--- durationless play permission are each the static ABILITY line and
--- nothing else, so there is no `Continuously` clause for the span to be
--- absent from (`badConditionalClause`, `badEntryRiderClause`,
--- `badStandingPermission`). The PERMISSION is the sharpest of the three
--- because it writes spans freely as a clause and states none at all only
--- when it is a card's own line ("You may cast this card from your
--- graveyard").
-absentOk Conditional = False
-absentOk PlayPermission = False
-absentOk EntryRider = False
--- A fourth row with the same answer for the same reason: every cost
--- statement in the corpus is a static ability's own LINE ("Noncreature
--- spells cost {1} more to cast"), never a clause a resolution
--- establishes, so there is no `Continuously` for its span to be absent
--- from (`badCostClause`).
-absentOk CostModification = False
-
-||| Whether English writes this static effect as a bare ability LINE —
-||| the OTHER reader of the same axis. [CR#604.1] says what the line is
-||| ("static abilities … are written as statements, and they're simply
-||| true") and [CR#611.3b] says why it states no duration (the continuous
-||| effect "applies at all times that the permanent generating it is on
-||| the battlefield"), so the question is only which of these effects
-||| English is willing to state.
-|||
-||| Nine of the ten rows answer yes, and the one that says no says
-||| something about ENGLISH rather than about the effect. The ability line
-||| and the resolving clause differ in ASPECT, not in vocabulary: the
-||| clause is an instruction and takes the inchoative verb, the line is a
-||| statement and takes the stative one — "Target creature gains flying
-||| until end of turn" against "Creatures you control have haste",
-||| "becomes an Island in addition to its other types" against "are the
-||| chosen type in addition to their other types". The stat delta and the
-||| deed restriction write ONE word in both frames ("get", "can't")
-||| because English has no separate inchoative for them, which is why the
-||| split was invisible until a construction needed both.
-|||
-||| `ControlGrant` is the row that says no, and the reason is that the
-||| stative form of "gain control of" is a different VERB. English writes
-||| the standing fact as "You control enchanted creature" and writes
-||| "gains control of" as a durationless line zero times, so the line is a
-||| construction this row does not spell rather than an inflection of it
-||| (`badStaticGainsControl`, ledger).
-public export
-staticAsAbility : StaticKind -> Bool
-staticAsAbility PtDelta = True
-staticAsAbility KeywordGrant = True
-staticAsAbility DeedRestriction = True
-staticAsAbility TypeAddition = True
-staticAsAbility ControlGrant = False
-staticAsAbility Replacement = True
-staticAsAbility Prevention = True
-staticAsAbility Conditional = True
-staticAsAbility PlayPermission = True
-staticAsAbility EntryRider = True
-staticAsAbility CostModification = True
-
-||| Which zones a play permission names as its source ([CR#604.6] — a
-||| static ability of this shape "appl(ies) while a card is in any zone
-||| that you could cast or play it from"). Full rows over the five zones
-||| and the silence, because the permission's own phrase is what places
-||| its card: the impulse family exiles first and then permits, the
-||| graveyard family names the zone in the permission ("You may cast this
-||| card from your graveyard"), the library family names the top, and the
-||| hand is the rules' own default, named per card type ([CR#302.1] for a
-||| creature, [CR#305.1] for a land). The BATTLEFIELD is the one refusal
-||| and it is a rules fact rather than a count: a permanent on the
-||| battlefield has already been played (`badPlayFromBattlefield`).
-||| Silence passes for `zoneFits`' reason — an untracked referent asserts
-||| nothing about where it is.
-public export
-playableFrom : Maybe Zone -> Bool
-playableFrom Nothing = True
-playableFrom (Just Battlefield) = False
-playableFrom (Just Graveyard) = True
-playableFrom (Just Exile) = True
-playableFrom (Just Hand) = True
-playableFrom (Just Library) = True
--- The STACK is the second refusal and it is the battlefield's reason
--- exactly one step earlier: [CR#112.1] makes an object there a spell,
--- and a spell has already been cast. [CR#113.6d,113.6e] are the near
--- miss and worth naming — an ability that modifies what its own object
--- costs to cast, or restricts how it can be cast, "functions on the
--- stack" — but that is a cost or a restriction functioning there, not a
--- permission to cast something already on it (`badPlayFromStack`).
-playableFrom (Just Stack) = False
-
-public export
-data PlayableFrom : Maybe Zone -> Type where
-  MkPlayableFrom : {auto 0 ok : playableFrom z = True} -> PlayableFrom z
-
-||| The verb's demand on its complement, as a witness named apart so a
-||| pin says which of the permission's two questions refused.
-public export
-data CastableTy : PlayVerb -> Maybe CardType -> Type where
-  MkCastableTy : {auto 0 ok : castableTy v ty = True} -> CastableTy v ty
-
-||| Which adverbial a DELAYED trigger states as its duration
-||| ([CR#603.7b] — it "will trigger only once … unless it has a stated
-||| duration, such as 'this turn'"). The rule names the phrase and the
-||| corpus writes no other. Full rows over `SpanUse`, so a new adverbial
-||| class declares this reader too, and every class but the current-turn
-||| one is `False` — the delayed clause writes no boundary endpoint and no
-||| for-as-long-as ([CR#611.2b]'s adverbial belongs to a continuous
-||| effect, and a delayed trigger is not one).
-public export
-admitsDelaySpan : SpanUse -> Bool
-admitsDelaySpan Unattested = False
-admitsDelaySpan Unclaimed = False
-admitsDelaySpan GrantsAndControl = False
-admitsDelaySpan GrantsTypesControlReplacementAndPermission = False
-admitsDelaySpan KeywordGrantOnly = False
-admitsDelaySpan RestrictionsShieldsPermissionsAndDelays = True
-admitsDelaySpan GrantsRestrictionsAndReplacement = False
-admitsDelaySpan ControlGrantAndPermission = False
-admitsDelaySpan GrantsRestrictionsControlAndPermission = False
-admitsDelaySpan PermissionOnly = False
-
-||| How an indefinite phrase MARKS its choice method — the axis three
-||| constructors used to spell three times. Choice method is surface data
-||| (finding 11): no CR rule derives a chooser, so what the grammar
-||| records is what the text writes, and the phrase itself is one
-||| determiner throughout ("a …", article and all).
-|||
-||| Core keeps the same axis off the choice itself: `Binder::ChooseOne`
-||| carries the filter and a separate `by` slot naming who chooses,
-||| defaulting to the controller and OVERRIDDEN for the foreign chooser
-||| ("that player sacrifices a creature of their choice",
-||| [CR#608.2d,701.21a], `binder.rs`), while the chooserless form is a
-||| different constructor entirely (`Selection::Random`, `selection.rs`).
-||| `Unmarked` is core's elided `by`, `TheirChoice` its override,
-||| `AtRandom` its random sibling.
-|||
-||| `TheirChoice` carries the pronoun's own obligation: "their" is a
-||| POSSESSIVE, so it needs exactly one player antecedent — a singular
-||| subject or one distributive group (`countChoosers`,
-||| `badUnboundTheirChoice`). A NOMINAL chooser slot mirroring core's
-||| `by: Reference` waits on the plural player read the distributive
-||| antecedent would need (ledger).
-public export
--- spelling: (construction-owned catalog -- each row is the ADVERBIAL an
--- indefinite phrase writes after its noun, and each is spelled through
--- its own macro: Unmarked = `a` (no adverbial), TheirChoice =
--- `aTheirChoice`'s "of their choice", AtRandom = `aAtRandom`'s "at
--- random". Never spelled alone -- see Experimental.Macros)
-data ChoiceMode : Bindings -> Type where
-  Unmarked : ChoiceMode bs
-  TheirChoice : {auto 0 ch : countChoosers bs = 1} -> ChoiceMode bs
-  AtRandom : ChoiceMode bs
-
--- ===== The grammar (mutual: types thread contexts through VALUES) =====
-
-||| WHICH zones English writes a possessor for — the closed table behind
-||| the owned zone phrase, and [CR#400.1] is the whole of it: "Each player
-||| has their own library, hand, and graveyard. The other zones are shared
-||| by all players." So "your hand" and "an opponent's graveyard" are
-||| phrases and "your battlefield" is not, and the reason is a fact about
-||| the ZONE rather than about the phrase that names it. A new shared zone
-||| declares its absence by having no row to write.
-public export
-data Possessable : Zone -> Type where
-  HandIsOwned : Possessable Hand
-  GraveyardIsOwned : Possessable Graveyard
-  LibraryIsOwned : Possessable Library
 
 mutual
   ||| Whether a zone phrase writes a possessor, and who: the two axes
@@ -4933,6 +509,70 @@ mutual
     -- postnominal qualifier per hasHead)
     Compare : (c : Characteristic) -> (r : Comparator) -> (bound : Amount bs) ->
               {auto 0 cb : ComparableBound bound} -> Predicate bs Object
+    -- "with the greatest power among creatures they control" / "with the
+    -- most life" -- the SUPERLATIVE noun-modifier, and `Compare`'s
+    -- set-relative twin: where that frame bounds a number against a
+    -- standard written beside it, this one bounds it against a fold of the
+    -- candidate's OWN set, so the phrase picks the extreme member out of a
+    -- group instead of filtering on a threshold. A hundred and five
+    -- supported lines write it, seventy-two of them as a card's own line
+    -- and thirty-three inside bolster's and dethrone's reminder text.
+    --
+    -- The DOMAIN is its own argument and not the head's description, which
+    -- is measured rather than assumed: "draw a card if you control a
+    -- creature with the greatest power among creatures ON THE BATTLEFIELD"
+    -- (High Score, Primal Empathy, Éomer of the Riddermark, Historian's
+    -- Wisdom) folds over a set strictly wider than the phrase it modifies,
+    -- so a row reading its siblings would say something four cards do not.
+    -- Where the two DO coincide English writes it either way -- "a creature
+    -- with the greatest power among creatures they control" beside "a
+    -- creature they control with the greatest power" (Tariff) -- and those
+    -- are one term under two spellings.
+    -- It takes `Aggregate`'s own slot demands for `Aggregate`'s reasons
+    -- (`Headed`, `AnyTargetFree`, `projScope ax = k`), because the fold it
+    -- writes IS that fold; what it adds is the element pick, which only the
+    -- extremes admit (`IsExtremal`).
+    --
+    -- ONE row at BOTH sorts, and this is where the grammar passes its own
+    -- prior art. Core's element-picking `Selection::Pick` is pinned to
+    -- objects -- a `Players`-sourced pick fizzles and the engine says why
+    -- in its own words, "no player-`Pick` consumer exists"
+    -- (`deckmaste_engine/src/resolve/query.rs`) -- and the old `Semantics`
+    -- module pins its twin to `Projection b AnObject`. Both cover the
+    -- object-headed lines and neither covers the twenty-five player-headed
+    -- ones, which is why core's one live player selection is hand-composed
+    -- out of a comparison against a fold (`Wild Dogs.ron`). Indexing at
+    -- `{k : Kind}` over `projScope` costs nothing here and reaches both.
+    -- No CR rule defines the construction. Two keywords are worded with it
+    -- and define only themselves -- bolster's "Choose a creature you control
+    -- with the least toughness or tied for least toughness among creatures
+    -- you control" ([CR#701.39a]) and dethrone's "Whenever this creature
+    -- attacks the player with the most life or tied for most life"
+    -- ([CR#702.105a]) -- and the rules elsewhere USE it without saying what
+    -- it means ([CR#714.2d]), which is finding 398's pattern exactly.
+    -- TIES are the row's own semantics and need no machinery: the phrase
+    -- denotes every member whose number equals the fold, so bolster's and
+    -- dethrone's "or tied for most life" states the denotation rather than
+    -- widening it. Twenty-five lines write the clause and eighty write
+    -- the same construction without it, and the corpus proves them one cell
+    -- twice over -- Drop of Honey and Porphyry Nodes write "the creature
+    -- with the least power" bare and then an explicit sentence for the tie,
+    -- and Abzan Beastmaster writes "the creature with the greatest
+    -- toughness or tied for the greatest toughness" of the same set. One
+    -- cell, two spellings, chapter forty-five's bare-each ruling at a third
+    -- site; the rendering writes the bare superlative.
+    -- spelling: ["with the <Param(0)/Param(1)'s word> <Param(1)'s stat
+    -- word> among <Param(2)>"] -- the extremal word is `AggregateOp`'s own
+    -- table over the stat word (see AggregateOp) and the "among" complement
+    -- is left unwritten when the domain repeats the phrase's own
+    -- description ("destroy the creature with the least power"), kind:
+    -- TODO(reason: non-head postnominal qualifier per hasHead, as Compare)
+    Superlative : {k : Kind} -> (op : AggregateOp) -> (ax : ProjAxis) ->
+                  (dom : Predicate bs k) ->
+                  {auto 0 ex : IsExtremal op} ->
+                  {auto 0 sc : projScope ax = k} ->
+                  {auto 0 hd : Headed dom} ->
+                  {auto 0 af : AnyTargetFree dom} -> Predicate bs k
     -- spelling: ["in <Param(0)>"] (also "from <Param(0)>", see comment),
     -- kind: Nominal (hasHead = True; implicit head is the zone's carrier,
     -- e.g. "a card in your hand")
@@ -5333,6 +973,11 @@ mutual
   -- target creature card with power 2 or less from your graveyard to the
   -- battlefield" is ordinary oracle and no zone seed may refuse it.
   seedType (Compare c _ _) = comparedType c
+  -- the superlative projects its AXIS's type for `Compare`'s reason:
+  -- power and toughness are a creature's numbers ([CR#208.1]) whatever
+  -- frame reads them, and a mana value is every object's ([CR#202.3]).
+  seedType (Superlative _ (CharAxis c) _) = comparedType c
+  seedType (Superlative _ (PlayerStatAxis _) _) = Nothing
   -- a subtype word presupposes the card type whose closed set it comes
   -- from ([CR#205.1a]; [CR#205.3m] makes every row here a creature type).
   -- It presupposes no ZONE: a Zombie card in a graveyard is still a
@@ -5405,6 +1050,10 @@ mutual
   hasHead IsToken = True
   hasHead (HasStatus _) = False
   hasHead (Compare _ _ _) = False
+  -- a postnominal qualifier, `Compare`'s answer: "the greatest power
+  -- among creatures you control" describes no head of its own and the
+  -- phrase it modifies supplies one.
+  hasHead (Superlative _ _ _) = False
   hasHead (InZone _) = True
   -- the linkage read heads its phrase for `InZone`'s reason exactly:
   -- the exile zone's carrier noun is "card" ([CR#406.2]), so "a card
@@ -5437,6 +1086,41 @@ mutual
   public export
   data Headed : Predicate bs k -> Type where
     MkHeaded : {auto 0 ok : hasHead p = True} -> Headed p
+
+  ||| Does this phrase pick out ONE thing by what it SAYS? The definite
+  ||| article's licence, and the only question `Definite` asks that the
+  ||| indefinite beside it does not.
+  |||
+  ||| English writes "the" over a description when the description is
+  ||| uniquely identifying, and in this corpus exactly one modifier makes a
+  ||| description so: the superlative, which names the extreme of a set and
+  ||| therefore at most one member of it. Everything else is False, and the
+  ||| measurement is what makes that honest rather than cautious -- the
+  ||| corpus writes a bare "the creature", "the player" or "the card" some
+  ||| three hundred and ninety times and every one of them READS BACK a
+  ||| mention already made ("Anowon, the Ruin Thief": "If the player mills
+  ||| at least one card"), which is `That`'s and `It`'s and `They`'s row and
+  ||| not a determiner over a description at all (`badBareDefinite`).
+  ||| ANY member of a conjunction licenses it, `hasHead`'s own answer at the
+  ||| same shape: one uniquifying modifier plus its siblings is still one
+  ||| description of one thing. A DISJUNCTION does not, and that is not
+  ||| caution either -- two uniquifying alternatives describe up to two
+  ||| things -- and the corpus writes none.
+  public export
+  uniquifiesAny : {0 bs : Bindings} -> {0 k : Kind} ->
+                  List (Predicate bs k) -> Bool
+  uniquifiesAny [] = False
+  uniquifiesAny (p :: ps) = uniquifies p || uniquifiesAny ps
+
+  public export
+  uniquifies : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  uniquifies (Superlative _ _ _) = True
+  uniquifies (And ps) = uniquifiesAny ps
+  uniquifies _ = False
+
+  public export
+  data Uniquifying : Predicate bs k -> Type where
+    MkUniquifying : {auto 0 ok : uniquifies p = True} -> Uniquifying p
 
   ||| Every member of a conjunction, nested conjunctions flattened — the
   ||| member scan the coherence gates share, so a clash one level down is
@@ -5606,6 +1290,12 @@ mutual
   predEq (Compare c r b) (Compare d s e) = sameChar c d && sameCmp r s &&
                                            boundEq b e
   predEq (Compare _ _ _) _ = False
+  -- conservative in the domain, `boundEq`'s posture at the neighbouring
+  -- row: two superlatives are the same modifier when their op, axis and
+  -- domain all are, and the domain is compared structurally.
+  predEq (Superlative o a d) (Superlative p b e) =
+    sameAggregateOp o p && sameProjAxis a b && predEq d e
+  predEq (Superlative _ _ _) _ = False
   predEq (InZone z) (InZone w) = sameZone (zoneSort z) (zoneSort w)
   predEq (InZone _) _ = False
   -- member by member, in order: a structured alternative repeated word
@@ -5978,6 +1668,11 @@ mutual
   public export
   isComparison : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isComparison (Compare _ _ _) = True
+  -- the superlative IS a bound on the phrase's own number, so it shares
+  -- the at-most-one discipline: no supported line writes a numeric bound
+  -- and a superlative in one phrase, and none writes two superlatives
+  -- (`badSuperlativeAndBound`, `badDoubleSuperlative`).
+  isComparison (Superlative _ _ _) = True
   isComparison _ = False
 
   public export
@@ -6241,6 +1936,7 @@ mutual
   negatable IsToken = True
   negatable (HasStatus _) = False
   negatable (Compare _ _ _) = False
+  negatable (Superlative _ _ _) = False
   negatable (InZone _) = True
   negatable (And _) = False
   negatable (Or _) = False
@@ -6293,6 +1989,7 @@ mutual
   predSays IsToken = True
   predSays (HasStatus _) = True
   predSays (Compare _ _ _) = True
+  predSays (Superlative _ _ _) = True
   predSays (InZone _) = True
   predSays (And ps) = predSaysAny ps
   predSays (Or _) = True
@@ -6352,6 +2049,7 @@ mutual
   predNegFree IsToken = True
   predNegFree (HasStatus _) = True
   predNegFree (Compare _ _ _) = True
+  predNegFree (Superlative _ _ _) = True
   predNegFree (InZone _) = True
   predNegFree (And ps) = predNegFreeAll ps
   predNegFree (Or ps) = predNegFreeAll ps
@@ -6410,6 +2108,7 @@ mutual
   -- when the bound admitted reads, and the row re-answers the question
   -- through the amount exactly as the comment there promised it would.
   anyTargetFree (Compare _ _ b) = amtAnyTargetFree b
+  anyTargetFree (Superlative _ _ d) = anyTargetFree d
   anyTargetFree (InZone z) = zoneAnyTargetFree z
   anyTargetFree (And ps) = anyTargetFreeAll ps
   -- the alternatives are scanned exactly as conjuncts are: the class
@@ -6514,9 +2213,10 @@ mutual
     -- spelling: ["~"], kind: Nominal (matches constructors.ron's `This`
     -- entry exactly -- nullary self-reference sigil)
     This : Noun bs Object       -- the source, by self-name or "this spell" [CR#113.7]
-    -- the TYPE ASCRIPTION: a noun read under a card-type word, which is
-    -- what "this artifact"/"this land"/"this creature" is -- `This`'s
-    -- identity plus a type noun, two axes and not one constructor. Core
+    -- the TYPE ASCRIPTION: a noun read under a type word, which is what
+    -- "this artifact"/"this land"/"this creature"/"this Aura" is --
+    -- `This`'s identity plus a type noun, two axes and not one
+    -- constructor. Core
     -- keeps identity type-free (`Reference::This` carries nothing,
     -- `reference.rs`), so the type word is this layer's business, and the
     -- projections it earns are the type word's: it names the head type,
@@ -6530,13 +2230,34 @@ mutual
     -- artifact" leaves a referent the effect's "It" can read ([CR#400.7j]
     -- is the exception letting the effect find it). WHICH nouns take an
     -- ascription is a closed table (`Ascribable`).
-    -- spelling: (construction-owned -- the card-type word read over its
+    -- WHICH WORD ascribes is `ascriptionOk`, and it is one table over
+    -- both halves of [CR#109.2]'s own phrase, "a card type or subtype".
+    -- The rule states one construction and this row is it: a subtype word
+    -- projects onto the battlefield by the same sentence that puts a card
+    -- type word there, so a sibling constructor would have restated the
+    -- projection doctrine rather than added to it. The subtype rides as a
+    -- DEFAULTED slot, `Nothing` at every card-type call site, so the four
+    -- macros and every term written before this chapter are unchanged.
+    -- Under a subtype the card type is still written and [CR#205.3c]
+    -- checks it: each subtype is correlated to its own card type, so the
+    -- pair must agree and every reader below -- `nounTy`, `moveIntro`,
+    -- `selfSubjIntro` -- keeps reading the card type it always read. The
+    -- corpus writes exactly nine subtype words here and no creature type
+    -- among them, which is what keeps `Subtype` membership from being the
+    -- licence (`ascribesAsSubtype`).
+    -- spelling: (construction-owned -- the type word read over its
     -- argument's own phrase; at the source that is "this <Param(0)>",
-    -- constructors.ron's `This` sigil under a type word, and the
-    -- macros own it: thisCreature/thisArtifact/thisEnchantment/thisLand),
+    -- constructors.ron's `This` sigil under a type word, and the macros
+    -- own it: thisCreature/thisArtifact/thisEnchantment/thisLand,
+    -- thisAura/thisEquipment. The word's CASE follows the table it comes
+    -- from and nothing else -- a card type is written lowercase ("this
+    -- creature") and a subtype capitalised ("this Aura"), which is a
+    -- spelling fact about the two catalogs, not a choice this row makes.)
     -- kind: Nominal
     AsType : (t : CardType) -> (n : Noun bs Object) ->
-             {auto 0 asc : Ascribable n} -> Noun bs Object
+             {default Nothing sub : Maybe Subtype} ->
+             {auto 0 asc : Ascribable n} ->
+             {auto 0 way : ascriptionOk t sub = True} -> Noun bs Object
     -- spelling: ["you"], kind: Nominal (matches constructors.ron's `You`
     -- entry exactly)
     You : Noun bs Player        -- "you" [CR#109.5]
@@ -6589,6 +2310,40 @@ mutual
                  {auto ph : Phrasal k} ->
                  {auto 0 hd : Headed p} ->
                  {auto 0 af : AnyTargetFree p} -> Noun bs k
+    -- "the player with the most life" / "the creature with the least
+    -- power" -- the DEFINITE description, `Indefinite`'s neighbour and the
+    -- determiner this grammar has gone without because nothing licensed it.
+    -- Thirty-five of the superlative modifier's hundred and five lines
+    -- write it, including twenty of the twenty-five player-headed ones and
+    -- the whole of dethrone's family, so the article is the family's
+    -- dominant cell rather than a corner of it.
+    -- WHICH article a line writes is NOT derivable, and a crossing pair
+    -- settles it: Adamaro, First to Desire reads "the number of cards in
+    -- the hand of THE opponent with the most cards in hand" and Roiling
+    -- Horror reads "the life total of AN opponent with the most life" --
+    -- same head class, same possessive-read environment, same superlative
+    -- shape, opposite articles. So finding 275's test fails here in the
+    -- direction that mints a row rather than a table, and it is what makes
+    -- the superlative a MODIFIER instead of a noun of its own: the corpus
+    -- writes it under four determiners (the 35, a/an 58, each 8, target 4),
+    -- and a noun row carrying its own article would have had to reproduce
+    -- the announcement, the choice mode and the distributive beside it.
+    -- The LICENCE is the whole of what this row adds (`Uniquifying`): a
+    -- definite over a bare description would spell "destroy the creature",
+    -- which is not English and not what the corpus's three hundred-odd bare
+    -- definites are (they read back a mention -- see `uniquifies`).
+    -- It announces, TheD and singular. Ties do not change the number: the
+    -- phrase is grammatically one thing, and where two answer it the card
+    -- says so in a sentence of its own ("If two or more creatures are tied
+    -- for least power, you choose one of them", Drop of Honey) -- which is
+    -- also why the mention it leaves is readable, Drop of Honey's next
+    -- clause being "It can't be regenerated".
+    -- spelling: ["the <Param(0)>"], kind: Nominal
+    Definite : (p : Predicate bs k) ->
+               {auto ph : Phrasal k} ->
+               {auto 0 hd : Headed p} ->
+               {auto 0 af : AnyTargetFree p} ->
+               {auto 0 uq : Uniquifying p} -> Noun bs k
     -- "[quantity] target [pred]": the counted target mention -- one
     -- binding, announced [CR#601.2c], and only objects and players are
     -- targetable ([CR#115.1] -- `badTargetColor`). ONE constructor serves
@@ -6805,6 +2560,7 @@ mutual
   nounEqRef (PlayerGroup _) _ = False
   nounEqRef (Each _) _ = False
   nounEqRef (Indefinite _ _) _ = False
+  nounEqRef (Definite _) _ = False
   nounEqRef (TargetGroup _ _) _ = False
   nounEqRef (AllOf _) _ = False
   nounEqRef (EachOf _) _ = False
@@ -6840,6 +2596,7 @@ mutual
   nounAnyTargetFree (PlayerGroup _) = True
   nounAnyTargetFree (Each p) = anyTargetFree p
   nounAnyTargetFree (Indefinite m p) = anyTargetFree p
+  nounAnyTargetFree (Definite p) = anyTargetFree p
   nounAnyTargetFree (TargetGroup _ p) = anyTargetFree p
   nounAnyTargetFree (AllOf p) = anyTargetFree p
   nounAnyTargetFree (EachOf grp) = nounAnyTargetFree grp
@@ -6919,6 +2676,11 @@ mutual
   nounDelta (PlayerGroup _) = []
   nounDelta (Each p {ph}) = bindFor EachD ManyOf ph p :: predDelta p
   nounDelta (Indefinite m p {ph}) = bindFor AD OneOf ph p :: predDelta p
+  -- the definite announces exactly as the indefinite does, under its own
+  -- determiner: Drop of Honey's "destroy the creature with the least
+  -- power. It can't be regenerated." reads the mention back one clause
+  -- later, which is what a determiner over a description is for.
+  nounDelta (Definite p {ph}) = bindFor TheD OneOf ph p :: predDelta p
   nounDelta (TargetGroup q p {tk}) = bindFor TargetD (quantPlur q) (targetablePhrasal tk) p :: predDelta p
   nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
   -- the determiner announces NOTHING of its own: "each of them" and
@@ -6996,6 +2758,9 @@ mutual
   -- anchored complement carries its anchor's. Every written bound answers
   -- with the empty list, so nothing that composed before moves.
   predDelta (Compare _ _ b) = amtDelta b
+  -- the domain is a DESCRIPTION and mentions inside it fold exactly as
+  -- they do inside `CountOf`'s and `Aggregate`'s.
+  predDelta (Superlative _ _ d) = predDelta d
   predDelta _ = []
 
   public export
@@ -7251,11 +3016,21 @@ mutual
     -- fragment, see Lit)
     Plus : (a : Amount bs) -> Amount (amtIntro a) -> Amount bs
     -- "[a] minus [b]" -- the DIRECTIONAL difference, `Plus`'s twin in every
-    -- part including the threading order, and floored at zero: a
-    -- calculation that would yield a negative number uses zero instead
-    -- ([CR#107.1b], whose carve-out is for doubling, tripling and SETTING a
-    -- life total or a creature's power and toughness -- none of which is an
-    -- amount). Core is `Count::Minus(a, b)` with the same floor stated in
+    -- part including the threading order, and floored at zero WHERE THE
+    -- CONSUMING EFFECT IS NOT ONE OF [CR#107.1b]'S THREE: a calculation that
+    -- would yield a negative number uses zero instead "unless that effect
+    -- doubles, triples, or sets to a specific value a player's life total
+    -- or the power and/or toughness of a creature or creature card". The
+    -- floor is therefore a fact about the CONSUMER and not about this row,
+    -- and the layer words are where the difference shows: the same term
+    -- under `ChangeLife` or `Draw` is floored, and under `DefinesPt` it is
+    -- not -- Scourge of the Skyclaves's "20 minus the highest life total
+    -- among players" is a -1/-1 creature against a 21-life opponent, which
+    -- is exactly the negative game value [CR#107.1b]'s own first sentences
+    -- allow. (This comment claimed the floor unconditionally until the
+    -- layer-words round measured its own carve-out; the row is unchanged,
+    -- the reading is corrected.)
+    -- Core is `Count::Minus(a, b)` with the same floor stated in
     -- the same words (`deckmaste_core/src/count.rs`), saturating in the
     -- evaluator with a test that asserts two minus five is zero
     -- (`resolve/count.rs`), and -- the decisive part -- the plugin's Idris
@@ -7530,24 +3305,41 @@ mutual
   data ComparableBound : Amount bs -> Type where
     MkComparableBound : {auto 0 ok : comparableBound b = True} -> ComparableBound b
 
-  ||| May this amount DEFINE a letter? Everything a sentence can compute,
-  ||| and nothing it has already written: "where X is 4" is written zero
-  ||| times because the numeral would say it, and "where X is X" is
-  ||| written zero times because it would say nothing (`badWrittenXDef`).
-  ||| The complement of `writtenBound` at a third question, which is what
-  ||| makes the rider's own reason legible — a rider is worth writing
-  ||| exactly when the value has to be worked out.
-  ||| Every attested right side passes: the counts and the stat reads,
-  ||| and the arithmetic too ("1 plus the number of basic land types",
-  ||| "the number of cards in your hand minus 4", "twice the number of
-  ||| Foods you control").
+  ||| May this amount DEFINE something the card would otherwise print?
+  ||| Everything a sentence can compute, and nothing it has already
+  ||| written. The complement of `writtenBound` at a third question, which
+  ||| is what makes the rider's own reason legible — a definition is worth
+  ||| writing exactly when the value has to be worked out.
+  |||
+  ||| TWO readers ask it, and both are measured. The definition RIDER is
+  ||| the first: "where X is 4" is written zero times because the numeral
+  ||| would say it, and "where X is X" zero times because it would say
+  ||| nothing (`badWrittenXDef`). The characteristic-defining ABILITY is
+  ||| the second and answers the same way for [CR#208.2a]'s own reason —
+  ||| the star in the power/toughness box stands where a number would be,
+  ||| so a definition that wrote a number would be a card printing the
+  ||| number twice: "power and toughness are each equal to 3" is zero
+  ||| supported lines and "each equal to X" zero as well
+  ||| (`badWrittenPtDefinition`).
+  ||| Every attested right side passes at both: the counts and the stat
+  ||| reads, and the arithmetic too ("1 plus the number of basic land
+  ||| types", "the number of cards in your hand minus 4", "twice the
+  ||| number of Foods you control", "20 minus the highest life total among
+  ||| players").
   public export
   letterDefines : {0 bs : Bindings} -> Amount bs -> Bool
   letterDefines d = not (writtenBound d)
 
+  ||| The two demands as witnesses, named apart so a pin says which
+  ||| question refused (the `TokenTyped`/`TokenPt` discipline over one
+  ||| shared test).
   public export
   data LetterDefinition : Amount bs -> Type where
     MkLetterDefinition : {auto 0 ok : letterDefines d = True} -> LetterDefinition d
+
+  public export
+  data DefiningValue : Amount bs -> Type where
+    MkDefiningValue : {auto 0 ok : letterDefines d = True} -> DefiningValue d
 
   ||| A noun phrase that contributes NOTHING to the discourse — every read,
   ||| and the bare source; never a determined mention. Re-keyed onto
@@ -7589,6 +3381,10 @@ mutual
   anchorPhrase (PlayerGroup _) = True
   anchorPhrase (Each _) = False
   anchorPhrase (Indefinite _ _) = False
+  -- the definite is refused for the indefinite's reason: an anchor
+  -- subtracts something already spelled, and this determiner announces a
+  -- referent of its own.
+  anchorPhrase (Definite _) = False
   anchorPhrase (TargetGroup _ _) = True
   anchorPhrase (AllOf _) = False
   anchorPhrase (EachOf _) = False
@@ -7639,8 +3435,15 @@ mutual
   public export
   data LinkSource : Noun bs k -> Type where
     SelfLinked : LinkSource This
+    -- the CARD TYPE half of the ascription only, and that is measured
+    -- rather than assumed: "cards exiled with this Saga" (six lines),
+    -- "this Vehicle" (three) and "this Class" (one) write the linkage
+    -- under a subtype word, but neither rowed subtype does -- "exiled with
+    -- this Aura" and "exiled with this Equipment" are zero apiece. The
+    -- cell opens with the row, not before it (queue).
     SortedSelfLinked : {0 t : CardType} -> {0 asc : Ascribable This} ->
-                       LinkSource (AsType t This {asc})
+                       {0 way : ascriptionOk t Nothing = True} ->
+                       LinkSource (AsType t This {sub = Nothing} {asc} {way})
 
   ||| Which phrases a choice clause can SELECT — the introduction
   ||| discipline chapter twenty gave the indefinite article, asked of
@@ -7665,6 +3468,13 @@ mutual
   choosable (PlayerGroup _) = False
   choosable (Each _) = False
   choosable (Indefinite _ _) = True
+  -- a definite description names its referent, so a choice clause has
+  -- nothing to offer, and the corpus is exact: "choose the <superlative>"
+  -- is zero supported lines while all twenty-seven selection-verb
+  -- occurrences write the indefinite -- bolster's own "Choose a creature
+  -- you control with the least toughness" ([CR#701.39a]) and The Black
+  -- Gate's "Choose a player with the most life" (`badChooseDefinite`).
+  choosable (Definite _) = False
   choosable (TargetGroup _ _) = True
   choosable (AllOf _) = False
   choosable (EachOf _) = False
@@ -7721,6 +3531,7 @@ mutual
   groupMention (PlayerGroup _) = False
   groupMention (Each _) = False
   groupMention (Indefinite _ _) = False
+  groupMention (Definite _) = False
   groupMention (AllOf _) = False
   groupMention (EachOf _) = False
   -- the slice is THE assembled group this chapter is about: a look or a
@@ -7804,6 +3615,7 @@ mutual
   capSubjectOk (AsType _ _) = False
   capSubjectOk (Each _) = False
   capSubjectOk (Indefinite _ _) = False
+  capSubjectOk (Definite _) = False
   capSubjectOk (TargetGroup _ _) = False
   capSubjectOk (AllOf _) = False
   capSubjectOk (EachOf _) = False
@@ -7914,6 +3726,34 @@ mutual
   public export
   data CostSubject : Noun bs Object -> Type where
     MkCostSubject : {auto 0 ok : costSubjectOk n = True} -> CostSubject n
+
+  ||| WHOSE numbers a characteristic-defining ability may define: its own
+  ||| object's and nobody else's. This is a rule before it is a
+  ||| measurement -- [CR#604.3a] makes a static ability a CDA only if "it
+  ||| does not directly affect the characteristics of any other objects"
+  ||| and only if "it is printed on the card it affects" -- and the corpus
+  ||| agrees without an exception in either direction: all 142 supported
+  ||| lines writing "power and toughness are each equal to" name the SELF,
+  ||| by the card's own name in the older templating and as "this
+  ||| creature" in the current one, and a line about anything else says
+  ||| "base" instead and is the setting one row down
+  ||| (`badGrantedPtDefinition`).
+  ||| The test is `costSubjectOk`'s shape at a third site with the
+  ||| widening removed rather than added: the self is the WHOLE of it,
+  ||| through the bare source and through the sorted self the type word
+  ||| ascribes ([CR#109.2]), and every other phrase, however singular,
+  ||| names a third party.
+  public export
+  selfDefinedOk : {bs : Bindings} -> Noun bs Object -> Bool
+  selfDefinedOk This = True
+  selfDefinedOk (AsType _ n) = selfDefinedOk n
+  selfDefinedOk _ = False
+
+  ||| The definition's subject demand as a witness, so a pin says which
+  ||| question refused.
+  public export
+  data SelfDefined : Noun bs Object -> Type where
+    MkSelfDefined : {auto 0 ok : selfDefinedOk n = True} -> SelfDefined n
 
   ||| A truth-valued test a clause can be conditioned on — core's
   ||| `Condition` (`deckmaste_core/src/condition.rs`), and named after it.
@@ -8266,6 +4106,28 @@ mutual
                  {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
                  {auto 0 ss : SelfSorted m} -> BlockPartner (Just m)
 
+  ||| WHO removed it, when the sentence says. The last-counter event is
+  ||| written in two voices — "when the last time counter IS REMOVED from
+  ||| this card" (5 lines) and "when YOU REMOVE the last intervention
+  ||| counter from this enchantment" (Divine Intervention) — and the
+  ||| difference is not stylistic: the agentive form asks whose removal it
+  ||| was, so a removal by anyone else does not trigger it. The passive
+  ||| form asks nothing and fires on any.
+  ||| The whole agentive family is three lines and every one writes "you"
+  ||| (Divine Intervention here, Watcher of Hours at the non-last event,
+  ||| Immard at a kind-blind one), so the slot is optional, defaulted to
+  ||| the voice the corpus prefers, and gated to a phrase that BINDS
+  ||| NOTHING. That gate is `Matches`' own argument at an event: the
+  ||| event's context accounting is fixed by its patient (`eventIntro`,
+  ||| `eventAfter`), so an announcing agent written here would be dropped
+  ||| silently, and refusing it is the honest form of that
+  ||| (`badAnnouncingRemovalAgent`).
+  public export
+  data RemovalAgent : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
+    RemovalUnvoiced : RemovalAgent Nothing
+    RemovalVoiced : {0 w : Noun bs Player} ->
+                    {auto 0 bl : Bindingless w} -> RemovalAgent (Just w)
+
   public export
   -- spelling: (construction-owned -- the reading construction supplies the
   -- mood and the opening word: Intercepts writes "if <subject> would
@@ -8576,13 +4438,22 @@ mutual
     -- `Time` is a row and carries three of the five explicit lines; ore
     -- and refine carry one apiece and are NOT rows, so those two lines
     -- are evidence without vocabulary (finding 200's posture).
+    -- The AGENT is a defaulted slot and the row's one widening
+    -- (`RemovalAgent`): five lines write the passive and Divine
+    -- Intervention writes "when YOU remove the last intervention counter",
+    -- which asks whose removal it was. Defaulting it to `Nothing` left all
+    -- five existing call sites and both pins untouched, round thirty's
+    -- finding 464 at a second site.
     -- spelling: ["the last <Param(0)> counter is removed from <Param(1)>"]
-    -- (the finite clause the header word introduces; Param(0) =
-    -- CounterKind's own word)
+    -- passive, ["<Param(2)> removes the last <Param(0)> counter from
+    -- <Param(1)>"] when the agent is written (the finite clause the header
+    -- word introduces; Param(0) = CounterKind's own word)
     LastCounterRemoved : (kind : CounterKind) -> (n : Noun bs Object) ->
+                         {default Nothing by : Maybe (Noun bs Player)} ->
                          {auto 0 sc : counterScope kind = Object} ->
                          {auto 0 zn : CounterHolder (nounZone n)} ->
-                         {auto 0 ss : SelfSorted n} -> GameEvent bs
+                         {auto 0 ss : SelfSorted n} ->
+                         {auto 0 ag : RemovalAgent by} -> GameEvent bs
 
   ||| Which row an event pattern is, for the event tables.
   public export
@@ -8953,7 +4824,7 @@ mutual
   -- "until [poss] next [part]" — the start boundary writes no boundary
   -- word, and takes possession or the definite article, never nothing.
   spanUse (Until (StartOf Turn Nothing)) = Unattested
-  spanUse (Until (StartOf Turn (Just Yours))) = GrantsRestrictionsAndReplacement
+  spanUse (Until (StartOf Turn (Just Yours))) = GrantsRestrictionsReplacementAndBaseSet
   spanUse (Until (StartOf Turn (Just ThatPlayers))) = Unclaimed
   spanUse (Until (StartOf Upkeep Nothing)) = Unattested
   spanUse (Until (StartOf Upkeep (Just Yours))) = KeywordGrantOnly
@@ -8989,7 +4860,7 @@ mutual
   spanUse (Until (StartOf EndOfCombat (Just ThatPlayers))) = Unattested
   -- "until (the) end of [part]" — the end boundary is the one that
   -- writes bare, and the bare forms are where the grants live.
-  spanUse (Until (EndOf Turn Nothing)) = GrantsTypesControlReplacementAndPermission
+  spanUse (Until (EndOf Turn Nothing)) = GrantsTypesControlReplacementPermissionSetAndSwitch
   spanUse (Until (EndOf Turn (Just Yours))) = ControlGrantAndPermission
   spanUse (Until (EndOf Turn (Just ThatPlayers))) = Unattested
   spanUse (Until (EndOf Upkeep Nothing)) = Unattested
@@ -9355,6 +5226,127 @@ mutual
            (tou : PtShift (nomIntro n)) ->
            {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
            {auto 0 ps : PumpSigns pow tou} -> StaticEffect bs
+    -- "[self]'s power and toughness are each equal to [amount]" -- the
+    -- CHARACTERISTIC-DEFINING ability ([CR#613.4a] layer 7a, [CR#604.3]'s
+    -- own family), and the sentence the printed star stands for.
+    -- [CR#208.2a] is the defining rule and it quotes both surfaces
+    -- verbatim: such an ability "is worded '[This creature's] [power or
+    -- toughness] is equal to . . .' or '[This creature's] power and
+    -- toughness are each equal to . . .'", which is why the slot choice
+    -- is an index here and not two rows (`DefinedSlots`).
+    -- Three things separate it from the setting one row down, and the
+    -- corpus writes all three the same way on all 142 of its symmetric
+    -- lines. The SUBJECT is the self and nothing else, which is
+    -- [CR#604.3a]'s third and fourth criteria as English ("it does not
+    -- directly affect the characteristics of any other objects";
+    -- `SelfDefined`). The VALUE is worked out and never written, the star
+    -- standing where the number would be (`DefiningValue`). And there is
+    -- NO ZONE demand, which is the one place this row parts from every
+    -- other continuous effect in this vocabulary: a CDA "functions in all
+    -- zones" ([CR#604.3]) and "functions everywhere, even outside the
+    -- game" ([CR#208.2a]), so Tarmogoyf in a graveyard has the power its
+    -- own line gives it. What that rule adds instead of a gate is a
+    -- default -- a number that cannot be determined is 0 ([CR#208.2a],
+    -- [CR#107.2] at the amount layer) -- which is the engine's arithmetic
+    -- and nothing this grammar writes.
+    -- The amounts are typed in the SUBJECT's context, as the pump's are
+    -- and for the same measured reason: four supported lines read the
+    -- subject back ("the number of charge counters on it", Chimeric Mass;
+    -- Rusting Golem, Tidewalker, Mwonvuli Ooze).
+    -- WHICH LAYER the definition lands in is NOT written here and must
+    -- not be: [CR#604.3a] decides it by five criteria, of which this row
+    -- fixes two (the self subject, the printed line) and leaves the rest
+    -- to the reader that has them -- a copy effect's acquisition, a
+    -- token's grant at creation, and above all the conditional case, where
+    -- the same sentence under an "as long as" is no longer a CDA
+    -- ([CR#604.3a]'s fifth criterion) and applies in 7b instead. Core
+    -- carries exactly that split as an EXTERNAL flag on the effect rather
+    -- than on the operation (`ContinuousEffect::is_cda` choosing 7a over
+    -- 7b for one `NumericOp::Set`, `deckmaste_engine/src/layer.rs`), which
+    -- is the same answer from the other side: one statement class, and the
+    -- sublayer is arithmetic over the criteria.
+    -- spelling: ["<Param(0)>'s <Param(1)> is equal to <Param(2)>"
+    -- (PowerAlone, ToughnessAlone), "<Param(0)>'s power and toughness are
+    -- each equal to <Param(2)>" (BothEach)] (the subject writes the card's
+    -- own name in the older templating and "this creature" in the current
+    -- one; the copula agrees with the slot -- see DefinedSlots), kind:
+    -- Sentence
+    DefinesPt : (n : Noun bs Object) -> (sl : DefinedSlots) ->
+                (amt : Amount (nomIntro n)) ->
+                {auto 0 sd : SelfDefined n} ->
+                {auto 0 dv : DefiningValue amt} -> StaticEffect bs
+    -- "[n] has base power and toughness [p]/[t]" -- the base-P/T SETTING
+    -- ([CR#613.4b] layer 7b, whose second sentence names this surface
+    -- outright: "effects that refer to the base power and/or toughness of
+    -- a creature apply in this layer"). A hundred and fourteen supported
+    -- lines, and core's `NumericOp::Set(StatValue)` under the same
+    -- `Modification::Power`/`Toughness` the pump uses
+    -- (`deckmaste_core/src/continuous.rs`).
+    -- It is a ROW BESIDE the definition and not the same one wearing a
+    -- second spelling, and the evidence is a crossing pair rather than a
+    -- count. The two surfaces differ in the word "base", and nothing
+    -- already written predicts which one a line takes: Angry Mob writes a
+    -- conditional definition of ITS OWN numbers with no "base" ("During
+    -- your turn, Angry Mob's power and toughness are each equal to 2 plus
+    -- …") and Doc Ock writes a conditional setting of its own numbers WITH
+    -- it ("As long as there are eight or more cards in your graveyard, Doc
+    -- Ock has base power and toughness 8/8"), same subject class, same
+    -- rules status, opposite words. Where the spelling function cannot be
+    -- a function of what is already written, the word is a row -- finding
+    -- 275's test in the direction the cast relation ran it.
+    -- The PAIR is two amounts and not one doubled, which is the other
+    -- difference from the definition: the corpus writes asymmetric values
+    -- freely ("9/10" Almost Perfect, "5/3" Graaz, "0/2" Rowan) where the
+    -- definition's "each" can only write one number twice. `TokenChars`'
+    -- own P/T is the same pair for the same reason -- a slot that holds
+    -- "1/1" also has to hold "X/X", the letter arriving through the
+    -- definition rider (Aettir and Priwen) or announced with the cost
+    -- (Biomass Mutation, Katara) -- and one line writes the phrase
+    -- straight into the slot ("Creatures you control have base power and
+    -- toughness each equal to the number of creatures you control",
+    -- Dollmaker's Shop), which is why the slots are ungated amounts and
+    -- the glyph is the SPELLING of the two that are written as one.
+    -- The slots are typed at the incoming context, not the subject's: no
+    -- corpus line reads the subject back into a base-P/T value (the
+    -- "it"s in these lines all sit in a conjoined clause), which is the
+    -- cost statement's measured answer at a second site and the pump's
+    -- inverted.
+    -- The subject stands on the BATTLEFIELD, the demand every
+    -- characteristic-modifying continuous effect here carries
+    -- (`badBasePtInGraveyard`); [CR#208.3a] is why no creature type is
+    -- demanded of it -- an effect setting a noncreature permanent's base
+    -- power and toughness "is created even though it doesn't do anything
+    -- unless that permanent becomes a creature".
+    -- spelling: ["<Param(0)> has base power and toughness
+    -- <Param(1)>/<Param(2)>"] (the verb agrees with the subject phrase's
+    -- number, "have" for a plural class head; two written glyphs join
+    -- with a slash, and a pair of equal COMPUTED amounts writes the one
+    -- phrase instead -- "base power and toughness each equal to
+    -- <Param(1)>"; the trailing duration adverbial belongs to the
+    -- Continuously envelope, not here), kind: Sentence
+    HasBasePt : (n : Noun bs Object) -> (pow : Amount bs) -> (tou : Amount bs) ->
+                {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                StaticEffect bs
+    -- "switch [n]'s power and toughness" -- layer 7d, and the only
+    -- operation in [CR#613.4] with a sublayer to itself: such effects
+    -- "take the value of power and apply it to the creature's toughness,
+    -- and take the value of toughness and apply it to the creature's
+    -- power" ([CR#613.4d]). Core's `Modification::SwitchPowerToughness`
+    -- carries no payload for the same reason and the engine's whole
+    -- implementation is one swap (`layer.rs`).
+    -- No slots beyond the subject, and that is the row's evidence as well
+    -- as its shape: the operation takes no magnitude, the corpus writes
+    -- no partial switch, and all 25 supported lines end "until end of
+    -- turn" -- which is the whole of its span table and the reason it
+    -- never stands as an ability line (`badSwitchLine`,
+    -- `badStandingSwitch`).
+    -- spelling: ["switch <Param(0)>'s power and toughness"] (the
+    -- possessive is the subject phrase's own; the trailing duration
+    -- adverbial belongs to the Continuously envelope, not here), kind:
+    -- Sentence
+    SwitchesPt : (n : Noun bs Object) ->
+                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                 StaticEffect bs
     -- "[spell class] cost[s] [more/less] to cast" -- the cost-modification
     -- statement, and the statement CLASS the static vocabulary has been
     -- missing: chapter sixty-one went looking for a row to put twenty-five
@@ -9431,18 +5423,31 @@ mutual
     -- joins its clause with "and", as at WhereLetter), kind: Sentence
     WhereLetterStatic : (w : LetterWord) -> (def : Amount bs) ->
                         {auto 0 xd : LetterDefinition def} ->
-                        (se : StaticEffect (Experimental.letterB w :: bs)) ->
+                        (se : StaticEffect (Experimental.Words.letterB w :: bs)) ->
                         StaticEffect bs
-    -- "[n] gains [ability]" — the keyword grant, same battlefield
-    -- discipline. The ability slot is the whole container now, and the
-    -- gate is what keeps the widening honest: English grants an ACTIVATED
-    -- ability by quoting it, which is not this clause's spelling
-    -- (`Grantable`, `badGainsActivated`).
-    -- spelling: ["<Param(0)> gains <Param(1)>"] (the trailing duration
+    -- "[n] gains/have [ability]" — the keyword grant. Two gates, and both
+    -- are widenings the corpus paid for. The ability slot is the whole
+    -- container, and `Grantable` is what keeps THAT honest: English grants
+    -- an ACTIVATED ability by quoting it, which is not this clause's
+    -- spelling (`badGainsActivated`).
+    -- The SUBJECT was a bare battlefield demand until the grant round and
+    -- is now `GrantSubject`, because 37 supported lines grant a keyword to
+    -- a class of SPELLS ("Artifact spells you cast have convoke",
+    -- "Instant and sorcery spells you control have lifelink") and a spell
+    -- is on the stack ([CR#112.1]). What made that a gate rather than a
+    -- second zone is that the subject and the payload are coupled: which
+    -- keyword may stand here depends on where the subject is, and which
+    -- RELATION may describe the subject depends on when the keyword
+    -- functions (`grantSubjectOk`, `keywordStackRegime`;
+    -- `badCastGrantAtResolution`, `badControlGrantAtCasting`,
+    -- `badBattlefieldConvoke`).
+    -- spelling: ["<Param(0)> gains <Param(1)>"] (register variant "<Param(0)>
+    -- have <Param(1)>", which is what every spell-subject line writes --
+    -- the plural class head takes the plain present; the trailing duration
     -- adverbial belongs to the Continuously envelope, not here),
     -- kind: Sentence
     Gains : (n : Noun bs Object) -> (ab : Ability) ->
-            {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
+            {auto 0 ok : GrantSubject ab n} ->
             {auto 0 gr : Grantable ab} -> StaticEffect bs
     -- "[n] can't [deed, in a voice]" -- the DEONTIC: a continuous effect
     -- denying its subject a deed, which is core's `Deontic(Cant(…))` under
@@ -10018,6 +6023,9 @@ mutual
   -- its statement is, and the definition rides along.
   staticKind (WhereLetterStatic _ _ se) = staticKind se
   staticKind (Gets _ _ _) = PtDelta
+  staticKind (DefinesPt _ _ _) = PtDefinition
+  staticKind (HasBasePt _ _ _) = BasePtSet
+  staticKind (SwitchesPt _) = PtSwitch
   staticKind (CostsToCast _ _) = CostModification
   staticKind (Gains _ _) = KeywordGrant
   staticKind (Deontic _ _ _ _ _) = DeedRestriction
@@ -10057,6 +6065,9 @@ mutual
   -- cell of its own).
   staticLineOk (WhereLetterStatic _ _ se) = staticLineOk se
   staticLineOk se@(Gets _ _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(DefinesPt _ _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(HasBasePt _ _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(SwitchesPt _) = staticAsAbility (staticKind se)
   staticLineOk se@(CostsToCast _ _) = staticAsAbility (staticKind se)
   staticLineOk se@(Gains _ _) = staticAsAbility (staticKind se)
   staticLineOk se@(Deontic _ _ _ _ _) = staticAsAbility (staticKind se)
@@ -10082,6 +6093,9 @@ mutual
   staticIntro : {bs : Bindings} -> StaticEffect bs -> Bindings
   staticIntro (WhereLetterStatic _ _ se) = staticIntro se
   staticIntro (Gets n _ _) = nomIntro n
+  staticIntro (DefinesPt n _ _) = nomIntro n
+  staticIntro (HasBasePt n _ _) = nomIntro n
+  staticIntro (SwitchesPt n) = nomIntro n
   staticIntro (CostsToCast n _) = nomIntro n
   staticIntro (Gains n _) = nomIntro n
   staticIntro (Deontic n _ _ _ _) = nomIntro n
@@ -10624,12 +6638,11 @@ mutual
     -- two siblings take a noun. `BecomesTime`'s shape one row up, and for
     -- the same reason -- there is one game and the sentence names it
     -- without a subject phrase.
-    -- Two corpus lines, and neither is writable whole: Divine
-    -- Intervention's trigger is an AGENTIVE removal ("when you remove the
-    -- last intervention counter") over a counter kind this catalog does
-    -- not carry, and Celestial Convergence's is the comparative victor.
-    -- The row lands on the rule's own sentence with the bench gap
-    -- recorded, which is `TwoNextSteps`' posture.
+    -- Two corpus lines, and chapter sixty-nine landed both. The row spent
+    -- three chapters witness-free on the rule's own sentence
+    -- (`TwoNextSteps`' posture), waiting on a counter kind for Divine
+    -- Intervention and on the superlative for Celestial Convergence; both
+    -- debts are paid and both cards are whole on the bench.
     -- spelling: ["the game is a draw"], kind: Sentence
     GameDrawn : Effect bs
     -- "Choose [n]." — the choice clause as surface for the mention it
@@ -11192,7 +7205,7 @@ mutual
     -- here as it is on If and Delayed), kind: Sentence
     WhereLetter : (w : LetterWord) -> (def : Amount bs) ->
                   {auto 0 xd : LetterDefinition def} ->
-                  (body : Effect (Experimental.letterB w :: bs)) -> Effect bs
+                  (body : Effect (Experimental.Words.letterB w :: bs)) -> Effect bs
     -- the clause SEQUENCE — a card's sentence list and its "…, then
     -- …" alike ([CR#608.2c] orders sub-effects), mirroring core's
     -- `OneShotEffect::Sequentially`: n-ary, because a card writes n
@@ -11718,6 +7731,11 @@ mutual
   costNounOk (PlayerGroup _) = True
   costNounOk (Each _) = True
   costNounOk (Indefinite _ _) = True
+  -- neither refusal reaches it: the definite is a description and not a
+  -- participle read of a sibling component, and it carries no target
+  -- announcement. Unattested as a cost patient and admitted on the
+  -- question this table asks (ledger).
+  costNounOk (Definite _) = True
   costNounOk (TargetGroup _ _) = False
   costNounOk (AllOf _) = True
   costNounOk (EachOf grp) = costNounOk grp
@@ -11746,6 +7764,7 @@ mutual
   nounIsYou (AsType _ _) = False
   nounIsYou (Each _) = False
   nounIsYou (Indefinite _ _) = False
+  nounIsYou (Definite _) = False
   nounIsYou (TargetGroup _ _) = False
   nounIsYou (AllOf _) = False
   nounIsYou (EachOf _) = False
@@ -12050,6 +8069,7 @@ mutual
   nounIsAnyTarget (PlayerGroup _) = False
   nounIsAnyTarget (Each _) = False
   nounIsAnyTarget (Indefinite _ _) = False
+  nounIsAnyTarget (Definite _) = False
   nounIsAnyTarget (AllOf _) = False
   nounIsAnyTarget (EachOf grp) = nounIsAnyTarget grp
   nounIsAnyTarget (LibrarySlice _ _ _) = False
@@ -12091,6 +8111,7 @@ mutual
   nounTargeted (PlayerGroup _) = False
   nounTargeted (Each _) = False
   nounTargeted (Indefinite _ _) = False
+  nounTargeted (Definite _) = False
   nounTargeted (AllOf _) = False
   nounTargeted (EachOf grp) = nounTargeted grp
   nounTargeted (LibrarySlice _ _ _) = False
@@ -12131,6 +8152,7 @@ mutual
   selfSortedOk (PlayerGroup _) = True
   selfSortedOk (Each _) = True
   selfSortedOk (Indefinite _ _) = True
+  selfSortedOk (Definite _) = True
   selfSortedOk (TargetGroup _ _) = True
   selfSortedOk (AllOf _) = True
   selfSortedOk (EachOf _) = True
@@ -12190,16 +8212,23 @@ mutual
     DiscardThis : DiscardOk This
     DiscardTracked : {auto 0 z : nounZone n = Just Hand} -> DiscardOk n
 
-  ||| Which nouns take a card-type ascription — the closed table `AsType`
-  ||| reads instead of carrying its scope in its row. One entry: the
-  ||| SOURCE, whose sorted reading ("this creature", "this artifact") is
-  ||| the only one the corpus writes. Every other noun either says its own
-  ||| type in the predicate it carries or is a read whose antecedent
-  ||| already fixed the head, re-sorting a read being the demonstrative's
-  ||| job (`That`). The table is what keeps `AsType`'s [CR#109.2]
-  ||| battlefield projection honest: the rule speaks of a description
-  ||| carrying a card type and NO zone word, which is exactly what the
-  ||| source under a type noun is.
+  ||| Which nouns take a type ascription — the closed table `AsType`
+  ||| reads instead of carrying its scope in its row, and the OTHER axis
+  ||| from `ascriptionOk`, which asks which WORD may be ascribed. One
+  ||| entry: the SOURCE, whose sorted reading ("this creature", "this
+  ||| artifact", "this Aura") is the only one the corpus writes. Every
+  ||| other noun either says its own type in the predicate it carries or is
+  ||| a read whose antecedent already fixed the head, re-sorting a read
+  ||| being the demonstrative's job (`That`). The subtype half measures the
+  ||| same way and it is worth saying, because the two families share a
+  ||| word: self-reference is "this"-exclusive, so all 17 supported "that
+  ||| Aura"/"that Equipment"/"that Vehicle"/"that Saga" lines resolve some
+  ||| OTHER antecedent, and "target Aura"/"each Saga"/"enchanted Equipment"
+  ||| are the ordinary subtype-restricted noun (`HasSubtype`) instead. The
+  ||| table is what keeps `AsType`'s [CR#109.2] battlefield projection
+  ||| honest: the rule speaks of a description carrying a card type or
+  ||| subtype and NO zone word, which is exactly what the source under a
+  ||| type noun is.
   public export
   data Ascribable : Noun bs Object -> Type where
     AscribeThis : Ascribable This
@@ -12351,6 +8380,7 @@ mutual
   moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbName -> Noun bs k -> Maybe Zone -> Bindings
   moveIntro p nn@(Each pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(Indefinite m pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(Definite pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(TargetGroup q pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(AllOf pr) z = setZoneHead p z (nomIntro nn)
   -- a move of "each of [group]" retags the group, since a move of every
@@ -12418,6 +8448,7 @@ mutual
   nounZone (PlayerGroup _) = Nothing
   nounZone (Each p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (Indefinite m p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (Definite p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (TargetGroup q p) =
     if headIsAnyTarget p then Nothing else Just (zoneOr Battlefield (seedZone p))
   nounZone (AllOf p) = Just (zoneOr Battlefield (seedZone p))
@@ -12448,6 +8479,7 @@ mutual
   nounTy (PlayerGroup _) = Nothing
   nounTy (Each p) = seedTy p
   nounTy (Indefinite m p) = seedTy p
+  nounTy (Definite p) = seedTy p
   nounTy (TargetGroup q p) = seedTy p
   nounTy (AllOf p) = seedTy p
   nounTy (EachOf grp) = nounTy grp
@@ -12477,6 +8509,7 @@ mutual
   nounPlur (PlayerGroup _) = ManyOf
   nounPlur (Each p) = ManyOf
   nounPlur (Indefinite m p) = OneOf
+  nounPlur (Definite p) = OneOf
   nounPlur (TargetGroup q p) = quantPlur q
   nounPlur (AllOf p) = ManyOf
   nounPlur (EachOf grp) = ManyOf
@@ -13376,6 +9409,99 @@ mutual
   data Grantable : Ability -> Type where
     MkGrantable : {auto 0 ok : grantableAb ab = True} -> Grantable ab
 
+  ||| WHICH RELATION a description names its referent's player by, read for
+  ||| the grant gate alone. `CastBy` says the class is fixed by the casting
+  ||| and `ControlledBy` says it is fixed by control at the moment the
+  ||| statement applies, and those are the two windows a granted keyword can
+  ||| want (`keywordStackRegime`). Silence means the description names
+  ||| neither, which the gate refuses at the stack rather than passes: all
+  ||| 37 corpus lines in this family name one, and a spell class with no
+  ||| player named would be a grant to every spell in the game.
+  public export
+  predRegime : {0 bs : Bindings} -> {0 k : Kind} ->
+               Predicate bs k -> Maybe StackRegime
+  predRegime (CastBy _) = Just AtCasting
+  predRegime (ControlledBy _) = Just AtResolution
+  predRegime (And ps) = predRegimeAll ps
+  predRegime (Or ps) = predRegimeAll ps
+  predRegime _ = Nothing
+
+  public export
+  predRegimeAll : {0 bs : Bindings} -> {0 k : Kind} ->
+                  List (Predicate bs k) -> Maybe StackRegime
+  predRegimeAll [] = Nothing
+  predRegimeAll (p :: ps) = case predRegime p of
+    Just r => Just r
+    Nothing => predRegimeAll ps
+
+  ||| The same question of a NOUN, answered from the description it carries
+  ||| and silent everywhere else — a read, a pronoun and the self carry no
+  ||| description to ask.
+  public export
+  nounRegime : {bs : Bindings} -> Noun bs Object -> Maybe StackRegime
+  nounRegime (AllOf p) = predRegime p
+  nounRegime (Indefinite _ p) = predRegime p
+  nounRegime (Definite p) = predRegime p
+  nounRegime (Each p) = predRegime p
+  nounRegime (TargetGroup _ p) = predRegime p
+  nounRegime _ = Nothing
+
+  public export
+  abRegime : Ability -> Maybe StackRegime
+  abRegime (KeywordAbility k) = keywordStackRegime k
+  abRegime _ = Nothing
+
+  public export
+  castingOnly : Maybe StackRegime -> Bool
+  castingOnly (Just AtCasting) = True
+  castingOnly _ = False
+
+  public export
+  regimeMatches : Maybe StackRegime -> Maybe StackRegime -> Bool
+  regimeMatches (Just a) (Just b) = sameRegime a b
+  regimeMatches _ _ = False
+
+  ||| WHO a keyword grant may be about — the statement-subject gate that
+  ||| replaced `Gains`' bare battlefield demand, in `costSubjectOk`'s shape
+  ||| at a third site and for its reason: a grant is a STATEMENT, and what
+  ||| decides its subject is a fact about one word. The word here is the
+  ||| granted keyword rather than the subject, which is the new thing —
+  ||| chapter sixty-four's `zoneAdmit` is a description-domain table and
+  ||| cannot see the payload at all, and the admissibility of a spell-zoned
+  ||| subject depends on it entirely.
+  |||
+  ||| Two coupled questions, one gate, because the corpus answers them
+  ||| together. A BATTLEFIELD subject takes any keyword except a
+  ||| casting-time one: "creatures you control have lifelink" is ordinary
+  ||| and "creatures you control have convoke" is written zero times and
+  ||| would do nothing, convoke functioning only while a spell is on the
+  ||| stack ([CR#702.51a]). A STACK subject takes a keyword that functions
+  ||| on a spell AND describes its class with the relation that keyword's
+  ||| window needs — and the corpus splits 30/0 and 7/0 with no line
+  ||| crossing. That split is not a spelling fact this grammar can derive
+  ||| away, which is what distinguishes it from finding 275's cases: the two
+  ||| surfaces are two RELATIONS naming two different classes (finding 448),
+  ||| and the rules pick between them. A casting-time grant has to reach the
+  ||| object as it is cast, which is the moment [CR#601.2a] applies
+  ||| continuous effects that modify a spell "as you start casting it", so
+  ||| the class it describes is the one the casting fixes. A
+  ||| resolution-time grant applies while the spell exists and deals damage
+  ||| ([CR#702.15d]), so the class is the one CONTROL fixes then — which is
+  ||| also the only one of the two that contains a copy nobody cast
+  ||| ([CR#707.10]), and Prismari's storm makes exactly such copies.
+  public export
+  grantSubjectOk : {bs : Bindings} -> Ability -> Noun bs Object -> Bool
+  grantSubjectOk ab n =
+    if onStackZone (nounZone n)
+      then regimeMatches (abRegime ab) (nounRegime n)
+      else zoneFits (nounZone n) (Just Battlefield) && not (castingOnly (abRegime ab))
+
+  ||| The grant's subject demand as a witness, so a pin says which question
+  ||| refused.
+  public export
+  data GrantSubject : Ability -> Noun bs Object -> Type where
+    MkGrantSubject : {auto 0 ok : grantSubjectOk ab n = True} -> GrantSubject ab n
+
   ||| A cost's components in written order, length-indexed so `Compound`
   ||| can demand two. Its own namespace for `SimEffects`' reason — a third
   ||| telescope would collide on the list sugar — and LAST in the block for
@@ -13605,13 +9731,23 @@ public export
 typesCombinable : List CardType -> Bool
 typesCombinable tys = not (anyPermanentType tys && anySpellType tys)
 
-||| WHICH keywords a card of each class may carry. The row is shut on
-||| spell cards on a measurement rather than a rule: no Instant or Sorcery
-||| card in the supported corpus prints any of the seven keywords this
-||| file carries as a bare keyword line, zero lines against the permanent
-||| cards that print them everywhere (`badKeywordOnInstant`).
-||| `cardAbilityOk` delegates here rather than answering with a wildcard,
-||| so a new keyword cannot inherit a decision nothing measured for it.
+||| WHICH keywords a card of each class may PRINT. The spell row was shut
+||| throughout on a measurement rather than a rule: no Instant or Sorcery
+||| card in the supported corpus prints any of the original seven keywords
+||| as a bare keyword line, zero lines against the permanent cards that
+||| print them everywhere (`badKeywordOnInstant`). `cardAbilityOk`
+||| delegates here rather than answering with a wildcard, so a new keyword
+||| cannot inherit a decision nothing measured for it.
+|||
+||| The grant round opened the spell row for the first time, and by the
+||| same measurement in the other direction: instant and sorcery cards
+||| print convoke on 50 lines, storm on 29 and improvise on 8. Lifelink
+||| stays False here on 0 printed spell lines even though six corpus lines
+||| GRANT it to spells — which is the whole reason this table is not the
+||| one the grant gate reads. Printing and functioning are two questions;
+||| `keywordStackRegime` answers the second, and where the two readers
+||| disagree they get two tables (chapter forty-five's outcome, not
+||| finding 309's union).
 public export
 keywordCardOk : CardClass -> Keyword -> Bool
 keywordCardOk PermanentCard Haste = True
@@ -13628,6 +9764,14 @@ keywordCardOk SpellCard Vigilance = False
 keywordCardOk SpellCard Deathtouch = False
 keywordCardOk SpellCard DoubleStrike = False
 keywordCardOk SpellCard FirstStrike = False
+keywordCardOk PermanentCard Convoke = True
+keywordCardOk PermanentCard Improvise = True
+keywordCardOk PermanentCard Storm = True
+keywordCardOk PermanentCard Lifelink = True
+keywordCardOk SpellCard Convoke = True
+keywordCardOk SpellCard Improvise = True
+keywordCardOk SpellCard Storm = True
+keywordCardOk SpellCard Lifelink = False
 
 ||| WHICH ability rows a card of each class may carry — the container's
 ||| gate. Full rows in both directions, so a new ability row and a new card
@@ -13675,14 +9819,94 @@ cardTextOk : List CardType -> List Ability -> Bool
 cardTextOk tys [] = True
 cardTextOk tys (a :: as) = cardAbilityOk (cardClassOf tys) a && cardTextOk tys as
 
-||| A card's P/T slot against its types — `tokenPtOk`'s table at a second
-||| site and one-directional for its reason. [CR#208.1] says a CREATURE
-||| card "has two numbers separated by a slash printed in its lower right
-||| corner", so the creature type demands them; the converse is not
-||| demanded, [CR#301.7]'s Vehicle printing a power and toughness without
-||| the creature type. What the slot does NOT carry is [CR#208.2]'s star:
-||| a characteristic-defining ability setting power and toughness is an
-||| ability line this container has no row for (ledger).
+||| ONE number in a card's printed power/toughness box. [CR#208.2] is the
+||| whole of it: "rather than a fixed number, some creature cards have
+||| power and/or toughness that includes a star (*)", and the star is what
+||| a card prints where a characteristic-defining ability will supply the
+||| value instead ([CR#208.2a]). The box is a printed part and not a
+||| sentence, so this is a layout datum in the container and nowhere else.
+|||
+||| The number is SIGNED for the reason the pair always was — a printed
+||| power may be less than zero ([CR#107.1b]; Char-Rumbler's "-1/3") —
+||| and the OFFSET star is its own row rather than an addition over the
+||| other two: 19 supported cards print "1+*", "2+*" or "*+1", every one
+||| of them a definition whose amount adds a written number to a count
+||| (Allosaurus Rider's "1 plus the number of lands you control"). The two
+||| printings are one value, the corpus writing 17 with the addend first
+||| and two with it last, so the order is spelling and not structure.
+||| What stays out is the subtracted star ("7-*", one card) and the
+||| deferred asymmetric definition it belongs to (ledger).
+||| Core keeps the same three answers on the value side rather than the
+||| box side — `StatValue::Number(Int)`, `DefinedByAbility`, `Count`
+||| (`deckmaste_core/src/stat_value.rs`) — and its own comment reads the
+||| star exactly this way, "any power or toughness containing * is
+||| essentially reminder text".
+public export
+-- spelling: (construction-owned -- the printed box, "<power>/<toughness>"
+-- in the card's lower right corner: a number writes itself, PrintedStar
+-- writes "*", and PrintedStarPlus writes its addend before the star,
+-- "1+*". Never spelled inside a sentence)
+data PrintedStat = PrintedNum Integer | PrintedStar | PrintedStarPlus Nat
+
+||| Whether a printed number is one the text has to supply — the star in
+||| either of its forms.
+public export
+starred : PrintedStat -> Bool
+starred (PrintedNum _) = False
+starred PrintedStar = True
+starred (PrintedStarPlus _) = True
+
+||| Which of its own numbers a static line DEFINES, if any — the scan the
+||| container needs and no line carries about itself. It looks through the
+||| two transparent wrappers, since a definition under a rider or an "as
+||| long as" is still the card defining its own number (Gaea's Liege writes
+||| one under a condition and prints the star all the same).
+public export
+staticDefinesPt : {0 bs : Bindings} -> StaticEffect bs -> Maybe DefinedSlots
+staticDefinesPt (DefinesPt _ sl _) = Just sl
+staticDefinesPt (WhereLetterStatic _ _ se) = staticDefinesPt se
+staticDefinesPt (Conditionally _ se) = staticDefinesPt se
+staticDefinesPt _ = Nothing
+
+||| The same question asked of a whole text box, once per number. A
+||| KEYWORD, an activated ability, a trigger and a spell ability are all
+||| `Nothing` here by construction: the definition is a STATIC line and
+||| [CR#604.3a] makes "printed on the card it affects" one of its criteria,
+||| so a definition inside an activated ability's effect would be a granted
+||| one and is refused at the subject gate one file section up.
+public export
+textDefines : (DefinedSlots -> Bool) -> List Ability -> Bool
+textDefines f [] = False
+textDefines f (Static se :: as) =
+  (case staticDefinesPt se of
+     Just sl => f sl
+     Nothing => False) || textDefines f as
+textDefines f (_ :: as) = textDefines f as
+
+||| A card's P/T slot against its types and its text — `tokenPtOk`'s table
+||| at a second site, and one-directional in both of its demands for one
+||| reason.
+|||
+||| The TYPE demand is [CR#208.1]: a CREATURE card "has two numbers
+||| separated by a slash printed in its lower right corner", so the
+||| creature type demands them; the converse is not demanded,
+||| [CR#301.7]'s Vehicle printing a power and toughness without the
+||| creature type.
+|||
+||| The TEXT demand is [CR#208.2]'s star, and it is the question no line
+||| can answer about itself: a card whose own text defines a number prints
+||| the star THERE and its ordinary number in the other slot, which is
+||| where "*/4" comes from (Crackling Drake defines its power and prints
+||| its toughness). The corpus is exact in that direction — of the 228
+||| supported cards with a line defining one of their own numbers, every
+||| one prints a star in each slot it defines and not one prints a plain
+||| pair (`badStarlessDefinedPt`) — and equally exact about the direction
+||| NOT demanded: six star-printing cards define nothing at all, their
+||| star licensed by [CR#208.2b]'s as-enters replacement instead ("As this
+||| creature enters, it becomes your choice of 5/1 or 1/5", Aquamorph
+||| Entity), a construction this container has no row for. So the star may
+||| stand without a definition and a definition may not stand without the
+||| star.
 |||
 ||| The pair is SIGNED, and the reason is a card rather than a taste:
 ||| [CR#107.1b] says "it's possible for a game value, such as a creature's
@@ -13694,10 +9918,22 @@ cardTextOk tys (a :: as) = cardAbilityOk (cardClassOf tys) a && cardTextOk tys a
 ||| (`TokenChars`): a token's characteristics are what the creating effect
 ||| defines ([CR#111.3]), and no clause here spells a negative one.
 public export
-cardPtOk : List CardType -> Maybe (Integer, Integer) -> Bool
-cardPtOk tys pt = case (lineHasType Creature tys, pt) of
-  (True, Nothing) => False
-  _ => True
+ptPrinted : Maybe (PrintedStat, PrintedStat) -> Bool
+ptPrinted Nothing = False
+ptPrinted (Just _) = True
+
+public export
+definedSlotsStarred : Maybe (PrintedStat, PrintedStat) -> Bool -> Bool -> Bool
+definedSlotsStarred Nothing dp dt = not dp && not dt
+definedSlotsStarred (Just (p, t)) dp dt =
+  (not dp || starred p) && (not dt || starred t)
+
+public export
+cardPtOk : List CardType -> List Ability -> Maybe (PrintedStat, PrintedStat) -> Bool
+cardPtOk tys text pt =
+  (not (lineHasType Creature tys) || ptPrinted pt) &&
+  definedSlotsStarred pt (textDefines definesPower text)
+                         (textDefines definesToughness text)
 
 ||| A land card writes NO mana cost, and [CR#202.1b] is the rule:
 ||| "some objects have no mana cost. This normally includes all land
@@ -13725,9 +9961,9 @@ data CardText : TypeLine -> List Ability -> Type where
   MkCardText : {auto 0 ok : cardTextOk l.tys as = True} -> CardText l as
 
 public export
-data CardPt : TypeLine -> Maybe (Integer, Integer) -> Type where
-  MkCardPt : {0 stats : Maybe (Integer, Integer)} ->
-             {auto 0 ok : cardPtOk l.tys stats = True} -> CardPt l stats
+data CardPt : TypeLine -> List Ability -> Maybe (PrintedStat, PrintedStat) -> Type where
+  MkCardPt : {0 stats : Maybe (PrintedStat, PrintedStat)} ->
+             {auto 0 ok : cardPtOk l.tys as stats = True} -> CardPt l as stats
 
 public export
 data CardCost : TypeLine -> Maybe ManaCost -> Type where
@@ -13775,7 +10011,7 @@ record Card where
   supers : List Supertype
   line : TypeLine
   text : List Ability
-  pt : Maybe (Integer, Integer)
+  pt : Maybe (PrintedStat, PrintedStat)
 
 -- (The container's five demands are NOT gathered into one witness, and
 -- the reason is the pin discipline: a gathering type would report its
