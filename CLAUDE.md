@@ -31,10 +31,13 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   declaration compiler. v2 stays a leaf: it must never depend on any crate
   slated for deletion.
 - **`deckmaste_migrations` survives as a function** (card
-  extract→resolve→graduate, snapshot ingestion) but its oracle-text parsing
-  rides the old English stack and gets re-pointed at cutover. Do not home new
-  english_v2 infrastructure there — or in any crate marked for deletion —
-  without recording the deviation in the rewrite ADR.
+  extract→resolve→graduate, snapshot ingestion). Its oracle-text extraction
+  is its own regex pipeline — it does not consume the construction parser —
+  but it depends on deletion-slated `deckmaste_legacy_render` and must shed
+  that by cutover. Re-pointing extraction at english_v2 is a separate,
+  not-yet-scheduled decision. Do not home new english_v2 infrastructure
+  there — or in any crate marked for deletion — without recording the
+  deviation in the rewrite ADR.
 - Everything else is unaffected by the rewrite.
 
 ## CR citations
