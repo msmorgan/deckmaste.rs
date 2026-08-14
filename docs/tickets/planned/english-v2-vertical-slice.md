@@ -2,51 +2,65 @@
 needs: [english-construction-rewrite-design, english-v2-catalog-pipeline]
 ---
 **Hand-write the construction compiler's target output for the first vertical
-slice of `english_v2`: five grammatical categories with exact bidirectional
-round-trip on a fixed sentence set.** Stage 2 of the rewrite's implementation
-sequence.
+slice of `english_v2`: the AST, exact renderer, and total visitor for five
+grammatical categories — NO parser of any kind.** Stage 2 of the rewrite's
+implementation sequence. Parsing arrives only with `english-v2-earley-engine`
+(stage 3); do not write an interim parser, however small — an ordered-choice
+or recursive-descent stopgap is exactly the architecture the ADR bans, and a
+previous run of this ticket failed by inventing one under an under-specified
+brief. If something below cannot be completed as written, STOP and report;
+do not fill gaps with judgment calls.
 
 This ticket writes BY HAND, in `deckmaste_english_v2`, the code the future
-construction compiler will generate — struct-per-construction, category
-enums, exact renderer, minimal parser — so codegen has a golden target before
-it exists. No DSL, no macros, no compiler work here.
+construction compiler must generate, so codegen has a golden target before it
+exists. Every dimension is pinned by `docs/decisions/english-v2-rewrite.md`:
 
-Decisions already made (2026-08-13 design dialogue; the ADR produced by
-`english-construction-rewrite-design` is the authority if anything here
-drifts):
+- **AST** (§Generated code contract): transcript style — one struct per
+  construction, wrapped in its category enum (`pub struct DealDamage
+  { amount, to }`; `VerbPhrase::DealDamage(DealDamage)`). Categories:
+  `Ability`, `Sentence`, `Clause`, `NounPhrase`, `VerbPhrase`, plus `Amount`.
+  Constructions: exactly those the sentence set below needs. No
+  recovered-text or raw-string nodes anywhere.
+- **Checked construction**: shapes with invariants get checked constructors
+  and non-public fields, so values the renderer accepts but the grammar
+  cannot re-read are unrepresentable — triggered ability holds exactly one
+  effect for now (comment: multi-effect awaits grammar buildout);
+  catalog-bound identity spellings are validated at construction against the
+  bound catalog/context. Invariant-free shapes stay plain public fields.
+- **Renderer** (§Bidirectionality): total and exact over constructible
+  values. Derive, don't store — verb agreement (inherited attribute derived
+  at clause/sentence nodes), noun number (a/an ⇒ singular; that ⇒ singular /
+  those ⇒ plural; bare target ⇒ singular), capitalization (positional:
+  ability-initial and after terminal periods only, NOT after the trigger
+  comma), whitespace (single space; punctuation binds left). Stored: only
+  non-derivable surface facts (self-reference abbreviated-vs-full spelling).
+  Render no path the sentence set cannot exercise — no speculative
+  multi-sentence joining.
+- **Visitor**: a total traversal over every AST type — exhaustive `match`
+  everywhere, no `if let` or wildcard arms, so a future variant is a compile
+  error — with callbacks for constituents AND closed-class leaves (vocab
+  words, lexemes, amounts, identities).
+- Lexical atoms with internal structure store their parts (sign +
+  magnitude), never fused strings. The word "hole" is reserved for the
+  future macro feature; constituents are plain typed roles. Anaphora are
+  unresolved syntax; the `where` clause is a syntactic binder node; a
+  variable is the same leaf value at every occurrence of its name.
 
-- Transcript AST: one struct per construction wrapped in its category enum
-  (`pub struct DealDamage { amount, to }`;
-  `VerbPhrase::DealDamage(DealDamage)`).
-- Derive, don't store: verb agreement, capitalization, structural
-  punctuation, and numeral spelling are computed at render from context; only
-  non-derivable surface facts are stored.
-- Byte-exact round-trip both ways: `render(parse(s)) == s` for every accepted
-  sentence, `parse(render(v)) == v` for constructed values.
-- Failure is loud: input the grammar does not cover is an error. NO
-  recovered-text or raw-string nodes anywhere in the AST.
-- Acceptance tracks grammatical Oracle English, not rules legality: sentence
-  2 below is deliberately rules-invalid and must parse.
-- Anaphora ("it", "that creature") are unresolved syntax; a `where` clause is
-  a syntactic binder node (recognized and attached, never resolved); a
-  variable is the same leaf value at every occurrence of the same name.
-- Lexical atoms with internal structure store their parts (sign + magnitude),
-  never fused strings. The word "hole" is reserved for the future macro
-  feature; recursive constituents are plain typed roles.
-
-Scope: categories `Ability`, `Sentence`, `Clause`, `NounPhrase`,
-`VerbPhrase` (plus `Amount`), with exactly the constructions this sentence
-set needs, each sentence round-tripping byte-exactly:
+Sentence set (render targets — byte-exact PARSE verification lands with the
+engine ticket; here each sentence must be constructible through public
+constructors and render to exactly these bytes):
 
 1. "Destroy target creature."
 2. "Whenever a player connives, that creature deals X damage to it."
 3. "You gain X life, where X is the number of creatures you control with
    power 2 or less."
 4. One real corpus sentence (implementer's choice) using the card's
-   self-reference — it must bind the self-name parse-context parameter plus
-   at least one catalog through the catalog-pipeline loader, and store the
+   self-reference — binding the self-name context parameter plus at least
+   one catalog through the catalog-pipeline loader, storing
    abbreviated-vs-full spelling.
 
-Tests: exact round-trip per sentence; a constructed-value render test that
-never parses; a loud-failure test on ungrammatical input. Standard
-constraints apply.
+Tests: exact-bytes render assertion per sentence; constructed-value tests
+building each through public constructors only; at least one constructor
+rejection asserted (e.g. zero effects). Acceptance: those tests green;
+`deckmaste_english_v2` dependencies unchanged (leaf); no parser module
+exists. Standard constraints apply.

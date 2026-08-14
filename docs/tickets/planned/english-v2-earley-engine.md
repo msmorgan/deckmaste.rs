@@ -1,38 +1,45 @@
 ---
 needs: [english-v2-vertical-slice]
 ---
-**Build `english_v2`'s real parser — the Earley-family chart engine — driven
-by hand-written grammar tables for the slice corpus, and DELETE the
-recursive-descent stopgap in the same change.** Urgent-ordered ahead of the
-declaration compiler: the stopgap is the architecture the ADR bans
-(ordered-choice single-commit parsing), and this project's history is that
-wrong-architecture code recruits compensations if allowed to sit.
+**Build `english_v2`'s parser — the ONLY parser it will ever have: an
+Earley-family chart engine over hand-written grammar tables for the slice
+corpus.** Stage 3 of the rewrite's implementation sequence, deliberately
+ahead of the declaration compiler. Ordered choice, PEG, recursive descent,
+precedence climbing, and every other single-commit strategy are banned by
+`docs/decisions/english-v2-rewrite.md` §Parsing — if the chart approach hits
+a wall, STOP and report; never substitute an easier parser. A previous run
+of this effort failed exactly that way.
 
-Authority: `docs/decisions/english-v2-rewrite.md` §Parsing, selection, and
-failure. Decisions already made:
+Pinned by the ADR; none of this is the implementer's to re-decide:
 
-- Earley-family chart: two-kind rule positions (nonterminal | lexical), scan
-  as span-returning injection (the terminal tiers plug in there), packed
-  forest preserving all surviving readings. The salvage ledger's Part A
-  entries A1-A3 record what the old chart core got right; ideas, not code.
-- Selection is a separate post-parse pass — computed structural specificity
-  plus a countable exception table; ties are hard errors naming both
-  constructions. On the slice corpus this pass is near-trivial; build the
-  seam, not sophistication.
-- Failure surface: furthest chart column + its live expectation set replaces
-  the stopgap's handwritten prose expectations.
-- Grammar tables for the slice corpus are HAND-WRITTEN in this ticket (the
-  same hand-written-golden pattern as the slice itself); the declaration
-  compiler later generates them diff-identical. Do not build any part of the
-  compiler here.
-- No dual-parser period: the engine lands and `parser.rs`'s recursive-descent
-  code is deleted in the same change. The existing test suite — round-trip
-  both laws on all slice sentences (including the slice-hardening additions),
-  constructed-value render, loud failure — is the acceptance corpus and must
-  pass unchanged except the loud-failure test, which updates to assert the
-  chart-derived error shape.
+- Chart with two-kind rule positions (nonterminal | lexical); scan is a
+  span-returning injection hook where the terminal tiers (vocab, lexemes,
+  codecs, identities/catalogs) plug in. The ADR's salvage-ledger appendix
+  entries A1–A3 record what the old chart core got right — ideas only,
+  never code.
+- Packed forest preserving all surviving readings; selection is a separate
+  post-parse pass (computed structural specificity plus a countable
+  exception table, empty for now); a tie neither can break is a hard error
+  naming both constructions.
+- Failure surface: a structured error carrying the furthest chart column's
+  span plus its live expectation set — derived from the chart, never
+  hand-written prose lists.
+- Grammar tables for the slice corpus are HAND-WRITTEN here (the same
+  hand-written-golden pattern as the slice); the declaration compiler
+  generates them diff-identical in stage 4. No compiler work of any kind in
+  this ticket.
+- Positional case is checked at parse exactly as render derives it: words
+  match their lowercase forms plus a case check against the positional
+  derivation (ability-initial and after-terminal-period ⇒ capitalized;
+  elsewhere ⇒ lowercase; identities keep inherent case). A non-initial
+  "you" parses; "you Gain" does not.
+- Acceptance tracks grammatical Oracle English, not rules legality — the
+  slice's deliberately rules-invalid sentence must parse.
 
-Acceptance: all slice tests green on the engine; `parser.rs` recursive
-descent gone; forest + selection seam present and exercised by at least one
-deliberately ambiguous toy input (hard-error tie asserted); no dependency
-changes (english_v2 stays a leaf). Standard constraints apply.
+Acceptance: both round-trip laws (`render(parse(s)) == s` and
+`parse(render(v)) == v`) byte-exact on the slice ticket's four sentences
+plus "Whenever a player connives, you gain X life."; a loud-failure test
+asserting the chart-derived error shape (span + expectation set); one
+deliberately ambiguous toy input asserting the hard-error tie; the slice's
+render and constructor tests still green; `deckmaste_english_v2` stays a
+leaf. Standard constraints apply.

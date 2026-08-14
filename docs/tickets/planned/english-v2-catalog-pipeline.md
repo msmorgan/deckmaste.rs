@@ -26,6 +26,15 @@ drifts):
   provenance of any CR-derived catalog.
 - The parser binds catalogs at instance construction — they are inputs, not
   compiled-in globals.
+- Extraction code lives in `deckmaste_migrations` beside the existing
+  snapshot parsers (reuse the legacy bare-text extractor where it fits); the
+  catalog FILE-FORMAT types live in `deckmaste_english_v2` (consumer-owned,
+  so generator and loader cannot drift). That is a tool-side dependency edge
+  migrations→english_v2 only; english_v2 gains no dependency in return and
+  stays a leaf.
+- Command family: `cargo xtask catalogs generate` and `cargo xtask catalogs
+  check` together as one group; the existing bare-text generation is renamed
+  `cargo xtask catalogs text`.
 
 Deliverables:
 
