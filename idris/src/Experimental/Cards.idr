@@ -2189,19 +2189,6 @@ lifeTotalBecomesOne : Effect []
 lifeTotalBecomesOne = Macros.lifeTotalBecomes (Macros.target AnyPlayer) (Lit 1)
 
 
--- ===== What a placement may arrive with =====
-
--- …and the leak the other way is refused by the same table's other half:
--- an exile writes the counter rider and nothing else, "exile it tapped"
--- being zero lines because [CR#110.5b]'s untapped default and
--- [CR#110.5]'s status words are the battlefield's alone. One gate, two
--- questions, and each rider half asks only its own.
-failing "RidersFit"
-  badExileTapped : Effect []
-  badExileTapped =
-    Composite Exile (Move (Macros.target Macros.creature) Macros.exileZ
-                          {riders = MkMoveRiders [EntersTapped] Nothing})
-
 -- ===== The becomes-status event: observing a transition =====
 
 -- "Whenever a creature an opponent controls becomes tapped, put a +1/+1

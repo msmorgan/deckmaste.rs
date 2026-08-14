@@ -15,3 +15,18 @@ module Experimental.Unspellable
 public export
 0 Unspellable : (0 a : Type) -> {0 P : Type} -> ((0 _ : P) -> a) -> Type
 Unspellable _ {P = p} _ = Not p
+
+namespace Dependent
+  ||| `Dependent.Unspellable` is `Unspellable` for a line whose open
+  ||| obligations CHAIN: the later obligation's type mentions the earlier
+  ||| one's witness, so the two cannot be refused apart. The line is
+  ||| spelled out under two binders, and refusing the dependent pair
+  ||| refuses the line.
+  |||
+  ||| Neither proposition is written down either — `P` and the motive `Q`
+  ||| are both inferred from the line, so there is still nowhere to name a
+  ||| wrong one.
+  public export
+  0 Unspellable : (0 a : Type) -> {0 P : Type} -> {0 Q : P -> Type} ->
+                  ((0 x : P) -> (0 _ : Q x) -> a) -> Type
+  Unspellable _ {P = p} {Q = q} _ = Not (x : p ** q x)
