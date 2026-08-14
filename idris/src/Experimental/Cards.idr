@@ -1560,7 +1560,7 @@ libraryLarcenist = Triggered Whenever (Attacks Macros.thisCreature) Macros.drawA
 -- write.
 eliteJavelineer : Ability
 eliteJavelineer =
-  Triggered Whenever (Blocks Macros.thisCreature)
+  Triggered Whenever (Blocks Macros.thisCreature Nothing)
             (DealDamage This (Lit 1) (Macros.target (And [Macros.creature, Attacking])))
 
 -- "Whenever this creature deals combat damage to a player, draw a
@@ -1586,7 +1586,7 @@ scholarOfStars =
 -- the durationless deontic `badStaticCant` has refused since chapter
 -- seventeen, in the container it was waiting for.
 glacialChasmCant : Ability
-glacialChasmCant = Static (Cant (AllOf Macros.creatureYouControl) Attack Agent)
+glacialChasmCant = Static (Deontic (AllOf Macros.creatureYouControl) Forbid Attack Agent Nothing)
 
 -- "Prevent all damage that would be dealt to you." (Glacial Chasm's
 -- fourth line) — `badStandingPrevention`'s own sentence, one line below
@@ -1796,7 +1796,7 @@ hymnOfRebirth =
 desperateCastaways : Ability
 desperateCastaways =
   Static (Macros.unlessSo (Exists (And [Macros.artifact, ControlledBy You]))
-                   (Cant Macros.thisCreature Attack Agent))
+                   (Deontic Macros.thisCreature Forbid Attack Agent Nothing))
 
 -- "{3}{B}: Destroy target blocking creature at end of combat."
 -- (Silent Assassin, the whole card's text) — the SIXTH turn part.
@@ -2127,25 +2127,6 @@ songOfEarendil =
   PutCounters (Lit 1) Macros.flyingCounter
               (Each (And [Macros.creature, ControlledBy You, Not (HasKeyword Flying)]))
 
--- ===== Negatives (each `failing` block must NOT typecheck) =====
-
-
--- ===== Chapter nine negatives: the audit round =====
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 -- ===== What a complement may exclude, and what a batch may read =====
 
 -- "Each player other than target player creates a 5/5 red Dragon
@@ -2257,3 +2238,663 @@ arbalestElite =
             (Sequentially [DealDamage Macros.thisCreature (Lit 3)
                                       (Macros.target (And [Macros.creature, Or [Attacking, Blocking]])),
                            DoesntUntapNext Macros.thisCreature 1])
+
+-- ===== The face and phase transitions =====
+
+-- "Turn target creature face down." (Cyber Conversion; its second
+-- sentence "It's a 2/2 Cyberman artifact creature." elided) — the down
+-- cell of the face verb. The elision is [CR#708.2a]'s own seam: the
+-- clause turns the permanent face down and the default it lands on is a
+-- 2/2 with no text unless the ability LISTS characteristics, and listing
+-- them is the layer family's word (base power, toughness and types),
+-- ledgered, not this clause's.
+cyberConversion : Effect []
+cyberConversion = ToFace FaceDown (Macros.target Macros.creature)
+
+-- "Turn target face-down creature an opponent controls face up." (Break
+-- Open, the whole card's text) — the up cell, and the one line where
+-- both readers of the same status value meet: `HasStatus FaceDown`
+-- describes the patient the transition is about and `ToFace FaceUp`
+-- changes it.
+breakOpen : Effect []
+breakOpen = ToFace FaceUp (Macros.target (And [Macros.creature, Macros.faceDown,
+                                               ControlledBy Macros.anOpponent]))
+
+-- "Whenever a permanent you control is turned face up, draw a card."
+-- (Secret Plans' trigger; the card's other line is the static
+-- "Face-down creatures you control get +0/+1.") — the turned-face-up
+-- event over a description subject, the family's second-largest cell
+-- after the morph self.
+secretPlans : Ability
+secretPlans =
+  Triggered Whenever
+            (IsTurnedFace (Macros.a (And [Permanent, ControlledBy You])) FaceUp)
+            Macros.drawACard
+
+-- "{U}{U}, {T}: Target creature phases out." (Vodalian Illusionist's
+-- ability; the phasing reminder text elided as reminder text always is)
+-- — the phase verb's subject-first spelling under an activated carrier:
+-- the patient is the SUBJECT, no player being told to do anything.
+vodalianIllusionist : Ability
+vodalianIllusionist =
+  Activated (Compound [Mana [Macros.pip Blue, Macros.pip Blue], TapSymbol])
+            (Phases PhasedOut (Macros.target Macros.creature))
+
+-- "Whenever this creature phases out, discard a card." (Teferi's Imp,
+-- first trigger; the card's `Phasing` keyword line and its reminder text
+-- are elided — the keyword itself is out of scope for this workbench.)
+teferisImpPhasesOut : Ability
+teferisImpPhasesOut =
+  Triggered Whenever (PhaseTransition Macros.thisCreature PhasedOut)
+            (Macros.discardsACard You)
+
+-- "Whenever this creature phases in, draw a card." (Teferi's Imp, second
+-- trigger) — the paired direction on the same card, which is what makes
+-- the one indexed row rather than two verbs the honest shape.
+teferisImpPhasesIn : Ability
+teferisImpPhasesIn =
+  Triggered Whenever (PhaseTransition Macros.thisCreature PhasedIn)
+            Macros.drawACard
+
+-- "Whenever this creature phases in, target creature phases out."
+-- (Shimmering Efreet's trigger; reminder text elided) — the event and
+-- the effect on one line, in opposite directions.
+shimmeringEfreet : Ability
+shimmeringEfreet =
+  Triggered Whenever (PhaseTransition Macros.thisCreature PhasedIn)
+            (Phases PhasedOut (Macros.target Macros.creature))
+
+-- ===== The blocking relation and removal from combat =====
+
+-- "{4}, {T}: Remove target attacking or blocking creature from combat."
+-- (Labyrinth of Skophos' second ability; its mana ability "{T}: Add {C}."
+-- is elided — mana production is unbuilt) — the verb under an activated
+-- carrier, and the target phrase carrying the combat state in the
+-- DESCRIPTION where the clause's own gate is only zonal.
+labyrinthOfSkophos : Ability
+labyrinthOfSkophos =
+  Activated (Compound [Mana [Macros.generic 4], TapSymbol])
+            (RemoveFromCombat (Macros.target (And [Macros.creature, Or [Attacking, Blocking]])))
+
+-- "When this creature enters, remove target attacking or blocking
+-- creature from combat." (Hollowhenge Spirit; its Flash and Flying
+-- keyword lines elided as keyword lines always are) — the same clause
+-- under the entry trigger, the two carriers the verb's whole operative
+-- corpus writes.
+hollowhengeSpirit : Ability
+hollowhengeSpirit =
+  Triggered When (Enters Macros.thisCreature)
+            (RemoveFromCombat (Macros.target (And [Macros.creature, Or [Attacking, Blocking]])))
+
+-- "Whenever this creature blocks a creature with flying, this creature
+-- gets +2/+0 until end of turn." (Netcaster Spider's trigger; its Reach
+-- keyword line and reminder text elided) — the TRANSITIVE block header:
+-- the patient slot written, and described.
+netcasterSpider : Ability
+netcasterSpider =
+  Triggered Whenever
+            (Blocks Macros.thisCreature
+                    (Just (Macros.a (And [Macros.creature, HasKeyword Flying]))))
+            (Macros.gets Macros.thisCreature 2 0 (Just Macros.untilEndOfTurn))
+
+-- "Whenever this creature becomes blocked by a creature, this creature
+-- gets +2/+2 until end of turn." (Viashino Weaponsmith, the whole card's
+-- text) — the same event with the complement WRITTEN, which is what
+-- makes the slot optional rather than two rows.
+viashinoWeaponsmith : Ability
+viashinoWeaponsmith =
+  Triggered Whenever
+            (BecomesBlocked Macros.thisCreature (Just (Macros.a Macros.creature)))
+            (Macros.gets Macros.thisCreature 2 2 (Just Macros.untilEndOfTurn))
+
+-- "Whenever a creature you control becomes blocked, it gets +1/+1 until
+-- end of turn." (Somberwald Alpha's trigger; the card's other line is an
+-- activated trample grant) — the complement LEFT OUT, and a DESCRIPTION
+-- subject where the witnesses above are the sorted self. When this was
+-- written it HAD to be a description: every self-subject line in the bare
+-- cell writes its body with the pronoun, and the self-word announced no
+-- mention for `It` to read. Chapter forty-eight closed that gap, and
+-- Deeproot Warrior — the line named here as the blocked one — is now a
+-- witness of its own below.
+somberwaldAlpha : Ability
+somberwaldAlpha =
+  Triggered Whenever (BecomesBlocked (Macros.a Macros.creatureYouControl) Nothing)
+            (Macros.gets It 1 1 (Just Macros.untilEndOfTurn))
+
+-- "At end of combat, destroy all creatures blocking or blocked by this
+-- creature." (Kjeldoran Frostbeast, the whole card's text) — the
+-- relational pair under one determiner, which is the line finding 196
+-- counted and could not write. The head is the type word and the
+-- relation is a disjunction of two ordinary modifiers under it; no group
+-- vocabulary is involved.
+kjeldoranFrostbeast : Ability
+kjeldoranFrostbeast =
+  Triggered At (BeginningOf EndOfCombat Nothing)
+            (Macros.destroy (AllOf (And [Macros.creature,
+                                         Or [BlockerOf Macros.thisCreature,
+                                             BlockedBy Macros.thisCreature]])))
+
+-- "Whenever this creature blocks a creature, tap that creature. That
+-- creature doesn't untap during its controller's next untap step."
+-- (Vertigo Spawn's trigger; its Defender keyword line elided) — the
+-- transitive header whose BODY reads the patient twice, and the second
+-- transitive witness the round wanted: two singular object mentions
+-- precede, so the plain pronoun would be ambiguous and the card writes
+-- the sorted demonstrative, which resolves onto the patient the event
+-- announced.
+vertigoSpawn : Ability
+vertigoSpawn =
+  Triggered Whenever (Blocks Macros.thisCreature (Just (Macros.a Macros.creature)))
+            (Sequentially [Tap (That (TypeW Creature)),
+                           DoesntUntapNext (That (TypeW Creature)) 1])
+
+-- ===== The set-level untap cap =====
+
+-- "You can't untap more than one land during your untap step." (Mungha
+-- Wurm, the whole card's text) — the `Yourself` domain, and the one line
+-- in the family whose step possessive is singular and second-person. The
+-- possessive is not written here because the domain writes it.
+munghaWurm : Ability
+munghaWurm = Static (CantUntapMoreThan Yourself 1 Macros.land)
+
+-- "Players can't untap more than one artifact during their untap steps."
+-- (Damping Field, the whole card's text; Imi Statue prints the identical
+-- line on an artifact rather than an enchantment, so the bench witnesses
+-- it once) — the bare domain, which is five of the family's seven lines.
+dampingField : Ability
+dampingField = Static (CantUntapMoreThan AllPlayers 1 Macros.artifact)
+
+-- "Players can't untap more than one creature during their untap steps."
+-- (Smoke, the whole card's text) — the same shape at a third set word,
+-- which is what makes the set an ordinary predicate rather than a closed
+-- list.
+smoke : Ability
+smoke = Static (CantUntapMoreThan AllPlayers 1 Macros.creature)
+
+-- "As long as this artifact is untapped, players can't untap more than
+-- one land during their untap steps." (Winter Orb, the whole card's
+-- text) — the cap COMPOSED under the existing conditional wrapper, which
+-- is the whole of what the composition needed: no cell opened, no gate
+-- relaxed.
+winterOrb : Ability
+winterOrb =
+  Static (Macros.asLongAs (Matches (AsType Artifact This) Macros.untapped)
+                          (CantUntapMoreThan AllPlayers 1 Macros.land))
+
+-- "As long as this artifact is untapped, players can't untap more than
+-- two permanents during their untap steps." (Static Orb, the whole
+-- card's text) — the bound-two cell and the permanent head, under the
+-- same wrapper.
+staticOrb : Ability
+staticOrb =
+  Static (Macros.asLongAs (Matches (AsType Artifact This) Macros.untapped)
+                          (CantUntapMoreThan AllPlayers 2 Permanent))
+
+-- ===== The player's counters =====
+
+-- "Each opponent gets a poison counter." (Prologue to Phyresis' first
+-- line; its second, "Draw a card.", is the card's other spell ability)
+-- — the player verb at its commonest recipient, and the poison kind's
+-- cleanest one-shot line.
+prologueToPhyresis : Effect []
+prologueToPhyresis = GetsCounters (Each Opponent) (Lit 1) Poison
+
+-- "Whenever this creature attacks, each player gets two rad counters."
+-- (Screeching Scorchbeast's first trigger; its Flying and menace keyword
+-- line and its mill trigger are the card's other text) — the rad kind,
+-- a written count above one, and the symmetric player domain.
+screechingScorchbeast : Ability
+screechingScorchbeast =
+  Triggered Whenever (Attacks Macros.thisCreature)
+            (GetsCounters (Each AnyPlayer) (Lit 2) Rad)
+
+-- "Whenever another creature you control dies, you get an experience
+-- counter." (Meren of Clan Nel Toth's first line; her second wants a
+-- phrasal mana-value comparison against the counter read, which
+-- `writtenBound` refuses) — the experience kind and the `You` recipient.
+merenOfClanNelToth : Ability
+merenOfClanNelToth =
+  Triggered Whenever (Dies (Macros.a (Macros.otherCreatureYouControl Macros.thisCreature)))
+            (GetsCounters You (Lit 1) Experience)
+
+-- "Each opponent loses all counters." (one mode of Final Act's "Choose
+-- one or more —"; the other four modes destroy planeswalkers and battles
+-- and exile graveyards, none of them this vocabulary's) — the removal
+-- verb's KIND-BLIND cell, where the sentence names no kind at all.
+finalActCounterMode : Effect []
+finalActCounterMode = LosesAllCounters (Each Opponent) Nothing
+
+-- "Target player loses all poison counters." (Leeches' first sentence;
+-- its second, "Leeches deals that much damage to that player.", reads
+-- the removed COUNT back as an anaphor and is elided) — the same verb
+-- with a kind named, which the scope gate holds to a player's kind.
+leeches : Effect []
+leeches = LosesAllCounters (Macros.target AnyPlayer) (Just Poison)
+
+-- "At the beginning of your end step, put a number of +1/+1 counters on
+-- target creature equal to the number of experience counters you have."
+-- (Kratos, Stoic Father's second line; his first is a coordinated
+-- trigger and his third the Partner keyword) — the counter READ at its
+-- player-holder spelling, feeding the object verb's amount slot. The
+-- phrasal amount postposes exactly as `rabidBite`'s "equal to its power"
+-- does; the construction is the same and the spelling layer's.
+kratosStoicFather : Ability
+kratosStoicFather =
+  Triggered At (BeginningOf EndStep (Just Yours))
+            (PutCounters (CountersOn Experience You) Macros.plusOnePlusOne
+                         (Macros.target Macros.creature))
+
+-- ===== The intervening "if" =====
+
+-- "Whenever this creature attacks, if you control a creature with power 4
+-- or greater, this creature gets +2/+2 until end of turn." (Ornery
+-- Dilophosaur's trigger; its Deathtouch keyword line and reminder text
+-- elided) — the intervening slot's first population, and the commonest
+-- shape in the family: a control check over an ordinary description,
+-- read as `Exists` exactly as a trailing conditional would read it. The
+-- slot demands no vocabulary of its own; finding 76's carrier-blind
+-- contract is what makes the whole round cheap.
+orneryDilophosaur : Ability
+orneryDilophosaur =
+  Triggered Whenever (Attacks Macros.thisCreature)
+            (Macros.gets Macros.thisCreature 2 2 (Just Macros.untilEndOfTurn))
+            {intervening = Just (Exists (And [Macros.creature, ControlledBy You,
+                                              Compare Power OrGreater (Lit 4)]))}
+
+-- "Whenever this creature attacks, if an opponent has three or more
+-- poison counters, creatures you control get +1/+1 until end of turn."
+-- (Incisor Glider's trigger; its Flying keyword line elided, and the
+-- "Corrupted —" ability word with it, an ability word having "no special
+-- rules meaning" [CR#207.2c]) — the slot carrying a THRESHOLD, and
+-- chapter forty's counter read at its first consumer: `CountersOn` feeds
+-- `CompareAmt`'s left side with no adaptation at either end.
+incisorGlider : Ability
+incisorGlider =
+  Triggered Whenever (Attacks Macros.thisCreature)
+            (Continuously (Gets (AllOf Macros.creatureYouControl) 1 1)
+                          (Just Macros.untilEndOfTurn))
+            {intervening = Just (CompareAmt (CountersOn Poison (Macros.a Opponent))
+                                            OrGreater (Lit 3))}
+
+-- ===== The event-history lookback =====
+
+-- "Raid — When this creature enters, if you attacked this turn, draw a
+-- card." (Storm Fleet Spy, the whole card's text; the Raid ability word
+-- elided, an ability word having "no special rules meaning"
+-- [CR#207.2c]) — the history read at its largest cell, and the one whose
+-- subject is a PLAYER: thirty-eight lines write "if you attacked this
+-- turn" and this is the shape they take.
+stormFleetSpy : Ability
+stormFleetSpy =
+  Triggered When (Enters Macros.thisCreature) Macros.drawACard
+            {intervening = Just (Happened AttackDeclaration You Lookback.ThisTurn)}
+
+-- "Morbid — At the beginning of each end step, if a creature died this
+-- turn, put a +1/+1 counter on this creature." (Vashta Nerada's trigger;
+-- its Indestructible and Shadow keyword lines elided, and the Morbid
+-- ability word with them) — the OBJECT subject as an indefinite
+-- description, and [CR#608.2i]'s own example of why this is not a
+-- description of the present: the creature that died is in a graveyard
+-- when the condition is checked.
+vashtaNerada : Ability
+vashtaNerada =
+  Triggered At (BeginningOf EndStep (Just EachPlayers))
+            (PutCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
+            {intervening = Just (Happened Death (Macros.a Macros.creature)
+                                          Lookback.ThisTurn)}
+
+-- "At the beginning of your end step, if you gained life this turn, draw
+-- a card." (Tippy-Toe, Terrific Partner's second line; its first is a
+-- token-creation replacement) — the life-change event read as HISTORY,
+-- which is the whole reason its `EventName` row exists: no `GameEvent`
+-- row produces it and the lookback does not need one.
+tippyToe : Ability
+tippyToe =
+  Triggered At (BeginningOf EndStep (Just Yours)) Macros.drawACard
+            {intervening = Just (Happened LifeGain You Lookback.ThisTurn)}
+
+-- "When this creature enters, if you've cast two or more spells this
+-- turn, draw a card." (Loan Shark's first line; its Plot keyword line
+-- elided) — the NUMERIC lookback, which is the count-valued twin under
+-- the existing comparison and adds no comparison vocabulary at all.
+loanShark : Ability
+loanShark =
+  Triggered When (Enters Macros.thisCreature) Macros.drawACard
+            {intervening = Just (CompareAmt (EventCount SpellCast You Lookback.ThisTurn)
+                                            OrGreater (Lit 2))}
+
+-- ===== The history read in the description =====
+
+-- "Sizzling Barrage deals 4 damage to target creature that blocked this
+-- turn." (Sizzling Barrage, the whole card's text) — the history read as
+-- a postnominal relative, and the rare BARE one: the block family writes
+-- a by-complement almost without exception, and this is one of the two
+-- lines that does not.
+sizzlingBarrage : Effect []
+sizzlingBarrage =
+  DealDamage This (Lit 4)
+             (Macros.target (And [Macros.creature,
+                                  HappenedTo BlockDeclaration Lookback.ThisTurn]))
+
+-- "{2}{B}, {T}: Destroy target creature that was dealt damage this turn."
+-- (Witch's Mist, the whole card's text) — the read's largest object cell,
+-- and [CR#608.2i] doing visible work: the damage was dealt when the
+-- creature was somewhere and something else, and the phrase asks only
+-- that it was.
+witchsMist : Ability
+witchsMist =
+  Activated (Compound [Mana [Macros.generic 2, Macros.pip Black], TapSymbol])
+            (Macros.destroy (Macros.target (And [Macros.creature,
+                                                 HappenedTo DamageTaken Lookback.ThisTurn])))
+
+-- "Destroy all creatures that entered this turn." (Force of Despair's
+-- second line; its first is an alternative cost) — the universal
+-- determiner over the read, where the two above target.
+forceOfDespair : Effect []
+forceOfDespair =
+  Macros.destroy (AllOf (And [Macros.creature,
+                              HappenedTo Entry Lookback.ThisTurn]))
+
+-- "At the beginning of your end step, put a +1/+1 counter on this
+-- creature for each opponent who was dealt damage this turn." (Furious
+-- Spinesplitter's trigger; its Trample keyword line elided) — the PLAYER
+-- head, whose relativizer is "who" where the three above write "that",
+-- and the for-each domain's first history consumer: `CountOf` takes the
+-- read as an ordinary modifier and needed nothing.
+furiousSpinesplitter : Ability
+furiousSpinesplitter =
+  Triggered At (BeginningOf EndStep (Just Yours))
+            (PutCounters (Macros.forEach (And [Opponent,
+                                               HappenedTo DamageTaken Lookback.ThisTurn]))
+                         Macros.plusOnePlusOne Macros.thisCreature)
+
+-- ===== Characteristic predicates =====
+
+-- "Players can't untap more than one nonbasic land during their untap
+-- steps." (Winter Moon, the whole card's text) — chapter thirty-nine's
+-- named gap, BACKFILLED: the cap's fifth set word was the one that needed
+-- a supertype predicate, and it needed the negated prefix form at that.
+winterMoon : Ability
+winterMoon =
+  Static (CantUntapMoreThan AllPlayers 1
+                            (And [Macros.land, Not (HasSupertype Basic)]))
+
+-- "Destroy target nonblack creature that entered this turn." (Cradle to
+-- Grave, the whole card's text) — chapter forty-three's failed witness,
+-- BACKFILLED, and the round's composition test: the colour negation and
+-- the history read are two ordinary modifiers under one head, and neither
+-- knew about the other.
+cradleToGrave : Effect []
+cradleToGrave =
+  Macros.destroy (Macros.target (And [Macros.creature, Not (ColorIs Black),
+                                      HappenedTo Entry Lookback.ThisTurn]))
+
+-- "Destroy target legendary creature." (Hero's Demise, the whole card's
+-- text) — the supertype read positively, where Winter Moon reads it
+-- negated.
+herosDemise : Effect []
+herosDemise =
+  Macros.destroy (Macros.target (And [Macros.creature, HasSupertype Legendary]))
+
+-- "Destroy target multicolored permanent." (Pure // Simple's Simple half;
+-- a split card's two halves are two spells and the bench witnesses this
+-- one) — the colour-COUNT word, which is not a colour ([CR#105.4]) and
+-- not a value of the colour row.
+simpleHalf : Effect []
+simpleHalf = Macros.destroy (Macros.target (And [Permanent, Multicolored]))
+
+-- "{2}{U}: Creatures named Leitmotif Composer can't be blocked this
+-- turn." (Leitmotif Composer's activated ability) — the NAME read, whose
+-- string is a payload the spelling carries and no gate ever looks at.
+leitmotifComposer : Ability
+leitmotifComposer =
+  Activated (Mana [Macros.generic 2, Macros.pip Blue])
+            (Continuously (Deontic (AllOf (And [Macros.creature,
+                                                Named "Leitmotif Composer"]))
+                                   Forbid Block Patient Nothing)
+                          (Just Macros.thisTurn))
+
+-- ===== The possessor axis =====
+
+-- "At the beginning of each upkeep, if you lost life last turn, put a
+-- +1/+1 counter on this creature." (Paladin of Atonement's first line;
+-- his second is a dies-trigger reading his own toughness) — chapter
+-- forty-two's `LastTurn` window, BACKFILLED: the window landed there with
+-- corpus evidence and no bench positive because every one of its lines
+-- writes the bare-each header, and the bare-each header is what this
+-- round gave a possessor.
+paladinOfAtonement : Ability
+paladinOfAtonement =
+  Triggered At (BeginningOf Upkeep (Just EachPlayers))
+            (PutCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
+            {intervening = Just (Happened LifeLoss You Lookback.LastTurn)}
+
+-- "Raid — At the beginning of each of your postcombat main phases, if you
+-- attacked this turn, exile the top card of your library." (Brazen
+-- Cannonade's second line, first sentence; the Raid ability word elided,
+-- and its second sentence — "Until end of combat on your next turn, you
+-- may play that card." — is an EXISTING PIN, the permission-under-an
+-- end-of-combat span `badPermissionUntilEndOfCombat` refuses) — finding
+-- 196's named blocker, three chapters in the making: the until-duration
+-- was chapter seventeen's, the raid lookback chapter forty-two's, and the
+-- postcombat main phase is this round's.
+brazenCannonade : Ability
+brazenCannonade =
+  Triggered At (BeginningOf PostcombatMain (Just EachYours))
+            (Macros.exile Macros.topCard)
+            {intervening = Just (Happened AttackDeclaration You Lookback.ThisTurn)}
+
+-- "At the beginning of your first main phase, draw a card." (Four Knocks'
+-- second line; its Vanishing keyword line and reminder text elided) — the
+-- first main phase, one of the three parts this round added, and the only
+-- one of its 52 headers whose body is not mana production.
+fourKnocks : Ability
+fourKnocks =
+  Triggered At (BeginningOf FirstMain (Just Yours)) Macros.drawACard
+
+-- "{2}{R}{R}{R}: Return this card from your graveyard to your hand.
+-- Activate only during your upkeep." (Hammer of Bogardan's second line;
+-- its first is a spell ability) — the activation WINDOW's first
+-- population, and the slot chapter twenty-eight left open with its
+-- blocker named.
+hammerOfBogardan : Ability
+hammerOfBogardan =
+  Activated (Mana [Macros.generic 2, Macros.pip Red, Macros.pip Red, Macros.pip Red])
+            (Move This Macros.handZ)
+            {window = Just (DuringPart Upkeep (Just Yours))}
+
+-- ===== The requirement =====
+
+-- "This creature attacks each combat if able." (Berserkers of Blood
+-- Ridge, the whole card's text) — the requirement's standing form, and
+-- the cleanest possible demonstration that the cadence is not a span: the
+-- line is a printed static ability with no duration adverbial anywhere,
+-- so it is a `Static` line and never a `Continuously` clause.
+berserkersOfBloodRidge : Ability
+berserkersOfBloodRidge = Static (Deontic Macros.thisCreature Require Attack Agent Nothing)
+
+-- "{1}{G}: Target creature blocks this creature this turn if able."
+-- (Trumpeting Armodon, the whole card's text) — the Block/Agent cell,
+-- whose PATIENT the table requires: all 38 of the family's lines name
+-- what must be blocked, and the span rides the `Continuously` envelope
+-- exactly as a restriction's does.
+trumpetingArmodon : Ability
+trumpetingArmodon =
+  Activated (Mana [Macros.generic 1, Macros.pip Green])
+            (Continuously (Deontic (Macros.target Macros.creature) Require Block Agent
+                                   (Just Macros.thisCreature))
+                          (Just Macros.thisTurn))
+
+-- "{2}{G}: This creature must be blocked this turn if able." (Loathsome
+-- Catoblepas' first ability; its second is a dies-trigger) — the PATIENT
+-- role, which writes the modal outright where the two agent cells write
+-- the plain present, and which names no blocker.
+loathsomeCatoblepas : Ability
+loathsomeCatoblepas =
+  Activated (Mana [Macros.generic 2, Macros.pip Green])
+            (Continuously (Deontic Macros.thisCreature Require Block Patient Nothing)
+                          (Just Macros.thisTurn))
+
+-- "You may choose not to untap this artifact during your untap step."
+-- (Ashnod's Battle Gear's first line; its second is an activated pump
+-- riding a for-as-long-as-tapped condition) — the permission to decline,
+-- the untap step's third static after the lock and the cap.
+ashnodsBattleGear : Ability
+ashnodsBattleGear = Static (MayDeclineUntap Macros.thisArtifact)
+
+-- ===== The designations =====
+
+-- "At the beginning of your end step, if you're the monarch, put a +1/+1
+-- counter on this creature." (Throne Warden, the whole card's text) — the
+-- monarch READ, and the route the intervening-if slot already had: the
+-- 18-line check family costs no condition vocabulary of its own, being
+-- `Matches You` over an ordinary description.
+throneWarden : Ability
+throneWarden =
+  Triggered At (BeginningOf EndStep (Just Yours))
+            (PutCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
+            {intervening = Just (Matches You (HasPlayerDesignation Monarch))}
+
+-- "When Aragorn enters, you become the monarch." (Aragorn, King of
+-- Gondor's first trigger; his keyword line and his attack trigger are the
+-- card's other text) — the designation GAINED, and the `Monarch` value's
+-- own verb.
+aragornKingOfGondor : Ability
+aragornKingOfGondor =
+  Triggered When (Enters Macros.thisCreature) (TakesDesignation You Monarch)
+
+-- "{3}, {T}: Goad target creature." (reminder text elided) — the keyword
+-- ACTION whose effect is [CR#701.15b]'s designation. What the reminder
+-- spells out is the designation's rules text and never a printed
+-- operative clause, which is why chapter forty-six's requirement row
+-- neither writes it nor needs to.
+goadTargetCreature : Ability
+goadTargetCreature =
+  Activated (Compound [Mana [Macros.generic 3], TapSymbol])
+            (Goad (Macros.target Macros.creature))
+
+-- "Whenever a goaded creature attacks, it deals 1 damage to its
+-- controller." — the object designation read prenominally, in a trigger
+-- header's subject.
+goadedAttackTrigger : Ability
+goadedAttackTrigger =
+  Triggered Whenever (Attacks (Macros.a (And [Macros.creature, IsGoaded])))
+            (DealDamage It (Lit 1) (ControllerOf It))
+
+-- "Whenever day becomes night or night becomes day, draw a card."
+-- (Firmament Sage's second line; its first is an as-enters conditional) —
+-- the GAME scope's event, whose spelling is the whole disjunctive phrase
+-- ten of the family's eleven headers write.
+firmamentSage : Ability
+firmamentSage = Triggered Whenever DayNightShift Macros.drawACard
+
+-- ===== The event subject's own mention =====
+
+-- "Whenever this creature becomes blocked, it gets +1/+1 until end of
+-- turn." (Deeproot Warrior, the whole card's text) — the line chapter
+-- thirty-eight named as blocked and witnessed around, landing at last.
+-- Its "it" is the trigger's own subject, which the event's
+-- after-discourse now mints (`selfSubjIntro`).
+deeprootWarrior : Ability
+deeprootWarrior =
+  Triggered Whenever (BecomesBlocked Macros.thisCreature Nothing)
+            (Macros.gets It 1 1 (Just Macros.untilEndOfTurn))
+
+-- "Whenever this creature attacks, it gets +2/+0 until end of turn."
+-- (Borderland Marauder, the whole card's text) — the same mention at a
+-- different event row, which is what shows the minting is the POSITION's
+-- and not one row's.
+borderlandMarauder : Ability
+borderlandMarauder =
+  Triggered Whenever (Attacks Macros.thisCreature)
+            (Macros.gets It 2 0 (Just Macros.untilEndOfTurn))
+
+-- ===== The deontic gate =====
+
+
+-- "This creature can't block creatures with power 3 or greater unless
+-- you pay {1}." (Hipparion, the whole card's text) — the COST gate, and
+-- the only line in its twenty-six-line family this grammar can write
+-- whole. It needs both of the round's new capabilities at once: the
+-- gate polarity carrying its cost, and the restriction's optional
+-- PATIENT, which the merged table admits at exactly this cell.
+hipparion : Ability
+hipparion =
+  Static (Deontic Macros.thisCreature (GatedBy (Mana [Macros.generic 1]))
+                  Block Agent
+                  (Just (AllOf (And [Macros.creature,
+                                     Compare Power OrGreater (Lit 3)]))))
+
+-- ===== The conditional's threading =====
+
+-- "As long as Frodo Baggins is your Ring-bearer, it must be blocked if
+-- able." (Frodo Baggins' second line; his first — "Whenever Frodo Baggins
+-- or another legendary creature you control enters, the Ring tempts you"
+-- — stays elided, its Ring-tempts being a keyword action [CR#701.54a]
+-- and its subject a coordinated event) — THE ARC'S PAYOFF. Chapter
+-- forty-six minted the requirement he needs, chapter forty-seven the
+-- Ring-bearer read, chapter forty-eight diagnosed exactly why his
+-- pronoun would not resolve, and this chapter threads the container that
+-- was the diagnosis. The "it" is the CONDITION's subject, minted for the
+-- body by `condSubjIntro`.
+frodoBaggins : Ability
+frodoBaggins =
+  Static (Macros.asLongAs (Matches Macros.thisCreature YourRingBearer)
+                          (Deontic It Require Block Patient Nothing))
+
+-- "As long as this creature is attacking, it gets +2/+0." (Adanto
+-- Vanguard's first line; its second is an activated indestructible
+-- grant) — the same threading over an ordinary status condition, which
+-- is what shows the minting is the CONTAINER's and not the Ring-bearer
+-- read's: fifty-five of the fronted lines write a self-typed subject and
+-- pronominalise it, and this is their shape.
+adantoVanguard : Ability
+adantoVanguard =
+  Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
+                          (Gets It 2 0))
+
+-- ===== The attachment host =====
+
+-- "Enchanted creature attacks each combat if able." (Bloodshed Fever,
+-- the whole card's text; its "Enchant creature" line is the Aura's own
+-- keyword ability, elided as keyword lines always are) — chapter
+-- forty-six's recorded block, BACKFILLED: that chapter minted the
+-- requirement and could not witness its second-largest carrier because
+-- the subject had no noun. This is that noun.
+bloodshedFever : Ability
+bloodshedFever =
+  Static (Deontic (AttachHost Enchanted (TypeW Creature)) Require Attack Agent Nothing)
+
+-- "Enchanted creature can't attack unless its controller pays {3}."
+-- (Brainwash, the whole card's text; Enchant creature elided) — chapter
+-- forty-nine's recorded block, BACKFILLED, and the cost gate's SECOND
+-- witness: that chapter landed the gate with exactly one line because
+-- every other flat gate in the family is an Aura. The payer is derived
+-- and is the HOST's controller, which is what "its controller" writes.
+brainwash : Ability
+brainwash =
+  Static (Deontic (AttachHost Enchanted (TypeW Creature))
+                  (GatedBy (Mana [Macros.generic 3])) Attack Agent Nothing)
+
+-- "As long as Enkira is equipped, it must be blocked if able." (Enkira,
+-- Hostile Scavenger's second line; his enters-trigger and his attack
+-- trigger are the card's other text) — chapter fourteen's threading
+-- meeting the INVERSE direction: the condition asks whether the self has
+-- an attachment, and the body pronominalises the self. Frodo's sibling,
+-- and the second card to close on `condSubjIntro`.
+enkiraHostileScavenger : Ability
+enkiraHostileScavenger =
+  Static (Macros.asLongAs (Matches Macros.thisCreature IsEquipped)
+                          (Deontic It Require Block Patient Nothing))
+
+-- "Whenever enchanted creature attacks, it deals 2 damage to any
+-- target." (Extra Arms, the whole card's text; Enchant creature elided)
+-- — the attachment host as an EVENT SUBJECT with a pronoun in the body,
+-- which is round twelve's minting extended to the new noun. Its mention
+-- is `TheD` and not `SelfD`, and the corpus is why: five lines
+-- demonstrate back to an attachment host where none demonstrates back to
+-- a trigger's own self.
+extraArms : Ability
+extraArms =
+  Triggered Whenever (Attacks (AttachHost Enchanted (TypeW Creature)))
+            (DealDamage It (Lit 2) (Macros.target AnyTarget))

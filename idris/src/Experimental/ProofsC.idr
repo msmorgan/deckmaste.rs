@@ -722,8 +722,8 @@ badWhenUpkeep MkTriggerWordOk impossible
 
 
 ||| "Whenever a creature is destroyed, draw a card."
-||| Real oracle English in one mood and none in the other: the modern
-||| templating for that event as a header is "dies", a different row.
+||| Real oracle English in one mood and none in the other: the phrase is
+||| regeneration's [CR#614.8], and the header for that event is "dies".
 public export
 badTriggerOnDestruction : Unspellable Ability (\ok =>
   Triggered Whenever (IsDestroyed (Macros.a Macros.creature)) Macros.drawACard
@@ -780,7 +780,7 @@ badLeavesThenTap OnField impossible
 ||| [CR#115.1b] says "an Aura permanent doesn't target anything".
 public export
 badStaticTargets : Unspellable Ability (\ok =>
-  Static (Cant (Macros.target Macros.creature) Attack Agent) {ut = ok})
+  Static (Deontic (Macros.target Macros.creature) Forbid Attack Agent Nothing) {ut = ok})
 badStaticTargets MkUntargeting impossible
 
 
@@ -893,7 +893,7 @@ badGainsTriggered MkGrantable impossible
 ||| And a static ability the same way.
 public export
 badGainsStatic : Unspellable (Effect []) (\ok =>
-  Macros.gains (Macros.target Macros.creature) (Static (Cant (AllOf Macros.creatureYouControl) Attack Agent))
+  Macros.gains (Macros.target Macros.creature) (Static (Deontic (AllOf Macros.creatureYouControl) Forbid Attack Agent Nothing))
         (Just Macros.untilEndOfTurn) {gr = ok})
 badGainsStatic MkGrantable impossible
 

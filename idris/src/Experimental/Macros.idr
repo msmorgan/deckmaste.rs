@@ -286,6 +286,13 @@ public export
 untapped : Predicate bs Object
 untapped = HasStatus Untapped
 
+||| "face-down" — [CR#110.5]'s face value as the ordinary prenominal
+||| word, hyphenated where the tap pair is not. The description reader of
+||| the same value `ToFace` changes and `IsTurnedFace` observes.
+public export
+faceDown : Predicate bs Object
+faceDown = HasStatus FaceDown
+
 ||| "nontoken" — the description-side negation of the token head.
 public export
 nontoken : Predicate bs Object
@@ -697,7 +704,7 @@ untilYourNextEndStep = Until (StartOf EndStep (Just Yours))
 -- spelling: ["as long as <Param(0)>, <Param(1)>"], kind: Sentence
 -- (Conditionally -- see StaticEffect.Conditionally)
 public export
-asLongAs : (c : Condition bs) -> (se : StaticEffect bs) ->
+asLongAs : (c : Condition bs) -> (se : StaticEffect (condSubjIntro c)) ->
            {auto 0 nn : NotConditional se} -> StaticEffect bs
 asLongAs c se = Conditionally c se {nn}
 
@@ -709,6 +716,14 @@ asLongAs c se = Conditionally c se {nn}
 -- spelling: ["<Param(1)> unless <Param(0)>"], kind: Sentence
 -- (Conditionally (NotCond …) … {marking = Unless} -- see CondMarking)
 public export
+-- the UNLESS marking's body stays at the incoming context, and that falls
+-- out of the threading rather than being stipulated: the wrapper negates,
+-- so the condition it hands `Conditionally` is a `NotCond`, and
+-- `condSubjIntro` mints only for a self-subject `Matches`. A negated
+-- condition has no self subject to thread -- `condSubjIntro (NotCond c)` is
+-- the incoming context by construction -- so this signature writes `bs`
+-- directly rather than an expression that always reduces to it. The corpus
+-- agrees: no "can't … unless" line pronominalises its condition's subject.
 unlessSo : (c : Condition bs) -> (se : StaticEffect bs) ->
            {auto 0 ng : CondNegatable c} ->
            {auto 0 nn : NotConditional se} -> StaticEffect bs
@@ -812,7 +827,7 @@ cantAttack : (n : Noun bs Object) -> (span : Maybe (Duration (nomIntro n))) ->
              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
              {auto 0 dp : DeedParticipant Attack Agent (nounTy n)} ->
              {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantAttack n span = Continuously (Cant n Attack Agent {zn} {dp}) span {sp}
+cantAttack n span = Continuously (Deontic n Forbid Attack Agent Nothing {zn} {dp}) span {sp}
 
 -- "[n] can't block [duration]" ([CR#509.1b]) — Blindblast, Blinding
 -- Flare.
@@ -822,7 +837,7 @@ cantBlock : (n : Noun bs Object) -> (span : Maybe (Duration (nomIntro n))) ->
             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
             {auto 0 dp : DeedParticipant Block Agent (nounTy n)} ->
             {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantBlock n span = Continuously (Cant n Block Agent {zn} {dp}) span {sp}
+cantBlock n span = Continuously (Deontic n Forbid Block Agent Nothing {zn} {dp}) span {sp}
 
 -- "[n] can't be blocked [duration]" ([CR#509.1b]) — Infiltrate; the
 -- passive of the same deed, the subject standing in core's `on` slot.
@@ -832,7 +847,7 @@ cantBeBlocked : (n : Noun bs Object) -> (span : Maybe (Duration (nomIntro n))) -
                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                 {auto 0 dp : DeedParticipant Block Patient (nounTy n)} ->
                 {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantBeBlocked n span = Continuously (Cant n Block Patient {zn} {dp}) span {sp}
+cantBeBlocked n span = Continuously (Deontic n Forbid Block Patient Nothing {zn} {dp}) span {sp}
 
 -- The control grant and its adverbial, the envelope's two halves under
 -- one name — `gets`/`gains` for the layer-2 verb. Two macros for the

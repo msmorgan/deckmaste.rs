@@ -13,8 +13,6 @@ import public Experimental.Unspellable
 %unbound_implicits off
 
 
--- ===== Compiler-checked refusals =====
-
 ||| "Choose a flying."
 ||| A keyword is a modifier, never a noun head.
 public export
@@ -157,7 +155,7 @@ badKeywordContradiction MkContradictionFree impossible
 
 
 ||| "Tap target nonland Forest."
-||| Forest presupposes land, so the conjunction contradicts itself.
+||| Forest is a land type [CR#205.3i], so the conjunction contradicts itself.
 public export
 badForestNonland : Unspellable (Effect []) (\ok =>
   Tap (Macros.target (And [HasSubtype Forest, Not Macros.land] {cf = ok})))
@@ -438,7 +436,8 @@ badThatTokenOfCard (Refl, _) impossible
 
 
 ||| "A creature card in your graveyard doesn't untap during its controller's untap step."
-||| The lock's subject stands on the battlefield.
+||| The lock's subject stands on the battlefield — only a permanent untaps
+||| [CR#701.26b].
 public export
 badUntapLockGraveyard : Unspellable Ability (\ok =>
   Static (DoesntUntap (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}))
@@ -671,8 +670,6 @@ badThatMuchAmbig : Unspellable (Effect []) (\ok =>
                 Macros.gainsLife You (ThatMuch {ok})])
 badThatMuchAmbig Refl impossible
 
-
--- ===== Chapter thirteen negatives: the refuse-nonsense wave =====
 
 ||| "Destroy target land. Destroy another target creature."
 ||| "Other" needs a head-COMPATIBLE anchor, and a land is none for "another

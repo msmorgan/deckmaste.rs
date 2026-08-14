@@ -4454,7 +4454,9 @@ fragments became cards:
    card) rather than one of the eleven headers, because every one of
    those wants a blocking-RELATION predicate ("creatures blocking or
    blocked by this creature") or a combat lookback ("if this creature
-   attacked or blocked this combat"). Re-checked and still shut, with
+   attacked or blocked this combat"). ANNOTATED, chapter thirty-eight:
+   the relation half landed and seven headers are now writable; the
+   lookback half did not (finding 271). Re-checked and still shut, with
    its blocker unchanged: Brazen Cannonade's raid header, which the
    sixth part does not open — it wants a postcombat main phase (ten
    corpus lines) and an "if you attacked this turn" lookback, neither of
@@ -6044,7 +6046,11 @@ counted comparison over "other lands", and a game-state condition. And
 the END-OF-COMBAT header is TAKEN as a
 `TurnPart` row, finding 196, with the eleven headers themselves still
 unwritable — each wants a blocking-RELATION predicate or a combat
-lookback — so the delayed clause carries the witness. Still open: the
+lookback — so the delayed clause carries the witness. ANNOTATED, chapter
+thirty-eight: the relation landed (`BlockerOf`/`BlockedBy`) and seven of
+the eleven are writable, Kjeldoran Frostbeast being the bench's first
+end-of-combat header; the remaining four want the past-tense lookback
+(finding 271) and stay. Still open: the
 DELAYED cast (thirty-six lines, "When you next cast a … spell this
 turn", every body either granting an ability to an object on the stack,
 which `Gains` refuses by zone, or copying the spell); the
@@ -6129,6 +6135,12 @@ twenty-two participial "phased out" lines, and off-battlefield face
 orientation (face-down exile, library piles, draft — expressly not
 status under [CR#110.5d]); morph/[CR#708] characteristics and
 turn-face-up permission; phasing's [CR#702.26] semantic tail.
+PARTIALLY CLOSED in chapter thirty-seven: the face and phasing VERBS and
+their events are represented (`ToFace`, `IsTurnedFace`, `Phases`,
+`PhaseTransition`); the FLIP verb is refused a shape by finding 263 and
+stays, as do the participial description cells, the off-battlefield face
+orientation, the two exiled-card face-up lines, and [CR#702.26g]'s
+indirect phasing.
 
 L6 **Untap-lock variants:** the one-shot "during its controller's next
 untap step" family, the single "doesn't untap" line without "during",
@@ -6138,7 +6150,11 @@ replacement reminder / 7 caps (finding 250). The 67 timed lines are
 REPRESENTED in chapter thirty-six (`DoesntUntapNext`); the one
 replacement reminder (Bewitching Leechcraft) is ledgered with quoted
 granted replacements and attachment, and the seven caps are their own
-future static-restriction round.
+future static-restriction round. **CLOSED, chapter thirty-nine:** the
+caps are represented (`CantUntapMoreThan`, over `CapDomain` and
+`CapBound`; findings 273–279), so every cell of the census is now either
+represented or classified and only Bewitching Leechcraft remains, with
+its own two blockers.
 
 L7 **Becomes-status trigger event:** designed (EventName row,
 `TriggeredOnly`, per-value attestation), blocked on a clean witness
@@ -6146,7 +6162,10 @@ line — as recorded then; LANDED in chapter thirty-five (findings
 245–248: `BecomesStatus`, `StatusChange`, `statusEventOk`; Gideon's
 Avenger and Mesmeric Orb the witnesses); "becomes tapped" 100,
 "becomes untapped" 33, all other values 0; "remains tapped" (40)
-classified by finding 249 as a "for as long as" duration condition.
+classified by finding 249 as a "for as long as" duration condition. The
+FACE and PHASING transition events land in chapter thirty-seven
+(`IsTurnedFace`/`TurnedFaceUp` with `faceEventOk`, 113 up against 0 down;
+`PhaseTransition`/`PhasingChange`, both directions open).
 
 L8 **"Enters untapped"** (6 lines): a measured [CR#110.5b]-default
 override with no quoted witness; `TokenRider` unchanged.
@@ -6176,9 +6195,10 @@ object status — newly representable: status words in ordinary
 descriptions and conditions; the permanent head across its three
 carriers; the token head, "nontoken", and the created-token readback;
 the untap effect; the standing untap-step lock; becomes-status triggers
-(chapter thirty-five); and the timed one-shot untap lock (chapter
-thirty-six). Still out: source phrases and face/flip/phase
-transitions; pile partitions
+(chapter thirty-five); the timed one-shot untap lock (chapter
+thirty-six); and the FACE and PHASING transitions, verb and event alike
+(chapter thirty-seven). Still out: source phrases; the flip verb, whose
+shape question finding 263 states; pile partitions
 (Death or Glory partitions the GRAVEYARD, so this is not the
 library gap — [CR#700.3a] puts each object in exactly one pile
 "unless the effect specifies otherwise" and [CR#700.3d] lets a
@@ -6931,3 +6951,2274 @@ Ledger updates this chapter:
 - Telekinesis remains L1-blocked: the only "next two" line, waiting on the
   [CR#609.7] by-source prevention rider; the count-two row carries its
   evidence meanwhile.
+
+## Chapter thirty-seven — the face and phase transitions
+
+Chapter thirty-five closed the becomes-status event on the tap pair and
+recorded, in finding 246, why the face and phasing cells refused: those
+transitions exist under their own verb families, ledgered, outside that
+row. This chapter mints two of the three. `ToFace` turns a permanent face
+down or face up ([CR#708]) and `IsTurnedFace` observes the turning;
+`Phases` phases a permanent out or in ([CR#702.26]) and `PhaseTransition`
+observes the phasing. All four are VALUE-INDEXED over [CR#110.5]'s own
+paired values rather than split into four verbs, which is
+`BecomesStatus`' idiom carried to a second and third category. The flip
+verb does NOT land: its premise failed on measurement and finding 263
+records what the corpus actually writes. Bench: 217 positives / 378 pins
+(the count of pin declarations across the four proof modules; chapter
+thirty-six's "375" does not match the 372 those files held before this
+round, a bookkeeping drift not introduced here).
+
+**Finding 258 — the direction is an ARGUMENT, not a second verb, and
+[CR#110.5]'s pairing is the warrant.** Status is four categories with two
+values each, and English writes the transition verbs the same way: "turn
+[n] face down" and "turn [n] face up" are one word taking one complement,
+"[n] phases out" and "[n] phases in" one word taking one particle. So the
+four rows this round could have been are two, each indexed at its
+category — `ToFace : StatusVal FaceC -> …`, `Phases : StatusVal PhaseC ->
+…`, and their two event twins — and the index is what closes each
+vocabulary: no tap value can be written where a face value belongs and no
+attestation table is needed to say so, the type saying it instead. That
+is the sharpest structural gain of the round, and it is a gain the
+becomes-status row already paid for: `BecomesStatus` is one row over a
+value with a table beside it, and these are the same shape at narrower
+domains, two of them needing no table at all. The one place the idiom
+does NOT extend is the SPELLING. `ToFace` writes the status value's own
+word ("turn target creature face down"), exactly as `BecomesStatus`
+writes it; `Phases` writes the PARTICLE ("out", "in") where the value's
+own word is "phased out", because the verb and the state are different
+English. The row comments say so at the spelling line, and no renderer
+may derive one from the other.
+
+**Finding 259 — the face EVENT is one direction only, and the zero is
+pinned rather than left structural.** This session's recon counts 134
+"is turned face up" trigger lines and zero "is turned face down" ones;
+the corpus script's distinct-line view of the same family is 113 supported
+lines up, zero down (the two figures differ by method — the recon counts
+lines as printed, the script deduplicates identical lines across cards —
+and neither disturbs the ratio, which is a mass against a zero). Both
+header words are written and the split runs opposite to the
+becomes-status family's: "When this creature is turned face up, …" is the
+morph mass, "Whenever a permanent you control is turned face up, …" the
+description-subject family, and the grammar declines to encode the
+difference exactly as everywhere else ([CR#603.1] assigns no word). `At`
+is refused ([CR#603.2b]). The refused DOWN cell is `faceEventOk`'s, a
+two-row table over `StatusVal FaceC`, with `badTurnedFaceDownEvent`
+stating the measurement — finding 246's discipline, not a silently
+missing constructor, and the distinction matters here because the
+face-down turning is a real and frequent game event ([CR#708.2a]) that no
+header names. Its refusal is attestation alone, which is exactly how it
+differs from the flip pair, whose unflipped cell [CR#710.4] makes
+impossible.
+
+**Finding 260 — the face-down direction is written exactly once as a
+clause, and it is a DURATION endpoint.** Vesuvan Shapeshifter: "until this
+creature is turned face down, it becomes a copy of that creature". That
+is the only clause of any kind in the corpus over the face-down turning,
+and it belongs to the duration reader, not to the trigger header —
+`eventSpan TurnedFaceUp` is `Unattested` for the direction the grammar
+HAS, and the direction it does not have would need an endpoint the
+`Duration` vocabulary would have to open. Recorded rather than built: one
+line, and it also wants `becomes`' copy word. The neighbouring measurement
+is the same shape and settles the phase row's cell: no line ends a
+duration at a phasing either, the nearest ("target creature phases out
+until this enchantment leaves the battlefield") ending at a DEPARTURE
+while its effect is a phase-out.
+
+**Finding 261 — phasing has no imperative form at all, and the clause is
+subject-first because [CR#702.26a] is.** "Phase out target creature" is
+written zero times. Every line is the intransitive declarative "Target
+creature phases out", the patient as SUBJECT, which is the rule's own
+wording for the turn-based action — "all phased-in permanents with phasing
+that player controls 'phase out'". So `Phases` spells
+"<Param(1)> phases <Param(0)>" where `Tap` spells "tap <Param(0)>", which
+is `DealDamage`'s and `Fights`' shape and no new capability: the effect
+layer's spelling templates already write subject-first frames, so
+assumption A1 held on inspection rather than on argument. The clause is
+still an ordinary resolving effect — `reflexEncloseUse` is `EncAgentless`
+for the reason the spelling is subject-first, no player being instructed
+([CR#603.12]).
+
+**Finding 262 — the phase pair needs no attestation table, and the effect
+cells are lopsided in a way the ledger records rather than the type.**
+Trigger headers: seven lines each direction by this session's recon, six
+distinct lines by the script, and Teferi's Imp writes both directions on
+one card — so the EVENT row opens both cells with no table. The EFFECT
+cells are 60 phase-out lines against a single effect-position phase-in:
+The Pandorica's "When The Pandorica becomes untapped or leaves the
+battlefield, that permanent phases in", verified this round against the
+corpus rather than assumed, with one plural sibling ("Simultaneously, all
+phased-out creatures phase in and all creatures with phasing phase out").
+Every other "phases in" occurrence is reminder text or a trigger header.
+One attested line is a written cell, so the row admits it and no
+per-value effect table is minted; but the Pandorica line's coordinated
+trigger event ("becomes untapped or leaves the battlefield") is
+unwritable here, so the cell lands with corpus evidence and NO bench
+positive — `TwoNextSteps`' posture from chapter thirty-six, where
+whole-line discipline limits the bench and never the grammar's evidence.
+
+**Finding 263 — the flip verb does not land, because its premise failed
+on measurement.** The round's brief supposed an argument-less self-flip
+row whose family was the five Kamigawa ascendants. Neither half survives
+the count. Fifteen supported lines write [CR#710]'s keyword action, and
+the surface splits seven "flip this creature", four "flip it", and four
+naming an ascendant (Kuon, Sasaya, Erayo, Rune-Tail — four, not five;
+Homura writes "return it to the battlefield flipped" instead and is a
+different construction). Every one of the fifteen flips the SOURCE, so
+the semantic claim is right — there is no "flip target creature" and no
+other-object flip anywhere — but every one of the fifteen also writes an
+explicit patient, and no `Effect` row in this grammar takes none. An
+argument-less row would therefore spell a sentence the corpus never
+writes while failing to spell the three it does, and the implicit-self
+precedent that exists ({T} and {Q}, [CR#107.5,107.6]) is a COST surface,
+not an effect one. The right shape is a self-subject noun argument —
+`Tap`'s shape with a sortedness demand — and choosing it is a design call
+this round declines to improvise. What blocks a witness independently:
+all fifteen lines sit under machinery that does not exist here (an
+intervening-if condition on a life total or a hand count, an ordinal
+spell-count trigger, a died-this-turn count), so no ascendant elaborates
+end-to-end today regardless of the row's shape. The flip family stays on
+L5's ledger with the shape question stated.
+
+**Finding 264 — witnesses and pins.** Seven positives: Cyber Conversion
+("Turn target creature face down.", its second sentence elided —
+[CR#708.2a] makes those the LISTED characteristics the permanent takes
+instead of the 2/2 default, and setting base characteristics is the layer
+family's word); Break Open, the whole card, where `HasStatus FaceDown`
+describes the patient and `ToFace FaceUp` changes it on one line; Secret
+Plans' trigger over a description subject; Vodalian Illusionist's
+activated phase-out; Teferi's Imp's two triggers, the paired directions on
+one card; and Shimmering Efreet, the phase-in EVENT with a phase-out
+EFFECT in its body. Six pins: two zone gates (`badTurnFaceDownGraveyard`,
+`badPhasesOutInHand`), the face-down event cell
+(`badTurnedFaceDownEvent`), the `At` header (`badAtPhasesOut`), and the
+two silent readers — nothing replaces a phasing
+(`badInterceptPhasesOut`) and no [CR#610.3] rider waits for a turning
+(`badHeldUntilTurnedFaceUp`). The gates are `Tap`'s and only `Tap`'s: no
+status precondition rides any value, and [CR#110.5] is why the grammar
+cannot carry one — status is the permanent's state at a moment of play
+and not a fact about the phrase, so "a face-down permanent can't be
+turned face down" ([CR#708.2b] — "nothing happens") is the resolving
+engine's no-op exactly as tapping a tapped permanent is. The battlefield
+gate needed one argument it had not needed before: a phased-out permanent
+has NOT left the battlefield ([CR#702.26d] — the phasing event "doesn't
+actually cause a permanent to change zones"; it is only treated as though
+it does not exist, [CR#702.26b]), so the phase-IN subject is a battlefield
+object and the same demand fits it.
+
+Ledger updates this chapter:
+
+- L5/OPEN-7 (**partially closed**): the FACE family and the PHASING
+  family are represented — `ToFace`/`IsTurnedFace`/`faceEventOk` and
+  `Phases`/`PhaseTransition`, with `TurnedFaceUp` and `PhasingChange` as
+  their `EventName` rows, all four readers answered per row. What remains
+  in the item: the FLIP verb (finding 263 — shape question stated,
+  premise refuted, no witness available); the twenty-two participial
+  "phased out" lines and the lone "flipped" line, which are
+  `statusWordOk`'s refused description cells and not these verbs';
+  off-battlefield face orientation (face-down exile, library piles,
+  draft), expressly not status under [CR#110.5d]; the two "turn the
+  exiled card(s) face up" lines, which the battlefield gate refuses and
+  which belong to the exiled-card linkage rather than to this verb;
+  indirect phasing ([CR#702.26g] — attached objects phase out with what
+  they are attached to), which has no oracle surface at all and is engine
+  bookkeeping; and the coordinated event subject that blocks Pine Walker,
+  King of the Oathbreakers, and The Pandorica alike.
+- L7 and the Frontier (**annotated in place**): the face and phase
+  transition events land here beside chapter thirty-five's
+  becomes-status.
+- The face-down DURATION endpoint (Vesuvan Shapeshifter, finding 260) is
+  a new near-miss for the duration ledger: one line, wanting both an
+  endpoint the `Duration` vocabulary does not open and the copy word.
+- Near-miss inventory from the whole-line discipline, none required by
+  this round's rows: the coordinated trigger subject ("this creature or
+  another creature you control"); the coordinated trigger EVENT ("phases
+  out or leaves the battlefield", "becomes untapped or leaves the
+  battlefield"); the Cyberman and Detective creature types; Secret Plans'
+  and Teferi's Imp's sibling lines (a face-down-scoped stat static, the
+  `Phasing` keyword).
+
+## Chapter thirty-eight — the blocking relation
+
+The combat vocabulary has had the block DESIGNATION since chapter
+seventeen (`Blocking`, the word "target attacking or blocking creature"
+coordinates) and the block EVENT since chapter twenty-eight (`Blocks`,
+one-place). What it has never had is the RELATION — which creature is
+blocking which — and without it the eleven end-of-combat bodies finding
+196 counted, Labyrinth of Skophos, and Hollowhenge Spirit all sat
+unwritable. This chapter mints it: two relational predicates
+(`BlockerOf`, `BlockedBy`), an optional partner slot on `Blocks` and a
+new passive event `BecomesBlocked` beside it, and the verb
+`RemoveFromCombat`. Bench: 224 positives / 384 pins.
+
+**Finding 265 — the relation is two ordinary modifiers, and the round's
+group-mention premise was wrong.** The recovered round claimed this family
+needed "a third `groupMention` kind beside `TargetGroup`/`LibrarySlice`".
+It needs none, and the claim was wrong twice over: `groupMention` already
+answers True on FIVE rows (`TargetGroup`, `Them`, `Those`,
+`LibrarySlice`, `ThoseVerbed`), and the phrase the claim was reaching for
+— "all creatures blocking or blocked by this creature" — is a determiner
+over a description, not a group mention at all. `AllOf` takes an ordinary
+predicate; the predicate is `And [creature, Or [BlockerOf …, BlockedBy
+…]]`; the head is the type word and the relation is two postnominal
+participial modifiers under it. Nothing new is spent. That is the whole
+mechanism behind the direct end-of-combat bodies, and Kjeldoran
+Frostbeast is the whole card written out of it.
+
+**Finding 266 — the two predicates are two rows because the corpus writes
+two phrases, and neither carries a singularity gate.** `BlockerOf` spells
+"blocking [m]" ([CR#509.1g] — the blocker "is blocking the attacking
+creatures chosen for it") and `BlockedBy` spells "blocked by [m]"
+([CR#509.1h] — the attacker "becomes a blocked creature").
+`ControlledBy`'s shape for both, and `ControlledBy`'s naming for the
+passive one. What does NOT transfer is `ControlledBy`'s one-possessor
+gate: that is [CR#109.4]'s fact about control, and the block relation is
+many-to-many in both directions by rule — an attacker may be blocked by
+"one or more creatures" ([CR#509.1h]) and a blocker may be blocking "the
+attacking creatures chosen for it" ([CR#509.1g], plural). What DOES ride
+each row is a zone demand on the RELATUM, [CR#506.3]'s creature and the
+battlefield the relation lives on (`badBlockingGraveyardRelatum`), and a
+`negatable` of False: "not blocking [m]" and "not blocked by [m]" are
+zero corpus lines apiece, `ExiledWith`'s situation exactly, while the two
+negations the family does write — "target nonattacking, nonblocking
+creature" and "if it wasn't blocking" — are the bare designation's and
+leave that row True (`badNegatedBlockedBy`).
+
+**Finding 267 — the designation word and the relational word are
+different readers, and [CR#509.4] is the proof rather than a stylistic
+preference.** It would have been tempting to give `Blocking` an optional
+relatum and call the bare row its `Nothing` case. Two things forbid it.
+The corpus: "attacking or blocking" coordinates the bare designation with
+`Attacking` and never takes a complement, while "creature blocking this
+creature" names the relatum and never coordinates — two phrases with
+disjoint syntax. And the rules: a creature put onto the battlefield
+blocking "is 'blocking' but, for the purposes of trigger events and
+effects, it never 'blocked'" ([CR#509.4]), so the STATE and the EVENT can
+come apart on the same object in the same combat. A vocabulary that
+routed both through one row would have to make that difference somewhere
+else. Three rows for three questions: `Blocking` describes the
+designation, `BlockerOf`/`BlockedBy` describe the relation, `Blocks`
+watches the declaration.
+
+**Finding 268 — the block event is ONE turn-based action with TWO
+subjects, and the complement is a slot rather than a second pair of
+rows.** [CR#509.1g] and [CR#509.1h] are the same declaration written
+twice: the chosen creature "becomes a blocking creature" and the attacker
+it was chosen for "becomes a blocked creature". So `Blocks` and
+`BecomesBlocked` are two rows with two `EventName`s
+(`BlockDeclaration`, `BlockedDeclaration`) answering the four readers
+separately — and each takes an OPTIONAL partner, because the corpus
+writes both halves of each: 24 transitive "Whenever this creature blocks
+a creature with flying, …" headers against the bare form's mass, and 61
+"Whenever this creature becomes blocked by a creature, …" against the
+bare "becomes blocked". One slot, `CtrlSingular`'s shape — a
+`BlockPartner` family over the `Maybe` with a row per case — so the gates
+that would ride a required noun ride the written one and ask nothing of
+the unwritten one (`badBlocksBareThisPartner`). The partner THREADS the
+subject's context (`Fights`' second slot), which is what lets Vertigo
+Spawn's body read the patient twice through the sorted demonstrative. The
+row demands nothing about legality: that a blocker must be untapped
+([CR#509.1a]) is the declaring engine's check on a turn-based action and
+not a fact about the sentence, `Tap`'s posture at a new consumer. And
+`BecomesBlocked` is emphatically NOT a becomes-status event — blocked-ness
+is a combat designation that no [CR#110.5] category holds, which is why
+`StatusCat` still has four rows.
+
+**Finding 269 — `RemoveFromCombat` is the one sentence in [CR#506.4]'s
+list, and the gate is zonal only.** The rule enumerates every way a
+permanent leaves combat — leaving the battlefield, changing controller,
+phasing out, regenerating, ceasing to be a creature — and exactly one of
+them is a clause a card writes: "an effect specifically removes it from
+combat". The verb takes `Tap`'s gate and only `Tap`'s. Being attacking or
+blocking is dynamic combat state, the same argument [CR#110.5] forces on
+the status verbs, and the corpus settles it at the surface: every
+operative line puts the combat words in the target DESCRIPTION ("Remove
+target attacking or blocking creature from combat"), where `Attacking`
+and `Blocking` already live. This session's recon counts 25
+effect-position lines; a filter excluding regeneration's reminder text
+("instead tap it, remove it from combat, and heal all damage on it",
+[CR#701.19]'s wording, which is the overwhelming majority of all "from
+combat" matches) finds 22 — the same family, two methods.
+
+**Finding 270 — [CR#506.4a] is a real distinction and no phrase refuses
+it, so it is recorded and not pinned.** The rule: "once a creature has
+been declared as an attacking or blocking creature, spells or abilities
+that would have kept that creature from attacking or blocking don't
+remove the creature from combat." The corpus writes both sides
+independently — "{1}{R}, {T}: Target creature can't block this turn" is
+an activated prohibition usable after blockers are declared, where
+Labyrinth of Skophos removes — and both sides are independently
+spellable here, `Cant`'s deed restriction and this row. The queue asked
+for a refusal pin. There is none to write: the difference is what the two
+clauses MEAN at resolution, not a shape one of them cannot take, and a
+pin that merely posed a `Cant` where a `RemoveFromCombat` belongs would
+refuse nothing — both terms typecheck, as they should. Recorded here
+against the rule's text, in the form finding 249 used for the unwritable
+remains-condition boundary.
+
+**Finding 271 — the past-tense lookback does not land, and the reason is
+that it is not this axis.** The relational pair describes a state holding
+NOW: [CR#509.1g] says the blocker "remains a blocking creature until it's
+removed from combat or the combat phase ends". What the eight
+past-relative lines write is different — "each creature that blocked this
+turn", "creatures that were blocked by that creature this turn" — a
+lookback over what HAPPENED, carrying its own span, and the four delayed
+end-of-combat forms are the same construction. Giving the participial
+rows a duration slot would have been the cheap move and the wrong one: it
+would put a span on a DESCRIPTION, which is the cell finding 252 declined
+to open without evidence, and it would still not express the tense, a
+creature that blocked and was then removed from combat satisfying the
+lookback and failing the description. The honest shape is an event-history
+query — the axis core spells as a condition lookback over the shared
+`EventName` vocabulary — and that is a round, not a slot. So the present
+participial pair lands alone, and seven of finding 196's eleven
+end-of-combat bodies become writable while the four delayed forms wait
+with the eight other lookback lines.
+
+**Finding 272 — witnesses, pins, and the bare cell's witness swap.**
+Seven positives: Labyrinth of Skophos and Hollowhenge Spirit, the verb
+under its two carriers (activated and entry-triggered), each with the
+combat words in the target description; Netcaster Spider, the transitive
+block header with a described patient; Vertigo Spawn, the transitive
+header whose body reads the patient twice through the sorted
+demonstrative and reuses chapter thirty-six's timed lock; Viashino
+Weaponsmith, the passive event with its "by" complement written;
+Somberwald Alpha, the same event with the complement left out; and
+Kjeldoran Frostbeast, the whole card, the relational pair under one
+determiner. The bare cell's witness is a DESCRIPTION-subject line and
+had to be: every self-subject line in that cell writes its body with the
+pronoun ("Whenever this creature becomes blocked, IT gets +1/+1 until end
+of turn" — Deeproot Warrior, and the whole bushido and rampage reminder
+family), and the self-word announces no mention for `It` to read
+(chapter thirty's split), so Deeproot Warrior is evidence and Somberwald
+Alpha is the bench. Bill Ferny is attempted and DECLINED: its
+becomes-blocked header, its modal, its gain-control mode and the Horse
+subtype all exist, but both modes create Treasure tokens and the
+predefined-token catalog ([CR#111.10]) does not, and a modal missing a
+mode's body is not the card. Six pins: two zone gates
+(`badRemoveFromCombatGraveyard` on the verb, `badBlockingGraveyardRelatum`
+on the relatum), the relational negation (`badNegatedBlockedBy`), the
+`At` header (`badAtBecomesBlocked`), the partner's sortedness
+(`badBlocksBareThisPartner`), and the silent reader — nothing replaces a
+block declaration, the abilities that stop one being restrictions checked
+as it is made ([CR#509.1b]) rather than replacements of an event
+(`badInterceptBecomesBlocked`).
+
+Ledger updates this chapter:
+
+- The blocking-relation round (**partially closed**): the relation, both
+  event voices, and the verb land. Remaining and narrowed in the queue:
+  the past-tense lookback (finding 271 — 8 past-relative lines plus
+  finding 196's 4 delayed end-of-combat forms), and Bill Ferny, now
+  blocked on the predefined-token catalog alone.
+- **Combat-assignment surgery stays a separate future round**, untouched
+  by this one and unblocked by it: its corpus is 1 stops-blocking line
+  and 19 could-block lines, and it needed this round's relation to exist
+  first ([CR#509.3a]'s remove-then-write versus stops-blocking
+  distinction).
+- **The 38 "blocks … this turn if able" requirement lines are NOT this
+  round's** and are routed to the queued "deontic beyond `Cant`" entry:
+  [CR#509.1c] makes a requirement a check on the declaration, the
+  positive twin of the restriction `Cant` already writes, and it wants
+  the deontic axis rather than the block event.
+- Also deferred out, each to its standing queue entry: the bare
+  participial "blocked"/"unblocked" descriptions (participle verb tags);
+  banding; multi-blocker ordering; attacks-alone (attack-side).
+- Near-miss inventory: the coordinated block EVENT ("blocks or becomes
+  blocked by a creature") is the family's single largest unwritable
+  frame and joins round thirty-seven's coordinated-event entries; "the
+  blocking creature" as a definite determiner over a description is the
+  standing spelling residue, and it is what keeps the recon's own
+  transitive example ("Whenever a creature blocks a black or red
+  creature, the blocking creature gets +1/+1 until end of turn") off the
+  bench; the predefined Treasure token, again.
+
+## Chapter thirty-nine — the set-level untap cap
+
+Chapter thirty-five's doesn't-untap census split the family four ways
+(finding 250: 54 standing / 67 timed / 1 replacement reminder / 7 caps);
+chapter thirty-six minted the timed lock and deferred the caps to their
+own round, naming three axes they would need. This chapter mints them —
+`CantUntapMoreThan`, over a closed player DOMAIN and a closed BOUND — and
+finds that the third axis was never an axis. Bench: 229 positives / 388
+pins.
+
+**Finding 273 — the cap bounds a CARDINALITY, and that is why it is not
+`DoesntUntap` with a number.** [CR#502.3] gives the untap step one
+turn-based action in two sentences: "the active player determines which
+permanents they control will untap. Then they untap them all
+simultaneously." The standing lock names FIXED objects and takes them out
+of the second sentence; the cap names no object at all and bounds how
+many the FIRST sentence may include. That is a different statement about
+a different half of the same rule, which is why the row's subject is a
+player domain rather than a noun phrase and its object a described SET
+rather than a phrase naming anybody — and why it announces nothing
+(`staticIntro` answers the incoming context, the first static row with no
+subject phrase to contribute, which is `BeginningOf`'s answer at the
+event layer for `BeginningOf`'s reason). It files under `DeedRestriction`
+beside `DoesntUntap` all the same: one class of statement per kind-keyed
+reader, the `EntersWithCounters` precedent the untap lock already cited.
+
+**Finding 274 — the domain is three words, and NOT a step toward plural
+player nouns.** The family is closed at seven distinct lines on eight
+cards, and the domain across them is bare "Players" five times, "You"
+once (Mungha Wurm), "Your opponents" once (Dovin Baan's quoted emblem).
+Nothing else is ever written there — no "each opponent", no described
+player set — so `CapDomain` is a three-value enum, `StatusVal`'s idiom at
+a three-cell domain. The alternative was a plural player NOUN, and
+declining it is a scoping choice this chapter records rather than hides:
+such a noun is a real axis with real evidence elsewhere (the counter
+verbs' PLAYER holder, forty-eight lines, ledgered), and building it on
+seven lines of cap evidence would have spent it everywhere at the price
+of one family's convenience. When that round comes, this enum is three
+call sites to revisit, which is the cheap direction to be wrong in.
+
+**Finding 275 — the third axis dissolved: the step's possessor is a
+spelling agreement, not a slot.** Chapter thirty-six listed three things
+the cap would need that the timed lock did not, and one of them was
+"recurring 'your/their untap step(s)' agreement". Measured, it is not a
+degree of freedom at all: "your untap step" occurs with `Yourself` and
+"their untap steps" with the other two domains, one to one across all
+seven lines, with the number of the step word agreeing too. So the
+possessive is a FUNCTION of the domain and the spelling owns it — which
+is exactly the arrangement `DoesntUntap` already had, its two spellings
+agreeing with its subject ("your untap step" for the self, "its
+controller's" otherwise), and exactly the arrangement finding 254 found
+at the timed row. Three rows now derive the same possessive from their
+own subject and none of them carries a slot for it. `Whose` stays
+two-valued; no agreement machinery exists in this grammar and none was
+needed. The general lesson is worth stating because it has now been paid
+for three times: an axis that varies perfectly with something already
+written is a spelling fact wearing an axis's clothes, and the way to tell
+is to tabulate the pair rather than to count either side.
+
+**Finding 276 — the bound is a closed two-row table and the comparator is
+construction-owned.** `CapBound` is `NextUntapCount`'s move at a second
+site: rows for one (five lines, singular set word) and two (two lines,
+Static Orb and the emblem, "permanents" plural), with three and up
+refused (`badUntapCapThree`). And the comparator needs no vocabulary,
+because the corpus has exactly one phrasing of it: "can't untap more than
+N", every line, with no "at most" and no "untap only" anywhere in the
+family. Storage Matrix's "can untap only permanents of the chosen type"
+is not the exception it looks like — it is a different construction
+entirely (finding 280) and its "only" is not this comparator.
+
+**Finding 277 — the capped set is an ordinary predicate carrying `AllOf`'s
+demands, and the fifth set word is what it costs.** Five sets are
+written: land, artifact, creature, permanents, and nonbasic land. Four
+are existing vocabulary and the row takes them as a bare `Predicate` with
+no determiner over it, gated exactly as the universal determiner gates
+its own — the phrase must say a head noun (`Headed`;
+`badUntapCapHeadless` refuses "more than one tapped", the status word
+heading nothing), must not hide the damage class, and must describe
+battlefield permanents, [CR#502.3]'s untap reaching nothing else
+(`badUntapCapGraveyardSet`). The fifth needs a SUPERTYPE predicate:
+"nonbasic land" is [CR#205.4c]'s own term for a land without the
+basic supertype, and supertypes exist in
+this grammar only as a printed card's field, never as a description
+(ledgered since chapter thirty). So Winter Moon is corpus evidence with
+no bench positive — `TwoNextSteps`' and the phase-in cell's posture, the
+third time this round-shape has come up and the first time it was
+predicted before implementation rather than discovered during it.
+
+**Finding 278 — composition needed nothing.** Two of the seven lines
+write the cap inside "as long as this artifact is untapped" (Winter Orb,
+Static Orb). `Conditionally` wraps it untouched: no cell opened, no gate
+relaxed, no nesting demand disturbed, because [CR#611.3a] licenses the
+wrapper over any static statement and the cap is one. Both cards are
+whole-card witnesses. This is the round's cheapest result and worth
+recording as such — a new `StaticEffect` row that composes for free is
+evidence the wrapper was cut at the right joint.
+
+**Finding 279 — the "next" endpoint pin fell as a real refusal, not a
+structural absence.** Finding 257 named a future pin here and the shape
+was genuinely uncertain: the row has no timing slot of its own to refuse,
+so the honest expectation was a structural absence recorded in prose. It
+is not. The cap composes under `Continuously`, which HAS a span slot, and
+`spanUse` already answers `Unattested` at every untap-step endpoint — so
+"Players can't untap more than one land until your next untap step" is a
+writable-looking sentence that the existing span table refuses, and
+`badUntapCapUntilNextUntapStep` is that refusal at this row
+(`SpanOk DeedRestriction (Just (Until (StartOf UntapStep (Just
+Yours))))`). The cap names the interval it governs in its own words
+("during their untap steps") and takes no endpoint on top; the pin now
+says so. Recorded here because the round's brief asked which way it fell.
+
+**Finding 280 — four neighbouring families, measured and left.**
+
+- **Storage Matrix is a corpus SINGLETON and a different construction.**
+  "As long as this artifact is untapped, each player chooses artifact,
+  creature, or land during their untap step. That player can untap only
+  permanents of the chosen type this step." It is a choose-a-category
+  effect with a per-step chosen value read back by a following sentence —
+  neither a cap nor a lock — and one line does not buy a construction.
+  Recorded, no queue entry.
+- **The Seedborn family — "untap … during each other player's untap
+  step", 12 lines — is the cap's mirror image and its own round.** It
+  GRANTS an untap where these deny one, and it needs the player-domain
+  axis this chapter deliberately did not build (finding 274). I propose a
+  queue line for it and have NOT added one; the coordinator's call.
+- **The may-choose-not-to-untap deontic routes to the deontic entry**,
+  exactly as round thirty-eight's "blocks if able" requirements did: this
+  session's recon counts 8, a distinct-line filter finds 7 ("You may
+  choose not to untap Hivis / Rubinia Soulsinger / The Blackstaff of
+  Waterdeep / The Pandorica / this artifact / this creature / this land
+  during your untap step") — the same family, two methods. It is a
+  PERMISSION over the turn-based action, the positive twin of the
+  restriction, and belongs with `MayPlay`'s axis rather than here.
+- **Mudslide's pay-to-untap is not an untap-step rider at all.** Its
+  first line is an ordinary standing lock ("Creatures without flying
+  don't untap during their controllers' untap steps"); its second is an
+  UPKEEP trigger with a per-object cost ("At the beginning of each
+  player's upkeep, that player may choose any number of tapped creatures
+  without flying they control and pay {2} for each creature chosen this
+  way. If the player does, untap those creatures."). One card, and the
+  interesting half wants per-member cost scaling, which is the dependent
+  iteration entry's business. Recorded with the correction.
+
+Ledger updates this chapter:
+
+- L6 (**closed**): the doesn't-untap census is now fully represented or
+  fully classified. 54 standing (`DoesntUntap`, chapter thirty-four), 67
+  timed (`DoesntUntapNext`, chapter thirty-six), 7 caps
+  (`CantUntapMoreThan`, here), 1 replacement reminder (Bewitching
+  Leechcraft, ledgered with quoted granted replacements and attachment).
+  Nothing in the family is unclassified.
+- The `YourOpponents` cell is ADMITTED with corpus evidence and no bench
+  positive: its one printed line is inside Dovin Baan's quoted emblem,
+  and emblem quotation is unwritable here (`Grantable`'s stance). The
+  cell is exercised as a well-formed term inside `badUntapCapThree`,
+  whose refusal is the BOUND, so nothing in the round leaves the value
+  untypechecked.
+- Winter Moon (**recorded, not witnessed**): waiting on a supertype
+  PREDICATE, which is the description-side half of a field chapter thirty
+  minted for the printed card only.
+- Near-miss inventory: the supertype predicate ("nonbasic land"); the
+  per-member cost ("pay {2} for each creature chosen this way",
+  Mudslide); the choose-a-category-then-read-it-back construction
+  (Storage Matrix); emblem quotation, again.
+
+## Chapter forty — the player's counters
+
+[CR#122.1] has said since the beginning that a counter is "a marker
+placed on an object OR PLAYER", and until this round every row in the
+catalog was an object's. This chapter reads the rule's other half: three
+player kinds, the two verbs that reach them, the count read at both
+holder sorts, and the last-removal event the counter verbs have owed
+since finding 198. One scope table carries all of it. Bench: 235
+positives / 394 pins.
+
+**Finding 281 — round thirty-nine's prediction was wrong about WHERE the
+plural-player axis lives, and the deferral survives the correction.**
+Finding 274 declined to mint a plural player noun on seven lines of cap
+evidence and named the counter verbs' player holder as the round that
+would motivate it properly. Measured, that round does not: the counter
+recipients are You 41, target player 5 and target opponent 3, each
+player 6 and each opponent 5, defending player 2, and the anaphoric
+"that player" 13 — every one an existing noun row — while "your
+opponents" as a counter recipient is written ZERO times. The stale
+"forty-eight lines" figure the docstring quoted (finding 84's) does not
+reproduce either; today's numbers are 66 non-energy kind-named lines
+against 145 with energy. So the decision stands and its stated reason
+does not: the sole remaining consumer of the plural-player axis is the
+recurring untap GRANT (Seedborn Muse's twelve lines). Both live pointers
+are amended — `CapDomain`'s docstring and the queue's Seedborn line —
+and the log is left as written, this finding being the correction.
+
+**Finding 282 — the scope table answers in `Kind`, and that is what makes
+the whole round cheap.** `counterScope : CounterKind -> Kind` is full
+rows over the catalog: the four object products answer `Object`, the
+three new kinds answer `Player`. Every consumer then gates by ordinary
+equality — `counterScope kind = Object` on the put and remove verbs,
+`= Player` on the two player verbs, and `= k` on the count read, whose
+own `{k : Kind}` index is the holder's sort. One table, five gates, no
+scope enum of its own and no per-verb recipient description. Answering in
+a bespoke `Scope` type would have cost a second mapping into `Kind` at
+the read; answering in `Kind` bought the holder agreement for free.
+
+**Finding 283 — two verbs, and the corpus separates them absolutely.**
+Objects never "get" a counter (zero lines) and players never receive
+"put" (zero lines), so `GetsCounters` is a different WORD and not a
+widened `PutCounters` — which is what lets the scope table gate both
+rather than each verb re-describing its own recipients
+(`badPutPoisonOnCreature`, `badGetsBoostCounter`). The player verb is
+agent-silent for a sharper reason than its object twin: the recipient is
+the SUBJECT, so there is no room for an agent phrase at all. And
+[CR#702.90b] is the one place the rules and the oracle disagree about the
+word — infect "causes that source's controller to GIVE the player that
+many poison counters" where every printed line says "gets" — which this
+grammar resolves the way it always does, by recording what cards print.
+The one recipient the round does not reach is "defending player" (2
+lines), wanting a combat-role player predicate; recorded, not minted.
+
+**Finding 284 — Ticket is refused, and the reason is its SPELLING REGIME
+rather than its count.** Both ticket lines write "You get {TK} (a ticket
+counter)": symbol notation with the counter name in a parenthetical
+gloss. That is energy's regime, not this verb's — energy's 79 lines
+write {E} for acquisition and "Pay {E}{E}{E}" for spending, both
+symbol-notated — so ticket routes with energy to the symbol round and
+waits there rather than waiting on a line count. This matters because
+finding 85's test is about SHAPE and not volume (it admitted `Stun` on
+one line and refused `charge` on sixty-six), and a two-line kind of the
+right shape would have passed; ticket fails a different test, and saying
+which one is the point.
+
+**Finding 285 — the player's removal verb is always-all, so its
+kind-blind cell is IN this vocabulary while the quantifiers stay out.**
+All four corpus lines remove the whole holding and none removes a
+number: "Each opponent loses all counters" and "Target opponent loses all
+counters" name no kind, "Target player loses all rad counters" and
+"Target player loses all poison counters" do. So `LosesAllCounters`'
+`Maybe CounterKind` is not a quantity term in disguise — it says whether
+the sentence NAMES a kind, not how many of one it takes — which is
+exactly why it can land here while "a counter" (82 lines), "with a
+counter on it" (26) and "move a counter" (36) stay ledgered, all three
+wanting a quantity over KINDS the `Amount` vocabulary has no term for.
+The gate is `CtrlSingular`'s and `BlockPartner`'s shape at a third site
+(`PlayerCounterKind`), riding the written cell and asking nothing of the
+unwritten one (`badLosesAllBoostCounters`).
+
+**Finding 286 — the count read is ONE row, and round thirty-nine's lesson
+is why.** The corpus writes two spellings, "the number of [kind] counters
+on [object]" (296 lines) and "the number of [kind] counters [player] has"
+(9). They vary perfectly with the holder's SORT and with nothing else,
+which finding 275 already named: an axis that varies perfectly with
+something written is a spelling fact wearing an axis's clothes. So
+`CountersOn` is one `{k : Kind}`-indexed row in `Matches`' and
+`DealDamage`' idiom, the possessive spelling deriving from the holder,
+and the kind tied to the holder by the one table
+(`badCountersHeldByPlayer`). The PLAYER spelling is witnessed (Kratos,
+Stoic Father, feeding the object verb's amount slot, where the phrasal
+amount postposes exactly as `rabidBite`'s "equal to its power" does); the
+OBJECT spelling, at thirty-three times the line count, is not — every
+clean candidate fails for a reason outside this row. Two write the
+recipient before the amount ("deals damage to target creature equal to
+the number of +1/+1 counters on this creature"), which is a linearization
+the spelling layer does not have; two feed token catalogs this grammar
+lacks; one uses the read as a phrasal `Compare` bound, which
+`writtenBound` refuses by design, that being the ledgered phrasal-standard
+frame. The commonest spelling in the family lands unwitnessed, and saying
+so is more useful than reaching for a witness that elides its way in.
+
+**Finding 287 — the last-removal event, and fading is not it.**
+`LastCounterRemoved` watches the removal that empties a holding, the
+third of the three abilities suspend represents ([CR#702.62a] writes the
+header out; [CR#702.63a] writes the same one into vanishing). Fading
+looks alike and is a different mechanism: [CR#702.32a] says "remove a
+fade counter from this permanent. If you CAN'T, sacrifice the permanent"
+— a failure-to-remove check inside the upkeep trigger, firing when the
+holding is ALREADY empty, where this row fires on the removal that
+empties it. One counts down to zero and acts; the other tries at zero and
+fails. The subject is an OBJECT and never a player — structural, not
+measured-and-refused, the noun slot being object-sorted so there is no
+cell to pin, and the corpus agreeing at zero lines. Its zone demand is
+the counter family's own two-zone table, which is not a convenience:
+every explicit line watches a card IN EXILE. And the row lands with NO
+bench positive, all five explicit lines blocked, with one cause running
+through all three time lines: each writes "while it's exiled" or "if it's
+exiled" on the header, which is the intervening-if seam ([CR#603.4],
+queued since finding 76). Suspend's own line is additionally a granted
+QUOTED ability; the Knight-token line additionally wants flanking and
+protection from white; the third line ("creatures can't be blocked this
+turn") wants nothing else at all and is one seam away from writable. The
+ore and refine lines carry no kind rows and are evidence without
+vocabulary, finding 200's posture.
+
+**Finding 288 — witnesses and pins.** Six positives: Prologue to
+Phyresis' first line (the poison kind at the family's commonest
+recipient), Screeching Scorchbeast's trigger (rad, a count above one,
+the symmetric player domain), Meren of Clan Nel Toth's first line
+(experience, the `You` recipient), Final Act's counter mode (the removal
+verb's kind-blind cell), Leeches' first sentence (the same verb with a
+kind named; its second reads the removed COUNT back as an anaphor and is
+elided), and Kratos, Stoic Father's second line (the count read at its
+player spelling). Six pins: the two scope refusals at the two verbs, the
+named-kind cell of the removal verb, the read's holder agreement, the
+event's kind, and the `At` header. THREE of the six share one inferred
+obligation — `counterScope plusOnePlusOne = Player` — refused at three
+different rows, which is the scope table doing its job at every consumer
+rather than three tables agreeing by hand.
+
+**Finding 289 — a binder-unification observation, recorded and not
+fixed.** `CounterKind` is a live name in TWO independent module families:
+this one's closed catalog, and the older `Semantics` module's open
+`MkCounterKind Scope String (List (Ability Base))`, whose own scope field
+is the same axis this chapter minted as `counterScope` and whose read is
+also called `CountersOn`. The two never meet — `Experimental` imports
+nothing from `Semantics` and says so in its header — so this is a name
+straddle across two vocabularies rather than a conflict, and
+`Macros.levelCounter` resolves to the OLD module's `Macros`, not
+`Experimental/Macros`. Recorded for the binder-unification work; nothing
+changed this round.
+
+Ledger updates this chapter:
+
+- The counter cluster's two queue entries (**closed and replaced**): the
+  PLAYER holder and its two verbs, the count read, and the last-removal
+  trigger all land here. What survives is one narrowed entry, the
+  kind-blind quantifiers and the move-a-counter transfer (82 / 26 / 36
+  lines), which want a quantity over kinds.
+- **Energy defers wholesale** to the mana and payment round, acquisition
+  and spending alike (79 lines, all symbol-notated), and **ticket goes
+  with it** for the same reason (finding 284, 2 lines).
+- Unwitnessed but landed, each with its blocker named: the count read's
+  OBJECT spelling (finding 286) and the whole last-removal event (finding
+  287, the intervening-if seam).
+- Near-miss inventory: a combat-role player predicate ("defending
+  player", 2 lines); the phrasal `Compare` standard, which now blocks a
+  second family; the recipient-before-amount linearization; flanking and
+  protection-from; the intervening-if seam, which this round promotes
+  from a queued nicety to the single thing standing between the corpus
+  and a whole event row's bench.
+
+## Chapter forty-one — the intervening "if"
+
+Finding 76 left the trigger layer a slot and a contract: `Triggered`'s
+`{default Nothing intervening : Maybe (Condition (eventAfter ev))}`,
+carrier-blind, reusing `Condition` verbatim on [CR#603.4]'s authority.
+For thirteen chapters nothing was put in it. This chapter POPULATES it —
+two witnesses, no new machinery of any kind — measures the one gap the
+slot's design left open, and declines to build what the measurement says
+is a different family. Bench: 237 positives / 395 pins.
+
+**Finding 290 — the slot needed nothing, which is the result.** Both
+witnesses are ordinary `Condition` terms dropped into a default argument:
+Ornery Dilophosaur's control check is `Exists` over an ordinary
+description, and Incisor Glider's threshold is `CompareAmt` over an
+ordinary amount. No row was added, no gate was written, no table gained a
+cell, and `Experimental.idr`'s only change this round is a comment. That
+is finding 76's carrier-blind contract being paid off exactly as
+designed, and it is worth recording as such: a slot that costs a comment
+to populate thirteen chapters after it was declared is evidence the cut
+was in the right place.
+
+**Finding 291 — the marking word is "if" and there is no second cell,
+and the rule says so before the corpus does.** The round asked whether
+the slot should gain a `CondMarking`-style If/While pair. It should not,
+on two independent grounds. [CR#603.4] restricts itself in its own text:
+the rule applies to "an 'if' that immediately follows a trigger
+condition", and the parenthetical adds that "the word 'if' has only its
+normal English meaning anywhere else in the text of a card". A "while"
+clause is outside the rule, so marking one as an intervening condition
+would claim the double-check for a word the rule does not reach. And the
+corpus makes it a different construction rather than a different word:
+sixty header-internal "while" lines, NONE of them comma-marked, the
+clause attaching to the EVENT ("Whenever this creature attacks while
+saddled") where the intervening condition sits between two commas after
+it. At least twelve condition shapes across those sixty — saddled (about
+twenty-five), monarch, graveyard presence, counter presence, exile
+presence, control, life totals — and three of them name an action IN
+PROGRESS rather than a state at all: "while you're activating a craft
+ability", "while casting a spell with emerge", "while scrying". A
+marking word on a state condition cannot express those, which settles it.
+The family is measured, ledgered, and deliberately not designed here.
+
+**Finding 292 — the zone check works, and the seed logic behaves exactly
+right at the one place it could have gone wrong.** The question was
+whether `Matches`' `ZoneFits` gate would refuse the very zone being
+checked — a real risk, since the gate exists to stop a phrase being asked
+about a zone it contradicts. It does not, and the reason is a distinction
+the vocabulary already had: the BARE self-word states no zone of its own,
+so `Matches This (InZone exile)` passes by silence and reads "this card
+is exiled". What the gate does refuse is the SORTED self-word, which
+places its referent on the battlefield by writing a type ([CR#109.2]) and
+therefore cannot be asked whether it is in exile
+(`badExileCheckOnSortedSelf`, the round's one pin, refusing
+`ZoneFits (Just Battlefield) (Just Exile)`). That is the seed discipline
+drawing exactly the line it should: a phrase that places its referent may
+not be interrogated about a different placement, and a phrase that places
+nothing may.
+
+**Finding 293 — Veiling Oddity is now blocked on two SURFACE facts and
+nothing else, which is the sharpest thing this round measured.** Finding
+287 called it "one seam away from writable". The seam is crossed and the
+card still does not land, but every remaining obstacle is a spelling
+fact rather than a semantic gap, and each was verified by elaboration
+rather than argued: its BODY elaborates ("creatures can't be blocked this
+turn" is `Cant` over the universal determiner under a this-turn span —
+the bare-plural residue does not reach it); its ZONE CHECK elaborates
+(finding 292); its intervening SLOT elaborates (finding 290). What is
+left is the marking word — the card writes "while it's exiled" where the
+slot spells "if" (finding 291) — and the PRONOUN, the card writing "it"
+where the self announces no mention for `It` to read, which is chapter
+thirty's split hitting a third construction after the becomes-blocked
+bodies and the counter reads. So the last-removal event's bench stays
+open, and the five lines now divide cleanly: two are inside granted
+QUOTED abilities (suspend's own, Uvilda's refine pair) and wait on
+quotation; one is the ore-counter Aura, which carries no intervening
+condition at all and waits on its missing kind row and "enchanted land";
+and the two free-standing time lines wait on the "while" family, one of
+them additionally on flanking, protection-from and the token catalog
+(Riftmarked Knight). Veiling Oddity is the reachable one.
+
+**Finding 294 — a premise correction: the suspended family is not the
+last-removal family.** "If this card is suspended" reads as though it
+belonged with the last-removal lines and does not. [CR#702.62b] defines
+the state — "a card is 'suspended' if it's in the exile zone, has
+suspend, and has a time counter on it" — a conjunction of a zone, a
+keyword and a COUNTER PRESENCE, and the four trigger lines that check it
+are a recurring family watching ordinary events ("Whenever an opponent
+casts a spell, if this card is suspended, remove a time counter from
+it"), not a last-removal one. A fifth line writes the same check as an
+activation restriction ("Activate only if this card is suspended") and is
+a third construction again. They route to the kind-blind counter
+quantifier entry, because the counter-presence conjunct is precisely the
+"with a counter on it" read that entry carries (26 lines); the zone and
+keyword conjuncts are already writable. Recorded so the mis-grouping is
+not re-propagated. Correspondingly: all five last-removal lines condition
+on the card being EXILED, and the ore-counter Aura line carries no
+intervening condition whatsoever.
+
+**Finding 295 — chapter forty's counter read composes at its first
+consumer with no adaptation.** Incisor Glider's threshold is
+`CompareAmt (CountersOn Poison (a Opponent)) OrGreater (Lit 3)`: the new
+`Amount` row feeds the existing comparison's left side, its
+`writtenCount` answer is never consulted there, and the bound stays a
+numeral so `writtenBound`'s refusal of phrasal standards is untouched.
+Two rounds' rows meeting for the first time and needing nothing is the
+same evidence `Conditionally`-over-the-cap gave in chapter thirty-nine,
+and it is the cheapest kind a workbench gets.
+
+**Finding 296 — two surfaces, one query, for the round that comes next.**
+The event-history lookback is written in two positions and the axis round
+should build one thing read twice, not two families. The CONDITION
+position is the 223 lookback headers, 176 of them a past-tense verb ("if
+you attacked this turn", "if a creature died this turn"), and it lands in
+the very slot this chapter populated — which is why the slot's landing
+does not shorten that round by much and does define its shape: whatever
+the query is, it is a `Condition` row. The PREDICATE position is finding
+271's 8 past-relative lines plus finding 196's 4 delayed end-of-combat
+forms, a postnominal relative over the same happening ("each creature
+that blocked this turn"). Both ask a question of the shared `EventName`
+vocabulary and differ only in where the answer is read. The two queue
+entries that used to carry these separately are merged accordingly.
+
+**Finding 297 — witnesses, the one pin, and one cell with none.** Two
+positives, both whole cards once their keyword lines come off: Ornery
+Dilophosaur (Deathtouch elided) and Incisor Glider (Flying elided, and
+the "Corrupted —" ability word with it, an ability word having "no
+special rules meaning" [CR#207.2c] — the same standing this grammar gives
+reminder text). One pin, `badExileCheckOnSortedSelf`, and it is not the
+slot's: the slot reuses `Condition` verbatim, so every gate that could
+refuse inside it is already pinned generically at the condition layer and
+there was nothing new there to refuse. Saying so is the honest report;
+the pin that did land is about the zone check's NOUN, which is finding
+292's line. One cell goes unwitnessed: the negated control check ("if you
+don't control …"), whose six corpus lines each want something else
+entirely — a predefined Food or Pest token, a quoted granted ability, a
+named-card read, or a named token — so `NotCond` in the slot is recorded
+without a bench positive.
+
+Ledger updates this chapter:
+
+- The intervening-if seam (**closed**): the slot is populated and needed
+  no machinery. Its queue entry merges into the event-history lookback.
+- The combat lookback and the intervening-if seam (**merged**) into ONE
+  queue entry, "The event-history lookback", carrying finding 271's
+  argument, the 223/176 header measurement, the 8+4 predicate-position
+  lines, and finding 296's two-surfaces-one-query framing. Bill Ferny's
+  residue rides with it.
+- The header-internal "while" clause (**new queue entry**): 60 lines,
+  twelve-plus shapes, three of them action-in-progress; not a marking
+  variant ([CR#603.4] does not reach it); named payoff is Veiling Oddity.
+- The suspended-state family (**re-routed**, finding 294): four recurring
+  triggers and one activation restriction, to the kind-blind counter
+  quantifier entry via [CR#702.62b]'s counter-presence conjunct.
+- Near-miss inventory: the self-pronoun, now blocking a third
+  construction and worth its own line the next time it costs a witness.
+
+## Chapter forty-two — the event-history lookback
+
+Finding 271 named the axis and declined to build it; finding 296 said it
+was one query read in two positions and merged its queue entries. This
+chapter builds the query and its CONDITION reader: `Lookback`, two new
+`EventName` rows, `Happened`, and `EventCount`. The predicate-position
+reader is deliberately not here, and the round's own recon corrected the
+figure that made it look small. Bench: 241 positives / 398 pins.
+
+**Finding 298 — history is not description, and the rule says so in the
+words the vocabulary needed.** [CR#608.2i]: an effect may "look back in
+time and require information about previous game states and actions
+rather than considering the current game state", and the objects it names
+"don't need to be currently in the zone they were in … nor do they need
+to currently meet the criteria described in the action, as long as they
+did so at the specified time". That is the whole warrant for a separate
+row: a creature that died this turn is in a graveyard when the condition
+is checked, so `Exists` over a description cannot ask the question and no
+amount of predicate machinery would have made it. The WINDOW is likewise
+its own vocabulary and not a `Duration` row. Core states the rule and
+this chapter takes it as the design's anchor — `Timing` is a permission
+window, `Lookback` a history window, "never conflating the duration and
+history readings of 'this turn'" (`deckmaste_core/src/temporal.rs`) — and
+the Idris side had its own evidence in `Duration`'s forward-only
+commitment. The separation then got ENFORCED rather than merely written
+down: `Duration` already owns the constructors `ThisTurn` and `LastTurn`,
+so `Lookback` lives in its own namespace beside `Counter`'s, one English
+word and two grammatical objects told apart by where they live.
+
+**Finding 299 — the bridge to the event vocabulary is the NAME plus
+tables, not a mirror of core's filter.** Core matches an open
+`EventFilter` — a structured pattern with its own subject, complement and
+qualifier slots — and this vocabulary could have mirrored it. It does not,
+and the reason is the same one that has governed every event round here:
+`EventName` is the shared catalog the four trigger-side readers already
+key on, and a fifth reader that keyed on something else would have made
+the catalog stop being shared. So `Happened` names an `EventName` and
+describes its subject beside it, and everything a filter would have
+carried in slots is carried in tables instead — which is also what makes
+the gaps VISIBLE. A mirrored filter would have accepted "if this creature
+dealt combat damage to an opponent this turn" by giving the recipient a
+slot, and the fact that the complement is unwritable would have gone
+unrecorded. Here it is a refused cell with a reason (finding 301).
+
+**Finding 300 — the subject is a NOUN, and the round's predicate premise
+failed on measurement.** The row was drafted with a `Predicate` subject on
+the reasoning that a condition announces nothing. The corpus writes four
+subject shapes in this position and only ONE of them is a predicate: the
+indefinite description ("if a creature died this turn"). The other three
+are nouns no predicate can spell — "you", which carries the raid mass and
+the cast, draw and life families, well over a hundred lines; the SELF,
+fifty-eight lines ("if this creature attacked or blocked this turn", "if
+Wolverine dealt damage to another creature this turn"); and the
+anaphoric player. So the row takes a noun. Nothing is lost at the binding
+layer, and that is the point rather than a rescue: a condition
+contributes nothing either way (`condDelta` answers the empty list, as
+`Exists` does over its own predicate's mentions), so the choice between
+noun and predicate was never a semantic one and English settles it. One
+row, not two; the fork the round warned against is not taken.
+
+**Finding 301 — the attestation table needs TWO axes, and one family
+forced it.** Every event name in this position takes a subject of one sort
+— except the attack declaration, which takes both: "if you attacked this
+turn" is thirty-eight lines with a player subject, "if this creature
+attacked or blocked this turn" six with an object one. A single-valued
+`EventName -> Kind` table would have had to refuse one of them, so
+`lookbackSubjectOk` is over the pair and `Happened` is indexed at the kind
+it admits — `replUseOk`'s and `triggerWordOk`'s shape at a third site.
+Full rows over eighteen names and the two phrasal kinds. The Trues, each
+measured in the condition position and nowhere else: death, departure
+(12), entry, damage taken (6), block declaration (4) and attack
+declaration (6) on the object side; spell cast (21), card drawn, life
+gained (37), life lost (18) and attack declaration (38) on the player
+side. The zeroes are queried and real — no destruction, status change,
+face turning, phasing, becomes-blocked, last-counter removal or turn-part
+beginning is written as a history read, and "if an upkeep began this
+turn" is not English (`badLookbackPartBeginning`).
+TWO cells are refused for a reason sharper than a zero, and keeping them
+apart is what the name-plus-tables bridge buys. Combat damage is written
+twice here and both lines carry a RECIPIENT complement ("dealt combat
+damage to an opponent"); the player side of the attack declaration writes
+a complement on every line that is not bare ("if you attacked with a Hero
+this turn"). A one-noun query cannot finish either, so the cells stay
+False and the COMPLEMENT is ledgered as the gap it is.
+
+**Finding 302 — two event names with no producer, and the vocabulary
+already had the word for that.** `LifeGain` and `LifeLoss` are minted
+because the lookback reads `EventName` directly and never goes through
+`GameEvent`, so "if you gained life this turn" (18 lines) and "if an
+opponent lost life last turn" are writable while "Whenever you gain life"
+is not — no `GameEvent` row makes either name. The four trigger-side
+tables still owe answers, and `eventUse`'s `EventUnclaimed` is exactly the
+cell: "real oracle English and no construction HERE writes it". That was
+already a class in the enum, unchanged since chapter twenty-eight, and
+needing it for a name rather than a construction is the first time it has
+been read that way. `triggerWordOk` is answered from the English the
+corpus writes rather than left blank, because a full-row table has to say
+something and the corpus's answer is the one that stays true when the
+producer lands. The names are `LifeGain`/`LifeLoss` and not
+`LifeGained`/`LifeLost` because the deed telescope already owns those two
+as OUTCOME words — a collision the compiler caught, and the
+nominalisation is `Death`'s and `Departure`'s anyway.
+
+**Finding 303 — three windows land, two are refused on membership, and
+one the round's brief did not list is the corpus's.** `ThisTurn` is the
+mass (296 condition-position lines) and `ThisCombat` seventeen (Kytheon,
+the velocity Vehicles, the pack-tactics family, Tolsimir). `LastTurn` was
+not in the draft and has eleven: "if a player cast two or more spells last
+turn", "if you lost life last turn", "if an opponent lost life last turn".
+Core carries it too. Refused: `ThisGame` reads backward on twenty-four
+lines and nearly all of them are one specialised count — "for each time
+you've cast your commander from the command zone this game" and its
+family, plus named-card counts and Ring temptations — none routing
+through this query's events; and the `SinceYour` family is five lines
+across three spellings, two syntactic positions and two possessors
+(O-Kagachi writes "during their last turn"), too thin and too varied to
+close a row over. Both ledgered, as `ThisGame`'s membership analysis is
+the sort of thing a count alone would have got wrong.
+
+**Finding 304 — the numeric route is a count, and the SUM is a different
+row this chapter does not build.** "If you've cast two or more spells this
+turn" is `CompareAmt (EventCount SpellCast You ThisTurn) OrGreater
+(Lit 2)`: the amount row under the existing comparison, no comparison
+vocabulary added, which is chapter forty's counter read arriving at the
+same seam a second time. What `EventCount` cannot do is what core keeps a
+second row for — "EventCount counts; EventSum sums" — and the corpus
+divides exactly there: "if you gained life this turn" (18 lines) counts
+gainings and is `Happened`'s, while "if you gained 3 or more life this
+turn" (15) wants the LIFE and not the number of gainings. The sum is
+ledgered rather than guessed at, and the split is core's own.
+
+**Finding 305 — the history read negates, on the auxiliary.** Nineteen
+condition-position lines write didn't, hasn't or haven't, eight of them
+"if you haven't cast a spell from your hand this turn", against ONE
+writing the other surface ("if no creature died this turn"). So
+`condNegatable` answers True for this row and the negation is spelled
+where English puts it; the "no [description]" surface is a spelling
+residue for the same meaning and is recorded, not built. The cell lands
+with no bench positive, and the blocker is finding 301's: every "haven't
+cast" line writes "a spell FROM YOUR HAND", a complement the one-noun
+query cannot carry.
+
+**Finding 306 — a correction: the predicate-position surface is four
+times what finding 296 recorded.** That finding's "8 past-relative lines
+plus 4 delayed end-of-combat forms" was BLOCK-FAMILY-SCOPED — it counted
+what the blocking relation left over and nothing else. Measured across
+the verb set, the postnominal relative is over a hundred lines: died
+about thirty, entered about thirty-two, dealt-damage about twenty-three,
+attacked about ten, blocked about twelve, plus the zone-change relative
+the log already elides. The two-surfaces-one-query framing survives
+unharmed and is if anything strengthened — the second surface is a real
+family, not a residue — but the queue entry's size estimate was wrong by
+a factor and is corrected there.
+
+**Finding 307 — witnesses, pins, and three cells that landed without
+one.** Four positives: Storm Fleet Spy (the raid mass, a player subject,
+a whole card once its ability word comes off), Vashta Nerada (the morbid
+shape, an indefinite object subject), Tippy-Toe (the life-change name at
+its only reader), and Loan Shark (the numeric route through
+`CompareAmt`). Three pins, all against `lookbackSubjectOk`: a player
+subject on the death read, an object subject on the cast read, and the
+turn-part beginning. What landed WITHOUT a witness, each with a named
+blocker: `LastTurn`, whose eleven lines all write "At the beginning of
+each upkeep", a header cell `partUse` has held at `PartUnclaimed` since
+chapter seventeen; the negation (finding 305); and Brazen Cannonade,
+which finding 196 named as this axis's payoff and which now has ONE
+blocker instead of two — its "if you attacked this turn" is writable as
+of this chapter and its postcombat main phase still is not.
+
+Ledger updates this chapter:
+
+- The event-history lookback (**half closed**): the query and its
+  condition reader land. The queue entry is replaced by the
+  predicate-position reader alone, with finding 306's corrected figure.
+- **Recorded gaps, none of them rows here.** The event COMPLEMENT is the
+  round's largest and now blocks four cells (combat damage's recipient,
+  the attack-with phrase, the cast-from-hand phrase, and with them the
+  negation's whole bench). CAUSE-NARROWED verbs — milled, discarded,
+  sacrificed — are narrowings of one zone change by the verb tag, which
+  is how core spells them (`VerbName` on `ZoneChange`, no `EventName`
+  rows), so they are not names this catalog gains; the participle read
+  finding 196 wanted for "milled" is the same fact at the other surface.
+  "Countered" is one line. `EventSum` is finding 304's. `ThisGame` and
+  the `SinceYour` window are finding 303's.
+- Near-miss inventory: the each-upkeep header cell, which now costs a
+  window its only witness; the from-your-hand cast qualifier; the
+  postcombat main phase, still Brazen Cannonade's last blocker.
+
+## Chapter forty-three — the history read in the description
+
+Finding 296 claimed the event-history lookback was ONE query read in two
+positions, and chapter forty-two built the query and the condition
+reader on that claim. This chapter builds the second reader and so tests
+it. `HappenedTo` is a `Predicate`, takes no subject argument, and is
+gated by chapter forty-two's own table. The claim holds, at the cost of
+exactly one re-measured cell. Bench: 245 positives / 400 pins.
+
+**Finding 308 — the second reader adds a row and a spelling, and nothing
+else.** `HappenedTo` names an `EventName` and a `Lookback` and stops
+there: the head noun IS the subject, so the row has no subject slot, its
+kind index is the subject sort, and `lookbackSubjectOk` gates it
+unchanged. No new attestation table, no second window vocabulary, no
+per-surface event catalog. That is what finding 296's claim predicted and
+it is the strongest form the prediction could have taken — the alternative
+this vocabulary rejected in chapter forty-two, mirroring core's open
+`EventFilter` at each site, would have made the two surfaces two families
+that merely resembled each other. The shape is `BlockerOf`'s and
+`BlockedBy`'s: a postnominal participial relative that heads nothing and
+modifies the noun in front of it.
+
+**Finding 309 — one cell moved, and moving it is a rule about shared
+tables rather than a correction.** `lookbackSubjectOk DamageTaken Player`
+was False. Chapter forty-two measured it in the condition position, which
+was the only reader that existed, and found one line in a window this
+vocabulary does not carry. The predicate position writes the same event
+over a player EIGHT times — "for each opponent who was dealt damage this
+turn", "each player who was dealt combat damage this turn", "target
+player who was dealt combat damage by [source]" — so the cell is True.
+The principle is worth stating because it will recur every time a shared
+table gains a consumer: a shared table's cells are a property of the
+QUERY, not of a reader, so the measurement behind them is a UNION over
+readers and a new reader can only ever add Trues, never subtract. The
+round that adds a reader owes the re-measurement, and this is the only
+cell that owed one — the other seventeen names' cells read the same at
+both surfaces, which is itself the evidence that the table is genuinely
+one table.
+
+**Finding 310 — the seeding is a SILENCE, and one corpus line proves it
+could not have been anything else.** Every other participial modifier in
+this vocabulary seeds a zone: `Attacking` and `Blocking` seed the
+battlefield, `ExiledWith` seeds exile, and the block relation seeds the
+battlefield at both ends. The history read seeds NOTHING, and [CR#608.2i]
+is the reason in its own words — the objects a history read names "don't
+need to be currently in the zone they were in at the time of that
+previous game state or action". Continue? writes the proof: "creature
+cards in your graveyard that were put there from the battlefield this
+turn", a phrase whose own zone clause says GRAVEYARD about an event that
+happened on the battlefield. Under a battlefield seed `zonesOk` would
+have refused it. The line is the seeding's proof and NOT a witness — its
+surface is the zone-change wording rather than a past verb this row
+spells — so it stays the near-miss it was. `seedType` is silent for the
+ordinary reason: the head noun carries the type and this modifier
+presupposes none.
+
+**Finding 311 — the relativizer agrees with the head's sort, which is
+finding 275's lesson for the third time.** "that blocked this turn" over
+an object head, "who was dealt damage this turn" over a player one, one
+to one across the whole surface. No axis is minted: the word is a
+function of the sort the row is already indexed at, so the spelling owns
+it exactly as `CapDomain` owns its step possessive and `DoesntUntap` owns
+its. Three rounds have now paid for the same diagnostic, and it is worth
+saying plainly: when a candidate axis varies perfectly with something the
+phrase already writes, tabulate the pair before minting anything.
+
+**Finding 312 — the two surfaces agree about where the negation goes.**
+Chapter forty-two found the condition surface negating on the auxiliary
+(nineteen didn't/hasn't/haven't lines against one "no creature died") and
+answered `condNegatable` True. The predicate surface does the same: "all
+untapped creatures that didn't attack this turn", "each creature that
+didn't enter this turn" — six lines, all auxiliary-negated, none writing
+a "non-" prefix or a bare quantifier. So `negatable` is True here too, and
+the agreement is a result rather than an inheritance: the two tables were
+measured separately and came out the same, which is what a single query
+read twice should look like. (The "who didn't discard a creature card
+this way" family is NOT among them — "this way" is cause-anaphora, finding
+307's explicit exclusion, and stays `TheVerbed`'s territory.)
+
+**Finding 313 — the COMPLEMENT is deferred whole, and it is now the
+family's largest single gap.** The row lands bare. What it cannot write:
+the by-source damage family (~20+ lines, "that was dealt damage by a
+source you control"), the block relation's by-complement (~9 lines, and
+the block family writes one almost without exception — the bare form is
+two lines, one of which is this chapter's witness), and ALL FOUR of
+finding 196's delayed end-of-combat forms. They want a third participant
+slot with a per-event complement-sort question, which is a round. The
+four delayed forms carry an INDEPENDENT second blocker besides, recorded
+plainly so the queue does not promise them cheaply: the "At this turn's
+next end of combat" delayed shell, which no current machinery reaches at
+all. The complement now blocks cells at both surfaces — chapter
+forty-two's `CombatDamage` and attack-with cells and the whole negation
+bench, this chapter's by-source and by-blocker families — which is why it
+gets the queue entry rather than a ledger line.
+
+**Finding 314 — witnesses, pins, and the families that stay out.** Four
+positives, three of them whole cards: Sizzling Barrage (the block cell,
+and one of only two bare lines in a complement-bearing family), Witch's
+Mist (the damage cell, [CR#608.2i] doing visible work — the damage was
+dealt when the creature was elsewhere and otherwise), Force of Despair's
+second line (the universal determiner where the others target), and
+Furious Spinesplitter (the PLAYER head, its "who" relativizer, and the
+for-each domain's first history consumer — `CountOf` took the read as an
+ordinary modifier and needed nothing). Two pins, both against the shared
+table and deliberately so: an object head asking a player's event
+(`badHappenedToObjectCast`) and a player head asking an object's
+(`badHappenedToPlayerDied`), the second sharing its inferred obligation
+with chapter forty-two's `badLookbackPlayerDied` — the same table
+refusing at its two readers, which is the chapter's thesis stated as a
+pin. Excluded and not re-litigated: the "this way" cause-anaphora family
+(finding 307); the "attacked during their controller's last turn" line,
+which is a static RESTRICTION and not a lookback at all; and the
+`SinceYour` cousin among the entered lines, out of scope with its window
+(finding 303).
+
+Ledger updates this chapter:
+
+- The event-history lookback (**closed as an axis**): query, condition
+  reader and predicate reader all land. The queue entry narrows to the
+  COMPLEMENT residue.
+- `sameEventName` and `sameLookback` (**minted**): the closed-vocabulary
+  comparisons every other closed word in the file already carried, needed
+  because both of this row's arguments are closed and `predEq` could
+  therefore answer honestly instead of conservatively.
+- Near-miss inventory: Continue?, now recorded as the seeding's proof
+  rather than a pending witness; the "At this turn's next end of combat"
+  delayed shell; the by-source and by-blocker complements.
+
+## Chapter forty-four — characteristic predicates
+
+Core's `CharacteristicPredicate` has nine variants (`filter.rs`): Type,
+Subtype, Supertype, ColorIs, Named, Stat, Multicolored, Colorless, and
+the open `Has(KeywordRef)`. This vocabulary carried four of them and a
+narrowed fifth. This chapter closes the gap: five rows land and a sixth
+is minted that core does not carry, leaving exactly one variant
+outstanding and that one by standing ruling. Two earlier chapters'
+recorded gaps are backfilled in the process. Bench: 250 positives / 402
+pins.
+
+**Finding 315 — colour was UNADDRESSED, not deferred, and the
+distinction matters for what the round is allowed to do.** Finding 77
+ported `Chroma.Color` from core for TOKEN minting and said so in its own
+terms — a rules-fixed set rather than a construction English might or
+might not write, [CR#105.1]'s closed five — explicitly excluding the mana
+channel and never reaching the DESCRIPTION reading. So no ruling ever
+declined "target black creature"; the row simply had no consumer until a
+round asked for one. That also means the taxonomy decision does not
+reach here: types and subtypes are macro-declared atoms because the game
+adds them, and colours are five because the rules say five. The row is
+`ColorIs : Chroma.Color -> Predicate bs Object`, stacking rather than
+clashing with itself ([CR#105.2] — an object "can be one or more of the
+five colors"), presupposing neither zone nor type (a black card in a
+graveyard and a red spell are both ordinary oracle), and negated by
+PREFIX: "nonblack" 77 lines, nonwhite 15, nonblue 5, nonred 4, nongreen
+9, against zero writing "not black". `IsToken`'s arrangement with
+"nontoken", and the row is named `IsColorless`'s sibling for the same
+reason `IsColorless` is named that at all — `Chroma.ColorOrColorless`
+already owns the bare word in the mana channel, which is `Lookback`'s
+one-word-two-objects situation a second time.
+
+**Finding 316 — the three colour-COUNT words are not colours, and the
+rules say so twice.** `IsColorless` is not a sixth value of `ColorIs`:
+[CR#105.2c] says "a colorless object has no color" and [CR#105.4] adds
+"'Multicolored' is not a color. Neither is 'colorless.'" Core splits them
+the same way. `Multicolored` is [CR#105.2b]'s "two or more". None of the
+three negates — "noncolorless", "nonmulticolored" and "nonmonocolored"
+are zero lines apiece (`badNonMulticolored`) — where the five colour
+words and the supertypes are negated in quantity, which is a clean split
+between the words that describe a colour and the words that describe a
+COUNT of them.
+
+**Finding 317 — `Monocolored` is minted against core, on fifteen lines
+and an argument.** Core carries `Multicolored` and `Colorless` and no
+monocolored variant, and it can afford to: a filter that counts colours
+reaches the concept without a word for it. This vocabulary has no
+colour-count term, so omitting the row would have left fifteen attested
+lines ([CR#105.2a], "exactly one of the five colors") unwritable to buy a
+parity that costs the corpus. English writes two words where a count
+would have written one bound, and the two words are two rows. Recorded as
+a divergence rather than slipped in, because the next round to compare
+the two vocabularies should find the reason rather than the difference.
+
+**Finding 318 — the supertype's third reader arrives, and the vocabulary
+moves to meet it.** Chapter thirty minted `Supertype` for the printed
+card's own field and ledgered it as "a third list neither reader
+witnesses" — the token's defined characteristics and the type-addition
+clause write no supertype between them. The DESCRIPTION is the third
+reader: legendary 181 lines, basic 383, snow 67, with "nonlegendary" 43
+and "nonbasic" 68 on the negated side. The row is `HasSupertype`, and
+placing it required moving `data Supertype` and `sameSupertype` out of
+the card-frame section and up beside the other closed catalogs, which is
+where every vocabulary with more than one reader in this file already
+lives (`Chroma.Color`, `CounterKind`, `Keyword`, `Lookback`). The
+card-frame's own list functions stay where they are. World and Ongoing
+remain unminted, chapter thirty's note unchanged.
+
+**Finding 319 — `Named`'s string is a payload, and the one place it is
+looked at is not a gate.** The repo's standing validator ruling is that no
+gate may match on a name string. This row honours it exactly: none of the
+nine tables branches on the string, and the single site that reads one is
+`predEq`, which asks whether TWO phrases name the same card and never
+what either of them names. That distinction is [CR#201.2a]'s own — "two
+or more objects have the same name if they have at least one name in
+common" — so name EQUALITY is rules-real where name MATCHING would have
+been a validator smuggled into the grammar. The practical consequence is
+that the contradiction scan can see "creature named X that isn't named X"
+without any auto-implicit ever inspecting a character. Negation is
+attested at four lines and answers True.
+
+**Finding 320 — one contradiction is added, and its narrowness is the
+point.** `colorClashOf` mirrors `statusClashOf`: a member saying
+`IsColorless` and a member naming a colour describe nothing together,
+[CR#105.2c] giving a colorless object "no color" in as many words
+(`badColorlessWhite`). What it deliberately does NOT do is clash two
+COLOURS with each other — verified by probe, not asserted: a term
+conjoining black and red elaborates, because [CR#105.2] lets an object be
+"one or more of the five" and a gold card is both. (The probe is evidence
+and not a bench positive: no corpus line poses a two-colour conjunction
+in a description, the corpus writing disjunctions there instead.) The
+count words are left out of the scan too — whether "monocolored
+multicolored" contradicts is arithmetic over a set the phrase does not
+write, and no line poses it.
+
+**Finding 321 — two backfills, and what they say about recorded gaps.**
+Winter Moon lands whole ("Players can't untap more than one nonbasic land
+during their untap steps"), closing the fifth set word chapter
+thirty-nine recorded as corpus evidence without a bench positive; the
+blocker was exactly the supertype predicate that chapter named. Cradle to
+Grave lands whole ("Destroy target nonblack creature that entered this
+turn"), which chapter forty-three tried to witness and could not — and it
+is the round's composition test besides, the colour negation and the
+history read sitting as two ordinary modifiers under one head with
+neither knowing about the other. Both old chapters stay as written; the
+backfill is recorded here, which is the arrangement in-place annotation
+was invented to avoid needing. Five rows landed and two of them were
+owed to earlier rounds by name — evidence that the "recorded, not
+witnessed" posture pays back when the missing vocabulary is stated
+precisely enough to be looked up.
+
+**Finding 322 — what is left of core's enum, item by item.** After this
+round the subset gap is ONE variant. `Has(KeywordRef)` stays out by
+standing boundary: core's is an open bare-ident reference matching by
+name, and this vocabulary's `HasKeyword` is closed at seven pending the
+verifier transition, which is a deliberate line and not a gap this round
+may cross. `Stat` is present as `Compare` over `Characteristic`, whose
+three rows (power, toughness, mana value) are the three the description
+surface writes — "with mana value N or less" alone is 466 lines — and the
+candidates for a fourth are measured at zero here: "with loyalty N or
+less" 0 lines, "with defense N or less" 0, so the planeswalker and battle
+stats are read by their own constructions and not by this one. The colour
+INDICATOR is 0 lines: it is a frame element that DEFINES colour
+([CR#105.2]) and no card describes an object by having one, so it is not
+a predicate at all. Nothing else in the enum is outstanding.
+
+Ledger updates this chapter:
+
+- Characteristic predicates (**closed**): the vocabulary line's five
+  missing rows land plus one core does not carry. The queue entry is
+  deleted; `Has(KeywordRef)` is not part of it, being the keyword
+  boundary's business.
+- Chapter thirty-nine's Winter Moon gap and chapter forty-three's Cradle
+  to Grave gap (**backfilled**, finding 321); both chapters stand as
+  written.
+- `Supertype` (**relocated**), card-frame section to the closed-catalog
+  region, on the third-reader rule the file already follows.
+- Near-miss inventory: the two-colour conjunction, which elaborates and
+  which no corpus line writes; the definite-determiner residue, which is
+  finding 272's actual blocker on "the blocking creature" and NOT a
+  colour gap — recorded because the round's own framing had it wrong.
+
+## Chapter forty-five — the possessor axis
+
+The queue called this the turn-part catalog. Measurement says otherwise:
+three parts were missing and the corpus wanted them, but what had been
+blocking headers since chapter twenty-eight was the POSSESSOR — the
+`PartUnclaimed` cells that named a quantifier the vocabulary had no word
+for. This chapter mints the words, adds the three parts, and gives the
+activation window its own reader of the same grid. Bench: 254 positives /
+405 pins.
+
+**Finding 323 — the possessor is its OWN vocabulary, and `Whose`'s
+docstring is what settles it.** The obvious move was four more rows on
+`Whose`. `Whose`'s own comment forbids it: that type is the DURATION
+endpoint's, "closed and pronominal", possessing an endpoint "with a
+possessive DETERMINER and nothing else". The header site is not
+pronominal — it writes quantifiers, "each player's upkeep" 76 headers,
+"each opponent's upkeep" 33, "each of your postcombat main phases" 7 —
+and the duration endpoint writes none of them, every quantifier spelling
+measuring zero at every endpoint. Two readers, two measurements, two
+vocabularies: `statusWordOk` beside `statusEventOk`, `Lookback` beside
+`Duration`. The decision also had a price tag, and paying attention to it
+was the other half of the argument: `spanUse` is full rows over (boundary
+x part x possession), so four shared possessors would have added NINETY
+cells to it, every one `Unattested`, to a table whose whole value is that
+each of its cells is a measurement. With the vocabularies separate it
+grew by eighteen — the three new parts against the two possessors it
+already had — and every one of those eighteen is a real zero.
+`Owner` is a superset of core's `WhoseTurn` (`Your`, `EachPlayers`,
+`AnOpponents`), adding the opponent QUANTIFIER and the plural-iterated
+self, both of which the corpus writes and core's three do not cover.
+Finding 254's derived possessor does not apply and the reason is
+structural: there the possessive agreed with a restricted NOUN the clause
+already wrote, and a trigger header has no such noun to read off.
+
+**Finding 324 — the bare "each upkeep" is the SAME cell as "each
+player's upkeep", and the rules say so.** [CR#500.1] gives a turn five
+phases, "each of these phases takes place every turn", and the beginning
+phase's upkeep step is the active player's; so every upkeep in the game
+is some player's, and "at the beginning of each upkeep" and "at the
+beginning of each player's upkeep" name the same moments. One cell, two
+spellings — 36 bare against 76 possessed at the upkeep, 79 against 17 at
+the end step, 21 against 5 at combat — recorded in the vocabulary's own
+spelling comment rather than split into a row that would have had to
+claim a difference the rules deny.
+That decision then answered a question nobody had asked: what the
+POSSESSOR-LESS cell is for. It is the DELAYED clause's. "At the beginning
+of the next end step" writes no possessor because it names one occurrence
+rather than a class, and it is a different construction from the header's
+bare "each end step" — which is why `EndStep Nothing` stays open while
+the header's bare spelling moves to `EachPlayers`. The upkeep has no
+delayed reading, so `Upkeep Nothing` is now `PartUnattested` where it was
+`PartUnclaimed`: the vocabulary has the words, and what is left is a real
+silence rather than a missing one (`badTriggerAtEachUpkeep` refuses
+either way, a pin unaffected by which silence it names).
+
+**Finding 325 — the second main phase has two names and the possessor
+chooses between them.** [CR#505.1] gives the phase both — "the first main
+phase (also known as the precombat main phase)" — and at the trigger
+header the split is perfect: `Yours` writes "your second main phase" (5
+headers) and `EachYours` writes "each of your postcombat main phases"
+(7), with both cross cells at zero. Finding 275's diagnostic a fourth
+time, so one part row carries two spellings and no axis is minted. The
+SCOPE is stated because it is not the language's fact: "your postcombat
+main phase" occurs eight times elsewhere in the corpus, so the perfection
+belongs to this reader and a future reader must re-measure rather than
+inherit — the union doctrine's other edge.
+
+**Finding 326 — three parts arrive, and the untap step still does not.**
+`FirstMain` (52 headers), `PostcombatMain` (12 across its two spellings)
+and `DrawStep` (18) are minted on the catalog's standing philosophy: a
+part is minted when a construction needs it. What is NOT minted is any
+cell for the untap step, which measures ZERO headers at every possessor —
+the step whose turn-based action is the untap itself ([CR#502.3]) and
+which the corpus addresses only through the doesn't-untap family chapters
+thirty-four to thirty-nine built. The cleanup step is likewise absent.
+Both silences are now stated across a nine-part grid rather than a
+six-part one, which is the difference between a gap and an answer.
+
+**Finding 327 — the activation window is a SECOND reader of one grid,
+and the two disagree in both directions.** `Timing` gains `DuringPart`,
+core's `DuringTurn`/`DuringStep` under one row because this vocabulary's
+`TurnPart` already carries the turn itself as a part — core splits them
+only because its `PhaseStep` does not include the whole turn, which is a
+fact about core's type and not about English. It is gated by its own
+table, `windowOk`, and the disagreements are the reason that table
+exists: the window opens `AnOpponents`, which no header writes ("Activate
+only during an opponent's turn" is three lines against zero headers,
+`badTriggerAtAnOpponentsUpkeep`), and it opens the bare TURN, which no
+header names at all (68 lines of "Activate only during your turn" against
+a `partUse` row that is `PartUnattested` throughout); while the header
+opens six parts the window never names (`badWindowDuringYourEndStep`).
+One grid, two readers, two tables — `eventUse` and `eventSpan`'s
+arrangement at a new axis. It also closes the file's own named
+unspellable: "Activate only during any upkeep step" was recorded as
+writing "a possessor `Whose` has no word for", and `EachPlayers` is that
+word, the window spelling the quantifier "any" where the header writes
+"each" or drops it.
+
+**Finding 328 — Brazen Cannonade, three chapters in the making, lands to
+its last sentence.** Finding 196 named it as the end-of-combat round's
+blocked card and listed two obstacles: a postcombat main phase and an "if
+you attacked this turn" lookback. Chapter forty-two supplied the second
+and reported the card down to one blocker; this chapter supplies the
+first. What lands is the whole of its second line up to its final
+sentence — the header with its `EachYours` possessor, the raid lookback
+in the intervening slot, and the exile. The residue is exact and is an
+EXISTING PIN rather than a new gap: "Until end of combat on your next
+turn, you may play that card" is a play permission under an
+end-of-combat span, which `badPermissionUntilEndOfCombat` refuses on
+chapter seventeen's measurement. The card is now blocked by a cell this
+grammar has deliberately closed, which is a different and better position
+than being blocked by vocabulary it lacks.
+
+**Finding 329 — a re-baseline, and a second backfill.** Chapter
+forty-two recorded the `LastTurn` window's family as "eleven lines, all
+'each upkeep'". It does not reproduce: 10 supported, 12 all-scope, 9 of
+them bare-each. The figure is re-baselined here and the log stays
+historical. The window also lands its first bench positive — Paladin of
+Atonement, whose header is exactly the bare-each cell this round minted —
+so a window that landed on corpus evidence alone three chapters ago is
+now witnessed, which is the second time in two rounds that stating a gap
+precisely enough turned out to be the whole cost of closing it.
+
+**Finding 330 — what stays out, and one cell that lands unwitnessed.**
+The NOMINAL possessor tier is not this round's: "enchanted player's
+upkeep", "its controller's end step" and the Curse and Aura mass write a
+possessive over a NOUN rather than a quantifier word, which is a
+different axis (`ThatPlayers`' cells are left exactly as chapter
+seventeen set them). The activation window's BEFORE and COMPOSITE forms
+are deferred with their counts: "during your turn, before attackers are
+declared" is 19 lines and the bare "before attackers are declared" 24,
+and both want a boundary-RELATIVE marker rather than a part-during, which
+is a slot this row does not have. Witnesses: Paladin of Atonement (the
+bare-each backfill), Brazen Cannonade (above), Four Knocks (the first
+main phase, and the only one of its 52 headers whose body is not mana
+production), Hammer of Bogardan (the window's first population). The
+`EachOpponents` cell lands with 33 corpus lines and NO bench positive,
+and the blocker is worth recording because it is the possessor axis's own
+shape: every one of those lines continues "…, that player sacrifices…",
+referring back to the possessor — and the possessor is a WORD, not a
+phrase, so it announces no mention for "that player" to read. A
+quantifier possessor cannot be an antecedent.
+
+Ledger updates this chapter:
+
+- The turn-part catalog (**closed**): three parts minted, the possessor
+  axis given its own vocabulary, the activation window populated. The
+  queue entry is replaced by the two residues below.
+- **The nominal possessor tier** and **the window's before/composite
+  forms** (19 + 24 lines) are the survivors and go to the queue as one
+  narrowed line each.
+- Chapter forty-two's `LastTurn` figure (**re-baselined**, finding 329);
+  chapter forty-two's unwitnessed window (**backfilled**).
+- Near-miss inventory: the quantifier possessor as an antecedent, which
+  costs `EachOpponents` its bench; the boundary-relative marker; the
+  cleanup step, measured at zero for the first time.
+
+## Chapter forty-six — the requirement
+
+`Cant` has spelled [CR#508.1c] and [CR#509.1b]'s restrictions since
+chapter twenty-two. This chapter mints their other half — [CR#508.1d] and
+[CR#509.1c]'s requirements — as `Must`, plus the untap step's permission
+to decline. The round's largest decision is one it declined to make, and
+the chapter states it as a ruling with its own trigger attached. Bench:
+258 positives / 409 pins.
+
+**Finding 331 — the deontic exists three times in this repo, and this
+round deliberately does not converge them.** Core has
+`Deontic{May,Cant,Must,Gate}` over a `DeonticAction` spine
+(`deckmaste_core/src/deontic.rs`), whose actions carry `by`/`on`
+predicates and count bounds. The OLD module has
+`Constrain : Compulsion -> Deed b -> StaticEffect b` over an eight-kind
+relation spine with `Require`/`Forbid` as its polarity and a `Priced`
+sibling for gates (`Semantics.idr`). The workbench has narrow `Cant`, and
+now narrow `Must` beside it — two rows on one `Deed x Role` grid, not one
+row with a polarity argument.
+That is a RULING and not an oversight, and the reason is what this
+workbench is for: rows are minted where lines are measured (finding 85's
+bar), and the old module is the thing being superseded by re-derivation
+from the corpus rather than the thing being ported. Generalising to a
+compulsion axis here would have re-derived `Constrain` from `Constrain`.
+The three cells `Must` needs — Attack/Agent, Block/Agent, Block/Patient —
+are already True in `deedType`, so the mirror costs one row and zero
+table growth; a polarity argument would have cost a refactor of a landed
+row for no new line.
+THE CONVERGENCE TRIGGER IS NAMED. A GATE polarity landing with evidence
+is what would justify refactoring both rows onto one compulsion axis, and
+the evidence already exists and is measured here: "can't attack unless"
+86 lines, "can't block unless" 14, 25 of them a payment. That is the next
+deontic round's material, and when it lands these two rows should merge
+with it rather than a third being added beside them.
+
+**Finding 332 — "each combat" is CADENCE, not span, and [CR#508.1d]
+carries the semantics itself.** The phrase looks like a duration and is
+not: the rule states the re-check — a requirement is evaluated as each
+declaration is made — so "each combat" is the construction's own words
+for a rule the engine already has, and no `Duration` row is minted for
+it. That left the round's one genuinely open shape: `absentOk
+DeedRestriction = False`, so a durationless `Continuously` clause is
+refused, and the standing lines ("This creature attacks each combat if
+able", a whole card) have no duration adverbial at all. The resolution is
+that they are not clauses. They are static ABILITY lines, and
+`staticAsAbility DeedRestriction = True` admits them — which is the exact
+arrangement `Cant` and `DoesntUntap` already have, the standing lock
+being a `Static` and the timed restriction a `Continuously` with a span.
+So no new `StaticKind`, and the requirement's real duration (standing,
+this-turn) rides the envelope as the restriction's does.
+
+**Finding 333 — "if able" is constant, so it is spelling.** Every genuine
+requirement line carries it — 58 attack lines, 38 block lines, 30
+must-be-blocked lines — and the bare form is written zero times, the two
+bare-looking lines carrying it after all. A rider that is never absent is
+not a slot, which is the same test that kept the possessive off
+`DoesntUntap` (finding 254) and the step word off the cap (finding 275).
+
+**Finding 334 — the patient is required in one cell and refused in three,
+so the table decides it and not the writer.** Every one of the 38
+Block/Agent requirement lines names what must be blocked ("blocks this
+creature this turn if able"); no Attack/Agent line names a defender and
+no Block/Patient line names a blocker. So the slot is a `Maybe` at the
+type and `mustPatientOk` says which cells may fill it —
+`BlockPartner`'s family from chapter thirty-eight with the cells decided
+by measurement (`badMustAttackWithPatient` refuses a defender,
+`badMustBlockNoPatient` refuses the bare block). This is the one place
+the mirror of `Cant` is inexact, and it is inexact because English is:
+the restriction "can't block" needs no patient and the requirement
+"blocks X if able" cannot do without one.
+GOAD would have been the exception and is out, and checking WHY moved it:
+[CR#701.15b] makes goaded a DESIGNATION — "neither an ability nor part of
+the permanent's copiable values" — not a keyword, so the leg routes to
+the designations family beside the monarch and the initiative rather than
+behind the keyword boundary this round first filed it under. Its ~27
+reminder lines are not evidence for an Attack/Agent patient either way.
+
+**Finding 335 — the untap step gains its third static, and it is a
+permission.** "You may choose not to untap [n] during your untap step" is
+seven lines and one shape, overriding [CR#502.3]'s default that the
+active player untaps all their permanents. `MayDeclineUntap` files under
+`DeedRestriction` with `DoesntUntap` and the cap — not because it
+restricts anything but because that class is exactly its reader profile:
+a durationless clause refused (`badDeclineUntapClause`) and the printed
+static line admitted, which is what seven lines of card text with no
+adverbial need. The possessive is derived and not a slot, finding 254 at
+a third site: the permission belongs to the untapping player.
+
+**Finding 336 — witnesses, and one pin landed deliberately redundant.**
+Four positives, two of them whole cards: Berserkers of Blood Ridge (the
+standing requirement, and the cleanest demonstration that the cadence is
+not a span — a printed line with no adverbial anywhere), Trumpeting
+Armodon (the Block/Agent cell with its required patient, under a span),
+Loathsome Catoblepas' first ability (the patient role, which writes the
+modal outright where the agent cells write the plain present), and
+Ashnod's Battle Gear's first line (the decline permission). The AURA
+grant does not land — "Enchanted creature attacks each combat if able" is
+six lines and every one of them needs the attachment family, which is
+ledgered — so the requirement's second-largest carrier is recorded, not
+witnessed.
+`badMustAttackLand` refutes the SAME obligation as `badCantAttackLand`:
+`DeedParticipant Attack Agent (Just Land)`, one P at two polarities. That
+redundancy is the point and it is landed on round seven's precedent,
+where the shared lookback table was pinned at both of its readers: a
+claim that two rows share a grid is worth a proof that they do, and the
+proof is that the same refusal appears from both.
+
+**Finding 337 — four residues, routed rather than absorbed.** "All
+creatures able to block [X] do so" is 17 lines and belongs to the
+combat-assignment surgery entry, whose could-block condition is exactly
+what it needs — it is a universal over an ABILITY to block, not a
+requirement on a named creature. The targeting requirement is ONE line
+(the Flagbearer family) and is recorded, not minted, at finding 85's bar.
+The event-level "if able" riders are 5 lines and ride an effect rather
+than a static, which is a different carrier. And the GATE family is
+measured at close for the trigger finding 331 states: 100 lines, 25 with
+a payment. Two families confirmed NOT this one and not absorbed: the
+as-though counterfactual (~45+ lines, its own [CR#609.4] machinery) and
+the causative "you may have X …" (262 lines, an effect and not a
+deontic).
+
+Ledger updates this chapter:
+
+- The deontic beyond `Cant` (**half closed**): the requirement and the
+  decline permission land. The queue entry narrows to the GATE polarity
+  and its unless-pay family, which is also finding 331's convergence
+  trigger.
+- The three-vocabulary situation (**recorded**, finding 331) with the
+  ruling and its forward edge, so the next round finds the reason rather
+  than the divergence.
+- Routed: the all-able-do-so universal to the surgery entry; the
+  Flagbearer targeting requirement and the event-level riders to the
+  ledger at their counts.
+- Near-miss inventory: the Aura grant, which costs the requirement its
+  second carrier and is the attachment family's again; goad's attack leg,
+  routed to the DESIGNATIONS family on [CR#701.15b]'s own word.
+
+## Chapter forty-seven — the designations
+
+Three roles the rules call designations, one the game itself holds, and a
+grammar that had no word for any of them. This chapter gives the
+workbench its designation axis at all three scopes: the reads, the
+gaining effects, and the game's own transition event. Bench: 263
+positives / 412 pins.
+
+**Finding 338 — the designation exists three times and the workbench had
+NONE of it, which is a sharper starting point than the round expected.**
+Core's taxonomy is complete and wired: `DesignationScope{Object, Player,
+Game}` over `DesignationDef{Stored, Derived, DerivedIf}`, with shape,
+uniqueness and persistence metadata (`deckmaste_core/src/designation.rs`).
+The OLD module has an open `MkDesignation Scope String (List Ability)`
+carrying the player and object scopes and no game scope — no Ring-bearer,
+no day and night as a designation — plus a stringly `SetGameDesignation`
+write with no read. That write is the OLD module's, not this one's, which
+the round's brief had placed here: `Experimental` contains no designation
+machinery of any kind. So these rows are the first Idris consumers of the
+axis at EVERY scope rather than at the game scope alone, and the plugin
+emitter's own note is the gap they close from the other end —
+"Game-scoped designations have no Idris `Scope` and are simply absent (a
+reference then gaps)" (`deckmaste_plugin/src/idris_emit.rs`).
+
+**Finding 339 — the game gets two rows and not a `Kind`.** The tempting
+move was a third sort beside `Object` and `Player`, so a designation read
+could be kind-indexed throughout as the counter read is (chapter forty's
+`counterScope` answering in `Kind`). The corpus does not pay for it. Four
+check lines and eleven transition lines buy two rows; nothing else in the
+grammar ever describes, targets, counts or quantifies over the game, and
+a `Kind` row would have obliged every kind-keyed table in the file to
+answer for a sort with one inhabitant. So `TimeOfDay` is a two-value enum
+and the game-scoped read and write are dedicated rows with no subject
+slot — `ItIsNow` and `BecomesTime` naming the game with a dummy pronoun,
+exactly as English does.
+
+**Finding 340 — "is your Ring-bearer" is a COMPOUND, and writing it as
+one row is the spelling-honest choice.** [CR#701.54e] spells the
+condition out: a creature is your Ring-bearer exactly when it "is on the
+battlefield under your control and has the Ring-bearer designation" —
+three conjuncts. The corpus writes NONE of them separately; all three
+attested lines write the four words whole. Composing `ControlledBy You`
+with a bare designation read would therefore have spelled a phrase no
+card prints while leaving the printed one unwritable, which is the wrong
+trade in both directions. The conjuncts live in the row's comment and the
+first of them lives in its seeding, which is what
+`badRingBearerInGraveyard` refuses.
+
+**Finding 341 — the game's two designations are asymmetric in the CHECK
+and symmetric in the TRANSITION, and the row set says so.** "If it's
+night" and its siblings are four lines; "if it's day" is written zero
+times (`badItIsDay`), so `timeCheckOk` gates the read at finding 246's
+idiom. The becoming writes both directions freely, which is what makes
+the asymmetry a fact about the check rather than about the designation —
+and why `BecomesTime` is ungated beside a gated `ItIsNow`.
+The TRANSITION event is the round's other spelling decision. Ten of its
+eleven headers write the FULL disjunction, "day becomes night or night
+becomes day", always in that order and never separately; [CR#731.1a]
+gives both phrases as a pair. So `DayNightShift` takes no direction
+argument and spells the coordination as one lexicalised phrase — which
+keeps it clear of chapter thirty-eight's coordinated-EVENT gap rather
+than falling into it, because that gap is about composing two events a
+card names separately and this card text never separates them. The single
+solo line is recorded rather than generalised into a slot no other line
+would use.
+
+**Finding 342 — three designations the old module carries are not minted,
+and one argument covers all three.** The city's blessing (28 lines, 15 of
+them checks), monstrous (64 / 9) and renowned (12 / 3) are each conferred
+by a KEYWORD — ascend, monstrosity, renown — so their BECOMING sits
+behind the standing keyword boundary while only their checks are ordinary
+card text. Minting the check alone would have given this grammar a
+designation that nothing in it can confer, which is a worse state than
+not having it: a row whose only reachable use is to test for a condition
+no row can bring about. They wait for the keyword transition together,
+and the argument generalises — a designation is mintable here when its
+becoming is card text.
+
+**Finding 343 — four figures corrected, three of them the round's own.**
+The monarch intervening-if family was carried at 16 with no locatable
+source; re-measured it is 18, or 12 excluding the "there is no monarch"
+absence checks, and this round's own closest measure of the positive
+check is 21 lines. Goad's reminder-text figure in `Must`'s row comment
+said "~27"; the closest measure is 33 and the live comment is reconciled.
+Goad's operative clauses measure 24 where the round's brief said 25. And
+the becomes-the-monarch EVENT was briefed at 4 header lines and measures
+TWO — both "Whenever an opponent becomes the monarch", both with bodies
+this grammar cannot write (a for-as-long-as control grant; an
+as-the-turn-began lookback window). That last correction is why the event
+is RECORDED and not minted: two lines with no writable body do not buy an
+`EventName`, whose cost is now ten table clauses including two
+`lookbackSubjectOk` cells for a name no history read writes. The day and
+night transition, at ten, does.
+
+**Finding 344 — four boundaries, each argued rather than assumed.** THE
+RING TEMPTS YOU is out: [CR#701.54a] makes it a keyword action whose
+expansion is choose-then-designate, and its 51 lines are that action's
+trigger phrase, not a designation clause. DAYBOUND and NIGHTBOUND are
+out: [CR#702.145a] puts them "on opposite faces of some double-faced
+cards", so their whole text is keyword-static boilerplate over a card
+frame this vocabulary does not model. GOAD'S OWN RULES TEXT is out and
+stays rules-implicit — the attacks-each-combat-and-a-player-other-than
+sentence is [CR#701.15b]'s, printed only as reminder text, so chapter
+forty-six's requirement row neither spells it nor needs to. And the
+MONARCH'S PACKAGE is out in an asymmetric way worth recording: its draw
+half is printed exactly once (Archivist of Gondor, "At the beginning of
+the monarch's end step", blocked on the nominal possessor tier chapter
+forty-five queued) and its damage-transfer half is never printed at all,
+so the package is rules text with one card-text corner.
+
+**Finding 345 — witnesses, pins, and three rows that land unwitnessed.**
+Five positives: Throne Warden (the whole card — the monarch check feeding
+the intervening slot for free), Aragorn (the designation gained, and the
+`Monarch` value's own verb), the goad clause under an activated carrier,
+a goaded-description trigger header, and Firmament Sage's second line
+(the game-scope event). Three pins: the day cell, the monarch read's
+negation (zero lines, where the family's real negative is the absence
+check), and the Ring-bearer's battlefield seeding.
+THREE ROWS LAND WITHOUT A BENCH POSITIVE, each with a named blocker.
+`ItIsNow` and `BecomesTime` have four and eleven corpus lines between
+them and not one is writable whole: the checks ride a cost reduction, a
+replacement "instead", or an if-otherwise pair, and the becoming appears
+only inside those. `YourRingBearer` has three lines, and its best —
+Frodo Baggins' "As long as Frodo Baggins is your Ring-bearer, it must be
+blocked if able", which would have closed the card with chapter
+forty-six's requirement — is blocked by the SELF-PRONOUN gap alone: the
+card pronominalises its second self-mention and this grammar writes the
+self-word twice. That is the fifth construction the gap has cost a
+witness, and it is now the most expensive unbuilt thing in the
+vocabulary.
+
+Ledger updates this chapter:
+
+- The designations (**closed**): all three scopes land — the player
+  reads and the gaining effect, the object reads and the goad verb, the
+  game read, write and event. The queue entry is deleted.
+- **Recorded, not minted**: the becomes-the-monarch event (2 lines,
+  finding 343); the absence check "there is no monarch" (5 lines, an
+  existential over the holder); the three keyword-conferred designations
+  (finding 342).
+- **Boundaries** (finding 344): the Ring tempts you; daybound/nightbound;
+  goad's rules text; the monarch package's two halves.
+- Near-miss inventory: the SELF-PRONOUN gap, now at five constructions
+  and costing this round its best witness; the nominal possessor tier,
+  which costs Archivist of Gondor; the plural-player possessor, which
+  costs the goaded-can't-block line.
+
+## Chapter forty-eight — the event subject's own mention
+
+Five chapters have recorded the same near-miss in their inventories: a
+trigger whose subject is the self and whose body says "it". Chapter
+thirty-eight witnessed around it, chapter forty called it a limit, chapter
+forty-two met it again, chapter forty-five paid for it, and chapter
+forty-seven called it the most expensive unbuilt thing in the vocabulary.
+This chapter builds it — one determiner row, one screening clause, one
+minting function, seven call sites — and reports what it did not build
+just as precisely. Bench: 265 positives / 413 pins.
+
+**Finding 346 — the gap was TWO axes running together, and separating
+them is most of the work.** The log's prose has treated one phenomenon
+where there are two. AXIS ONE is ANAPHORA: `nounDelta This` is the empty
+list, so a bare or sorted self announces no mention and `It` and the
+demonstratives have nothing to resolve against. AXIS TWO is
+ZONE-EVIDENCE: the sorted self writes a type word, which places it on the
+battlefield ([CR#109.2], `selfSortedOk`), so a phrase asking about
+another zone contradicts it. Chapter forty-one's probe belongs to axis
+TWO — it was `Matches This (InZone exile)`, a zone question, not a
+pronoun one — and this chapter's own brief had it filed as `Matches It`.
+The two axes share a symptom (a self-reference that will not do what a
+card's text does) and nothing else. THIS ROUND TOUCHES ONLY AXIS ONE, and
+`badEntersBareThis`, `badBlocksBareThisPartner` and
+`badExileCheckOnSortedSelf` are all green and untouched, which is the
+proof that the separation is real rather than rhetorical.
+A bookkeeping correction rides here: the running count of constructions
+the gap had cost went third (chapter forty-one) to fifth (chapter
+forty-seven) with no fourth locatable in between. The jump is recorded
+rather than reconstructed; the count that matters is the one this chapter
+closes.
+
+**Finding 347 — `This` never announces, and the minting belongs to the
+CARRIER POSITION.** Core draws the line and this vocabulary keeps it: an
+exophoric reference "names the game situation, is never bound by an
+operator", and lives on the frame OUTSIDE the anaphora record `It` reads
+(`deckmaste_engine/src/stack.rs`). So `nounDelta This` stays the empty
+list and every sorted self built over it announces nothing. What core
+ALSO has is binder-scoped minting — inside a binder, `It` is the
+innermost bound element — and the workbench's analogue is the position
+the self sits in. The grammar has done this once since chapter three: a
+MOVED sorted self mints a fresh binding because [CR#400.7] makes the
+moved object a new one, which is what lets Flickering Spirit read "it"
+(finding 16). `selfSubjIntro` is that same move at the EVENT-SUBJECT
+position, and [CR#603.6]'s reading discipline is the warrant — a trigger's
+body looks for the object the event happened to, so the header's subject
+is a thing the body can refer to. Seven event rows take it, and the
+zone-change rows do not need it because `moveIntro` already minted for
+them. 270 lines of "this creature …, it" are what it buys.
+
+**Finding 348 — the demonstrative skips the self, which is English's rule
+and not a convenience.** "That creature" never picks out the speaker. So
+the minted mention has to be visible to `It` and invisible to `That` —
+and the vocabulary already had the right place to say it, the DETERMINER,
+whose job is exactly to record which construction built a binding and
+therefore which readers may see it. `SelfD` is that row; `wordNow` screens
+it off in one clause, and every demonstrative reader inherits the rule
+through that one function — the counts, the zone read and the retag
+scans alike. `countOnes` needs no change at all, because it never looked
+at determiners. The refusal it buys is `badThatCreatureIsSelf`
+("Whenever this creature attacks, that creature gets +2/+0"), which the
+corpus writes zero times.
+This is finding 275's diagnostic in a new place: the visibility varies
+perfectly with the reader, so it is a fact about the words rather than an
+axis, and one clause states it.
+
+**Finding 349 — the patient branch is NOT minted, and minting it would
+have been WRONG rather than merely conservative.** Where a trigger writes
+a patient, that phrase is the announcement and the subject gets none. The
+round's first design minted in both branches and let `It` refuse on
+ambiguity; the corpus refutes it. Two lines write a patient and then a
+bare "it" — "Whenever this creature attacks a battle, it gets +1/+1 until
+end of turn" and "Whenever this creature blocks two or more creatures, it
+gains first strike until end of turn" — and in both the pronoun resolves
+to the SUBJECT, not by uniqueness. That is a subject-preference rule, a
+different resolution discipline from this grammar's uniqueness pronoun,
+and refusing those lines as ambiguous would have been the wrong refusal.
+The honest residue is stated plainly: in the patient branch the grammar
+now admits a bare "it" and reads it as the PATIENT where English reads it
+as the subject. That is an over-generation that MISREADS, which no pin
+can catch, and closing it needs subject-preference machinery — its own
+axis, and not this round's. Both corpus lines are unwritable for other
+reasons besides (a battle type; a count-bounded patient), so nothing
+writable turns on it today.
+
+**Finding 350 — the constraint matrix, cell by cell.** Deeproot Warrior
+lands and is a whole card. Borderland Marauder lands at a DIFFERENT event
+row, which is what shows the minting is the position's and not one row's;
+the becomes-status cell was probed and lands too. Vertigo Spawn is
+UNCHANGED and green — its body reads the patient through `That (TypeW
+Creature)`, and finding 348's screening is exactly what keeps the new
+mention out of that count. `badIt` and `badTheyIt` are green: two
+non-self mentions are still two. Somberwald Alpha and every
+description-subject witness are green and untouched, their mentions
+having always been announced by `nounDelta`. The whole bench is green —
+265 positives and 413 pins — which for a round that revises the discourse
+core is the result rather than a gate.
+
+**Finding 351 — Veiling Oddity's pronoun half is FIXED, and what stops it
+now is the other axis.** The probe is the round's cleanest evidence for
+finding 346's separation. `Matches It (InZone exile)` under a
+last-counter-removed trigger no longer fails on the pronoun: `It`
+resolves, the count obligation is discharged, and the error that remains
+is `ZoneFits (zoneOfIt …) (Just Exile)` — the minted mention says
+battlefield, because [CR#109.2] places a sorted self there, and the card
+asks about exile. Axis one closed; axis two exactly where finding 346
+said it was. The card is still unwitnessed and now has two named blockers
+rather than one vague one: the while-marking (chapter forty-one) and the
+self's zone evidence.
+
+**Finding 352 — Frodo is diagnosed and NOT landed, and the diagnosis is
+the deliverable.** His pronoun sits in a static's body reading a fronted
+as-long-as condition's self-subject. `Conditionally` wires the flow the
+other way: its own comment says "the condition reads what the wrapped
+statement ANNOUNCED, not the other way round: it is typed in `bs` and the
+statement in `condDelta`'s nothing". The probe confirms it exactly —
+`countOnes Object [] = 1`, the body's context EMPTY. So Frodo needs a
+minting site this round did not build: either a static line's own subject
+minting for its body, or a condition minting for the statement it wraps,
+and choosing between those is a design question about `Conditionally`'s
+direction rather than an extension of the event-subject rule. Adding a
+second mechanism in the same round is what the round was told not to do,
+so it stops here with the site named. Frodo remains blocked on that and
+on nothing else — his Ring-bearer read landed last chapter and his
+must-be-blocked the chapter before.
+
+Ledger updates this chapter:
+
+- The SELF-PRONOUN gap (**closed at the event-subject position**), which
+  five chapters' near-miss inventories recorded. The remaining sites are
+  named rather than inventoried: the static-line body (finding 352,
+  Frodo), the patient branch's subject preference (finding 349), and
+  axis two's zone evidence (findings 346 and 351).
+- `SelfD` (**minted**) as a `Determiner` row, and `wordNow` split so the
+  screening lives in one clause with `wordReaches` carrying the word's
+  own grid.
+- Chapter forty-three's `somberwaldAlpha` comment (**corrected in
+  place**): it said the bare becomes-blocked cell "has to be" witnessed
+  by a description subject, which stopped being true here.
+- No queue entry existed for this gap and none is added; the closure is
+  this chapter's.
+
+## Chapter forty-nine — the deontic converged
+
+Finding 331 declined to build a compulsion axis and named the trigger
+that would justify one. This chapter fires that trigger: `Cant` and
+`Must` merge into one `Deontic` row over the `Deed x Role` grid with the
+polarity on its own axis, and the GATE joins them there. It also probes
+first, and the probe shrank the round twice over. Bench: 266 positives /
+415 pins.
+
+**Finding 353 — the convergence, and the one polarity it does NOT
+carry.** All three prior arts agree on the shape and disagree on the
+spine: core's `Deontic{May, Cant, Must, Gate}` over a `DeonticAction`
+whose variants carry `by`/`on` predicates
+(`deckmaste_core/src/deontic.rs`); the old module's
+`Constrain : Compulsion -> Deed` over an eight-kind relation spine with a
+`Priced` sibling; and this vocabulary's narrow grid, which now carries
+the polarity as `Compulsion{Forbid, Require, GatedBy Cost}`. The gate's
+cost rides its own VALUE rather than a fourth field on the row, which is
+`BoostCounter`'s arrangement and for its reason: the payload sits exactly
+where the polarity needs it, so no other polarity carries an empty slot
+and no gate can be written without one.
+What is not taken from either prior art is the PERMISSION. Core's `May`
+is the existential floor a granted row widens; this grammar has no line
+asking for it, "may attack" being written zero times because attacking is
+permitted by default ([CR#506.3]). Three rows, measured; a fourth would
+have been symmetry — which is the same test finding 331 applied to
+decline the merge in the first place, run again and answering the other
+way.
+
+**Finding 354 — PART ONE'S RESULT: the condition-unless mass was already
+writable, and already WITNESSED.** The round came to build a gate for 68
+"can't attack unless [condition]" lines. They need nothing: the
+conditional static's `Unless` marking already spells them, the negation
+moved onto the subordinator exactly as that row's comment describes — and
+the bench has carried the proof since chapter THIRTY, where the `Unless`
+marking landed — Desperate Castaways ("This creature can't attack unless you control an artifact"),
+whose own comment counts "a hundred eleven 'can't … unless' lines" and
+says "this is the shape all of them have". The round's brief treated a
+settled result as open and so did this round's first hour; the probe is
+what caught it, and the honest record is that Part One discovered
+nothing except that it had already been discovered.
+It did REFINE it. The composition needs a NEGATABLE condition
+(`markingOk Unless` demands `condNegated`, and `NotCond` is what supplies
+it), and `condNegatable` answers False for `CompareAmt`. So the family
+splits: an existential condition composes ("unless you control an
+artifact") and a COUNTED one does not ("unless you control four or more
+artifacts", Gadrak). That is a real boundary inside the 68 and it was not
+recorded anywhere before; it belongs to the comparison's own negation
+gap, not to the deontic.
+
+**Finding 355 — the gate's writable surface is ONE line, and the reason
+is a gap in BOTH vocabularies.** The cost-gate family is 26 lines.
+EIGHTEEN of them write a scaled cost — "pays {2} for each creature they
+control that's attacking you", Propaganda's family — which the `Cost`
+vocabulary has no term for; six write a coordinated deed ("can't attack
+or block"), which `Deed` cannot spell as one row; several are Auras
+("Enchanted creature can't attack unless its controller pays {3}",
+Brainwash), waiting on attachment. What is left is Hipparion. The scaled
+cost is worth recording carefully because it is not a narrowing of core:
+core's gate carries a flat `Arc<[CostComponent]>` and cannot spell "for
+each" either, so this is a gap in both vocabularies at once and the round
+that closes it closes both.
+
+**Finding 356 — the payer is derived, at a fourth site, with one
+principled exception.** Every attack and block gate names the gated
+subject's own controller — "its controller", "their controller", or "you"
+where the subject is the self — so the possessive is a function of the
+subject and the spelling owns it, which is finding 254's rule for the
+fourth time (after the standing lock, the timed lock and the cap). The
+exception is the Block/PATIENT cell, where the DEFENDING player pays
+("can't be blocked unless defending player pays"), and it is not an
+exception to the rule so much as an instance of it: the payer is still
+read off the deed's participants, and at that cell the relevant
+participant is the other one. Four lines, all of them per-each or Aura,
+so the cell is admitted with corpus evidence and no bench positive.
+
+**Finding 357 — the patient cell goes THREE-VALUED, and that is the
+merge's real gain.** Chapter forty-six's table was required-or-refused
+because the requirement is. The restriction is not: "can't block
+creatures with power 3 or greater" is fourteen lines and the bare "can't
+block" many more, so `ForbidT Block Agent` is OPTIONAL — a cell `Cant`
+never had, because `Cant` had no patient slot at all. So the merged row
+buys fifteen lines of new surface (fourteen restrictions with a patient,
+plus Hipparion) rather than the one the gate alone would have bought,
+and that is what tipped the trade. `deonticPatientOk` is full rows over
+(polarity x deed x role), twelve cells, each measured in its own family
+and none by symmetry.
+
+**Finding 358 — the gate's "unless" is the THIRD in this grammar, and
+construction-owned.** It is not `CondMarking.Unless`, which marks a
+negated CONDITION on a conditional static (finding 354's family). It is
+not [CR#118.12a]'s may-else, which offers a player a choice between doing
+a thing and paying. It prices a DEED: the clause forbids, and naming a
+payment lifts the forbidding. [CR#508.1d] and [CR#509.1c] both write it
+into their own text — "if a creature can't attack unless a player pays a
+cost, that player is not required to pay that cost" — which is also the
+sentence that keeps the gate out of the requirement solver.
+
+**Finding 359 — the migration, and which inferred obligations moved.**
+Seventeen call sites across five files, all green. TWO pins' obligations
+are byte-identical because their table did not change:
+`badCantAttackLand` and `badMustAttackLand` both still refute
+`DeedParticipant Attack Agent (Just Land)` — one at each polarity, which
+is the pair chapter forty-six landed deliberately and which the merge
+now makes literally the same row refusing twice. TWO pins' obligations
+SHIFTED and the shift is presentational: `badMustAttackWithPatient` and
+`badMustBlockNoPatient` refuted `mustPatientOk`'s application before and
+now refute `admitsPatient`/`notRequired` over `deonticPatientOk`'s, which
+reduce all the way to `False = True`. The refusal is the same question at
+the same cell; what is lost is that the displayed obligation no longer
+NAMES the cell, and the pins' docstrings and terms carry it instead. That
+is the one quality cost of the merge and it is recorded rather than
+hidden.
+
+**Finding 360 — one new witness, two new pins, and the residues.**
+Hipparion lands whole and needs both of the round's capabilities at once
+— the gate polarity carrying its cost, and the restriction's optional
+patient. Desperate Castaways already carried the condition cell and is
+cited rather than duplicated. Two pins at the merged table's refused
+cells: a patient on the attack restriction, and a patient on the
+block-patient gate. The residues are precise: the SCALED cost (18 lines,
+and a core gap too); the coordinated deed (6 lines, chapter
+thirty-eight's coordinated-event gap in a new place); the Aura carrier;
+the counted-condition unless (finding 354); and the defending-player
+noun, which chapter forty already recorded and which this round meets
+again at the Block/Patient gate.
+A boundary confirmed and not absorbed: WARD is not a gate. [CR#702.21a]
+makes it a triggered ability whose effect counters the spell unless a
+cost is paid, so its "unless" prices a TRIGGER's resolution and not a
+deed's legality, and the corpus's counter-unless family is disjoint from
+this one. Recorded with the old module's own `tToll` mislabelling —
+`Spec.idr` files a Downstream toll where the ward reading wants
+AtDeclaration — as a flagged note about that module, not this round's fix.
+
+Ledger updates this chapter:
+
+- The deontic (**converged**): `Cant` and `Must` are one `Deontic` row
+  with `Compulsion`'s three polarities. Finding 331's trigger is
+  discharged and its ruling superseded by its own terms.
+- The condition-unless family (**closed, and it was already closed**):
+  finding 354, with the counted-condition boundary as the one new fact.
+- The queue's GATE entry deletes; the residues go to precise lines.
+- Near-miss inventory: the scaled cost, in both vocabularies; the
+  coordinated deed; the defending-player noun, now costing two cells.
+
+## Chapter fifty — the conditional's threading
+
+Chapter forty-eight minted the event subject's own mention and diagnosed,
+precisely and without building it, why the same pronoun would not resolve
+inside a conditional static. This chapter builds that — the same three
+lines at the second container — and closes the card the diagnosis was
+about. Bench: 268 positives / 416 pins.
+
+**Finding 361 — a correction first: the threading this comment described
+was never implemented.** `Conditionally`'s row said "the condition reads
+what the wrapped statement ANNOUNCED, not the other way round: it is
+typed in `bs` and the statement in `condDelta`'s nothing". Half of that
+was true and the operative half was not. Both arguments sat at the raw
+incoming context; neither read the other; nothing was typed in anything.
+The sentence described an INTENT, and chapter forty-eight's diagnosis
+quoted it as though it described the code — which is how a probe came to
+be needed to discover that the flow ran in no direction at all. The
+comment now describes what this chapter builds, and the lesson is worth
+one line: a doc comment that states a threading is a claim about a type
+signature, and the signature is where it should have been read.
+
+**Finding 362 — two flows, and only one of them is a threading this
+constructor can have.** The 424 fronted "As long as" lines divide three
+ways. 173 are INDEPENDENT — the condition names its own subject and the
+body names its own — and have always been writable; every `Conditionally`
+witness the bench carries is one of them, which is why the rewiring broke
+nothing. 110 repeat the self-word in both halves and were likewise
+writable. 141 PRONOMINALISE the condition's subject in the body (55
+self-typed subjects, 8 proper-named including Frodo and Enkira's
+byte-similar sibling), and those are this chapter's.
+The other direction is real and is NOT this chapter's: about 70 trailing
+lines pronominalise the STATEMENT's subject inside the condition ("X has
+hexproof as long as IT's untapped"). One constructor cannot type both
+arguments in each other's context, so the two flows cannot share a
+threading, and the round takes the fronted one — the larger family, and
+the one whose diagnosis was already written. The row's linearization
+comment is corrected accordingly: fronted and trailing are the same
+sentence when the condition is INDEPENDENT, and two constructions when a
+pronoun crosses. (A third family, "for as long as it remains exiled" and
+its ~59 siblings, is `ForAsLongAs`'s and already threads through
+`Continuously`'s `staticIntro` — a different construction, untouched.)
+
+**Finding 363 — the container threads; the condition stays opaque.**
+`condSubjIntro` is `selfSubjIntro`'s three lines at a second site, and the
+chapter sets them side by side because the ONE difference is
+informative: an event's subject is a NOUN, so a description announces
+itself through `nomIntro` and only the self needed minting; a condition
+announces nothing on any row, so there is no fallback and the unminted
+case passes the incoming context through unchanged. `condDelta` is
+untouched and still answers the empty list everywhere — the container
+mints for its own body, and the condition does not become transparent.
+The regression set proves the distinction rather than asserting it.
+`badMatchesTargetSubject` (the `Bindingless` gate) and
+`badConditionAntecedent` (`Effect.If`'s opacity) are both green with
+byte-identical obligations, and `Effect.If` is untouched: its condition is
+typed at `preIntro e`, threading the other way, which is a second
+container with a second answer and finding 76's cross-carrier contract is
+what lets each decide for itself.
+The demonstrative screen needed no work at all. `SelfD` is invisible to
+`wordNow`, so the new mention is visible to "it" and not to "that
+creature" — and the corpus writes zero fronted lines whose body
+demonstrates its own subject, exactly as it wrote zero of the trigger
+twin (`badThatCreatureIsCondSubject`, whose obligation is
+`badThatCreatureIsSelf`'s to the letter).
+
+**Finding 364 — Frodo Baggins, four chapters on.** "As long as Frodo
+Baggins is your Ring-bearer, it must be blocked if able." Chapter
+forty-six minted the requirement, chapter forty-seven the Ring-bearer
+read, chapter forty-eight diagnosed the pronoun and stopped rather than
+adding a second mechanism in one round, and this chapter threads the
+container the diagnosis named. His first line stays elided — the Ring
+tempts you is a keyword action ([CR#701.54a]) over a coordinated event
+subject — and the second is the whole of what the arc was about. Adanto
+Vanguard lands beside him on an ordinary status condition, which is what
+shows the minting belongs to the container and not to the Ring-bearer
+read.
+The two who did NOT land are recorded: Enkira's sibling wants "as long as
+[it] is equipped", an attachment predicate the Aura family owes, and the
+enchanted-subject lines want a noun that does not exist for the same
+reason.
+
+Ledger updates this chapter:
+
+- The self-pronoun gap (**closed at the conditional's fronted flow**),
+  the second of the sites chapter forty-eight named. What remains of it:
+  the TRAILING-reverse flow (finding 362), and the patient branch's
+  subject preference (finding 349).
+- `Conditionally`'s row comment (**corrected**, finding 361) and its
+  linearization story (**corrected**, finding 362).
+- Frodo Baggins (**closed**), the arc chapters forty-six to fifty built.
+- Near-miss inventory: the attachment predicate, which costs Enkira and
+  the enchanted-subject family; the trailing-reverse orientation.
+
+## Chapter fifty-one — the attachment host
+
+Fourteen chapters have recorded the same block under different names: the
+Aura grant chapter forty-six could not witness, the flat gate chapter
+forty-nine could not find a second line for, Enkira beside Frodo in
+chapter fifty, and "enchanted creature" in every near-miss inventory
+since chapter twenty-two. All of it was one missing NOUN. This chapter
+mints it — 1,774 corpus lines across its head words, the campaign's
+largest measured unlock — and the boundary around it turns out to be
+clean. Bench: 272 positives / 418 pins.
+
+**Finding 365 — the gap is COMMON to both prior arts, and the rules make
+the boundary clean.** Core has the reference: `Reference::AttachHostOf`,
+"the permanent that attachment R is attached to … covers Equipment hosts,
+Aura enchantees, and Fortification hosts alike"
+(`deckmaste_core/src/reference.rs`). The OLD module has the same
+primitive with `refIntro (AttachHostOf r) = refIntro r`, a passthrough
+that announces nothing. NEITHER has a NOUN surface, so this is the first
+one in the repo rather than a port of either.
+What makes it landable with no attachment machinery at all is a pair of
+rules that decouple the word from the speaker: [CR#303.4m] and
+[CR#301.5f] both say the reference works "even if the permanent with the
+ability isn't an Aura"/"isn't an Equipment". So the participle is a
+POINTER a permanent may write, not a fact about what kind of permanent it
+is — no Aura subtype, no attach verb, no relation. The corpus confirms
+the boundary from the other side: the paraphrase "the creature this is
+attached to" is written ZERO times, so the participle is not one spelling
+among several but the only one.
+
+**Finding 366 — the participle x head grid, and why three lines mint a
+row.** Full rows over (participle x head word), thirty-three cells.
+ENCHANTED spans six heads because [CR#303.4b] lets an Aura attach to an
+object OR a player: creature 931, land 79, permanent 76, player 54,
+artifact 22, enchantment 4. EQUIPPED is creature-only at 605,
+[CR#301.5a] naming no other host (`badEquippedLand`). FORTIFIED is
+land-only at 3 (`badFortifiedCreature`), and those three lines MINT the
+row rather than record it — which looks like a departure from finding
+85's bar and is not. That bar asked for a line of the right SHAPE, and
+[CR#301.6] applies the Equipment rules "to Fortifications in relation to lands
+just as they apply to Equipment in relation to creatures", so "fortified
+land" is the rules' own term with exactly the status "equipped creature"
+has. The row is rules-backed vocabulary, and the three lines are its
+witnesses rather than its justification.
+
+**Finding 367 — the head word carries the evidence AND the sort.** This
+is `AsType`'s arrangement generalised: there a type word placed the self
+on the battlefield ([CR#109.2]), and here the head word both places the
+host and names its type, so "enchanted creature" projects a battlefield
+creature and "enchanted player" projects nothing at all — players having
+no zone. The KIND follows the head too, `Noun bs (kindOfW h)`, which is
+`That`'s own indexing; that is what lets the 54 Curse lines' player host
+share the row instead of forking it, and it is chapter forty's
+`counterScope`-in-`Kind` move at a third site.
+
+**Finding 368 — the mention is ORDINARY, and the two exophora differ.**
+The new noun announces nothing by itself (`nounDelta` empty, both prior
+arts agreeing), so the pronoun lines need the container to mint — rounds
+twelve and fourteen's rows extended, at the event subject and the
+condition subject. The DETERMINANT is the round's real question, and the
+corpus answers it against the obvious guess. `SelfD` exists because no
+line demonstrates back to a trigger's own subject (finding 348, zero
+lines). Five lines demonstrate back to an attachment HOST — "When
+enchanted creature dies, THAT CREATURE's controller loses life equal to
+its toughness" and its siblings — so the host's mention is visible to the
+demonstratives and takes `TheD`. English's rule is what separates them
+and it is the same rule in both cases: "that creature" cannot mean the
+speaker, and an enchanted creature is not the speaker but a third party
+the sentence named. Two exophoric references, two determinants, one
+principle.
+(Two of the seven candidate lines demonstrate the block PATIENT rather
+than the host and are not evidence; the count is five.)
+
+**Finding 369 — the inverse direction lands too, and a third is
+recorded.** "Is enchanted" (14 lines) and "is equipped" (19) ask whether
+something HAS an attachment rather than what an attachment points at, and
+they are predicates rather than a noun — written predicatively after the
+copula and never prenominally. Both negate, four isn't-forms saying so. A
+THIRD direction exists and is not this chapter's: "as long as this
+Equipment is attached to a creature", twelve lines, which names the
+RELATION from the attachment's own side and is the one place an attach
+relation would actually be written. Queued.
+
+**Finding 370 — the backfill harvest, three chapters closed by name.**
+Bloodshed Fever closes chapter forty-six's recorded block: that chapter
+minted the requirement and could not witness its second-largest carrier
+because the subject had no noun. Brainwash closes chapter forty-nine's:
+the cost gate landed there with exactly ONE writable line because every
+other flat gate in the family is an Aura, and this is its second witness.
+Enkira closes chapter fifty's sibling — the condition asks whether the
+self has an attachment and the body pronominalises the self, so he lands
+on `condSubjIntro` exactly as Frodo did, one chapter and one predicate
+later. Extra Arms witnesses the minting extension itself. Four cards, and
+every one of them was named as blocked in an earlier chapter's ledger.
+
+**Finding 371 — what is still blocked, precisely.** The enchanted PLAYER
+cell has 54 corpus lines and no bench positive: its two cleanest lines
+are "Enchanted player can't gain life" and "can't cast more than one
+spell each turn", and neither prohibition is a `Deed` this vocabulary
+carries. The "enchanted player's upkeep" family (10 lines) overlaps the
+nominal-possessor tier chapter forty-five queued and is untouched. And a
+MOVED host mints nothing — `This`'s answer rather than `AsType`'s —
+because an Aura that moves its own host stops being attached to it, so no
+line reads a moved host back; recorded rather than minted.
+
+Ledger updates this chapter:
+
+- The attachment subject (**closed**), 1,774 lines across its heads, with
+  the inverse direction beside it.
+- Bewitching Leechcraft (**down to two blockers** from three): the
+  attachment subject is gone; the would-untap event and the quotation gap
+  remain. Queue entry updated.
+- Chapters forty-six, forty-nine and fifty's recorded blocks
+  (**backfilled**, finding 370).
+- Near-miss inventory: the enchanted-player prohibitions, which want
+  deeds this grammar has no rows for; the attachment's own direction (12
+  lines); the moved host.

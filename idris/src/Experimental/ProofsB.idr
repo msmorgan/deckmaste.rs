@@ -343,7 +343,7 @@ badCantDisjunctSubject Participant impossible
 ||| battle can be attacked [CR#506.3].
 public export
 badCantBeAttacked : Unspellable (Effect []) (\ok =>
-  Continuously (Cant (Macros.target Macros.creature) Attack Patient {dp = ok}) (Just Macros.thisTurn))
+  Continuously (Deontic (Macros.target Macros.creature) Forbid Attack Patient Nothing {dp = ok}) (Just Macros.thisTurn))
 badCantBeAttacked Participant impossible
 
 

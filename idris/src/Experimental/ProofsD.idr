@@ -215,7 +215,7 @@ badMoveOntoBattlefieldAsCost MkCostAction impossible
 public export
 badUnlessOnPositive : Unspellable Ability (\ok =>
   Static (Conditionally (Exists (And [Macros.artifact, ControlledBy You]))
-                        (Cant Macros.thisCreature Attack Agent)
+                        (Deontic Macros.thisCreature Forbid Attack Agent Nothing)
                         {marking = Unless} {mk = ok}))
 badUnlessOnPositive MkMarkingOk impossible
 
@@ -420,3 +420,469 @@ badExileTapped : Dependent.Unspellable (Effect []) (\x, y =>
                         {rf = MkRidersFit {ok = x}})
                   {ok = y})
 badExileTapped (Refl ** _) impossible
+
+
+||| "Turn target creature card in your graveyard face down."
+||| The face verb takes a permanent [CR#708.7], so the demand is the tap
+||| row's zonal one and a graveyard phrase contradicts it.
+public export
+badTurnFaceDownGraveyard : Unspellable (Effect []) (\ok =>
+  ToFace FaceDown (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok = ok})
+badTurnFaceDownGraveyard OnField impossible
+
+
+||| "Target creature card in your hand phases out."
+||| Phasing changes no zone [CR#702.26d] because it starts on the
+||| battlefield: a hand card has no phasing status to change [CR#110.5].
+public export
+badPhasesOutInHand : Unspellable (Effect []) (\ok =>
+  Phases PhasedOut (Macros.target (And [Macros.creature, InZone (Macros.handOf You)])) {ok = ok})
+badPhasesOutInHand OnField impossible
+
+
+||| "Whenever a permanent is turned face down, draw a card."
+||| The turning is real and rules-legal [CR#708.2a]; the trigger header
+||| over it is written zero times against the up cell's mass.
+public export
+badTurnedFaceDownEvent : Unspellable Ability (\ok =>
+  Triggered Whenever (IsTurnedFace (Macros.a Permanent) FaceDown {at = ok}) Macros.drawACard)
+badTurnedFaceDownEvent MkFaceEventVal impossible
+
+
+||| "At a creature phases out, draw a card."
+||| [CR#603.2b] keeps "at" for phases and steps, as it does for every other
+||| object event.
+public export
+badAtPhasesOut : Unspellable Ability (\ok =>
+  Triggered At (PhaseTransition (Macros.a Macros.creature) PhasedOut) Macros.drawACard {wo = ok})
+badAtPhasesOut MkTriggerWordOk impossible
+
+
+||| "If target creature would phase out, exile it instead this turn."
+||| Trigger-only, reader by reader: nothing replaces a phasing.
+public export
+badInterceptPhasesOut : Unspellable (Effect []) (\ok =>
+  Macros.ifWouldInstead (PhaseTransition (Macros.target Macros.creature) PhasedOut)
+                 (Macros.exile It) (Just Macros.thisTurn)
+                 {ok = Builtin.fst ok, uo = Builtin.snd ok})
+badInterceptPhasesOut (MkInterceptable, _) impossible
+
+
+||| "Exile target creature until a permanent you control is turned face up."
+||| Nor does the [CR#610.3] rider wait for a turning: its whole corpus is
+||| the departure.
+public export
+badHeldUntilTurnedFaceUp : Unspellable (Effect []) (\ok =>
+  Macros.exileUntil (Macros.target Macros.creature)
+                    (IsTurnedFace (Macros.a (And [Permanent, ControlledBy You])) FaceUp) {hd = ok})
+badHeldUntilTurnedFaceUp MkHoldable impossible
+
+
+||| "Remove target creature card in your graveyard from combat."
+||| Combat is the battlefield's, [CR#506.4] listing the ways a PERMANENT
+||| leaves it; the tap row's zonal demand at a new consumer.
+public export
+badRemoveFromCombatGraveyard : Unspellable (Effect []) (\ok =>
+  RemoveFromCombat (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok = ok})
+badRemoveFromCombatGraveyard OnField impossible
+
+
+||| "target creature blocking target creature card in your graveyard"
+||| The relation holds between two creatures in combat [CR#509.1g], so the
+||| relatum may not name another zone.
+public export
+badBlockingGraveyardRelatum : Unspellable (Noun [] Object) (\ok =>
+  Macros.target (And [Macros.creature,
+                      BlockerOf (Macros.target (And [Macros.creature,
+                                                     InZone (Macros.graveyardOf You)])) {zn = ok}]))
+badBlockingGraveyardRelatum MkZoneFits impossible
+
+
+||| "target creature not blocked by this creature"
+||| The relational row does not negate: zero corpus lines, where the bare
+||| designation's negation is ordinary ("nonattacking, nonblocking").
+public export
+badNegatedBlockedBy : Unspellable (Predicate [] Object) (\ok =>
+  Not (BlockedBy Macros.thisCreature) {ng = ok})
+badNegatedBlockedBy MkNegatable impossible
+
+
+||| "At a creature becomes blocked, draw a card."
+||| [CR#603.2b] keeps "at" for phases and steps, as it does for every other
+||| object event.
+public export
+badAtBecomesBlocked : Unspellable Ability (\ok =>
+  Triggered At (BecomesBlocked (Macros.a Macros.creature) Nothing) Macros.drawACard {wo = ok})
+badAtBecomesBlocked MkTriggerWordOk impossible
+
+
+||| "Whenever a creature blocks this, draw a card."
+||| The written partner is type-ascribed for the reason the subject is: a
+||| bare self offers no evidence of the battlefield [CR#109.2], and the
+||| corpus writes "blocks this creature" without exception.
+public export
+badBlocksBareThisPartner : Unspellable Ability (\ok =>
+  Triggered Whenever (Blocks (Macros.a Macros.creature) (Just This)
+                             {bp = OnePartner {ss = ok}}) Macros.drawACard)
+badBlocksBareThisPartner MkSelfSorted impossible
+
+
+||| "If target creature would become blocked, exile it instead this turn."
+||| Trigger-only, reader by reader: nothing replaces a block declaration —
+||| the abilities that stop one are restrictions checked as it is made
+||| [CR#509.1b].
+public export
+badInterceptBecomesBlocked : Unspellable (Effect []) (\ok =>
+  Macros.ifWouldInstead (BecomesBlocked (Macros.target Macros.creature) Nothing)
+                 (Macros.exile It) (Just Macros.thisTurn)
+                 {ok = Builtin.fst ok, uo = Builtin.snd ok})
+badInterceptBecomesBlocked (MkInterceptable, _) impossible
+
+
+||| "Your opponents can't untap more than three lands during their untap steps."
+||| The bound vocabulary is closed at the attested one and two; the domain
+||| written here is the emblem's own and well-formed, so only the count refuses.
+public export
+badUntapCapThree : Unspellable Ability (\ok =>
+  Static (CantUntapMoreThan YourOpponents 3 Macros.land {bd = ok}))
+badUntapCapThree OneUntap impossible
+
+
+||| "Players can't untap more than one creature card in your graveyard during their untap steps."
+||| [CR#502.3]'s untap reaches the permanents a player controls, so the capped
+||| set describes the battlefield and a graveyard phrase contradicts it.
+public export
+badUntapCapGraveyardSet : Unspellable Ability (\ok =>
+  Static (CantUntapMoreThan AllPlayers 1
+                            (And [Macros.creature, InZone (Macros.graveyardOf You)]) {zn = ok}))
+badUntapCapGraveyardSet MkZoneFits impossible
+
+
+||| "Players can't untap more than one tapped during their untap steps."
+||| The capped set writes a head noun; the status word is a modifier and heads
+||| nothing, exactly as a determiner slot refuses it.
+public export
+badUntapCapHeadless : Unspellable Ability (\ok =>
+  Static (CantUntapMoreThan AllPlayers 1 Macros.tapped {hd = ok}))
+badUntapCapHeadless MkHeaded impossible
+
+
+||| "Players can't untap more than one land until your next untap step."
+||| The cap names the interval it governs in its own words and takes no
+||| ENDPOINT: no line in the family writes "next", and no duration adverbial
+||| ends at an untap step.
+public export
+badUntapCapUntilNextUntapStep : Unspellable (Effect []) (\ok =>
+  Continuously (CantUntapMoreThan AllPlayers 1 Macros.land)
+               (Just (Until (StartOf UntapStep (Just Yours)))) {sp = ok})
+badUntapCapUntilNextUntapStep SpanStated impossible
+
+
+||| "Put a poison counter on target creature."
+||| [CR#122.1] places a counter on an object OR a player and the two never
+||| cross: the poison kind is a player's, so the put verb refuses it.
+public export
+badPutPoisonOnCreature : Unspellable (Effect []) (\ok =>
+  PutCounters (Lit 1) Poison (Macros.target Macros.creature) {sc = ok})
+badPutPoisonOnCreature Refl impossible
+
+
+||| "You get a +1/+1 counter."
+||| The same table read the other way: the stat counter is an object's
+||| [CR#122.1a], so the player verb refuses it.
+public export
+badGetsBoostCounter : Unspellable (Effect []) (\ok =>
+  GetsCounters You (Lit 1) Macros.plusOnePlusOne {sc = ok})
+badGetsBoostCounter Refl impossible
+
+
+||| "Each opponent loses all +1/+1 counters."
+||| A named kind on the player's removal verb must be a player's; the
+||| unnamed cell is what "loses all counters" writes instead.
+public export
+badLosesAllBoostCounters : Unspellable (Effect []) (\ok =>
+  LosesAllCounters (Each Opponent) (Just Macros.plusOnePlusOne)
+                   {pk = OneKindLost {sc = ok}})
+badLosesAllBoostCounters Refl impossible
+
+
+||| "the number of +1/+1 counters you have"
+||| The read agrees with its holder's sort: a stat counter sits on an
+||| object [CR#122.1a], so no player phrase can hold one.
+public export
+badCountersHeldByPlayer : Unspellable (Amount []) (\ok =>
+  CountersOn Macros.plusOnePlusOne You {sc = ok})
+badCountersHeldByPlayer Refl impossible
+
+
+||| "When the last poison counter is removed from this creature, draw a card."
+||| The last-removal event watches an OBJECT's holding; the poison kind is
+||| a player's and no player can be its subject at all.
+public export
+badLastPoisonCounterRemoved : Unspellable Ability (\ok =>
+  Triggered When (LastCounterRemoved Poison Macros.thisCreature {sc = ok}) Macros.drawACard)
+badLastPoisonCounterRemoved Refl impossible
+
+
+||| "At the last time counter is removed from this card, draw a card."
+||| [CR#603.2b] keeps "at" for phases and steps, as it does for every other
+||| object event.
+public export
+badAtLastCounterRemoved : Unspellable Ability (\ok =>
+  Triggered At (LastCounterRemoved Time Macros.thisCreature) Macros.drawACard {wo = ok})
+badAtLastCounterRemoved MkTriggerWordOk impossible
+
+
+||| "When the last time counter is removed from this card, if this creature is exiled, draw a card."
+||| A phrase that places its referent places it: the sorted self-word seeds the
+||| battlefield [CR#109.2], so it cannot be asked whether it is somewhere else.
+||| The BARE self-word states no zone and is what a zone check reads.
+public export
+badExileCheckOnSortedSelf : Unspellable Ability (\ok =>
+  Triggered When (LastCounterRemoved Time Macros.thisCreature) Macros.drawACard
+            {intervening = Just (Matches Macros.thisCreature (InZone Macros.exileZ)
+                                         {zc = ok})})
+badExileCheckOnSortedSelf MkZoneFits impossible
+
+
+||| "When this creature enters, if you died this turn, draw a card."
+||| Each event names the sort its history subject takes, and dying is an
+||| object's: the death read is written over creatures and never over a player.
+public export
+badLookbackPlayerDied : Unspellable Ability (\ok =>
+  Triggered When (Enters Macros.thisCreature) Macros.drawACard
+            {intervening = Just (Happened Death You Lookback.ThisTurn {sb = ok})})
+badLookbackPlayerDied MkLookbackSubject impossible
+
+
+||| "When this creature enters, if a creature cast a spell this turn, draw a card."
+||| The same table the other way: casting is read over a player [CR#601.2], and
+||| the corpus writes "you've cast" and "a player cast" and no object subject.
+public export
+badLookbackObjectCast : Unspellable Ability (\ok =>
+  Triggered When (Enters Macros.thisCreature) Macros.drawACard
+            {intervening = Just (Happened SpellCast (Macros.a Macros.creature)
+                                          Lookback.ThisTurn {sb = ok})})
+badLookbackObjectCast MkLookbackSubject impossible
+
+
+||| "When this creature enters, if an upkeep began this turn, draw a card."
+||| A turn-part beginning is not read as history: [CR#603.2b] gives it a trigger
+||| header and the lookback position is written zero times.
+public export
+badLookbackPartBeginning : Unspellable Ability (\ok =>
+  Triggered When (Enters Macros.thisCreature) Macros.drawACard
+            {intervening = Just (Happened PartBeginning (Macros.a Macros.creature)
+                                          Lookback.ThisTurn {sb = ok})})
+badLookbackPartBeginning MkLookbackSubject impossible
+
+
+||| "target creature who cast a spell this turn"
+||| The head noun IS the history read's subject, so the phrase's own sort has
+||| to be one the event takes: casting is a player's [CR#601.2] and a creature
+||| head cannot ask it.
+public export
+badHappenedToObjectCast : Unspellable (Noun [] Object) (\ok =>
+  Macros.target (And [Macros.creature, HappenedTo SpellCast Lookback.ThisTurn {sb = ok}]))
+badHappenedToObjectCast MkLookbackSubject impossible
+
+
+||| "each opponent who died this turn"
+||| The same table refusing at its SECOND reader: dying is an object's event,
+||| and a player head cannot ask it here any more than a player subject could
+||| ask it in the condition position.
+public export
+badHappenedToPlayerDied : Unspellable (Noun [] Player) (\ok =>
+  Each (And [Opponent, HappenedTo Death Lookback.ThisTurn {sb = ok}]))
+badHappenedToPlayerDied MkLookbackSubject impossible
+
+
+||| "target colorless white creature"
+||| [CR#105.2c] gives a colorless object "no color", so the two words describe
+||| nothing together — the status pair's contradiction at the one other place a
+||| closed value pair has one.
+public export
+badColorlessWhite : Unspellable (Noun [] Object) (\ok =>
+  Macros.target (And [Macros.creature, IsColorless, ColorIs White] {cf = ok}))
+badColorlessWhite MkContradictionFree impossible
+
+
+||| "target nonmulticolored permanent"
+||| The three colour-COUNT words take no prefix negation: "nonmulticolored",
+||| "noncolorless" and "nonmonocolored" are zero corpus lines apiece, where the
+||| five colour words and the supertypes are negated in quantity.
+public export
+badNonMulticolored : Unspellable (Predicate [] Object) (\ok =>
+  Not Multicolored {ng = ok})
+badNonMulticolored MkNegatable impossible
+
+
+||| "At the beginning of an opponent's upkeep, draw a card."
+||| The two part-and-possessor tables DISAGREE here and the pin is that
+||| disagreement: the header writes this possessor zero times, where the
+||| activation window writes it ("Activate only during an opponent's upkeep").
+public export
+badTriggerAtAnOpponentsUpkeep : Unspellable Ability (\ok =>
+  Triggered At (BeginningOf Upkeep (Just AnOpponents) {pu = ok}) Macros.drawACard)
+badTriggerAtAnOpponentsUpkeep MkPartTriggerable impossible
+
+
+||| "At the beginning of each opponent's first main phase, draw a card."
+||| The opponent quantifier is written at the upkeep and the end step and at
+||| no main phase: a new part does not inherit a possessor's cells.
+public export
+badTriggerAtEachOpponentsFirstMain : Unspellable Ability (\ok =>
+  Triggered At (BeginningOf FirstMain (Just EachOpponents) {pu = ok}) Macros.drawACard)
+badTriggerAtEachOpponentsFirstMain MkPartTriggerable impossible
+
+
+||| "{2}: Draw a card. Activate only during your end step."
+||| The window's own table refusing: the end step is a trigger header's part
+||| (359 lines) and no activation restriction names it.
+public export
+badWindowDuringYourEndStep : Unspellable Ability (\ok =>
+  Activated (Mana [Macros.generic 2]) Macros.drawACard
+            {window = Just (DuringPart EndStep (Just Yours) {wk = ok})})
+badWindowDuringYourEndStep MkWindowOk impossible
+
+
+||| "Target land attacks each combat if able."
+||| The SAME table refusing at the other polarity: only a creature attacks
+||| [CR#506.3], and the requirement reads the restriction's own grid rather
+||| than a mirror of it — this pin and `badCantAttackLand` share one P, which
+||| is the claim stated as a proof.
+public export
+badMustAttackLand : Unspellable (Effect []) (\ok =>
+  Continuously (Deontic (Macros.target Macros.land) Require Attack Agent Nothing {dp = ok})
+               (Just Macros.thisTurn))
+badMustAttackLand Participant impossible
+
+
+||| "This creature attacks target creature each combat if able."
+||| The attack requirement names no defender: goad's "attacks a player other
+||| than you" leg belongs to a DESIGNATION [CR#701.15b] — "neither an ability
+||| nor part of the permanent's copiable values" — and to the designations
+||| family, so the cell refuses a patient outright.
+public export
+badMustAttackWithPatient : Unspellable Ability (\ok =>
+  Static (Deontic Macros.thisCreature Require Attack Agent (Just (Macros.target Macros.creature))
+                  {pt = DeonticPatientWritten {ok = ok}}))
+badMustAttackWithPatient Refl impossible
+
+
+||| "Target creature blocks this turn if able."
+||| The other direction of the same table: the block requirement REQUIRES its
+||| patient, all 38 lines naming what must be blocked, so the bare form is not
+||| English.
+public export
+badMustBlockNoPatient : Unspellable (Effect []) (\ok =>
+  Continuously (Deontic (Macros.target Macros.creature) Require Block Agent Nothing
+                        {pt = NoDeonticPatient {ok = ok}})
+               (Just Macros.thisTurn))
+badMustBlockNoPatient Refl impossible
+
+
+||| "Target artifact may choose not to untap during your untap step this turn."
+||| The permission to decline is a printed static ability and never a clause:
+||| all seven lines are card text with no duration adverbial, which is the
+||| restriction class's own arrangement.
+public export
+badDeclineUntapClause : Unspellable (Effect []) (\ok =>
+  Continuously (MayDeclineUntap (Macros.target Macros.artifact)) Nothing {sp = ok})
+badDeclineUntapClause SpanUnstated impossible
+
+
+||| "At the beginning of your end step, if it's day, draw a card."
+||| The game's two designations are written asymmetrically: the CHECK is four
+||| lines of "it's night" and zero of "it's day", where the transition writes
+||| both directions freely [CR#731.1].
+public export
+badItIsDay : Unspellable Ability (\ok =>
+  Triggered At (BeginningOf EndStep (Just Yours)) Macros.drawACard
+            {intervening = Just (ItIsNow Day {tc = ok})})
+badItIsDay MkTimeChecked impossible
+
+
+||| "if you aren't the monarch"
+||| The designation read does not negate: "isn't the monarch" is zero lines,
+||| and the one negative the family writes — "there is no monarch" — asks
+||| whether ANY player holds it, which is another construction.
+public export
+badNegatedMonarch : Unspellable (Predicate [] Player) (\ok =>
+  Not (HasPlayerDesignation Monarch) {ng = ok})
+badNegatedMonarch MkNegatable impossible
+
+
+||| "target creature card in your graveyard that is your Ring-bearer"
+||| [CR#701.54e] builds the read out of three conjuncts and the first is the
+||| battlefield, so the phrase seeds it and a graveyard clause contradicts.
+public export
+badRingBearerInGraveyard : Unspellable (Predicate [] Object) (\ok =>
+  And [Macros.creature, YourRingBearer, InZone (Macros.graveyardOf You)] {zc = ok})
+badRingBearerInGraveyard MkZoneCoherent impossible
+
+
+||| "Whenever this creature attacks, that creature gets +2/+0 until end of turn."
+||| English's demonstratives skip the speaker: "that creature" never picks out
+||| the trigger's own subject, so the mention the event mints is visible to "it"
+||| and invisible here — and the corpus writes this sentence zero times.
+public export
+badThatCreatureIsSelf : Unspellable Ability (\ok =>
+  Triggered Whenever (Attacks Macros.thisCreature)
+            (Macros.gets (That (TypeW Creature) {ok = ok}) 2 0 (Just Macros.untilEndOfTurn)))
+badThatCreatureIsSelf Refl impossible
+
+
+||| "This creature can't attack target creature this turn."
+||| The restriction names no defender in the patient slot: "can't attack you"
+||| writes a DEFENDING PLAYER, a different participant with no noun here, and
+||| no line writes an object there at all.
+public export
+badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
+  Continuously (Deontic Macros.thisCreature Forbid Attack Agent
+                        (Just (Macros.target Macros.creature))
+                        {pt = DeonticPatientWritten {ok = ok}})
+               (Just Macros.thisTurn))
+badForbidAttackWithPatient Refl impossible
+
+
+||| "This creature can't be blocked by target creature unless you pay {1}."
+||| The gate's patient cell is the block AGENT's alone: the four
+||| can't-be-blocked-unless lines name no blocker, writing the defending
+||| player's payment instead.
+public export
+badGateBlockPatientWithPatient : Unspellable Ability (\ok =>
+  Static (Deontic Macros.thisCreature (GatedBy (Mana [Macros.generic 1]))
+                  Block Patient (Just (Macros.target Macros.creature))
+                  {pt = DeonticPatientWritten {ok = ok}}))
+badGateBlockPatientWithPatient Refl impossible
+
+
+||| "As long as this creature is attacking, that creature gets +2/+0."
+||| The demonstrative screen at the second minting site: "that creature" never
+||| picks out the sentence's own subject, so the mention the container mints is
+||| visible to "it" and invisible here — and the corpus writes this sentence
+||| zero times, exactly as it writes zero of the trigger-header twin.
+public export
+badThatCreatureIsCondSubject : Unspellable Ability (\ok =>
+  Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
+                          (Gets (That (TypeW Creature) {ok = ok}) 2 0)))
+badThatCreatureIsCondSubject Refl impossible
+
+
+||| "Equipped land gets +1/+1."
+||| [CR#301.5a] names one host for an Equipment and it is a creature; the
+||| land-hosting attachment is a Fortification and writes its own participle.
+public export
+badEquippedLand : Unspellable Ability (\ok =>
+  Static (Gets (AttachHost Equipped (TypeW Land) {ok = ok}) 1 1))
+badEquippedLand MkAttachHeadOk impossible
+
+
+||| "Fortified creature gets +1/+1."
+||| The mirror: [CR#301.6] applies the Equipment rules "to Fortifications in
+||| relation to LANDS", so the fortified participle takes no creature head.
+public export
+badFortifiedCreature : Unspellable Ability (\ok =>
+  Static (Gets (AttachHost Fortified (TypeW Creature) {ok = ok}) 1 1))
+badFortifiedCreature MkAttachHeadOk impossible
