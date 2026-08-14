@@ -45,7 +45,7 @@ deckmaste_english_v2     generated AST + grammar, Earley chart parser,
                          exact renderer, vocab/lexeme/codec tiers,
                          catalog loader        (leaf crate until cutover)
         ▲ loaded at parser construction
-generated catalogs       RON data files from `cargo xtask catalogs generate`
+generated catalogs       plain-text word lists from `cargo xtask catalogs generate`
 ~~~
 
 Runtime support the proc-macro cannot export (chart engine, forest, codec
@@ -58,9 +58,9 @@ deleted; v2 then takes the `deckmaste_english` name. Catalog extraction code
 lives in `deckmaste_migrations` beside the existing snapshot parsers
 (reusing the legacy bare-text extractor where it fits, so
 `deckmaste_migrations::catalogs` is retained at cutover); the catalog
-file-format types are owned by their consumer, `deckmaste_english_v2`, so
-generator and loader cannot drift — a tool-side dependency edge into
-english_v2 only, never the reverse.
+inventory — which catalogs exist — is owned by their consumer,
+`deckmaste_english_v2`, and the format is plain lines, leaving no schema to
+drift — a tool-side dependency edge into english_v2 only, never the reverse.
 
 ## The declaration language
 
@@ -148,11 +148,13 @@ contract one level down. Three declaration tiers plus catalogs:
    codec's spelling is context-derived or stored is a per-codec measurement
    against the style guide, never an assumption.
 4. **Catalogs** — open-class identities (subtypes, card types, ability words,
-   keyword names, card names, counter kinds) are regenerated RON data files
-   with provenance headers, loaded at parser construction. A catalog is a
-   pure word list; anything needing per-entry grammar becomes a construction;
-   the card's own name is a parse-context parameter, not a catalog. A
-   staleness gate ties provenance to the fetched CR.
+   keyword names, card names, counter kinds) are regenerated plain-text word
+   lists (one entry per line, sorted, no headers), loaded at parser
+   construction. A catalog is a pure word list; anything needing per-entry
+   grammar becomes a construction; the card's own name is a parse-context
+   parameter, not a catalog. The staleness gate is regenerate-and-diff:
+   byte-determinism makes the output its own fingerprint, so no provenance
+   metadata exists to maintain or to drift.
 
 **Lexical coverage gate:** every token of every accepted corpus sentence must
 be claimed by a form literal, vocab, lexeme, codec, or identity — an
@@ -278,10 +280,11 @@ aspiration.
 - **`roundtrip`** — byte-exact both laws; `--require-clean` for the accepted
   set.
 - **`coverage`** — the lexical coverage gate (§Terminals).
-- **`catalogs check`** — provenance/staleness against the fetched CR. Ships
-  as `cargo xtask catalogs check` beside `catalogs generate` — one
-  data-layer command family — with the legacy bare-text generation renamed
-  `cargo xtask catalogs text`.
+- **`catalogs check`** — staleness by regenerate-and-diff against the
+  current upstreams (determinism makes the output its own fingerprint;
+  hand-edits are caught as well). Ships as `cargo xtask catalogs check`
+  beside `catalogs generate` — one data-layer command family — with the
+  legacy bare-text generation renamed `cargo xtask catalogs text`.
 - **`ambiguity`** — census of selection decisions; unresolvable ties must be
   zero; exception-table entries enumerated for review.
 - **`inspect` / `probe`** — per-sentence forest, selected construction, the
