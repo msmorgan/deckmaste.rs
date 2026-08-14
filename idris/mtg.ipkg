@@ -7,7 +7,9 @@ modules = Semantics
         , Experimental
         , Experimental.Macros
         , Experimental.Cards
+        , Experimental.Unspellable
         , Experimental.Proofs
+        , Experimental.ProofsB
         , EmitTables
 
 sourcedir = "src"
