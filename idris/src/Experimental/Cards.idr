@@ -2155,17 +2155,6 @@ failing "OnStack"
   badCastsAnyTarget : Ability
   badCastsAnyTarget = Triggered Whenever (Casts You (Macros.target AnyTarget)) Macros.drawACard
 
--- ===== What a wrapper hides: buried seeds, head sets, re-minted trees =====
-
--- The singular quantity licenses the class word as the phrase's HEAD,
--- not wherever it can hide: "target creature the controller of any
--- target controls" spells it in a possessor, where a counted mention
--- forbids it exactly as "a" does (`badAnyTargetEmbedded`).
-failing "AnyTargetAtCount"
-  badEmbeddedAnyTargetExact1 : Noun [] Object
-  badEmbeddedAnyTargetExact1 =
-    Macros.target (And [Macros.creature, ControlledBy (ControllerOf (Macros.target AnyTarget))])
-
 -- ===== What a complement may exclude, and what a batch may read =====
 
 -- "Each player other than target player creates a 5/5 red Dragon
@@ -2246,68 +2235,6 @@ mesmericOrb =
   Triggered Whenever (BecomesStatus (Macros.a Permanent) Untapped)
             (Macros.millsCards (ControllerOf (That PermanentW)) 1)
 
--- The six unattested values, one pin each so a future broadening fails
--- at the VALUE gate with the failure attributable to nothing else: the
--- subject and context are ordinary throughout. The zero counts are
--- exact and individually queried ("becomes flipped/unflipped/face
--- up/face down/phased in/phased out" — zero supported lines apiece);
--- the operations exist under their own verbs ([CR#708] for the face
--- pair, [CR#710] for flip, [CR#702.26] for phasing) and are the
--- ledger's. Unflipped is stronger still: flipping is one-way, so the
--- transition cannot happen ([CR#710.4]).
-failing "StatusEventVal"
-  badBecomesPhasedIn : Ability
-  badBecomesPhasedIn =
-    Triggered Whenever (BecomesStatus (Macros.a Permanent) PhasedIn) Macros.drawACard
-
-failing "StatusEventVal"
-  badBecomesPhasedOut : Ability
-  badBecomesPhasedOut =
-    Triggered Whenever (BecomesStatus (Macros.a Permanent) PhasedOut) Macros.drawACard
-
--- [CR#603.2b] keeps `At` for phases and steps: "At a creature becomes
--- tapped" is unwritten, as it is for every other object event.
-failing "TriggerWordOk"
-  badAtBecomesTapped : Ability
-  badAtBecomesTapped =
-    Triggered At (BecomesStatus (Macros.a Macros.creature) Tapped) Macros.drawACard
-
--- Trigger-only, reader by reader — `badInterceptEnters`'s shape at the
--- new event. Nothing intercepts a becomes-tapped: no "if [it] would
--- become tapped, … instead" line exists.
-failing "Interceptable"
-  badInterceptBecomesTapped : Effect []
-  badInterceptBecomesTapped =
-    Macros.ifWouldInstead (BecomesStatus (Macros.target Macros.creature) Tapped)
-                   (Macros.exile It) (Just Macros.thisTurn)
-
--- …and the [CR#610.3] rider does not wait for one: "exile it until
--- [something] becomes untapped" is written zero times, the rider's
--- whole corpus being the departure.
-failing "Holdable"
-  badHeldUntilBecomesUntapped : Effect []
-  badHeldUntilBecomesUntapped =
-    Macros.exileUntil (Macros.target Macros.creature) (BecomesStatus (Macros.a Macros.creature) Untapped)
-
--- …nor does the delayed clause: the delayed family stays the end-step
--- beginning, the departure, and the death.
-failing "Awaitable"
-  badDelayedOnBecomesTapped : Effect []
-  badDelayedOnBecomesTapped =
-    Delayed (BecomesStatus (Macros.target Macros.creature) Tapped)
-            (Macros.sacrifice You (That (TypeW Creature)))
-
--- No measured duration ends at a status transition: the tapped-STATE
--- span is "for as long as … remains tapped" ([CR#611.2b]), a condition
--- inside the for-as-long-as adverbial and not an event endpoint (forty
--- of forty corpus "remains tapped" lines; zero write "until … becomes
--- untapped" in a clause this grammar spells).
-failing "SpanOk PtDelta"
-  badGetsUntilBecomesUntapped : Effect []
-  badGetsUntilBecomesUntapped =
-    Macros.gets (Macros.target Macros.creature) 2 2
-         (Just (UntilEvent (BecomesStatus Macros.thisCreature Untapped)))
-
 -- ===== The timed untap restriction =====
 
 -- "{3}: Target creature doesn't untap during its controller's next
@@ -2352,26 +2279,3 @@ arbalestElite =
             (Sequentially [DealDamage Macros.thisCreature (Lit 3)
                                       (Macros.target (And [Macros.creature, Or [Attacking, Blocking]])),
                            DoesntUntapNext Macros.thisCreature 1])
-
--- the timed clause's subject stands on the battlefield, `Tap`/`Untap`'s
--- own demand at the new row ([CR#701.26a]'s zone, `badUntapGraveyard`'s
--- twin).
-failing "OnBattlefield"
-  badUntapNextGraveyard : Effect []
-  badUntapNextGraveyard =
-    DoesntUntapNext (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) 1
-
--- "it" after two singular object introductions reaches two mentions and
--- resolves neither — the strict uniqueness gate, unchanged at the new
--- consumer.
-failing "countOnes"
-  badUntapNextAmbiguousIt : Effect []
-  badUntapNextAmbiguousIt = Sequentially [Tap (Macros.target Macros.creature),
-                                          Tap (Macros.target Macros.artifact),
-                                          DoesntUntapNext It 1]
-
--- the count vocabulary is closed at the attested one and two: "next
--- three untap steps" is written zero times, and the table refuses it.
-failing "NextUntapCount"
-  badUntapNextThree : Effect []
-  badUntapNextThree = DoesntUntapNext (Macros.target Macros.creature) 3

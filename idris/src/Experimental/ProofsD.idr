@@ -332,3 +332,102 @@ public export
 badBecomesFaceDown : Unspellable Ability (\ok =>
   Triggered Whenever (BecomesStatus (Macros.a Permanent) FaceDown {at = ok}) Macros.drawACard)
 badBecomesFaceDown MkStatusEventVal impossible
+
+
+-- The singular quantity licenses the class word as the phrase's HEAD,
+-- not wherever it can hide: "target creature the controller of any
+-- target controls" spells it in a possessor, where a counted mention
+-- forbids it exactly as "a" does (`badAnyTargetEmbedded`).
+public export
+badEmbeddedAnyTargetExact1 : Unspellable (Noun [] Object) (\ok =>
+  Macros.target (And [Macros.creature, ControlledBy (ControllerOf (Macros.target AnyTarget))]) {af = ok})
+badEmbeddedAnyTargetExact1 MkAnyTargetAtCount impossible
+
+
+public export
+badBecomesPhasedIn : Unspellable Ability (\ok =>
+  Triggered Whenever (BecomesStatus (Macros.a Permanent) PhasedIn {at = ok}) Macros.drawACard)
+badBecomesPhasedIn MkStatusEventVal impossible
+
+
+public export
+badBecomesPhasedOut : Unspellable Ability (\ok =>
+  Triggered Whenever (BecomesStatus (Macros.a Permanent) PhasedOut {at = ok}) Macros.drawACard)
+badBecomesPhasedOut MkStatusEventVal impossible
+
+
+-- [CR#603.2b] keeps `At` for phases and steps: "At a creature becomes
+-- tapped" is unwritten, as it is for every other object event.
+public export
+badAtBecomesTapped : Unspellable Ability (\ok =>
+  Triggered At (BecomesStatus (Macros.a Macros.creature) Tapped) Macros.drawACard {wo = ok})
+badAtBecomesTapped MkTriggerWordOk impossible
+
+
+-- Trigger-only, reader by reader — `badInterceptEnters`'s shape at the
+-- new event. Nothing intercepts a becomes-tapped: no "if [it] would
+-- become tapped, … instead" line exists.
+public export
+badInterceptBecomesTapped : Unspellable (Effect []) (\ok =>
+  Macros.ifWouldInstead (BecomesStatus (Macros.target Macros.creature) Tapped)
+                 (Macros.exile It) (Just Macros.thisTurn)
+                 {ok = Builtin.fst ok, uo = Builtin.snd ok})
+badInterceptBecomesTapped (MkInterceptable, _) impossible
+
+
+-- …and the [CR#610.3] rider does not wait for one: "exile it until
+-- [something] becomes untapped" is written zero times, the rider's
+-- whole corpus being the departure.
+public export
+badHeldUntilBecomesUntapped : Unspellable (Effect []) (\ok =>
+  Macros.exileUntil (Macros.target Macros.creature) (BecomesStatus (Macros.a Macros.creature) Untapped) {hd = ok})
+badHeldUntilBecomesUntapped MkHoldable impossible
+
+
+-- …nor does the delayed clause: the delayed family stays the end-step
+-- beginning, the departure, and the death.
+public export
+badDelayedOnBecomesTapped : Unspellable (Effect []) (\ok =>
+  Delayed (BecomesStatus (Macros.target Macros.creature) Tapped)
+          (Macros.sacrifice You (That (TypeW Creature))) {aw = ok})
+badDelayedOnBecomesTapped MkAwaitable impossible
+
+
+-- No measured duration ends at a status transition: the tapped-STATE
+-- span is "for as long as … remains tapped" ([CR#611.2b]), a condition
+-- inside the for-as-long-as adverbial and not an event endpoint (forty
+-- of forty corpus "remains tapped" lines; zero write "until … becomes
+-- untapped" in a clause this grammar spells).
+public export
+badGetsUntilBecomesUntapped : Unspellable (Effect []) (\ok =>
+  Macros.gets (Macros.target Macros.creature) 2 2
+       (Just (UntilEvent (BecomesStatus Macros.thisCreature Untapped))) {sp = ok})
+badGetsUntilBecomesUntapped SpanStated impossible
+
+
+-- the timed clause's subject stands on the battlefield, `Tap`/`Untap`'s
+-- own demand at the new row ([CR#701.26a]'s zone, `badUntapGraveyard`'s
+-- twin).
+public export
+badUntapNextGraveyard : Unspellable (Effect []) (\ok =>
+  DoesntUntapNext (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) 1 {ok = ok})
+badUntapNextGraveyard OnField impossible
+
+
+-- "it" after two singular object introductions reaches two mentions and
+-- resolves neither — the strict uniqueness gate, unchanged at the new
+-- consumer.
+public export
+badUntapNextAmbiguousIt : Unspellable (Effect []) (\ok =>
+  Sequentially [Tap (Macros.target Macros.creature),
+                Tap (Macros.target Macros.artifact),
+                DoesntUntapNext (It {ok = ok}) 1])
+badUntapNextAmbiguousIt Refl impossible
+
+
+-- the count vocabulary is closed at the attested one and two: "next
+-- three untap steps" is written zero times, and the table refuses it.
+public export
+badUntapNextThree : Unspellable (Effect []) (\ok =>
+  DoesntUntapNext (Macros.target Macros.creature) 3 {ct = ok})
+badUntapNextThree OneNextStep impossible
