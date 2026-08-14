@@ -644,3 +644,357 @@ public export
 badMatchesTargetSubject : Unspellable (Condition []) (\ok =>
   Matches (Macros.target Macros.creature) Macros.artifact {bl = ok})
 badMatchesTargetSubject MkBindingless impossible
+
+
+-- A description that says NOTHING tests nothing. The copular frame does
+-- not demand a HEAD — "if it's attacking" and "if it's tapped" are real
+-- oracle and head nothing — so the empty conjunction slipped past the
+-- gate the existential uses (`Headed`) and had to be refused by the
+-- weaker one instead (`predSays`). Every corpus line writes at least one
+-- word after the copula.
+public export
+badMatchesNothing : Unspellable (Effect []) (\ok =>
+  Sequentially [Tap (Macros.target Macros.creature),
+                If (Macros.gainsLife You (Lit 1)) (Matches It (And []) {sy = ok}) Nothing])
+badMatchesNothing MkPredSays impossible
+
+
+-- A condition negates a POSITIVE description. "If it isn't a
+-- non-artifact" is a negation of a negation, which the predicate layer
+-- already refuses of itself (`negatable (Not _) = False`,
+-- `badDoubleNegation`) and which the condition frame could launder by
+-- taking its "not" of an already-negative phrase. Corpus writes the
+-- single negation everywhere ([CR#701.47a]'s "If it isn't a [subtype]",
+-- `amassZombiesTwo`) and the doubled one nowhere.
+public export
+badNegatedNegativeMatch : Unspellable (Effect []) (\ok =>
+  Sequentially [Tap (Macros.target Macros.creature),
+                If (Macros.gainsLife You (Lit 1))
+                   (Macros.notSo (Matches It (Not Macros.artifact)) {ng = ok})
+                   Nothing])
+badNegatedNegativeMatch MkCondNegatable impossible
+
+
+-- A trailing condition is EVALUATED before the clause it modifies and
+-- WRITTEN after it, and reading it in the clause's post-state let it ask
+-- about a world the clause had not made: "Destroy target creature if
+-- it's in a graveyard" typechecked because the destroy had already
+-- retagged its own target. Chapter twenty-one types the condition in
+-- `preIntro` — what the clause's phrases ANNOUNCED, with the announced
+-- zone — so the subject here is on the battlefield, and `ZoneFits`
+-- refuses the description that puts it elsewhere ([CR#109.2a]). Overload
+-- is unaffected: mana value belongs to every object [CR#202.3] and is
+-- read zone-free.
+public export
+badTrailingPostStateZone : Unspellable (Effect []) (\ok =>
+  If (Macros.destroy (Macros.target Macros.creature)) (Matches It (InZone Macros.graveyardZ) {zc = ok}) Nothing)
+badTrailingPostStateZone MkZoneFits impossible
+
+
+-- A written comparison measures a READ against a written value, and a
+-- numeral is not a read: "if 3 is 4 or greater" states an arithmetic
+-- fact, not a fact about the game. The subject table is `writtenBound`'s
+-- exact complement, and this is the cell where they differ most
+-- visibly.
+public export
+badCompareLiteralSubject : Unspellable (Condition []) (\ok =>
+  CompareAmt (Lit 3) OrGreater (Lit 4) {rd = ok})
+badCompareLiteralSubject MkReadAmount impossible
+
+
+-- The announced X is a written value too ([CR#107.3a]) — the OTHER
+-- amount `writtenBound` says yes to — so it is a bound and never a
+-- subject. No corpus line compares a bare X against a numeral; where X
+-- is tested at all, what is measured is the phrase X was defined from.
+public export
+badCompareXSubject : Unspellable (Condition []) (\ok =>
+  CompareAmt XVal OrGreater (Lit 4) {rd = ok})
+badCompareXSubject MkReadAmount impossible
+
+
+-- And the bound stays written on this side of the frame as well. The
+-- phrasal standard ("less than or equal to the number of Islands you
+-- control") is real oracle English and a real comparison, and it is
+-- still the other frame's — with its own word order and its own
+-- comparator words — so the condition frame refuses it exactly as the
+-- postnominal qualifier does (`badPhrasalBound`, chapter sixteen).
+public export
+badConditionPhrasalBound : Unspellable (Condition []) (\ok =>
+  CompareAmt (CountOf Macros.creatureYouControl) OrGreater (Macros.powerOf This) {wb = ok})
+badConditionPhrasalBound MkWrittenBound impossible
+
+
+-- A condition introduces nothing. The mention written inside one is
+-- reachable while the condition is being written — that is the
+-- telescope — but the clause that follows the conditional cannot read
+-- it, because the condition may have been false and then there was no
+-- such creature to speak of. `predDelta (Or _) = []` at clause level,
+-- and refused by the pronoun's own uniqueness gate rather than by a
+-- rule about conditions.
+public export
+badConditionAntecedent : Unspellable (Effect []) (\ok =>
+  Sequentially [If (Macros.gainsLife You (Lit 2)) (Exists Macros.creatureYouControl) Nothing,
+                Tap (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+badConditionAntecedent (Refl, _) impossible
+
+
+-- The two branches of a may are not two spellings of one arm. The
+-- if-you-DON'T arm runs exactly when the body did not, so the body's
+-- phrase never named anything: "You may sacrifice a creature. If you
+-- don't, exile it." is unwritable, and the corpus writes no such line —
+-- every declined arm read this pass reaches the decider or the
+-- sentences before the may. The taken arm has the opposite type and
+-- reads the body in full (`darettisMinusOne`).
+public export
+badIfNotReadsMayBody : Unspellable (Effect []) (\ok =>
+  Macros.mayElse You (Macros.sacrifice You (Macros.a Macros.creature)) (Macros.exile (It {ok})))
+badIfNotReadsMayBody Refl impossible
+
+
+-- A subtype sits on one card type's own set ([CR#205.1a] names the six
+-- sets; [CR#205.3m] makes every subtype here a creature type), so a
+-- token whose line names
+-- a subtype its types cannot carry describes nothing: a "Zombie artifact
+-- token" writes a creature type onto an object with no creature type.
+public export
+badZombieArtifactToken : Unspellable (Effect []) (\ok =>
+  Macros.create (Lit 1) (MkToken (Just (1, 1)) [Black] (MkTypeLine [Zombie] [Artifact])
+                          [] Nothing) {sf = ok})
+badZombieArtifactToken MkSubtypesFit impossible
+
+
+-- A token has only the characteristics its creating effect defines
+-- ([CR#111.3]), so a creature token's power and toughness ([CR#208.1])
+-- have to be written — and every corpus creature-token line writes them.
+-- (The converse is deliberately NOT demanded: a Vehicle token carries a
+-- P/T with no creature type, [CR#301.7].)
+public export
+badCreatureTokenNoPt : Unspellable (Effect []) (\ok =>
+  Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [Soldier] [Creature]) [] Nothing) {tp = ok})
+badCreatureTokenNoPt MkTokenPt impossible
+
+
+-- A token is a PERMANENT ([CR#111.1]), so its line names at least one
+-- card type. The type-less spelling is the predefined name ("create a
+-- Treasure token", [CR#111.10]) — core's own separate `TokenSpec::Named`
+-- row — and it waits with that catalog. (Probed with no subtype either,
+-- so the refusal is the missing type and not a subtype with nowhere to
+-- sit.)
+public export
+badTypelessToken : Unspellable (Effect []) (\ok =>
+  Macros.create (Lit 1) (MkToken (Just (1, 1)) [White] (MkTypeLine [] []) [] Nothing) {tt = ok})
+badTypelessToken MkTokenTyped impossible
+
+
+-- The arrival riders are not a free product: sixty-six corpus lines
+-- create a token "tapped and attacking" and a hundred fifty-nine write
+-- the prenominal "a tapped … token", while ATTACKING WITHOUT TAPPED is
+-- written zero times. The rules are why the pair is written out rather
+-- than derived: [CR#508.4] gives the attacking designation to a creature
+-- put onto the battlefield attacking and taps nothing — the tap belongs
+-- to the declare-attackers turn-based action ([CR#508.1f]), which such a
+-- creature never went through — so a writer who wants both has to say
+-- both, and every writer does.
+public export
+badAttackingUntapped : Unspellable (Effect []) (\ok =>
+  Create You (Lit 1) (Macros.creatureTok 1 1 [Red] [Soldier]) [EntersAttacking] {rr = ok})
+badAttackingUntapped MkRidersOk impossible
+
+
+-- The GRAVEYARD is the counter table's measured silence and stays shut
+-- with the zone gate widened: all seventeen lines writing "counter" and
+-- "in a graveyard" together put the counter on a battlefield object and
+-- read the graveyard for a count, or return the card to the battlefield
+-- first ("Return this card from your graveyard to the battlefield with a
+-- finality counter on it").
+public export
+badPutCountersGraveyard : Unspellable (Effect []) (\ok =>
+  PutCounters (Lit 1) Macros.plusOnePlusOne (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok})
+badPutCountersGraveyard MkCounterHolder impossible
+
+
+-- …and the removal twin reads the same fold-state: a destroyed referent
+-- has no counters to take off. The destination is what decides — the
+-- same clause with an EXILE in front of it is Jhoira of the Ghitu.
+public export
+badRemoveCountersDead : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.destroy (Macros.target Macros.creature),
+                RemoveCounters (Lit 1) Macros.plusOnePlusOne It {zn = ok}])
+badRemoveCountersDead MkCounterHolder impossible
+
+
+-- A token's stated characteristics ARE its text ([CR#111.3]), so the
+-- bundle is a surface phrase and not a set of facts about an object: a
+-- color written twice is a word written twice, and no corpus line writes
+-- one. The order is likewise the phrase's: measured over supported
+-- oracle, "artifact creature" runs five hundred ninety-four lines to
+-- "creature artifact"'s none, and the four type words this vocabulary
+-- has fall into one total order (`typeRank`). Colors take the
+-- duplicate demand and NOT the ordering one, because Additive Evolution
+-- writes "a 0/0 green and blue Fractal creature token" and the mana
+-- order would have spelled it the other way round.
+public export
+badTokenTypeOrder : Unspellable (Effect []) (\ok =>
+  Macros.create (Lit 1) (MkToken (Just (1, 1)) [] (MkTypeLine [] [Creature, Artifact])
+                          [] Nothing) {tc = ok})
+badTokenTypeOrder MkTokenCanonical impossible
+
+
+public export
+badTokenDuplicateColor : Unspellable (Effect []) (\ok =>
+  Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [Soldier]) {tc = ok})
+badTokenDuplicateColor MkTokenCanonical impossible
+
+
+-- A written action count is at least one. [CR#121.1] makes a draw the
+-- movement of a card, [CR#111.1] a token a marker put onto the
+-- battlefield, [CR#122.1] a counter a marker placed on something, and a
+-- zero of any of them instructs nothing — which is why no corpus line
+-- spells one, as a numeral or as a determiner, in any scope. What stays
+-- writable is the count that EVALUATES to zero: X is announced zero
+-- (its controller's to choose and announce, [CR#107.3a]) and a for-each
+-- domain can be empty, so only the literal
+-- spelling is refused (`writtenCount`).
+public export
+badDrawZero : Unspellable (Effect []) (\ok =>
+  Macros.drawCards 0 {wc = ok})
+badDrawZero MkWrittenCount impossible
+
+
+public export
+badCreateZero : Unspellable (Effect []) (\ok =>
+  Macros.create (Lit 0) (Macros.creatureTok 1 1 [White] [Soldier]) {wc = ok})
+badCreateZero MkWrittenCount impossible
+
+
+public export
+badPutZeroCounters : Unspellable (Effect []) (\ok =>
+  PutCounters (Lit 0) Macros.plusOnePlusOne (Macros.target Macros.creature) {wc = ok})
+badPutZeroCounters MkWrittenCount impossible
+
+
+-- A creature subtype has nowhere to sit on a land ([CR#205.1a] — a
+-- subtype correlated with a card type the object doesn't have is not one
+-- of its subtypes), so the added line has to name the card type itself,
+-- as "becomes a Spirit artifact creature" does, or find it on the
+-- subject, as amass's "it becomes a Zombie" does of an Army creature
+-- ([CR#701.47a]).
+public export
+badBecomesZombieLand : Unspellable (Effect []) (\ok =>
+  Macros.becomes (Macros.target Macros.land) (Macros.subtypesOnly [Zombie]) Nothing {af = ok})
+badBecomesZombieLand MkAddedFits impossible
+
+
+-- "Becomes in addition to its other types" has to say WHAT: an empty
+-- type line adds nothing and spells no phrase.
+public export
+badBecomesNothing : Unspellable (Effect []) (\ok =>
+  Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] []) Nothing
+                 {ne = Builtin.fst ok, nw = Builtin.snd ok})
+badBecomesNothing (MkLineNonEmpty, _) impossible
+
+
+-- A type change is a continuous effect on a permanent: a graveyard card
+-- has no types for the clause to add to on the battlefield.
+public export
+badBecomesInGraveyard : Unspellable (Effect []) (\ok =>
+  Macros.becomes (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) (Macros.typesOnly [Artifact]) Nothing {zn = ok})
+badBecomesInGraveyard MkZoneFits impossible
+
+
+-- The combat endpoint stays the GRANTS' alone. Chapter seventeen could
+-- not tell "until end of turn" and "until end of combat" apart, both
+-- being written by the stat delta and the keyword grant and by neither
+-- restriction; the type addition tells them apart, writing eighteen
+-- end-of-turn lines and no end-of-combat line at all — which is why
+-- `BothGrants` split and `GrantsAndTypes` exists.
+public export
+badBecomesUntilEndOfCombat : Unspellable (Effect []) (\ok =>
+  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.untilEndOfCombat) {sp = ok})
+badBecomesUntilEndOfCombat SpanStated impossible
+
+
+-- …and the restriction's current-turn word is not the type addition's
+-- either. Coward // Killer writes both adverbials in one sentence and
+-- gives "this turn" to the "can't block" half, which is the division
+-- stated by a card rather than by a count.
+public export
+badBecomesThisTurn : Unspellable (Effect []) (\ok =>
+  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.thisTurn) {sp = ok})
+badBecomesThisTurn SpanStated impossible
+
+
+-- …and the upkeep endpoint stays the keyword grant's alone, as it was
+-- against the stat delta (`badGetsUntilYourNextUpkeep`): two corpus
+-- lines write "until your next upkeep" and both grant an ability.
+public export
+badBecomesUntilYourNextUpkeep : Unspellable (Effect []) (\ok =>
+  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.untilYourNextUpkeep) {sp = ok})
+badBecomesUntilYourNextUpkeep SpanStated impossible
+
+
+-- A subtype word PRESUPPOSES its set's card type ([CR#205.1a]), so "an
+-- Army that isn't a creature" describes nothing — the finding-43 shape
+-- again, the presupposition riding the word and the existing coherence
+-- gate supplying the refusal. What it does NOT do is project that type,
+-- which is what keeps `clavilenoPhrase` writable.
+public export
+badZombieNoncreature : Unspellable (Predicate [] Object) (\ok =>
+  And [HasSubtype Zombie, Not Macros.creature] {cf = ok})
+badZombieNoncreature MkContradictionFree impossible
+
+
+-- "In addition to its other types" RETAINS what the object had and
+-- states what it gains ([CR#205.1b]), so a clause that states only what
+-- its subject already is states nothing at all. Tezzeret's adds creature
+-- to an ARTIFACT and Neurok Transmuter's adds artifact to a CREATURE;
+-- no line adds a type to a subject that already heads it. Subtypes are
+-- never provably redundant here — no mention carries its subtypes — and
+-- [CR#701.47a] guards that case in the text instead, with a condition
+-- ("If it isn't a [subtype], …") rather than a grammar rule.
+public export
+badBecomesOwnType : Unspellable (Effect []) (\ok =>
+  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Creature]) Nothing {nw = ok})
+badBecomesOwnType MkAddsSomething impossible
+
+
+-- No line writes a NAKED type addition across turns. Chapter nineteen
+-- opened the cell on one apparent witness and flagged it for
+-- re-measurement; the re-measurement is chapter twenty-one's and closes
+-- it. Two hundred sixty-four supported lines write "in addition to
+-- its/their/his/her other types" and exactly three carry "until your
+-- next turn": Rootwise Survivor's duration belongs to the separate haste
+-- grant in the next sentence, Absorbing Man's clause is a copy
+-- construction, and Tezzeret, Cruel Machinist's "becomes a 5/5 creature
+-- in addition to its other types" fuses a base power/toughness setting
+-- onto the addition — the compound construction this vocabulary has no
+-- word for, and which waits on the ledger.
+public export
+badTypeAdditionAcrossTurns : Unspellable (Effect []) (\ok =>
+  Macros.becomes (Macros.target (And [Macros.artifact, ControlledBy You]))
+          (Macros.typesOnly [Creature])
+          (Just Macros.untilYourNextTurn) {sp = ok})
+badTypeAdditionAcrossTurns SpanStated impossible
+
+
+-- The "Otherwise" arm runs exactly when the condition was false, so the
+-- clause it replaces never happened and its phrase never named anything:
+-- an arm that reads the if-arm's token is unwritable, which is `May`'s
+-- declined-arm asymmetry (`badIfNotReadsMayBody`) one construction over.
+-- The corpus writes no such line either — every else arm read this pass
+-- reaches the sentences before the conditional or nothing at all.
+public export
+badOtherwiseReadsIfArm : Unspellable (Effect []) (\ok =>
+  If (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [Zombie]))
+     (Exists Macros.creatureYouControl)
+     (Just (Tap (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
+badOtherwiseReadsIfArm (Refl, _) impossible
+
+
+-- A modal offers TWO OR MORE options ([CR#700.2] says so in its own
+-- definition), so a one-mode "modal" is not one — it is the sentence
+-- itself with a choice clause bolted on front, and no card writes it.
+public export
+badModalOneMode : Unspellable (Effect []) (\ok =>
+  Modal (Macros.upTo 1) [Macros.destroy (Macros.target Macros.artifact)] {tw = ok})
+badModalOneMode TwoUp impossible
