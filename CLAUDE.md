@@ -17,6 +17,26 @@ The lifecycle (`claim`/`start` → work in `.workspaces/NAME` → `integrate`, t
 - **Name your session after the item** (NAME) so the session/job list maps one-to-one onto the active claim.
 - **Semantic conflicts:** when the conflict is that another feature moved a ticket to `done/` you also hold, reconcile the *meaning* — move/mint the right tickets — not just the markers.
 
+## Crate fates (english_v2 rewrite)
+
+Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
+
+- **Deleted at cutover:** `deckmaste_english` (v2 takes its name),
+  `deckmaste_construction_compiler`, `deckmaste_constructions_macro`, and
+  `deckmaste_spelling`'s splice-and-reparse render/compile machinery (that
+  crate itself survives). `deckmaste_legacy_render` is legacy independently
+  of the rewrite.
+- **The rewrite's crates:** `deckmaste_english_v2` (takes the
+  `deckmaste_english` name at cutover) and the future `deckmaste_construction`
+  declaration compiler. v2 stays a leaf: it must never depend on any crate
+  slated for deletion.
+- **`deckmaste_migrations` survives as a function** (card
+  extract→resolve→graduate, snapshot ingestion) but its oracle-text parsing
+  rides the old English stack and gets re-pointed at cutover. Do not home new
+  english_v2 infrastructure there — or in any crate marked for deletion —
+  without recording the deviation in the rewrite ADR.
+- Everything else is unaffected by the rewrite.
+
 ## CR citations
 
 - Cite Comprehensive Rules in the `[CR#…]` bracket format — e.g. `[CR#704.5g]`, a list `[CR#601.2g,106.4]` (comma-separated, no spaces), a range `[CR#601.2a..601.2b]`. Never write a bare `CR 704.5g` or a loose `704.5g` in prose; the checker flags both.
