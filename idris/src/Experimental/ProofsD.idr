@@ -431,3 +431,17 @@ public export
 badUntapNextThree : Unspellable (Effect []) (\ok =>
   DoesntUntapNext (Macros.target Macros.creature) 3 {ct = ok})
 badUntapNextThree OneNextStep impossible
+
+
+-- The cast event's complement is the same phrase in the same zone, so
+-- it takes the same strict demand: a thousand and sixty-nine headers
+-- write "casts a … spell" and not one names the damage class.
+public export
+badCastsAnyTarget : Unspellable Ability (\ok =>
+  Triggered Whenever
+            (Casts You (Macros.target AnyTarget)
+                   {zn = Builtin.fst ok}
+                   {nt = MkNontarget {ok = Builtin.fst (Builtin.snd ok)}})
+            Macros.drawACard
+            {hn = MkHeaderNontarget {ok = Builtin.snd (Builtin.snd ok)}})
+badCastsAnyTarget (_, (Refl, _)) impossible

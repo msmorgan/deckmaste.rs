@@ -2146,15 +2146,6 @@ songOfEarendil =
 
 
 
--- ===== The kind-union round: the class word places nothing =====
-
--- The cast event's complement is the same phrase in the same zone, so
--- it takes the same strict demand: a thousand and sixty-nine headers
--- write "casts a … spell" and not one names the damage class.
-failing "OnStack"
-  badCastsAnyTarget : Ability
-  badCastsAnyTarget = Triggered Whenever (Casts You (Macros.target AnyTarget)) Macros.drawACard
-
 -- ===== What a complement may exclude, and what a batch may read =====
 
 -- "Each player other than target player creates a 5/5 red Dragon
