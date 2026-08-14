@@ -35,8 +35,8 @@ Tickets move between folders as work progresses:
 critical/planned/maybe  →  wip  →  done
 ```
 
-`jj-kata claim <slug>` moves the ticket from its current folder into `wip/` and
-provisions the feature workspace `.workspaces/<slug>`. `jj-kata integrate
+`kata claim <slug>` moves the ticket from its current folder into `wip/` and
+provisions the feature workspace `.workspaces/<slug>`. `kata integrate
 <slug>` folds the finished work into the default line and moves the ticket to
 `done/`.
 
@@ -56,7 +56,7 @@ the house style, they're accumulated drift. (Meta-tickets/"epics" that
 coordinate other tickets are the exception and may carry more structure —
 no formal mechanism for them yet.)
 
-## The dependency graph (`jj-kata kanban`)
+## The dependency graph (`kata kanban`)
 
 Each ticket's frontmatter carries a `needs: [...]` list — the other tickets (by
 slug) that must reach `done/` before it can be worked. Those lists are the edges
@@ -65,12 +65,12 @@ node is simply the folder it sits in.
 
 **That `needs:` list is machine-read graph data, not a reading list.** To find
 what a ticket depends on, what it blocks, or whether it is claimable yet, **query
-the graph with `jj-kata kanban` — do not open the dependency tickets to work that
+the graph with `kata kanban` — do not open the dependency tickets to work that
 out by hand.** (Reading a dependency's *body* to understand its design is fine
 when you actually need it; the command is for everything about dependency
 *status* and *shape*.)
 
-`jj-kata kanban [--slugs-only] <command> [<slug>]`:
+`kata kanban [--slugs-only] <command> [<slug>]`:
 
 | Command | What it prints |
 |---|---|
@@ -83,7 +83,7 @@ when you actually need it; the command is for everything about dependency
 | `check` | Integrity sweep over the whole graph — reports duplicate slugs, dependency cycles, and dangling needs (a need naming no node). Prints `OK: …`, or a `FAIL` line plus one problem per line and exits 1. Run it after editing any `needs:`. |
 
 `--slugs-only` reduces any line-oriented command to just the bare slug column —
-handy for piping. **It goes before the subcommand**, e.g. `jj-kata kanban
+handy for piping. **It goes before the subcommand**, e.g. `kata kanban
 --slugs-only ready`; placed after, argparse rejects it.
 
 Two behaviours differ from the retired `scripts/todo`, both stricter: a slug
@@ -93,7 +93,7 @@ blocking rather than only surfacing in `check`.
 
 ## Priorities
 
-When picking "the next" item, run `jj-kata kanban ready` to list claimable
+When picking "the next" item, run `kata kanban ready` to list claimable
 tickets — those whose dependencies are all in `done/`. From that list, work
 down this ordering: take the highest tier that has an unclaimed,
 non-conflicting item; within a tier, use the "Cards" counts where available.
@@ -123,12 +123,12 @@ says otherwise.
 
 When starting work on a ticket:
 
-1. **Claim the ticket:** from `default`, run `jj-kata claim <slug>`.
+1. **Claim the ticket:** from `default`, run `kata claim <slug>`.
    This moves `<slug>.md` from its current folder into `wip/` and provisions
    a feature workspace at `.workspaces/<slug>`.
 2. **Work in the feature workspace:** `cd .workspaces/<slug>` and do the actual
    implementation there.
-3. **Integrate when done:** from `default`, run `jj-kata integrate
+3. **Integrate when done:** from `default`, run `kata integrate
    <slug>`. This folds the feature into the default line and moves the ticket
    to `done/`.
 
@@ -136,7 +136,7 @@ A ticket in `wip/` is claimed and in progress — pick the highest-priority (see
 Priorities) item from `critical/` or `planned/` (or `maybe/` if the user
 directs) that doesn't conflict with active `wip/` tickets (same files, same
 engine subsystem, or one item's dependencies naming the other). Run
-`jj-kata kanban ready` to filter to items whose dependencies are all in `done/`.
+`kata kanban ready` to filter to items whose dependencies are all in `done/`.
 
 Tickets tagged **[design]** require a design dialogue with the user before
 implementation — claiming one means opening that conversation, not coding solo.
@@ -149,7 +149,7 @@ another todo ("oh, I guess we're fixing this too now"). Rather than spin up a
 separate workspace, fold the extra todo into the one already going:
 
 ```
-jj-kata claim <other-slug> --into <name>
+kata claim <other-slug> --into <name>
 ```
 
 This moves `<other-slug>.md` into `wip/` and **amends `<name>`'s claim commit** to

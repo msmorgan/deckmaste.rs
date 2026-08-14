@@ -30,7 +30,7 @@ Final pass:
    framing (the chart grammar currently tops out at `Sentence`; the
    ability/document layer is hand-written recursive descent) unless the
    derived-grammar program has moved the boundary by then.
-3. **Regression sweep.** Run `jj-kata kanban check`, the complete citation
+3. **Regression sweep.** Run `kata kanban check`, the complete citation
    toolchain, the Idris baseline, the noncanon fixed-seed suite, and the
    work-log-vocabulary grep from `comment-reviewer-hotspots`.
 
