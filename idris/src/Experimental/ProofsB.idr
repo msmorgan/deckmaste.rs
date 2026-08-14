@@ -998,3 +998,351 @@ public export
 badModalOneMode : Unspellable (Effect []) (\ok =>
   Modal (Macros.upTo 1) [Macros.destroy (Macros.target Macros.artifact)] {tw = ok})
 badModalOneMode TwoUp impossible
+
+
+-- A headcount that fixes the whole list instructs no choice: "Choose two
+-- —" over exactly two modes has one answer, and [CR#700.2] calls a spell
+-- modal for the INSTRUCTIONS to choose. Zero cards write it — every
+-- printed exact headcount is strictly under its list, and the two forms
+-- whose top reaches the list ("one or both", "one or more") are ranges.
+public export
+badModalFixedWhole : Unspellable (Effect []) (\ok =>
+  Macros.chooseTwo [Macros.destroy (Macros.target Macros.artifact),
+                    Macros.destroy (Macros.target Macros.enchantment)] {mf = ok})
+badModalFixedWhole MkModesFit impossible
+
+
+-- Nor may a headcount reach PAST the list: three of two options names
+-- nothing at all.
+public export
+badModalOverreach : Unspellable (Effect []) (\ok =>
+  Modal (Macros.exactly 3) [Macros.destroy (Macros.target Macros.artifact),
+                            Macros.destroy (Macros.target Macros.enchantment)] {mf = ok})
+badModalOverreach MkModesFit impossible
+
+
+-- The mode list is a LIST and not a telescope: the modes are chosen at
+-- cast ([CR#700.2a]) and an unchosen one's targets are never announced
+-- ([CR#700.2c] — the spell is "treated as though it did not have those
+-- targets"), so a mode that reads a sibling's mention reads something
+-- that may never have existed. Every bullet in the corpus
+-- that opens with a pronoun reaches PAST the modal to the trigger before
+-- it — Kogla and Yidaro's two modes both read the same outside antecedent
+-- and neither reads the other — and zero read a sibling.
+public export
+badModalReadsAcrossModes : Unspellable (Effect []) (\ok =>
+  Macros.chooseOne [Macros.destroy (Macros.target Macros.artifact),
+                    Tap (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+badModalReadsAcrossModes (_, OnField) impossible
+
+
+-- And nothing after the modal reads into it, for the same reason pointed
+-- forward: Blood on the Snow writes "Then return a creature or
+-- planeswalker card … from your graveyard" — a description covering both
+-- modes' outcomes — exactly where an anaphor would have gone.
+public export
+badReadsAfterModal : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.chooseOne [Macros.destroy (Macros.target Macros.artifact), Macros.destroy (Macros.target Macros.enchantment)],
+                Tap (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+badReadsAfterModal (_, OnField) impossible
+
+
+-- WHICH condition frames take a "not" is a closed table. The comparison
+-- frame does not: a bound has a negative of its own, and English writes
+-- that instead — "if its power isn't 4 or greater" is written zero times.
+public export
+badNegatedComparisonCondition : Unspellable (Effect []) (\ok =>
+  If (Macros.destroy (Macros.target Macros.artifact))
+     (Macros.notSo (CompareAmt (Macros.manaValueOf It) OrLess (Lit 2)) {ng = ok})
+     Nothing)
+badNegatedComparisonCondition MkCondNegatable impossible
+
+
+-- Nor does a negation take one: no corpus line writes a condition under
+-- two of them, English collapsing the pair into the positive.
+public export
+badDoubleNegatedCondition : Unspellable (Effect []) (\ok =>
+  If (Macros.destroy (Macros.target Macros.artifact))
+     (Macros.notSo (Macros.notSo (Exists Macros.creatureYouControl)) {ng = ok})
+     Nothing)
+badDoubleNegatedCondition MkCondNegatable impossible
+
+
+-- A drawn card is not a mention. The corpus never reads one back across a
+-- sentence boundary — "Draw a card." followed by "it" or "that card" is
+-- written zero times, and the card IS read only inside the coordination
+-- that reveals it ("Draw a card and reveal it. If it isn't a land card,
+-- discard it."), a verb-phrase coordination this grammar does not spell.
+public export
+badDrawnCardRemention : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.drawACard, Macros.exile (That CardW {ok})])
+badDrawnCardRemention Refl impossible
+
+
+-- The modal headcount vocabulary is CLOSED over what oracle writes, not
+-- over what the range algebra permits. "Choose up to two —" and "Choose
+-- up to three —" are written zero times in any scope, where "Choose up
+-- to one —" heads five lines, so the "up to" head is capped at one and
+-- the range that would spell the others is refused (`modalHead`). The
+-- fixed counts stop at three (Mishra, Eminent One) and the two open tops
+-- take their maximum from the list, which is what "or both" and "or
+-- more" say.
+public export
+badModalUpToTwo : Unspellable (Effect []) (\ok =>
+  Modal (Macros.upTo 2) [Macros.destroy (Macros.target Macros.artifact),
+                        Macros.destroy (Macros.target Macros.enchantment),
+                        Macros.drawACard] {mh = ok})
+badModalUpToTwo MkModalHead impossible
+
+
+-- Two identical modes are one mode written twice, and the choice between
+-- them decides nothing — [CR#700.2] wants "instructions for a player to
+-- choose a number of those options", and [CR#700.2d] has a player
+-- normally unable to "choose the same mode more than once", the cards
+-- that lift it saying so in words rather than by printing the bullet
+-- twice. The check is structural and conservative (`effEq`, `predEq`'s
+-- discipline one layer up): it catches the degenerate repetition, not
+-- every semantic twin.
+public export
+badDuplicateModes : Unspellable (Effect []) (\ok =>
+  Macros.chooseOne [Macros.drawACard, Macros.drawACard] {dm = ok})
+badDuplicateModes Refl impossible
+
+
+-- A choice BINDS a new referent out of a described set, so the phrase
+-- has to describe one. Corpus writes "choose a/an …", "choose target …",
+-- "choose two …", "choose up to …", "choose any number of …", "choose
+-- another …" — selections, every one — and writes "choose you", "choose
+-- it", and "choose them" zero times each. Choosing an already definite
+-- participant selects among nothing and would announce a mention the
+-- clause did not bind, which is chapter twenty's introduction discipline
+-- asked of the choice clause (`choosable`). "Choose a player" and
+-- "Choose an opponent" are unaffected — the gate is about the
+-- determiner, not the kind (`myrkulsEdict`).
+public export
+badChooseYou : Unspellable (Effect []) (\ok =>
+  Choose You {ch = ok})
+badChooseYou MkChoosable impossible
+
+
+-- A conditioned clause is a HOLE: the condition may be false, and then
+-- the clause never ran and its phrase named nothing. So the token
+-- "create a 1/1 white Soldier creature token if you control a creature"
+-- may make cannot be the "it" of the sentence after the conditional —
+-- which is the else arm's rule (`badOtherwiseReadsIfArm`) and the
+-- declined may's (`badIfNotReadsMayBody`) read from outside instead of
+-- from inside. Oracle writes the re-binding rather than the anaphor
+-- where it means to reach the object: amass's second sentence chooses an
+-- Army rather than saying "it" of the token its first sentence may have
+-- created ([CR#701.47a], `amassZombiesTwo`).
+public export
+badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
+  Sequentially [If (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier]))
+                   (Exists Macros.creatureYouControl)
+                   Nothing,
+                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
+badConditionalArmAntecedent (_, MkCounterHolder) impossible
+
+
+-- With BOTH arms written, the may exports its BODY and neither arm.
+-- [CR#118.12] says why: the branch checks "whether the player chose to
+-- pay an optional cost … regardless of what events actually occurred",
+-- so exactly one arm ran and the sentences after the may cannot know
+-- which — reading the if-you-do arm's token here is reading one branch
+-- as though it were both. Crovax the Cursed is the positive that writes
+-- the pair (`crovaxTheCursed`), and it reads neither arm afterward.
+public export
+badBothArmsAntecedent : Unspellable (Effect []) (\ok =>
+  Sequentially [May (Just You) (Macros.gainsLife You (Lit 1))
+                     (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier])))
+                     (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [Soldier]))),
+                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
+badBothArmsAntecedent (_, MkCounterHolder) impossible
+
+
+-- The complement's anchor may not be an INDEFINITE: "each other
+-- creature" announces one phrase, and "other than a creature" would
+-- announce a second referent the sentence never spelled. Unwritten
+-- English, and it stays refused.
+public export
+badComplementAnchorAnnounces : Unspellable (Predicate [] Object) (\ok =>
+  OtherThan (Macros.a Macros.creature) {ca = ok})
+badComplementAnchorAnnounces MkComplementAnchor impossible
+
+
+-- The anchor is SINGULAR, which is the second half of the correction and
+-- the one that keeps the deferred family deferred: this constructor
+-- subtracts ONE referent, and a plural anchor passed to it is group
+-- subtraction — finding 111's subset complement, which no corpus line
+-- writes ("other than them/those/these" returns zero lines in supported
+-- and all-cards scope alike). Written over a counted target, which asks
+-- the number question and nothing else; the plural READ ("other than
+-- those creatures") is the same gate a group mention later.
+public export
+badPluralComplementAnchor : Unspellable (Predicate [] Object) (\ok =>
+  OtherThan (TargetGroup (Macros.upTo 2) Macros.creature) {ca = ok})
+badPluralComplementAnchor MkComplementAnchor impossible
+
+
+-- The anchor has to be something the phrase could have described:
+-- "each other creature" anchored to a LAND subtracts nothing, and no
+-- corpus line pairs "other" with a cross-head anchor — the same
+-- evidence `anyTargetedTy` reads for the bare word.
+public export
+badComplementCrossHead : Unspellable (Effect []) (\ok =>
+  DealDamage This (Lit 1) (Each (And [Macros.creature, OtherThan Macros.thisLand] {oa = ok})))
+badComplementCrossHead MkOtherAnchored impossible
+
+
+-- One selector slot per phrase, whichever spelling fills it: two
+-- complements are two "other"s, and the guide gives the word one
+-- position.
+public export
+badDoubleComplement : Unspellable (Effect []) (\ok =>
+  DealDamage This (Lit 1)
+             (Each (And [Macros.creature, OtherThan Macros.thisCreature, OtherThan Macros.thisCreature] {oa = ok})))
+badDoubleComplement MkOtherAnchored impossible
+
+
+-- And the two spellings share that slot: a phrase cannot write the bare
+-- "other" and an anchored one at once.
+public export
+badOtherAndComplement : Unspellable (Effect []) (\ok =>
+  Sequentially [Tap (Macros.target Macros.creature),
+                DealDamage This (Lit 1)
+                           (Each (And [Macros.creature, Other, OtherThan Macros.thisCreature] {oa = ok}))])
+badOtherAndComplement MkOtherAnchored impossible
+
+
+-- A word that fills one phrase-level slot is not an ALTERNATIVE, which
+-- is `badOtherInOr`'s refusal reaching the second spelling too.
+public export
+badComplementInOr : Unspellable (Predicate [] Object) (\ok =>
+  Or [And [Macros.creature, OtherThan Macros.thisCreature], Macros.land] {cd = ok})
+badComplementInOr MkCoordinableDisjuncts impossible
+
+
+-- "Non-other" is unwritten, as "non-other" always was.
+public export
+badNegatedComplement : Unspellable (Predicate [] Object) (\ok =>
+  Not (OtherThan Macros.thisCreature) {ng = ok})
+badNegatedComplement MkNegatable impossible
+
+
+-- A batch is at least TWO parts, the arity demand `Sequentially` makes
+-- and for its reasons: nothing at all, and a second spelling of one
+-- clause.
+public export
+badEmptySimultaneous : Unspellable (Effect []) (\ok =>
+  Simultaneously [] {ok})
+badEmptySimultaneous TwoUp impossible
+
+
+public export
+badSingletonSimultaneous : Unspellable (Effect []) (\ok =>
+  Simultaneously [Macros.destroy (Macros.target Macros.creature)] {ok})
+badSingletonSimultaneous TwoUp impossible
+
+
+-- Its elements are clauses and not batches — the re-minted tree
+-- `NotSeq` refuses one construction over.
+public export
+badNestedSimultaneous : Unspellable (Effect []) (\ok =>
+  Simultaneously
+    ((Simultaneously [Macros.destroy (Macros.target Macros.creature), Macros.destroy (Macros.target Macros.artifact)]
+      :: (Macros.destroy (Macros.target Macros.land) :: Nil)) {ns = ok}))
+badNestedSimultaneous MkNotSim impossible
+
+
+-- Nor SEQUENCES: an ordered list inside an unordered one contradicts the
+-- container it sits in, and its announcements would reach the next
+-- element only from its last clause besides.
+public export
+badSequenceInsideSimultaneous : Unspellable (Effect []) (\ok =>
+  Simultaneously
+    ((Sequentially [Macros.destroy (Macros.target Macros.creature), Macros.destroy (Macros.target Macros.artifact)]
+      :: (Macros.destroy (Macros.target Macros.land) :: Nil)) {nq = ok}))
+badSequenceInsideSimultaneous MkNotSeq impossible
+
+
+-- What a batch's elements share is ONE pre-state — [CR#608.2f]'s rule
+-- for one instruction spread over several objects, whose own example is
+-- a control grant (Blatant Thievery gains control of every target
+-- "simultaneously") — so an element may read what a sibling ANNOUNCED
+-- and nothing a sibling DID.
+-- The zone retag is the sharp case: after an exile the card word
+-- reaches the referent, and inside the batch it does not, because
+-- nothing has been exiled yet.
+public export
+badSimultaneousReadsRetag : Unspellable (Effect []) (\ok =>
+  Simultaneously [Macros.exile (Macros.target Macros.creature),
+                  Macros.destroy (That CardW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+badSimultaneousReadsRetag (_, OnField) impossible
+
+
+-- The event OUTCOME is the same fact for magnitudes: no damage has been
+-- dealt when a sibling is typed, so "that much" reads nothing.
+public export
+badSimultaneousReadsOutcome : Unspellable (Effect []) (\ok =>
+  Simultaneously [DealDamage This (Lit 2) (Macros.target Macros.creature),
+                  Macros.gainsLife You (ThatMuch {ok})])
+badSimultaneousReadsOutcome Refl impossible
+
+
+-- The MAY is the same fact through a wrapper, and chapter twenty-six's
+-- headline: the batch's telescope threaded `preIntro`, which is not the
+-- announcement-only function it was taken for — `preIntro (May …)` is
+-- `mayIntro`, the optional clause's DEED. So a sibling could put a
+-- counter on a token the player may not have made. [CR#118.12] makes
+-- the offer a cost checked by whether the player chose to pay it,
+-- "regardless of what events actually occurred", and [CR#608.2f]
+-- processes the batch's actions at once, so nothing in the batch's one
+-- pre-state can be the token. The telescope threads `annIntro` now.
+public export
+badSimultaneousReadsMayDeed : Unspellable (Effect []) (\ok =>
+  Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Plant])),
+                  PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
+badSimultaneousReadsMayDeed (_, MkCounterHolder) impossible
+
+
+-- …and the magnitude twin, which is `badSimultaneousReadsOutcome`
+-- reached through the same wrapper.
+public export
+badSimultaneousReadsMayOutcome : Unspellable (Effect []) (\ok =>
+  Simultaneously [Macros.may You (DealDamage This (Lit 2) (Macros.target Macros.creature)),
+                  Macros.gainsLife You (ThatMuch {ok})])
+badSimultaneousReadsMayOutcome Refl impossible
+
+
+-- OUTWARD, a batch leaves behind EVERY element's deed and not the last
+-- one's: two creates in one instruction leave two tokens ([CR#608.2f]
+-- processes both actions), so the sentence after cannot say "it".
+-- Chapter twenty-two folded the last element's `effIntro` and recorded
+-- the simplification; this is the row that shows it was one
+-- (`simIntro`, `deedDelta`).
+public export
+badBatchTwoCreatesThenIt : Unspellable (Effect []) (\ok =>
+  Sequentially [Simultaneously [Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Plant]),
+                               Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier])],
+                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
+badBatchTwoCreatesThenIt Refl impossible
+
+
+-- The magnitude twin outward: two outcomes in one batch, and "that
+-- much" does not say which.
+public export
+badBatchTwoOutcomesThenThatMuch : Unspellable (Effect []) (\ok =>
+  Sequentially [Simultaneously [DealDamage This (Lit 2) (Macros.target Macros.creature),
+                               Macros.losesLife (Macros.target Opponent) (Lit 3)],
+                Macros.gainsLife You (ThatMuch {ok})])
+badBatchTwoOutcomesThenThatMuch Refl impossible
+
+
+-- Control is a PERMANENT's ([CR#110.2] gives every permanent a
+-- controller; [CR#109.4] gives an object that is neither on the stack
+-- nor on the battlefield none), so the grant takes a battlefield
+-- referent like every other continuous clause.
+public export
+badGainControlGraveyard : Unspellable (Effect []) (\ok =>
+  Macros.gainControl (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Nothing {zn = ok})
+badGainControlGraveyard MkZoneFits impossible
