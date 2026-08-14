@@ -745,3 +745,54 @@ public export
 badForEachHeadless : Unspellable (Amount []) (\ok =>
   Macros.forEach (ControlledBy You) {hd = ok})
 badForEachHeadless MkHeaded impossible
+
+
+-- A written numeral is at least one — "1 life for each 0 creatures" is
+-- unwritten English. (The comparisons that legitimately carry zero read
+-- a count rather than write one; `Lit` stays ungated.)
+public export
+badForEachZero : Unspellable (Amount []) (\ok =>
+  Macros.nForEach 0 Macros.creature {nz = ok})
+badForEachZero OneUp impossible
+
+
+-- Zone negation itself is REAL oracle — "Each Vampire creature card
+-- you own that isn't on the battlefield has madness." (Falkenrath
+-- Gorger) — so `Not (InZone …)` stays writable. What it cannot do is
+-- contradict the zone the phrase itself places its referent in: a bare
+-- "creature" means the battlefield [CR#109.2].
+public export
+badNotOnBattlefield : Unspellable (Predicate [] Object) (\ok =>
+  And [Macros.creature, Not (InZone Macros.battlefieldZ)] {zc = ok})
+badNotOnBattlefield MkZoneCoherent impossible
+
+
+-- No member negates a sibling: "of the chosen color and not of the
+-- chosen color" describes nothing.
+public export
+badQualityContradiction : Unspellable
+  (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
+  (\ok => And [OfChosen Color, Not (OfChosen Color)] {cf = ok})
+badQualityContradiction MkContradictionFree impossible
+
+
+-- …and the nested spelling is refused the same way — the member scan
+-- flattens conjunctions, so a clash one level down is no laundering.
+-- (A nested ZONE clash is the same nonsense but trips the zone gate
+-- first, so the nested probe uses a type contradiction to keep the pin
+-- unambiguous.)
+public export
+badNestedContradiction : Unspellable (Predicate [] Object) (\ok =>
+  And [Macros.creature, And [Not Macros.creature]] {cf = ok})
+badNestedContradiction MkContradictionFree impossible
+
+
+-- Attackers are declared from creatures their controller controls
+-- ([CR#508.1a]) and leaving the battlefield removes a permanent from
+-- combat ([CR#506.4]), so the status word seeds its own zone and
+-- clashes with an explicit hand clause — no new gate, the existing
+-- coherence one.
+public export
+badAttackingInHand : Unspellable (Predicate [] Object) (\ok =>
+  And [Attacking, InZone Macros.handZ] {zc = ok})
+badAttackingInHand MkZoneCoherent impossible
