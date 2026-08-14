@@ -56,8 +56,8 @@ badDiscardAnyTarget (_, MkNotAnyTarget) impossible
 
 
 ||| "a creature you control in your graveyard"
-||| A controller relation presupposes the battlefield [CR#109.4], so this
-||| places its referent in two zones at once.
+||| A controller relation admits the battlefield and the stack and no other
+||| zone [CR#109.4], and the graveyard is neither.
 public export
 badControlledInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, ControlledBy You, InZone Macros.graveyardZ] {zc = ok})
@@ -388,7 +388,7 @@ badGainsThisTurn SpanStated impossible
 ||| never "this turn".
 public export
 badGetsThisTurn : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) 3 3 (Just Macros.thisTurn) {sp = ok})
+  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.thisTurn) {sp = ok})
 badGetsThisTurn SpanStated impossible
 
 
@@ -406,7 +406,7 @@ badStaticCant SpanUnstated impossible
 ||| takes it.
 public export
 badGetsUntilYourNextUpkeep : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) 3 3 (Just Macros.untilYourNextUpkeep) {sp = ok})
+  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilYourNextUpkeep) {sp = ok})
 badGetsUntilYourNextUpkeep SpanStated impossible
 
 
@@ -443,7 +443,7 @@ badGainsUntilUntapStep SpanStated impossible
 ||| cannot be what a determiner determines.
 public export
 badBareComparison : Unspellable (Noun [] Object) (\ok =>
-  Macros.target (Compare Power OrLess (Lit 2)) {hd = ok})
+  Macros.target (Compare Power AtMost (Lit 2)) {hd = ok})
 badBareComparison MkHeaded impossible
 
 
@@ -452,7 +452,7 @@ badBareComparison MkHeaded impossible
 ||| denies the type describes nothing.
 public export
 badNoncreaturePower : Unspellable (Predicate [] Object) (\ok =>
-  And [Compare Power OrLess (Lit 2), Not Macros.creature] {cf = ok})
+  And [Compare Power AtMost (Lit 2), Not Macros.creature] {cf = ok})
 badNoncreaturePower MkContradictionFree impossible
 
 
@@ -461,7 +461,7 @@ badNoncreaturePower MkContradictionFree impossible
 ||| integers [CR#107.1], leaving no gap for a negation to name.
 public export
 badNegatedComparison : Unspellable (Predicate [] Object) (\ok =>
-  Not (Compare Power OrLess (Lit 2)) {ng = ok})
+  Not (Compare Power AtMost (Lit 2)) {ng = ok})
 badNegatedComparison MkNegatable impossible
 
 
@@ -470,18 +470,9 @@ badNegatedComparison MkNegatable impossible
 ||| not two qualifiers stacked.
 public export
 badDoubleComparison : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, Compare Power OrLess (Lit 2),
-       Compare Power OrGreater (Lit 4)] {lc = ok})
+  And [Macros.creature, Compare Power AtMost (Lit 2),
+       Compare Power AtLeast (Lit 4)] {lc = ok})
 badDoubleComparison MkLoneComparison impossible
-
-
-||| "with this creature's power or less"
-||| The bound is WRITTEN — a numeral or the announced X. Oracle spells a
-||| phrasal standard in the other frame's word order.
-public export
-badPhrasalBound : Unspellable (Predicate [] Object) (\ok =>
-  Compare Power OrLess (Macros.powerOf This) {wb = ok})
-badPhrasalBound MkWrittenBound impossible
 
 
 ||| "with power 2 or less or with power 2 or less"
@@ -489,8 +480,8 @@ badPhrasalBound MkWrittenBound impossible
 ||| compared by all three of its written parts.
 public export
 badRepeatedComparisonDisjunct : Unspellable (Predicate [] Object) (\ok =>
-  Or [Compare Power OrLess (Lit 2),
-      Compare Power OrLess (Lit 2)] {dd = ok})
+  Or [Compare Power AtMost (Lit 2),
+      Compare Power AtMost (Lit 2)] {dd = ok})
 badRepeatedComparisonDisjunct MkDistinctDisjuncts impossible
 
 
@@ -499,8 +490,8 @@ badRepeatedComparisonDisjunct MkDistinctDisjuncts impossible
 ||| where a mana value bound demands nothing.
 public export
 badMixedCharacteristicDisjunct : Unspellable (Predicate [] Object) (\ok =>
-  Or [Compare Power OrLess (Lit 2),
-      Compare ManaValue OrLess (Lit 3)] {pd = ok})
+  Or [Compare Power AtMost (Lit 2),
+      Compare ManaValue AtMost (Lit 3)] {pd = ok})
 badMixedCharacteristicDisjunct MkParallelDisjuncts impossible
 
 
@@ -509,7 +500,7 @@ badMixedCharacteristicDisjunct MkParallelDisjuncts impossible
 ||| class word takes no qualifier but "other".
 public export
 badAnyTargetComparison : Unspellable (Predicate [] Object) (\ok =>
-  And [AnyTarget, Compare Power OrLess (Lit 2)] {at = ok})
+  And [AnyTarget, Compare Power AtMost (Lit 2)] {at = ok})
 badAnyTargetComparison MkAnyTargetLone impossible
 
 
@@ -585,26 +576,17 @@ badTrailingPostStateZone MkZoneFits impossible
 ||| numeral states an arithmetic fact, not a fact about the game.
 public export
 badCompareLiteralSubject : Unspellable (Condition []) (\ok =>
-  CompareAmt (Lit 3) OrGreater (Lit 4) {rd = ok})
+  CompareAmt (Lit 3) AtLeast (Lit 4) {rd = ok})
 badCompareLiteralSubject MkReadAmount impossible
 
 
 ||| "if X is 4 or greater"
-||| The announced X is a written value too [CR#107.3a], so it is a bound and
-||| never a subject.
+||| The announced X is a written value [CR#107.3a] and a comparison MEASURES
+||| on its left; X against a written bound is zero corpus lines.
 public export
 badCompareXSubject : Unspellable (Condition []) (\ok =>
-  CompareAmt XVal OrGreater (Lit 4) {rd = ok})
+  CompareAmt XVal AtLeast (Lit 4) {rd = ok})
 badCompareXSubject MkReadAmount impossible
-
-
-||| "if the number of creatures you control is this creature's power or greater"
-||| The bound stays written on this side of the frame as well; a phrasal
-||| standard is real oracle in the other frame's word order.
-public export
-badConditionPhrasalBound : Unspellable (Condition []) (\ok =>
-  CompareAmt (CountOf Macros.creatureYouControl) OrGreater (Macros.powerOf This) {wb = ok})
-badConditionPhrasalBound MkWrittenBound impossible
 
 
 ||| "You gain 2 life if you control a creature. Tap it."
@@ -631,7 +613,7 @@ badIfNotReadsMayBody Refl impossible
 ||| here is a creature type [CR#205.3m], so this one has nowhere to sit.
 public export
 badZombieArtifactToken : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (1, 1)) [Black] (MkTypeLine [Zombie] [Artifact])
+  Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [Black] (MkTypeLine [Zombie] [Artifact])
                           [] Nothing) {sf = ok})
 badZombieArtifactToken MkSubtypesFit impossible
 
@@ -650,7 +632,7 @@ badCreatureTokenNoPt MkTokenPt impossible
 ||| type-less spelling is the predefined-name catalog's [CR#111.10].
 public export
 badTypelessToken : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (1, 1)) [White] (MkTypeLine [] []) [] Nothing) {tt = ok})
+  Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [White] (MkTypeLine [] []) [] Nothing) {tt = ok})
 badTypelessToken MkTokenTyped impossible
 
 
@@ -687,7 +669,7 @@ badRemoveCountersDead MkCounterHolder impossible
 ||| is a surface phrase: the type words fall into one written order.
 public export
 badTokenTypeOrder : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (1, 1)) [] (MkTypeLine [] [Creature, Artifact])
+  Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [] (MkTypeLine [] [Creature, Artifact])
                           [] Nothing) {tc = ok})
 badTokenTypeOrder MkTokenCanonical impossible
 
@@ -877,7 +859,7 @@ badReadsAfterModal (_, OnField) impossible
 public export
 badNegatedComparisonCondition : Unspellable (Effect []) (\ok =>
   If (Macros.destroy (Macros.target Macros.artifact))
-     (Macros.notSo (CompareAmt (Macros.manaValueOf It) OrLess (Lit 2)) {ng = ok})
+     (Macros.notSo (CompareAmt (Macros.manaValueOf It) AtMost (Lit 2)) {ng = ok})
      Nothing)
 badNegatedComparisonCondition MkCondNegatable impossible
 

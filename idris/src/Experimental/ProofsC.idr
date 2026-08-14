@@ -425,7 +425,7 @@ badInterceptReplacementAntecedent (Refl, _) impossible
 ||| clause this grammar writes.
 public export
 badGetsUntilLeavesBattlefield : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) 2 2 (Just (UntilEvent (Leaves Macros.thisCreature))) {sp = ok})
+  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 2)) (PtUp (Lit 2)) (Just (UntilEvent (Leaves Macros.thisCreature))) {sp = ok})
 badGetsUntilLeavesBattlefield SpanStated impossible
 
 
@@ -808,7 +808,7 @@ badConditionalGainControl MkStaticLine impossible
 public export
 badConditionalClause : Unspellable (Effect []) (\ok =>
   Continuously (Macros.asLongAs (Exists Macros.creatureYouControl)
-                         (Gets (AllOf Macros.creatureYouControl) 1 1))
+                         (Gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))))
                Nothing {sp = ok})
 badConditionalClause SpanUnstated impossible
 
@@ -820,7 +820,7 @@ public export
 badDoubleConditional : Unspellable Ability (\ok =>
   Static (Macros.asLongAs (Exists Macros.creatureYouControl)
                    (Macros.asLongAs (Exists (And [Macros.artifact, ControlledBy You]))
-                             (Gets (AllOf Macros.creatureYouControl) 1 1)) {nn = ok}))
+                             (Gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))) {nn = ok}))
 badDoubleConditional MkNotConditional impossible
 
 
@@ -941,7 +941,7 @@ badHeldUntilEnters MkHoldable impossible
 ||| this endpoint, so the event axis must not spell it a second way.
 public export
 badUntilBeginningOfUpkeep : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) 3 3 (Just (UntilEvent (BeginningOf Upkeep (Just Yours)))) {sp = ok})
+  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf Upkeep (Just Yours)))) {sp = ok})
 badUntilBeginningOfUpkeep SpanStated impossible
 
 
@@ -1014,7 +1014,7 @@ badReflexiveOnGainsControl MkReflexEnclosure impossible
 public export
 badAfterReflexiveReadsTrigger : Unspellable (Effect []) (\ok =>
   Sequentially [Reflexively (Macros.millCards 4)
-                            (Macros.create (Lit 1) (MkToken (Just (1, 1)) [White]
+                            (Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [White]
                                                      (MkTypeLine [Soldier] [Creature])
                                                      [] Nothing)),
                 Tap (That (TypeW Creature) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])

@@ -42,7 +42,9 @@ badChosenNumberRead MkChosenQualityRead impossible
 
 
 ||| "Choose two target creatures. You gain life equal to their power."
-||| Two creatures have no single power [CR#208.1].
+||| Two creatures have no single power [CR#208.1]. The group's number is
+||| written with a fold word instead ("the total power of …", `Aggregate`),
+||| never as a bare plural possessive.
 public export
 badGroupPower : Unspellable (Effect []) (\ok =>
   Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature),
@@ -69,19 +71,23 @@ badFightGroup Refl impossible
 
 
 ||| "a creature two target opponents control"
-||| An object has one controller [CR#109.4].
+||| An object has one controller [CR#109.4], and a counted plural mention names
+||| no set for it to belong to: the admitted plural possessor is the word "your
+||| opponents", never a target count.
 public export
 badControlledByGroup : Unspellable (Predicate [] Object) (\ok =>
-  ControlledBy (TargetGroup (Macros.exactly 2) Opponent) {one = ok})
-badControlledByGroup Refl impossible
+  ControlledBy (TargetGroup (Macros.exactly 2) Opponent) {ps = ok})
+badControlledByGroup MkPossessor impossible
 
 
 ||| "two target opponents' graveyards"
-||| Hands and graveyards are per-player zones [CR#400.1].
+||| Hands and graveyards are per-player zones [CR#400.1], and the possessor
+||| table admits the same phrases here as in the control clause: a counted
+||| plural mention is not one of them.
 public export
 badGraveyardOfGroup : Unspellable (ZoneExpr []) (\ok =>
-  Macros.graveyardOf (TargetGroup (Macros.exactly 2) Opponent) {one = ok})
-badGraveyardOfGroup Refl impossible
+  Macros.graveyardOf (TargetGroup (Macros.exactly 2) Opponent) {pn = ok})
+badGraveyardOfGroup MkPossessor impossible
 
 
 ||| "When two target creatures die this turn, you gain 1 life."
@@ -552,7 +558,7 @@ badTargetColor ObjectTgt impossible
 public export
 badGetsGraveyard : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-                Macros.gets It 3 3 (Just Macros.untilEndOfTurn) {ok}])
+                Macros.gets It (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn) {ok}])
 badGetsGraveyard MkZoneFits impossible
 
 

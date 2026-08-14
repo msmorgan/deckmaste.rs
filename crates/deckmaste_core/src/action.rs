@@ -459,7 +459,7 @@ pub enum Action {
     /// "Remove a +1/+1 counter from this creature:").
     RemoveCounters(Reference, crate::CounterRef, Count),
     /// "`patient` wins the game" ([CR#104.2b]) — immediate on resolution,
-    /// suppressed by a matching `CantWin` outcome gate ([CR#101.1]
+    /// suppressed by a matching `CantWin` outcome gate ([CR#101.2]
     /// precedence; the last-player-standing win [CR#104.2a] never rides
     /// this verb and pierces gates).
     WinGame(Reference),

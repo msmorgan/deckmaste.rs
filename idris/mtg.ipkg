@@ -12,6 +12,7 @@ modules = Semantics
         , Experimental.ProofsB
         , Experimental.ProofsC
         , Experimental.ProofsD
+        , Experimental.ProofsE
         , EmitTables
 
 sourcedir = "src"

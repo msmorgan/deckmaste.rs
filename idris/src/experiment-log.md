@@ -9222,3 +9222,2207 @@ Ledger updates this chapter:
 - Near-miss inventory: the enchanted-player prohibitions, which want
   deeds this grammar has no rows for; the attachment's own direction (12
   lines); the moved host.
+
+## Chapter fifty-two — the game outcome
+
+[CR#104] lets an effect state three things: that a player wins, that a
+player loses, and that the game is a draw. This grammar could state none
+of them. Both prior arts could state two, and the legacy grammar could
+state the gate besides. This chapter ports all four rows with the
+measurement they were missing. Bench: 275 positives / 420 pins.
+
+**Finding 372 — a port with two agreeing prior arts and nothing here to
+extend.** Core has `Action::{WinGame, LoseGame}(Reference)`
+(`deckmaste_core/src/action.rs`); the LEGACY grammar has
+`Outcome b = WinGame … | LoseGame …` wrapped by `Conclude : Outcome b ->
+OneShotEffect b`, plus `OutcomeGate : OutcomeGateKind -> Predicate b
+APlayer -> StaticEffect b`, witnessed there by Platinum Angel. This
+workbench had ZERO outcome machinery of any kind. So the round is a
+port-with-measurement rather than an extension, and where the two prior
+arts agree this vocabulary follows them: one indexed verb pair
+([CR#104.2b] and [CR#104.3e] being one sentence each, saying the same
+thing twice), and a dedicated static channel for the gate.
+It departs from both in ONE place, and the house idiom is the reason:
+both prior arts give the gate a `Predicate`, and this row takes a `Noun`,
+because every effect and static row in this vocabulary takes its
+participants as nouns and the gate's attested subjects are noun phrases
+("you", "players", "your opponents").
+Named apart from `OutcomeSort` and from `Kind`'s own `Outcome`
+constructor, neither of which this vocabulary touches — the
+`LifeGain`/`LifeLoss` rename's precedent.
+
+**Finding 373 — three frames, one patient layer, no new vocabulary.** The
+107 in-scope occurrences divide into the IMPERATIVE (87 — the ability's
+own main clause, bare or if-gated: the alternate-win family, the Pact
+family's fail-to-pay, the extra-turn tax), the TRIGGERED PAYLOAD (17 — a
+third party bound by the same ability's trigger, "Whenever Phage deals
+combat damage to a player, that player loses the game"), and the DIRECT
+third party with no trigger at all (3). What the round came to measure is
+the patient, and the answer is that it needs nothing: you, that player,
+target player, enchanted player, each opponent, its owner, they and the
+chosen player are all existing rows of the player noun layer, and the
+last two of those arrived in chapters forty-seven and fifty-one. The verb
+is the whole of what was missing.
+
+**Finding 374 — the gate is PRECEDENCE, and it is neither of the two
+things it resembles.** It is not a `Deontic`: `Compulsion` governs deeds
+a player performs, and losing the game is not a deed but an outcome the
+rules impose. It is not event suppression: [CR#101.2] gives a "can't"
+priority over an effect that "allows or directs something to happen", so
+the gate suppresses the outcome at each check while it lasts rather than
+consuming one occurrence. Three things pierce it and none is the row's
+business — concession, which is [CR#101.1]'s only stated exception
+([CR#104.3a]); the last-player-standing win, which "overrides all effects
+that would preclude that player from winning the game" ([CR#104.2a]); and
+the simultaneous case, where a player who would both win and lose loses
+([CR#104.3f]). All three are the engine's arithmetic over this clause.
+ONE CLAUSE, ONE GATE: Platinum Angel's sentence is two gates coordinated,
+which is why the row takes one kind and one subject rather than a pair.
+
+**Finding 375 — the gate's dominant surface is unwritable, and the
+blocker is four chapters old.** Fifteen static gate lines, and the shape
+that carries almost all of them is the paired two-clause sentence — "You
+can't lose the game and your opponents can't win the game". Its second
+clause needs a PLURAL PLAYER subject, which chapter thirty-nine
+deliberately declined to mint and chapter forty confirmed had no other
+consumer. So the gate lands on the corpus's single one-sided outlier,
+Lich's Mastery's "You can't lose the game", and the family's dominant
+surface waits on the axis that has now cost four families a witness. The
+unified-subject variant ("Players can't lose the game or win the game")
+additionally coordinates two gates under one subject, which is the
+coordination gap at a third site.
+
+**Finding 376 — the draw is minted on the rule and lands without a
+bench.** [CR#104.4c] is one sentence — "an effect may state that the game
+is a draw" — and completes the trio the other two rows spell. `GameDrawn`
+is nullary, the only outcome row with no patient at all, because a draw
+is the GAME's outcome and not a player's; `BecomesTime` has the same
+shape one round earlier and for the same reason. Neither of its two
+corpus lines is writable whole: Divine Intervention's trigger is an
+AGENTIVE removal ("when you remove the last intervention counter"), which
+is not the last-removal event chapter forty minted, over a counter kind
+this catalog does not carry; and Celestial Convergence's is the
+comparative victor. The row lands on the rule's own sentence with the gap
+recorded, which is `TwoNextSteps`' posture and the eighth time this
+campaign has taken it.
+
+**Finding 377 — a correction: Abyssal Persecutor's corpus text is
+CORRECT.** The round's brief carried a data-quality warning that the
+card's clauses were reversed against real Oracle. They are not. "You
+can't win the game and your opponents can't lose the game" is the genuine
+printed text, and it is the whole point of the card — a six-power flying
+trampler for four whose drawback is that it holds the game open. The
+warning had it backwards, and the real trap is the one that produced it:
+Abyssal Persecutor and Platinum Angel are near-MIRRORS of one sentence,
+identical but for which player each clause names, so misremembering which
+is which is easy and checking is cheap. Recorded so the false warning is
+not re-propagated.
+
+**Finding 378 — witnesses, and pins at the carriers because the rows have
+no gates.** Three positives, all from the minimum coverage the round
+asked for: Lich's Mastery's gate line, the same card's leaves-trigger
+imperative two lines below it (a card that states the gate and then
+states its own loss), and Phage's triggered payload with a third-party
+patient reached by the demonstrative. Felidar Sovereign was attempted and
+is blocked: its if-gate is a LIFE TOTAL threshold and no `Amount` row
+reads a life total. Door to Nothingness and Platinum Angel are blocked as
+recorded above.
+The PINS are at the carriers, and that is a fact about the rows worth
+stating: `Concludes`, `OutcomeGate` and `GameDrawn` carry no gates at
+all, because [CR#104.2b] and [CR#104.3e] say "a player" and the kind
+system already says it — a non-player patient is a type error, not a
+refusal, so there is no cell to pin. What refuses is the surrounding
+machinery: a TARGETED gate subject, which a static line cannot announce
+([CR#115.1d]), and the outcome as a COST, which no line prices an ability
+at.
+
+Ledger updates this chapter:
+
+- The game outcome (**landed**): the two verbs, the draw, and the gate.
+- **Recorded, not built** (each queued): the outcome as an EVENT (10
+  watching triggers, "Whenever a player loses the game, …"); the
+  PARTIAL-CAUSE immunity (9 lines, "you don't lose the game for having 0
+  or less life", which carves out one state-based cause); the
+  WOULD-replacement (7 lines); the comparative victor (1).
+- Near-miss inventory: the plural-player subject, now costing the gate's
+  dominant surface; the life-total amount, which costs Felidar Sovereign;
+  the coordination of two gates under one subject.
+
+## Chapter fifty-three — the plural player subject
+
+Chapter thirty-nine declined to mint a plural player noun and named the
+round that would motivate it; chapter forty measured that round and found
+it did not; chapter fifty-two found the family that does. This chapter
+mints the noun on that evidence, retires the enum chapter thirty-nine
+built in its place, and lands the outcome gate's dominant surface whole.
+Bench: 277 positives / 422 pins.
+
+**Finding 379 — a deferral closed on its own terms, and what actually
+closed it.** Finding 274 refused to build a general plural-player noun on
+seven lines of untap-cap evidence, on the ground that such a noun "would
+be built on this family's evidence and spent everywhere else", and left
+the enum behind as "three call sites to revisit". Finding 281 corrected
+the prediction of WHERE the motivating evidence lived — the counter verbs
+write no plural player phrase at all — and left the axis deferred with
+one named consumer. What closed it is neither: it is finding 375, the
+outcome gate, whose dominant surface is a two-clause sentence whose
+second clause has no other subject to take. So the axis was not built
+when its evidence accumulated; it was built when a family could not be
+written without it, which is the discipline finding 274 asked for and the
+reason the deferral survived three chapters intact.
+
+**Finding 380 — two words, one indexed row, and the shape argument is the
+corpus's.** Sentence-initially the surfaces are exactly two: the bare
+plural "Players …" on sixty-four supported cards (sixty-six segments) and
+the possessive plural "Your opponents …" on thirty-five (thirty-seven),
+four Demonstrate reminder lines excluded. There is no third phrase of the
+shape. "All players" as a subject is written ZERO times — its nine
+occurrences are the comparative "among all players" and the possessive
+"all players' hands" — and "all opponents" likewise zero across six
+occurrences, all of them "all opponents' graveyards". That measurement
+refuses the general shape outright: a determiner row over a PREDICATE
+would be `AllOf`'s arrangement, and `AllOf` spells the word "all", which
+neither attested phrase writes; it would also mint the possessive over
+arbitrary descriptions ("your opponents who control an artifact", zero
+lines). Exactly one corpus line modifies the bare plural at all —
+Aurelia's Fury's "Players dealt damage this way can't cast noncreature
+spells this turn" — and that line is blocked twice over besides (the
+participle read and the damage-history complement), so the general row
+would have been minted for a line it still could not spell.
+ONE ROW rather than two constructors, and the reason is that the two
+words differ in DENOTATION and in nothing this grammar reads: [CR#102.1]
+makes a player "one of the people in the game" and an opponent is someone
+a player is playing against ([CR#102.2,102.3]), so the first phrase
+includes you and the second excludes you — and no table in this
+vocabulary asks which. That is finding 275's lesson read backwards: an
+axis that varies perfectly with something already written is a spelling
+fact, so two constructors that differ only in their word are one row
+indexed by the word.
+
+**Finding 381 — the subject announces NOTHING, and that is measured
+rather than assumed.** The determiner question the round expected to
+answer — which tag, which plurality, what `bindFor` mints — never arose,
+because the honest answer to the prior question is that these phrases
+introduce no referent at all. Across all one hundred and forty-two corpus
+segments with one of these subjects, no later clause pronominalises it.
+The "they" and "their" that follow are the possessive agreeing INSIDE the
+same clause ("players skip their upkeep steps", "your opponents can't
+cast spells from anywhere other than their hands") — which is finding
+275's derived possessive at a fourth site — and where a second sentence
+names the group again it REPEATS the noun rather than reading it back
+(Everybody Lives!: "Players gain hexproof until end of turn. Players
+can't lose life this turn…"). The corpus's fourteen "those players" were
+checked one by one and every one reads a counted target mention, a
+quantifier phrase or a relational noun; none reads a subject of this
+shape. So `nounDelta` is the empty list, which is `You`'s answer and the
+attachment host's, and the round mints no determiner tag, no plurality
+cell in `bindFor`, and no reader. The union-over-readers re-measurement
+(finding 309) is not owed here because no binding was added: had one been
+minted it would have opened "those players" over an antecedent nothing
+writes.
+
+**Finding 382 — `CapDomain` retired, and the revisit was as cheap as
+finding 274 promised.** The enum's three cells were "players", "you" and
+"your opponents"; two of them are now the noun and the third was `You`
+from the start, so `CantUntapMoreThan` takes an ordinary `Noun bs Player`
+held to those three phrases by a gate (`capSubjectOk`, whose full rows
+say what the enum's absence of a fourth cell said). Ten call sites, not
+the three the prediction guessed — six bench witnesses and four pins —
+and every one a mechanical substitution. The four cap pins keep their
+propositions BYTE-IDENTICAL, which the conversion could not have
+disturbed: each refuses at the bound, the zone, the head or the span, and
+none of them ever mentioned the subject. What the conversion had to
+preserve besides is the possessive agreement finding 275 discovered:
+"your untap step" for the singular subject and "their untap steps" for
+the two plural ones. It survives unchanged and is now derived from the
+subject's NUMBER rather than from a private enum's identity, which is a
+better home for it — the same rule `DoesntUntap` uses one row up.
+
+**Finding 383 — what the noun does not unlock, which is most of what
+"your opponents" writes.** The phrase occurs 526 times in the supported
+corpus and only thirty-seven of those are this subject. The mass is the
+union relative clause — "creatures your opponents control", 386 lines,
+the phrase the CR itself writes into hexproof's own definition
+([CR#702.11b]) — and it stays unwritable. What it waits on is no longer
+the noun: `ControlledBy` demands a SINGULAR possessor because [CR#109.4]
+gives an object one controller, so the union read needs a union RELATION,
+a different thing entirely. `ControlledBy`'s docstring is amended
+accordingly rather than left pointing at a gap that has moved.
+Two smaller declines, both measured. "Each of your opponents" is seven
+lines against `Each Opponent`'s 914 — a second spelling of a cell already
+written — and "each of players" is not English, so `groupMention` answers
+False for both words and the partitive stays the object determiner's.
+And the row OVER-GENERATES into the effect slots, which is named rather
+than gated: ninety-nine of the 103 supported segments are static
+statements ("can't", "can", "may", "have", "play with", "skip"), and the
+four that are not are instructions in a resolving spell — the three
+Balance lines' "the same way" and Everybody Lives!'s hexproof grant. The
+corpus writes the imperative distributive as "each player" (539 lines) or
+"each opponent" (914), never as a plural subject. A noun cannot know its slot,
+so "your opponents draw a card" is writable and unwritten, and the
+honest thing is to record it.
+
+**Finding 384 — the headline surface lands whole, and one witness is
+declined.** Platinum Angel and Abyssal Persecutor are the round's two
+positives and both are WHOLE CARDS: "Flying / You can't lose the game and
+your opponents can't win the game" and its near-mirror "Flying, trample /
+You can't win the game and your opponents can't lose the game". Eight
+supported cards write that sentence in one form or another against Lich's
+Mastery's single one-sided line, so the family's dominant surface is now
+benched and its outlier is the exception it always was. The coordination
+is the surface's and not a construction: two independent clauses, each a
+statement that is simply true, are two static abilities ([CR#113.3d]),
+which is finding 374's "one clause, one gate" read off the card. The
+`Angel` subtype was added to the catalog for the first card, the same
+one-word growth `Dragon` had.
+DECLINED: Everlasting Torment's "Players can't gain life", which the
+round's brief offered as a third witness. There is no life-gain
+suppression static in this grammar and no channel one could ride, and
+minting a suppression subsystem to carry a witness is the wrong order of
+work — the line is recorded and the family queued. Everybody Lives!
+stays blocked for the reason chapter fifty-two gave: "players can't lose
+the game or win the game this turn" coordinates two GATE KINDS under one
+subject, which the row deliberately cannot do (Platinum Persecutor writes
+the same shape).
+The PINS are at the two carriers the round created. `badUntapCapEachPlayer`
+refuses a distributive quantifier as the cap's subject, which is the new
+gate saying what the retired enum said. `badPluralPlayerDamageRecipient`
+refuses "This creature deals 2 damage to your opponents": one magnitude
+and one recipient phrase, and a bare plural answers neither whether the
+magnitude is each member's nor the group's — the bare-plural recipient
+family's argument at a player-kind site, where the corpus writes "each
+opponent" and reserves this phrase for a trigger's condition.
+
+Ledger updates this chapter:
+
+- The plural player subject (**landed**): one indexed row, two words, no
+  announcement.
+- `CapDomain` (**retired**), its three call sites having been ten and its
+  revisit mechanical; the cap's subject is now an ordinary player noun.
+- The outcome gate's dominant surface (**backfilled**, chapter
+  fifty-two): Platinum Angel and Abyssal Persecutor, whole.
+- **Recorded, not built**: the union relative clause (386 lines), which
+  needs the union relation and not this noun; life-gain suppression,
+  which costs Everlasting Torment; the coordination of two gate kinds
+  under one subject, which costs Everybody Lives! and Platinum
+  Persecutor.
+- Near-miss inventory: the union relation; the effect-slot
+  over-generation, which no pin can catch.
+
+## Chapter fifty-four — the union possessor
+
+Chapter fifty-three minted the plural player noun and recorded what it did
+not unlock: "creatures your opponents control", the most-written phrase
+this grammar could not spell. This chapter spells it, and the reason it
+takes one gate rather than a round of machinery is that the queue entry
+had the shape wrong. Bench: 279 positives / 424 pins.
+
+**Finding 385 — the union read is MEMBERSHIP, not group quantification,
+and the correction is the whole round.** Chapter fifty-three's ledger line
+said the phrase "wants a relation that quantifies over a group", and that
+is superseded. [CR#109.4] gives an object ONE controller, so "creatures
+your opponents control" asks of each creature whether the one player who
+controls it is a member of the named set — an existential over a
+singleton, which is a test and not a quantification. The rule that looked
+like the blocker is what makes the phrase unambiguous. The Rust core has
+read it this way all along: `ControlledBy` there takes a player PREDICATE
+and the union clause is composed as `ControlledBy(OpponentOf(Ref(You)))`
+(`deckmaste_core/src/filter.rs`, live at two sites in `deontic.rs` with
+[CR#702.11b] cited in the comment), so core names the set with a relation
+where this grammar names it with a noun, and neither quantifies over
+anything. On that reading the singular possessor is the same question over
+a one-member set, so the row's meaning UNIFIES rather than forking, and
+the work is one gate.
+
+**Finding 386 — the gate is the singular test widened by one measured
+word, and a constructor table could not have said it.** `possessorOk` is
+`isOne (nounPlur n)` with two rows above it, which is `perMemberOk`'s
+shape at a second site. The catch-all is not laziness: a counted target
+mention must be admitted at one and refused at two
+(`badControlledByGroup`), and that discrimination lives in the QUANTITY,
+which no constructor table reads. What the two rows add is exactly one
+word. "Your opponents" is 377 supported cards in the relative clause and 7
+in the possessive; the bare plural is ZERO in both positions — "players
+control" as a relative clause is zero (the two "players control"
+occurrences in the corpus are "those players", a read) and "players'
+graveyards" is zero, the corpus writing "all players' hands" and "each
+player's graveyard" instead. So the two words of chapter fifty-three's
+`PlayerGroupWord` DIVERGE for the first time, at the first table that asks
+anything of them, and the divergence is pinned in both readers.
+
+**Finding 387 — one table, two readers, and both measured before it was
+minted.** `ControlledBy` and `OwnedBy` share `possessorOk`, because they
+ask one question of one rule each: [CR#109.4]'s one controller and
+[CR#108.3]'s one owner. Finding 309's union-over-readers doctrine applies
+at MINT time here rather than later — a shared table's cells are a union,
+and the round that shares it owes the measurement for every reader — so
+both were measured: 377 control lines and 7 possessive lines for "your
+opponents", zero and zero for the bare plural. The readers agree cell for
+cell, which is why one table is honest; had they disagreed the answer
+would have been two tables and a finding, as chapter forty-five's two
+readers of the window grid were.
+The plural READ is refused rather than half-admitted. "Creatures those
+players control" is two corpus lines, and both sit inside constructions
+this grammar cannot write at all — Camouflage's blocker partition and
+Officious Interrogation's per-member count over a target-player group — so
+admitting the cell would buy a witness nothing can reach and would drag in
+the antecedent question (which mention makes a plural player group
+readable) that no round has opened. Measured, refused, recorded; NOT
+pinned, because two lines is attestation and a pin claims unwritten
+English.
+
+**Finding 388 — two pre-existing pins shift their proposition, and the
+shift is an improvement worth naming.** `badControlledByGroup` and
+`badGraveyardOfGroup` are two of the fourteen pins that predate this
+campaign, and both bound the gate this round replaced. Their propositions
+change from `nounPlur (TargetGroup (exactly 2) Opponent) = OneOf` to
+`Possessor (TargetGroup (exactly 2) Opponent)` and their impossible
+clauses from `Refl` to `MkPossessor`. The English they refuse is
+unchanged, and so is the fact — a counted plural mention may not possess —
+but the proposition now names the QUESTION rather than the number, which
+is what makes the pin still true after the widening: plurality alone is no
+longer the reason, membership in the attested table is. Chapter
+forty-nine's merge recorded two presentational P-shifts as a cost; this
+one is a shift with a gain, and it is the only P movement in the round —
+the other 422 pins are untouched and the whole bench was green on the
+first build after the widening.
+
+**Finding 389 — the witnesses, and the one the possessive reader does not
+get.** Smog Elemental lands whole: "Flying / Creatures with flying your
+opponents control get -1/-1", a head noun, a keyword modifier and the
+control clause under the existing set-level determiner, with the
+`Elemental` subtype the one word the catalog had to grow. Angler Turtle's
+line lands as an ability — "Creatures your opponents control attack each
+combat if able" — which is chapter forty-six's requirement row meeting the
+possessor it was missing, and it is worth noting how the corpus says this:
+it describes the creatures and never names the players, so the union read
+is the only spelling the requirement has. The macro
+`creatureYourOpponentsControl` joins `creatureYouControl` and
+`creatureYouDontControl` as a third phrase rather than a transform of
+either — exactly one card in the corpus writes both the union read and the
+negated self, so they are distinct spellings and not free variants.
+The POSSESSIVE reader lands with no bench positive, and the blocker is
+uniform: all seven lines scale a power and toughness by a count ("gets
++1/+1 for each creature card in your opponents' graveyards", Wight of
+Precinct Six; "power and toughness are each equal to the number of cards
+in your opponents' graveyards", Consuming Aberration), and `Gets` takes
+written integers while the base-P/T setting is the layer words' business.
+So the cell is minted on the table's symmetry with its bench recorded as
+owed, which is `TwoNextSteps`' posture and the ninth time this campaign
+has taken it. Plague Engineer was checked and is blocked for a different
+reason worth keeping: its "creatures of the chosen type your opponents
+control" reads a choice made by a SEPARATE ability ("As this creature
+enters, choose a creature type"), and this grammar threads bindings within
+one ability and not across a card's abilities.
+
+Ledger updates this chapter:
+
+- The union possessor (**landed**): one gate, two readers, and the
+  membership reading that made it cheap.
+- The queue's "union relation" framing (**superseded**, finding 385).
+- **Recorded, not built**: the possessive reader's bench (7 lines, all
+  count-scaled P/T); the plural READ as a possessor (2 lines, both inside
+  unwritable constructions); "spells your opponents cast" (27 lines) and
+  "your opponents own" (6), which want relations this round did not touch.
+- Near-miss inventory: the count-scaled P/T, which now costs the
+  possessive reader its only witnesses; the cross-ability binding thread,
+  which costs Plague Engineer.
+
+## Chapter fifty-five — the loss event
+
+Chapter fifty-two minted the three outcome verbs and the gate, and queued
+what other abilities do ABOUT an outcome: watch it, and replace it. Both
+readers land here on one row, and the round's first job was to find out
+how many outcomes the corpus ever treats this way. Bench: 282 positives /
+427 pins.
+
+**Finding 390 — the event is LOSS-ONLY, and three sources say so
+independently.** [CR#603.9] defines the family for one outcome — "Some
+triggered abilities trigger specifically when a player loses the game" —
+and names no counterpart for winning. The corpus agrees exactly: "would
+win the game" is written ZERO times, and no trigger header anywhere names
+a win (the one line that looked like one is an unsupported Phenomenon
+whose "each player wins the game if…" is a conditional effect, not a
+header). And the Rust core has no loss row in its `EventFilter` at all, so
+there is nothing there to copy in either direction. So `LosesGame` is one
+row taking a player, NOT an `OutcomeVerb`-indexed row: the verb pair
+belongs to the effect that STATES an outcome, and what an ability can
+watch is the losing alone. `Concludes` and this row are the two directions
+of [CR#104] rather than one row spelled twice.
+[CR#603.9] carries two more things the row is glad not to spell. The event
+fires when a player "loses OR LEAVES the game, regardless of the reason",
+so no phrase here names a cause; and it is carved out for the draw
+("unless that player leaves the game as the result of a draw"), which is
+the engine's arithmetic over `GameDrawn` and not something any card says.
+
+**Finding 391 — a measurement-method correction: the dedupe key must be
+(name, face).** The queue said this family was ten lines; it is eight, and
+the previous count was wrong in BOTH directions for one reason — a dedupe
+keyed on card name alone drops the back-face text of double-faced cards
+while leaving front faces to stand in for them. Two of the eight are back
+faces (Withengar Unbound and Shinryu, Transcendent Rival), and a
+name-keyed count cannot see them at all. The lesson generalises past this
+round: every corpus figure in this log that was measured by name alone
+understates families that live on back faces, and DFC-heavy families are
+exactly where a grammar round would go looking for evidence. Recorded here
+so future recon uses the pair key.
+The same family carries a second matching trap worth recording beside it:
+the eighth line spells the verb PLURAL ("when they lose the game", Miss
+Highwater, whose subject is the singular epicene), so a search for "loses
+the game" misses it even with the right dedupe key. Agreement is a
+spelling axis a corpus pattern has to allow for, exactly as the
+possessives were in chapter fifty-three.
+
+**Finding 392 — the union-over-readers debt is DISCHARGED by
+measurement, and the history cells close.** The queue flagged that this
+row might owe finding 309's re-measurement, because a history read over
+"a player who has lost the game" may or may not exist. It does not. Two
+supported lines look backward at losses and neither is this query: Hot
+Pursuit's "if two or more players have lost the game" and Rampant
+Frogantua's "for each player who has lost the game" both COUNT PLAYERS in
+a standing state, and neither names a window — there is no "lost the game
+this turn" in the corpus at all. `lookbackSubjectOk` asks whether an event
+happened inside a `Lookback`, so a windowless count over players belongs
+to a reader this grammar does not have (the player-set count), and both
+cells close False with the count recorded and one pin at the player sort.
+The distinction worth keeping is that [CR#603.10f] makes these abilities
+look back in TIME — "abilities that trigger when a player loses the game
+look back in time" — which is a rule about how the trigger sees the game
+at the moment it fires, and not a history query a condition can write. The
+same words, two mechanisms.
+
+**Finding 393 — two readers open, both attested, and the cells were
+counted before they were set.** `eventUse` answers
+`InterceptedAndTriggered`, which is `CardDrawn`'s answer and reached the
+same way. The TRIGGER side is eight lines, seven of them supported, and divides the
+header words as finding 247 said they divide everywhere — `Whenever` for
+the repeatable class (five: Blood Tyrant, Withengar Unbound, Ramses,
+Sengir, Share the Spoils) and `When` for the singular occasion (two
+supported: Curse of Vengeance and Shinryu, both naming ONE player the card
+has already fixed; the unsupported eighth, Miss Highwater, is a third
+`When`) — with `At` at zero and pinned. The REPLACEMENT side is seven lines and fills BOTH
+multiplicity cells: five write the standing "If you would lose the game,
+instead …" and two the bounded "The next time you would lose the game this
+turn, instead …", so neither `Repeatedly` nor `NextTimeOnly` is a
+convenience and neither is pinnable. The two silences are pinned instead:
+no duration ends at a loss (`eventSpan` is `Unattested`) and no line
+writes the delayed form, which is `badDelayedGameLoss` — and that pin
+exists because the corpus's only "next" over this event is the
+replacement's multiplicity, which bounds how often an instead applies
+rather than waiting for an occurrence.
+
+**Finding 394 — what lands, and the blocker that is now costing four
+lines across three families.** Three witnesses, one per reader and one for
+the bounded form: Blood Tyrant's watching trigger, The Golden Throne's
+standing replacement, and Stunning Reversal's bounded one, whose this-turn
+span rides the `Continuously` envelope exactly as `Intercepts`' own
+comment says a spanned replacement must. The replacement pair also
+confirms something the round expected to have to build: `LifeOp` already
+has `Set`, so "your life total becomes 1" needed nothing.
+What is blocked is almost all one thing. Sengir wants the life total as an
+AMOUNT ("life equal to that player's life total as the turn began"),
+Exquisite Archangel wants the starting life total, and chapter
+fifty-two's Felidar Sovereign wanted the same amount for its threshold —
+so the life-total amount is now blocking three lines across two families
+and, with Curse of Vengeance's counter-scaled X and Rampant Frogantua's
+player count, the AMOUNT vocabulary is the round's dominant residue rather
+than any event machinery. The others are individually ordinary: Ramses
+wants an attacked-by lookback complement, Lich's Mirror a three-zone
+shuffle, Share the Spoils a per-player library slice (`badSliceOfPluralPossessor`'s
+own cell), and Shinryu's "the chosen player" wants the chosen-OBJECT read
+the definite determiners have owed since chapter thirty — its half is
+otherwise written, since `Concludes WinGame You` landed three chapters
+ago. The Deck of Many Things was checked as a free bench line and is not
+free: its "that creature" reads a mention made two lines earlier in a
+d20 result, which no standalone ability carries.
+NO WIN-EVENT PIN EXISTS, and that is the round-sixteen lesson repeating: a
+row that was never minted has no cell to refuse, so the absence of the win
+event is a fact about the vocabulary recorded here, not a pin.
+
+Ledger updates this chapter:
+
+- The outcome as an EVENT (**landed**): one loss row, two readers, both
+  measured.
+- The outcome WOULD-replacement (**landed with it**), which the queue had
+  as a separate entry waiting on this row.
+- **Recorded, not built**: the win event, which nothing writes; the
+  history query, which nothing writes either; the delayed form.
+- Near-miss inventory: the LIFE TOTAL as an amount, now three lines across
+  two families and rising; the player-set count (2 lines); the chosen
+  player.
+
+## Chapter fifty-six — the life-total read
+
+Three chapters have named the same missing thing. Chapter fifty-two lost
+Felidar Sovereign to it, chapter fifty-five lost Sengir and Exquisite
+Archangel and called it the round's dominant residue, and the queue
+carried it as the outcome families' one blocking gap. It is one `Amount`
+row. Bench: 285 positives / 429 pins.
+
+**Finding 395 — a port whose NAME was already settled, by a comment in
+the other layer.** Core's `Count::PlayerStatOf(Reference, PlayerAttr)`
+carries the line "the player-side twin of StatOf, mirroring the Idris
+`PlayerStatOf`" (`deckmaste_core/src/count.rs`). Core was written
+expecting this row, under this name, in this grammar — so the naming
+discipline that has cost this campaign a paragraph a round cost nothing
+here, and the only open question was the contents. That is the merge
+doctrine working in the direction it has not worked before: usually this
+grammar measures and core inherits the measurement; here core held a name
+in trust and the measurement decides what goes under it.
+
+**Finding 396 — two rows, not core's four, and the difference is measured
+rather than conceded.** Core's `PlayerAttr` has `Life`, `HandSize`,
+`HandSizeLimit` and `LandPlaysPerTurn`. This vocabulary takes two. "Hand
+size" occurs 68 times in the supported corpus and every one is the
+maximum-hand-size STATEMENT — "you have no maximum hand size", "your
+maximum hand size is eleven" — which is a static line about a limit and
+not a number a clause reads; "equal to your hand size" is written ZERO
+times, the corpus counting the cards instead ("equal to the number of
+cards in your hand"), which is `CountOf`'s reading and has been writable
+for chapters. Land plays are the same story one static over. So the two
+rows are `LifeTotal` and `StartingLifeTotal`, and the second is not a
+bound on the first: the CR states it twice in the same words ([CR#103.4]
+at the game's setup, [CR#119.1] in the life-total section — one sentence
+filed under both), thirty supported lines read it as a term of its own,
+and core does NOT carry it. So this cell is a gap at both layers, which
+`GameLoss` was one chapter ago, and by the merge doctrine the measurement
+here is the core's too.
+
+**Finding 397 — the read is the whole unlock, and the frame that carries
+it is not the one the row spells.** `readAmount` answers True, and that
+single fact opens the family's dominant surface: the threshold is
+`CompareAmt` against a written bound, and it has been writable since
+chapter forty-four except for a left-hand side. What the corpus writes
+there is worth recording because the row does not spell it — "you have 40
+or more life" is 31 lines and "your life total is 40 or more" is 2, so the
+dominant surface rewrites the whole comparison as a HAVE-clause with the
+number inside it, and this catalog supplies the read while the comparison
+frame supplies the words. One vocabulary, two spellings, and the split is
+the frame's business exactly as the untap cap's possessive was the
+subject's.
+
+**Finding 398 — what the read still cannot do, and the divergence from
+core that says why.** Read-versus-read is 26 supported lines ("more life
+than an opponent", and most of the current-versus-starting family with
+it), and every one of them refuses at `WrittenBound`: this grammar's
+comparison puts a READ on the left and a WRITTEN value on the right, which
+finding 316's own comment argued from "if 3 is 4 or greater is not a
+sentence". Core does not share the restriction — its
+`Condition::Compare(Count, Cmp, Count)` restricts neither side — so this
+is a real divergence rather than a gap, and the round leaves it standing
+rather than widening a gate it did not measure. It is now the queue's,
+with the parity note attached, and it is the largest single family the
+life read leaves unwritten.
+Two more stay out for reasons of their own. The EXTREMAL read ("the
+highest life total", 10 lines) wants aggregation this grammar has none of,
+where core already has `Aggregate(MaxOf, …)` cited to Arbiter of
+Knollridge by name — a rare case of core being strictly ahead, and the
+comparative victor's blocker too. And Sengir's "life equal to that
+player's life total AS THE TURN BEGAN" is a point-in-time snapshot absent
+from both layers: the read lands, the rider is its own future vocabulary,
+and this is the round's named near-miss.
+
+**Finding 399 — three witnesses, and one card closes a three-chapter
+arc.** Felidar Sovereign's line lands with its intervening "if" — the
+card [CR#603.4]'s own worked example uses to explain the double check —
+and closes the block chapters fifty-two and fifty-five both recorded.
+Exquisite Archangel lands WHOLE, which is the second read's only writable
+line and the loss replacement's third witness. Space-Time Anomaly lands
+whole as the BARE read, no comparison and no set, which is the cleanest
+evidence that this is an `Amount` and not a condition's fragment. Serra
+Avatar was checked and is blocked, as suspected: its "power and toughness
+are each equal to your life total" is a characteristic-DEFINING base set,
+which is the layer words' round and not this one.
+The PINS are both at the singularity gate, and the honest statement of
+what they prove is narrower than it looks: both propositions reduce all
+the way to `ManyOf = OneOf`, so what they pin is the gate's shared fact
+and not something peculiar to this row — their bodies are what tie them to
+it. What each documents is a measured zero: the plural read
+(`badPluralLifeTotalRead`) against eight corpus lines that all EXCHANGE
+two totals rather than reading either ([CR#701.12c]), and the distributive
+read (`badDistributiveLifeTotalRead`) against one line where "each
+player's life total" is a set's RECIPIENT — a different slot from this
+one.
+
+Ledger updates this chapter:
+
+- The life total as an AMOUNT (**landed**): two rows, both read.
+- Felidar Sovereign (**backfilled**, chapters fifty-two and fifty-five);
+  Exquisite Archangel (**backfilled**, chapter fifty-five).
+- **Recorded, not built**: read-versus-read (26 lines, a core divergence
+  rather than a gap); the extremal read (10 lines, where core is ahead);
+  the snapshot rider; the life EXCHANGE (13 lines); the base-P/T set.
+- Near-miss inventory: the snapshot rider, which costs Sengir a second
+  time; aggregation, which costs the extremal family and the comparative
+  victor together.
+
+## Chapter fifty-seven — the read-versus-read comparison
+
+Chapter fifty-six landed the life total as an amount and named what the
+read still could not do: hold one read against another. The queue carried
+it as a DIVERGENCE rather than a gap, since core's
+`Condition::Compare(Count, Cmp, Count)` restricts neither side, and asked
+for the measurement before the widening. The measurement is most of this
+chapter, and it corrects a finding from chapter sixteen. Bench: 291
+positives / 429 pins.
+
+**Finding 400 — the comparative WORD varies perfectly with the bound's
+class, so the relation is the vocabulary and the word is a spelling.**
+Four cells, counted in the supported corpus: against a WRITTEN bound the
+or-relations follow it — "4 or greater" four hundred forty-one lines, "2
+or less" seven hundred forty-four, "or more" two thousand and eighty-nine,
+"or fewer" forty-one — and "less than or equal to 3" is written ZERO
+times; against a READ they precede it — "less than or equal to the number
+of lands you control" one hundred lines, "greater than or equal to your
+starting life total" seven — and "the number of lands you control or
+less" is written zero times. That is finding 275's idiom exactly: an axis
+varying perfectly with something already written is a spelling fact, so
+`Comparator` grows into the four RELATIONS (`AtLeast`, `AtMost`,
+`Greater`, `Less`) and the word is derived from the relation, the bound's
+class and the head's register. The names are core's `Cmp` (`condition.rs`)
+minus its `Eq`, and they are also the old `Semantics` module's own five —
+a name straddle across independent vocabularies, `CountersOn`'s situation
+one enum over.
+`Eq` stays out on its own count. A comparison written "is equal to" is
+four supported lines and every one is unwritable for a second reason (a
+die result, unspent mana, a sum), while the corpus's enormous "equal to"
+mass is the AMOUNT-level copy — "gain life equal to its power" — which
+this grammar has written for chapters and which is not a condition at all.
+The register split chapter forty-four measured survives the growth
+unchanged: a stat takes greater/less, a count takes more/fewer, and the
+strict forms take the same pair ("more life than an opponent", "fewer
+creatures than an opponent").
+
+**Finding 401 — a correction to finding 60: the strict comparators ARE
+written against a numeral, and the empty cell belongs to one frame's
+preferences rather than to the relation.** Chapter sixteen wrote that
+"'with power less than 4' and 'with mana value greater than 3' are written
+zero times each; the strict comparators appear only against a PHRASAL
+standard", and generalized that into a rule about the frame. The two
+phrases are indeed zero. The generalization is false, and the corpus says
+so in the count register: "fewer than [numeral]" is fifteen supported
+lines, of which several are ordinary conditions this grammar can
+otherwise write ("if this artifact has fewer than three charge counters on
+it", Adaptive Training Post; "if this creature has fewer than three +1/+1
+counters on it", Runaway Steam-Kin; "if there are fewer than six creature
+cards in your graveyard", Shadowborn Demon). "Less than [numeral]" adds
+Elderscale Wurm's "if your life total is less than 7" and twenty-two
+devotion lines. What finding 60 measured was a real fact about ONE frame
+and one register — the postnominal qualifier on a stat prefers "power 3 or
+less" — and what it recorded was a fact about the vocabulary. The three
+lines the earlier round could see are worth naming as the trace they left:
+Master of Predicaments ("whether the card's mana value is greater than 4",
+inside a guess construction nothing can write), Massacre Girl, Known
+Killer ("if its toughness WAS less than 1", a past-tense state read), and
+Wasp, Shrinking Savior ("each creature with power less than 0"), the one
+clean postnominal instance. Elderscale Wurm is this chapter's witness for
+the cell, and the lesson is the one chapter forty-two learned about
+premises: a zero measured on two phrases is a zero about those phrases.
+
+**Finding 402 — one bound test, two frames, and the divergence from core
+narrows to the subject.** All eight cells of relation × bound class are
+attested somewhere, so there is no attestation TABLE to mint — an all-True
+table is the symmetry chapter forty-nine refused. What replaces
+`WrittenBound` is one predicate, `comparableBound = writtenBound ||
+readAmount`, read by BOTH frames: the postnominal `Compare` and the
+predicative `CompareAmt` differ in word order and not in vocabulary, which
+is what that pair has claimed about itself since chapter forty-four, and
+sharing the test is the claim made mechanical. It is `possessorOk`'s shape
+at a second site (chapter fifty-four), and finding 309's discipline was
+paid the same way: both readers were measured before the test was shared,
+and they agree cell for cell.
+The test still refuses, and its refusals are measured zeros: the scaled
+product, the sum and the outcome read are written as a comparison's
+standard ZERO times ("no more than twice each turn" is an activation cap,
+not a bound; the one "1 plus the number of soul counters" standard is
+Obscura Ascendancy's, under the `Eq` this vocabulary does not have). Those
+are amounts a clause COMPUTES for an instruction, where a standard is
+something already there to be pointed at, and they carry the chapter's two
+new pins.
+The SUBJECT gate stays. "If 3 is 4 or greater" states an arithmetic fact
+and not a fact about the game, so `ReadAmount` survives as the one place
+this grammar is narrower than core — which is the honest shape of the
+divergence the queue recorded, half of it dissolved and half of it
+confirmed. One over-refusal is recorded rather than argued away: Thassa's
+Oracle does write X as a comparison's subject once, against a read ("if X
+is greater than or equal to the number of cards in your library"), and
+that line is unwritable for its devotion read anyway.
+
+**Finding 403 — two pins RETIRE, and the retirement is what the widening
+means.** `badPhrasalBound` refused `Compare Power AtMost (StatOf Power
+This)` with P `WrittenBound (StatOf Power This)`, and
+`badConditionPhrasalBound` refused the condition frame's twin. Both are
+gone, and neither has a successor P: under a derived spelling their terms
+no longer denote the word orders their docstrings quoted ("with this
+creature's power or less"), they denote "with power less than or equal to
+this creature's power" — which is Earthshaker Khenra, Grenzo, Old Man of
+the Sea and the rest of the hundred-line "less than or equal to" mass. A pin whose term becomes
+attested English is a false pin, and the campaign's rule cuts in this
+direction too: the unwritten word order is not refused by the grammar any
+more, it is simply not what the spelling function produces, which is the
+round-sixteen posture (a cell that cannot be reached has no refusal to
+make). Recorded as a vocabulary fact here in its place.
+No SURVIVING pin's proposition moved. That is the contrast with chapter
+fifty-four's finding 388, where a widening shifted two pins onto a better
+question: here the four hundred twenty-seven pins that predate the round
+were green on the first build after it, because the bound test's other
+consumers never asked about the bound's class. The two replacements sit at
+the test's real zeros, one per frame and deliberately parallel:
+`badScaledBound` (`Compare Power AtMost (Times 2 (StatOf Power This))`)
+and `badScaledConditionBound` (`CompareAmt (PlayerStatOf LifeTotal You)
+AtMost (Times 2 (PlayerStatOf LifeTotal (a Opponent)))`), P
+`ComparableBound (Times …)` at both — one table, two readers, stated as a
+pin pair exactly as chapters forty-five and fifty-four stated theirs.
+
+**Finding 404 — the widening's threading obligation, discharged where the
+comment promised it would be.** `anyTargetFree`'s comparison row carried a
+note saying its True was warranted by the bound carrying no noun, and that
+`writtenBound` was "where a widened bound vocabulary is forced to come
+back and re-answer this". It is: the row now reads
+`amtAnyTargetFree`, a new full-row scan over `Amount` that reaches the
+noun inside every read. The same widening lets a bound ANNOUNCE — "power
+greater than target creature's power" is Fell the Mighty — so `predDelta`
+gains an explicit comparison row over a new `amtDelta`, `nounDelta`'s twin
+one vocabulary over. Every written bound answers both with the empty
+answer, which is why nothing that composed before the round moved.
+The CONDITION frame keeps its silence and it is worth naming: a condition
+introduces nothing (`condDelta`), so a bound written there that announces
+is dropped, exactly as the comparison's SUBJECT has been since chapter
+forty-four. The honest fix is one bindingless test over amounts at both
+slots, and it belongs to whichever round wants an announcing condition —
+this one did not build it because no witness needs it and because the
+subject side would have to be answered at the same time.
+
+**Finding 405 — six witnesses, and the family's real surface is a
+have-clause.** Timely Reinforcements lands WHOLE and carries both readers
+in one sentence pair: a player stat against a player stat ("if you have
+less life than an opponent") and then a count against a count ("if you
+control fewer creatures than an opponent"), which is what proves the
+widening is not the life read's private extension. Ensnaring Bridge lands
+WHOLE at the postnominal frame, whose vs-read half is where that frame's
+weight actually lies — seventy-seven supported lines bound a power,
+toughness or mana value by another read, against the numeral family's own
+thousands. Path of Bravery's first line is four landed pieces meeting: the
+conditional static, the anthem, chapter fifty-six's two player stats, and
+the or-relation spelled long because its bound is a read. Survival Cache
+is the queue's own headline sentence. Elderscale Wurm is finding 401's
+cell. Glorious Enforcer is the strict relation under a trigger's
+intervening "if", and it is also a recon correction: this round's brief had
+it blocked on a bare "each combat" timing, and chapter forty-five's
+bare-each ruling had already answered that — "each combat" is
+`EachPlayers`' second spelling, the same cell Vashta Nerada's "each end
+step" uses.
+What the widening unlocks past the bench is large and countable: the
+read-versus-read life family is twenty-four supported lines (the queue
+said twenty-six, measured by name and not by (name, face)), the
+count-against-count family — "controls more lands than you", "has more
+cards in hand than you" — is seventy-six lines across seventy cards, the
+"less than or equal to" mass is one hundred, and the strict vs-read
+qualifier is seventy-seven.
+
+**Finding 406 — what stays out, and the two silences that cost the most.**
+Nine of the twenty-four life lines are blocked on things this round did not
+touch: five write "if no opponent has more life than that player", a
+negated existential over a player set, three write "than each other
+player", the distributive standard `badDistributiveLifeTotalRead` already
+refuses, and Drain Life's is a clamp rather than a condition. Keeper of the
+Flame and Keeper of the Light want a PLAYER-headed comparison predicate —
+"target opponent who has more life than you do" — and the postnominal frame
+is `Predicate bs Object` with a `Characteristic` argument, so there is no
+cell for it at all, quite apart from their as-you-activate timing
+restriction. Sengir stays where chapter fifty-six left it, one snapshot
+rider away. And the strict-vs-written cell's own dominant mass is
+unwritable for a reader this grammar lacks: twenty-two devotion lines, plus
+twenty-six lines whose payload is "equal to the difference", an amount that
+reads the gap between the two sides of the comparison that licensed it.
+
+Ledger updates this chapter:
+
+- The read-versus-read comparison (**landed**): one bound test, two
+  frames, four relations, and the word derived.
+- Finding 60's frame-level claim (**corrected**, finding 401).
+- Glorious Enforcer (**backfilled** against this round's own recon).
+- **Recorded, not built**: `Eq` (4 lines); the announcing bound in the
+  condition frame; the player-headed comparison predicate; the
+  negated-existential player subject; X as a subject against a read.
+- Near-miss inventory: the DIFFERENCE amount, now 26 lines and this
+  round's largest single residue; devotion (22 lines); the distributive
+  standard "than each other player" (21 lines); the snapshot rider, which
+  costs Sengir a third time.
+
+## Chapter fifty-eight — the difference
+
+Chapter fifty-seven made a family of conditions writable and ended by naming
+what their payloads then wanted: "draw cards equal to the difference", the
+round's largest single residue. The queue carried it as one entry. It is
+three surfaces, only one of them is the anaphor the queue meant, and the
+one this grammar could copy from core was already wired end to end waiting
+for it. Bench: 293 positives / 432 pins.
+
+**Finding 407 — three surfaces, and the queue's entry was the third.** The
+DIRECTIONAL phrase "X minus Y" is thirty-four supported lines (The Rack's
+cycle of "3 minus the number of cards in their hand", stat-minus-numeral,
+count-minus-count). The EXPLICIT-OPERAND phrase "the difference between X
+and Y" is eleven lines of which six are supported, five of the rest being
+dice Contraptions. The BARE ANAPHOR "the difference" is twenty-six
+supported lines once the six "offering" reminder texts are set aside —
+those spell "the difference in mana costs between this and the sacrificed
+artifact", which is the explicit-operand phrase wearing the same word. The
+three want different machinery, and this chapter lands the first and the
+third.
+
+**Finding 408 — the correction the queue owed: core has the row, and its
+emitter has been calling this file's name for it.** The entry said the
+difference amount is a shape "no `Amount` row is shaped like and core has
+none either". The second half is false. `Count::Minus(a, b)` is in
+`deckmaste_core/src/count.rs` with its floor stated in the CR's own words
+([CR#107.1b] — a calculation that would yield a negative number uses zero
+instead), the evaluator saturates rather than wrapping with a test
+asserting that two minus five is zero (`resolve/count.rs`), and the
+plugin's Idris emitter writes `app("Minus", [a, b])` toward this grammar
+(`deckmaste_plugin/src/idris_emit.rs`). That is the `PlayerStatOf`
+situation exactly: core held a name in trust and the emit path would have
+produced a term this file could not receive. The honest wider statement is
+that the emitter names six arithmetic rows — `Min`, `Max`, `Plus`,
+`Minus`, `Times`, `Half` — and this vocabulary now has three of them, so
+the trust is a standing debt and not a one-row oversight.
+`Minus` is `Plus`'s twin in every part, including the threading order (the
+second operand reads after the first) and the two Bool tables: it is
+neither written nor read, so `comparableBound` keeps it out of a
+comparison's bound slot with no new gate and chapter fifty-seven's two
+scaled-bound pins are untouched.
+
+**Finding 409 — the row lands witness-free, and the blocker is a rider
+worth its own round.** Eighteen of the thirty-four minus lines write
+"where X is 4 minus the number of cards in their hand" — the DEFINITION
+rider, an X whose value is fixed by the ability's own text rather than
+announced with a cost. This grammar's `XVal` is the cost-announced X
+([CR#107.3a]) and nothing else, so those eighteen are blocked on a rider
+that has never been built. The remainder are individually blocked: Mr.
+Foxglove wants the defending-player noun, Dark Deal and Sycorax Commander
+want a discard's count in the outcome telescope (the sorts there are
+damage and life), Roiling Horror and Scourge of the Skyclaves are
+characteristic-defining abilities over a superlative, Sworn Defender and
+Winter are layer words. So the row is minted with its bench recorded as
+owed, which is `TwoNextSteps`' posture and the tenth time this campaign has
+taken it — and the rider is the thing actually worth measuring: "where X
+is" is ELEVEN HUNDRED AND EIGHTEEN supported cards, which makes it one of
+the largest unbuilt gates in the ledger and not a footnote to this family.
+
+**Finding 410 — the gap is a second magnitude sort, and finding 76's
+opacity is not revised to get it.** "The difference" reads the margin by
+which a comparison held, so the licensing condition has to contribute
+something. The doctrine that governs this is already written at
+`condIntro` (chapter fifty's `condSubjIntro`, renamed here for what it
+now does): the CONTAINER threads and the `Condition` stays opaque —
+`condDelta` still answers the empty list on every row, so a mention
+written inside a condition still reaches nothing. What the container reads
+is a separate projection, and this chapter adds its second row:
+`condIntro (CompareAmt _ _ _) = gapB :: bs`.
+The sort is NEW and not `Outcome`, which is the finding's substance.
+`Outcome` is the magnitude of what a clause DID, read as "that much"; a
+condition does nothing, and its margin is read as "the difference". Filing
+the gap under `Outcome` would have let each anaphor spell where the other
+belongs and made each one's uniqueness gate the other's business — a
+condition in scope would have broken a legitimate "that much" by making
+the telescope hold two. So `Kind` gains `Gap` and `Payload` gains `GapP`.
+The blast radius was measured before the choice and is entirely
+mechanical: nine `sameKind` cells, fourteen payload rows that already had
+an `Outcome` row apiece, one `lookbackSubjectOk` row and one `setZone`
+row. No gate flipped, no proposition moved, and the whole bench was green
+on the first build after the sort landed — because every function that
+counts the telescope counts it BY SORT.
+
+**Finding 411 — the gap read is the first construction to notice that
+`If` types one orientation and spells two.** The corpus writes the margin
+in the leading order every time: twenty-six of twenty-six put the
+comparison first. This grammar types the leading order at exactly two
+containers — `Conditionally`, whose statement has been typed at the
+condition's contribution since chapter fifty, and the trigger's INTERVENING
+slot, which is where the family actually lives (five of the six writable
+lines are a trigger with an intervening "if", [CR#603.4]'s double check,
+and not an effect-level conditional). `Conditionally` needed no signature
+change at all. `Triggered` needed its effect typed at
+`interveningIntro intervening`, which cost the DECLARATION a reordering and
+the call sites NOTHING: a named implicit is position-free at the call site,
+so all thirty-five headers — including the thirteen that write
+`{intervening = …}` after the effect — compile unchanged, and no pin moved.
+`Effect.If` cannot join them, and the reason is structural rather than
+missing work: its condition is typed at `preIntro e`, reading what the
+effect announced, which is what the trailing family needs
+(`badTrailingPostStateZone` refuses a condition that reads a post-state
+zone precisely there). One constructor cannot type both arguments in each
+other's context — finding 362's rule at a third site — so the three
+`If`-carried gap lines wait on the second orientation the queue already
+carries for the conditional's trailing flow. The claim was probed rather
+than assumed: Balance of Power's condition half ("target opponent has more
+cards in hand than you") compiles today, unbenched, so the orientation is
+the whole of what that card waits on.
+
+**Finding 412 — what lands, and the two rounds compose at the licence.**
+Damia, Sage of Stone and Krang, Master Mind take the two trigger words and
+two events; Doctor Octopus, The Ten Rings and Kozilek write the same
+sentence at their own numbers. The composition with the previous chapter is
+exact and worth stating: every one of the six writable lines licenses its
+gap with "if you have fewer than N cards in hand", which is the STRICT
+relation against a WRITTEN bound — the cell chapter fifty-seven's finding
+401 had to un-refuse against chapter sixteen's claim that it was written
+zero times. Without that correction this family has no writable member at
+all.
+Three pins, all measured zeros and each at a different question.
+`badUnlicensedDifference` refuses the margin where no comparison was made
+(P `countOnes Gap [] = 1`); `badNonComparisonDifference` refuses it under a
+condition that holds by no amount ("if you control a creature, draw cards
+equal to the difference" — same equation, indexed at the trigger's own
+context, which is what discriminates them); and `badDifferenceSubject`
+refuses the margin as a comparison's SUBJECT (P `ReadAmount TheDifference`),
+which is the row declaring that a magnitude a clause reads is not a game
+state a clause measures. `Minus` in a bound slot is refused too, by chapter
+fifty-seven's pair, and is recorded rather than pinned again.
+
+**Finding 413 — the between-surface is DEFERRED, and the reason is a floor
+that would mis-model it.** Plain English "the difference between 2 and 5"
+is three. A directional floored `Minus` yields zero, so writing the
+explicit-operand phrase with the row this chapter landed would be wrong
+whenever the stated order puts the smaller first — Jaws of Defeat's
+"difference between that creature's power and its toughness" on a 2/5 is
+the concrete case, and Psychic Transfer's "if the difference between your
+life total and target player's life total is 5 or less" is the same
+symmetry as a comparison's subject. All six supported lines read
+symmetrically, so the surface wants its own row (an absolute difference,
+or `Max` over the two directional differences) and not this one; with four
+of the six blocked elsewhere — two on `Gets`' integer-only pump, two on the
+unbuilt life exchange — the honest move is to record the symmetry and
+leave the row unminted.
+The trichotomy this round leaves in the record: the FLOOR belongs to
+computed amounts ([CR#107.1b]); the SYMMETRY belongs to the between-phrase;
+and the SIGNED value belongs to the same rule's carve-out, which is exactly
+where Roiling Horror's "your life total minus the life total of an opponent
+with the most life" sits — a characteristic-defining ability setting power
+and toughness, which [CR#107.1b] exempts from the floor. Three different
+answers about negative numbers, one rule, and only the first is this
+chapter's.
+
+Ledger updates this chapter:
+
+- The DIFFERENCE amount (**landed**, the anaphor): one new magnitude sort,
+  one condition contribution, two containers.
+- The directional `Minus` (**landed**, bench owed): core parity, floor and
+  all.
+- The queue's "core has none either" (**corrected**, finding 408).
+- **Recorded, not built**: the between-surface (6 supported lines, symmetric);
+  the gap under `Effect.If` (3 lines, blocked on the orientation); the gap
+  off a CHOICE-clause comparison (Boreas Charger, Sandstone Oracle,
+  Slithermuse) and off a superlative one (Tales of the Ancestors,
+  Scholarship Sponsor).
+- Near-miss inventory: the "where X is" definition rider, 1,118 supported
+  cards and the largest gate this chapter met; the fronted-conditional
+  orientation, now costing three families; the signed CDA.
+
+## Chapter fifty-nine — the definition rider
+
+Chapter fifty-eight met this family sideways: eighteen of the thirty-four
+`Minus` lines turned out to ride "where X is …", and the measurement that
+followed made it the largest single unbuilt gate the ledger had ever
+named. Eleven hundred and eighteen supported cards. This chapter builds it,
+and almost all of the work is deciding what kind of thing X is. Bench: 297
+positives / 435 pins.
+
+**Finding 414 — one letter, two rules, two rows.** [CR#107.3a] governs the
+X announced with a cost: the controller chooses the value as the spell is
+cast, and that is `XVal`, which this grammar has had since chapter
+twenty-seven. [CR#107.3c] governs the X the text defines: "that's the value
+of X while that spell or ability is on the stack. The controller … doesn't
+get to choose." Two rules, and the corpus keeps them apart as sharply as
+the CR does — of the 1,118 rider cards exactly ONE also has {X} in its mana
+cost. So the definition rider is a second row and not a widening of the
+first, and `XVal`'s rule is untouched.
+The single overlap is worth recording because it looks like a
+counterexample and is the opposite. Riptide Replicator's cast-time {X}
+sets the charge counters it enters with ([CR#107.3a]), and its ACTIVATED
+ability then defines a second X off those counters — [CR#107.3c] fixes
+that one from the ability's own text, and [CR#107.3m] leaves the
+permanent's own X at zero once the spell has resolved, so the card's two
+letters are two values by the rules' own arithmetic and never meet. One
+card, two rules, no conflict.
+
+**Finding 415 — a binder, not sugar, and the corpus is what decides it.**
+Seven hundred and eighty-one of the rider lines use X exactly once, and for
+those the rider IS sugar: the direct spelling says the same thing, and 551
+supported cards write that unsugared "equal to the number of …" form. The
+migrations layer read the family exactly that way — its regex pipeline
+inlines a single-use rider at its use site, and its where-X and equal-to
+tests produce byte-identical IR. But three hundred and thirty-seven lines
+read one binding at two or more sites, and there inlining changes what the
+card says: Harsh Sustenance's "deals X damage to any target and you gain X
+life" would count the creatures twice. A sugar reading serves 70% of a
+family and cannot say what the other 30% means, so the row is a real
+binder.
+Both halves go through it. The alternative — binder for the multi-use
+lines, direct amount for the single-use ones — would fork one construction
+into two on a distinction the CARD does not draw: the corpus chose the
+rider spelling on all 1,118, and this grammar spells what is written. The
+equivalence is a fact worth recording (and recorded here), not a fork.
+
+**Finding 416 — the scope is the EFFECT, and [CR#107.3i]'s wider default is
+measured to be unexercised.** The rule makes X object-wide: "Normally, all
+instances of X on an object have the same value at any given time", with four
+narrowing exceptions of its own ([CR#107.3k] and [CR#107.3m] among them). The corpus does not use that
+width. Of 1,118 cards, NINE write X anywhere outside the rider's own
+ability, and every one of the nine accounts for itself: seven carry a
+SECOND rider, one per ability (The Archimandrite's upkeep trigger and its
+life-gain trigger each define their own X); one is Riptide Replicator; and
+one is Shark Typhoon, whose other X is a cycling cost's announced value
+([CR#107.3a]) read by the trigger that cycling fires — not a rider's. So no card needs one
+rider to bind two abilities, and `WhereX` binds over one `Effect`.
+Within that effect the letter stays readable to the end (`effIntro` and
+`annIntro` pass the body's answer through), which is [CR#107.3i] at the
+scale the corpus actually writes and is what the later-sentence readers
+need — Balin, Loremaster's "Draw X cards, where X is …. If you have an
+enduring story, Balin deals X damage to each opponent" reads the same
+letter one sentence on.
+
+**Finding 417 — a gap at both layers, with a mis-aimed comment and a
+ward-shaped precedent.** Core has ONE `Count::X`, and its evaluator
+`.expect()`-panics on a frame with no announced value — "a card referenced
+X without an {X} cost". Its comment names [CR#107.3a] for what it does
+implement and [CR#107.3f] as "a separate seam", and that rule is the
+DISCRETIONARY text-X the controller chooses. The 1,118-card family is
+[CR#107.3c], which the comment does not mention, so the seam core knows it
+has is not the seam it is missing. Recorded, not edited — the correction
+is the finding.
+The nearest thing to a rider in core is `TriggeredAbility.where_x`, and it
+is ward-toll pricing metadata: its own doc names [CR#702.21b] and Minthara,
+it is consumed by one cost-pricing call site, and it never feeds the effect
+body. The plugin's Idris emitter is explicit about the rest — it returns a
+gap error, "TriggeredAbility.where_x not yet mapped". So this row is the
+first definition rider at either layer, and by the merge doctrine the
+measurement here is the core's too.
+
+**Finding 418 — what the rider refuses, and why the gate is the
+complement of a written value.** `xDefines` is `not (writtenBound d)`:
+everything a sentence can compute may define a letter, and nothing it has
+already written may. "Where X is 4" is written zero times because the
+numeral would say it, and "where X is X" is written zero times because it
+would say nothing. Every attested right side passes, including the
+arithmetic ones this campaign minted for other reasons — "1 plus the number
+of basic land types", "twice the number of Foods you control", and the
+`Minus` of Ivory Tower's family.
+Three pins, one per question the family raises. `badUnlicensedX` refuses
+the letter where no rider defined one (P `countOnes Letter [] = 1`);
+`badWrittenXDef` refuses a written definition (P `XDefinition (Lit 4)`);
+and `badDoubleXRider` refuses two riders over one effect (P
+`countOnes Letter [letterB, letterB] = 1` — the seven double-rider cards
+give each rider its own ability, and a letter defined twice names nothing).
+The double-rider cards and the three Y cards are ATTESTED and are not
+pinned: [CR#107.3p] gives Y the same rules as X, which is why the sort is
+`Letter` and not `DefinedX` — Y will be a second word for this row rather
+than a second sort, and all three of its cards ("where X is … and Y is …")
+write two clauses, never a joint definition.
+
+**Finding 419 — the sort argument, run for the third time.** `Letter` is
+the third clause-introduced magnitude sort and it is counted apart from
+the two beside it for the reason they are counted apart from each other: an
+`Outcome` is the magnitude of what a clause DID, a `Gap` the margin by
+which a comparison HELD, and a letter neither — it is a name the sentence
+introduced. The three are read by three different words ("that much", "the
+difference", "X"), and sharing a sort would let each word spell where
+another belongs and make each anaphor's uniqueness the others' business.
+The cost was again entirely mechanical and again flipped nothing: eleven
+`sameKind` cells, fourteen payload rows, one `setZone` and one
+`lookbackSubjectOk` row, plus eight `Effect` rows for the new
+constructor — the transparent-wrapper answers `Composite` already gives.
+Whole bench green on the first build after each.
+
+**Finding 420 — four witnesses, and the debt one of them retires.** Krenko,
+Mob Boss is the rider at its cleanest (one definition, one read, a count on
+the right; the catalog grew the word `Goblin`). Chain Reaction lands WHOLE,
+its definition counting the very set its damage is dealt to — which is why
+the card writes a letter instead of repeating the phrase. Ivory Tower lands
+WHOLE and pays chapter fifty-eight's debt: `Minus` was minted there with no
+bench line at all, and this is what its five corpus lines were waiting for,
+floor and all ([CR#107.1b] — a hand of two gains nothing, not minus two).
+Harsh Sustenance lands WHOLE as the MULTI-MENTION witness, which is the
+half of the family the sugar reading cannot serve.
+What stays out is countable. Three hundred of the 1,118 are the pump
+("gets +X/+X"), doubly blocked on `Gets`' integer-only deltas; the X/X
+TOKEN is blocked the same way one field over, `TokenChars` carrying
+`Maybe (Nat, Nat)`, which is why the round's multi-mention witness is a
+damage-and-life pair rather than the token shape the corpus writes most.
+Body of Research was checked and is not free for a third reason: its "Put X
++1/+1 counters on IT" reads a token back, and `Create` announces no token
+([CR#111.1]). On the definition side the writable right sides are 938 of
+the 1,118 — counts 633, power and toughness 179, mana value 113, life
+totals 13 — and the blocked ones keep their own entries: the superlative 69,
+the "amount of" magnitude read 58, devotion 17, die results 12, half 6,
+excess 5.
+
+Ledger updates this chapter:
+
+- The "where X is" definition rider (**landed**): one binder, one letter
+  sort, one anaphor.
+- `Minus`'s bench (**paid**, chapter fifty-eight's owed witness).
+- Core's [CR#107.3f] comment (**recorded as mis-aimed**, finding 417).
+- **Recorded, not built**: Y ([CR#107.3p], 3 cards); the object-wide scope
+  [CR#107.3i] licenses and nothing writes; the sugar equivalence.
+- Near-miss inventory: the variable pump and the X/X token, one integer
+  field each and 300-plus lines between them; the superlative and the
+  "amount of" read, which are the two big blocked right sides.
+
+## Chapter sixty — the variable pump
+
+Chapter fifty-nine landed the definition rider and ended by naming what it
+could not reach: three hundred of its eleven hundred and eighteen cards
+write the pump, and the X/X token is the shape the family writes most.
+One integer field each stood in the way — `Gets`' pair of `Integer`s and
+`TokenChars`' `Maybe (Nat, Nat)` — and between them they cost more corpus
+lines than any other gate the ledger named. This chapter changes both
+fields and finds that most of the work had already been done, in this file
+and in core, by rounds that were building something else. Bench: 300
+positives / 437 pins.
+
+**Finding 421 — the sign belongs in the constructor, and both layers had
+already said so.** Core's `NumericOp` is `Set(StatValue)`, `Up(Count)`,
+`Down(Count)`, and its own comment on the `Set` row draws the line this
+round needed: the value SET "can be a printed-style scalar (incl.
+negative, [CR#107.1b])" while "`Up`/`Down` deltas stay non-negative
+`Count`". That is the whole design. A modification's direction is a word
+English writes ("+"/"−") and its magnitude is an ordinary amount, so
+`PtShift` has two rows and holds an `Amount`, and no signed number system
+is minted anywhere. [CR#107.1b] is what makes that safe: a calculation
+yielding a negative uses zero instead, and its carve-out is for doubling,
+tripling and SETTING a life total or a creature's power and toughness —
+setting is layer 7b's business ([CR#613.4b]) and this row is layer 7c's
+([CR#613.4c]). A "-X/-X" whose X exceeds the toughness simply kills.
+The same idiom was already in this file one vocabulary over.
+`Counter.Delta` has carried `Up Nat` / `Down Nat` since the counter round,
+with a doc note that a zero component is a valid one, and this row is its
+discourse-indexed twin. The two SLOTS are independent and the corpus is
+why: "+2/-2" is a hundred and one supported lines and "-1/+1" is twelve,
+so the pair is two signs and not one sign over a pair.
+
+**Finding 422 — the untouched slot's sign is not free, and the table has
+one gap this grammar refuses.** A written zero is signless in meaning, so
+which sign English prints on it is a spelling fact, and the corpus fixes
+it absolutely. Nine cells are attested — "+N/+N" 2,300 lines, "+N/+0"
+1,120, "-N/-N" 383, "+0/+N" 146, "-N/-0" 129, "+N/-N" 101, "-N/+N" 12,
+"-0/-N" 10, "+0/+0" once — and the four cells where a written zero
+DISAGREES with its partner ("+0/-N", "-0/+N", "+N/-0", "-N/+0") are zero
+between them. So `pumpSignsOk` makes the zero slot follow its partner:
+a canonicality gate, `TokenCanonical`'s job at a second site, leaving one
+term per pump instead of two that spell the same modification
+(`badDisagreeingZeroPump`). The both-zero pair is left alone — "+0/+0"'s
+single instance is inside Starlight Spectacular's reminder text and
+"-0/-0" is unwritten, and a rule telling those apart would be a rule
+about a cell that says nothing.
+The migration corrected a spelling on the way through. The old pair of
+integers could not write a sign on a zero at all, so Merrow Grimeblotter's
+bench line spelled the card's "-2/-0" as "-2/0"; it now says "-2/-0",
+which is what the card says. A widening found it, which an audit of
+the bench would not have: nothing was wrong with the term, the vocabulary
+simply could not say the printed sign.
+
+**Finding 423 — the for-each pump falls out of the signature and nothing
+else.** "Adelbert Steiner gets +1/+1 for each Equipment you control" is
+353 supported cards, and it needed no vocabulary: `nForEach` has been
+`Times n (CountOf p)` since the granularity round put the head demand on
+the count and the numeral demand on the scaling, so a slot that takes an
+amount takes it. The only decision the family forced was where the slots are
+TYPED, and the corpus decided it: 46 supported cards write a domain that
+reads the subject back — "for each Aura attached to it" (Auramancer's
+Guise), "for each of its colors" (Blessing of the Nephilim), "for each
++1/+1 counter on it" (Clamavus) — so both slots are typed in the subject's
+context (`nomIntro n`) and not in the raw one. What the clause contributes
+OUTWARD is unchanged, the subject and nothing else, a computed magnitude
+announcing no more here than it does at `EntersWithCounters`.
+
+**Finding 424 — the token's power and toughness go computed, and the
+record takes the index.** `TokenChars` was a binding-free record, which is
+exactly the observation the `EntersWithCounters` note
+recorded when it put an amount somewhere else ("`TokenRider` is SHARED
+with `TokenChars`, an unindexed record, so an `Amount bs` cannot go in it
+at any price"). This round indexes the record, which is the move that note
+was avoiding, and the cost was two mechanical things and one lesson.
+The mechanical things: the record and its four gates move INTO the mutual
+block, since `Amount` is declared there (chapter forty-four's relocation,
+the same pattern); and `creatureTok` keeps taking numerals and wraps them,
+`entersWithCounters`' shape, so twenty call sites that write a number
+still write a number. The lesson: `tokenPtOk` was a `case` over a pair,
+and a `case` inside a mutual block lifts to a function the POSITIVITY
+checker cannot see through — "TokenPt is not total, not strictly
+positive". Rewritten as two tests joined, with the same truth table, it
+elaborates. Worth recording because nothing else in this file has met it:
+the token gates are the first data types in the mutual block to index a
+record whose own checker is a lifted function.
+The shape is core's read as English. Core's `Token` carries two
+independent `Option<StatValue>` fields, each of which may be a number or
+a computed value; the pair-in-one-`Maybe` here says the same thing about a
+corpus that writes power and toughness as a single "N/N" phrase and never
+one without the other. Sixty-two supported cards write the X/X token, 52
+of its 63 lines under a rider.
+
+**Finding 425 — Y is a word on the row, and the joint clause is two riders
+nested.** Chapter fifty-nine named the sort `Letter` rather than
+`DefinedX` on the promise that [CR#107.3p] makes Y "a second WORD for this
+row, not a second sort". The promise is kept by putting the word in the
+KIND: `Letter LetterWord` is `Quality QualitySort`'s shape at the sort
+beside it, `countLetter` is `countQuality`'s twin, and the uniqueness each
+anaphor demands is asked per NAME — which is the whole reason the word
+cannot live in the payload instead, since `countOnes Letter` would then
+count two letters as two and refuse every single-letter read on a
+two-letter card. `DefinedLetter` is one row indexed by its word — the
+one-row-indexed idiom the counter kinds, the face verbs and the
+designations all took — and `WhereLetter` takes the word it binds.
+The joint definition is nesting. All three Y cards write ONE clause
+("…, where X is the exiled creature card's power and Y is its toughness")
+and a joint "where X and Y are …" is written zero times, so the clause is
+two riders in sequence: the inner definition typed in the outer letter's
+context, the body reading both. That elaborated on the first build — the
+probe is recorded here rather than benched, since it is not a card's own
+sentence — and the pin is `badUnlicensedY`, a Y read under an X-only
+rider, which is what per-word counting buys and per-sort counting could
+not say. `badDoubleXRider` survives with its proposition re-keyed onto the
+word: two X riders are still two X mentions.
+
+**Finding 426 — [CR#107.3c] is narrower than the round that cited it, and
+the static line is a different value regime.** The rule reads "If a spell
+or activated ability has an {X} … in its cost and/or its text, and the
+value of X is defined by the text of that spell or ability, then that's
+the value of X while that spell or ability is ON THE STACK." Two things
+follow that chapter fifty-nine did not separate. A TRIGGERED ability's
+rider is covered by [CR#107.3]'s own opening sentence ("Some objects have
+abilities that define the value of X") and not by the list [CR#107.3c]
+draws, which is
+a correction to the citation and not to the row — the rider Ivory Tower
+writes is still this one.
+And a STATIC ability never goes on the stack at all, so [CR#107.3c] cannot
+reach the line Death's Shadow writes. The regimes are genuinely two:
+[CR#611.2d] fixes a resolving spell or ability's variable "only once, on
+resolution", which is the pump this round built; [CR#611.3a] says a
+continuous effect from a static ability "isn't 'locked in'; it applies at
+any given moment to whatever its text indicates", which is Death's Shadow
+tracking a life total that changes. So the static-line rider is a family
+of its own and not a widening of `WhereLetter`: sixty of the rider's pump
+lines sit there, and about a hundred and forty of its lines altogether.
+Death's Shadow, Bonehoard, Carrion Grub and Phyrexian Ingester are all
+waiting on that one row, which is a ledger entry and not a footnote.
+
+**Finding 427 — three witnesses, two pins, and a migration that moved no
+proposition.** Nightmarish End lands WHOLE and is the pump the two
+integers could not spell at all: a negative modification whose magnitude
+is read, its right side Ivory Tower's own count one card over. Adelbert
+Steiner is the for-each pump, benched as its ability (its Lifelink line
+waits on the keyword catalog), and the catalog grew its first ARTIFACT
+type on the way — `Equipment` ([CR#205.3g,301.5]), a set-membership fact
+the subtype table asks for before a word can be written. Dokai, Weaver of
+Life is the computed token, the two changed fields meeting in one clause.
+Bioplasm was tried as the joint-Y witness and is blocked honestly: after
+"exile the top card of your library" its "if it's a creature card … where
+X is the exiled creature card's power and Y is its toughness" reads a
+pronoun with TWO object mentions in scope — the trigger's own attacking
+subject (chapter forty-eight) and the exiled card — and finding 349
+recorded that this grammar does not model English's subject preference.
+That gap now costs a real card rather than an over-generation.
+The migration is the round's other number: 37 pump call sites and 7 raw
+token bundles, all mechanical, and the whole 435-pin bench was green on
+the first build after each change. Three propositions moved and all three
+are renames the round chose — `badUnlicensedX` and `badDoubleXRider` are
+now `countLetter LetterX …` where they were `countOnes Letter …`, and
+`badWrittenXDef` is `LetterDefinition` where it was `XDefinition`. No pin
+moved because a gate flipped.
+
+Ledger updates this chapter:
+
+- The variable pump (**landed**): the sign in the constructor, the
+  magnitude an amount, and the for-each family free with it.
+- The X/X token (**landed**): `TokenChars` indexed, its P/T two amounts.
+- The letter Y (**landed**): a word on the `Letter` row, riders nested for
+  the joint clause; witness-free, all three cards blocked elsewhere.
+- Chapter fifty-nine's [CR#107.3c] scope (**corrected**, finding 426).
+- **Recorded, not built**: the static-line rider (60 pump lines, ~142
+  altogether, [CR#611.3a]'s regime); Bioplasm's pronoun; the both-zero
+  pump cell.
+- Near-miss inventory: the layer words, which now hold base-P/T setting
+  ([CR#613.4a,613.4b]) and Aettir and Priwen's "base power and toughness
+  X/X" as well as everything they held before; the 7d switch; "half"
+  (6 lines), which is all that stands between Aspect of Wolf and its
+  second letter.
+
+## Chapter sixty-one — the statement's rider
+
+Chapter sixty built the pump and then measured what its binder could not
+reach: sixty of the rider's pump lines are not instructions at all but
+static ability LINES, and Death's Shadow — the round's own intended
+marquee — had to be demoted for it. This chapter is that row. It is small,
+it is almost entirely a second frame for vocabulary that already existed,
+and the two interesting things in it are a rule reading and a core
+finding that points nowhere. Bench: 303 positives / 439 pins.
+
+**Finding 428 — one binder, two frames, and the rules keep them apart
+exactly as the corpus does.** `WhereLetterStatic` is `WhereLetter` with a
+`StaticEffect` where the `Effect` was, which is `Compare`/`CompareAmt`'s
+relation one vocabulary over: one binder, two containers, and what differs
+is what it binds over rather than what it means. The reason it is a ROW
+and not a widening is the value regime, and both halves are written down.
+A resolving spell or ability's variable "is determined only once, on
+resolution" ([CR#611.2d]); a continuous effect from a static ability
+"isn't 'locked in'; it applies at any given moment to whatever its text
+indicates" ([CR#611.3a]). Death's Shadow IS that second sentence — a 13/13
+whose -X/-X follows a life total as it changes — so the two frames cannot
+share a constructor without one of them lying about when its letter is
+read. The statement's own filing is [CR#604.1] ("written as statements,
+and they're simply true") generating a continuous effect by [CR#604.2],
+and the letter's licence is [CR#107.3]'s opening sentence rather than
+[CR#107.3c], which chapter sixty found reaches only what goes on the stack.
+The one design choice inside the row is what `StaticKind` it answers, and
+it answers its BODY's. `Conditionally` has a kind of its own because an
+"as long as" clause is itself a statement class with an adverbial profile;
+a rider is a definition, and the sentence it rides is still a pump or an
+entry line. So all three tables recurse (`staticKind`, `staticLineOk`,
+`staticIntro`) and every table keyed on the kind goes on answering about
+the statement English writes.
+
+**Finding 429 — the first row whose merge doctrine points nowhere: core
+needs nothing.** Every recent chapter has found core either ahead
+(`PlayerStatOf`, `Minus`, both names held in trust) or exactly parallel
+(`NumericOp` last chapter). Here core has no rider field on a static
+effect and does not want one: it embeds the live `Count` inside the
+`Modification` itself, and the engine's layer test says why in its own
+words — a CDA setting power and toughness to a count "resolves to the live
+creature count, and tracks the board as creatures are added ([CR#604.3,613.6]
+— the count is re-derived each layer pass)". Death's Shadow in core is
+`Modification::Power(NumericOp::Down(Count::PlayerStatOf(LifeTotal, You)))`
+twice, with the query inlined at each read site and no letter anywhere.
+The letter exists because ENGLISH will not write the same phrase twice,
+which is the discourse fact this workbench was built to model and the
+representation layer has no reason to carry. So this row is a pure Idris
+round, and that is the finding rather than a gap: the merge doctrine says
+what to build when both layers have a shape, and this is the first time
+the answer has been that only one of them ever should.
+
+**Finding 430 — the family decomposes into consumers, and one of them was
+already free.** A hundred forty-two supported rider lines sit in a static
+ability's position, and they are not one construction: the PUMP is 54, the
+cost reduction "this spell costs {X} less to cast" is 25, the entry
+replacement "enters with X +1/+1 counters on it" is 23, a residue of 31
+that a line-shape classifier cannot separate from Saga chapter abilities,
+prevention 3, activation-cost reduction 2, the numeric keyword parameters
+(annihilator X, mobilize X) 3 by a narrow count, and base power and
+toughness 1. The wrapper serves every one of them whose statement this
+grammar already has a row for, which is the point of a transparent binder.
+The entry replacement is this chapter's windfall and it cost nothing at
+all: `EntersWithCounters` has taken an `Amount` since it was minted, and
+`writtenCount` has answered True for the letter since chapter fifty-nine,
+so those 23 lines were blocked on the wrapper and on nothing else. Stag
+Beetle lands whole on the first build. That is the second round running
+where a family fell out of a signature that was already general enough —
+the for-each pump was the first — and it is worth naming as a pattern:
+when a round widens one field, the families waiting on it are usually
+waiting on the CONTAINER, not on the field.
+What the wrapper does not serve is the cost reduction, and that is the
+round's discovery rather than its work: there is no `StaticEffect` row for
+modifying a cost at all, so those 25 lines (Ghalta, Chandra's Incinerator,
+Cavern-Hoard Dragon) are blocked twice over. New ledger entry.
+
+**Finding 431 — one term per sentence, measured at a third site.** Both
+orders are expressible once the row exists: a rider outside a duration
+envelope (`WhereLetter` over `Continuously`, chapter fifty-nine's) and a
+rider inside it (`Continuously` over this row). They spell the same
+sentence, so one of them has to go, and the corpus says which: of the pump
+lines that carry both, 245 write the adverbial FIRST — "gets +X/+0 until
+end of turn, where X is the amount of mana spent to cast that spell" — and
+not one writes a duration after the rider. So `NotLetterRider` gates
+`Continuously`, the rider stays outside, and `badRiderInsideDuration` is
+the pin. It is `pumpSignsOk`'s discipline at a third site after
+`TokenCanonical`'s: where two terms spell one sentence, the gate leaves
+one.
+The same question about the "as long as" clause is NOT gated, because it
+is not measured: no corpus line carries both a rider and a conditional
+static, so both orders are silent rather than one being written. The
+composition was probed and elaborates in the corpus's order (rider
+outermost, the definition trailing the whole sentence); the reverse is
+admitted and unwritten, and recorded here rather than refused.
+
+**Finding 432 — the self-reads split in two, and neither one is a
+threading problem.** The static rider's definitions read the source twice
+over: a SUBJECT-self ("this creature gets +X/+X, where X is the greatest
+number of stored results ON IT", Centaur of Attention) and a SOURCE-self,
+where the definition reads the permanent the ability is printed on while
+the statement modifies something else ("Equipped creature gets +X/+0,
+where X is the number of rev counters on this Equipment", Chainsaw; also
+Opaline Bracers and Bloodspore Thrinax). The second looked like it might
+need the wrapper to reach past its own body, and it does not: `This`-style
+nouns have been exophoric since chapter forty-eight, so `thisArtifact` is
+available in the definition slot at any context, and the probe elaborates
+on the first build. What actually blocks all three cards is the COUNTER
+CATALOG — rev counters, charge counters — and, for Bloodspore Thrinax, the
+word "additional". A catalog debt and a rider debt look identical from the
+outside; this one is the catalog's.
+
+**Finding 433 — a premise correction: Phyrexian Ingester is not this
+round's Y card, and the gap under it is bigger than a noun.** The queue
+entry this chapter replaces said the last writable Y card was waiting
+here. It is not. Its second letter reads "the exiled creature card's
+power", and the exile happens in a DIFFERENT ability — the imprint
+trigger — so what the sentence needs is a reference that survives from one
+ability to another. This grammar has both pieces a same-ability version
+would use: `ExiledWith` links a card to its source as a predicate, and
+`TheVerbed Exile` reads a verbed mention back definitely. Both are
+discourse-local by construction, and the discourse is one ability wide.
+Core has no imprint primitive either — the one occurrence of the word is a
+doc aside about Chrome Mox, and `Count::Noted(Ident)` is a NUMBER read
+back from a slot ([CR#607.2] linked values), not an object reference. So
+this is a cross-ability memory gap at both layers, with two named payers
+(Phyrexian Ingester, Drach'Nyen) and an entry of its own. The letter Y is
+witness-free for a second round, and honestly: of its three cards, one
+wants "half … rounded down", one wants the pronoun preference chapter
+sixty named, and this one wants a memory neither layer has.
+
+**Finding 434 — three witnesses, two pins, and nothing else moved.** Death's
+Shadow lands WHOLE, which is the round's whole point: the marquee chapter
+sixty had to demote is the sentence [CR#611.3a] describes. Spontaneous
+Mutation is the family's most-written subject (the attachment host) and
+the place where the two rounds meet — its untouched slot writes "-0", the
+sign chapter sixty measured, while its other reads a letter. Stag Beetle
+is the entry replacement, whole and free. The pins are the duration order
+(above) and `badDoubleStaticRider`, whose proposition is DELIBERATELY the
+one `badDoubleXRider` already carries: one letter defined twice names
+nothing, and the two frames sharing a refusal is the thesis that they are
+one binder — the pin pair chapters forty-six and fifty-four both stated
+the same way.
+The row cost three table rows, one gate and one catalog line, and moved
+nothing: all 437 pins that predate the chapter were green on the first
+build, no proposition shifted, no rule needed blessing.
+
+Ledger updates this chapter:
+
+- The static-line rider (**landed**): one binder, two frames, the body's
+  kind passed through.
+- The enters-with-counters bucket (**landed free**, 23 lines).
+- The queue's "last writable Y card" (**corrected**, finding 433).
+- **Recorded, not built**: the cost-reduction static (25 lines, no row for
+  it at either end); the cross-ability reference (2 payers); the rider
+  under a conditional (both orders silent).
+- Near-miss inventory: the counter catalog, which now costs the source-self
+  witnesses as well as its own lines; the numeric keyword parameters
+  (annihilator X, mobilize X), double-blocked on the keyword catalog;
+  "half" (6 lines), still all that stands between Aspect of Wolf and the
+  second letter; base power and toughness, still layer 7b's.
+
+## Chapter sixty-two — the aggregate amount
+
+Chapter fifty-six named this row and left it standing: the extremal read
+"wants aggregation this grammar has none of, where core already has
+`Aggregate(MaxOf, …)` cited to Arbiter of Knollridge by name — a rare case
+of core being strictly ahead". Six chapters later the deferral closes, and
+the first thing the round found was that the sentence was wrong about where
+the prior art lives. Bench: 307 positives / 441 pins.
+
+**Finding 435 — the name was not held in trust for this file, and the
+worked machinery is one module over.** Core's fold carries four pointers
+into Idris: "the Idris `AggregateOp`", "the Idris `Project`", "Idris's
+`Projectable`/`readableOn` gate", "Idris's `Projectable` proof"
+(`deckmaste_core/src/count.rs`, `deckmaste_engine/src/resolve/query.rs`).
+All four resolve TODAY — in `Semantics.idr`, the old module this workbench
+imports nothing from, which has `AggregateOp` with four rows, `Projectable`
+as a two-constructor proof over `Countable`, `readableOn` as a
+Type-returning subset function, `Projection`/`Project` binding `It` per
+element, and `IsExtremal` gating the element-picking twin. So core is not
+holding a name in trust the way it held `PlayerStatOf` and `Minus`; it is
+DOCUMENTING the other vocabulary, and this file minting the same words is a
+third independent one — `CountersOn`'s straddle at a third site, and the
+lesson chapter fifty-two recorded when a "gates already exist" note turned
+out to be the legacy grammar's. What it changes about the round is not the
+shape but the argument: this is a design run against a fully worked prior
+art that says something different, rather than a port into a gap.
+
+**Finding 436 — three ops, and the fourth is a corpus-wide zero.** Both
+prior arts carry `SumOf`, `MinOf`, `MaxOf` and `AverageOf(RoundMode)`. The
+word "average" is written ZERO times in the corpus, supported and
+unsupported alike, so the mean has no line to spell and would arrive with a
+rounding direction of its own ([CR#107.1a]) for nothing to use. It is
+recorded rather than pinned, and the distinction is the campaign's usual
+one: a row not minted refuses nothing, so there is no cell for a pin to
+stand in. The three that land are measured in both directions — the sum at
+forty-two lines ("the total power/toughness/mana value of …"), the maximum
+at a hundred and six, the minimum at one, of which more below.
+The EMPTY set is not the catalog's problem and one rule answers for every
+row: a number that cannot be determined uses 0 instead ([CR#107.2]), which
+settles the greatest of no creatures exactly as it settles the sum of none.
+Worth recording because the legacy module's own comment says the opposite —
+that `MinOf`/`MaxOf` of the empty collection are "genuinely undefined … so
+the ENGINE must guard the empty case" — while core writes "0 over the empty
+set" for all four. [CR#107.2] is on core's side.
+
+**Finding 437 — the projection is CLOSED, and the general shape's own
+corpus surface is a different construction.** This is the round's real
+decision. Core's `Projection` is a set plus an arbitrary `Count` read over
+a bound `It`, and the legacy module's is the same thing with the binder
+spelled out; a general slot here would be the parity move. The corpus does
+not use the width. All 103 description-domain "among" lines read a
+CHARACTERISTIC off an object or a LIFE TOTAL off a player and nothing else,
+which is exactly the two catalogs the singular reads beside them already
+carry — so `ProjAxis` is `CharAxis Characteristic | PlayerStatAxis
+PlayerStat`, and the fold is the set-generalization `StatOf`,
+`PlayerStatOf` and `CountersOn` have each promised in their own comment
+since they were minted.
+What decides it is where the general shape's own lines are. "The greatest
+number of creatures a player controls" is a real family — 10 supported
+cards, Investigator's Journal, Jace's Archivist, Cavern-Hoard Dragon,
+Thought Sponge — and every one of them folds a count RELATIVIZED to each
+member of the set. They do not write "among"; they write a relative clause
+with an indefinite subject, and the element they bind sits INSIDE the
+domain's own description rather than beside it. A general projection slot
+would not make one of them writable, because what they need is an element
+binder reaching into a predicate, which this grammar's announcement-keyed
+discourse has no shape for at all. So the width buys nothing the corpus
+writes, and the closed catalog says what the closed corpus says — finding
+246's discipline, with the general shape filed as its own entry rather than
+half-built here.
+The agreement between the axis and the domain is a TABLE and not an index,
+and that is a second small choice with a reason: `projScope ax = k` is
+`counterScope`'s shape one vocabulary over, answering in `Kind` so that one
+row over `{k : Kind}` gets the agreement for free — and, unlike a
+`ProjAxis k` family, it leaves the two crossed cells as cells, which is
+where this chapter's pins stand.
+
+**Finding 438 — the fold's word AND its preposition are both derived,
+which is finding 275 at a third site this round.** Two spellings vary
+perfectly with something already written. The PREPOSITION varies with the
+op: the extremes write "among" (103 lines) and the sum writes "of" (42),
+and neither is ever written the other way. The extremal WORD varies with
+the AXIS: a characteristic takes greatest/least ("the greatest power", "the
+least toughness") and a life total takes highest/lowest ("the highest life
+total", "the lowest life total"), and all four crossed spellings —
+"greatest life total", "highest power", "least life total", "lowest power"
+— are written zero times in the supported corpus. So neither is an axis;
+both are tabulated on the rows that already exist, and `AggregateOp` is
+three rows rather than six.
+A third spelling fact is recorded rather than modelled. Four lines write
+"all" before the complement ("among all players" ×3, "among all creatures
+target opponent controls" ×1) against 103 that write the bare plural, and
+the two say the same thing about the same set — Scourge of the Skyclaves
+writes "the highest life total among players" of precisely the fold Arbiter
+of Knollridge writes "among all players". One cell, two spellings, chapter
+forty-five's bare-each ruling at another site; the rendering writes the
+bare plural and the emphasis is unmodelled.
+
+**Finding 439 — the domain is a DESCRIPTION, and the MENTION domain is the
+round's largest residue.** The fold's set is a `Predicate` with `CountOf`'s
+own head and any-target demands, which is core's shape exactly — core
+shares one `Countable` between its cardinality and its fold, and so does
+this. What that leaves out is the corpus's other complement: a group
+already mentioned. "The total power of the sacrificed creatures"
+(Soulblast, Corpse Cobble), "the greatest power among them", "the total
+mana value of those cards", and the possessive "their total toughness"
+(Dracoplasm, Sutured Ghoul) are 26 lines between them — 4 extremal, 15 sum,
+7 possessive — and every one wants a fold over a NOUN.
+That is worth stating precisely because of which card it is. `StatOf`'s own
+comment has named Soulblast as this row's future vocabulary since the
+singular gate was written, and the fold does NOT pay it: the sum lands and
+Soulblast's domain does not. What `badGroupPower` refuses is unchanged and
+still measured — the bare plural possessive ("two creatures' power") is
+written once in the whole corpus and not as a read of this kind (Spry and
+Mighty's "the difference between the chosen creatures' power and
+toughness", which reads two characteristics off one group rather than one
+number off many things), the group's number being written with a fold word
+instead — so the pin survives
+with its docstring pointed at the carrier rather than at a promise. The
+mention-domained fold is an entry of its own.
+
+**Finding 440 — what the fold reaches past its own row, and the
+over-generation it admits.** `readAmount` answers True, which puts the fold
+on both sides of a comparison, and the corpus attests one of them: "X can't
+be greater than the greatest toughness among creatures you control" (Soul
+Immolation) is a fold at a standard, unwritable for its blight cost but not
+for its bound. The subject side is unattested and admitted; both were
+probed and elaborate (recorded, removed, `mtg.ipkg` byte-restored).
+The third probe is the one the deferred round needs. `And [creature,
+Compare Power AtLeast (Aggregate MaxOf (CharAxis Power) <the same set>)]`
+elaborates — which is core's own Wild Dogs composition, a set-relative
+comparison standing where a superlative modifier would, at the object sort.
+So the noun-modifier family is not blocked on vocabulary any more: it is
+blocked on SPELLING (English writes "the creature with the greatest power",
+not "a creature whose power is at least the greatest power among …") and,
+at the player sort, on the player-headed comparison predicate chapter
+fifty-seven found has no cell at all. The composition is an over-generation
+this round admits and records, in finding 349's manner: it is not refused,
+it is simply not what the spelling function produces.
+
+**Finding 441 — four witnesses, two pins, and one card that was checked
+rather than assumed.** Accelerated Mutation lands WHOLE and is the fold at
+its cleanest: an instruction's rider whose right side is the new row and
+nothing else, the duration outside the rider where chapter sixty-one
+measured it. Carrion Grub lands WHOLE at the STATEMENT frame, folding a
+graveyard's cards, with its mill line free. Repay in Kind lands WHOLE and
+carries three claims in one sentence — the LEAST op, whose only
+amount-position line in the corpus this is; the player-sorted axis over a
+player-sorted domain; and a fold read BARE, with no rider between it and
+the slot that consumes it, which is the cleanest evidence that this is an
+`Amount` and not a rider's fragment. It is also the slot chapter fifty-six
+kept apart from the distributive READ it refuses. Towering Titan is the
+SUM, benched as its first line, at the entry replacement chapter sixty-one
+landed free — a third round running in which a family fell out of a
+signature that was already general enough.
+Coram, the Undertaker was checked and is blocked, and the check is the
+point: its "among creature cards in ALL GRAVEYARDS" is the surface chapter
+sixty-one swapped Bonehoard out for, and the reason is chapter fifty-four's
+own pin pair — the all-players possessor is refused on measurement
+(`badOwnedByAllPlayers`), so the zone has no honest spelling and the Bare
+zone would say "a graveyard". Emissary Escort writes the same fold over an
+artifact set and is the substitute if that entry ever lands.
+The PINS are the two crossed cells of the agreement table, stated in
+opposite directions as chapters forty-five and forty-six stated theirs:
+`badPowerAmongPlayers` (power is a creature card's own number,
+[CR#208.1]) and `badLifeTotalAmongObjects` (a life total is something each
+player has, [CR#119.1]). Both propositions are the one table's, which is what makes the
+pair a claim about the table rather than about either sentence. Nothing
+else moved: all 439 pins that predate the chapter were green on the first
+build after the row, no proposition shifted, and no rule needed blessing.
+
+Ledger updates this chapter:
+
+- The aggregate amount (**landed**): three ops, a closed projection, one
+  agreement table — closing chapter fifty-six's finding 398 deferral.
+- Core's four Idris pointers (**corrected**, finding 435: they name the old
+  `Semantics` module, not this one).
+- `StatOf`'s "future vocabulary" promise (**partly paid**, finding 439:
+  the described set lands, Soulblast's mention does not).
+- **Recorded, not built**: `AverageOf` (0 lines, not pinnable); the
+  mention-domained fold (26 lines); the relativized per-element count ("the
+  greatest number of creatures a player controls", 10 lines); the counter
+  axis (6 lines, 4 of them kind-blind); the "all" emphasis; the
+  set-relative comparison as an admitted over-generation.
+- Near-miss inventory: the noun-modifier surface, now blocked on spelling
+  and on the player-headed comparison predicate rather than on vocabulary;
+  the all-graveyards zone, which costs Coram and Bonehoard together; the
+  CDA base-set family (Roiling Horror, Scourge of the Skyclaves, Malignus),
+  still layer 7b's.
+
+## Chapter sixty-three — the cost statement
+
+Chapter sixty-one went looking for a row to hang twenty-five rider lines on
+and found there was none: "there is no `StaticEffect` row for modifying a
+cost at all, so those lines are blocked twice over. New ledger entry." This
+chapter is that row, and most of it is deciding what the sentence's two
+halves are — because the family a grep for "costs … to cast" returns is
+three unrelated blockers wearing one phrase. Bench: 312 positives / 444
+pins.
+
+**Finding 442 — core has the whole machine, and a correction about where
+its cards are.** `StaticEffect::CostModifier { of: Predicate, change:
+CostChange }` with `CostChange = Increase | Reduce | Additional | Scaled`
+is in `deckmaste_core/src/continuous.rs`, and it is not a stub: the engine
+runs [CR#601.2f]'s pipeline over it in `cast.rs` — the spell's own rows
+first, then battlefield statics, then instance rows from resolved
+one-shots, increases before reductions, the generic component floored — and
+carries end-to-end tests. So this row is the grammar catching up to a
+working representation rather than the usual measure-and-let-core-inherit.
+The brief for this round said the encoding is live in about forty CANON
+cards, and that is wrong in a way worth recording, because it changes what
+kind of evidence it is. `plugins/canon/cards` contains ZERO occurrences of
+`CostModifier`. The forty finished files are in `plugins/wizards`, the
+generated plugin, alongside twenty-five more still marked `.ron.todo` —
+Foundry Inspector, the Medallion cycle, Etherium Sculptor, Heartless
+Summoning. They are real encodings that load and run, and they are machine
+output rather than hand-authored canon. Sharper still: Ghalta, Primal
+Hunger — this chapter's own marquee — is `Unparsed("~ costs {X} less to
+cast, where X is the total power of creatures you control.")` even there.
+The X-rider self-reduction was unwritable at BOTH layers, and after this
+chapter it is writable at one.
+
+**Finding 443 — one phrase, three blockers, and only the first is a row.**
+Six hundred and fifty-three supported lines write a cost modification to
+cast. They decompose by SUBJECT, and the decomposition is the round's real
+finding:
+The SELF is 334 lines ("This spell costs {1} less to cast", 326 reductions
+against 8 taxes), of which 78 sit inside a keyword's reminder text
+(affinity, undaunted, strive, delirium, domain) and are elided by the same
+practice every other keyword gets. It lands here.
+The CLASS is 267, and it splits again. Eighteen are unqualified — "Creature
+spells cost {2} more to cast" (Feroz's Ban), "Multicolored spells cost {2}
+less to cast" (Urza's Filter), "Noncreature spells cost {1} more to cast"
+(Thorn of Amethyst, Thalia, Vryn Wingmare, Glowrider) — and they land here
+too, with zero new predicate work. (The brief's figure of fifty for this
+bucket is a third measurement that does not reproduce; the line-anchored
+count is eighteen.) The other 249 qualify the class with a possessive or a
+relative clause — "Artifact spells you cast", "spells your opponents cast"
+— and they are ROUND TWENTY-EIGHT's, on a blocker that is structural rather
+than clerical. It was probed rather than asserted: `And [creature, spell,
+ControlledBy You]` does not elaborate, because `seedZone (ControlledBy _)`
+is hardcoded to `Just Battlefield` while `seedZone (InZone stackZ)` is
+`Just Stack`, so the conjunction has no `ZoneCoherent` proof. A controller
+relation and a stack description cannot be siblings in this grammar today,
+which is exactly why the possessive class needs a cast RELATION and not a
+widening.
+The ACTIVATION variant is DECLINED, and the reason is a vocabulary gap
+rather than a scope preference. [CR#602.2b] extends the whole cost machine
+to activation costs in one sentence, so the rules cost nothing; the subject
+does. Forty-five lines write "This ability costs {N} less to activate" and
+the class lines write "Activated abilities of creatures you control cost
+…", and an ABILITY is not something this grammar has a noun for. Every
+`Noun` is an object or a player; "this ability" has nothing to be. That is
+a referent sort, not a mechanical extension, so the verb stays "to cast"
+and the row is named for it.
+
+**Finding 444 — one row, two subjects, and the gate is the stack test
+widened by the self.** [CR#609.2]'s own worked example decides where the
+statement applies, in the rule's words: "an effect that says spells cost
+more to cast will apply only to spells on the stack, since a spell is
+always on the stack while a player is casting it". So the described subject
+is a phrase that puts its referent on the stack — `Macros.spell` is that
+phrase and has been since the counter round — and the demand is `Gets`'
+battlefield gate one zone over.
+The corpus is unusually clean about the subject. Of 628 lines with an
+extractable one, 615 write the word "spell" and 10 more read a spell
+mention back with a pronoun; the last three are Commander-format lines
+about a commander. Not one line puts a battlefield noun there, which is
+`badCostSubjectOnBattlefield`.
+What the zone test cannot see is the SELF, and the self is the bigger half.
+"This spell" is `This`, exophoric since chapter forty-eight and projecting
+no zone at all ([CR#113.7]) — so a plain `OnStack (nounZone n)` gate would
+refuse 334 of the family's 628 lines. `costSubjectOk` is therefore the
+stack test WIDENED by one measured subject, which is `possessorOk`'s shape
+at a second site (chapter fifty-four) and is preferred to a constructor
+table for the same reason it was there: the widening is a fact about one
+word, and everything else keeps answering the general question.
+This is also where core and this grammar are shaped differently for a
+principled reason. Core writes the self case as `of: Ref(This)` — a
+PREDICATE that matches the spell itself — because its `Predicate` has a
+reference arm. This grammar's predicates describe and its nouns refer, so
+the self is a noun and the widening lands on the subject gate instead. One
+row either way.
+
+**Finding 445 — the magnitude is an AMOUNT and not a symbol run, and the
+definition rider is what decides it.** English prints the payload between
+braces, which makes a mana cost the obvious slot, and it is the wrong one.
+Three shapes have to fit. The plain reduction writes a numeral — {1} 377
+lines, {2} 145, {3} 41. The affinity shape writes a scaled one — "costs {1}
+less to cast for each artifact you control" ([CR#702.41a]), 227 for-each
+domains, and none of them reads the subject back, so unlike chapter sixty's
+pump the slot is typed at the incoming context and not at the subject's.
+And 38 lines write "{X} less to cast, where X is …".
+A symbol run can spell the first two and only pretends to spell the third.
+It would put the printed `{X}` GLYPH in the slot with nothing binding it —
+the rider above would bind a letter no sub-term reads, and chapter
+fifty-nine's whole finding is that the rider is a BINDER and not sugar. An
+`Amount` spells all three, and the last two spell themselves: the scaled
+reduction is `nForEach`'s own `Times n (CountOf p)` unchanged, and the X
+reduction is `DefinedLetter` read in the slot. That is the third round
+running in which a family arrives inside a signature that was already
+general enough, and the second in which the definition rider is what
+arrives.
+The cost is recorded: about twenty-five lines write a colored or
+multi-symbol payload ("costs {2}{R} more to cast"; Strive's "costs {R} more
+to cast for each target beyond the first"), and they stay out with the
+`Amount` slot holding only the generic component. [CR#118.7a] — a generic
+reduction affects only the generic component — is a rule about what a
+payment does and not about what a sentence may write, so it gates nothing
+here; the residue is a spelling gap, not a rules one. The sign goes in the
+constructor, `PtShift`'s idiom at a second site and core's two polarities
+exactly.
+
+**Finding 446 — a new statement class earns a new `StaticKind`, and the
+three tables it keys.** Chapter sixty-one settled how a wrapper answers the
+kind question: a rider passes its body's through because a definition is
+not a statement class, while `Conditionally` keeps its own because "as long
+as" IS one. Run the same argument for a row rather than a wrapper and the
+answer is immediate — this is a statement class, so it gets a kind, and
+`CostModification` is the eleventh.
+Its three cells are all measured. `staticAsAbility` is True: the cost
+statement is a static ability's own line, which is what all 653 corpus
+lines are. `absentOk` is False, the fourth row to answer that way and for
+the same reason the conditional, the entry rider and the play permission
+do — it is not a clause construction at all, so there is no `Continuously`
+for its span to be absent from (`badCostClause`). And `admitsSpan` is False
+in all ten cells, on a count rather than a principle: exactly ONE supported
+line puts a duration on a cost modification ("Spells with the chosen name
+cost {1} less to cast this turn", Cheering Fanatic), it is unwritable for
+its chosen-name subject anyway, and flipping its cell would rename a
+`SpanUse` row that currently tells the truth about which constructions
+write "this turn". The two "during your turn" lines are not durations at
+all but a window on when the reduction applies.
+The CONDITIONAL half is the round's cleanest split between what composes
+and what waits. Three lines write "as long as" (Drag to the Roots, Gwaihir
+the Windlord, Gran-Gran) and they compose for free — probed, green on the
+first build, removed. A hundred and twenty-seven write "IF": "This spell
+costs {1} less to cast if you control a Wizard" (Academy Journeymage). The
+wrapper exists and its marking word is chapter forty-nine's measured pair,
+"as long as" and "unless", so those 127 lines wait on a third word rather
+than on a construction. Whether it IS the same construction is a real
+question and is left open with its evidence: [CR#601.2f] determines a total
+cost once and locks it in, where [CR#611.3a] has a static ability's effect
+apply "at any given moment", so the two may be a one-time test and a
+standing one wearing different words for a reason.
+
+**Finding 447 — five witnesses, three pins, and one swap.** Ghalta, Primal
+Hunger lands WHOLE and is the round's marquee for what it composes rather
+than for what it adds: the definition rider is chapter fifty-nine's, the
+statement frame it rides is chapter sixty-one's, the fold on its right side
+is chapter sixty-two's, and the only new thing in the sentence is the
+statement itself — four chapters meeting in one line, and the card core
+still carries as `Unparsed`. Ancient Stone Idol's line is the affinity
+shape. Thorn of Amethyst, Feroz's Ban and Urza's Filter are the unqualified
+class at both polarities and at three subject shapes: a negated type, a
+plain type, and chapter forty-four's `Multicolored` predicate paying off in
+a frame that did not exist when it landed.
+The swap is Thalia, Guardian of Thraben for Thorn of Amethyst. They print
+the same sentence; the artifact prints it without buying the Human subtype
+or the first-strike keyword to hold it, which is chapter fifty-seven's
+Feudkiller rule. Two subtypes were bought, both for Ghalta (Elder,
+Dinosaur).
+The PINS are one per gate the row adds. `badCostSubjectOnBattlefield` is
+the subject test at its measured zero. `badZeroCostShift` shares
+`WrittenCount (Lit 0)`'s proposition with the five pins that already carry
+it — a reduction of the payment of nothing ([CR#118.5]) moves no cost — and
+is the sixth member of that group rather than a new question.
+`badCostClause` is the durationless clause. Nothing else moved: all 441
+pins that predate the chapter were green on the first build after the row,
+no proposition shifted.
+
+Ledger updates this chapter:
+
+- The cost-modification statement (**landed**): one row, two subjects, one
+  new `StaticKind` — 334 self lines and 18 unqualified class lines.
+- The brief's "live in ~40 canon cards" (**corrected**, finding 442: the
+  generated `wizards` plugin, and Ghalta `Unparsed` even there).
+- The brief's ~50 unqualified class lines (**corrected**, finding 443: 18).
+- **Recorded, not built**: the colored payload (~25 lines); the "if"
+  conditional (127 lines, waiting on a marking word); the durational cost
+  line (1, blocked); the ADDITIONAL cost as a statement about a class (6
+  lines, none with a mana payload, four of them about activated abilities);
+  the activation variant (declined, no ability-referring noun).
+- Near-miss inventory: the descriptive cast relation, now with a structural
+  diagnosis rather than a suspicion — 249 possessive class lines wait on
+  it, and `ControlledBy`'s hardcoded battlefield seed is why.
+
+## Chapter sixty-four — the cast relation
+
+Chapter sixty-three landed the cost statement and stopped at its subject:
+"249 possessive class lines wait on it, and `ControlledBy`'s hardcoded
+battlefield seed is why". This chapter is that clause, and the round's work
+was deciding whether it is the controller relation wearing a second verb or
+a row of its own. It is a row of its own, and the evidence that says so also
+says the controller relation had the wrong shape all along. Bench: 316
+positives / 445 pins.
+
+**Finding 448 — the CR's erasure is about the player, not about the class,
+and a copy is what proves it.** The brief for this round assembled three
+sources for collapsing the two clauses into one: the glossary retires the
+noun ("Caster (Obsolete) … cards that were printed with the term 'caster'
+have received errata in the Oracle card reference to say 'controller'"),
+[CR#601.2a] makes the caster the controller in as many words ("that player
+becomes its controller"), and [CR#109.4] grants stack objects a controller
+at all. All three are true and none of them reaches the class. What they
+settle is which PLAYER a clause names; what a class needs settled is which
+SPELLS it contains, and [CR#707.10] separates those in one sentence: "a copy
+of a spell isn't cast … A copy of a spell is controlled by the player under
+whose control it was put on the stack." So the controlled set strictly
+contains the cast set, and the corpus writes the difference out loud —
+Errant, Street Artist says "Copy target spell you control that wasn't cast",
+which is a sentence that cannot be written at all if the two clauses name
+one class.
+The corpus keeps them apart cell by cell as well. The cost statement writes
+"spells you cast" on 153 lines and "spells you control" on ZERO; the
+counter-proof writes "spells you control" on 15 and "spells you cast" on
+zero; and the keyword grants, which are the one cell both surfaces occupy,
+split by REGIME rather than by taste — the casting-time keywords (convoke,
+cascade, replicate, improvise, emerge, prowl) take "cast" on 30 lines and
+the resolution-time ones (lifelink, deathtouch, rebound) take "control" on
+7. Two words, two rows, which is chapter thirty-eight's ruling on
+`Blocking` and `BlockerOf` at a second site.
+
+**Finding 449 — the verb does not covary with the zone, and finding 275's
+test fails for the first time in this vocabulary.** The design this round
+was leaning toward was one relation whose verb is DERIVED — a stack-zoned
+head spelling "cast" and a battlefield-zoned head spelling "control" —
+which is the idiom chapters forty-five, fifty-seven and sixty-two all used
+to delete an axis. The test that idiom demands is covariance, and it fails
+in the open: both surfaces are written of objects on the stack, in the same
+sentence positions, on cards printed in the same sets. A derived verb would
+have to spell Allosaurus Shepherd's "Green spells you control can't be
+countered" as "…you cast", which changes which spells the sentence protects
+(a copy is protected; a copy was not cast). Where the spelling function
+cannot be a function of what is already written, the word is a row —
+finding 275 states the test in both directions and this is the direction it
+had not yet been run in.
+
+**Finding 450 — the in-file note is honored and its own claim is refuted:
+the second admissibility table.** `seedZone`'s comment on the controller
+relation had already written down what this round needed: "the
+relation constrains its referent to a two-zone SET where `seedZone` names
+ONE zone … What the shape wants is a zone-SET seed, or a second
+admissibility table beside this one, not a changed row." The second table
+is what landed. `zoneAdmit` answers which zones a member ADMITS its referent
+in where `seedZone` answers which one it PLACES it in, the controller
+relation is its only row ([Battlefield, Stack], [CR#109.4]'s own list), and
+`zonesOk` gains one conjunct: the phrase's effective zone must be a zone
+every member admits. The relation itself now seeds NOTHING, which is the
+honest answer — a clause that rules zones out places its referent in none of
+them — and the [CR#109.2] default keeps supplying the battlefield to every
+bare description exactly as before.
+The same comment's other claim does not survive measurement, and it is the
+reason the round had to be run rather than assumed: "every corpus line
+writing 'spell(s) you control' and its neighbours is copy machinery" is
+false. There are 79 supported lines across 75 cards, and the copy machinery
+is 26 of them; 15 say a spell can't be countered (Chimil, Prowling
+Serpopard, Sphinx of the Final Word), 7 grant a keyword, and the rest read
+damage a spell deals, a spell targeting something, or a type-changing
+statement's "the same is true for" tail. The pin standing on that claim
+therefore retires (finding 452).
+
+**Finding 451 — the cast relation PLACES its referent, and the one line that
+looks like a counterexample is a lookback.** `CastBy` seeds the stack:
+casting moves the card there ([CR#601.2a]) and it is a spell only there
+([CR#112.1]), which is also the zone [CR#609.2]'s worked example uses to
+decide where a cost statement applies. The measurement is as clean as
+chapter sixty-three's subject count — of 311 supported "spells you cast"
+lines, 310 write the word "spell", and the single line that describes a
+battlefield permanent by its casting is Cycle of Life's "target creature you
+cast this turn", which carries a `Lookback` marking and belongs to the
+history vocabulary chapter forty-two built. The tense boundary the grammar
+already keeps holds here without being re-argued: the 100 "you've cast"
+lines are `Happened`'s business and no part of this row.
+The head is ordinary and cost nothing. Of the 311 lines, 143 write a card
+type, about 60 a creature type, 29 a color, 4 a supertype and 37 nothing at
+all, and every one of those is a predicate this file already had. (The
+brief's head split — 49 bare, 115 type, 34 color, 12 supertype, 100 subtype
+— is a third round running in which a relayed figure does not reproduce
+line-anchored; the counts above are this file's.)
+
+**Finding 452 — the pin surgery: one retires, its neighbour keeps its
+proposition and changes its reason.** `badControlledSpell` refused "target
+spell you control" and its own docstring conceded the case in its first two
+words, "Real English". Under the widening its term elaborates, and the
+ledger's standing law decides the rest: attested English is never pinnable,
+so it retires rather than shifting — chapter fifty-seven's disposition for
+`badPhrasalBound` at a second site, and for the same reason, that the
+sentence it refused denotes an attested mass.
+`badControlledInGraveyard` SURVIVES with its proposition byte-identical
+(`ZoneCoherent [creature, ControlledBy You, InZone graveyardZ]`, impossible
+clause `MkZoneCoherent`), which is the test the new table had to pass: the
+graveyard is in neither admitted zone, so the refusal is unchanged while its
+REASON moves from a presupposed battlefield to an admissibility list. Its
+docstring is rewritten to say the true reason; the proposition names the
+question, which is what chapter fifty-four's finding 388 said keeps a pin
+true across a widening.
+The two new pins are the row's own measured zeros. `badCastInGraveyard`
+refuses "a creature card you cast in your graveyard": the cast relation puts
+its referent on the stack, and the zone a spell was cast FROM is an origin
+qualifier ("spells you cast from your graveyard", 24 lines) that this
+grammar does not have and must not be allowed to arrive as a zone clause.
+`badCastByAllPlayers` is the possessor table's third reader refusing the
+bare plural, sharing `Possessor (PlayerGroup AllPlayers)` with
+`badControlledByAllPlayers` and `badOwnedByAllPlayers` deliberately — the
+one-table-many-readers thesis stated as a pin, now a trio.
+One cell is refused and NOT pinned, on the discipline the retirement above
+teaches. `negatable (CastBy _)` is False on a total measurement ("spells you
+didn't cast" is zero lines against 165 writing "creatures you don't
+control"), but what the agentive phrase would MEAN is attested one card over
+in Errant's agentless passive, so the sentence is ledgered rather than
+refused with a claim about English.
+
+**Finding 453 — the possessor table's third reader, measured before it was
+shared.** `CastBy` takes `Possessor` rather than a table of its own, and
+finding 309's union-over-readers doctrine says the round that shares a table
+owes the measurement for the new reader. It agrees with the other two cell
+for cell: "your opponents cast" is 27 lines, the singular definite read
+("spells that player casts", "spells they cast") is 5, and the bare plural
+"players cast" is zero. So "spells your opponents cast" rides free on
+chapter fifty-four's union possessor — no new gate, no new noun — and Grand
+Arbiter Augustin IV writes both directions on one card.
+
+**Finding 454 — four witnesses, and what the round does not pay.** Emerald
+Medallion lands WHOLE and is the cleanest sentence in the family: a color
+word, the stack's carrier noun and the new clause, with nothing bought for
+it. Foundry Inspector lands WHOLE at the type head — one of the encodings
+chapter sixty-three found live in the generated plugin. Daru Warchief lands
+WHOLE at the subtype head and is the round's evidence in one card: its first
+line is the cast clause over a spell on the stack and its second is the
+control clause over the battlefield, which is exactly the pair the new table
+keeps apart. Grand Arbiter Augustin IV lands WHOLE with three lines, both
+polarities and the union possessor. Two subtypes were bought (Human,
+Advisor, [CR#205.3m]).
+What lands beyond the bench is countable. Of 254 supported cost-modification
+lines with a described cast subject, 99 write the plain single-sentence form,
+and 76 of those are structurally writable now — the 21 union heads ("instant
+and sorcery spells", Goblin Electromancer's own line) and 2 face-down heads
+being the exceptions, with the remainder waiting only on catalog words.
+What does NOT land is the widening's own bench. All 79 "spells you control"
+lines are blocked elsewhere, uniformly and checkably: the counter-proof has
+no row, the copy verb has no row, the keyword grants meet `Gains`' zone gate,
+and the damage-dealing spell has no event row. So the two-zone table lands
+witness-free, which is this campaign's tenth such posture and the honest one
+— it retires a false pin and makes a true refusal true for the right reason,
+and the sentences it admits are owed to other rounds.
+
+Ledger updates this chapter:
+
+- The descriptive cast relation (**landed**): `CastBy`, one row beside the
+  controller relation rather than a verb on it, seeding the stack.
+- The controller relation's zone domain (**widened**): `zoneAdmit`, the
+  second admissibility table the file's own note asked for.
+- `seedZone`'s "copy machinery" claim (**refuted**, finding 450: 79 lines,
+  26 of them copies).
+- `badControlledSpell` (**retired**, attested English); `badControlledInGraveyard`
+  (**proposition stable, reason rewritten**).
+- **Recorded, not built**: the targeting relative clause (19 lines, "spells
+  your opponents cast that target this creature" — no targeting predicate
+  exists at all); the cast-from-zone origin qualifier (24 lines); the
+  ordinal cast ("the first spell you cast each turn", 5 lines by that
+  wording and 20 more writing "your first spell" — an element binder over a
+  turn's casts); the agentive negated cast (0 lines, meaning attested
+  through Errant's agentless passive); the union head, which costs Goblin
+  Electromancer and 20 other plain cost lines.
+- Near-miss inventory: `Gains`' battlefield gate, which is the IDENTICAL
+  shape this round widened one row over and now costs the 30 "spells you
+  cast have <keyword>" lines and the 7 control-clause grants — a keyword
+  granted to a spell on the stack is its own measurement and its own round,
+  not a second conjunct here.
+
+## Chapter sixty-five — the union head
+
+Chapter sixty-four closed the cast relation and left one head standing
+between it and its icon: "Instant and sorcery spells you cast cost {1} less
+to cast" (Goblin Electromancer), filed as two gates deep because English
+writes "and" where `Or` spells "or". That filing was wrong, and finding out
+how wrong is the whole round: nothing had to be built. Bench: 321 positives
+/ 445 pins.
+
+**Finding 455 — the union head was never blocked; the row's own
+documentation was.** `Or [instant, sorcery]` under `AllOf` typechecks today
+and typechecked before this round: the disjunction's four obligations are
+list-shape and projection checks (`TwoDisjuncts`, `ParallelDisjuncts`,
+`CoordinableDisjuncts`, `DistinctDisjuncts`), two type words agree on every
+one of them, and the conjunction around them raises nothing. What said
+otherwise was a spelling comment — "serial-comma coordination with a final
+'or', mirroring core's `Predicate::Or`" — carried since chapter fourteen and
+never measured. Five whole cards land on the first build with no constructor,
+no gate and no table added: the correction IS the round. Chapter
+sixty-three's "Arcane Melee blocked (union-type 'instant and sorcery' — `Or`
+spells 'or')" and chapter sixty-four's "the head is TWO gates deep" are both
+corrected here, and the lesson generalises past this row: a comment that
+asserts a surface fact is a measurement that has not been run, and it can
+block a family as effectively as a missing constructor.
+
+**Finding 456 — the coordinator is ENVIRONMENT-DERIVED, and the table has
+three rows.** Which word English writes over one alternation is fixed by the
+determiner and the polarity, and the corpus is decisive in all three
+environments.
+A SINGULAR determiner takes "or": "an instant or sorcery spell" is 291
+lines, "instant or sorcery card" 173, "target artifact or enchantment" 180,
+"target creature or planeswalker" 203, "Aura or Equipment" 21.
+An AFFIRMATIVE PLURAL or distributive class head takes "and": "instant and
+sorcery spells" 57, "instant and sorcery cards" 31, "each instant and
+sorcery …" 27, "Aura and Equipment" 17, "creature and planeswalker" 16,
+"artifact and enchantment" 7, "artifact and creature" 4, with 10 more
+multi-item coordinations (Dovin, Hand of Control; Urza, Lord Protector;
+Taigam; Second Sunrise; Triumphant Reckoning). The pair is what makes this
+airtight rather than a story about two idioms: the SAME two words are
+written both ways, 21 "Aura or Equipment" against 17 "Aura and Equipment",
+199 "artifact or enchantment" against 7 "artifact and enchantment", and the
+determiner is the only thing that varies.
+A bare plural takes "or" only in a DOWNWARD-ENTAILING environment, and there
+are exactly 4 such lines: "target player can't cast instant or sorcery
+spells" (Abeyance), "each opponent can't cast instant or sorcery spells"
+(Azor, Sphinx's Decree), and "Spend this mana only to cast instant or
+sorcery spells" (Jaya Ballard). Three negations and one "only" — the
+classic negative-polarity licence, which is one environment and not two.
+The recon that opened this round called all four negated; the fourth is the
+restrictive "only", which sharpens the rule rather than bending it.
+One line crosses: Eye of the Storm writes "each instant or sorcery card
+exiled with this enchantment" two clauses after writing "an instant or
+sorcery card", the coordination echoing its own antecedent. Attested, so
+the derivation is a spelling DEFAULT and not a gate — which is finding 275's
+idiom stated at the coordinator and with its limit admitted.
+
+**Finding 457 — both prior arts conflated first, and one of them says why in
+its own comment.** The legacy `Semantics` module encodes this very card with
+a plain disjunction — `CostModifier (And [Or [hasType Instant, hasType
+Sorcery], ControlledBy you]) (Reduce [1])`, `Cards.idr`'s
+`card_GoblinElectromancer`, whose own comment quotes the card's "instant and
+sorcery spells" and writes `Or` underneath without remark. Core keeps
+`Predicate::Or(Arc<[Predicate]>)` (`filter.rs`) and DISCARDS the surface on
+purpose: the lowering says "the core grammar is a compiled artifact and
+carries no record of the semantic spelling", with prose recovering the term
+through the provenance index instead. So the operator is agreed at three
+layers and only this workbench ever had to spell it — which is exactly the
+division of labour chapter sixty-one found when the rider pointed nowhere,
+seen from the other side: there the discourse fact was ours alone to model,
+here the surface fact is ours alone to get right.
+
+**Finding 458 — what the derivation does NOT reach, said explicitly.**
+Coordinated COLORS are genuine conjunction — a "white and blue Bird" is one
+object bearing both colors, `And [ColorIs White, ColorIs Blue]` — and so are
+coordinated supertypes; nothing routes them through this rule, and the
+derivation is about `Or`'s spelling alone. A negated union is written as
+juxtaposed negations ("nonartifact, nonland"), which is `And` of `Not` and
+was already covered. The semantic warrant for reading a plural class head as
+a UNION is [CR#205.2b] ("Such objects satisfy the criteria for any effect
+that applies to any of their card types") with [CR#300.2] saying the same of
+the type list, and it is worth being precise for this pair: the intersection
+is not impossible — [CR#205.1a] has an object with either type RETAIN it
+when an effect sets another — so the union reading is a fact about what the
+sentence says, not about what the game can produce. No CR rule defines the
+coordination itself, finding 398's pattern, so the rest rests on the corpus.
+The subtype union generalises past card types at one attested line
+(Silver-Fur Master's "Ninja and Rogue creatures", a typal lord), recorded at
+trace level; and "and/or" remains a THIRD coordinator, chapter fourteen's
+frontier note standing.
+
+**Finding 459 — the oversight, and the gap between writable and witnessed.**
+"Whenever you cast an instant or sorcery spell" is 149 supported lines under
+"you" and 161 under any caster, and every one of them has been writable
+since the cast EVENT landed — the singular indefinite is the environment
+`Or` was already documented for, and Disenchant's "target artifact or
+enchantment" has been benched since chapter fourteen. No round asked. The
+reason is worth recording because it is a process fact rather than a grammar
+one: the queue entry was written from the family's ICON, and the icon is
+plural ("instant and sorcery spells"), so a whole singular-determiner family
+sat behind a blocker that never applied to it. A queue entry keyed on a
+card's surface can hide the half of its family that a different surface
+already reaches — the counting discipline this campaign applies to corpus
+lines has to be applied to the QUEUE's own claims too.
+
+**Finding 460 — five witnesses, no pins, and a new proofs module.** Goblin
+Electromancer lands WHOLE, the icon of two chapters. Arcane Melee lands
+WHOLE at the unqualified subject. Mana Matrix lands WHOLE on a DIFFERENT
+pair (instant and enchantment), which is what shows the head is not
+special-cased for the common one. Aura of Silence lands WHOLE with both
+lines, and it is the derivation's proof inside one card: the same
+disjunction term is written "and" over its plural class head and "or" under
+the singular "target" of its second line, which is Disenchant's own
+sentence. Young Pyromancer lands WHOLE as the oversight family's first
+witness. Two subtypes were bought (Wizard, Shaman, [CR#205.3m]).
+Academy Elite was checked and is NOT a witness, which is the point of
+checking: its "instant and sorcery cards in all graveyards" needs the
+all-players possessor that chapter fifty-four refused on measurement
+(`badOwnedByAllPlayers`), so the union head lands none of it and the card
+stays where it was.
+There are NO pins. The round adds no gate — the coordinator is
+construction-owned spelling — and the one cell that looked pinnable is not:
+an affirmative bare-plural "or" is unwritten, but 4 attested lines write it
+under negative polarity and this grammar has no polarity feature to tell
+them apart, so a pin would refuse attested English. `Experimental.ProofsE`
+is minted and registered all the same (`mtg.ipkg`, the sanctioned change;
+`ProofsD` had reached 118 pins and 1,179 lines, past where B and C were
+split for recompile time), and it ends this round EMPTY, with the cold-build
+gate now 14 modules rather than 13.
+
+Ledger updates this chapter:
+
+- The union head (**landed**, and it was never a construction): five whole
+  cards, zero new vocabulary.
+- `Or`'s "always a final 'or'" spelling claim (**corrected**, finding 455),
+  and chapters sixty-three and sixty-four's "two gates deep" filings with it.
+- The trigger over a singular union (**landed free**, 149 lines, finding
+  459's oversight).
+- **Recorded, not built**: "and/or" as a third coordinator (chapter
+  fourteen's frontier note); the kind-crossing disjunction; the subtype
+  union at trace level (Silver-Fur Master); the cross-zone disjunction,
+  still refused by the single-valued zone projection.
+- Near-miss inventory: Academy Elite, which the union head does not reach
+  (its blocker is the all-graveyards possessor and stands); the colored and
+  multi-symbol cost payload, unchanged; the keyword grant to a spell, which
+  now holds the last of the union cost lines it shares with the from-zone
+  qualifier.

@@ -187,14 +187,14 @@ graveyardZ = ZoneAt Graveyard Bare
 -- spelling: ["<Param(0)>'s hand"], kind: Nominal (e.g. "your hand",
 -- "its owner's hand")
 public export
-handOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> ZoneExpr bs
-handOf n = ZoneAt Hand (OwnedBy n {ps = HandIsOwned} {one})
+handOf : (n : Noun bs Player) -> {auto 0 pn : Possessor n} -> ZoneExpr bs
+handOf n = ZoneAt Hand (OwnedBy n {ps = HandIsOwned} {pn})
 
 -- "[player]'s graveyard" — the owned form, as `handOf`.
 -- spelling: ["<Param(0)>'s graveyard"], kind: Nominal (see handOf)
 public export
-graveyardOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> ZoneExpr bs
-graveyardOf n = ZoneAt Graveyard (OwnedBy n {ps = GraveyardIsOwned} {one})
+graveyardOf : (n : Noun bs Player) -> {auto 0 pn : Possessor n} -> ZoneExpr bs
+graveyardOf n = ZoneAt Graveyard (OwnedBy n {ps = GraveyardIsOwned} {pn})
 
 -- The sorted self-reference, one macro per type word the corpus
 -- writes it with: the source ascribed a card type ([CR#109.2] then
@@ -262,6 +262,27 @@ public export
 land : Predicate bs Object
 land = HasType Land
 
+-- "instant"
+-- spelling: ["instant"], kind: Nominal (hasHead = True; HasType Instant)
+public export
+instant : Predicate bs Object
+instant = HasType Instant
+
+-- "sorcery"
+-- spelling: ["sorcery"], kind: Nominal (hasHead = True; HasType Sorcery)
+public export
+sorcery : Predicate bs Object
+sorcery = HasType Sorcery
+
+-- "instant and sorcery" / "instant or sorcery" — the corpus's most-written
+-- type union (119 lines under the plural head, 464 more under a singular
+-- determiner), and ONE term under both words: which coordinator is written
+-- is `Or`'s environment-derived spelling and not a fact about this phrase.
+-- spelling: (construction-owned -- see Predicate.Or's coordinator rule)
+public export
+instantOrSorcery : Predicate bs Object
+instantOrSorcery = Or [instant, sorcery]
+
 -- "creature you control"
 -- spelling: ["creature you control"], kind: TODO(reason: head noun +
 -- non-head modifier conjunction, per hasHead/And -- see Predicate)
@@ -275,6 +296,17 @@ creatureYouControl = And [creature, ControlledBy You]
 public export
 creatureYouDontControl : Predicate bs Object
 creatureYouDontControl = And [creature, Not (ControlledBy You)]
+
+-- "creature your opponents control" -- the UNION read, and a third
+-- spelling beside the two above rather than a transform of either: the
+-- corpus writes it 170 times with the creature head, and only one card
+-- writes it beside "you don't control", so they are distinct phrases and
+-- not free variants (294 lines for the negated self).
+-- spelling: ["creature your opponents control"], kind: TODO(reason: see
+-- creatureYouControl)
+public export
+creatureYourOpponentsControl : Predicate bs Object
+creatureYourOpponentsControl = And [creature, ControlledBy (PlayerGroup YourOpponents)]
 
 ||| "tapped" — [CR#110.5]'s tap value as the ordinary prenominal word.
 public export
@@ -704,7 +736,7 @@ untilYourNextEndStep = Until (StartOf EndStep (Just Yours))
 -- spelling: ["as long as <Param(0)>, <Param(1)>"], kind: Sentence
 -- (Conditionally -- see StaticEffect.Conditionally)
 public export
-asLongAs : (c : Condition bs) -> (se : StaticEffect (condSubjIntro c)) ->
+asLongAs : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
            {auto 0 nn : NotConditional se} -> StaticEffect bs
 asLongAs c se = Conditionally c se {nn}
 
@@ -719,11 +751,14 @@ public export
 -- the UNLESS marking's body stays at the incoming context, and that falls
 -- out of the threading rather than being stipulated: the wrapper negates,
 -- so the condition it hands `Conditionally` is a `NotCond`, and
--- `condSubjIntro` mints only for a self-subject `Matches`. A negated
--- condition has no self subject to thread -- `condSubjIntro (NotCond c)` is
--- the incoming context by construction -- so this signature writes `bs`
--- directly rather than an expression that always reduces to it. The corpus
--- agrees: no "can't … unless" line pronominalises its condition's subject.
+-- `condIntro` mints for a self-subject `Matches` and for a comparison's
+-- margin. A negated condition is neither -- `condIntro (NotCond c)` is the
+-- incoming context by construction, and the comparison row is unreachable
+-- under a negation for a second reason (`condNegatable` refuses the
+-- comparison frame outright) -- so this signature writes `bs` directly
+-- rather than an expression that always reduces to it. The corpus agrees
+-- twice over: no "can't … unless" line pronominalises its condition's
+-- subject, and none reads a margin either.
 unlessSo : (c : Condition bs) -> (se : StaticEffect bs) ->
            {auto 0 ng : CondNegatable c} ->
            {auto 0 nn : NotConditional se} -> StaticEffect bs
@@ -759,11 +794,13 @@ entersWithCounters n k kind = EntersWithCounters n (Lit k) kind {zn}
 -- duration), kind: Sentence (Continuously (Gets …) d -- see
 -- StaticEffect.Gets)
 public export
-gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
+gets : (n : Noun bs Object) -> (pow : PtShift (nomIntro n)) ->
+       (tou : PtShift (nomIntro n)) ->
        (d : Maybe (Duration (nomIntro n))) ->
        {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
+       {auto 0 ps : PumpSigns pow tou} ->
        {auto 0 sp : SpanOk PtDelta d} -> Effect bs
-gets n pow tou d = Continuously (Gets n pow tou) d
+gets n pow tou d = Continuously (Gets n pow tou {ps}) d
 
 -- "[n] gains [ability] [duration]"
 -- spelling: ["<Param(0)> gains <Param(1)>"] (optional trailing duration),
@@ -947,8 +984,18 @@ mayThenElse d body did notd = May (Just d) body (Just did) (Just notd)
 -- spelling: (construction-owned -- the adjective run in oracle's fixed
 -- order, see TokenChars), kind: Nominal
 public export
-creatureTok : (pow : Nat) -> (tou : Nat) -> List Color -> List Subtype -> TokenChars
-creatureTok pow tou cs ss = MkToken (Just (pow, tou)) cs (MkTypeLine ss [Creature]) [] Nothing
+creatureTokOf : (pow : Amount bs) -> (tou : Amount bs) -> List Color -> List Subtype ->
+                TokenChars bs
+creatureTokOf pow tou cs ss = MkToken (Just (pow, tou)) cs (MkTypeLine ss [Creature]) [] Nothing
+
+-- "[p]/[t] [colors] [subtypes] creature token" at WRITTEN numbers -- the
+-- overwhelming majority, and `entersWithCounters`' shape: the numeral is
+-- taken as a numeral and wrapped, so a call site that writes a number
+-- writes a number.
+-- spelling: (construction-owned -- see creatureTokOf), kind: Nominal
+public export
+creatureTok : (pow : Nat) -> (tou : Nat) -> List Color -> List Subtype -> TokenChars bs
+creatureTok pow tou cs ss = creatureTokOf (Lit pow) (Lit tou) cs ss
 
 -- "[subtypes]" — the type line a subtype-only addition writes ("becomes a
 -- Zombie in addition to its other types", [CR#701.47a]).
@@ -970,7 +1017,7 @@ typesOnly ts = MkTypeLine [] ts
 -- as hypotheses, since an abstract bundle cannot discharge them here.
 -- spelling: ["create <Param(0)> <Param(1)> token(s)"], kind: Sentence
 public export
-create : (count : Amount bs) -> (tok : TokenChars) ->
+create : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
          {auto 0 tt : TokenTyped tok} ->
          {auto 0 tp : TokenPt tok} ->
          {auto 0 sf : SubtypesFit tok} ->
@@ -985,7 +1032,7 @@ create count tok = Create You count tok [] {tt} {tp} {sf} {tc} {wc} {rr = MkRide
 -- spelling: ["create <Param(0)> <Param(1)> token(s) that's tapped and
 -- attacking"], kind: Sentence
 public export
-createTappedAttacking : (count : Amount bs) -> (tok : TokenChars) ->
+createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
                         {auto 0 tt : TokenTyped tok} ->
                         {auto 0 tp : TokenPt tok} ->
                         {auto 0 sf : SubtypesFit tok} ->
@@ -1148,8 +1195,8 @@ itIsntA p = NotCond (itsA p {ok} {sy} {zc} {af}) {ng = MkCondNegatable {ok = nf}
 -- shuffle randomizes ([CR#401.2]).
 -- spelling: ["<Param(0)>'s library"], kind: Nominal (see handOf)
 public export
-libraryOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> ZoneExpr bs
-libraryOf n = ZoneAt Library (OwnedBy n {ps = LibraryIsOwned} {one})
+libraryOf : (n : Noun bs Player) -> {auto 0 pn : Possessor n} -> ZoneExpr bs
+libraryOf n = ZoneAt Library (OwnedBy n {ps = LibraryIsOwned} {pn})
 
 -- "your library" — eight hundred twenty-five search lines' own phrase.
 -- spelling: ["your library"], kind: Nominal
@@ -1242,8 +1289,8 @@ revealCards n = Expose Reveal You (ExposedCards n)
 -- player, eleven an opponent).
 -- spelling: ["look at <Param(0)>'s hand"], kind: Sentence
 public export
-lookAtHandOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> Effect bs
-lookAtHandOf n = Expose LookAt You (ExposedZone (handOf n {one}))
+lookAtHandOf : (n : Noun bs Player) -> {auto 0 pn : Possessor n} -> Effect bs
+lookAtHandOf n = Expose LookAt You (ExposedZone (handOf n {pn}))
 
 -- "[who] reveals their hand." — a hundred twenty-eight lines; the
 -- possessive reads the subject the clause just named.
