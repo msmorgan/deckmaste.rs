@@ -38,3 +38,5 @@ requires explicit review rather than an opportunistic refactor.
   one-way via lowering.
 - [English grammar is derived](english-grammar-is-derived.md) — One
   construction declaration compiles parse, render, and build.
+- [English v2 rewrite](english-v2-rewrite.md) — A fresh declaration-owned
+  parser replaces the English stack; the declaration is the type.
