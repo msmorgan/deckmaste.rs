@@ -966,3 +966,350 @@ public export
 badStandingPermission : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile Macros.topCard, Continuously (MayPlay You It) Nothing {sp = ok}])
 badStandingPermission SpanUnstated impossible
+
+
+-- Nor at an endpoint the permission does not write: "until end of
+-- combat" is the two GRANTS' word and the permission's zero times.
+public export
+badPermissionUntilEndOfCombat : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.exile Macros.topCard,
+                Continuously (MayPlay You It) (Just Macros.untilEndOfCombat) {sp = ok}])
+badPermissionUntilEndOfCombat SpanStated impossible
+
+
+-- The new cell is the permission's ALONE, which is what `PermissionOnly`
+-- claims: eight lines write "until your next end step" and every one of
+-- them permits playing just-exiled cards. No grant writes it.
+public export
+badGainsUntilYourNextEndStep : Unspellable (Effect []) (\ok =>
+  Macros.gains (Macros.target Macros.creature) (KeywordAbility Flying) (Just Macros.untilYourNextEndStep) {sp = ok})
+badGainsUntilYourNextEndStep SpanStated impossible
+
+
+-- A permanent on the battlefield has already been played: [CR#604.6]
+-- files the permission as functioning "while a card is in any zone that
+-- you could cast or play it from", and the battlefield is not one. The
+-- refusal is the exact inverse of `Cant`'s battlefield DEMAND, which is
+-- why the permissive twin could not be the prohibition with its polarity
+-- flipped. (The pin now names `PlaySource`, the witness that reads
+-- `playableFrom` on whichever of the two places states the zone — the
+-- complement's binding here, since no source phrase is written.)
+public export
+badPlayFromBattlefield : Unspellable (Effect []) (\ok =>
+  Continuously (MayPlay You (Macros.a Macros.creature) {pz = ok}) (Just Macros.thisTurn))
+badPlayFromBattlefield MkPlaySource impossible
+
+
+-- Growing the container grew its refusal with it: English grants a
+-- triggered ability by QUOTING it, exactly as it grants an activated one
+-- ("Enchanted creature has 'When this creature dies, …'"), and this
+-- grammar has no quotation.
+public export
+badGainsTriggered : Unspellable (Effect []) (\ok =>
+  Macros.gains (Macros.target Macros.creature) (Triggered When (Enters Macros.thisCreature) Macros.drawACard)
+        (Just Macros.untilEndOfTurn) {gr = ok})
+badGainsTriggered MkGrantable impossible
+
+
+-- …and a static ability the same way ("as long as enchanted permanent is
+-- an Equipment, it has 'Equipped creature gets +1/+1 and has trample'").
+public export
+badGainsStatic : Unspellable (Effect []) (\ok =>
+  Macros.gains (Macros.target Macros.creature) (Static (Cant (AllOf Macros.creatureYouControl) Attack Agent))
+        (Just Macros.untilEndOfTurn) {gr = ok})
+badGainsStatic MkGrantable impossible
+
+
+-- [CR#603.7b] gives a delayed trigger ONE stated duration and names the
+-- phrase: "unless it has a stated duration, such as 'this turn'". The
+-- corpus writes no other — Graceful Reprieve's "when target creature
+-- dies this turn" is the family, and the boundary endpoints belong to
+-- continuous effects, which a delayed trigger is not.
+public export
+badDelayedUntilEndOfTurn : Unspellable (Effect []) (\ok =>
+  Delayed (Dies (Macros.target Macros.creature)) {span = Just Macros.untilEndOfTurn}
+          (Move (That CardW) Macros.battlefieldZ) {so = ok})
+badDelayedUntilEndOfTurn DelayFor impossible
+
+
+-- The delayed clause reads three events of the ten and the attack is not
+-- one: "sacrifice it when this creature attacks" is written zero times,
+-- the delayed family being the end-step beginning, the departure and the
+-- death.
+public export
+badDelayedOnAttack : Unspellable (Effect []) (\ok =>
+  Delayed (Attacks (Macros.target Macros.creature)) (Macros.sacrifice You (That (TypeW Creature))) {aw = ok})
+badDelayedOnAttack MkAwaitable impossible
+
+
+-- The event vocabulary's four readers disagree, and the entry is the
+-- clearest case: two thousand eight hundred ninety-one trigger headers
+-- and no would/instead clause of ours. The fourteen enter-interceptions
+-- the corpus does write are the entry RIDER — [CR#603.6d]'s static
+-- ability, which is now a row of its own with its own spelling — so the
+-- would-clause has nothing left to say about the event.
+public export
+badInterceptEnters : Unspellable (Effect []) (\ok =>
+  Macros.ifWouldInstead (Enters (Macros.a Macros.creature)) (Macros.exile It) (Just Macros.thisTurn)
+                        {ok = Builtin.fst ok, uo = Builtin.snd ok})
+badInterceptEnters (MkInterceptable, _) impossible
+
+
+-- …and the [CR#610.3] rider does not wait for one either: "exile it
+-- until a creature enters" is written zero times, the rider's whole
+-- corpus being the departure.
+public export
+badHeldUntilEnters : Unspellable (Effect []) (\ok =>
+  Macros.exileUntil (Macros.target Macros.creature) (Enters (Macros.a Macros.creature)) {hd = ok})
+badHeldUntilEnters MkHoldable impossible
+
+
+-- The turn-part beginning is real oracle as a duration endpoint —
+-- "until the beginning of your next upkeep", twenty-eight lines — and
+-- the adverbial that writes it is `DurationEnd`'s own `StartOf` row. One
+-- phrase, one slot: the event axis must not spell the same endpoint a
+-- second way, which is what `Unclaimed` records here.
+public export
+badUntilBeginningOfUpkeep : Unspellable (Effect []) (\ok =>
+  Macros.gets (Macros.target Macros.creature) 3 3 (Just (UntilEvent (BeginningOf Upkeep (Just Yours)))) {sp = ok})
+badUntilBeginningOfUpkeep SpanStated impossible
+
+
+-- The anaphor is a PRO-VERB and its subject is a player, so the clause
+-- it abbreviates has to have one. [CR#120.1] gives a damage clause an
+-- OBJECT as its agent — "an object that deals damage is the source of
+-- that damage" — and "this creature deals 3 damage to any target. When
+-- you do, …" is written zero times. The one corpus line that looks like
+-- the counterexample writes the causative instead and proves the point:
+-- Elektra, Femme Fatale's "you may HAVE her deal 2 damage to you. When
+-- you do, she deals 4 damage to target creature", where the having is
+-- yours and the dealing is hers.
+public export
+badReflexiveOnSourceDeed : Unspellable (Effect []) (\ok =>
+  Reflexively (DealDamage This (Lit 3) (Macros.target AnyTarget)) Macros.drawACard {en = ok})
+badReflexiveOnSourceDeed MkReflexEnclosure impossible
+
+
+-- The same demand at the row where a rule rather than a count settles
+-- it: [CR#119.9] rewrites the life-gain trigger as "whenever a source
+-- causes [a player] to gain life", which makes the player the PATIENT of
+-- a life change and leaves "do" nobody to inflect for. English writes
+-- the payment instead — "you may pay 2 life. When you do, …" — and
+-- paying IS an action a player takes, which is why one life change is
+-- an enclosure in the cost frame and none is in the sentence frame.
+public export
+badReflexiveOnLifeGain : Unspellable (Effect []) (\ok =>
+  Reflexively (Macros.gainsLife You (Lit 2)) Macros.drawACard {en = ok})
+badReflexiveOnLifeGain MkReflexEnclosure impossible
+
+
+-- One verb phrase, because "do" abbreviates one. A sequence has no
+-- single action for it to stand for, and the corpus writes no reflexive
+-- over one: every one of the two hundred ninety-one enclosures is a
+-- single clause, and a card with two sentences before the anaphor hangs
+-- it on the LAST of them (Hypothesizzle's "Draw two cards. Then you may
+-- discard a nonland card. When you do, …").
+public export
+badReflexiveOnSequence : Unspellable (Effect []) (\ok =>
+  Reflexively (Sequentially [Macros.drawACard, Macros.sacrifice You (Macros.a Macros.creature)]) Macros.drawACard {en = ok})
+badReflexiveOnSequence MkReflexEnclosure impossible
+
+
+-- A clause that SCHEDULES its action has not taken it. [CR#603.12]
+-- triggers the reflexive on whether the event "occurred earlier during
+-- the resolution of the spell or ability that created them", and a
+-- delayed trigger's clause happens at some later time by construction —
+-- so "sacrifice it at the beginning of the next end step. When you do,
+-- …" names an action that has not happened yet. Zero corpus lines.
+public export
+badReflexiveOnDelayed : Unspellable (Effect []) (\ok =>
+  Reflexively (Delayed (BeginningOf EndStep (Just Yours)) Macros.drawACard) Macros.drawACard {en = ok})
+badReflexiveOnDelayed MkReflexEnclosure impossible
+
+
+-- One offer, one reader. [CR#118.12]'s "if you do" and [CR#603.12]'s
+-- "when you do" ask the same question of the same choice — the first
+-- inside the resolution, the second as a new ability — and no corpus
+-- line writes both over one offer. Heart-Piercer Manticore's own ruling
+-- states the difference the card has to choose between: with the
+-- reflexive, "players may cast spells and activate abilities before a
+-- creature is sacrificed and then again after the creature is
+-- sacrificed but before damage is dealt".
+public export
+badReflexiveOnBranchedMay : Unspellable (Effect []) (\ok =>
+  Reflexively (Macros.mayThen You (Macros.sacrifice You (Macros.a Macros.creature)) Macros.drawACard) Macros.drawACard {en = ok})
+badReflexiveOnBranchedMay MkReflexEnclosure impossible
+
+
+-- …and the declined arm is refused by the same row, which is the
+-- untaken path this construction has no arm for at all. [CR#603.12]
+-- words the family as triggering "when [a player] [does or doesn't]"
+-- take the action, so the rule licenses a negative reflexive; English
+-- writes it zero times ("When you don't" is one corpus line and it is a
+-- quoted STATE trigger, Olivia's "When you don't control a legendary
+-- Vampire, exile this creature"). The declined branch stays `May`'s
+-- `ifNot`, where eighty-three lines are.
+public export
+badReflexiveOnDeclinedMay : Unspellable (Effect []) (\ok =>
+  Reflexively (Macros.mayElse You (Macros.sacrifice You (Macros.a Macros.creature)) Macros.drawACard) Macros.drawACard {en = ok})
+badReflexiveOnDeclinedMay MkReflexEnclosure impossible
+
+
+-- The `EncUnclaimed` cell as a pin. "Target opponent gains control of
+-- Yes Man. When they do, …" is real oracle and a reflexive trigger by
+-- ruling rather than by inference (Yes Man, Personal Securitron,
+-- 2024-03-08: "that effect is part of a reflexive triggered ability that
+-- triggers only if the target opponent gains control of Yes Man"), and
+-- it is the family's only line whose enclosure establishes a continuous
+-- effect instead of naming an action. One card, and its trigger body
+-- wants a quest counter `CounterKind` does not carry, so the cell is
+-- ledgered rather than opened — the same distinction chapter
+-- twenty-eight's `PartUnclaimed` cells make one level down.
+public export
+badReflexiveOnGainsControl : Unspellable (Effect []) (\ok =>
+  Reflexively (Macros.gainsControl (Macros.target Opponent) This Nothing) Macros.drawACard {en = ok})
+badReflexiveOnGainsControl MkReflexEnclosure impossible
+
+
+-- What the construction contributes OUTWARD is the enclosure's discourse
+-- and none of the trigger's. [CR#603.3] puts a triggered ability on the
+-- stack "the next time a player would receive priority", so the rest of
+-- this resolution finishes before the reflexive resolves and cannot
+-- mention what it will do: "Mill four cards. When you do, create a
+-- token. Tap that creature." names no creature at the third sentence.
+-- `Delayed`'s hole with a clause in front of it that DID run.
+public export
+badAfterReflexiveReadsTrigger : Unspellable (Effect []) (\ok =>
+  Sequentially [Reflexively (Macros.millCards 4)
+                            (Macros.create (Lit 1) (MkToken (Just (1, 1)) [White]
+                                                     (MkTypeLine [Soldier] [Creature])
+                                                     [] Nothing)),
+                Tap (That (TypeW Creature) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+badAfterReflexiveReadsTrigger (Refl, _) impossible
+
+
+-- …and INWARD it is the enclosure's post-state, not its announcement,
+-- which is the whole difference from `InsteadOf` beside it: that node's
+-- replaced event never happened ([CR#614.6]) where this one fires
+-- because the action DID. So the sacrificed creature is in its graveyard
+-- when the trigger body reads it, and tapping it is
+-- `badTriggerTapsDeadCreature`'s refusal at a second construction.
+public export
+badReflexiveTapsSacrificed : Unspellable (Effect []) (\ok =>
+  Reflexively (Macros.sacrifice You (Macros.a Macros.creature)) (Tap It {ok}))
+badReflexiveTapsSacrificed OnField impossible
+
+
+-- An arrival rider is BATTLEFIELD-only. [CR#110.5b] states the default
+-- the "tapped" rider overrides — permanents "enter the battlefield
+-- untapped … unless a spell or ability says otherwise" — and there is
+-- no such default anywhere else, a card in a graveyard being neither
+-- tapped nor untapped ([CR#110.5] gives STATUS to permanents). Zero
+-- corpus lines write a rider on any other destination.
+public export
+badMoveRidersToGraveyard : Unspellable (Effect []) (\ok =>
+  Move (Macros.target Macros.creature) Macros.graveyardZ
+       {riders = MkMoveRiders [EntersTapped] Nothing} {rf = ok})
+badMoveRidersToGraveyard MkRidersFit impossible
+
+
+-- …and the control override is refused there by the same gate, for
+-- [CR#109.4]'s reason rather than [CR#110.5b]'s: an object that is
+-- neither on the stack nor on the battlefield "aren't controlled by any
+-- player", so a hand arrival has no controller to name.
+public export
+badMoveControlToHand : Unspellable (Effect []) (\ok =>
+  Move (Macros.target Macros.creature) Macros.handZ {riders = MkMoveRiders [] (Just You)} {rf = ok})
+badMoveControlToHand MkRidersFit impossible
+
+
+-- The entry riders keep chapter nineteen's SHAPES, sharing `ridersOk`
+-- with the token with-clause rather than re-minting one: attacking
+-- alone is written zero times in either frame, a creature put onto the
+-- battlefield attacking being put there tapped as well.
+public export
+badMoveAttackingUntapped : Unspellable (Effect []) (\ok =>
+  Move (Macros.target Macros.creature) Macros.battlefieldZ
+       {riders = MkMoveRiders [EntersAttacking] Nothing {ro = ok}})
+badMoveAttackingUntapped MkRidersOk impossible
+
+
+-- …and the order is fixed there too, no line writing "attacking and
+-- tapped".
+public export
+badMoveRidersReversed : Unspellable (Effect []) (\ok =>
+  Move (Macros.target Macros.creature) Macros.battlefieldZ
+       {riders = MkMoveRiders [EntersAttacking, EntersTapped] Nothing {ro = ok}})
+badMoveRidersReversed MkRidersOk impossible
+
+
+-- ONE controller ([CR#109.4] — an object on the battlefield has a
+-- controller, not controllers), which is `ControlledBy`'s own demand at
+-- a second site. "Under their owners' control" is two lines and a
+-- plural relational this vocabulary does not spell.
+public export
+badMoveRidersPluralController : Unspellable (Effect []) (\ok =>
+  Move (Macros.target Macros.creature) Macros.battlefieldZ
+       {riders = MkMoveRiders [] (Just (AllOf Macros.otherPlayer)) {one = ok}})
+badMoveRidersPluralController OneController impossible
+
+
+-- The COUNTER rider does not answer the battlefield question the other
+-- two answer, and this is the pin that says the halves are gated apart:
+-- a graveyard placement takes no counters ([CR#122.1a]'s zone-other-than
+-- clause is real, but zero corpus lines write counters onto a card
+-- entering a graveyard) and it is `counterZone` that refuses it, not
+-- `sameZone … Battlefield`.
+public export
+badMoveCountersToGraveyard : Unspellable (Effect []) (\ok =>
+  Move (Macros.target Macros.creature) Macros.graveyardZ
+       {riders = MkMoveRiders [] Nothing
+                              {counters = Just (MkCounterRider (Lit 1) Macros.plusOnePlusOne)}} {rf = ok})
+badMoveCountersToGraveyard MkRidersFit impossible
+
+
+-- The rider's count is a WRITTEN magnitude like every other, so the
+-- unwritable zero is unwritable here too (`badPutZeroCounters` at a
+-- second site).
+public export
+badExileZeroCounters : Unspellable (Effect []) (\ok =>
+  Macros.exileWithCounters (Macros.target Macros.creature) (Lit 0) Time {wc = ok})
+badExileZeroCounters MkWrittenCount impossible
+
+
+-- A linkage read names the exiles of the ability's OWN object and no
+-- other. [CR#607.1] builds the relation out of two abilities "printed on
+-- it", [CR#406.6] repeats it for this family by name, and [CR#607.5]'s
+-- worked example turns on exactly this: a creature that has gained two
+-- different exiling abilities can return only what the LINKED one
+-- exiled. "Cards exiled with target creature" is unwritten and
+-- unwritable.
+public export
+badExiledWithOtherSource : Unspellable (Predicate [] Object) (\ok =>
+  ExiledWith (Macros.target Macros.creature) {ls = ok})
+badExiledWithOtherSource SelfLinked impossible
+
+
+-- …and a DESCRIBED source is refused by the same gate, which is the
+-- sharper half of the same fact: the linkage is not a relation between a
+-- card and whatever exiled it ("a card exiled with an artifact" is
+-- unwritten), it is one object's note about its own exiles. English has
+-- one phrase for the other reading and it is a different construction —
+-- the passive "exiled by", which the corpus writes ONCE against a
+-- hundred seventy-five "exiled with".
+public export
+badExiledWithDescribedSource : Unspellable (Predicate [] Object) (\ok =>
+  ExiledWith (Macros.a Macros.artifact) {ls = ok})
+badExiledWithDescribedSource SelfLinked impossible
+
+
+-- The linked cards are IN EXILE, which [CR#607.2a] says in as many words
+-- — the second ability "refers only to cards in the exile zone that were
+-- put there" by the first — so the phrase cannot also say its referent
+-- is controlled by somebody: [CR#109.4] gives an object that is neither
+-- on the stack nor on the battlefield no controller at all. Zero corpus
+-- lines write "a card you control exiled with …".
+public export
+badExiledWithControlled : Unspellable (Predicate [] Object) (\ok =>
+  And [ControlledBy You, Macros.exiledWithThisArtifact] {zc = ok})
+badExiledWithControlled MkZoneCoherent impossible
