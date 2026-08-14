@@ -300,3 +300,336 @@ public export
 badSearchZonedDescription : Unspellable (Effect []) (\ok =>
   Macros.searchLibraryFor (And [Macros.creature, InZone Macros.graveyardZ]) {zf = ok})
 badSearchZonedDescription MkZoneFree impossible
+
+
+-- A zero slice and a zero mill instruct nothing, which is
+-- `WrittenCount`'s discipline reaching two more counts.
+public export
+badZeroSlice : Unspellable (Effect []) (\ok =>
+  Macros.lookAt (Macros.topCards 0 {wc = ok}))
+badZeroSlice MkWrittenCount impossible
+
+
+public export
+badMillZero : Unspellable (Effect []) (\ok =>
+  Macros.millCards 0 {wc = ok})
+badMillZero MkWrittenCount impossible
+
+
+-- A DISTRIBUTED mill leaves a plural group, and the count is not what
+-- says so — the subject is. [CR#701.17a] has each milled-at player put
+-- that many cards from their own library into their own graveyard, so
+-- "each player mills a card" puts one card per player there and the
+-- sentence after it cannot say "it". Locke, Treasure Hunter reads the
+-- group plural in the next breath ("each player mills a card. … you may
+-- cast a spell from among those cards"; the trigger shell and the
+-- among-restriction are ledgered). Derived exactly as `Create`'s
+-- distributed count is (`outputPlur`).
+public export
+badDistributedMillSingular : Unspellable (Effect []) (\ok =>
+  Sequentially [Mill (Each AnyPlayer) (Lit 1), Macros.exile (It {ok})])
+badDistributedMillSingular Refl impossible
+
+
+-- A partitive reaches into a GROUP, not into a description: "one of a
+-- creature you control" is not English, and the determiner has no
+-- members to pick from until some phrase has fixed them.
+public export
+badPartitiveOfDescription : Unspellable (Effect []) (\ok =>
+  Macros.exile (SomeOf (Macros.exactly 1) (Macros.a Macros.creature) {gm = ok}))
+badPartitiveOfDescription MkGroupMention impossible
+
+
+-- …nor into another partitive: a part is what was taken, not a group to
+-- take from ("two of one of them" is zero lines).
+public export
+badPartitiveOfPartitive : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.lookAt (Macros.topCards 4), Macros.exile (Macros.oneOf (Macros.oneOf Them) {gm = ok})])
+badPartitiveOfPartitive MkGroupMention impossible
+
+
+-- …nor into the complement: "each of the rest" is zero lines, the
+-- remainder being named rather than reached into.
+public export
+badEachOfTheRest : Unspellable (Effect []) (\ok =>
+  Sequentially [ Macros.lookAt (Macros.topCards 4)
+               , Move (Macros.oneOf Them) Macros.handZ
+               , Macros.exile (EachOf TheRest {gm = ok})
+               ])
+badEachOfTheRest MkGroupMention impossible
+
+
+-- A durationless interception is the STATIC ABILITY line, not a clause.
+-- "If a creature an opponent controls would die, exile it instead" is a
+-- permanent's own ability ([CR#611.3] — a continuous effect from a
+-- static ability lasts while the ability functions and states no
+-- duration), and the corpus divides cleanly: every ONE-SHOT
+-- interception writes a span. So `absentOk Replacement` is `False` and
+-- the whole clause is unwritable here, which is `badStaticCant`'s
+-- refusal a third time.
+public export
+badStandingIntercept : Unspellable (Effect []) (\ok =>
+  Macros.ifWouldInstead (Dies (Macros.target Macros.creature)) (Macros.exile It) Nothing {sp = ok})
+badStandingIntercept SpanUnstated impossible
+
+
+-- The same refusal on the shield: forty-nine "Prevent all …" lines
+-- state no duration and every one of them is a static ability
+-- ("Prevent all combat damage that would be dealt to this creature").
+public export
+badStandingPrevention : Unspellable (Effect []) (\ok =>
+  Macros.preventAll AnyDamage Everywhere Nothing {sp = ok})
+badStandingPrevention SpanUnstated impossible
+
+
+-- Prevention writes ONE adverbial. Two hundred fifty-five prevention
+-- lines carry "this turn"; "prevent … until end of turn" is written
+-- zero times, all scopes. The shield and the grants do not share a
+-- current-turn word any more than the restriction and the grants do.
+public export
+badPreventUntilEndOfTurn : Unspellable (Effect []) (\ok =>
+  Macros.preventAll CombatOnly Everywhere (Just Macros.untilEndOfTurn) {sp = ok})
+badPreventUntilEndOfTurn SpanStated impossible
+
+
+-- Nor a for-as-long-as one: no corpus line conditions a shield on a
+-- tracked predicate ([CR#611.2b]'s adverbial), which is what keeps the
+-- widest class in the table from swallowing the two new rows.
+public export
+badInterceptForAsLongAs : Unspellable (Effect []) (\ok =>
+  Macros.ifWouldInstead (Dies (Macros.target Macros.creature)) (Macros.exile It)
+                 (Just (ForAsLongAs (Exists Macros.creatureYouControl))) {sp = ok})
+badInterceptForAsLongAs SpanStated impossible
+
+
+-- Real oracle English, no clause of ours: thirty-one lines write "would
+-- be destroyed" and twenty-five of them are regeneration's own reminder
+-- text, whose replacement is [CR#614.8]'s four-part instruction — tap
+-- it, remove it from combat, heal the damage on it — not one part of
+-- which this vocabulary writes. `EventUnclaimed` says exactly that, and
+-- keeps it apart from the events nothing writes at all.
+public export
+badInterceptDestruction : Unspellable (Effect []) (\ok =>
+  Macros.ifWouldInstead (IsDestroyed (Macros.target Macros.creature)) (Macros.exile It) (Just Macros.thisTurn) {ok})
+badInterceptDestruction MkInterceptable impossible
+
+
+-- The multiplicity word is the event's to choose. "The next time
+-- [subject] would die" is written zero times against fifty-seven
+-- conditional lines, because a creature dies once and the two shields
+-- would be the same shield ([CR#614.3]).
+public export
+badNextTimeWouldDie : Unspellable (Effect []) (\ok =>
+  Macros.nextTimeWouldInstead (Dies (Macros.target Macros.creature)) (Macros.exile It) (Just Macros.thisTurn) {uo = ok})
+badNextTimeWouldDie MkReplUseOk impossible
+
+
+-- Dying is the battlefield-to-graveyard transition ([CR#700.4]), so the
+-- watched object stands on the battlefield — `EventQuery`'s own demand
+-- asked by the other reader of the same event.
+public export
+badWouldDieInGraveyard : Unspellable (Effect []) (\ok =>
+  Macros.ifWouldInstead (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok})
+                 (Macros.exile It) (Just Macros.thisTurn))
+badWouldDieInGraveyard MkZoneFits impossible
+
+
+-- The replacement is a HOLE outward. [CR#614.7] says a replacement
+-- effect whose intercepted event never happens "simply doesn't do
+-- anything", so a token the replacement would have made is not there
+-- for the next sentence to read — which is the conditional arm's
+-- refusal (finding 100) at a second site.
+public export
+badInterceptReplacementAntecedent : Unspellable (Effect []) (\ok =>
+  Sequentially [ Macros.nextTimeWouldInstead (Draws You)
+                                      (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Soldier]))
+                                      (Just Macros.thisTurn)
+               , Macros.sacrifice You (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}
+               ])
+badInterceptReplacementAntecedent (Refl, _) impossible
+
+
+-- No corpus line ends a CONTINUOUS effect at a leaves-the-battlefield
+-- event with a clause this grammar writes. Of the ninety-one lines that
+-- write the phrase, eighty-six are [CR#610.3] zone changes and three
+-- are [CR#610.4] phasings — neither a continuous effect — and the three
+-- that are one set a base type or make a copy. `Unclaimed` is the cell,
+-- and it names the constructions the grammar is missing rather than
+-- claiming the phrase.
+public export
+badGetsUntilLeavesBattlefield : Unspellable (Effect []) (\ok =>
+  Macros.gets (Macros.target Macros.creature) 2 2 (Just (UntilEvent (Leaves Macros.thisCreature))) {sp = ok})
+badGetsUntilLeavesBattlefield SpanStated impossible
+
+
+-- The rider goes on a zone change to EXILE and on nothing else: nothing
+-- returns from a graveyard "until", and the corpus writes the rider
+-- with the exile verb every time.
+public export
+badHeldUntilDestroy : Unspellable (Effect []) (\ok =>
+  HeldUntil (Macros.destroy (Macros.target Macros.creature)) (Leaves Macros.thisCreature) {ok})
+badHeldUntilDestroy MkHeldClause impossible
+
+
+-- And the event half of the same gate: the rider waits for a
+-- leaves-the-battlefield event and for no other. Not one line writes
+-- "exile [object] until [something] dies".
+public export
+badHeldUntilDies : Unspellable (Effect []) (\ok =>
+  HeldUntil (Macros.exile (Macros.target Macros.creature)) (Dies Macros.thisCreature) {hd = ok})
+badHeldUntilDies MkHoldable impossible
+
+
+-- …and the exile the rider takes is the UNRIDDEN one. The two
+-- constructions say opposite things about the same card: [CR#610.3]
+-- schedules a return that no ability has to ask for, where counters sit
+-- in exile waiting for an ability to read them, and no corpus line asks
+-- for both — "exile … with … counters on it until …" is zero lines.
+public export
+badHeldUntilWithCounters : Unspellable (Effect []) (\ok =>
+  HeldUntil (Macros.exileWithCounters (Macros.target Macros.creature) (Lit 3) Time)
+            (Leaves Macros.thisCreature) {ok})
+badHeldUntilWithCounters MkHeldClause impossible
+
+
+-- The held object's ZONE is not settled by the clause: the undo is
+-- scheduled on an event that has not happened, so the exiled creature
+-- may be in exile or back on the battlefield when a later sentence
+-- reads it. The clause contributes its announcement and not the exile's
+-- retag, so a graveyard-demanding read of the exiled card finds nothing
+-- there to move.
+public export
+badHeldUntilExileRetag : Unspellable (Effect []) (\ok =>
+  Sequentially [ Macros.exileUntil (Macros.target Macros.creature) (Leaves Macros.thisCreature)
+               , Move (That CardW {ok}) Macros.handZ
+               ])
+badHeldUntilExileRetag Refl impossible
+
+
+-- A replacement effect gets "only one opportunity to affect an event or
+-- any modified events that may replace that event" ([CR#614.5]), so a
+-- replacement of a replacement is not a sentence English writes.
+public export
+badNestedInstead : Unspellable (Effect []) (\ok =>
+  Macros.insteadOf (Macros.insteadOf Macros.drawACard (Macros.drawCards 2)) (Macros.drawCards 3) {na = ok})
+badNestedInstead MkNotInstead impossible
+
+
+-- [CR#614.6]: a replaced event "never happens". So the replaced
+-- clause's OUTCOME is not there to read — "that much" after a damage
+-- clause that was replaced measures nothing — even though the same
+-- clause's announced target is ([CR#601.2c]). `annIntro` and `effIntro`
+-- divide exactly here.
+public export
+badInsteadReadsReplacedOutcome : Unspellable (Effect []) (\ok =>
+  Macros.insteadOf (DealDamage This (Lit 3) (Macros.target AnyTarget))
+            (Macros.gainsLife You (ThatMuch {ok})))
+badInsteadReadsReplacedOutcome Refl impossible
+
+
+-- The same refusal through a SEQUENCE, which is where it used to leak:
+-- the replacement was typed in `preIntro replaced`, and a sequence's
+-- pre-state is its last clause's over the DEED telescope, so an earlier
+-- step's outcome walked into a replacement for an event that never
+-- happened. The announcement channel is a hole at a sequence, its
+-- elements being typed over each other's `effIntro` (`annIntro`).
+public export
+badInsteadReadsReplacedSequenceOutcome : Unspellable (Effect []) (\ok =>
+  Macros.insteadOf (Sequentially [DealDamage This (Lit 3) (Macros.target Macros.creature), Macros.drawACard])
+            (Macros.gainsLife You (ThatMuch {ok})))
+badInsteadReadsReplacedSequenceOutcome Refl impossible
+
+
+-- And through a CONDITIONAL wrapping an optional clause, which is the
+-- recursion that carried either defect: chapter twenty-five opened the
+-- conditional's announcement channel on `preIntro e`, correctly for the
+-- flat clause it was opened for (Overload's "that artifact", Colossal
+-- Growth's "that creature") and not for a composite. It is structural
+-- now, so the nested may's damage outcome is not there to read.
+public export
+badConditionalInsteadReadsMayOutcome : Unspellable (Effect []) (\ok =>
+  Macros.insteadOf (If (Macros.may You (DealDamage This (Lit 2) (Macros.target Macros.creature)))
+                (Exists Macros.creature)
+                Nothing)
+            (Macros.gainsLife You (ThatMuch {ok})))
+badConditionalInsteadReadsMayOutcome Refl impossible
+
+
+-- A draw is not a payment. The colon used to accept any clause at all,
+-- which is what the ledger's cost-GRAMMAR entry named: [CR#602.1a] makes
+-- a cost what the ACTIVATOR pays, and no corpus line writes "Draw a
+-- card:" before a colon (zero, against eleven hundred eighty-four
+-- sacrifice components).
+public export
+badDrawAsCost : Unspellable Ability (\ok =>
+  Activated (Do Macros.drawACard {ok}) Macros.drawACard)
+badDrawAsCost MkCostAction impossible
+
+
+-- The life row is DIRECTIONAL: ninety-five "Pay N life" components
+-- against zero gain-life ones, so paying life is a cost and gaining it
+-- is not. A gain-life cost does exist — [CR#119.7] speaks of "a cost
+-- that involves having that player gain life" — and the cards that print
+-- one spell it as an ALTERNATIVE cost ([CR#118.9]), a base swap rather
+-- than an activation cost.
+public export
+badGainLifeCost : Unspellable Ability (\ok =>
+  Activated (Do (Macros.gainsLife You (Lit 2)) {ok}) Macros.drawACard)
+badGainLifeCost MkCostAction impossible
+
+
+-- A cost component may not read a SIBLING component's deed. The
+-- telescope threads the stamp because the ability BODY reads it (Bosh,
+-- Iron Golem), but [CR#601.2h] pays the components in two tiers and each
+-- of them "in any order", so no component may presuppose that a SIBLING
+-- has already been paid — and no corpus line writes one that does.
+public export
+badCostReadsSiblingDeed : Unspellable Ability (\ok =>
+  Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
+                       Do (Macros.exile (TheVerbed Sacrifice CardW)) {ok}])
+            Macros.drawACard)
+badCostReadsSiblingDeed MkCostAction impossible
+
+
+-- Nor may one carry a TARGET. [CR#601.2c] announces targets while the
+-- ability is still being proposed and [CR#601.2h] pays the costs at the
+-- END of that same procedure, so the determiner belongs past the colon
+-- and never before it.
+public export
+badTargetedCost : Unspellable Ability (\ok =>
+  Activated (Do (Macros.sacrifice You (Macros.target Macros.creature)) {ok}) Macros.drawACard)
+badTargetedCost MkCostAction impossible
+
+
+-- And the payer is the ACTIVATOR: [CR#602.1a] says the activation cost
+-- "must be paid by the player who is activating it", so a component that
+-- names its payer names "you" (Erebos, God of the Dead's "Pay 2 life")
+-- and no line charges an opponent. The demand is the POSITION's and not
+-- the clause's — the same life component under the `Pay` clause names
+-- whoever the sentence names, which is the hundred seventy-seven
+-- "unless its controller / that player / any player pays" lines
+-- `badUnlessAnaphoricPayer` is measured against.
+public export
+badForeignPayerCost : Unspellable Ability (\ok =>
+  Activated (Macros.payLife Macros.anOpponent 2) Macros.drawACard {py = ok})
+badForeignPayerCost MkCostPaidByYou impossible
+
+
+-- …and the subjected cost verbs the same way: "an opponent sacrifices a
+-- creature" is real English as a resolving clause and is no payment of
+-- YOURS before a colon.
+public export
+badForeignSacrificeCost : Unspellable Ability (\ok =>
+  Activated (Do (Macros.sacrifice Macros.anOpponent (Macros.a Macros.creature))) Macros.drawACard {py = ok})
+badForeignSacrificeCost MkCostPaidByYou impossible
+
+
+-- "Pay" is one English VERB and a cost is the whole thing an ability
+-- charges. A sacrifice is a payment ([CR#118.1] — a cost is "an action
+-- or payment") and is not payABLE:
+-- the seventy-one non-mana unless lines write their own verb ("unless
+-- you sacrifice a land"), never "pay".
+public export
+badPayBySacrificing : Unspellable (Effect []) (\ok =>
+  Pay You (Do (Macros.sacrifice You (Macros.a Macros.creature))) {pb = ok})
+badPayBySacrificing MkPayable impossible
