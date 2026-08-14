@@ -796,3 +796,107 @@ public export
 badAttackingInHand : Unspellable (Predicate [] Object) (\ok =>
   And [Attacking, InZone Macros.handZ] {zc = ok})
 badAttackingInHand MkZoneCoherent impossible
+
+
+-- A COLLECTIVE group damage subject is unattested: oracle distributes
+-- the frame ("Each creature you control deals 1 damage to that
+-- creature.", Case of the Gateway Express) or names one source.
+public export
+badGroupDamageSource : Unspellable (Effect []) (\ok =>
+  DealDamage (TargetGroup (Macros.exactly 2) Macros.creature) (Lit 3) (Macros.target AnyPlayer) {ds = ok})
+badGroupDamageSource MkDamageSource impossible
+
+
+-- The class word is never negated: [CR#115.4] defines "any target"
+-- positively as the damage target class, and the guide forbids using it
+-- as a synonym for "any object" — so there is nothing for "non-" to
+-- take a complement in.
+public export
+badNegatedAnyTarget : Unspellable (Predicate [] Object) (\ok =>
+  Not AnyTarget {ng = ok})
+badNegatedAnyTarget MkNegatable impossible
+
+
+-- …and it takes no modifier but "other" (Arc Trail's "any other
+-- target"): "any target in a graveyard" would be that forbidden
+-- synonym, spelled as a restriction.
+public export
+badAnyTargetInGraveyard : Unspellable (Predicate [] Object) (\ok =>
+  And [AnyTarget, InZone Macros.graveyardZ] {at = ok})
+badAnyTargetInGraveyard MkAnyTargetLone impossible
+
+
+-- "Any target" is ITSELF the targeting form, so only the targeting
+-- determiners admit it: "a any target" and "each any target" are
+-- unwritable.
+public export
+badAnyTargetUnderA : Unspellable (Noun [] Object) (\ok =>
+  Macros.a AnyTarget {af = ok})
+badAnyTargetUnderA MkAnyTargetFree impossible
+
+
+-- …and the targeting determiner admits it only where the count is the
+-- CASTER's to make: "any target" is the singular damage-class form
+-- [CR#115.4] defines (bolt, Arc Trail, Pyromancy), and every plural
+-- spelling the corpus writes runs from one — "up to two targets" (Fall
+-- of the Titans), "one, two, or three targets" (Arc Lightning), "any
+-- number of targets" (Boulderfall). A FIXED plural count is the one
+-- thing it never writes: "two targets" as a phrase is zero lines and
+-- "among two targets" is zero lines, so "two any targets" stays closed.
+public export
+badGroupAnyTarget : Unspellable (Noun [] Object) (\ok =>
+  TargetGroup (Macros.exactly 2) AnyTarget {af = ok})
+badGroupAnyTarget MkAnyTargetAtCount impossible
+
+
+-- A type-worded self-reference denotes the PERMANENT ([CR#109.2]), and
+-- discarding moves a card from a HAND ([CR#701.9a]): "discard this
+-- creature" is unwritable — cycling's cost says "this card"
+-- (`cyclingCost`).
+public export
+badDiscardThisCreature : Unspellable (Effect []) (\ok =>
+  Macros.discards You Macros.thisCreature {dk = ok})
+badDiscardThisCreature DiscardTracked impossible
+
+
+-- The ascription is the SOURCE's, and only the source's: "target
+-- creature" already says its type in the predicate it carries, so
+-- sorting it a second time spells nothing new — and it would carry
+-- [CR#109.2]'s battlefield projection onto a phrase that never argued
+-- for it. The closed table is the whole refusal.
+public export
+badAscribedTarget : Unspellable (Noun [] Object) (\ok =>
+  AsType Creature (Macros.target Macros.creature) {asc = ok})
+badAscribedTarget AscribeThis impossible
+
+
+-- Negation is ATOMIC: oracle's non-/isn't/doesn't attaches to one
+-- modifier, and a conjunction is negated per-member (De Morgan is the
+-- writer's job). A singleton `And` would otherwise launder every
+-- Negatable ban — `predEq (And _) _ = False` makes the wrapper
+-- invisible to the contradiction scan as well.
+public export
+badNegatedConjunction : Unspellable (Predicate [] Object) (\ok =>
+  Not (And [Macros.creature]) {ng = ok})
+badNegatedConjunction MkNegatable impossible
+
+
+-- The syntactically identical contradiction, no longer laundered by a
+-- vacuous member equality: "you" denotes the same player at both
+-- mentions, so the phrase asserts and denies one fact of one referent.
+-- `nounEqRef You You` is exactly the case the conservative relation
+-- can prove — two target mentions would not be, and are not.
+public export
+badControlContradiction : Unspellable (Predicate [] Object) (\ok =>
+  And [ControlledBy You, Not (ControlledBy You)] {cf = ok})
+badControlContradiction MkContradictionFree impossible
+
+
+-- Only a creature can attack ([CR#506.3]), so the status word
+-- presupposes the type as well as the zone and "attacking noncreature"
+-- describes nothing — the finding-43 shape again: a projection made
+-- honest, the refusal falling out of the existing coherence gate.
+public export
+badAttackingNoncreature : Unspellable (Predicate [] Object) (\ok =>
+  And [Attacking, Not Macros.creature] {cf = ok})
+badAttackingNoncreature MkContradictionFree impossible
