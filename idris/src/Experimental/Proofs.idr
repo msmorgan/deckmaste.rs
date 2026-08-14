@@ -736,3 +736,12 @@ badOtherCrossHead : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target (HasType Land)),
                 Macros.destroy (Macros.target (And [Macros.creature, Other] {oa = ok}))])
 badOtherCrossHead MkOtherAnchored impossible
+
+
+-- Every corpus for-each domain is noun-headed: "for each you control"
+-- names no set to count — the positive-head demand the determiners
+-- already carry (finding 39), now on the counted-set amount.
+public export
+badForEachHeadless : Unspellable (Amount []) (\ok =>
+  Macros.forEach (ControlledBy You) {hd = ok})
+badForEachHeadless MkHeaded impossible

@@ -2146,13 +2146,6 @@ songOfEarendil =
 
 
 
--- Every corpus for-each domain is noun-headed: "for each you control"
--- names no set to count — the positive-head demand the determiners
--- already carry (finding 39), now on the counted-set amount.
-failing "Headed"
-  badForEachHeadless : Amount []
-  badForEachHeadless = Macros.forEach (ControlledBy You)
-
 -- A written numeral is at least one — "1 life for each 0 creatures" is
 -- unwritten English. (The comparisons that legitimately carry zero read
 -- a count rather than write one; `Lit` stays ungated.)
