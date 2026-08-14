@@ -54,7 +54,13 @@ ever expands inside that crate and references it by `crate::` paths. A
 separate runtime crate is minted only if a second macro consumer ever exists.
 At cutover, `deckmaste_spelling` and xtask display paths switch to v2 and the
 old `deckmaste_english` / `deckmaste_construction_compiler` crates are
-deleted; v2 then takes the `deckmaste_english` name.
+deleted; v2 then takes the `deckmaste_english` name. Catalog extraction code
+lives in `deckmaste_migrations` beside the existing snapshot parsers
+(reusing the legacy bare-text extractor where it fits, so
+`deckmaste_migrations::catalogs` is retained at cutover); the catalog
+file-format types are owned by their consumer, `deckmaste_english_v2`, so
+generator and loader cannot drift — a tool-side dependency edge into
+english_v2 only, never the reverse.
 
 ## The declaration language
 
@@ -272,7 +278,10 @@ aspiration.
 - **`roundtrip`** — byte-exact both laws; `--require-clean` for the accepted
   set.
 - **`coverage`** — the lexical coverage gate (§Terminals).
-- **`catalogs check`** — provenance/staleness against the fetched CR.
+- **`catalogs check`** — provenance/staleness against the fetched CR. Ships
+  as `cargo xtask catalogs check` beside `catalogs generate` — one
+  data-layer command family — with the legacy bare-text generation renamed
+  `cargo xtask catalogs text`.
 - **`ambiguity`** — census of selection decisions; unresolvable ties must be
   zero; exception-table entries enumerated for review.
 - **`inspect` / `probe`** — per-sentence forest, selected construction, the
@@ -301,19 +310,24 @@ the `semantics` shape and are handled separately.
 ## Implementation sequence
 
 1. **`english-v2-catalog-pipeline`** (minted) — catalogs, loader, staleness.
-2. **`english-v2-vertical-slice`** (minted) — hand-written compiler target
-   for the paper slice; the codegen golden.
-3. Declaration compiler MVP — `deckmaste_construction` generates exactly the
-   stage-2 hand-written code from the slice declarations; diff-identical is
-   the milestone.
-4. Grammar buildout — style-guide-driven construction porting with the corpus
-   ratchet and gates as the measure; selection pass and exception table land
+2. **`english-v2-vertical-slice`** (minted) — hand-written golden for the
+   AST, exact renderer, and total visitor. NO parser of any kind exists in
+   this stage; parsing belongs exclusively to stage 3.
+3. **`english-v2-earley-engine`** (minted) — the Earley-family chart engine
+   over hand-written grammar tables for the slice corpus: english_v2's only
+   parser, ever. No interim parser exists at any point in the sequence;
+   ordered-choice/PEG/recursive-descent stopgaps are banned outright.
+4. Declaration compiler MVP — `deckmaste_construction` generates the stage-2
+   AST/renderer/visitor diff-identical and the stage-3 grammar tables
+   diff-identical.
+5. Grammar buildout — style-guide-driven construction porting with the corpus
+   ratchet and gates as the measure; selection pass and exception table grow
    with the first real ambiguity.
-5. Consumer parity — the spelling seam's requirements implemented against
+6. Consumer parity — the spelling seam's requirements implemented against
    v2; shadow running with `movers` reports.
-6. Cutover and deletion, per the plan above.
+7. Cutover and deletion, per the plan above.
 
-No tickets beyond stages 1–2 are minted without explicit user approval.
+No tickets beyond stages 1–3 are minted without explicit user approval.
 
 ## Prior-decision audit
 
