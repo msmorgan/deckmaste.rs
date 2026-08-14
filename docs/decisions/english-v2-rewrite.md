@@ -148,13 +148,22 @@ contract one level down. Three declaration tiers plus catalogs:
    codec's spelling is context-derived or stored is a per-codec measurement
    against the style guide, never an assumption.
 4. **Catalogs** — open-class identities (subtypes, card types, ability words,
-   keyword names, card names, counter kinds) are regenerated plain-text word
-   lists (one entry per line, sorted, no headers), loaded at parser
-   construction. A catalog is a pure word list; anything needing per-entry
-   grammar becomes a construction; the card's own name is a parse-context
-   parameter, not a catalog. The staleness gate is regenerate-and-diff:
-   byte-determinism makes the output its own fingerprint, so no provenance
-   metadata exists to maintain or to drift.
+   keyword names, card names) are regenerated plain-text word lists (one
+   entry per line, sorted, no headers), loaded at parser construction. A
+   catalog is a pure word list; anything needing per-entry grammar becomes a
+   construction; the card's own name is a parse-context parameter, not a
+   catalog. **A catalog exists only where structure cannot determine the
+   reading** — to license multi-token spans or resolve genuine ambiguity —
+   never to police membership in an open productive class; membership
+   policing is legality's business, layers above. Counter kinds are the
+   worked example: the kind in "<kind> counter" is an opaque single token,
+   stored and rendered exactly with no list consulted, plus one CR-sourced
+   list covering only the CR-defined kinds — exactly the multi-token cases
+   (keyword counters) opacity cannot span (`+1/+1` and kin are codec atoms,
+   not catalog entries). There is no MTGJSON counter-kind catalog. The
+   staleness gate is regenerate-and-diff: byte-determinism makes the output
+   its own fingerprint, so no provenance metadata exists to maintain or to
+   drift.
 
 **Lexical coverage gate:** every token of every accepted corpus sentence must
 be claimed by a form literal, vocab, lexeme, codec, or identity — an
