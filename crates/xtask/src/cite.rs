@@ -112,7 +112,6 @@ struct CiteConfig {
     format: CitationFormat,
     lockfile: PathBuf,
     sources: SourceConfig,
-    noncompliant_exempt: Vec<String>,
 }
 
 impl Default for CiteConfig {
@@ -121,7 +120,6 @@ impl Default for CiteConfig {
             format: CitationFormat::Bracketed,
             lockfile: default_lockfile(),
             sources: SourceConfig::default(),
-            noncompliant_exempt: Vec::new(),
         }
     }
 }
@@ -535,14 +533,6 @@ impl Repository {
     fn noncompliant_hits(&self) -> anyhow::Result<Vec<NoncompliantHit>> {
         let mut hits = Vec::new();
         for (relative, absolute) in self.source_files()? {
-            if self
-                .config
-                .noncompliant_exempt
-                .iter()
-                .any(|suffix| relative.ends_with(suffix))
-            {
-                continue;
-            }
             let text = std::fs::read_to_string(&absolute)
                 .with_context(|| format!("reading {}", absolute.display()))?;
             hits.extend(noncompliant_source_hits(&relative, &text)?);
@@ -1000,30 +990,81 @@ fn noncompliant_matches(line: &str) -> Vec<String> {
 }
 
 fn noncompliant_source_hits(file: &str, source: &str) -> anyhow::Result<Vec<NoncompliantHit>> {
-    const SCOPE_BEGIN: &str = "// cite: noncompliant begin";
+    const SCOPE_BEGIN: &str =
+        "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims";
     const SCOPE_END: &str = "// cite: noncompliant end";
-    const LINE_EXEMPT: &str = "// cite: noncompliant-line";
+    const LINE_EXEMPT: &str = "// cite: noncompliant-line -- machine-readable parser key";
+
+    #[derive(Debug)]
+    struct FixtureScope {
+        start: usize,
+        declaration_seen: bool,
+        declaration_closed: bool,
+    }
 
     let mut hits = Vec::new();
-    let mut scope_start = None;
+    let mut scope = None;
     for (index, line) in source.lines().enumerate() {
         let line_number = index + 1;
-        let trimmed = line.trim_start();
-        if trimmed.starts_with(SCOPE_BEGIN) {
+        let trimmed = line.trim();
+        if trimmed == SCOPE_BEGIN {
             anyhow::ensure!(
-                scope_start.replace(line_number).is_none(),
+                scope.is_none(),
                 "cite: nested noncompliant begin in {file}:{line_number}"
             );
+            scope = Some(FixtureScope {
+                start: line_number,
+                declaration_seen: false,
+                declaration_closed: false,
+            });
             continue;
         }
-        if trimmed.starts_with(SCOPE_END) {
+        if trimmed == SCOPE_END {
+            let active = scope.as_ref().with_context(|| {
+                format!("cite: unmatched noncompliant end in {file}:{line_number}")
+            })?;
             anyhow::ensure!(
-                scope_start.take().is_some(),
-                "cite: unmatched noncompliant end in {file}:{line_number}"
+                active.declaration_seen && active.declaration_closed,
+                "cite: noncompliant fixture constant is not closed before {file}:{line_number}"
+            );
+            scope = None;
+            continue;
+        }
+        if line.trim_end().ends_with(LINE_EXEMPT) {
+            anyhow::ensure!(
+                scope.is_none(),
+                "cite: parser-key line marker inside fixture scope in {file}:{line_number}"
+            );
+            let code = line
+                .trim_end()
+                .strip_suffix(LINE_EXEMPT)
+                .expect("suffix was checked")
+                .trim_end();
+            anyhow::ensure!(
+                is_quoted_rule_parser_key_line(code),
+                "cite: noncompliant line marker requires a quoted parser-key line in {file}:{line_number}"
             );
             continue;
         }
-        if scope_start.is_some() || line.contains(LINE_EXEMPT) {
+        anyhow::ensure!(
+            !line.contains("cite: noncompliant"),
+            "cite: malformed noncompliant marker in {file}:{line_number}"
+        );
+        if let Some(active) = scope.as_mut() {
+            if active.declaration_seen {
+                anyhow::ensure!(
+                    !active.declaration_closed,
+                    "cite: expected noncompliant fixture end after fixture constant in {file}:{line_number}"
+                );
+                active.declaration_closed = fixture_constant_closes(trimmed);
+            } else {
+                anyhow::ensure!(
+                    is_fixture_constant_declaration(trimmed),
+                    "cite: noncompliant scope must immediately precede a CR fixture constant in {file}:{line_number}"
+                );
+                active.declaration_seen = true;
+                active.declaration_closed = fixture_constant_closes(trimmed);
+            }
             continue;
         }
         for matched in noncompliant_matches(line) {
@@ -1036,11 +1077,39 @@ fn noncompliant_source_hits(file: &str, source: &str) -> anyhow::Result<Vec<Nonc
         }
     }
     anyhow::ensure!(
-        scope_start.is_none(),
+        scope.is_none(),
         "cite: unclosed noncompliant begin in {file}:{}",
-        scope_start.unwrap_or_default()
+        scope.as_ref().map_or(0, |active| active.start)
     );
     Ok(hits)
+}
+
+fn is_quoted_rule_parser_key_line(code: &str) -> bool {
+    static QUOTED_RULE: OnceLock<Regex> = OnceLock::new();
+    !code.trim_start().starts_with('/')
+        && QUOTED_RULE
+            .get_or_init(|| {
+                Regex::new(r#"\"[1-9][0-9]{2}\.[0-9]+[a-z]?\"\s*,\s*$"#)
+                    .expect("the quoted rule-key regex is valid")
+            })
+            .is_match(code)
+}
+
+fn is_fixture_constant_declaration(line: &str) -> bool {
+    static FIXTURE_CONST: OnceLock<Regex> = OnceLock::new();
+    FIXTURE_CONST
+        .get_or_init(|| {
+            Regex::new(r"^const [A-Z][A-Z0-9_]*FIXTURE[A-Z0-9_]*: &str = ")
+                .expect("the fixture-constant regex is valid")
+        })
+        .is_match(line)
+}
+
+fn fixture_constant_closes(line: &str) -> bool {
+    static STRING_END: OnceLock<Regex> = OnceLock::new();
+    STRING_END
+        .get_or_init(|| Regex::new("\\\"#*;$").expect("the string-end regex is valid"))
+        .is_match(line)
 }
 
 fn noncompliant_patterns() -> &'static [Regex; 3] {
@@ -1333,12 +1402,12 @@ Contents\r\n\
     }
 
     #[test]
-    fn noncompliant_scan_honors_narrow_line_and_balanced_scope_exemptions() {
+    fn noncompliant_scan_accepts_exact_parser_key_and_fixture_markers() {
         let source = "\
 // CR 100.1
-let key = \"100.1\"; // cite: noncompliant-line -- machine-readable parser key
-// cite: noncompliant begin -- verbatim rules fixture
-const FIXTURE: &str = \"rule 200.1\";
+parse_rule(\"100.1\", // cite: noncompliant-line -- machine-readable parser key
+// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims
+const CR_FIXTURE: &str = \"rule 200.1\";
 // cite: noncompliant end
 // rule 300.1
 ";
@@ -1352,7 +1421,19 @@ const FIXTURE: &str = \"rule 200.1\";
     }
 
     #[test]
-    fn noncompliant_scan_rejects_unbalanced_scope_exemptions() {
+    fn noncompliant_scan_rejects_nested_fixture_scope() {
+        let error = noncompliant_source_hits(
+            "src/lib.rs",
+            "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+const CR_FIXTURE: &str = \"rule 100.1\";\n\
+// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n",
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("nested noncompliant begin"));
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_unmatched_fixture_scope_end() {
         let unmatched_end =
             noncompliant_source_hits("src/lib.rs", "// cite: noncompliant end\n// rule 100.1\n")
                 .unwrap_err();
@@ -1362,16 +1443,68 @@ const FIXTURE: &str = \"rule 200.1\";
                 .contains("unmatched noncompliant end"),
             "{unmatched_end:#}"
         );
+    }
 
+    #[test]
+    fn noncompliant_scan_rejects_unclosed_fixture_scope() {
         let unclosed = noncompliant_source_hits(
             "src/lib.rs",
-            "// cite: noncompliant begin -- fixture\nrule 100.1\n",
+            "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+const CR_FIXTURE: &str = \"rule 100.1\";\n",
         )
         .unwrap_err();
         assert!(
             unclosed.to_string().contains("unclosed noncompliant begin"),
             "{unclosed:#}"
         );
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_malformed_markers() {
+        for malformed in [
+            "// cite: noncompliant beginning -- verbatim CR parser fixture, not prose claims",
+            "// cite: noncompliant endless",
+            "let key = \"100.1\"; // cite: noncompliant-line-altered -- machine-readable parser key",
+        ] {
+            let error = noncompliant_source_hits("src/lib.rs", malformed).unwrap_err();
+            assert!(
+                error.to_string().contains("malformed noncompliant marker"),
+                "{malformed:?}: {error:#}"
+            );
+        }
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_line_marker_on_prose_or_non_key_code() {
+        for misuse in [
+            "// CR 100.1 // cite: noncompliant-line -- machine-readable parser key",
+            "let key = rule_number; // cite: noncompliant-line -- machine-readable parser key",
+            "/* \"100.1\", */ // cite: noncompliant-line -- machine-readable parser key",
+        ] {
+            let error = noncompliant_source_hits("src/lib.rs", misuse).unwrap_err();
+            assert!(
+                error.to_string().contains("parser-key line"),
+                "{misuse:?}: {error:#}"
+            );
+        }
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_scope_around_prose_or_non_fixture_code() {
+        for misuse in [
+            "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+// rule 100.1\n\
+// cite: noncompliant end\n",
+            "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+fn prose() { /* rule 100.1 */ }\n\
+// cite: noncompliant end\n",
+        ] {
+            let error = noncompliant_source_hits("src/lib.rs", misuse).unwrap_err();
+            assert!(
+                error.to_string().contains("fixture constant"),
+                "{misuse:?}: {error:#}"
+            );
+        }
     }
 
     #[test]
@@ -1396,7 +1529,7 @@ const FIXTURE: &str = \"rule 200.1\";
     }
 
     #[test]
-    fn configured_fixture_exercises_lock_update_and_exemptions() {
+    fn obsolete_file_exemption_key_cannot_bypass_noncompliant_scan() {
         let fixture = Fixture::new();
         fixture.write("data/rules/cr.txt", CR);
         fixture.write(
@@ -1415,7 +1548,7 @@ const FIXTURE: &str = \"rule 200.1\";
         let citations = repo.resolved_citations(&cr).unwrap();
         let first = build_lock(&citations, &cr, "https://example.invalid/old.txt");
         write_lock(&repo.lock_path(), &first).unwrap();
-        assert_eq!(repo.noncompliant_hits().unwrap().len(), 2);
+        assert_eq!(repo.noncompliant_hits().unwrap().len(), 4);
 
         fixture.write("src/main.rs", "// [CR#200.1]\n");
         let citations = repo.resolved_citations(&cr).unwrap();

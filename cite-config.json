@@ -6,12 +6,6 @@
     "extensions": ["rs", "md", "ron", "idr"],
     "exclude": ["crates/xtask/", "CLAUDE.md", ".sdd-progress.md"]
   },
-  "noncompliant_exempt": [
-    "crates/deckmaste_migrations/src/catalogs.rs",
-    "crates/deckmaste_migrations/src/data/academyruins.rs",
-    "crates/deckmaste_migrations/src/stubs/keyword_todos.rs",
-    "crates/deckmaste_migrations/src/stubs/ability_word_todos.rs"
-  ],
   "coverage": {
     "out_of_scope": {
       "800..999": "multiplayer + casual variants — not modeled",

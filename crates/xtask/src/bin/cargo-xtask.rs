@@ -112,4 +112,13 @@ mod tests {
         let cli = Cli::try_parse_from(["cargo xtask", "derive-cards"]).unwrap();
         assert!(matches!(cli.command, Cmd::DeriveCards(_)));
     }
+
+    #[test]
+    fn catalogs_generate_help_names_canonical_card_face_input() {
+        let help = Cli::try_parse_from(["cargo xtask", "catalogs", "generate", "--help"])
+            .unwrap_err()
+            .to_string();
+        assert!(help.contains("Vintage-playable card face names"));
+        assert!(!help.contains("observed keyword variants"));
+    }
 }

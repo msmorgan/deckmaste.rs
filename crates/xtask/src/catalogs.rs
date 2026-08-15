@@ -34,7 +34,7 @@ struct GenerateArgs {
     #[arg(long, default_value = "data/rules/cr.txt")]
     cr: PathBuf,
 
-    /// MTGJSON atomic card snapshot used only for observed keyword variants.
+    /// MTGJSON atomic card snapshot supplying Vintage-playable card face names.
     #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
     atomic: PathBuf,
 
