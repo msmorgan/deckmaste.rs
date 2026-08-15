@@ -1,18 +1,22 @@
 use engine::ChartFailure;
 use engine::RulePosition;
-use grammar::Category;
-use grammar::Lexical;
-use grammar::SliceGrammar;
-use grammar::materialize;
-use grammar::parse_forest;
+use materialize::materialize;
+use rules::Category;
+use rules::Lexical;
+use scan::Leaf;
+use scan::SliceGrammar;
+use scan::parse_forest;
 use selection::select;
 
 use crate::ast::Ability;
 use crate::catalogs::ParserCatalogs;
 use crate::context::ParseContext;
 
+mod build;
 mod engine;
-mod grammar;
+mod materialize;
+mod rules;
+mod scan;
 mod selection;
 
 pub use error::Expectation;

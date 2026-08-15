@@ -2,9 +2,9 @@ use std::cmp::Ordering;
 
 use super::ParseError;
 use super::engine::RulePosition;
-use super::grammar::Candidate;
-use super::grammar::Construction;
-use super::grammar::Lexical;
+use super::materialize::Candidate;
+use super::rules::Construction;
+use super::rules::Lexical;
 use crate::ast::Ability;
 
 const SELECTION_EXCEPTIONS: &[(Construction, Construction, Ordering)] = &[];
