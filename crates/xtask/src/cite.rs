@@ -1013,7 +1013,7 @@ fn noncompliant_source_hits(file: &str, source: &str) -> anyhow::Result<Vec<Nonc
 
     let syntax = syn::parse_file(source)
         .with_context(|| format!("parsing Rust source {file} for citation exemptions"))?;
-    let mut sites = RustExemptionSites::default();
+    let mut sites = RustExemptionSites::for_file(file);
     sites.visit_file(&syntax);
     let mut exempt_lines = BTreeSet::new();
     for fixture in sites.fixtures {
@@ -1077,8 +1077,10 @@ fn noncompliant_hits_on_lines(
     hits
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct RustExemptionSites {
+    allow_rule_arguments: bool,
+    allow_fixture: bool,
     rule_arguments: Vec<RuleArgumentSite>,
     fixtures: Vec<FixtureItemSite>,
 }
@@ -1112,17 +1114,14 @@ struct FixtureItemSite {
 
 impl<'ast> syn::visit::Visit<'ast> for RustExemptionSites {
     fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
-        self.collect_rule_arguments(&call.args);
+        if self.allow_rule_arguments {
+            self.collect_rule_argument(call);
+        }
         syn::visit::visit_expr_call(self, call);
     }
 
-    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
-        self.collect_rule_arguments(&call.args);
-        syn::visit::visit_expr_method_call(self, call);
-    }
-
     fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
-        if is_string_fixture_const(item) {
+        if self.allow_fixture && is_cr_fixture_const(item) {
             self.fixtures.push(FixtureItemSite {
                 start_line: item.const_token.span.start().line,
                 end_line: item.semi_token.span.end().line,
@@ -1133,28 +1132,49 @@ impl<'ast> syn::visit::Visit<'ast> for RustExemptionSites {
 }
 
 impl RustExemptionSites {
-    fn collect_rule_arguments(
-        &mut self,
-        arguments: &syn::punctuated::Punctuated<syn::Expr, syn::Token![,]>,
-    ) {
-        for argument in arguments {
-            let syn::Expr::Lit(expression) = argument else {
-                continue;
-            };
-            let syn::Lit::Str(literal) = &expression.lit else {
-                continue;
-            };
-            if is_rule_parser_key(&literal.value()) {
-                let span = literal.span();
-                let start = span.start();
-                let end = span.end();
-                if start.line == end.line {
-                    self.rule_arguments.push(RuleArgumentSite {
-                        line: end.line,
-                        end_column: end.column,
-                    });
-                }
-            }
+    fn for_file(file: &str) -> Self {
+        Self {
+            allow_rule_arguments: file == "crates/deckmaste_catalogs/src/cr.rs",
+            allow_fixture: matches!(
+                file,
+                "crates/deckmaste_catalogs/src/lib.rs" | "crates/deckmaste_catalogs/src/legacy.rs"
+            ),
+            rule_arguments: Vec::new(),
+            fixtures: Vec::new(),
+        }
+    }
+
+    fn collect_rule_argument(&mut self, call: &syn::ExprCall) {
+        let syn::Expr::Path(function) = call.func.as_ref() else {
+            return;
+        };
+        if function.qself.is_some() || function.path.segments.len() != 1 {
+            return;
+        }
+        let helper = &function.path.segments[0].ident;
+        if !matches!(
+            helper.to_string().as_str(),
+            "parse_list_rule" | "parse_subtype_rule" | "numbered_rule"
+        ) {
+            return;
+        }
+        let Some(syn::Expr::Lit(expression)) = call.args.iter().nth(1) else {
+            return;
+        };
+        let syn::Lit::Str(literal) = &expression.lit else {
+            return;
+        };
+        if !is_rule_parser_key(&literal.value()) {
+            return;
+        }
+        let span = literal.span();
+        let start = span.start();
+        let end = span.end();
+        if start.line == end.line {
+            self.rule_arguments.push(RuleArgumentSite {
+                line: end.line,
+                end_column: end.column,
+            });
         }
     }
 }
@@ -1169,12 +1189,7 @@ fn is_rule_parser_key(value: &str) -> bool {
         .is_match(value)
 }
 
-fn is_string_fixture_const(item: &syn::ItemConst) -> bool {
-    let name = item.ident.to_string();
-    let uppercase_fixture = name.ends_with("_FIXTURE")
-        && name
-            .bytes()
-            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_');
+fn is_cr_fixture_const(item: &syn::ItemConst) -> bool {
     let syn::Type::Reference(reference) = item.ty.as_ref() else {
         return false;
     };
@@ -1184,7 +1199,7 @@ fn is_string_fixture_const(item: &syn::ItemConst) -> bool {
     let syn::Expr::Lit(expression) = item.expr.as_ref() else {
         return false;
     };
-    uppercase_fixture
+    item.ident == "CR_FIXTURE"
         && reference.mutability.is_none()
         && path.qself.is_none()
         && path.path.is_ident("str")
@@ -1482,27 +1497,97 @@ Contents\r\n\
 
     #[test]
     fn noncompliant_scan_accepts_exact_parser_key_and_fixture_markers() {
-        let source = "\
+        let line_source = "\
 // CR 100.1
-fn parse_rule(_: &str, _: ()) {}
 fn example() {
-    parse_rule(
+    parse_list_rule(
+        &lines,
         \"100.1\", // cite: noncompliant-line -- machine-readable parser key
-        (),
+        \"The example values are \",
+        \"examples\",
+    );
+    parse_subtype_rule(
+        &lines,
+        \"200.1\", // cite: noncompliant-line -- machine-readable parser key
+        \"example\",
+        \"examples\",
+    );
+    numbered_rule(
+        &lines,
+        \"300.1\", // cite: noncompliant-line -- machine-readable parser key
+        \"examples\",
     );
 }
+// rule 400.1
+";
+        let scope_source = "\
 // cite: noncompliant begin -- verbatim CR parser fixture, not prose claims
 const CR_FIXTURE: &str = \"rule 200.1\";
 // cite: noncompliant end
-// rule 300.1
 ";
-        let hits = noncompliant_source_hits("src/lib.rs", source).unwrap();
+        let hits =
+            noncompliant_source_hits("crates/deckmaste_catalogs/src/cr.rs", line_source).unwrap();
         assert_eq!(
             hits.iter()
                 .map(|hit| hit.matched.as_str())
                 .collect::<Vec<_>>(),
-            ["CR 100.1", "100.1", "rule 300.1", "300.1"]
+            ["CR 100.1", "100.1", "rule 400.1", "400.1"]
         );
+        assert!(
+            noncompliant_source_hits("crates/deckmaste_catalogs/src/lib.rs", scope_source,)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_rule_key_in_unrelated_free_call() {
+        let source = "fn f() { unrelated(&lines, \"100.1\", // cite: noncompliant-line -- machine-readable parser key\n); }";
+        assert!(noncompliant_source_hits("crates/deckmaste_catalogs/src/cr.rs", source).is_err());
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_rule_key_in_method_call() {
+        let source = "fn f() { parser.numbered_rule(&lines, \"100.1\", // cite: noncompliant-line -- machine-readable parser key\n); }";
+        assert!(noncompliant_source_hits("crates/deckmaste_catalogs/src/cr.rs", source).is_err());
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_rule_key_in_wrong_helper_argument() {
+        let source = "fn f() { parse_list_rule(\"100.1\", // cite: noncompliant-line -- machine-readable parser key\n&lines); }";
+        assert!(noncompliant_source_hits("crates/deckmaste_catalogs/src/cr.rs", source).is_err());
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_cr_helper_in_wrong_file() {
+        let source = "fn f() { numbered_rule(&lines, \"100.1\", // cite: noncompliant-line -- machine-readable parser key\n\"examples\"); }";
+        assert!(noncompliant_source_hits("crates/deckmaste_catalogs/src/lib.rs", source).is_err());
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_license_fixture_scope() {
+        let source = "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+const LICENSE_FIXTURE: &str = \"rule 100.1\";\n\
+// cite: noncompliant end\n";
+        assert!(noncompliant_source_hits("crates/deckmaste_catalogs/src/lib.rs", source).is_err());
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_other_named_fixture_scope() {
+        let source = "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+const PARSER_FIXTURE: &str = \"rule 100.1\";\n\
+// cite: noncompliant end\n";
+        assert!(
+            noncompliant_source_hits("crates/deckmaste_catalogs/src/legacy.rs", source).is_err()
+        );
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_cr_fixture_scope_in_wrong_file() {
+        let source = "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+const CR_FIXTURE: &str = \"rule 100.1\";\n\
+// cite: noncompliant end\n";
+        assert!(noncompliant_source_hits("crates/deckmaste_catalogs/src/io.rs", source).is_err());
     }
 
     #[test]
