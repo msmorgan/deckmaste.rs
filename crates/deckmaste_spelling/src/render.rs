@@ -681,14 +681,11 @@ fn projected_value(view: &ProjectionTree) -> Option<&deckmaste_english::OwnedPro
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-    use std::io::BufRead;
-    use std::io::BufReader;
     use std::path::Path;
     use std::path::PathBuf;
     use std::sync::LazyLock;
 
-    use deckmaste_english::CatalogKind;
+    use deckmaste_catalogs::legacy::LegacyCatalogSet;
     use deckmaste_plugin::plugin::Plugin;
     use macro_ron::frames::load_constructor_frames;
 
@@ -703,33 +700,17 @@ mod tests {
     /// the same name (kept as a small, deliberate per-file duplication
     /// rather than a shared test-only crate export, matching this crate's
     /// existing fixture-duplication convention). Only ever reached from
-    /// `#[cfg_attr(not(gen_catalogs), ignore)]` tests, so `data/gen/catalogs`
+    /// `#[cfg_attr(not(gen_catalogs), ignore)]` tests, so `data/gen/catalogs-legacy`
     /// is guaranteed present when this runs (build.rs sets the `gen_catalogs`
     /// cfg from the directory's presence).
     fn real_catalogs() -> Catalogs {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
-        let load = |name: &str| -> Vec<String> {
-            let path = dir.join(format!("{name}.txt"));
-            let file = File::open(&path)
-                .unwrap_or_else(|error| panic!("opening {}: {error}", path.display()));
-            BufReader::new(file)
-                .lines()
-                .collect::<std::io::Result<Vec<_>>>()
-                .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()))
-        };
-        Catalogs::default()
-            .with_catalog(CatalogKind::KeywordAbility, load("keyword-abilities"))
-            .with_catalog(CatalogKind::KeywordAction, load("keyword-actions"))
-            .with_catalog(CatalogKind::AbilityWord, load("ability-words"))
-            .with_catalog(CatalogKind::ArtifactType, load("artifact-types"))
-            .with_catalog(CatalogKind::BattleType, load("battle-types"))
-            .with_catalog(CatalogKind::CreatureType, load("creature-types"))
-            .with_catalog(CatalogKind::EnchantmentType, load("enchantment-types"))
-            .with_catalog(CatalogKind::LandType, load("land-types"))
-            .with_catalog(CatalogKind::PlaneswalkerType, load("planeswalker-types"))
-            .with_catalog(CatalogKind::SpellType, load("spell-types"))
-            .with_catalog(CatalogKind::Supertype, load("supertypes"))
-            .with_catalog(CatalogKind::CardType, load("card-types"))
+        let workspace_data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let raw = LegacyCatalogSet::load(
+            workspace_data.join("gen/catalogs-legacy"),
+            workspace_data.join("catalogs"),
+        )
+        .unwrap_or_else(|error| panic!("loading legacy catalogs: {error:#}"));
+        Catalogs::from_legacy(&raw)
     }
 
     struct Fixture {
@@ -789,7 +770,10 @@ mod tests {
     /// unguarded frame's citation-form "draws" is already correct for
     /// *any* third-person subject, `Target player` included) in one pair.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn draw_renders_the_imperative_and_the_declarative() {
         let imperative = recover("Draw three cards.", FragmentKind::Sentence, "");
         assert_eq!(
@@ -818,7 +802,10 @@ mod tests {
     /// not a bug — `render_invocation_with`, given the card's real name, has
     /// no such gap and renders exactly what the legacy renderer would.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn self_reference_needs_a_real_identity() {
         let recovered = recover(
             "Lightning Bolt deals 3 damage to each creature.",
@@ -857,7 +844,10 @@ mod tests {
     /// `KeywordLine`) and this test would pass without ever exercising the
     /// catalog gap it is named for.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn a_keyword_line_frame_needs_a_populated_catalog() {
         let recovered = recover("flying", FragmentKind::KeywordLine, "");
         assert!(
@@ -897,7 +887,10 @@ mod tests {
     /// all), exactly the gap that made every canon `Keyword(Flying)` line
     /// silently invisible to G3/G4.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn a_keyword_line_matches_the_real_capitalized_corpus_spelling() {
         let recovered = recover("Flying", FragmentKind::KeywordLine, "");
         assert!(
@@ -925,7 +918,10 @@ mod tests {
     /// render-direction mirror of `unify`'s own totality: a gap in coverage
     /// is a graceful error, never a panic or a fabricated answer.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn an_unreconstructable_residual_fails_the_render_rather_than_guessing() {
         let recovered = recover(
             "Lightning Bolt deals 3 damage to it.",
@@ -964,7 +960,10 @@ mod tests {
     /// must actually succeed with the exact expected wording, and `Nominal`
     /// must actually fail, naming the entry it could not find.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn the_callers_category_decides_how_a_constructor_render_is_parsed_back() {
         let this = || Recovered::Invocation {
             entry: "This".to_string(),
@@ -1014,7 +1013,10 @@ mod tests {
     /// "draw one cards" instead of "Draw a card." — the exact wrong output a
     /// textual guard comparison produces and a canonical-form one does not.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn a_guard_matches_any_ground_spelling_of_its_constant_not_just_its_own() {
         let tagged = Recovered::Invocation {
             entry: "Draws".to_string(),
@@ -1039,7 +1041,10 @@ mod tests {
     /// guard makes selection fall through to a less specific one — never a
     /// mid-render error.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn a_mismatched_guard_falls_through_to_a_less_specific_frame_rather_than_erroring() {
         let recovered = Recovered::Invocation {
             entry: "Draw".to_string(),
@@ -1104,7 +1109,10 @@ mod tests {
     /// exactly and must still render, so the check cannot be passing by
     /// refusing everything.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn a_filler_that_reassembles_the_frame_differently_is_refused() {
         let lexicon = Lexicon::from_entries(
             vec![
@@ -1157,7 +1165,10 @@ mod tests {
     /// tie, not resolved silently by whichever the lexicon happened to
     /// assemble first.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn incomparable_guards_are_reported_rather_than_resolved_silently() {
         let macros = fixture().lexicon.macros();
         let params: Vec<String> = vec!["Reference".to_string(), "Count".to_string()];

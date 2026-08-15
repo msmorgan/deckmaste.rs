@@ -1,8 +1,8 @@
 // Detects the two local-only `data/` fixtures xtask's english/macros tests
 // parse real oracle text against, and sets a cfg per fixture:
 //
-// - `gen_catalogs`  — `data/gen/catalogs`, the CR-derived bare-text catalogs
-//   `cargo xtask catalogs` writes from `data/rules/cr.txt`.
+// - `gen_catalogs`  — `data/gen/catalogs-legacy`, the CR-derived bare-text
+//   catalogs `cargo xtask catalogs text` writes from `data/rules/cr.txt`.
 // - `derived_cards` — `data/derived/cards.jsonl`, the mtgjson-derived oracle
 //   snapshot (`deckmaste_plugin::fidelity::ORACLE_SNAPSHOT`).
 //
@@ -25,7 +25,7 @@ fn main() {
     println!("cargo::rustc-check-cfg=cfg(derived_cards)");
     let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR set by cargo");
     let data = Path::new(&manifest).join("../../data");
-    if data.join("gen/catalogs").is_dir() {
+    if data.join("gen/catalogs-legacy").is_dir() {
         println!("cargo::rustc-cfg=gen_catalogs");
     }
     if data.join("derived/cards.jsonl").is_file() {

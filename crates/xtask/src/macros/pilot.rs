@@ -96,9 +96,9 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use clap::Args;
+use deckmaste_catalogs::legacy::LegacyCatalogSet;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::is_todo_source;
-use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use deckmaste_english::parse_fragment;
@@ -408,28 +408,11 @@ pub(super) fn gate_status(plugin_dir: &Path, canon_dir: &Path) -> anyhow::Result
 // ---------------------------------------------------------------------------
 
 pub(super) fn real_catalogs(workspace_root: &Path) -> anyhow::Result<Catalogs> {
-    let dir = workspace_root.join("data/gen/catalogs");
-    let load = |name: &str| -> anyhow::Result<Vec<String>> {
-        let path = dir.join(format!("{name}.txt"));
-        Ok(std::fs::read_to_string(&path)
-            .map_err(|error| anyhow::anyhow!("reading {}: {error}", path.display()))?
-            .lines()
-            .map(str::to_string)
-            .collect())
-    };
-    Ok(Catalogs::default()
-        .with_catalog(CatalogKind::KeywordAbility, load("keyword-abilities")?)
-        .with_catalog(CatalogKind::KeywordAction, load("keyword-actions")?)
-        .with_catalog(CatalogKind::AbilityWord, load("ability-words")?)
-        .with_catalog(CatalogKind::ArtifactType, load("artifact-types")?)
-        .with_catalog(CatalogKind::BattleType, load("battle-types")?)
-        .with_catalog(CatalogKind::CreatureType, load("creature-types")?)
-        .with_catalog(CatalogKind::EnchantmentType, load("enchantment-types")?)
-        .with_catalog(CatalogKind::LandType, load("land-types")?)
-        .with_catalog(CatalogKind::PlaneswalkerType, load("planeswalker-types")?)
-        .with_catalog(CatalogKind::SpellType, load("spell-types")?)
-        .with_catalog(CatalogKind::Supertype, load("supertypes")?)
-        .with_catalog(CatalogKind::CardType, load("card-types")?))
+    let raw = LegacyCatalogSet::load(
+        workspace_root.join("data/gen/catalogs-legacy"),
+        workspace_root.join("data/catalogs"),
+    )?;
+    Ok(Catalogs::from_legacy(&raw))
 }
 
 /// One isolated, testable canon line: a single `Keyword` or `Spell` ability,
@@ -1145,7 +1128,10 @@ mod tests {
     /// every printed level and the verdicts still read `is_empty()`. Only an
     /// end-to-end run can show that a shrunken population now fails.
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn an_absent_corpus_breaches_the_floor_instead_of_printing_pass() {
         let error = run(PilotArgs {
             plugin_dir: None,

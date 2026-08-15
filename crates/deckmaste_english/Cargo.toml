@@ -12,6 +12,7 @@ workspace = true
 # declaration-as-data face the constructions! macro emits.
 deckmaste_construction_compiler = { version = "0.1.0", path = "../deckmaste_construction_compiler" }
 deckmaste_constructions_macro = { version = "0.1.0", path = "../deckmaste_constructions_macro" }
+deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
 deckmaste_features = { version = "0.1.0", path = "../deckmaste_features" }
 hashbrown = "0.15.5"
 # `Serialize` on the syntax tree is a generic traversal protocol, not a

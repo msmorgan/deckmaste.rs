@@ -529,6 +529,7 @@ dependencies = [
 name = "deckmaste_english"
 version = "0.1.0"
 dependencies = [
+ "deckmaste_catalogs",
  "deckmaste_construction_compiler",
  "deckmaste_constructions_macro",
  "deckmaste_features",
@@ -638,6 +639,7 @@ name = "deckmaste_spelling"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deckmaste_catalogs",
  "deckmaste_english",
  "deckmaste_plugin",
  "deckmaste_semantics",

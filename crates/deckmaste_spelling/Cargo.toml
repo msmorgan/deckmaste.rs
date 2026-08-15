@@ -37,6 +37,7 @@ thiserror = { workspace = true }
 
 
 [dev-dependencies]
+deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
 # The pilot integration test (`tests/pilot.rs`) compiles every frame the
 # real `plugins/builtin` corpus loads, so it needs the plugin loader. No
 # cycle: `deckmaste_plugin` does not depend on this crate.

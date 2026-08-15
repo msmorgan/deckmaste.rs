@@ -180,7 +180,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn facts_expose_one_ability_per_sentence() {
         let facts = facts_for("Draw a card.", &catalogs());
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn facts_separate_two_abilities() {
         let facts = facts_for("Draw a card.\nYou gain 1 life.", &catalogs());
@@ -213,7 +213,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn benign_abilities_parse_the_same_in_context_as_alone() {
         let catalogs = catalogs();
@@ -237,7 +237,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn a_fingerprint_is_the_ability_node_not_the_wrapper() {
         let facts = facts_for("Draw a card.", &catalogs());
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn a_recovery_site_is_not_double_counted_by_its_wrapper_and_payload() {
         let facts = facts_for("Aang, Aang enters, and La attack", &catalogs());

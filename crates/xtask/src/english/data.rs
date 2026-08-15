@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use anyhow::Result;
 use clap::Args;
-use deckmaste_english::CatalogKind;
+use deckmaste_catalogs::legacy::LegacyCatalogSet;
 use deckmaste_english::Catalogs;
 use deckmaste_english::normalize_loyalty_minus;
 use deckmaste_english::normalize_roll_row_dashes;
@@ -16,25 +16,6 @@ use deckmaste_english::normalize_typographic_quotes;
 use deckmaste_english::strip_reminder_text;
 use rayon::prelude::*;
 use serde::Deserialize;
-
-const CATALOG_FILES: [(CatalogKind, &str); 13] = [
-    (CatalogKind::KeywordAbility, "keyword-abilities"),
-    (CatalogKind::KeywordAction, "keyword-actions"),
-    (CatalogKind::AbilityWord, "ability-words"),
-    (CatalogKind::ArtifactType, "artifact-types"),
-    (CatalogKind::BattleType, "battle-types"),
-    (CatalogKind::CreatureType, "creature-types"),
-    (CatalogKind::EnchantmentType, "enchantment-types"),
-    (CatalogKind::LandType, "land-types"),
-    (CatalogKind::PlaneswalkerType, "planeswalker-types"),
-    (CatalogKind::SpellType, "spell-types"),
-    (CatalogKind::Supertype, "supertypes"),
-    (CatalogKind::CardType, "card-types"),
-    // Flavor words are not CR-derived, so they have no generated bare-text
-    // catalog; they load from the Scryfall catalog dump instead (see
-    // `load_catalogs`).
-    (CatalogKind::FlavorWord, "flavor-words"),
-];
 
 /// Parsing one face can briefly own a large chart and packed forest. Keep the
 /// corpus tools parallel without multiplying a pathological face by every
@@ -206,56 +187,14 @@ fn default_data_path() -> PathBuf {
 }
 
 fn default_catalogs_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs-legacy")
 }
 
-fn scryfall_catalogs_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/catalogs")
-}
-
-fn load_catalogs(path: &Path) -> Result<Catalogs> {
-    let mut catalogs = Catalogs::default();
-    for (kind, file) in CATALOG_FILES {
-        // Every CR-derived catalog is a generated bare-text file under `path`.
-        // Flavor words are the one Scryfall-only catalog: they carry no CR
-        // authority, so they are read straight from the Scryfall catalog dump.
-        let values = match kind {
-            CatalogKind::FlavorWord => load_scryfall_catalog(file)?,
-            _ => load_catalog(path, file)?,
-        };
-        catalogs = catalogs.with_catalog(kind, values);
-    }
+fn load_catalogs(generated_path: &Path) -> Result<Catalogs> {
+    let workspace_data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let raw = LegacyCatalogSet::load(generated_path, &workspace_data.join("catalogs"))?;
+    let catalogs = Catalogs::from_legacy(&raw);
     Ok(catalogs)
-}
-
-fn load_catalog(path: &Path, name: &str) -> Result<Vec<String>> {
-    let path = path.join(format!("{name}.txt"));
-    let file = File::open(&path).with_context(|| {
-        format!(
-            "could not open generated catalog {}; run `cargo xtask catalogs` first",
-            path.display()
-        )
-    })?;
-    BufReader::new(file)
-        .lines()
-        .collect::<std::io::Result<Vec<_>>>()
-        .with_context(|| format!("could not read generated catalog {}", path.display()))
-}
-
-/// A Scryfall catalog dump: `{ "data": [ "…", … ], … }`. Only the value list is
-/// modeled.
-#[derive(Deserialize)]
-struct ScryfallCatalog {
-    data: Vec<String>,
-}
-
-fn load_scryfall_catalog(name: &str) -> Result<Vec<String>> {
-    let path = scryfall_catalogs_path().join(format!("{name}.json"));
-    let bytes = std::fs::read(&path)
-        .with_context(|| format!("could not open Scryfall catalog {}", path.display()))?;
-    let catalog: ScryfallCatalog = serde_json::from_slice(&bytes)
-        .with_context(|| format!("could not parse Scryfall catalog {}", path.display()))?;
-    Ok(catalog.data)
 }
 
 #[cfg(test)]
@@ -264,6 +203,7 @@ mod tests {
     use std::sync::mpsc::sync_channel;
     use std::time::Duration;
 
+    use deckmaste_english::CatalogKind;
     use deckmaste_english::syntax::AbilityHeader;
     use deckmaste_english::syntax::AbilityKind;
     use deckmaste_english::syntax::IndependentClause;
@@ -331,7 +271,10 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn generated_catalogs_classify_current_artifact_types() {
         let catalogs = load_catalogs(&default_catalogs_path()).unwrap();
 
@@ -387,10 +330,12 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    #[cfg_attr(
+        not(gen_catalogs),
+        ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+    )]
     fn scryfall_flavor_words_license_a_header_peel() {
-        // The flavor-word catalog is the one Scryfall-only catalog `load_catalogs`
-        // reads from the dump rather than the generated bare-text files.
+        // The shared legacy loader reads flavor words from the Scryfall dump.
         // `Polymorphine` (Callidus Assassin) is a real member: loaded from the
         // dump, it licenses the ability-level header peel end to end.
         let catalogs = load_catalogs(&default_catalogs_path()).unwrap();

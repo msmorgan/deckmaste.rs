@@ -12,6 +12,9 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use deckmaste_catalogs::legacy::LegacyCatalogKind;
+use deckmaste_catalogs::legacy::LegacyCatalogSet;
+
 use crate::word::Adjective;
 use crate::word::Noun;
 use crate::word::NounInstance;
@@ -354,6 +357,68 @@ impl Default for Catalogs {
 }
 
 impl Catalogs {
+    /// Adapts the shared legacy inventory to the grammar's catalog roles.
+    ///
+    /// The shared crate owns only raw catalog data. This explicit mapping
+    /// keeps grammar-specific case, morphology, rule-bundle, and indexing
+    /// policy in this crate.
+    #[must_use]
+    pub fn from_legacy(legacy: &LegacyCatalogSet) -> Self {
+        Self::default()
+            .with_catalog(
+                CatalogKind::AbilityWord,
+                legacy.get(LegacyCatalogKind::AbilityWords),
+            )
+            .with_catalog(
+                CatalogKind::ArtifactType,
+                legacy.get(LegacyCatalogKind::ArtifactTypes),
+            )
+            .with_catalog(
+                CatalogKind::BattleType,
+                legacy.get(LegacyCatalogKind::BattleTypes),
+            )
+            .with_catalog(
+                CatalogKind::CardType,
+                legacy.get(LegacyCatalogKind::CardTypes),
+            )
+            .with_catalog(
+                CatalogKind::CreatureType,
+                legacy.get(LegacyCatalogKind::CreatureTypes),
+            )
+            .with_catalog(
+                CatalogKind::EnchantmentType,
+                legacy.get(LegacyCatalogKind::EnchantmentTypes),
+            )
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                legacy.get(LegacyCatalogKind::KeywordAbilities),
+            )
+            .with_catalog(
+                CatalogKind::KeywordAction,
+                legacy.get(LegacyCatalogKind::KeywordActions),
+            )
+            .with_catalog(
+                CatalogKind::LandType,
+                legacy.get(LegacyCatalogKind::LandTypes),
+            )
+            .with_catalog(
+                CatalogKind::PlaneswalkerType,
+                legacy.get(LegacyCatalogKind::PlaneswalkerTypes),
+            )
+            .with_catalog(
+                CatalogKind::SpellType,
+                legacy.get(LegacyCatalogKind::SpellTypes),
+            )
+            .with_catalog(
+                CatalogKind::Supertype,
+                legacy.get(LegacyCatalogKind::Supertypes),
+            )
+            .with_catalog(
+                CatalogKind::FlavorWord,
+                legacy.get(LegacyCatalogKind::FlavorWords),
+            )
+    }
+
     #[must_use]
     pub fn new(
         keyword_abilities: impl IntoIterator<Item = impl Into<String>>,
@@ -920,6 +985,12 @@ fn apply_initial_case(surface: &str, canonical: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+    use std::collections::BTreeSet;
+
+    use deckmaste_catalogs::legacy::LegacyCatalogKind;
+    use deckmaste_catalogs::legacy::LegacyCatalogSet;
+
     use super::*;
     use crate::word::Adjective;
     use crate::word::LexicalSlot;
@@ -1581,6 +1652,81 @@ mod tests {
                 .matches("partying", CatalogSlot::Noun(NounUsage::Count))
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn legacy_catalog_set_populates_the_grammar_coupled_kinds() {
+        let set = |value: &str| BTreeSet::from([value.to_owned()]);
+        let legacy = LegacyCatalogSet::from_entries(BTreeMap::from([
+            (LegacyCatalogKind::AbilityWords, set("Ascendance")),
+            (LegacyCatalogKind::ArtifactTypes, set("Gadget")),
+            (LegacyCatalogKind::BattleTypes, set("Invasion")),
+            (LegacyCatalogKind::CardTypes, set("Widget")),
+            (LegacyCatalogKind::CreatureTypes, set("Glimmerkin")),
+            (LegacyCatalogKind::EnchantmentTypes, set("Omen")),
+            (LegacyCatalogKind::KeywordAbilities, set("Skyguard")),
+            (LegacyCatalogKind::KeywordActions, set("Glint")),
+            (LegacyCatalogKind::LandTypes, set("Steppe")),
+            (LegacyCatalogKind::PlaneswalkerTypes, set("Neriah")),
+            (LegacyCatalogKind::SpellTypes, set("Ritual")),
+            (LegacyCatalogKind::Supertypes, set("Prime")),
+            (LegacyCatalogKind::FlavorWords, set("Asterism")),
+        ]))
+        .unwrap();
+
+        let catalogs = Catalogs::from_legacy(&legacy);
+
+        for (kind, canonical) in [
+            (CatalogKind::AbilityWord, "Ascendance"),
+            (CatalogKind::ArtifactType, "Gadget"),
+            (CatalogKind::BattleType, "Invasion"),
+            (CatalogKind::CardType, "Widget"),
+            (CatalogKind::CreatureType, "Glimmerkin"),
+            (CatalogKind::EnchantmentType, "Omen"),
+            (CatalogKind::KeywordAbility, "Skyguard"),
+            (CatalogKind::LandType, "Steppe"),
+            (CatalogKind::PlaneswalkerType, "Neriah"),
+            (CatalogKind::SpellType, "Ritual"),
+            (CatalogKind::Supertype, "Prime"),
+            (CatalogKind::FlavorWord, "Asterism"),
+        ] {
+            assert!(
+                catalogs
+                    .entries
+                    .iter()
+                    .any(|atom| atom.kind == kind && atom.canonical() == canonical),
+                "missing {kind:?} entry {canonical:?}"
+            );
+        }
+
+        assert!(matches!(
+            catalogs.matches("skyguard", CatalogSlot::AbilityItem).as_slice(),
+            [CatalogMatch { value: CatalogValue::Atom(atom), .. }]
+                if atom.kind == CatalogKind::KeywordAbility && atom.canonical() == "Skyguard"
+        ));
+        assert!(matches!(
+            one_word_match(&catalogs, "glint", CatalogSlot::Verb(VerbSlot::Imperative)),
+            WordMatch::Verb(instance)
+                if matches!(instance.verb, Verb::KeywordAction(ref action) if action.canonical() == "Glint")
+        ));
+        assert!(matches!(
+            catalogs.matches("Ascendance", CatalogSlot::AbilityWord).as_slice(),
+            [CatalogMatch { value: CatalogValue::Atom(atom), .. }]
+                if atom.kind == CatalogKind::AbilityWord && atom.canonical() == "Ascendance"
+        ));
+        assert!(matches!(
+            one_word_match(&catalogs, "Glimmerkin", CatalogSlot::Noun(NounUsage::Count)),
+            WordMatch::Noun(noun)
+                if matches!(noun.kind(), crate::word::NounInstanceKind::Singular(Noun::Catalog(atom))
+                    if atom.kind == CatalogKind::CreatureType && atom.canonical() == "Glimmerkin")
+        ));
+        assert!(matches!(
+            one_word_match(&catalogs, "widget", CatalogSlot::Noun(NounUsage::Count)),
+            WordMatch::Noun(noun)
+                if matches!(noun.kind(), crate::word::NounInstanceKind::Singular(Noun::Catalog(atom))
+                    if atom.kind == CatalogKind::CardType && atom.canonical() == "Widget")
+        ));
+        assert!(catalogs.is_flavor_word("Asterism"));
     }
 
     fn one_word_match(catalogs: &Catalogs, surface: &str, slot: CatalogSlot) -> WordMatch {

@@ -20,13 +20,10 @@
 //! evidence for.
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
 use std::path::Path;
 use std::path::PathBuf;
 
-use deckmaste_english::CatalogKind;
+use deckmaste_catalogs::legacy::LegacyCatalogSet;
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use deckmaste_plugin::plugin::Plugin;
@@ -43,41 +40,24 @@ fn plugin_dir() -> PathBuf {
 
 /// The generated, CR-derived catalogs `cargo xtask english bracket`/the
 /// corpus tooling load real oracle text against
-/// (`crates/xtask/src/english/data.rs`'s `load_catalogs`, reimplemented here
-/// rather than depended on: `xtask` is a binary crate, not a library this
-/// crate should pull in). **Load-bearing, not incidental**: `Catalogs::
+/// (the shared legacy loader used by `xtask::english::data`). **Load-bearing,
+/// not incidental**: `Catalogs::
 /// default()` — what `cargo xtask macro inspect` uses — has zero entries in
 /// every catalog, so a `KeywordLine` frame can never parse against it (the
 /// keyword-line grammar recognizes a keyword atom by catalog lookup, not
 /// free parsing); see the G5 report for this finding in full, discovered
 /// while authoring `Flying`/`Protection`. Only ever reached from
-/// `#[cfg_attr(not(gen_catalogs), ignore)]` tests, so `data/gen/catalogs` is
+/// `#[cfg_attr(not(gen_catalogs), ignore)]` tests, so `data/gen/catalogs-legacy` is
 /// guaranteed present when this runs (build.rs sets the `gen_catalogs` cfg
 /// from the directory's presence).
 fn real_catalogs() -> Catalogs {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
-    let load = |name: &str| -> Vec<String> {
-        let path = dir.join(format!("{name}.txt"));
-        let file =
-            File::open(&path).unwrap_or_else(|error| panic!("opening {}: {error}", path.display()));
-        BufReader::new(file)
-            .lines()
-            .collect::<std::io::Result<Vec<_>>>()
-            .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()))
-    };
-    Catalogs::default()
-        .with_catalog(CatalogKind::KeywordAbility, load("keyword-abilities"))
-        .with_catalog(CatalogKind::KeywordAction, load("keyword-actions"))
-        .with_catalog(CatalogKind::AbilityWord, load("ability-words"))
-        .with_catalog(CatalogKind::ArtifactType, load("artifact-types"))
-        .with_catalog(CatalogKind::BattleType, load("battle-types"))
-        .with_catalog(CatalogKind::CreatureType, load("creature-types"))
-        .with_catalog(CatalogKind::EnchantmentType, load("enchantment-types"))
-        .with_catalog(CatalogKind::LandType, load("land-types"))
-        .with_catalog(CatalogKind::PlaneswalkerType, load("planeswalker-types"))
-        .with_catalog(CatalogKind::SpellType, load("spell-types"))
-        .with_catalog(CatalogKind::Supertype, load("supertypes"))
-        .with_catalog(CatalogKind::CardType, load("card-types"))
+    let workspace_data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let raw = LegacyCatalogSet::load(
+        workspace_data.join("gen/catalogs-legacy"),
+        workspace_data.join("catalogs"),
+    )
+    .unwrap_or_else(|error| panic!("loading legacy catalogs: {error:#}"));
+    Catalogs::from_legacy(&raw)
 }
 
 fn positional_params(def: &MacroDef) -> Vec<String> {
@@ -133,7 +113,10 @@ const EXPECTED_FRAMED_MACROS: [&str; 10] = [
 ];
 
 #[test]
-#[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+#[cfg_attr(
+    not(gen_catalogs),
+    ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+)]
 fn every_framed_macro_and_constructor_entry_compiles_clean() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));
@@ -234,7 +217,10 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
 /// any more — it still asserts something real: each macro has exactly one
 /// frame, and it's the exact text this report's story depends on.
 #[test]
-#[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+#[cfg_attr(
+    not(gen_catalogs),
+    ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+)]
 fn controlled_by_you_and_sacrifice_this_carry_their_resolved_wording() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));
@@ -284,7 +270,10 @@ fn controlled_by_you_and_sacrifice_this_carry_their_resolved_wording() {
 /// real params rather than trusting `def.frames()[0]`, so it still catches a
 /// regression in `classify()` itself, not just in the `.ron` file's content.
 #[test]
-#[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+#[cfg_attr(
+    not(gen_catalogs),
+    ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+)]
 fn controlled_by_you_complement_side_named_role_compiles() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));
@@ -332,7 +321,10 @@ fn controlled_by_you_complement_side_named_role_compiles() {
 /// so this test's role narrowed to exactly what it says: `~` compiles, to
 /// the wrong shape, which is why it wasn't the frame adopted.
 #[test]
-#[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+#[cfg_attr(
+    not(gen_catalogs),
+    ignore = "needs generated data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
+)]
 fn sacrifice_this_self_reference_sigil_compiles_as_self_ref() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));

@@ -990,7 +990,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn supported_mixed_with_cards_expose_the_dedicated_construction() {
         let data = OracleDataArgs::default()
@@ -1025,7 +1025,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn supported_phrase_coordination_cards_round_trip_with_generated_grouping() {
         let data = OracleDataArgs::default()
@@ -1136,7 +1136,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn recovery_composition_witnesses_remain_structural_in_corpus_inspect() {
         let data = OracleDataArgs::default()
@@ -1282,7 +1282,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn supported_clause_coordination_cards_round_trip_through_chart_constructions() {
         let data = OracleDataArgs::default()
@@ -1465,7 +1465,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn fronted_condition_scopes_over_the_complete_predicate_coordination() {
         let source = "As long as there are four or more card types among cards in your graveyard, this creature gets +2/+2, has flying, and attacks each combat if able.";
@@ -1539,7 +1539,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn binary_shared_condition_remains_group_wide() {
         let source = "Delirium — This creature gets +1/+1 and has trample as long as there are four or more card types among cards in your graveyard.";
@@ -1595,7 +1595,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn dash_appositive_scopes_over_the_complete_predicate_matrix() {
         let source = "Target creature's owner shuffles it into their library, then faces a villainous choice — They lose 5 life, or they shuffle another creature they own into their library.";
@@ -1647,7 +1647,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn supported_nested_clause_coordination_neighbors_round_trip() {
         let data = OracleDataArgs::default()
@@ -2316,7 +2316,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn local_card_snapshot_structurally_round_trips_without_source_text() {
         use std::time::Instant;
@@ -2403,7 +2403,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
-        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs-legacy; run `cargo xtask catalogs text`"
     )]
     fn quantified_times_clauses_keep_the_determiner_outside_the_special_base() {
         // Mutation caught: make the generated nominal-determiner inverse admit
