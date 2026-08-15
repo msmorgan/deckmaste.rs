@@ -209,8 +209,8 @@ pub enum Comparative {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedNumber {
-    sign: Sign,
-    magnitude: u32,
+    pub(crate) sign: Sign,
+    pub(crate) magnitude: u32,
 }
 
 impl SignedNumber {
@@ -232,8 +232,8 @@ impl SignedNumber {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatalogIdentity {
-    kind: CatalogKind,
-    spelling: String,
+    pub(crate) kind: CatalogKind,
+    pub(crate) spelling: String,
 }
 
 impl CatalogIdentity {
@@ -264,8 +264,8 @@ impl CatalogIdentity {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelfName {
-    full: String,
-    abbreviated: Option<String>,
+    pub(crate) full: String,
+    pub(crate) abbreviated: Option<String>,
 }
 
 impl SelfName {
@@ -290,8 +290,8 @@ impl SelfName {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelfReferenceNp {
-    name: SelfName,
-    spelling: SelfReferenceSpelling,
+    pub(crate) name: SelfName,
+    pub(crate) spelling: SelfReferenceSpelling,
 }
 
 impl SelfReferenceNp {
@@ -314,9 +314,9 @@ impl SelfReferenceNp {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Triggered {
-    trigger: TriggerWord,
-    event: Clause,
-    effect: Sentence,
+    pub(crate) trigger: TriggerWord,
+    pub(crate) event: Clause,
+    pub(crate) effect: Sentence,
 }
 
 impl Triggered {

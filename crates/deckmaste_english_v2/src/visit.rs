@@ -238,9 +238,14 @@ pub fn walk_spell<V: Visitor + ?Sized>(visitor: &mut V, spell: &Spell) {
 }
 
 pub fn walk_triggered<V: Visitor + ?Sized>(visitor: &mut V, triggered: &Triggered) {
-    walk_trigger_word(visitor, triggered.trigger());
-    visitor.visit_clause(triggered.event());
-    visitor.visit_sentence(triggered.effect());
+    let Triggered {
+        trigger,
+        event,
+        effect,
+    } = triggered;
+    walk_trigger_word(visitor, *trigger);
+    visitor.visit_clause(event);
+    visitor.visit_sentence(effect);
 }
 
 pub fn walk_imperative<V: Visitor + ?Sized>(visitor: &mut V, imperative: &Imperative) {
@@ -303,8 +308,9 @@ pub fn walk_self_reference_np<V: Visitor + ?Sized>(
     visitor: &mut V,
     self_reference_np: &SelfReferenceNp,
 ) {
-    walk_self_name(visitor, self_reference_np.name());
-    walk_self_reference_spelling(visitor, self_reference_np.spelling());
+    let SelfReferenceNp { name, spelling } = self_reference_np;
+    walk_self_name(visitor, name);
+    walk_self_reference_spelling(visitor, *spelling);
 }
 
 pub fn walk_count_np<V: Visitor + ?Sized>(visitor: &mut V, count_np: &CountNp) {
@@ -442,15 +448,21 @@ pub fn walk_comparative<V: Visitor + ?Sized>(visitor: &mut V, comparative: Compa
 }
 
 pub fn walk_signed_number<V: Visitor + ?Sized>(visitor: &mut V, number: &SignedNumber) {
-    walk_sign(visitor, number.sign());
+    let SignedNumber { sign, magnitude } = number;
+    walk_sign(visitor, *sign);
+    let _ = magnitude;
     visitor.visit_signed_number(number);
 }
 
 pub fn walk_catalog_identity<V: Visitor + ?Sized>(visitor: &mut V, identity: &CatalogIdentity) {
+    let CatalogIdentity { kind, spelling } = identity;
+    let _ = kind;
     visitor.visit_catalog_identity(identity);
-    visitor.visit_catalog_spelling(identity.spelling());
+    visitor.visit_catalog_spelling(spelling);
 }
 
 pub fn walk_self_name<V: Visitor + ?Sized>(visitor: &mut V, name: &SelfName) {
+    let SelfName { full, abbreviated } = name;
+    let _ = (full, abbreviated);
     visitor.visit_self_name(name);
 }
