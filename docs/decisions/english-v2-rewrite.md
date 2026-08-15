@@ -178,6 +178,11 @@ contract one level down. Three declaration tiers plus catalogs:
    cannot determine the reading** — to license multi-token spans or resolve
    genuine ambiguity — never to police membership in an open productive
    class; membership policing is legality's business, layers above.
+   Casing-in-prose is likewise a grammar concern, not a catalog property:
+   any per-kind casing rule (card types lowercase in running text, subtypes
+   keeping their printed case) lives on the English side as a total mapping
+   over catalog kinds — the catalog layer stays a pure word-list store with
+   no presentation properties.
 
    The old consumers use the separate `data/gen/catalogs-legacy` cache, whose
    generated inventory is exactly the same list minus `card-names.txt` and
