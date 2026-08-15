@@ -61,6 +61,9 @@ constructors and render to exactly these bytes):
 
 Tests: exact-bytes render assertion per sentence; constructed-value tests
 building each through public constructors only; at least one constructor
-rejection asserted (e.g. zero effects). Acceptance: those tests green;
-`deckmaste_english_v2` dependencies unchanged (leaf); no parser module
-exists. Standard constraints apply.
+rejection asserted (e.g. zero effects); and a loader smoke that loads EVERY
+file of the real generated `data/gen/catalogs` directory, wired in CI to run
+after `catalogs generate` (closes a stage-1 review finding: CI generated but
+never loaded, so a malformed real file shipped unnoticed by every gate).
+Acceptance: those tests green; `deckmaste_english_v2` dependencies unchanged
+(catalog layer only); no parser module exists. Standard constraints apply.
