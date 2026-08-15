@@ -4,9 +4,8 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::bail;
+use deckmaste_data::mtgjson::AtomicCards;
 use regex::Regex;
-
-use crate::data::mtgjson::AtomicCards;
 
 pub const CATALOG_NAMES: [&str; 12] = [
     "ability-words",

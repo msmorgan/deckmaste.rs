@@ -11,26 +11,19 @@ use std::sync::LazyLock;
 
 use anyhow::Context;
 use deckmaste_core::plugin::card_file;
+use deckmaste_data::DataStr;
+use deckmaste_data::mtgjson::AtomicCard;
 use deckmaste_semantics::Color;
 use deckmaste_semantics::StatValue;
 use rayon::prelude::*;
 use regex::Regex;
 
-use crate::data::DataStr;
-use crate::data::mtgjson::AtomicCard;
 use crate::ident::to_rust_ident;
 use crate::todo_card::RawIdent;
 use crate::todo_card::TodoAbility;
 use crate::todo_card::TodoCard;
 use crate::todo_card::TodoCardFace;
 use crate::todo_card::render;
-
-fn is_supported(card: &AtomicCard) -> bool {
-    matches!(
-        card.legalities.vintage.as_deref(),
-        Some("Legal" | "Restricted")
-    ) && card.layout.as_str() != "reversible_card"
-}
 
 /// Uppercases the first character (ASCII only, like jq's `ascii_upcase`).
 fn capitalize(text: &str) -> String {
@@ -234,7 +227,7 @@ fn face(card: &AtomicCard, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<
     let face_name = card.face_name.as_deref().unwrap_or(card.name.as_str());
     let is_legendary = card.supertypes.iter().any(|t| t.as_str() == "Legendary");
     let abilities = card.text.as_deref().map_or_else(Vec::new, |text| {
-        let text = crate::data::academyruins::normalize_quotes(text);
+        let text = deckmaste_data::academyruins::normalize_quotes(text);
         // Fold spelled-number energy ("Pay six {E}") into a `{E}` run so the
         // `${0*\{E\}}` matcher graduates it as `PayEnergy(6)`; the same fold runs
         // in `fidelity::normalize` so the diff meets the spelled render form.
@@ -303,11 +296,11 @@ fn todo_card(
 pub fn extract_cards(plugin_dir: &Path) -> anyhow::Result<()> {
     let layout = crate::layout::PluginLayout::new(plugin_dir)?;
     let cards_dir = layout.cards_dir()?;
-    let atomic_bytes = crate::data::mtgjson::atomic_cards_bytes()?;
-    let atomic = crate::data::mtgjson::AtomicCards::parse(&atomic_bytes)?;
-    let keywords_bytes = crate::data::academyruins::keywords_bytes()?;
+    let atomic_bytes = deckmaste_data::mtgjson::atomic_cards_bytes()?;
+    let atomic = deckmaste_data::mtgjson::AtomicCards::parse(&atomic_bytes)?;
+    let keywords_bytes = deckmaste_data::academyruins::keywords_bytes()?;
     let keyword_abilities =
-        crate::data::academyruins::Keywords::parse(&keywords_bytes)?.keyword_abilities;
+        deckmaste_data::academyruins::Keywords::parse(&keywords_bytes)?.keyword_abilities;
 
     // Each card writes a distinct `<name>.ron.todo` from shared read-only data,
     // so the render+write runs in parallel; `try_for_each` short-circuits on the
@@ -317,8 +310,10 @@ pub fn extract_cards(plugin_dir: &Path) -> anyhow::Result<()> {
         .data
         .par_iter()
         .try_for_each(|(name, all_faces)| -> anyhow::Result<()> {
-            let supported: Vec<&AtomicCard> =
-                all_faces.iter().filter(|c| is_supported(c)).collect();
+            let supported: Vec<&AtomicCard> = all_faces
+                .iter()
+                .filter(|card| card.vintage_playable())
+                .collect();
             if supported.is_empty() {
                 return Ok(());
             }
@@ -341,8 +336,9 @@ pub fn extract_cards(plugin_dir: &Path) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_data::mtgjson::Legalities;
+
     use super::*;
-    use crate::data::mtgjson::Legalities;
 
     /// A minimal normal-layout creature fixture; `text` is the oracle text.
     fn creature(text: Option<&'static str>) -> AtomicCard<'static> {

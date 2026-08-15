@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
+use deckmaste_data::scryfall;
 use regex::Regex;
 
 /// Controller restriction recorded while parsing a filter phrase. Consumers
@@ -66,10 +67,10 @@ static SUBTYPES: LazyLock<HashSet<String>> = LazyLock::new(|| {
         "battle",
         "spell",
     ] {
-        let Ok(bytes) = crate::data::scryfall::catalog_bytes(&format!("{category}-types")) else {
+        let Ok(bytes) = scryfall::catalog_bytes(&format!("{category}-types")) else {
             continue;
         };
-        let Ok(catalog) = crate::data::scryfall::Catalog::parse(&bytes) else {
+        let Ok(catalog) = scryfall::Catalog::parse(&bytes) else {
             continue;
         };
         set.extend(catalog.data.iter().map(ToString::to_string));
@@ -106,10 +107,10 @@ static SUBTYPE_CATEGORY: LazyLock<HashMap<String, &'static str>> = LazyLock::new
         ("planeswalker", "Planeswalker"),
         ("battle", "Battle"),
     ] {
-        let Ok(bytes) = crate::data::scryfall::catalog_bytes(&format!("{category}-types")) else {
+        let Ok(bytes) = scryfall::catalog_bytes(&format!("{category}-types")) else {
             continue;
         };
-        let Ok(catalog) = crate::data::scryfall::Catalog::parse(&bytes) else {
+        let Ok(catalog) = scryfall::Catalog::parse(&bytes) else {
             continue;
         };
         for entry in &catalog.data {

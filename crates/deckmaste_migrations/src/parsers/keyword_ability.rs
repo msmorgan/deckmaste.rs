@@ -13,6 +13,8 @@
 
 use std::sync::LazyLock;
 
+use deckmaste_data::academyruins;
+
 use crate::ident::to_rust_ident;
 use crate::parsers::cost::VariableMana;
 use crate::parsers::cost::{self};
@@ -64,8 +66,8 @@ const KEYWORD_SUPPLEMENT: &[&str] = &[
 static KEYWORD_NAMES: LazyLock<Vec<String>> = LazyLock::new(load_keyword_catalog);
 
 fn load_keyword_catalog() -> Vec<String> {
-    let mut names: Vec<String> = match crate::data::academyruins::keywords_bytes() {
-        Ok(bytes) => match crate::data::academyruins::Keywords::parse(&bytes) {
+    let mut names: Vec<String> = match academyruins::keywords_bytes() {
+        Ok(bytes) => match academyruins::Keywords::parse(&bytes) {
             Ok(kw) => kw
                 .keyword_abilities
                 .iter()

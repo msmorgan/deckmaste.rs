@@ -487,6 +487,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_data"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "deckmaste_engine"
 version = "0.1.0"
 dependencies = [
@@ -561,6 +570,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "deckmaste_core",
+ "deckmaste_data",
  "deckmaste_legacy_render",
  "deckmaste_lowering",
  "deckmaste_plugin",

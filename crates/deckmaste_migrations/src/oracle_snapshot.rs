@@ -4,11 +4,10 @@
 use std::io::Write;
 
 use anyhow::Context;
+use deckmaste_data::DataStr;
+use deckmaste_data::mtgjson::AtomicCard;
+use deckmaste_data::mtgjson::AtomicCards;
 use serde::Serialize;
-
-use crate::data::DataStr;
-use crate::data::mtgjson::AtomicCard;
-use crate::data::mtgjson::AtomicCards;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,10 +53,7 @@ impl<'a> From<&'a AtomicCard<'_>> for DerivedCard<'a> {
             defense: card.defense.as_deref(),
             colors: strings(&card.colors),
             color_identity: strings(&card.color_identity),
-            supported: matches!(
-                card.legalities.vintage.as_deref(),
-                Some("Legal" | "Restricted")
-            ) && card.layout.as_str() != "reversible_card",
+            supported: card.vintage_playable(),
         }
     }
 }
@@ -139,7 +135,7 @@ mod tests {
         assert_eq!(rows[2]["name"], "Zed");
         assert_eq!(rows[0]["manaCost"], "{W}");
         assert_eq!(rows[0]["supported"], true);
-        assert_eq!(rows[2]["supported"], false);
+        assert_eq!(rows[2]["supported"], true);
         assert_eq!(rows[2]["colors"], serde_json::json!([]));
     }
 }

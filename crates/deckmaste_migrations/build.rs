@@ -2,7 +2,7 @@
 // snapshot (`data/rules`) at build time and, when both are present, sets the
 // `scryfall_catalogs` cfg. The parser tests that mint `Subtype`/keyword atoms
 // load the catalogs (creature-types, keyword-abilities, …) through
-// `crate::data`, and the keyword-ability parser additionally reads
+// `deckmaste_data`, and the keyword-ability parser additionally reads
 // `data/rules/keywords.json` (`KEYWORD_NAMES`) — with either dir missing the
 // catalogs come up empty and those parses decline, so the cfg requires BOTH
 // (a catalogs-only checkout used to compile the cfg on and fail the gated

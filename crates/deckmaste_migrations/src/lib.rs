@@ -2,7 +2,6 @@
 //! data directories.
 
 pub mod catalogs;
-mod data;
 pub mod extract;
 pub mod graduate;
 mod ident;

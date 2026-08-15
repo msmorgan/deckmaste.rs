@@ -1,10 +1,11 @@
 use serde::Deserialize;
 
-use crate::data::DataStr;
+use crate::DataRoot;
+use crate::DataStr;
 
 /// A scryfall catalog: a named list of strings. Only the list is modeled.
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct Catalog<'a> {
+pub struct Catalog<'a> {
     #[serde(borrow)]
     pub data: Vec<DataStr<'a>>,
 }
@@ -18,5 +19,5 @@ impl<'a> Catalog<'a> {
 /// Reads a scryfall catalog file (e.g. "creature-types"); parse with
 /// [`Catalog::parse`], which borrows from the returned bytes.
 pub fn catalog_bytes(name: &str) -> anyhow::Result<Vec<u8>> {
-    super::read_data(&format!("catalogs/{name}.json"))
+    DataRoot::workspace_default().read(format!("catalogs/{name}.json"))
 }

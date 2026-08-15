@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::ops::Deref;
+use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -11,13 +12,24 @@ pub mod academyruins;
 pub mod mtgjson;
 pub mod scryfall;
 
-fn data_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
-}
+#[derive(Debug, Clone)]
+pub struct DataRoot(PathBuf);
 
-fn read_data(relative: &str) -> anyhow::Result<Vec<u8>> {
-    let path = data_dir().join(relative);
-    std::fs::read(&path).with_context(|| format!(r#"Failed to read file: "{}""#, path.display()))
+impl DataRoot {
+    #[must_use]
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self(path.into())
+    }
+
+    #[must_use]
+    pub fn workspace_default() -> Self {
+        Self(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"))
+    }
+
+    pub fn read(&self, relative: impl AsRef<Path>) -> anyhow::Result<Vec<u8>> {
+        let path = self.0.join(relative);
+        std::fs::read(&path).with_context(|| format!("reading {}", path.display()))
+    }
 }
 
 /// Deserializes an explicit JSON `null` as the type's default. The upstream

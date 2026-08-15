@@ -3,6 +3,8 @@
 //! meta-macro invocation — `name:` the registration ident, `template:` the
 //! printed name.
 
+use deckmaste_data::scryfall;
+
 /// Filename for a subtype: capitalize the first character and strip
 /// non-alphanumerics, without splitting words (e.g. "Power-Plant" ->
 /// "`PowerPlant`", "Urza's" -> "Urzas"). Doubles as the macro's registration
@@ -31,8 +33,8 @@ pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
     ];
 
     for (category, prefix) in categories {
-        let catalog_bytes = crate::data::scryfall::catalog_bytes(&format!("{category}-types"))?;
-        let catalog = crate::data::scryfall::Catalog::parse(&catalog_bytes)?;
+        let catalog_bytes = scryfall::catalog_bytes(&format!("{category}-types"))?;
+        let catalog = scryfall::Catalog::parse(&catalog_bytes)?;
         let dest_dir = plugin.subtype_macros_dir(category)?;
         // The sibling `builtin` plugin (the universal prelude) may already
         // define this category's subtypes — e.g. Aura/Equipment/Fortification

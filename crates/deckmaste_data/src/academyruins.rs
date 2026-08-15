@@ -1,9 +1,10 @@
 use serde::Deserialize;
 
-use crate::data::DataStr;
+use crate::DataRoot;
+use crate::DataStr;
 
 /// Replaces typographic quotation marks with their ASCII equivalents.
-pub(crate) fn normalize_quotes(text: &str) -> String {
+pub fn normalize_quotes(text: &str) -> String {
     text.replace(['‘', '’'], "'").replace(['“', '”'], "\"")
 }
 
@@ -23,7 +24,7 @@ impl<'a> Keywords<'a> {
 /// Reads the keyword lists file; parse with
 /// [`Keywords::parse`], which borrows from the returned bytes.
 pub fn keywords_bytes() -> anyhow::Result<Vec<u8>> {
-    super::read_data("rules/keywords.json")
+    DataRoot::workspace_default().read("rules/keywords.json")
 }
 
 #[cfg(test)]
