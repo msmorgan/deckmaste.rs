@@ -5,7 +5,8 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Args;
-use deckmaste_migrations::catalogs::CatalogSet;
+use deckmaste_catalogs::legacy::LegacyCatalogKind;
+use deckmaste_catalogs::legacy::LegacyCatalogSet;
 
 #[derive(Debug, Args)]
 pub struct CatalogArgs {
@@ -28,12 +29,15 @@ pub fn run(args: &CatalogArgs) -> anyhow::Result<()> {
     let atomic = std::fs::read(&args.atomic)
         .with_context(|| format!("reading {}", args.atomic.display()))?;
 
-    let mut catalogs = CatalogSet::from_cr(&cr)?;
-    catalogs.add_atomic_variants(&atomic, &cr)?;
+    let catalogs = LegacyCatalogSet::generate(&cr, &atomic)?;
     catalogs.write_to(&args.output)?;
 
-    for name in catalogs.names() {
-        println!("{name}: {}", catalogs.get(name).len());
+    for kind in LegacyCatalogKind::GENERATED {
+        println!(
+            "{}: {}",
+            kind.filename().trim_end_matches(".txt"),
+            catalogs.get(kind).len()
+        );
     }
     println!("wrote {}", args.output.display());
     Ok(())

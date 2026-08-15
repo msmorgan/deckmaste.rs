@@ -25,20 +25,7 @@ impl CatalogSet {
         for kind in CatalogKind::ALL {
             let filename = kind.filename();
             let path = directory.join(filename);
-            let contents =
-                fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-            let mut catalog = BTreeSet::new();
-            for (line_number, line) in contents.split_terminator('\n').enumerate() {
-                if line.is_empty() {
-                    anyhow::bail!(
-                        "blank entry in {} at line {}",
-                        path.display(),
-                        line_number + 1
-                    );
-                }
-                catalog.insert(line.to_owned());
-            }
-            entries.insert(kind, catalog);
+            entries.insert(kind, read_line_catalog(&path)?);
         }
 
         Self::from_entries(entries)
@@ -51,9 +38,12 @@ impl CatalogSet {
     /// Returns an error when rendering, staging, or replacing the output directory
     /// fails. An existing output directory is restored if staging cannot replace it.
     pub fn write_to(&self, output: impl AsRef<Path>) -> anyhow::Result<()> {
-        self.write_to_inner(output.as_ref(), |source, destination| {
-            fs::rename(source, destination)
-        })
+        write_line_directory(
+            output.as_ref(),
+            CatalogKind::ALL
+                .into_iter()
+                .map(|kind| (kind.filename(), self.get(kind))),
+        )
     }
 
     #[cfg(test)]
@@ -62,70 +52,99 @@ impl CatalogSet {
         output: impl AsRef<Path>,
         place: impl FnOnce(&Path, &Path) -> io::Result<()>,
     ) -> anyhow::Result<()> {
-        self.write_to_inner(output.as_ref(), place)
+        write_line_directory_with_placement(
+            output.as_ref(),
+            CatalogKind::ALL
+                .into_iter()
+                .map(|kind| (kind.filename(), self.get(kind))),
+            place,
+        )
+    }
+}
+
+pub(crate) fn read_line_catalog(path: &Path) -> anyhow::Result<BTreeSet<String>> {
+    let contents =
+        fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+    let mut catalog = BTreeSet::new();
+    for (line_number, line) in contents.split_terminator('\n').enumerate() {
+        if line.is_empty() {
+            anyhow::bail!(
+                "blank entry in {} at line {}",
+                path.display(),
+                line_number + 1
+            );
+        }
+        catalog.insert(line.to_owned());
+    }
+    Ok(catalog)
+}
+
+pub(crate) fn write_line_directory<'a>(
+    output: &Path,
+    entries: impl IntoIterator<Item = (&'static str, &'a BTreeSet<String>)>,
+) -> anyhow::Result<()> {
+    write_line_directory_with_placement(output, entries, |source, destination| {
+        fs::rename(source, destination)
+    })
+}
+
+fn write_line_directory_with_placement<'a>(
+    output: &Path,
+    entries: impl IntoIterator<Item = (&'static str, &'a BTreeSet<String>)>,
+    place: impl FnOnce(&Path, &Path) -> io::Result<()>,
+) -> anyhow::Result<()> {
+    let output = validate_output(output)?;
+    let parent = output
+        .parent()
+        .context("catalog output must have a parent")?;
+
+    let rendered = entries
+        .into_iter()
+        .map(|(filename, values)| render(filename, values))
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let staging = tempfile::Builder::new()
+        .prefix(".catalogs-")
+        .tempdir_in(parent)
+        .with_context(|| format!("creating catalog staging directory in {}", parent.display()))?;
+    for (filename, contents) in rendered {
+        fs::write(staging.path().join(filename), contents)
+            .with_context(|| format!("staging {filename}"))?;
+    }
+    let staging_path = staging.keep();
+
+    let backup = if output.exists() { Some(unique_backup_path(parent)?) } else { None };
+    if let Some(backup) = &backup {
+        fs::rename(&output, backup).with_context(|| {
+            format!(
+                "moving existing catalog output {} aside to {}",
+                output.display(),
+                backup.display()
+            )
+        })?;
     }
 
-    fn write_to_inner(
-        &self,
-        output: &Path,
-        place: impl FnOnce(&Path, &Path) -> io::Result<()>,
-    ) -> anyhow::Result<()> {
-        let output = validate_output(output)?;
-        let parent = output
-            .parent()
-            .context("catalog output must have a parent")?;
-
-        let rendered = CatalogKind::ALL
-            .into_iter()
-            .map(|kind| render(kind, self.get(kind)))
-            .collect::<anyhow::Result<Vec<_>>>()?;
-        let staging = tempfile::Builder::new()
-            .prefix(".catalogs-")
-            .tempdir_in(parent)
-            .with_context(|| {
-                format!("creating catalog staging directory in {}", parent.display())
-            })?;
-        for (filename, contents) in rendered {
-            fs::write(staging.path().join(filename), contents)
-                .with_context(|| format!("staging {filename}"))?;
-        }
-        let staging_path = staging.keep();
-
-        let backup = if output.exists() { Some(unique_backup_path(parent)?) } else { None };
-        if let Some(backup) = &backup {
-            fs::rename(&output, backup).with_context(|| {
-                format!(
-                    "moving existing catalog output {} aside to {}",
-                    output.display(),
-                    backup.display()
-                )
-            })?;
-        }
-
-        if let Err(error) = place(&staging_path, &output) {
-            if let Some(backup) = &backup {
-                if let Err(restore_error) = fs::rename(backup, &output) {
-                    let _ = fs::remove_dir_all(&staging_path);
-                    return Err(restore_error).with_context(|| {
-                        format!(
-                            "restoring catalog output {} after replacement failure: {error}",
-                            output.display()
-                        )
-                    });
-                }
-            }
+    if let Err(error) = place(&staging_path, &output) {
+        if let Some(backup) = &backup
+            && let Err(restore_error) = fs::rename(backup, &output)
+        {
             let _ = fs::remove_dir_all(&staging_path);
-            return Err(error).with_context(|| {
-                format!("moving staged catalog directory into {}", output.display())
+            return Err(restore_error).with_context(|| {
+                format!(
+                    "restoring catalog output {} after replacement failure: {error}",
+                    output.display()
+                )
             });
         }
-
-        if let Some(backup) = backup {
-            fs::remove_dir_all(&backup)
-                .with_context(|| format!("removing catalog backup {}", backup.display()))?;
-        }
-        Ok(())
+        let _ = fs::remove_dir_all(&staging_path);
+        return Err(error)
+            .with_context(|| format!("moving staged catalog directory into {}", output.display()));
     }
+
+    if let Some(backup) = backup {
+        fs::remove_dir_all(&backup)
+            .with_context(|| format!("removing catalog backup {}", backup.display()))?;
+    }
+    Ok(())
 }
 
 fn validate_output(output: &Path) -> anyhow::Result<PathBuf> {
@@ -211,8 +230,10 @@ fn validate_output(output: &Path) -> anyhow::Result<PathBuf> {
     Ok(normalized)
 }
 
-fn render(kind: CatalogKind, entries: &BTreeSet<String>) -> anyhow::Result<(&'static str, String)> {
-    let filename = kind.filename();
+fn render(
+    filename: &'static str,
+    entries: &BTreeSet<String>,
+) -> anyhow::Result<(&'static str, String)> {
     if entries.is_empty() {
         anyhow::bail!("catalog {filename} must contain at least one entry");
     }

@@ -3,6 +3,7 @@ mod cr;
 mod diff;
 mod io;
 mod kind;
+pub mod legacy;
 mod set;
 
 pub use crate::diff::DirectoryDiff;
@@ -35,6 +36,10 @@ mod tests {
 702.1. Keyword ability introduction\n\
 702.2. Daybound and Nightbound\n\
 702.3. ∞ (Infinity)\n\
+702.4a Landwalk is a generic term that appears within an object’s rules text as “[type]walk,” where [type] is usually a subtype.\n\
+702.5a Typecycling is a variant of the cycling ability. “[Type]cycling [cost]” means “Pay [cost], Discard this card: Search your library for a [type] card, reveal it, put it into your hand, then shuffle.”\n\
+702.6a Partner is a keyword ability that has several variants: partner with [name], choose a Background, and Doctor’s companion. “Partner—Friends forever” represents one such variant.\n\
+702.7a Hexproof from is a variant of the hexproof ability.\n\
 122.1b A keyword counter on a permanent or on a card in a zone other than the battlefield causes that object to gain that keyword. The keywords that a keyword counter can be are flying, first strike, double strike, deathtouch, and hexproof, as well as any variants of those keywords.\n";
 
     const ATOMIC_FIXTURE: &str = r#"{
@@ -67,6 +72,35 @@ mod tests {
             "Missing": [{
                 "name": "Missing", "layout": "normal",
                 "types": [], "supertypes": [], "subtypes": [],
+                "legalities": {}
+            }]
+        }
+    }"#;
+
+    const LEGACY_ATOMIC_FIXTURE: &str = r#"{
+        "data": {
+            "Legal": [{
+                "name": "Legal", "layout": "normal",
+                "types": ["Creature"], "supertypes": [], "subtypes": [],
+                "keywords": ["Islandwalk", "Friends forever", "Attack", "Wind Walk"],
+                "legalities": {"vintage": "Legal"}
+            }],
+            "Restricted": [{
+                "name": "Restricted", "layout": "normal",
+                "types": ["Artifact"], "supertypes": [], "subtypes": [],
+                "keywords": ["Basic landcycling", "Hexproof from", "Choose a background"],
+                "legalities": {"vintage": "Restricted"}
+            }],
+            "Banned": [{
+                "name": "Banned", "layout": "normal",
+                "types": ["Creature"], "supertypes": [], "subtypes": [],
+                "keywords": ["Forestwalk"],
+                "legalities": {"vintage": "Banned"}
+            }],
+            "Missing": [{
+                "name": "Missing", "layout": "normal",
+                "types": ["Creature"], "supertypes": [], "subtypes": [],
+                "keywords": ["Swampwalk"],
                 "legalities": {}
             }]
         }
@@ -160,11 +194,19 @@ mod tests {
             values(&catalogs, CatalogKind::KeywordAbilities),
             ["Daybound", "Nightbound", "∞"]
         );
-        assert!(
-            !catalogs
-                .get(CatalogKind::KeywordAbilities)
-                .contains("Islandwalk")
-        );
+        for legacy_variant in [
+            "Islandwalk",
+            "Basic landcycling",
+            "Friends forever",
+            "Hexproof from",
+            "Choose a Background",
+        ] {
+            assert!(
+                !catalogs
+                    .get(CatalogKind::KeywordAbilities)
+                    .contains(legacy_variant)
+            );
+        }
         assert_eq!(
             values(&catalogs, CatalogKind::KeywordActions),
             ["Scry", "Tap", "Untap"]
@@ -237,6 +279,25 @@ mod tests {
 
         let error = CatalogSet::from_entries(entries).unwrap_err();
         assert!(error.to_string().contains("artifact-types"));
+    }
+
+    #[test]
+    fn canonical_keyword_abilities_exclude_all_legacy_atomic_variants() {
+        let catalogs = CatalogSet::generate(CR_FIXTURE, LEGACY_ATOMIC_FIXTURE.as_bytes()).unwrap();
+
+        for legacy_variant in [
+            "Islandwalk",
+            "Basic landcycling",
+            "Friends forever",
+            "Hexproof from",
+            "Choose a Background",
+        ] {
+            assert!(
+                !catalogs
+                    .get(CatalogKind::KeywordAbilities)
+                    .contains(legacy_variant)
+            );
+        }
     }
 
     fn values(catalogs: &CatalogSet, kind: CatalogKind) -> Vec<&str> {

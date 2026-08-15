@@ -1,7 +1,6 @@
 //! Card data pipeline (extract, resolve) plus macro-stub generation for plugin
 //! data directories.
 
-pub mod catalogs;
 pub mod extract;
 pub mod graduate;
 mod ident;

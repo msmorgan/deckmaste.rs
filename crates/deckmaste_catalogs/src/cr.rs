@@ -7,61 +7,80 @@ use regex::Regex;
 
 use crate::CatalogKind;
 
+pub(crate) struct ExtractedCatalogs {
+    pub(crate) ability_words: BTreeSet<String>,
+    pub(crate) artifact_types: BTreeSet<String>,
+    pub(crate) battle_types: BTreeSet<String>,
+    pub(crate) card_types: BTreeSet<String>,
+    pub(crate) creature_types: BTreeSet<String>,
+    pub(crate) enchantment_types: BTreeSet<String>,
+    pub(crate) keyword_abilities: BTreeSet<String>,
+    pub(crate) keyword_actions: BTreeSet<String>,
+    pub(crate) land_types: BTreeSet<String>,
+    pub(crate) planeswalker_types: BTreeSet<String>,
+    pub(crate) spell_types: BTreeSet<String>,
+    pub(crate) supertypes: BTreeSet<String>,
+}
+
 pub(crate) fn extract(cr: &str) -> anyhow::Result<BTreeMap<CatalogKind, BTreeSet<String>>> {
+    let extracted = extract_shared(cr)?;
     let lines: Vec<&str> = cr.lines().map(|line| line.trim_end_matches('\r')).collect();
     let mut catalogs = BTreeMap::new();
-    catalogs.insert(
-        CatalogKind::CardTypes,
-        parse_list_rule(&lines, "205.2a", "The card types are ", "card-types")?,
-    );
-    catalogs.insert(
-        CatalogKind::Supertypes,
-        parse_list_rule(&lines, "205.4a", "The supertypes are ", "supertypes")?,
-    );
-    catalogs.insert(
-        CatalogKind::ArtifactTypes,
-        parse_subtype_rule(&lines, "205.3g", "artifact", "artifact-types")?,
-    );
-    catalogs.insert(
-        CatalogKind::EnchantmentTypes,
-        parse_subtype_rule(&lines, "205.3h", "enchantment", "enchantment-types")?,
-    );
-    catalogs.insert(
-        CatalogKind::LandTypes,
-        parse_subtype_rule(&lines, "205.3i", "land", "land-types")?,
-    );
-    catalogs.insert(
-        CatalogKind::PlaneswalkerTypes,
-        parse_subtype_rule(&lines, "205.3j", "planeswalker", "planeswalker-types")?,
-    );
-    catalogs.insert(
-        CatalogKind::SpellTypes,
-        parse_subtype_rule(&lines, "205.3k", "spell", "spell-types")?,
-    );
-    catalogs.insert(CatalogKind::CreatureTypes, parse_creature_types(&lines)?);
-    catalogs.insert(CatalogKind::BattleTypes, parse_battle_type(&lines)?);
-    catalogs.insert(
-        CatalogKind::AbilityWords,
-        parse_list_rule(&lines, "207.2c", "The ability words are ", "ability-words")?,
-    );
-    catalogs.insert(
-        CatalogKind::KeywordActions,
-        parse_headings(&lines, 701, &["Tap and Untap"], "keyword-actions")?,
-    );
-    catalogs.insert(
-        CatalogKind::KeywordAbilities,
-        parse_headings(
-            &lines,
-            702,
-            &["Daybound and Nightbound"],
-            "keyword-abilities",
-        )?,
-    );
+    catalogs.insert(CatalogKind::AbilityWords, extracted.ability_words);
+    catalogs.insert(CatalogKind::ArtifactTypes, extracted.artifact_types);
+    catalogs.insert(CatalogKind::BattleTypes, extracted.battle_types);
+    catalogs.insert(CatalogKind::CardTypes, extracted.card_types);
+    catalogs.insert(CatalogKind::CreatureTypes, extracted.creature_types);
+    catalogs.insert(CatalogKind::EnchantmentTypes, extracted.enchantment_types);
+    catalogs.insert(CatalogKind::KeywordAbilities, extracted.keyword_abilities);
+    catalogs.insert(CatalogKind::KeywordActions, extracted.keyword_actions);
+    catalogs.insert(CatalogKind::LandTypes, extracted.land_types);
+    catalogs.insert(CatalogKind::PlaneswalkerTypes, extracted.planeswalker_types);
+    catalogs.insert(CatalogKind::SpellTypes, extracted.spell_types);
+    catalogs.insert(CatalogKind::Supertypes, extracted.supertypes);
     catalogs.insert(
         CatalogKind::CounterKindPhrases,
         parse_counter_kind_phrases(&lines)?,
     );
     Ok(catalogs)
+}
+
+pub(crate) fn extract_shared(cr: &str) -> anyhow::Result<ExtractedCatalogs> {
+    let lines: Vec<&str> = cr.lines().map(|line| line.trim_end_matches('\r')).collect();
+    Ok(ExtractedCatalogs {
+        ability_words: parse_list_rule(
+            &lines,
+            "207.2c",
+            "The ability words are ",
+            "ability-words",
+        )?,
+        artifact_types: parse_subtype_rule(&lines, "205.3g", "artifact", "artifact-types")?,
+        battle_types: parse_battle_type(&lines)?,
+        card_types: parse_list_rule(&lines, "205.2a", "The card types are ", "card-types")?,
+        creature_types: parse_creature_types(&lines)?,
+        enchantment_types: parse_subtype_rule(
+            &lines,
+            "205.3h",
+            "enchantment",
+            "enchantment-types",
+        )?,
+        keyword_abilities: parse_headings(
+            &lines,
+            702,
+            &["Daybound and Nightbound"],
+            "keyword-abilities",
+        )?,
+        keyword_actions: parse_headings(&lines, 701, &["Tap and Untap"], "keyword-actions")?,
+        land_types: parse_subtype_rule(&lines, "205.3i", "land", "land-types")?,
+        planeswalker_types: parse_subtype_rule(
+            &lines,
+            "205.3j",
+            "planeswalker",
+            "planeswalker-types",
+        )?,
+        spell_types: parse_subtype_rule(&lines, "205.3k", "spell", "spell-types")?,
+        supertypes: parse_list_rule(&lines, "205.4a", "The supertypes are ", "supertypes")?,
+    })
 }
 
 fn numbered_rule<'a>(lines: &'a [&str], number: &str, catalog: &str) -> anyhow::Result<&'a str> {
