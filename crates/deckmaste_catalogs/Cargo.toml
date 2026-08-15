@@ -1,0 +1,16 @@
+[package]
+publish = false
+name = "deckmaste_catalogs"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1.0.102"
+deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }
+regex = "1.12.3"
+
+[dev-dependencies]
+tempfile = "3.27.0"

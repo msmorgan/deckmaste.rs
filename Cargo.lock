@@ -451,6 +451,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_catalogs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deckmaste_data",
+ "regex",
+ "tempfile",
+]
+
+[[package]]
 name = "deckmaste_construction_compiler"
 version = "0.1.0"
 dependencies = [
