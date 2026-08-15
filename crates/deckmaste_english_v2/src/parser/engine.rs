@@ -224,7 +224,7 @@ where
             }
             RulePosition::Lexical(lexical) => {
                 for lexical_match in scan(lexical, column) {
-                    if lexical_match.end > input_length {
+                    if !(column..=input_length).contains(&lexical_match.end) {
                         continue;
                     }
                     let mut children = family.children.clone();
@@ -311,14 +311,16 @@ mod tests {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
     enum ToyCategory {
         Start,
+        Left,
+        Right,
         Fragment,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     enum ToyConstruction {
         Start,
-        FirstReading,
-        SecondReading,
+        Left,
+        Right,
         Fragment,
     }
 
@@ -331,13 +333,23 @@ mod tests {
     const AMBIGUOUS_RULES: &[Rule<ToyCategory, &'static str, ToyConstruction>] = &[
         Rule {
             lhs: ToyCategory::Start,
-            rhs: &[RulePosition::Lexical("alpha")],
-            construction: ToyConstruction::FirstReading,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Left)],
+            construction: ToyConstruction::Start,
         },
         Rule {
             lhs: ToyCategory::Start,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Right)],
+            construction: ToyConstruction::Start,
+        },
+        Rule {
+            lhs: ToyCategory::Left,
             rhs: &[RulePosition::Lexical("alpha")],
-            construction: ToyConstruction::SecondReading,
+            construction: ToyConstruction::Left,
+        },
+        Rule {
+            lhs: ToyCategory::Right,
+            rhs: &[RulePosition::Lexical("alpha")],
+            construction: ToyConstruction::Right,
         },
     ];
 
@@ -362,6 +374,16 @@ mod tests {
             construction: ToyConstruction::Fragment,
         },
     ];
+
+    const BACKWARDS_SCAN_RULES: &[Rule<ToyCategory, &'static str, ToyConstruction>] = &[Rule {
+        lhs: ToyCategory::Start,
+        rhs: &[
+            RulePosition::Lexical("alpha"),
+            RulePosition::Lexical("backward"),
+            RulePosition::Lexical("finish"),
+        ],
+        construction: ToyConstruction::Start,
+    }];
 
     fn scan_words(
         input: &str,
@@ -446,6 +468,31 @@ mod tests {
         )
     }
 
+    fn parse_with_backwards_scan()
+    -> Result<Forest<ToyConstruction, &'static str>, ChartFailure<ToyCategory, &'static str>> {
+        parse(
+            BACKWARDS_SCAN_RULES,
+            ToyCategory::Start,
+            SeedPolicy::StartOnly,
+            10,
+            |literal, start| match (literal, start) {
+                ("alpha", 0) => vec![LexicalMatch {
+                    end: 5,
+                    value: literal,
+                }],
+                ("backward", 5) => vec![LexicalMatch {
+                    end: 4,
+                    value: literal,
+                }],
+                ("finish", 4) => vec![LexicalMatch {
+                    end: 10,
+                    value: literal,
+                }],
+                _ => Vec::new(),
+            },
+        )
+    }
+
     #[test]
     fn scan_injection_can_consume_a_multi_word_span() {
         let forest = parse_toy("alpha beta", SeedPolicy::StartOnly).unwrap();
@@ -461,11 +508,18 @@ mod tests {
     }
 
     #[test]
-    fn two_derivations_share_one_packed_root() {
+    fn same_construction_derivations_pack_into_one_root_family_set() {
         let forest = parse_ambiguous_toy("alpha").unwrap();
         let roots = forest.accepted_roots().collect::<Vec<_>>();
-        assert_eq!(roots.len(), 2);
-        assert_eq!(forest.nodes_for_span(0, 5).count(), 2);
+        assert_eq!(roots.len(), 1);
+        let root = roots[0];
+        assert_eq!(root.construction, ToyConstruction::Start);
+        assert_eq!(root.families.len(), 2);
+        assert!(
+            root.families
+                .iter()
+                .all(|family| matches!(family.children.as_slice(), [Child::Node(_)]))
+        );
     }
 
     #[test]
@@ -484,5 +538,10 @@ mod tests {
     fn all_rule_seeding_is_a_policy_not_a_second_parser() {
         assert!(parse_fragment_toy("beta", SeedPolicy::StartOnly).is_err());
         assert!(parse_fragment_toy("beta", SeedPolicy::AllRules).is_ok());
+    }
+
+    #[test]
+    fn backwards_lexical_matches_are_rejected() {
+        assert!(parse_with_backwards_scan().is_err());
     }
 }
