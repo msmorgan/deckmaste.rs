@@ -4,10 +4,13 @@ use deckmaste_catalogs::CatalogKind;
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::render::Render;
+use deckmaste_english_v2::visit::walk_amount;
 use deckmaste_english_v2::visit::Visitor;
 
 #[derive(Default)]
 struct RecordingVisitor {
+    amounts: Vec<Amount>,
+    catalog_identities: Vec<(CatalogKind, String)>,
     variables: Vec<Variable>,
     signed_numbers: Vec<(Sign, u32)>,
     self_names: Vec<String>,
@@ -18,6 +21,16 @@ struct RecordingVisitor {
 }
 
 impl Visitor for RecordingVisitor {
+    fn visit_amount(&mut self, amount: &Amount) {
+        self.amounts.push(amount.clone());
+        walk_amount(self, amount);
+    }
+
+    fn visit_catalog_identity(&mut self, identity: &CatalogIdentity) {
+        self.catalog_identities
+            .push((identity.kind(), identity.spelling().to_owned()));
+    }
+
     fn visit_variable(&mut self, variable: Variable) {
         self.variables.push(variable);
     }
@@ -254,6 +267,29 @@ fn visitor_reaches_every_vertical_slice_leaf() {
     visitor.visit_sentence(&gain_life_with_where());
     visitor.visit_sentence(&self_reference);
 
+    assert_eq!(
+        visitor.amounts,
+        vec![
+            Amount::Variable(VariableAmount {
+                variable: Variable::X,
+            }),
+            Amount::Variable(VariableAmount {
+                variable: Variable::X,
+            }),
+            Amount::Number(NumberAmount {
+                number: SignedNumber::new(Sign::Positive, 3),
+            }),
+        ]
+    );
+    assert_eq!(
+        visitor.catalog_identities,
+        vec![
+            (CatalogKind::CardTypes, "Creature".to_owned()),
+            (CatalogKind::CardTypes, "Creature".to_owned()),
+            (CatalogKind::CardTypes, "Creature".to_owned()),
+            (CatalogKind::CardTypes, "Creature".to_owned()),
+        ]
+    );
     assert_eq!(
         visitor.variables,
         vec![Variable::X, Variable::X, Variable::X]
