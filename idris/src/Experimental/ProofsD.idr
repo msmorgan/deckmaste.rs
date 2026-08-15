@@ -790,8 +790,8 @@ badDeclineUntapClause SpanUnstated impossible
 public export
 badItIsDay : Unspellable Ability (\ok =>
   Triggered At (BeginningOf EndStep (Just Yours)) Macros.drawACard
-            {intervening = Just (ItIsNow Day {tc = ok})})
-badItIsDay MkTimeChecked impossible
+            {intervening = Just (GameIs Day {at = ok})})
+badItIsDay Refl impossible
 
 
 ||| "if you aren't the monarch"
@@ -800,7 +800,7 @@ badItIsDay MkTimeChecked impossible
 ||| whether ANY player holds it, which is another construction.
 public export
 badNegatedMonarch : Unspellable (Predicate [] Player) (\ok =>
-  Not (HasPlayerDesignation Monarch) {ng = ok})
+  Not (HasDesignation Monarch) {ng = ok})
 badNegatedMonarch MkNegatable impossible
 
 
@@ -809,7 +809,8 @@ badNegatedMonarch MkNegatable impossible
 ||| battlefield, so the phrase seeds it and a graveyard clause contradicts.
 public export
 badRingBearerInGraveyard : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, YourRingBearer, InZone (Macros.graveyardOf You)] {zc = ok})
+  And [Macros.creature, HasDesignation RingBearer,
+       InZone (Macros.graveyardOf You)] {zc = ok})
 badRingBearerInGraveyard MkZoneCoherent impossible
 
 

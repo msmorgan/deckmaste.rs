@@ -2005,6 +2005,10 @@ data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
              -- five Aura Runes self-refer to a card and write it too.
              -- "This Curse" is zero lines, as is every second word.
              | Aura | Curse
+             -- Creature types bought by chapter seventy-one's witnesses,
+             -- and the ruling's own point made cheaply: a catalog row is
+             -- data.
+             | Tiefling | Warlock | Pirate
 
 public export
 sameSub : Subtype -> Subtype -> Bool
@@ -2074,6 +2078,12 @@ sameSub Aura Aura = True
 sameSub Aura _ = False
 sameSub Curse Curse = True
 sameSub Curse _ = False
+sameSub Tiefling Tiefling = True
+sameSub Tiefling _ = False
+sameSub Warlock Warlock = True
+sameSub Warlock _ = False
+sameSub Pirate Pirate = True
+sameSub Pirate _ = False
 
 ||| Which card type a subtype's set belongs to — [CR#205.1a] names the
 ||| sets themselves. [CR#205.3m] supplies the creature rows;
@@ -2120,6 +2130,9 @@ subtypeType Vedalken = Creature
 subtypeType Artificer = Creature
 subtypeType Aura = Enchantment
 subtypeType Curse = Enchantment
+subtypeType Tiefling = Creature
+subtypeType Warlock = Creature
+subtypeType Pirate = Creature
 
 ||| Which CARD TYPE word a self-reference may be ascribed (`AsType`).
 ||| [CR#109.2] reads a description carrying a type word and no zone word
@@ -2153,6 +2166,9 @@ ascribesAsSubtype : Subtype -> Bool
 ascribesAsSubtype Aura = True
 ascribesAsSubtype Equipment = True
 ascribesAsSubtype Curse = False
+ascribesAsSubtype Tiefling = False
+ascribesAsSubtype Warlock = False
+ascribesAsSubtype Pirate = False
 ascribesAsSubtype Zombie = False
 ascribesAsSubtype Army = False
 ascribesAsSubtype Soldier = False
@@ -2332,93 +2348,236 @@ sameSupertype Basic _ = False
 sameSupertype Snow Snow = True
 sameSupertype Snow _ = False
 
-||| The DESIGNATIONS a player can have — [CR#725.1] and [CR#726.1] use the
-||| same six words for both ("the monarch/the initiative is a designation a
-||| player can have"), which is why they are one vocabulary and not two
-||| rows in two places.
+||| DESIGNATIONS — one catalog, indexed by SCOPE and nothing else.
 |||
-||| Core's designation taxonomy is COMPLETE and wired
-||| (`deckmaste_core/src/designation.rs`: `DesignationScope{Object, Player,
-||| Game}` over `DesignationDef{Stored, Derived, DerivedIf}` with shape,
-||| uniqueness and persistence metadata); the OLD module has an open
-||| `MkDesignation Scope String` carrying player and object scopes only;
-||| and this workbench, until now, had NO designation machinery of any
-||| kind. So these rows are the first Idris consumers of the axis at every
-||| scope, not merely at the game scope the plugin emitter records as
-||| absent ("Game-scoped designations have no Idris `Scope` and are simply
-||| absent", `deckmaste_plugin/src/idris_emit.rs`).
+||| A designation is a status a player, an object, a card or the game
+||| HOLDS. `docs/designations.md` censuses the twenty-one the Comprehensive
+||| Rules define; this catalog carries the rows the corpus writes as card
+||| text, and it is an OPEN SET: a row is data, added without touching the
+||| grammar, because the mechanism that reads it is fixed once and
+||| parameterised over the catalog. That is the architectural ruling this
+||| chapter implements, and it replaces three parallel enums
+||| (`PlayerDesignation`, `ObjectDesignation`, `TimeOfDay`) and seven bespoke
+||| grammar rows with one catalog and four readers. `ObjectDesignation` had
+||| zero consumers when it was deleted: a dead enum whose two values were
+||| spelled by two constructors that never mentioned it.
 |||
-||| Three designations the old module carries are NOT minted, and one
-||| argument covers all three: the city's blessing (28 lines, 15 of them
-||| checks), monstrous (64 / 9) and renowned (12 / 3) are each conferred
-||| by a KEYWORD -- ascend, monstrosity, renown -- so their BECOMING sits
-||| behind the keyword boundary while only their checks are ordinary card
-||| text. Minting the check alone would give this grammar a designation
-||| nothing in it can confer, which is a worse state than not having it.
-||| They wait for the keyword transition together.
+||| Core's taxonomy is COMPLETE and wired (`deckmaste_core/src/
+||| designation.rs`: `DesignationScope{Object, Player, Game}` over
+||| `DesignationDef{Stored, Derived, DerivedIf}`), and this catalog adds
+||| the fourth scope core does not carry: the CARD. [CR#903.3] is explicit
+||| that the commander designation "is not a characteristic of the object
+||| represented by the card; rather, it is an attribute of the card
+||| itself", which is precisely why it survives a zone change — and why a
+||| scope column that stopped at object and player could not say it.
 public export
--- spelling: ["the monarch", "the initiative"] (row order:
--- Monarch/TheInitiative; the definite noun phrase naming the role. The
--- BECOMING verb differs per value and the effect row carries it -- see
--- TakesDesignation)
-data PlayerDesignation = Monarch | TheInitiative
+-- spelling: (construction-owned per row -- each designation writes its own
+-- word or phrase, and its own VERB where it has one: "the monarch" is a
+-- definite description and "become the monarch" its verb, while "the
+-- initiative" takes "take"; "goaded" is a bare participle whose verb is
+-- "goad"; "suspected" pairs with "suspect". Spelled only through the four
+-- reader rows.)
+data Designation
+  = -- PLAYER-held ([CR#725.1], [CR#726.1], [CR#702.131c], [CR#702.195b]).
+    Monarch | TheInitiative | CitysBlessing | EnduringStory
+  | -- OBJECT-held: the permanent markers ([CR#701.15b], [CR#701.54b],
+    -- [CR#701.37b], [CR#702.112b], [CR#701.60b], [CR#702.171b],
+    -- [CR#722.3a]).
+    Goaded | RingBearer | Monstrous | Renowned | Suspected | Saddled
+  | Prepared
+  | -- CARD-held ([CR#903.3]) -- the scope's only row, and the reason the
+    -- scope column exists at all.
+    CommanderD
+  | -- GAME-held ([CR#731.1]).
+    Day | Night
+
+||| Where a designation LIVES. `HeldBy` covers the sorts the grammar
+||| already has nouns for; the card and the game have none, so they are
+||| their own rows rather than `Kind` rows — the argument the day/night
+||| enum used to carry survives the merge unchanged: nothing in this
+||| grammar describes, targets, counts or quantifies over the game, and a
+||| `Kind` row would oblige every kind-keyed table in the file to answer
+||| for it.
+public export
+data DesignationScope = HeldBy Kind | HeldByCard | HeldByGame
+
+||| The scope column — `counterScope`'s analogue, and the mechanism's ONLY
+||| index. Holder classes are `docs/designations.md`'s.
+public export
+designationScope : Designation -> DesignationScope
+designationScope Monarch = HeldBy Player
+designationScope TheInitiative = HeldBy Player
+designationScope CitysBlessing = HeldBy Player
+designationScope EnduringStory = HeldBy Player
+designationScope Goaded = HeldBy Object
+designationScope RingBearer = HeldBy Object
+designationScope Monstrous = HeldBy Object
+designationScope Renowned = HeldBy Object
+designationScope Suspected = HeldBy Object
+designationScope Saddled = HeldBy Object
+designationScope Prepared = HeldBy Object
+designationScope CommanderD = HeldByCard
+designationScope Day = HeldByGame
+designationScope Night = HeldByGame
 
 public export
-samePlayerDesignation : PlayerDesignation -> PlayerDesignation -> Bool
-samePlayerDesignation Monarch Monarch = True
-samePlayerDesignation Monarch _ = False
-samePlayerDesignation TheInitiative TheInitiative = True
-samePlayerDesignation TheInitiative _ = False
+sameDesignation : Designation -> Designation -> Bool
+sameDesignation Monarch Monarch = True
+sameDesignation Monarch _ = False
+sameDesignation TheInitiative TheInitiative = True
+sameDesignation TheInitiative _ = False
+sameDesignation CitysBlessing CitysBlessing = True
+sameDesignation CitysBlessing _ = False
+sameDesignation EnduringStory EnduringStory = True
+sameDesignation EnduringStory _ = False
+sameDesignation Goaded Goaded = True
+sameDesignation Goaded _ = False
+sameDesignation RingBearer RingBearer = True
+sameDesignation RingBearer _ = False
+sameDesignation Monstrous Monstrous = True
+sameDesignation Monstrous _ = False
+sameDesignation Renowned Renowned = True
+sameDesignation Renowned _ = False
+sameDesignation Suspected Suspected = True
+sameDesignation Suspected _ = False
+sameDesignation Saddled Saddled = True
+sameDesignation Saddled _ = False
+sameDesignation Prepared Prepared = True
+sameDesignation Prepared _ = False
+sameDesignation CommanderD CommanderD = True
+sameDesignation CommanderD _ = False
+sameDesignation Day Day = True
+sameDesignation Day _ = False
+sameDesignation Night Night = True
+sameDesignation Night _ = False
 
-||| The designations an OBJECT can have, and the two the corpus writes as
-||| ordinary card text. `Goaded` is [CR#701.15b]'s -- "neither an ability
-||| nor part of the permanent's copiable values", which is what makes it a
-||| designation and not a keyword despite arriving by a keyword action.
-||| `RingBearer` is [CR#701.54a]'s, and it is the reason the READ is not a
-||| bare presence test: see YourRingBearer.
+||| Which designations the corpus CHECKS — the attestation table riding
+||| the catalog, one cell per row, each set by its own grep of supported
+||| own-line text. It is shared by the two check readers (`HasDesignation`
+||| at a sorted holder, `GameIs` at the game) and the sharing is
+||| deliberate and safe: the scope gate partitions the rows between them,
+||| so no cell is ever read by both.
+||| Player: monarch 32 lines ("if you're the monarch"), city's blessing 27
+||| ("if you have the city's blessing"), enduring story 9, the initiative 8
+||| ("if you have the initiative"). Object: saddled 37, goaded 33,
+||| suspected 20, monstrous 9, renowned 6, Ring-bearer 3; prepared 52,
+||| though 29 of those are the becoming. Game: "if it's night" 4 and "if
+||| it's day" ZERO -- the asymmetry the old `timeCheckOk` measured, carried
+||| across unchanged (`badItIsDay`). Card: the commander is written 84
+||| times as a possessed NOUN ("whenever your commander deals combat
+||| damage"), which is not this reader, and 3 times as a check -- all three
+||| inside a before-the-game static ability finding 188 keeps unread.
 public export
--- spelling: ["your Ring-bearer", "goaded"] (row order: RingBearer/Goaded;
--- the Ring-bearer is written as a possessed noun and never bare, goaded as
--- a prenominal participle. Spelled only through the predicate rows)
-data ObjectDesignation = RingBearer | Goaded
+designationChecked : Designation -> Bool
+designationChecked Monarch = True
+designationChecked TheInitiative = True
+designationChecked CitysBlessing = True
+designationChecked EnduringStory = True
+designationChecked Goaded = True
+designationChecked RingBearer = True
+designationChecked Monstrous = True
+designationChecked Renowned = True
+designationChecked Suspected = True
+designationChecked Saddled = True
+designationChecked Prepared = True
+designationChecked CommanderD = False
+designationChecked Day = False
+designationChecked Night = True
 
-||| The GAME's own designations ([CR#731.1] — "day and night are
-||| designations that the game itself can have. The game starts with
-||| neither"). A third scope, and the one core carries that no Idris
-||| module has ever had a consumer for.
-|||
-||| It is a two-value enum and NOT a third `Kind`. The temptation was to
-||| give the game a sort beside `Object` and `Player` so a designation
-||| read could be kind-indexed throughout; the corpus does not pay for it.
-||| Four check lines and eleven transition lines buy two rows, not a
-||| universe: nothing else in the grammar ever needs to describe, target,
-||| count or quantify over the game, and a `Kind` row would have obliged
-||| every kind-keyed table in the file to answer for it.
+||| Which designations a card line GIVES — the second attestation table,
+||| and the one that separates a designation the grammar can confer from
+||| one it can only read.
+||| True: the monarch (64 lines, "you become the monarch"), the initiative
+||| (23, "you take the initiative"), goaded (33, "goad target creature"),
+||| suspected (14, "suspect it"), prepared (29, "target creature becomes
+||| prepared"), and both halves of day/night (13, "it becomes day").
+||| False, and each for a measured reason rather than an omission. The
+||| city's blessing and the enduring story are conferred by the ASCEND and
+||| STORIED keywords, monstrous by MONSTROSITY and renowned by RENOWN, so
+||| their becoming sits behind the keyword boundary and no card writes it
+||| as an operative clause; every "becomes monstrous"/"becomes renowned"
+||| line in the corpus is a TRIGGER watching the keyword's own resolution,
+||| not an instruction. The Ring-bearer is chosen by the Ring-tempts
+||| mechanic and "becomes your Ring-bearer" is zero lines. Saddled is the
+||| interesting one: it is written as an instruction four times and every
+||| one of the four carries a duration ("becomes saddled until end of
+||| turn"), so the durationless sentence this row would spell is zero
+||| lines and the cell waits on the held-until slot rather than on the
+||| catalog. The commander is assigned during deck construction.
 public export
--- spelling: ["day", "night"] (row order: Day/Night; the bare word after
--- "it becomes" or "it's". Spelled only through BecomesTime and ItIsNow)
-data TimeOfDay = Day | Night
+designationGiven : Designation -> Bool
+designationGiven Monarch = True
+designationGiven TheInitiative = True
+designationGiven CitysBlessing = False
+designationGiven EnduringStory = False
+designationGiven Goaded = True
+designationGiven RingBearer = False
+designationGiven Monstrous = False
+designationGiven Renowned = False
+designationGiven Suspected = True
+designationGiven Saddled = False
+designationGiven Prepared = True
+designationGiven CommanderD = False
+designationGiven Day = True
+designationGiven Night = True
 
+||| What a designation's check SEEDS about its holder's zone — the
+||| description's own contribution, as `seedZone` reads it. A permanent
+||| designation puts its holder on the battlefield ([CR#701.60b] "only
+||| permanents can have the suspected designation" is the pattern, and
+||| [CR#701.54e] asks the same of the Ring-bearer); a player has no zone,
+||| and neither the card nor the game is in one.
 public export
-sameTimeOfDay : TimeOfDay -> TimeOfDay -> Bool
-sameTimeOfDay Day Day = True
-sameTimeOfDay Day _ = False
-sameTimeOfDay Night Night = True
-sameTimeOfDay Night _ = False
+designationSeedZone : Designation -> Maybe Zone
+designationSeedZone Monarch = Nothing
+designationSeedZone TheInitiative = Nothing
+designationSeedZone CitysBlessing = Nothing
+designationSeedZone EnduringStory = Nothing
+designationSeedZone Goaded = Just Battlefield
+designationSeedZone RingBearer = Just Battlefield
+designationSeedZone Monstrous = Just Battlefield
+designationSeedZone Renowned = Just Battlefield
+designationSeedZone Suspected = Just Battlefield
+designationSeedZone Saddled = Just Battlefield
+designationSeedZone Prepared = Just Battlefield
+designationSeedZone CommanderD = Nothing
+designationSeedZone Day = Nothing
+designationSeedZone Night = Nothing
 
-||| WHICH time-of-day the CHECK writes -- finding 246's idiom at a third
-||| site, and the sharpest asymmetry the round measured: "if it's night"
-||| and its siblings are four lines, and "if it's day" is written ZERO
-||| times. The transition writes both directions freely, so this is a fact
-||| about the check and not about the designation (`badItIsDay`).
+||| And what it seeds about the holder's card type. Measured off the head
+||| words the corpus writes beside each: "goaded creature", "suspected
+||| creatures", "a renowned creature you control", "target creature
+||| becomes prepared". Saddled is the one object row that seeds NOTHING —
+||| its own lines write "that permanent becomes saddled if it's a Mount"
+||| beside "target Mount you control", so the type is the head's.
 public export
-timeCheckOk : TimeOfDay -> Bool
-timeCheckOk Day = False
-timeCheckOk Night = True
+designationSeedType : Designation -> Maybe CardType
+designationSeedType Monarch = Nothing
+designationSeedType TheInitiative = Nothing
+designationSeedType CitysBlessing = Nothing
+designationSeedType EnduringStory = Nothing
+designationSeedType Goaded = Just Creature
+designationSeedType RingBearer = Just Creature
+designationSeedType Monstrous = Just Creature
+designationSeedType Renowned = Just Creature
+designationSeedType Suspected = Just Creature
+designationSeedType Saddled = Nothing
+designationSeedType Prepared = Just Creature
+designationSeedType CommanderD = Nothing
+designationSeedType Day = Nothing
+designationSeedType Night = Nothing
 
+||| The GIVING row's zone demand, per scope. A player is given a
+||| designation wherever they are — they have no zone — while an object is
+||| given one on the battlefield and nowhere else ("goad target creature"
+||| never reaches a graveyard). Two rows, and neither names a designation:
+||| the table is the scope's, which is the only index the mechanism has.
 public export
-data TimeChecked : TimeOfDay -> Type where
-  MkTimeChecked : {auto 0 ok : timeCheckOk t = True} -> TimeChecked t
+data DesignationHolder : Designation -> Maybe Zone -> Type where
+  HolderUnzoned : {auto 0 sc : designationScope d = HeldBy Player} ->
+                  DesignationHolder d z
+  HolderOnField : {auto 0 sc : designationScope d = HeldBy Object} ->
+                  {auto 0 ok : OnBattlefield z} -> DesignationHolder d z
 
 ||| The ATTACHMENT PARTICIPLE — the word a permanent uses to refer to
 ||| whatever it is attached to. Three words, and the rules define all
@@ -2510,6 +2669,21 @@ attachHeadOk Fortified SpellW = False
 attachHeadOk Fortified PlayerW = False
 attachHeadOk Fortified PermanentW = False
 attachHeadOk Fortified TokenW = False
+
+||| The INVERSE direction as a cell: not what a permanent is attached to
+||| but whether it HAS an attachment. "is enchanted" is 27 supported
+||| occurrences over 25 cards and "is equipped" 22 over 22, both written
+||| predicatively after the copula and never prenominally. "Is fortified"
+||| is ZERO, and that is a closure rather than a gap: the participle
+||| itself is attested at the head word ("fortified land", two cards), so
+||| the row exists and it is this READER the corpus declines to write
+||| (`badIsFortified`). One word, two questions, and the second answered
+||| here rather than by a second constructor.
+public export
+attachedCheckOk : AttachWord -> Bool
+attachedCheckOk Enchanted = True
+attachedCheckOk Equipped = True
+attachedCheckOk Fortified = False
 
 public export
 data AttachHeadOk : AttachWord -> NounWord -> Type where

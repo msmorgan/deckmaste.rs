@@ -389,63 +389,78 @@ mutual
     -- spelling: ["named <Param(0)>"], kind: TODO(reason: non-head
     -- postnominal modifier per hasHead)
     Named : (name : String) -> Predicate bs Object
-    -- "the monarch" / "the initiative" -- a player DESIGNATION as a
-    -- description, and the route the intervening-if slot already needed:
-    -- "if you're the monarch" is 21 lines and is `Matches You` over this
-    -- row, so the 18-line intervening family (12 of them excluding the
-    -- absence checks) costs no condition vocabulary of its own.
+    -- THE DESIGNATION CHECK, at a holder the grammar has a noun for --
+    -- one row over the whole catalog, replacing three bespoke ones
+    -- (`HasPlayerDesignation`, `IsGoaded`, `YourRingBearer`). The
+    -- architectural ruling this chapter implements is what collapses
+    -- them: a catalog is an OPEN SET, so the mechanism is fixed once and
+    -- parameterised, and rows grow as data.
+    -- The SORT is not a second index. It is read OFF the scope column
+    -- (`designationScope d = HeldBy k`), which is the mechanism's only
+    -- index and `counterScope`'s analogue: the monarch is a player's and
+    -- so this row is a `Predicate bs Player` for it; goaded is a
+    -- permanent's and so it is a `Predicate bs Object`. A designation
+    -- whose scope is the CARD or the GAME has no sorted holder and is
+    -- refused here by the same gate (`badCommanderCheck`); the game's own
+    -- check is `GameIs`.
+    -- WHICH designations are checked is `designationChecked`, measured per
+    -- row. What the check SEEDS is likewise the catalog's
+    -- (`designationSeedZone`/`designationSeedType`): a permanent marker
+    -- puts its holder on the battlefield and a player designation seeds
+    -- nothing, which is exactly what the three old rows said one at a
+    -- time.
     -- The ABSENCE check is NOT this row. "There is no monarch" is five
     -- lines and asks whether ANY player holds the designation, which is an
     -- existential over the holder rather than a description of one;
     -- recorded, not minted.
-    -- Seeds nothing: a player has no zone and no card type.
-    -- Negation measures ZERO ("isn't the monarch" and every sibling), so
-    -- the row refuses it.
-    -- spelling: ["<Param(0)>"] (the designation's own definite phrase --
-    -- see PlayerDesignation -- predicative after the copula, "you're the
-    -- monarch"), kind: TODO(reason: non-head definite description per
-    -- hasHead)
-    HasPlayerDesignation : (d : PlayerDesignation) -> Predicate bs Player
-    -- "goaded [head]" (7 description lines) -- [CR#701.15b]'s designation
-    -- read prenominally, the participle beside `Attacking` and `Blocking`
-    -- and seeding what they seed: only a creature is goaded, and only on
-    -- the battlefield.
-    -- spelling: ["goaded"], kind: TODO(reason: non-head prenominal
-    -- participle per hasHead)
-    IsGoaded : Predicate bs Object
-    -- "your Ring-bearer" -- and a COMPOUND wearing one phrase, which is
-    -- why it is a row rather than a composition. [CR#701.54e] spells the
-    -- condition out: a creature "is your Ring-bearer" exactly when it "is
-    -- on the battlefield under your control and has the Ring-bearer
-    -- designation" -- three conjuncts, of which the corpus writes NONE
-    -- separately. All three attested lines write the four words whole, so
-    -- composing `ControlledBy You` with a designation read would have
-    -- spelled a phrase no card prints while leaving the printed one
-    -- unwritable. The conjuncts live in this comment, where they belong.
-    -- spelling: ["your Ring-bearer"] (predicative after the copula in
-    -- Matches, "[n] is your Ring-bearer"; never bare and never
-    -- third-person possessed), kind: TODO(reason: non-head possessed
+    -- Negation measures ZERO across the catalog ("isn't the monarch",
+    -- "isn't goaded", "isn't monstrous" and every sibling; one "isn't
+    -- saddled" line, recorded), so the row refuses it.
+    -- [CR#701.54e] is the one row whose phrase says more than the
+    -- designation: a creature "is your Ring-bearer" exactly when it is on
+    -- the battlefield under your control AND has the designation. All
+    -- three attested lines write the four words whole and the corpus
+    -- writes none of the conjuncts separately, so the possessive is that
+    -- row's own spelling and the control conjunct rides in it.
+    -- spelling: ["<Param(0)>"] (the designation's own word or phrase --
+    -- see Designation -- predicative after the copula in Matches, "you're
+    -- the monarch" / "it is goaded" / "[n] is your Ring-bearer", or bare
+    -- prenominally for the participles), kind: TODO(reason: non-head
     -- description per hasHead)
-    YourRingBearer : Predicate bs Object
+    HasDesignation : (d : Designation) ->
+                     {auto 0 sc : designationScope d = HeldBy k} ->
+                     {auto 0 at : designationChecked d = True} ->
+                     Predicate bs k
     -- "is enchanted" / "is equipped" -- the INVERSE direction: not what a
     -- permanent is attached TO but whether something has an attachment on
-    -- it. Nineteen "is equipped" lines (Enkira) and fourteen "is
-    -- enchanted", written predicatively after the copula and never
+    -- it. ONE row over the participle catalog `AttachHost` already
+    -- parameterises, replacing the bespoke `IsEnchanted`/`IsEquipped`
+    -- pair, and the standing check the ruling installs is what convicts
+    -- them: a row whose name contains a value of an existing catalog must
+    -- take the parameter or record the refusal.
+    -- Twenty-seven "is enchanted" occurrences and twenty-two "is
+    -- equipped", written predicatively after the copula and never
     -- prenominally, which is why they are conditions' vocabulary rather
-    -- than a determiner's.
+    -- than a determiner's. "Is fortified" is ZERO and the table says so as
+    -- a CELL (`attachedCheckOk`, `badIsFortified`) -- the word is attested
+    -- at the head reader and declined at this one, which silence could not
+    -- have distinguished from an unminted row.
     -- Seeds the battlefield and nothing else: an attachment is attached to
     -- a permanent there ([CR#303.4b,301.5a]), and the head noun carries
     -- the type.
-    -- Negation is written -- four isn't-forms -- so both rows take it.
+    -- Negation is written -- four isn't-forms -- so the row takes it.
     -- A THIRD direction exists and is NOT here: "is attached to" written
     -- of the ATTACHMENT itself ("as long as this Equipment is attached to
     -- a creature"), twelve lines, which names the relation rather than
     -- either end's participle. Recorded.
-    -- spelling: ["enchanted", "equipped"] (predicative after the copula in
-    -- Matches, "[n] is equipped"), kind: TODO(reason: non-head predicative
-    -- participle per hasHead)
-    IsEnchanted : Predicate bs Object
-    IsEquipped : Predicate bs Object
+    -- The ENCHANT and EQUIP keyword lines stay elided, per the same
+    -- ruling: they are keyword abilities that cause and permit attachment,
+    -- and attachment is the primitive this row and `AttachHost` read.
+    -- spelling: ["<Param(0)>"] (the participle predicative after the
+    -- copula in Matches, "[n] is equipped" -- see AttachWord), kind:
+    -- TODO(reason: non-head predicative participle per hasHead)
+    IsAttached : (w : AttachWord) ->
+                 {auto 0 ok : attachedCheckOk w = True} -> Predicate bs Object
     -- "permanent" / "permanent card" / "permanent spell" -- ONE row for
     -- the [CR#110.4a,110.4b] type-set, and the phrase's own zone story
     -- picks the carrier exactly as it does for a type word: bare, the
@@ -846,11 +861,8 @@ mutual
   -- the player designation seeds nothing (a player has no zone); the two
   -- object designations seed the battlefield, [CR#701.15b]'s goaded
   -- creature and [CR#701.54e]'s Ring-bearer both being permanents.
-  seedZone (HasPlayerDesignation _) = Nothing
-  seedZone IsGoaded = Just Battlefield
-  seedZone YourRingBearer = Just Battlefield
-  seedZone IsEnchanted = Just Battlefield
-  seedZone IsEquipped = Just Battlefield
+  seedZone (HasDesignation d) = designationSeedZone d
+  seedZone (IsAttached _) = Just Battlefield
   -- a token lives only on the battlefield ([CR#111.7]), and status is
   -- only a battlefield permanent's ([CR#110.5d]) — both words seed their
   -- zone exactly as the combat designations above do. The permanent HEAD
@@ -958,11 +970,8 @@ mutual
   seedType Monocolored = Nothing
   seedType (HasSupertype _) = Nothing
   seedType (Named _) = Nothing
-  seedType (HasPlayerDesignation _) = Nothing
-  seedType IsGoaded = Just Creature
-  seedType YourRingBearer = Just Creature
-  seedType IsEnchanted = Nothing
-  seedType IsEquipped = Nothing
+  seedType (HasDesignation d) = designationSeedType d
+  seedType (IsAttached _) = Nothing
   -- a bound on a number presupposes an object that HAS that number, which
   -- is the status word's shape with a table in place of a fixed answer:
   -- power and toughness demand a creature ([CR#208.3]), mana value demands
@@ -1041,11 +1050,8 @@ mutual
   hasHead Monocolored = False
   hasHead (HasSupertype _) = False
   hasHead (Named _) = False
-  hasHead (HasPlayerDesignation _) = False
-  hasHead IsGoaded = False
-  hasHead YourRingBearer = False
-  hasHead IsEnchanted = False
-  hasHead IsEquipped = False
+  hasHead (HasDesignation _) = False
+  hasHead (IsAttached _) = False
   hasHead Permanent = True
   hasHead IsToken = True
   hasHead (HasStatus _) = False
@@ -1268,16 +1274,10 @@ mutual
   -- whether two phrases name the same card and never what either names.
   predEq (Named a) (Named b) = a == b
   predEq (Named _) _ = False
-  predEq (HasPlayerDesignation a) (HasPlayerDesignation b) = samePlayerDesignation a b
-  predEq (HasPlayerDesignation _) _ = False
-  predEq IsGoaded IsGoaded = True
-  predEq IsGoaded _ = False
-  predEq YourRingBearer YourRingBearer = True
-  predEq YourRingBearer _ = False
-  predEq IsEnchanted IsEnchanted = True
-  predEq IsEnchanted _ = False
-  predEq IsEquipped IsEquipped = True
-  predEq IsEquipped _ = False
+  predEq (HasDesignation a) (HasDesignation b) = sameDesignation a b
+  predEq (HasDesignation _) _ = False
+  predEq (IsAttached a) (IsAttached b) = sameAttachWord a b
+  predEq (IsAttached _) _ = False
   predEq Permanent Permanent = True
   predEq Permanent _ = False
   predEq IsToken IsToken = True
@@ -1917,17 +1917,16 @@ mutual
   negatable Monocolored = False
   negatable (HasSupertype _) = True
   negatable (Named _) = True
-  -- none of the three designation reads negates: "isn't the monarch",
-  -- "isn't your Ring-bearer" and "nongoaded" are zero lines apiece, and
-  -- the one negative the family writes -- "there is no monarch" -- is the
-  -- absence check, another construction.
-  negatable (HasPlayerDesignation _) = False
-  negatable IsGoaded = False
-  negatable YourRingBearer = False
-  -- the attachment presence reads DO negate: four isn't-forms against the
-  -- thirty-three positives.
-  negatable IsEnchanted = True
-  negatable IsEquipped = True
+  -- no designation read negates, across the whole catalog: "isn't the
+  -- monarch", "isn't your Ring-bearer", "nongoaded", "isn't monstrous",
+  -- "isn't renowned" and "isn't suspected" are zero lines apiece; the one
+  -- negative the family writes -- "there is no monarch" -- is the absence
+  -- check, another construction, and the single "isn't saddled" line is
+  -- recorded rather than bought.
+  negatable (HasDesignation _) = False
+  -- the attachment presence read DOES negate: four isn't-forms against the
+  -- forty-nine positives.
+  negatable (IsAttached _) = True
   -- "nonpermanent" was not measured by this round's recon, and the
   -- status pairs are each two words, never a "non-" of each other
   -- ([CR#110.5] names both values) — so only the token row negates
@@ -1980,11 +1979,8 @@ mutual
   predSays Monocolored = True
   predSays (HasSupertype _) = True
   predSays (Named _) = True
-  predSays (HasPlayerDesignation _) = True
-  predSays IsGoaded = True
-  predSays YourRingBearer = True
-  predSays IsEnchanted = True
-  predSays IsEquipped = True
+  predSays (HasDesignation _) = True
+  predSays (IsAttached _) = True
   predSays Permanent = True
   predSays IsToken = True
   predSays (HasStatus _) = True
@@ -2040,11 +2036,8 @@ mutual
   predNegFree Monocolored = True
   predNegFree (HasSupertype _) = True
   predNegFree (Named _) = True
-  predNegFree (HasPlayerDesignation _) = True
-  predNegFree IsGoaded = True
-  predNegFree YourRingBearer = True
-  predNegFree IsEnchanted = True
-  predNegFree IsEquipped = True
+  predNegFree (HasDesignation _) = True
+  predNegFree (IsAttached _) = True
   predNegFree Permanent = True
   predNegFree IsToken = True
   predNegFree (HasStatus _) = True
@@ -2095,11 +2088,8 @@ mutual
   anyTargetFree Monocolored = True
   anyTargetFree (HasSupertype _) = True
   anyTargetFree (Named _) = True
-  anyTargetFree (HasPlayerDesignation _) = True
-  anyTargetFree IsGoaded = True
-  anyTargetFree YourRingBearer = True
-  anyTargetFree IsEnchanted = True
-  anyTargetFree IsEquipped = True
+  anyTargetFree (HasDesignation _) = True
+  anyTargetFree (IsAttached _) = True
   anyTargetFree Permanent = True
   anyTargetFree IsToken = True
   anyTargetFree (HasStatus _) = True
@@ -2727,11 +2717,8 @@ mutual
   predDelta Monocolored = []
   predDelta (HasSupertype _) = []
   predDelta (Named _) = []
-  predDelta (HasPlayerDesignation _) = []
-  predDelta IsGoaded = []
-  predDelta YourRingBearer = []
-  predDelta IsEnchanted = []
-  predDelta IsEquipped = []
+  predDelta (HasDesignation _) = []
+  predDelta (IsAttached _) = []
   predDelta (InZone z) = zoneDelta z
   predDelta (And ps) = predDeltaAll ps
   -- negation is a binding HOLE: a positive controller relation names
@@ -3842,13 +3829,17 @@ mutual
     Happened : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
                (w : Lookback) ->
                {auto 0 sb : LookbackSubject ev k} -> Condition bs
-    -- "it's [day/night]" -- the GAME's own designation read, and the first
-    -- consumer any Idris module here has ever had for the game scope
-    -- ([CR#731.1] -- "day and night are designations that the game itself
-    -- can have"). It takes no subject at all, which is what a game-scoped
-    -- read is: there is one game and the phrase names it with a dummy
-    -- pronoun.
-    -- Gated by `timeCheckOk`, whose asymmetry is the measurement: "if it's
+    -- "it's [day/night]" -- the DESIGNATION CHECK at the GAME's scope,
+    -- and the reason the check is two rows rather than one: the game has
+    -- no noun in this grammar, so `HasDesignation`'s sorted holder cannot
+    -- reach it. The split is the GRAMMAR's own sorts talking, not a second
+    -- index on the mechanism — the catalog, the scope column and the
+    -- attestation table are the same ones the sorted reader consults, and
+    -- the scope gate is what partitions the rows between the two.
+    -- It takes no subject at all, which is what a game-scoped read is:
+    -- there is one game and the phrase names it with a dummy pronoun.
+    -- Gated by `designationChecked`, whose day/night asymmetry is the
+    -- measurement carried across from the old two-value enum: "if it's
     -- night" and its siblings are four lines and "if it's day" is written
     -- zero times (`badItIsDay`). The TRANSITION writes both directions, so
     -- this is a fact about the check.
@@ -3857,8 +3848,10 @@ mutual
     -- text is keyword-static boilerplate over a card frame this vocabulary
     -- does not model, and none of it is evidence for this row.
     -- spelling: ["it's <Param(0)>"] (the dummy subject and the copula --
-    -- see TimeOfDay), kind: TODO(reason: condition fragment, see Exists)
-    ItIsNow : (t : TimeOfDay) -> {auto 0 tc : TimeChecked t} -> Condition bs
+    -- see Designation), kind: TODO(reason: condition fragment, see Exists)
+    GameIs : (d : Designation) ->
+             {auto 0 sc : designationScope d = HeldByGame} ->
+             {auto 0 at : designationChecked d = True} -> Condition bs
     -- "it's an artifact creature" -- a REFERENCE answers a description:
     -- core's `Matches(Reference, Predicate)` with the kind index this
     -- grammar carries and core does not. (Core cites [CR#603.4] on this
@@ -3954,7 +3947,7 @@ mutual
   condNegatable (Happened _ _ _) = True
   -- "it isn't night" is zero lines; the check is written positively or
   -- not at all.
-  condNegatable (ItIsNow _) = False
+  condNegatable (GameIs _) = False
   condNegatable (Matches n p) = predNegFree p
   condNegatable (CompareAmt subj r bound) = False
   condNegatable (NotCond c) = False
@@ -3972,7 +3965,7 @@ mutual
   condNegated : {0 bs : Bindings} -> Condition bs -> Bool
   condNegated (Exists _) = False
   condNegated (Happened _ _ _) = False
-  condNegated (ItIsNow _) = False
+  condNegated (GameIs _) = False
   condNegated (Matches _ _) = False
   condNegated (CompareAmt _ _ _) = False
   condNegated (NotCond _) = True
@@ -4018,7 +4011,7 @@ mutual
   -- be where it was ([CR#608.2i]), so there is nothing for a later clause
   -- to pick up.
   condDelta (Happened _ _ _) = []
-  condDelta (ItIsNow _) = []
+  condDelta (GameIs _) = []
   condDelta (Matches n p) = []
   condDelta (CompareAmt subj r bound) = []
   condDelta (NotCond c) = []
@@ -4409,6 +4402,11 @@ mutual
     -- without a subject phrase -- which makes it the second event row
     -- after `BeginningOf` with no participant at all, and it answers
     -- `BeginningOf`'s answers everywhere for that reason.
+    -- The STANDING CHECK's first recorded refusal: a row whose name
+    -- contains a value of an existing catalog must take the parameter or
+    -- record why it does not, and this one does not because the phrase
+    -- names BOTH values at once. A direction slot would spell two
+    -- sentences the corpus never separates.
     -- spelling: ["day becomes night or night becomes day"] (the whole
     -- fixed phrase; the header word precedes it)
     DayNightShift : GameEvent bs
@@ -6574,44 +6572,65 @@ mutual
     -- spelling: ["remove <Param(0)> from combat"], kind: Sentence
     RemoveFromCombat : (n : Noun bs Object) ->
                        {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
-    -- "[who] becomes the monarch" / "[who] takes the initiative" -- a
-    -- player GAINING a designation, and ONE row over the two because
-    -- [CR#725.1] and [CR#726.1] say the same sentence twice ("the
-    -- monarch/the initiative is a designation a player can have", gained
-    -- when "an effect instructs a player to become the monarch" / "to take
-    -- the initiative"). The VERB differs per value and the spelling
-    -- carries it, which is the arrangement `Happened`'s past-verb table
-    -- already uses.
+    -- THE DESIGNATION GIVEN, at a holder the grammar has a noun for --
+    -- one row over the whole catalog, replacing three bespoke ones
+    -- (`TakesDesignation`, `Goad`, and `BecomesTime`'s sorted half). The
+    -- VERB is the designation's own and the spelling carries it, which is
+    -- the arrangement `Happened`'s past-verb table already uses: the
+    -- monarch takes "become", the initiative "take", goaded "goad",
+    -- suspected "suspect", prepared "become". [CR#725.1] and [CR#726.1]
+    -- say the same sentence twice ("the monarch/the initiative is a
+    -- designation a player can have"), which is the shape the whole
+    -- catalog turned out to have.
+    -- Sort off the scope column, as at the check. The ZONE demand is the
+    -- scope's too (`DesignationHolder`): a player is given a designation
+    -- wherever they are, an object only on the battlefield -- "goad target
+    -- creature" reaches no graveyard, which is the gate the old `Goad` row
+    -- carried alone and this one carries for every object designation.
+    -- WHICH designations a line may give is `designationGiven`, and its
+    -- Falses are the round's sharpest measurement: the city's blessing,
+    -- the enduring story, monstrous and renowned are each conferred by a
+    -- KEYWORD -- ascend, storied, monstrosity, renown -- so every
+    -- "becomes monstrous" in the corpus is a TRIGGER watching that
+    -- keyword resolve, never an instruction. None of the four is
+    -- PINNABLE, and the reason is the keyword's own reminder text: ascend
+    -- prints "you get the city's blessing", monstrosity prints "it becomes
+    -- monstrous", renown prints "it becomes renowned". Attested English is
+    -- never pinnable, reminder text included, so these are cells the
+    -- keyword round will flip rather than refusals a proof can hold.
     -- The SUBJECT RANGE is asymmetric and left ungated: the monarch is
     -- written with a third party 10 times against 25 self lines ("target
     -- opponent becomes the monarch"), while all 9 initiative lines are the
     -- self. Tolerated over-generation, the standing posture for a subject
     -- range, and recorded here rather than gated because gating would have
     -- required the row to inspect which noun it was handed.
-    -- spelling: ["<Param(0)> become(s) the monarch" (Monarch),
-    -- "<Param(0)> take(s) the initiative" (TheInitiative)], kind: Sentence
-    -- (the verb is the designation's own -- see PlayerDesignation)
-    TakesDesignation : (who : Noun bs Player) -> (d : PlayerDesignation) ->
-                       Effect bs
-    -- "goad [n]" (24 lines) -- [CR#701.15a]'s keyword action, whose EFFECT
-    -- is the designation [CR#701.15b] defines. The verb is card text and
-    -- the designation's own rules text is not: "attacks each combat if
-    -- able and attacks a player other than the controller of the permanent
-    -- … that caused it to be goaded" lives in [CR#701.15b] and in reminder
-    -- text (33 lines by this round's closest measure), never as a printed
-    -- operative clause, so the requirement row minted in chapter forty-six
-    -- neither spells it nor needs to.
-    -- spelling: ["goad <Param(0)>"], kind: Sentence
-    Goad : (n : Noun bs Object) ->
-           {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+    -- [CR#701.15a] belongs beside the goad cell: the keyword ACTION is
+    -- card text and the designation's own rules text is not -- "attacks
+    -- each combat if able and attacks a player other than the controller
+    -- of the permanent … that caused it to be goaded" lives in
+    -- [CR#701.15b] and in reminder text, never as a printed operative
+    -- clause, so the requirement row minted in chapter forty-six neither
+    -- spells it nor needs to.
+    -- spelling: ["<Param(0)> become(s) the monarch", "<Param(0)> take(s)
+    -- the initiative", "goad <Param(0)>", "suspect <Param(0)>",
+    -- "<Param(0)> becomes prepared"], kind: Sentence (the verb is the
+    -- designation's own -- see Designation)
+    GainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->
+                       {auto 0 sc : designationScope d = HeldBy k} ->
+                       {auto 0 at : designationGiven d = True} ->
+                       {auto 0 zn : DesignationHolder d (nounZone n)} -> Effect bs
     -- "it becomes [day/night]" -- the GAME gaining a designation
     -- ([CR#731.1] gives the phrase in its own words: "'it becomes day' and
     -- 'it becomes night' refer to the game gaining the day or night
-    -- designation"). No subject slot, for `ItIsNow`'s reason.
+    -- designation"). No subject slot, for `GameIs`'s reason, and the same
+    -- catalog, scope column and attestation table read at the same gate.
     -- UNGATED where the check is gated: both directions are written, which
-    -- is exactly why `timeCheckOk` is a fact about the check alone.
+    -- is exactly why `designationChecked` carries a False for Day and
+    -- `designationGiven` does not.
     -- spelling: ["it becomes <Param(0)>"], kind: Sentence
-    BecomesTime : (t : TimeOfDay) -> Effect bs
+    GameBecomes : (d : Designation) ->
+                  {auto 0 sc : designationScope d = HeldByGame} ->
+                  {auto 0 at : designationGiven d = True} -> Effect bs
     -- "[who] win(s)/lose(s) the game" -- the outcome an effect STATES
     -- ([CR#104.2b,104.3e]), 107 corpus occurrences across three frames:
     -- 87 imperative (the ability's own main clause, bare or if-gated --
@@ -6635,7 +6654,7 @@ mutual
     -- game is a draw"), the third of the trio [CR#104] lets an effect
     -- state and the only one with no patient at all: a draw is the GAME's
     -- outcome, not a player's, which is why the row is nullary where its
-    -- two siblings take a noun. `BecomesTime`'s shape one row up, and for
+    -- two siblings take a noun. `GameBecomes`'s shape one row up, and for
     -- the same reason -- there is one game and the sentence names it
     -- without a subject phrase.
     -- Two corpus lines, and chapter sixty-nine landed both. The row spent
@@ -7488,9 +7507,8 @@ mutual
   heldUntilOk (GetsCounters _ _ _) = False
   heldUntilOk (LosesAllCounters _ _) = False
   heldUntilOk (RemoveFromCombat _) = False
-  heldUntilOk (TakesDesignation _ _) = False
-  heldUntilOk (Goad _) = False
-  heldUntilOk (BecomesTime _) = False
+  heldUntilOk (GainsDesignation _ _) = False
+  heldUntilOk (GameBecomes _) = False
   heldUntilOk (Concludes _ _) = False
   heldUntilOk GameDrawn = False
   heldUntilOk (CounterSpell _) = False
@@ -7631,9 +7649,8 @@ mutual
   -- the designation clauses hang no anaphor: "becomes the monarch. When
   -- you do" and its siblings are zero lines. The game-scope row is
   -- additionally agentless -- nobody makes it day.
-  reflexEncloseUse (TakesDesignation _ _) = EncUnattested
-  reflexEncloseUse (Goad _) = EncUnattested
-  reflexEncloseUse (BecomesTime _) = EncAgentless
+  reflexEncloseUse (GainsDesignation _ _) = EncUnattested
+  reflexEncloseUse (GameBecomes _) = EncAgentless
   -- agentless for `ChangeLife`'s reason ([CR#119.9]'s rewrite read
   -- across): winning and losing HAPPEN to a player rather than being
   -- actions one takes, so "do" has nobody to stand for. The draw has no
@@ -7823,9 +7840,8 @@ mutual
   costActionOk (GetsCounters _ _ _) = False
   costActionOk (LosesAllCounters _ _) = False
   costActionOk (RemoveFromCombat _) = False
-  costActionOk (TakesDesignation _ _) = False
-  costActionOk (Goad _) = False
-  costActionOk (BecomesTime _) = False
+  costActionOk (GainsDesignation _ _) = False
+  costActionOk (GameBecomes _) = False
   costActionOk (Concludes _ _) = False
   costActionOk GameDrawn = False
   -- Zero cost components counter a spell: [CR#602.1a] makes a cost what
@@ -7929,12 +7945,14 @@ mutual
   effEq (LosesAllCounters _ _) _ = False
   effEq (RemoveFromCombat a) (RemoveFromCombat b) = nounEqRef a b
   effEq (RemoveFromCombat _) _ = False
-  effEq (TakesDesignation a d) (TakesDesignation b e) = nounEqRef a b && samePlayerDesignation d e
-  effEq (TakesDesignation _ _) _ = False
-  effEq (Goad a) (Goad b) = nounEqRef a b
-  effEq (Goad _) _ = False
-  effEq (BecomesTime a) (BecomesTime b) = sameTimeOfDay a b
-  effEq (BecomesTime _) _ = False
+  -- the telescope case this function's own doc names, arrived at for the
+  -- first time by a SCOPE index: the noun's kind is the designation's
+  -- scope, so two clauses' holders inhabit two different types and cannot
+  -- be compared at all. `False` under-refuses, which is the safe
+  -- direction and the one the row above takes.
+  effEq (GainsDesignation _ _) _ = False
+  effEq (GameBecomes a) (GameBecomes b) = sameDesignation a b
+  effEq (GameBecomes _) _ = False
   effEq (Concludes v a) (Concludes w b) = sameOutcomeVerb v w && nounEqRef a b
   effEq (Concludes _ _) _ = False
   effEq GameDrawn GameDrawn = True
@@ -8545,9 +8563,8 @@ mutual
   effIntro (GetsCounters who amt _) = amtIntro amt
   effIntro (LosesAllCounters who _) = nomIntro who
   effIntro (RemoveFromCombat n) = nomIntro n
-  effIntro (TakesDesignation who _) = nomIntro who
-  effIntro (Goad n) = nomIntro n
-  effIntro (BecomesTime _) = bs
+  effIntro (GainsDesignation n _) = nomIntro n
+  effIntro (GameBecomes _) = bs
   effIntro (Concludes _ who) = nomIntro who
   effIntro GameDrawn = bs
   -- The countering announces its patient and nothing else: [CR#701.6a]
@@ -8702,9 +8719,8 @@ mutual
   preIntro (GetsCounters who amt _) = amtIntro amt
   preIntro (LosesAllCounters who _) = nomIntro who
   preIntro (RemoveFromCombat n) = nomIntro n
-  preIntro (TakesDesignation who _) = nomIntro who
-  preIntro (Goad n) = nomIntro n
-  preIntro (BecomesTime _) = bs
+  preIntro (GainsDesignation n _) = nomIntro n
+  preIntro (GameBecomes _) = bs
   preIntro (Concludes _ who) = nomIntro who
   preIntro GameDrawn = bs
   preIntro (CounterSpell what) = nomIntro what
@@ -8803,9 +8819,8 @@ mutual
   annIntro (GetsCounters who amt _) = amtIntro amt
   annIntro (LosesAllCounters who _) = nomIntro who
   annIntro (RemoveFromCombat n) = nomIntro n
-  annIntro (TakesDesignation who _) = nomIntro who
-  annIntro (Goad n) = nomIntro n
-  annIntro (BecomesTime _) = bs
+  annIntro (GainsDesignation n _) = nomIntro n
+  annIntro (GameBecomes _) = bs
   annIntro (Concludes _ who) = nomIntro who
   annIntro GameDrawn = bs
   annIntro (CounterSpell what) = nomIntro what
@@ -8895,9 +8910,8 @@ mutual
   deedDelta (GetsCounters _ _ _) = []
   deedDelta (LosesAllCounters _ _) = []
   deedDelta (RemoveFromCombat _) = []
-  deedDelta (TakesDesignation _ _) = []
-  deedDelta (Goad _) = []
-  deedDelta (BecomesTime _) = []
+  deedDelta (GainsDesignation _ _) = []
+  deedDelta (GameBecomes _) = []
   deedDelta (Concludes _ _) = []
   deedDelta GameDrawn = []
   deedDelta (CounterSpell _) = []

@@ -2753,32 +2753,35 @@ throneWarden : Ability
 throneWarden =
   Triggered At (BeginningOf EndStep (Just Yours))
             (PutCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
-            {intervening = Just (Matches You (HasPlayerDesignation Monarch))}
+            {intervening = Just (Matches You (HasDesignation Monarch))}
 
 -- "When Aragorn enters, you become the monarch." (Aragorn, King of
 -- Gondor's first trigger; his keyword line and his attack trigger are the
 -- card's other text) — the designation GAINED, and the `Monarch` value's
--- own verb.
+-- own verb. Migrated from `TakesDesignation`; the row is now the whole
+-- catalog's and the verb is still the row's.
 aragornKingOfGondor : Ability
 aragornKingOfGondor =
-  Triggered When (Enters Macros.thisCreature) (TakesDesignation You Monarch)
+  Triggered When (Enters Macros.thisCreature) (GainsDesignation You Monarch)
 
 -- "{3}, {T}: Goad target creature." (reminder text elided) — the keyword
 -- ACTION whose effect is [CR#701.15b]'s designation. What the reminder
 -- spells out is the designation's rules text and never a printed
 -- operative clause, which is why chapter forty-six's requirement row
--- neither writes it nor needs to.
+-- neither writes it nor needs to. Migrated in chapter seventy-one from a
+-- bespoke `Goad` row to the one giving row over the catalog; the sentence
+-- it spells is unchanged, and so is its battlefield gate.
 goadTargetCreature : Ability
 goadTargetCreature =
   Activated (Compound [Mana [Macros.generic 3], TapSymbol])
-            (Goad (Macros.target Macros.creature))
+            (GainsDesignation (Macros.target Macros.creature) Goaded)
 
 -- "Whenever a goaded creature attacks, it deals 1 damage to its
 -- controller." — the object designation read prenominally, in a trigger
 -- header's subject.
 goadedAttackTrigger : Ability
 goadedAttackTrigger =
-  Triggered Whenever (Attacks (Macros.a (And [Macros.creature, IsGoaded])))
+  Triggered Whenever (Attacks (Macros.a (And [Macros.creature, HasDesignation Goaded])))
             (DealDamage It (Lit 1) (ControllerOf It))
 
 -- "Whenever day becomes night or night becomes day, draw a card."
@@ -2839,7 +2842,7 @@ hipparion =
 -- body by `condIntro`.
 frodoBaggins : Ability
 frodoBaggins =
-  Static (Macros.asLongAs (Matches Macros.thisCreature YourRingBearer)
+  Static (Macros.asLongAs (Matches Macros.thisCreature (HasDesignation RingBearer))
                           (Deontic It Require Block Patient Nothing))
 
 -- "As long as this creature is attacking, it gets +2/+0." (Adanto
@@ -2884,7 +2887,7 @@ brainwash =
 -- and the second card to close on `condIntro`.
 enkiraHostileScavenger : Ability
 enkiraHostileScavenger =
-  Static (Macros.asLongAs (Matches Macros.thisCreature IsEquipped)
+  Static (Macros.asLongAs (Matches Macros.thisCreature (IsAttached Equipped))
                           (Deontic It Require Block Patient Nothing))
 
 -- "Whenever enchanted creature attacks, it deals 2 damage to any
@@ -4052,3 +4055,54 @@ curseOfVengeance =
                          [ ChangeLife You (Up (DefinedLetter LetterX))
                          , Draw You (DefinedLetter LetterX) ])) ]
        Nothing
+
+-- ===== One designation mechanism =====
+
+-- Passageway Seer {3}{B}, Creature — Tiefling Warlock, 2/2, "Lifelink /
+-- When this creature enters, you take the initiative. / At the beginning
+-- of your end step, if you have the initiative, put a +1/+1 counter on
+-- this creature." The whole card but its keyword line, and BOTH readers
+-- of one designation on one card: the giving and the check, over a row
+-- the grammar could not carry before because the initiative had no verb
+-- of its own to be bespoke about. Its two creature types are two lines in
+-- a catalog, which is the ruling's own point.
+passagewaySeer : Card
+passagewaySeer =
+  Macros.card "Passageway Seer" (Just [Macros.generic 3, Macros.pip Black]) []
+       (MkTypeLine [Tiefling, Warlock] [Creature])
+       [ Triggered When (Enters Macros.thisCreature)
+                   (GainsDesignation You TheInitiative)
+       , Triggered At (BeginningOf EndStep (Just Yours))
+                   (PutCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
+                   {intervening = Just (Matches You (HasDesignation TheInitiative))} ]
+       (Just (2, 2))
+
+-- Deadeye Brawler {2}{U}{B}, Creature — Human Pirate, 2/4, "Deathtouch /
+-- Ascend / Whenever this creature deals combat damage to a player, if you
+-- have the city's blessing, draw a card." The whole card but its two
+-- keyword lines, and the designation the previous arrangement REFUSED:
+-- the city's blessing was declined outright because nothing in the
+-- grammar could confer it, and the open catalog turns that into a pair of
+-- cells — checked True on 27 lines, given False because ascend confers it
+-- ([CR#702.131a]) and the keyword's reminder is the only English that
+-- writes the giving.
+deadeyeBrawler : Card
+deadeyeBrawler =
+  Macros.card "Deadeye Brawler"
+       (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Black]) []
+       (MkTypeLine [Human, Pirate] [Creature])
+       [ Triggered Whenever
+                   (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
+                   Macros.drawACard
+                   {intervening = Just (Matches You (HasDesignation CitysBlessing))} ]
+       (Just (2, 4))
+
+-- "As long as this creature is monstrous, it has flying." (Chillerpillar's
+-- second line; its first is the monstrosity activated ability, whose
+-- numeric keyword parameter the catalog does not carry) — the second
+-- designation the previous arrangement declined, landing as a check with
+-- its giving spelled False for the same measured reason.
+chillerpillar : Ability
+chillerpillar =
+  Static (Macros.asLongAs (Matches Macros.thisCreature (HasDesignation Monstrous))
+                          (Gains It (KeywordAbility Flying)))

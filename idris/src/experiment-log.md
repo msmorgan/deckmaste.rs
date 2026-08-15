@@ -12336,3 +12336,205 @@ Ledger updates this chapter:
   Vehicle" three, "this Class" one — `SortedSelfLinked` stays the card type's
   until those rows exist); Mount, a declined non-row (reminder-attested, so
   neither rowed nor pinnable).
+
+## Chapter seventy-one — one designation mechanism
+
+This chapter implements an architectural RULING rather than a construction
+family, and the ruling is recorded first because everything below is its
+consequence.
+
+**Finding 494 — the ruling.** Three parts, and they are supreme over prior
+doctrine where they touch it.
+(1) *Catalog entries must not have bespoke constructors in the core grammar.*
+Catalogs — subtypes, counter kinds, designations, keywords — are OPEN SETS.
+One mechanism per catalog, fixed once in the grammar and parameterised over
+the catalog; rows are data that grow without core-grammar surgery; attestation
+tables ride the catalog. Bespoke versions of anything from a catalog are bad.
+(2) *Enchant and equip are keyword abilities and do not belong in the core
+grammar.* They both CAUSE and PERMIT attachment, and attachment is the
+primitive; any enchant- or equip-specific form routes through it and through
+the existing word and keyword catalogs.
+(3) *All designations use one mechanism, indexed by SCOPE ONLY.* A designation
+may be player-held, object-held, card-held (the commander, which survives zone
+changes precisely because it rides the card and not the object) or game-held
+(day and night). Scope is `counterScope`'s analogue and it is the mechanism's
+only index: designations do not interact with binding contexts, sorts, or any
+other index of the grammar.
+
+**Finding 495 — reconciling the ruling with finding 481.** Chapter
+sixty-nine's bar said the catalog grows exactly as far as the bench does, and
+the `Subtype` doctrine comment said one card at a time. The ruling wins on
+architecture and the bar survives on measurement, because they were never
+answering the same question. Finding 481's bar governed when a CLOSED ENUM was
+the mechanism: a row then cost a constructor in the core grammar, every
+kind-keyed table had to answer for it, and the bench was the right price for
+that. An open catalog changes what a row COSTS, not what a cell CLAIMS. So
+rows may be minted from measurement alone — this chapter mints fourteen
+designation rows and three creature types without a card for every one — while
+every attestation cell still needs its own grep and every pin still needs its
+own measured zero. Nothing about the measurement discipline moves. `CounterKind`
+is doctrinally an open catalog as of this finding and was NOT structurally
+rebuilt: its rows are already flat data and its scope column already exists
+(`counterScope`), which is the shape the ruling asks for.
+
+**Finding 496 — the inventory the ruling convicts.** Ten rows and three enums,
+found by sweeping rather than by taking the brief's list on trust — the sweep
+turned up two the brief did not name (`Goad`, and `DayNightShift` at the
+standing check).
+- `PlayerDesignation` (Monarch | TheInitiative), `ObjectDesignation`
+  (RingBearer | Goaded) and `TimeOfDay` (Day | Night) — three parallel enums
+  for one axis. `ObjectDesignation` had ZERO consumers: a dead enum whose two
+  values were spelled by two bespoke predicate rows that never mentioned it.
+- Predicates: `HasPlayerDesignation` (parameterised, but over a sub-catalog),
+  `IsGoaded`, `YourRingBearer`, `IsEnchanted`, `IsEquipped`.
+- Condition: `ItIsNow`. Effects: `TakesDesignation`, `Goad`, `BecomesTime`.
+- GameEvent: `DayNightShift`, whose name contains two catalog values.
+Between them these fifteen names carried nine reader tables' worth of
+duplicated clauses — `seedZone`, `seedType`, `hasHead`, `predEq`, `negatable`,
+`predSays`, `predNegFree`, `anyTargetFree`, `predDelta` each answered five
+times where they now answer twice.
+
+**Finding 497 — one catalog, one scope column, four readers.** `Designation`
+is fourteen rows over four scopes, `designationScope` is the column, and the
+grammar reads it four times:
+- `HasDesignation d : Predicate bs k` with `designationScope d = HeldBy k` —
+  the CHECK at a holder the grammar has a noun for. The sort is not a second
+  index; it is read OFF the scope, which is what makes one row cover "you're
+  the monarch" and "goaded creature" at once.
+- `GameIs d : Condition bs` with `designationScope d = HeldByGame` — the check
+  at the game.
+- `GainsDesignation n d : Effect bs`, same scope gate, plus the zone demand
+  `DesignationHolder` (a player is given a designation wherever they are; an
+  object only on the battlefield).
+- `GameBecomes d : Effect bs` — the giving at the game.
+The split into four rather than two is the GRAMMAR's own sorts talking, not a
+second index on the mechanism: the game has no noun in this grammar and the
+old day/night comment's argument for that survives the merge unchanged —
+nothing here describes, targets, counts or quantifies over the game, and a
+`Kind` row for it would oblige every kind-keyed table in the file to answer.
+The catalog, the scope column and both attestation tables are the same four
+objects at all four readers.
+The CARD scope is new to every Idris module in the repository and core does
+not carry it either (`designation.rs` stops at Object/Player/Game). [CR#903.3]
+is why it must exist: the commander designation "is not a characteristic of
+the object represented by the card; rather, it is an attribute of the card
+itself", which is the same sentence that explains why it survives a zone
+change. It has a scope cell and no reader, and that is recorded rather than
+pinned — see finding 500.
+
+**Finding 498 — the attestation tables, and the four Falses that are the
+round's real measurement.** `designationChecked` and `designationGiven` are
+one cell per row each, every cell its own grep, and they are SHARED between
+the sorted reader and the game reader deliberately: the scope gate partitions
+the rows between the two, so no cell is ever read by both. Checks measured:
+saddled 37, goaded 33, monarch 32 ("if you're the monarch"), the city's
+blessing 27, suspected 20, enduring story 9, monstrous 9, the initiative 8
+("if you have the initiative" — [CR#726.1] writes the verb itself), renowned
+6, night 4, Ring-bearer 3, day ZERO. Givings measured: the monarch 64, goaded
+33 ("goad target creature"), day/night 13, prepared 29, the initiative 23
+("you take the initiative"), suspected 14 ("suspect it").
+Four designations are CHECKED and not GIVEN, and the previous arrangement
+declined to mint them for exactly that reason — "minting the check alone would
+give this grammar a designation nothing in it can confer, which is a worse
+state than not having it". The open catalog is the answer that argument was
+missing. The city's blessing, the enduring story, monstrous and renowned are
+each conferred by a KEYWORD — ascend [CR#702.131a], storied, monstrosity,
+renown [CR#702.112b] — so the becoming sits behind the keyword boundary, and
+every "becomes monstrous" and "becomes renowned" line in the corpus is a
+TRIGGER watching that keyword resolve rather than an instruction. As a cell
+that is a measured fact the keyword round will flip; as silence it was
+indistinguishable from an unminted row.
+Saddled is the fifth False and its reason is different and worth keeping: it
+IS written as an instruction, four times, and every one of the four carries a
+duration ("Target Mount you control becomes saddled until end of turn"). The
+durationless sentence this row spells is zero lines, so the cell waits on the
+held-until slot rather than on the catalog.
+
+**Finding 499 — the attachment predicates, and a closure spelled as a cell.**
+`IsEnchanted`/`IsEquipped` become `IsAttached w` over the same `AttachWord`
+catalog `AttachHost` has parameterised since chapter forty-six — the ruling's
+standing check applied to the pair that most obviously failed it. Re-measured:
+"is enchanted" 27 supported occurrences over 25 cards (the brief's relayed 14
+did not reproduce), "is equipped" 22 over 22. FORTIFIED is the point of the
+exercise: the check is zero lines, reminder text included, while the word is
+attested at the OTHER reader — "fortified land" on two cards, which is
+[CR#301.6]'s own term for what the Equipment rules become when they apply to
+lands. One word, two questions, opposite answers, and the table says so as a
+cell (`badIsFortified`). Silence could not have distinguished that from an
+unminted row.
+Per the ruling's second part the grammar grows no enchant or equip machinery:
+those keyword lines stay elided as all keyword lines do, and attachment stays
+the primitive that `AttachHost` and `IsAttached` read.
+
+**Finding 500 — the standing check, and what it refuses.** Recorded as
+doctrine and written into the comments it governs: *a new row whose name
+contains a value of an existing catalog must either take the parameter or
+record the refusal.* Its first recorded refusal is `DayNightShift`, and the
+refusal is sound — the phrase names BOTH values at once ("day becomes night or
+night becomes day"), ten of the family's eleven headers write the pair joined
+by "or" and never separately, so a direction parameter would spell two
+sentences the corpus does not write. The row keeps its name and its comment
+now says why.
+Two further refusals are recorded and NOT pinned, and the reason is one
+doctrine applied twice. "You get the city's blessing", "it becomes monstrous"
+and "it becomes renowned" all appear in the corpus — inside ascend's,
+monstrosity's and renown's REMINDER TEXT, 27, 36 and 22 occurrences. Attested
+English is never pinnable, reminder text included (chapter seventy's Mount
+ruling, second site), so these are cells and not proofs. And the commander's
+check is refused by the scope gate while "is your commander" is three real
+supported lines — all three inside a before-the-game static ability finding
+188 keeps unread — so that too is a recorded gap and not a pin.
+
+**Finding 501 — three witnesses, four pins, and everything migrated.**
+PASSAGEWAY SEER lands whole but its keyword line and carries BOTH readers of
+one designation on one card: "When this creature enters, you take the
+initiative" and "if you have the initiative, put a +1/+1 counter on this
+creature". Its two creature types were two lines in a catalog, which is the
+ruling's own point made in passing.
+DEADEYE BRAWLER lands whole but its two keyword lines and is the vindication
+of finding 498: the city's blessing was refused outright by the old
+arrangement and is now a check with its giving spelled False beside it.
+CHILLERPILLAR's second line lands (its monstrosity ability is the numeric
+keyword parameter, a separate gap) and is the second such designation.
+The PINS are the scope column doing work plus the attachment closure:
+`badObjectMonarch` (a player's designation asked of an object — [CR#725.1] in
+one sentence), `badGoadedPlayer` (the mirror at the giving row — [CR#701.15b]
+makes goaded a permanent's), `badGoadInGraveyard` (the zone demand the scope
+carries), and `badIsFortified`. `badItIsDay` MIGRATED rather than retired: its
+proposition moved from a bespoke `TimeChecked` wrapper to the shared
+`designationChecked` cell and the day/night asymmetry it measures is unchanged.
+`badNegatedMonarch` and `badRingBearerInGraveyard` migrated likewise, and all
+four existing bench witnesses (Throne Warden, Aragorn, the goad ability, the
+goaded-attack trigger) plus Frodo and Enkira came across on the same rows they
+always spelled. Nothing was dropped and no sentence changed.
+ONE PRECISION WAS LOST and it is recorded rather than hidden: `effEq` no
+longer compares a designation-giving clause's holder, because the holder's KIND
+is now the designation's scope, so two clauses' nouns inhabit two different
+types and cannot be compared at all. That is the telescope case `effEq`'s own
+doc names, reached for the first time by way of a scope index, and `False`
+under-refuses, which is the safe direction.
+
+Ledger updates this chapter:
+
+- Three parallel designation enums and ten bespoke rows (**replaced**) by one
+  catalog, one scope column, two attestation tables and four readers.
+- `ObjectDesignation` (**deleted**: a dead enum with zero consumers).
+- The city's blessing, monstrous and renowned (**landed as checks**, finding
+  498, reversing the old comment's decline).
+- `CounterKind` (**doctrinally open**, finding 495; structurally untouched).
+- **Recorded, not built**: the eight censused designations this chapter does
+  not row, each measured rather than assumed — THREE with no supported card
+  text at all (protector, planar controller, archenemy); SECTOR attested only
+  inside space sculptor's reminder text on one card, so like Mount it is
+  neither rowed nor pinnable; and FOUR written only through a keyword action
+  or an ability container rather than through either reader — harnessed
+  ("Harness The Mind Stone", two cards, [CR#701.64a]'s keyword action), solved
+  (the "Solved —" ability label, 13 cards), level (Class level bars, 68
+  occurrences over 34 cards) and the unlocked pair (lock and unlock
+  instructions, 110 over 79) — all unrowed with their
+  measurements; the CARD scope's reader, whose 84 possessed-noun occurrences
+  ("your commander") are a noun and not a check; saddled's giving, waiting on
+  the held-until slot; the absence check ("there is no monarch", five lines);
+  the keyword lines the ruling routes to a later round — enchant, equip,
+  ascend, storied, monstrosity, renown, saddle, and monstrosity's numeric
+  parameter.

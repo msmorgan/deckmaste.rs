@@ -222,3 +222,49 @@ public export
 badAscribeCurse : Unspellable (Noun [] Object) (\ok =>
   AsType Enchantment This {sub = Just Curse} {way = ok})
 badAscribeCurse Refl impossible
+
+
+||| "target creature that is fortified"
+||| The participle catalog answers two questions and this is the second: the
+||| word is attested at the HEAD reader ("fortified land", two cards, the term
+||| [CR#301.6] gives the Equipment rules when they apply to lands), and the
+||| presence check is written zero times — reminder text included — against 27
+||| "is enchanted" and 22 "is equipped". A closure spelled as a cell.
+public export
+badIsFortified : Unspellable (Predicate [] Object) (\ok =>
+  IsAttached Fortified {ok})
+badIsFortified Refl impossible
+
+
+||| "target creature that is the monarch"
+||| The scope column is the mechanism's only index, and here it does its work:
+||| the monarch is a designation A PLAYER can have [CR#725.1], so no
+||| description of an object is qualified by it. Zero supported lines write an
+||| object as the monarch, reminder text included.
+public export
+badObjectMonarch : Unspellable (Predicate [] Object) (\ok =>
+  HasDesignation Monarch {sc = ok})
+badObjectMonarch Refl impossible
+
+
+||| "You become goaded."
+||| The same gate at the giving row. Goaded is a designation A PERMANENT can
+||| have [CR#701.15b] — "only permanents", as [CR#701.60b] says of its
+||| sibling — and the corpus writes no player gaining one: "you become goaded"
+||| and every variant is zero, reminder text included.
+public export
+badGoadedPlayer : Unspellable (Effect []) (\ok =>
+  GainsDesignation You Goaded {sc = ok})
+badGoadedPlayer Refl impossible
+
+
+||| "goad target creature card in your graveyard"
+||| The zone demand the scope carries: an object is given a designation on the
+||| battlefield and nowhere else. [CR#701.15b] makes goaded a permanent's
+||| designation, and no line reaches a graveyard with any of the giving verbs.
+public export
+badGoadInGraveyard : Unspellable (Effect []) (\ok =>
+  GainsDesignation (Macros.target (And [Macros.creature,
+                                        InZone (Macros.graveyardOf You)]))
+                   Goaded {zn = ok})
+badGoadInGraveyard (HolderOnField {ok = OnField}) impossible
