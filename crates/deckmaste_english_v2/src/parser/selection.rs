@@ -217,10 +217,11 @@ mod tests {
         Word,
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
     enum TestConstruction {
         LiteralAlpha,
         BroadAlpha,
+        SharedForm,
         TestLeft,
         TestRight,
         LateLiteral,
@@ -228,6 +229,58 @@ mod tests {
         LateLiteralChild,
         EarlyTypedChild,
         Empty,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum TestRuleId {
+        LiteralAlpha,
+        BroadAlpha,
+        SharedLiteral,
+        SharedTyped,
+        TestLeft,
+        TestRight,
+        LateLiteral,
+        EarlyTyped,
+        LateLiteralChild,
+        EarlyTypedChild,
+        Empty,
+    }
+
+    impl TestRuleId {
+        const fn construction(self) -> TestConstruction {
+            match self {
+                Self::LiteralAlpha => TestConstruction::LiteralAlpha,
+                Self::BroadAlpha => TestConstruction::BroadAlpha,
+                Self::SharedLiteral | Self::SharedTyped => TestConstruction::SharedForm,
+                Self::TestLeft => TestConstruction::TestLeft,
+                Self::TestRight => TestConstruction::TestRight,
+                Self::LateLiteral => TestConstruction::LateLiteral,
+                Self::EarlyTyped => TestConstruction::EarlyTyped,
+                Self::LateLiteralChild => TestConstruction::LateLiteralChild,
+                Self::EarlyTypedChild => TestConstruction::EarlyTypedChild,
+                Self::Empty => TestConstruction::Empty,
+            }
+        }
+
+        const fn positions(self) -> &'static [RulePosition<TestCategory, TestLexical>] {
+            match self {
+                Self::LiteralAlpha | Self::SharedLiteral => {
+                    &[RulePosition::Lexical(TestLexical::LiteralAlpha)]
+                }
+                Self::BroadAlpha
+                | Self::SharedTyped
+                | Self::TestLeft
+                | Self::TestRight
+                | Self::EarlyTypedChild => &[RulePosition::Lexical(TestLexical::Word)],
+                Self::LateLiteral => &[RulePosition::Nonterminal(TestCategory::Left)],
+                Self::EarlyTyped => &[RulePosition::Nonterminal(TestCategory::Right)],
+                Self::LateLiteralChild => &[
+                    RulePosition::Nonterminal(TestCategory::Empty),
+                    RulePosition::Lexical(TestLexical::LiteralAlpha),
+                ],
+                Self::Empty => &[],
+            }
+        }
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -238,60 +291,73 @@ mod tests {
         positions: Vec<RulePosition<TestCategory, TestLexical>>,
     }
 
-    const SPECIFICITY_RULES: &[Rule<TestCategory, TestLexical, TestConstruction>] = &[
+    const SPECIFICITY_RULES: &[Rule<TestCategory, TestLexical, TestRuleId>] = &[
         Rule {
+            id: TestRuleId::LiteralAlpha,
             lhs: TestCategory::Start,
             rhs: &[RulePosition::Lexical(TestLexical::LiteralAlpha)],
-            construction: TestConstruction::LiteralAlpha,
         },
         Rule {
+            id: TestRuleId::BroadAlpha,
             lhs: TestCategory::Start,
             rhs: &[RulePosition::Lexical(TestLexical::Word)],
-            construction: TestConstruction::BroadAlpha,
         },
     ];
 
-    const TIE_RULES: &[Rule<TestCategory, TestLexical, TestConstruction>] = &[
+    const TIE_RULES: &[Rule<TestCategory, TestLexical, TestRuleId>] = &[
         Rule {
+            id: TestRuleId::TestLeft,
             lhs: TestCategory::Start,
             rhs: &[RulePosition::Lexical(TestLexical::Word)],
-            construction: TestConstruction::TestLeft,
         },
         Rule {
+            id: TestRuleId::TestRight,
             lhs: TestCategory::Start,
             rhs: &[RulePosition::Lexical(TestLexical::Word)],
-            construction: TestConstruction::TestRight,
         },
     ];
 
-    const RECURSIVE_SPECIFICITY_RULES: &[Rule<TestCategory, TestLexical, TestConstruction>] = &[
+    const SHARED_FORM_RULES: &[Rule<TestCategory, TestLexical, TestRuleId>] = &[
         Rule {
+            id: TestRuleId::SharedLiteral,
+            lhs: TestCategory::Start,
+            rhs: &[RulePosition::Lexical(TestLexical::LiteralAlpha)],
+        },
+        Rule {
+            id: TestRuleId::SharedTyped,
+            lhs: TestCategory::Start,
+            rhs: &[RulePosition::Lexical(TestLexical::Word)],
+        },
+    ];
+
+    const RECURSIVE_SPECIFICITY_RULES: &[Rule<TestCategory, TestLexical, TestRuleId>] = &[
+        Rule {
+            id: TestRuleId::LateLiteral,
             lhs: TestCategory::Start,
             rhs: &[RulePosition::Nonterminal(TestCategory::Left)],
-            construction: TestConstruction::LateLiteral,
         },
         Rule {
+            id: TestRuleId::EarlyTyped,
             lhs: TestCategory::Start,
             rhs: &[RulePosition::Nonterminal(TestCategory::Right)],
-            construction: TestConstruction::EarlyTyped,
         },
         Rule {
+            id: TestRuleId::LateLiteralChild,
             lhs: TestCategory::Left,
             rhs: &[
                 RulePosition::Nonterminal(TestCategory::Empty),
                 RulePosition::Lexical(TestLexical::LiteralAlpha),
             ],
-            construction: TestConstruction::LateLiteralChild,
         },
         Rule {
+            id: TestRuleId::EarlyTypedChild,
             lhs: TestCategory::Right,
             rhs: &[RulePosition::Lexical(TestLexical::Word)],
-            construction: TestConstruction::EarlyTypedChild,
         },
         Rule {
+            id: TestRuleId::Empty,
             lhs: TestCategory::Empty,
             rhs: &[],
-            construction: TestConstruction::Empty,
         },
     ];
 
@@ -303,12 +369,38 @@ mod tests {
         parse_and_select_toy(TIE_RULES, text)
     }
 
+    fn parse_and_materialize_shared_forms(text: &str) -> (usize, Vec<TestCandidate>) {
+        let forest = parse(
+            SHARED_FORM_RULES,
+            TestCategory::Start,
+            SeedPolicy::StartOnly,
+            text.len(),
+            |lexical, offset| {
+                (offset == 0 && text == "alpha")
+                    .then_some(LexicalMatch {
+                        end: text.len(),
+                        value: lexical,
+                    })
+                    .into_iter()
+                    .collect()
+            },
+            |_, _, _| true,
+        )
+        .expect("the shared-form toy grammar accepts alpha");
+        let roots = forest.accepted_roots().collect::<Vec<_>>();
+        let candidates = roots
+            .iter()
+            .map(|root| candidate_from_root(&forest, root))
+            .collect();
+        (roots.len(), candidates)
+    }
+
     fn parse_and_select_recursive_specificity_toy(text: &str) -> Result<TestCandidate, ParseError> {
         parse_and_select_toy(RECURSIVE_SPECIFICITY_RULES, text)
     }
 
     fn parse_and_select_toy(
-        rules: &'static [Rule<TestCategory, TestLexical, TestConstruction>],
+        rules: &'static [Rule<TestCategory, TestLexical, TestRuleId>],
         text: &str,
     ) -> Result<TestCandidate, ParseError> {
         let forest = parse(
@@ -330,7 +422,7 @@ mod tests {
         .expect("the toy grammar accepts alpha");
         let candidates = forest
             .accepted_roots()
-            .map(|root| candidate_from_root(&forest, rules, root))
+            .map(|root| candidate_from_root(&forest, root))
             .collect::<Vec<_>>();
         assert!(
             candidates
@@ -338,6 +430,10 @@ mod tests {
                 .all(|pair| pair[0].ability == pair[1].ability)
         );
 
+        select_test_candidates(candidates)
+    }
+
+    fn select_test_candidates(candidates: Vec<TestCandidate>) -> Result<TestCandidate, ParseError> {
         select_ranked(
             candidates,
             |candidate| candidate.constructions.as_slice(),
@@ -352,24 +448,31 @@ mod tests {
     }
 
     fn candidate_from_root(
-        forest: &Forest<TestConstruction, TestLexical>,
-        rules: &[Rule<TestCategory, TestLexical, TestConstruction>],
-        root: &PackedNode<TestConstruction, TestLexical>,
+        forest: &Forest<TestRuleId, TestLexical>,
+        root: &PackedNode<TestRuleId, TestLexical>,
     ) -> TestCandidate {
-        let rule = rules
-            .iter()
-            .find(|rule| rule.construction == root.construction)
-            .expect("every toy construction has one rule");
         let mut candidate = TestCandidate {
-            ability: "same lowered ability",
-            construction: root.construction,
-            constructions: vec![root.construction],
-            positions: rule.rhs.to_vec(),
+            ability: match root.rule {
+                TestRuleId::SharedLiteral => "literal form",
+                TestRuleId::SharedTyped => "typed form",
+                TestRuleId::LiteralAlpha
+                | TestRuleId::BroadAlpha
+                | TestRuleId::TestLeft
+                | TestRuleId::TestRight
+                | TestRuleId::LateLiteral
+                | TestRuleId::EarlyTyped
+                | TestRuleId::LateLiteralChild
+                | TestRuleId::EarlyTypedChild
+                | TestRuleId::Empty => "same lowered ability",
+            },
+            construction: root.rule.construction(),
+            constructions: vec![root.rule.construction()],
+            positions: root.rule.positions().to_vec(),
         };
         let family = root.families.first().expect("toy nodes have one family");
         for child in &family.children {
             if let Child::Node(id) = child {
-                let child = candidate_from_root(forest, rules, forest.node(*id));
+                let child = candidate_from_root(forest, forest.node(*id));
                 candidate.constructions.extend(child.constructions);
                 candidate.positions.extend(child.positions);
             }
@@ -381,6 +484,7 @@ mod tests {
         match construction {
             TestConstruction::LiteralAlpha => "LiteralAlpha",
             TestConstruction::BroadAlpha => "BroadAlpha",
+            TestConstruction::SharedForm => "SharedForm",
             TestConstruction::TestLeft => "TestLeft",
             TestConstruction::TestRight => "TestRight",
             TestConstruction::LateLiteral => "LateLiteral",
@@ -407,6 +511,22 @@ mod tests {
                 second: "TestRight",
             }
         );
+    }
+
+    #[test]
+    fn two_forms_of_one_construction_survive_to_selection_as_distinct_values() {
+        let (roots, candidates) = parse_and_materialize_shared_forms("alpha");
+        assert_eq!(roots, 2);
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|candidate| candidate.ability)
+                .collect::<std::collections::BTreeSet<_>>(),
+            std::collections::BTreeSet::from(["literal form", "typed form"]),
+        );
+
+        let selected = select_test_candidates(candidates).unwrap();
+        assert_eq!(selected.ability, "literal form");
     }
 
     #[test]

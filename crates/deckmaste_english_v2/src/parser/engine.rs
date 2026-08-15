@@ -8,10 +8,10 @@ pub(crate) enum RulePosition<N, L> {
     Lexical(L),
 }
 
-pub(crate) struct Rule<N: 'static, L: 'static, C> {
+pub(crate) struct Rule<N: 'static, L: 'static, R> {
+    pub id: R,
     pub lhs: N,
     pub rhs: &'static [RulePosition<N, L>],
-    pub construction: C,
 }
 
 pub(crate) struct LexicalMatch<T> {
@@ -33,8 +33,8 @@ pub(crate) struct Family<T> {
     pub children: Vec<Child<T>>,
 }
 
-pub(crate) struct PackedNode<C, T> {
-    pub construction: C,
+pub(crate) struct PackedNode<R, T> {
+    pub rule: R,
     pub start: usize,
     pub end: usize,
     pub families: Vec<Family<T>>,
@@ -50,18 +50,18 @@ pub(crate) enum SeedPolicy {
     AllRules,
 }
 
-pub(crate) struct Forest<C, T> {
-    nodes: Vec<PackedNode<C, T>>,
+pub(crate) struct Forest<R, T> {
+    nodes: Vec<PackedNode<R, T>>,
     accepted_roots: Vec<NodeId>,
 }
 
-impl<C, T> Forest<C, T> {
-    pub(crate) fn node(&self, id: NodeId) -> &PackedNode<C, T> {
+impl<R, T> Forest<R, T> {
+    pub(crate) fn node(&self, id: NodeId) -> &PackedNode<R, T> {
         &self.nodes[id.0]
     }
 
     #[cfg(test)]
-    pub(crate) fn accepted_roots(&self) -> impl Iterator<Item = &PackedNode<C, T>> {
+    pub(crate) fn accepted_roots(&self) -> impl Iterator<Item = &PackedNode<R, T>> {
         self.accepted_roots
             .iter()
             .map(|&NodeId(index)| &self.nodes[index])
@@ -73,7 +73,7 @@ impl<C, T> Forest<C, T> {
 
     #[cfg(test)]
     pub(crate) fn from_test_parts(
-        nodes: Vec<PackedNode<C, T>>,
+        nodes: Vec<PackedNode<R, T>>,
         accepted_roots: Vec<NodeId>,
     ) -> Self {
         Self {
@@ -89,21 +89,21 @@ pub(crate) struct ChartFailure<N, L> {
     pub live: BTreeSet<RulePosition<N, L>>,
 }
 
-pub(crate) fn parse<N, L, C, T, Scan, ValidateCompletion>(
-    rules: &'static [Rule<N, L, C>],
+pub(crate) fn parse<N, L, R, T, Scan, ValidateCompletion>(
+    rules: &'static [Rule<N, L, R>],
     start: N,
     seed_policy: SeedPolicy,
     input_length: usize,
     mut scan: Scan,
     mut validate_completion: ValidateCompletion,
-) -> Result<Forest<C, T>, ChartFailure<N, L>>
+) -> Result<Forest<R, T>, ChartFailure<N, L>>
 where
     N: Copy + Eq + Ord + 'static,
     L: Copy + Eq + Ord + 'static,
-    C: Clone + Eq,
+    R: Copy + Eq,
     T: Clone + Eq,
     Scan: FnMut(L, usize) -> Vec<LexicalMatch<T>>,
-    ValidateCompletion: FnMut(&C, &Family<T>, &Forest<C, T>) -> bool,
+    ValidateCompletion: FnMut(R, &Family<T>, &Forest<R, T>) -> bool,
 {
     let mut forest = Forest {
         nodes: Vec::new(),
@@ -130,22 +130,18 @@ where
     while let Some((column, (rule_index, dot, origin), family)) = agenda.pop_front() {
         let rule = &rules[rule_index];
         if dot == rule.rhs.len() {
-            if !validate_completion(&rule.construction, &family, &forest) {
+            if !validate_completion(rule.id, &family, &forest) {
                 continue;
             }
             let node_id = forest
                 .nodes
                 .iter()
-                .position(|node| {
-                    node.construction == rule.construction
-                        && node.start == origin
-                        && node.end == column
-                })
+                .position(|node| node.rule == rule.id && node.start == origin && node.end == column)
                 .map_or_else(
                     || {
                         let node_id = NodeId(forest.nodes.len());
                         forest.nodes.push(PackedNode {
-                            construction: rule.construction.clone(),
+                            rule: rule.id,
                             start: origin,
                             end: column,
                             families: Vec::new(),
@@ -255,8 +251,8 @@ where
     }
 }
 
-fn seed_chart<N, L, C, T>(
-    rules: &[Rule<N, L, C>],
+fn seed_chart<N, L, R, T>(
+    rules: &[Rule<N, L, R>],
     start: N,
     seed_policy: SeedPolicy,
     input_length: usize,
@@ -325,9 +321,9 @@ fn insert_family<T: Eq>(families: &mut Vec<Family<T>>, family: Family<T>) -> boo
     }
 }
 
-fn requeue_completed_items_after_forest_growth<N, L, C, T: Clone>(
+fn requeue_completed_items_after_forest_growth<N, L, R, T: Clone>(
     chart: &[BTreeMap<ItemKey, Vec<Family<T>>>],
-    rules: &[Rule<N, L, C>],
+    rules: &[Rule<N, L, R>],
     agenda: &mut VecDeque<(usize, ItemKey, Family<T>)>,
 ) {
     for (column, items) in chart.iter().enumerate() {
@@ -342,9 +338,9 @@ fn requeue_completed_items_after_forest_growth<N, L, C, T: Clone>(
     }
 }
 
-fn chart_failure<N, L, C, T>(
+fn chart_failure<N, L, R, T>(
     chart: &[BTreeMap<ItemKey, Vec<Family<T>>>],
-    rules: &[Rule<N, L, C>],
+    rules: &[Rule<N, L, R>],
     seed_policy: SeedPolicy,
 ) -> ChartFailure<N, L>
 where
@@ -376,9 +372,9 @@ where
         })
 }
 
-fn live_expectations<N, L, C, T>(
+fn live_expectations<N, L, R, T>(
     column: &BTreeMap<ItemKey, Vec<Family<T>>>,
-    rules: &[Rule<N, L, C>],
+    rules: &[Rule<N, L, R>],
     offset: usize,
     ignore_untouched_seeds: bool,
 ) -> BTreeSet<RulePosition<N, L>>
@@ -406,8 +402,6 @@ mod tests {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
     enum ToyCategory {
         Start,
-        Left,
-        Right,
         Fragment,
         DirectParent,
         Wrapper,
@@ -415,119 +409,97 @@ mod tests {
         Delay,
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    enum ToyConstruction {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum ToyRuleId {
         Start,
-        Left,
-        Right,
         Fragment,
+        DirectStart,
+        WrapperStart,
         DirectParent,
         Wrapper,
-        Child,
+        FastChild,
+        DelayedChild,
         Delay,
     }
 
-    const SCAN_RULES: &[Rule<ToyCategory, &'static str, ToyConstruction>] = &[Rule {
+    const SCAN_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[Rule {
+        id: ToyRuleId::Start,
         lhs: ToyCategory::Start,
         rhs: &[RulePosition::Lexical("alpha beta")],
-        construction: ToyConstruction::Start,
     }];
 
-    const AMBIGUOUS_RULES: &[Rule<ToyCategory, &'static str, ToyConstruction>] = &[
-        Rule {
-            lhs: ToyCategory::Start,
-            rhs: &[RulePosition::Nonterminal(ToyCategory::Left)],
-            construction: ToyConstruction::Start,
-        },
-        Rule {
-            lhs: ToyCategory::Start,
-            rhs: &[RulePosition::Nonterminal(ToyCategory::Right)],
-            construction: ToyConstruction::Start,
-        },
-        Rule {
-            lhs: ToyCategory::Left,
-            rhs: &[RulePosition::Lexical("alpha")],
-            construction: ToyConstruction::Left,
-        },
-        Rule {
-            lhs: ToyCategory::Right,
-            rhs: &[RulePosition::Lexical("alpha")],
-            construction: ToyConstruction::Right,
-        },
-    ];
-
-    const SEQUENCE_RULES: &[Rule<ToyCategory, &'static str, ToyConstruction>] = &[Rule {
+    const SEQUENCE_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[Rule {
+        id: ToyRuleId::Start,
         lhs: ToyCategory::Start,
         rhs: &[
             RulePosition::Lexical("alpha"),
             RulePosition::Lexical("beta"),
         ],
-        construction: ToyConstruction::Start,
     }];
 
-    const FRAGMENT_RULES: &[Rule<ToyCategory, &'static str, ToyConstruction>] = &[
+    const FRAGMENT_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[
         Rule {
+            id: ToyRuleId::Start,
             lhs: ToyCategory::Start,
             rhs: &[RulePosition::Lexical("alpha")],
-            construction: ToyConstruction::Start,
         },
         Rule {
+            id: ToyRuleId::Fragment,
             lhs: ToyCategory::Fragment,
             rhs: &[RulePosition::Lexical("beta")],
-            construction: ToyConstruction::Fragment,
         },
     ];
 
-    const BACKWARDS_SCAN_RULES: &[Rule<ToyCategory, &'static str, ToyConstruction>] = &[Rule {
+    const BACKWARDS_SCAN_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[Rule {
+        id: ToyRuleId::Start,
         lhs: ToyCategory::Start,
         rhs: &[
             RulePosition::Lexical("alpha"),
             RulePosition::Lexical("backward"),
             RulePosition::Lexical("finish"),
         ],
-        construction: ToyConstruction::Start,
     }];
 
-    const DELAYED_PACKING_RULES: &[Rule<ToyCategory, &'static str, ToyConstruction>] = &[
+    const DELAYED_PACKING_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[
         Rule {
+            id: ToyRuleId::DirectStart,
             lhs: ToyCategory::Start,
             rhs: &[RulePosition::Nonterminal(ToyCategory::DirectParent)],
-            construction: ToyConstruction::Start,
         },
         Rule {
+            id: ToyRuleId::WrapperStart,
             lhs: ToyCategory::Start,
             rhs: &[RulePosition::Nonterminal(ToyCategory::Wrapper)],
-            construction: ToyConstruction::Start,
         },
         Rule {
+            id: ToyRuleId::DirectParent,
             lhs: ToyCategory::DirectParent,
             rhs: &[RulePosition::Nonterminal(ToyCategory::Child)],
-            construction: ToyConstruction::DirectParent,
         },
         Rule {
+            id: ToyRuleId::Wrapper,
             lhs: ToyCategory::Wrapper,
             rhs: &[RulePosition::Nonterminal(ToyCategory::Child)],
-            construction: ToyConstruction::Wrapper,
         },
         Rule {
+            id: ToyRuleId::FastChild,
             lhs: ToyCategory::Child,
             rhs: &[RulePosition::Lexical("fast")],
-            construction: ToyConstruction::Child,
         },
         Rule {
+            id: ToyRuleId::DelayedChild,
             lhs: ToyCategory::Child,
             rhs: &[RulePosition::Nonterminal(ToyCategory::Delay)],
-            construction: ToyConstruction::Child,
         },
         Rule {
+            id: ToyRuleId::Delay,
             lhs: ToyCategory::Delay,
             rhs: &[RulePosition::Lexical("delayed")],
-            construction: ToyConstruction::Delay,
         },
     ];
 
     fn reaches_delayed_child(
-        forest: &Forest<ToyConstruction, &'static str>,
+        forest: &Forest<ToyRuleId, &'static str>,
         family: &Family<&'static str>,
     ) -> bool {
         family.children.iter().any(|child| {
@@ -535,7 +507,7 @@ mod tests {
                 return false;
             };
             let node = forest.node(*node_id);
-            (node.construction == ToyConstruction::Child
+            (matches!(node.rule, ToyRuleId::FastChild | ToyRuleId::DelayedChild)
                 && node
                     .families
                     .iter()
@@ -572,8 +544,7 @@ mod tests {
     fn parse_toy(
         input: &str,
         seed_policy: SeedPolicy,
-    ) -> Result<Forest<ToyConstruction, &'static str>, ChartFailure<ToyCategory, &'static str>>
-    {
+    ) -> Result<Forest<ToyRuleId, &'static str>, ChartFailure<ToyCategory, &'static str>> {
         parse(
             SCAN_RULES,
             ToyCategory::Start,
@@ -591,32 +562,16 @@ mod tests {
         )
     }
 
-    fn parse_ambiguous_toy(
-        input: &str,
-    ) -> Result<Forest<ToyConstruction, &'static str>, ChartFailure<ToyCategory, &'static str>>
-    {
-        parse(
-            AMBIGUOUS_RULES,
-            ToyCategory::Start,
-            SeedPolicy::StartOnly,
-            input.len(),
-            |literal, start| scan_words(input, literal, start),
-            |_, _, _| true,
-        )
-    }
-
     fn parse_sequence_toy(
         input: &str,
-    ) -> Result<Forest<ToyConstruction, &'static str>, ChartFailure<ToyCategory, &'static str>>
-    {
+    ) -> Result<Forest<ToyRuleId, &'static str>, ChartFailure<ToyCategory, &'static str>> {
         parse_sequence_toy_with_policy(input, SeedPolicy::StartOnly)
     }
 
     fn parse_sequence_toy_with_policy(
         input: &str,
         seed_policy: SeedPolicy,
-    ) -> Result<Forest<ToyConstruction, &'static str>, ChartFailure<ToyCategory, &'static str>>
-    {
+    ) -> Result<Forest<ToyRuleId, &'static str>, ChartFailure<ToyCategory, &'static str>> {
         parse(
             SEQUENCE_RULES,
             ToyCategory::Start,
@@ -630,8 +585,7 @@ mod tests {
     fn parse_fragment_toy(
         input: &str,
         seed_policy: SeedPolicy,
-    ) -> Result<Forest<ToyConstruction, &'static str>, ChartFailure<ToyCategory, &'static str>>
-    {
+    ) -> Result<Forest<ToyRuleId, &'static str>, ChartFailure<ToyCategory, &'static str>> {
         parse(
             FRAGMENT_RULES,
             ToyCategory::Start,
@@ -643,7 +597,7 @@ mod tests {
     }
 
     fn parse_with_backwards_scan()
-    -> Result<Forest<ToyConstruction, &'static str>, ChartFailure<ToyCategory, &'static str>> {
+    -> Result<Forest<ToyRuleId, &'static str>, ChartFailure<ToyCategory, &'static str>> {
         parse(
             BACKWARDS_SCAN_RULES,
             ToyCategory::Start,
@@ -683,21 +637,6 @@ mod tests {
     }
 
     #[test]
-    fn same_construction_derivations_pack_into_one_root_family_set() {
-        let forest = parse_ambiguous_toy("alpha").unwrap();
-        let roots = forest.accepted_roots().collect::<Vec<_>>();
-        assert_eq!(roots.len(), 1);
-        let root = roots[0];
-        assert_eq!(root.construction, ToyConstruction::Start);
-        assert_eq!(root.families.len(), 2);
-        assert!(
-            root.families
-                .iter()
-                .all(|family| matches!(family.children.as_slice(), [Child::Node(_)]))
-        );
-    }
-
-    #[test]
     fn failure_reports_the_furthest_live_column() {
         let Err(failure) = parse_sequence_toy("alpha nope") else {
             panic!("the incomplete sequence must fail");
@@ -721,7 +660,7 @@ mod tests {
         let roots = forest.accepted_roots().collect::<Vec<_>>();
 
         assert_eq!(roots.len(), 1);
-        assert_eq!(roots[0].construction, ToyConstruction::Fragment);
+        assert_eq!(roots[0].rule, ToyRuleId::Fragment);
         assert_eq!((roots[0].start, roots[0].end), (2, 6));
     }
 
@@ -775,8 +714,8 @@ mod tests {
                     }])
                     .unwrap_or_default()
             },
-            |construction, family, forest| match construction {
-                ToyConstruction::DirectParent | ToyConstruction::Start => {
+            |rule, family, forest| match rule {
+                ToyRuleId::DirectParent | ToyRuleId::DirectStart | ToyRuleId::WrapperStart => {
                     reaches_delayed_child(forest, family)
                 }
                 _ => true,
@@ -787,18 +726,19 @@ mod tests {
         let child_nodes = forest
             .nodes
             .iter()
-            .filter(|node| node.construction == ToyConstruction::Child)
+            .filter(|node| matches!(node.rule, ToyRuleId::FastChild | ToyRuleId::DelayedChild))
             .collect::<Vec<_>>();
-        assert_eq!(child_nodes.len(), 1);
-        assert_eq!(child_nodes[0].families.len(), 2);
+        assert_eq!(child_nodes.len(), 2);
+        assert!(child_nodes.iter().all(|node| node.families.len() == 1));
 
         let roots = forest.accepted_roots().collect::<Vec<_>>();
-        assert_eq!(roots.len(), 1);
-        assert_eq!(roots[0].construction, ToyConstruction::Start);
-        assert_eq!(roots[0].families.len(), 2);
-        assert!(forest
-            .nodes
-            .iter()
-            .any(|node| node.construction == ToyConstruction::DirectParent));
+        assert_eq!(roots.len(), 2);
+        assert!(roots.iter().all(|root| root.families.len() == 1));
+        assert!(
+            forest
+                .nodes
+                .iter()
+                .any(|node| node.rule == ToyRuleId::DirectParent)
+        );
     }
 }

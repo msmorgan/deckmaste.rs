@@ -86,6 +86,63 @@ pub(crate) enum Construction {
     AmountVariable,
 }
 
+#[repr(usize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum RuleId {
+    AbilitySpell,
+    AbilityTriggered,
+    SentenceImperative,
+    SentenceDeclarative,
+    SentenceWithWhere,
+    ClauseEvent,
+    ClauseWhere,
+    NounPhrasePronoun,
+    NounPhraseCommon,
+    NounPhraseDemonstrative,
+    NounPhraseTarget,
+    NounPhraseSelfReference,
+    NounPhraseCount,
+    VerbPhraseDestroy,
+    VerbPhraseConnive,
+    VerbPhraseDealDamage,
+    VerbPhraseGainLife,
+    AmountNumber,
+    AmountVariable,
+}
+
+impl RuleId {
+    #[cfg(test)]
+    pub(crate) const COUNT: usize = 19;
+
+    pub(crate) const fn construction(self) -> Construction {
+        match self {
+            Self::AbilitySpell => Construction::AbilitySpell,
+            Self::AbilityTriggered => Construction::AbilityTriggered,
+            Self::SentenceImperative => Construction::SentenceImperative,
+            Self::SentenceDeclarative => Construction::SentenceDeclarative,
+            Self::SentenceWithWhere => Construction::SentenceWithWhere,
+            Self::ClauseEvent => Construction::ClauseEvent,
+            Self::ClauseWhere => Construction::ClauseWhere,
+            Self::NounPhrasePronoun => Construction::NounPhrasePronoun,
+            Self::NounPhraseCommon => Construction::NounPhraseCommon,
+            Self::NounPhraseDemonstrative => Construction::NounPhraseDemonstrative,
+            Self::NounPhraseTarget => Construction::NounPhraseTarget,
+            Self::NounPhraseSelfReference => Construction::NounPhraseSelfReference,
+            Self::NounPhraseCount => Construction::NounPhraseCount,
+            Self::VerbPhraseDestroy => Construction::VerbPhraseDestroy,
+            Self::VerbPhraseConnive => Construction::VerbPhraseConnive,
+            Self::VerbPhraseDealDamage => Construction::VerbPhraseDealDamage,
+            Self::VerbPhraseGainLife => Construction::VerbPhraseGainLife,
+            Self::AmountNumber => Construction::AmountNumber,
+            Self::AmountVariable => Construction::AmountVariable,
+        }
+    }
+
+    pub(crate) const fn index(self) -> usize {
+        self as usize
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum NounNumber {
     Singular,
@@ -111,17 +168,18 @@ pub(crate) enum Lexical {
 use RulePosition::Lexical as L;
 use RulePosition::Nonterminal as N;
 
-pub(crate) const RULES: &[Rule<Category, Lexical, Construction>] = &[
+pub(crate) const RULES: &[Rule<Category, Lexical, RuleId>] = &[
     Rule {
+        id: RuleId::AbilitySpell,
         lhs: Category::Ability,
         rhs: &[
             N(Category::Sentence),
             L(Lexical::Literal(".")),
             L(Lexical::EndOfInput),
         ],
-        construction: Construction::AbilitySpell,
     },
     Rule {
+        id: RuleId::AbilityTriggered,
         lhs: Category::Ability,
         rhs: &[
             L(Lexical::TriggerWord),
@@ -131,33 +189,33 @@ pub(crate) const RULES: &[Rule<Category, Lexical, Construction>] = &[
             L(Lexical::Literal(".")),
             L(Lexical::EndOfInput),
         ],
-        construction: Construction::AbilityTriggered,
     },
     Rule {
+        id: RuleId::SentenceImperative,
         lhs: Category::Sentence,
         rhs: &[N(Category::VerbPhrase)],
-        construction: Construction::SentenceImperative,
     },
     Rule {
+        id: RuleId::SentenceDeclarative,
         lhs: Category::Sentence,
         rhs: &[N(Category::NounPhrase), N(Category::VerbPhrase)],
-        construction: Construction::SentenceDeclarative,
     },
     Rule {
+        id: RuleId::SentenceWithWhere,
         lhs: Category::Sentence,
         rhs: &[
             N(Category::Sentence),
             L(Lexical::Literal(",")),
             N(Category::Clause),
         ],
-        construction: Construction::SentenceWithWhere,
     },
     Rule {
+        id: RuleId::ClauseEvent,
         lhs: Category::Clause,
         rhs: &[N(Category::NounPhrase), N(Category::VerbPhrase)],
-        construction: Construction::ClauseEvent,
     },
     Rule {
+        id: RuleId::ClauseWhere,
         lhs: Category::Clause,
         rhs: &[
             L(Lexical::Literal("where")),
@@ -168,40 +226,40 @@ pub(crate) const RULES: &[Rule<Category, Lexical, Construction>] = &[
             L(Lexical::Literal("of")),
             N(Category::NounPhrase),
         ],
-        construction: Construction::ClauseWhere,
     },
     Rule {
+        id: RuleId::NounPhrasePronoun,
         lhs: Category::NounPhrase,
         rhs: &[L(Lexical::Pronoun)],
-        construction: Construction::NounPhrasePronoun,
     },
     Rule {
+        id: RuleId::NounPhraseCommon,
         lhs: Category::NounPhrase,
         rhs: &[L(Lexical::Article), L(Lexical::Noun(NounNumber::Singular))],
-        construction: Construction::NounPhraseCommon,
     },
     Rule {
+        id: RuleId::NounPhraseDemonstrative,
         lhs: Category::NounPhrase,
         rhs: &[
             L(Lexical::Demonstrative),
             L(Lexical::Noun(NounNumber::Either)),
         ],
-        construction: Construction::NounPhraseDemonstrative,
     },
     Rule {
+        id: RuleId::NounPhraseTarget,
         lhs: Category::NounPhrase,
         rhs: &[
             L(Lexical::Literal("target")),
             L(Lexical::Noun(NounNumber::Singular)),
         ],
-        construction: Construction::NounPhraseTarget,
     },
     Rule {
+        id: RuleId::NounPhraseSelfReference,
         lhs: Category::NounPhrase,
         rhs: &[L(Lexical::SelfReference)],
-        construction: Construction::NounPhraseSelfReference,
     },
     Rule {
+        id: RuleId::NounPhraseCount,
         lhs: Category::NounPhrase,
         rhs: &[
             L(Lexical::Noun(NounNumber::Plural)),
@@ -213,22 +271,22 @@ pub(crate) const RULES: &[Rule<Category, Lexical, Construction>] = &[
             L(Lexical::Literal("or")),
             L(Lexical::Literal("less")),
         ],
-        construction: Construction::NounPhraseCount,
     },
     Rule {
+        id: RuleId::VerbPhraseDestroy,
         lhs: Category::VerbPhrase,
         rhs: &[
             L(Lexical::Verb(VerbLexeme::Destroy)),
             N(Category::NounPhrase),
         ],
-        construction: Construction::VerbPhraseDestroy,
     },
     Rule {
+        id: RuleId::VerbPhraseConnive,
         lhs: Category::VerbPhrase,
         rhs: &[L(Lexical::Verb(VerbLexeme::Connive))],
-        construction: Construction::VerbPhraseConnive,
     },
     Rule {
+        id: RuleId::VerbPhraseDealDamage,
         lhs: Category::VerbPhrase,
         rhs: &[
             L(Lexical::Verb(VerbLexeme::Deal)),
@@ -237,26 +295,25 @@ pub(crate) const RULES: &[Rule<Category, Lexical, Construction>] = &[
             L(Lexical::Literal("to")),
             N(Category::NounPhrase),
         ],
-        construction: Construction::VerbPhraseDealDamage,
     },
     Rule {
+        id: RuleId::VerbPhraseGainLife,
         lhs: Category::VerbPhrase,
         rhs: &[
             L(Lexical::Verb(VerbLexeme::Gain)),
             N(Category::Amount),
             L(Lexical::Literal("life")),
         ],
-        construction: Construction::VerbPhraseGainLife,
     },
     Rule {
+        id: RuleId::AmountNumber,
         lhs: Category::Amount,
         rhs: &[L(Lexical::SignedNumber)],
-        construction: Construction::AmountNumber,
     },
     Rule {
+        id: RuleId::AmountVariable,
         lhs: Category::Amount,
         rhs: &[L(Lexical::Variable)],
-        construction: Construction::AmountVariable,
     },
 ];
 
@@ -295,16 +352,14 @@ pub(crate) enum Leaf {
 pub(crate) fn parse_forest(
     grammar: &SliceGrammar<'_>,
     text: &str,
-) -> Result<Forest<Construction, Leaf>, ChartFailure<Category, Lexical>> {
+) -> Result<Forest<RuleId, Leaf>, ChartFailure<Category, Lexical>> {
     parse(
         RULES,
         Category::Ability,
         SeedPolicy::StartOnly,
         text.len(),
         |lexical, offset| grammar.scan(lexical, text, offset),
-        |construction, family, forest| {
-            completion_has_checked_build(*construction, family, forest, grammar.context)
-        },
+        |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),
     )
 }
 
@@ -594,7 +649,7 @@ struct MaterializationOutcome {
 }
 
 pub(crate) fn materialize(
-    forest: &Forest<Construction, Leaf>,
+    forest: &Forest<RuleId, Leaf>,
     context: &ParseContext<'_>,
 ) -> Vec<Candidate> {
     let mut candidates = Vec::new();
@@ -617,7 +672,7 @@ pub(crate) fn materialize(
 }
 
 fn materialize_node(
-    forest: &Forest<Construction, Leaf>,
+    forest: &Forest<RuleId, Leaf>,
     node_id: NodeId,
     context: &ParseContext<'_>,
     state: &mut MaterializationState,
@@ -639,7 +694,7 @@ fn materialize_node(
     let mut values = Vec::new();
     let mut cycle_pruned = false;
     for family in &node.families {
-        let outcome = materialize_family(forest, node.construction, family, context, state);
+        let outcome = materialize_family(forest, node.rule, family, context, state);
         cycle_pruned |= outcome.cycle_pruned;
         for built in outcome.values {
             push_unique(&mut values, built);
@@ -656,14 +711,14 @@ fn materialize_node(
 }
 
 fn completion_has_checked_build(
-    construction: Construction,
+    rule: RuleId,
     family: &Family<Leaf>,
-    forest: &Forest<Construction, Leaf>,
+    forest: &Forest<RuleId, Leaf>,
     context: &ParseContext<'_>,
 ) -> bool {
     !materialize_family(
         forest,
-        construction,
+        rule,
         family,
         context,
         &mut MaterializationState::default(),
@@ -673,16 +728,14 @@ fn completion_has_checked_build(
 }
 
 fn materialize_family(
-    forest: &Forest<Construction, Leaf>,
-    construction: Construction,
+    forest: &Forest<RuleId, Leaf>,
+    rule_id: RuleId,
     family: &Family<Leaf>,
     context: &ParseContext<'_>,
     state: &mut MaterializationState,
 ) -> MaterializationOutcome {
-    let rule = RULES
-        .iter()
-        .find(|rule| rule.construction == construction)
-        .expect("every construction has exactly one declared rule");
+    let rule = &RULES[rule_id.index()];
+    let construction = rule_id.construction();
     let mut combinations = vec![Vec::new()];
     let mut cycle_pruned = false;
     for child in &family.children {
@@ -714,7 +767,7 @@ fn materialize_family(
             .iter()
             .map(|child| child.value.clone())
             .collect::<Vec<_>>();
-        if let Some(value) = build(construction, &child_values, context) {
+        if let Some(value) = build(rule_id, &child_values, context) {
             let mut constructions = vec![construction];
             let mut positions = rule.rhs.to_vec();
             for child in children {
@@ -747,13 +800,9 @@ fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) {
     clippy::too_many_lines,
     reason = "the exhaustive generated-shape construction dispatch is intentionally flat"
 )]
-fn build(
-    construction: Construction,
-    children: &[BuildValue],
-    context: &ParseContext<'_>,
-) -> Option<BuildValue> {
-    match construction {
-        Construction::AbilitySpell => match children {
+fn build(rule: RuleId, children: &[BuildValue], context: &ParseContext<'_>) -> Option<BuildValue> {
+    match rule {
+        RuleId::AbilitySpell => match children {
             [
                 BuildValue::Sentence(effect),
                 BuildValue::Leaf(Leaf::Literal(".")),
@@ -763,7 +812,7 @@ fn build(
             }))),
             _ => None,
         },
-        Construction::AbilityTriggered => match children {
+        RuleId::AbilityTriggered => match children {
             [
                 BuildValue::Leaf(Leaf::TriggerWord(trigger)),
                 BuildValue::Clause(Clause::Event(event)),
@@ -776,7 +825,7 @@ fn build(
                 .map(BuildValue::Ability),
             _ => None,
         },
-        Construction::SentenceImperative => match children {
+        RuleId::SentenceImperative => match children {
             [BuildValue::VerbPhrase(predicate, Agreement::Bare)] => {
                 Some(BuildValue::Sentence(Sentence::Imperative(Imperative {
                     predicate: predicate.clone(),
@@ -784,7 +833,7 @@ fn build(
             }
             _ => None,
         },
-        Construction::SentenceDeclarative => match children {
+        RuleId::SentenceDeclarative => match children {
             [
                 BuildValue::NounPhrase(subject, subject_agreement),
                 BuildValue::VerbPhrase(predicate, verb_agreement),
@@ -796,7 +845,7 @@ fn build(
             }
             _ => None,
         },
-        Construction::SentenceWithWhere => match children {
+        RuleId::SentenceWithWhere => match children {
             [
                 BuildValue::Sentence(body),
                 BuildValue::Leaf(Leaf::Literal(",")),
@@ -807,7 +856,7 @@ fn build(
             }))),
             _ => None,
         },
-        Construction::ClauseEvent => match children {
+        RuleId::ClauseEvent => match children {
             [
                 BuildValue::NounPhrase(subject, subject_agreement),
                 BuildValue::VerbPhrase(predicate, verb_agreement),
@@ -819,7 +868,7 @@ fn build(
             }
             _ => None,
         },
-        Construction::ClauseWhere => match children {
+        RuleId::ClauseWhere => match children {
             [
                 BuildValue::Leaf(Leaf::Literal("where")),
                 BuildValue::Leaf(Leaf::Variable(variable)),
@@ -837,14 +886,14 @@ fn build(
             }))),
             _ => None,
         },
-        Construction::NounPhrasePronoun => match children {
+        RuleId::NounPhrasePronoun => match children {
             [BuildValue::Leaf(Leaf::Pronoun(pronoun))] => Some(BuildValue::NounPhrase(
                 NounPhrase::Pronoun(PronounNp { word: *pronoun }),
                 agreement_for_pronoun(*pronoun),
             )),
             _ => None,
         },
-        Construction::NounPhraseCommon => match children {
+        RuleId::NounPhraseCommon => match children {
             [
                 BuildValue::Leaf(Leaf::Article(article)),
                 BuildValue::Leaf(Leaf::Noun {
@@ -860,7 +909,7 @@ fn build(
             )),
             _ => None,
         },
-        Construction::NounPhraseDemonstrative => match children {
+        RuleId::NounPhraseDemonstrative => match children {
             [
                 BuildValue::Leaf(Leaf::Demonstrative(demonstrative)),
                 BuildValue::Leaf(Leaf::Noun { noun, number }),
@@ -883,7 +932,7 @@ fn build(
             },
             _ => None,
         },
-        Construction::NounPhraseTarget => match children {
+        RuleId::NounPhraseTarget => match children {
             [
                 BuildValue::Leaf(Leaf::Literal("target")),
                 BuildValue::Leaf(Leaf::Noun {
@@ -896,7 +945,7 @@ fn build(
             )),
             _ => None,
         },
-        Construction::NounPhraseSelfReference => match children {
+        RuleId::NounPhraseSelfReference => match children {
             [BuildValue::Leaf(Leaf::SelfReference(spelling))] => {
                 SelfReferenceNp::new(*spelling, context).map(|self_reference| {
                     BuildValue::NounPhrase(
@@ -907,7 +956,7 @@ fn build(
             }
             _ => None,
         },
-        Construction::NounPhraseCount => match children {
+        RuleId::NounPhraseCount => match children {
             [
                 BuildValue::Leaf(Leaf::Noun {
                     noun,
@@ -933,7 +982,7 @@ fn build(
             )),
             _ => None,
         },
-        Construction::VerbPhraseDestroy => match children {
+        RuleId::VerbPhraseDestroy => match children {
             [
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Destroy,
@@ -948,7 +997,7 @@ fn build(
             )),
             _ => None,
         },
-        Construction::VerbPhraseConnive => match children {
+        RuleId::VerbPhraseConnive => match children {
             [
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Connive,
@@ -960,7 +1009,7 @@ fn build(
             )),
             _ => None,
         },
-        Construction::VerbPhraseDealDamage => match children {
+        RuleId::VerbPhraseDealDamage => match children {
             [
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Deal,
@@ -979,7 +1028,7 @@ fn build(
             )),
             _ => None,
         },
-        Construction::VerbPhraseGainLife => match children {
+        RuleId::VerbPhraseGainLife => match children {
             [
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Gain,
@@ -995,7 +1044,7 @@ fn build(
             )),
             _ => None,
         },
-        Construction::AmountNumber => match children {
+        RuleId::AmountNumber => match children {
             [BuildValue::Leaf(Leaf::SignedNumber(number))] => {
                 Some(BuildValue::Amount(Amount::Number(NumberAmount {
                     number: number.clone(),
@@ -1003,7 +1052,7 @@ fn build(
             }
             _ => None,
         },
-        Construction::AmountVariable => match children {
+        RuleId::AmountVariable => match children {
             [BuildValue::Leaf(Leaf::Variable(variable))] => {
                 Some(BuildValue::Amount(Amount::Variable(VariableAmount {
                     variable: *variable,
@@ -1023,7 +1072,6 @@ fn agreement_for_pronoun(pronoun: Pronoun) -> Agreement {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
     use std::path::Path;
 
     use super::BuildValue;
@@ -1035,6 +1083,7 @@ mod tests {
     use super::Lexical;
     use super::NounNumber;
     use super::RULES;
+    use super::RuleId;
     use super::SliceGrammar;
     use super::materialize;
     use super::parse_forest;
@@ -1064,7 +1113,7 @@ mod tests {
     fn slice_candidates(
         text: &str,
         card_name: &str,
-    ) -> Result<Forest<Construction, Leaf>, ChartFailure<Category, Lexical>> {
+    ) -> Result<Forest<RuleId, Leaf>, ChartFailure<Category, Lexical>> {
         let catalogs = ParserCatalogs::load(
             &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
         )
@@ -1082,7 +1131,7 @@ mod tests {
         ParseContext::new(card_name).expect("test card names are valid parse contexts")
     }
 
-    fn assert_acyclic_number_survives(forest: &Forest<Construction, Leaf>) {
+    fn assert_acyclic_number_survives(forest: &Forest<RuleId, Leaf>) {
         let mut state = super::MaterializationState::default();
         let outcome =
             super::materialize_node(forest, NodeId(0), &context("Context Card"), &mut state);
@@ -1113,7 +1162,7 @@ mod tests {
     fn materialization_rejects_a_direct_nullable_cycle_but_keeps_an_acyclic_family() {
         let forest = Forest::from_test_parts(
             vec![PackedNode {
-                construction: Construction::AmountNumber,
+                rule: RuleId::AmountNumber,
                 start: 0,
                 end: 0,
                 families: vec![
@@ -1139,7 +1188,7 @@ mod tests {
         let forest = Forest::from_test_parts(
             vec![
                 PackedNode {
-                    construction: Construction::AmountNumber,
+                    rule: RuleId::AmountNumber,
                     start: 0,
                     end: 0,
                     families: vec![
@@ -1155,7 +1204,7 @@ mod tests {
                     ],
                 },
                 PackedNode {
-                    construction: Construction::AmountNumber,
+                    rule: RuleId::AmountNumber,
                     start: 0,
                     end: 0,
                     families: vec![Family {
@@ -1174,19 +1223,19 @@ mod tests {
         let forest = Forest::from_test_parts(
             vec![
                 PackedNode {
-                    construction: Construction::SentenceWithWhere,
+                    rule: RuleId::SentenceWithWhere,
                     start: 0,
                     end: 0,
                     families: vec![with_where_family(NodeId(1)), with_where_family(NodeId(2))],
                 },
                 PackedNode {
-                    construction: Construction::SentenceWithWhere,
+                    rule: RuleId::SentenceWithWhere,
                     start: 0,
                     end: 0,
                     families: vec![with_where_family(NodeId(0))],
                 },
                 PackedNode {
-                    construction: Construction::SentenceImperative,
+                    rule: RuleId::SentenceImperative,
                     start: 0,
                     end: 0,
                     families: vec![Family {
@@ -1194,7 +1243,7 @@ mod tests {
                     }],
                 },
                 PackedNode {
-                    construction: Construction::VerbPhraseConnive,
+                    rule: RuleId::VerbPhraseConnive,
                     start: 0,
                     end: 0,
                     families: vec![Family {
@@ -1205,7 +1254,7 @@ mod tests {
                     }],
                 },
                 PackedNode {
-                    construction: Construction::ClauseWhere,
+                    rule: RuleId::ClauseWhere,
                     start: 0,
                     end: 0,
                     families: vec![Family {
@@ -1224,7 +1273,7 @@ mod tests {
                     }],
                 },
                 PackedNode {
-                    construction: Construction::NounPhrasePronoun,
+                    rule: RuleId::NounPhrasePronoun,
                     start: 0,
                     end: 0,
                     families: vec![Family {
@@ -1306,13 +1355,14 @@ mod tests {
     }
 
     #[test]
-    fn slice_table_has_one_rule_per_construction_form() {
-        let constructions = RULES
-            .iter()
-            .map(|rule| rule.construction)
-            .collect::<BTreeSet<_>>();
-        assert_eq!(RULES.len(), 19);
-        assert_eq!(constructions.len(), 19);
+    fn slice_table_has_exactly_one_row_and_build_arm_per_rule_id() {
+        assert_eq!(RULES.len(), RuleId::COUNT);
+        assert!(
+            RULES
+                .iter()
+                .enumerate()
+                .all(|(index, rule)| rule.id.index() == index)
+        );
     }
 
     #[test]
