@@ -1,4 +1,5 @@
 mod engine;
+mod grammar;
 
 pub use error::Expectation;
 pub use error::NonterminalCategory;

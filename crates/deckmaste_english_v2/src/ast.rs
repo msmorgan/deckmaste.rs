@@ -188,7 +188,7 @@ pub enum NounLexeme {
     Player,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub enum VerbLexeme {
     Destroy,
     Connive,

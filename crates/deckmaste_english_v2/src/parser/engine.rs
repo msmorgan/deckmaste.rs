@@ -57,6 +57,10 @@ pub(crate) struct Forest<C, T> {
 }
 
 impl<C, T> Forest<C, T> {
+    pub(crate) fn node(&self, id: NodeId) -> &PackedNode<C, T> {
+        &self.nodes[id.0]
+    }
+
     pub(crate) fn accepted_roots(&self) -> impl Iterator<Item = &PackedNode<C, T>> {
         self.accepted_roots
             .iter()
