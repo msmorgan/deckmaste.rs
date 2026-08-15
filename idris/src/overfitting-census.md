@@ -1,0 +1,1819 @@
+# The overfitting census
+
+## 1. What this is
+
+A full inventory of every **closed catalog**, **measured-zero
+gate**, **closed-count table**, **single-value slot**, **canonicality gate** and
+**marked union construction** in the Idris grammar workbench, each row tagged by
+**what closes it** — a rule, a rule read as a gate, a printing history, or the
+type's own structure.
+
+- **Date:** 2026-08-20.
+- **State censused:** chapter 139, bench 728 witnesses, 678 pins.
+- **Sources censused:** `idris/src/Experimental.idr` (~17.1k lines),
+  `idris/src/Experimental/Words.idr` (~6.5k), `idris/src/Experimental/Events.idr`
+  (~2.9k). `Experimental/Macros.idr` is not censused (it is the phrase-macro
+  layer over these three).
+- **Evidence discipline:** recorded docstring evidence only. Every corpus number
+  in this file is quoted from a docstring in the sources. Nothing was
+  re-measured against the corpus; no build, typechecker or corpus query was run
+  in assembling it. Row counts and table diffs are structural reads of the
+  source text, which is reading the recorded artifact rather than re-measuring
+  the corpus.
+- **Mandate:** the census mandate in
+  `docs/memory/campaigns/binder-unification-probe/players-as-objects-ruling.md`
+  (2026-08-17 addendum) — the marked-union rows get a **lattice-translation**
+  reading, so that the v2 lattice-vs-marked decision is a read of a table. That
+  reading is section 9. The decision itself is the user's, at cutover.
+
+### Inputs
+
+The nine sweep fragments remain the working record and carry the full per-row
+prose; this file is the deliverable assembled from them.
+
+| fragment | range |
+|---|---|
+| `docs/memory/campaigns/binder-unification-probe/census/shard-1.md` | `Experimental/Words.idr` 1–2100 |
+| `docs/memory/campaigns/binder-unification-probe/census/shard-2.md` | `Experimental/Words.idr` ~1916–4145 |
+| `docs/memory/campaigns/binder-unification-probe/census/shard-3.md` | `Experimental/Words.idr` 3980–6460 |
+| `docs/memory/campaigns/binder-unification-probe/census/shard-4.md` | `Experimental/Events.idr` (whole file, 2881 lines) |
+| `docs/memory/campaigns/binder-unification-probe/census/shard-5a.md` | `Experimental.idr` 1–4040 |
+| `docs/memory/campaigns/binder-unification-probe/census/shard-5b.md` | `Experimental.idr` 4040–7770 |
+| `docs/memory/campaigns/binder-unification-probe/census/shard-6a.md` | `Experimental.idr` 7650–12500 |
+| `docs/memory/campaigns/binder-unification-probe/census/shard-6b.md` | `Experimental.idr` 11600–17081 |
+| `docs/memory/campaigns/binder-unification-probe/census/lens.md` | structure-vs-phrase verdicts + lattice translation |
+
+**Vocabulary.** Five kinds: `catalog` (a closed set of rows), `table` (a total
+function over a vocabulary, the cells being the measurements), `count` (a closed
+`Nat` table), `slot` (a parameter position, including one hard-fixed to a single
+value), `canon` (a canonicality/well-formedness gate). Rows at a marked union
+site additionally carry the tag `union`. Four closure bases: **CR-closed** (a
+rule shuts the set, no printing can widen it), **CR-backed** (a rule warrants the
+shape and the corpus corroborates), **printing-backed** (the closure is a corpus
+count, and a future printing can flip it), **structural** (the type's own shape
+or a design ruling, with no corpus claim).
+
+---
+
+## 2. Executive summary
+
+### Totals
+
+| module | census subjects | note |
+|---|---|---|
+| `Experimental/Words.idr` | 166 | shards 1–3, six rows deduped across the 1916–2119 and 3980–4145 overlaps |
+| `Experimental/Events.idr` | 61 | shard 4, whole file |
+| `Experimental.idr` | 444 | shards 5a/5b/6a/6b, ~32 rows deduped across the 7650–7770 and 11600–12500 overlaps |
+| **total** | **671** | |
+
+(Row counts are merged-table rows in section 4; where a shard grouped a family of
+sibling definitions onto one row — `countOnes`/`countOutcomes`/… , the five
+mention-builders — the merged table keeps that grouping, so the subject count is
+conservative against a per-definition count.)
+
+**By closure basis** (approximate — shards assigned compound rows a dominant
+label, so the bases sum slightly above the row count):
+
+| basis | Words | Events | Experimental | total |
+|---|---|---|---|---|
+| printing-backed | ~63 | ~34 | ~202 | **~300** |
+| CR-backed | ~35 | ~4 | ~95 | **~130** |
+| CR-closed | ~22 | ~6 | ~81 | **~110** |
+| structural | ~42 | ~12 | ~69 | **~120** |
+
+Printing-backed is the largest single class in every module and roughly half the
+census overall. **By kind**, only shard 5a reported a full tally (slot 46, table
+35, canon 17, catalog 5, union 3 of 106); across the whole census `slot` and
+`table` dominate, `catalog` and `canon` follow, `count` is the smallest class
+(the closed `Nat` tables number roughly two dozen), and **ten rows carry the
+`union` tag**: `Payload`/`UnionP`, `wordReaches JoinW`, `JoinedPlayer`,
+`JoinedClass` (Words.idr); `KindJoin`, `bindFor`, `YouAnd`, `nounIsKindJoin`,
+`nounIsMixedGroup`, `DamageRecipient` (Experimental.idr).
+
+### What the tags are for
+
+The point of the closure tag is a maintenance triage, not a defect list.
+
+- A **CR-closed** cell survives any printing. `Color`'s five rows, `permanentType`'s
+  six Trues, `halvesDistinct`, `Unflipped`'s double refusal under [CR#710.4] — no
+  card can move these, and a reader who knows the tag knows not to re-measure.
+- A **printing-backed** cell is **one printing away from a flip**. That is a
+  maintenance fact, not a defect: the workbench's whole discipline is that a row
+  is bought by a witness, so a printing-backed closure is exactly the design
+  working. What the tag buys is the ability to say *which* cells a new set can
+  move, and what each move would cost. Every such row in section 4 carries its
+  widening cost in the Widening column.
+- The dangerous shape is not "printing-backed" but **printing-backed with a
+  near-miss** — a closed vocabulary with a populated cell beside an empty one,
+  or a slot whose single value survived by one line. Those are section 3.
+
+### Top-15 risk ranking (summary)
+
+Ranked by how likely a future printing or round is to flip the cell, with
+single-value slots and closed-`Nat` tables carrying near-miss cells ranked above
+large attestation grids whose many zeros are independent. Full entries with
+widening costs in section 3.
+
+1. `LibOrdinal`'s missing **Sixth** (Words.idr:369)
+2. `PlayAsThough = HadFlash`, 87-vs-1 (Events.idr:736)
+3. `heldUntilOk`'s single True cell (Experimental.idr:3538)
+4. The five closed `{1,2}` count tables — `NextUntapCount`, `ExtraTurnCount`,
+   `SkipCount`, `PhaseCount`, `CapBound` (Words.idr:1093–2616)
+5. `LosesAllCounters`' always-all on four corpus lines (Experimental.idr:3472)
+6. `CardType`'s six absent CR types (Words.idr:9)
+7. `CreationVoice`'s fourth cell `CreatedByCauser` (Experimental.idr:2110)
+8. `YouAnd`'s player half fixed at `You`, 35/35 (Experimental.idr:1315)
+9. `Supertype`'s three of the rule's five (Words.idr:2049)
+10. `TagBody` `ScryB`/`SurveilB` possessor fixed at `You` (Experimental.idr:4137)
+11. `GainsDesignation`'s four not-pinnable designation cells (Experimental.idr:3393)
+12. `keywordCounterOk`'s printing-backed Falses inside a CR-closed frame (Words.idr:1978)
+13. `admitsSpan CostModification`'s deliberately unflipped Cheering Fanatic cell (Events.idr:910)
+14. `grantableAb`'s three quotation-vs-bare flipped cells (Experimental.idr:5042)
+15. `keywordCardOk`'s Flash printing-vs-regime cell (Experimental.idr:5389)
+
+### Contradictions and discrepancies (one line each)
+
+All are **REPORTED-NOT-RESOLVED**; the census made no edits. Full entries in
+section 7.
+
+1. `riderAct Regenerated` is 135 where `ObjectAct`'s own split two paragraphs
+   earlier gives 138 — a three-sentence gap unexplained (Words.idr:2311–5234).
+2. `attachHeadOk Equipped PermanentW = False` sits two cells below its own
+   docstring's citation of Luxior's printed "equipped permanent" (Words.idr:2232–4974).
+3. The `Keyword` docstring says "the two composite rows here" and then adds four
+   more and a seventh without correcting the claim (Words.idr:1247–2914).
+4. `PreventCut`'s family total is 88 event-shaped sentences but its two cells sum
+   to 60 + 21 = 81 (Experimental.idr:2990).
+5. `comparableBound` is relation-blind and admits a summed bound at every
+   comparator, where the correction that admitted it is 12/12 lines at equality
+   only (Experimental.idr:1740).
+6. `admitsSpan CostModification` declines to flip a True cell that one attested
+   line (Cheering Fanatic) fills, to preserve a `SpanUse` row's name (Events.idr:910).
+7. `annIntro`'s "on a FLAT clause the two agree exactly" has one exception in the
+   source — `ExtraTurn`, where `annIntro` prepends `turnRefB` and `preIntro`
+   does not (lens, family 6).
+
+### The lens verdicts, in five lines
+
+- Sixteen families were read against the structure-vs-phrase lens; **nine carry a
+  costume component**, **six are GENUINELY-N**, and one (the container mint
+  sites) is undecided leaning genuine.
+- The primary costume is the **letter machinery**: two rider rows quoting the
+  identical spelling string, plus a third letter binder already minted from a
+  cost with no constructor at all — and the read side (`DefinedLetter` over a
+  frame-blind `countLetter`) is already unified, which is the proof.
+- The house **names both postures itself**: the twin idiom at `OtherThan` ("one
+  namespace, two frames, and the argument in the name") and the utility idiom at
+  the four `eventUse` witnesses. The second posture is what the lens recommends,
+  three sections away from where the first was used.
+- The **positive control is the status family**, where the merge the lens would
+  recommend has already been performed; the **model citizen** is the
+  intercept/replace/hold/delay family; the **cheapest costume** is the nine
+  byte-identical `Not*` witnesses.
+- What resists is **Idris, not English**: `Effect` and `StaticEffect` are
+  distinct datatypes in one mutual block and the five telescopes exist for
+  list-sugar name resolution, so several verdicts name a documentary and
+  table-level defect rather than a constructor-count one.
+
+### The lattice assessment, in three lines
+
+- **The lattice wins the projection layer.** `headIsPlaceless` (two of its three
+  disjuncts), `nounSpansPlayers`, `bindFor`'s union branch and the three-row
+  `DamageRecipient` collapse all follow from `zone(Anything) = ⊥` and
+  `ty(Anything) = ⊥`, and the seven-verb battlefield refusal keeps holding
+  without a rule written for the purpose.
+- **It loses the discourse layer.** Flat `_ \/ _ = Anything` cannot spell the
+  33/33 demonstrative echo at all, and the `Binding`-is-`Kind`-indexed derivation
+  behind `YouAnd`'s no-binding and `ForEachOf`'s Join-cell refusal is deleted
+  outright, leaving measured silences that need explicit gates.
+- **Two items survive under neither naive option** — the shared demonstrative
+  surface of the class word and the union head (which needs a collapse table the
+  lattice does not supply) and `AnyTargetLone`'s modifier discipline (which has
+  no index to key on once the two share a kind) — and `KindJoin`'s widening to a
+  predicate cross-product is **not honestly coverable by tolerated
+  overgeneration**, because every tolerated case in the house is countable and
+  named.
+
+---
+
+## 3. Risk ranking — the fifteen printing-backed closures most likely to flip
+
+Merged from the eight shards' own "top 3" nominations plus a read of the tables.
+Ranking rule: a **single-value slot** and a **closed-`Nat` table with a near-miss
+cell** rank above a large attestation grid, because the grid's many zeros are
+independent (one printing moves one cell and the closure survives) where the slot
+and the small table have exactly one cell between them and a redesign.
+
+| # | site | why it is likely to flip | widening cost recorded |
+|---|---|---|---|
+| 1 | `LibOrdinal` (Words.idr:369) | A five-row closed vocabulary (Second/Third/Fourth/Fifth/Seventh) with a **hole at Sixth** sitting between two populated cells, over 30 supported cards distributed third 14, second 13, fourth/fifth/seventh 1 each. Nothing in [CR#401.7] forbids "sixth from the top" — the gap is a printing accident, and the two neighbours at count 1 show how thin the evidence for a populated cell can be. | "add Sixth if ever printed" — one row, plus a cell in `ordinalFits` (offset×bottom, offset×order-rider, both currently 30/30 False) |
+| 2 | `PlayAsThough = HadFlash` (Events.idr:736) | A **single-value slot** for the whole "as though" counterfactual, resting on 87 of 88 supported sentences writing flash. The one exception (Shaman's Trance's zone counterfactual) exists today and is *parked*, not closed by rule — the row is one printing from a second sentence it cannot spell. | second row is named and blocked on three unbuilt things; `playSourceOk`'s "both contents never written together" (0/88) would have to be re-measured, not inherited |
+| 3 | `heldUntilOk` (Experimental.idr:3538) | **Exactly one True cell** — `Composite Exile (Move with empty riders, no counters)` — closes the entire "until [event]" rider; the counters-present, riders-present and ordered-list variants are each pinned False *by name* rather than by any general rule (`badHeldUntilWithCounters`). | "a new exile rider shape would need its own True/False cell"; the [CR#610.4] phase-out family already has attested lines and no word |
+| 4 | The five closed `{1,2}` count tables: `NextUntapCount` 66/1, `ExtraTurnCount` 32-sentence/2, `SkipCount` (2nd cell = Eater of Days alone), `PhaseCount` 47/1 (Full Throttle alone), `CapBound` 5/2 (Words.idr:1093–2616) | Five structurally identical two-row tables, each explicitly ruled **not** shared with its siblings despite the identical cell shape, and each second cell held by **one card**. Every one carries an explicit three-count pin (`badUntapNextThree`, `badThreeExtraTurns`, `badThreeAdditionalPhases`, `badUntapCapThree`). A single "three extra turns" printing widens one and re-opens the not-shared ruling for all five. | one row each, retiring the named pin; the lens's sweep proposes a single `AttestedCount` over one table carrying all five measurements |
+| 5 | `LosesAllCounters` (Experimental.idr:3472) | The **always-all** closure rests on **four corpus lines total** (Final Act, Suncleanser, RadAway, Leeches) — two per cell. Nothing removes a number today; four lines is the thinnest total in the census supporting a structural "no amount slot" decision. | an amount slot, which would then need `CounterAmt`'s own gates at a fifth site |
+| 6 | `CardType` (Words.idr:9) | Nine of the CR's fifteen types present; **six wholly absent** (conspiracy 29 cards, plane 182, scheme 102, vanguard 107, phenomenon 21, dungeon 0) and held out only by the corpus's supported-card flag — a *project* decision, not a rule. If the supported set ever admits one, the row lands. | "add a row if the corpus flag's supported set ever includes one of the six"; every total table over `CardType` (`combatant`, `deedType`, `typeRank`, `permanentType`, `spellType`, `retainable`, `ascribesAsType`, `castableTy`) takes a totality error |
+| 7 | `CreationVoice`'s `CreatedByCauser` (Experimental.idr:2110) | A four-cell table whose fourth cell was added at ch81 **because all three attested causer-creation lines also happen to write the control phrase** — a bare causer-only line is 0 lines (`badCausedCreationBareControl`). One printing of "if an effect would create a token" without the control phrase forces a fifth cell. | a fifth cell; and the sort refusal beside it ("an effect would create" — no term exists, effect ≠ player) would have to be answered rather than ledgered |
+| 8 | `YouAnd`'s player half (Experimental.idr:1315) | The player argument is **not a parameter at all** — hard-fixed to `You` because all 35 supported sentences write second person and "target player and creatures they control" is 0 lines. This multiplies out: one third-person printing turns a nullary half into the whole player-noun vocabulary. | a `Noun bs Player` argument, plus `NotMixedGroup` re-derived (today [CR#109.5]'s "second person written once") and a re-measurement of the no-binding argument |
+| 9 | `Supertype` (Words.idr:2049) | Three of the rule's **five** ([CR#205.4a,205.4b] closes the set at 5): Legendary, Basic, Snow witnessed; **World and Ongoing unminted**. Unlike `Color` — deliberately ported whole as a rules-fixed catalog — this one was whittled to witnessed rows, so the two absent members are a printing question inside a rule-closed frame. | "add World/Ongoing rows when a witness lands"; `HasSupertype`'s description reader takes the same two rows |
+| 10 | `TagBody` `ScryB`/`SurveilB` possessor (Experimental.idr:4137) | Both rows **hardcode the looker as `You`** against 2 of 440 scry lines naming another scryer (Bumi King of Three Trials, Kozilek's Command — already ledgered) and 0 surveil lines. Two attested counterexamples already exist for the fixed value; contrast `MillB`, whose possessor is a free parameter for the same reason inverted. | a possessor parameter on two rows, matching `MillB`'s shape |
+| 11 | `GainsDesignation`'s four refused cells (Experimental.idr:3393) | City's blessing, enduring story, monstrous and renowned are refused as **not pinnable** because each is conferred by a keyword trigger whose only English is reminder text — and the docstring says outright these "**will flip when the keyword round lands**, not a refusal a proof can hold". The closest thing in the census to a closure whose own authors expect it to break. | four cells, on a round already anticipated; the asymmetric-and-ungated subject range (monarch 10 third-party/25 self) is recorded overgeneration that widening would have to revisit |
+| 12 | `keywordCounterOk` (Words.idr:1978) | The frame is CR-closed ([CR#122.1b]'s fifteen-name list) but **every False cell inside it is printing-backed**: Convoke, Improvise, Storm, Ward, Protection, Enchant, Equip, Ascend, Storied, Renown, Flash, CumulativeUpkeep, Skulk are each held out by a "zero supported lines" grep for "X counter". A single "ward counter" printing flips a cell with no rule to consult. | one cell per flip; and the table is a *forcing function* — every future `Keyword` row must add a cell before it can be a counter kind |
+| 13 | `admitsSpan CostModification` (Events.idr:910) | **1 of 653 lines carries a duration (Cheering Fanatic) and the cell is deliberately not flipped**, because flipping it would rename a `SpanUse` row. The attested counterexample is already printed; the closure is held by a naming cost, not by evidence. See section 7 item 6. | flipping the cell renames a `SpanUse` row (whose row names *are* the measured construction sets); landing the chosen-name-subject construction forces the question |
+| 14 | `grantableAb`'s three quotation cells (Experimental.idr:5042) | Three cells "flipped" when quotation was re-read as a spelling rather than a construction, on a 763-vs-0 (non-keyword grants always quoted) and thousands-vs-0 (nullary keyword grants never quoted) split — with **exactly one crossing class**, the parameterized keywords, resolved by the parameter itself (Ward bare 49 all mana-cost / quoted 4 all em-dash). A single bare quoted-flying line or a crossing Ward line unpicks a whole chapter's re-reading. | the spelling-not-construction argument itself, i.e. a chapter's conclusion, not a cell |
+| 15 | `keywordCardOk`'s Flash cell (Experimental.idr:5389) | `keywordStackRegime` says Flash is `AtCasting` per [CR#113.6e]; the printing table says 598/598 permanent-only, 0 spell (`badFlashOnInstant`, "the word would be vacuous there"). **The two-table split exists purely because they disagree on this one keyword.** One printed instant carrying Flash collapses the reason for two tables. | either a merged table (which ch45 already decided against) or a third table; the same shape recurs at `windowOk`/`headerWindowOk`'s six-cell disagreement |
+
+**Deliberately ranked below the fifteen** — the large attestation grids, whose
+many zeros are independent measurements rather than a single load-bearing cell.
+Each is a real maintenance surface, but a printing moves one cell and the closure
+survives: `spanUse`'s ~90-cell duration grid (Experimental.idr:2509, only four
+cells Unclaimed, the rest Unattested); the `Subtype` catalog's ~130 rows grown
+one witnessed card at a time (Words.idr:1501); `ascribesAsSubtype`'s
+nine-self-naming-words census against every creature type (Words.idr:1866);
+`attachHeadOk`'s participle×head grid (Words.idr:2211); `AndAlso`'s 1,433
+sentences with no CR anchor at all (Experimental.idr:2888); `KindJoin`'s full 2×4
+grid over 326 occurrences (Experimental.idr:204); `HasCounters`' 221 frames
+(Experimental.idr:178); the `eventUse`/`eventSpan`/`ReplUse` triple over 26
+`EventName` rows (Events.idr:107–659); `negatable`'s full-row census over every
+`Predicate` constructor (Experimental.idr:1024); and `pumpSignsOk`'s four
+disagreeing-zero cells (Experimental.idr:2705) — where the four zeros are one
+canonicality fact rather than four independent ones, which is why it sits at the
+top of *this* list rather than the bottom of the previous one.
+
+---
+
+## 4. The merged table
+
+One section per module region, in file order, concatenating the shard tables.
+Rows duplicated across a shard-range overlap have been deduped (the more detailed
+row kept); `Kind` and `Closure` have been normalised to the five kinds and four
+bases where a shard drifted. The seven columns are unchanged.
+
+### 4.1 `Experimental/Words.idr`
+
+| Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
+|---|---|---|---|---|---|---|
+| Words.idr:9 `CardType` | catalog | printing-backed | [CR#205.2a] | 9 of 15 CR types present; conspiracy 29, plane 182, scheme 102, vanguard 107, phenomenon 21, dungeon 0 cards — all excluded as casual/extra-deck by corpus flag | add a row if the corpus flag's supported set ever includes one of the six | chapter 86 |
+| Words.idr:13 `combatant` | table | CR-closed | [CR#701.14a,701.14b,701.14d,308.1] | Creature=True; all other 8 types False (rule names only creatures as fight participants; Kindred defers via [CR#308.1]) | n/a — closed by rule text, not count | unstated |
+| Words.idr:25 `FightParticipant` | canon | structural | — | gate type requiring `combatant t = True` proof | n/a | unstated |
+| Words.idr:29 `Characteristic` | catalog | printing-backed | [CR#208.1,202.3] | 3 rows (Power/Toughness/ManaValue) vs core's 5; Loyalty/Defense absent — neither bounded, defense never read off object, one loyalty read (Drain Life) is a different frame | re-measure if a loyalty/defense read surfaces in Compare or StatOf frame | unstated |
+| Words.idr:41 `PlayerStat` | catalog | printing-backed | [CR#103.4,119.1] | 2 rows (LifeTotal/StartingLifeTotal) vs core's 4; HandSize/HandSizeLimit/LandPlaysPerTurn have no stat READ — "hand size" 68 lines all max-hand-size statements, "equal to your hand size" 0 times; starting life total 30 supported lines | add HandSize row if a numeric READ of hand size appears | unstated |
+| Words.idr:51 `Comparator` | table | printing-backed | [CR#107.1,107.1b,208.2a] | 5 rows AtLeast/AtMost/Greater/Less/Eq; Eq declined as separate word-table because "equal to" (35) vs bare (81) splits perfectly by written-bound-vs-read, 0 crossings; condition frame "is equal to" 4 lines all attributed to other constructions; description frame exact-value 116 vs ranged 1003; condition frame exact 27 vs ranged 914; "exactly" 18 occurrences have-clause vs 0 bare, 1 crossing (Amalia Benavides Aguirre) | re-measure if "equal to \<numeral\>" or bare-read spellings appear | finding 275, finding 309, chapter 44 |
+| Words.idr:67 `comparedType` | table | CR-backed | [CR#208.3,202.3,202.3a] | Power/Toughness → Just Creature; ManaValue → Nothing (every object has MV) | Vehicle noncreature-printed-power case left open, unwritten in corpus | unstated |
+| Words.idr:73 `QualitySort` | catalog | CR-backed | [CR#105.1,302.3,607.2d] | 4 rows: Color/CreatureType/CardName/Number ("only what the chapters need") | unstated | unstated |
+| Words.idr:90 `chosenQualityReadOk` | table | printing-backed | [CR#607.2d] | Color=True, CreatureType=True, CardName=False, Number=False (2 True/2 False) — card names/numbers use later equality surfaces instead of OfChosen | unstated | unstated |
+| Words.idr:102 `LetterWord` | catalog | printing-backed | [CR#107.3c,107.3p] | 2 rows LetterX/LetterY; every rider line uses X, 3 cards add Y, no card writes a third letter | add LetterZ row if a third letter is printed | finding 275 |
+| Words.idr:112 `Kind` | catalog | structural | [CR#109.1,113.6,113.7,113.8,605.1a,500.7] | 8 sorts: Object/Player/Quality QualitySort/Outcome/Gap/Letter LetterWord/TurnRef/Ability; Ability minted because [CR#109.1]'s object list excludes unactivated abilities; TurnRef confirmed by all 11 supported "that turn" readers having same-ability introducing clause | unstated | chapter 120 (TurnRef vs Ability split) |
+| Words.idr:183 `AggregateOp` | catalog | printing-backed | [CR#107.1a,107.2] | 3 rows SumOf/MinOf/MaxOf vs core's/old-Semantics' 4; "average" 0 times in corpus supported+unsupported; sum written as "total … of", extremes as "greatest/lowest … among" | add MeanOf if "average" is ever printed, with a rounding-direction decision per [CR#107.1a] | unstated |
+| Words.idr:186 `isExtremal` | table | printing-backed | — | SumOf=False, MinOf/MaxOf=True; "with the total power" written 0 times (`badSumSelection`) | unstated | unstated |
+| Words.idr:205 `ProjAxis` | catalog | structural | — | CharAxis Characteristic \| PlayerStatAxis PlayerStat (derived from the two catalogs above) | inherits Characteristic/PlayerStat widening | unstated |
+| Words.idr:208 `projScope` | table | printing-backed | [CR#208.1,119.1] | CharAxis→Object, PlayerStatAxis→Player; crossed cells "greatest power among players" and "highest life total among creatures" are 0-count refusals (`badPowerAmongPlayers`, `badLifeTotalAmongObjects`) | unstated | unstated |
+| Words.idr:220 `OutcomeSort` | catalog | CR-backed | [CR#614.6,120.3a,120.3c,120.9,615.5,615.7,615.10] | 5 rows: DamageDealt/LifeGained/LifeLost/CountersPut/DamagePrevented; CountersPut reads 28 replacement + 5 trigger bodies; DamageDealt merges clause+event mouths (135 trigger bodies bare anaphor); DamagePrevented distinct because [CR#615.7] makes it a spent CAP, marked "this way" in all 36 sentences | unstated | chapter 76 (CountersPut), chapter 96 (DamagePrevented), chapter 102 (DamageDealt event mouth) |
+| Words.idr:224 `Causer` | slot | printing-backed | [CR#614.16] | single row AnEffect; only 4 supported lines bare-spell "an effect" (3 creation, 1 counter placement); nearby "a source"(28)/"a spell"(4)/described-ability lines(3) are NOT this word | add a row only if a second abstract causer word is printed; described-ability lines (Rain of Gore, Unpredictable Cyclone, Zabaz) are ledgered evidence-without-vocabulary | finding 200 |
+| Words.idr:231 `Plurality` | catalog | structural | — | OneOf \| ManyOf | n/a | unstated |
+| Words.idr:239 `outputPlur` | table | structural | — | full 2×2 agent × perAgent → plurality table (one non-one input → ManyOf) | n/a | unstated |
+| Words.idr:246 `Quantity` | count | structural | [CR#601.2c] | `Range (Maybe Nat) (Maybe Nat)`; unbounded either side via Nothing | unstated | unstated |
+| Words.idr:250 `NonZeroQ` | canon | CR-closed | [CR#115.1] | UnboundedAbove \| MaxAtLeastOne; statically-zero maximum refused (`badZeroGroup`) | unstated | unstated |
+| Words.idr:261 `quantWellFormed` | table | printing-backed | [CR#107.1c] | descending range and zero-lower-bound-with-finite-max both refused (`badDescendingRange`, `badZeroLowerRange`); "zero or more" written 0 times ([CR#107.1c] makes it synonymous with "any number") | unstated | unstated |
+| Words.idr:272 `boundedIncrease` | table | CR-backed | [CR#305.2] | unbounded max=False, bounded max=True; 38 supported "additional land(s)" sentences all bounded (one=35, two=1, up-to-two/three=2); Fastbond's unbounded case is a different sentence entirely (`badAnyNumberOfAdditionalLands`, ledgered) | unstated | unstated |
+| Words.idr:282 `quantPlur` | table | structural | — | max=1 → OneOf, else ManyOf | n/a | unstated |
+| Words.idr:291 `modesFit` | table | CR-backed | [CR#700.2] | headcount ≤ mode count, and fixed-whole selection refused (0 cards write "Choose two —" over exactly two modes, `badModalFixedWhole`) | unstated | unstated |
+| Words.idr:304 `modalHead` | table | printing-backed | [CR#700.2] | attested heads: fixed 1/2/3, up-to-one, "one or both"/"one or more" (open tops keyed to list length); "choose up to two/three", "choose four", "two or more", "one or two" all 0 lines (`badModalUpToTwo`) | add a row if e.g. "choose up to two" is ever printed | unstated |
+| Words.idr:318 `AtLeastOne` (Nat) | canon | CR-closed | — | "for each zero creatures" unwritten (`badForEachZero`) | unstated | unstated |
+| Words.idr:322 `AtLeastTwo` (Nat) | canon | structural | — | sequence needs ≥2 clauses (`badEmptySequence`, `badSingletonSequence`) | unstated | unstated |
+| Words.idr:326 `Determiner` | catalog | structural | [CR#603.2c] | 8 tags: TargetD/AD/EachD/AllD/TheD/PartD/CountD/SelfD; CountD is [CR#603.2c]'s OneOrMore batch, SelfD is trigger self-subject only | unstated | finding 348 (SelfD vs demonstratives) |
+| Words.idr:331 `Zone` | catalog | printing-backed | [CR#400.1,401.2,405.1,112.1,108.2,109.2] | 6 rows: Battlefield/Graveyard/Exile/Hand/Library/Stack; core's Command row "still not ported" | add Command row when ported | unstated |
+| Words.idr:349 `LibPos` | catalog | printing-backed | [CR#401.2,401.7] | 2 rows OnTop/OnBottom; ordinal offset deliberately NOT a third row here because noun-side slice never writes "third-from-top card" (0 lines) | unstated | unstated |
+| Words.idr:352 `Arrangement` | catalog | printing-backed | [CR#401.4] | 2 rows AnyOrder/RandomOrder vs core's 4 (SameOrder, ChosenOrder(Reference) both 0 lines) — narrowing named after `DividedVerb`'s discipline | unstated | finding 126 |
+| Words.idr:355 `arrangementFits` | table | printing-backed | [CR#401.4] | RandomOrder × OnBottom=True, RandomOrder × OnTop=False (`badRandomOnTop`) — 290/290 "in a random order" lines land at bottom, 0 at top; "in any order" both (bottom 110, top 26); apparent top-random lines (Nael, Avizoa Aeronaut + Alchemy twin, Planar Atlas) actually hang the rider on a co-written bottom half | flip cell if "in a random order" ever attaches to a bare top placement | unstated |
+| Words.idr:369 `LibOrdinal` | count | printing-backed | [CR#401.7] | 5 rows Second/Third/Fourth/Fifth/Seventh (no First — subsumed by LibPos.OnTop; no Sixth); 30 supported cards: third=14, second=13, fourth/fifth/seventh=1 each; SIXTH is the recorded hole (zero) | add Sixth if ever printed | finding 246 |
+| Words.idr:374 `ordinalFits` | table | printing-backed | [CR#401.4,401.7] | offset+bottom always False (30/30 ordinals count from top, `badBottomOrdinal`); offset+order-rider always False (0/30 write an order rider with an ordinal, `badOrdinalOrderRider`) | unstated | unstated |
+| Words.idr:386 `VerbName` | catalog | CR-backed | [CR#701.17a..701.17c,614.13c,701.22a,701.22b,701.22d,701.25a..701.25d,701.29] | 7 rows: Destroy/Sacrifice/Exile/Discard/Mill/Scry/Surveil; catalog explicitly OPEN by the 2026-08-15 ruling (new rows admitted if keyed on the verb's name in rules text); Return REFUSED (not a [CR#701] action, 0 lines "would be returned"/"was returned to"); Fateseal REFUSED ([CR#701.29] has no zero/trigger sub-rules, corpus 2 lines / 0 triggers / 0 replacements / 0 reads) | add a row when a new keyword action is both name-keyed in [CR#701] and corpus-attested; Fateseal/Return stay out until then | unstated |
+| Words.idr:389 `verbAgentive` | table | CR-backed | [CR#701.21a,701.9a,701.17a,701.22a,701.25a] | Destroy=False, Sacrifice=True, Exile=False, Discard=True, Mill=True, Scry=True, Surveil=True; Mill's True backed by 266 finite "mills" vs 30 imperatives; Scry/Surveil backed by named-subject lines existing wherever a subject is given | unstated | unstated |
+| Words.idr:416 `Stamp` | slot | structural | — | record{verb: VerbName, wasField: Bool} — provenance pairing, finding 29 | unstated | unstated |
+| Words.idr:422 `Origin` | catalog | CR-closed | [CR#111.1,707.10] | 2 rows TokenOrigin/CopyOrigin; "the two rows do NOT interact… no reader tests both" | unstated | unstated |
+| Words.idr:437 `Payload` (incl. `UnionP`) | slot (union) | structural | [CR#115.1] | kind-indexed record; `UnionP` tagged `union` — the marked union payload, carrying no zone and no type deliberately (see §9 site 4) | unstated | unstated |
+| Words.idr:502 `outcomeB` / :1306 `gapB` / :1318 `turnRefB` / :1327 `letterB` / :1341 `qualityB` | slot | printing-backed | [CR#107.3p] (letterB) | 5 mention-builder functions, each hard-fixing a Determiner tag: outcomeB/gapB/turnRefB/letterB = TheD (definite), qualityB = AD (indefinite) — turnRefB's TheD backed by "that turn's"(5)/"during that turn"(2)/"the untap step of that turn"(1)/"after that turn"(1) vs "the turn's"(0) | unstated | unstated |
+| Words.idr:542 `countOnes` / :1382 `countOutcomes` / :1391 `countQuality` / :1419 `countLetter` / :1428 `countManys` / :1440 `countGroups` / :1449 `countParts` | table | structural | — | family of Bindings-list counting functions keyed on Kind/sort equality | n/a | unstated |
+| Words.idr:597 `theRestOk` | canon | structural | — | requires exactly 1 group mention and ≥1 part taken | unstated | unstated |
+| Words.idr:601 `groupSpent` | table | structural | — | disposes group mention after "the rest" used; corpus's only two-"the rest" lines put them in mutually exclusive branch arms | unstated | unstated |
+| Words.idr:624 `anyTargeted` / :1523 `anyTargetedAt` / :1534 `anyTargetedTy` / :1545 `anchorFoundSome` / :1558 `anchorFound` | table | CR-backed | [CR#115.1a..115.1e,115.4] | "other" presupposition family; anchorFound's untyped-head case = anyTargeted; typed head demands compatible anchor (`badOtherCrossHead`, `badDisjunctiveOtherCrossHead`) | unstated | unstated |
+| Words.idr:659 `settleTargets` | table | CR-backed | [CR#603.7c,603.3d,601.2c] | TargetD → TheD retag crossing a delayed-trigger boundary | unstated | unstated |
+| Words.idr:666 `publicZone` | table | CR-closed | [CR#400.2] | Battlefield/Graveyard/Exile/Stack=True, Hand/Library=False | unstated | unstated |
+| Words.idr:675 `ExposeVerb` | catalog | CR-closed | [CR#701.20a,701.20e] | 2 rows LookAt/Reveal; audience deliberately not a slot ("reveal it to target opponent" unwritten) | unstated | unstated |
+| Words.idr:680 `exposableZone` | table | printing-backed | [CR#400.2] | Hand=True only; "reveal your library" 0 lines (library exposure is the slice complement, a different construction) | unstated | unstated |
+| Words.idr:693 `VisibleThing` | catalog | printing-backed | [CR#401.2,402.3,708.5] | 2 rows TopOfLibrary/WholeHand; TopOfLibrary 12 "revealed" + 44 "may look at" lines, WholeHand 6 lines/3 subjects; face-down-creatures third case (3 lines) stays out as an object description, ledgered; possessive is NOT a slot — 21 reveal + 44 look-at lines all agree with subject except 1 (Xanathar, Guild Kingpin, ledgered) | unstated | unstated |
+| Words.idr:696 `visibilityOk` | table | CR-backed | [CR#402.3] | Reveal × both=True; LookAt × TopOfLibrary=True; LookAt × WholeHand=False (`badLookAtHandRider` — [CR#402.3] already grants own-hand look, so the cell would restate a rule; that rule's next sentence is what Reveal × WholeHand overrides) | unstated | unstated |
+| Words.idr:710 `searchableZone` | table | CR-backed | [CR#701.23a] | Library/Graveyard/Hand=True; Battlefield/Exile/Stack=False | unstated | unstated |
+| Words.idr:723 `pubB` | table | structural | — | colon-readability per binding kind; only ObjectP gated by zone visibility, all other kinds pass | unstated | unstated |
+| Words.idr:736 `publicOnly` | table | CR-backed | [CR#400.7,400.7j] | filters bindings by current-zone visibility | unstated | unstated |
+| Words.idr:741 `notInLibrary` / :1755 `shuffledAway` | table | CR-backed | [CR#701.24a,701.20d,701.24b] | drops library-zone mentions after a shuffle; found cards (left library first) untouched | unstated | unstated |
+| Words.idr:760 `zoneOfIt` / :1775 `zoneOfThem` | table | structural | — | wildcard pronoun referent zone lookup; UnionP answers Nothing deliberately (`badDestroyAnyTargetRemention`) | unstated | unstated |
+| Words.idr:774 `NounWord` | catalog | printing-backed | [CR#707.10,707.10d,109.2,108.2,112.1] | 8 rows: TypeW CardType/CardW/SpellW/PlayerW/PermanentW/TokenW/CopyW/JoinW(union); CopyW carries BOTH definite-article and demonstrative surfaces (241 "the copy(ies)"/11 "that copy"/8 "each copy"/1 "their copy" of 261) because finding 275's test FAILED to separate them; JoinW's antecedent-pair surface is derived not carried (33/33 union-head echoes exact, 15 generic "permanent or player" fallback) | unstated | finding 275 |
+| Words.idr:778 `VerbedMarking` | catalog | structural | — | 2 rows Attributive/ThisWay — one construction, two surfaces | unstated | unstated |
+| Words.idr:781 `verbedMarkingOk` | table | printing-backed | [CR#701.17b,701.17c,614.13c] | Destroy: Attributive=False (0 lines `badDestroyedAttributive`)/ThisWay=True; Sacrifice/Exile/Discard/Mill: both True (Mill 19 attributive + 43 this-way lines); Scry/Surveil: BOTH False (`badScriedThisWay`, `badSurveilledCard` — 0 lines each; corpus instead reads the Expose process via 5 "looked at while scrying this way" lines) | unstated | unstated |
+| Words.idr:802 `tyIs` | table | structural | — | helper predicate, CardType vs Maybe CardType | n/a | unstated |
+| Words.idr:807 `isCardZone` | table | CR-backed | [CR#108.2,112.1] | Graveyard/Exile/Hand/Library=True; Battlefield=False (permanent word instead); Stack=False ([CR#112.1] — spell word instead) | unstated | unstated |
+| Words.idr:817 `onFieldZone` / :1917 `onStackZone` | table | CR-backed | [CR#110.1,112.1] | strict single-zone membership tests, untracked (Nothing) refused by both | unstated | unstated |
+| Words.idr:837 `mkStamp` | table | structural | — | constructs `Stamp` from verb+zone; not a measured gate | n/a | unstated |
+| Words.idr:842 `wordReaches` | table | printing-backed | [CR#707.10,707.10a,111.1,111.7,115.1,112.1,110.1,109.2] | per-NounWord × Binding total function; SpellW screens off copies (0/261 "that spell" after a copy; the 2 "that spell" continuations after copy clauses mean the ORIGINAL); TokenW requires on-field + token-origin ([CR#111.7] tokens off-field cease to exist); CopyW requires on-stack + copy-origin, asymmetric with TokenW's screening (created tokens DO answer "that creature", 0/261 stack copies answer "that spell"); JoinW answers only UnionP and no other word reaches a union mention (0/48 bare demonstrative on a union antecedent; 25/48 spell it as a coordination of two demonstratives instead, ledgered) | a new "that spell"-after-copy line flips SpellW's copy-screen cell | finding 639 (SpellW/copy screening) |
+| Words.idr:909 `wordReaches JoinW` | table (union) | structural (payload-only) + printing-backed (reverse) | [CR#115.1] | JoinW reaches UnionP only; reverse also measured — 0/48 supported readbacks name a union antecedent via bare demonstrative | a new bare-demonstrative-to-union line would force a JoinW-like second reader | unstated (48 readbacks, no chapter given) |
+| Words.idr:920 `wordNow` | table | structural | [CR#109.2,110.1,108.2] | wraps wordReaches, but SelfD always refused (demonstrative never resolves to trigger's own subject, even as sole referent) — finding 28 | n/a | finding 28 |
+| Words.idr:929 `kindOfW` | table | structural | — | NounWord → Kind lookup (all Object except PlayerW→Player) | n/a | unstated |
+| Words.idr:940 `stampedBy` | table | structural | — | Stamp provenance check — finding 26 | n/a | finding 26 |
+| Words.idr:944 `verbedWordOk` | table | printing-backed (mixed) | [CR#701.21a] (implied via zone gates) | TypeW: wasField && type match; CardW: isCardZone; SpellW: onStackZone ("the spell cast this way" attested); PlayerW: False (structural, no participle read); PermanentW: wasField only, no type demand (Broadside Bombardiers); TokenW: False — printing-backed, zero-by-count ("the sacrificed token" not counted by recon); CopyW: False — printing-backed, zero-by-count (0 supported lines; "the copied creature" on Wall of Stolen Identity is the permanent carrier's subject, not this word); JoinW: False (union carries no stamp — structural) | a new participial token/copy line would open a TokenW/CopyW cell | unstated (no denominator given for the TokenW/CopyW zeros) |
+| Words.idr:955 `stampWordOk` | table | structural | — | conjunction of stampedBy && verbedWordOk | n/a | unstated |
+| Words.idr:959 `verbedMatch` | table | structural | — | singular participle-read binding filter; UnionP always False (no verb writes a union head) | n/a | unstated |
+| Words.idr:973 `verbedMatchMany` | table | structural | — | plural twin of verbedMatch (ManyOf only) | n/a | unstated |
+| Words.idr:987 `countVerbed` | table | structural | — | strict `=1` counting helper over verbedMatch | n/a | unstated |
+| Words.idr:993 `countManyVerbed` | table | structural | — | strict `=1` counting helper over verbedMatchMany | n/a | unstated |
+| Words.idr:1017 `countWord` | table | structural | — | strict `=1` counting helper over wordNow (OneOf) | n/a | unstated |
+| Words.idr:1025 `countManyWord` | table | structural | — | plural twin (ManyOf) | n/a | unstated |
+| Words.idr:1085 `countChoosers` | table | structural | — | sums singular+plural player mentions as possessive-chooser antecedent pool | n/a | unstated |
+| Words.idr:1089 `OnBattlefield` | slot | CR-backed | [CR#701.21a,109.2] | single-constructor GADT: zone must literally be Battlefield; the earlier "permissive untracked row" was retired because self-reference now projects its own zone | n/a | unstated |
+| Words.idr:1093 `NextUntapCount` | count | printing-backed | — | one: 66 lines (numeral unwritten, "step" singular); two: 1 line (Telekinesis); three+ unwritten (`badUntapNextThree`); construction-owned — endpoint occurs 0 times with a non-untap restriction so no Duration/SpanOk/turn-part cell opens | a 3-count untap line would add a row and retire `badUntapNextThree` | unstated |
+| Words.idr:1098 `ExtraTurnCount` | count | printing-backed | — | one: 32 sentences/53 occurrences (numeral unwritten, singular "turn"); two: exactly 2 lines (Time Stretch, Teferi ult); three+ unwritten (`badThreeExtraTurns`); construction-owned (explicitly not shared with NextUntapCount despite identical cell shape); Ral Zarek/Expropriate's "for each" is a scaling adverbial over count of one, not a third cell (ledgered) | a 3-count extra-turn line would add a row, retire `badThreeExtraTurns` | unstated |
+| Words.idr:1103 `SkipCount` | count | printing-backed | — | one: whole part-skip surface + 5/6 turn-skips; two: 1 line (Eater of Days, "next two turns", attested at TURN only — no pluralised part attested); three+ unwritten; `badSkipThreeTurns` not even minted | a part-level 2-count skip line would open a new cell; 3-count would widen | unstated |
+| Words.idr:1108 `PhaseCount` | count | printing-backed | — | one: 47/48 of existential-frame occurrences; two: Full Throttle alone ("two additional combat phases") — the sole reason the count is a slot rather than the construction's own fixed value; three+ unwritten (`badThreeAdditionalPhases`); Obeka's variable count is a different frame (ledgered, not a third cell) | a 3-count additional-phase line would add a row | unstated |
+| Words.idr:1113 `EntryCounterMark` | slot | printing-backed | [CR#614.1c,614.12,616.1] | word is RULES-INERT (CR says "additional" vs plain arrive identically) yet kept as a SLOT not a spelling because finding 275's test fails on named crossings both directions; measured over 578 supported entry-counter occurrences by subject sort: SELF 2/419; CLASS 27/2; SPELL-BOUND "that creature" 18/3; ENTERED-THIS-WAY "it" 10/16 (the cell that settles the slot — 26 lines, both words, nothing else covarying); copy exception 4/1; granted quotation 1/0; unclustered 8/67 | re-measurement of any subject-sort cell could retire the slot if a cluster stopped covarying | finding 275 |
+| Words.idr:1123 `PlayerGroupWord` | catalog | printing-backed | [CR#102.1,102.2,102.3] | 2 rows (AllPlayers/YourOpponents), closed by corpus: sentence-initial bare plural 98 cards, possessive plural 42 segments, no third phrase; "all players" as subject 0/9 occurrences (rest comparative/possessive); "all opponents" 0/6 (all possessive); retires `CapDomain`'s 3rd cell (You, now an ordinary player noun); AllOf-predicate alternative also refused (0 lines for descriptive possessive) | a written "all players" subject line would add a 3rd row or force the AllOf-predicate shape | chapter 39 (CapDomain retirement); unstated for main counts |
+| Words.idr:1133 `JoinedPlayer` | catalog (union) | printing-backed | [CR#115.1,102.1,102.2] | 2 rows (JoinAnyPlayer/JoinOpponent); of 326 supported cross-Kind disjunction-head occurrences, "player" 279, "opponent" 45, no third (no "teammate", no plural group word — "your opponents or planeswalkers" zero); no description on the player half (11 modifiers attach to the whole coordination) | a "teammate"/group-word cross-Kind line would add a row | unstated |
+| Words.idr:1143 `JoinedClass` | catalog (union) | printing-backed | [CR#110.1] | 4 rows (JoinPermanent/JoinCreature/JoinPlaneswalker/JoinBattle); counts: planeswalker 205, permanent 100, battle 17, creature 4; twelve other candidates (land, artifact, enchantment, instant, sorcery, spell, card, token, source, emblem, Aura, Equipment) measured zero in both orders; explicitly does NOT ride the CardType catalog — 3 of the 4 words ARE card types but `permanent` is not a type at all ([CR#110.1]: a status, not a type), so a `Maybe CardType` slot would have to admit the 12 measured-zero types to reach the 3 it wants | a new cross-Kind coordination with e.g. "land" would add a 5th row | unstated |
+| Words.idr:1157 `RoundMode` | slot | CR-closed | [CR#107.1a] | 2 rows (RoundUp/RoundDown); [CR#107.1a] makes the parameter MANDATORY, not merely attested (the spell must state its rounding direction); both cells attested on one card (Banshee); shared with core's `RoundMode` deliberately (not a name-straddle) | n/a — CR-closed, no widening axis | unstated |
+| Words.idr:1167 `ScaleFactor` | count | printing-backed | [CR#107.1a] (implied absence) | 2 rows (Doubled/Tripled); of 62 supported scaling sentences, 33 double, 4 triple, nothing quadruples; a Nat slot rejected as it would need unwritten numeral surface ("times four"); neither row carries RoundMode since integer × whole-number cannot fraction | a "quadruple"/other-factor line would add a row | unstated |
+| Words.idr:1177 `ShiftDir` | slot | printing-backed | — | one indexed row not two constructors (`PlayerGroupWord`'s reasoning): "plus 1" 22 supported sentences vs "minus 1" 2 lines (Benevolent Unicorn, Lashknife Barrier); distinct from Amount's own Plus/Minus (which combine written amounts; this modifies an unwritten one) | n/a | unstated |
+| Words.idr:1187 `CapBound` | count | printing-backed | — ("can't untap more than N") | 2 rows (OneUntap/TwoUntaps): one 5 lines (singular "set" word follows), two 2 lines (Static Orb, an emblem, "permanents" plural); 3+ unwritten (`badUntapCapThree`); the only phrasing anywhere is "can't untap more than N" — no "at most"/"untap only" (Storage Matrix's "untap only permanents of the chosen type" is a different, recorded, unminted construction); the comparator is construction-owned, the table carries only the number | a 3-count untap-cap line would add a row | unstated |
+| Words.idr:1193 `Lookback` (namespace) | catalog | printing-backed (mixed) | [CR#608.2i,109.2] (implied via the Duration split) | 4 rows: ThisTurn (296 lines, mass), ThisCombat (17: Kytheon, velocity Vehicles, pack-tactics family, Tolsimir), LastTurn (11), ThisGame (28 lines — REVERSED from a prior refusal; 25/28 name spell-cast or damage-dealt events, the two this vocabulary already carries; per-event breakdown at ThisGame: spell cast 23 player-subject, damage dealt 2, nothing else — no death/departure/entry/draw/attack/block/life-gain/life-loss); the window carries NO per-event attestation table generally (a standing posture, not an exemption) — `triggerWordOk`'s tolerated-over-generation pattern recurs; separate namespace from `Duration` deliberately (core's `temporal.rs` "never conflating duration and history readings of 'this turn'") | a written per-event gate at any Lookback window would newly gate what is currently ungated; SinceYour family (5 lines, 3 spellings, 2 possessors) ledgered as too thin for a 5th row | unstated (detailed counts, no chapter/finding) |
+| Words.idr:1196 `OnStack` | slot | CR-backed | [CR#112.1,115.4] | single-constructor GADT (OnTheStack); [CR#115.4]'s "any target" class explicitly excluded from this position ("can't be chosen this way" per the rule itself) | n/a | unstated |
+| Words.idr:1200 `counterZone` | table | CR-backed | [CR#122.1a,122.1b,122.6] | Battlefield=True, Exile=True (CR names exile explicitly for +1/+1 and keyword counters; corpus e.g. Jhoira of the Ghitu's "the exiled card"); Graveyard/Hand/Library/Stack=False — measured silences ("not one corpus line puts a counter on a card in a graveyard"); [CR#122.6] makes a bare counter instruction default to battlefield unless oracle names another zone, so a row opens only when oracle names it | a corpus line placing counters in graveyard/hand/library/stack would open a new True cell | unstated (chapter 19 referenced for the `OnBattlefield` predecessor) |
+| Words.idr:1210 `CounterHolder` | slot | structural | — | witness type over `counterZone`; deliberately kept separate from `OnBattlefield` rather than widening it, because the other eleven battlefield-demanding slots (destroy, sacrifice, tap, fight, copular reads, stat deltas) did NOT widen | n/a | unstated |
+| Words.idr:1214 `zoneFits` / :2767 `ZoneFits` | canon | CR-backed | [CR#109.2a] | not a corpus count — a structural agreement rule (silence on either side passes; explicit zones must match) | n/a | unstated (chapter 21 referenced for `badTrailingPostStateZone`) |
+| Words.idr:1224 `Targetable` | catalog | CR-closed | [CR#115.1] | 2 rows (ObjectTgt/PlayerTgt) — objects and players only; qualities never targetable | n/a | unstated |
+| Words.idr:1229 `DamageableTy` | catalog | CR-closed (shape) / printing-backed (membership) | [CR#120.1a] | 2 rows: DamCreature, DamPlaneswalker. Planeswalker row added in chapter 94 (finding 706) once corpus showed the head 308 times/303 cards and CR names it beside creature; the earlier absence reason had gone stale and is flagged. Battle row REFUSED though [CR#120.1a] names battle too: only 1 supported bare-battle-as-recipient line exists; the other 18 occurrences are disjunctive heads (13 "a player or battle") routed through `badDamageDisjunctHead`; "any target" class word and untyped head both explicitly excluded | a second bare "target battle" line (any card) would add the battle row | finding 706; chapters 89, 94 |
+| Words.idr:1234 `Phrasal` | catalog | CR-backed (structural) | [CR#109.1] | 4 rows: PhObject, PhPlayer, PhQuality(q), PhAbility; PhAbility deliberately has no `Targetable` counterpart — "counter target activated ability" is attested English about a stack object, which [CR#109.1] makes an Object, so this sort excludes it by design (ledger) | n/a | unstated |
+| Words.idr:1247 `Keyword` | catalog | printing-backed (witnessed-rows discipline) | [CR#702] (per row) | 25 rows (Haste…Skulk). Engine-owned words (Trample/Vigilance/Deathtouch/DoubleStrike/FirstStrike) have NO macro and are rows only because the engine implements them; composite rows (Haste, Flying, then Convoke/Improvise/Storm/Lifelink from the GRANT round) are named not implemented here. Ward 137 line-initial lines (87 mana cost incl. 62 bare "Ward {2}", 34 em-dash general cost); Protection 129 lines (72 bare color) — SUBJECT vs QUALITY kept as separate shapes because 50/1238 Enchant lines restrict a player ([CR#702.5d]) while all 129 protection lines describe an object. Enchant 1,238 lines/1,237 cards; Equip 618 lines/594 cards; Ascend 27; Storied 9; Renown 20. Reach: composite, no param, minted on single-witness elision-avoidance (chapter 75), and also a [CR#122.1b] keyword-counter word. Indestructible 229 grant lines; Flash 598 printed lines, all bare. CumulativeUpkeep 80 direct + 5 quoted-grant + 1 spend-restriction (cost spend 57 mana runs/5 life/4 mana-or-mana/2 sacrifice/2 counters/1 discard/1 mana+life/8 irregular), NOT among [CR#122.1b]'s 15 keyword-counter words — `badCumulativeUpkeepCounter`, `badCumulativeUpkeepOnSpell`. Hexproof/Menace/Skulk added for a 15-list keyword trailer (hexproof 10/15, menace 10/15, skulk 1 — Odric). Excluded trailer words: fear(3)/shroud(1) zero-benched; landwalk(3)/protection(6) are keyword CLASSES needing their own quantifier (unminted) | Affinity (5 lines, all parameterized) waits only on a witness now that `keywordParamShape` exists (chapter 73 reopened it); Annihilator (21 [CR#702.86a] lines) shares Renown's NumberParam shape and stays unrowed — "the catalog grows to its consumers", a deliberate non-widening | chapters 71/73/74/75/89/94/130/131 per cell |
+| Words.idr:1257 `KeywordParamShape` | catalog | CR-backed | [CR#702.21a,702.6a,702.16a,702.5a,702.112a] | 5 rows (NoParam/CostParam/QualityParam/SubjectParam/NumberParam); one mechanism for the whole catalog; proved-total design fact: an alternative type-level-table encoding does not elaborate (Idris rejects `{default () p : keywordParam k}`) — finding 464's pattern at its 4th site | n/a — structural/proof-based, not corpus | unstated |
+| Words.idr:1261 `keywordParamShape` | table | CR-backed | (per-keyword CR cites in comments) | total function, one clause per Keyword row; discipline explicitly modelled on `verbAgentive`'s (no wildcard) | n/a | unstated |
+| Words.idr:1302 `keywordParamless` | canon | printing-backed | — | derived from keywordParamShape==NoParam; motivated by measured zero: "creatures with ward"/"with protection" family all zero lines (against 295 for "with flying"); the two supported "with ward"/"with protection" phrases are becomes-clauses (a new object's characteristics), not descriptions — finding 309 | a corpus line using "with ward" as a true restriction would break this canon | finding 309 |
+| Words.idr:1311 `sameKeyword` | table | structural | — | pure equality, vocabulary only | n/a | unstated |
+| Words.idr:1364 `AbilityClass` | catalog | printing-backed (CR corroboration) | [CR#602.1c,606.1,606.2] | 3 rows (AnyActivated/LoyaltyClass/KeywordClass Keyword) over 98 supported lines; AnyActivated 81/98 (78 "activated abilities" with no activator clause + 3 bare "abilities" all carrying one — perfect covariance, backed by [CR#602.1c]'s default-activated rule, so the absent adjective is spelling not a 4th row, finding 275); LoyaltyClass 1 line (Eidolon of Obstruction) minted anyway because [CR#606.1,606.2] names the category; mana-ability-ness explicitly NOT a row — all 14 occurrences are predicative | n/a | finding 275 |
+| Words.idr:1379 `Chroma.Color` | catalog | CR-closed | [CR#105.1] | 5 rows (White/Blue/Black/Red/Green), ported ~verbatim from core by explicit ruling; the ONE closed vocabulary in the file NOT whittled to witnessed rows — "a color is a rules-fixed catalog, not a construction" | n/a | unstated |
+| Words.idr:1382 `Chroma.ColorOrColorless` | catalog | CR-closed | [CR#107.4c,105.1] | 2-shape (Colorless / OfColor Color); ported alongside Color under the same ruling | n/a | unstated |
+| Words.idr:1399 `SimpleManaSymbol` | catalog | CR-closed | [CR#107.4a,107.4b,107.4c] | Generic Nat / Specific ColorOrColorless; ported ~verbatim from core, Idris spec agrees row-for-row | n/a | unstated |
+| Words.idr:1402 `halvesDistinct` | canon | CR-closed | [CR#107.4e] | hybrid halves must differ; the printed set has no "{W/W}"; generic/colorless clash with nothing | n/a | unstated |
+| Words.idr:1412 `phyrexianDistinct` | canon | CR-closed | [CR#107.4f] | two colors must differ; CR states the count "ten hybrid Phyrexian symbols" = C(5,2) | n/a | unstated |
+| Words.idr:1422 `ManaSymbol` | catalog | CR-closed (deliberate headroom) | [CR#107.4,107.4e,107.4f,107.3,107.4b,107.3i,202.3e] | Simple/Hybrid/Phyrexian/Variable/SnowMana; `Variable` NULLARY ([CR#107.3]: only ever one letter, always X); deliberately "a hair more permissive than the printed set" (unprinted `{5/W}` representable), matching core's marked variant headroom; repeated `{X}{X}` needs no separate row ([CR#107.3i]); [CR#202.3e]'s mana-value reading explicitly NOT implemented anywhere in the file (recorded against a future reader) | a mana-value reader being minted would need to address the recorded [CR#202.3e] gap | unstated |
+| Words.idr:1432 `ManaCost` | table | structural | [CR#202.1,202.1a,118.5,202.1b] | `List ManaSymbol`; the empty-list vs `[Simple (Generic 0)]` distinction is type-level, "no clause here exercises it" | n/a | unstated |
+| Words.idr:1436 `manaRunWritten` | canon | printing-backed | [CR#118.5] | empty run refused (no corpus line opens an activation cost on a bare colon); `{0}` payment is a one-element list, not empty (`badEmptyManaCost`) | n/a | unstated |
+| Words.idr:1446 `ProducedRun` | table | CR-closed (corpus-corroborated) | [CR#106.1b,106.8..106.11,107.4h] | `List ColorOrColorless`, deliberately NOT `List ManaSymbol`; across 2,487 supported add-sentences only the 5 pips + {C} ever appear ({C} 739, {R} 544, {G} 520, {B} 405, {U} 364, {W} 323) — no hybrid/Phyrexian/numeral/{X}; [CR#106.1b]'s "six types of mana" is the stated REASON, not scarcity; snow refused on [CR#107.4h] ("Add {S}" written zero times) | a produced-mana line with a non-{C}/pip symbol would break the type's closure (structurally refused, not gated) | unstated (2,487 count, no chapter/finding) |
+| Words.idr:1450 `runsNonEmpty` / :3421 `producedRunsWritten` | canon | CR-backed (corpus counts) | [CR#106.3] | outer list (alternatives): 432/2,487 add-sentences offer alternatives (420 single-symbol, 12 multi — filterland cycle, Cadaverous Bloom, Adarkar Unicorn); inner list (one run): 1,259 sentences print exactly one run (1,001 single symbol, 168 repeated, 90 heterogeneous); both empty-outer and empty-alternative refused (`badEmptyProduction`, `badEmptyAlternative`) — [CR#106.3] leaves no room for producing nothing | n/a | unstated |
+| Words.idr:1465 `altRunWritten` / :3456 `AltRunWritten` | slot | printing-backed | — | Maybe ProducedRun, one unit not a sequence; of "chosen color" sentences: 33 write "mana of the chosen color", 23 print no literal alternative, 10 (5 Gates + 5 Thriving lands) print EXACTLY ONE symbol, always first; second-literal-alternative and multi-symbol-beside-chosen both zero (finding 246 both directions, `badMultiSymbolBesideChosen`) | a second literal alternative or a multi-symbol line beside a chosen-color clause would force `Runs`' own sequence shape onto this reader | finding 246 |
+| Words.idr:1475 `ColorFreedom` | slot | printing-backed | — | SameColor/EachColor; the corpus draws the line EXACTLY by count: all 398 "any color" sentences write amount "one"; all 88 "any ONE color" sentences write 2/3/4/10/X/"that much"; all 47 "in any combination" likewise never at count one; no sentence crosses ("one mana of any one color" and "one mana in any combination of colors" both zero) — finding 275's positive direction; `badLoneCombination` refuses EachColor at written one | a crossing line (count-1 "any one color" or count-1 "in any combination") would break the derived-word logic | finding 275 |
+| Words.idr:1478 `loyaltyStepWritten` / :3503 `LoyaltyStep` | canon | printing-backed | — | nonzero magnitude required: "[+0]"/"[−0]" both zero over 1,034 loyalty cost components (`badLoyaltyUpZero`, `badLoyaltyDownZero`); bare "[0]" is the canonical written zero (59 times) — the same canonicality cut as `PtShift`'s `pumpSignsOk` one vocabulary over | n/a — the zero canon is stable by rule (signless meaning), not just count | unstated |
+| Words.idr:1487 `LoyaltyCost` | catalog | CR-backed (printing-measured magnitudes) | [CR#606.2,606.4,606.6,107.3a,107.3c,107.3k,107.4,122.1e] | 4 rows: LoyaltyUp(n)/LoyaltyDown(n)/LoyaltyDownX/LoyaltyZero. Direction×magnitude crossing explicitly refused as a slot (would spell unattested "[+X]" — 0 lines vs 24 "[−X]", finding 246); magnitudes measured: "+1" 275, "+2" 85, "+3" 4, "+4" 2, no higher plus; minus runs 1..15 then 25, 40 (Nicol Bolas God-Pharaoh, Karn Liberated) — deliberately no ceiling encoded; "0" 59; `Nat` not `Amount` since every magnitude is a bare numeral. `LoyaltyDownX` is a BINDER (announces X per [CR#107.3a]) not a magnitude — the only symbol of the four that announces its letter | a written "[+X]" line would force the direction×magnitude slot design to be revisited | finding 246 |
+| Words.idr:1494 `loyaltyAnnouncesX` | table | CR-backed | [CR#107.3a] | total function; only LoyaltyDownX is True | n/a | unstated |
+| Words.idr:1501 `Subtype` (constructor →3796, `sameSub` 3799–3982) | catalog | printing-backed (witnessed-rows, one card at a time) | [CR#205.3m,205.3i,305.6,205.3j,205.3q,205.3h,205.3g,205.3k,306.3,308.1,714.1,714.1a,205.1a,205.3c,205.4c] | ~130 rows, grown one card/witness at a time across chapters 70–132+, each row's comment naming its buying card (Sliver/Ward Sliver; Wall/four "choose a creature type other than Wall" lines; Illusion/11-card Mistform cycle; Siege/36 supported battle cards all self-naming "this Siege" 37 vs "this battle" 0; Aura/477 own-line "this Aura" occurrences over 400 cards vs "this Curse" 0/42; Saga/240 corpus Sagas, 223 supported; Ally+Gideon/Gideon Ally of Zendikar). PHYREXIAN NAME-STRADDLE LEDGER: `Phyrexian` is explicitly NOT a Subtype row despite Phyrexian Revoker/Voidstone Argoyle/Bureau Headmaster, because the name is already claimed by the Phyrexian mana-symbol constructor ([CR#107.4f]) and Idris admits one constructor per name — a ledgered collision, not worked around. Planeswalker types: Jace/Elspeth (ch89), Gideon (ch94) — 3 witnessed of [CR#205.3j]'s 81. `Shapeshifter` has a documented add/remove/re-add history (minted ch92, removed on a wrongful dead-public-witness refusal, restored per finding 769) — a within-catalog history note, not a live contradiction. Deliberately NOT a port of core's open-plugin `Subtype{name,types,confers}` shape — "a bench cannot witness hundreds of rows". Censused as ONE catalog row | each new subtype-bearing card witnessed adds exactly one row, "exactly as CardType does"; a hypothetical second Phyrexian-named card would still be refused the constructor name | chapters 70–132+ named per row in source comments |
+| Words.idr:1728 `subtypeType` | table | CR-backed | [CR#205.1a,205.3m,205.3i,305.6,205.3c,205.3j,308.1,714.1a] | full rows over every `Subtype`; per-row CR anchors for the correlated-card-type structure (Siege=Battle, Saga=Enchantment, planeswalker types, Equipment=Artifact, Arcane=Instant, kindred Treefolk still =Creature); [CR#205.3c] "correlates each subtype to its own card type", so a subtype cannot be minted under a borrowed card type (Siege blocked until Battle existed as a CardType row) | add a row for any new subtype minted | unstated (Siege anchored to chapter 70) |
+| Words.idr:1822 `BasicLandType` | slot | CR-closed | [CR#305.6,305.7,205.1b,205.4c] | 5 constructors (PlainsBasic/IslandBasic/SwampBasic/MountainBasic/ForestBasic), explicitly chosen over a Bool table (contrast `keywordCounterOk`'s open-catalog Bool gate) because [CR#305.6] closes the membership PERMANENTLY — "a future `Subtype` row cannot join it" — so no forcing function is needed; the witness gates [CR#305.7]'s unstated rules consequence (ability loss + mana-ability gain) that no card's own sentence states (Blood Moon writes only "Nonbasic lands are Mountains"); NAMING order (word-first, `IslandBasic`) deliberately avoids collision with oracle's own "basic Island", which under [CR#205.4c] means Basic-the-supertype restricting Island-the-subtype (Wastes proves the two axes separate) | n/a — CR-closed, no widening axis | unstated |
+| Words.idr:1830 `TypeSpace` | catalog | printing-backed | [CR#308.1] (kindred refusal) | 3 rows (BasicLandSpace/LandSpace/CreatureSpace); corpus: 5 basic-land ascriptions + 1 grant, 8 creature-type ascriptions + 8 grants, 1 land-type ascription (Omo) + 3 loss sentences unbuilt | a kindred row would widen if a kindred-subject "every creature type" sentence appeared (currently zero, pin `badEveryCreatureTypeOnKindred`) | finding 930a, finding 246 |
+| Words.idr:1833 `spaceHosted` / `SpaceHosted` | table | CR-backed | [CR#308.1] | corpus agrees 22 of 22 (land subject for basic-land/land space, creature subject for creature space); kindred cell refused despite the rule licensing it | widen if a kindred-subject sentence is found | finding 246 |
+| Words.idr:1843 `BasicLandTypes` | slot | CR-backed | [CR#305.7] | list witness over `BasicLandType`; corpus writes both singular (14 lines) and plural (Lush Growth, 3 types) arities | — | unstated |
+| Words.idr:1852 `ascribesAsType` | table | printing-backed (Battle cell) / CR-backed (rest) | [CR#109.2,110.4,308.1] | Creature 12,195, Artifact 1,284, Land 1,242, Enchantment 1,098, Planeswalker 1 line ("this planeswalker", Kasmina); Battle False despite the rule licensing it — "this battle" 0 vs "this Siege" 37; Kindred False (0, and [CR#308.1] explains it); Instant/Sorcery False (0) | Battle cell flips True if "this battle" is ever printed (pin `badAscribeBattle`) | unstated |
+| Words.idr:1866 `ascribesAsSubtype` | table | printing-backed | [CR#109.2] | nine self-naming words True (Aura 477, Equipment 253, Vehicle 166, Saga 92, Siege 37, Class 27, Spacecraft 20, Case 13, Room 4 — only Aura/Equipment/Saga/Siege have catalog rows here, the rest "measured and unrowed, growing a row when a card benches one"); every creature type False incl. Spirit (353/299), Shapeshifter (23/22), Bird (99/92), Ally (127/115), Horse (5); planeswalker types False (8 "this planeswalker" but 0 "this Jace"/"this Elspeth") | queue: a row is minted per new bench card for the seven unrowed self-naming words | finding 636, chapter 70 |
+| Words.idr:1960 `ascriptionOk` | canon | structural | [CR#109.2,205.3c] | combines `ascribesAsType`/`ascribesAsSubtype` with the `sameCT (subtypeType s) t` agreement check | — | unstated |
+| Words.idr:1966 `Counter.Delta` | catalog | printing-backed | [CR#122.1a] | two rows (Up/Down) not three: "no card sets a stat counter to a value"; "-0/-1" evidenced (6 lines) | a third row (SetTo) if a card ever sets a stat counter to an absolute value | unstated |
+| Words.idr:1978 `keywordCounterOk` | table | CR-closed (frame) / printing-backed (cells) | [CR#122.1b] | FORCING function over the 15-name list; True: Haste, Flying, Trample, Vigilance, Deathtouch, DoubleStrike, FirstStrike, Reach, Lifelink, Indestructible, Hexproof, Menace (8 minted so far); False: Convoke, Improvise, Storm, Ward, Protection, Enchant, Equip, Ascend, Storied, Renown, Flash, CumulativeUpkeep, Skulk — each a 0-line count for "X counter" | every future `Keyword` row must add a cell before it can be a counter kind; one printed "ward counter" flips a cell with no rule to consult | unstated |
+| Words.idr:2049 `Supertype` | catalog | printing-backed | [CR#205.4a,205.4b] | 3 of the rule's 5 (Legendary, Basic, Snow); the rule closes the set at 5 but only 3 are witnessed ("World and Ongoing remain unminted") — like CardType's 6-of-15 whittling, explicitly NOT rules-fixed structure the way Color is | add World/Ongoing rows when a witness lands | unstated |
+| Words.idr:2061 `Designation` (+`designationScope`, `sameDesignation`) | catalog | CR-backed, OPEN SET by ruling | [CR#725.1,726.1,702.131c,702.195b,701.15b,701.54b,701.37b,702.112b,701.60b,702.171b,722.3a,903.3,731.1] | 14 rows across 4 scopes (Player×4, Object×7, Card×1, Game×2); `docs/designations.md` censuses 21 CR-defined designations, this catalog carries only corpus-written ones — deliberately open, replacing 3 legacy enums + 7 bespoke grammar rows; `ObjectDesignation` had ZERO consumers when deleted | a new row per corpus-written designation, no grammar change needed (the architectural point of the round) | unstated |
+| Words.idr:2124 `designationChecked` | table | printing-backed | [CR#701.60b] | True: Monarch(32), TheInitiative(8), CitysBlessing(27), EnduringStory(9), Goaded(33), RingBearer(3), Monstrous(9), Renowned(6), Suspected(20), Saddled(52, 29 of them "becoming"), Night(4); False: CommanderD(3, all inside one unread static ability, finding 188), Day (ZERO — "if it's day" never printed, the asymmetry `badItIsDay` records, carried from the old `timeCheckOk`) | — | unstated |
+| Words.idr:2141 `designationGiven` | table | printing-backed | — | True: Monarch(64), TheInitiative(23), Goaded(33), Suspected(14), Prepared(29), Day&Night(13); False each for a distinct measured reason: CitysBlessing/EnduringStory (conferred via ASCEND/STORIED keywords, no operative "becomes" clause), Monstrous/Renowned (conferred via MONSTROSITY/RENOWN keywords, every "becomes" line is a trigger not an instruction), RingBearer ("becomes your Ring-bearer" 0 lines), Saddled (written as instruction 4 times but every one carries a duration — the durationless form is 0 lines), CommanderD (assigned at deck construction) | the Saddled cell waits on the held-until slot construction | unstated |
+| Words.idr:2158 `designationSeedZone` / `designationSeedType` / `DesignationHolder` | table | CR-backed | [CR#701.60b,701.54e] | seedZone: object-scope rows seed Battlefield, player/card/game seed Nothing; seedType: 6 of 7 object rows seed Creature (from head-word measurement), Saddled seeds Nothing (its lines carry the type on the head noun instead, "target Mount you control") | — | unstated |
+| Words.idr:2199 `AttachWord` (+`sameAttachWord`) | catalog | CR-closed | [CR#303.4b,301.5a,301.6] | 3 rows, one per rule-defined participle; the first noun surface for a pre-existing core/legacy pointer primitive (`AttachHostOf`) that had none; corpus confirms "the creature this is attached to" paraphrase is 0 lines | — | unstated |
+| Words.idr:2211 `attachHeadOk` | table | printing-backed | [CR#303.4b,301.5a,301.5f,303.4m,301.6,308.1] | full (participle × head) grid. Enchanted: True for Creature(931), Land(79), Permanent(76), Player(54), Artifact(22), Enchantment(4), Planeswalker(10, rule-admitted via "an object"); False for Instant/Sorcery/Card/Spell/Token/Copy (0 each, structural), Kindred (0, [CR#308.1]), Battle (0, CORPUS refusal not rules — the rule permits it, pin `badEnchantedBattle`), JoinW (0 cross-Kind — 49 lines DO join same-Kind pairs, e.g. "artifact or creature" 23, so only the cross-Kind head is refused). Equipped: True only Creature(605); all else False incl. Planeswalker(0 — [CR#702.6e] routes via "equipped permanent" per the docstring, though the PermanentW cell itself is coded False — see §7). Fortified: True only Land(3, rules-backed via [CR#301.6] despite the thin count); all else False | the Battle enchant-cell flips if a corpus line ever writes "Enchanted battle" | unstated |
+| Words.idr:2262 `attachedCheckOk` | table | printing-backed | — | "is enchanted" 27/25 True, "is equipped" 22/22 True, "is fortified" ZERO False — a closure not a gap: the head-word participle IS attested ("fortified land", 2 cards) but this predicative READER is refused (pin `badIsFortified`) | — | unstated |
+| Words.idr:2272 `attachHostZone` / `attachHostTy` | table | structural | [CR#303.4b,301.5a] | permanent-projecting heads → Battlefield; PlayerW → Nothing; CopyW → Stack; JoinW → Nothing (the class word's own reason) | — | unstated |
+| Words.idr:2294 `OutcomeVerb` | catalog | CR-closed | [CR#104.2b,104.3e] | two rows (WinGame/LoseGame); ported from two agreeing prior arts (core `Action::{WinGame,LoseGame}`, legacy `Outcome`) | — | unstated |
+| Words.idr:2304 `OutcomeGateKind` | catalog | structural | [CR#101.2,104] | two rows (CantLose/CantWin); frozen to match legacy `Semantics.idr`'s `OutcomeGate` — "a third value here would be a word the layer below cannot resolve" | none — parity-locked to a frozen layer | unstated |
+| Words.idr:2307 `PlayerAct` | catalog | CR-backed (3 of 5) / printing-backed (2 of 5) | [CR#119.7,121.3,101.2,305.2,701.23a] | GainsLife 21 (16 lines + 4 this-turn + 1 fenced), PlaysLands 7 (4+3), CastsSpells 7 (2+5, +5 excluded reminder), SearchesLibraries 4 (3+1), DrawsCards 2; measured-not-minted: "can't lose life" [CR#119.8] 2 lines both as conjuncts (no bare sentence), "can't pay life" 3 lines all qualified, "can't cast spells" bare row excludes 74 qualified-tail sentences | a new row when a bare "can't lose life" sentence appears; CastsSpells could split for qualified tails | ledger (chapters unstated) |
+| Words.idr:2311 `ObjectAct` / `riderAct` | catalog | CR-backed (3) / printing-backed (3) | [CR#701.6a,101.2,305.1,601.1a,602.5,701.19c,608.2c] | Countered 123/113 (87 self-ref), Cast 9/8, Copied 3 (+2 excluded reminder), Played 2, Activated 74 total incl. 12 excluded reminder → 62 real (19 class-subject/43 possessor-anchored, corrected from an earlier wrong 15/50 split), Regenerated 156/152 splitting 2×2 (138 CantBe rider no-span, 18 spanned ObjectCant, 0 in the two crossing cells); `riderAct`: Regenerated=True (**stated as 135 here against the 138 two paragraphs above — see §7**), Countered=True (1, Savage Summoning), Cast/Played/Copied/Activated=False (measured zeros, pins `badCastRider`, `badCopiedRider`) | — | chapter 122 (Activated), chapter 125 (Regenerated) |
+| Words.idr:2339 `CounterKind` (+`counterScope`, `CounterKindNamed`) | catalog | CR-backed (Boost) / CR-closed (Keyword via `keywordCounterOk`) / printing-backed (flat tail) | [CR#122.1,122.1a..122.1j,306.5c,109.3,714.3,702.24a] | BoostCounter (12 printed pairs + 2 macros); the flat tail earns rows one-by-one on a two-half test (corpus writes a one-shot put/remove AND the grammar can write it): Charge 88 puts/64 removes, Omen 3 cards, Spite 1 card, Rev 1 card (Chainsaw), Intervention (Divine Intervention upkeep remove), Poison 25/Rad 20/Experience 15 (the three PLAYER-scope kinds, [CR#122.1]'s "object or player" other half), Lore 12 lines (4 removes) — correcting a prior WRONG cross-link, Age 15/187 non-reminder lines (14 reads + 1 put) — correcting a prior wrong "all 85 reminder text" count; refused: Loyalty and Defense (characteristics per [CR#122.1e,306.5c,122.1g,109.3], not markers, and neither word is a CardType row), Ticket (routed to the symbol/energy family, its 2 lines use "{TK}" notation not this verb) | a new flat-tail row per bench card clearing the two-half test (Oil/Quest/Level/Spore/Storage/Ki/Verse/Depletion queued, clear half 1, wait on half 2) | chapter 16/finding 85, chapter 69, finding 200, finding 481 |
+| Words.idr:2412 `ChapterNumber` / `chapterOrd` | count | printing-backed | [CR#107.15,714.2a] | closed-count catalog, 6 rows (I–VI) not a Nat; over 223 supported Sagas the final-chapter distribution is 3→184 cards, 4→34, 6→3, 5→1, 2→1 (sums to 223); the greatest numeral anywhere is VI | the rule's "and so on" leaves room a 7th numeral would use if printed | finding 246 |
+| Words.idr:2425 `chapterMarksOk` / `ChapterMarks` | canon | CR-backed | [CR#107.15b,714.2c,714.2d,714.4,608.2c] | nonempty (223/223 Sagas write a numeral); strictly ascending (98 comma-joined lines all ascend, no repeats: "I,II" 45, "II,III" 22, "I,II,III" 14, "III,IV" 5, "I,II,III,IV" 4, +6 more shapes incl. Blink's "I,III"/"II,IV"); completeness across a whole card's chapters deliberately NOT gated (Blink prints two non-contiguous markers out of card-order) | — | unstated |
+| Words.idr:2436 `TypeLine` / `lineHasType` / `lineNonEmpty` / `subsFitLine` | table | CR-backed | [CR#205.1,205.1a,308.2] | one record for the token-definition and type-addition readers (both write subtypes-before-types); kindred exception: a creature-type subtype fits a line naming Kindred, per [CR#308.2]'s own worked example "Kindred Enchantment — Merfolk"; supertypes are a third list neither reader witnesses | — | ledger (supertype gap) |
+| Words.idr:2465 `typeRank` / `typesOrdered` | canon | printing-backed (Battle/Instant/Sorcery ranks UNWITNESSED) / CR-backed (rest) | [CR#111.3,205.1a] | total order over 9 CardType rows from pairwise corpus evidence: Kindred precedes all 4 partners with no reversal (23/23/19/8 lines); Enchantment before Artifact (1 line, sole counterexample the pre-standardization Flanking Licid wording); Land/Creature witnessed via the Dryad Arbor token; Planeswalker after Creature (1 card, Artifact Planeswalker); Battle rank UNWITNESSED (no supported battle card prints a 2nd type); Instant/Sorcery ranks UNWITNESSED (0 mixed lines) | a future mixed-type-line printing involving Battle/Instant/Sorcery could confirm or contradict the picked convention | unstated |
+| Words.idr:2488 `permanentType` | table | CR-closed | [CR#110.4] | 6 True (Creature, Planeswalker, Battle, Artifact, Land, Enchantment) / Kindred+Instant+Sorcery False, all by rule quote, no corpus count | — | unstated |
+| Words.idr:2500 `spellType` | table | CR-closed | [CR#205.1a,110.4] | Instant/Sorcery True, all 7 others False; the rule is the warrant, not a count | — | unstated |
+| Words.idr:2512 `placeableTy` / `destTypeOk` / `Placeable` | table | CR-backed | [CR#110.4a,400.1] | only the Battlefield destination constrains type; the other 5 zones admit any type (corpus moves instants/sorceries freely between them) | — | unstated |
+| Words.idr:2530 `StatusCat` / `StatusVal` / `sameStatusVal` / `statusClash` | catalog | CR-closed | [CR#110.5,110.5a,110.5b,110.5c,110.5d] | 4 categories × 2 values each, exhaustive and mutually exclusive within a category by rule | — | unstated |
+| Words.idr:2582 `statusWordOk` (DESCRIPTION reader) | table | printing-backed | — | True: Tapped, Untapped, FaceUp, FaceDown (written on creature/artifact/land/permanent/token heads); False (zero-count refusals): Flipped (1 occurrence total, unclassified frame — reserved not refused-by-rule), Unflipped (0), PhasedIn (0), PhasedOut (participial frames unclassified) | the single "flipped" line could seed a row if a frame classifies it | unstated |
+| Words.idr:2597 `statusEventOk` (TRIGGER HEADER reader) | table | printing-backed / CR-backed (Unflipped) | [CR#710.4] | deliberately NOT derived from statusWordOk (they disagree on the phase pair); Tapped 115 "becomes tapped", Untapped 37; FaceUp 125 "is turned face up" triggers, FaceDown ZERO (pin `badTurnedFaceDownEvent`, one near-miss noted: Vesuvan Shapeshifter's duration-endpoint use, a second unsplit reader); PhasedOut 2 headers/PhasedIn 3 (both open; "the prior comment's 'seven trigger headers each direction' did not reproduce"); Flipped/Unflipped both False — 0 triggers on a flip, Unflipped additionally CR-closed impossible ([CR#710.4] "one-way process") | — | unstated |
+| Words.idr:2614 `statusEffectOk` (INSTRUCTION reader) | table | printing-backed / CR-backed (Unflipped) | [CR#710.1a,702.26a,710.4] | Tapped 291/280, Untapped 255/254 (the family giants); FaceDown 19/FaceUp 25 (turn-frame; "the prior comment's '42 imperative lines' did not reproduce"); PhasedOut 37/PhasedIn 1 (Pandorica, "evidence without a bench positive"); phasing has NO imperative form ([CR#702.26a] intransitive-only); Flipped OPEN at 16 lines — correcting a round's briefed expectation (coin-flip counted separately, 67+4); Unflipped refused twice: 0 occurrences AND rules-impossible (pin `badUnflipInstruction`) | — | unstated |
+| Words.idr:2631 `colorMember` / `colorsDistinct` / `ColorsDistinct` | canon | CR-closed | [CR#105.2] | duplicate-freeness only, deliberately NOT ordered — Additive Evolution's "green and blue" would contradict a mana-order rule | — | unstated |
+| Words.idr:2646 `addedFits` / `AddedFits` | canon | CR-backed | [CR#701.47a] | type-addition's subtype check: an added subtype may sit on an added type or on the subject's existing head type (amass's "it becomes a Zombie" on an Army creature) | — | finding 50 |
+| Words.idr:2660 `anyNewType` / `addsSomething` / `AddsSomething` | canon | CR-backed | [CR#205.1b,701.47a] | corpus writes no line adding only the subject's own head type (Tezzeret example); the gate deliberately under-refuses (subtypes are never provably redundant) | — | unstated |
+| Words.idr:2679 `retainable` / `retentionOk` / `RetentionOk` | table | CR-backed (Land/Enchantment/Planeswalker True) / printing-backed (Creature/Artifact/Battle/Kindred False) / CR-closed (Instant/Sorcery False) | [CR#205.1a,205.1b] | Land 134/146 rider lines, Enchantment 1; Creature/Artifact False = measured zero riders (the type line already shows why); Battle/Kindred False = zero riders; Instant/Sorcery False = closed by rule not count ([CR#205.1a] auto-retains them); Planeswalker corrected True — 8 lines, every one a Gideon, closing a gap this table used to record as "unspellable" | the Planeswalker cell already flipped once (False→True) when CardType gained the row; documented as a self-correction | chapter 82 |
+| Words.idr:2703 `TokenRider` / `ridersOk` / `RidersOk` | catalog | CR-backed (existence) / printing-backed (pairing+order) | [CR#508.4] | 2 rows; the corpus fixes the combination as a closed list of 3 shapes: none / [EntersTapped] / [EntersTapped, EntersAttacking] — bare tapped 159 lines, tapped+attacking 66; "attacking without tapped" is 0 lines (pin `badAttackingUntapped`), reversed order 0 lines | a bare EntersAttacking or a reversed-order line would need a new shape | unstated |
+| Words.idr:2719 `lastType` | table | structural | [CR#205.1b] | projects the LAST CardType in a line as the compound's head noun (distinct from a first-member rule used elsewhere); unreachable-but-total on an empty list | — | unstated |
+| Words.idr:2726 `TurnPart` | catalog | CR-backed | [CR#500.1,505.1] | 10 rows; MainPhase is CR-NAMED not merely permitted ([CR#505.1] "individually and collectively known as the main phase"); its trigger-header gap first measured at 3 lines (chapter 114), a second payer found later (chapter 120: "followed by an additional main phase" 9×, "after this main phase" 8×, neither naming which) | — | chapter 114, chapter 120 |
+| Words.idr:2761 `Whose` | catalog | printing-backed | — | 2-row closed pronominal vocabulary (Yours/ThatPlayers) for a DURATION endpoint's possessor; explicitly NOT noun-valued, to avoid re-indexing every `Duration` consumer; the one line needing a noun possessor is a base-type SETTING clause with no construction, so its possessor "waits" | a layer-word construction for base-type setting would need to open the noun-possessor case | ledger |
+| Words.idr:2765 `Owner` (namespace) | catalog | printing-backed | [CR#500.1] | 7 rows, a superset of core's 3 (`Your`/`EachPlayers`/`AnOpponents`); adds EachOpponents, EachYours (corpus-only) and ThatTurns (deictic turn possessor, attested at ONE part per `partUse`); counts: "each player's upkeep" 76, "each opponent's upkeep" 33, "each of your postcombat main phases" 7; a separate vocabulary from `Whose` by design (the header writes quantifiers, the endpoint writes none — "until end of each player's turn" is 0 lines); sharing was explicitly rejected because it would add 90 `Unattested` cells to `spanUse` | — | finding 254 (derived-possessor precedent ruled inapplicable) |
+| Words.idr:2787 `DurationEnd` | slot | CR-backed | — | StartOf/EndOf × TurnPart × Maybe Whose; "next" and its article are derived, not parameters (a possessed endpoint is always the next one) | — | unstated |
+| Words.idr:2794 `SpanUse` | catalog | printing-backed | — | the row NAME is the measured set of constructions writing that adverbial (naming convention stated explicitly); counts embedded in prose for several rows (type SETTING: "until end of turn" 257, "until your next turn" 5, "for as long as" 12, the sole non-grant user of "until your next upkeep" and "until end of combat"; ABILITY LOSS: 22/2/5; base-P/T SETTING: 63+3; SWITCH: 25, none other); the per-adverbial gate table itself lives at `spanUse` in Experimental.idr | a new construction writing a duration adverbial renames or splits a row | unstated (per row) |
+
+---
+
+### 4.2 `Experimental/Events.idr`
+
+| Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
+|---|---|---|---|---|---|---|
+| Events.idr:11 `EventName` | catalog | printing-backed | [CR#603.6c,700.4,111.1,111.2,614.16,714.2b,714.3a,122.1] (mixed per row) | 26 rows over "the whole supported corpus"; `Placement` alone backed by 242 trigger headers + 103 replacements; `CounterPlacement`/`CounterRemoval` split on 20-vs-0 replacement lines; `TokenCreation` on an 82-vs-5 entry/create split; ledgered absentees named in the head docstring (put-into-graveyard, becomes-the-target, create, the life-change pair folded in as named rows instead) | a new event = totality error on every table below | ch28 (naming correction), ch94/unstated for the full count |
+| Events.idr:22 `statusEventName` | table | printing-backed | — | 3 names (TapC/FlipC→StatusChange, FaceC→TurnedFaceUp, PhaseC→PhasingChange) kept apart though "nine identical cells apiece" across 6 readers today; kept because Vesuvan Shapeshifter's "until turned face down" is one attested line that would force disagreement; the FlipC cell is unreachable (`statusEventOk` refuses both flip values) | a line replacing/holding/delaying a status transition would force the merge question again | unstated |
+| Events.idr:32 `CounterMove` | slot | structural | [CR#122.1] | 2 values (CounterPut/CounterTaken) on one `GameEvent` row rather than 2 rows — a spelling-frame choice, not corpus-whittled; core splits into 2 filters, the effect splits into 2 verbs, but neither divergence forces this row's shape | none stated — the arrangement is fixed by the vocabulary's own indexing convention | unstated |
+| Events.idr:35 `counterEventName` | table | structural | — | 2-cell projection, CounterPut→CounterPlacement, CounterTaken→CounterRemoval | — | — |
+| Events.idr:40 `CounterBatch` | count | printing-backed | — | 2 values (OneCounter/ManyCounters); 42 headers: placement writes "one or more" 30× / "a" 3×, removal "a" 7× / "one or more" 2×; does not covary with direction, kind, or holder | a new determiner attested anywhere would add a third row | finding 275 (the covariance test) |
+| Events.idr:107/314 `EventUse` / `eventUse` | table | printing-backed | [CR#603.6c,614.9,603.7,614.3,614.8] | 26 events × 7 classes, ONE row per event; refused cells named: `Destruction`=EventUnclaimed (regeneration replacement + trigger header both zero in modern templating — the one row NO construction claims); `LifeGain`/`LifeLoss`=EventUnclaimed (no `GameEvent` producer row exists — a structural absence, not a corpus zero); `SpellCast` refuses intercept/hold/delay by rule+count (the delayed form is real but "not one line of it is writable"); `CounterRemoval`'s "would be removed"/"taken off" zero against `CounterPlacement`'s 20 | a new `EventUse` value = totality error on the `admits*` readers; LifeGain/LifeLoss are "the cells to re-measure" once a producer lands | ch28 (Entry cell correction) |
+| Events.idr:140/499/514/529 `admitsIntercept` / `admitsHold` / `admitsTrigger` / `admitsDelay` | table | structural | — | full rows over `EventUse`'s 7 constructors each — pure projections, no independent corpus claim beyond `eventUse`'s own | a new `EventUse` value forces all four | — |
+| Events.idr:180 `eventSpan` | table | printing-backed | [CR#603.7,610.3,611.2a,611.2b] | 26 rows, EVERY ROW `Unattested` or `Unclaimed` — no event ever ends a duration; `Departure`=Unclaimed (three genuine [CR#611.2a] continuous durations exist but this grammar lacks the constructions); `PartBeginning`=Unclaimed (double-spelling refusal, `badUntilBeginningOfUpkeep`); the rest Unattested by exhaustive negative count | any attested "until [event]" line would flip a cell from silence to a real class | unstated |
+| Events.idr:208/659 `ReplUse` / `replUseOk` | table | printing-backed | [CR#614.3,614.8] | 26×2 grid; `SpellCast` both False (no would/instead writer exists — `Interceptable`'s refusal, not this table's); `Destruction` both True despite being unreachable through this vocabulary (`Interceptable` shuts the event at Unclaimed); `LifeGain`/`LifeLoss` both False pending a producer; the one-shot words `badNextTimeWouldDie`/`badNextTimeWouldEnter`/`badNextTimeWouldCreate` pinned zero across Death/Entry/TokenCreation | a producer landing on LifeGain/LifeLoss reopens those cells; a "the next time X would Y" line anywhere flips a pin | unstated |
+| Events.idr:265/811 `TriggerWord` / `triggerWordOk` | table | CR-backed (`At` only) / printing-backed (When/Whenever posture) | [CR#603.1,603.2b,113.3c,714.2b] | 26×3 grid; `At` assigned absolutely by [CR#603.2b] to `PartBeginning` only; the When/Whenever split is the campaign's named "tolerated over-generation" posture — the corpus splits (SpellCast 948 Whenever/121 When; GameLoss 5/2; LastCounterRemoval 100% When; CounterPlacement/TokenCreation/TimeShift 100% Whenever) but the grammar "declines to encode" most of them, leaving both cells open; `ChapterArrival` is the ONE row where the word is rule-conferred rather than measured ([CR#714.2b] supplies "When" verbatim), shutting Whenever/At (`badChapterWhenever`) | any split the corpus later demonstrates cleanly could tighten a tolerated-open cell; a second rule-conferred header would add a second closed row | finding 247, finding 172 |
+| Events.idr:346 `lookbackSubjectOk` | table | printing-backed | [CR#122.1,120.7] | 26×2 (Object/Player) grid; two cells refused for the SHARPER reason (the line is written but the query cannot finish it): `CombatDamage Player` (dealer-side damage has no name here — ledgered), `Placement`/`TokenCreation` both sorts (destination/patient not optional, ledgered); `GameLoss` both False and CLOSED (`badGameLossLookback` — the 2 lines that look back are player-counts, not window reads); `DamageTaken Player` and `TokenCreation Player` were re-measured cells that flipped True when a second reader (predicate position) landed — "a cell is a property of the QUERY… a later look can only add Trues"; `BlockedDeclaration Object` similarly flipped from a stated zero to True | a coordination construction would reopen the 4 "X or was X" blocked-family lines currently blocked on coordination, not this cell | ch42 (original measurement) |
+| Events.idr:410 `lookbackComplementOk` | table | printing-backed | [CR#614.16,120.7] | 3-axis (event × subject-Kind × complement-Kind) grid; counts: SpellCast 139/141 complemented, DamageTaken 48 (39 object-victim/9 player-victim), CombatDamage 3 (all Player recipient), AttackDeclaration 18 attackers-with/4 attacked-player over 3 live cells + 1 named zero (Object×Object refused — "not English"), TokenCreation 6, BlockDeclaration 1 (Joven's Ferrets), BlockedDeclaration 2 (Ride Down, Triton Tactics); measured zeroes grouped by REASON: intransitive events (Death/Departure/Entry), fixed-patient events (CardDrawn), magnitude-not-participant (LifeGain/LifeLoss, routed to the ledgered `EventSum`), second-complement-sort-not-this-slot (Placement/CounterPlacement/CounterRemoval — zone/kind is a different complement axis, ledger) | the Placement/Counter pair's true complement (zone, kind) is a named but unbuilt second table — landing it would not touch this table's cells | unstated |
+| Events.idr:441 `bareLookbackOk` | table | printing-backed | — | 26×2 grid; two OBLIGATORY-complement pins: `CombatDamage Object`=False (`badBareCombatDamageLookback`), `TokenCreation Player`=False (`badBareTokenCreationLookback`) — "a creation is a creation OF something"; all other reachable cells True by design (nothing to omit where no complement cell exists) | none stated | ch42 |
+| Events.idr:473 `PartUse` / `partUse` | table | printing-backed | [CR#505.1] | 5 parts × 8 possessors = 40 cells (Turn/UntapStep entirely `PartUnattested`; `MainPhase` RECLASSIFIED — 2 cells moved `PartUnattested`→`PartUnclaimed` when delayed-ordinal lines (Mana Drain family, 6 lines) were found real but unwritable); `PostcombatMain` shows a "perfect" spelling split (Yours=5 headers, EachYours=7, both cross-cells zero) but caveated — "your postcombat main phase" occurs 8× elsewhere, so the perfection is reader-scoped not language-wide; `Upkeep Nothing` RECLASSIFIED (was Unclaimed, is now Unattested — the "each upkeep" 36 lines belong to `EachPlayers`'s second spelling) | landing the ordinal vocabulary flips `MainPhase`'s 2 Unclaimed cells to Triggered | ch27 (possessor gap) |
+| Events.idr:556 `admitsPartTrigger` | table | structural | — | 3-row answer axis, a pure projection of `PartUse` | a new `PartUse` value forces this row | — |
+| Events.idr:563/1587 `SkipUse` / `skipUse` | table | printing-backed | [CR#500.11,614.10] | 9 turn parts × 4-value axis; measured over 27 bare-skip sentences (35 part-occurrences + 11 turn-occurrences); two readers (scheduled/standing) DISAGREE in opposite directions on `Turn` (scheduled-only, 6 sentences/11 occurrences, `badStandingSkipTurn`) and `Upkeep` (standing-only, `badSkipNextUpkeepStep`); `DrawStep`/`UntapStep` both readers True; `EndStep` a notable zero at BOTH readers despite being the most-used part elsewhere (`badSkipEndStep`) | any standing-Turn or scheduled-Upkeep line would break a named pin | unstated |
+| Events.idr:579/1612 `admitsScheduledSkip` / `admitsStandingSkip` | table | structural | — | full rows over `SkipUse`'s 4 constructors | a new `SkipUse` value forces both | — |
+| Events.idr:594/1653 `AddUse` / `addUse` | table | printing-backed | [CR#500.8,500.9,500.10a] | 10 turn parts × 4-value axis; measured over 48 existential-frame occurrences; 3 readers (added/follows/anchors) disagree per part — `Combat` added 44×, anchors 1×, follows 0× (`badCombatFollows`); `MainPhase` follows 9×, anchors 8×, added 0× (`badAddedMainPhase`) — an exact mirror; `EndStep` added-only (1 occurrence, Y'shtola Rhul); one attested part (the "beginning phase", 3 occurrences: Cyclonus, Shadow/Sphinx of the Second Sun) has NO row at all — ledgered rather than minted | landing a "beginning phase" row is named as owed | unstated |
+| Events.idr:610/1675/1689 `admitsAdded` / `admitsFollower` / `admitsAnchor` | table | structural | — | full rows over `AddUse`'s 4 constructors; the anchor's `Nothing` case noted as a "bare sort word" not a missing phrase, itself derived (agrees with the added part 48/48, finding 275) | a new `AddUse` value forces all three | finding 275 |
+| Events.idr:632 `DamageKind` | catalog | CR-closed | [CR#615.1,510.2] | 3 rows (AnyDamage/CombatOnly/NoncombatOnly); closed because "the only qualifier oracle puts on the noun is the combat/noncombat split" and no fourth qualifier ("all trample damage", "all excess damage") is written | a fourth prevention qualifier attested anywhere would need a new row despite the rule closing the set at 2 sub-kinds | unstated |
+| Events.idr:636 `Deed` | catalog | printing-backed | [CR#506.3] (implicit) | 2 rows (Attack/Block) — "these lead the one-shot restrictions in the corpus; the rest of the deontic surface is either the parked ability layer or a deed with no clause of its own yet" — scope-limited by what is built, not by a rule closing the deed space | a third deontic-restricted deed adds a row and every table over `Deed` | unstated |
+| Events.idr:639 `Role` | slot | structural | — | 2 values (Agent/Patient) — a one-subject clause's only axis, marked by voice not a second slot; the predecessor grammar's own naming (`Enact Block <agent> <patient>`) | none — closed by clause arity, not measurement | — |
+| Events.idr:642 `CompTag` | catalog | printing-backed | — | 3 rows (ForbidT/RequireT/GateT) — "a fourth would be symmetry"; `May` explicitly refused, "'may attack' is written zero times, attacking being permitted by default" [CR#506.3] | a "may attack/block" grant line attested anywhere adds the 4th polarity | finding 331 |
+| Events.idr:645 `PatientNeed` | count | structural | — | 3 values (Refused/Optional/Required) — the answer axis of `deonticPatientOk`, not independently corpus-driven | — | — |
+| Events.idr:660 `deonticPatientOk` | table | printing-backed | — | full 3×2×2 grid (polarity × deed × role); only `Block Agent` is ever non-Refused: `ForbidT`=Optional (14 lines named, "many more" bare — see §6), `RequireT`=Required (all 38 lines), `GateT`=Optional (Hipparion 1 line vs unquantified plural-subject lines at zero) | none stated | finding 334 |
+| Events.idr:675 `deedType` | table | CR-closed | [CR#506.3,701.14b,701.14d,308.1] | full 2×2×9 CardType grid; `Attack Patient`: Planeswalker/Battle=True (ch86's "first True cells"), all else False by rule ("only a creature can attack or block"; "only a player, planeswalker, or battle can be attacked"); `Block Patient`=Creature only ([CR#509.1a] — a blocker blocks an attacking creature, so the passive of block stays creature-only where the passive of attack just opened) | a future card type entering the combat rules would need a rule change first, not a corpus count | ch70/ch40 (deferral), ch86 (cells landed) |
+| Events.idr:718 `StaticKind` | catalog | printing-backed (mixed, see `admitsSpan` rows) | [CR#611.2c,208.2a,613.2a,614.10] | 21 rows; the docstring groups by structural pairing: `Replacement`/`Prevention` no-subject-noun ([CR#611.2c]'s layer cut); `Conditional`/`PlayPermission`/`EntryRider` are NOT clause constructions (they answer False to every `admitsSpan` cell and to `absentOk` — only the static-ability line writes them); `PtDefinition` vs `CostModification` vs `BasePtSet`/`PtSwitch` vs `TypeSet`/`AbilityLoss` split by line-vs-clause measured ratios (TypeSet 426 clauses/66 lines, AbilityLoss 41/43 "the closest that split has ever come"); `Coordination` is a pass-through carrier with no construction of its own; `CopyEffect`/`VisibilityRider`/`LandAllowance`/`TurnSkip` are 4 later rows each explicitly justified as NOT reused from a same-celled neighbour | a new StaticEffect constructor is a totality error on both `admitsSpan` and `absentOk`/`staticAsAbility` | ch83 (Coordination), ch86, ch92 (CopyEffect), ch116 (VisibilityRider/LandAllowance), ch117 (LandAllowance again — see §7), ch119 (TurnSkip) |
+| Events.idr:730 `CondMarking` | catalog | printing-backed | [CR#611.3a] | 2 rows (AsLongAs/Unless); "unless" only for the "can't…unless" and "enters tapped unless" shapes; no rule assigns either word, the corpus is "lopsided" — no exact counts given (see §6) | a third subordinator attested would add a row | unstated |
+| Events.idr:733 `PlayVerb` | catalog | CR-closed | [CR#604.6,701.5b,601.1a,305.9] | 2 rows (Play/Cast); chapter 28's original derivation (verb keyed to complement kind) was WRONG and corrected — [CR#701.5b] "to cast a card is to cast it as a spell" — Cast is the land-excluding half of Play's union | none — rule-closed at 2 | ch28 (correction) |
+| Events.idr:736 `PlayAsThough` | slot | printing-backed | [CR#601.3b..601.3d,601.6a] | ONE row (`HadFlash`) fixes the whole "as though" counterfactual to flash timing; 87 of 88 supported sentences write flash, exactly 1 (Shaman's Trance, zone counterfactual) does not and is routed elsewhere rather than minting a 2nd row — "minting the second row now would be finding 246's refusal exactly" | Shaman's Trance's zone counterfactual is the named 2nd-row candidate, blocked on 3 other unbuilt things | finding 246 |
+| Events.idr:739 `PlayLimit` | count | printing-backed | — | 2 values (OnceEachYourTurn 20 sentences / OnceEachTurn 5 sentences); explicitly NOT the same axis as `UsageLimit` (a different construction, ch45's `keywordCardOk`/`keywordStackRegime` precedent cited); the bare-window form ("During each of your turns, you may…", 2 sentences) deliberately excluded — ledgered, `badWindowAsPlayLimit` if ever merged | a "twice each turn" or "once each game" line in this fronted-adverbial slot would add a 3rd value | unstated |
+| Events.idr:743 `castComplementOk` | table | printing-backed | [CR#601.3e,701.5b,112.1] | 6-zone Maybe-Zone table; the disagreeing cell against `playableFrom` is `Stack`=True here (353/787 permission sentences name "spell" as complement, licensed by [CR#701.5b]) but False there ([CR#112.1] — a spell has already been cast); Battlefield refused by BOTH tables for one shared reason | none stated | ch45 |
+| Events.idr:755 `castableTy` | table | CR-closed | [CR#305.9,306.1,310.1,308.1] | Play admits all 9 card types; Cast refuses only Land ([CR#305.9]); Planeswalker/Battle/Kindred admitted by name | none — rule-closed | — |
+| Events.idr:769 `admitsSpan` (`CopyEffect`) | table | printing-backed | — | 88 lines: "until end of turn" 37, "until your next turn" 4, "for as long as" 3 → 3 True cells; the `Unclaimed` cell held False on 1 near-miss line ("until the next end step") rather than split further; 2 more lines route through `eventSpan` instead | claiming the 1 "until next end step" line would split `Unclaimed` into a kind-specific cell | — |
+| Events.idr:780 `admitsSpan` (`PtDelta`) | table | printing-backed | — | 4 True cells (GrantsControlAndTypeSet, GrantsTypesControl…, GrantsRestrictionsReplacement…, GrantsRestrictionsControlPermission…) — the pump-family span profile, no explicit line counts given in this block | — | — |
+| Events.idr:790 `admitsSpan` (`KeywordGrant`) | table | printing-backed | — | 5 True cells, the widest row in the table per the header docstring | — | — |
+| Events.idr:800 `admitsSpan` (`DeedRestriction`) | table | printing-backed | — | 3 True cells (RestrictionsShieldsPermissionsAndDelays, GrantsRestrictionsReplacement…, GrantsRestrictionsControlPermission…); `absentOk`=False companion (a durationless "can't" is the static-ability line, `badStaticCant`) | — | — |
+| Events.idr:810 `admitsSpan` (`TypeAddition`) | table | printing-backed | [CR#205.1b] | 1 True cell only (GrantsTypesControl…); the cross-turn cell is closed — no naked type addition across turns, 3 look-alikes otherwise explained (`badTypeAdditionAcrossTurns`) | — | — |
+| Events.idr:820 `admitsSpan` (`ControlGrant`) | table | printing-backed | — | 3 True cells; "writes 'this turn' ZERO times" — the restriction's current-turn word stays the restriction's alone | — | — |
+| Events.idr:830 `admitsSpan` (`Replacement`) | table | printing-backed | — | 3 True cells | — | — |
+| Events.idr:840 `admitsSpan` (`Prevention`) | table | printing-backed | — | 1 True cell only ("this turn") — "nothing writes an interception or a shield at an upkeep, at a combat endpoint, or under a for-as-long-as condition" | — | — |
+| Events.idr:850 `admitsSpan` (`Conditional`) | table | structural | — | ALL False — not a clause construction at all (only the static-ability line writes it) | — | — |
+| Events.idr:860 `admitsSpan` (`PlayPermission`) | table | printing-backed | — | 5 True cells, the widest permission profile; companion `absentOk`=False — "states none at all only when it is a card's own line" | — | — |
+| Events.idr:870 `admitsSpan` (`VisibilityRider`) | table | printing-backed | — | 6 clauses of 71 total lines: "until end of turn" 4, "this turn" 1, "for as long as" 1 → 3 True cells; 1 near-miss (Firestorm Phoenix) refused — it names a card in a hand, not either vocabulary slot | — | ch116 |
+| Events.idr:880 `admitsSpan` (`LandAllowance`) | table | printing-backed | [CR#305.2a] | 15 clause lines, ALL write "this turn" only → 1 True cell; a rule-motivated ceiling (the allowance compares against "this turn"'s land count, so no other boundary would have anything to bound) | — | ch116/ch117 (cited to both in different places — see §7) |
+| Events.idr:890 `admitsSpan` (`TurnSkip`) | table | printing-backed | [CR#614.10] | ALL False across 18 standing occurrences — "not one carries a duration"; companion `absentOk`=False (not a clause construction, `badSkipClause`) | — | ch119 |
+| Events.idr:900 `admitsSpan` (`EntryRider`) | table | structural | — | ALL False — not a clause construction | — | — |
+| Events.idr:910 `admitsSpan` (`CostModification`) | table | printing-backed | — | **1 of 653 lines carries a duration (Cheering Fanatic) and its cell is deliberately NOT flipped True** — "flipping its cell would rename a SpanUse row" — recorded as ledger instead (see §7) | landing a chosen-name-subject construction would need to resolve this ledgered exception | — |
+| Events.idr:920 `admitsSpan` (`PtDefinition`) | table | CR-backed | [CR#604.3a] | ALL False, rule-backed (no resolution/battlefield-stay to bound) AND measured (142 lines, 0 durations; 3 look-alikes belong to a different construction) | — | — |
+| Events.idr:930 `admitsSpan` (`BasePtSet`) | table | printing-backed | — | 114 lines: "until end of turn" 63, "until your next turn" 3 → cells True; 1 coordination cell CORRECTED True by finding 615 (Aven Mimeomancer, 1 attested line, "no pin stands on it") | — | finding 615 |
+| Events.idr:940 `admitsSpan` (`PtSwitch`) | table | printing-backed | [CR#613.4d] (silent) | ALL 25 lines "until end of turn" → exactly 1 True cell, "the tightest in the table" | — | — |
+| Events.idr:950 `admitsSpan` (`TypeSet`) | table | printing-backed | — | 492 lines, 4 True cells (widest after KeywordGrant); "this turn" a measured refusal (`badTypeSetThisTurn`, 492 lines, none) | — | — |
+| Events.idr:960 `admitsSpan` (`AbilityLoss`) | table | printing-backed | — | "the setting's profile minus 2 rare endpoints": 22 lines end-of-turn, 2 possessed-turn, 5 for-as-long-as, 0 at upkeep/combat (`badLoseAbilitiesUntilUpkeep`) | — | — |
+| Events.idr:970 `admitsSpan` (`Coordination`) | table | structural | — | ALL True — a pure pass-through, "admits every span and every silence"; cells are asked of the parts directly via `coordSpanOk`/`partsAdmit` | — | ch83 |
+| Events.idr:982 `absentOk` | table | printing-backed (mostly) / CR-backed (2 rows) | [CR#611.2a,603.6d,611.3,604.3a] | 16 rows (per StaticKind). True: CopyEffect(41/88), PtDelta, KeywordGrant, TypeAddition, ControlGrant, BasePtSet(6 lines), TypeSet(211/492), AbilityLoss(53/84), Coordination(693/1433). False: DeedRestriction/Replacement/Prevention (`badStaticCant`, `badStandingIntercept`, `badStandingPrevention`), Conditional/PlayPermission/EntryRider/TurnSkip (not clause constructions), VisibilityRider(`badSpanlessVisibility`, 0/6), LandAllowance(`badSpanlessLandAllowance`, 0/15), CostModification(`badCostClause`), PtDefinition(rule-backed), PtSwitch(`badStandingSwitch`, 0/25) | none stated | — |
+| Events.idr:1006 `staticAsAbility` | table | printing-backed (mostly) / CR-backed (1 row) | [CR#604.1,611.3b,604.3a] | 16 rows; False only on `ControlGrant` (0/many — "gains control of" has no stative form, `badStaticGainsControl`) and `PtSwitch` (0/25, `badSwitchLine`); everything else True; `TypeSet`/`AbilityLoss` explicitly MEASURED the inchoative-clause/stative-line claim: 463/492 clean, 28 clause-lines cross to copula (all one shape — a 2nd sentence on a just-placed object, unwritable subject), 1 (Titania's Song) crosses the other way; `PtDefinition`=True is rule-backed not counted | — | finding 604 |
+| Events.idr:1030 `playableFrom` | table | printing-backed / CR-backed (2 refusals) | [CR#604.6,701.5b,305.1,302.1,112.1,113.6d,113.6e] | 6-zone table; refuses Battlefield (`badPlayFromBattlefield`, a rule fact) and Stack (`badPlayFromStack`, [CR#112.1]); shared with `Predicate.CastFrom` since ch133 — "every cell was re-measured for the second reader… not one moved" | — | ch133 |
+| Events.idr:1048 `complementLocates` | table | structural (derived) | — | `complementLocates z = playableFrom z` — literally the same function, not a second table; the derivation argument is given in prose, no independent measurement | — | — |
+| Events.idr:1056 `admitsDelaySpan` | table | CR-backed | [CR#603.7b,611.2b] | 10-cell answer axis over `SpanUse`; only `RestrictionsShieldsPermissionsAndDelays`=True; the rule says the delayed clause has "a stated duration, such as 'this turn'" and nothing else, and the corpus writes no other | — | — |
+| Events.idr:1069 `ChoiceMode` | catalog | printing-backed | [CR#608.2d,701.21a,109.5,609.7a] | 4 rows (Unmarked/TheirChoice/AtRandom/YourChoice); `YourChoice` is the newest, 187 sentences/184 cards "of your choice" vs 322 "of their choice" for `TheirChoice` — explicitly NOT one row with an inflection, since "their" needs an antecedent proof (`countChoosers bs = 1`) and "your" needs none ([CR#109.5]) | a nominal (non-pronoun) chooser slot is named as owed, waiting on a plural-player read | ch97 |
+| Events.idr:1079 `Possessable` | catalog | CR-closed | [CR#400.1] | 3 rows (Hand/Graveyard/Library IsOwned); battlefield and other zones excluded structurally — "a new shared zone declares its absence by having no row to write" | — | — |
+
+### 4.3 `Experimental.idr` — lines 1–4040 (zones, predicates, nouns)
+
+| Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
+|---|---|---|---|---|---|---|
+| Experimental.idr:12 `ZoneScope` | catalog | printing-backed | [CR#701.8a,400.1] | 2 rows Bare/OwnedBy; the OwnedBy cell minted on table symmetry (owed) — 7 supported lines (graveyards 6, hands 1), every one writable for another reason (it scales a P/T by a count); the plural relational possessor ("their owners' hands") is a different family, still ledgered | unstated (bench recorded as owed) | unstated |
+| Experimental.idr:18 `ZoneExpr` | catalog | structural | [CR#401.2,401.4] | 2 rows ZoneAt/LibraryAt; six old spellings collapsed to macros (battlefieldZ, exileZ, handZ, graveyardZ, handOf, graveyardOf); destination-expression mentions do not yet enter discourse (no positive writes one) | unstated | unstated |
+| Experimental.idr:20 `LibraryAt` / arrangement rider | table | printing-backed | [CR#401.4,401.7] | 290/290 supported "in a random order" occurrences land at bottom, none at top (`ArrangementFits`, `badRandomOnTop`) | re-measure if a top-random order appears | unstated |
+| Experimental.idr:27 `zoneSort` | table | structural | — | ZoneAt→its zone, LibraryAt→Library; position does not change sort | n/a | unstated |
+| Experimental.idr:32 `wholeZone` | table | CR-closed | [CR#701.23a,401.2] | ZoneAt=True, LibraryAt=False (a search takes the whole pile; a library position is not a zone) | n/a | unstated |
+| Experimental.idr:37 `WholeZone` | canon | structural | — | witness gate `wholeZone z = True` | n/a | unstated |
+| Experimental.idr:41 `zoneArrangement` / `zoneOrdinal` | table | CR-backed | [CR#401.4,401.7] | the ordered library alone carries an arrangement/ordinal; both Nothing at ZoneAt | unstated | unstated |
+| Experimental.idr:51 `NameSource` | catalog | printing-backed | [CR#607.2d,201.2a,201.2b] | 3 rows PrintedName/ChosenName/SameNameAs; the ChosenName + OfLastChosenColor-style free-variation crossing pair proven on Thought Hemorrhage/Tunnel Vision (both words in one line); SameNameAs 113 lines/112 cards (anaphors 61+2+9, definites 10, bare indefinites 18, complements 6, partitives 4, targets 3); relatum always singular, 111/113 (the 2 exceptions are a different GROUP construction, Chrome Replicator) | add a row if a crossing pair separates printed-vs-chosen surfaces, or if a group-relatum construction is minted | ch105, ch110 finding 857, ch111 |
+| Experimental.idr:58 `sameNameSource` | table | structural | — | equality helper over the 3 NameSource rows (PrintedName by string, ChosenName trivially True, SameNameAs via nounEqRef) | n/a | unstated |
+| Experimental.idr:82 `ChoiceDomain` | catalog | printing-backed | [CR#201.4a,105.1,302.3] | indexed by QualitySort, 4 rows narrowing 3 different ways (no corpus crossing): NameOfCard 26 (nonland 17, creature 4, +5 singles), ColorOtherThan 10, TypeOtherThan 4 (all "other than Wall"), NumberAbove 2 (both "greater than 0"); the postnominal exception "other than a basic land card name" (3 lines) is measured NOT minted — refused structurally by `negatable (And _) = False` | add a postnominal-domain row if a second such phrase appears; Garth One-Eye's not-yet-chosen-memory case is its own open question | unstated |
+| Experimental.idr:126 `QualityNoun` | slot | printing-backed | [CR#105.1,302.3] | head noun for the choosable quality; the DOMAIN slot rides the head noun because 20/30 narrowed lines are effect-level "Choose…", the other 10 at EntersChoice reading the same vocabulary | unstated | unstated |
+| Experimental.idr:131 `OfChosen` | slot | printing-backed | [CR#607.2d,201.2a] | uniqueness demand (`countQuality q bs = 1`); 130 lines "the chosen X" vs 47 "that X" — free variation, exact crossing (Bloodline Bidding/Haunting Voyage); CardName/Number read via ChosenQualityRead=False, routed elsewhere | unstated | ch108 |
+| Experimental.idr:136 `OfLastChosenColor` | slot | printing-backed | [CR#607.2d] | COLOR-fixed at this position: "the last chosen color" 2 supported (Chromatic Armor, Sanctuary Blade), "the last chosen creature type" ZERO; the other 5 sorts are written only in carriers this row is not (name-setting, Amount, noun-phrase over Object/Player/Direction); ChosenQualityRead deliberately NOT reused (it disagrees on the CardName/Number cells); a 12-carrier family for the marked read overall, all repeatable choosers, none one-shot (overgeneration ledgered, not gated) | widen the sort only if "last chosen \<other sort\>" is printed AT THIS POSITION | ch126 |
+| Experimental.idr:141 `OfYourChoice` | slot | printing-backed | [CR#607.2d] | 2 sorts only: CreatureType 10, Color 5 (of 71 raw occurrences of the phrase, 37 are Protection's keyword parameter, 14 the color-setting clause, 3 mana production — routed elsewhere); CardName/Number cells False (CardName's one line unsupported, Number's two playtest-only) | widen if a supported CardName/Number-of-your-choice description line appears | unstated |
+| Experimental.idr:143 `HasKeyword` | canon | printing-backed | [CR#702.1d] | keywordParamless gate: 0 lines describe by a parameterized keyword ("creatures with ward", "without ward", protection twins all zero vs 295 for "with flying") | unstated | unstated |
+| Experimental.idr:145 `ControlledBy` | slot | CR-backed | [CR#109.4,702.11b] | 377 supported cards "creatures your opponents control"; possessor plurality widened, not generalized (`badControlledByGroup` still refuses plural targets) | unstated | unstated |
+| Experimental.idr:146 `CastBy` | slot | printing-backed | [CR#601.2a,707.10] | cost frame "you cast" 153 vs "you control" 0; counter-proof "you control" 15 vs "you cast" 0; keyword-grant split by regime (casting-time vs resolution-time); Possessor table 3rd reader: "your opponents cast" 27, singular definite 5, bare plural 0 (`badCastByAllPlayers`) | unstated | unstated |
+| Experimental.idr:147 `CastFrom` | slot | printing-backed | [CR#112.1,601.2a,604.6] | shared `playableFrom` table: cast attested from hand/graveyard/exile/library, zero from battlefield/stack; negation a free variant, 33 "from anywhere other than X" + 4 plain negation, both in the same self-condition frame (finding 275); the zone must be whole (`badCastFromLibraryTop`) | unstated | ch64, ch133 |
+| Experimental.idr:152 `BlockerOf` | slot | CR-backed | [CR#509.1g,506.3] | relatum-carrying row, no singularity demand (a blocker may block >1) | unstated | unstated |
+| Experimental.idr:155 `BlockedBy` | slot | CR-backed | [CR#509.1h] | no singularity demand (an attacker may be blocked by many) | unstated | unstated |
+| Experimental.idr:158 `HappenedTo` | table | CR-backed | [CR#608.2i] | seeds NO zone (proof: Continue?'s "put there from the battlefield this turn" while the phrase's own zone clause says graveyard); complement defaulted, 48/~68 by-source damage lines use it | unstated | unstated |
+| Experimental.idr:162 `ColorIs` | slot | CR-closed | [CR#105.1,105.2] | 5 colors, prefix negation only: nonblack 77, nonwhite 15, nonblue 5, nonred 4, nongreen 9, vs 0 "not black" | unstated | unstated |
+| Experimental.idr:163 `IsColorless` | slot | CR-closed | [CR#105.2c,105.4] | 71 description lines; clashes with ColorIs (`colorClashOf`, `badColorlessWhite`) | n/a | unstated |
+| Experimental.idr:164 `Multicolored` | slot | CR-closed | [CR#105.2b] | 65 lines | n/a | unstated |
+| Experimental.idr:165 `Monocolored` | slot | CR-closed | [CR#105.2a] | 15 lines; a recorded DIVERGENCE from core (core has no monocolored variant) | n/a | unstated |
+| Experimental.idr:166 `HasSupertype` | slot | printing-backed | [CR#205.4] | legendary 181, basic 383, snow 67; nonlegendary 43, nonbasic 68; World/Ongoing stay unminted | add World/Ongoing row if printed as a description | ch30, ch39 |
+| Experimental.idr:167 `Named` | slot | printing-backed | [CR#201.2a,607.2d] | printed source "named X"; chosen source 70 lines/63 cards over 3 frames, 43/70 one-ability (Cabal Therapy), 27 as-enters | unstated | ch105, ch107 |
+| Experimental.idr:168 `HasDesignation` | catalog | printing-backed | [CR#701.54e] | ONE row replacing 3 bespoke ones (HasPlayerDesignation/IsGoaded/YourRingBearer); negation ZERO across the catalog except one "isn't saddled" line (recorded, not bought); the absence check ("there is no monarch", 5 lines) is a DIFFERENT existential construction | unstated | unstated |
+| Experimental.idr:172 `IsAttached` | canon | printing-backed | [CR#303.4b,301.5a] | 27 "is enchanted" + 22 "is equipped", predicative only; "is fortified" ZERO (`attachedCheckOk` cell, `badIsFortified`); "is attached to" (12 lines) is a different, unbuilt relation naming the attachment itself | unstated | unstated |
+| Experimental.idr:174 `Permanent` | slot | CR-closed | [CR#110.4a,110.4b,109.2] | the zone story picks the carrier (bare=battlefield default, card-zone="permanent card", stack="permanent spell"); projects no single type; battle/planeswalker outside the 6-row CardType and outside the writable set (ledger) | unstated | unstated |
+| Experimental.idr:175 `IsToken` | slot | CR-closed | [CR#111.7] | negated "nontoken"; type-before-token order closed (token-before-type written 0 times) | n/a | unstated |
+| Experimental.idr:176 `HasStatus` | table | printing-backed | [CR#110.5,110.5d] | `statusWordOk` measured per value; same-category clash / cross-category stack (`statusClash`, `badTappedUntapped`); not negatable (paired values are words, not negations) | unstated | unstated |
+| Experimental.idr:178 `HasCounters` | table | printing-backed | [CR#122.1,122.1d,122.1f,122.2] | 221 supported frames/219 sentences/212 cards; the kind is a Maybe not 2 rows (175 name a kind, 46 do not, same environments, finding 275 negative); FIXED AT OBJECT — player scope refused (6 lines are a threshold construction this row cannot spell, routed elsewhere); `zoneAdmit`'s SECOND ROW EVER: battlefield 212 + exile 9, zero elsewhere (`badCounterDescriptionInGraveyard`); negation written, 4 lines ("with no counters on them") | unstated | unstated |
+| Experimental.idr:181 `Compare` | table | CR-backed | [CR#208.1,202.3] | `ComparableBound` gates written-vs-read; exact-value cell: 116 supported pin-to-single vs 1003 ranged; 81/116 written bound, 35/116 read bound; distributes 110/116 mana value, 6 power, 0 toughness (the slot kept general — no rule resists a toughness exact read); 11/116 blocked as SUM bounds, refused at `comparableBound` not here | unstated | unstated |
+| Experimental.idr:183 `Superlative` | slot | printing-backed | [CR#701.39a,702.105a,714.2d] | 105 lines (72 card, 33 reminder text — bolster/dethrone); ties ARE the denotation, no separate machinery (proven: Drop of Honey/Porphyry Nodes write bare then explicit-tie sentences for the same cell; Abzan Beastmaster writes both in one phrase); the domain is its own argument not the head's description; ONE row at BOTH sorts (Object/Player) — core and old-Semantics each cover only Object | unstated | ch45 |
+| Experimental.idr:190 `ExiledWith` | slot | CR-backed | [CR#406.6,607.2a,607.1] | source-keyed group (survives sentence/ability/turn); the source is restricted to LinkSource ("printed on it" read as a gate, `badExiledWithOtherSource`) | unstated | finding 188 |
+| Experimental.idr:192 `And` | canon | structural | [CR#115.4,601.2c] | conjunction obligations bundled: ZoneCoherent, ContradictionFree, OtherAnchored, AnyTargetLone, LoneComparison | unstated | unstated |
+| Experimental.idr:196 `Or` | canon | printing-backed | [CR#205.2b,300.2] | the coordinator is DERIVED not fixed: singular determiner or downward-entailing environment → "or" (291/173/199/21 supported counts by phrase); affirmative plural/each class head → "and" (57/31/27/17/16/7/4/10); bare plural + downward-entailing → "or" (4 lines, 3 of them "can't cast instant or sorcery"); one term, two spellings (finding 275) | unstated | unstated |
+| Experimental.idr:202 `OtherThan` | slot | CR-backed | [CR#115.4] | ComplementAnchor demand: the anchor is a READ or a written TARGET, singular; it used to be read-only (conflating 2 questions, `badComplementAnchorAnnounces` fixed it); "the rest"/"both" (subset-of-group) still ledgered, needing a cardinality this row does not have | unstated | ch26 |
+| Experimental.idr:203 `AnyTarget` | slot | CR-closed | [CR#115.4] | standing TODO retired: it does NOT de-macro onto KindJoin — 3 measurements (no cross-Kind head joining class-to-player exists as this word; the word is lexical where KindJoin is ordinary coordination; different modifier disciplines — AnyTargetLone vs Zevlor's attested "the chosen player or permanent") | n/a (closed question) | unstated |
+| Experimental.idr:204 `KindJoin` | slot (union) | printing-backed | [CR#115.1,115.2] | 326 supported occurrences; JoinedPlayer × JoinedClass = 2×4 grid, ALL 8 cells attested (player 279/opponent 45 × planeswalker 205/permanent 100/battle 17/creature 4); order is free variation (permanent 92 object-first/8 player-first; battle 16 player-first/1 object-first, crossing in both directions, finding 275 fails) | unstated | ch91, ch96 |
+| Experimental.idr:206 `IsSource` | slot | printing-backed | [CR#120.7,113.7] | zone-free role head; admitted: damage-event subject 121, "by" rider 28, ability relation 46; refused: destroy/exile/tap/return/gain-control-of/damage-to all measured zero (`badDestroySource`, `badDamageToSource`) | unstated | ch94 finding 707 |
+| Experimental.idr:207 `AbilityHead` | slot | CR-closed | [CR#602.1c] | 98 supported class-subject lines, every one names its class (obligatory per `Headed`) | unstated | unstated |
+| Experimental.idr:208 `AbilityOf` | slot | printing-backed | [CR#113.7] | 36/98 "of X" vs 44/98 genitive — one relation two spellings, crossing pair proven (Detainment Spell/Oppressive Rays) | unstated | ch118 |
+| Experimental.idr:209 `ActivatedBy` | slot | CR-backed | [CR#113.8] | the 4th reader of Possessor: "abilities you activate" 20, "your opponents activate" 2, bare plural 0; the singular-definite cell is 0 here vs 5 elsewhere — silence, not disagreement | unstated | finding 309 |
+| Experimental.idr:211 `IsManaAbility` | canon | printing-backed | [CR#605.1a] | ALWAYS NEGATED: 13 postposed + 1 attributive (Tithe Taker/Zirda crossing pair), 0 bare positive (`badManaAbilityClass`) | unstated | ch91 finding 679 |
+| Experimental.idr:216 `seedTy` | table | structural | — | head-type projection over all Predicate rows; And=first-writing member, Or=agreement-only (silent if they disagree) | unstated | unstated |
+| Experimental.idr:250 `headTys` | table | structural | — | set-valued twin of seedTy for the "other" anchor question; differs from seedTy only at coordinations | unstated | unstated |
+| Experimental.idr:270 `seedZone` | table | CR-backed | [CR#109.2,506.4,509.1a,608.2i,105.2,701.15b,701.54e,111.7,110.5d,122.2,109.4,406.2] | full-row zone projection over ~30 Predicate rows; HappenedTo seeds Nothing deliberately (load-bearing, not incidental); ControlledBy seeds Nothing + `zoneAdmit [Battlefield,Stack]` instead (79 "spell(s) you control" lines, not copy machinery) | unstated | unstated |
+| Experimental.idr:318 `seedsToken` | table | CR-closed | [CR#111.1] | IsToken alone; And=any member, Or=every alternative (creation replacements 32 + headers 5, all say "token") | n/a | unstated |
+| Experimental.idr:335 `zoneAdmit` | table | structural | [CR#109.4,122.1a,122.1b,122.2] | TWO ROWS EVER: ControlledBy [Battlefield,Stack]; HasCounters [Battlefield,Exile] (212 battlefield + 9 exile, 0 elsewhere) | unstated | ch64 |
+| Experimental.idr:343 `seedType` | table | CR-backed | [CR#506.3,208.3,202.3,205.1a,205.3m] | type-presupposition projection; recurses through both And and Or (the buried-in-alternative case, `badWrappedStatusLaunder`) | unstated | unstated |
+| Experimental.idr:390 `hasHead` | table | structural | [CR#105.1,608.2d,111.1] | full-row headedness declaration over every Predicate constructor; And=any member, Or=every alternative | unstated | unstated |
+| Experimental.idr:454 `qualityReadOk` | table | structural | [CR#607.2d] | 3 rows True (OfChosen/OfLastChosenColor/OfYourChoice), all else False; read by ascription rows only | unstated | unstated |
+| Experimental.idr:471 `uniquifies` | table | printing-backed | — | Superlative ALONE is True (the definite's licence); ~390 bare-definite lines are anaphoric readback (That/It/They), not this table (`badBareDefinite`) | unstated | unstated |
+| Experimental.idr:481 `flattenPs` | table | structural | — | flattens And only, never reaches into Or (splicing would misread "attacking or blocking" as conjunction) | n/a | unstated |
+| Experimental.idr:523 `zonesOk` / `ZoneCoherent` | canon | structural | [CR#109.2] | 3-part conjunction: zonesAgree + not-ruled-out-by-negation + zoneAdmitsAll, all over flattenPs | unstated | unstated |
+| Experimental.idr:538 `predEq` | table | structural | — | full-row conservative equality; noun-carrying rows use nounEqRef (conservative), structure-carrying rows recurse pointwise (And/Not) rather than blanket False | unstated | unstated |
+| Experimental.idr:747 `contradictionFree` / `ContradictionFree` | canon | CR-backed | [CR#506.3,110.5,110.4] | negated-pair scan + type-clash scan + statusClash + colorClash + permanent/non-permanent-type clash, all over flattenPs | unstated | unstated |
+| Experimental.idr:775 `otherAnchorOk` / `OtherAnchored` | canon | CR-backed | [CR#115.4] | at-most-one "other" slot (bare or complement) + (bare-anchor discourse search OR complementAnchorsOk); the anchor fits by headTys set membership | unstated | unstated |
+| Experimental.idr:795 `complementAnchorsOk` | table | printing-backed | — | "each other creature" anchored to a Land subtracts nothing, unwritten (`badComplementCrossHead`) | unstated | unstated |
+| Experimental.idr:896 `anyTargetLone` / `AnyTargetLone` | canon | printing-backed | [CR#115.4] | companion measured: 17 supported "any other target", 4/17 have an earlier target + complement (Arc Trail etc.), 13/17 anchor bare to a damage source (Screaming Nemesis etc.); both the class word and the modifier are written exactly once (`badDoubleAnyTarget`, `badDoubleOther`) | unstated | ch101 |
+| Experimental.idr:921 `loneComparison` / `LoneComparison` | canon | printing-backed | — | at-most-one bound per phrase; the corpus writes no 2-bound noun phrase (apparent pairs are 2 separate phrases) | unstated | unstated |
+| Experimental.idr:967 `parallelDisjuncts` / `ParallelDisjuncts` | canon | printing-backed | — | 3 failure modes named by the guide: headedness mismatch (`badHeadlessDisjunct`), cross-zone alternatives (`badCrossZoneDisjunction`, cross-zone written under a shared preposition instead — ledgered not mis-projected), commit-vs-silent mismatch (`badPartialZoneJoin`) | unstated | unstated |
+| Experimental.idr:989 `coordinable` / `CoordinableDisjuncts` | canon | CR-backed | [CR#115.4] | 4 refused alternative-shapes: AnyTarget (`badAnyTargetInOr`), KindJoin (`badKindJoinInOr`), "other" (`badOtherInOr`), nested Or (`badNestedOr` — core flattens instead via `normalize`) | unstated | unstated |
+| Experimental.idr:1013 `noRepeatedPair` / `DistinctDisjuncts` | canon | structural | — | conservative exactly where predEq is | unstated | unstated |
+| Experimental.idr:1024 `negatable` | table | printing-backed | — | FULL-ROW census over every Predicate constructor. Zero-by-count refusals: AbilityHead/AbilityOf/ActivatedBy=False ("nonactivated abilities" 0, "abilities not of X" 0, "abilities you don't activate" 0); IsSource=False ("nonsource" 0, not a lackable property); CastBy=False (0 vs ControlledBy's 165 — agentless-passive residue, the construction unwritten at either clause); ExiledWith=False (0 of 175); BlockerOf/BlockedBy=False (0 each); HasDesignation=False (0 across the whole catalog except one recorded "isn't saddled"); IsColorless/Multicolored/Monocolored=False; Permanent=False ("nonpermanent" **not measured this round**); HasStatus=False (paired values are words not negations); Compare/Superlative=False; And/Or/Not/Other/OtherThan/AnyTarget/KindJoin=False (structural — De Morgan is the writer's job, `badNegatedConjunction`/`badNegatedDisjunction`). Measured-True cells: HasType/HasSubtype/Opponent/QualityNoun/OfChosen/OfLastChosenColor/OfYourChoice/IsManaAbility(14/14 negated)/HasKeyword/ControlledBy(165)/Attacking/Blocking/HappenedTo(6)/CastFrom(37, 2 spellings)/ColorIs(3 prefix families)/HasSupertype/Named/IsAttached(4 vs 49)/IsToken(222)/HasCounters(4)/InZone | unstated | unstated |
+| Experimental.idr:1076 `predSays` / `PredSays` | table | structural | — | full-row "says anything" gate; only And can be empty/say-nothing (`badMatchesNothing`) | unstated | unstated |
+| Experimental.idr:1133 `predNegFree` | table | structural | — | full-row negation-free scan (the atomic-only-negation doctrine said one construction up — a Not inside an And can hide from Predicate's own row) | unstated | unstated |
+| Experimental.idr:1187 `anyTargetFree` | table | printing-backed | [CR#115.4] | full-row "any target" freedom scan, descending Pred→Noun→Pred through embedded possessors (`badAnyTargetEmbedded` — "a creature the controller of any target controls" spells the class word under a non-targeting determiner) | unstated | unstated |
+| Experimental.idr:1244 `ZoneFree` | canon | CR-backed | [CR#701.23a] | witness gate `seedZone p = Nothing`; search is the one clause today demanding it (`badSearchZonedDescription`) | unstated | unstated |
+| Experimental.idr:1248 `anyTargetOkAt` | table | printing-backed | [CR#115.4,601.2c,601.2d] | minimum-of-one rule: a fixed plural count ("two targets" alone) is ZERO lines; the unbounded quantity retired its own ban when Boulderfall's "divided as you choose among any number of targets" was found; the embedded scan runs beneath every quantity (`badEmbeddedAnyTargetExact1`) | unstated | unstated |
+| Experimental.idr:1265 `bindFor` | table (union) | structural | [CR#111.1,111.7] | the UnionP branch is the marked union payload choice — "the one branch that chooses a payload rather than filling one in" (see §9 site 5); non-union branches: token-origin projection reuses seedsToken (no new table); AbilityP/PlayerP/QualityP project nothing sort-specific | unstated | unstated |
+| Experimental.idr:1280 `This` | slot | structural | [CR#113.7] | nullary self-reference; matches constructors.ron's `This` exactly | n/a | unstated |
+| Experimental.idr:1281 `AsType` | slot | CR-backed | [CR#109.2,205.3c] | type-ascription splits identity (core's `Reference::This`, type-free) from the type word (this layer's business); subtype defaulted to Nothing at every existing call site (4 macros unchanged); the corpus writes exactly 9 subtype words here, no creature type among them (keeping Subtype membership from being the licence — `ascribesAsSubtype`) | unstated | unstated |
+| Experimental.idr:1285 `You` | slot | structural | [CR#109.5] | matches constructors.ron's `You` entry exactly | n/a | unstated |
+| Experimental.idr:1286 `PlayerGroup` | slot | printing-backed | [CR#102.1,109.5,109.4] | EXOPHORIC (nounDelta empty) — measured over 140 corpus segments with this subject, no later clause pronominalises it; all 14 "those players" read back a different construction (target mention/quantifier/relational noun), none this shape; PLURAL always — "creatures your opponents control" (386 lines) stays unwritable because ControlledBy demands a SINGULAR possessor (ledger) | unstated | ch39 |
+| Experimental.idr:1287 `Each` | slot | CR-backed | [CR#608.2,115.4] | non-targeting determiner demanding AnyTargetFree (the class word cannot combine with "each") | n/a | unstated |
+| Experimental.idr:1290 `Indefinite` | slot | CR-backed | [CR#608.2d,400.7,701.9b] | ONE constructor for one determiner where 3 constructors used to spell it 3 times; core hangs the chooser off a Binder slot instead | unstated | unstated |
+| Experimental.idr:1294 `Definite` | slot | printing-backed | — | Uniquifying licence: the superlative is the ONLY licensing modifier; 35/105 superlative lines use "the" (20/25 player-headed + all of dethrone's family); article choice NOT derivable — crossing pair (Adamaro "the opponent with the most cards" vs Roiling Horror "an opponent with the most life", same shape, opposite articles), so the superlative stays a MODIFIER (4 determiners: the 35, a/an 58, each 8, target 4) rather than a noun with its own fixed article | unstated | unstated |
+| Experimental.idr:1299 `TargetGroup` | slot | CR-closed | [CR#601.2c,115.1] | ONE constructor for every quantity, mirroring core's single `Target(Quantity,Predicate)`; only objects/players targetable (`badTargetColor`) | n/a | unstated |
+| Experimental.idr:1304 `CountedGroup` | slot | printing-backed | [CR#115.1d,107.15a,603.2c] | quantity measured: 275/280 line-initial headers "one or more", 4 "two or more" (Argent Dais, Flummoxed Cyclops, Horn of the Mark, Landroval), 1 "three or more" (Inniaz); minted specifically because trigger headers announce no target ([CR#115.1d]), blocking Chainsaw for 3 chapters (`badTargetedDeathHeader`) | add a row / re-measure if a "four or more" or higher threshold header is printed | unstated |
+| Experimental.idr:1309 `AllOf` | slot | structural | — | set-level group, kept distinct from distributive "each" per the style guide | n/a | unstated |
+| Experimental.idr:1312 `EachOf` | slot | structural | [CR#601.2c] | distributive over an assembled GROUP MENTION (not a description); announces nothing of its own, buys PerMember's per-member reading | n/a | unstated |
+| Experimental.idr:1315 `YouAnd` | slot (union) | printing-backed | [CR#615.1,615.7,109.5] | 35 supported sentences/35 cards; the player half fixed at You — ALL 35 write second person, 0 "target player and creatures they control"; "and" vs "and/or" free variation, 23 vs 12, exact crossing pair (Channel Harm/Refraction Trap); order also free variation (Glarecaster's "this creature and/or you"); refuses self-nesting (`badNestedYouAnd`); projects no zone/no type (marked union site) | unstated | ch91, ch96 |
+| Experimental.idr:1317 `LibrarySlice` | slot | printing-backed | [CR#401.2,400.2,400.1] | top slice dominant, ONE bottom line (Grenzo, Dungeon Warden); projects NO card type (hidden zone, honesty constraint); the distributive possessor is ordinary oracle (19 supported "each player's"/"each opponent's"), the plural GROUP possessor (5 lines, "libraries") stays refused (`badSliceOfGroupPossessor`) | unstated | unstated |
+| Experimental.idr:1321 `SomeOf` | slot | structural | (partitive logic via finding 111) | GroupMention-gated partitive; inherits the group's type/zone, its own number from its own quantity | n/a | finding 111 |
+| Experimental.idr:1325 `TheRest` | canon | printing-backed | [CR#601.2c] | `theRestOk` demands exactly one group mention + at least one part taken (`badRestWithoutGroup`, `badRestWithoutPart`); 19 lines of the unrelated "for the rest of the game" idiom explicitly excluded | unstated | finding 111, finding 127 |
+| Experimental.idr:1326 `It` | slot | structural | — | exactly one singular Object mention must precede (0=unbound, 2=ambiguous, both unspellable) | n/a | unstated |
+| Experimental.idr:1327 `They` | slot | structural | — | singular epicene, exactly one Player mention | n/a | unstated |
+| Experimental.idr:1328 `Them` | slot | structural | — | ManyOf twin of It | n/a | unstated |
+| Experimental.idr:1329 `Those` | table | structural | — | sorted plural demonstrative, indexed by NounWord | n/a | unstated |
+| Experimental.idr:1330 `That` | table | structural | — | sorted demonstrative, indexed by NounWord; wordNow anchors current-state, the participle read anchors the verb event | n/a | unstated |
+| Experimental.idr:1331 `AttachHost` | table | CR-backed | [CR#303.4b,301.5a] | EXOPHORIC (nounDelta empty, like This); mints at container position only (event/condition/static subject, 508 coordinations at static); SINGULAR always (an Aura/Equipment attaches to one thing) | n/a | ch84 |
+| Experimental.idr:1333 `TheVerbed` | slot | printing-backed | — | definite participle read, exactly-one-mention uniqueness (`countVerbed=1`); the marking is a defaulted slot (`verbedMarkingOk` table) — one read, two surfaces | unstated | finding 26 |
+| Experimental.idr:1337 `ThoseVerbed` | slot | structural | — | plural twin of TheVerbed, counted over ManyOf bindings | n/a | unstated |
+| Experimental.idr:1341 `ControllerOf` | slot | CR-closed | [CR#108.3,109.4] | singular only (`nounPlur n = OneOf`); the group's plural relational ("their owners' hands") is future vocabulary (`badGroupOwner`) | add a plural relational row if the group-owner phrase is printed | unstated |
+| Experimental.idr:1342 `OwnerOf` | slot | CR-closed | [CR#108.3,109.4] | singular only, same gate as ControllerOf | add a plural relational row if the group-owner phrase is printed | unstated |
+| Experimental.idr:1350 `nounEqRef` | table | structural | [CR#601.2c] | THE SMALLEST HONEST RELATION — True only for atomic words whose referent the binding context already fixes (This/You/PlayerGroup/It/They); everything else False INCLUDING two target mentions (deliberately never equated — [CR#601.2c] chooses each "target" instance separately) | n/a | unstated |
+| Experimental.idr:1383 `nounAnyTargetFree` | table | printing-backed | [CR#115.4] | full-row scan; YouAnd passes through because the object side CAN be the class word (Ian the Reckless, "you and any target") | unstated | unstated |
+| Experimental.idr:1411 `zoneAnyTargetFree` | table | structural | — | the owned-zone possessor is scanned like any noun | n/a | unstated |
+| Experimental.idr:1423 `DestOk` | canon | CR-closed | [CR#400.3] | the bare zone IS the owner-routed destination (the possessive is rendering's business, not this gate's); Library has NO bare-zone row at all — position-only (`badMoveToBareLibrary`, mirroring core's exclude(Library)) | n/a | finding 34 |
+| Experimental.idr:1433 `orderOk` / `ArrangementOk` | table | printing-backed | [CR#401.4,401.7] | the order rider follows a PLURAL patient 100% of measured cases, 0 times a singular one (`badSingularOrderRider`); an offset moves exactly one object, 30/30 lines (`badPluralOrdinalPlacement`) | unstated | unstated |
+| Experimental.idr:1445 `nounDelta` | table | structural | [CR#601.2c] | full-row binding-introduction table over every Noun constructor; EachOf/YouAnd both announce nothing of their own (structural — a Kind-indexed Binding cannot span 2 kinds for YouAnd) | unstated | unstated |
+| Experimental.idr:1478 `elemIntro` | slot | printing-backed | — | the element-scoped binder fixes number at OneOf; determiner fixed at TheD (not SelfD/PartD) because 19 bodies write "it" and 14 write "that \<noun\>" (a measured split) | unstated | unstated |
+| Experimental.idr:1484 `predDelta` | table | structural | — | full-row mention-introduction table; Not and Or are binding HOLES (`badNegatedAntecedent`, `badDisjunctAntecedent`) — negation/disjunction never leak a possessor mention out | unstated | unstated |
+
+### 4.4 `Experimental.idr` — lines 4040–7770 (amounts, conditions, events, tokens)
+
+| Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
+|---|---|---|---|---|---|---|
+| Experimental.idr:1541 `Amount` (16-ctor family head) | catalog | printing-backed | [CR#208.1,202.3,119.1,107.2,714.2d,601.2c,614.6,615.5,107.14,107.3c,107.3a,107.3p,107.3m,107.3i,107.1b] | family recorded per row below (Lit ungated; StatOf/PlayerStatOf/CountersOn singular; Aggregate fold; EventCount no-sum twin; Times numeral factor; ThatMuch 4 antecedent sorts; PreventedThisWay twin; GroupSize Object-only; TheDifference; DefinedLetter 1,118-card family; XVal; Plus/Minus floor) | new printings could add a sum-domain row, widen group holders, or add a fifth ThatMuch sort | unstated (chapter refs embedded per row) |
+| Experimental.idr:1542 `Amount.Lit` | slot | structural | — | ungated Nat literal; zero stays legal because a bound of zero is a real comparison | n/a | unstated |
+| Experimental.idr:1543 `Amount.PlayerStatOf` | slot | printing-backed | [CR#119.1,701.12c] | singular holder; the plural "life totals" plain-amount read is zero (`badPluralLifeTotalRead`) — all 8 "life totals" corpus lines are the EXCHANGE family instead; read-vs-read comparison (24 lines) reached via ch57's `ComparableBound`; cross-player aggregate lives at `Aggregate` | cross-player fold already split out to Aggregate | ch57 |
+| Experimental.idr:1545 `Amount.StatOf` | slot | printing-backed | [CR#208.1,202.3] | singular holder only; the bare plural possessive ("two creatures' power") is `badGroupPower`, zero lines; Soulblast's "total power of the sacrificed creatures" is a MENTION domain, unreached (ledger) | the MENTION-domain fold is ledgered separately | unstated |
+| Experimental.idr:1547 `Amount.CountOf` | slot | CR-backed | — | cardinality read, orthogonal to multiplication per core's `Count::CountOf`/`Count::Times`; the domain is always noun-headed in the corpus | n/a | unstated |
+| Experimental.idr:1550 `Amount.Aggregate` | slot | printing-backed | [CR#714.2d,107.2] | fold over a DESCRIBED set; 103 supported lines write an extreme, 27 the sum; the optional "all" before the complement is 4 lines vs 103 (one fold, two spellings) | the MENTION-domain fold (19 lines, e.g. Soulblast) is a second surface not yet reached | unstated |
+| Experimental.idr:1555 `Amount.CountersOn` | slot | printing-backed | — | one row for both object ("on X", 296 lines) and player ("X has", 9 lines) spellings, an agreement-only difference; singular holder; the group aggregate (6 lines, "counters among creatures you control") is `Aggregate`'s territory, 4/6 also writing a kind-blind quantifier (ledger) | group-counter aggregate ledgered | ch39 |
+| Experimental.idr:1558 `Amount.EventCount` | slot | CR-backed | — | count-valued twin of `Happened`; feeds numeric lookbacks via `CompareAmt`; does NOT sum — `EventSum` (magnitude reads, 15 lines "gained 3 or more life") is ledgered separately; the unnumbered form (18 lines) is `Happened`'s | the EventSum row is ledgered/future | unstated |
+| Experimental.idr:1564 `Amount.Times` | slot | printing-backed | — | the left factor is a WRITTEN numeral, gated `AtLeastOne` (`badForEachZero`); no corpus line writes a phrase-by-phrase product | generalizing the factor to a phrase "waits on a line that needs it" | finding 45 |
+| Experimental.idr:1566 `Amount.ThatMuch` | slot | printing-backed | [CR#601.2c,614.6,107.14] | sort-blind anaphor over 4 antecedent sorts (damage/count/mana/CountersPut); the word choice (much/many) is by MEASURED NOUN not by antecedent — 113 "that many cards", 66 "+1/+1 counters", 98 "much damage", 72 "much life", all cross-word forms zero | a fourth sort (CountersPut) was added without touching the row — precedent for future sort additions | ch76/finding 275 |
+| Experimental.idr:1567 `Amount.PreventedThisWay` | slot | CR-backed | [CR#615.5] | second reader of one announcement (the prevention rider); a sort-specific twin of ThatMuch; 21 named-antecedent lines write this phrase, 14 fronted-naming lines write bare ThatMuch, zero overlap (`badPreventedThisWayAfterDamage`); the distributive/named pair are both attested (11 vs 10), left unresolved | free-variation pair recorded, not canonicalized | ch91 |
+| Experimental.idr:1569 `Amount.GroupSize` | slot | printing-backed | — | Object-only, gated `countManys Object bs = 1`; 107 supported lines; zero PLAYER-group-size readbacks (5 counted-group player headers, none writes an anaphor); the damage+group co-scope cross-sort ambiguity (72 headers) is recorded not gated (ledger) | the cross-sort gate between GroupSize and damage-outcome scope is "this round's claim, not the corpus's" — deliberately not built | unstated |
+| Experimental.idr:1570 `Amount.TheDifference` | slot | CR-backed | [CR#107.1b] | 26 supported lines; = `Minus` of the comparison's two sides; positive by licence (the condition was true) so the floor is never reached from here; the gap is minted by `condIntro` | n/a | unstated |
+| Experimental.idr:1571 `Amount.DefinedLetter` | slot | CR-closed | [CR#107.3c,107.3a,107.3p,107.3m] | 1,118 supported cards, the largest family in the workbench; distinct from XVal by CR rule ([CR#107.3c] defined vs [CR#107.3a] announced); exactly 1 card (Riptide Replicator) has both, and the two X's never interact; "Y follows the same rules as X" is one row, two words ([CR#107.3p]) | n/a | unstated |
+| Experimental.idr:1573 `Amount.XVal` | slot | CR-closed | [CR#107.3a,107.3i] | a fixed value by resolution, not a discourse referent | n/a | unstated |
+| Experimental.idr:1574 `Amount.Plus` | slot | structural | — | the second operand reads after the first (threading order) | n/a | unstated |
+| Experimental.idr:1575 `Amount.Minus` | slot | CR-backed | [CR#107.1b] | floored at zero except for the 3 [CR#107.1b] consumer exceptions (life total set, P/T set, doubling/tripling); the floor is a fact about the CONSUMER not this row — the DefinesPt layer word is unfloored (Scourge of the Skyclaves −1/−1); 34 supported lines, 18 riding a "where X is" rider (ledger gap); the comment previously claimed an unconditional floor until the layer-words round corrected it | — | layer-words round (self-correction) |
+| Experimental.idr:1578 `amtDelta` | table | structural | — | discourse-contribution fold, twin of nounDelta; only reads contribute | n/a | unstated |
+| Experimental.idr:1597 `amtAnyTargetFree` | table | CR-backed | — | written rows all True (no noun); reads defer to nounAnyTargetFree/predDelta/complementAnyTargetFree | n/a | ch57 |
+| Experimental.idr:1617 `amtIntro` | table | structural | — | binding-introduction fold | n/a | unstated |
+| Experimental.idr:1636 `amtPlur` | table | printing-backed | — | exactly `Lit (S Z)` is singular; every other amount is plural, matching the corpus's "create that many … tokens" | n/a | unstated |
+| Experimental.idr:1656 `writtenBound` | table | printing-backed | — | Lit and XVal True, all reads/derived False; the whole word-order test between comparator spellings ("2 or less" vs "less than or equal to…") | n/a | unstated |
+| Experimental.idr:1675 `writtenCount` | table | printing-backed | [CR#121.1,111.1,122.1] | `Lit Z` refused (`badDrawZero`, `badCreateZero`, `badPutZeroCounters`); all other rows True/derived; a Minus floor computed-zero still passes (it is not spelled zero) | n/a | finding 45 |
+| Experimental.idr:1699 `boundEq` | table | structural | — | conservative catch-all; only Lit=Lit and XVal=XVal are True, everything else False (post-ch57 read-bound addition) | n/a | ch57 |
+| Experimental.idr:1740 `comparableBound` | table | printing-backed | [CR#107.1b] (implicitly, via the bound sum) | `writtenBound \|\| readAmount`; a scaled product (`badScaledBound`/`badScaledConditionBound`) and an event-outcome read remain zero as bounds; the SUM cell corrected non-zero (12 lines, 11 description-frame + 1 condition-frame, **all at EQUALITY only**) per ch124 — see §7 | the sum-bound correction was found by re-measuring an unmeasured frame; the two `badScaled*` pins still hold for scaled products | ch124; queued "its own round with its own reading of the other four relations" |
+| Experimental.idr:1748 `letterDefines` | canon | printing-backed | [CR#208.2a] | complement of writtenBound; "where X is 4"/"where X is X" zero (`badWrittenXDef`); the P/T-defining ability numeral zero (`badWrittenPtDefinition`) | n/a | unstated |
+| Experimental.idr:1752 `LetterDefinition` / :4731 `DefiningValue` | canon | structural | — | two witness names over one shared test (letterDefines), named apart so a pin identifies which question refused | n/a | unstated |
+| Experimental.idr:1760 `Bindingless` | canon | structural | — | re-keyed onto `nounDelta = []`; consumed by the Matches condition subject (condDelta introduces nothing); makes a target-announcing conditional unwritable (`badMatchesTargetSubject`, ledger) | n/a | unstated |
+| Experimental.idr:1764 `anchorPhrase` | canon | printing-backed | [CR#601.2c] | replaces the old blanket Bindingless demand (ch26 correction — recovered Death by Dragons, Terrifying Presence targets); True: This/You/PlayerGroup/TargetGroup/It/They/Them/Those/That/AttachHost/TheVerbed/ThoseVerbed/ControllerOf/OwnerOf; False: Each/Indefinite/Definite/CountedGroup/AllOf/EachOf/YouAnd/LibrarySlice/SomeOf/TheRest (all set-naming determiners, `badComplementAnchorAnnounces`) | n/a | ch26 |
+| Experimental.idr:1792 `ComplementAnchor` | canon | structural | — | witness = anchorPhrase True + singular (`nounPlur=OneOf`); the plural read is refused (`badPluralComplementAnchor`) as unwritten group-subtraction, deferred at finding 111 | the subset-complement family (group subtraction) is deferred | finding 111 |
+| Experimental.idr:1798 `LinkSource` | slot | CR-closed | [CR#607.1,406.6,607.5,607.2n] | the self-word only (This/AsType This); other-source and target-source refused (`badExiledWithOtherSource`, `badExiledWithTargetSource`); subtype cells: Saga(6)/Vehicle(3)/Class(1) attested and admitted via SortedSelfLinked, Aura/Equipment zero — the cell "opens with the row, not before it" | Aura/Equipment subtype cells queued open pending corpus lines | finding 188 |
+| Experimental.idr:1805 `choosable` | canon | printing-backed | [CR#701.39a] | True only: Indefinite, TargetGroup (measured — 44 "choose one or more" lines are NOT object selection, 23 spree reminder + the rest modal headcount, `badChooseCountedGroup`); False: This/AsType/You/PlayerGroup/Each/Definite (`badChooseDefinite`)/CountedGroup/AllOf/EachOf/YouAnd/LibrarySlice/SomeOf (`badChooseSomeOf`)/TheRest/anaphors/participles/ControllerOf/OwnerOf | n/a | unstated |
+| Experimental.idr:1833 `Choosable` | canon | structural | — | witness wrapper over choosable | n/a | unstated |
+| Experimental.idr:1837 `agentChoosable` | canon | printing-backed | — | ONE-cell difference from choosable: SomeOf True here (42 agentful-partitive lines) vs False bare — a measured pair, not assumed | n/a | unstated |
+| Experimental.idr:1842 `ChoiceClause` | canon | structural | — | 2-arm family (BareChoice/AgentChoice) over a Maybe chooser, mirroring the choosable/agentChoosable split | n/a | unstated |
+| Experimental.idr:1851 `groupMention` | canon | printing-backed | — | True: TargetGroup, Them, Those, LibrarySlice, ThoseVerbed; False: everything else including CountedGroup (MEASURED FALSE — `badEachOfCountedGroup`, 3 zero-line phrasings) and PlayerGroup ("each of your opponents" 7 lines vs Each Opponent's 914, not this table's cell) | n/a | unstated |
+| Experimental.idr:1879 `GroupMention` | canon | structural | — | witness wrapper | n/a | unstated |
+| Experimental.idr:1883 `perMemberOk` | canon | printing-backed | [CR#601.2d] | True: Each, EachOf, any singular; bare plural recipient zero (`badBarePluralCounterRecipient`, `badBarePluralDamageRecipient`); universal AllOf zero (`badAllOfDamageRecipient`); a Them-recipient is a singular epicene player, not plural (`badThemCounterRecipient`) | the Distribute clause is the division's own separate row | unstated |
+| Experimental.idr:1889 `PerMember` | canon | structural | — | witness wrapper | n/a | unstated |
+| Experimental.idr:1893 `capSubjectOk` | table | printing-backed | — | True only: You, PlayerGroup; a retired-enum precedent — the old CapDomain enum (7 lines/8 cards) was retired because 2/3 cells collapsed into the PlayerGroup mint and the 3rd was always You (`badUntapCapEachPlayer`) | n/a | unstated |
+| Experimental.idr:1921 `CapSubject` | canon | structural | — | witness wrapper | n/a | unstated |
+| Experimental.idr:1925 `LandSubject` | canon | CR-closed | [CR#305.7] | measured: "target land"(7)/"target land you control"(5) vs zero for every other head (`badChosenBasicTypeOnCreature`) | n/a | unstated |
+| Experimental.idr:1929 `ActSubject` | table | CR-closed | [CR#701.6a,601.2a,113.6g,305.1,602.5,109.1,701.19a,701.21a] | 6 rows, one per ObjectAct: CounteredOnStack/CastOnStack/CopiedOnStack (ZoneFits Stack; self-ref via [CR#113.6g], 87/123 countering lines are bare self-reference, `badCounteredInGraveyard`), PlayedIsLand (LandSubject, type not zone, `badPlayedNonland`, both lines are lands), ActivatedIsAbility (ability-kinded per [CR#109.1], `badCounteredAbilityClass`/`badActivatedSpellClass`), RegeneratedOnField (ZoneFits Battlefield, 121/138 riders bare self-ref, `badRegeneratedInGraveyard`; the sacrifice boundary at [CR#701.21a] needs no gate — zero sacrifice lines carry the rider) | n/a | unstated |
+| Experimental.idr:1947 `possessorOk` | canon | printing-backed | [CR#109.4,108.3,601.2a,702.11b] | one table, 3 readers (ControlledBy/OwnedBy/CastBy) unified as MEMBERSHIP not quantification; True: singular + `PlayerGroup YourOpponents` (377 relative-clause + 7 possessive cards); False: `PlayerGroup AllPlayers` (`badControlledByAllPlayers`/`badOwnedByAllPlayers`, zero bare-plural lines) and plural reads (2 lines, both inside unreachable constructions — Camouflage, Officious Interrogation, the antecedent question left open); the third reader (CastBy) measured separately and matching cell-for-cell (27/5/0) | n/a | finding 309 |
+| Experimental.idr:1957 `slicePossessorOk` | canon | printing-backed | [CR#400.1] | a separate 2nd possessor table, deliberately disagreeing with possessorOk's shape: Each=True (distributive, 19 lines "each player's/opponent's library"), PlayerGroup=False (the plural group writes "libraries" not this phrase — 5 lines, Field of Dreams etc.), singular=True (1,769/1,793 slice phrases) | RETIRED a pin: `badSliceOfPluralPossessor` refused Case the Joint/Extract Power's attested "each player's library" — the pin was retired because the refused sentence was attested; the group half survives as `badSliceOfGroupPossessor` | unstated |
+| Experimental.idr:1963 `SlicePossessor` | canon | structural | — | witness wrapper | n/a | unstated |
+| Experimental.idr:1968 `costSubjectOk` | canon | printing-backed | [CR#609.2,113.7] | the stack test widened by This (exophoric self, ch48, `badCostSubjectOnBattlefield`); 615/628 write "spell" directly, 10 pronoun-read, 3 commander-format; the This widening covers 388/628 | n/a | ch48 |
+| Experimental.idr:1973 `CostSubject` | canon | CR-closed | [CR#602.2b] | the object arm is gated costSubjectOk; the ability arm (AbilityCostSubject) needs NO zone test — CDA-style reasoning: activating IS casting-analog by rule, so the ability class alone suffices | n/a | unstated |
+| Experimental.idr:1979 `selfDefinedOk` | canon | CR-closed | [CR#604.3a,109.2] | This/AsType This only; 142/142 supported "power and toughness are each equal to" lines name the self (`badGrantedPtDefinition` for third-party); rule-first not measurement-first closure | n/a | unstated |
+| Experimental.idr:1985 `SelfDefined` | canon | structural | — | witness wrapper | n/a | unstated |
+| Experimental.idr:1989 `Condition` (7 rows) | catalog | CR-closed | [CR#603.4,608.2i,614.1a,701.47a,601.3d] | core's Condition rows mirrored 1:1 (Exists/Matches/Compare = core's first 3); Happened's subject forced to be a NOUN not a predicate by the corpus (3/4 shapes are bare nouns); GameIs is the game-scope split of the designation check (day/night asymmetry: 4 lines "it's night" vs 0 "it's day", `badItIsDay`); CompareAmt shares the EXACT-VALUE cell with ranged (27 vs 914, finding 309 unanimous); NotCond opened at 112 one-shot lines; AndCond is a LIST (≥2, flat) not a pair — 89 two-way + 1 three-way (Qasali Ambusher) | disjunction ("if X or if Y") is a separate row not yet built — 11 doubly-marked lines, the singly-marked population unmeasured (ledger) | unstated |
+| Experimental.idr:1990 `Condition.Exists` | slot | CR-backed | [CR#603.4] | 338 fronted-subject "you control X" vs 7 existential-there lines | n/a | unstated |
+| Experimental.idr:1993 `Condition.Happened` | slot | CR-backed | [CR#608.2i] | subject forced noun not predicate; a player subject writes perfect-contracted voice, an object subject plain past, life rows plain past | n/a | unstated |
+| Experimental.idr:1999 `Condition.GameIs` | slot | printing-backed | [CR#702.145a] | designationChecked gate: 4 lines "it's night"-family vs 0 "it's day" (`badItIsDay`); daybound/nightbound keyword boilerplate is NOT evidence for this row | n/a | unstated |
+| Experimental.idr:2002 `Condition.Matches` | slot | structural | [CR#603.4] (explicitly NOT propagated — core cites it, this row does not) | the subject is gated Bindingless (it introduces nothing) | n/a | unstated |
+| Experimental.idr:2007 `Condition.CompareAmt` | slot | printing-backed | — | 27 exact-value vs 914 ranged; the comparator register varies by head (stat: or-greater/less; count: or-more/fewer); the dominant surfaces rewrite around the subject (173 existential "there are N or more", have/control-clause for read-vs-read) | n/a | finding 309 |
+| Experimental.idr:2010 `Condition.NotCond` | slot | printing-backed | [CR#701.47a] | 112 one-shot negation lines across reachable rows; negation licensed only where CondNegatable is True | n/a | unstated |
+| Experimental.idr:2011 `Condition.AndCond` | slot | CR-backed | [CR#603.4,601.3d] | 92 lines, 89 two-way + 1 flat three-way (Qasali Ambusher); disjunction NOT built here (ledger, 11 doubly-marked lines) | n/a | unstated |
+| Experimental.idr:2016 `condNegatable` | table | printing-backed | — | full-row closed table: Exists=predNegFree, Happened=True (8+19 auxiliary-negation lines vs 1 subject-negation residue, ledgered not built), GameIs=False (0 lines), Matches=predNegFree, CompareAmt=False (0 lines "isn't 4 or greater" — English uses the opposite comparator instead, `badNegatedComparison`), NotCond=False (`badDoubleNegatedCondition`), AndCond=False (conjuncts negate individually — 13/92 carry a negated conjunct; whole-coordination negation is `badNegatedConjunction`, 0 lines) | n/a | unstated |
+| Experimental.idr:2026 `CondNegatable` | canon | structural | — | witness wrapper | n/a | unstated |
+| Experimental.idr:2030 `atLeastTwoCs` / :5634 `TwoConjuncts` | canon | structural | — | arity witness, singleton refused (`badSingletonConjunction`) | n/a | unstated |
+| Experimental.idr:2040 `isCondCoord` / :5649 `flatConjuncts` / :5654 `FlatConjuncts` | canon | printing-backed | — | no nested coordination (`badNestedConjunction`); both attested arities (2-way, 3-way) are flat | n/a | unstated |
+| Experimental.idr:2054 `condNegated` | table | structural | — | full-row: only NotCond=True; feeds markingOk | n/a | unstated |
+| Experimental.idr:2064 `markingOk` | canon | printing-backed | — | AsLongAs=True always; Unless=`condNegated c` (unless takes only negated conditions, spelling the positive underneath — `badUnlessOnPositive`); a coordination is never negated at its own frame so unless cannot mark AndCond (2 lines both coordinate a COST not a condition, `badUnlessConjunction`) | n/a | unstated |
+| Experimental.idr:2069 `MarkingOk` | canon | structural | — | witness wrapper | n/a | unstated |
+| Experimental.idr:2074 `condDelta` | table | structural | [CR#601.2c] | full-row, all rows = [] (nothing); a documented EXCEPTION not built: a target-announcing if-clause leaves a referent per [CR#601.2c], refused at the Bindingless subject slot instead of admitted (ledger, `badConditionAntecedent`) | n/a | unstated |
+| Experimental.idr:2084 `Duration` (4 rows) | catalog | CR-closed | [CR#611.2a,611.2b,610.3,610.4] | indexed by discourse (condition-typed); the EVENT-ENDED zone-change "until X" is a ONE-SHOT construction not continuous per [CR#610.3,610.4] — core makes the opposite cut (`continuous.rs`) deliberately, a grammar/runtime split not a contradiction; ThisTurn is its own row (not an Until form) because there is no boundary word | n/a | unstated |
+| Experimental.idr:2091 `AttackDefender` | slot | CR-closed | [CR#508.1b] | singular player only, a Maybe-indexed witness family (NoDefender/OneDefender) | n/a | unstated |
+| Experimental.idr:2097 `BlockPartner` | slot | CR-backed | [CR#506.3,509.1a] | Maybe-indexed witness family; battlefield-fitting + SelfSorted (the corpus never writes a bare "by this") | n/a | unstated |
+| Experimental.idr:2104 `EventAgent` | slot | printing-backed | — | Maybe-indexed, Bindingless-gated; the last-counter-removal agentive family is 3 lines all "you" (Divine Intervention, Watcher of Hours, Immard) vs 42 passive; RENAMED from RemovalAgent when shared with the counter-put event (27 active lines) | n/a | unstated |
+| Experimental.idr:2110 `CreationVoice` (4 rows, 3-way Maybe index) | slot | printing-backed | [CR#111.2,614.16] | a measured 3-cell table not a 2×2: 12 agent-only lines (none adds control), 16/17 passive lines write control-not-agent (`badCreatedByYouUnderYourControl`), 1 (Primal Vigor) neither; the 4th cell (`CreatedByCauser`) added ch81 — **ALL 3 causer-creation lines ALSO write the control phrase, bare causer-only is 0 lines** (`badCausedCreationBareControl`) | the subject shape "an effect would create" (3 lines: Anointed Procession, Doubling Season, Parallel Lives) is refused by SORT not by cell — no term exists, effect ≠ player; recorded whole (ledger) since the bodies are also unwritable | ch76, ch80, ch81 |
+| Experimental.idr:2124 `CausedBy` | slot | printing-backed | [CR#614.16] | kept SEPARATE from CreationVoice/EventAgent despite the shared Causer vocabulary because the readers disagree per cell: creation=3 causer lines, counter-placement=1 (Doubling Season's 2nd line), LastCounterRemoved=0 — a shared table would have had to admit a false cell | n/a | unstated |
+| Experimental.idr:2130 `TokenPhrase` | slot | printing-backed | — | 2 constructors only (CountedTokens 23 lines, OneToken/Indefinite 5 lines); relative-clause and coordination-of-names forms (4 lines, Crafty Cutpurse) are not this vocabulary (ledger) | n/a | unstated |
+| Experimental.idr:2144 `EventSource` | slot | CR-closed | [CR#603.6c] | FromAnywhere is a RULES-DISTINCT third state (not a louder silence) — [CR#603.6c] says "from anywhere" changes leaves-battlefield-ability treatment even when the object left the battlefield | n/a | unstated |
+| Experimental.idr:2149 `sourceZone` | table | structural | — | Nothing and FromAnywhere both map to Nothing (the same silence) | n/a | unstated |
+| Experimental.idr:2161 `putDestZoneOk` | table | printing-backed | [CR#400.1,401.2,603.6a] | Graveyard/Exile/Library/Hand=True (Hand is 1 line, Golgari Brownscale), Battlefield=False (a spelling fact — "onto" not "into", Enters has its own row), Stack=False (0 lines); a DIFFERENT table from DestOk (the move instruction) — they disagree in both directions per finding 34; the Command zone (2 headers, Myth Unbound/Reyhan) is unrepresentable — core's Command not ported (ledger) | Command-zone porting is needed for those 2 headers | finding 34 |
+| Experimental.idr:2170 `putDestOk` / :6027 `PutDest` | canon | structural | — | wholeZone && putDestZoneOk; the library demands WHOLE not a position (2 lines watch the pile) | n/a | unstated |
+| Experimental.idr:2178 `putSourceZoneOk` / :6054 `putSourceOk` / :6061 `PutSource` | table | printing-backed | — | battlefield 156 / library 13 / graveyard 2 True; exile/hand/stack False (hand zero AS SOLE source — 3 coordinated lines Desert Warfare, Hero of Bretagard, Ranar are not this vocabulary; position also refused on both sides, "from the top of a library" 0 lines) | n/a | unstated |
+| Experimental.idr:2197 `GameEvent` (20-ctor family head) | catalog | CR-closed | [CR#700.4,603.6c,701.8a,701.8c,120.1,121.1,614.11,603.9,603.10f,603.6a,508.1,508.1b,506.3,509.1,509.1g,509.1h,510.2,603.2b,601.2,701.5a,112.1,110.5,110.5d,702.26b,702.26c,702.26d,708.7,731.1a,702.62a,702.63a,702.32a,122.1,614.16,111.2,107.15,714.2,714.2b,107.15b] | 20 rows enumerated below; construction-owned spelling throughout (never spelled alone) | n/a | unstated |
+| Experimental.idr:2198 `GameEvent.Dies` | slot | CR-closed | [CR#700.4] | battlefield-fitting + SelfSorted (`badWouldDieInGraveyard`) | n/a | unstated |
+| Experimental.idr:2201 `GameEvent.Leaves` | slot | CR-closed | [CR#603.6c] | battlefield-fitting + SelfSorted | n/a | unstated |
+| Experimental.idr:2204 `GameEvent.IsDestroyed` | slot | CR-closed | [CR#701.8a,701.8c] | battlefield-fitting + SelfSorted; regeneration is this row's whole corpus | n/a | unstated |
+| Experimental.idr:2207 `GameEvent.IsDealtDamage` | slot | CR-backed | [CR#120.1] | shares the DamageRecipient gate with the damage clause (one damage vocabulary, not two) | n/a | unstated |
+| Experimental.idr:2209 `GameEvent.Draws` | slot | CR-backed | [CR#121.1,614.11] | ungated player noun | n/a | unstated |
+| Experimental.idr:2210 `GameEvent.LosesGame` | slot | CR-closed | [CR#603.9,603.10f] | NO win row exists — "would win the game" is 0 lines, no trigger header names a win, and core's EventFilter also has no loss row (a gap measured at both layers); the cause is never named (folded into GameDrawn arithmetic); looking back in time licenses the eventAfter reading of a subject post-departure | n/a | unstated |
+| Experimental.idr:2211 `GameEvent.Enters` | slot | printing-backed | [CR#603.6a,109.2] | RETEMPLATED: exactly 1 line still writes the long "enters the battlefield" against thousands bare "enters" — the row spells the short form, the long form is history not a variant; SelfSorted required (`badEntersBareThis`) | n/a | unstated |
+| Experimental.idr:2214 `GameEvent.Attacks` | slot | printing-backed | [CR#508.1,508.1b,506.3] | no Cant deed-gate (deliberate, the subject need not currently be a creature — Vehicle example); optional defender 74/1,321 headers matching Blocks' proportion; PLAYER-KINDED, narrower than the rule (planeswalker/battle coordinated-only, 1 line + 0, ledger); SINGULAR defender (`badPluralAttackDefender`, 0 lines "attacks each/all players") | planeswalker/battle attack-defender widening ledgered | unstated |
+| Experimental.idr:2219 `GameEvent.Blocks` | slot | CR-closed | [CR#509.1,509.1g] | optional patient (24 headers with, mass without); no untapped-declaration gate (the declaring engine's business, not the sentence's) | n/a | unstated |
+| Experimental.idr:2224 `GameEvent.BecomesBlocked` | slot | CR-closed | [CR#509.1h] | a separate EventName from Blocks (2 subjects, 1 declaration); explicitly NOT routed through status-becomes (StatusCat has 4 rows not 5); 61 headers name the blocker via "by"; the Blocks-side coordination ("blocks or becomes blocked by") is a coordinated EVENT, unbuilt (ledger) | n/a | unstated |
+| Experimental.idr:2229 `GameEvent.DealsCombatDamage` | slot | CR-backed | [CR#510.2] | 625/688 lines write "to a player"; shares DamageRecipient (a 3rd construction reading it) | n/a | unstated |
+| Experimental.idr:2234 `GameEvent.BeginningOf` | slot | CR-closed | [CR#603.2b] | the ONLY event with no noun phrase at all; the only event with a fixed header word (`triggerWordOk`=At); the part-and-possession grid is ch17's own vocabulary | n/a | ch17 |
+| Experimental.idr:2237 `GameEvent.Casts` | slot | CR-closed | [CR#601.2,701.5a,112.1] | the complement's zone clause is UNSPELLED ("a spell" elides the stack word, the same elision "card" makes for 4 hidden zones); singular nontarget stack complement | n/a | ch28 |
+| Experimental.idr:2241 `GameEvent.StatusEvent` | slot | CR-closed | [CR#603.2e,708.7,702.26b,702.26c,702.26d,110.5,110.5d] | MERGE: one row replaces 3 old constructors (BecomesStatus/IsTurnedFace/PhaseTransition) per the "standing check" ruling (a row naming a catalog value must take the parameter or record a refusal); the frame is the CATEGORY's not the row's — measured, one apparent counterexample (62 "is tapped" = a different event, "tapped for mana", or a copular description) is not a real crossing; 3 pins RETIRED to structural impossibility (cross-frame sentences now unstatable rather than gated) | n/a | unstated |
+| Experimental.idr:2246 `GameEvent.DayNightShift` | slot | CR-closed | [CR#731.1a] | the STANDING CHECK's FIRST RECORDED REFUSAL: no direction argument — the phrase names BOTH values at once (10/11 headers write the full disjunction); carries NO noun (the 2nd event after BeginningOf with no participant) | n/a | unstated |
+| Experimental.idr:2247 `GameEvent.LastCounterRemoved` | slot | CR-closed | [CR#702.62a,702.63a,122.1] | the subject is an OBJECT never a player — structural, not measured-and-refused (no player-holder cell exists to pin, it is kind-scoped by construction); FADING explicitly distinguished (it checks failure-at-zero vs this row's removal-that-empties); kind gated to Time (3/5 explicit lines) — ore/refine (1 line apiece) are evidence WITHOUT vocabulary (finding 200 posture, ledger); agent defaulted Nothing, 5 passive lines + 1 active (Divine Intervention) | ore/refine counter-kind rows not yet built despite attested lines | finding 85, finding 200, finding 464 |
+| Experimental.idr:2253 `GameEvent.PutInto` | slot | CR-closed | [CR#603.6c,700.4] | 242 trigger headers + 103 standing replacements; DOES NOT REPLACE Dies/Leaves despite [CR#700.4] defining "dies" as the graveyard-from-battlefield cell of this row — finding 275's derivation test FAILS on attested bidirectional crossings (14 headers write the long form of a pure-creature subject where "dies" was available; 8 write "dies" of a non-creature-word subject; Scrap Trawler uses BOTH in one sentence) — recorded as identity, not typed as derivation; the source is 3-state (EventSource) per [CR#603.6c] | n/a | unstated |
+| Experimental.idr:2259 `GameEvent.CounterEvent` | slot | CR-closed | [CR#122.1,702.90b] | ONE ROW TWO DIRECTIONS via the CounterMove value (not 2 constructors); the kind is REQUIRED not Maybe — against core's `Option<CounterRef>` — because only 1 header (Stalwart Successor) is kind-blind and it joins the kind-blind-quantifier ledger family instead of buying an option for everyone; zero player-holder lines (player counters use "gets" per [CR#702.90b], a different construction); the zone is the counter family's 2-zone table (exile earns itself twice — 7/9 removal headers watch exile); the agent is EventAgent's 2nd and larger site (27 active vs 42 passive); the batch is a slot (CounterBatch) because finding 275's derivation test fails there too | n/a | unstated |
+| Experimental.idr:2269 `GameEvent.TokensCreated` | slot | CR-closed | [CR#614.16,111.2] | 32 standing replacements + 5 trigger headers; explicitly NOT Enters (token creation and entry are one step apart, and the corpus never conflates them); the patient must be a TokenPhrase; voice+control is the CreationVoice 3-way witness, not 2 independent slots | n/a | unstated |
+| Experimental.idr:2275 `GameEvent.ChapterMark` | slot | CR-closed | [CR#107.15,714.2,714.2b,107.15b] | an EVENT not an AbilityAt row (CR files the chapter ability as triggered); the marker is a LIST not a single value per [CR#107.15b]'s "same as" equivalence — 483 plain + 98 comma-joined = 581 supported lines, one row at two lengths (finding 246's value-indexed single row); the threshold logic is an UNCHECKED SIDE CONDITION — the grammar states the marker only, the rule supplies before/after-tally semantics; names no participant (3rd of 3 no-participant rows) | n/a | ch96, ch97, ch104; finding 246 |
+| Experimental.idr:2279 `eventName` | table | structural | — | full-row projection to the EventName catalog, 20 cells | n/a | unstated |
+| Experimental.idr:2305 `eventIntro` | table | CR-backed | [CR#601.2c] | full-row discourse-contribution projection; block events announce the LAST-written phrase (patient over subject); CounterEvent under ManyCounters announces the batch SIZE as an OUTCOME mention (33 readback lines, gated `badSingularCounterBatchSize` — ONLY under ManyCounters, 0 lines read back a singular "a … counter") — this is eventCount's own unlock, cross-referenced at Amount.ThatMuch's 4th sort; ChapterMark, DayNightShift and BeginningOf all contribute bs unchanged | n/a | unstated |
+| Experimental.idr:2333 `selfSubjIntro` | table | CR-backed | [CR#109.2,400.7,603.6] | binder-scoped self-mention at event-subject position, `nomIntro (AsType t This)`'s "move" applied to a second carrier; SelfD (visible to It, not to demonstratives) vs TheD for AttachHost (visible to demonstratives too — 5 corpus lines demonstrate to an attachment host, 0 to a trigger's own subject, finding 348); applied ONLY where the event announces nothing else — where a patient/recipient is written, that phrase alone is the announcement (2 corpus lines resolve a trailing bare "it" to the SUBJECT via English's subject-preference rule, left unwritable rather than mis-gated — finding 349); the same table is reused at staticIntro (ch84, 2nd reader, 508 + 10 supported sentences) | n/a | finding 16, finding 348, finding 349, ch84 |
+| Experimental.idr:2343 `condMint` | table | CR-backed | [CR#601.2c] | mirrors selfSubjIntro's SelfD/TheD minting for Condition's Matches row; the comparison row mints the MARGIN (gapB) for EVERY comparison whether or not it is read back; the TIE-SENTENCE GROUP is NOT MINTED — measured (ch77): all 7 "them"-after-count-comparison lines are the explicit tie sentence, but no consuming carrier exists (Effect.If threads the other direction) — "a claim without a consumer" left on the ledger; AndCond folds the conjuncts' contributions via condMintAll | a condition-first conditional is needed to consume the tie-sentence group binding | ch77 |
+| Experimental.idr:2364 `interveningIntro` | table | CR-backed | [CR#603.4] | 5/6 writable "equal to the difference" lines are the trigger-intervening-"if" carrier, not the effect-level conditional | n/a | unstated |
+| Experimental.idr:2373 `eventAfter` | table | CR-closed | [CR#603.6,614.6,700.4,603.6a,603.6c,120.9,120.4b,120.3a..120.3h,509.1g,509.1h,120.2a,601.2a,110.5,110.5a,701.26a,701.26b,708.8,702.26d,122.2] | full-row projection: 3 zone-change events RETAG (Dies→Graveyard, IsDestroyed→Graveyard, Enters→Battlefield); Leaves retags to NO zone (silence-as-retag, `badLeavesThenTap` guarded); IsDealtDamage(Object) and DealsCombatDamage both announce a DamageDealt outcome mention ONLY on eventAfter not eventIntro — an announcement no carrier can consume, the blocked ledger item being the 10 Phytohydra-style replacement bodies wanting it on eventIntro instead; DealsCombatDamage explicitly does NOT gain a subject mention (finding 349, Balefire Dragon stays unwritable); status transition and counter-removal/last-counter do NOT retag (rule-grounded per category); Casts and TokensCreated do NOT retag (the phrase already announced the correct zone) | n/a | finding 349 |
+| Experimental.idr:2403 `eventSubjectPlur` | table | CR-backed | [CR#603.7b] | full-row; the only reader is the delayed-trigger singular-firing default; the other 3 readers ask nothing (`badDiesGroup` — "whenever one or more creatures die" is ordinary trigger English, not this vocabulary's concern) | n/a | unstated |
+| Experimental.idr:2428 `delayedCtx` | table | CR-backed | [CR#603.7c,603.3d,601.2c] | settles targets on eventAfter's context | n/a | unstated |
+| Experimental.idr:2432 `Interceptable` / :7088 `Holdable` / :7095 `Triggerable` / :7102 `Awaitable` | canon | structural | [CR#610.3,603.1,603.7] | 4 witness wrappers over eventUse's 4 admits-tables, keyed on EventName not constructor | n/a | unstated |
+| Experimental.idr:2452 `ReplUseOk` | canon | CR-backed | [CR#614.3] | witness over `replUseOk (eventName, ReplUse)` | n/a | unstated |
+| Experimental.idr:2456 `TriggerWordOk` | canon | CR-backed | [CR#603.1,603.2b] | witness over triggerWordOk; BeginningOf's word is FIXED (the only single-value cell in this family) | n/a | unstated |
+| Experimental.idr:2461 `PartTriggerable` | canon | printing-backed | — | witness over `admitsPartTrigger (partUse …)` | n/a | unstated |
+| Experimental.idr:2466 `ScheduledSkip` / :7136 `StandingSkip` | canon | printing-backed | — | two separate witnesses over ONE skipUse table's two readers — the cells disagree (`badSkipNextUpkeepStep`, `badStandingSkipTurn`), which is why skipUse needs 4 values not 2 | n/a | unstated |
+| Experimental.idr:2476 `AddedPart` / :7147 `FollowerPart` / :7153 `AnchorPart` | canon | printing-backed | — | 3 witnesses over addUse's 3 roles | n/a | unstated |
+| Experimental.idr:2492 `TurnDeixis` / :7177 `isTurnDeictic` | canon | printing-backed | [CR#500.7] | only ThatTurns=True among the 7 Owner cells; 11/11 supported "that turn" readers have an in-ability introducing clause, none stands alone — discourse-resolved not engine-resolved | n/a | unstated |
+| Experimental.idr:2509 `spanUse` | table | printing-backed | [CR#511.2] | THE DURATION ATTESTATION TABLE, full rows over (ThisTurn/StartOf/EndOf × 9 TurnPart × 3 possession) + ForAsLongAs + UntilEvent. ATTESTED: ThisTurn=RestrictionsShieldsPermissionsAndDelays; StartOf(Turn,Yours)=GrantsRestrictionsReplacementBaseSetTypeSetAndLoss; StartOf(Upkeep,Yours)=KeywordGrantAndTypeSet; StartOf(EndStep,Yours)=PermissionOnly (impulse family only — Yasmin Khan, Dragonhawk); EndOf(Turn,Nothing)=GrantsTypesControlReplacementPermissionSetSwitchTypeSetAndLoss; EndOf(Turn,Yours)=ControlGrantAndPermission; EndOf(Combat,Nothing)=GrantsControlAndTypeSet; EndOf(Combat,Yours)=PermissionOnly (1 line, Brazen Cannonade); ForAsLongAs(_)=GrantsRestrictionsControlPermissionTypeSetAndLoss (the widest class, every construction but type ADDITION). UNCLAIMED, exactly 4 by name: StartOf(Turn,ThatPlayers); StartOf(EndStep,Nothing); StartOf(EndStep,ThatPlayers); EndOf(Upkeep,Yours) — "every one waiting on a construction rather than on a duration". ALL REMAINING cells Unattested (zero corpus lines), including StartOf(Turn,Nothing), StartOf(Upkeep,Nothing/ThatPlayers), StartOf(Combat,*), StartOf(UntapStep,*), StartOf(EndOfCombat,*), EndOf(Upkeep,Nothing/ThatPlayers), EndOf(EndStep,*), EndOf(Combat,ThatPlayers), EndOf(UntapStep,*), EndOf(EndOfCombat,*), and StartOf/EndOf over FirstMain, PostcombatMain, DrawStep and MainPhase | a new TurnPart/Whose/boundary triggers a totality error demanding evidence before any cell can be written | ch17, ch28, finding 246 |
+| Experimental.idr:2575 `SpanOk` | canon | structural | — | 2-arm witness: SpanUnstated (absentOk) / SpanStated (`admitsSpan k (spanUse d)`) | n/a | unstated |
+| Experimental.idr:2580 `DelaySpanOk` | canon | CR-backed | [CR#603.7b] | Unstated always fine (the rule's once-only default, no side condition) vs SpanOk's stated-absence gate | n/a | unstated |
+| Experimental.idr:2585 `playSourceOk` / :7397 `PlaySource` | canon | printing-backed | [CR#604.6,601.3e,701.5b] | COUNTERFACTUAL ROW-SENSITIVITY: a written source phrase overrides a sort-only complement (ch115, building on ch114) — 233 supported permission sentences write a spell-worded complement + source phrase across every source zone (exile 99, hand 48, library-top 45, graveyard 41); the HadFlash arm names NO PLACE (it widens WHEN not WHERE) and routes through castComplementOk instead; BOTH CONTENTS NEVER WRITTEN TOGETHER — measured at the row: 0/88 as-though permissions also write "from [zone]" in the same clause (the near-miss is a 2-clause coordination, Azula); the one all-attested clause with both (Shaman's Trance) writes the ZONE counterfactual, a row this vocabulary deliberately lacks — a future row must re-measure, not inherit the refusal | the zone counterfactual (Shaman's Trance shape) is not yet a row | ch114, ch115 |
+| Experimental.idr:2601 `TokenChars` | slot | CR-closed | [CR#111.3,111.1,109.2,111.4,105.2c] | 5-field record; pt is `Maybe (Amount, Amount)` as a PAIR not 2 independent Maybes (62 X/X token cards, the corpus writes "N/N" as ONE phrase); self-ascription gap: 193/239 create-spans use "this token" inside quotation but AsType has no TOKEN row (only card type/9 subtypes per [CR#109.2]; "token" is [CR#111.1]'s marker word, not a type) — open here, ledgered for the animation carrier (24/29 spans use "this creature", open there); color is a LIST not an enum-set (mirroring core's color_indicator, empty=colorless per [CR#105.2c]); name is a Maybe ([CR#111.4] synthesizes unnamed) | self-ascription ("this token") is not yet a Noun row | unstated |
+| Experimental.idr:2610 `tokenTyped` / :7493 `TokenTyped` | canon | CR-closed | [CR#111.1,111.10] | the type-less spelling is a PREDEFINED name (core's `TokenSpec::Named`) — waits with that catalog (ledger) | the predefined-name token catalog is not yet ported | unstated |
+| Experimental.idr:2614 `ptWritten` / :7487 `tokenPtOk` / :7497 `TokenPt` | canon | CR-closed | [CR#208.1,111.3,301.7] | a ONE-DIRECTIONAL table: a creature token MUST write P/T (`badCreatureTokenNoPt`), but a noncreature (e.g. Vehicle) token's P/T is free, not forced-empty — the direction is fixed by the corpus | n/a | unstated |
+| Experimental.idr:2631 `SubtypesFit` | canon | structural | — | witness over subsFitLine | n/a | unstated |
+| Experimental.idr:2636 `tokenCanonical` / :7512 `TokenCanonical` | canon | printing-backed | — | colorsDistinct && typesOrdered — a canonicality gate combining two other canon facts | n/a | unstated |
+| Experimental.idr:2644 `nameUnwritten` / :7534 `additionUnnamed` / :7538 `AdditionUnnamed` | canon | printing-backed | [CR#205.1a,205.1b] | the 0-OF-308 NAME CELL: no type-addition line ever writes a name — the one cell where the [CR#205.1a]/[CR#205.1b] readings disagree; REFUSED rather than tolerated per finding 246 ("a slot that could spell unwritten English is a slot the measurement did not buy") | n/a | finding 246 |
+| Experimental.idr:2659 `tokenHeadTy` | table | structural | — | lastType projection | n/a | unstated |
+| Experimental.idr:2663 `TokenSpec` (3 arms) | slot | printing-backed | [CR#111.3,111.7,707.1,707.2] | TokenAsThose is an ANAPHOR not a replacement construction (43 lines, 2 carriers — 21 after an ordinary create, 22 as a replacement body — belonging to the CREATE CLAUSE); SINGULAR REFUSED (`badCreateAsThatToken`, 0 lines "creates that token" even where exactly 1 is created); TokenCopyOf is a 288-line/277-card cell (the largest in the copy family, ch45-fenced) — an ordinary Amount for the count (244 "a", 10 "two", 6 "X"), not counted-group machinery; 98/288 write a CopyExcept tail | n/a | ch45 |
+| Experimental.idr:2675 `specHeadTy` | table | CR-backed | [CR#707.2] | 3-way projection: written chars / anaphoric read-off (tyOfThose) / the copy source's own type | n/a | unstated |
+| Experimental.idr:2681 `PtShift` | slot | CR-backed | [CR#107.1b,613.4c] | the sign lives in the constructor, not a signed-number system (mirroring Counter.Delta); TWO INDEPENDENT SLOTS confirmed by corpus: "+2/-2" 101 lines, "-1/+1" 12 lines | new sign combinations already covered (both signs independent) | unstated |
+| Experimental.idr:2696 `writtenZero` | canon | printing-backed | — | only `Lit Z` = True; "+2/+0" 1,120 lines, "+0/+3" 146 | re-measure if new one-sided pump shapes appear | unstated |
+| Experimental.idr:2705 `pumpSignsOk` / `PumpSigns` | canon | printing-backed | — | CANONICALITY GATE (like TokenCanonical): the untouched (zero) slot takes its partner's sign — "-2/-0" 129, "-0/-X" 10, "+2/+0" 1,120, "+0/+3" 146, against the 4 disagreeing cells ("+0/-N", "-0/+N", "+N/-0", "-N/+0") at ZERO (`badDisagreeingZeroPump`); the both-zero pair "+0/+0"(1, reminder text)/"-0/-0"(0) explicitly left unregulated ("a rule separating them would be a rule about a cell that says nothing") | any disagreeing-zero cell going nonzero flips the gate | unstated |
+| Experimental.idr:2716 `CostShift` | slot | printing-backed | [CR#118.7a] (named but disclaimed as non-gating), [CR#702.41a] | magnitude is an Amount not a mana-cost symbol run — a deliberate divergence from the printed glyphs; the generic component measured 3 ways: {1}=377, {2}=145, {3}=41 lines; for-each = `Times n (CountOf p)` unchanged (affinity shape, 227 domains); X-reduction reads the definition-rider letter (38 lines); the COLORED/multi-symbol payload (~25 lines, e.g. Strive) explicitly NOT covered, recorded not admitted (ledger) | modelling the colored component would add a slot | ch59 |
+
+### 4.5 `Experimental.idr` — lines 7770–11600 (StaticEffect, Cost, the Effect head)
+
+| Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
+|---|---|---|---|---|---|---|
+| Experimental.idr:2726 `StaticEffect` (family head) | catalog | CR-backed | [CR#611.2] | structural: core's `Continuously{effect,duration}` split | new StaticKind rows arrive with the ability layer (becomes-copy, loses-abilities, sets-base-PT) | unstated |
+| Experimental.idr:2727 `Gets` | slot | CR-backed | [CR#613.4c] | subject-context amounts forced by 46 lines reading the subject back; the one-shot form refused (`badGetsGraveyard`) | a new "gets" family (e.g. a read pump) folds in via Amount, not a new row | unstated |
+| Experimental.idr:2731 `DefinesPt` | slot | CR-closed | [CR#208.2a,604.3,604.3a,613.4a] | 142/142 symmetric lines: self subject, unwritten value, no zone demand | none stated (the layer split is left to the reader, not this row) | unstated |
+| Experimental.idr:2735 `HasBasePt` | slot | CR-backed | [CR#613.4b,208.3a] | 114 lines; a crossing pair (Angry Mob vs Doc Ock) forces a separate row from DefinesPt; asymmetric pairs freely written ("9/10", "5/3", "0/2") | none stated | finding 275 |
+| Experimental.idr:2738 `SwitchesPt` | slot | printing-backed | [CR#613.4d] | 25/25 lines end "until end of turn"; no partial switch written (`badSwitchLine`, `badStandingSwitch`) | a standing (non-clause) switch line or a partial switch would force a new shape | unstated |
+| Experimental.idr:2741 `CostsToCast` | slot | CR-backed | [CR#601.2f,613.11,118.5,118.7,118.8,118.9,602.2b] | self subject 388 lines vs the class rest; the additional-cost shape declined (347 spell-own + 6 class lines, none with a mana payload — ledger); infinitive by sort, 98 (activate) vs 653 (cast) | none stated (the name is kept deliberately despite the `ObjectCant` naming collision — ledger) | unstated |
+| Experimental.idr:2744 `AltCost` | slot | CR-backed | [CR#118.1,118.5,118.9,118.9c,113.6d,113.6j,606.3,107.5] | Maybe-as-spelling covariance 123/123 (107 written-payment "rather than pay" / 16 "without paying"); no subject slot 107/107; symbols refused at costOffBattlefield (3 cells, 0 disagreement, finding 309); 9 attested cost fillers (mana 45, exile 25, sacrifice 17, tap 6, discard 5, return 5, reveal 1, life, compound) | 14 class-scope alt-cost lines (As Foretold etc.) ledgered as CostsToCast territory, not this row | finding 309 |
+| Experimental.idr:2746 `WhereLetterStatic` | slot | CR-backed | [CR#107.3,107.3c,107.3i,611.3a,604.1,604.2] | 142 supported rider lines in static-ability position | none stated | unstated |
+| Experimental.idr:2750 `Gains` | slot | printing-backed (GrantSubject) / CR-backed (Grantable) | [CR#112.1] | admitsSpan cells re-measured: "until end of turn" 109, "for as long as" 7, "until your next turn" 2, "until end of combat" 1 (a strict subset of the keyword grant's endpoints); GrantSubject forced by 37 lines granting to a spell class | a new span endpoint or class-subject shape would re-measure admitsSpan/grantSubjectOk | unstated (grant round) |
+| Experimental.idr:2753 `Deontic` | slot | CR-backed | [CR#101.2,508.1c,509.1b,506.3,506.4] | the payer is derived at 1 exception cell (Block/Patient defending player); the scaled cost family is 30 lines/29 cards, 25 scaled (18/26 gate lines "for each" at ledgering) | defending-player payer, coordinated deed, and action-cost payer noun all ledgered as unspelled | finding 254, finding 331, chapters 49/136 |
+| Experimental.idr:2759 `MayDeclineUntap` | slot | CR-backed | [CR#502.3] | 7 lines, one shape | none stated | unstated |
+| Experimental.idr:2762 `OutcomeGate` | slot | CR-backed | [CR#101.2,104.2a,104.3a,104.3f] | one clause, one gate (Platinum Angel's two clauses = two gates) | none stated | unstated |
+| Experimental.idr:2764 `PlayerCant` | catalog | printing-backed (class cells) | [CR#101.2] | staticAsAbility 27/41; admitsSpan 13/41; absentOk refused except 2 "rest of the game" lines (ledger) | a new action beyond the closed PlayerAct catalog | unstated |
+| Experimental.idr:2766 `ObjectCant` | catalog | printing-backed (class cells) | [CR#101.2] | staticAsAbility 107/123 countering lines + every casting line; spanless refused except ~9 lines (ledger, Vexing Shusher/Banefire noted) | a new action beyond the closed ObjectAct catalog | chapter 93, chapter 110, finding 246 |
+| Experimental.idr:2768 `DoesntUntap` | slot | CR-backed | [CR#502.3,703.4c] | the possessor is derived and agrees with the subject; "does not untap" written 0 times against "doesn't untap" as the norm | the one-shot "next untap step" family, the non-"during" line, and set-level caps are ledgered as other constructions | unstated |
+| Experimental.idr:2771 `CantUntapMoreThan` | slot | CR-backed | [CR#502.3,205.4c] | 7 lines; CapSubject 3 phrases; CapBound a closed 2-row table; the possessor dissolved to a derivation 7/7; 5 sets written, 4 ordinary vocabulary + 1 (nonbasic land) via HasSupertype | none stated | finding 250, finding 257, finding 274 |
+| Experimental.idr:2778 `Skips` | slot | printing-backed | [CR#500.11,614.10,500.1,501.1] | 18/18 standing occurrences have no "would"/"instead" (4 exceptions are a separate Fasting-family surface, ledger); the possessor is derived 26/27 (1 exception, Savor the Moment, ledger); subject 3 phrases (you 15, players 2, each player 1); the part-word full-noun spelling vs the endpoint's bare word (skipUse table, 5 named parts / 4 silent) | Savor the Moment's deictic possessor is unmodelled | finding 250 |
+| Experimental.idr:2780 `BecomesAlso` | slot | CR-backed | [CR#205.1b,613.1d,613.1e,613.4b] | a 312-line family (corrected from 220, finding 605); 196 write the type-line phrase this row holds, 81 "becomes"/115 copula; the payload bundle is forced by 108/308 being unwritable as a bare TypeLine (31 colour, 79 P/T glyph, 40 with-clause; finding 1121); TokenPt/TokenTyped/type-ordering do NOT ride (140/308 no glyph, 3 glyph without a type word); a name is refused 0/308 against the setting's 1 (The Curse of Fenric) | the colour-only addition (2 lines, 1 ledgered residue = Indigo Faerie) is unmodelled | findings 605, 1121, 1122, 1123 |
+| Experimental.idr:2788 `AddsEveryType` | slot | CR-closed (keyword expansion) | [CR#702.73a,107.15,305.7] | verb/quantifier covariance 20/22 passed (finding 275); the 2 exceptions are one minimal pair (Runed Stalactite/Stalactite Dagger), not a second row; a retaining phrase on 6/6 land-space lines, 0/14 creature-space | none stated | finding 275, finding 930a |
+| Experimental.idr:2792 `SetsType` | slot | CR-backed | [CR#205.1a,613.1d] | 492 lines/472 cards (the largest family in one round); the P/T glyph slot 246 lines vs the HasBasePt rider 78 lines, 0/324 co-occurring; retention rider slot: 138/245 "It's still a land" vs 107 not | rider-frame coordination (glyph + HasBasePt together) is unmodelled | unstated |
+| Experimental.idr:2800 `SetsChosenBasicType` | slot | CR-closed (domain) / printing-backed (chooser) | [CR#305.6,608.2d] | 12 lines; the chooser fixed "of your choice" 12/12 (finding 246: 3 unwritten cells against 1 written) | the adding-surface variant (Navigator's Compass, 1 line) is ledgered to BecomesAlso | finding 246 |
+| Experimental.idr:2803 `AddsChosenQuality` | slot | CR-backed | [CR#205.1b,613.1e,607.2d] | 12 subtype lines (self 5, you-control 4, each 1, +2); reaches colour ascription too (Painter's Servant) | none stated | round 69 |
+| Experimental.idr:2807 `SetsChosenQuality` | slot | CR-backed | [CR#205.1a] | 12 lines; 11 Mistform-cycle (7 word-for-word) + 1 bound read (Conspiracy) | none stated | unstated |
+| Experimental.idr:2811 `AlsoOffBattlefield` / `extendableScope` | slot | printing-backed | [CR#113.6] (explicitly disclaimed as non-licensing) | 9/9 carriers write it as the second sentence of a two-sentence line, 0/9 standalone; no scope slot (finding 275 passed); all 9 carriers are type/colour ascriptions | a new non-ascription carrier would force the scope slot re-test | finding 275 |
+| Experimental.idr:2813 `BecomesCopy` | slot | CR-backed | [CR#707.4,613.2a] | 88 lines, 78 under a resolving carrier (37 triggered/29 activated/12 spell); spans 36 "until end of turn", 4 "until your next turn", 2 "for as long as", 41 none; 46/88 write a CopyExcept tail | none stated | unstated |
+| Experimental.idr:2817 `LosesAllAbilities` | slot | printing-backed | [CR#613.1f] | 84 lines; its own row justified by 45/84 changing no type in the paragraph; the scope word ("other") is a spelling not a slot, 22/22 perfect order covariance (finding 275 positive) | "except mana abilities" (Blood Sun, 1 line) is ledgered as a different shape | finding 630 |
+| Experimental.idr:2820 `GainsControl` | slot | CR-backed | [CR#613.1b,611.2a,110.2,109.4] | a recorded DIVERGENCE from core (one row against core's two constructors) | the stack-half exchange of control is ledgered | unstated |
+| Experimental.idr:2822 `Intercepts` | slot | CR-backed | [CR#614.1,614.1a,614.3,614.7] | the replacement voice equals the event clause's voice: 59/60 covary (finding 275), the 1 crossing being Zabaz the Glimmerwasp (a modular triggered ability creator, no term); a passive body outside the two named families is measured zero | Zabaz's subject sort would force a voice slot if generalized | finding 275 |
+| Experimental.idr:2826 `Prevents` | slot | CR-backed | [CR#615.1,615.1a,615.5,615.7,510.2] | 5 slots as of ch96 (source qualifier ch94, rider ch96); the rider count corrected 140-odd → 111 shield sentences (the wider 125 count includes non-shield damage clauses); 18/36 riders hang off this row, 18 off the event-shaped sibling (standing statics); 0 riders on redirection or can't-be-prevented | none stated | chapter 94, chapter 96 |
+| Experimental.idr:2831 `PreventsFrom` | slot | CR-backed | [CR#615.8,615.10,615.5,614.3] | one row for the CR's two ([CR#615.8] one-shot 49 sentences/49 cards + [CR#615.10] reducer 39/38); ReplUse covariance 48/49 one-shots write "this turn", 35/39 reducers write no duration; source-optionality correction: was "88/88 named", now 27 lines passive with no agent (ch94 correction); the class adjective also corrected from a spelling to a slot (9 CombatOnly, 2 NoncombatOnly); recipient absence 7 one-shots against 0/34 reducers; 18/36 riders here | none stated | chapter 94 |
+| Experimental.idr:2838 `Redirects` | slot | CR-backed | [CR#614.9] | 44 sentences/44 cards; AllOfIt 25 vs TheNext 19; recipient named 43/44; "by" rider 12/44; class adjective 4/44; finding 275's grid populated 15/10/17/2 (size × rider); reaches the conjoined recipient via YouAnd (ch99) | none stated (nothing widened at the conjoined-recipient addition) | finding 275, chapter 25, chapter 99 |
+| Experimental.idr:2844 `RedirectsFrom` | slot | CR-backed | [CR#615.8,614.3] | 15 sentences/15 cards; ReplUse 13 "next time" vs 2 "if"; DamageAgent voice 12 named vs 3 absent; active/passive body split 9 vs 6, the second only where the agent is named | none stated | unstated |
+| Experimental.idr:2851 `Scales` | slot | printing-backed | [CR#614.7a] | 62 sentences/60 cards; DamageKind any 46/noncombat 8/combat 8; DamageScope recipient 55/Everywhere 7; ReplUse conditional 59/next-time 2; the agent is ALWAYS named 62/62 (0 passive, against PreventsFrom's 27); the destination phrase is a spelling not a slot: finding 275's grid crossed on "a permanent or player" (8 named/5 elided), shift (7/2), tripling (Fiery Emancipation/City on Fire); total covariance for the 7 no-recipient event clauses eliding the destination | Overblaze's "EACH TIME" recorded as Repeatedly under a separate word | unstated |
+| Experimental.idr:2856 `CantPrevent` | slot | CR-backed | [CR#615.12,615.12a] | 31 sentences/31 cards; 16 bare, 1 class adjective (Frenzied Baloth), 3 source, 1 recipient (Whippoorwill); no size slot (measured: none say how much) | the anaphoric "that damage" subject (10 lines) is unmodelled — a damage event is not a mention here | finding 709 |
+| Experimental.idr:2858 `Conditionally` | canon | CR-backed | [CR#611.3a,611.2b] | a threading correction: the comment used to claim the wrong direction (both arguments at raw bs); rebuilt ch50, 141/424 fronted lines pronominalize the condition's subject; does not nest (`badDoubleConditional`) | the trailing-with-pronoun form (~70 lines, "IT's untapped") needs the opposite threading, unbuilt | chapter 50 |
+| Experimental.idr:2862 `MayPlay` | slot | CR-closed | [CR#604.6,701.5b,601.1a,305.9] | the verb slot is bracketed by the rule itself; source zone defaulted (Nothing = read off the complement) | none stated | unstated |
+| Experimental.idr:2869 `Visibility` | slot | CR-closed | [CR#401.5,604.6,701.20a,701.20e,701.18c] | reuses the ExposeVerb tag rather than re-minting; "may" derived, 0/21 reveal lines write the modal, 44/44 bare look-at lines do (finding 275 passed); 61/61 top-of-library permissions gated by this rider (finding 911) | none stated | chapter 115, finding 911 |
+| Experimental.idr:2872 `MayPlayAdditionalLands` | slot | CR-closed | [CR#305.2,305.2a,116.2a] | the window word is derived 38/38 (finding 275 passed); a Quantity not an Amount (open-bottomed "up to two/three"); the X-form fenced to 1 line (Nahiri's Lithoforming) | none stated | round 79 |
+| Experimental.idr:2876 `EntersRider` | catalog | CR-backed | [CR#603.6d,614.1d] | shares TokenRider; "enters attacking" written 0 times as a permanent's own ability | none stated | unstated |
+| Experimental.idr:2879 `EntersWithCounters` | slot | CR-backed | [CR#603.6d,614.1c,614.1d,614.12] | the EntryCounterMark slot added ch121 (previously misdiagnosed as an amount/subject blocker); 26 lines with both words, nothing else covarying; defaults Fresh (finding 464 pattern) | the counter kind reaches "under half" the corpus lines, the rest ledgered to the counter catalog | chapter 121, finding 464 |
+| Experimental.idr:2884 `EntersChoice` | slot | printing-backed (chooser) / CR-backed (linkage) | [CR#614.12a,607.2d,603.6d] | 134 lines; the sort slot bare, 4 sorts written (COLOR 66, CREATURE TYPE 57 with readers; CARD NAME 14, NUMBER 4 without); NO chooser slot 134/136 (finding 246) | the CARD NAME/NUMBER unreadable halves refuse at OfChosen | finding 824 |
+| Experimental.idr:2888 `AndAlso` | catalog | printing-backed | — | 1,433 sentences/1,407 cards (the largest single construction, and no CR anchor at all); 1,193/1,433 pump + keyword grant; 36 distinct signatures over 10 statement rows; elision near-total: 1/1,433 writes a later subject (Darksteel Mutation); arity 1,412 binary/20 ternary/1 five-way; duration 562 trailing/127 fronted | none stated | unstated |
+| Experimental.idr:2901 `Compulsion` / `compulsionTag` | catalog | CR-closed | [CR#508.1c,508.1d,509.1b,509.1c] | 3 rows (Forbid/Require/GatedBy) | none stated | unstated |
+| Experimental.idr:2928 `extendableScopeOk` | canon | printing-backed | — | 9/9 carriers are type/colour ascriptions; NOT nestable, 9/9 exactly two sentences | Celestial Dawn's colour-setting and Maskwood Nexus's "every creature type" are the two unspellable carriers noted | unstated |
+| Experimental.idr:2940 `notLetterRider` | canon | printing-backed | — | 245/245 pump-with-rider lines put the duration before the rider, 0 after | none stated | unstated |
+| Experimental.idr:2953 `Shield` | catalog | CR-closed | [CR#615.3,615.7] | AllOfIt / TheNext(amt); no third determiner written ("half the damage", "up to 3 damage" = 0) | none stated | unstated |
+| Experimental.idr:2963 `DamageScope` | catalog | CR-backed | [CR#611.2c] | Everywhere / ToRecipient; the empty row is Fog's own worked-example case | none stated | unstated |
+| Experimental.idr:2974 `DamageAgent` | canon | printing-backed | — | voice is a spelling not an axis (finding 275); the passive row is 30 lines (27 prevention + 3 redirect); DealtBy takes DamageSource (97 named agents, all singular, against the shield's "by" rider half being plural) | none stated | chapter 94 |
+| Experimental.idr:2985 `byIntro` (shield "by" rider) | slot | CR-backed | [CR#609.7,120.1a,120.7] | finding 275's grid fully populated (49/59/1/2 with the phrase against 71/87/9/116 without); takes NO gate (a measured divergence from DamageRecipient); 60 singular/50 plural riders — the word "source" itself is out of vocabulary, the residue counted | — | finding 707 |
+| Experimental.idr:2990 `PreventCut` | catalog | CR-backed | [CR#615.7,615.10] | 88 event-shaped sentences: CutAll 60 (47/49 one-shots + 13/39 reducers), CutSome 21 (all reducers) — **60 + 21 = 81, not 88; the discrepancy is not reconciled in the text (see §7)**; does NOT covary with the use word | 3 refused shapes counted: "all but N" (5), "half…rounded" (2, needs a halving amount), the where-X rider (3, blocked by WhereLetterStatic's reach) | unstated |
+| Experimental.idr:3000 `DamageScale` | catalog | CR-backed | [CR#107.1a] | 3 rows (Multiplied/Halved/Shifted) by parameter shape, not by operation word; the anaphor is free variation "that damage"/"that much damage", crossing witness Neriv (both mult-word and shift-word); 0/62 write a literal base amount | none stated | unstated |
+| Experimental.idr:3022 `staticKind` | table | CR-backed | [CR#113.6d,614.1a,615.1a,603.6d] | multiple merge decisions recorded: CostsToCast/AltCost same kind (CostModification, admitsSpan False on all 10 cells, 0/123 write a duration); Prevents/PreventsFrom/CantPrevent same kind (Prevention, 88 event-shaped: 49 "this turn" + 1 "this combat" + 38 none; 398 shield lines the same two endpoints); Redirects/RedirectsFrom/Scales same kind (Replacement, all write "instead"); EntersRider/EntersWithCounters/EntersChoice same kind (EntryRider) | none stated | unstated |
+| Experimental.idr:3066 `staticLineOk` | canon | CR-backed | [CR#604.1] | Conditionally recurses on the payload only, not the condition (which has no line-cell) | none stated | unstated |
+| Experimental.idr:3111 `staticIntro` | table | CR-backed | — | multiple derivation decisions per row (AltCost/CantUntapMoreThan/Skips announce bs unchanged — no mention left for a later reader; Prevents/PreventsFrom scope the announcement to the rider's own typing, the corpus showing 36/36 reads are the rider's own against 0 free cross-sentence reads) | — | unstated |
+| Experimental.idr:3155 `staticChoiceIntro` | slot | CR-backed | [CR#607.2d] | ONE row (EntersChoice) answers non-bs; every other row answers bs unchanged | none stated | unstated |
+| Experimental.idr:3160 `DividedVerb` | catalog | CR-closed | [CR#601.2d,115.7f] | 2 idioms, no third; they never cross ("counters divided as you choose"=0, "distribute…damage"=0); a recorded NARROWING of core's general `Count::Allotment` | none stated | unstated |
+| Experimental.idr:3179 `DividedTakes` | table | CR-backed (measured for the counters half) | — | counter division demands the battlefield, measured (not inherited from PutCounters' two zones); no line divides counters in exile | none stated | unstated |
+| Experimental.idr:3185 `Exposed` | catalog | printing-backed | — | 2 rows (ExposedCards/ExposedZone); "reveal all cards in your hand" as a group = 0 lines, so hand-as-zone is the construction and not an abbreviation | none stated | unstated |
+| Experimental.idr:3196 `CounterRider` | slot | printing-backed | — | "on it" fixed: 100% of lines end "on it", none stop at "counters" (a total measurement) | none stated | finding 192 (contrast) |
+| Experimental.idr:3201 `MoveRiders` | slot | CR-backed | [CR#110.2a,109.4] | finding 179's sharing at a third site (entry riders + controller share TokenRider shapes verbatim); the controller is an override, not a required field | none stated | finding 179 |
+| Experimental.idr:3209 `CtrlSingular` | slot | CR-closed | [CR#109.4] | structural: one controller | none stated | unstated |
+| Experimental.idr:3229 `ridersFitZone` / `RidersFit` | canon | CR-backed | [CR#110.5b,506.3a,109.4] | a per-half zone split this round; entry + controller battlefield-only (0 lines elsewhere); the counter half answers the same 2-zone table as put/remove | none stated | unstated |
+| Experimental.idr:3240 `Cost` (family) | catalog | CR-backed | [CR#118.1,118.9,118.9a,118.9c,107.5] | a recorded DIVERGENCE from core/legacy: {T} is spelled `Do (Tap This)` rather than as a symbol component; the alt-cost swap machinery declined again (ch123 landed the AltCost sentence but not this decline) | — | chapter 123 |
+| Experimental.idr:3242 `ScaledMana` | slot | CR-backed | [CR#118.4] | 46 supported lines; the scaled component is always ONE symbol wide, never mid-run (0 lines "{1}{R} for each…"); generic 46/52 scaling payment lines | the colored component (3: Cyclone, Thelon's Curse, Norn's Annex), {X}-per-unit (4) and the "plus additional" compound (3) are all ledgered/refused with counts | finding 398 |
+| Experimental.idr:3244 `TapSymbol` | slot | CR-closed | [CR#107.5] | fixed self-patient, never written as a noun phrase | — | unstated |
+| Experimental.idr:3245 `UntapSymbol` | slot | CR-closed | [CR#602.5a] | 18 cost components (Merrow Grimeblotter etc.) | — | unstated |
+| Experimental.idr:3246 `LoyaltySymbol` | slot | CR-closed | [CR#606.1,606.2,606.4] | 1,034 components against 0 written counter costs (the normalized-to-symbol decision, a recorded divergence from core/settled-spec); findings 168/190/217 deferred it by name before it landed | — | findings 168, 190, 217, 567 |
+| Experimental.idr:3247 `Do` (cost action) | slot | CR-backed | [CR#118.1] | — | — | unstated |
+| Experimental.idr:3248 `Compound` (cost) | slot | CR-backed | [CR#601.2h] | textual order, not payment order | — | unstated |
+| Experimental.idr:3277 `NotCompound` | canon | structural | — | 0 nested compounds (core normalizes via splice instead) | — | unstated |
+| Experimental.idr:3286 `NotLoyalty` | canon | printing-backed | [CR#606.5] | 0/1,034 loyalty components inside a compound (`badCompoundLoyalty`) | none stated | unstated |
+| Experimental.idr:3290 `ProducedMana` | catalog | printing-backed | [CR#106.1b,105.1] | 3 rows against the prior arts' 6 (finding 246's merge rule); Runs 1,691/2,487 add-sentences; AnyColor 508 (a 5-way "or" list = 0 lines); AmongColorsOf/ProducedByEvent NOT ported (4 and 17 sentences, ledgered) | none stated | finding 246 |
+| Experimental.idr:3294 `OfChosenColor` | slot | printing-backed | — | 33 sentences/32 cards; the sort FIXED at Color, the 3 other sorts (type/name/number) measuring ZERO here (finding 1016); uniqueness `cq=1` checked against the corpus, no card has 2 colour choosers; the alternative is always last, 33/33 | none stated | finding 1013, finding 1016 |
+| Experimental.idr:3300 `SpendPurpose` | catalog | printing-backed | [CR#113.7] | 164 restriction sentences: 102 cast-only, 13 activate-only, 40 both-disjunction | 9 sentences (6 cost-shape, 2 cost+cast disjunction, 1 special action) refused — no phrase for a cost in the purpose slot | unstated |
+| Experimental.idr:3318 `ManaRider` (`SpendOnly`) | slot | CR-closed | [CR#106.6,106.6a] | one row of the CR's three; the effect-on-paid-object rider (11) and the delayed-trigger rider (3) are both ledgered (no antecedent sort) | — | unstated |
+| Experimental.idr:3328 `freedomFits` / `FreedomFits` | canon | printing-backed | — | `badLoneCombination`: EachColor at count-1 refused (a second spelling of SameColor); EachColor under XVal (16) and ThatMuch (1) pass | none stated | unstated |
+| Experimental.idr:3340 `CopyExcept` | catalog | CR-backed | [CR#707.9,707.9a..707.9f,707.10] | 6 rows at their counts: ExceptTypes 75, ExceptAbility 56, ExceptThisAbility 21, ExceptPt 10 (+36 in the refused bundle), ExceptNonlegendary 38, ExceptColor 1 (FORK, landed on a bench-positive precedent per finding 692); overall 194/194 copy sentences carry a tail (135/37/17/4/1 by arity) | refused and counted: the NAME exception (17), colour-in-bundle (17 of 19), enters-with (5), type-setting removal (4), starting loyalty (1, Ob Nixilis, finding 639), RETAIN (1, Vesuvan Doppelganger) | finding 639, finding 692, chapters 92, 93, 137 |
+| Experimental.idr:3351 `repeatCount` / `RepeatCount` | canon | printing-backed | — | a join of writtenBound + writtenCount; two pins `badZeroRepeat`/`badCountedRepeat` | none stated | unstated |
+| Experimental.idr:3359 `Repetition` | catalog | printing-backed | [CR#104.4b] | Again 17 (all gated by an enclosing condition/may); MoreTimes 7 ("once" 4/4 at n=1, "N more times" 3/3 at n>1, 0 "one more time"/"twice"); AnyNumber 4 (all under a written-decider may) | 2 unreached cells ledgered per Repeat's own comment | unstated |
+| Experimental.idr:3367 `DealDamage` | slot | CR-closed | [CR#120.1,120.1a] | matches constructors.ron's DealDamage exactly | — | unstated |
+| Experimental.idr:3372 `Fights` | slot | CR-backed | [CR#701.14a,701.14b,701.14c] | RE-CONFIRMED primitive on a corrected argument (the old "simultaneity" reason superseded by the Simultaneously combinator's existence; the new reason is the joint pair-condition [CR#701.14b] that no two typed clauses can state); core independently demoted its own fight to a macro but this vocabulary keeps it primitive; no distinctness gate (self-fight is defined) | — | docs/keyword-policy.md (core) |
+| Experimental.idr:3380 `SetStatus` | catalog | CR-closed | [CR#110.5,702.26a,708.2a,708.7,710.1a,710.4] | replaces 4 constructors (the catalog ruling's conviction); 8 value cells: tap 291/untap 255, face-down/face-up turn-frame, phase-out 37/phase-in 1, flip 16 (unflip refused, [CR#710.4]'s one-way process backing the zero) | none stated | unstated |
+| Experimental.idr:3383 `RemoveFromCombat` | slot | CR-closed | [CR#506.4,506.4a] | — | none stated | unstated |
+| Experimental.idr:3385 `Regenerate` | slot | CR-backed | [CR#701.19,701.19a,701.19b,614.8] | 265 sentences/263 cards; a primitive because the 4-part replacement is rule-named and printed by no card (finding 141: "not one part of which this vocabulary writes"); subject distribution 184 self/58 target/15 enchanted/10 anaphoric/8 group, nothing minted (finding 1004) | none stated | chapter 123, finding 141, finding 1004 |
+| Experimental.idr:3388 `CantBe` (riderAct) | slot | CR-backed | [CR#608.2c,506.4] | 156 regeneration prohibitions on a 2×2 attachment × span grid, 2 off-diagonal cells EMPTY (perfect covariance enforced by existing machinery); riderAct measured over the 6 catalog rows: Regenerated 135, Countered 1 (Savage Summoning), the other 4 zero; subject read-only 137/138 | overgeneration accepted and named: a rider after a damage clause is spellable though the corpus spans those 4 lines instead (Engulfing Flames, Rage of Purphoros) | unstated |
+| Experimental.idr:3393 `GainsDesignation` | catalog | CR-closed | [CR#725.1,726.1,701.15a,701.15b] | replaces 3 bespoke rows; 4 designations (city's blessing, enduring story, monstrous, renowned) refused as NOT PINNABLE — each conferred by a keyword trigger rather than an instruction, reminder text being the only English and reminder text never being pinnable; the subject range is ASYMMETRIC and left ungated (monarch 10 third-party/25 self, initiative 9/9 self) — recorded overgeneration | the 4 keyword-conferred designations "will flip when the keyword round lands, not a refusal a proof can hold" | chapter 46 |
+| Experimental.idr:3397 `GameBecomes` | slot | CR-closed | [CR#731.1] | ungated where the check (`designationChecked`) is gated — both directions are written | none stated | unstated |
+| Experimental.idr:3400 `Concludes` | slot | CR-backed | [CR#104.2b,104.3e,104.3f,101.2] | 107 occurrences: 87 imperative, 17 triggered third-party, 3 direct third-party (Door to Nothingness); no win-event; the patient is an ordinary player noun (no dedicated vocabulary) | none stated | unstated |
+| Experimental.idr:3401 `GameDrawn` | slot | CR-closed | [CR#104.4c] | 2 corpus lines (Divine Intervention, Celestial Convergence); nullary (no patient, unlike Concludes/OutcomeGate) — spent 3 chapters witness-free before both debts (counter kind, superlative) were paid | none stated | chapter 69 |
+| Experimental.idr:3402 `Choose` / `ChoiceClause` | slot | CR-backed | [CR#601.2c,608.2d] | a recorded DIVERGENCE from core (a fronted sentence scopes the rest, against core's resolution-time nontarget binder); the chooser is optional: 701 bare imperative against 559 named third party; the partitive appears ONLY with the chooser named — agentful partitive 42 lines against sentence-initial "Choose one of them" ZERO (the sharpest pair in the table) | none stated | unstated |
+| Experimental.idr:3405 `Move` (DestOk/Placeable/riders) | slot | CR-backed | [CR#701.8a,400.3,110.4,110.4a,115.4,401.4] | the owned-destination positive has not yet landed (Unsummon's "its owner's hand" waits); riders defaulted, gated to the battlefield via RidersFit; the patient must be an Object not a damage-class span (`badExileAnyTarget`) | the owner-destination positive is still pending | unstated |
+| Experimental.idr:3412 `CounterSpell` | slot | CR-closed | [CR#701.6a,112.1] | a strict OnStack demand (not a silent zoneFits) — the one place this verb parts from the file's other zone gates | the ability half is ledgered — an ability on the stack has no noun term | unstated |
+
+### 4.6 `Experimental.idr` — lines 11600–17081 (Effect tail, projections, Card)
+
+| Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
+|---|---|---|---|---|---|---|
+| Experimental.idr:3414 `CopyStack` | table | printing-backed | [CR#707.10,707.10d,112.1,109.1] | 294 sentences/273 cards; agent: 6 non-You subjects (Hive Mind, Meletis Charlatan, Precursor Golem, Mirrorwing Dragon, Bonus Round, Eye of the Storm) against 11 "may copy" (May's slot, not this one); complement: CounterSpell 183 phrase / 79 pronoun; count: 11 "twice", 3 "X times", 2 "three times"; the except tail (CopyExcept, shared with permanent carriers): 9 sentences write a tail, 7 land — ExceptNonlegendary 5, ExceptTypes 1, ExceptColor 1; 2 refused unpinned (Double Major's conditioned exception, Donal Herald of Wings' characteristics bundle) | the ability-on-stack noun (31 sentences "target activated or triggered ability you control") is ledgered; "for each…" (19) and "an additional time" (2) counts ledgered; ExceptPt still has no witness | unstated |
+| Experimental.idr:3420 `ChooseNewTargets` | slot | printing-backed | [CR#707.10c] | 202 supported sentences; NO agent slot — "chooses new targets" 0 occurrences, 201/202 under `May`'s decider, 1 bare imperative (Emissary of Grudges) unpronounced; not-a-rider: 163/187 copy-reading sentences stand alone, 24 coordinate (Sequentially); the object is not copy-specific: 15 sentences retarget a spell no clause copied; the number is DERIVED not a slot (finding 275 run and passed): 12 singular "a new target" cases all single-target single-copy (Chain of Vapor, Malicious Affliction, Ancestral Communion, Lightning Storm) | none stated (the number is derived; a new case just extends the derivation) | finding 275 |
+| Experimental.idr:3422 `ChangeLife` | table | CR-backed | [CR#119.3] | "core basis (merged)" — no count given | unstated | unstated |
+| Experimental.idr:3423 `AddMana` | slot | CR-backed / printing-backed (mixed) | [CR#106.3,106.4,605.1a,605.5b,107.14] | NO mana-ability tag = a frame decision per [CR#605.1a,605.5b], not an omission (findings 639, 651, 668); carriers: 2,037 {T}-activated, 150 other-activation-cost, 178 triggered, 76 instant/sorcery; recipient slot: 2,421 unpronounced You, 45 written subject over 7 descriptions ("its controller" 18, "that player" 20, "target player" 4, "the active player", "a player of your choice", "each player"); amount: 133 sentences use CountOf/read/mass-anaphor/Times, none via a parallel number path; riders: 2,323 sentences carry none | neither of the two repetition spellings (symbol run vs numeral) is pinned canonical — the corpus has both (Geosurge vs Irencrag Feat vs Soulbright Flamekin/Su-Chi Cave Guard) | findings 639, 651, 668 |
+| Experimental.idr:3428 `Draw` | slot | printing-backed | [CR#121.1,701] | NOT a keyword action ([CR#701]'s list excludes it); writes NOTHING but its subject — measured: 0 lines read a drawn card back across a sentence boundary; the near misses are reminder parentheticals and Fblthp (which reads the creature, not the card); the count is ordinary magnitude vocabulary; the extraposed "draw cards equal to X" linearization is noted but unchecked | verb-phrase coordination ("Draw a card and reveal it…") would reopen the question — ledgered | unstated |
+| Experimental.idr:3430 `Expose` | table | CR-backed | [CR#701.20a,701.20b,701.20e] | one clause for look+reveal, both with ordinary oracle subjects; assembles a group for later reach-in (finding 127: two announcements are never a pair, one slice phrase is one group); no sentence count given for the look/reveal split | — | finding 127 |
+| Experimental.idr:3432 `Search` | table | CR-backed | [CR#701.23a,701.23e,109.2] | the description is a predicate not a noun phrase (deliberate, avoiding battlefield-seeding per [CR#109.2]); the reveal is a separate clause per [CR#701.23e] | counted finds ("up to two basic lands") and the type-free "a card" both ledgered, waiting on counted-untargeted-groups / a card-headed predicate | chapter 26 |
+| Experimental.idr:3432 `SearchableZone`/`WholeZone` (zone-phrase split) | canon | CR-backed | [CR#701.23a] | "search the top of your library" refused (`badSearchLibraryPosition`) because the sort alone lets zoneSort project Library off a position | unstated | chapter 26 |
+| Experimental.idr:3439 `Shuffle` | table | CR-backed | [CR#701.20d,701.24a,701.24b] | the patient is near-always elided ("Then shuffle."); destroys discourse — effIntro drops mentions still in the shuffled library (`badReadAfterShuffle`); no count given | unstated | unstated |
+| Experimental.idr:3440 `Continuously` | table | CR-closed | [CR#611.2a] | one envelope for every StaticEffect construction; SpanOk/absentOk gate WHICH adverbials each construction may take, corpus-determined; an unwritten span is an explicit Nothing (the no-defaults convention) | unstated | unstated |
+| Experimental.idr:3444 `Create` | slot | printing-backed | [CR#111.1,111.3,111.10] | the agent slot is real ("Its controller creates…", "target opponent creates…" attested); VERIFIED wording: the older "put a … token onto the battlefield" is 0 lines (the 2 matches are unrelated — a restriction phrase and a quoted Lander token ability); the count is ordinary magnitude vocabulary, amtPlur derives the number | token copies (`TokenSpec::Copy`) and predefined names ([CR#111.10], `TokenSpec::Named`) are separate axes — ledger, now folded as a two-armed TokenSpec value per ch81 | chapter 81 |
+| Experimental.idr:3448 `GetsEmblem` | slot | CR-closed (2-slot) / printing-backed (recipient, list) | [CR#114.1,114.2,114.3,114.4] | TWO SLOTS closed by [CR#114.3]'s rule text (no types/mana cost/color; "most emblems also have no name" and the corpus has 0/90 named emblems, so no name slot is minted — finding 85's bar met from the empty side); recipient slot: 81/87 "you", 6 named subjects (Garruk Apex Predator, Ob Nixilis Reignited, Rowan and Will Kenrith, Chandra Awakened Inferno, Chandra Fire of Kaladesh anaphoric); list: 82 one-ability lines, 4 two-ability (Saheeli Filigree Master; Sarkhan the Dragonspeaker; Tamiyo the Moon Sage; Teferi Who Slows the Sunset), 0 three-ability; non-emptiness required by [CR#114.1] (`emblemAbilitiesOk`/`badEmptyEmblem`); WRITE-ONLY: 1/90 payloads reads an emblem back (The Masamune, from inside a quoted granted ability) | a 3-ability emblem card would need the list cap reconsidered (none is enforced beyond nonempty); a named emblem would need a name slot | finding 85 |
+| Experimental.idr:3450 `PutCounters` | table | printing-backed (zone) / CR-backed (agent-silent, kind-gate) | [CR#122.1] | agent-silent (0 lines "[player] puts a counter"); zone: the CounterHolder two-zone table — graveyard a real silence (`badPutCountersGraveyard`), exile admitted (Jhoira of the Ghitu); the player-recipient form 0 lines with this verb (waits on GetsCounters); the kind is scope-gated to Object only ([CR#122.1]'s two scopes, `badPutPoisonOnCreature`) | unstated | unstated |
+| Experimental.idr:3456 `Distribute` | table | CR-closed | [CR#601.2d,115.7f,608.2d,701.12a,701.14b] | the division structure is fixed by rule (announced-and-frozen per [CR#115.7f]); the floor rule (each target ≥1) explicitly NOT typed here — deferred to the legality layer; the recipient must be a GroupMention and plural (`badDivideAmongSingular`, `badDivideAmongDescription`) | two attested bodies only (DividedDamage, DistributedCounters) — see DividedVerb | unstated |
+| Experimental.idr:3463 `RemoveCounters` | table | CR-backed | [CR#702.62a] | a separate verb from PutCounters by design (cost-eligible, can fail); the zone table is WIDENED against PutCounters — exile-off attested (Alaundo the Seer, All Hallow's Eve) | the quantifier "all" and the kind-blind "a counter" (`CounterSpec::AllKinds`) are not spelled — ledger | unstated |
+| Experimental.idr:3468 `GetsCounters` | table | printing-backed | [CR#702.90b] | a separate WORD from PutCounters, not a widened version: the corpus split is absolute, 0 objects "getting" a counter, 0 players "putting"; agent-silent (the recipient is the subject, no room for an agent); the count at one uses the article "a"; oracle uses "gets" always even though [CR#702.90b]'s infect text says "give" | the "defending player" recipient (2 lines) is not reached — it wants a combat-role predicate; recorded not minted | unstated |
+| Experimental.idr:3472 `LosesAllCounters` | table | printing-backed | — | always-all: all 4 corpus lines remove the whole holding, 0 remove a number; the Nothing cell = Final Act ("Each opponent loses all counters"), Suncleanser; the Just cell = RadAway ("rad counters"), Leeches ("poison counters") | unstated | chapter 129 |
+| Experimental.idr:3474 `Composite` (TagBody/NonAgentive gate) | canon | CR-backed | [CR#701,701.8b,702.12b] | the tag and body must agree (`badDestroyTaggedExile`); a tagged move stamps referent provenance | unstated | finding 26 |
+| Experimental.idr:3476 `Does` | slot | CR-backed | [CR#701.21a,701.9a] | verbs with a player-actor CR family REQUIRE a subject (no NonAgentive row) — `badAgentlessSacrifice`; effect-verbs' subjects are OPTIONAL (Burning of Xinye's both-voices example); overgeneration accepted: "You destroy target creature" is spellable though oracle style prefers the bare imperative | unstated | unstated |
+| Experimental.idr:3479 `Pay` | slot | CR-backed | [CR#118.12a,602.1a] | "its mana cost" still not spelled (ledger note reaffirmed): 107/107 self-referential lines write "this spell's mana cost", 23 pronoun lines covary with antecedent presence (a discourse-layer fact, not a slot) — measured, no new slot minted; exists for the unless-family rewrite; the complement is a whole Cost, not a mana amount | unstated | chapter 123 |
+| Experimental.idr:3482 `May` | slot | CR-closed | [CR#608.2c,608.2d,118.12,118.12a] | ifDid/ifNot typed asymmetrically (`badIfNotReadsMayBody`) — the arms read different contexts by rule, not by measurement; the mandatory twin ("Do X. If you do, Y.") is the same node with the offer emptied | unstated | unstated |
+| Experimental.idr:3485 `If` | slot | CR-closed | [CR#603.4] | leading vs trailing linearization: the trailing form reads the clause's own mentions (Overload example); the leading form is refused where it would read a target-announcing subject (`badMatchesTargetSubject`); the condition is typed pre-state not post (`badTrailingPostStateZone`); the else-arm is a field not a Sequentially element, a hole outward, refused reading the if-arm (`badOtherwiseReadsIfArm`) | leading-order availability is an unchecked linearization side condition | unstated |
+| Experimental.idr:3487 `WhereLetter` | slot | printing-backed | [CR#107.3c,107.3i,107.3m,107.3p] | scope = EFFECT not object, measured: of 1,118 rider cards only 9 write X outside the rider's own ability, each accounted for (7 have a second rider one-per-ability incl. The Archimandrite; 1 cost-X trap Riptide Replicator; 1 cycling-cost-feeds-trigger Shark Typhoon per [CR#107.3m]); the second letter Y: 3 cards define both, always as ONE joint clause (Bioplasm), 0 "where X and Y are" joint-defined-separately | which clause of the body the rider trails is a linearization side condition, unchecked | unstated |
+| Experimental.idr:3490 `ForEachOf` | slot | printing-backed | [CR#118.12a] (cross-ref) | 54 supported lines / two prior queue entries merged (25 group-fronted, 30 description-fronted, 5 both); ONE ROW because the covariance test (finding 275) ran over 6 attested domain forms against the reader sets and every form co-occurs with every reader; the element determiner fixed at TheD: 19 bodies read "it", 14 "that creature"/"that permanent"/"that card"; the domain restricted to Object — Player (1 line, Hollow Marauder, 0 reads-back), Join (1 line, Kaboom!, no binding possible per YouAnd's Kind-indexed Binding argument), Quality (1 line, Sanar) all ledgered with reasons; outward contribution measured: 34/49 end the line, 10 read nothing, 3 read the token batch (Hate Mirage, Twinflame, Smoke Spirits' Aid), 2 read the element (Winter's Chill, Tidal Flats) | Player/Join/Quality element kinds each want their own binding mechanism — 3 separate ledger items; the 5-of-49 outward-read residue could force effIntro to stop being bs | finding 275 |
+| Experimental.idr:3494 `Repeat` | slot | CR-backed (structural: [CR#701] has no repeat keyword) / printing-backed (cells) | [CR#104.4b,117.5,701.44d] | 44 supported lines/44 cards; 42 backward-pointing ("this process"), 2 forward ("the following process": Torment of Hailfire, Protection Racket) ledgered separately; 20/44 conjoined inside a conditional/may consequent, arguing for a clause-not-loop shape; the until-condition ledger is 9 lines (Eureka, Hypergenesis, Plague of Vermin, Struggle for Sanity, Tainted Pact, Thieves' Auction, Timesifter, Mana Clash, Helm of Obedience), 2 of those also wanting a disjunctive "whichever comes first"; the enumerated-domain ledger is 6 lines (Equipoise; Firemind's Foresight, Invoke Despair, Kathril, Linessa, Protection Racket); the exception-on-process ledger is 2 lines (the two Lores); admitted OVERGENERATION: nothing prevents a repeat with no preceding process, which the corpus never writes | a discourse-position bit is needed to close the overgeneration; the ForEachOf-Player element is needed for Protection Racket to compose | finding 1030 |
+| Experimental.idr:3495 `Sequentially` | canon | CR-closed (structural) | [CR#608.2c] | an n-ary telescope; the empty sequence refused (`badEmptySequence` — core allows it, the workbench does not), singleton refused (`badSingletonSequence`), nested sequence refused (NotSeq, `badNestedSequence`) | unstated | unstated |
+| Experimental.idr:3497 `Simultaneously` | canon | CR-closed | [CR#608.2f,701.12a,701.12b,701.12d] | the contrast with Sequentially is preIntro-vs-effIntro threading; at-least-two + NotSim + NotSeq gates; all-or-nothing explicitly NOT typed here (legality layer, [CR#701.12a]); zone-exchange ([CR#701.12d]) ledgered — no corpus line writes an earlier-element retag inside a batch | unstated | unstated |
+| Experimental.idr:3499 `Modal` | slot | CR-closed (headcount rule, min 2) / printing-backed (list-not-telescope) | [CR#700.2,700.2a,700.2c,700.2d,700.2h,700.2i] | the mode list is typed in bs not as a telescope — measured in both directions (bullets reach past the modal to a prior trigger; zero bullets read a sibling mode); outward it contributes NOTHING (effIntro) — measured: all modal cards with a trailing non-bullet line are keyword packaging except Blood on the Snow (a positive proof, writing a description not an anaphor); keyword packaging (entwine/spree/escalate/"same mode more than once"/cost-algebra) explicitly excluded | unstated | unstated |
+| Experimental.idr:3506 `Delayed` | slot | CR-closed | [CR#603.3d,603.7,603.7a,603.7b,603.7c] | the event vocabulary is SHARED with ability-line triggers as of the ch28 merge; span: once-only default per [CR#603.7b], "this turn" the one written adverbial (Graceful Reprieve) | unstated | chapter 28 |
+| Experimental.idr:3512 `InsteadOf` | slot | CR-closed | [CR#614.15,614.6,614.5,601.2c,118.12] | distinguished from Intercepts by the "would"-word (interception writes it, this form never); NOT nested — [CR#614.5]'s "only one opportunity" (`badNestedInstead`); the replacement is typed in what the replaced clause ANNOUNCED, not what it DID (`badInsteadReadsReplacedOutcome`) | unstated | unstated |
+| Experimental.idr:3515 `HeldUntil` | table | printing-backed | [CR#610.3,610.3c,610.4] | NOT a duration — it schedules its own undo ([CR#610.3] pairing with an unnamed second one-shot); the `heldUntilOk` gate: almost every "until it leaves the battlefield" line is exile; a few belong to [CR#610.4] phase-out (an unwritten word, ledger); the remaining 3 are Duration-row continuous effects (`badHeldUntilDestroy`) | the unridden-exile bundle: 0 lines carry counters into held exile — `badHeldUntilWithCounters` now explicit as False | unstated |
+| Experimental.idr:3518 `Reflexively` | slot | CR-closed | [CR#603.3,603.3d,603.12] | the ReflexEnclosure gate looks THROUGH the offer (a branchless May recurses into the body); a disjunctive offer is NOT reached (two actions under one may, no clause disjunction); the trigger word is fixed "When" (every corpus line), the span forced by [CR#603.12a] (replacing [CR#603.7b]'s default), the intervening "if" ledgered at 3 lines | unstated | unstated |
+| Experimental.idr:3521 `DoesntUntapNext` | count | printing-backed | [CR#611.2a,611.3b,502.3,614.10a,109.5] | 67 corpus lines total: 19 alone, 48 riding another action (38 after a tap, 10 after mana/damage/shroud); the possessor is DERIVED not a slot (12 "your", 55 "its controller's" — finding 250); the count is the closed 2-row NextUntapCount table: 66 at one, 1 at two, three unwritten (`badUntapNextThree`) | the `badUntapNextThree` cell is explicit — a 3rd printed count needs the table widened | finding 250 |
+| Experimental.idr:3524 `SkipsNext` | count | printing-backed | [CR#611.2a,611.3b,614.10,614.10a] | skipUse has FOUR values not a Bool because this row and the standing Skips line disagree on 2 cells: this row writes turn (11) + combat phase (6) where the standing line writes neither; the standing line writes upkeep where this row does not (`badSkipNextUpkeepStep`, `badStandingSkipTurn`) — an explicit refusal of a union table; the count is the closed 2-row SkipCount table, the second cell attested only by Eater of Days (turn-only, ledger); the subject targets freely (7/16 part-skips write target player/opponent) where a static line cannot | unstated | unstated |
+| Experimental.idr:3527 `ExtraTurn` | count | CR-closed (anchor) / printing-backed (count) | [CR#500.7,500.8,500.9,500.10a] | 34 sentences/55 occurrences, the cheapest whole card in the corpus; NOT the additional phase — the adjective covaries perfectly: "extra" over turn 61, "additional" over phase/step 49, zero cross-contamination; the anchor FIXED at "after this one" 33/34, the exception being Emrakul the Promised End's fronted deictic (ledger, the same gap as Savor the Moment/Final Fortune); the count is a closed 2-row table (`badThreeExtraTurns`) | unstated | unstated |
+| Experimental.idr:3529 `AdditionalPart` (anchor/follower/count tables) | count | CR-closed (existential-vs-turn split) / printing-backed (cells) | [CR#500.8,500.9,500.10a] | 24 sentences/48 occurrences; the existential frame carries NO subject — [CR#500.10a]'s three "you get" lines (Obeka, Paradox Haze, The Ninth Doctor) explicitly excluded as a DIFFERENT construction by rule, not merely by count; the anchor is a Maybe TurnPart with a DERIVED word agreeing with the added part 48/48 (finding 275 run and passed), named anchor 2× ("this main phase" 8, "this combat phase" 1); the follower is a Maybe not a List — 9 occurrences "followed by an additional main phase", never a third part (finding 464's default at a new site), the direction pinned (`badCombatFollows`/`badAddedMainPhase`); the count is a closed 2-row table, Full Throttle alone at two (`badThreeAdditionalPhases`); anchor phrase position (36 prepose/15 postpose) explicitly NOT modelled — the renderer's choice | unstated | finding 275, finding 464 |
+| Experimental.idr:3538 `heldUntilOk` | table | CR-closed (structural — one True row, nested pattern) | [CR#610.3] | exactly ONE True cell (`Composite Exile (Move with empty riders, no counters)`); explicit False cells for the counters-present, riders-present and ordered-list-present variants of the same Exile/Move shape — the "unridden exile" cell (`badHeldUntilWithCounters`) | a new exile rider shape would need its own True/False cell | unstated |
+| Experimental.idr:3598 `EncloseUse` | catalog | structural | [CR#603.12] | 6 constructors (EncAgentless/EncNotOneAction/EncNotYetTaken/EncUnattested/EncUnclaimed/EncReflexive) explicitly NOT a Bool because "the Falses have four different grounds" | unstated | unstated |
+| Experimental.idr:3615 `reflexEncloseUse` | table | printing-backed | [CR#603.12,120.1,701.14a,119.9,106.3,121.1] | a full per-constructor census against Effect's ~50 constructors; counts per True row: Does 115 (sacrifice 71 + discard 40 + 4 have-causatives), Pay 66 (all offered), Composite 51 (all exile), SetStatus Tapped only 5 (of an original 13 the prior comment overcounted — an explicit self-correction), Create 8, PutCounters 8, RemoveCounters 7, Move 3, Expose 2 (Rubble Rouser, Shaun & Rebecca), AddMana 2, Draw 1, Choose 1; the EncUnclaimed nested row is Continuously(GainsControl) — attested exactly once by a 2024-03-08 ruling (Yes Man/Personal Securitron), not by corpus text; the one apparent counterexample to the agentless-life/counter rows is Elektra Femme Fatale's "have her deal damage" causative, explicitly a Does row | GainsControl's EncUnclaimed cell: the second sentence wants a quest counter CounterKind has no word for; if CounterKind widens, this cell could open | 2024-03-08 ruling |
+| Experimental.idr:3675 `admitsReflexEnclosure` | canon | structural | — | only EncReflexive → True; EncUnclaimed explicitly kept separate so it answers False despite being attested-by-ruling — "the whole point of keeping it a separate row" | unstated | unstated |
+| Experimental.idr:3690 `payableOk` | table | printing-backed | [CR#118.12a,606.2,606.4,119.7,118.9] | Mana/ScaledMana True (ScaledMana: 30/46 lines under this very unless-clause); TapSymbol/UntapSymbol/LoyaltySymbol False — loyalty "unless that player pays [+1]" 0 lines (`badPayLoyalty`); `Do (ChangeLife Down)` True, `Do` otherwise False; Compound False; sacrifice/discard costs explicitly NOT payable-by-"pay" (`badPayBySacrificing`) — measured at the "unless" position specifically | a gain-life cost exists per [CR#119.7] but the corpus examples (Invigorate) spell it as an alternative cost swap, never before "pay" | unstated |
+| Experimental.idr:3705 `costNounOk` | table | CR-closed (structural: order-freedom + announcement-timing) | [CR#601.2h,601.2c] | Definite True but UNATTESTED as a cost patient (ledger, admitted on the question asked); CountedGroup True and ATTESTED (6 lines: "one or more creature cards" Corpseweft ×1, "+1/+1 counters" ×5, "land cards" ×1); YouAnd False (the group contains a player and no supported cost names that shape); TargetGroup/TheVerbed/ThoseVerbed False (target-announcement / participle-read refusals) | unstated | unstated |
+| Experimental.idr:3733 `nounIsYou` | table | CR-closed | [CR#602.1a] | full-row table, only You=True; an explicit note that YouAnd is False because it CONTAINS rather than DENOTES the second person | unstated | unstated |
+| Experimental.idr:3761 `costActionOk` | table | printing-backed | [CR#602.1a,601.2h,601.2c,701.17b,118.1,118.9,119.7] | a per-verb census with zeroes measured explicitly: Destroy/Draw/Shuffle/Search/CounterSpell/CopyStack/ChooseNewTargets/AddMana (0, Dragonrage's quoted colon excluded)/GetsEmblem (0, six naive-sweep matches are quoted colons) all False; SetStatus split 8 ways, only Tapped/Untapped True (103 occurrences/95 cards for Tapped) — turn/flip/phase all zero; `ChangeLife Down` True (life payment) against Up/Set False (`badGainLifeCost`); Move gated by costNounOk && not-battlefield-destination; Expose Reveal True, LookAt False; Mill True via the Does tag-through ([CR#701.17b]'s own restriction on mill-as-cost) | unstated | unstated |
+| Experimental.idr:3834 `isInstead` / `NotInstead` | canon | structural | [CR#614.5] | a structural refusal, not counted | unstated | unstated |
+| Experimental.idr:3919 `anyEffEq` / `distinctModes` (via `effEq`) | canon | structural (conservative under-refusal) | [CR#700.2,700.2d] | effEq is almost entirely False rows — explicitly "conservative": telescope typing makes most clause pairs incomparable, so False means "not provably same" not "different"; catches only degenerate literal repetition (`badDuplicateModes`) | unstated | unstated |
+| Experimental.idr:3929 `Effects` (telescope) / `isSeq` / `NotSeq` | canon | structural | — | NotSeq refuses a nested Sequentially (`badNestedSequence`) | unstated | unstated |
+| Experimental.idr:3944 `isForEach` / `NotForEach` | canon | printing-backed (structural closure, corpus-total) | — | "no supported line nests one iteration inside another" — total/0 nested ForEachOf (`badNestedForEach`); the refusal is the binder's own, NOT the sequence's — a body MAY be Sequentially (Kaboom!, Soulfire Eruption) | unstated | unstated |
+| Experimental.idr:3954 `SimEffects` / `isSim` / `NotSim` | canon | structural | [CR#608.2f] | NotSim refuses a nested Simultaneously (`badNestedSimultaneous`) | unstated | unstated |
+| Experimental.idr:3969 `nounIsAnyTarget` | canon | CR-closed | [CR#115.4] | full-row table, only TargetGroup(headIsAnyTarget) opens; CountedGroup explicitly False even though it can carry a similar head — "the AnyTargetFree gate on the constructor makes this a fact rather than a choice" | unstated | unstated |
+| Experimental.idr:3997 `nounIsKindJoin` | table (union) | printing-backed | [CR#115.2] | corpus determiner distribution recorded: "target" 182, "a" 71, "that" 48, "the" 9, plus 9 more minor determiners each 1–3; `That JoinW` = True (the union demonstrative, gaining JoinTakes/nounSpansPlayers privileges) | the union anaphor gap: "that permanent or player" reads 0 times at the head but the demonstrative itself has no union word to read (ledger) | unstated |
+| Experimental.idr:4026 `nounIsMixedGroup` / `NotMixedGroup` | table (union) | CR-closed | [CR#109.5] | only YouAnd=True; NotMixedGroup refuses nesting a group inside a group (`badNestedYouAnd`, the second person written once) | unstated | unstated |
+| Experimental.idr:4036 `nounSpansPlayers` / `NotPlayerSpanning` | canon | structural (derived OR of 3 union gates) | [CR#115.2,115.4] | composed from nounIsAnyTarget \|\| nounIsKindJoin \|\| nounIsMixedGroup; used to refuse all 3 union sites from every card-moving verb (`badExileAnyTarget`, `badExileKindJoin`) | unstated | unstated |
+| Experimental.idr:4046 `nounTargeted` / `Nontarget` | table | CR-closed (shallow pass-through) | — | full-row table; only TargetGroup True; YouAnd passes through to its member (corpus: "you and target creature", Volcano Hellion) | unstated | unstated |
+| Experimental.idr:4078 `selfSortedOk` / `SelfSorted` | table | printing-backed | [CR#603.6a,109.2] | the only refusal is a bare This — "When this enters" 0 lines against thousands, the same zero-against-hundreds for dies/attacks/blocks/deals-combat-damage (`badEntersBareThis`); YouAnd explicitly True and attested (Leyline of Combustion) | unstated | unstated |
+| Experimental.idr:4110 `DamageRecipient` | table (union) | CR-closed (structural) / printing-backed (union counts) | [CR#120.1,120.1a,115.4,615.7] | 5 rows: PlayerTakes, AnyTargetTakes (union), JoinTakes (union, 251/326 damage-recipient occurrences — the dominant slot: planeswalker 183, permanent 50, battle 17, creature 3), GroupTakes (union, 35 sentences = 27 damage-recipient [22 under shield/redirect, 5 plain] + 8 elsewhere), ObjectTakes (battlefield + DamageableTy); an explicit note that neither union row gates its members against [CR#120.1a]'s list — "damage to a permanent or player" (50×) admits non-damageable members by design, matching [CR#615.7]'s own phrasing | unstated | unstated |
+| Experimental.idr:4123 `SingleRecipient` | slot | CR-closed | [CR#614.9] | all 59 redirection destinations are singular (`isOne nounPlur`) where the replaced clause takes plurals freely (Ascent of the Worthy, Heroic Sacrifice) — the asymmetry is stated directly in the rule text; a separate demand from DamageRecipient by design (`badRedirectToPlural`) | unstated | unstated |
+| Experimental.idr:4128 `DiscardOk` | table | CR-closed | [CR#701.9a,702.29a] | 2 rows only: DiscardThis (self-ref, justified solely by the cycling cost [CR#702.29a]) and DiscardTracked (zone=Hand); an explicit note that an untracked zone no longer passes on its own strength — a READ reaching an unplaced referent is not thereby a hand card (`badDiscardIt`) | unstated | unstated |
+| Experimental.idr:4133 `Ascribable` | table | CR-backed | [CR#109.2] | ONE entry only, AscribeThis; the subtype family measured too — all 17 "that Aura"/"that Equipment"/etc. lines resolve some OTHER antecedent, never self-reference | unstated | unstated |
+| Experimental.idr:4137 `TagBody` (8 rows) | table | CR-closed (relation) / printing-backed (cell shapes) | [CR#701.8a,701.9a,701.17a,701.17b,701.22a,701.22b,701.22d,701.25a..701.25d,401.4,110.5b,109.4] | DestroyB/SacrificeB/ExileB/DiscardB: an empty rider bundle, the corpus giving them nothing else; ExileWithCountersB: the one ridden placement a tag writes, entry participles/controller explicitly ABSENT from the shape rather than gated (`badExileTapped`, 0 lines "exile it tapped"/"under your control"); MillB: the patient fixed at OnTop only (`badBottomMill`, the rule names top and there are 0 corpus bottom mills), the possessor free (mill is written of other players); ScryB/SurveilB: the possessor FIXED at You (only 2/440 scry lines name another scryer: Bumi King of Three Trials, Kozilek's Command — ledger; 0 surveil lines name another); the scry/surveil body is THE LOOK-HALF ONLY, not the partition half — the partition is rule-supplied, corroborated by a whole family of cards spelling the partition manually instead (Impulse, Anticipate, Vessel of Nascency, ch41 benched); the reminder-text split (22 plural-partition printings against 13 singular-permission printings) independently predicted by orderOk refusing an order rider on a singular patient | unstated | unstated |
+| Experimental.idr:4177 `NonAgentive` | canon | structural | — | a witness over the total table verbAgentive; explicitly redesigned from an absence-based two-constructor enum because "a missing row and an unconsidered verb look identical" under growth | unstated | unstated |
+| Experimental.idr:4181 `damageSrcOk` / `DamageSource` | table | printing-backed | — | singular or Each-distributive only; a COLLECTIVE plural subject explicitly unattested — the corpus always distributes or names one source | a collective "two target creatures deal" printing would need a new cell | unstated |
+| Experimental.idr:4190 `setZone` family | table | structural | — | UnionP payload explicitly has no field to set — "a referent that may be a player stands in no zone to be retagged" | unstated | unstated |
+| Experimental.idr:4257 `moveIntro` | table | printing-backed (2 notable cells) | [CR#400.7] | TheRest: retags NOTHING — one-zone-field-cannot-hold-two-answers + groupSpent (spends the group, ch26); YouAnd: mints NOTHING (nounSpansPlayers — the group never moves); AttachHost: mints NOTHING — 0 lines read a moved host back (an Aura detaches on host move); AsType (sorted self): MINTS the new object's binding per [CR#400.7], Flickering Spirit being the reader; the stamp's at-verb frame conservatively False (the cost-participle TYPE word waits on a corpus witness) | the AsType stamp frame widening awaits a corpus witness | unstated |
+| Experimental.idr:4285 `nounZone` | table | CR-backed | [CR#109.2,115.4] | the class word ("any target") projects NO zone at all — not absence-by-omission but principled: it names [CR#115.4]'s damage class rather than describing an object, so [CR#109.2] has nothing to place; this is how battlefield verbs refuse it (`badDestroyAnyTarget`, `badTapAnyTarget`) without a bespoke gate | unstated | unstated |
+| Experimental.idr:4319 `nounTy` | table | CR-backed | [CR#401.2] | YouAnd/LibrarySlice both project Nothing (a mixed-kind group has no head type; a position describes no card) | unstated | unstated |
+| Experimental.idr:4347 `nounPlur` | table | printing-backed | — | LibrarySlice derives plurality from count + possessor jointly (outputPlur) — "the top card of each player's library" is grammatically plural despite count=1 (Etali, Primal Storm reads back "those cards"); TheRest fixed ManyOf — a remainder of size one still writes "the other" (a different word), the gap recorded per finding 111 (a binding carries no cardinality) | a remainder-of-one construction ("the other") is a separate ledger item | finding 111 |
+| Experimental.idr:4376 `effIntro` | table | printing-backed / structural (mixed, ~50 rows) | [CR#608.2c,608.2f,614.6,601.2c,111.1,707.10,707.10a,701.20b,701.23a,701.17c,118.12,700.2a,700.2c,603.3] | full census of what discourse-projection notes per constructor: ExtraTurn is "the one clause that makes a turn" — prepends turnRefB (the only construction besides CompareAmt's gapB and the letter's letterB to add a 3rd binder sort); CopyStack's copy mention: the number is source × multiplier jointly (Create's derivation), the determiner DEFINITE (against Create's indefinite) because no phrase names it; AddMana's WRITE-ONLY-across-sentence-boundary is RE-STATED here with the family breakdown: 219 lines write "this mana"/"that mana" but every one is WITHIN one of three named families (spend-restriction rider 164, persistence sentence 25, spent-on/delayed-trigger 12) — 0 lines outside those families read an add back, an explicit rejection of a public mana-mention/outcome sort as "chapter eighty-two's mistake, declined here"; Mill retconned — no longer its own row, it is TagBody Mill's Move, read via TheVerbed/ThoseVerbed stamped with the Mill tag; GetsEmblem contributes only the recipient — "the emblem itself contributes NOTHING", the 9 same-card "this emblem" matches being payload self-ref not anaphor; If/conditional: NEITHER arm's DEED escapes (only condDelta ++ bs) — an explicit bug-fix note, this row "used to export effIntro e" causing `badConditionalArmAntecedent`; ForEachOf/Repeat/Modal/Delayed all contribute bs by explicit rule, each independently measured | the AddMana public mana mention/outcome sort is explicitly declined as ch82's mistake — widening would need it reopened | ch82, ch26 |
+| Experimental.idr:4444 `preIntro` | table | CR-closed | [CR#601.2c,111.1,707.10] | distinguishes itself from effIntro on exactly: 3 zone-writing rows (announce the object without retag/stamp), Create (no token — [CR#111.1], a token exists only once the EFFECT puts it), 2 event-outcome rows (no outcome survives); a documented bugfix: If's row used to be `condDelta c ++ bs` copying effIntro and that broke Overload's second sentence; the channel is now redirected to annIntro | unstated | ch25, ch26 |
+| Experimental.idr:4502 `annIntro` | table | CR-closed | [CR#601.2c,614.6] | ch26's introduction — explicitly separates from preIntro on exactly 3 kinds of clause-containing-clause: May announces the BODY's phrases only (mayIntro's cut), If the conditioned clause's, InsteadOf/HeldUntil the wrapped clause's; Sequentially is a HOLE not a hedge — "a consequence of the telescope", elements typed over each other's effIntro so no later announcement is liftable without deeds; documented bugs this fixed: `badSimultaneousReadsMayDeed`, `badInsteadReadsReplacedSequenceOutcome`. **The docstring's general claim "on a FLAT clause the two agree exactly" has one exception in the source — `ExtraTurn` (see §7)** | unstated | ch26 |
+| Experimental.idr:4557 `annSims`/`deedDelta`/`preIntros`/`mayCtx`/`mayIntro`/`reflexCtx`/`effsIntro`/`simIntro`/`simPres` | table | CR-closed | [CR#608.2f,603.12,603.3,603.3d,118.12] | deedDelta's [] rows justified two ways: a clause that RETAGS or REMOVES has no delta (reads inside are refused anyway, `badSimultaneousReadsRetag`), and container clauses are refused as batch elements outright (NotSeq/NotSim) or contribute via mayIntro's cut; documented bugfix: simIntro "used to be the LAST element's effIntro" — wrong in general (two Creates in a batch make TWO tokens per [CR#608.2f], `badBatchTwoCreatesThenIt`/`badBatchTwoOutcomesThenThatMuch`), now the union of deltas; mayIntro's 4-row table: only the if-you-DO arm alone or the bare body ever flows out; both-arms-present (Crovax the Cursed) flows out the BODY per [CR#118.12], not either arm | unstated | unstated |
+| Experimental.idr:4672 `windowOk` | table | printing-backed | [CR#602.5d,602.5e,117.1b,614.10a] | a full TurnPart × Maybe Owner grid (8 parts × 8 owner values = 64 cells); True cells: Turn-Yours, Turn-AnOpponents, Upkeep-Yours, Upkeep-EachPlayers, Upkeep-AnOpponents, Combat-Nothing (bare); "Activate only during any upkeep step" (the EachPlayers cell) resolves a previously-named unspellable — Whose had no word for it, EachPlayers fills the gap; ~68 "during your turn" corpus lines feed Turn-Yours; the MainPhase row is entirely False — its 19 "during main phase" matches are cast-time spell conditions/one trigger header, not activation restrictions | unstated | unstated |
+| Experimental.idr:4759 `headerWindowOk` | table | printing-backed | [CR#505.1] | the SAME grid with DIFFERENT answers on 6+ cells by design (the two-table discipline, "replUseOk's and lookbackSubjectOk's discipline at a fourth site"): opens Turn-ThatPlayers(5), Turn-EachOpponents(8), Turn-EachYours(2) which windowOk refuses at 0; opens UntapStep-Yours(1, Millennium Calendar) where windowOk shuts it; opens Combat-Nothing(5, unpossessed only — "during your combat" is 0 lines); shuts Upkeep entirely where windowOk opens 3 cells — upkeep is always written as an EVENT header, never a window; FirstMain/PostcombatMain both fully False despite 3 named cards wanting "during your main phase" (Dovin's Acuity, Canyon Vaulter, Reckless Velocitaur) — an explicit ledger; DrawStep-EachYours True (1 line); the declare-attackers step has no TurnPart row at all (ledger); MainPhase-Yours flips True later in the file, superseding the earlier False comment | `badHeaderMainPhaseWindow` refuses the specific unresolved row while the general MainPhase-Yours row was later opened | unstated |
+| Experimental.idr:4847 `TriggerWindow` | canon | structural (pass-through) | [CR#603.1] | one constructor DuringWindow wrapping HeaderWindowOk; a separate TYPE from Timing rather than a shared gated type, explicitly to avoid Timing having to refuse 2 of its own rows (AsSorcery/AsInstant have no header equivalent) | unstated | unstated |
+| Experimental.idr:4852 `Timing` | canon | CR-backed (structural split from core) / printing-backed (windowOk cells) | [CR#500.1] | core splits DuringTurn/DuringStep because its PhaseStep excludes the turn; this grammar's TurnPart already includes the turn so ONE row suffices — the merge is explicitly a language-level simplification against core's type shape, not a corpus finding | unstated | unstated |
+| Experimental.idr:4859 `UsageLimit` | count | printing-backed | [CR#606.3,702.177a] | OncePerTurn 86 lines (Activated) + 122 lines (Triggered) = per-turn dominant; OncePerGame 8 lines (Activated) + 1 line (Triggered, Acrobatic Cheerleader); core keeps a LIST plus a third LoyaltyOncePerTurn row that this vocabulary explicitly does NOT mint — 0/1,034 loyalty components carry any activation instruction (measured, not merely absent by convention) — the divergence from core stated as deliberate, ch89 settling against 4 chapters of prior expectation | a third value (per-combat, per-game-for-triggers) is not attested; the "only during upkeep and only once each turn" conjunction pattern is noted but is not itself a new value | ch89 |
+| Experimental.idr:4862 `loyaltyDefaultsOk` / `LoyaltyDefaults` | canon | CR-closed | [CR#606.2,606.3,307.1] | ONE True cell: a bare LoyaltySymbol with all three restriction slots Nothing; ANY restriction written on a loyalty cost is refused (`badLoyaltyOncePerTurn`/`badLoyaltySorceryWindow`/`badLoyaltyGuard`); measured at 0/1,034 against contrast counts on ordinary activated abilities (551 "Activate only as a sorcery", 146 "Activate only during…", 105 "Activate only once each turn"); the 19 supported lines that DO alter the loyalty-activation regime are explicitly all OUTSIDE the ability line (Oath of Teferi, Teferi Master of Time, The Wandering Emperor, Teferi's Talent emblem; The Immortal Sun, Flamescroll Celebrant) | unstated | unstated |
+| Experimental.idr:4875 `AltEvent` | canon | printing-backed | [CR#603.1,115.1d] | 364 supported headers coordinate two events; 21 distinct pairs enumerated with counts: "enters or attacks" 150, "attacks or blocks" 64, "blocks or becomes blocked" 46, "enters or dies" 36, "enters or leaves the battlefield" 13, "dies or is put into [zone]" 11, plus 15 more below ten; STRICTLY BINARY — 0 headers coordinate three events; subject elision 339 (unpronounced, matching the first subject) against 25 written (Dreadhound, Faldorn, Jerren, five haunt Thrulls) — finding 275's covariance test run in the POSITIVE direction (0 headers repeat the same subject phrase across "or") | unstated | finding 275 |
+| Experimental.idr:4883 `headerCtx` | canon | CR-closed | [CR#603.6] | coordination silence measured: 144/364 coordinated headers read a mention back and stay unwritable; a natural extension named but not built: the 46 "blocks or becomes blocked" lines announce the SAME phrase on both disjuncts (Aisling Leprechaun) — a common-announcement reading would reach them | the 144-of-364 unwritable residue; the common-announcement extension for the 46 shared-phrase disjuncts | unstated |
+| Experimental.idr:4888 `chapterDefaultsOk` / `ChapterDefaults` | canon | CR-closed | [CR#714.2b] | ONE True cell (a bare ChapterMark, all four optional pieces Nothing); measured at 0/581 supported chapter lines for each of: alternative event, trailing window, usage limit, intervening "if" (`badChapterIntervening`/`badChapterLimit`); an explicit parallel to loyaltyDefaultsOk's structure | unstated | unstated |
+| Experimental.idr:4903 `Ability` container / `AbilityAt` | table | CR-closed (category) / printing-backed (index usage) | [CR#113,113.3,113.3a..113.3d,602,603,604,607.2d] | ALL THREE non-spell rows (Activated/Triggered/Static) index over bs, measured: 107 static cross-line readers, 57 activated, 37 triggered (27 of those in the HEADER, e.g. Door of Destinies) — narrowing the index to Static-only would have refused 84 attested lines | unstated | unstated |
+| Experimental.idr:4903 `KeywordParam` (4 rows) | slot | CR-closed (type-per-shape) / printing-backed (index usage) | [CR#702.21a,702.16a,702.5a,702.5d,702.112a] | ONE of the 4 rows uses the bs index — ParamQuality, 21 lines ("protection from the chosen color" etc., 13 of them same-card chooser); the other 3 rows explicitly stand at empty context and record 0 cross-line reads each; ParamCost 87 mana-run + 34 em-dash lines (Ward); ParamSubject (Enchant) 1,188/1,238 object-restricted against 50 player-restricted (46 "Enchant player" + 4 "Enchant opponent"), headless enchant 0 lines (`badHeadlessEnchant`), 61 distinct shapes; ParamNumber (Renown) 20 lines: 1×15, 2×4, 6×1, zero unwritten (`badRenownZero`) | unstated | unstated |
+| Experimental.idr:4920 `keywordParamFits` / `KeywordParamFits` | canon | CR-closed | [CR#702.21a] | nullary+parameter refused (`badParamOnNullaryKeyword`, "flying {2}" 0 lines); parameterized+bare refused (`badBareWardLine`, all 137 ward lines carry a cost); wrong-shape parameter refused (`badWardQuality`, "ward red" is not English) | unstated | unstated |
+| Experimental.idr:4929 `KeywordAbility` | slot | printing-backed | — | the param slot DEFAULTS to Nothing (finding 464's pattern), 32 nullary call sites untouched by the widening | unstated | finding 464 |
+| Experimental.idr:4933 `Activated` | slot | CR-closed | [CR#602.1,602.1a,602.1b,602.5,603.4,107.5] | 3 restriction slots (window/limit/guard) kept SEPARATE rather than merged because oracle CONJOINS unlike restrictions ("…and only once each turn"); the guard is typed at EMPTY context not at cost survivors, per [CR#602.5,601.2h] ordering; self-tap uniqueness (CostTapOnce) and payer-is-activator (CostPaidByYou) are both explicit constructor gates; loyalty costs excluded via the LoyaltyDefaults cross-reference | unstated | unstated |
+| Experimental.idr:4941 `Triggered` | slot | CR-closed (word slot, effect context) / printing-backed (optional pieces) | [CR#603.1,603.2b,603.2h,603.4,603.6,702.179d] | the word is a SLOT not derived — [CR#603.2b] assigns only one of three absolutely, the rest recorded at TriggerWord; the effect is typed in the event's AFTER-discourse (eventAfter) — the one place this row parts from Intercepts (`badTriggerReadsPreEventZone`); the intervening "if" has NO second cell — [CR#603.4]'s own restriction, not a vocabulary gap; "while" clauses explicitly a DIFFERENT construction (60 header-internal lines, 0 comma-marked, 3 naming an action-in-progress) — ledgered separately; window 76 lines; limit: 122 "This ability triggers only once each turn" + 1 "only once" (Acrobatic Cheerleader) against the explicitly-different 32-line "Do this only once each turn" rider ([CR#603.2h], a different rider entirely — it restricts the ACTION not the triggering) | the "while" clause family and the "Do this only once each turn" rider are both explicitly ledgered as separate constructions | unstated |
+| Experimental.idr:4953 `Static` | slot | CR-closed | [CR#113.3d,604.1,611.3b,115.1a..115.1e,115.1b] | NO duration slot (structural, [CR#611.3b]); does not target (Untargeting gate) — the sharpest distinction from Activated/Triggered, citing [CR#115.1b]'s Aura-doesn't-target ruling explicitly; one refusal in staticAsAbility named: the control grant's stative form (`badStaticGainsControl`) | unstated | unstated |
+| Experimental.idr:4956 `Spell` | slot | CR-closed | [CR#113.3a,608.2c] | a category-error framing — the same sentence "Draw two cards." is a Spell ability on one card and an Activated effect on another; the gate lives on the container (cardLineOk) not here | unstated | unstated |
+| Experimental.idr:4957 `AlsoForKeywords` | slot | printing-backed (structural) | — | 15 supported carriers not 16 (a routing-note correction: Ward of Bones extends across card TYPES and is filed as the inventory's third family elsewhere); 14/15 exactly two sentences with the trailer second, 1/15 (Indominus Rex, Alpha) three sentences trailer-last; list demands (keywordListOk): nonempty (shortest 3 — Escaped Shapeshifter, longest 12), distinct 15/15, paramless, disjoint-from-base 15/15 (Odric) | unstated | finding 846, finding 398, finding 275 |
+| Experimental.idr:5042 `grantableAb` | table | printing-backed | [CR#201.5a,201.5b,107.3j,113.3a,604.1,111.1] | THE REVERSAL CASE: three cells "flipped" when quotation was recognized as a spelling rather than a construction — non-keyword grants quoted 763/763 (0 bare, the 9 apparent counterexamples being nested-quotation inner single-marks); nullary keyword grants bare on thousands (flying 612, haste 526, trample 485, indestructible 275), quoted 0; ONE crossing class (parameterized keyword) decided by the parameter itself — Ward bare 49 (all mana-cost)/quoted 4 (all em-dash cost), a total split; Protection 142 bare/0 quoted; equip/renown never cross; Enchant crosses twice but is an ability-LOSS not a grant of this row's kind (Animate Dead, Dance of the Dead — ledger); the Spell row False (category error, the 1/763 apparent hit being Zhulodok's doubled keyword, `badGainsSpellAbility`/`badTokenSpellAbility`); the AlsoForKeywords row False (0/763) | cumulative upkeep (6 quoted/0 bare) and "bands with other" (6/0) explicitly out-of-catalog, recorded for a future keyword-variant-with-argument mechanism | unstated |
+| Experimental.idr:5055 `emblemAbilityOk` (3rd reader, disagrees with grantableAb) | table | CR-closed (keyword cell) / printing-backed (others) | [CR#114.1,114.3] | KeywordAbility False here against True at grantableAb — an explicit disagreement, RULE-forced not corpus-only ([CR#114.3]'s "no types, no mana cost, no color" — every Keyword catalog row presupposes a permanent/card/spell subject an emblem lacks); measured at 0/90 emblem payloads carrying a keyword; Activated/Triggered/Static True and counted: triggered 52, static 36, activated 2 (Karn Living Legacy, Ob Nixilis of the Black Oath); Spell False (category error, shared with the other two readers) | unstated | unstated |
+| Experimental.idr:5069 `emblemAbilitiesOk` / `EmblemAbilities` | canon | CR-closed | [CR#114.1] | the empty list explicitly refused — "an emblem with nothing in it having nothing to be" | unstated | unstated |
+| Experimental.idr:5079 `abilitiesGrantable` / `tokenAbilitiesOk` (4th reader) | table | CR-closed (shared with grantableAb) | [CR#111.1,113.3a] | measured: activated 343 lines, triggered 288, static 91, SPELL 0 — the same category-error refusal as grantableAb's Spell row (`badTokenSpellAbility`, explicitly reusing the SAME pin) | unstated | unstated |
+| Experimental.idr:5092 `predRegime` / `nounRegime` / `abRegime` | table | printing-backed | [CR#601.2a] | predRegime: CastBy/CastFrom → AtCasting, ControlledBy → AtResolution, all else Nothing — measured, "all 37 corpus lines in this family name one" (no silent/ambiguous case in the base predicate table); abRegime's 3 explicitly-silent rows (Activated/Triggered/Static all → Nothing) were made REACHABLE for the first time by a related widening, and the corpus grants a non-keyword ability to a spell class 0/763 times — the silence is itself the whole refusal (`badQuotedGrantOnSpell`) | unstated | unstated |
+| Experimental.idr:5139 `grantSubjectOk` / `GrantSubject` | table | printing-backed | [CR#601.2a,702.51a,702.15d,707.10,113.6e] | two coupled questions in one gate; the corpus splits 30/0 and 7/0 with NO crossing line — a battlefield subject takes any keyword except a casting-time one (0 "creatures you control have convoke"); a stack subject takes a keyword whose window-relation matches (30 AtCasting-matched / 0 mismatched, 7 AtResolution-matched / 0 mismatched); the quoted-payload zone breakdown: battlefield 722, graveyard 30, hand 8, library 1, exile 1, stack 1 (the one keyword-only span) — 0 non-keyword grants to a spell class in 763 spans confirms the stack branch's silence is a refusal, not an accident | the 40 non-battlefield CARD subjects (graveyard/hand/library/exile) are attested and refused by the other branch — explicitly a DIFFERENT (zone) question this table does not answer, ledgered | finding 448 |
+| Experimental.idr:5150 `abIntro` | table | CR-closed | [CR#607.2d] | 4/5 rows answer bs unchanged (context-closed on the way out); measured: of cards with a chooser and a reader on different lines, 0 read BEFORE their chooser and 169 read after — "nothing ever reads backwards and no line but one ever reads forwards"; Static is the sole exception via staticChoiceIntro | unstated | unstated |
+| Experimental.idr:5175 `AbilitySeq` | canon | CR-closed | [CR#607.2d,607.4] | ONE TO MANY from the rules ([CR#607.4] explicit: "an ability may be part of more than one pair of linked abilities", Paradise Plume cited as the rule's own example) + FORWARD ONLY from the corpus (169 reader-after-chooser, 0 reader-before) — the combination is why this is a telescope and not a set | unstated | unstated |
+| Experimental.idr:5195 `partsAdmit` | table | printing-backed | — | measured: of 689 coordinations stating one duration, every part admits it on 676; the 13 exceptions accounted: 10 "as long as"-condition or quoted-ability mismatches, 2 DoesntUntap's own untap-step phrase, 1 Aven Mimeomancer (which is WHY admitsSpan BasePtSet now answers True for the for-as-long-as row — a pin fix driven by a single card) | unstated | unstated |
+| Experimental.idr:5216 `selfTapPayment`/`selfTapCount`/`selfTapOnce`/`costTapOnce` | canon | CR-closed | [CR#107.5,602.5a,118.3] | at-most-one closed by rule text directly quoted ("a permanent that's already tapped can't be tapped again"); 0 corpus lines write "{T}, {T}:" or "{T}, {Q}:" (`badDoubleTapCost`) | unstated | unstated |
+| Experimental.idr:5250 `costPaidByYou`/`costsPaidByYou`/`PayAgrees` | canon | CR-closed | [CR#602.1a,606.3] | one-direction only, explicitly by design (a telescope-context limitation, effEq's problem cross-referenced); 145 "unless you pay" lines cited as the frame payAgreesOk actually checks; the named-subject anaphor case explicitly ledgered as unreached | unstated | unstated |
+| Experimental.idr:5280 `costOffBattlefield`/`costsOffBattlefield`/`AltPayment` | table | CR-closed | [CR#107.5,602.5a,113.6j,110.4,601.2b] | SIX cells, both readers agreeing on all six: Mana/ScaledMana/Do/Compound True, TapSymbol/UntapSymbol/LoyaltySymbol False; 0 Instant/Sorcery cards carry a top-level "{T}" ability (`badTapSorcery`) or a loyalty symbol (`badLoyaltySorcery`); the alt-cost reader's 6 tap lines all write the clause over ANOTHER permanent (Angelic Favor) rather than self-tapping | unstated | unstated |
+| Experimental.idr:5302 `Ability` alias (= `AbilityAt []`) | slot | structural | — | 218 typed positions/17 files/129 declarations/481 constructor uses cited as the scale the alias keeps cheap | unstated | unstated |
+| Experimental.idr:5312 `supersDistinct` / `CardSupers` | canon | CR-closed | [CR#205.4a,205.4b] | a duplicate-free demand; an explicit note that the field "carried no witness at all until this round" — `badDuplicateSupertype` ("Legendary Legendary Creature") was previously writable; unordered (Snow-Covered Forest carries both Basic and Snow) | unstated | unstated |
+| Experimental.idr:5321 `CardClass` / `cardClassOf` | canon | CR-closed | [CR#113.3a,205.1a,110.4] | a disjunction not a conjunction — [CR#205.1a]'s "retains that type" logic; explicitly asks spellType rather than not-permanentType because KINDRED is neither, and reading the negation would have wrongly classified all 19 corpus kindred enchantments as spell cards (the "kindred correction"); Lignify cited as witness | unstated | ch86 |
+| Experimental.idr:5329 `anyPermanentType`/`anySpellType`/`typesCombinable` | canon | CR-closed | [CR#110.4,110.4a,308.1] | the permanent/spell exclusion is bidirectional, closed by rule text not by count — [CR#110.4] "can't enter the battlefield and thus can't be permanents"; `badMixedPermanentSpellLine` names a specific bug (the order check missed [Land,Creature,Instant] because ranks put spell types last); kindred-never-alone is a 0/N corpus counterexample (`badKindredAlone`) | unstated | unstated |
+| Experimental.idr:5350 `keywordCardOk` | table | printing-backed | [CR#702.8a,702.12b,702.16b,702.21a,702.24a,702.131a,702.131b,113.6e] | a full permanent/spell grid, every cell counted: the 7 evergreen (haste/flying/trample/vigilance/deathtouch/doublestrike/firststrike) all PermanentCard-only, 0 spell-card lines each; Reach 330 permanent/0 spell (the 1 apparent instant hit, Selective Adaptation, is inside a quality list not a keyword line); Convoke 50, Storm 29, Improvise 8 spell-card lines (the grant round's "opened for the first time" cells) against Lifelink spell=False despite 6 GRANT lines — an explicit statement that these are two different tables (this one = printing, keywordStackRegime = functioning) and where they disagree they stay two tables (ch45's outcome, "not finding 309's union"); Ward/Protection 0/137 and 0/129 spell-card (`badProtectionOnInstant`); Enchant 1,238/1,238 on enchantments, Equip 618/618, Storied 9/9, Renown 20/20 all permanent-exclusive; Indestructible 80/80 permanent-only; **FLASH IS THE DISAGREEMENT CELL**: keywordStackRegime says AtCasting ([CR#113.6e]) but the printing is 598/598 permanent-only, 0 spell (`badFlashOnInstant`, "the word would be vacuous there"); **Ascend is the BOTH-TRUE cell**: [CR#702.131a] titles itself "ascend on an instant or sorcery spell represents a spell ability" against [CR#702.131b]'s permanent form — the corpus splits 5 spell/22 permanent of 27 cards (Expel from Orazca, Golden Demise named); CumulativeUpkeep 80/80 permanent-only (5 granted instances also all to permanents); Hexproof/Menace/Skulk 71/345/15 lines, all 431 permanent-only, 0 spell | unstated | unstated |
+| Experimental.idr:5411 `cardAbilityOk` | table | CR-closed (structural) / printing-backed (cost-conditioned cell) | [CR#113.3a,113.6,113.6g,113.6j,110.4,107.5,604.6] | Spell row: PermanentCard=False structurally ([CR#113.3a]), SpellCard=True by rule DEFAULT; the Activated row asks the COST not the row itself — the SpellCard cell = `costOffBattlefield c` (cycling "{2}{W}, Discard this card" passes, a bare "{T}" line fails per `badTapSorcery`); the Static row on SpellCard delegates to staticOnSpellCardOk rather than giving a flat answer | the [CR#113.6e] play-permission family ([CR#604.6]) is explicitly still not spelled — ledgered rather than carved into a cell | unstated |
+| Experimental.idr:5403 `staticOnSpellCardOk` | table | CR-closed | [CR#113.6d,113.6g] | TWO named exceptions, one row-sensitive and one flat: ObjectCant(Countered/Copied) admitted only with a bare self-subject (not selfSortedOk — i.e. `not (AsType …)`), measured 87 "This spell can't be countered" + 3 "can't be copied" lines, all bare-self, 0 class-prohibition spell-card lines (`badStaticClassCounterOnInstant`); AltCost admitted FLATLY (no subject check needed, "about the card printing it and nothing else") — 94/123 alt-cost lines on spell cards (Shining Shoal, Force of Will, Daze) against 29 on permanents; the Conditionally wrapper recurses and was explicitly measured not waved through: 55/123 alt-cost lines carry a condition, and the 2 corpus lines this would newly admit (a conditioned countering-prohibition — Banefire, Dragonlord's Prerogative) are STILL blocked on other clauses — "an attested cell, so the recursion widens nothing" | [CR#113.6e]'s remaining exception family is explicitly still unspelled | unstated |
+| Experimental.idr:5435 `chapterLineOk` / `chapterFrameOk` | canon | CR-closed (subtype gate) / printing-backed (measured-but-declined laws) | [CR#714.1,714.1a,714.2d,714.4] | ONE DIRECTION: a chapter symbol requires Saga (240/240 Saga faces print one, 0 non-Saga cards print one — `badChapterOnNonSaga`) but a Saga need NOT print one on every line (Summon-cycle bare-keyword lines cited: Crystal Fragments "Flying", Jecht "Menace"); TWO card-level laws explicitly measured-but-NOT-gated: completeness (numerals cover 1..N exactly once, holding on all 223 supported Sagas) declined because [CR#714.2d,714.4] explicitly contemplate a Saga with zero chapter abilities; printed order refused not by rule but by a single counter-card (Blink prints "I, III —" above "II, IV —", non-ascending) | unstated | unstated |
+| Experimental.idr:5446 `PrintedStat` (3 rows incl. StarPlus) | count | printing-backed | [CR#208.2,208.2a,107.1b] | PrintedStarPlus: 19 supported cards print "1+\*"/"2+\*"/"\*+1" (17 addend-first, 2 addend-last — order is spelling not structure, Allosaurus Rider cited); explicitly OUT: the subtracted star "7-\*" (1 card) and its asymmetric definition — ledger | the subtracted-star cell (1 card) is a named future widening | unstated |
+| Experimental.idr:5454 `staticDefinesPt` / `textDefines` | table | CR-closed | [CR#604.3a] | looks through two transparent wrappers (WhereLetterStatic, Conditionally) — Gaea's Liege cited as a definition-under-condition still printing its star; keyword/activated/trigger/spell lines all Nothing "by construction" (a definition must be a static line printed on the card) | unstated | unstated |
+| Experimental.idr:5470 `ptPrinted`/`definedSlotsStarred`/`cardPtOk` | table | CR-closed (type demand) / printing-backed (text demand) | [CR#208.1,208.2,208.2b,301.7,107.1b] | the TYPE demand is one-directional: Creature requires a printed P/T ([CR#208.1]) but Vehicle ([CR#301.7]) prints P/T without the Creature type, not required in the other direction; the TEXT demand: of 228 supported cards with a self-defining line, ALL print a star in each defined slot, 0 print a plain pair (`badStarlessDefinedPt`) — but the reverse is not required: **SIX cards print a star with NO definition at all**, licensed instead by [CR#208.2b]'s as-enters replacement (Aquamorph Entity, "5/1 or 1/5" choice) for which this container has NO row; the SIGNED pair justified by a documented BUG this fixed: Char-Rumbler's "-1/3" was previously silently saturated to 0 under a Nat field; token P/T stays Nat deliberately since no clause spells a negative token stat | Aquamorph Entity's as-enters P/T-choice construction has no row — a real, named gap | unstated |
+| Experimental.idr:5489 `cardCostOk` | table | CR-closed | [CR#202.1b,118.6] | one-directional: land+cost refused (`badLandWithManaCost`), nonland+no-cost explicitly allowed (Evermind, suspend-only cards cited) — only the land row is closed | unstated | unstated |
+| Experimental.idr:5496 `CardLine`/`CardText`/`CardChapters`/`CardPt`/`CardCost` | canon | structural | — | explicitly NOT gathered into one witness — pin discipline: a single gathering type would misreport which demand failed; threaded via the `card` macro instead | unstated | unstated |
+| Experimental.idr:5521 `Card` record | slot | structural | [CR#200.1,201.1,204.1,712.8] | [CR#200.1] lists 15 card parts, this record carries 5 (name/cost/typeline/text/pt); 3 named divergences from core's CardFace: a TypeLine record against 2 flat fields (shared with the clause readers), color_indicator/loyalty/defense NOT carried (a colour indicator is "a printed dot and not language" per [CR#204.1]; loyalty ledgered with the planeswalker type), and core's two-faced enum wrapper is the engine's concern not this record's ([CR#712.8]); the name field carries no grammar at all — modern templating writes "this creature" not the name, and "nothing here reads it back" | unstated | unstated |
+
+## 5. Single-value slots
+
+Every place in the workbench where a parameter that *could* have varied is
+hard-fixed to one value, or where a slot that a neighbour construction has was
+deliberately not minted. Merged from all eight shards, in file order. This is
+the sharpest overfitting surface in the census: a catalog with one row records a
+measurement, but a slot with one value records a measurement *and* a bet that the
+axis will stay closed.
+
+### `Experimental/Words.idr`
+
+- **`Causer = AnEffect`** (:643) — fixed to the single word "an effect" because
+  [CR#614.16] defines exactly that phrase and the corpus contains only 4 bare
+  uses of it (3 creation, 1 counter-placement); the nearby similar-shaped phrases
+  ("a source would…", "a spell would…", described abilities) are measured as NOT
+  this word — evidence without vocabulary (finding 200), so the row stays
+  singular rather than generalizing to a causer union.
+- **`outcomeB`, `gapB`, `turnRefB`, `letterB`** (:1298–1327) — all four
+  mention-builders hard-fix `Determiner = TheD` (definite), because each is
+  prepended by a sentence that has just said which value it means; `turnRefB`'s
+  TheD specifically backed by "that turn's"(5)/"during that turn"(2)/"the untap
+  step of that turn"(1)/"after that turn"(1) against "the turn's"(0).
+- **`qualityB`** (:1341) — fixes `Determiner = AD` (indefinite) rather than TheD,
+  the one place this family parts ways with the other four: the chooser writes
+  "choose A creature type" and the definite article arrives one clause later on
+  the READER side ("the chosen type"), so the introducing mention records the
+  indefinite article it was actually written with.
+- **`OutcomeSort.DamagePrevented`'s scoping** (:606) — not a one-row slot itself,
+  but its scoping is: [CR#615.5]'s "additional effect" rider is the only place a
+  prevention announcement fires, so no "that much" outside a prevention rider
+  ever means this row.
+- **`OnBattlefield`** (:2303) — fixes the zone parameter to literally
+  `Battlefield` rather than a general `Maybe Zone`, because [CR#701.21a]'s
+  obligation and self-reference's own zone projection ([CR#109.2]) both resolve
+  to that one zone; the formerly-permissive untracked row was retired once
+  self-reference could project its own zone.
+- **`EntryCounterMark`** (:2393) — kept as a two-row SLOT (not folded into a
+  spelling function) even though the CR treats both wordings identically
+  (rules-inert per [CR#614.1c,614.12,616.1]), because finding 275's crossing test
+  fails when the words are treated as freely interchangeable — the
+  ENTERED-THIS-WAY "it" subject cluster (10/16 split, 26 lines) is what forces
+  the axis to stay open.
+- **`RoundMode`** (:2548) — the only vocabulary in the file the *rules* make
+  MANDATORY rather than corpus-attested: [CR#107.1a] requires any
+  fractional-generating spell to state its rounding direction, so a halving
+  construction cannot be spelled without this parameter; Banshee attests both
+  cells on one card, closing off any "always rounds one way" simplification.
+- **`ShiftDir`** (:2597) — fixes the direction of a flat modifier as one indexed
+  row rather than two constructor families, following `PlayerGroupWord`'s
+  pattern: no table in the grammar asks which direction, so separate constructor
+  families would be unused structure.
+- **`DesignationScope.HeldByCard`** (:4673, 4704) — a whole enum branch minted
+  for exactly one occupant, `CommanderD`. The docstring says the scope exists
+  *because of* that single occupant: [CR#903.3]'s point that the commander
+  designation "is not a characteristic of the object represented by the card;
+  rather, it is an attribute of the card itself."
+- **`Owner.ThatTurns`** (:6366) — attested at exactly one turn part per its own
+  note ("the corpus writes it at ONE part"), the measurement site (`partUse`)
+  living in `Events.idr`.
+
+### `Experimental/Events.idr`
+
+- **`PlayAsThough = HadFlash`** (:2087) — fixes the whole "as though"
+  counterfactual construction to the flash-timing reading. 87 of the 88 supported
+  sentences write flash; the lone exception (Shaman's Trance's zone
+  counterfactual) is deliberately routed elsewhere rather than given a second
+  row, on the stated principle that minting a general slot to spell one unwritten
+  sentence repeats a prior refusal (finding 246). **Risk rank 2.**
+- **`CounterMove` as a value-indexed row rather than two `EventName` rows**
+  (:185) — fixed because the vocabulary that reads `EventName`
+  (interception/trigger/hold/delay) is keyed on the event name, and CounterMove's
+  only other job — the spelling frame — is a construction-owned detail those
+  readers need no second row to see.
+- **`Role` collapsed to a 2-valued voice axis** (:1740) — fixed because a
+  one-subject deontic clause ("can't block") has no second noun slot the way a
+  two-slot core `DeonticAction` does; English marks the missing participant in
+  the verb's voice, so the grammar spends one axis rather than mirroring core's
+  two fields.
+- **`complementLocates z = playableFrom z`** (:2793) — the "does a complement's
+  zone count as locating its object" question is fixed to be literally identical
+  to "could that zone have been the play source", derived by argument rather than
+  measured as an independent table.
+
+### `Experimental.idr`
+
+- **`OfLastChosenColor`** (:503) — fixes the sort to COLOR alone at this
+  syntactic position, because the marked ("last chosen") read is attested for
+  color twice (Chromatic Armor, Sanctuary Blade) and zero times for creature type
+  here, while the other five sorts are written only in carriers this row does not
+  cover; a `QualitySort` slot here would spell three unwritten phrases to reach
+  one written cell (finding 246).
+- **`ExiledWith`'s source** (:1186) — fixed to `LinkSource` (the object whose OWN
+  abilities are linked, [CR#607.1] "printed on it") and not any noun, because the
+  corpus writes only the self-word or the card's own printed name as the
+  source — one referent, three spellings, never a different object.
+- **`AnyTarget`** (:1327) — fixed as a single lexical head with no de-macro onto
+  `KindJoin`, decided by three independent measurements (no cross-Kind-to-player
+  join exists as this word; the rules name it as one lexical item; the two obey
+  different modifier disciplines — Zevlor's "the chosen player or permanent" is
+  attested against KindJoin but would have to be refused to preserve
+  `AnyTargetLone`'s discipline).
+- **`IsSource`** (:1429) — zone-free and type-free by [CR#120.7]'s own text (a
+  source is explicitly not required to be "currently in the zone it used to be
+  in"); every battlefield-demanding verb is refused against it with a measured
+  zero rather than a bespoke rule.
+- **`IsManaAbility`** (:1511) — a description-side word rather than a tag on the
+  ability's own type, because chapter 91 (finding 679) ruled that mana-ability
+  status is derived from an ability's SHAPE per [CR#605.1a] and must never be
+  authored as a flag; the row is always negated in the corpus (14/14).
+- **`PlayerGroup`** (:3318) — fixed as EXOPHORIC (introduces no readable mention)
+  because across all 140 measured corpus segments with this subject, no later
+  clause ever pronominalises it back; the docstring likens it to `You`'s answer.
+- **`YouAnd`'s player half** (:3532) — the player argument is not a `Noun`
+  parameter at all but hard-fixed to `You`, because every one of the 35 supported
+  sentences writes second person and none writes a third-person player. The row
+  takes only the object-side argument and spells the player word itself.
+  **Risk rank 8.**
+- **`LibrarySlice`'s type projection** (:3564) — deliberately projects NO card
+  type, because the library is a hidden zone whose contents no player may inspect
+  ([CR#400.2,401.2]); every type-demanding verb is refused "for free" rather than
+  through a bespoke rule.
+- **`TheRest`** (:3600) — gated by `theRestOk`, demanding exactly one prior GROUP
+  mention and at least one part already taken, because findings 111/127
+  established that two "target" instances are two separate mentions while a slice
+  phrase names one group a partitive can divide.
+- **`ControllerOf`/`OwnerOf`** (:3691, 3693) — both fixed to demand
+  `nounPlur n = OneOf` because [CR#108.3,109.4] give a card/object exactly one
+  owner/controller; a group's plural relational ("their owners' hands") is
+  recorded as future, unbuilt vocabulary (`badGroupOwner`).
+- **`Amount.GroupSize`** (:4324) — fixes the counted-group cardinality anaphor's
+  sort to `Object` only (`countManys Object bs = 1`), because zero of the five
+  player-subject counted-group headers ever write the anaphor back.
+- **`Amount.TheDifference`** (:4340) — fixes the value to POSITIVE only (never
+  the raw signed subtraction), because the comparison licensing "the difference"
+  was already true, so [CR#107.1b]'s floor is never reached from this anaphor.
+- **`LinkSource.SelfLinked`** (:4833) — fixes the exiled-with linkage's source to
+  the SELF word only, refusing any other or target object, because
+  [CR#607.1,406.6] build the whole relation out of "two abilities printed on IT";
+  a worked example (Quicksilver Elemental) shows naming any other object would be
+  wrong.
+- **`capSubjectOk`** (:5068) — fixes the untap-cap's subject to exactly
+  `You`/`PlayerGroup`, replacing a retired three-cell enum whose third cell "was
+  `You` all along".
+- **`selfDefinedOk`/`SelfDefined`** (:5338) — fixes a characteristic-defining
+  ability's definable subject to the self (`This`/`AsType _ This`) alone, because
+  [CR#604.3a] makes an ability a CDA only if it does not affect any OTHER
+  object's characteristics; 142/142 supported lines confirm no exception.
+- **`GameEvent.Attacks`' defender** (:6177) — fixes the optional defender to a
+  PLAYER noun only, narrower than [CR#506.3] (which also allows
+  planeswalker/battle), because the one coordinated planeswalker line (Oath of
+  Kaya) and zero battle lines cannot be written as a single term.
+- **`GameEvent.BeginningOf`/`TriggerWordOk`** (:6253, 7115) — the only event
+  whose trigger header word is fixed (to `At`) rather than chosen from the
+  three-way `TriggerWord` catalog every other event reads from.
+- **`GameEvent.DayNightShift`** (:6359) — takes no direction argument, fixing the
+  phrase to the full lexicalized disjunction rather than parameterizing over a
+  `Designation` direction, because 10/11 headers write both halves joined by "or"
+  and the corpus never separates them; named as the "standing check's first
+  recorded refusal".
+- **`selfSubjIntro (AttachHost …)`** (:6750) — fixes the attachment host's minted
+  determinant to `TheD` (demonstrative-visible) where the bare self mints `SelfD`
+  (only "it"-visible), because 5 corpus lines demonstrate back to an attachment
+  host and 0 to a trigger's own subject.
+- **`DefinesPt` (SelfDefined)** (:7855) — the subject is fixed to the self object
+  per [CR#604.3a]; measured 142/142.
+- **`DefinesPt` (DefiningValue)** (:7855) — the computed value is never written
+  in the sentence — the printed star stands where a number would go.
+- **`HasBasePt`'s amounts** (:7908) — unlike Gets/DefinesPt, no corpus line reads
+  the subject back into a base-P/T value, so the amounts are NOT
+  subject-contextual — the pump's answer inverted.
+- **`AltCost` (no subject slot)** (:8050) — the declined mana cost is fixed to
+  "this spell's mana cost", 107/107 lines being about the card printing the
+  ability itself, never a class of future spells (those 14 lines route to
+  `CostsToCast`).
+- **`AltCost` (Maybe = spelling, not two rows)** (:8050) — whether the offered
+  payment is written picks between "rather than pay" (107) and "without paying"
+  (16), a perfect 123/123 covariance.
+- **`CostsToCast` (infinitive = subject's sort)** (:7986) — the
+  "to cast"/"to activate" choice is fixed by whether the subject is an Object or
+  an Ability per [CR#602.2b], not a written slot.
+- **`Deontic` (payer derived)** (:8190) — the cost-payer in the GatedBy cell is
+  fixed to the gated subject's own controller, except the one Block/Patient cell
+  where it is fixed to the defending player instead.
+- **`MayDeclineUntap` (possessive derived)** (:8212) — "your untap step" is fixed
+  to the untapping player, finding 254's derivation pattern.
+- **`DoesntUntap` (possessor derived)** (:8347) — "its controller's untap step"
+  is fixed by agreement with the subject, never a free slot.
+- **`CantUntapMoreThan` (possessor dissolved)** (:8397) — started as a private
+  CapDomain enum, found 7/7 to always agree with the subject, and retired into a
+  derivation; `PlayerGroup` absorbed its three cells.
+- **`CantUntapMoreThan`/`CapBound`** (:8397) — the numeric bound is a closed
+  two-row table over the written number rather than an open Nat, because only
+  "one" and "two" are attested.
+- **`Skips` (possessor derived)** (:8448) — 26/27 lines agree the possessive with
+  the subject; only Savor the Moment's deictic "that turn" breaks the pattern and
+  is left unmodelled.
+- **`Skips` (part = full noun, not bare)** (:8448) — a skip always writes the
+  full noun ("draw step") rather than the bare word an endpoint uses ("upkeep") —
+  a spelling-reader distinction, not a second enum.
+- **`SetsChosenBasicType` (chooser fixed at YourChoice)** (:8741) — all 12 lines
+  write "of your choice"; the other three `ChoiceMode` cells are unwritten, so
+  the chooser is fixed rather than a slot (finding 246).
+- **`Scales` (agent always named)** (:9285) — unlike its siblings
+  PreventsFrom/RedirectsFrom, this row's body reads the agent back as its own
+  subject, so an agentless clause would leave that subject with no antecedent —
+  0/62 write the passive.
+- **`Scales` (destination phrase = spelling, not slot)** (:9285) — the closing
+  "to that permanent or player" is a spelling of the scope's own recipient, in
+  total covariance with the event clause's own recipient presence/absence.
+- **`ProducedMana.OfChosenColor` (sort fixed at Color)** (:10863) — takes no
+  `QualitySort` parameter; the other three sorts measure zero at this container,
+  so a parameter would be a slot with one legal value (finding 1016).
+- **`staticChoiceIntro` (only EntersChoice binds outward)** (:10318) — every
+  other StaticEffect row answers `bs` unchanged; EntersChoice is the sole
+  exception, binding the chosen quality forward per [CR#607.2d].
+- **`GetsEmblem` (exactly two slots, no TokenChars analogue)** (:11979) —
+  [CR#114.3] fixes an emblem as having no characteristics but its ability list,
+  so there is no name/type/color slot to mint at all — a rule-forced absence, and
+  the corpus's 0/90 named emblems closes off a name slot too.
+- **`GetsEmblem` (write-only)** (:11979) — no noun/description/zone reader exists
+  for the created emblem because only 1 of 90 supported lines (The Masamune) ever
+  reads an emblem back, and that read is nested two levels down inside a quoted
+  granted ability.
+- **`AddMana` (no mana-ability tag)** (:11750) — the constructor carries no tag
+  marking the ability as a mana ability; per [CR#605.1a,605.5b] that status is
+  *derived* from ability shape, so tagging it would duplicate a rule-computed
+  fact — an explicit frame decision, not an omission.
+- **`ChooseNewTargets` (no agent slot)** (:11701) — the row omits an agent
+  parameter entirely because the corpus never writes "[agent] chooses new
+  targets" (0 occurrences); every instance is either under `May`'s decider or a
+  bare unpronounced imperative.
+- **`CopyStack`'s agent (contrast case)** (:11660) — recorded as the *opposite*
+  of ChooseNewTargets: the agent IS a real slot because [CR#707.10] makes
+  controller-of-copy meaningful and the corpus writes 6 non-You subjects.
+- **`ForEachOf`'s element determiner fixed at TheD** (:12351) — every element
+  mention is introduced definite regardless of how the domain was phrased,
+  because the corpus reads it back with "it" (19) or a demonstrative (14) and
+  never an indefinite.
+- **`DoesntUntapNext` / `SkipsNext` / `ExtraTurn` possessors are derived**
+  (:12688, 12723, 12763) — none of the three takes a possessor parameter;
+  [CR#109.5] fixes "you"/"your"/"its controller('s)" mechanically from the
+  subject, so the field would be redundant with the subject noun already carried.
+- **`ExtraTurn`'s anchor fixed at "after this one"** (:12763) — 33 of 34
+  sentences write exactly that phrase with no parameter; the anchor is hardcoded
+  into the spelling, the lone exception (Emrakul, the Promised End) carried as an
+  unfixed ledger gap.
+- **`AdditionalPart`'s existential frame carries no subject slot** (:12812) —
+  deliberately omits a subject parameter because [CR#500.10a]'s "you get an
+  additional step" lines are a DIFFERENT meaning; the three "you get" lines are
+  excluded by name (Obeka, Paradox Haze, The Ninth Doctor).
+- **`AdditionalPart`'s anchor word is derived, not written** (:12812) — the
+  anchor's sort word ("phase"/"step") is computed from the added part, verified
+  by finding 275 agreeing 48/48.
+- **`TagBody` `ScryB`/`SurveilB` possessor fixed at You** (:13885) — both rows
+  hardcode the looker as `You` rather than taking a Noun parameter, because only
+  2 of 440 scry lines and 0 surveil lines name a different possessor; contrast
+  `MillB`, whose possessor is a free parameter because mill is regularly written
+  of other players. **Risk rank 10.**
+- **`TagBody` `MillB` patient fixed at OnTop** (:13885) — the slice position
+  parameter is pinned to `OnTop`; `OnBottom` is refused (`badBottomMill`) because
+  [CR#701.17a] names only the top and 0 corpus lines mill from the bottom.
+- **`CopyStack`'s copy-mention determiner fixed definite** (:14320, in effIntro)
+  — unlike Create's token (indefinite), the copy mention is minted definite
+  because no noun phrase in the sentence names it before the mention exists.
+- **`keywordCardOk`'s Ascend both-True cell** (:16698) — the only keyword row
+  where BOTH PermanentCard and SpellCard cells are True, fixed that way because
+  [CR#702.131a] states outright that ascend on a spell represents a distinct
+  spell ability — a rule-stated dual meaning, corroborated 5-spell/22-permanent
+  of 27 cards.
+- **`staticOnSpellCardOk`'s AltCost row admitted flatly** (:16789) — unlike the
+  ObjectCant(Countered/Copied) rows, which require the bare self as subject,
+  AltCost has no subject slot to check at all because [CR#113.6d] makes it "about
+  the card printing it and nothing else" — a structural asymmetry between the two
+  admitted exceptions, not a gate left open.
+
+## 6. Unmeasured assertions
+
+Claims a docstring makes without a corpus count behind them, or with a count
+whose denominator is not stated. These are not errors — several are explicitly
+flagged as unmeasured by the source itself — but each is a place where the
+census could not check the claim against a number, and therefore a place a later
+round should re-measure before leaning on it.
+
+### `Experimental/Words.idr`
+
+- `comparedType` (:227): the Vehicle noncreature-printed-power exception under
+  [CR#208.3] is stated as "never written" with no corpus count.
+- `Kind`/`Ability` (:364): "PHRASAL… the corpus DESCRIBES this referent" cites
+  co-occurring modifiers (Bladehold War-Whip) as qualitative evidence, with no
+  line count for how many lines carry each modifier.
+- `OutcomeSort`/`DamagePrevented` (:606): "36 sentences" is given as the count of
+  prevention lines marked "this way"; flagged as a watch item because "this way"
+  marking recurs at `VerbedMarking` (Mill: 43 lines). The two are different
+  constructions and the docstrings do not conflate them — a note, not a
+  contradiction.
+- `modalHead` (:804): the attested-heads list is asserted as the corpus's full
+  attested set, with the REFUSED heads individually counted at zero, but no
+  positive per-head counts are given.
+- `Origin` (:1181): "the two rows do NOT interact… no reader tests both" is
+  stated with no corpus count backing the disjointness claim.
+- `VisibleThing` (:1658): the possessive-agreement claim covers "all 21 printed
+  reveal lines and all 44 printed look-at lines", but WholeHand's own reveal /
+  look-at split is not separately given (the 12+44 breakdown covers TopOfLibrary
+  only), though `visibilityOk`'s LookAt×WholeHand=False cell implies all 6
+  WholeHand lines are Reveal.
+- `verbedWordOk`'s TokenW/CopyW participial screen (:2117–2128): "no participial
+  token read is measured" and "0 supported lines" are asserted with no
+  total-occurrence denominator, unlike most other cells in the range.
+- `EntryCounterMark` (:2393): gives per-cluster counts over "all 578 supported
+  entry-counter occurrences" but no chapter/finding number for the underlying
+  recon pass.
+- `PlayerGroupWord`, `JoinedPlayer`, `JoinedClass`, `ScaleFactor`, `ShiftDir`,
+  `NextUntapCount`, `ExtraTurnCount`, `SkipCount`, `PhaseCount` (:2315–2519) —
+  all give specific counts but no chapter/finding citation, in contrast with
+  `EntryCounterMark` which cites finding 275.
+- `typeRank Battle/Instant/Sorcery` (:5709–5738): the docstring states outright
+  that these three ranks are **UNWITNESSED** — the total order among them and
+  their neighbours is a convention, not a measurement, despite living in the same
+  closed-count table as the witnessed ranks.
+- `keywordCounterOk` (:4441): the per-cell zero-counts for
+  Ward/Protection/Enchant/Equip/Ascend/Storied/Renown/Flash/CumulativeUpkeep/Skulk
+  are given as "zero supported lines" with no total corpus size to normalize
+  against.
+- `Owner.ThatTurns` (:6366): the "one part" claim is stated but its measurement
+  site (`partUse`) is in another file.
+- `SpanUse` (:6456): the per-adverbial cell table is referenced throughout the
+  docstring by count (e.g. "until end of turn" 257) but the assigning function
+  lives at `spanUse` in `Experimental.idr`, so those counts could not be
+  cross-checked against a cell from the declaration alone.
+
+### `Experimental/Events.idr`
+
+- `CondMarking` (:2029): "the corpus is lopsided: the bare 'as long as' is the
+  overwhelming majority and rarely negated" — no line counts for either word,
+  unlike almost every other catalog in the file.
+- `deonticPatientOk ForbidT Block Agent` (:1797): "fourteen lines [with a
+  patient] and the bare 'can't block' many more" — the 14 is counted, the
+  majority bare-form count is not.
+- `deonticPatientOk GateT Block Agent` (:1811): "Hipparion writes one… and the
+  plural-subject lines write none" — the plural-subject line count is not given.
+- `triggerWordOk LifeGain`/`LifeLoss` (:929–934): answered from quoted example
+  English with no line counts, unlike the sibling
+  `TimeShift`/`TokenCreation`/`CounterPlacement` rows measured a few lines away
+  in the same table.
+- `admitsSpan` for `PtDelta` and `KeywordGrant` (:2227, 2237): the surrounding
+  docstring gives corpus counts for several other rows in the same grid but not
+  for these two — their True/False pattern is asserted without an inline count.
+
+### `Experimental.idr`
+
+- `ZoneScope` OwnedBy (:33): "the plural RELATIONAL possessor ('their owners'
+  hands') is a different family and still ledgered" — no count for that family.
+- `OfLastChosenColor` (:503): "no card writes the marked read against a chooser
+  that can fire once" is stated as total across 12 carriers, but per-carrier
+  repeatability is not individually counted.
+- `HasCounters` (:1044): the player-scoped counter description names 6 cards but
+  gives no aggregate line count distinct from the 221 object-scope figure.
+- `AnyTargetLone` (:2604): the 17-occurrence split (4+13) is given, but the
+  underlying "any other target" total of 17 is asserted without a separate raw
+  (pre-support-filtering) count.
+- `negatable` at `Permanent` (:2925): "was not measured by this round's recon" —
+  an explicit admission of an unmeasured cell, flagged in-line by the docstring
+  itself.
+- `YouAnd` (:3532): "IT ANNOUNCES NOTHING OF ITS OWN… the corpus agrees — no
+  supported sentence reads the group back" — the "agrees" claim has no separate
+  count of how many sentences were checked for a readback attempt.
+- `TheRest` (:3600): "almost all of those subtract from a library slice a look or
+  a reveal or an exile-from-the-top assembled" — "almost all" with no
+  numerator/denominator.
+- `elemIntro` (:3939): "19 bodies write 'it', 14 write 'that \<noun\>'" is a
+  measured split, but the denominator (total element-scoped binder bodies) is not
+  stated, so the two counts cannot be checked as exhaustive.
+- `Amount.CountOf` (:4098): "every corpus for-each domain is noun-HEADED" is
+  asserted with no line count.
+- `EventSource.FromAnywhere` (:5969): rules-distinctness is argued from the CR
+  text alone; no corpus count of how many headers actually write "from anywhere"
+  is given, in contrast with the 19-header/4-header counts given nearby for the
+  elided-source and dies-coordination cases.
+- `anchorPhrase`'s False cells for
+  `CountedGroup`/`AllOf`/`EachOf`/`YouAnd`/`LibrarySlice`/`SomeOf`/`TheRest`
+  (:4767): each asserted refused ("a set, not a referent") with no line count,
+  unlike the neighbouring `TargetGroup`/`Definite` cells.
+- `GameEvent.BeginningOf` (:6253): asserted as "the ONLY event with no noun
+  phrase in it at all" with no count of how many BeginningOf triggers exist.
+- `GameEvent.Casts` (:6274): "the corpus writes both [caster and spell] and
+  divides on both" is asserted with no split count, in contrast with
+  `DealsCombatDamage`'s explicit 625/688.
+- `ChapterMark`'s threshold-tally logic (:6596): described as "an unchecked side
+  condition" by analogy to chapters 96/97/104, with no count of how many of the
+  581 supported chapter lines actually require the before/after tally as opposed
+  to a simpler reading.
+- `TokenSpec.TokenWritten` (:7591): the written-characteristics arm's own line
+  count is never stated (only its siblings `TokenAsThose`=43 and
+  `TokenCopyOf`=288 are counted); the population it accounts for is implied by
+  subtraction only.
+- `CostShift` (:7742): the colored/multi-symbol payload is described as "small
+  and measured" but only approximately counted ("about twenty-five lines").
+- `Gains` (:8126): the 26-supported-cards claim for two-level nested quotation
+  has no total-lines denominator for how many nested-ability lines exist overall.
+- `AddsChosenQuality` (:8793): "12 supported SUBTYPE lines" splits into named
+  groups (self 5, you-control 4, each 1) that sum to 10, with "and 2 more" left
+  unnamed and uncounted.
+- `Repeat` (:12429): the "44 supported lines over 44 cards" total is asserted,
+  but the sub-ledgers (42 backward + 2 forward = 44; 9 until-condition + 6
+  enumerated-domain + 2 exception = 17) are subsets whose overlap with each other
+  is not stated.
+- `Repeat`'s exception-on-process cells (:12419): "2 lines … (the two Lores)" —
+  named, but the "chooser machinery" they are blocked on is asserted, not further
+  quantified.
+- `ChangeLife` (:11708): "core basis (merged)" — no corpus count recorded for
+  this row at all.
+- `Expose` (:11801): no sentence count given for the look/reveal split.
+- `Continuously` (:11884): the span-adverbial table (SpanOk/CoordSpanOk) is
+  described as corpus-determined but no numbers are stated in this stretch of
+  docstring.
+- `If` (:12255) and `WhereLetter` (:12293): linearization availability (leading
+  vs trailing; which clause of the body the rider trails) is called "a
+  linearization side condition, unchecked here" — explicitly acknowledged as
+  unverified.
+- `moveIntro`'s AsType stamp conservatism (:14138): "waits on a corpus witness" —
+  explicitly states no witness exists yet for the at-verb frame; the conservative
+  False is asserted safe without a count.
+- `headerWindowOk`'s MainPhase gap (:15096+): 3 named cards (Dovin's Acuity,
+  Canyon Vaulter, Reckless Velocitaur) are stated to want a main-phase window
+  cell; the general MainPhase-Yours row opens later in the file while the
+  specific cell stays pinned, and the two comments are never reconciled in one
+  place.
+- `staticOnSpellCardOk`'s Conditionally-recursion claim (:16776–16781): "an
+  attested cell, so the recursion widens nothing" is asserted from exactly 2
+  named cards (Banefire, Dragonlord's Prerogative), both said to be "still
+  blocked on their own clauses" without detail on what those clauses are.
+- `Card` record's name field (:17058): "nothing here reads it back" is asserted
+  without a count of how many corpus lines were checked for a name-reading
+  construction.
+
+## 7. Contradictions and tensions
+
+Every item here is **REPORTED-NOT-RESOLVED**. The census made no edits to any
+source file and adjudicated none of these; each is recorded so a later round can
+pick it up with the evidence already assembled.
+
+### 7.1 Live discrepancies
+
+**1. `riderAct Regenerated` = 135 against `ObjectAct`'s own 138 —
+REPORTED-NOT-RESOLVED.**
+`Words.idr:2311–5208`, `Words.idr:2314` (restated at `Experimental.idr:3388`).
+`ObjectAct`'s comment gives the corpus split as "156 supported sentences… 138
+sentences attach to a destruction… 18 state 'this turn'", identifying the 138 as
+the `Effect.CantBe` one-shot-rider population. `riderAct`'s own comment two
+paragraphs later says "`Regenerated` is 135 sentences, which is what the round
+was for". The three-sentence gap is unexplained, and the `CantBe` row in
+`Experimental.idr` carries the 135 figure forward. Either the 138 includes three
+sentences that are not riderAct's, or one of the two counts is stale.
+
+**2. `attachHeadOk Equipped PermanentW = False` against its own cited Luxior
+evidence — REPORTED-NOT-RESOLVED.**
+`Words.idr:2232–4965` (comment) against `Words.idr:2240` (cell). The comment for
+the Planeswalker cell says [CR#702.6e]'s "equip planeswalker" attaches "as though
+that planeswalker were a creature", so **Luxior's line says "equipped permanent"**
+and not "equipped planeswalker" — zero occurrences of the latter. That reads as
+positive evidence for "equipped permanent" being real printed English, yet the
+`PermanentW` cell for `Equipped` is coded `False` two lines later with no comment
+explaining the refusal. Either the cited Luxior line does not license this
+table's cell (i.e. it is a different constructed phrase this table does not
+model), or the cell is a stale/missed True.
+
+**3. The `Keyword` docstring's composite-row count goes stale mid-docstring —
+REPORTED-NOT-RESOLVED.**
+`Words.idr:1247–2914`. The docstring states "`Haste` and `Flying` are the two
+composite rows here", then a few sentences later says "the GRANT round adds four
+more composite rows" (convoke/improvise/storm/lifelink, bringing the total to
+six), and later still describes `Reach` as "a composite the carrier spells,
+exactly as `Haste` and `Flying` are" (a seventh). The original claim is never
+corrected or restated. Read narrowly it is superseded by the docstring's own
+later sentences rather than being a hard logical contradiction — but a reader
+taking "the two composite rows" at face value would be wrong.
+
+**4. `PreventCut`'s arithmetic: 88 against 60 + 21 = 81 —
+REPORTED-NOT-RESOLVED.**
+`Experimental.idr:2990`. The docstring states the family is "88 event-shaped
+sentences", then sums "47 of the 49 one-shots and 13 of the 39 standing
+reducers" for CutAll (60) plus "21, and every one of them a standing reducer" for
+CutSome — 60 + 21 = 81, seven short of 88. The discrepancy is not reconciled in
+the text and may reflect an unlisted third cell or a stale total. (The three
+refused shapes counted alongside — "all but N" 5, "half…rounded" 2, the where-X
+rider 3 — sum to 10, which does not close the gap either.)
+
+**5. `comparableBound` is relation-blind where its evidence is equality-only —
+REPORTED-NOT-RESOLVED.**
+`Experimental.idr:1740`. `comparableBound a = writtenBound a || readAmount a` is
+RELATION-BLIND: once ch124's correction recognized the summed bound (`Aggregate`
+with `AggregateOp = Sum`) as passing via `readAmount`, the boolean gate admits a
+summed bound at *every* comparator, since `CompareAmt` places no relation
+restriction on the bound. But the corpus evidence supporting that correction is
+12/12 lines at the EQUALITY relation only ("mana value equal to 1 plus…"); the
+other four relations (greater / less / greater-or-equal / less-or-equal against a
+summed bound) are unattested and explicitly "queued with the count" for their own
+round. The type system therefore currently permits a construction class the
+corpus has never measured — a tension between the gate's shape and the evidence
+backing it, left standing rather than narrowed by the docstring's own account.
+
+**6. `admitsSpan CostModification` declines to flip a cell one attested line
+fills — REPORTED-NOT-RESOLVED.**
+`Events.idr:910`. Of 653 lines, exactly one (Cheering Fanatic) carries a
+duration, and its cell is **deliberately not flipped True** — the stated reason
+is that "flipping its cell would rename a `SpanUse` row". Because `SpanUse`'s row
+names *are* the measured construction sets, admitting the line would rename the
+row; the row's name is therefore doing work that a measurement normally does.
+This is a deliberate under-admission with an attested counterexample already
+printed, recorded as ledger rather than as a cell. Distinct in kind from the
+other items here: it is not an arithmetic or stale-text slip but a design tension
+between a naming convention and a measurement.
+
+**7. `annIntro`'s "flat clauses agree exactly" has one exception in the source —
+REPORTED-NOT-RESOLVED.**
+`Experimental.idr:4444` (`preIntro`) against `Experimental.idr:4502`
+(`annIntro`); found by the lens's row-by-row diff of the two 51-row tables. Ten
+rows differ; six differ only in which function name recurses; the four
+substantive differences are `May`, `Sequentially`, `Simultaneously` — and
+`ExtraTurn`. `annIntro`'s own docstring predicts and justifies the first three by
+name (`badSimultaneousReadsMayDeed`,
+`badInsteadReadsReplacedSequenceOutcome`) and then states the general claim: **"on
+a FLAT clause the two agree exactly."** `ExtraTurn w _` is a flat row where
+`annIntro` prepends `turnRefB` and `preIntro` does not. Either the "exactly" is a
+slight overstatement (the turn referent is a deed and `preIntro` is right to
+withhold it, in which case the sentence should read "…agree except where the
+clause MAKES a referent"), or one of the two rows is wrong. The lens flags it for
+a probe and does not adjudicate.
+
+### 7.2 Recorded self-corrections and citation drift (not live contradictions)
+
+Listed for visibility only; each is a place where the source visibly reverses or
+double-attributes itself, and a reader trusting a summary rather than the per-cell
+comments would get the pre-correction story.
+
+- **`Subtype.Shapeshifter`'s add/remove/re-add history** (`Words.idr:1528–3711`):
+  minted ch92 for Unstable Shapeshifter, removed when that card was "(wrongly)
+  refused" on the dead-public-witness rule, restored per finding 769's
+  correction. The one place a catalog's row history visibly reverses itself.
+- **`retainable`'s Planeswalker cell** (`Words.idr:2679`): already flipped once
+  (False→True) when `CardType` gained the row; documented as a self-correction.
+- **`partUse`'s two reclassifications** (`Events.idr:482, 1529–1530`): `Upkeep
+  Nothing` and `MainPhase {Nothing, Just Yours}` are both marked "RECLASSIFIED"
+  in-line. The table is internally consistent as written, but a reader trusting
+  only the head docstring's summary would get the pre-reclassification story.
+- **`StaticKind.LandAllowance`'s double chapter attribution** (`Events.idr:725–1996`
+  against `Events.idr:880–2345, 2677–2679`): the constructor comment attributes
+  the row to chapter 117 for its structural-vs-`Prevention` argument, while the
+  row's own `admitsSpan`/`staticAsAbility` cell comments attribute its corpus
+  measurement to chapter 116 alongside `VisibilityRider`. Both chapters may
+  legitimately have touched the row, but the two citations are never reconciled
+  in one place.
+- **`CastBy`'s fossil count** (`Experimental.idr:146–599`): the docstring corrects
+  itself in place — "this comment's own '24 lines' was that row's
+  cost-modification frame alone and the frame is 29 today, inside a family of
+  185" — leaving the superseded "24" visible in the same paragraph.
+- **`Amount.Minus`'s floor note** (`Experimental.idr:1575–4404`): the docstring
+  records that its own earlier text "claimed the floor unconditionally until the
+  layer-words round measured its own carve-out". Presented as already resolved
+  (the row is unchanged, only the reading corrected).
+- **`reflexEncloseUse`'s SetStatus count** (`Experimental.idr:3615`): Tapped is 5
+  "of an original 13 the prior comment overcounted" — an explicit self-correction
+  left in place.
+- **`headerWindowOk`'s MainPhase comment** (`Experimental.idr:4759`): the earlier
+  fully-False comment is superseded later in the file where MainPhase-Yours flips
+  True; the superseding is noted but the earlier comment is not amended.
+- **`statusEventOk` / `statusEffectOk` non-reproducing prior counts**
+  (`Words.idr:2597, 6018`): two comments record that a "prior comment's" figure
+  ("seven trigger headers each direction"; "42 imperative lines") "did not
+  reproduce" on re-measurement.
+- **`Prevents`' rider count** (`Experimental.idr:2826`): corrected from "140-odd"
+  to 111 shield sentences, the wider 125 count being non-shield damage clauses.
+- **`ObjectAct.Activated`'s split** (`Words.idr:2311`): corrected from an earlier
+  "wrong 15/50 split" to 19 class-subject / 43 possessor-anchored.
+- **`CounterKind`'s Lore and Age cells** (`Words.idr:2339`): both correct prior
+  wrong claims — a wrong cross-link on Lore (finding 481) and a wrong "all 85
+  reminder text" count on Age.
+
+## 8. Structure-vs-phrase verdicts
+
+The lens: not every top-level constructor must correspond to an English phrase.
+The house has two in-file precedents — `Sequentially`, whose spelling comment is
+explicitly "construction-owned … **not English words**", and `If`, which owns
+three linearizations chosen by a side condition the row does not check. So the
+question per family is never "must some construction own this job" but **"should
+this be ONE utility node with a linearization rule, exposed via macros, instead
+of N phrase-named rows?"** The costume signature is **per-container twins** — the
+same semantic job re-minted once per syntactic container, each wearing that
+container's phrase name; its sharpest form is two rows quoting the same spelling
+string.
+
+The file names **both** postures itself. The costume posture is named at
+`OtherThan` (`Experimental.idr:202`): *"the `Compare`/`CompareAmt` and
+`Not`/`NotCond` shape — one namespace, two frames, and the argument in the
+name."* The utility posture is named at the `GameEvent` gates
+(`Experimental.idr:2432–7112`): `Interceptable`/`Holdable`/`Triggerable`/`Awaitable`
+are four witness types over one `eventUse` table, existing only so a pin says
+which question refused. **The second posture is what the lens recommends**, which
+makes the census question for most families "why did this family get posture one
+when the file's own better answer was posture two, three sections away?"
+
+Full arguments, the recorded inventories, the sketch code and the letter-binder
+redesign sketch are in
+`docs/memory/campaigns/binder-unification-probe/census/lens.md` (Part 1). The
+table below is a condensation.
+
+| # | family | verdict | one-line evidence |
+|---|---|---|---|
+| 1 | The LETTER machinery — `WhereLetter` (12293) / `WhereLetterStatic` (8085) / `costIntro (LoyaltySymbol LoyaltyDownX)` (10729) / `DefinedLetter` (4367) | **COSTUME on the bind side; the read side is already unified and is the proof** | The two rider rows quote the **same spelling string** verbatim and the second defers to the first for the nesting rule; a third letter binder already exists with **no constructor at all** (a `costIntro` row, 24 corpus lines reading it back); and `DefinedLetter`'s only demand, `countLetter w bs = 1`, is frame-blind by construction. What resists is Idris — `Effect` and `StaticEffect` are distinct datatypes — so the verdict names a documentary and table-level defect, becoming a code-level one the moment a third *frame* wants a rider. |
+| 2 | `Compare` (Predicate, 1086) / `CompareAmt` (Condition, 5516) | **COSTUME on the frame; one genuine slot difference a subject slot absorbs** | `Comparator` and `ComparableBound` are already shared whole; the register rule is keyed on the **subject** not the frame ("one relation, two registers"); the relation was re-measured as shared ("finding 309's test run again and answered unanimously"). What genuinely differs is subject saturation — `Compare`'s left operand is a *gap*, `CompareAmt`'s an explicit read — which one `CmpSubject` slot carries. |
+| 3 | `Not` (Predicate) / `NotCond` (Condition) + `negatable` / `condNegatable` / `predNegFree` | **COSTUME on the two rows; GENUINELY-3 on the three tables** | The spelling comments are the same sentence twice, `NotCond`'s saying "exactly as Predicate's Not does", and `OtherThan` files them as the house twin idiom. But the three tables are three questions: `negatable` is per-Predicate-row corpus-and-rule content, `condNegatable` is smaller and shaped differently, and `predNegFree` asks a **deep** scan the other two cannot ("the inner negation can hide inside a conjunction the predicate layer's own row never sees"). |
+| 4 | The ten `Not*` non-nesting witnesses (`NotSeq`, `NotSim`, `NotCoord`, `NotForEach`, `NotInstead`, `NotCompound`, `NotLoyalty`, `NotConditional`, `NotLetterRider`, `NotMixedGroup`) | **COSTUME — the sharpest and cheapest in the census** | Nine of the ten are literally the same three lines, and the docstrings admit it in a chain ("`NotSeq`'s twin", "`NotSeq`'s question at the binder", "`NotSeq`'s shape at a third site"). But the *reasons* fall into three groups (one-meaning-one-spelling; rule-backed; corpus-total) and **two of the ten are not self-nesting gates at all** — `NotLetterRider` and `NotConditional` gate another row's *body*, wearing the family prefix. Keep the aliases (pin legibility), unify the mechanism. |
+| 5 | The FIVE telescopes — `Effects`, `SimEffects`, `CostSeq`, `StaticParts`, `AbilitySeq` | **COSTUME on the body; UNDECIDED on the sugar** | Four of the five namespaces exist for **Idris list-sugar name resolution**, and the docstrings say so in a chain ("a third telescope would collide on the list sugar"… "a fourth"… "a fifth"). The one semantic contrast is real and small: `Effects` threads `effIntro`, `SimEffects` threads `annIntro` — a *parameter*, not a family. Whether aliases can restore `[a, b, c]` syntax at five element types is a typechecker question the census cannot answer. |
+| 6 | `effIntro` / `preIntro` / `annIntro` (+ `deedDelta`) | **`preIntro` vs `annIntro`: PARTIAL COSTUME (4 substantive rows in 51). `effIntro` vs `annIntro`: GENUINELY-2. `deedDelta`: a genuine fourth thing** | A row-by-row diff: 41 of 51 rows byte-identical modulo the function name, 6 more pure recursion renames, 4 substantive (`ExtraTurn`, `May`, `Sequentially`, `Simultaneously`). `preIntro`'s docstring says the duplication is deliberate ("written out rather than delegated so that a new clause has to declare its own pre-state") — a real totality motive bought with a hand-maintained 51-row copy. `effIntro` is **not** `deedDelta ++ annIntro`: it carries **retag** (`Move`) and **removal** (`Shuffle`) that no delta can express, which `deedDelta`'s own docstring confirms. See §7 item 7 for the `ExtraTurn` discrepancy this diff surfaced. |
+| 7 | `ObjectCant` (StaticEffect, 8325) / `CantBe` (Effect, 11406) | **COSTUME on the prohibition; the rider attachment is a genuine second thing — itself a near-twin of `Continuously`** | Same spelling string again (`"<Param(1)> <Param(0)>"` at both), both carrying `ActSubject` over the same `ObjectAct` catalog. What the second row adds is **attachment**, not prohibition content — and the file has already built that decomposition next door: `Continuously` is "a static statement used as a clause", so `CantBe` is "a static statement used as a trailing rider". `riderAct` becomes a `RiderOk` table and `Bindingless` moves onto the envelope where it belongs. |
+| 8 | `DoesntUntap`/`DoesntUntapNext`, `Skips`/`SkipsNext` | **GENUINELY-2 at each pair — the best-argued split in the census** | Two ability types with two rules ([CR#611.3b] vs [CR#611.2a]); the per-part admission **disagrees in opposite directions** over all 27 supported bare-skip sentences (`Turn` scheduled-only, `Upkeep` standing-only) — "a union table would have handed each family the other's silence"; each has a count slot the other cannot have; and targeting parts them (7/16 scheduled part-skips write "target player", a static line cannot). Note what they *correctly* share: **one** `skipUse` table read by two witnesses — the lens-recommended shape, already in place. |
+| 9 | `Prevents`/`PreventsFrom`, `Redirects`/`RedirectsFrom`, `Scales` | **COSTUME (partial): the argument-from-surface-shape fails the lens; a genuine amount-slot difference survives** | `DamageKind`, `DamageScope`, `ReplUse`, `DamageAgent`, the [CR#615.5] rider, `DamageRecipient` and `SingleRecipient` are shared whole. The docstrings' "relative-clause-modified damage noun vs event clause with a comma" **fails** — these very rows file their own two surfaces as linearizations (`RedirectsFrom`: the active and passive bodies "are ONE sentence"; `Scales`: the destination phrase "is A SPELLING AND NOT A SLOT"). What **holds** is [CR#615.8]'s "regardless of how much damage that is": `Shield` / `PreventCut` / `DamageScale` are genuinely different amount types, and `use : ReplUse` exists only on the event-shaped rows. Collapsing moves three measured facts (shield-shaped scale 0; riders 18/18 split; agentless scale 0/62) from "which row you picked" into three small tables. |
+| 10 | `Intercepts` / `InsteadOf` / `HeldUntil` / `Delayed` / `Reflexively` | **GENUINELY-5 — the census's model citizen** | Five rules with five different context threadings (`eventIntro`, `annIntro replaced`, `annIntro e`, `delayedCtx`, `reflexCtx`), and the file separates `InsteadOf` from `Intercepts` on a **corpus fact** not a frame ("the corpus divides on the word 'would'"). The admission layer is already unified on one `eventUse` table read by four witnesses. |
+| 11 | The counter-verb family (`PutCounters`, `RemoveCounters`, `GetsCounters`, `LosesAllCounters`, `CounterEvent`, `LastCounterRemoved`, `EntersWithCounters`, `CounterRider`, `DistributedCounters`, `CountersOn`) | **MIXED — GENUINELY-N across containers, COSTUME within the one-shot verbs** | No single node spans an event, a static line, a division and a read. But the four one-shot verbs are a 2×2 grid — {add, remove} × {object scope, player scope} — minted as four phrase-named rows, and `counterScope`'s own docstring says the grid is one thing ("the two verbs and the two scopes line up one to one across the whole family, which is why the scope can gate the verbs"). `CountersOn` demonstrates the payoff at the read side: **one** row indexed at `{k : Kind}` spelling both surfaces, "an agreement fact and not an axis". The read side took the lens's answer; the verb side did not. |
+| 12 | `HasStatus` / `StatusEvent` / `SetStatus` + `statusWordOk` / `statusEventOk` / `statusEffectOk` | **GENUINELY-3 — the census's positive control** | The merge the lens would recommend has **already been performed**: `SetStatus` "replaced `Tap`, `Untap`, `ToFace` and `Phases`. Four bespoke constructors over a catalog that already existed, which is exactly what the architectural ruling convicts." What remains is three *readers* of one value product disagreeing on real cells in both directions (the phase pair; `Flipped` 0 headers vs 16 instructions; `FaceDown` event-False/effect-True at 19), with `Unflipped` rules-backed at two of the three. Nothing to merge. |
+| 13 | The container mint sites `selfSubjIntro` / `condMint` / `staticIntro` | **UNDECIDED, leaning GENUINELY-N — recommend extracting the mint, keeping the three fallbacks** | The shared *lines* are three; the *fallbacks* are the content and they differ for a stated, surviving reason: "an event's subject is a NOUN, so a description announces itself through `nomIntro`… a condition announces NOTHING on any row (`condDelta`), so there is nothing to fall back to." What is duplicated is the ~8-line three-row minting body, and three sites already agree on both rows (508 host sentences, 10 self) — the threshold at which extracting `exophoricMint` is obviously right. |
+| 14 | The `anyTargetFree` scan family (`anyTargetFree`, `nounAnyTargetFree`, `zoneAnyTargetFree`, `amtAnyTargetFree`, `complementAnyTargetFree`, `nameSrcAnyTargetFree`) | **GENUINELY-N by Idris mechanics — but GENERATABLE, and that is the finding** | Not per-container twinning of a job: one predicate lifted over a mutually-recursive family of indexed datatypes, each function a total case analysis whose non-leaf rows delegate to the sibling at the argument's sort. Idris 2 has no generic-deriving facility for this, so the six definitions are mechanical necessity. The lens should not fire; the family is a **generation** candidate — and the file has ~4 more scans of the same shape (`predNegFree`, `predSays`, `predDelta`, `zoneFree`), so the multiplier is ~4 × ~6 and the fix is one generator. |
+| 15 | `Whose` (2 rows) / `Owner` (7 rows) | **COSTUME — and the docstring's own cited precedent is the counterexample** | `Whose` is a **literal sub-enum** of `Owner`, row name for row name, with the shared rows spelled identically. The docstring justifies the split by citing "`statusWordOk` and `statusEventOk`'s arrangement over [CR#110.5]'s values" — but that precedent is *three readers over ONE value product with three tables*, emphatically not three enums; it says one vocabulary, N admission tables, and this family did the opposite. The real cost the docstring names — ninety dead `Unattested` cells in `spanUse` — is a cost of `spanUse` being **indexed by the raw enum**, answerable by a `durationOwnerOk` witness at the `Duration` constructor, exactly as `windowOk`/`headerWindowOk` already handle disagreement over a shared index. The third argument (finding 254's derived possessor does not apply here) **does** survive and is orthogonal. |
+| 16 | The four (part × owner) grids — `windowOk`, `headerWindowOk`, `partUse`, `spanUse` | **GENUINELY-4 — and this family is what the lens's recommended output looks like** | These are **data, not constructions**; a per-reader admission table over a shared vocabulary is the shape the lens asks for, and the disagreements are measured and bidirectional ("a second table because the two disagree in both directions on six cells"). The one real defect is that the index sets are not the same — `windowOk`/`headerWindowOk` index `TurnPart -> Maybe Owner` while `partUse`/`spanUse` index over `Whose` — which is family 15's costume propagating. Unify the vocabulary and the four become four readers of one grid, presentable as a single matrix with four answer columns. |
+
+### Sweep — further twin candidates flagged, none investigated to verdict
+
+From a read of the full skeleton, one line each. None of these was worked to a
+verdict; they are the census's queue for a follow-up lens pass.
+
+- **`LetterDefinition` / `DefiningValue`** (4727, 4731) — two witness types over
+  one predicate `letterDefines`; deliberate (pin legibility) but a duplicate, and
+  should be recorded as one.
+- **`TokenTyped` / `TokenPt` / `SubtypesFit` / `TokenCanonical` /
+  `AdditionUnnamed`** (7493–7538) — five witnesses over `TokenChars`; the named
+  source of the "named apart so a pin says which refused" idiom. Check how many
+  share a body.
+- **`Interceptable` / `Holdable` / `Triggerable` / `Awaitable`** (7081–7109) —
+  four witnesses, all `admits<X> (eventUse (eventName ev))`. Already the good
+  shape; listed so it is not mistaken for a costume.
+- **`AddedPart` / `FollowerPart` / `AnchorPart`** (7143–7153) — three witnesses
+  over `AddUse`; the same shape as the skip pair, likely fine.
+- **`Compare` / `Superlative`** (1086 / 1093) — "`Compare`'s set-relative twin";
+  shares `Headed`, `AnyTargetFree`, `projScope ax = k` with `Aggregate`. Probably
+  genuine (threshold vs fold) but the slot overlap is large.
+- **`Timing` / `TriggerWindow`** (15165 / 15178) — two types over one grid, split
+  to avoid "a gate that would have had to refuse two of its own rows"; one type
+  with a gate is precisely the recommended shape, and every other table in the
+  file is made of measured `False`s.
+- **`AttackDefender` / `BlockPartner` / `EventAgent` / `CreationVoice` /
+  `CausedBy`** (5804–5915) — five `Maybe`-indexed optional-slot witnesses in one
+  block; check whether they share the "optional slot, gate rides the written
+  value" body (`CtrlSingular` and `CounterKindNamed` are explicitly said to).
+- **`ZoneCoherent` / `ContradictionFree` / `OtherAnchored` / `AnyTargetLone` /
+  `LoneComparison` / `TwoDisjuncts` / `ParallelDisjuncts` /
+  `CoordinableDisjuncts` / `DistinctDisjuncts`** (2061–2796) — nine list-scanning
+  witnesses over `List (Predicate bs k)`; likely a generation family of family
+  14's kind, not a costume.
+- **`TwoConjuncts` / `FlatConjuncts` (Condition) against `TwoDisjuncts` /
+  `DistinctDisjuncts` (Predicate)** — arity/flatness witnesses re-minted per
+  layer; `atLeastTwoCs`'s docstring says why (strict positivity forbids a shared
+  arity witness), a real Idris constraint that should be checked once rather than
+  assumed at each site.
+- **`CostSubject` / `CapSubject` / `LandSubject` / `ActSubject` /
+  `GrantSubject`** (5098–5155, 16160) — five per-construction subject admission
+  relations over `Noun`; worth a grid.
+- **`WrittenCount` / `ReadAmount` / `ComparableBound` / `ForEachAmount` /
+  `RepeatCount` / `DefiningValue`** — six `Amount`-shape witnesses; several are
+  one-line predicates and at least two share a test.
+- **`NextUntapCount` / `ExtraTurnCount` / `SkipCount` / `PhaseCount` /
+  `CapBound`** (`Words.idr:1093–2616`) — five closed `Nat` tables of one or two
+  rows each; a single `AttestedCount : (site) -> Nat -> Type` over one table
+  would carry all five measurements without losing a cell. (These are risk rank
+  4; the sweep item and the risk entry are the same five tables seen from the two
+  directions.)
+
+## 9. Lattice translation
+
+### The two designs
+
+**The marked design** (settled 2026-08-15, addendum 2026-08-17). The grammar
+keeps `Kind`'s Player/Object split and represents each union site as **the marked
+construction the cards write**. `KindJoin`'s docstring states the ruling in the
+open: *"The LAYERING RULING is why this is a construction rather than a repair:
+the surface MARKS every union site it has, so the grammar keeps the `Kind` split
+and writes each marked site down. Players-as-objects is core's business and not a
+grammar refactor."*
+
+**The join-semilattice design** (OLD-SEMANTICS). A join on the kind index,
+`AnObject \/ APlayer = Anything`, under which coordination is generic and no
+marked union constructor exists: "creature or player" is `Or` over a
+kind-`Object` alternative and a kind-`Player` alternative, at the joined kind.
+
+**The mandate** is not to decide (that is the user's, at cutover) but to state,
+per site, what the join-indexed equivalent **admits beyond the measured corpus**,
+tagged CR-backed vs printing-backed, with the widening cost. Two caveats are
+carried in from the campaign: flat `_ \/ _ = Anything` **loses WHICH union**
+(chapter 128 measured the demonstrative echo copying its antecedent's kind-pair
+exactly 33/33, derivable only under a pair-carrying join); and a `Binding` is
+`Kind`-indexed, so the union cells' "can't bind" arguments are arguments *about
+the index* and evaporate under a lattice kind that CAN index a binding. And one
+posture: the marked constructors' **hand-written table answers ARE what the
+`Anything` row's cells would be**.
+
+Full per-site argument in
+`docs/memory/campaigns/binder-unification-probe/census/lens.md` (Part 2).
+
+### Site 1 — `AnyTarget` (Predicate, `Experimental.idr:203`)
+
+| | |
+|---|---|
+| **Recorded** | [CR#115.4]'s class word as ONE lexical item, `Predicate bs Object`, nullary. `negatable AnyTarget = False` ("the class word is never negated — the rule defines it positively"); `AnyTargetLone`, a modifier discipline forbidding anything else in the phrase; `headIsPlaceless` True; `bindFor` gives it `UnionP`; `nounIsAnyTarget` True only under `TargetGroup`; `DamageRecipient.AnyTargetTakes` its single admission. Its standing TODO is **retired with the answer NO** on three measurements: no cross-`Kind` head joins two classes to a player as this word (the 2 cards writing "creature, planeswalker, or player" are this word's own pre-battle spelling); the rules NAME it as one lexical item; and the two obey different modifier disciplines — "one row spelling both would have to refuse Zevlor to keep this word's discipline, or drop the discipline to keep Zevlor." |
+| **Lattice admits beyond corpus** | **The class word with a modifier** — `AnyTargetLone` has no index to key on once `AnyTarget` and `KindJoin` share a kind, so "any red target", "any target you control", "any target other than that creature" become spellable, all at zero corpus lines. The lattice **picks the second horn of the docstring's dilemma silently**. **The class word as a coordination member** ("any target or target player"). **A four-way join that is not the class word** — [CR#115.4]'s set is a rule's enumeration, and a lattice reaching the same kind from four predicates cannot know that "any target" is what English writes for it, so word and spelled-out list both become available with nothing to choose between them. |
+| **Pair-carrying dependency** | The **generic readback** survives under **neither** naive option: of the 48 supported anaphor readbacks, 10 have a class-word antecedent and **all 10 write the generic "permanent or player"**. Flat has no set to spell from; naive powerset would spell `{Creature, Player, Planeswalker, Battle}` faithfully as "that creature, player, planeswalker, or battle", **which no card writes**. It needs an explicit collapse rule (see site 4). |
+| **Gate re-homing** | The modifier discipline is **not honestly tolerable** as overgeneration: `AnyTargetLone` is a closed discipline with `badDestroyAnyTarget`-class pins behind it, and dropping it opens an unbounded modifier grid, not a handful of cells. A gate must move in, and it needs an index a flat lattice deletes; the honest home is a lexical marker (an `IsClassWord` witness) — **the marked construction re-created inside the lattice as a gate**. Gates that must survive: `AnyTargetLone`, `negatable AnyTarget = False`, `AnyTargetAtCount`, `anyTargetFree` and its five siblings (every one of which exists solely to find this word in a subterm). |
+
+### Site 2 — `KindJoin` (Predicate, `Experimental.idr:204`) — the 2×4 grid
+
+| | |
+|---|---|
+| **Recorded** | "the cross-Kind union head, one noun phrase describing one referent that may be an object or may be a player. **326 supported occurrences and the largest thing this grammar could not head.**" Two closed vocabularies, grid **full**: `JoinedPlayer` × `JoinedClass` is 2×4 and all eight cells are attested (player 279 / opponent 45 × planeswalker 205, permanent 100, battle 17, creature 4) — "which is what makes this one row with two parameters rather than a flat enum of the combinations somebody happened to write." Not `Or` (which coordinates alternatives describing the same sort of thing). **Placeless, and that is the whole gate**: `headIsPlaceless` True, so every battlefield-demanding verb refuses it through the ordinary zone gate — 0 supported sentences across destroy, exile, tap, untap, return, counter and sacrifice (`badDestroyKindJoin`). Not coordinable (`badKindJoinInOr` — nesting one in `Or` "would spell the same union twice over"). Not negatable ("a union of two classes is not a property a thing can lack"). Order is free variation and finding 275 **fails** (permanent 92 object-first/8 player-first; battle 16 player-first/1 object-first). Carries a modifier in only **11 of 326**. |
+| **Lattice admits beyond corpus** | **The widest widening in Part 2.** (a) **The whole predicate cross-product**: the marked row admits 2×4 head pairs from two one-word vocabularies; a generic join admits *any* kind-`Object` predicate joined to *any* kind-`Player` predicate ("target attacking Vampire that isn't a Demon or target opponent who controls no creatures"). The `Predicate` datatype has on the order of a hundred rows; the join's arity is their product, and zero of these are corpus lines. (b) **Three-way and n-way unions**, spellable several ways that all normalize to the same kind — a one-meaning-many-spellings failure of exactly the sort `NotSeq` and `badKindJoinInOr` exist to prevent. (c) **Negated unions** ("non-(permanent or player)"), whose refusal the docstring grounds semantically not just by count. (d) **Modified unions past the measured 11/326**, with no Zevlor-vs-AnyTarget distinction available to bound them. |
+| **Pair-carrying dependency** | The **8-cell grid itself**, and everything derived from it. `JoinedPlayer` × `JoinedClass` is not a by-product of the union — it is the *content* of the row, and the demonstrative echo reads it back (site 4). Under flat `_ \/ _ = Anything` the pair is destroyed at the join and neither the grid nor the echo can be stated. Under a powerset join it survives **as a subset restriction** — a gate saying which two-element sets are admissible, i.e. the marked row's two parameters wearing a different hat. |
+| **Gate re-homing** | 8-cell closed grid: the row's two closed parameters → a `JoinAdmissible` table over pairs (the same 8 cells, now written out). No nesting: `Or` being `Kind`-indexed → a `FlatJoin` witness (idempotence makes nesting silent). Not negatable: `negatable` full rows → a `negatable` row keyed on the joined kind. Modifier bound (11/326): `AnyTargetLone` at the neighbour → **no index to key on, OPEN**. Placelessness: `headIsPlaceless` table → **derivable ✅**. Order free variation: not recorded → unchanged ✅. **Tolerated overgeneration is not honest here** — the house tolerates it where the widening is bounded and named (`triggerWordOk`'s cells, `CantBe`'s four ledgered lines, `Repeat`'s discourse-position gap); a predicate cross-product is neither. |
+
+### Site 3 — `YouAnd` (Noun, `Experimental.idr:1315`) — the mixed group
+
+| | |
+|---|---|
+| **Recorded** | The player half is **fixed: `You`, 35/35** ([CR#109.5]'s exophoric word, which announces no mention and needs no slot). The object half is an ordinary object noun and the corpus uses the full range — bare plurals, the complement, the distributive, counted groups, the indefinite, the self (Glarecaster), a target mention (Volcano Hellion), the class word (Ian the Reckless): "nothing narrower would fit". It refuses itself (`NotMixedGroup`, [CR#109.5], `badNestedYouAnd`). `Kind` is `Object` and the split is untouched — "a MARKED union site, written down as the construction the cards write". Projects no zone and no type ("a set with a player in it stands nowhere"), so battlefield verbs refuse it through the ordinary gate and the damage clause takes it by `GroupTakes`. **It announces nothing of its own, and the argument is the index**: "a `Binding` is `Kind`-indexed and this mention has two kinds in it, so there is no binding to leave. The corpus agrees." "and" vs "and/or" is free variation (23 vs 12, exact crossing pair Channel Harm / Refraction Trap); order likewise. Finding 275 FAILS at both. |
+| **Lattice admits beyond corpus** | **The player half opens** — "target opponent and creatures they control", "each player and permanents they control", "that player and this creature"; the 35/35 `You` fixity is not a fact the lattice can state. **Nesting becomes free** — coordination is associative and the join idempotent, so `badNestedYouAnd` has nothing to refuse. **The group/union-head distinction disappears** — today "you and permanents you control" (a set with two members) and "permanent or player" (one referent of uncertain sort) are different constructions with different semantics; both become kind-`Anything` phrases, and the set/disjunction difference would have to ride on which coordinator is spelled — a distinction the corpus explicitly does *not* maintain here, since "and" and "and/or" are measured free variation. |
+| **Pair-carrying dependency** | The **no-binding fact** survives under **neither** flat nor powerset: today it is *derived* from the index; under **any** lattice kind, `Anything` is a kind, a `Binding` can be indexed at it, and the derivation is gone. What remains beside it is a *count* ("no supported sentence reads the group back"), not an argument. The same derivation is load-bearing one construction away — `ForEachOf`'s Join-cell ledger says that cell "CANNOT carry a binding at all: `YouAnd`'s own settled argument". Note also the asymmetry the lattice flattens: **`KindJoin` DOES bind and `YouAnd` does not** — today that falls out of *where* each lives (a `Predicate` head goes through `bindFor`; a `Noun` row writes its own delta); under a lattice both are kind-`Anything` phrases and the difference needs a gate of its own. |
+| **Gate re-homing** | The `You` fixity at 35/35 is a total measurement with no counterexample, and opening it multiplies the site by the whole player-noun vocabulary — **a gate must move in**: `MixedGroupPlayer` (admitting `You` alone until a card writes otherwise), plus a re-derived `NotMixedGroup` and an explicit `bindsNothing` witness. **Three gates replacing what the marked row got from its own shape.** |
+
+### Site 4 — the anaphor: `That JoinW` / `UnionP` / `wordReaches JoinW` (the 48 readbacks)
+
+The site where the flat/powerset distinction bites hardest, and whose recorded
+facts survive under **neither** naive option.
+
+| | |
+|---|---|
+| **Recorded** | `UnionP` is a payload that **carries nothing** (`Words.idr:449`): `bindingZone … = Nothing`, `bindingTy … = Nothing`, and it is a payload *rather than* an `ObjectP` with two `Nothing`s **on purpose** — "the ABSENCE is not what makes it a union: a source mention projects neither either… The mention is MARKED." `JoinW` is the only noun word that reaches it, and the reverse is measured: of the 48 supported readbacks not one is a bare "that player"/"that permanent" pointing at a union antecedent, and the 25 that do name a half spell it as a **coordination of two demonstratives** ("that player or that planeswalker's controller"), a noun disjunction this grammar does not have (ledger). **The surface is DERIVED, not carried** (`Words.idr:774`): of the 48, **the 33 whose antecedent is a union head echo that head's pair exactly, 33 of 33 with no crossing in either direction**; the other 15 have no pair to echo and **all 15 write the generic "permanent or player"**. "A `JoinedPlayer`/`JoinedClass` slot here would let the demonstrative spell a pair its antecedent never wrote, which is the one thing the corpus never does." And `bindFor` gives the class word and the union head **ONE payload**: "33 union-headed antecedents echo their own pair and 10 class-word antecedents write the generic one, **all 43 with the same demonstrative and no card distinguishing them.**" |
+| **Lattice admits beyond corpus** | Under flat `_ \/ _ = Anything` the binding records only that the referent is at the maximal kind, so the demonstrative has no pair to echo: either (i) every readback spells the generic pair, contradicting 33 measured echoes, or (ii) the pair is re-attached to the binding — which is a pair-carrying join wearing a lattice's name. **The flat lattice cannot spell this site at all** — chapter 128's finding restated at the census. |
+| **Pair-carrying dependency** | **Survives under powerset:** the 33/33 echo (carry `{Permanent, Player}` in the binding and read the two words off the set). **Survives under NEITHER — and this is the finding:** the **shared payload**. A powerset join gives `AnyTarget` the set `{Creature, Player, Planeswalker, Battle}` and `KindJoin JoinAnyPlayer JoinPermanent` the set `{Permanent, Player}`. **Two different sets ⇒ two different echoes**, yet all 10 class-word readbacks write "permanent or player" identically to the join-headed 33, and the corpus is explicit that no card distinguishes the two antecedents at the readback. So a powerset join must be accompanied by a **collapse rule** (set → demonstrative words) mapping a four-element set and several two-element sets onto one generic surface while preserving the 33 exact echoes. That rule is not part of the lattice; it is a spelling table — precisely the hand-written answer the marked design already has. **Also survives under neither without help:** the 15 no-pair readbacks whose antecedents are "a coordination of two whole noun phrases, or a three-way union" — under a lattice those are *ordinary* joined phrases with perfectly good sets, so the lattice would have them echo where the corpus has them go generic. |
+| **Gate re-homing** | Here overgeneration is not even the risk — **undergeneration and mis-generation are.** A flat join cannot produce 33 of the 48 readbacks; a powerset join produces the wrong words for at least 25 of them absent a collapse table. So what must move in is not a refusal but a **spelling table**, and it is the same table `JoinW` is today. `wordReaches JoinW` (the reach gate) becomes "the demonstrative's noun word must be the union word iff the antecedent's kind is joined" — **derivable ✅**; the derived-surface rule — **not derivable ✗**. |
+
+### Site 5 — the admission points
+
+**`DamageRecipient`** (`Experimental.idr:4110`) — five rows, three of them union
+rows: `PlayerTakes`, `AnyTargetTakes {nounIsAnyTarget n = True}`,
+`JoinTakes {nounIsKindJoin n = True}`, `GroupTakes {nounIsMixedGroup n = True}`,
+`ObjectTakes {OnBattlefield (nounZone n)} {DamageableTy (nounTy n)}`.
+
+- **Recorded:** the three union rows admit **without** the zone-and-damageable-type
+  check `ObjectTakes` makes, justified from the rules' own voice: "the union head
+  is a DESCRIPTION of what the replacement or shield watches, not a promise that
+  every member of it is damageable, and [CR#615.7] writes the same phrase in the
+  rules' own voice ('each 1 damage that would be dealt to the "shielded"
+  permanent or player is prevented')."
+- **Lattice admits beyond corpus:** nothing. **This is the lattice's cleanest win
+  in Part 2.** The three rows collapse to one `AnythingTakes` with `PlayerTakes`
+  and `ObjectTakes` at the two pure kinds; the three rows already admit exactly
+  "the phrase's kind is a union", and the joined kind *is* that predicate. What
+  widens is only the set of phrases that can reach the joined kind, which is
+  sites 1–3's widening, not this one's.
+- **Pair-carrying dependency:** none. The admission is kind-level.
+- **Gate re-homing:** none. The three-way scan becomes a kind test. **The same
+  for `nounSpansPlayers`** (`Experimental.idr:4041`), whose docstring already
+  frames itself as a kind question wearing a constructor scan: "MAY THIS PHRASE'S
+  REFERENT BE A PLAYER? **Three phrases in this grammar answer yes at `Kind`
+  `Object`, and they are the three the surface MARKS as union sites**" — under a
+  lattice that function is `k = Anything`. And `headIsPlaceless` loses two of its
+  three disjuncts, keeping only the **source role**, which is placeless for an
+  independent reason ([CR#120.7]: "a source is a ROLE, not a thing in a place")
+  and is therefore not a union site: **the lattice unifies two of
+  `headIsPlaceless`'s three disjuncts and leaves the third exactly where it is.**
+
+**`bindFor`'s `UnionP` branch** (`Experimental.idr:1266`) — "THE UNION MENTION IS
+MARKED HERE, and this is the one branch that chooses a payload rather than
+filling one in." Under a lattice the branch is not a choice: the payload follows
+from the kind. **Derivable ✅ — except** for site 4's collapse rule, which is what
+the shared payload is actually encoding.
+
+**`JoinTakes` against `badDestroyKindJoin`** — the pair that shows the marked
+design's economy. The *same* fact (`UnionP` projects no zone) simultaneously
+refuses seven battlefield verbs and permits the damage clause, because damage does
+not check a zone and the seven verbs do. Under a lattice the same economy holds
+(`zone(Anything) = ⊥`), so **both halves survive for free.** This is the strongest
+single argument in the lattice's favour that the census turned up.
+
+### Net assessment
+
+**What the lattice buys.**
+
+1. *Generic coordination.* `KindJoin` (326 occurrences) stops being a construction
+   and becomes an application of the coordination the grammar already has, at a
+   joined index.
+2. *Three tables become theorems.* `headIsPlaceless` (two of three disjuncts),
+   `nounSpansPlayers` (a three-row constructor scan) and `bindFor`'s union branch
+   all follow from `zone(Anything) = ⊥` and `ty(Anything) = ⊥` instead of being
+   written down. The seven-verb refusal (`badDestroyKindJoin`, 0 sentences across
+   destroy/exile/tap/untap/return/counter/sacrifice) keeps holding without a rule
+   written for the purpose.
+3. *One damage-recipient row instead of three.* `AnyTargetTakes` + `JoinTakes` +
+   `GroupTakes` → `AnythingTakes`, with **no widening at that site**.
+4. *Fewer marked rows overall* — three constructions (`AnyTarget`, `KindJoin`,
+   `YouAnd`) reduce to phrases at a kind.
+
+**What it costs.**
+
+1. *The 33/33 echo needs a pair-carrying join*, and even then it needs a
+   **collapse rule the lattice does not supply** — because a faithful powerset
+   echo gives the class word "that creature, player, planeswalker, or battle",
+   which no card writes, against the 10 that write the generic pair. The single
+   `UnionP` payload shared by both heads is a *measured identity* ("all 43 with
+   the same demonstrative and no card distinguishing them") that neither flat nor
+   naive powerset reproduces.
+2. *The binding index argument is deleted.* `YouAnd`'s no-binding and
+   `ForEachOf`'s Join-cell refusal are today **derived** from `Binding` being
+   `Kind`-indexed. A lattice kind can index a binding, so both become measured
+   silences needing explicit gates — and the `KindJoin`-binds / `YouAnd`-doesn't
+   asymmetry, which today falls out of `Predicate`-vs-`Noun` placement, needs a
+   gate too.
+3. *Gates re-homed, not removed.* At minimum: the 2×4 admissible-pair table;
+   `FlatJoin` (idempotence makes nesting silent); `negatable` at the joined kind;
+   `AnyTargetLone`'s modifier discipline (**the one gate the census could not find
+   a lattice home for**); `MixedGroupPlayer` for the 35/35 `You` fixity;
+   `NotMixedGroup` re-derived as a surface-uniqueness rule.
+4. *The widening is not bounded.* `KindJoin`'s 8 head pairs from two one-word
+   vocabularies become a predicate cross-product; that is a different order of
+   overgeneration from the house's tolerated cases (`triggerWordOk`'s cells,
+   `CantBe`'s four ledgered lines, `Repeat`'s missing discourse-position bit), all
+   of which are countable and named. **Tolerated overgeneration would not honestly
+   cover it.**
+
+**How to read the per-site tags.**
+
+- **"Derivable ✅"** — the marked design is paying to write down something the
+  lattice would prove. These are pure wins, and they are concentrated in the
+  **projection** layer (zone, type, placelessness, recipient admission), which is
+  exactly where the lattice's algebra has content.
+- **"Gate moves in"** — the admission does not vanish; it changes address, from a
+  constructor's shape to a table. Every such row is a **measurement that must be
+  preserved verbatim**, and the census's count is that the marked constructors'
+  hand-written table answers ARE what the `Anything` row's cells would be — so the
+  migration is a re-homing exercise, not a re-derivation. Cheap, but it must be
+  done exhaustively or a measured zero becomes a silent yes.
+- **"Survives only under a pair-carrying join"** — flat `_ \/ _ = Anything` is off
+  the table for this grammar; the census found no site where flatness helps. If
+  the lattice is taken, it is a powerset (or pair) join.
+- **"Survives under neither"** — the genuinely unresolved item, and there is
+  exactly one: **the shared demonstrative surface of the class word and the union
+  head** (site 4). Any lattice design must answer it explicitly before it can
+  claim to reproduce the 48 readbacks.
+- **"No index to key on"** — likewise exactly one: **`AnyTargetLone`'s modifier
+  discipline** (site 1). The class word and the union head differ in what may
+  modify them, and a shared kind erases the distinction the discipline is written
+  against. A lexical marker re-creates the marked construction inside the lattice.
+
+**The honest summary for the cutover discussion: the lattice is a clear win in
+the projection layer and a clear cost in the discourse layer.** Everything the
+join proves is about where a referent *is not* (no zone, no type, hence no
+battlefield verb); everything it deletes is about *which* union a mention was
+(the echo, the pair, the binding index).
+
+**The decision is the user's, at cutover. This table is its input.**
