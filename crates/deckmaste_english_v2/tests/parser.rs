@@ -8,6 +8,7 @@ use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::parser::Expectation;
 use deckmaste_english_v2::parser::ParseError;
 use deckmaste_english_v2::parser::Parser;
+use deckmaste_english_v2::parser::TerminalClass;
 use deckmaste_english_v2::parser::TextSpan;
 use deckmaste_english_v2::render::Render;
 
@@ -172,6 +173,47 @@ fn parses_and_round_trips_the_five_slice_abilities() {
         let rendered = expected.render(&context);
         assert_eq!(parser.parse(&rendered, &context), Ok(expected));
     }
+}
+
+#[test]
+fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
+    let text = "Context Card deals 3 damage to target creature.";
+    let context = ParseContext::new("Context Card");
+    let expected = Ability::Spell(Spell {
+        effect: Sentence::Declarative(Declarative {
+            subject: NounPhrase::SelfReference(SelfReferenceNp {
+                spelling: SelfReferenceSpelling::Full,
+            }),
+            predicate: VerbPhrase::DealDamage(DealDamage {
+                amount: Amount::Number(NumberAmount {
+                    number: SignedNumber {
+                        sign: Sign::Positive,
+                        magnitude: 3,
+                    },
+                }),
+                to: target_creature(),
+            }),
+        }),
+    });
+
+    assert_eq!(parser().parse(text, &context), Ok(expected.clone()));
+    assert_eq!(expected.render(&context), text);
+}
+
+#[test]
+fn unrelated_catalog_collision_is_a_parse_failure() {
+    let text = "Destroy target Forest.";
+    let offset = "Destroy target".len();
+    assert_eq!(
+        parser().parse(text, &ParseContext::new("Context Card")),
+        Err(ParseError::Failure {
+            span: TextSpan {
+                start: offset,
+                end: offset,
+            },
+            expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::Noun)]),
+        })
+    );
 }
 
 #[test]

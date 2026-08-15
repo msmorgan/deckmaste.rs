@@ -354,17 +354,16 @@ impl SliceGrammar<'_> {
             Lexical::Noun(number) => self.scan_noun(text, offset, number),
             Lexical::Verb(lexeme) => Self::scan_verb(text, offset, lexeme),
             Lexical::SignedNumber => Self::scan_signed_number(text, offset),
-            Lexical::SelfReference => [
-                (
-                    self.context.card_name(),
-                    Leaf::SelfReference(SelfReferenceSpelling::Full),
-                ),
-                (
+            Lexical::SelfReference => std::iter::once((
+                self.context.card_name(),
+                Leaf::SelfReference(SelfReferenceSpelling::Full),
+            ))
+            .chain(
+                (self.context.abbreviated_card_name() != self.context.card_name()).then_some((
                     self.context.abbreviated_card_name(),
                     Leaf::SelfReference(SelfReferenceSpelling::Abbreviated),
-                ),
-            ]
-            .into_iter()
+                )),
+            )
             .filter_map(|(word, value)| {
                 Self::word(text, offset, word).map(|end| LexicalMatch { end, value })
             })
@@ -397,16 +396,21 @@ impl SliceGrammar<'_> {
             Noun::Lexeme(NounLexeme::Player),
             "player".to_owned(),
         ))
-        .chain(CatalogKind::ALL.into_iter().flat_map(|kind| {
+        .chain(
             self.catalogs
                 .set()
-                .get(kind)
+                .get(CatalogKind::CardTypes)
                 .iter()
-                .filter_map(move |spelling| {
-                    CatalogIdentity::new(self.catalogs, kind, spelling.clone())
-                        .map(|identity| (Noun::Catalog(identity), rendered_catalog(kind, spelling)))
-                })
-        })) {
+                .filter_map(|spelling| {
+                    CatalogIdentity::new(self.catalogs, CatalogKind::CardTypes, spelling.clone())
+                        .map(|identity| {
+                            (
+                                Noun::Catalog(identity),
+                                rendered_catalog(CatalogKind::CardTypes, spelling),
+                            )
+                        })
+                }),
+        ) {
             for (number, word) in noun_forms(&singular, wanted) {
                 if let Some(end) = Self::word(text, offset, &word) {
                     matches.push(LexicalMatch {
