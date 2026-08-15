@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -152,12 +153,11 @@ fn validate_output(output: &Path) -> anyhow::Result<PathBuf> {
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
-    let parent = fs::canonicalize(parent)
-        .with_context(|| format!("canonicalizing catalog output parent {}", parent.display()))?;
     let name = output
         .file_name()
         .filter(|name| !name.is_empty())
         .context("catalog output must name a directory")?;
+    let parent = canonicalize_parent_allowing_missing(parent)?;
     let normalized = parent.join(name);
     let filesystem_root = normalized
         .ancestors()
@@ -227,7 +227,48 @@ fn validate_output(output: &Path) -> anyhow::Result<PathBuf> {
         }
     }
 
+    fs::create_dir_all(&parent)
+        .with_context(|| format!("creating catalog output parent {}", parent.display()))?;
+
     Ok(normalized)
+}
+
+fn canonicalize_parent_allowing_missing(parent: &Path) -> anyhow::Result<PathBuf> {
+    let original = parent;
+    let mut ancestor = parent;
+    let mut missing = Vec::<OsString>::new();
+
+    loop {
+        match fs::canonicalize(ancestor) {
+            Ok(mut canonical) => {
+                for component in missing.iter().rev() {
+                    canonical.push(component);
+                }
+                return Ok(canonical);
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                let component = ancestor.file_name().with_context(|| {
+                    format!(
+                        "catalog output parent {} contains an unresolved path component",
+                        original.display()
+                    )
+                })?;
+                missing.push(component.to_owned());
+                ancestor = ancestor
+                    .parent()
+                    .filter(|parent| !parent.as_os_str().is_empty())
+                    .unwrap_or_else(|| Path::new("."));
+            }
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!(
+                        "canonicalizing catalog output parent {}",
+                        original.display()
+                    )
+                });
+            }
+        }
+    }
 }
 
 fn render(
@@ -310,6 +351,16 @@ mod tests {
             assert_eq!(lines, sorted_deduplicated);
         }
         assert_eq!(CatalogSet::load(&dir).unwrap(), catalogs);
+    }
+
+    #[test]
+    fn write_creates_a_missing_output_parent() {
+        let root = tempfile::tempdir().unwrap();
+        let output = root.path().join("missing/gen/catalogs");
+
+        complete_catalogs().write_to(&output).unwrap();
+
+        assert_eq!(CatalogSet::load(&output).unwrap(), complete_catalogs());
     }
 
     #[test]

@@ -967,7 +967,15 @@ fn status_name(status: &Resolution) -> &'static str {
     }
 }
 
+#[cfg(test)]
 fn noncompliant_matches(line: &str) -> Vec<String> {
+    noncompliant_match_ranges(line)
+        .into_iter()
+        .map(|matched| matched.text)
+        .collect()
+}
+
+fn noncompliant_match_ranges(line: &str) -> Vec<NoncompliantMatch> {
     let blanked = blank_bracketed_citations(line);
     let mut by_offset = BTreeMap::new();
     for (pattern_index, pattern) in noncompliant_patterns().iter().enumerate() {
@@ -984,10 +992,21 @@ fn noncompliant_matches(line: &str) -> Vec<String> {
             }
             by_offset
                 .entry(found.start())
-                .or_insert_with(|| found.as_str().to_string());
+                .or_insert_with(|| NoncompliantMatch {
+                    start: blanked[..found.start()].chars().count(),
+                    end: blanked[..found.end()].chars().count(),
+                    text: found.as_str().to_string(),
+                });
         }
     }
     by_offset.into_values().collect()
+}
+
+#[derive(Debug)]
+struct NoncompliantMatch {
+    start: usize,
+    end: usize,
+    text: String,
 }
 
 fn noncompliant_source_hits(file: &str, source: &str) -> anyhow::Result<Vec<NoncompliantHit>> {
@@ -1008,14 +1027,15 @@ fn noncompliant_source_hits(file: &str, source: &str) -> anyhow::Result<Vec<Nonc
             "cite: noncompliant exemptions require Rust source: {file}:{}",
             marker_lines.first().copied().unwrap_or_default()
         );
-        return Ok(noncompliant_hits_on_lines(file, &lines, &BTreeSet::new()));
+        return Ok(noncompliant_hits_on_lines(file, &lines, &[]));
     }
 
     let syntax = syn::parse_file(source)
         .with_context(|| format!("parsing Rust source {file} for citation exemptions"))?;
-    let mut sites = RustExemptionSites::for_file(file);
+    let mut sites = RustExemptionSites::for_file(file, &syntax)?;
     sites.visit_file(&syntax);
-    let mut exempt_lines = BTreeSet::new();
+    let mut valid_marker_lines = BTreeSet::new();
+    let mut exempt_spans = Vec::new();
     for fixture in sites.fixtures {
         let Some(begin) = fixture.start_line.checked_sub(1) else {
             continue;
@@ -1028,48 +1048,56 @@ fn noncompliant_source_hits(file: &str, source: &str) -> anyhow::Result<Vec<Nonc
                 .get(end - 1)
                 .is_some_and(|text| text.trim() == SCOPE_END)
         {
-            exempt_lines.extend(begin..=end);
+            valid_marker_lines.extend([begin, end]);
+            exempt_spans.push(fixture.literal_span);
         }
     }
 
     for line_number in marker_lines {
-        if exempt_lines.contains(&line_number) {
+        if valid_marker_lines.contains(&line_number) {
             continue;
         }
         let line = lines[line_number - 1];
-        let marker_column = line.trim_end().strip_suffix(LINE_EXEMPT).map(str::len);
-        let valid_line_exemption = marker_column.is_some_and(|column| {
+        let marker_column = line
+            .trim_end()
+            .strip_suffix(LINE_EXEMPT)
+            .map(|prefix| prefix.chars().count());
+        let matching_arguments = marker_column.map_or_else(Vec::new, |column| {
             sites
                 .rule_arguments
                 .iter()
-                .any(|argument| argument.precedes_marker_on_line(line, line_number, column))
+                .filter(|argument| argument.precedes_marker_on_line(line, line_number, column))
+                .collect::<Vec<_>>()
         });
         anyhow::ensure!(
-            valid_line_exemption,
+            matching_arguments.len() == 1,
             "cite: noncompliant marker is not at a structural Rust position in {file}:{line_number}"
         );
-        exempt_lines.insert(line_number);
+        exempt_spans.push(matching_arguments[0].literal_span);
     }
 
-    Ok(noncompliant_hits_on_lines(file, &lines, &exempt_lines))
+    Ok(noncompliant_hits_on_lines(file, &lines, &exempt_spans))
 }
 
 fn noncompliant_hits_on_lines(
     file: &str,
     lines: &[&str],
-    exempt_lines: &BTreeSet<usize>,
+    exempt_spans: &[SourceSpan],
 ) -> Vec<NoncompliantHit> {
     let mut hits = Vec::new();
     for (index, line) in lines.iter().enumerate() {
         let line_number = index + 1;
-        if exempt_lines.contains(&line_number) {
-            continue;
-        }
-        for matched in noncompliant_matches(line) {
+        for matched in noncompliant_match_ranges(line) {
+            if exempt_spans
+                .iter()
+                .any(|span| span.contains(line_number, matched.start, matched.end))
+            {
+                continue;
+            }
             hits.push(NoncompliantHit {
                 file: file.to_owned(),
                 line: line_number,
-                matched,
+                matched: matched.text,
                 context: line.trim().to_string(),
             });
         }
@@ -1080,7 +1108,6 @@ fn noncompliant_hits_on_lines(
 #[derive(Debug)]
 struct RustExemptionSites {
     allow_rule_arguments: bool,
-    allow_fixture: bool,
     rule_arguments: Vec<RuleArgumentSite>,
     fixtures: Vec<FixtureItemSite>,
 }
@@ -1089,6 +1116,7 @@ struct RustExemptionSites {
 struct RuleArgumentSite {
     line: usize,
     end_column: usize,
+    literal_span: SourceSpan,
 }
 
 impl RuleArgumentSite {
@@ -1101,8 +1129,12 @@ impl RuleArgumentSite {
         self.line == line
             && self.end_column <= marker_column
             && source_line
-                .get(self.end_column..marker_column)
-                .is_some_and(|between| between.trim() == ",")
+                .chars()
+                .skip(self.end_column)
+                .take(marker_column - self.end_column)
+                .collect::<String>()
+                .trim()
+                == ","
     }
 }
 
@@ -1110,6 +1142,37 @@ impl RuleArgumentSite {
 struct FixtureItemSite {
     start_line: usize,
     end_line: usize,
+    literal_span: SourceSpan,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SourceSpan {
+    start_line: usize,
+    start_column: usize,
+    end_line: usize,
+    end_column: usize,
+}
+
+impl SourceSpan {
+    fn from_span(span: proc_macro2::Span) -> Self {
+        let start = span.start();
+        let end = span.end();
+        Self {
+            start_line: start.line,
+            start_column: start.column,
+            end_line: end.line,
+            end_column: end.column,
+        }
+    }
+
+    fn contains(self, line: usize, start: usize, end: usize) -> bool {
+        if line < self.start_line || line > self.end_line {
+            return false;
+        }
+        let allowed_start = if line == self.start_line { self.start_column } else { 0 };
+        let allowed_end = if line == self.end_line { self.end_column } else { usize::MAX };
+        allowed_start <= start && end <= allowed_end
+    }
 }
 
 impl<'ast> syn::visit::Visit<'ast> for RustExemptionSites {
@@ -1119,29 +1182,25 @@ impl<'ast> syn::visit::Visit<'ast> for RustExemptionSites {
         }
         syn::visit::visit_expr_call(self, call);
     }
-
-    fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
-        if self.allow_fixture && is_cr_fixture_const(item) {
-            self.fixtures.push(FixtureItemSite {
-                start_line: item.const_token.span.start().line,
-                end_line: item.semi_token.span.end().line,
-            });
-        }
-        syn::visit::visit_item_const(self, item);
-    }
 }
 
 impl RustExemptionSites {
-    fn for_file(file: &str) -> Self {
-        Self {
-            allow_rule_arguments: file == "crates/deckmaste_catalogs/src/cr.rs",
-            allow_fixture: matches!(
-                file,
-                "crates/deckmaste_catalogs/src/lib.rs" | "crates/deckmaste_catalogs/src/legacy.rs"
-            ),
-            rule_arguments: Vec::new(),
-            fixtures: Vec::new(),
+    fn for_file(file: &str, syntax: &syn::File) -> anyhow::Result<Self> {
+        let allow_rule_arguments = file == "crates/deckmaste_catalogs/src/cr.rs";
+        if allow_rule_arguments {
+            ensure_parser_helpers_are_unshadowed(file, syntax)?;
         }
+        let allow_fixture = matches!(
+            file,
+            "crates/deckmaste_catalogs/src/lib.rs" | "crates/deckmaste_catalogs/src/legacy.rs"
+        );
+        let fixtures =
+            if allow_fixture { vec![exact_cr_fixture(file, syntax)?] } else { Vec::new() };
+        Ok(Self {
+            allow_rule_arguments,
+            rule_arguments: Vec::new(),
+            fixtures,
+        })
     }
 
     fn collect_rule_argument(&mut self, call: &syn::ExprCall) {
@@ -1174,8 +1233,160 @@ impl RustExemptionSites {
             self.rule_arguments.push(RuleArgumentSite {
                 line: end.line,
                 end_column: end.column,
+                literal_span: SourceSpan::from_span(span),
             });
         }
+    }
+}
+
+fn ensure_parser_helpers_are_unshadowed(file: &str, syntax: &syn::File) -> anyhow::Result<()> {
+    let mut shadows = ParserHelperShadows::default();
+    shadows.visit_file(syntax);
+    anyhow::ensure!(
+        shadows.names.is_empty(),
+        "cite: parser helper is shadowed in {file}: {}",
+        shadows.names.into_iter().collect::<Vec<_>>().join(", ")
+    );
+    Ok(())
+}
+
+#[derive(Default)]
+struct ParserHelperShadows {
+    function_depth: usize,
+    names: BTreeSet<String>,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for ParserHelperShadows {
+    fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        if self.function_depth > 0 && is_parser_helper_name(&item.sig.ident) {
+            self.names.insert(item.sig.ident.to_string());
+        }
+        self.function_depth += 1;
+        syn::visit::visit_item_fn(self, item);
+        self.function_depth -= 1;
+    }
+
+    fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
+        if is_parser_helper_name(&pattern.ident) {
+            self.names.insert(pattern.ident.to_string());
+        }
+        syn::visit::visit_pat_ident(self, pattern);
+    }
+
+    fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
+        if is_parser_helper_name(&item.ident) {
+            self.names.insert(item.ident.to_string());
+        }
+        syn::visit::visit_item_const(self, item);
+    }
+
+    fn visit_item_static(&mut self, item: &'ast syn::ItemStatic) {
+        if is_parser_helper_name(&item.ident) {
+            self.names.insert(item.ident.to_string());
+        }
+        syn::visit::visit_item_static(self, item);
+    }
+
+    fn visit_item_use(&mut self, item: &'ast syn::ItemUse) {
+        collect_imported_parser_helpers(&item.tree, &mut self.names);
+        if self.function_depth > 0 && use_tree_contains_glob(&item.tree) {
+            self.names.insert("block-local glob import".to_string());
+        }
+        syn::visit::visit_item_use(self, item);
+    }
+}
+
+fn is_parser_helper_name(ident: &syn::Ident) -> bool {
+    matches!(
+        ident.to_string().as_str(),
+        "parse_list_rule" | "parse_subtype_rule" | "numbered_rule"
+    )
+}
+
+fn collect_imported_parser_helpers(tree: &syn::UseTree, names: &mut BTreeSet<String>) {
+    match tree {
+        syn::UseTree::Name(name) if is_parser_helper_name(&name.ident) => {
+            names.insert(name.ident.to_string());
+        }
+        syn::UseTree::Rename(rename) if is_parser_helper_name(&rename.rename) => {
+            names.insert(rename.rename.to_string());
+        }
+        syn::UseTree::Path(path) => collect_imported_parser_helpers(&path.tree, names),
+        syn::UseTree::Group(group) => {
+            for item in &group.items {
+                collect_imported_parser_helpers(item, names);
+            }
+        }
+        syn::UseTree::Name(_) | syn::UseTree::Rename(_) | syn::UseTree::Glob(_) => {}
+    }
+}
+
+fn use_tree_contains_glob(tree: &syn::UseTree) -> bool {
+    match tree {
+        syn::UseTree::Glob(_) => true,
+        syn::UseTree::Path(path) => use_tree_contains_glob(&path.tree),
+        syn::UseTree::Group(group) => group.items.iter().any(use_tree_contains_glob),
+        syn::UseTree::Name(_) | syn::UseTree::Rename(_) => false,
+    }
+}
+
+fn exact_cr_fixture(file: &str, syntax: &syn::File) -> anyhow::Result<FixtureItemSite> {
+    let mut fixtures = CrFixtureCollector::default();
+    fixtures.visit_file(syntax);
+    anyhow::ensure!(
+        fixtures.occurrences.len() == 1,
+        "cite: expected exactly one direct tests::CR_FIXTURE in {file}, found {}",
+        fixtures.occurrences.len()
+    );
+    let occurrence = fixtures.occurrences.pop().expect("length checked");
+    anyhow::ensure!(
+        occurrence.module_path == ["tests"] && occurrence.block_depth == 0,
+        "cite: CR_FIXTURE must be a direct item of tests in {file}"
+    );
+    occurrence
+        .site
+        .with_context(|| format!("cite: tests::CR_FIXTURE has the wrong shape in {file}"))
+}
+
+#[derive(Default)]
+struct CrFixtureCollector {
+    module_path: Vec<String>,
+    block_depth: usize,
+    occurrences: Vec<CrFixtureOccurrence>,
+}
+
+struct CrFixtureOccurrence {
+    module_path: Vec<String>,
+    block_depth: usize,
+    site: Option<FixtureItemSite>,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for CrFixtureCollector {
+    fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        self.module_path.push(item.ident.to_string());
+        syn::visit::visit_item_mod(self, item);
+        self.module_path.pop();
+    }
+
+    fn visit_block(&mut self, block: &'ast syn::Block) {
+        self.block_depth += 1;
+        syn::visit::visit_block(self, block);
+        self.block_depth -= 1;
+    }
+
+    fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
+        if item.ident == "CR_FIXTURE" {
+            self.occurrences.push(CrFixtureOccurrence {
+                module_path: self.module_path.clone(),
+                block_depth: self.block_depth,
+                site: cr_fixture_literal(item).map(|literal| FixtureItemSite {
+                    start_line: item.const_token.span.start().line,
+                    end_line: item.semi_token.span.end().line,
+                    literal_span: SourceSpan::from_span(literal.span()),
+                }),
+            });
+        }
+        syn::visit::visit_item_const(self, item);
     }
 }
 
@@ -1189,21 +1400,27 @@ fn is_rule_parser_key(value: &str) -> bool {
         .is_match(value)
 }
 
-fn is_cr_fixture_const(item: &syn::ItemConst) -> bool {
+fn cr_fixture_literal(item: &syn::ItemConst) -> Option<&syn::LitStr> {
     let syn::Type::Reference(reference) = item.ty.as_ref() else {
-        return false;
+        return None;
     };
     let syn::Type::Path(path) = reference.elem.as_ref() else {
-        return false;
+        return None;
     };
     let syn::Expr::Lit(expression) = item.expr.as_ref() else {
-        return false;
+        return None;
     };
-    item.ident == "CR_FIXTURE"
+    (item.ident == "CR_FIXTURE"
         && reference.mutability.is_none()
         && path.qself.is_none()
         && path.path.is_ident("str")
-        && matches!(expression.lit, syn::Lit::Str(_))
+        && matches!(expression.lit, syn::Lit::Str(_)))
+    .then(|| {
+        let syn::Lit::Str(literal) = &expression.lit else {
+            unreachable!("shape checked")
+        };
+        literal
+    })
 }
 
 fn noncompliant_patterns() -> &'static [Regex; 3] {
@@ -1521,9 +1738,11 @@ fn example() {
 // rule 400.1
 ";
         let scope_source = "\
+mod tests {
 // cite: noncompliant begin -- verbatim CR parser fixture, not prose claims
 const CR_FIXTURE: &str = \"rule 200.1\";
 // cite: noncompliant end
+}
 ";
         let hits =
             noncompliant_source_hits("crates/deckmaste_catalogs/src/cr.rs", line_source).unwrap();
@@ -1565,6 +1784,59 @@ const CR_FIXTURE: &str = \"rule 200.1\";
     }
 
     #[test]
+    fn noncompliant_scan_reports_loose_claims_beside_exempt_literals() {
+        let parser_source = "fn f() { let _ = \"[CR#100.1|é]\"; /* rule 900.1 */ parse_list_rule(&lines, \"100.1\", // cite: noncompliant-line -- machine-readable parser key\n\"lead\", \"catalog\"); }";
+        let parser_hits =
+            noncompliant_source_hits("crates/deckmaste_catalogs/src/cr.rs", parser_source).unwrap();
+        assert_eq!(
+            parser_hits
+                .iter()
+                .map(|hit| hit.matched.as_str())
+                .collect::<Vec<_>>(),
+            ["rule 900.1", "900.1"]
+        );
+
+        let fixture_source = "mod tests {\n\
+// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+const CR_FIXTURE: &str = \"rule 200.1\"; // rule 900.1\n\
+// cite: noncompliant end\n\
+}";
+        let fixture_hits =
+            noncompliant_source_hits("crates/deckmaste_catalogs/src/lib.rs", fixture_source)
+                .unwrap();
+        assert_eq!(
+            fixture_hits
+                .iter()
+                .map(|hit| hit.matched.as_str())
+                .collect::<Vec<_>>(),
+            ["rule 900.1", "900.1"]
+        );
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_a_shadowed_parser_helper() {
+        let source = "fn f() {\n\
+fn numbered_rule(_: (), _: &str, _: &str) {}\n\
+numbered_rule((), \"100.1\", // cite: noncompliant-line -- machine-readable parser key\n\
+\"catalog\");\n\
+}";
+
+        assert!(noncompliant_source_hits("crates/deckmaste_catalogs/src/cr.rs", source).is_err());
+
+        let imported_source = "mod other { fn numbered_rule(_: (), _: &str, _: &str) {} }\n\
+fn f() {\n\
+use other::numbered_rule;\n\
+numbered_rule((), \"100.1\", // cite: noncompliant-line -- machine-readable parser key\n\
+\"catalog\");\n\
+}";
+
+        assert!(
+            noncompliant_source_hits("crates/deckmaste_catalogs/src/cr.rs", imported_source)
+                .is_err()
+        );
+    }
+
+    #[test]
     fn noncompliant_scan_rejects_license_fixture_scope() {
         let source = "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
 const LICENSE_FIXTURE: &str = \"rule 100.1\";\n\
@@ -1588,6 +1860,37 @@ const PARSER_FIXTURE: &str = \"rule 100.1\";\n\
 const CR_FIXTURE: &str = \"rule 100.1\";\n\
 // cite: noncompliant end\n";
         assert!(noncompliant_source_hits("crates/deckmaste_catalogs/src/io.rs", source).is_err());
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_fixture_outside_the_direct_tests_module() {
+        let source = "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+const CR_FIXTURE: &str = \"rule 100.1\";\n\
+// cite: noncompliant end\n";
+
+        assert!(noncompliant_source_hits("crates/deckmaste_catalogs/src/lib.rs", source).is_err());
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_second_or_nested_cr_fixtures() {
+        for extra in [
+            "const CR_FIXTURE: &str = \"rule 300.1\";",
+            "mod nested { const CR_FIXTURE: &str = \"rule 300.1\"; }",
+        ] {
+            let source = format!(
+                "mod tests {{\n\
+// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+const CR_FIXTURE: &str = \"rule 200.1\";\n\
+// cite: noncompliant end\n\
+{extra}\n\
+}}"
+            );
+
+            assert!(
+                noncompliant_source_hits("crates/deckmaste_catalogs/src/lib.rs", &source).is_err(),
+                "{extra}"
+            );
+        }
     }
 
     #[test]

@@ -154,11 +154,11 @@ fn english_list(source: &str, catalog: &str) -> anyhow::Result<BTreeSet<String>>
     let parenthetical = Regex::new(r"\s*\([^)]*\)").expect("fixed parenthetical regex");
     let source = parenthetical.replace_all(source, "");
     let source = source.replace(", and ", ", ");
-    let values: BTreeSet<String> = source
-        .split(',')
-        .map(normalize_name)
-        .filter(|value| !value.is_empty())
-        .collect();
+    let values = source.split(',').map(normalize_name).collect::<Vec<_>>();
+    if let Some(index) = values.iter().position(String::is_empty) {
+        bail!("{catalog}: blank CR list member at position {}", index + 1);
+    }
+    let values = values.into_iter().collect::<BTreeSet<_>>();
     if values.is_empty() {
         bail!("{catalog}: empty CR list");
     }
@@ -228,14 +228,37 @@ fn parse_headings(
     compound_names: &[&str],
     catalog: &str,
 ) -> anyhow::Result<BTreeSet<String>> {
-    let heading = Regex::new(&format!(r"^{section}\.([0-9]+)\. (.+)$"))
-        .expect("section number makes a valid heading regex");
+    let section_prefix = format!("{section}.");
+    let heading = Regex::new(r"^([0-9]+)\. (.+)$").expect("fixed heading regex");
+    let body_rule = Regex::new(r"^[0-9]+[a-z]+ ").expect("fixed body-rule regex");
+    let mut heading_numbers = BTreeSet::new();
     let mut values = BTreeSet::new();
-    for captures in lines.iter().filter_map(|line| heading.captures(line)) {
-        if &captures[1] == "1" {
+    for line in lines {
+        let Some(candidate) = line.strip_prefix(&section_prefix) else {
+            continue;
+        };
+        if candidate.starts_with(' ') || body_rule.is_match(candidate) {
+            continue;
+        }
+        let captures = heading
+            .captures(candidate)
+            .with_context(|| format!("{catalog}: malformed {section} keyword heading {line:?}"))?;
+        let number = captures[1]
+            .parse::<u16>()
+            .with_context(|| format!("{catalog}: invalid {section} heading number in {line:?}"))?;
+        if number == 0 {
+            bail!("{catalog}: invalid {section}.0 heading");
+        }
+        if !heading_numbers.insert(number) {
+            bail!("{catalog}: duplicate {section}.{number} heading");
+        }
+        if number == 1 {
             continue;
         }
         let name = &captures[2];
+        if normalize_name(name).is_empty() {
+            bail!("{catalog}: blank {section}.{number} heading name");
+        }
         if compound_names.contains(&name) {
             values.extend(name.split(" and ").map(normalize_name));
         } else if name == "∞ (Infinity)" {

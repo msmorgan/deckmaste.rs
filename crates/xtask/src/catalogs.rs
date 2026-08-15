@@ -103,7 +103,15 @@ fn text(args: &TextArgs) -> anyhow::Result<()> {
         fs::read_to_string(&args.cr).with_context(|| format!("reading {}", args.cr.display()))?;
     let atomic =
         fs::read(&args.atomic).with_context(|| format!("reading {}", args.atomic.display()))?;
-    LegacyCatalogSet::generate(&cr, &atomic)?.write_to(&args.output)
+    LegacyCatalogSet::generate(&cr, &atomic)
+        .with_context(|| {
+            format!(
+                "extracting legacy catalogs from CR {}; keyword augmentation source {}",
+                args.cr.display(),
+                args.atomic.display()
+            )
+        })?
+        .write_to(&args.output)
 }
 
 fn generate_catalogs(cr_path: &Path, atomic_path: &Path) -> anyhow::Result<CatalogSet> {
@@ -111,7 +119,13 @@ fn generate_catalogs(cr_path: &Path, atomic_path: &Path) -> anyhow::Result<Catal
         fs::read_to_string(cr_path).with_context(|| format!("reading {}", cr_path.display()))?;
     let atomic =
         fs::read(atomic_path).with_context(|| format!("reading {}", atomic_path.display()))?;
-    CatalogSet::generate(&cr, &atomic)
+    CatalogSet::generate(&cr, &atomic).with_context(|| {
+        format!(
+            "extracting canonical catalogs from CR {}; card-names source {}",
+            cr_path.display(),
+            atomic_path.display()
+        )
+    })
 }
 
 #[cfg(test)]
@@ -180,6 +194,17 @@ mod tests {
     }
 
     #[test]
+    fn generate_command_creates_a_missing_output_parent() {
+        let root = tempfile::tempdir().unwrap();
+        let (cr, atomic) = write_sources(root.path());
+        let output = root.path().join("missing/gen/catalogs");
+
+        run(&generate_args(cr, atomic, output.clone())).unwrap();
+
+        assert_eq!(directory_bytes(&output).len(), 14);
+    }
+
+    #[test]
     fn check_accepts_an_unchanged_canonical_catalog_directory() {
         let root = tempfile::tempdir().unwrap();
         let (cr, atomic) = write_sources(root.path());
@@ -243,9 +268,78 @@ mod tests {
         );
     }
 
+    #[test]
+    fn canonical_atomic_errors_name_card_names_and_custom_source_paths() {
+        let root = tempfile::tempdir().unwrap();
+        let (cr, atomic) = write_sources(root.path());
+        fs::write(&atomic, b"{").unwrap();
+
+        let error = run(&generate_args(
+            cr.clone(),
+            atomic.clone(),
+            root.path().join("output"),
+        ))
+        .unwrap_err();
+
+        assert_eq!(
+            format!("{error:#}"),
+            format!(
+                "extracting canonical catalogs from CR {}; card-names source {}: parsing AtomicCards.json: EOF while parsing an object at line 1 column 1",
+                cr.display(),
+                atomic.display()
+            )
+        );
+    }
+
+    #[test]
+    fn canonical_cr_shape_errors_name_the_custom_source_path() {
+        let root = tempfile::tempdir().unwrap();
+        let (cr, atomic) = write_sources(root.path());
+        fs::write(&cr, CR_FIXTURE.replace("701.2. Scry", "701.2 Scry")).unwrap();
+
+        let error = run(&generate_args(
+            cr.clone(),
+            atomic.clone(),
+            root.path().join("output"),
+        ))
+        .unwrap_err();
+
+        assert_eq!(
+            format!("{error:#}"),
+            format!(
+                "extracting canonical catalogs from CR {}; card-names source {}: keyword-actions: malformed 701 keyword heading \"701.2 Scry\"",
+                cr.display(),
+                atomic.display()
+            )
+        );
+    }
+
+    #[test]
+    fn legacy_atomic_errors_name_keyword_augmentation_and_custom_source_paths() {
+        let root = tempfile::tempdir().unwrap();
+        let (cr, atomic) = write_sources(root.path());
+        fs::write(&atomic, b"{").unwrap();
+
+        let error = run(&text_args(
+            cr.clone(),
+            atomic.clone(),
+            root.path().join("output"),
+        ))
+        .unwrap_err();
+
+        assert_eq!(
+            format!("{error:#}"),
+            format!(
+                "extracting legacy catalogs from CR {}; keyword augmentation source {}: parsing AtomicCards.json: EOF while parsing an object at line 1 column 1",
+                cr.display(),
+                atomic.display()
+            )
+        );
+    }
+
     fn write_sources(root: &Path) -> (PathBuf, PathBuf) {
-        let cr = root.join("cr.txt");
-        let atomic = root.join("AtomicCards.json");
+        let cr = root.join("custom-rules.txt");
+        let atomic = root.join("custom-atomic.json");
         fs::write(&cr, CR_FIXTURE).unwrap();
         fs::write(&atomic, ATOMIC_FIXTURE).unwrap();
         (cr, atomic)

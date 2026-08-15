@@ -258,6 +258,49 @@ mod tests {
     }
 
     #[test]
+    fn malformed_keyword_heading_is_not_silently_omitted() {
+        const ACTION_TWO: &str = concat!("701", ".2");
+        let cr = CR_FIXTURE.replace(
+            &format!("{ACTION_TWO}. Scry"),
+            &format!("{ACTION_TWO} Scry"),
+        );
+
+        let error = CatalogSet::generate(&cr, ATOMIC_FIXTURE.as_bytes()).unwrap_err();
+
+        assert!(error.to_string().contains("keyword-actions"));
+        assert!(error.to_string().contains(&format!("{ACTION_TWO} Scry")));
+    }
+
+    #[test]
+    fn duplicate_keyword_heading_numbers_are_rejected() {
+        const ACTION_TWO: &str = concat!("701", ".2");
+        const ACTION_THREE: &str = concat!("701", ".3");
+        let cr = CR_FIXTURE.replace(
+            &format!("{ACTION_THREE}. Tap and Untap"),
+            &format!("{ACTION_TWO}. Tap and Untap"),
+        );
+
+        let error = CatalogSet::generate(&cr, ATOMIC_FIXTURE.as_bytes()).unwrap_err();
+
+        assert!(error.to_string().contains("keyword-actions"));
+        assert!(
+            error
+                .to_string()
+                .contains(&format!("duplicate {ACTION_TWO} heading"))
+        );
+    }
+
+    #[test]
+    fn blank_cr_list_members_are_rejected() {
+        let cr = CR_FIXTURE.replace("artifact, creature", "artifact, , creature");
+
+        let error = CatalogSet::generate(&cr, ATOMIC_FIXTURE.as_bytes()).unwrap_err();
+
+        assert!(error.to_string().contains("card-types"));
+        assert!(error.to_string().contains("blank CR list member"));
+    }
+
+    #[test]
     fn card_names_are_canonical_across_atomic_source_order_and_duplicates() {
         let initial = CatalogSet::generate(CR_FIXTURE, ATOMIC_FIXTURE.as_bytes()).unwrap();
         let reordered =
