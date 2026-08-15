@@ -543,6 +543,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_english_v2"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deckmaste_catalogs",
+ "tempfile",
+]
+
+[[package]]
 name = "deckmaste_features"
 version = "0.1.0"
 dependencies = [

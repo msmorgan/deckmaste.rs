@@ -4,6 +4,7 @@ members = [
     "crates/deckmaste_semantics",
     "crates/deckmaste_card",
     "crates/deckmaste_catalogs",
+    "crates/deckmaste_english_v2",
     "crates/deckmaste_core",
     "crates/deckmaste_data",
     "crates/deckmaste_engine",
