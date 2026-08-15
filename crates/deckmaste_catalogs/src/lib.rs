@@ -31,9 +31,11 @@ mod tests {
 205.3q Battles have a unique subtype, called a battle type. That battle type is Siege.\n\
 205.4a An object can have one or more supertypes. A card’s supertypes are printed directly before its card types. The supertypes are basic, legendary, and snow.\n\
 207.2c An ability word appears in italics at the beginning of some abilities. The ability words are landfall, and threshold.\n\
+701. Keyword Actions\n\
 701.1. Keyword action introduction\n\
 701.2. Scry\n\
 701.3. Tap and Untap\n\
+702. Keyword Abilities\n\
 702.1. Keyword ability introduction\n\
 702.2. Daybound and Nightbound\n\
 702.3. ∞ (Infinity)\n\
@@ -269,6 +271,21 @@ mod tests {
 
         assert!(error.to_string().contains("keyword-actions"));
         assert!(error.to_string().contains(&format!("{ACTION_TWO} Scry")));
+    }
+
+    #[test]
+    fn keyword_section_title_lookalikes_are_rejected() {
+        for (title, lookalike, catalog) in [
+            ("701. Keyword Actions", "701. Scry", "keyword-actions"),
+            ("702. Keyword Abilities", "702. Flying", "keyword-abilities"),
+        ] {
+            let cr = CR_FIXTURE.replace(title, lookalike);
+
+            let error = CatalogSet::generate(&cr, ATOMIC_FIXTURE.as_bytes()).unwrap_err();
+
+            assert!(error.to_string().contains(catalog), "{error:#}");
+            assert!(error.to_string().contains(lookalike), "{error:#}");
+        }
     }
 
     #[test]

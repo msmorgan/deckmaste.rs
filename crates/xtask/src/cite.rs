@@ -1253,17 +1253,26 @@ fn ensure_parser_helpers_are_unshadowed(file: &str, syntax: &syn::File) -> anyho
 #[derive(Default)]
 struct ParserHelperShadows {
     function_depth: usize,
+    module_depth: usize,
     names: BTreeSet<String>,
 }
 
 impl<'ast> syn::visit::Visit<'ast> for ParserHelperShadows {
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
-        if self.function_depth > 0 && is_parser_helper_name(&item.sig.ident) {
+        if (self.function_depth > 0 || self.module_depth > 0)
+            && is_parser_helper_name(&item.sig.ident)
+        {
             self.names.insert(item.sig.ident.to_string());
         }
         self.function_depth += 1;
         syn::visit::visit_item_fn(self, item);
         self.function_depth -= 1;
+    }
+
+    fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        self.module_depth += 1;
+        syn::visit::visit_item_mod(self, item);
+        self.module_depth -= 1;
     }
 
     fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
@@ -1289,8 +1298,9 @@ impl<'ast> syn::visit::Visit<'ast> for ParserHelperShadows {
 
     fn visit_item_use(&mut self, item: &'ast syn::ItemUse) {
         collect_imported_parser_helpers(&item.tree, &mut self.names);
-        if self.function_depth > 0 && use_tree_contains_glob(&item.tree) {
-            self.names.insert("block-local glob import".to_string());
+        if (self.function_depth > 0 || self.module_depth > 0) && use_tree_contains_glob(&item.tree)
+        {
+            self.names.insert("non-root glob import".to_string());
         }
         syn::visit::visit_item_use(self, item);
     }
@@ -1834,6 +1844,39 @@ numbered_rule((), \"100.1\", // cite: noncompliant-line -- machine-readable pars
             noncompliant_source_hits("crates/deckmaste_catalogs/src/cr.rs", imported_source)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_parser_helper_shadows_in_nested_modules() {
+        let root_helpers = "fn parse_list_rule() {}\n\
+fn parse_subtype_rule() {}\n\
+fn numbered_rule() {}\n";
+        let nested_definition = format!(
+            "{root_helpers}\
+mod nested {{\n\
+fn numbered_rule(_: (), _: &str, _: &str) {{}}\n\
+fn f() {{\n\
+numbered_rule((), \"100.1\", // cite: noncompliant-line -- machine-readable parser key\n\
+\"catalog\");\n\
+}}\n\
+}}"
+        );
+        let nested_glob_import = format!(
+            "{root_helpers}\
+mod nested {{\n\
+use super::*;\n\
+fn f() {{\n\
+numbered_rule((), \"100.1\", // cite: noncompliant-line -- machine-readable parser key\n\
+\"catalog\");\n\
+}}\n\
+}}"
+        );
+
+        for source in [nested_definition, nested_glob_import] {
+            assert!(
+                noncompliant_source_hits("crates/deckmaste_catalogs/src/cr.rs", &source).is_err()
+            );
+        }
     }
 
     #[test]

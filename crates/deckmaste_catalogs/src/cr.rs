@@ -77,10 +77,17 @@ pub(crate) fn extract_shared(cr: &str) -> anyhow::Result<ExtractedCatalogs> {
         keyword_abilities: parse_headings(
             &lines,
             702,
+            "Keyword Abilities",
             &["Daybound and Nightbound"],
             "keyword-abilities",
         )?,
-        keyword_actions: parse_headings(&lines, 701, &["Tap and Untap"], "keyword-actions")?,
+        keyword_actions: parse_headings(
+            &lines,
+            701,
+            "Keyword Actions",
+            &["Tap and Untap"],
+            "keyword-actions",
+        )?,
         land_types: parse_subtype_rule(
             &lines,
             "205.3i", // cite: noncompliant-line -- machine-readable parser key
@@ -225,6 +232,7 @@ fn parse_battle_type(lines: &[&str]) -> anyhow::Result<BTreeSet<String>> {
 fn parse_headings(
     lines: &[&str],
     section: u16,
+    section_title: &str,
     compound_names: &[&str],
     catalog: &str,
 ) -> anyhow::Result<BTreeSet<String>> {
@@ -237,7 +245,15 @@ fn parse_headings(
         let Some(candidate) = line.strip_prefix(&section_prefix) else {
             continue;
         };
-        if candidate.starts_with(' ') || body_rule.is_match(candidate) {
+        if let Some(title) = candidate.strip_prefix(' ') {
+            if title != section_title {
+                bail!(
+                    "{catalog}: expected {section}. {section_title}, found section-title lookalike {line:?}"
+                );
+            }
+            continue;
+        }
+        if body_rule.is_match(candidate) {
             continue;
         }
         let captures = heading
