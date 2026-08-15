@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use engine::ChartFailure;
 use engine::RulePosition;
 use grammar::Category;
@@ -40,22 +38,22 @@ impl Parser {
     ///
     /// # Errors
     ///
-    /// Returns a structured failure when the chart cannot consume the input or
-    /// checked lowering rejects every reading. Returns an ambiguity when
-    /// structural selection cannot choose one reading.
+    /// Returns a structured failure when the checked chart cannot consume the
+    /// input. Returns an ambiguity when structural selection cannot choose one
+    /// reading.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a chart root admitted by checked completion cannot be
+    /// materialized, which indicates an internal grammar invariant violation.
     pub fn parse(&self, text: &str, context: &ParseContext<'_>) -> Result<Ability, ParseError> {
         let grammar = SliceGrammar {
             catalogs: &self.catalogs,
             context,
         };
         let forest = parse_forest(&grammar, text).map_err(chart_failure)?;
-        select(materialize(&forest))?.ok_or_else(|| ParseError::Failure {
-            span: TextSpan {
-                start: text.len(),
-                end: text.len(),
-            },
-            expectations: BTreeSet::new(),
-        })
+        Ok(select(materialize(&forest, context))?
+            .expect("validated chart roots must have a checked materialization"))
     }
 }
 
@@ -93,6 +91,7 @@ const fn nonterminal_category(category: Category) -> NonterminalCategory {
 const fn terminal_class(lexical: Lexical) -> TerminalClass {
     match lexical {
         Lexical::Literal(_) => unreachable!(),
+        Lexical::EndOfInput => TerminalClass::EndOfInput,
         Lexical::TriggerWord => TerminalClass::TriggerWord,
         Lexical::Article => TerminalClass::Article,
         Lexical::Demonstrative => TerminalClass::Demonstrative,

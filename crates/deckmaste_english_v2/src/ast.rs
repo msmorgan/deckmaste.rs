@@ -1,6 +1,7 @@
 use deckmaste_catalogs::CatalogKind;
 
 use crate::catalogs::ParserCatalogs;
+use crate::context::ParseContext;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ability {
@@ -238,7 +239,21 @@ impl CatalogIdentity {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelfReferenceNp {
-    pub spelling: SelfReferenceSpelling,
+    spelling: SelfReferenceSpelling,
+}
+
+impl SelfReferenceNp {
+    #[must_use]
+    pub fn new(spelling: SelfReferenceSpelling, context: &ParseContext<'_>) -> Option<Self> {
+        (spelling != SelfReferenceSpelling::Abbreviated
+            || context.abbreviated_card_name() != context.card_name())
+        .then_some(Self { spelling })
+    }
+
+    #[must_use]
+    pub const fn spelling(&self) -> SelfReferenceSpelling {
+        self.spelling
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -21,6 +21,74 @@ fn parser() -> Parser {
     Parser::new(catalogs())
 }
 
+fn context(card_name: &str) -> ParseContext<'_> {
+    ParseContext::new(card_name).expect("test card name is a valid parse context")
+}
+
+fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SelfReferenceNp {
+    let context = context(card_name);
+    SelfReferenceNp::new(spelling, &context).expect("test spelling is valid for its context")
+}
+
+#[test]
+fn parse_context_rejects_empty_self_names_and_abbreviations() {
+    assert!(ParseContext::new("").is_none());
+    assert!(ParseContext::new(", the Empty Prefix").is_none());
+}
+
+#[test]
+fn self_reference_spelling_is_checked_against_its_context() {
+    let no_comma = ParseContext::new("Context Card").expect("nonempty context is valid");
+    assert!(SelfReferenceNp::new(SelfReferenceSpelling::Abbreviated, &no_comma).is_none());
+    assert_eq!(
+        SelfReferenceNp::new(SelfReferenceSpelling::Full, &no_comma)
+            .expect("full spelling is always distinct from no value")
+            .spelling(),
+        SelfReferenceSpelling::Full
+    );
+
+    let comma =
+        ParseContext::new("Zacama, Primal Calamity").expect("nonempty abbreviation is valid");
+    assert_eq!(
+        SelfReferenceNp::new(SelfReferenceSpelling::Abbreviated, &comma)
+            .expect("comma-bearing context has a distinct abbreviation")
+            .spelling(),
+        SelfReferenceSpelling::Abbreviated
+    );
+}
+
+#[test]
+fn parse_error_is_a_standard_error_and_converts_to_anyhow() {
+    fn require_standard_error(error: &(impl std::error::Error + ?Sized)) {
+        let _ = error;
+    }
+
+    let error = ParseError::Failure {
+        span: TextSpan { start: 11, end: 11 },
+        expectations: BTreeSet::from([Expectation::Literal("life")]),
+    };
+    require_standard_error(&error);
+    assert_eq!(
+        error.to_string(),
+        "parse failed at bytes 11..11; expected {Literal(\"life\")}"
+    );
+
+    let anyhow_error: anyhow::Error = error.into();
+    assert_eq!(
+        anyhow_error.to_string(),
+        "parse failed at bytes 11..11; expected {Literal(\"life\")}"
+    );
+
+    assert_eq!(
+        ParseError::Ambiguous {
+            first: "FirstConstruction",
+            second: "SecondConstruction",
+        }
+        .to_string(),
+        "ambiguous parse between FirstConstruction and SecondConstruction"
+    );
+}
+
 fn creature() -> Noun {
     Noun::Catalog(
         CatalogIdentity::new(&catalogs(), CatalogKind::CardTypes, "Creature")
@@ -109,9 +177,10 @@ fn gain_life_with_where() -> Ability {
 fn zacama_deals_damage() -> Ability {
     Ability::Spell(Spell {
         effect: Sentence::Declarative(Declarative {
-            subject: NounPhrase::SelfReference(SelfReferenceNp {
-                spelling: SelfReferenceSpelling::Abbreviated,
-            }),
+            subject: NounPhrase::SelfReference(self_reference(
+                SelfReferenceSpelling::Abbreviated,
+                "Zacama, Primal Calamity",
+            )),
             predicate: VerbPhrase::DealDamage(DealDamage {
                 amount: Amount::Number(NumberAmount {
                     number: SignedNumber {
@@ -166,7 +235,7 @@ fn parses_and_round_trips_the_five_slice_abilities() {
             triggered_gain_life(),
         ),
     ] {
-        let context = ParseContext::new(card_name);
+        let context = context(card_name);
         assert_eq!(parser.parse(text, &context), Ok(expected.clone()));
         assert_eq!(expected.render(&context), text);
 
@@ -178,12 +247,36 @@ fn parses_and_round_trips_the_five_slice_abilities() {
 #[test]
 fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
     let text = "Context Card deals 3 damage to target creature.";
-    let context = ParseContext::new("Context Card");
+    let context = context("Context Card");
     let expected = Ability::Spell(Spell {
         effect: Sentence::Declarative(Declarative {
-            subject: NounPhrase::SelfReference(SelfReferenceNp {
-                spelling: SelfReferenceSpelling::Full,
+            subject: NounPhrase::SelfReference(self_reference(
+                SelfReferenceSpelling::Full,
+                "Context Card",
+            )),
+            predicate: VerbPhrase::DealDamage(DealDamage {
+                amount: Amount::Number(NumberAmount {
+                    number: SignedNumber {
+                        sign: Sign::Positive,
+                        magnitude: 3,
+                    },
+                }),
+                to: target_creature(),
             }),
+        }),
+    });
+
+    assert_eq!(parser().parse(text, &context), Ok(expected.clone()));
+    assert_eq!(expected.render(&context), text);
+}
+
+#[test]
+fn self_reference_identity_preserves_its_inherent_case() {
+    let text = "eBay deals 3 damage to target creature.";
+    let context = context("eBay");
+    let expected = Ability::Spell(Spell {
+        effect: Sentence::Declarative(Declarative {
+            subject: NounPhrase::SelfReference(self_reference(SelfReferenceSpelling::Full, "eBay")),
             predicate: VerbPhrase::DealDamage(DealDamage {
                 amount: Amount::Number(NumberAmount {
                     number: SignedNumber {
@@ -205,7 +298,7 @@ fn unrelated_catalog_collision_is_a_parse_failure() {
     let text = "Destroy target Forest.";
     let offset = "Destroy target".len();
     assert_eq!(
-        parser().parse(text, &ParseContext::new("Context Card")),
+        parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {
             span: TextSpan {
                 start: offset,
@@ -220,13 +313,91 @@ fn unrelated_catalog_collision_is_a_parse_failure() {
 fn missing_period_reports_chart_derived_literal_expectation() {
     let text = "Destroy target creature";
     assert_eq!(
-        parser().parse(text, &ParseContext::new("Context Card")),
+        parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {
             span: TextSpan {
                 start: text.len(),
                 end: text.len(),
             },
             expectations: BTreeSet::from([Expectation::Literal(","), Expectation::Literal("."),]),
+        })
+    );
+}
+
+#[test]
+fn agreement_mismatch_reports_a_nonempty_chart_failure() {
+    let text = "You gains X life.";
+
+    assert_eq!(
+        parser().parse(text, &context("Context Card")),
+        Err(ParseError::Failure {
+            span: TextSpan { start: 11, end: 11 },
+            expectations: BTreeSet::from([Expectation::Literal("life")]),
+        })
+    );
+}
+
+#[test]
+fn count_controller_mismatch_reports_a_nonempty_chart_failure() {
+    let text =
+        "You gain X life, where X is the number of creatures it controls with power 2 or less.";
+
+    assert_eq!(
+        parser().parse(text, &context("Context Card")),
+        Err(ParseError::Failure {
+            span: TextSpan { start: 79, end: 79 },
+            expectations: BTreeSet::from([Expectation::Literal("less")]),
+        })
+    );
+}
+
+#[test]
+fn lexical_matches_reject_prefixes_of_longer_lexemes() {
+    for (text, card_name, offset) in [
+        ("Destroyed target creature.", "Context Card", 0),
+        (
+            "Zacama deals 3x damage to target creature.",
+            "Zacama, Primal Calamity",
+            12,
+        ),
+        ("Destroy target creaturex.", "Context Card", 14),
+        (
+            "Zacamaé deals 3 damage to target creature.",
+            "Zacama, Primal Calamity",
+            0,
+        ),
+    ] {
+        let Err(ParseError::Failure { span, expectations }) =
+            parser().parse(text, &context(card_name))
+        else {
+            panic!("lexical prefix must fail for {text:?}");
+        };
+
+        assert_eq!(
+            span,
+            TextSpan {
+                start: offset,
+                end: offset
+            },
+            "{text:?}"
+        );
+        assert!(!expectations.is_empty(), "{text:?}");
+    }
+}
+
+#[test]
+fn doubled_period_reports_the_first_trailing_byte() {
+    let text = "Destroy target creature..";
+    let trailing = text.len() - 1;
+
+    assert_eq!(
+        parser().parse(text, &context("Context Card")),
+        Err(ParseError::Failure {
+            span: TextSpan {
+                start: trailing,
+                end: trailing,
+            },
+            expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::EndOfInput,)]),
         })
     );
 }
@@ -240,10 +411,6 @@ fn wrong_case_and_wrong_whitespace_are_parse_failures() {
         "Destroytarget creature.",
         "Whenever a player connives, you Gain X life.",
     ] {
-        assert!(
-            parser()
-                .parse(text, &ParseContext::new("Context Card"))
-                .is_err()
-        );
+        assert!(parser().parse(text, &context("Context Card")).is_err());
     }
 }

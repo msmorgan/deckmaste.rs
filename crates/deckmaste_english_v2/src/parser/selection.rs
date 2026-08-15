@@ -325,6 +325,7 @@ mod tests {
                     .into_iter()
                     .collect()
             },
+            |_, _, _| true,
         )
         .expect("the toy grammar accepts alpha");
         let candidates = forest
@@ -412,5 +413,39 @@ mod tests {
     fn an_earlier_typed_position_outweighs_a_later_literal() {
         let selected = parse_and_select_recursive_specificity_toy("alpha").unwrap();
         assert_eq!(selected.construction, TestConstruction::EarlyTyped);
+    }
+
+    #[test]
+    fn a_longer_exact_prefix_specificity_vector_wins() {
+        let shorter = TestCandidate {
+            ability: "shorter",
+            construction: TestConstruction::TestLeft,
+            constructions: vec![TestConstruction::TestLeft],
+            positions: vec![RulePosition::Lexical(TestLexical::Word)],
+        };
+        let longer = TestCandidate {
+            ability: "longer",
+            construction: TestConstruction::TestRight,
+            constructions: vec![TestConstruction::TestRight],
+            positions: vec![
+                RulePosition::Lexical(TestLexical::Word),
+                RulePosition::Nonterminal(TestCategory::Empty),
+            ],
+        };
+
+        let selected = select_ranked(
+            vec![shorter, longer],
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| {
+                structural_specificity(&candidate.positions, |lexical| {
+                    matches!(lexical, TestLexical::LiteralAlpha)
+                })
+            },
+            construction_name,
+            &[],
+        )
+        .unwrap();
+
+        assert_eq!(selected.ability, "longer");
     }
 }

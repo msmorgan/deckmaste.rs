@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub struct TextSpan {
@@ -20,6 +21,7 @@ pub enum NonterminalCategory {
 pub enum TerminalClass {
     Article,
     Demonstrative,
+    EndOfInput,
     Noun,
     Pronoun,
     SelfReference,
@@ -47,3 +49,20 @@ pub enum ParseError {
         second: &'static str,
     },
 }
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Failure { span, expectations } => write!(
+                formatter,
+                "parse failed at bytes {}..{}; expected {expectations:?}",
+                span.start, span.end
+            ),
+            Self::Ambiguous { first, second } => {
+                write!(formatter, "ambiguous parse between {first} and {second}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ParseError {}

@@ -1,8 +1,3 @@
-#![allow(
-    dead_code,
-    reason = "later parser tasks consume these crate-internal engine contracts"
-)]
-
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::VecDeque;
@@ -48,6 +43,10 @@ pub(crate) struct PackedNode<C, T> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SeedPolicy {
     StartOnly,
+    #[allow(
+        dead_code,
+        reason = "all-rule seeding is the retained diagnostic policy exercised by engine tests"
+    )]
     AllRules,
 }
 
@@ -61,17 +60,26 @@ impl<C, T> Forest<C, T> {
         &self.nodes[id.0]
     }
 
+    #[cfg(test)]
     pub(crate) fn accepted_roots(&self) -> impl Iterator<Item = &PackedNode<C, T>> {
         self.accepted_roots
             .iter()
             .map(|&NodeId(index)| &self.nodes[index])
     }
 
+    pub(crate) fn accepted_root_ids(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.accepted_roots.iter().copied()
+    }
+
     #[cfg(test)]
-    fn nodes_for_span(&self, start: usize, end: usize) -> impl Iterator<Item = &PackedNode<C, T>> {
-        self.nodes
-            .iter()
-            .filter(move |node| (node.start, node.end) == (start, end))
+    pub(crate) fn from_test_parts(
+        nodes: Vec<PackedNode<C, T>>,
+        accepted_roots: Vec<NodeId>,
+    ) -> Self {
+        Self {
+            nodes,
+            accepted_roots,
+        }
     }
 }
 
@@ -81,12 +89,13 @@ pub(crate) struct ChartFailure<N, L> {
     pub live: BTreeSet<RulePosition<N, L>>,
 }
 
-pub(crate) fn parse<N, L, C, T, Scan>(
+pub(crate) fn parse<N, L, C, T, Scan, ValidateCompletion>(
     rules: &'static [Rule<N, L, C>],
     start: N,
     seed_policy: SeedPolicy,
     input_length: usize,
     mut scan: Scan,
+    mut validate_completion: ValidateCompletion,
 ) -> Result<Forest<C, T>, ChartFailure<N, L>>
 where
     N: Copy + Eq + Ord + 'static,
@@ -94,6 +103,7 @@ where
     C: Clone + Eq,
     T: Clone + Eq,
     Scan: FnMut(L, usize) -> Vec<LexicalMatch<T>>,
+    ValidateCompletion: FnMut(&C, &Family<T>, &Forest<C, T>) -> bool,
 {
     let mut forest = Forest {
         nodes: Vec::new(),
@@ -108,29 +118,21 @@ where
         .map(|_| Vec::<(N, NodeId)>::new())
         .collect::<Vec<_>>();
 
-    for column in 0..=input_length {
-        if matches!(seed_policy, SeedPolicy::StartOnly) && column != 0 {
-            continue;
-        }
-        for (rule_index, rule) in rules.iter().enumerate() {
-            if matches!(seed_policy, SeedPolicy::StartOnly) && rule.lhs != start {
-                continue;
-            }
-            insert_item(
-                &mut chart,
-                &mut agenda,
-                column,
-                (rule_index, 0, column),
-                Family {
-                    children: Vec::new(),
-                },
-            );
-        }
-    }
+    seed_chart(
+        rules,
+        start,
+        seed_policy,
+        input_length,
+        &mut chart,
+        &mut agenda,
+    );
 
     while let Some((column, (rule_index, dot, origin), family)) = agenda.pop_front() {
         let rule = &rules[rule_index];
         if dot == rule.rhs.len() {
+            if !validate_completion(&rule.construction, &family, &forest) {
+                continue;
+            }
             let node_id = forest
                 .nodes
                 .iter()
@@ -160,9 +162,7 @@ where
             if !completed_by_start[origin].contains(&(rule.lhs, node_id)) {
                 completed_by_start[origin].push((rule.lhs, node_id));
             }
-            if origin == 0
-                && column == input_length
-                && (matches!(seed_policy, SeedPolicy::AllRules) || rule.lhs == start)
+            if completed_rule_is_root(seed_policy, &rule.lhs, &start, origin, column, input_length)
                 && !forest.accepted_roots.contains(&node_id)
             {
                 forest.accepted_roots.push(node_id);
@@ -248,9 +248,55 @@ where
     }
 
     if forest.accepted_roots.is_empty() {
-        Err(chart_failure(&chart, rules))
+        Err(chart_failure(&chart, rules, seed_policy))
     } else {
         Ok(forest)
+    }
+}
+
+fn seed_chart<N, L, C, T>(
+    rules: &[Rule<N, L, C>],
+    start: N,
+    seed_policy: SeedPolicy,
+    input_length: usize,
+    chart: &mut [BTreeMap<ItemKey, Vec<Family<T>>>],
+    agenda: &mut VecDeque<(usize, ItemKey, Family<T>)>,
+) where
+    N: Copy + Eq,
+    T: Clone + Eq,
+{
+    for column in 0..=input_length {
+        if matches!(seed_policy, SeedPolicy::StartOnly) && column != 0 {
+            continue;
+        }
+        for (rule_index, rule) in rules.iter().enumerate() {
+            if matches!(seed_policy, SeedPolicy::StartOnly) && rule.lhs != start {
+                continue;
+            }
+            insert_item(
+                chart,
+                agenda,
+                column,
+                (rule_index, 0, column),
+                Family {
+                    children: Vec::new(),
+                },
+            );
+        }
+    }
+}
+
+fn completed_rule_is_root<N: Eq>(
+    seed_policy: SeedPolicy,
+    lhs: &N,
+    start: &N,
+    origin: usize,
+    column: usize,
+    input_length: usize,
+) -> bool {
+    match seed_policy {
+        SeedPolicy::StartOnly => lhs == start && origin == 0 && column == input_length,
+        SeedPolicy::AllRules => true,
     }
 }
 
@@ -281,31 +327,56 @@ fn insert_family<T: Eq>(families: &mut Vec<Family<T>>, family: Family<T>) -> boo
 fn chart_failure<N, L, C, T>(
     chart: &[BTreeMap<ItemKey, Vec<Family<T>>>],
     rules: &[Rule<N, L, C>],
+    seed_policy: SeedPolicy,
 ) -> ChartFailure<N, L>
 where
     N: Clone + Ord,
     L: Clone + Ord,
 {
+    let progressed = matches!(seed_policy, SeedPolicy::AllRules)
+        && chart.iter().enumerate().any(|(column, items)| {
+            items.iter().any(|(&(_, dot, origin), families)| {
+                !(families.is_empty() || dot == 0 && origin == column)
+            })
+        });
+    if matches!(seed_policy, SeedPolicy::AllRules) && !progressed {
+        let live = live_expectations(&chart[0], rules, 0, false);
+        return ChartFailure { offset: 0, live };
+    }
+
     chart
         .iter()
         .enumerate()
         .rev()
         .find_map(|(offset, column)| {
-            let live = column
-                .iter()
-                .filter_map(|(&(rule_index, dot, _), families)| {
-                    (!families.is_empty())
-                        .then(|| rules[rule_index].rhs.get(dot))
-                        .flatten()
-                        .cloned()
-                })
-                .collect::<BTreeSet<_>>();
+            let live = live_expectations(column, rules, offset, progressed);
             (!live.is_empty()).then_some(ChartFailure { offset, live })
         })
         .unwrap_or(ChartFailure {
             offset: 0,
             live: BTreeSet::new(),
         })
+}
+
+fn live_expectations<N, L, C, T>(
+    column: &BTreeMap<ItemKey, Vec<Family<T>>>,
+    rules: &[Rule<N, L, C>],
+    offset: usize,
+    ignore_untouched_seeds: bool,
+) -> BTreeSet<RulePosition<N, L>>
+where
+    N: Clone + Ord,
+    L: Clone + Ord,
+{
+    column
+        .iter()
+        .filter_map(|(&(rule_index, dot, origin), families)| {
+            (!families.is_empty() && (!ignore_untouched_seeds || dot != 0 || origin != offset))
+                .then(|| rules[rule_index].rhs.get(dot))
+                .flatten()
+                .cloned()
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -431,6 +502,7 @@ mod tests {
                     }])
                     .unwrap_or_default()
             },
+            |_, _, _| true,
         )
     }
 
@@ -444,6 +516,7 @@ mod tests {
             SeedPolicy::StartOnly,
             input.len(),
             |literal, start| scan_words(input, literal, start),
+            |_, _, _| true,
         )
     }
 
@@ -451,12 +524,21 @@ mod tests {
         input: &str,
     ) -> Result<Forest<ToyConstruction, &'static str>, ChartFailure<ToyCategory, &'static str>>
     {
+        parse_sequence_toy_with_policy(input, SeedPolicy::StartOnly)
+    }
+
+    fn parse_sequence_toy_with_policy(
+        input: &str,
+        seed_policy: SeedPolicy,
+    ) -> Result<Forest<ToyConstruction, &'static str>, ChartFailure<ToyCategory, &'static str>>
+    {
         parse(
             SEQUENCE_RULES,
             ToyCategory::Start,
-            SeedPolicy::StartOnly,
+            seed_policy,
             input.len(),
             |literal, start| scan_words(input, literal, start),
+            |_, _, _| true,
         )
     }
 
@@ -471,6 +553,7 @@ mod tests {
             seed_policy,
             input.len(),
             |literal, start| scan_words(input, literal, start),
+            |_, _, _| true,
         )
     }
 
@@ -496,6 +579,7 @@ mod tests {
                 }],
                 _ => Vec::new(),
             },
+            |_, _, _| true,
         )
     }
 
@@ -544,6 +628,46 @@ mod tests {
     fn all_rule_seeding_is_a_policy_not_a_second_parser() {
         assert!(parse_fragment_toy("beta", SeedPolicy::StartOnly).is_err());
         assert!(parse_fragment_toy("beta", SeedPolicy::AllRules).is_ok());
+    }
+
+    #[test]
+    fn all_rules_retains_a_completed_interior_fragment() {
+        let forest = parse_fragment_toy("x beta y", SeedPolicy::AllRules).unwrap();
+        let roots = forest.accepted_roots().collect::<Vec<_>>();
+
+        assert_eq!(roots.len(), 1);
+        assert_eq!(roots[0].construction, ToyConstruction::Fragment);
+        assert_eq!((roots[0].start, roots[0].end), (2, 6));
+    }
+
+    #[test]
+    fn all_rules_failure_uses_the_furthest_progressed_item() {
+        let Err(failure) = parse_sequence_toy_with_policy("x alpha nope", SeedPolicy::AllRules)
+        else {
+            panic!("the incomplete sequence must fail");
+        };
+
+        assert_eq!(failure.offset, 7);
+        assert_eq!(
+            failure.live,
+            BTreeSet::from([RulePosition::Lexical("beta")])
+        );
+    }
+
+    #[test]
+    fn all_rules_failure_without_progress_uses_column_zero_seeds() {
+        let Err(failure) = parse_fragment_toy("nope", SeedPolicy::AllRules) else {
+            panic!("unmatched input must fail");
+        };
+
+        assert_eq!(failure.offset, 0);
+        assert_eq!(
+            failure.live,
+            BTreeSet::from([
+                RulePosition::Lexical("alpha"),
+                RulePosition::Lexical("beta"),
+            ])
+        );
     }
 
     #[test]

@@ -1,15 +1,14 @@
-#![allow(
-    dead_code,
-    reason = "the public parser stage consumes these crate-internal grammar contracts"
-)]
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use deckmaste_catalogs::CatalogKind;
 
 use super::engine::ChartFailure;
 use super::engine::Child;
+use super::engine::Family;
 use super::engine::Forest;
 use super::engine::LexicalMatch;
-use super::engine::PackedNode;
+use super::engine::NodeId;
 use super::engine::Rule;
 use super::engine::RulePosition;
 use super::engine::SeedPolicy;
@@ -97,6 +96,7 @@ pub(crate) enum NounNumber {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum Lexical {
     Literal(&'static str),
+    EndOfInput,
     TriggerWord,
     Article,
     Demonstrative,
@@ -114,7 +114,11 @@ use RulePosition::Nonterminal as N;
 pub(crate) const RULES: &[Rule<Category, Lexical, Construction>] = &[
     Rule {
         lhs: Category::Ability,
-        rhs: &[N(Category::Sentence), L(Lexical::Literal("."))],
+        rhs: &[
+            N(Category::Sentence),
+            L(Lexical::Literal(".")),
+            L(Lexical::EndOfInput),
+        ],
         construction: Construction::AbilitySpell,
     },
     Rule {
@@ -125,6 +129,7 @@ pub(crate) const RULES: &[Rule<Category, Lexical, Construction>] = &[
             L(Lexical::Literal(",")),
             N(Category::Sentence),
             L(Lexical::Literal(".")),
+            L(Lexical::EndOfInput),
         ],
         construction: Construction::AbilityTriggered,
     },
@@ -269,6 +274,7 @@ pub(crate) enum Agreement {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Leaf {
     Literal(&'static str),
+    EndOfInput,
     TriggerWord(TriggerWord),
     Article(Article),
     Demonstrative(Demonstrative),
@@ -296,12 +302,22 @@ pub(crate) fn parse_forest(
         SeedPolicy::StartOnly,
         text.len(),
         |lexical, offset| grammar.scan(lexical, text, offset),
+        |construction, family, forest| {
+            completion_has_checked_build(*construction, family, forest, grammar.context)
+        },
     )
 }
 
 impl SliceGrammar<'_> {
     fn scan(&self, lexical: Lexical, text: &str, offset: usize) -> Vec<LexicalMatch<Leaf>> {
         match lexical {
+            Lexical::EndOfInput => (offset == text.len())
+                .then_some(LexicalMatch {
+                    end: offset,
+                    value: Leaf::EndOfInput,
+                })
+                .into_iter()
+                .collect(),
             Lexical::Literal(literal @ ("." | ",")) => text[offset..]
                 .starts_with(literal)
                 .then_some(LexicalMatch {
@@ -365,7 +381,7 @@ impl SliceGrammar<'_> {
                 )),
             )
             .filter_map(|(word, value)| {
-                Self::word(text, offset, word).map(|end| LexicalMatch { end, value })
+                Self::identity(text, offset, word).map(|end| LexicalMatch { end, value })
             })
             .collect(),
         }
@@ -385,9 +401,22 @@ impl SliceGrammar<'_> {
             .then_some(remainder)
             .or_else(|| remainder.strip_prefix(' '))?;
         let word = if offset == 0 { capitalize(word) } else { word.to_owned() };
-        remainder
-            .starts_with(&word)
-            .then_some(offset + prefix + word.len())
+        let end = offset + prefix + word.len();
+        (remainder.starts_with(&word) && has_lexical_boundary(text, end)).then_some(end)
+    }
+
+    fn identity(text: &str, offset: usize, identity: &str) -> Option<usize> {
+        let prefix = usize::from(offset != 0);
+        let remainder = text.get(offset..)?;
+        let remainder = (prefix == 0)
+            .then_some(remainder)
+            .or_else(|| remainder.strip_prefix(' '))?;
+        let end = offset + prefix + identity.len();
+        (!identity.is_empty()
+            && end > offset
+            && remainder.starts_with(identity)
+            && has_lexical_boundary(text, end))
+        .then_some(end)
     }
 
     fn scan_noun(&self, text: &str, offset: usize, wanted: NounNumber) -> Vec<LexicalMatch<Leaf>> {
@@ -460,14 +489,19 @@ impl SliceGrammar<'_> {
         else {
             return Vec::new();
         };
-        (magnitude.to_string() == digits)
+        let end = offset + prefix + usize::from(sign == Sign::Negative) + digit_length;
+        (magnitude.to_string() == digits && has_lexical_boundary(text, end))
             .then_some(LexicalMatch {
-                end: offset + prefix + usize::from(sign == Sign::Negative) + digit_length,
+                end,
                 value: Leaf::SignedNumber(SignedNumber { sign, magnitude }),
             })
             .into_iter()
             .collect()
     }
+}
+
+fn has_lexical_boundary(text: &str, end: usize) -> bool {
+    matches!(text.as_bytes().get(end), None | Some(b' ' | b',' | b'.'))
 }
 
 fn capitalize(word: &str) -> String {
@@ -548,10 +582,20 @@ pub(crate) struct Candidate {
     pub positions: Vec<RulePosition<Category, Lexical>>,
 }
 
-pub(crate) fn materialize(forest: &Forest<Construction, Leaf>) -> Vec<Candidate> {
+#[derive(Default)]
+struct MaterializationState {
+    memo: BTreeMap<NodeId, Vec<BuiltCandidate>>,
+    in_progress: BTreeSet<NodeId>,
+}
+
+pub(crate) fn materialize(
+    forest: &Forest<Construction, Leaf>,
+    context: &ParseContext<'_>,
+) -> Vec<Candidate> {
     let mut candidates = Vec::new();
-    for root in forest.accepted_roots() {
-        for built in materialize_node(forest, root) {
+    let mut state = MaterializationState::default();
+    for root in forest.accepted_root_ids() {
+        for built in materialize_node(forest, root, context, &mut state) {
             if let BuildValue::Ability(ability) = built.value {
                 push_unique(
                     &mut candidates,
@@ -569,55 +613,97 @@ pub(crate) fn materialize(forest: &Forest<Construction, Leaf>) -> Vec<Candidate>
 
 fn materialize_node(
     forest: &Forest<Construction, Leaf>,
-    node: &PackedNode<Construction, Leaf>,
+    node_id: NodeId,
+    context: &ParseContext<'_>,
+    state: &mut MaterializationState,
+) -> Vec<BuiltCandidate> {
+    if let Some(values) = state.memo.get(&node_id) {
+        return values.clone();
+    }
+    if !state.in_progress.insert(node_id) {
+        return Vec::new();
+    }
+
+    let node = forest.node(node_id);
+    let mut values = Vec::new();
+    for family in &node.families {
+        for built in materialize_family(forest, node.construction, family, context, state) {
+            push_unique(&mut values, built);
+        }
+    }
+    state.in_progress.remove(&node_id);
+    state.memo.insert(node_id, values.clone());
+    values
+}
+
+fn completion_has_checked_build(
+    construction: Construction,
+    family: &Family<Leaf>,
+    forest: &Forest<Construction, Leaf>,
+    context: &ParseContext<'_>,
+) -> bool {
+    !materialize_family(
+        forest,
+        construction,
+        family,
+        context,
+        &mut MaterializationState::default(),
+    )
+    .is_empty()
+}
+
+fn materialize_family(
+    forest: &Forest<Construction, Leaf>,
+    construction: Construction,
+    family: &Family<Leaf>,
+    context: &ParseContext<'_>,
+    state: &mut MaterializationState,
 ) -> Vec<BuiltCandidate> {
     let rule = RULES
         .iter()
-        .find(|rule| rule.construction == node.construction)
+        .find(|rule| rule.construction == construction)
         .expect("every construction has exactly one declared rule");
-    let mut values = Vec::new();
-    for family in &node.families {
-        let mut combinations = vec![Vec::new()];
-        for child in &family.children {
-            let child_values = match child {
-                Child::Node(id) => materialize_node(forest, forest.node(*id)),
-                Child::Lexical(leaf) => vec![BuiltCandidate {
-                    value: BuildValue::Leaf(leaf.clone()),
-                    constructions: Vec::new(),
-                    positions: Vec::new(),
-                }],
-            };
-            let mut next = Vec::new();
-            for combination in combinations {
-                for child_value in &child_values {
-                    let mut combination = combination.clone();
-                    combination.push(child_value.clone());
-                    next.push(combination);
-                }
+    let mut combinations = vec![Vec::new()];
+    for child in &family.children {
+        let child_values = match child {
+            Child::Node(id) => materialize_node(forest, *id, context, state),
+            Child::Lexical(leaf) => vec![BuiltCandidate {
+                value: BuildValue::Leaf(leaf.clone()),
+                constructions: Vec::new(),
+                positions: Vec::new(),
+            }],
+        };
+        let mut next = Vec::new();
+        for combination in combinations {
+            for child_value in &child_values {
+                let mut combination = combination.clone();
+                combination.push(child_value.clone());
+                next.push(combination);
             }
-            combinations = next;
         }
-        for children in combinations {
-            let child_values = children
-                .iter()
-                .map(|child| child.value.clone())
-                .collect::<Vec<_>>();
-            if let Some(value) = build(node.construction, &child_values) {
-                let mut constructions = vec![node.construction];
-                let mut positions = rule.rhs.to_vec();
-                for child in children {
-                    constructions.extend(child.constructions);
-                    positions.extend(child.positions);
-                }
-                push_unique(
-                    &mut values,
-                    BuiltCandidate {
-                        value,
-                        constructions,
-                        positions,
-                    },
-                );
+        combinations = next;
+    }
+    let mut values = Vec::new();
+    for children in combinations {
+        let child_values = children
+            .iter()
+            .map(|child| child.value.clone())
+            .collect::<Vec<_>>();
+        if let Some(value) = build(construction, &child_values, context) {
+            let mut constructions = vec![construction];
+            let mut positions = rule.rhs.to_vec();
+            for child in children {
+                constructions.extend(child.constructions);
+                positions.extend(child.positions);
             }
+            push_unique(
+                &mut values,
+                BuiltCandidate {
+                    value,
+                    constructions,
+                    positions,
+                },
+            );
         }
     }
     values
@@ -633,12 +719,17 @@ fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) {
     clippy::too_many_lines,
     reason = "the exhaustive generated-shape construction dispatch is intentionally flat"
 )]
-fn build(construction: Construction, children: &[BuildValue]) -> Option<BuildValue> {
+fn build(
+    construction: Construction,
+    children: &[BuildValue],
+    context: &ParseContext<'_>,
+) -> Option<BuildValue> {
     match construction {
         Construction::AbilitySpell => match children {
             [
                 BuildValue::Sentence(effect),
                 BuildValue::Leaf(Leaf::Literal(".")),
+                BuildValue::Leaf(Leaf::EndOfInput),
             ] => Some(BuildValue::Ability(Ability::Spell(Spell {
                 effect: effect.clone(),
             }))),
@@ -651,6 +742,7 @@ fn build(construction: Construction, children: &[BuildValue]) -> Option<BuildVal
                 BuildValue::Leaf(Leaf::Literal(",")),
                 BuildValue::Sentence(effect),
                 BuildValue::Leaf(Leaf::Literal(".")),
+                BuildValue::Leaf(Leaf::EndOfInput),
             ] => Triggered::new(*trigger, Clause::Event(event.clone()), vec![effect.clone()])
                 .map(Ability::Triggered)
                 .map(BuildValue::Ability),
@@ -777,12 +869,14 @@ fn build(construction: Construction, children: &[BuildValue]) -> Option<BuildVal
             _ => None,
         },
         Construction::NounPhraseSelfReference => match children {
-            [BuildValue::Leaf(Leaf::SelfReference(spelling))] => Some(BuildValue::NounPhrase(
-                NounPhrase::SelfReference(SelfReferenceNp {
-                    spelling: *spelling,
-                }),
-                Agreement::ThirdPersonSingular,
-            )),
+            [BuildValue::Leaf(Leaf::SelfReference(spelling))] => {
+                SelfReferenceNp::new(*spelling, context).map(|self_reference| {
+                    BuildValue::NounPhrase(
+                        NounPhrase::SelfReference(self_reference),
+                        Agreement::ThirdPersonSingular,
+                    )
+                })
+            }
             _ => None,
         },
         Construction::NounPhraseCount => match children {
@@ -904,6 +998,7 @@ mod tests {
     use std::collections::BTreeSet;
     use std::path::Path;
 
+    use super::BuildValue;
     use super::Category;
     use super::ChartFailure;
     use super::Construction;
@@ -915,9 +1010,15 @@ mod tests {
     use super::SliceGrammar;
     use super::materialize;
     use super::parse_forest;
+    use crate::ast::Sign;
+    use crate::ast::SignedNumber;
     use crate::ast::VerbLexeme;
     use crate::catalogs::ParserCatalogs;
     use crate::context::ParseContext;
+    use crate::parser::engine::Child;
+    use crate::parser::engine::Family;
+    use crate::parser::engine::NodeId;
+    use crate::parser::engine::PackedNode;
     use crate::parser::engine::RulePosition;
     use crate::render::Render;
 
@@ -929,13 +1030,94 @@ mod tests {
             &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
         )
         .expect("canonical generated catalogs load");
-        let context = ParseContext::new(card_name);
+        let context = context(card_name);
         let grammar = SliceGrammar {
             catalogs: &catalogs,
             context: &context,
         };
 
         parse_forest(&grammar, text)
+    }
+
+    fn context(card_name: &str) -> ParseContext<'_> {
+        ParseContext::new(card_name).expect("test card names are valid parse contexts")
+    }
+
+    fn assert_acyclic_number_survives(forest: &Forest<Construction, Leaf>) {
+        let mut state = super::MaterializationState::default();
+        let values =
+            super::materialize_node(forest, NodeId(0), &context("Context Card"), &mut state);
+
+        assert_eq!(values.len(), 1);
+        assert!(matches!(
+            values[0].value,
+            BuildValue::Amount(crate::ast::Amount::Number(crate::ast::NumberAmount {
+                number: SignedNumber {
+                    sign: Sign::Positive,
+                    magnitude: 3,
+                },
+            }))
+        ));
+    }
+
+    #[test]
+    fn materialization_rejects_a_direct_nullable_cycle_but_keeps_an_acyclic_family() {
+        let forest = Forest::from_test_parts(
+            vec![PackedNode {
+                construction: Construction::AmountNumber,
+                start: 0,
+                end: 0,
+                families: vec![
+                    Family {
+                        children: vec![Child::Node(NodeId(0))],
+                    },
+                    Family {
+                        children: vec![Child::Lexical(Leaf::SignedNumber(SignedNumber {
+                            sign: Sign::Positive,
+                            magnitude: 3,
+                        }))],
+                    },
+                ],
+            }],
+            vec![NodeId(0)],
+        );
+
+        assert_acyclic_number_survives(&forest);
+    }
+
+    #[test]
+    fn materialization_rejects_an_indirect_nullable_cycle_but_keeps_an_acyclic_family() {
+        let forest = Forest::from_test_parts(
+            vec![
+                PackedNode {
+                    construction: Construction::AmountNumber,
+                    start: 0,
+                    end: 0,
+                    families: vec![
+                        Family {
+                            children: vec![Child::Node(NodeId(1))],
+                        },
+                        Family {
+                            children: vec![Child::Lexical(Leaf::SignedNumber(SignedNumber {
+                                sign: Sign::Positive,
+                                magnitude: 3,
+                            }))],
+                        },
+                    ],
+                },
+                PackedNode {
+                    construction: Construction::AmountNumber,
+                    start: 0,
+                    end: 0,
+                    families: vec![Family {
+                        children: vec![Child::Node(NodeId(0))],
+                    }],
+                },
+            ],
+            vec![NodeId(0)],
+        );
+
+        assert_acyclic_number_survives(&forest);
     }
 
     #[test]
@@ -1004,44 +1186,71 @@ mod tests {
             ),
         ] {
             let forest = slice_candidates(text, card_name).expect("scanner accepts rendered input");
-            let candidates = materialize(&forest);
+            let context = context(card_name);
+            let candidates = materialize(&forest, &context);
             assert_eq!(candidates.len(), 1, "unexpected candidates for {text:?}");
-            assert_eq!(
-                candidates[0].ability.render(&ParseContext::new(card_name)),
-                text
+            assert_eq!(candidates[0].ability.render(&context), text);
+        }
+    }
+
+    #[test]
+    fn chart_completion_rejects_invalid_agreement_and_count_facts() {
+        for text in [
+            "You gains X life.",
+            "Creatures you control with power 2 or less gains X life.",
+        ] {
+            assert!(
+                slice_candidates(text, "Context Card").is_err(),
+                "completed invalid chart family for {text:?}"
             );
         }
     }
 
     #[test]
-    fn materialize_rejects_families_with_invalid_agreement_or_count_facts() {
+    fn count_np_requires_you_and_bare_control() {
         for text in [
-            "You gains X life.",
-            "Creatures you control with power 2 or less gains X life.",
+            "You gain X life, where X is the number of creatures it control with power 2 or less.",
+            "You gain X life, where X is the number of creatures you controls with power 2 or less.",
         ] {
-            let forest = slice_candidates(text, "Context Card").expect("scanner accepts words");
-            assert!(materialize(&forest).is_empty(), "materialized {text:?}");
+            assert!(
+                slice_candidates(text, "Context Card").is_err(),
+                "completed invalid count noun phrase for {text:?}"
+            );
         }
+
+        assert!(
+            slice_candidates(
+                "You gain X life, where X is the number of creatures you control with power 2 or less.",
+                "Context Card"
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn chart_completion_rejects_a_construction_category_mismatch() {
+        let text = "Whenever where X is the number of creatures you control with power 2 or less, you gain X life.";
+        let Err(failure) = slice_candidates(text, "Context Card") else {
+            panic!("a where clause cannot satisfy an event-clause construction role");
+        };
+
+        assert!(!failure.live.is_empty());
     }
 
     #[test]
     fn materialize_accepts_a_plural_count_subject_with_a_bare_verb() {
         let text = "Creatures you control with power 2 or less gain X life.";
         let forest = slice_candidates(text, "Context Card").expect("scanner accepts words");
-        let candidates = materialize(&forest);
+        let context = context("Context Card");
+        let candidates = materialize(&forest, &context);
         assert_eq!(candidates.len(), 1);
-        assert_eq!(
-            candidates[0]
-                .ability
-                .render(&ParseContext::new("Context Card")),
-            text
-        );
+        assert_eq!(candidates[0].ability.render(&context), text);
     }
 
     #[test]
     fn materialize_preserves_preorder_constructions_and_declared_positions() {
         let forest = slice_candidates("Destroy target creature.", "Context Card").unwrap();
-        let candidates = materialize(&forest);
+        let candidates = materialize(&forest, &context("Context Card"));
 
         assert_eq!(candidates.len(), 1);
         assert_eq!(
@@ -1058,6 +1267,7 @@ mod tests {
             vec![
                 RulePosition::Nonterminal(Category::Sentence),
                 RulePosition::Lexical(Lexical::Literal(".")),
+                RulePosition::Lexical(Lexical::EndOfInput),
                 RulePosition::Nonterminal(Category::VerbPhrase),
                 RulePosition::Lexical(Lexical::Verb(VerbLexeme::Destroy)),
                 RulePosition::Nonterminal(Category::NounPhrase),

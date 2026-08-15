@@ -301,8 +301,7 @@ pub fn walk_self_reference_np<V: Visitor + ?Sized>(
     visitor: &mut V,
     self_reference_np: &SelfReferenceNp,
 ) {
-    let SelfReferenceNp { spelling } = self_reference_np;
-    walk_self_reference_spelling(visitor, *spelling);
+    walk_self_reference_spelling(visitor, self_reference_np.spelling());
 }
 
 pub fn walk_count_np<V: Visitor + ?Sized>(visitor: &mut V, count_np: &CountNp) {

@@ -90,7 +90,12 @@ fn equipment() -> Noun {
 }
 
 fn context(card_name: &str) -> ParseContext<'_> {
-    ParseContext::new(card_name)
+    ParseContext::new(card_name).expect("test card name is a valid parse context")
+}
+
+fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SelfReferenceNp {
+    let context = context(card_name);
+    SelfReferenceNp::new(spelling, &context).expect("test spelling is valid for its context")
 }
 
 fn target_creature() -> NounPhrase {
@@ -230,9 +235,10 @@ fn renders_a_plural_count_subject_with_a_bare_verb() {
 
 #[test]
 fn renders_real_abbreviated_self_reference_with_a_catalog_identity() {
-    let subject = SelfReferenceNp {
-        spelling: SelfReferenceSpelling::Abbreviated,
-    };
+    let subject = self_reference(
+        SelfReferenceSpelling::Abbreviated,
+        "Zacama, Primal Calamity",
+    );
     let value = Sentence::Declarative(Declarative {
         subject: NounPhrase::SelfReference(subject),
         predicate: VerbPhrase::DealDamage(DealDamage {
@@ -254,9 +260,10 @@ fn renders_real_abbreviated_self_reference_with_a_catalog_identity() {
 #[test]
 fn the_same_self_reference_value_renders_from_two_card_contexts() {
     let value = Sentence::Declarative(Declarative {
-        subject: NounPhrase::SelfReference(SelfReferenceNp {
-            spelling: SelfReferenceSpelling::Abbreviated,
-        }),
+        subject: NounPhrase::SelfReference(self_reference(
+            SelfReferenceSpelling::Abbreviated,
+            "Zacama, Primal Calamity",
+        )),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: SignedNumber {
@@ -346,9 +353,10 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         }),
     });
     let self_reference = Sentence::Declarative(Declarative {
-        subject: NounPhrase::SelfReference(SelfReferenceNp {
-            spelling: SelfReferenceSpelling::Abbreviated,
-        }),
+        subject: NounPhrase::SelfReference(self_reference(
+            SelfReferenceSpelling::Abbreviated,
+            "Zacama, Primal Calamity",
+        )),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: SignedNumber {

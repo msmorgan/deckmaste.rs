@@ -22,7 +22,6 @@ use crate::ast::NounPhrase;
 use crate::ast::NumberAmount;
 use crate::ast::Pronoun;
 use crate::ast::PronounNp;
-use crate::ast::SelfReferenceNp;
 use crate::ast::SelfReferenceSpelling;
 use crate::ast::Sentence;
 use crate::ast::Sign;
@@ -92,6 +91,14 @@ impl Writer {
         } else {
             self.output.push_str(word);
         }
+    }
+
+    fn identity(&mut self, identity: &str) {
+        if !self.output.is_empty() {
+            self.output.push(' ');
+        }
+        self.output.push_str(identity);
+        self.capitalize_next = false;
     }
 
     fn punctuation(&mut self, mark: char) {
@@ -221,9 +228,11 @@ fn render_noun_phrase(writer: &mut Writer, phrase: &NounPhrase, context: &ParseC
             writer.word("target");
             render_noun(writer, head, number_for_noun_phrase(phrase));
         }
-        NounPhrase::SelfReference(SelfReferenceNp { spelling }) => match spelling {
-            SelfReferenceSpelling::Full => writer.word(context.card_name()),
-            SelfReferenceSpelling::Abbreviated => writer.word(context.abbreviated_card_name()),
+        NounPhrase::SelfReference(self_reference) => match self_reference.spelling() {
+            SelfReferenceSpelling::Full => writer.identity(context.card_name()),
+            SelfReferenceSpelling::Abbreviated => {
+                writer.identity(context.abbreviated_card_name());
+            }
         },
         NounPhrase::Count(CountNp {
             head,
@@ -332,9 +341,7 @@ fn agreement_for_noun_phrase(phrase: &NounPhrase) -> Agreement {
             head: _,
         })
         | NounPhrase::Target(TargetNp { head: _ })
-        | NounPhrase::SelfReference(SelfReferenceNp { spelling: _ }) => {
-            Agreement::ThirdPersonSingular
-        }
+        | NounPhrase::SelfReference(_) => Agreement::ThirdPersonSingular,
         NounPhrase::Demonstrative(DemonstrativeNp {
             word: Demonstrative::Those,
             head: _,
@@ -368,7 +375,7 @@ fn number_for_noun_phrase(phrase: &NounPhrase) -> Number {
             head: _,
         })
         | NounPhrase::Target(TargetNp { head: _ })
-        | NounPhrase::SelfReference(SelfReferenceNp { spelling: _ }) => Number::Singular,
+        | NounPhrase::SelfReference(_) => Number::Singular,
         NounPhrase::Demonstrative(DemonstrativeNp {
             word: Demonstrative::Those,
             head: _,
