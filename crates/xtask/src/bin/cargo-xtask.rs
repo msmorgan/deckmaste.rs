@@ -99,9 +99,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn catalogs_subcommand_parses_with_defaults() {
-        let cli = Cli::try_parse_from(["cargo xtask", "catalogs"]).unwrap();
-        assert!(matches!(cli.command, Cmd::Catalogs(_)));
+    fn catalogs_command_family_requires_a_subcommand() {
+        for command in ["generate", "check", "text"] {
+            let cli = Cli::try_parse_from(["cargo xtask", "catalogs", command]).unwrap();
+            assert!(matches!(cli.command, Cmd::Catalogs(_)));
+        }
+        assert!(Cli::try_parse_from(["cargo xtask", "catalogs"]).is_err());
     }
 
     #[test]

@@ -91,14 +91,15 @@ jobs:
             data/rules/cr.txt
           key: ${{ steps.data_digest.outputs.key }}
 
-      # Reproduce the two gitignored fixtures that used to be present only in
-      # a developer checkout. Both derive from refreshed inputs: the flat Oracle
-      # snapshot from AtomicCards, and the English catalogs from AtomicCards +
-      # the current CR above.
+      # Reproduce the gitignored fixtures that used to be present only in a
+      # developer checkout: the flat Oracle snapshot, canonical catalogs for
+      # english_v2, and legacy text catalogs for legacy consumers.
       - name: derive corpus fixtures
         run: |
           cargo xtask derive-cards
-          cargo xtask catalogs
+          cargo xtask catalogs generate
+          cargo xtask catalogs check
+          cargo xtask catalogs text
 
       # Generate the gitignored `plugins/wizards` corpus from the staged mtgjson
       # AtomicCards, so each crate's build.rs sets `wizards_corpus` and the
