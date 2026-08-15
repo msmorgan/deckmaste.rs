@@ -1,27 +1,46 @@
+use deckmaste_catalogs::CatalogKind;
+
 use crate::ast::Ability;
 use crate::ast::Amount;
 use crate::ast::Article;
+use crate::ast::CatalogIdentity;
 use crate::ast::Clause;
 use crate::ast::Common;
 use crate::ast::Connive;
+use crate::ast::CountNp;
+use crate::ast::DealDamage;
+use crate::ast::Declarative;
 use crate::ast::Demonstrative;
 use crate::ast::DemonstrativeNp;
+use crate::ast::Destroy;
+use crate::ast::EventClause;
+use crate::ast::GainLife;
+use crate::ast::Imperative;
 use crate::ast::Noun;
 use crate::ast::NounLexeme;
 use crate::ast::NounPhrase;
+use crate::ast::NumberAmount;
 use crate::ast::Pronoun;
 use crate::ast::PronounNp;
+use crate::ast::SelfReferenceNp;
 use crate::ast::SelfReferenceSpelling;
 use crate::ast::Sentence;
 use crate::ast::Sign;
 use crate::ast::SignedNumber;
+use crate::ast::Spell;
+use crate::ast::TargetNp;
 use crate::ast::TriggerWord;
+use crate::ast::Triggered;
 use crate::ast::Variable;
+use crate::ast::VariableAmount;
 use crate::ast::VerbLexeme;
 use crate::ast::VerbPhrase;
+use crate::ast::WhereClause;
+use crate::ast::WithWhere;
+use crate::context::ParseContext;
 
 pub trait Render {
-    fn render(&self) -> String;
+    fn render(&self, context: &ParseContext<'_>) -> String;
 }
 
 #[derive(Clone, Copy)]
@@ -34,6 +53,16 @@ enum Agreement {
 enum Number {
     Singular,
     Plural,
+}
+
+#[derive(Clone, Copy)]
+enum CatalogCasing {
+    Lowercase,
+    Preserve,
+}
+
+trait CatalogKindCasing {
+    fn casing(self) -> CatalogCasing;
 }
 
 struct Writer {
@@ -76,15 +105,19 @@ impl Writer {
 }
 
 impl Render for Ability {
-    fn render(&self) -> String {
+    fn render(&self, context: &ParseContext<'_>) -> String {
         let mut writer = Writer::new();
         match self {
-            Self::Spell(spell) => render_sentence_body(&mut writer, &spell.effect),
-            Self::Triggered(triggered) => {
-                render_trigger_word(&mut writer, triggered.trigger());
-                render_clause(&mut writer, triggered.event());
+            Self::Spell(Spell { effect }) => render_sentence_body(&mut writer, effect, context),
+            Self::Triggered(Triggered {
+                trigger,
+                event,
+                effect,
+            }) => {
+                render_trigger_word(&mut writer, *trigger);
+                render_clause(&mut writer, event, context);
                 writer.punctuation(',');
-                render_sentence_body(&mut writer, triggered.effect());
+                render_sentence_body(&mut writer, effect, context);
             }
         }
         writer.punctuation('.');
@@ -93,115 +126,119 @@ impl Render for Ability {
 }
 
 impl Render for Sentence {
-    fn render(&self) -> String {
+    fn render(&self, context: &ParseContext<'_>) -> String {
         let mut writer = Writer::new();
-        render_sentence_body(&mut writer, self);
+        render_sentence_body(&mut writer, self, context);
         writer.punctuation('.');
         writer.finish()
     }
 }
 
-fn render_sentence_body(writer: &mut Writer, sentence: &Sentence) {
+fn render_sentence_body(writer: &mut Writer, sentence: &Sentence, context: &ParseContext<'_>) {
     match sentence {
-        Sentence::Imperative(imperative) => {
-            render_verb_phrase(writer, &imperative.predicate, Agreement::Bare);
+        Sentence::Imperative(Imperative { predicate }) => {
+            render_verb_phrase(writer, predicate, Agreement::Bare, context);
         }
-        Sentence::Declarative(declarative) => {
-            render_noun_phrase(writer, &declarative.subject);
+        Sentence::Declarative(Declarative { subject, predicate }) => {
+            render_noun_phrase(writer, subject, context);
             render_verb_phrase(
                 writer,
-                &declarative.predicate,
-                agreement_for_noun_phrase(&declarative.subject),
+                predicate,
+                agreement_for_noun_phrase(subject),
+                context,
             );
         }
-        Sentence::WithWhere(with_where) => {
-            render_sentence_body(writer, &with_where.body);
+        Sentence::WithWhere(WithWhere { body, clause }) => {
+            render_sentence_body(writer, body, context);
             writer.punctuation(',');
-            render_clause(writer, &with_where.clause);
+            render_clause(writer, clause, context);
         }
     }
 }
 
-fn render_clause(writer: &mut Writer, clause: &Clause) {
+fn render_clause(writer: &mut Writer, clause: &Clause, context: &ParseContext<'_>) {
     match clause {
-        Clause::Event(event) => {
-            render_noun_phrase(writer, &event.subject);
+        Clause::Event(EventClause { subject, predicate }) => {
+            render_noun_phrase(writer, subject, context);
             render_verb_phrase(
                 writer,
-                &event.predicate,
-                agreement_for_noun_phrase(&event.subject),
+                predicate,
+                agreement_for_noun_phrase(subject),
+                context,
             );
         }
-        Clause::Where(where_clause) => {
+        Clause::Where(WhereClause { variable, value }) => {
             writer.word("where");
-            render_variable(writer, where_clause.variable);
+            render_variable(writer, *variable);
             writer.word(inflect(VerbLexeme::Be, Agreement::ThirdPersonSingular));
             writer.word("the");
             writer.word("number");
             writer.word("of");
-            render_noun_phrase(writer, &where_clause.value);
+            render_noun_phrase(writer, value, context);
         }
     }
 }
 
-fn render_verb_phrase(writer: &mut Writer, phrase: &VerbPhrase, agreement: Agreement) {
+fn render_verb_phrase(
+    writer: &mut Writer,
+    phrase: &VerbPhrase,
+    agreement: Agreement,
+    context: &ParseContext<'_>,
+) {
     match phrase {
-        VerbPhrase::Destroy(destroy) => {
+        VerbPhrase::Destroy(Destroy { object }) => {
             writer.word(inflect(VerbLexeme::Destroy, agreement));
-            render_noun_phrase(writer, &destroy.object);
+            render_noun_phrase(writer, object, context);
         }
         VerbPhrase::Connive(Connive) => writer.word(inflect(VerbLexeme::Connive, agreement)),
-        VerbPhrase::DealDamage(deal_damage) => {
+        VerbPhrase::DealDamage(DealDamage { amount, to }) => {
             writer.word(inflect(VerbLexeme::Deal, agreement));
-            render_amount(writer, &deal_damage.amount);
+            render_amount(writer, amount);
             writer.word("damage");
             writer.word("to");
-            render_noun_phrase(writer, &deal_damage.to);
+            render_noun_phrase(writer, to, context);
         }
-        VerbPhrase::GainLife(gain_life) => {
+        VerbPhrase::GainLife(GainLife { amount }) => {
             writer.word(inflect(VerbLexeme::Gain, agreement));
-            render_amount(writer, &gain_life.amount);
+            render_amount(writer, amount);
             writer.word("life");
         }
     }
 }
 
-fn render_noun_phrase(writer: &mut Writer, phrase: &NounPhrase) {
+fn render_noun_phrase(writer: &mut Writer, phrase: &NounPhrase, context: &ParseContext<'_>) {
     match phrase {
-        NounPhrase::Pronoun(pronoun) => render_pronoun(writer, pronoun.word),
-        NounPhrase::Common(common) => {
-            render_article(writer, common.article);
-            render_noun(writer, &common.head, number_for_noun_phrase(phrase));
+        NounPhrase::Pronoun(PronounNp { word }) => render_pronoun(writer, *word),
+        NounPhrase::Common(Common { article, head }) => {
+            render_article(writer, *article);
+            render_noun(writer, head, number_for_noun_phrase(phrase));
         }
-        NounPhrase::Demonstrative(demonstrative) => {
-            render_demonstrative(writer, demonstrative.word);
-            render_noun(writer, &demonstrative.head, number_for_noun_phrase(phrase));
+        NounPhrase::Demonstrative(DemonstrativeNp { word, head }) => {
+            render_demonstrative(writer, *word);
+            render_noun(writer, head, number_for_noun_phrase(phrase));
         }
-        NounPhrase::Target(target) => {
+        NounPhrase::Target(TargetNp { head }) => {
             writer.word("target");
-            render_noun(writer, &target.head, number_for_noun_phrase(phrase));
+            render_noun(writer, head, number_for_noun_phrase(phrase));
         }
-        NounPhrase::SelfReference(self_reference) => match self_reference.spelling() {
-            SelfReferenceSpelling::Full => writer.word(self_reference.name().full()),
-            SelfReferenceSpelling::Abbreviated => {
-                writer.word(
-                    self_reference
-                        .name()
-                        .abbreviated()
-                        .expect("checked constructor"),
-                );
-            }
+        NounPhrase::SelfReference(SelfReferenceNp { spelling }) => match spelling {
+            SelfReferenceSpelling::Full => writer.word(context.card_name()),
+            SelfReferenceSpelling::Abbreviated => writer.word(context.abbreviated_card_name()),
         },
-        NounPhrase::Count(count) => {
-            render_noun(writer, &count.head, number_for_noun_phrase(phrase));
-            render_pronoun(writer, count.controller);
+        NounPhrase::Count(CountNp {
+            head,
+            controller,
+            threshold,
+        }) => {
+            render_noun(writer, head, number_for_noun_phrase(phrase));
+            render_pronoun(writer, *controller);
             writer.word(inflect(
                 VerbLexeme::Control,
-                agreement_for_pronoun(count.controller),
+                agreement_for_pronoun(*controller),
             ));
             writer.word("with");
             writer.word("power");
-            render_signed_number(writer, &count.threshold);
+            render_signed_number(writer, threshold);
             writer.word("or");
             writer.word("less");
         }
@@ -210,36 +247,34 @@ fn render_noun_phrase(writer: &mut Writer, phrase: &NounPhrase) {
 
 fn render_amount(writer: &mut Writer, amount: &Amount) {
     match amount {
-        Amount::Number(number) => render_signed_number(writer, &number.number),
-        Amount::Variable(variable) => render_variable(writer, variable.variable),
+        Amount::Number(NumberAmount { number }) => render_signed_number(writer, number),
+        Amount::Variable(VariableAmount { variable }) => render_variable(writer, *variable),
     }
 }
 
 fn render_noun(writer: &mut Writer, noun: &Noun, number: Number) {
-    let singular = match noun {
-        Noun::Lexeme(lexeme) => match lexeme {
-            NounLexeme::Player => "player",
-            NounLexeme::Damage => "damage",
-            NounLexeme::Life => "life",
-            NounLexeme::Number => "number",
-            NounLexeme::Power => "power",
-        },
-        Noun::Catalog(identity) => identity.spelling(),
+    let (singular, casing) = match noun {
+        Noun::Lexeme(NounLexeme::Player) => ("player", CatalogCasing::Lowercase),
+        Noun::Catalog(CatalogIdentity { kind, spelling }) => (spelling.as_str(), kind.casing()),
     };
-    let lower = singular.to_lowercase();
+    let cased = match casing {
+        CatalogCasing::Lowercase => singular.to_lowercase(),
+        CatalogCasing::Preserve => singular.to_owned(),
+    };
     let rendered = match number {
-        Number::Singular => lower,
-        Number::Plural => pluralize(noun, &lower),
+        Number::Singular => cased,
+        Number::Plural => pluralize(noun, &cased),
     };
     writer.word(&rendered);
 }
 
 fn pluralize(noun: &Noun, singular: &str) -> String {
     match noun {
-        Noun::Lexeme(NounLexeme::Life) => "lives".to_owned(),
-        Noun::Lexeme(NounLexeme::Damage) => "damages".to_owned(),
-        Noun::Lexeme(NounLexeme::Player | NounLexeme::Number | NounLexeme::Power)
-        | Noun::Catalog(_) => format!("{singular}s"),
+        Noun::Lexeme(NounLexeme::Player)
+        | Noun::Catalog(CatalogIdentity {
+            kind: _,
+            spelling: _,
+        }) => format!("{singular}s"),
     }
 }
 
@@ -277,8 +312,9 @@ fn render_variable(writer: &mut Writer, variable: Variable) {
 }
 
 fn render_signed_number(writer: &mut Writer, number: &SignedNumber) {
-    let magnitude = number.magnitude().to_string();
-    match number.sign() {
+    let SignedNumber { sign, magnitude } = number;
+    let magnitude = magnitude.to_string();
+    match sign {
         Sign::Positive => writer.word(&magnitude),
         Sign::Negative => writer.word(&format!("-{magnitude}")),
     }
@@ -286,21 +322,25 @@ fn render_signed_number(writer: &mut Writer, number: &SignedNumber) {
 
 fn agreement_for_noun_phrase(phrase: &NounPhrase) -> Agreement {
     match phrase {
-        NounPhrase::Pronoun(pronoun) => agreement_for_pronoun(pronoun.word),
+        NounPhrase::Pronoun(PronounNp { word }) => agreement_for_pronoun(*word),
         NounPhrase::Common(Common {
             article: Article::A | Article::An,
-            ..
+            head: _,
         })
         | NounPhrase::Demonstrative(DemonstrativeNp {
             word: Demonstrative::That,
-            ..
+            head: _,
         })
-        | NounPhrase::Target(_)
-        | NounPhrase::SelfReference(_)
-        | NounPhrase::Count(_) => Agreement::ThirdPersonSingular,
+        | NounPhrase::Target(TargetNp { head: _ })
+        | NounPhrase::SelfReference(SelfReferenceNp { spelling: _ })
+        | NounPhrase::Count(CountNp {
+            head: _,
+            controller: _,
+            threshold: _,
+        }) => Agreement::ThirdPersonSingular,
         NounPhrase::Demonstrative(DemonstrativeNp {
             word: Demonstrative::Those,
-            ..
+            head: _,
         }) => Agreement::Bare,
     }
 }
@@ -319,19 +359,23 @@ fn number_for_noun_phrase(phrase: &NounPhrase) -> Number {
         })
         | NounPhrase::Common(Common {
             article: Article::A | Article::An,
-            ..
+            head: _,
         })
         | NounPhrase::Demonstrative(DemonstrativeNp {
             word: Demonstrative::That,
-            ..
+            head: _,
         })
-        | NounPhrase::Target(_)
-        | NounPhrase::SelfReference(_) => Number::Singular,
+        | NounPhrase::Target(TargetNp { head: _ })
+        | NounPhrase::SelfReference(SelfReferenceNp { spelling: _ }) => Number::Singular,
         NounPhrase::Demonstrative(DemonstrativeNp {
             word: Demonstrative::Those,
-            ..
+            head: _,
         })
-        | NounPhrase::Count(_) => Number::Plural,
+        | NounPhrase::Count(CountNp {
+            head: _,
+            controller: _,
+            threshold: _,
+        }) => Number::Plural,
     }
 }
 
@@ -349,5 +393,25 @@ fn inflect(lexeme: VerbLexeme, agreement: Agreement) -> &'static str {
         (VerbLexeme::Control, Agreement::ThirdPersonSingular) => "controls",
         (VerbLexeme::Be, Agreement::Bare) => "are",
         (VerbLexeme::Be, Agreement::ThirdPersonSingular) => "is",
+    }
+}
+
+impl CatalogKindCasing for CatalogKind {
+    fn casing(self) -> CatalogCasing {
+        match self {
+            Self::CardTypes | Self::Supertypes => CatalogCasing::Lowercase,
+            Self::AbilityWords
+            | Self::ArtifactTypes
+            | Self::BattleTypes
+            | Self::CardNames
+            | Self::CounterKindPhrases
+            | Self::CreatureTypes
+            | Self::EnchantmentTypes
+            | Self::KeywordAbilities
+            | Self::KeywordActions
+            | Self::LandTypes
+            | Self::PlaneswalkerTypes
+            | Self::SpellTypes => CatalogCasing::Preserve,
+        }
     }
 }

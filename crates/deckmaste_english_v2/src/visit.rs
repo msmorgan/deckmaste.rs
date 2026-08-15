@@ -4,7 +4,6 @@ use crate::ast::Article;
 use crate::ast::CatalogIdentity;
 use crate::ast::Clause;
 use crate::ast::Common;
-use crate::ast::Comparative;
 use crate::ast::Connive;
 use crate::ast::CountNp;
 use crate::ast::DealDamage;
@@ -21,7 +20,6 @@ use crate::ast::NounPhrase;
 use crate::ast::NumberAmount;
 use crate::ast::Pronoun;
 use crate::ast::PronounNp;
-use crate::ast::SelfName;
 use crate::ast::SelfReferenceNp;
 use crate::ast::SelfReferenceSpelling;
 use crate::ast::Sentence;
@@ -161,15 +159,11 @@ pub trait Visitor {
 
     fn visit_verb_lexeme(&mut self, _verb: VerbLexeme) {}
 
-    fn visit_comparative(&mut self, _comparative: Comparative) {}
-
     fn visit_signed_number(&mut self, _number: &SignedNumber) {}
 
     fn visit_catalog_identity(&mut self, _identity: &CatalogIdentity) {}
 
     fn visit_catalog_spelling(&mut self, _spelling: &str) {}
-
-    fn visit_self_name(&mut self, _name: &SelfName) {}
 }
 
 pub fn walk_ability<V: Visitor + ?Sized>(visitor: &mut V, ability: &Ability) {
@@ -275,7 +269,6 @@ pub fn walk_where_clause<V: Visitor + ?Sized>(visitor: &mut V, where_clause: &Wh
     let WhereClause { variable, value } = where_clause;
     walk_variable(visitor, *variable);
     walk_verb_lexeme(visitor, VerbLexeme::Be);
-    walk_noun_lexeme(visitor, NounLexeme::Number);
     visitor.visit_noun_phrase(value);
 }
 
@@ -308,8 +301,7 @@ pub fn walk_self_reference_np<V: Visitor + ?Sized>(
     visitor: &mut V,
     self_reference_np: &SelfReferenceNp,
 ) {
-    let SelfReferenceNp { name, spelling } = self_reference_np;
-    walk_self_name(visitor, name);
+    let SelfReferenceNp { spelling } = self_reference_np;
     walk_self_reference_spelling(visitor, *spelling);
 }
 
@@ -322,9 +314,7 @@ pub fn walk_count_np<V: Visitor + ?Sized>(visitor: &mut V, count_np: &CountNp) {
     visitor.visit_noun(head);
     walk_pronoun(visitor, *controller);
     walk_verb_lexeme(visitor, VerbLexeme::Control);
-    walk_noun_lexeme(visitor, NounLexeme::Power);
     walk_signed_number(visitor, threshold);
-    walk_comparative(visitor, Comparative::OrLess);
 }
 
 pub fn walk_destroy<V: Visitor + ?Sized>(visitor: &mut V, destroy: &Destroy) {
@@ -342,7 +332,6 @@ pub fn walk_deal_damage<V: Visitor + ?Sized>(visitor: &mut V, deal_damage: &Deal
     let DealDamage { amount, to } = deal_damage;
     walk_verb_lexeme(visitor, VerbLexeme::Deal);
     visitor.visit_amount(amount);
-    walk_noun_lexeme(visitor, NounLexeme::Damage);
     visitor.visit_noun_phrase(to);
 }
 
@@ -350,7 +339,6 @@ pub fn walk_gain_life<V: Visitor + ?Sized>(visitor: &mut V, gain_life: &GainLife
     let GainLife { amount } = gain_life;
     walk_verb_lexeme(visitor, VerbLexeme::Gain);
     visitor.visit_amount(amount);
-    walk_noun_lexeme(visitor, NounLexeme::Life);
 }
 
 pub fn walk_number_amount<V: Visitor + ?Sized>(visitor: &mut V, number_amount: &NumberAmount) {
@@ -423,10 +411,6 @@ pub fn walk_self_reference_spelling<V: Visitor + ?Sized>(
 pub fn walk_noun_lexeme<V: Visitor + ?Sized>(visitor: &mut V, noun: NounLexeme) {
     match noun {
         NounLexeme::Player => visitor.visit_noun_lexeme(NounLexeme::Player),
-        NounLexeme::Damage => visitor.visit_noun_lexeme(NounLexeme::Damage),
-        NounLexeme::Life => visitor.visit_noun_lexeme(NounLexeme::Life),
-        NounLexeme::Number => visitor.visit_noun_lexeme(NounLexeme::Number),
-        NounLexeme::Power => visitor.visit_noun_lexeme(NounLexeme::Power),
     }
 }
 
@@ -438,12 +422,6 @@ pub fn walk_verb_lexeme<V: Visitor + ?Sized>(visitor: &mut V, verb: VerbLexeme) 
         VerbLexeme::Gain => visitor.visit_verb_lexeme(VerbLexeme::Gain),
         VerbLexeme::Control => visitor.visit_verb_lexeme(VerbLexeme::Control),
         VerbLexeme::Be => visitor.visit_verb_lexeme(VerbLexeme::Be),
-    }
-}
-
-pub fn walk_comparative<V: Visitor + ?Sized>(visitor: &mut V, comparative: Comparative) {
-    match comparative {
-        Comparative::OrLess => visitor.visit_comparative(Comparative::OrLess),
     }
 }
 
@@ -459,10 +437,4 @@ pub fn walk_catalog_identity<V: Visitor + ?Sized>(visitor: &mut V, identity: &Ca
     let _ = kind;
     visitor.visit_catalog_identity(identity);
     visitor.visit_catalog_spelling(spelling);
-}
-
-pub fn walk_self_name<V: Visitor + ?Sized>(visitor: &mut V, name: &SelfName) {
-    let SelfName { full, abbreviated } = name;
-    let _ = (full, abbreviated);
-    visitor.visit_self_name(name);
 }

@@ -186,10 +186,6 @@ pub enum Noun {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NounLexeme {
     Player,
-    Damage,
-    Life,
-    Number,
-    Power,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -202,32 +198,10 @@ pub enum VerbLexeme {
     Be,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Comparative {
-    OrLess,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedNumber {
-    pub(crate) sign: Sign,
-    pub(crate) magnitude: u32,
-}
-
-impl SignedNumber {
-    #[must_use]
-    pub const fn new(sign: Sign, magnitude: u32) -> Self {
-        Self { sign, magnitude }
-    }
-
-    #[must_use]
-    pub const fn sign(&self) -> Sign {
-        self.sign
-    }
-
-    #[must_use]
-    pub const fn magnitude(&self) -> u32 {
-        self.magnitude
-    }
+    pub sign: Sign,
+    pub magnitude: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -263,53 +237,8 @@ impl CatalogIdentity {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SelfName {
-    pub(crate) full: String,
-    pub(crate) abbreviated: Option<String>,
-}
-
-impl SelfName {
-    #[must_use]
-    pub fn new(full: impl Into<String>, abbreviated: Option<impl Into<String>>) -> Option<Self> {
-        let full = full.into();
-        let abbreviated = abbreviated.map(Into::into);
-        (!full.is_empty() && abbreviated.as_ref().is_none_or(|name| !name.is_empty()))
-            .then_some(Self { full, abbreviated })
-    }
-
-    #[must_use]
-    pub fn full(&self) -> &str {
-        &self.full
-    }
-
-    #[must_use]
-    pub fn abbreviated(&self) -> Option<&str> {
-        self.abbreviated.as_deref()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelfReferenceNp {
-    pub(crate) name: SelfName,
-    pub(crate) spelling: SelfReferenceSpelling,
-}
-
-impl SelfReferenceNp {
-    #[must_use]
-    pub fn new(name: SelfName, spelling: SelfReferenceSpelling) -> Option<Self> {
-        (spelling != SelfReferenceSpelling::Abbreviated || name.abbreviated().is_some())
-            .then_some(Self { name, spelling })
-    }
-
-    #[must_use]
-    pub const fn name(&self) -> &SelfName {
-        &self.name
-    }
-
-    #[must_use]
-    pub const fn spelling(&self) -> SelfReferenceSpelling {
-        self.spelling
-    }
+    pub spelling: SelfReferenceSpelling,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
