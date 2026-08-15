@@ -4,7 +4,6 @@ use super::build::Agreement;
 use super::engine::ChartFailure;
 use super::engine::Forest;
 use super::engine::LexicalMatch;
-use super::engine::SeedPolicy;
 use super::engine::parse;
 use super::materialize::completion_has_checked_build;
 use super::rules::Category;
@@ -60,7 +59,6 @@ pub(crate) fn parse_forest(
     parse(
         RULES,
         Category::Ability,
-        SeedPolicy::StartOnly,
         text.len(),
         |lexical, offset| grammar.scan(lexical, text, offset),
         |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),

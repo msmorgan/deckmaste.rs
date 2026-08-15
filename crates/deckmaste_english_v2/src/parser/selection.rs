@@ -200,7 +200,6 @@ mod tests {
     use crate::parser::engine::PackedNode;
     use crate::parser::engine::Rule;
     use crate::parser::engine::RulePosition;
-    use crate::parser::engine::SeedPolicy;
     use crate::parser::engine::parse;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -373,7 +372,6 @@ mod tests {
         let forest = parse(
             SHARED_FORM_RULES,
             TestCategory::Start,
-            SeedPolicy::StartOnly,
             text.len(),
             |lexical, offset| {
                 (offset == 0 && text == "alpha")
@@ -406,7 +404,6 @@ mod tests {
         let forest = parse(
             rules,
             TestCategory::Start,
-            SeedPolicy::StartOnly,
             text.len(),
             |lexical, offset| {
                 (offset == 0 && text == "alpha")

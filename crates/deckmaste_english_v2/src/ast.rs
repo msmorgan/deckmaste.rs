@@ -252,7 +252,8 @@ impl SelfReferenceNp {
 
     #[must_use]
     pub const fn spelling(&self) -> SelfReferenceSpelling {
-        self.spelling
+        let Self { spelling } = self;
+        *spelling
     }
 }
 
