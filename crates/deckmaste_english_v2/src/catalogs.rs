@@ -31,6 +31,7 @@ impl ParserCatalogs {
 mod tests {
     use std::collections::BTreeMap;
     use std::collections::BTreeSet;
+    use std::path::Path;
 
     use deckmaste_catalogs::CatalogKind;
     use deckmaste_catalogs::CatalogSet;
@@ -90,6 +91,27 @@ mod tests {
 
         for kind in CatalogKind::ALL {
             assert_eq!(loaded.set().get(kind), expected.get(kind));
+        }
+    }
+
+    #[test]
+    fn real_generated_catalogs_all_load() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
+        assert!(
+            path.is_dir(),
+            "missing real generated catalogs at {} — run `cargo xtask catalogs generate`",
+            path.display()
+        );
+
+        let loaded = ParserCatalogs::load(&path).unwrap();
+
+        for kind in CatalogKind::ALL {
+            assert!(
+                !loaded.set().get(kind).is_empty(),
+                "catalog {} loaded empty from {}",
+                kind.filename(),
+                path.display()
+            );
         }
     }
 }
