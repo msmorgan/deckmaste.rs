@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-vertical-slice]
+needs: [english-v2-vertical-slice, english-v2-slice-hardening]
 ---
 **Build `english_v2`'s parser — the ONLY parser it will ever have: an
 Earley-family chart engine over hand-written grammar tables for the slice
@@ -33,6 +33,9 @@ Pinned by the ADR; none of this is the implementer's to re-decide:
   derivation (ability-initial and after-terminal-period ⇒ capitalized;
   elsewhere ⇒ lowercase; identities keep inherent case). A non-initial
   "you" parses; "you Gain" does not.
+- Both laws are context-threaded (ADR §Bidirectionality): `parse(s, ctx)`
+  shares the render context — the card's own self-name — and the scan hook
+  matches the self-reference against ctx, never against stored name text.
 - Acceptance tracks grammatical Oracle English, not rules legality — the
   slice's deliberately rules-invalid sentence must parse.
 
