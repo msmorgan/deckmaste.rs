@@ -233,7 +233,12 @@ though the CR licenses collapsing it; that store-the-surface stance is
 inherited deliberately). Exactness is cheaper than normalizing: the parser
 must recognize every spelling anyway, so remembering which form fired is one
 field, while normalizing costs an extra pass plus a weaker conformance-style
-test.
+test. **Both laws are context-threaded:** `render(v, ctx)` and `parse(s,
+ctx)` share one parse context (today: the card's own name; nothing else yet).
+Context-derivable text — the self-name above all — is never stored in a
+node: a self-reference stores only its spelling variant, and the renderer
+reads the name from ctx. A context-free render signature forces name-in-node
+and was the root cause of the one HIGH finding in the stage-2 review.
 
 ## Guardrails
 
