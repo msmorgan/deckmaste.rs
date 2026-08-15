@@ -158,6 +158,7 @@ where
             if !insert_family(&mut node.families, family) {
                 continue;
             }
+            requeue_completed_items_after_forest_growth(&chart, rules, &mut agenda);
 
             if !completed_by_start[origin].contains(&(rule.lhs, node_id)) {
                 completed_by_start[origin].push((rule.lhs, node_id));
@@ -324,6 +325,23 @@ fn insert_family<T: Eq>(families: &mut Vec<Family<T>>, family: Family<T>) -> boo
     }
 }
 
+fn requeue_completed_items_after_forest_growth<N, L, C, T: Clone>(
+    chart: &[BTreeMap<ItemKey, Vec<Family<T>>>],
+    rules: &[Rule<N, L, C>],
+    agenda: &mut VecDeque<(usize, ItemKey, Family<T>)>,
+) {
+    for (column, items) in chart.iter().enumerate() {
+        for (&item @ (rule_index, dot, _), families) in items {
+            if dot != rules[rule_index].rhs.len() {
+                continue;
+            }
+            for family in families {
+                agenda.push_back((column, item, family.clone()));
+            }
+        }
+    }
+}
+
 fn chart_failure<N, L, C, T>(
     chart: &[BTreeMap<ItemKey, Vec<Family<T>>>],
     rules: &[Rule<N, L, C>],
@@ -391,6 +409,10 @@ mod tests {
         Left,
         Right,
         Fragment,
+        DirectParent,
+        Wrapper,
+        Child,
+        Delay,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -399,6 +421,10 @@ mod tests {
         Left,
         Right,
         Fragment,
+        DirectParent,
+        Wrapper,
+        Child,
+        Delay,
     }
 
     const SCAN_RULES: &[Rule<ToyCategory, &'static str, ToyConstruction>] = &[Rule {
@@ -461,6 +487,65 @@ mod tests {
         ],
         construction: ToyConstruction::Start,
     }];
+
+    const DELAYED_PACKING_RULES: &[Rule<ToyCategory, &'static str, ToyConstruction>] = &[
+        Rule {
+            lhs: ToyCategory::Start,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::DirectParent)],
+            construction: ToyConstruction::Start,
+        },
+        Rule {
+            lhs: ToyCategory::Start,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Wrapper)],
+            construction: ToyConstruction::Start,
+        },
+        Rule {
+            lhs: ToyCategory::DirectParent,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Child)],
+            construction: ToyConstruction::DirectParent,
+        },
+        Rule {
+            lhs: ToyCategory::Wrapper,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Child)],
+            construction: ToyConstruction::Wrapper,
+        },
+        Rule {
+            lhs: ToyCategory::Child,
+            rhs: &[RulePosition::Lexical("fast")],
+            construction: ToyConstruction::Child,
+        },
+        Rule {
+            lhs: ToyCategory::Child,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Delay)],
+            construction: ToyConstruction::Child,
+        },
+        Rule {
+            lhs: ToyCategory::Delay,
+            rhs: &[RulePosition::Lexical("delayed")],
+            construction: ToyConstruction::Delay,
+        },
+    ];
+
+    fn reaches_delayed_child(
+        forest: &Forest<ToyConstruction, &'static str>,
+        family: &Family<&'static str>,
+    ) -> bool {
+        family.children.iter().any(|child| {
+            let Child::Node(node_id) = child else {
+                return false;
+            };
+            let node = forest.node(*node_id);
+            (node.construction == ToyConstruction::Child
+                && node
+                    .families
+                    .iter()
+                    .any(|family| matches!(family.children.as_slice(), [Child::Node(_)])))
+                || node
+                    .families
+                    .iter()
+                    .any(|family| reaches_delayed_child(forest, family))
+        })
+    }
 
     fn scan_words(
         input: &str,
@@ -673,5 +758,47 @@ mod tests {
     #[test]
     fn backwards_lexical_matches_are_rejected() {
         assert!(parse_with_backwards_scan().is_err());
+    }
+
+    #[test]
+    fn packed_family_growth_revalidates_all_completed_items() {
+        let forest = parse(
+            DELAYED_PACKING_RULES,
+            ToyCategory::Start,
+            SeedPolicy::StartOnly,
+            1,
+            |literal, start| {
+                (start == 0)
+                    .then_some(vec![LexicalMatch {
+                        end: 1,
+                        value: literal,
+                    }])
+                    .unwrap_or_default()
+            },
+            |construction, family, forest| match construction {
+                ToyConstruction::DirectParent | ToyConstruction::Start => {
+                    reaches_delayed_child(forest, family)
+                }
+                _ => true,
+            },
+        )
+        .expect("delayed packed growth must revive every affected completion");
+
+        let child_nodes = forest
+            .nodes
+            .iter()
+            .filter(|node| node.construction == ToyConstruction::Child)
+            .collect::<Vec<_>>();
+        assert_eq!(child_nodes.len(), 1);
+        assert_eq!(child_nodes[0].families.len(), 2);
+
+        let roots = forest.accepted_roots().collect::<Vec<_>>();
+        assert_eq!(roots.len(), 1);
+        assert_eq!(roots[0].construction, ToyConstruction::Start);
+        assert_eq!(roots[0].families.len(), 2);
+        assert!(forest
+            .nodes
+            .iter()
+            .any(|node| node.construction == ToyConstruction::DirectParent));
     }
 }

@@ -588,6 +588,11 @@ struct MaterializationState {
     in_progress: BTreeSet<NodeId>,
 }
 
+struct MaterializationOutcome {
+    values: Vec<BuiltCandidate>,
+    cycle_pruned: bool,
+}
+
 pub(crate) fn materialize(
     forest: &Forest<Construction, Leaf>,
     context: &ParseContext<'_>,
@@ -595,7 +600,7 @@ pub(crate) fn materialize(
     let mut candidates = Vec::new();
     let mut state = MaterializationState::default();
     for root in forest.accepted_root_ids() {
-        for built in materialize_node(forest, root, context, &mut state) {
+        for built in materialize_node(forest, root, context, &mut state).values {
             if let BuildValue::Ability(ability) = built.value {
                 push_unique(
                     &mut candidates,
@@ -616,24 +621,38 @@ fn materialize_node(
     node_id: NodeId,
     context: &ParseContext<'_>,
     state: &mut MaterializationState,
-) -> Vec<BuiltCandidate> {
+) -> MaterializationOutcome {
     if let Some(values) = state.memo.get(&node_id) {
-        return values.clone();
+        return MaterializationOutcome {
+            values: values.clone(),
+            cycle_pruned: false,
+        };
     }
     if !state.in_progress.insert(node_id) {
-        return Vec::new();
+        return MaterializationOutcome {
+            values: Vec::new(),
+            cycle_pruned: true,
+        };
     }
 
     let node = forest.node(node_id);
     let mut values = Vec::new();
+    let mut cycle_pruned = false;
     for family in &node.families {
-        for built in materialize_family(forest, node.construction, family, context, state) {
+        let outcome = materialize_family(forest, node.construction, family, context, state);
+        cycle_pruned |= outcome.cycle_pruned;
+        for built in outcome.values {
             push_unique(&mut values, built);
         }
     }
     state.in_progress.remove(&node_id);
-    state.memo.insert(node_id, values.clone());
-    values
+    if !cycle_pruned {
+        state.memo.insert(node_id, values.clone());
+    }
+    MaterializationOutcome {
+        values,
+        cycle_pruned,
+    }
 }
 
 fn completion_has_checked_build(
@@ -649,6 +668,7 @@ fn completion_has_checked_build(
         context,
         &mut MaterializationState::default(),
     )
+    .values
     .is_empty()
 }
 
@@ -658,15 +678,20 @@ fn materialize_family(
     family: &Family<Leaf>,
     context: &ParseContext<'_>,
     state: &mut MaterializationState,
-) -> Vec<BuiltCandidate> {
+) -> MaterializationOutcome {
     let rule = RULES
         .iter()
         .find(|rule| rule.construction == construction)
         .expect("every construction has exactly one declared rule");
     let mut combinations = vec![Vec::new()];
+    let mut cycle_pruned = false;
     for child in &family.children {
         let child_values = match child {
-            Child::Node(id) => materialize_node(forest, *id, context, state),
+            Child::Node(id) => {
+                let outcome = materialize_node(forest, *id, context, state);
+                cycle_pruned |= outcome.cycle_pruned;
+                outcome.values
+            }
             Child::Lexical(leaf) => vec![BuiltCandidate {
                 value: BuildValue::Leaf(leaf.clone()),
                 constructions: Vec::new(),
@@ -706,7 +731,10 @@ fn materialize_family(
             );
         }
     }
-    values
+    MaterializationOutcome {
+        values,
+        cycle_pruned,
+    }
 }
 
 fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) {
@@ -1010,9 +1038,20 @@ mod tests {
     use super::SliceGrammar;
     use super::materialize;
     use super::parse_forest;
+    use crate::ast::Clause;
+    use crate::ast::Connive;
+    use crate::ast::Imperative;
+    use crate::ast::NounPhrase;
+    use crate::ast::Pronoun;
+    use crate::ast::PronounNp;
+    use crate::ast::Sentence;
     use crate::ast::Sign;
     use crate::ast::SignedNumber;
+    use crate::ast::Variable;
     use crate::ast::VerbLexeme;
+    use crate::ast::VerbPhrase;
+    use crate::ast::WhereClause;
+    use crate::ast::WithWhere;
     use crate::catalogs::ParserCatalogs;
     use crate::context::ParseContext;
     use crate::parser::engine::Child;
@@ -1045,12 +1084,12 @@ mod tests {
 
     fn assert_acyclic_number_survives(forest: &Forest<Construction, Leaf>) {
         let mut state = super::MaterializationState::default();
-        let values =
+        let outcome =
             super::materialize_node(forest, NodeId(0), &context("Context Card"), &mut state);
 
-        assert_eq!(values.len(), 1);
+        assert_eq!(outcome.values.len(), 1);
         assert!(matches!(
-            values[0].value,
+            outcome.values[0].value,
             BuildValue::Amount(crate::ast::Amount::Number(crate::ast::NumberAmount {
                 number: SignedNumber {
                     sign: Sign::Positive,
@@ -1058,6 +1097,16 @@ mod tests {
                 },
             }))
         ));
+    }
+
+    fn with_where_family(body: NodeId) -> Family<Leaf> {
+        Family {
+            children: vec![
+                Child::Node(body),
+                Child::Lexical(Leaf::Literal(",")),
+                Child::Node(NodeId(4)),
+            ],
+        }
     }
 
     #[test]
@@ -1118,6 +1167,142 @@ mod tests {
         );
 
         assert_acyclic_number_survives(&forest);
+    }
+
+    #[test]
+    fn cycle_tainted_results_are_recomputed_for_a_later_clean_root() {
+        let forest = Forest::from_test_parts(
+            vec![
+                PackedNode {
+                    construction: Construction::SentenceWithWhere,
+                    start: 0,
+                    end: 0,
+                    families: vec![with_where_family(NodeId(1)), with_where_family(NodeId(2))],
+                },
+                PackedNode {
+                    construction: Construction::SentenceWithWhere,
+                    start: 0,
+                    end: 0,
+                    families: vec![with_where_family(NodeId(0))],
+                },
+                PackedNode {
+                    construction: Construction::SentenceImperative,
+                    start: 0,
+                    end: 0,
+                    families: vec![Family {
+                        children: vec![Child::Node(NodeId(3))],
+                    }],
+                },
+                PackedNode {
+                    construction: Construction::VerbPhraseConnive,
+                    start: 0,
+                    end: 0,
+                    families: vec![Family {
+                        children: vec![Child::Lexical(Leaf::Verb {
+                            lexeme: VerbLexeme::Connive,
+                            agreement: super::Agreement::Bare,
+                        })],
+                    }],
+                },
+                PackedNode {
+                    construction: Construction::ClauseWhere,
+                    start: 0,
+                    end: 0,
+                    families: vec![Family {
+                        children: vec![
+                            Child::Lexical(Leaf::Literal("where")),
+                            Child::Lexical(Leaf::Variable(Variable::X)),
+                            Child::Lexical(Leaf::Verb {
+                                lexeme: VerbLexeme::Be,
+                                agreement: super::Agreement::ThirdPersonSingular,
+                            }),
+                            Child::Lexical(Leaf::Literal("the")),
+                            Child::Lexical(Leaf::Literal("number")),
+                            Child::Lexical(Leaf::Literal("of")),
+                            Child::Node(NodeId(5)),
+                        ],
+                    }],
+                },
+                PackedNode {
+                    construction: Construction::NounPhrasePronoun,
+                    start: 0,
+                    end: 0,
+                    families: vec![Family {
+                        children: vec![Child::Lexical(Leaf::Pronoun(Pronoun::You))],
+                    }],
+                },
+            ],
+            vec![NodeId(0), NodeId(1)],
+        );
+        let context = context("Context Card");
+        let mut state = super::MaterializationState::default();
+        let clause = Clause::Where(WhereClause {
+            variable: Variable::X,
+            value: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+        });
+        let base = Sentence::Imperative(Imperative {
+            predicate: VerbPhrase::Connive(Connive),
+        });
+        let once = Sentence::WithWhere(WithWhere {
+            body: Box::new(base),
+            clause: clause.clone(),
+        });
+
+        let first = super::materialize_node(&forest, NodeId(0), &context, &mut state);
+        assert_eq!(first.values.len(), 1);
+        assert_eq!(first.values[0].value, BuildValue::Sentence(once.clone()));
+
+        let later = super::materialize_node(&forest, NodeId(1), &context, &mut state);
+        assert_eq!(later.values.len(), 1);
+        assert_eq!(
+            later.values[0].value,
+            BuildValue::Sentence(Sentence::WithWhere(WithWhere {
+                body: Box::new(once),
+                clause,
+            }))
+        );
+        assert_eq!(
+            later.values[0].constructions,
+            vec![
+                Construction::SentenceWithWhere,
+                Construction::SentenceWithWhere,
+                Construction::SentenceImperative,
+                Construction::VerbPhraseConnive,
+                Construction::ClauseWhere,
+                Construction::NounPhrasePronoun,
+                Construction::ClauseWhere,
+                Construction::NounPhrasePronoun,
+            ]
+        );
+        assert_eq!(
+            later.values[0].positions,
+            vec![
+                RulePosition::Nonterminal(Category::Sentence),
+                RulePosition::Lexical(Lexical::Literal(",")),
+                RulePosition::Nonterminal(Category::Clause),
+                RulePosition::Nonterminal(Category::Sentence),
+                RulePosition::Lexical(Lexical::Literal(",")),
+                RulePosition::Nonterminal(Category::Clause),
+                RulePosition::Nonterminal(Category::VerbPhrase),
+                RulePosition::Lexical(Lexical::Verb(VerbLexeme::Connive)),
+                RulePosition::Lexical(Lexical::Literal("where")),
+                RulePosition::Lexical(Lexical::Variable),
+                RulePosition::Lexical(Lexical::Verb(VerbLexeme::Be)),
+                RulePosition::Lexical(Lexical::Literal("the")),
+                RulePosition::Lexical(Lexical::Literal("number")),
+                RulePosition::Lexical(Lexical::Literal("of")),
+                RulePosition::Nonterminal(Category::NounPhrase),
+                RulePosition::Lexical(Lexical::Pronoun),
+                RulePosition::Lexical(Lexical::Literal("where")),
+                RulePosition::Lexical(Lexical::Variable),
+                RulePosition::Lexical(Lexical::Verb(VerbLexeme::Be)),
+                RulePosition::Lexical(Lexical::Literal("the")),
+                RulePosition::Lexical(Lexical::Literal("number")),
+                RulePosition::Lexical(Lexical::Literal("of")),
+                RulePosition::Nonterminal(Category::NounPhrase),
+                RulePosition::Lexical(Lexical::Pronoun),
+            ]
+        );
     }
 
     #[test]
