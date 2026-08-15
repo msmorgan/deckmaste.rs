@@ -332,15 +332,17 @@ fn agreement_for_noun_phrase(phrase: &NounPhrase) -> Agreement {
             head: _,
         })
         | NounPhrase::Target(TargetNp { head: _ })
-        | NounPhrase::SelfReference(SelfReferenceNp { spelling: _ })
+        | NounPhrase::SelfReference(SelfReferenceNp { spelling: _ }) => {
+            Agreement::ThirdPersonSingular
+        }
+        NounPhrase::Demonstrative(DemonstrativeNp {
+            word: Demonstrative::Those,
+            head: _,
+        })
         | NounPhrase::Count(CountNp {
             head: _,
             controller: _,
             threshold: _,
-        }) => Agreement::ThirdPersonSingular,
-        NounPhrase::Demonstrative(DemonstrativeNp {
-            word: Demonstrative::Those,
-            head: _,
         }) => Agreement::Bare,
     }
 }

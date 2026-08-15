@@ -205,6 +205,30 @@ fn renders_gain_life_with_a_where_binder_exactly() {
 }
 
 #[test]
+fn renders_a_plural_count_subject_with_a_bare_verb() {
+    let value = Sentence::Declarative(Declarative {
+        subject: NounPhrase::Count(CountNp {
+            head: creature(),
+            controller: Pronoun::You,
+            threshold: SignedNumber {
+                sign: Sign::Positive,
+                magnitude: 2,
+            },
+        }),
+        predicate: VerbPhrase::GainLife(GainLife {
+            amount: Amount::Variable(VariableAmount {
+                variable: Variable::X,
+            }),
+        }),
+    });
+
+    assert_eq!(
+        value.render(&context("Context Card")),
+        "Creatures you control with power 2 or less gain X life."
+    );
+}
+
+#[test]
 fn renders_real_abbreviated_self_reference_with_a_catalog_identity() {
     let subject = SelfReferenceNp {
         spelling: SelfReferenceSpelling::Abbreviated,

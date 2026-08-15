@@ -558,71 +558,72 @@ fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) {
 }
 
 fn build(construction: Construction, children: &[BuildValue]) -> Option<BuildValue> {
-    match (construction, children) {
-        (
-            Construction::AbilitySpell,
+    match construction {
+        Construction::AbilitySpell => match children {
             [
                 BuildValue::Sentence(effect),
                 BuildValue::Leaf(Leaf::Literal(".")),
-            ],
-        ) => Some(BuildValue::Ability(Ability::Spell(Spell {
-            effect: effect.clone(),
-        }))),
-        (
-            Construction::AbilityTriggered,
+            ] => Some(BuildValue::Ability(Ability::Spell(Spell {
+                effect: effect.clone(),
+            }))),
+            _ => None,
+        },
+        Construction::AbilityTriggered => match children {
             [
                 BuildValue::Leaf(Leaf::TriggerWord(trigger)),
                 BuildValue::Clause(Clause::Event(event)),
                 BuildValue::Leaf(Leaf::Literal(",")),
                 BuildValue::Sentence(effect),
                 BuildValue::Leaf(Leaf::Literal(".")),
-            ],
-        ) => Triggered::new(*trigger, Clause::Event(event.clone()), vec![effect.clone()])
-            .map(Ability::Triggered)
-            .map(BuildValue::Ability),
-        (
-            Construction::SentenceImperative,
-            [BuildValue::VerbPhrase(predicate, Agreement::Bare)],
-        ) => Some(BuildValue::Sentence(Sentence::Imperative(Imperative {
-            predicate: predicate.clone(),
-        }))),
-        (
-            Construction::SentenceDeclarative,
+            ] => Triggered::new(*trigger, Clause::Event(event.clone()), vec![effect.clone()])
+                .map(Ability::Triggered)
+                .map(BuildValue::Ability),
+            _ => None,
+        },
+        Construction::SentenceImperative => match children {
+            [BuildValue::VerbPhrase(predicate, Agreement::Bare)] => {
+                Some(BuildValue::Sentence(Sentence::Imperative(Imperative {
+                    predicate: predicate.clone(),
+                })))
+            }
+            _ => None,
+        },
+        Construction::SentenceDeclarative => match children {
             [
                 BuildValue::NounPhrase(subject, subject_agreement),
                 BuildValue::VerbPhrase(predicate, verb_agreement),
-            ],
-        ) if subject_agreement == verb_agreement => {
-            Some(BuildValue::Sentence(Sentence::Declarative(Declarative {
-                subject: subject.clone(),
-                predicate: predicate.clone(),
-            })))
-        }
-        (
-            Construction::SentenceWithWhere,
+            ] if subject_agreement == verb_agreement => {
+                Some(BuildValue::Sentence(Sentence::Declarative(Declarative {
+                    subject: subject.clone(),
+                    predicate: predicate.clone(),
+                })))
+            }
+            _ => None,
+        },
+        Construction::SentenceWithWhere => match children {
             [
                 BuildValue::Sentence(body),
                 BuildValue::Leaf(Leaf::Literal(",")),
                 BuildValue::Clause(Clause::Where(clause)),
-            ],
-        ) => Some(BuildValue::Sentence(Sentence::WithWhere(WithWhere {
-            body: Box::new(body.clone()),
-            clause: Clause::Where(clause.clone()),
-        }))),
-        (
-            Construction::ClauseEvent,
+            ] => Some(BuildValue::Sentence(Sentence::WithWhere(WithWhere {
+                body: Box::new(body.clone()),
+                clause: Clause::Where(clause.clone()),
+            }))),
+            _ => None,
+        },
+        Construction::ClauseEvent => match children {
             [
                 BuildValue::NounPhrase(subject, subject_agreement),
                 BuildValue::VerbPhrase(predicate, verb_agreement),
-            ],
-        ) if subject_agreement == verb_agreement => {
-            Some(BuildValue::Clause(Clause::Event(EventClause {
-                subject: subject.clone(),
-                predicate: predicate.clone(),
-            })))
-        }
-        (
-            Construction::ClauseWhere,
+            ] if subject_agreement == verb_agreement => {
+                Some(BuildValue::Clause(Clause::Event(EventClause {
+                    subject: subject.clone(),
+                    predicate: predicate.clone(),
+                })))
+            }
+            _ => None,
+        },
+        Construction::ClauseWhere => match children {
             [
                 BuildValue::Leaf(Leaf::Literal("where")),
                 BuildValue::Leaf(Leaf::Variable(variable)),
@@ -634,89 +635,81 @@ fn build(construction: Construction, children: &[BuildValue]) -> Option<BuildVal
                 BuildValue::Leaf(Leaf::Literal("number")),
                 BuildValue::Leaf(Leaf::Literal("of")),
                 BuildValue::NounPhrase(value, _),
-            ],
-        ) => Some(BuildValue::Clause(Clause::Where(WhereClause {
-            variable: *variable,
-            value: value.clone(),
-        }))),
-        (Construction::NounPhrasePronoun, [BuildValue::Leaf(Leaf::Pronoun(pronoun))]) => {
-            Some(BuildValue::NounPhrase(
+            ] => Some(BuildValue::Clause(Clause::Where(WhereClause {
+                variable: *variable,
+                value: value.clone(),
+            }))),
+            _ => None,
+        },
+        Construction::NounPhrasePronoun => match children {
+            [BuildValue::Leaf(Leaf::Pronoun(pronoun))] => Some(BuildValue::NounPhrase(
                 NounPhrase::Pronoun(PronounNp { word: *pronoun }),
                 agreement_for_pronoun(*pronoun),
-            ))
-        }
-        (
-            Construction::NounPhraseCommon,
+            )),
+            _ => None,
+        },
+        Construction::NounPhraseCommon => match children {
             [
                 BuildValue::Leaf(Leaf::Article(article)),
                 BuildValue::Leaf(Leaf::Noun {
                     noun,
                     number: NounNumber::Singular,
                 }),
-            ],
-        ) => Some(BuildValue::NounPhrase(
-            NounPhrase::Common(Common {
-                article: *article,
-                head: noun.clone(),
-            }),
-            Agreement::ThirdPersonSingular,
-        )),
-        (
-            Construction::NounPhraseDemonstrative,
-            [
-                BuildValue::Leaf(Leaf::Demonstrative(Demonstrative::That)),
-                BuildValue::Leaf(Leaf::Noun {
-                    noun,
-                    number: NounNumber::Singular,
+            ] => Some(BuildValue::NounPhrase(
+                NounPhrase::Common(Common {
+                    article: *article,
+                    head: noun.clone(),
                 }),
-            ],
-        ) => Some(BuildValue::NounPhrase(
-            NounPhrase::Demonstrative(DemonstrativeNp {
-                word: Demonstrative::That,
-                head: noun.clone(),
-            }),
-            Agreement::ThirdPersonSingular,
-        )),
-        (
-            Construction::NounPhraseDemonstrative,
+                Agreement::ThirdPersonSingular,
+            )),
+            _ => None,
+        },
+        Construction::NounPhraseDemonstrative => match children {
             [
-                BuildValue::Leaf(Leaf::Demonstrative(Demonstrative::Those)),
-                BuildValue::Leaf(Leaf::Noun {
-                    noun,
-                    number: NounNumber::Plural,
-                }),
-            ],
-        ) => Some(BuildValue::NounPhrase(
-            NounPhrase::Demonstrative(DemonstrativeNp {
-                word: Demonstrative::Those,
-                head: noun.clone(),
-            }),
-            Agreement::Bare,
-        )),
-        (
-            Construction::NounPhraseTarget,
+                BuildValue::Leaf(Leaf::Demonstrative(demonstrative)),
+                BuildValue::Leaf(Leaf::Noun { noun, number }),
+            ] => match (demonstrative, number) {
+                (Demonstrative::That, NounNumber::Singular) => Some(BuildValue::NounPhrase(
+                    NounPhrase::Demonstrative(DemonstrativeNp {
+                        word: Demonstrative::That,
+                        head: noun.clone(),
+                    }),
+                    Agreement::ThirdPersonSingular,
+                )),
+                (Demonstrative::Those, NounNumber::Plural) => Some(BuildValue::NounPhrase(
+                    NounPhrase::Demonstrative(DemonstrativeNp {
+                        word: Demonstrative::Those,
+                        head: noun.clone(),
+                    }),
+                    Agreement::Bare,
+                )),
+                _ => None,
+            },
+            _ => None,
+        },
+        Construction::NounPhraseTarget => match children {
             [
                 BuildValue::Leaf(Leaf::Literal("target")),
                 BuildValue::Leaf(Leaf::Noun {
                     noun,
                     number: NounNumber::Singular,
                 }),
-            ],
-        ) => Some(BuildValue::NounPhrase(
-            NounPhrase::Target(TargetNp { head: noun.clone() }),
-            Agreement::ThirdPersonSingular,
-        )),
-        (
-            Construction::NounPhraseSelfReference,
-            [BuildValue::Leaf(Leaf::SelfReference(spelling))],
-        ) => Some(BuildValue::NounPhrase(
-            NounPhrase::SelfReference(SelfReferenceNp {
-                spelling: *spelling,
-            }),
-            Agreement::ThirdPersonSingular,
-        )),
-        (
-            Construction::NounPhraseCount,
+            ] => Some(BuildValue::NounPhrase(
+                NounPhrase::Target(TargetNp { head: noun.clone() }),
+                Agreement::ThirdPersonSingular,
+            )),
+            _ => None,
+        },
+        Construction::NounPhraseSelfReference => match children {
+            [BuildValue::Leaf(Leaf::SelfReference(spelling))] => Some(BuildValue::NounPhrase(
+                NounPhrase::SelfReference(SelfReferenceNp {
+                    spelling: *spelling,
+                }),
+                Agreement::ThirdPersonSingular,
+            )),
+            _ => None,
+        },
+        Construction::NounPhraseCount => match children {
             [
                 BuildValue::Leaf(Leaf::Noun {
                     noun,
@@ -732,44 +725,44 @@ fn build(construction: Construction, children: &[BuildValue]) -> Option<BuildVal
                 BuildValue::Leaf(Leaf::SignedNumber(threshold)),
                 BuildValue::Leaf(Leaf::Literal("or")),
                 BuildValue::Leaf(Leaf::Literal("less")),
-            ],
-        ) => Some(BuildValue::NounPhrase(
-            NounPhrase::Count(CountNp {
-                head: noun.clone(),
-                controller: Pronoun::You,
-                threshold: threshold.clone(),
-            }),
-            Agreement::ThirdPersonSingular,
-        )),
-        (
-            Construction::VerbPhraseDestroy,
+            ] => Some(BuildValue::NounPhrase(
+                NounPhrase::Count(CountNp {
+                    head: noun.clone(),
+                    controller: Pronoun::You,
+                    threshold: threshold.clone(),
+                }),
+                Agreement::Bare,
+            )),
+            _ => None,
+        },
+        Construction::VerbPhraseDestroy => match children {
             [
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Destroy,
                     agreement,
                 }),
                 BuildValue::NounPhrase(object, _),
-            ],
-        ) => Some(BuildValue::VerbPhrase(
-            VerbPhrase::Destroy(Destroy {
-                object: object.clone(),
-            }),
-            *agreement,
-        )),
-        (
-            Construction::VerbPhraseConnive,
+            ] => Some(BuildValue::VerbPhrase(
+                VerbPhrase::Destroy(Destroy {
+                    object: object.clone(),
+                }),
+                *agreement,
+            )),
+            _ => None,
+        },
+        Construction::VerbPhraseConnive => match children {
             [
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Connive,
                     agreement,
                 }),
-            ],
-        ) => Some(BuildValue::VerbPhrase(
-            VerbPhrase::Connive(Connive),
-            *agreement,
-        )),
-        (
-            Construction::VerbPhraseDealDamage,
+            ] => Some(BuildValue::VerbPhrase(
+                VerbPhrase::Connive(Connive),
+                *agreement,
+            )),
+            _ => None,
+        },
+        Construction::VerbPhraseDealDamage => match children {
             [
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Deal,
@@ -779,16 +772,16 @@ fn build(construction: Construction, children: &[BuildValue]) -> Option<BuildVal
                 BuildValue::Leaf(Leaf::Literal("damage")),
                 BuildValue::Leaf(Leaf::Literal("to")),
                 BuildValue::NounPhrase(to, _),
-            ],
-        ) => Some(BuildValue::VerbPhrase(
-            VerbPhrase::DealDamage(DealDamage {
-                amount: amount.clone(),
-                to: to.clone(),
-            }),
-            *agreement,
-        )),
-        (
-            Construction::VerbPhraseGainLife,
+            ] => Some(BuildValue::VerbPhrase(
+                VerbPhrase::DealDamage(DealDamage {
+                    amount: amount.clone(),
+                    to: to.clone(),
+                }),
+                *agreement,
+            )),
+            _ => None,
+        },
+        Construction::VerbPhraseGainLife => match children {
             [
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Gain,
@@ -796,24 +789,30 @@ fn build(construction: Construction, children: &[BuildValue]) -> Option<BuildVal
                 }),
                 BuildValue::Amount(amount),
                 BuildValue::Leaf(Leaf::Literal("life")),
-            ],
-        ) => Some(BuildValue::VerbPhrase(
-            VerbPhrase::GainLife(GainLife {
-                amount: amount.clone(),
-            }),
-            *agreement,
-        )),
-        (Construction::AmountNumber, [BuildValue::Leaf(Leaf::SignedNumber(number))]) => {
-            Some(BuildValue::Amount(Amount::Number(NumberAmount {
-                number: number.clone(),
-            })))
-        }
-        (Construction::AmountVariable, [BuildValue::Leaf(Leaf::Variable(variable))]) => {
-            Some(BuildValue::Amount(Amount::Variable(VariableAmount {
-                variable: *variable,
-            })))
-        }
-        _ => None,
+            ] => Some(BuildValue::VerbPhrase(
+                VerbPhrase::GainLife(GainLife {
+                    amount: amount.clone(),
+                }),
+                *agreement,
+            )),
+            _ => None,
+        },
+        Construction::AmountNumber => match children {
+            [BuildValue::Leaf(Leaf::SignedNumber(number))] => {
+                Some(BuildValue::Amount(Amount::Number(NumberAmount {
+                    number: number.clone(),
+                })))
+            }
+            _ => None,
+        },
+        Construction::AmountVariable => match children {
+            [BuildValue::Leaf(Leaf::Variable(variable))] => {
+                Some(BuildValue::Amount(Amount::Variable(VariableAmount {
+                    variable: *variable,
+                })))
+            }
+            _ => None,
+        },
     }
 }
 
@@ -936,10 +935,22 @@ mod tests {
     fn materialize_rejects_families_with_invalid_agreement_or_count_facts() {
         for text in [
             "You gains X life.",
-            "Creatures it controls with power 2 or less gain X life.",
+            "Creatures you control with power 2 or less gains X life.",
         ] {
             let forest = slice_candidates(text, "Context Card").expect("scanner accepts words");
             assert!(materialize(&forest).is_empty(), "materialized {text:?}");
         }
+    }
+
+    #[test]
+    fn materialize_accepts_a_plural_count_subject_with_a_bare_verb() {
+        let text = "Creatures you control with power 2 or less gain X life.";
+        let forest = slice_candidates(text, "Context Card").expect("scanner accepts words");
+        let candidates = materialize(&forest);
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(
+            candidates[0].render(&ParseContext::new("Context Card")),
+            text
+        );
     }
 }
