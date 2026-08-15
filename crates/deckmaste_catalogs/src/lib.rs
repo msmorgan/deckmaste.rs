@@ -38,6 +38,7 @@ mod tests {
             "Legal Name": [{
                 "name": "Legal Name", "layout": "normal",
                 "types": ["Creature"], "supertypes": [], "subtypes": [],
+                "keywords": ["Islandwalk"],
                 "legalities": {"vintage": "Legal"}
             }],
             "Front // Back": [{
@@ -154,6 +155,11 @@ mod tests {
         assert_eq!(
             values(&catalogs, CatalogKind::KeywordAbilities),
             ["Daybound", "Nightbound", "∞"]
+        );
+        assert!(
+            !catalogs
+                .get(CatalogKind::KeywordAbilities)
+                .contains("Islandwalk")
         );
         assert_eq!(
             values(&catalogs, CatalogKind::KeywordActions),
