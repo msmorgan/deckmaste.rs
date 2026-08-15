@@ -1,4 +1,24 @@
-use crate::ast::*;
+use crate::ast::Ability;
+use crate::ast::Amount;
+use crate::ast::Article;
+use crate::ast::Clause;
+use crate::ast::Common;
+use crate::ast::Connive;
+use crate::ast::Demonstrative;
+use crate::ast::DemonstrativeNp;
+use crate::ast::Noun;
+use crate::ast::NounLexeme;
+use crate::ast::NounPhrase;
+use crate::ast::Pronoun;
+use crate::ast::PronounNp;
+use crate::ast::SelfReferenceSpelling;
+use crate::ast::Sentence;
+use crate::ast::Sign;
+use crate::ast::SignedNumber;
+use crate::ast::TriggerWord;
+use crate::ast::Variable;
+use crate::ast::VerbLexeme;
+use crate::ast::VerbPhrase;
 
 pub trait Render {
     fn render(&self) -> String;
@@ -84,7 +104,7 @@ impl Render for Sentence {
 fn render_sentence_body(writer: &mut Writer, sentence: &Sentence) {
     match sentence {
         Sentence::Imperative(imperative) => {
-            render_verb_phrase(writer, &imperative.predicate, Agreement::Bare)
+            render_verb_phrase(writer, &imperative.predicate, Agreement::Bare);
         }
         Sentence::Declarative(declarative) => {
             render_noun_phrase(writer, &declarative.subject);
@@ -218,9 +238,7 @@ fn pluralize(noun: &Noun, singular: &str) -> String {
     match noun {
         Noun::Lexeme(NounLexeme::Life) => "lives".to_owned(),
         Noun::Lexeme(NounLexeme::Damage) => "damages".to_owned(),
-        Noun::Lexeme(NounLexeme::Player)
-        | Noun::Lexeme(NounLexeme::Number)
-        | Noun::Lexeme(NounLexeme::Power)
+        Noun::Lexeme(NounLexeme::Player | NounLexeme::Number | NounLexeme::Power)
         | Noun::Catalog(_) => format!("{singular}s"),
     }
 }

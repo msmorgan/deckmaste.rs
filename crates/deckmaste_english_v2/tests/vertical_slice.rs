@@ -4,6 +4,49 @@ use deckmaste_catalogs::CatalogKind;
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::render::Render;
+use deckmaste_english_v2::visit::Visitor;
+
+#[derive(Default)]
+struct RecordingVisitor {
+    variables: Vec<Variable>,
+    signed_numbers: Vec<(Sign, u32)>,
+    self_names: Vec<String>,
+    self_reference_spellings: Vec<SelfReferenceSpelling>,
+    trigger_words: Vec<TriggerWord>,
+    verbs: Vec<VerbLexeme>,
+    catalog_spellings: Vec<String>,
+}
+
+impl Visitor for RecordingVisitor {
+    fn visit_variable(&mut self, variable: Variable) {
+        self.variables.push(variable);
+    }
+
+    fn visit_signed_number(&mut self, number: &SignedNumber) {
+        self.signed_numbers
+            .push((number.sign(), number.magnitude()));
+    }
+
+    fn visit_self_name(&mut self, name: &SelfName) {
+        self.self_names.push(name.full().to_owned());
+    }
+
+    fn visit_self_reference_spelling(&mut self, spelling: SelfReferenceSpelling) {
+        self.self_reference_spellings.push(spelling);
+    }
+
+    fn visit_trigger_word(&mut self, word: TriggerWord) {
+        self.trigger_words.push(word);
+    }
+
+    fn visit_verb_lexeme(&mut self, verb: VerbLexeme) {
+        self.verbs.push(verb);
+    }
+
+    fn visit_catalog_spelling(&mut self, spelling: &str) {
+        self.catalog_spellings.push(spelling.to_owned());
+    }
+}
 
 fn catalogs() -> ParserCatalogs {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
@@ -181,4 +224,64 @@ fn renders_an_with_a_singular_noun_and_third_person_verb() {
         })),
     });
     assert_eq!(value.render(), "An artifact deals 3 damage to it.");
+}
+
+#[test]
+fn visitor_reaches_every_vertical_slice_leaf() {
+    let destroy = Ability::Spell(Spell {
+        effect: Sentence::Imperative(Imperative {
+            predicate: VerbPhrase::Destroy(Destroy {
+                object: target_creature(),
+            }),
+        }),
+    });
+    let zacama = SelfName::new("Zacama, Primal Calamity", Some("Zacama")).unwrap();
+    let self_reference = Sentence::Declarative(Declarative {
+        subject: NounPhrase::SelfReference(
+            SelfReferenceNp::new(zacama, SelfReferenceSpelling::Abbreviated).unwrap(),
+        ),
+        predicate: VerbPhrase::DealDamage(DealDamage {
+            amount: Amount::Number(NumberAmount {
+                number: SignedNumber::new(Sign::Positive, 3),
+            }),
+            to: target_creature(),
+        }),
+    });
+
+    let mut visitor = RecordingVisitor::default();
+    visitor.visit_ability(&destroy);
+    visitor.visit_ability(&triggered_damage());
+    visitor.visit_sentence(&gain_life_with_where());
+    visitor.visit_sentence(&self_reference);
+
+    assert_eq!(
+        visitor.variables,
+        vec![Variable::X, Variable::X, Variable::X]
+    );
+    assert_eq!(
+        visitor.signed_numbers,
+        vec![(Sign::Positive, 2), (Sign::Positive, 3)]
+    );
+    assert_eq!(visitor.self_names, vec!["Zacama, Primal Calamity"]);
+    assert_eq!(
+        visitor.self_reference_spellings,
+        vec![SelfReferenceSpelling::Abbreviated]
+    );
+    assert_eq!(visitor.trigger_words, vec![TriggerWord::Whenever]);
+    assert_eq!(
+        visitor.verbs,
+        vec![
+            VerbLexeme::Destroy,
+            VerbLexeme::Connive,
+            VerbLexeme::Deal,
+            VerbLexeme::Gain,
+            VerbLexeme::Be,
+            VerbLexeme::Control,
+            VerbLexeme::Deal,
+        ]
+    );
+    assert_eq!(
+        visitor.catalog_spellings,
+        vec!["Creature", "Creature", "Creature", "Creature"]
+    );
 }
