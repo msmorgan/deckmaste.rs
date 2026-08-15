@@ -192,7 +192,7 @@ fn default_catalogs_path() -> PathBuf {
 
 fn load_catalogs(generated_path: &Path) -> Result<Catalogs> {
     let workspace_data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
-    let raw = LegacyCatalogSet::load(generated_path, &workspace_data.join("catalogs"))?;
+    let raw = LegacyCatalogSet::load(generated_path, workspace_data.join("catalogs"))?;
     let catalogs = Catalogs::from_legacy(&raw);
     Ok(catalogs)
 }

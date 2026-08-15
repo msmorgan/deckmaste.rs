@@ -19,6 +19,7 @@ mod tests {
     use crate::CatalogKind;
     use crate::CatalogSet;
 
+    // cite: noncompliant begin -- verbatim CR parser fixture, not prose claims
     const CR_FIXTURE: &str = "\
 205.2a The card types are artifact, creature, land, and sorcery.\n\
 205.3g Artifacts have their own unique set of subtypes; these subtypes are called artifact types. The artifact types are Clue (see rule 111), and Vibranium.\n\
@@ -41,6 +42,7 @@ mod tests {
 702.6a Partner is a keyword ability that has several variants: partner with [name], choose a Background, and Doctor’s companion. “Partner—Friends forever” represents one such variant.\n\
 702.7a Hexproof from is a variant of the hexproof ability.\n\
 122.1b A keyword counter on a permanent or on a card in a zone other than the battlefield causes that object to gain that keyword. The keywords that a keyword counter can be are flying, first strike, double strike, deathtouch, and hexproof, as well as any variants of those keywords.\n";
+    // cite: noncompliant end
 
     const ATOMIC_FIXTURE: &str = r#"{
         "data": {

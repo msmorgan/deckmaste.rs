@@ -1,10 +1,8 @@
 ---
 needs: [english-construction-rewrite-design]
 ---
-**Build the catalog pipeline for `english_v2`'s open-class identity slots:
-`cargo xtask catalogs generate`, generated data files with provenance, a
-loader that binds catalogs to a parser instance, and a staleness check.**
-Stage 1 of the rewrite's implementation sequence.
+**Build the shared catalog pipeline and the `english_v2` loader for open-class
+identity slots.** Stage 1 of the rewrite's implementation sequence.
 
 Decisions already made (2026-08-13 design dialogue; the ADR produced by
 `english-construction-rewrite-design` is the authority if anything here
@@ -15,39 +13,62 @@ drifts):
   syntax) becomes a construction instead, and the card's own name is a
   parse-context parameter passed at parser construction — neither belongs in
   a catalog.
-- Catalogs are generated DATA files (RON), never generated Rust enums: a set
-  release must be a regeneration diff, not a code review.
-- One authoritative upstream per catalog, named in its provenance header: the
-  CR snapshot in `data/rules/` for subtype lists, card types, supertypes,
-  ability words, and keyword names; the local MTGJSON snapshot for card names
-  and counter kinds.
-- Every generated file carries a provenance header (CR version/date or DB
-  snapshot id). A staleness check fails when the fetched CR is newer than the
-  provenance of any CR-derived catalog.
+- Catalogs are sorted, deduplicated plain-text line files with no headers. A
+  fixed pair of upstream snapshots produces byte-identical output, and
+  regenerate-and-compare is the complete currency check.
+- The canonical inventory in `data/gen/catalogs` is exactly
+  `ability-words.txt`, `artifact-types.txt`, `battle-types.txt`,
+  `card-names.txt`, `card-types.txt`, `counter-kind-phrases.txt`,
+  `creature-types.txt`, `enchantment-types.txt`, `keyword-abilities.txt`,
+  `keyword-actions.txt`, `land-types.txt`, `planeswalker-types.txt`,
+  `spell-types.txt`, and `supertypes.txt`.
+- The CR is authoritative for every canonical file except `card-names.txt`.
+  Card names come from MTGJSON `AtomicCards.json` faces: `faceName` is used
+  when present and `name` otherwise, and `vintage_playable()` accepts only
+  Vintage `Legal` or `Restricted` faces. `Banned`, `Not Legal`, null, and
+  missing legalities are excluded regardless of layout.
+- `counter-kind-phrases.txt` contains only the CR-defined multi-token keyword
+  counter phrases [CR#122.1b]. Single-token kinds remain opaque, `+1/+1` and
+  similar kinds are codecs, and MTGJSON is not counter-kind authority.
 - The parser binds catalogs at instance construction — they are inputs, not
   compiled-in globals.
-- Extraction code lives in `deckmaste_migrations` beside the existing
-  snapshot parsers (reuse the legacy bare-text extractor where it fits); the
-  catalog FILE-FORMAT types live in `deckmaste_english_v2` (consumer-owned,
-  so generator and loader cannot drift). That is a tool-side dependency edge
-  migrations→english_v2 only; english_v2 gains no dependency in return and
-  stays a leaf.
-- Command family: `cargo xtask catalogs generate` and `cargo xtask catalogs
-  check` together as one group; the existing bare-text generation is renamed
-  `cargo xtask catalogs text`.
+- Shared snapshot models live in `deckmaste_data`; extraction, the inventory,
+  line-file I/O, exact directory comparison, and the compatibility adapter
+  live in stable `deckmaste_catalogs`. The dependency contract is:
+
+  ~~~text
+  deckmaste_data -> deckmaste_catalogs -> {deckmaste_english, deckmaste_english_v2, xtask}
+  deckmaste_migrations -> deckmaste_data (temporary)
+  ~~~
+
+  V2 therefore depends on a stable low-level crate and no crate scheduled for
+  deletion.
+- Legacy consumers retain a removable `deckmaste_catalogs::legacy` module and
+  a separate `data/gen/catalogs-legacy` cache. Its twelve generated files are
+  the canonical inventory minus `card-names.txt` and
+  `counter-kind-phrases.txt`; canonical and legacy output never mix.
+- `cargo xtask catalogs generate` replaces the canonical directory;
+  `catalogs check` regenerates into a temporary directory and reports changed,
+  missing, or unexpected canonical files without mutation; `catalogs text`
+  replaces only the twelve-file legacy cache.
 
 Deliverables:
 
-1. `cargo xtask catalogs generate`: deterministic regeneration of the initial
-   inventory — subtype lists per class (creature, land, artifact, …), card
-   types, supertypes, ability words, keyword names, card names, counter
-   kinds.
-2. The crate skeleton for `deckmaste_english_v2` containing only the catalog
-   loader module (a catalog set handed to parser construction), with a smoke
-   test loading every generated catalog. The grammar itself lands in the
-   vertical-slice ticket.
-3. The staleness check, wired so a CR bump without regeneration fails.
+1. `deckmaste_data` models the shared local CR, MTGJSON, and Scryfall inputs;
+   migrations uses that layer directly.
+2. `deckmaste_catalogs` generates and loads the exact canonical inventory,
+   compares directories without mutation, and isolates the removable legacy
+   inventory and variant behavior.
+3. `deckmaste_english`, `deckmaste_english_v2`, and xtask use the shared
+   catalog crate. V2 exposes the loader that will be handed to parser
+   construction; its grammar remains vertical-slice work.
+4. The `cargo xtask catalogs generate|check|text` family writes and validates
+   the two disjoint output directories with the behavior above.
 
-Acceptance: regeneration is byte-deterministic for a fixed upstream; every
-catalog has provenance; the staleness check demonstrably fails on a stale
-fixture; the loader smoke test passes. Standard constraints apply.
+Acceptance: fixed upstream bytes generate byte-identical sorted line files;
+all fourteen canonical files load; Vintage filtering and face-name selection
+are covered; only CR-defined multi-token counter phrases are emitted;
+`catalogs check` detects changed, missing, and unexpected entries without
+mutation; the twelve compatibility files remain isolated and replaceable;
+v2 has no deletion-bound dependency; focused, workspace, strict-clippy, and
+citation gates pass. Standard constraints apply.

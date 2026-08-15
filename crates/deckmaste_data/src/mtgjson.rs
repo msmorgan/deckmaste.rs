@@ -22,6 +22,11 @@ pub struct AtomicCards<'a> {
 }
 
 impl<'a> AtomicCards<'a> {
+    /// Parses an MTGJSON atomic-card snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `bytes` is not valid snapshot JSON.
     pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> {
         serde_json::from_slice(bytes)
     }
@@ -100,6 +105,10 @@ pub struct Legalities<'a> {
 
 /// Reads the atomic cards file; parse with [`AtomicCards::parse`],
 /// which borrows from the returned bytes.
+///
+/// # Errors
+///
+/// Returns an error when the configured atomic-card snapshot cannot be read.
 pub fn atomic_cards_bytes() -> anyhow::Result<Vec<u8>> {
     DataRoot::workspace_default().read("mtgjson/AtomicCards.json")
 }
@@ -130,7 +139,7 @@ mod tests {
             (r#"{"vintage":"Banned"}"#, false),
             (r#"{"vintage":"Not Legal"}"#, false),
             (r#"{"vintage":null}"#, false),
-            (r#"{}"#, false),
+            (r"{}", false),
         ] {
             assert_eq!(
                 card_with_legalities(value, "normal").vintage_playable(),

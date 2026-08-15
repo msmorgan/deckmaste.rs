@@ -297,6 +297,7 @@ mod tests {
     use super::LegacyCatalogKind;
     use super::LegacyCatalogSet;
 
+    // cite: noncompliant begin -- verbatim CR parser fixture, not prose claims
     const CR_FIXTURE: &str = "\
 205.2a The card types are artifact, creature, land, and sorcery.\n\
 205.3g Artifacts have their own unique set of subtypes; these subtypes are called artifact types. The artifact types are Clue (see rule 111), and Vibranium.\n\
@@ -318,6 +319,7 @@ mod tests {
 702.5a Typecycling is a variant of the cycling ability. “[Type]cycling [cost]” means “Pay [cost], Discard this card: Search your library for a [type] card, reveal it, put it into your hand, then shuffle.”\n\
 702.6a Partner is a keyword ability that has several variants: partner with [name], choose a Background, and Doctor’s companion. “Partner—Friends forever” represents one such variant.\n\
 702.7a Hexproof from is a variant of the hexproof ability.\n";
+    // cite: noncompliant end
 
     const ATOMIC_FIXTURE: &str = r#"{
         "data": {

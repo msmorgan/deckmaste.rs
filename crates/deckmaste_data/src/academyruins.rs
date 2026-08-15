@@ -4,6 +4,7 @@ use crate::DataRoot;
 use crate::DataStr;
 
 /// Replaces typographic quotation marks with their ASCII equivalents.
+#[must_use]
 pub fn normalize_quotes(text: &str) -> String {
     text.replace(['‘', '’'], "'").replace(['“', '”'], "\"")
 }
@@ -16,6 +17,11 @@ pub struct Keywords<'a> {
 }
 
 impl<'a> Keywords<'a> {
+    /// Parses the `AcademyRuins` keyword-list snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `bytes` is not valid snapshot JSON.
     pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> {
         serde_json::from_slice(bytes)
     }
@@ -23,6 +29,10 @@ impl<'a> Keywords<'a> {
 
 /// Reads the keyword lists file; parse with
 /// [`Keywords::parse`], which borrows from the returned bytes.
+///
+/// # Errors
+///
+/// Returns an error when the configured keyword-list snapshot cannot be read.
 pub fn keywords_bytes() -> anyhow::Result<Vec<u8>> {
     DataRoot::workspace_default().read("rules/keywords.json")
 }

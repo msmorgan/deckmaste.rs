@@ -43,9 +43,10 @@ deckmaste_construction   proc-macro: declaration parsing, validation, codegen
         ▼
 deckmaste_english_v2     generated AST + grammar, Earley chart parser,
                          exact renderer, vocab/lexeme/codec tiers,
-                         catalog loader        (leaf crate until cutover)
-        ▲ loaded at parser construction
-generated catalogs       plain-text word lists from `cargo xtask catalogs generate`
+                         catalog loader
+
+deckmaste_data -> deckmaste_catalogs -> {deckmaste_english, deckmaste_english_v2, xtask}
+deckmaste_migrations -> deckmaste_data (temporary)
 ~~~
 
 Runtime support the proc-macro cannot export (chart engine, forest, codec
@@ -54,13 +55,14 @@ ever expands inside that crate and references it by `crate::` paths. A
 separate runtime crate is minted only if a second macro consumer ever exists.
 At cutover, `deckmaste_spelling` and xtask display paths switch to v2 and the
 old `deckmaste_english` / `deckmaste_construction_compiler` crates are
-deleted; v2 then takes the `deckmaste_english` name. Catalog extraction code
-lives in `deckmaste_migrations` beside the existing snapshot parsers
-(reusing the legacy bare-text extractor where it fits, so
-`deckmaste_migrations::catalogs` is retained at cutover); the catalog
-inventory — which catalogs exist — is owned by their consumer,
-`deckmaste_english_v2`, and the format is plain lines, leaving no schema to
-drift — a tool-side dependency edge into english_v2 only, never the reverse.
+deleted; v2 then takes the `deckmaste_english` name. Shared snapshot models
+live in the stable low-level `deckmaste_data` crate. The stable
+`deckmaste_catalogs` crate owns extraction, the canonical inventory, line-file
+I/O, directory comparison, and a removable legacy adapter; both English
+implementations and xtask consume that crate. `deckmaste_migrations` now uses
+`deckmaste_data` temporarily for its surviving extraction work instead of
+owning the shared models. Thus v2 depends only on the stable catalog layer and
+remains independent of every crate scheduled for deletion.
 
 ## The declaration language
 
@@ -147,23 +149,42 @@ contract one level down. Three declaration tiers plus catalogs:
    atoms with internal structure yield fields, never fused strings. Whether a
    codec's spelling is context-derived or stored is a per-codec measurement
    against the style guide, never an assumption.
-4. **Catalogs** — open-class identities (subtypes, card types, ability words,
-   keyword names, card names) are regenerated plain-text word lists (one
-   entry per line, sorted, no headers), loaded at parser construction. A
-   catalog is a pure word list; anything needing per-entry grammar becomes a
-   construction; the card's own name is a parse-context parameter, not a
-   catalog. **A catalog exists only where structure cannot determine the
-   reading** — to license multi-token spans or resolve genuine ambiguity —
-   never to police membership in an open productive class; membership
-   policing is legality's business, layers above. Counter kinds are the
-   worked example: the kind in "<kind> counter" is an opaque single token,
-   stored and rendered exactly with no list consulted, plus one CR-sourced
-   list covering only the CR-defined kinds — exactly the multi-token cases
-   (keyword counters) opacity cannot span (`+1/+1` and kin are codec atoms,
-   not catalog entries). There is no MTGJSON counter-kind catalog. The
-   staleness gate is regenerate-and-diff: byte-determinism makes the output
-   its own fingerprint, so no provenance metadata exists to maintain or to
-   drift.
+4. **Catalogs** — open-class identities are regenerated as sorted, deduplicated
+   plain-text word lists (one entry per line, no headers) and loaded at parser
+   construction. The canonical `data/gen/catalogs` inventory is exactly:
+
+   ~~~text
+   ability-words.txt          artifact-types.txt       battle-types.txt
+   card-names.txt             card-types.txt           counter-kind-phrases.txt
+   creature-types.txt         enchantment-types.txt    keyword-abilities.txt
+   keyword-actions.txt        land-types.txt           planeswalker-types.txt
+   spell-types.txt            supertypes.txt
+   ~~~
+
+   The CR is authoritative for all canonical files except
+   `card-names.txt`. Card names come from the local MTGJSON
+   `AtomicCards.json`: every face for which `vintage_playable()` is true uses
+   `faceName` when present and the full `name` otherwise. That predicate means
+   Vintage `Legal` or `Restricted` only; `Banned`, `Not Legal`, null, and
+   missing legalities are excluded, independently of card layout. Counter
+   kinds remain opaque single tokens except for
+   `counter-kind-phrases.txt`, which contains only the multi-token keyword
+   counter phrases enumerated by the CR [CR#122.1b]; `+1/+1` and similar
+   forms are codec atoms, and MTGJSON is not counter-kind authority.
+
+   A catalog is a pure word list; anything needing per-entry grammar becomes
+   a construction, and the card's own name is still a parse-context parameter
+   rather than a membership gate. **A catalog exists only where structure
+   cannot determine the reading** — to license multi-token spans or resolve
+   genuine ambiguity — never to police membership in an open productive
+   class; membership policing is legality's business, layers above.
+
+   The old consumers use the separate `data/gen/catalogs-legacy` cache, whose
+   generated inventory is exactly the same list minus `card-names.txt` and
+   `counter-kind-phrases.txt`. `deckmaste_catalogs::legacy` owns that
+   compatibility path, including CR-authorized keyword variants observed on
+   Vintage-playable faces, and is removable with the legacy consumers at
+   cutover. Canonical and legacy files never share an output directory.
 
 **Lexical coverage gate:** every token of every accepted corpus sentence must
 be claimed by a form literal, vocab, lexeme, codec, or identity — an
@@ -289,11 +310,15 @@ aspiration.
 - **`roundtrip`** — byte-exact both laws; `--require-clean` for the accepted
   set.
 - **`coverage`** — the lexical coverage gate (§Terminals).
-- **`catalogs check`** — staleness by regenerate-and-diff against the
-  current upstreams (determinism makes the output its own fingerprint;
-  hand-edits are caught as well). Ships as `cargo xtask catalogs check`
-  beside `catalogs generate` — one data-layer command family — with the
-  legacy bare-text generation renamed `cargo xtask catalogs text`.
+- **`catalogs generate`** — derives the complete canonical inventory from the
+  local CR and `AtomicCards.json`, then replaces `data/gen/catalogs` with the
+  exact deterministic line files.
+- **`catalogs check`** — regenerates the canonical inventory in a temporary
+  directory and compares exact contents against `data/gen/catalogs`, reporting
+  changed, missing, and unexpected files without mutating the checked tree.
+- **`catalogs text`** — regenerates the twelve compatibility files into the
+  separate `data/gen/catalogs-legacy` cache. It never writes the canonical
+  directory. These three commands are the `cargo xtask catalogs` family.
 - **`ambiguity`** — census of selection decisions; unresolvable ties must be
   zero; exception-table entries enumerated for review.
 - **`inspect` / `probe`** — per-sentence forest, selected construction, the
@@ -321,7 +346,12 @@ the `semantics` shape and are handled separately.
 
 ## Implementation sequence
 
-1. **`english-v2-catalog-pipeline`** (minted) — catalogs, loader, staleness.
+1. **`english-v2-catalog-pipeline`** (minted) — factor shared snapshot models
+   into `deckmaste_data`; implement canonical extraction, inventory, line I/O,
+   comparison, and the removable compatibility path in
+   `deckmaste_catalogs`; point both English crates and xtask at the stable
+   catalog layer; move migrations onto `deckmaste_data`; add the v2 loader and
+   the `catalogs generate|check|text` gates.
 2. **`english-v2-vertical-slice`** (minted) — hand-written golden for the
    AST, exact renderer, and total visitor. NO parser of any kind exists in
    this stage; parsing belongs exclusively to stage 3.

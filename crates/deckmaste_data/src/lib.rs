@@ -26,6 +26,11 @@ impl DataRoot {
         Self(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"))
     }
 
+    /// Reads one file relative to this data root.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the file cannot be read.
     pub fn read(&self, relative: impl AsRef<Path>) -> anyhow::Result<Vec<u8>> {
         let path = self.0.join(relative);
         std::fs::read(&path).with_context(|| format!("reading {}", path.display()))
@@ -59,6 +64,7 @@ impl<'b: 'a, 'a> From<&'b str> for DataStr<'a> {
 }
 
 impl DataStr<'_> {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

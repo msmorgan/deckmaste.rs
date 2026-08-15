@@ -50,17 +50,27 @@ pub(crate) fn extract_shared(cr: &str) -> anyhow::Result<ExtractedCatalogs> {
     Ok(ExtractedCatalogs {
         ability_words: parse_list_rule(
             &lines,
-            "207.2c",
+            "207.2c", // cite: noncompliant-line -- machine-readable parser key
             "The ability words are ",
             "ability-words",
         )?,
-        artifact_types: parse_subtype_rule(&lines, "205.3g", "artifact", "artifact-types")?,
+        artifact_types: parse_subtype_rule(
+            &lines,
+            "205.3g", // cite: noncompliant-line -- machine-readable parser key
+            "artifact",
+            "artifact-types",
+        )?,
         battle_types: parse_battle_type(&lines)?,
-        card_types: parse_list_rule(&lines, "205.2a", "The card types are ", "card-types")?,
+        card_types: parse_list_rule(
+            &lines,
+            "205.2a", // cite: noncompliant-line -- machine-readable parser key
+            "The card types are ",
+            "card-types",
+        )?,
         creature_types: parse_creature_types(&lines)?,
         enchantment_types: parse_subtype_rule(
             &lines,
-            "205.3h",
+            "205.3h", // cite: noncompliant-line -- machine-readable parser key
             "enchantment",
             "enchantment-types",
         )?,
@@ -71,15 +81,30 @@ pub(crate) fn extract_shared(cr: &str) -> anyhow::Result<ExtractedCatalogs> {
             "keyword-abilities",
         )?,
         keyword_actions: parse_headings(&lines, 701, &["Tap and Untap"], "keyword-actions")?,
-        land_types: parse_subtype_rule(&lines, "205.3i", "land", "land-types")?,
+        land_types: parse_subtype_rule(
+            &lines,
+            "205.3i", // cite: noncompliant-line -- machine-readable parser key
+            "land",
+            "land-types",
+        )?,
         planeswalker_types: parse_subtype_rule(
             &lines,
-            "205.3j",
+            "205.3j", // cite: noncompliant-line -- machine-readable parser key
             "planeswalker",
             "planeswalker-types",
         )?,
-        spell_types: parse_subtype_rule(&lines, "205.3k", "spell", "spell-types")?,
-        supertypes: parse_list_rule(&lines, "205.4a", "The supertypes are ", "supertypes")?,
+        spell_types: parse_subtype_rule(
+            &lines,
+            "205.3k", // cite: noncompliant-line -- machine-readable parser key
+            "spell",
+            "spell-types",
+        )?,
+        supertypes: parse_list_rule(
+            &lines,
+            "205.4a", // cite: noncompliant-line -- machine-readable parser key
+            "The supertypes are ",
+            "supertypes",
+        )?,
     })
 }
 
@@ -166,7 +191,10 @@ fn parse_subtype_rule(
 
 fn parse_creature_types(lines: &[&str]) -> anyhow::Result<BTreeSet<String>> {
     const CATALOG: &str = "creature-types";
-    let text = numbered_rule(lines, "205.3m", CATALOG)?;
+    let text = numbered_rule(
+        lines, "205.3m", // cite: noncompliant-line -- machine-readable parser key
+        CATALOG,
+    )?;
     let mut values = english_list(
         sentence_after(text, "One creature type is two words long: ", CATALOG)?,
         CATALOG,
@@ -184,7 +212,10 @@ fn parse_creature_types(lines: &[&str]) -> anyhow::Result<BTreeSet<String>> {
 
 fn parse_battle_type(lines: &[&str]) -> anyhow::Result<BTreeSet<String>> {
     const CATALOG: &str = "battle-types";
-    let text = numbered_rule(lines, "205.3q", CATALOG)?;
+    let text = numbered_rule(
+        lines, "205.3q", // cite: noncompliant-line -- machine-readable parser key
+        CATALOG,
+    )?;
     english_list(
         sentence_after(text, "That battle type is ", CATALOG)?,
         CATALOG,
@@ -221,7 +252,11 @@ fn parse_headings(
 
 fn parse_counter_kind_phrases(lines: &[&str]) -> anyhow::Result<BTreeSet<String>> {
     let listed = sentence_after(
-        numbered_rule(lines, "122.1b", "counter-kind-phrases")?,
+        numbered_rule(
+            lines,
+            "122.1b", // cite: noncompliant-line -- machine-readable parser key
+            "counter-kind-phrases",
+        )?,
         "The keywords that a keyword counter can be are ",
         "counter-kind-phrases",
     )?;

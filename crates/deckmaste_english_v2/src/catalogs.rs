@@ -12,6 +12,11 @@ impl ParserCatalogs {
         Self(Arc::new(catalogs))
     }
 
+    /// Loads every parser catalog from `path`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a canonical catalog file is missing or malformed.
     pub fn load(path: &Path) -> anyhow::Result<Self> {
         CatalogSet::load(path).map(Self::new)
     }

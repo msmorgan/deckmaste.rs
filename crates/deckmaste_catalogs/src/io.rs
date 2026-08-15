@@ -506,7 +506,7 @@ mod tests {
         ] {
             let output = root.path().join(format!("catalogs-{}", entries.len()));
 
-            let error = catalogs_with_battle_entries(entries)
+            let error = catalogs_with_battle_entries(&entries)
                 .write_to(&output)
                 .unwrap_err();
 
@@ -539,10 +539,10 @@ mod tests {
     }
 
     fn complete_catalogs() -> CatalogSet {
-        catalogs_with_battle_entries(BTreeSet::from(["Siege".to_owned()]))
+        catalogs_with_battle_entries(&BTreeSet::from(["Siege".to_owned()]))
     }
 
-    fn catalogs_with_battle_entries(battle_entries: BTreeSet<String>) -> CatalogSet {
+    fn catalogs_with_battle_entries(battle_entries: &BTreeSet<String>) -> CatalogSet {
         let entries = CatalogKind::ALL
             .into_iter()
             .map(|kind| {

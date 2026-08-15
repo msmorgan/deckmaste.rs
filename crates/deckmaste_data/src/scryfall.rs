@@ -11,6 +11,11 @@ pub struct Catalog<'a> {
 }
 
 impl<'a> Catalog<'a> {
+    /// Parses a Scryfall catalog snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `bytes` is not valid catalog JSON.
     pub fn parse(bytes: &'a [u8]) -> serde_json::Result<Self> {
         serde_json::from_slice(bytes)
     }
@@ -18,6 +23,10 @@ impl<'a> Catalog<'a> {
 
 /// Reads a scryfall catalog file (e.g. "creature-types"); parse with
 /// [`Catalog::parse`], which borrows from the returned bytes.
+///
+/// # Errors
+///
+/// Returns an error when the named catalog snapshot cannot be read.
 pub fn catalog_bytes(name: &str) -> anyhow::Result<Vec<u8>> {
     DataRoot::workspace_default().read(format!("catalogs/{name}.json"))
 }

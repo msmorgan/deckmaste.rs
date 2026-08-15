@@ -545,16 +545,7 @@ impl Repository {
             }
             let text = std::fs::read_to_string(&absolute)
                 .with_context(|| format!("reading {}", absolute.display()))?;
-            for (index, line) in text.lines().enumerate() {
-                for matched in noncompliant_matches(line) {
-                    hits.push(NoncompliantHit {
-                        file: relative.clone(),
-                        line: index + 1,
-                        matched,
-                        context: line.trim().to_string(),
-                    });
-                }
-            }
+            hits.extend(noncompliant_source_hits(&relative, &text)?);
         }
         Ok(hits)
     }
@@ -1008,6 +999,50 @@ fn noncompliant_matches(line: &str) -> Vec<String> {
     by_offset.into_values().collect()
 }
 
+fn noncompliant_source_hits(file: &str, source: &str) -> anyhow::Result<Vec<NoncompliantHit>> {
+    const SCOPE_BEGIN: &str = "// cite: noncompliant begin";
+    const SCOPE_END: &str = "// cite: noncompliant end";
+    const LINE_EXEMPT: &str = "// cite: noncompliant-line";
+
+    let mut hits = Vec::new();
+    let mut scope_start = None;
+    for (index, line) in source.lines().enumerate() {
+        let line_number = index + 1;
+        let trimmed = line.trim_start();
+        if trimmed.starts_with(SCOPE_BEGIN) {
+            anyhow::ensure!(
+                scope_start.replace(line_number).is_none(),
+                "cite: nested noncompliant begin in {file}:{line_number}"
+            );
+            continue;
+        }
+        if trimmed.starts_with(SCOPE_END) {
+            anyhow::ensure!(
+                scope_start.take().is_some(),
+                "cite: unmatched noncompliant end in {file}:{line_number}"
+            );
+            continue;
+        }
+        if scope_start.is_some() || line.contains(LINE_EXEMPT) {
+            continue;
+        }
+        for matched in noncompliant_matches(line) {
+            hits.push(NoncompliantHit {
+                file: file.to_owned(),
+                line: line_number,
+                matched,
+                context: line.trim().to_string(),
+            });
+        }
+    }
+    anyhow::ensure!(
+        scope_start.is_none(),
+        "cite: unclosed noncompliant begin in {file}:{}",
+        scope_start.unwrap_or_default()
+    );
+    Ok(hits)
+}
+
 fn noncompliant_patterns() -> &'static [Regex; 3] {
     static PATTERNS: OnceLock<[Regex; 3]> = OnceLock::new();
     PATTERNS.get_or_init(|| {
@@ -1295,6 +1330,48 @@ Contents\r\n\
         );
         // A malformed bracket is owned by `check`, not by this wide-net scan.
         assert!(noncompliant_matches("[CR#rule 100.1]").is_empty());
+    }
+
+    #[test]
+    fn noncompliant_scan_honors_narrow_line_and_balanced_scope_exemptions() {
+        let source = "\
+// CR 100.1
+let key = \"100.1\"; // cite: noncompliant-line -- machine-readable parser key
+// cite: noncompliant begin -- verbatim rules fixture
+const FIXTURE: &str = \"rule 200.1\";
+// cite: noncompliant end
+// rule 300.1
+";
+        let hits = noncompliant_source_hits("src/lib.rs", source).unwrap();
+        assert_eq!(
+            hits.iter()
+                .map(|hit| hit.matched.as_str())
+                .collect::<Vec<_>>(),
+            ["CR 100.1", "100.1", "rule 300.1", "300.1"]
+        );
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_unbalanced_scope_exemptions() {
+        let unmatched_end =
+            noncompliant_source_hits("src/lib.rs", "// cite: noncompliant end\n// rule 100.1\n")
+                .unwrap_err();
+        assert!(
+            unmatched_end
+                .to_string()
+                .contains("unmatched noncompliant end"),
+            "{unmatched_end:#}"
+        );
+
+        let unclosed = noncompliant_source_hits(
+            "src/lib.rs",
+            "// cite: noncompliant begin -- fixture\nrule 100.1\n",
+        )
+        .unwrap_err();
+        assert!(
+            unclosed.to_string().contains("unclosed noncompliant begin"),
+            "{unclosed:#}"
+        );
     }
 
     #[test]
