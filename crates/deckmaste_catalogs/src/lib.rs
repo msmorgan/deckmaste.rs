@@ -1,8 +1,12 @@
 mod cards;
 mod cr;
+mod diff;
+mod io;
 mod kind;
 mod set;
 
+pub use crate::diff::DirectoryDiff;
+pub use crate::diff::compare_directories;
 pub use crate::kind::CatalogKind;
 pub use crate::set::CatalogSet;
 
