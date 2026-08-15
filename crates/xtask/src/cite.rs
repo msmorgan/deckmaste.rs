@@ -23,6 +23,7 @@ use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::Digest as _;
+use syn::visit::Visit as _;
 
 /// Repository citation commands.
 #[derive(Debug, Args)]
@@ -995,76 +996,73 @@ fn noncompliant_source_hits(file: &str, source: &str) -> anyhow::Result<Vec<Nonc
     const SCOPE_END: &str = "// cite: noncompliant end";
     const LINE_EXEMPT: &str = "// cite: noncompliant-line -- machine-readable parser key";
 
-    #[derive(Debug)]
-    struct FixtureScope {
-        start: usize,
-        declaration_seen: bool,
-        declaration_closed: bool,
+    let lines: Vec<&str> = source.lines().collect();
+    let marker_lines: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter_map(|(index, line)| line.contains("cite: noncompliant").then_some(index + 1))
+        .collect();
+    if Path::new(file).extension() != Some(std::ffi::OsStr::new("rs")) {
+        anyhow::ensure!(
+            marker_lines.is_empty(),
+            "cite: noncompliant exemptions require Rust source: {file}:{}",
+            marker_lines.first().copied().unwrap_or_default()
+        );
+        return Ok(noncompliant_hits_on_lines(file, &lines, &BTreeSet::new()));
     }
 
-    let mut hits = Vec::new();
-    let mut scope = None;
-    for (index, line) in source.lines().enumerate() {
-        let line_number = index + 1;
-        let trimmed = line.trim();
-        if trimmed == SCOPE_BEGIN {
-            anyhow::ensure!(
-                scope.is_none(),
-                "cite: nested noncompliant begin in {file}:{line_number}"
-            );
-            scope = Some(FixtureScope {
-                start: line_number,
-                declaration_seen: false,
-                declaration_closed: false,
-            });
+    let syntax = syn::parse_file(source)
+        .with_context(|| format!("parsing Rust source {file} for citation exemptions"))?;
+    let mut sites = RustExemptionSites::default();
+    sites.visit_file(&syntax);
+    let mut exempt_lines = BTreeSet::new();
+    for fixture in sites.fixtures {
+        let Some(begin) = fixture.start_line.checked_sub(1) else {
+            continue;
+        };
+        let end = fixture.end_line + 1;
+        if lines
+            .get(begin - 1)
+            .is_some_and(|text| text.trim() == SCOPE_BEGIN)
+            && lines
+                .get(end - 1)
+                .is_some_and(|text| text.trim() == SCOPE_END)
+        {
+            exempt_lines.extend(begin..=end);
+        }
+    }
+
+    for line_number in marker_lines {
+        if exempt_lines.contains(&line_number) {
             continue;
         }
-        if trimmed == SCOPE_END {
-            let active = scope.as_ref().with_context(|| {
-                format!("cite: unmatched noncompliant end in {file}:{line_number}")
-            })?;
-            anyhow::ensure!(
-                active.declaration_seen && active.declaration_closed,
-                "cite: noncompliant fixture constant is not closed before {file}:{line_number}"
-            );
-            scope = None;
-            continue;
-        }
-        if line.trim_end().ends_with(LINE_EXEMPT) {
-            anyhow::ensure!(
-                scope.is_none(),
-                "cite: parser-key line marker inside fixture scope in {file}:{line_number}"
-            );
-            let code = line
-                .trim_end()
-                .strip_suffix(LINE_EXEMPT)
-                .expect("suffix was checked")
-                .trim_end();
-            anyhow::ensure!(
-                is_quoted_rule_parser_key_line(code),
-                "cite: noncompliant line marker requires a quoted parser-key line in {file}:{line_number}"
-            );
-            continue;
-        }
+        let line = lines[line_number - 1];
+        let marker_column = line.trim_end().strip_suffix(LINE_EXEMPT).map(str::len);
+        let valid_line_exemption = marker_column.is_some_and(|column| {
+            sites
+                .rule_arguments
+                .iter()
+                .any(|argument| argument.precedes_marker_on_line(line, line_number, column))
+        });
         anyhow::ensure!(
-            !line.contains("cite: noncompliant"),
-            "cite: malformed noncompliant marker in {file}:{line_number}"
+            valid_line_exemption,
+            "cite: noncompliant marker is not at a structural Rust position in {file}:{line_number}"
         );
-        if let Some(active) = scope.as_mut() {
-            if active.declaration_seen {
-                anyhow::ensure!(
-                    !active.declaration_closed,
-                    "cite: expected noncompliant fixture end after fixture constant in {file}:{line_number}"
-                );
-                active.declaration_closed = fixture_constant_closes(trimmed);
-            } else {
-                anyhow::ensure!(
-                    is_fixture_constant_declaration(trimmed),
-                    "cite: noncompliant scope must immediately precede a CR fixture constant in {file}:{line_number}"
-                );
-                active.declaration_seen = true;
-                active.declaration_closed = fixture_constant_closes(trimmed);
-            }
+        exempt_lines.insert(line_number);
+    }
+
+    Ok(noncompliant_hits_on_lines(file, &lines, &exempt_lines))
+}
+
+fn noncompliant_hits_on_lines(
+    file: &str,
+    lines: &[&str],
+    exempt_lines: &BTreeSet<usize>,
+) -> Vec<NoncompliantHit> {
+    let mut hits = Vec::new();
+    for (index, line) in lines.iter().enumerate() {
+        let line_number = index + 1;
+        if exempt_lines.contains(&line_number) {
             continue;
         }
         for matched in noncompliant_matches(line) {
@@ -1076,40 +1074,121 @@ fn noncompliant_source_hits(file: &str, source: &str) -> anyhow::Result<Vec<Nonc
             });
         }
     }
-    anyhow::ensure!(
-        scope.is_none(),
-        "cite: unclosed noncompliant begin in {file}:{}",
-        scope.as_ref().map_or(0, |active| active.start)
-    );
-    Ok(hits)
+    hits
 }
 
-fn is_quoted_rule_parser_key_line(code: &str) -> bool {
-    static QUOTED_RULE: OnceLock<Regex> = OnceLock::new();
-    !code.trim_start().starts_with('/')
-        && QUOTED_RULE
-            .get_or_init(|| {
-                Regex::new(r#"\"[1-9][0-9]{2}\.[0-9]+[a-z]?\"\s*,\s*$"#)
-                    .expect("the quoted rule-key regex is valid")
-            })
-            .is_match(code)
+#[derive(Debug, Default)]
+struct RustExemptionSites {
+    rule_arguments: Vec<RuleArgumentSite>,
+    fixtures: Vec<FixtureItemSite>,
 }
 
-fn is_fixture_constant_declaration(line: &str) -> bool {
-    static FIXTURE_CONST: OnceLock<Regex> = OnceLock::new();
-    FIXTURE_CONST
+#[derive(Debug)]
+struct RuleArgumentSite {
+    line: usize,
+    end_column: usize,
+}
+
+impl RuleArgumentSite {
+    fn precedes_marker_on_line(
+        &self,
+        source_line: &str,
+        line: usize,
+        marker_column: usize,
+    ) -> bool {
+        self.line == line
+            && self.end_column <= marker_column
+            && source_line
+                .get(self.end_column..marker_column)
+                .is_some_and(|between| between.trim() == ",")
+    }
+}
+
+#[derive(Debug)]
+struct FixtureItemSite {
+    start_line: usize,
+    end_line: usize,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for RustExemptionSites {
+    fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+        self.collect_rule_arguments(&call.args);
+        syn::visit::visit_expr_call(self, call);
+    }
+
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        self.collect_rule_arguments(&call.args);
+        syn::visit::visit_expr_method_call(self, call);
+    }
+
+    fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
+        if is_string_fixture_const(item) {
+            self.fixtures.push(FixtureItemSite {
+                start_line: item.const_token.span.start().line,
+                end_line: item.semi_token.span.end().line,
+            });
+        }
+        syn::visit::visit_item_const(self, item);
+    }
+}
+
+impl RustExemptionSites {
+    fn collect_rule_arguments(
+        &mut self,
+        arguments: &syn::punctuated::Punctuated<syn::Expr, syn::Token![,]>,
+    ) {
+        for argument in arguments {
+            let syn::Expr::Lit(expression) = argument else {
+                continue;
+            };
+            let syn::Lit::Str(literal) = &expression.lit else {
+                continue;
+            };
+            if is_rule_parser_key(&literal.value()) {
+                let span = literal.span();
+                let start = span.start();
+                let end = span.end();
+                if start.line == end.line {
+                    self.rule_arguments.push(RuleArgumentSite {
+                        line: end.line,
+                        end_column: end.column,
+                    });
+                }
+            }
+        }
+    }
+}
+
+fn is_rule_parser_key(value: &str) -> bool {
+    static RULE_KEY: OnceLock<Regex> = OnceLock::new();
+    RULE_KEY
         .get_or_init(|| {
-            Regex::new(r"^const [A-Z][A-Z0-9_]*FIXTURE[A-Z0-9_]*: &str = ")
-                .expect("the fixture-constant regex is valid")
+            Regex::new(r"^[1-9][0-9]{2}\.[0-9]+[a-z]?$")
+                .expect("the parser rule-key regex is valid")
         })
-        .is_match(line)
+        .is_match(value)
 }
 
-fn fixture_constant_closes(line: &str) -> bool {
-    static STRING_END: OnceLock<Regex> = OnceLock::new();
-    STRING_END
-        .get_or_init(|| Regex::new("\\\"#*;$").expect("the string-end regex is valid"))
-        .is_match(line)
+fn is_string_fixture_const(item: &syn::ItemConst) -> bool {
+    let name = item.ident.to_string();
+    let uppercase_fixture = name.ends_with("_FIXTURE")
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_');
+    let syn::Type::Reference(reference) = item.ty.as_ref() else {
+        return false;
+    };
+    let syn::Type::Path(path) = reference.elem.as_ref() else {
+        return false;
+    };
+    let syn::Expr::Lit(expression) = item.expr.as_ref() else {
+        return false;
+    };
+    uppercase_fixture
+        && reference.mutability.is_none()
+        && path.qself.is_none()
+        && path.path.is_ident("str")
+        && matches!(expression.lit, syn::Lit::Str(_))
 }
 
 fn noncompliant_patterns() -> &'static [Regex; 3] {
@@ -1405,7 +1484,13 @@ Contents\r\n\
     fn noncompliant_scan_accepts_exact_parser_key_and_fixture_markers() {
         let source = "\
 // CR 100.1
-parse_rule(\"100.1\", // cite: noncompliant-line -- machine-readable parser key
+fn parse_rule(_: &str, _: ()) {}
+fn example() {
+    parse_rule(
+        \"100.1\", // cite: noncompliant-line -- machine-readable parser key
+        (),
+    );
+}
 // cite: noncompliant begin -- verbatim CR parser fixture, not prose claims
 const CR_FIXTURE: &str = \"rule 200.1\";
 // cite: noncompliant end
@@ -1429,7 +1514,7 @@ const CR_FIXTURE: &str = \"rule 100.1\";\n\
 // cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n",
         )
         .unwrap_err();
-        assert!(error.to_string().contains("nested noncompliant begin"));
+        assert!(error.to_string().contains("structural Rust position"));
     }
 
     #[test]
@@ -1440,7 +1525,7 @@ const CR_FIXTURE: &str = \"rule 100.1\";\n\
         assert!(
             unmatched_end
                 .to_string()
-                .contains("unmatched noncompliant end"),
+                .contains("structural Rust position"),
             "{unmatched_end:#}"
         );
     }
@@ -1454,7 +1539,7 @@ const CR_FIXTURE: &str = \"rule 100.1\";\n",
         )
         .unwrap_err();
         assert!(
-            unclosed.to_string().contains("unclosed noncompliant begin"),
+            unclosed.to_string().contains("structural Rust position"),
             "{unclosed:#}"
         );
     }
@@ -1464,11 +1549,11 @@ const CR_FIXTURE: &str = \"rule 100.1\";\n",
         for malformed in [
             "// cite: noncompliant beginning -- verbatim CR parser fixture, not prose claims",
             "// cite: noncompliant endless",
-            "let key = \"100.1\"; // cite: noncompliant-line-altered -- machine-readable parser key",
+            "fn f() { parse_rule(\"100.1\"); } // cite: noncompliant-line-altered -- machine-readable parser key",
         ] {
             let error = noncompliant_source_hits("src/lib.rs", malformed).unwrap_err();
             assert!(
-                error.to_string().contains("malformed noncompliant marker"),
+                error.to_string().contains("structural Rust position"),
                 "{malformed:?}: {error:#}"
             );
         }
@@ -1478,12 +1563,12 @@ const CR_FIXTURE: &str = \"rule 100.1\";\n",
     fn noncompliant_scan_rejects_line_marker_on_prose_or_non_key_code() {
         for misuse in [
             "// CR 100.1 // cite: noncompliant-line -- machine-readable parser key",
-            "let key = rule_number; // cite: noncompliant-line -- machine-readable parser key",
+            "fn f() { let key = rule_number; } // cite: noncompliant-line -- machine-readable parser key",
             "/* \"100.1\", */ // cite: noncompliant-line -- machine-readable parser key",
         ] {
             let error = noncompliant_source_hits("src/lib.rs", misuse).unwrap_err();
             assert!(
-                error.to_string().contains("parser-key line"),
+                error.to_string().contains("structural Rust position"),
                 "{misuse:?}: {error:#}"
             );
         }
@@ -1498,11 +1583,68 @@ const CR_FIXTURE: &str = \"rule 100.1\";\n",
             "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
 fn prose() { /* rule 100.1 */ }\n\
 // cite: noncompliant end\n",
+            "// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims\n\
+const OTHER_FIXTURE: usize = 100;\n\
+// cite: noncompliant end\n",
         ] {
             let error = noncompliant_source_hits("src/lib.rs", misuse).unwrap_err();
             assert!(
-                error.to_string().contains("fixture constant"),
+                error.to_string().contains("structural Rust position"),
                 "{misuse:?}: {error:#}"
+            );
+        }
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_markers_outside_rust() {
+        let prose = "\
+// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims
+const CR_FIXTURE: &str = \"rule 100.1\";
+// cite: noncompliant end
+";
+        for file in ["notes.md", "data.ron", "proof.idr"] {
+            let error = noncompliant_source_hits(file, prose).unwrap_err();
+            assert!(
+                error.to_string().contains("Rust source"),
+                "{file}: {error:#}"
+            );
+        }
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_line_markers_spoofed_inside_rust_strings() {
+        let ordinary = r#"const SPOOF: &str = "// CR 100.1 // cite: noncompliant-line -- machine-readable parser key";"#;
+        let raw = r##"const SPOOF: &str = r#"
+parse_rule("100.1", // cite: noncompliant-line -- machine-readable parser key
+"#;
+"##;
+        for source in [ordinary, raw] {
+            let error = noncompliant_source_hits("src/lib.rs", source).unwrap_err();
+            assert!(
+                error.to_string().contains("structural Rust position"),
+                "{error:#}"
+            );
+        }
+    }
+
+    #[test]
+    fn noncompliant_scan_rejects_scope_markers_spoofed_inside_rust_strings() {
+        let ordinary = r#"const SPOOF: &str = "
+// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims
+const CR_FIXTURE: &str = \"rule 100.1\";
+// cite: noncompliant end
+";"#;
+        let raw = r##"const SPOOF: &str = r#"
+// cite: noncompliant begin -- verbatim CR parser fixture, not prose claims
+const CR_FIXTURE: &str = "rule 100.1";
+// cite: noncompliant end
+"#;
+"##;
+        for source in [ordinary, raw] {
+            let error = noncompliant_source_hits("src/lib.rs", source).unwrap_err();
+            assert!(
+                error.to_string().contains("structural Rust position"),
+                "{error:#}"
             );
         }
     }
