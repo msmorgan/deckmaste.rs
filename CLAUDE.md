@@ -27,17 +27,22 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   crate itself survives). `deckmaste_legacy_render` is legacy independently
   of the rewrite.
 - **The rewrite's crates:** `deckmaste_english_v2` (takes the
-  `deckmaste_english` name at cutover) and the future `deckmaste_construction`
-  declaration compiler. v2 stays a leaf: it must never depend on any crate
-  slated for deletion.
+  `deckmaste_english` name at cutover), the future `deckmaste_construction`
+  declaration compiler, and the stable shared layer `deckmaste_data`
+  (snapshot models) + `deckmaste_catalogs` (catalog extraction, inventory,
+  line-file I/O — its `legacy` adapter module deletes together with
+  `deckmaste_english` at cutover). v2 must never depend on any crate slated
+  for deletion; today it depends only on `deckmaste_catalogs`.
 - **`deckmaste_migrations` survives as a function** (card
   extract→resolve→graduate, snapshot ingestion). Its oracle-text extraction
   is its own regex pipeline — it does not consume the construction parser —
   but it depends on deletion-slated `deckmaste_legacy_render` and must shed
-  that by cutover. Re-pointing extraction at english_v2 is a separate,
-  not-yet-scheduled decision. Do not home new english_v2 infrastructure
-  there — or in any crate marked for deletion — without recording the
-  deviation in the rewrite ADR.
+  that by cutover. It consumes `deckmaste_data` (temporarily) for its
+  surviving extraction work; its former catalog module is gone.
+  Re-pointing extraction at english_v2 is a separate, not-yet-scheduled
+  decision. Do not home new english_v2 infrastructure there — or in any
+  crate marked for deletion — without recording the deviation in the
+  rewrite ADR.
 - Everything else is unaffected by the rewrite.
 
 ## CR citations
