@@ -139,17 +139,19 @@ where
                         && node.start == origin
                         && node.end == column
                 })
-                .map(NodeId)
-                .unwrap_or_else(|| {
-                    let node_id = NodeId(forest.nodes.len());
-                    forest.nodes.push(PackedNode {
-                        construction: rule.construction.clone(),
-                        start: origin,
-                        end: column,
-                        families: Vec::new(),
-                    });
-                    node_id
-                });
+                .map_or_else(
+                    || {
+                        let node_id = NodeId(forest.nodes.len());
+                        forest.nodes.push(PackedNode {
+                            construction: rule.construction.clone(),
+                            start: origin,
+                            end: column,
+                            families: Vec::new(),
+                        });
+                        node_id
+                    },
+                    NodeId,
+                );
             let node = &mut forest.nodes[node_id.0];
             if !insert_family(&mut node.families, family) {
                 continue;
@@ -168,13 +170,13 @@ where
 
             let waiters = chart[origin]
                 .iter()
-                .filter_map(|(&(waiter_rule, waiter_dot, waiter_origin), families)| {
+                .filter(|&(&(waiter_rule, waiter_dot, _), _)| {
                     matches!(
                         rules[waiter_rule].rhs.get(waiter_dot),
                         Some(RulePosition::Nonterminal(category)) if *category == rule.lhs
                     )
-                    .then(|| ((waiter_rule, waiter_dot, waiter_origin), families.clone()))
                 })
+                .map(|(&key, families)| (key, families.clone()))
                 .collect::<Vec<_>>();
             for ((waiter_rule, waiter_dot, waiter_origin), waiter_families) in waiters {
                 for waiter_family in waiter_families {

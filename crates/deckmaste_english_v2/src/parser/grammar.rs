@@ -14,7 +14,43 @@ use super::engine::Rule;
 use super::engine::RulePosition;
 use super::engine::SeedPolicy;
 use super::engine::parse;
-use crate::ast::*;
+use crate::ast::Ability;
+use crate::ast::Amount;
+use crate::ast::Article;
+use crate::ast::CatalogIdentity;
+use crate::ast::Clause;
+use crate::ast::Common;
+use crate::ast::Connive;
+use crate::ast::CountNp;
+use crate::ast::DealDamage;
+use crate::ast::Declarative;
+use crate::ast::Demonstrative;
+use crate::ast::DemonstrativeNp;
+use crate::ast::Destroy;
+use crate::ast::EventClause;
+use crate::ast::GainLife;
+use crate::ast::Imperative;
+use crate::ast::Noun;
+use crate::ast::NounLexeme;
+use crate::ast::NounPhrase;
+use crate::ast::NumberAmount;
+use crate::ast::Pronoun;
+use crate::ast::PronounNp;
+use crate::ast::SelfReferenceNp;
+use crate::ast::SelfReferenceSpelling;
+use crate::ast::Sentence;
+use crate::ast::Sign;
+use crate::ast::SignedNumber;
+use crate::ast::Spell;
+use crate::ast::TargetNp;
+use crate::ast::TriggerWord;
+use crate::ast::Triggered;
+use crate::ast::Variable;
+use crate::ast::VariableAmount;
+use crate::ast::VerbLexeme;
+use crate::ast::VerbPhrase;
+use crate::ast::WhereClause;
+use crate::ast::WithWhere;
 use crate::catalogs::ParserCatalogs;
 use crate::context::ParseContext;
 
@@ -274,15 +310,14 @@ impl SliceGrammar<'_> {
                 })
                 .into_iter()
                 .collect(),
-            Lexical::Literal(literal) => self
-                .word(text, offset, literal)
+            Lexical::Literal(literal) => Self::word(text, offset, literal)
                 .map(|end| LexicalMatch {
                     end,
                     value: Leaf::Literal(literal),
                 })
                 .into_iter()
                 .collect(),
-            Lexical::TriggerWord => self.closed_word(
+            Lexical::TriggerWord => Self::closed_word(
                 text,
                 offset,
                 "whenever",
@@ -294,8 +329,7 @@ impl SliceGrammar<'_> {
             ]
             .into_iter()
             .filter_map(|(word, value)| {
-                self.word(text, offset, word)
-                    .map(|end| LexicalMatch { end, value })
+                Self::word(text, offset, word).map(|end| LexicalMatch { end, value })
             })
             .collect(),
             Lexical::Demonstrative => [
@@ -304,8 +338,7 @@ impl SliceGrammar<'_> {
             ]
             .into_iter()
             .filter_map(|(word, value)| {
-                self.word(text, offset, word)
-                    .map(|end| LexicalMatch { end, value })
+                Self::word(text, offset, word).map(|end| LexicalMatch { end, value })
             })
             .collect(),
             Lexical::Pronoun => [
@@ -314,14 +347,13 @@ impl SliceGrammar<'_> {
             ]
             .into_iter()
             .filter_map(|(word, value)| {
-                self.word(text, offset, word)
-                    .map(|end| LexicalMatch { end, value })
+                Self::word(text, offset, word).map(|end| LexicalMatch { end, value })
             })
             .collect(),
-            Lexical::Variable => self.closed_word(text, offset, "X", Leaf::Variable(Variable::X)),
+            Lexical::Variable => Self::closed_word(text, offset, "X", Leaf::Variable(Variable::X)),
             Lexical::Noun(number) => self.scan_noun(text, offset, number),
-            Lexical::Verb(lexeme) => self.scan_verb(text, offset, lexeme),
-            Lexical::SignedNumber => self.scan_signed_number(text, offset),
+            Lexical::Verb(lexeme) => Self::scan_verb(text, offset, lexeme),
+            Lexical::SignedNumber => Self::scan_signed_number(text, offset),
             Lexical::SelfReference => [
                 (
                     self.context.card_name(),
@@ -334,35 +366,26 @@ impl SliceGrammar<'_> {
             ]
             .into_iter()
             .filter_map(|(word, value)| {
-                self.word(text, offset, word)
-                    .map(|end| LexicalMatch { end, value })
+                Self::word(text, offset, word).map(|end| LexicalMatch { end, value })
             })
             .collect(),
         }
     }
 
-    fn closed_word(
-        &self,
-        text: &str,
-        offset: usize,
-        word: &str,
-        value: Leaf,
-    ) -> Vec<LexicalMatch<Leaf>> {
-        self.word(text, offset, word)
+    fn closed_word(text: &str, offset: usize, word: &str, value: Leaf) -> Vec<LexicalMatch<Leaf>> {
+        Self::word(text, offset, word)
             .map(|end| LexicalMatch { end, value })
             .into_iter()
             .collect()
     }
 
-    fn word(&self, text: &str, offset: usize, word: &str) -> Option<usize> {
+    fn word(text: &str, offset: usize, word: &str) -> Option<usize> {
         let prefix = usize::from(offset != 0);
         let remainder = text.get(offset..)?;
         let remainder = (prefix == 0)
             .then_some(remainder)
             .or_else(|| remainder.strip_prefix(' '))?;
-        let word = (offset == 0)
-            .then(|| capitalize(word))
-            .unwrap_or_else(|| word.to_owned());
+        let word = if offset == 0 { capitalize(word) } else { word.to_owned() };
         remainder
             .starts_with(&word)
             .then_some(offset + prefix + word.len())
@@ -385,7 +408,7 @@ impl SliceGrammar<'_> {
                 })
         })) {
             for (number, word) in noun_forms(&singular, wanted) {
-                if let Some(end) = self.word(text, offset, &word) {
+                if let Some(end) = Self::word(text, offset, &word) {
                     matches.push(LexicalMatch {
                         end,
                         value: Leaf::Noun {
@@ -399,20 +422,19 @@ impl SliceGrammar<'_> {
         matches
     }
 
-    fn scan_verb(&self, text: &str, offset: usize, lexeme: VerbLexeme) -> Vec<LexicalMatch<Leaf>> {
+    fn scan_verb(text: &str, offset: usize, lexeme: VerbLexeme) -> Vec<LexicalMatch<Leaf>> {
         [Agreement::Bare, Agreement::ThirdPersonSingular]
             .into_iter()
             .filter_map(|agreement| {
-                self.word(text, offset, inflect(lexeme, agreement))
-                    .map(|end| LexicalMatch {
-                        end,
-                        value: Leaf::Verb { lexeme, agreement },
-                    })
+                Self::word(text, offset, inflect(lexeme, agreement)).map(|end| LexicalMatch {
+                    end,
+                    value: Leaf::Verb { lexeme, agreement },
+                })
             })
             .collect()
     }
 
-    fn scan_signed_number(&self, text: &str, offset: usize) -> Vec<LexicalMatch<Leaf>> {
+    fn scan_signed_number(text: &str, offset: usize) -> Vec<LexicalMatch<Leaf>> {
         let prefix = usize::from(offset != 0);
         let Some(remainder) = text.get(offset..) else {
             return Vec::new();
@@ -508,29 +530,58 @@ enum BuildValue {
     Leaf(Leaf),
 }
 
-pub(crate) fn materialize(forest: &Forest<Construction, Leaf>) -> Vec<Ability> {
-    let mut abilities = Vec::new();
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BuiltCandidate {
+    value: BuildValue,
+    constructions: Vec<Construction>,
+    positions: Vec<RulePosition<Category, Lexical>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Candidate {
+    pub ability: Ability,
+    pub constructions: Vec<Construction>,
+    pub positions: Vec<RulePosition<Category, Lexical>>,
+}
+
+pub(crate) fn materialize(forest: &Forest<Construction, Leaf>) -> Vec<Candidate> {
+    let mut candidates = Vec::new();
     for root in forest.accepted_roots() {
-        for value in materialize_node(forest, root) {
-            if let BuildValue::Ability(ability) = value {
-                push_unique(&mut abilities, ability);
+        for built in materialize_node(forest, root) {
+            if let BuildValue::Ability(ability) = built.value {
+                push_unique(
+                    &mut candidates,
+                    Candidate {
+                        ability,
+                        constructions: built.constructions,
+                        positions: built.positions,
+                    },
+                );
             }
         }
     }
-    abilities
+    candidates
 }
 
 fn materialize_node(
     forest: &Forest<Construction, Leaf>,
     node: &PackedNode<Construction, Leaf>,
-) -> Vec<BuildValue> {
+) -> Vec<BuiltCandidate> {
+    let rule = RULES
+        .iter()
+        .find(|rule| rule.construction == node.construction)
+        .expect("every construction has exactly one declared rule");
     let mut values = Vec::new();
     for family in &node.families {
         let mut combinations = vec![Vec::new()];
         for child in &family.children {
             let child_values = match child {
                 Child::Node(id) => materialize_node(forest, forest.node(*id)),
-                Child::Lexical(leaf) => vec![BuildValue::Leaf(leaf.clone())],
+                Child::Lexical(leaf) => vec![BuiltCandidate {
+                    value: BuildValue::Leaf(leaf.clone()),
+                    constructions: Vec::new(),
+                    positions: Vec::new(),
+                }],
             };
             let mut next = Vec::new();
             for combination in combinations {
@@ -543,8 +594,25 @@ fn materialize_node(
             combinations = next;
         }
         for children in combinations {
-            if let Some(value) = build(node.construction, &children) {
-                push_unique(&mut values, value);
+            let child_values = children
+                .iter()
+                .map(|child| child.value.clone())
+                .collect::<Vec<_>>();
+            if let Some(value) = build(node.construction, &child_values) {
+                let mut constructions = vec![node.construction];
+                let mut positions = rule.rhs.to_vec();
+                for child in children {
+                    constructions.extend(child.constructions);
+                    positions.extend(child.positions);
+                }
+                push_unique(
+                    &mut values,
+                    BuiltCandidate {
+                        value,
+                        constructions,
+                        positions,
+                    },
+                );
             }
         }
     }
@@ -557,6 +625,10 @@ fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the exhaustive generated-shape construction dispatch is intentionally flat"
+)]
 fn build(construction: Construction, children: &[BuildValue]) -> Option<BuildValue> {
     match construction {
         Construction::AbilitySpell => match children {
@@ -834,12 +906,15 @@ mod tests {
     use super::Forest;
     use super::Leaf;
     use super::Lexical;
+    use super::NounNumber;
     use super::RULES;
     use super::SliceGrammar;
     use super::materialize;
     use super::parse_forest;
+    use crate::ast::VerbLexeme;
     use crate::catalogs::ParserCatalogs;
     use crate::context::ParseContext;
+    use crate::parser::engine::RulePosition;
     use crate::render::Render;
 
     fn slice_candidates(
@@ -927,7 +1002,10 @@ mod tests {
             let forest = slice_candidates(text, card_name).expect("scanner accepts rendered input");
             let candidates = materialize(&forest);
             assert_eq!(candidates.len(), 1, "unexpected candidates for {text:?}");
-            assert_eq!(candidates[0].render(&ParseContext::new(card_name)), text);
+            assert_eq!(
+                candidates[0].ability.render(&ParseContext::new(card_name)),
+                text
+            );
         }
     }
 
@@ -949,8 +1027,39 @@ mod tests {
         let candidates = materialize(&forest);
         assert_eq!(candidates.len(), 1);
         assert_eq!(
-            candidates[0].render(&ParseContext::new("Context Card")),
+            candidates[0]
+                .ability
+                .render(&ParseContext::new("Context Card")),
             text
+        );
+    }
+
+    #[test]
+    fn materialize_preserves_preorder_constructions_and_declared_positions() {
+        let forest = slice_candidates("Destroy target creature.", "Context Card").unwrap();
+        let candidates = materialize(&forest);
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(
+            candidates[0].constructions,
+            vec![
+                Construction::AbilitySpell,
+                Construction::SentenceImperative,
+                Construction::VerbPhraseDestroy,
+                Construction::NounPhraseTarget,
+            ]
+        );
+        assert_eq!(
+            candidates[0].positions,
+            vec![
+                RulePosition::Nonterminal(Category::Sentence),
+                RulePosition::Lexical(Lexical::Literal(".")),
+                RulePosition::Nonterminal(Category::VerbPhrase),
+                RulePosition::Lexical(Lexical::Verb(VerbLexeme::Destroy)),
+                RulePosition::Nonterminal(Category::NounPhrase),
+                RulePosition::Lexical(Lexical::Literal("target")),
+                RulePosition::Lexical(Lexical::Noun(NounNumber::Singular)),
+            ]
         );
     }
 }
