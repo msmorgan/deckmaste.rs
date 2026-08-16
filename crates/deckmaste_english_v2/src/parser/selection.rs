@@ -201,6 +201,10 @@ mod tests {
     use crate::parser::engine::Rule;
     use crate::parser::engine::RulePosition;
     use crate::parser::engine::parse;
+    use crate::parser::materialize::materialize_with;
+    use crate::parser::rules::Category;
+    use crate::parser::rules::Construction;
+    use crate::parser::rules::Lexical;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
     enum TestCategory {
@@ -245,6 +249,12 @@ mod tests {
         Empty,
     }
 
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum TestBuildValue {
+        Ability(&'static str),
+        Leaf(Lexical),
+    }
+
     impl TestRuleId {
         const fn construction(self) -> TestConstruction {
             match self {
@@ -278,6 +288,22 @@ mod tests {
                     RulePosition::Lexical(TestLexical::LiteralAlpha),
                 ],
                 Self::Empty => &[],
+            }
+        }
+
+        const fn index(self) -> usize {
+            match self {
+                Self::SharedLiteral => 0,
+                Self::SharedTyped => 1,
+                Self::LiteralAlpha
+                | Self::BroadAlpha
+                | Self::TestLeft
+                | Self::TestRight
+                | Self::LateLiteral
+                | Self::EarlyTyped
+                | Self::LateLiteralChild
+                | Self::EarlyTypedChild
+                | Self::Empty => panic!("only shared-form rules are materialized"),
             }
         }
     }
@@ -316,16 +342,16 @@ mod tests {
         },
     ];
 
-    const SHARED_FORM_RULES: &[Rule<TestCategory, TestLexical, TestRuleId>] = &[
+    const SHARED_FORM_RULES: &[Rule<Category, Lexical, TestRuleId>] = &[
         Rule {
             id: TestRuleId::SharedLiteral,
-            lhs: TestCategory::Start,
-            rhs: &[RulePosition::Lexical(TestLexical::LiteralAlpha)],
+            lhs: Category::Ability,
+            rhs: &[RulePosition::Lexical(Lexical::Literal("alpha"))],
         },
         Rule {
             id: TestRuleId::SharedTyped,
-            lhs: TestCategory::Start,
-            rhs: &[RulePosition::Lexical(TestLexical::Word)],
+            lhs: Category::Ability,
+            rhs: &[RulePosition::Lexical(Lexical::Variable)],
         },
     ];
 
@@ -368,10 +394,15 @@ mod tests {
         parse_and_select_toy(TIE_RULES, text)
     }
 
-    fn parse_and_materialize_shared_forms(text: &str) -> (usize, Vec<TestCandidate>) {
+    fn parse_and_materialize_shared_forms(
+        text: &str,
+    ) -> (
+        usize,
+        Vec<crate::parser::materialize::MaterializedCandidate<TestBuildValue, Construction>>,
+    ) {
         let forest = parse(
             SHARED_FORM_RULES,
-            TestCategory::Start,
+            Category::Ability,
             text.len(),
             |lexical, offset| {
                 (offset == 0 && text == "alpha")
@@ -386,10 +417,22 @@ mod tests {
         )
         .expect("the shared-form toy grammar accepts alpha");
         let roots = forest.accepted_roots().collect::<Vec<_>>();
-        let candidates = roots
-            .iter()
-            .map(|root| candidate_from_root(&forest, root))
-            .collect();
+        let candidates = materialize_with(
+            &forest,
+            SHARED_FORM_RULES,
+            TestRuleId::index,
+            |_| Construction::AmountNumber,
+            |leaf| TestBuildValue::Leaf(*leaf),
+            |rule, children| match (rule, children) {
+                (TestRuleId::SharedLiteral, [TestBuildValue::Leaf(Lexical::Literal("alpha"))]) => {
+                    Some(TestBuildValue::Ability("literal form"))
+                }
+                (TestRuleId::SharedTyped, [TestBuildValue::Leaf(Lexical::Variable)]) => {
+                    Some(TestBuildValue::Ability("typed form"))
+                }
+                _ => None,
+            },
+        );
         (roots.len(), candidates)
     }
 
@@ -517,13 +560,32 @@ mod tests {
         assert_eq!(
             candidates
                 .iter()
-                .map(|candidate| candidate.ability)
+                .map(|candidate| match candidate.value {
+                    TestBuildValue::Ability(ability) => ability,
+                    TestBuildValue::Leaf(_) => panic!("accepted roots build abilities"),
+                })
                 .collect::<std::collections::BTreeSet<_>>(),
             std::collections::BTreeSet::from(["literal form", "typed form"]),
         );
+        assert!(
+            candidates
+                .iter()
+                .all(|candidate| candidate.constructions == [Construction::AmountNumber])
+        );
 
-        let selected = select_test_candidates(candidates).unwrap();
-        assert_eq!(selected.ability, "literal form");
+        let selected = select_ranked(
+            candidates,
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| {
+                structural_specificity(&candidate.positions, |lexical| {
+                    matches!(lexical, Lexical::Literal(_))
+                })
+            },
+            |_| "SharedForm",
+            &[],
+        )
+        .unwrap();
+        assert_eq!(selected.value, TestBuildValue::Ability("literal form"));
     }
 
     #[test]

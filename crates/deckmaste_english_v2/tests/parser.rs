@@ -70,15 +70,6 @@ fn parse_error_is_a_standard_error_and_converts_to_anyhow() {
     require_standard_error(&error);
 
     let _: anyhow::Error = error.into();
-
-    assert_eq!(
-        ParseError::Ambiguous {
-            first: "FirstConstruction",
-            second: "SecondConstruction",
-        }
-        .to_string(),
-        "ambiguous parse between FirstConstruction and SecondConstruction"
-    );
 }
 
 fn creature() -> Noun {

@@ -7,6 +7,7 @@ use super::engine::Child;
 use super::engine::Family;
 use super::engine::Forest;
 use super::engine::NodeId;
+use super::engine::Rule;
 use super::engine::RulePosition;
 use super::rules::Category;
 use super::rules::Construction;
@@ -18,10 +19,10 @@ use crate::ast::Ability;
 use crate::context::ParseContext;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct BuiltCandidate {
-    value: BuildValue,
-    constructions: Vec<Construction>,
-    positions: Vec<RulePosition<Category, Lexical>>,
+pub(super) struct MaterializedCandidate<V, C> {
+    pub(super) value: V,
+    pub(super) constructions: Vec<C>,
+    pub(super) positions: Vec<RulePosition<Category, Lexical>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,15 +32,180 @@ pub(crate) struct Candidate {
     pub positions: Vec<RulePosition<Category, Lexical>>,
 }
 
-#[derive(Default)]
-struct MaterializationState {
-    memo: BTreeMap<NodeId, Vec<BuiltCandidate>>,
+struct MaterializationStateFor<V, C> {
+    memo: BTreeMap<NodeId, Vec<MaterializedCandidate<V, C>>>,
     in_progress: BTreeSet<NodeId>,
 }
 
-struct MaterializationOutcome {
-    values: Vec<BuiltCandidate>,
+impl<V, C> Default for MaterializationStateFor<V, C> {
+    fn default() -> Self {
+        Self {
+            memo: BTreeMap::new(),
+            in_progress: BTreeSet::new(),
+        }
+    }
+}
+
+struct MaterializationOutcomeFor<V, C> {
+    values: Vec<MaterializedCandidate<V, C>>,
     cycle_pruned: bool,
+}
+
+type MaterializationState = MaterializationStateFor<BuildValue, Construction>;
+#[cfg(test)]
+type MaterializationOutcome = MaterializationOutcomeFor<BuildValue, Construction>;
+
+struct MaterializationKernel<'a, R, T, V, C, Build> {
+    rules: &'a [Rule<Category, Lexical, R>],
+    rule_index: fn(R) -> usize,
+    construction: fn(R) -> C,
+    build_leaf: fn(&T) -> V,
+    build: Build,
+}
+
+impl<R, T, V, C, Build> MaterializationKernel<'_, R, T, V, C, Build>
+where
+    R: Copy,
+    V: Clone + PartialEq,
+    C: Copy + PartialEq,
+    Build: Fn(R, &[V]) -> Option<V>,
+{
+    fn materialize(&self, forest: &Forest<R, T>) -> Vec<MaterializedCandidate<V, C>> {
+        let mut candidates = Vec::new();
+        let mut state = MaterializationStateFor::default();
+        for root in forest.accepted_root_ids() {
+            for built in self.materialize_node(forest, root, &mut state).values {
+                push_unique(&mut candidates, built);
+            }
+        }
+        candidates
+    }
+
+    fn materialize_node(
+        &self,
+        forest: &Forest<R, T>,
+        node_id: NodeId,
+        state: &mut MaterializationStateFor<V, C>,
+    ) -> MaterializationOutcomeFor<V, C> {
+        if let Some(values) = state.memo.get(&node_id) {
+            return MaterializationOutcomeFor {
+                values: values.clone(),
+                cycle_pruned: false,
+            };
+        }
+        if !state.in_progress.insert(node_id) {
+            return MaterializationOutcomeFor {
+                values: Vec::new(),
+                cycle_pruned: true,
+            };
+        }
+
+        let node = forest.node(node_id);
+        let mut values = Vec::new();
+        let mut cycle_pruned = false;
+        for family in &node.families {
+            let outcome = self.materialize_family(forest, node.rule, family, state);
+            cycle_pruned |= outcome.cycle_pruned;
+            for built in outcome.values {
+                push_unique(&mut values, built);
+            }
+        }
+        state.in_progress.remove(&node_id);
+        if !cycle_pruned {
+            state.memo.insert(node_id, values.clone());
+        }
+        MaterializationOutcomeFor {
+            values,
+            cycle_pruned,
+        }
+    }
+
+    fn materialize_family(
+        &self,
+        forest: &Forest<R, T>,
+        rule_id: R,
+        family: &Family<T>,
+        state: &mut MaterializationStateFor<V, C>,
+    ) -> MaterializationOutcomeFor<V, C> {
+        let rule = &self.rules[(self.rule_index)(rule_id)];
+        let construction = (self.construction)(rule_id);
+        let mut combinations = vec![Vec::new()];
+        let mut cycle_pruned = false;
+        for child in &family.children {
+            let child_values = match child {
+                Child::Node(id) => {
+                    let outcome = self.materialize_node(forest, *id, state);
+                    cycle_pruned |= outcome.cycle_pruned;
+                    outcome.values
+                }
+                Child::Lexical(leaf) => vec![MaterializedCandidate {
+                    value: (self.build_leaf)(leaf),
+                    constructions: Vec::new(),
+                    positions: Vec::new(),
+                }],
+            };
+            let mut next = Vec::new();
+            for combination in combinations {
+                for child_value in &child_values {
+                    let mut combination = combination.clone();
+                    combination.push(child_value.clone());
+                    next.push(combination);
+                }
+            }
+            combinations = next;
+        }
+        let mut values = Vec::new();
+        for children in combinations {
+            let child_values = children
+                .iter()
+                .map(|child| child.value.clone())
+                .collect::<Vec<_>>();
+            if let Some(value) = (self.build)(rule_id, &child_values) {
+                let mut constructions = vec![construction];
+                let mut positions = rule.rhs.to_vec();
+                for child in children {
+                    constructions.extend(child.constructions);
+                    positions.extend(child.positions);
+                }
+                push_unique(
+                    &mut values,
+                    MaterializedCandidate {
+                        value,
+                        constructions,
+                        positions,
+                    },
+                );
+            }
+        }
+        MaterializationOutcomeFor {
+            values,
+            cycle_pruned,
+        }
+    }
+}
+
+pub(super) fn materialize_with<R, T, V, C, Build>(
+    forest: &Forest<R, T>,
+    rules: &[Rule<Category, Lexical, R>],
+    rule_index: fn(R) -> usize,
+    construction: fn(R) -> C,
+    build_leaf: fn(&T) -> V,
+    build: Build,
+) -> Vec<MaterializedCandidate<V, C>>
+where
+    R: Copy,
+    V: Clone + PartialEq,
+    C: Copy + PartialEq,
+    Build: Fn(R, &[V]) -> Option<V>,
+{
+    MaterializationKernel {
+        rules,
+        rule_index,
+        construction,
+        build_leaf,
+        build,
+    }
+    .materialize(forest)
 }
 
 pub(crate) fn materialize(
@@ -47,61 +213,44 @@ pub(crate) fn materialize(
     context: &ParseContext<'_>,
 ) -> Vec<Candidate> {
     let mut candidates = Vec::new();
-    let mut state = MaterializationState::default();
-    for root in forest.accepted_root_ids() {
-        for built in materialize_node(forest, root, context, &mut state).values {
-            if let BuildValue::Ability(ability) = built.value {
-                push_unique(
-                    &mut candidates,
-                    Candidate {
-                        ability,
-                        constructions: built.constructions,
-                        positions: built.positions,
-                    },
-                );
-            }
+    for built in materialize_with(
+        forest,
+        RULES,
+        RuleId::index,
+        RuleId::construction,
+        |leaf| BuildValue::Leaf(leaf.clone()),
+        |rule, children| build(rule, children, context),
+    ) {
+        if let BuildValue::Ability(ability) = built.value {
+            push_unique(
+                &mut candidates,
+                Candidate {
+                    ability,
+                    constructions: built.constructions,
+                    positions: built.positions,
+                },
+            );
         }
     }
     candidates
 }
 
+#[cfg(test)]
 fn materialize_node(
     forest: &Forest<RuleId, Leaf>,
     node_id: NodeId,
     context: &ParseContext<'_>,
     state: &mut MaterializationState,
 ) -> MaterializationOutcome {
-    if let Some(values) = state.memo.get(&node_id) {
-        return MaterializationOutcome {
-            values: values.clone(),
-            cycle_pruned: false,
+    let kernel: MaterializationKernel<'_, RuleId, Leaf, BuildValue, Construction, _> =
+        MaterializationKernel {
+            rules: RULES,
+            rule_index: RuleId::index,
+            construction: RuleId::construction,
+            build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
+            build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
         };
-    }
-    if !state.in_progress.insert(node_id) {
-        return MaterializationOutcome {
-            values: Vec::new(),
-            cycle_pruned: true,
-        };
-    }
-
-    let node = forest.node(node_id);
-    let mut values = Vec::new();
-    let mut cycle_pruned = false;
-    for family in &node.families {
-        let outcome = materialize_family(forest, node.rule, family, context, state);
-        cycle_pruned |= outcome.cycle_pruned;
-        for built in outcome.values {
-            push_unique(&mut values, built);
-        }
-    }
-    state.in_progress.remove(&node_id);
-    if !cycle_pruned {
-        state.memo.insert(node_id, values.clone());
-    }
-    MaterializationOutcome {
-        values,
-        cycle_pruned,
-    }
+    kernel.materialize_node(forest, node_id, state)
 }
 
 pub(super) fn completion_has_checked_build(
@@ -110,78 +259,18 @@ pub(super) fn completion_has_checked_build(
     forest: &Forest<RuleId, Leaf>,
     context: &ParseContext<'_>,
 ) -> bool {
-    !materialize_family(
-        forest,
-        rule,
-        family,
-        context,
-        &mut MaterializationState::default(),
-    )
-    .values
-    .is_empty()
-}
-
-fn materialize_family(
-    forest: &Forest<RuleId, Leaf>,
-    rule_id: RuleId,
-    family: &Family<Leaf>,
-    context: &ParseContext<'_>,
-    state: &mut MaterializationState,
-) -> MaterializationOutcome {
-    let rule = &RULES[rule_id.index()];
-    let construction = rule_id.construction();
-    let mut combinations = vec![Vec::new()];
-    let mut cycle_pruned = false;
-    for child in &family.children {
-        let child_values = match child {
-            Child::Node(id) => {
-                let outcome = materialize_node(forest, *id, context, state);
-                cycle_pruned |= outcome.cycle_pruned;
-                outcome.values
-            }
-            Child::Lexical(leaf) => vec![BuiltCandidate {
-                value: BuildValue::Leaf(leaf.clone()),
-                constructions: Vec::new(),
-                positions: Vec::new(),
-            }],
+    let kernel: MaterializationKernel<'_, RuleId, Leaf, BuildValue, Construction, _> =
+        MaterializationKernel {
+            rules: RULES,
+            rule_index: RuleId::index,
+            construction: RuleId::construction,
+            build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
+            build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
         };
-        let mut next = Vec::new();
-        for combination in combinations {
-            for child_value in &child_values {
-                let mut combination = combination.clone();
-                combination.push(child_value.clone());
-                next.push(combination);
-            }
-        }
-        combinations = next;
-    }
-    let mut values = Vec::new();
-    for children in combinations {
-        let child_values = children
-            .iter()
-            .map(|child| child.value.clone())
-            .collect::<Vec<_>>();
-        if let Some(value) = build(rule_id, &child_values, context) {
-            let mut constructions = vec![construction];
-            let mut positions = rule.rhs.to_vec();
-            for child in children {
-                constructions.extend(child.constructions);
-                positions.extend(child.positions);
-            }
-            push_unique(
-                &mut values,
-                BuiltCandidate {
-                    value,
-                    constructions,
-                    positions,
-                },
-            );
-        }
-    }
-    MaterializationOutcome {
-        values,
-        cycle_pruned,
-    }
+    !kernel
+        .materialize_family(forest, rule, family, &mut MaterializationState::default())
+        .values
+        .is_empty()
 }
 
 fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) {
