@@ -1,0 +1,14 @@
+[package]
+publish = false
+name = "deckmaste_construction"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[lints]
+workspace = true
+
+[dependencies]
+deckmaste_construction_core = { path = "../deckmaste_construction_core" }

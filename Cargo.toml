@@ -10,6 +10,8 @@ members = [
     "crates/deckmaste_engine",
     "crates/deckmaste_english",
     "crates/deckmaste_features",
+    "crates/deckmaste_construction_core",
+    "crates/deckmaste_construction",
     "crates/deckmaste_construction_compiler",
     "crates/deckmaste_constructions_macro",
     "crates/deckmaste_spelling",

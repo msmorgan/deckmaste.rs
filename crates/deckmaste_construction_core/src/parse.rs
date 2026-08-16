@@ -1,0 +1,1313 @@
+use proc_macro2::TokenStream;
+use syn::Ident;
+use syn::LitBool;
+use syn::LitStr;
+use syn::Pat;
+use syn::Path;
+use syn::Token;
+use syn::Visibility;
+use syn::braced;
+use syn::bracketed;
+use syn::parenthesized;
+use syn::parse::Parse;
+use syn::parse::ParseStream;
+use syn::spanned::Spanned;
+
+use crate::model::BuildLeaf;
+use crate::model::Checked;
+use crate::model::CheckedVisibility;
+use crate::model::Construction;
+use crate::model::ConstructorArgument;
+use crate::model::ConstructorBinding;
+use crate::model::Declaration;
+use crate::model::Declarations;
+use crate::model::Feature;
+use crate::model::FeatureEquation;
+use crate::model::FeatureMatchArm;
+use crate::model::FeaturePlace;
+use crate::model::FeatureSlot;
+use crate::model::FeatureValue;
+use crate::model::Field;
+use crate::model::FieldKind;
+use crate::model::Form;
+use crate::model::FormAtom;
+use crate::model::Lexeme;
+use crate::model::NonPublicVisibility;
+use crate::model::RoleRefinement;
+use crate::model::Root;
+use crate::model::TerminalBinding;
+use crate::model::Traversal;
+use crate::model::TraversalKind;
+use crate::model::TraversalPart;
+use crate::model::VerbOperand;
+use crate::model::Vocab;
+use crate::model::VocabVariant;
+
+mod keyword {
+    syn::custom_keyword!(checked);
+    syn::custom_keyword!(codec);
+    syn::custom_keyword!(construct);
+    syn::custom_keyword!(construction);
+    syn::custom_keyword!(constructor);
+    syn::custom_keyword!(context);
+    syn::custom_keyword!(derive);
+    syn::custom_keyword!(eoi);
+    syn::custom_keyword!(form);
+    syn::custom_keyword!(generate);
+    syn::custom_keyword!(identity);
+    syn::custom_keyword!(is);
+    syn::custom_keyword!(lex);
+    syn::custom_keyword!(lexeme);
+    syn::custom_keyword!(morphology);
+    syn::custom_keyword!(noun);
+    syn::custom_keyword!(otherwise);
+    syn::custom_keyword!(part);
+    syn::custom_keyword!(pattern);
+    syn::custom_keyword!(private);
+    syn::custom_keyword!(punctuation);
+    syn::custom_keyword!(render);
+    syn::custom_keyword!(require);
+    syn::custom_keyword!(root);
+    syn::custom_keyword!(scanner);
+    syn::custom_keyword!(standalone_render);
+    syn::custom_keyword!(traversal);
+    syn::custom_keyword!(value_type);
+    syn::custom_keyword!(verb);
+    syn::custom_keyword!(visibility);
+    syn::custom_keyword!(visit);
+    syn::custom_keyword!(vocab);
+    syn::custom_keyword!(when);
+}
+
+pub(crate) fn parse_declarations(tokens: TokenStream) -> syn::Result<Declarations> {
+    syn::parse2(tokens)
+}
+
+impl Parse for Declarations {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let mut declarations = Vec::new();
+        while !input.is_empty() {
+            if input.peek(Token![#]) {
+                return Err(deferred(input.span(), "doc comments"));
+            }
+            if input.peek(keyword::construction) {
+                declarations.push(Declaration::Construction(parse_construction(input)?));
+            } else if input.peek(keyword::vocab) {
+                declarations.push(Declaration::Vocab(parse_vocab(input)?));
+            } else if input.peek(keyword::lexeme) {
+                declarations.push(Declaration::Lexeme(parse_lexeme(input)?));
+            } else if input.peek(keyword::codec) {
+                declarations.push(Declaration::Codec(parse_terminal_binding(
+                    input,
+                    BindingKind::Codec,
+                )?));
+            } else if input.peek(keyword::identity) {
+                declarations.push(Declaration::Identity(parse_terminal_binding(
+                    input,
+                    BindingKind::Identity,
+                )?));
+            } else if input.peek(keyword::root) {
+                declarations.push(Declaration::Root(parse_root(input)?));
+            } else if input.peek(keyword::morphology) {
+                return Err(deferred(input.span(), "morphology"));
+            } else if input.peek(keyword::scanner) {
+                return Err(deferred(input.span(), "scanner"));
+            } else {
+                return Err(input.error(
+                    "expected construction, vocab, lexeme, codec, identity, or root declaration",
+                ));
+            }
+        }
+        Ok(Self { declarations })
+    }
+}
+
+fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
+    input.parse::<keyword::construction>()?;
+    let name: Ident = input.parse()?;
+    input.parse::<Token![:]>()?;
+    let category = input.parse()?;
+    let content;
+    braced!(content in input);
+
+    let mut fields = Vec::new();
+    let mut checked = None;
+    let mut requirements = Vec::new();
+    let mut equations = Vec::new();
+    let mut form = None;
+
+    while !content.is_empty() {
+        if content.peek(Token![#]) {
+            return Err(deferred(content.span(), "doc comments"));
+        }
+        if content.peek(keyword::checked) {
+            if checked.is_some() {
+                return Err(content.error("duplicate checked metadata"));
+            }
+            checked = Some(parse_checked(&content)?);
+        } else if content.peek(keyword::require) {
+            requirements.push(parse_requirement(&content)?);
+        } else if content.peek(keyword::derive) {
+            equations.push(parse_equation(&content)?);
+        } else if content.peek(keyword::form) {
+            if form.is_some() {
+                return Err(deferred(content.span(), "multiple forms"));
+            }
+            form = Some(parse_form(&content)?);
+        } else if content.peek(keyword::when) {
+            return Err(deferred(content.span(), "when"));
+        } else if content.peek(keyword::otherwise) {
+            return Err(deferred(content.span(), "otherwise"));
+        } else {
+            if form.is_some() {
+                return Err(content.error("construction fields must precede the form"));
+            }
+            fields.push(parse_field(&content)?);
+        }
+    }
+
+    let form =
+        form.ok_or_else(|| syn::Error::new(name.span(), "construction requires exactly one form"))?;
+    Ok(Construction {
+        name,
+        category,
+        fields,
+        checked,
+        requirements,
+        equations,
+        form,
+    })
+}
+
+fn parse_field(input: ParseStream<'_>) -> syn::Result<Field> {
+    let name = input.parse()?;
+    input.parse::<Token![:]>()?;
+    let kind = if input.peek(keyword::lex) {
+        input.parse::<keyword::lex>()?;
+        FieldKind::Lex(input.parse()?)
+    } else if input.peek(keyword::identity) {
+        input.parse::<keyword::identity>()?;
+        FieldKind::Identity(input.parse()?)
+    } else if input.peek(Ident) {
+        let fork = input.fork();
+        let possible_deferred: Ident = fork.parse()?;
+        match possible_deferred.to_string().as_str() {
+            "opt" => return Err(deferred(input.span(), "opt")),
+            "seq" => return Err(deferred(input.span(), "seq")),
+            _ => FieldKind::Category(input.parse()?),
+        }
+    } else {
+        return Err(input.error("expected a category, lex terminal, or identity terminal field"));
+    };
+    input.parse::<Token![,]>()?;
+    Ok(Field { name, kind })
+}
+
+fn parse_checked(input: ParseStream<'_>) -> syn::Result<Checked> {
+    input.parse::<keyword::checked>()?;
+    let content;
+    braced!(content in input);
+    let mut visibilities = Vec::new();
+    let mut constructor = None;
+
+    while !content.is_empty() {
+        reject_doc_comment(&content)?;
+        if content.peek(keyword::visibility) {
+            content.parse::<keyword::visibility>()?;
+            let role = content.parse()?;
+            content.parse::<Token![=]>()?;
+            let visibility = if content.peek(keyword::private) {
+                let token = content.parse::<keyword::private>()?;
+                NonPublicVisibility::Private(token.span())
+            } else {
+                let visibility: Visibility = content.parse()?;
+                match visibility {
+                    restricted @ Visibility::Restricted(_) => {
+                        NonPublicVisibility::Restricted(restricted)
+                    }
+                    Visibility::Public(public) => {
+                        return Err(syn::Error::new(
+                            public.span(),
+                            "checked visibility must be nonpublic",
+                        ));
+                    }
+                    Visibility::Inherited => {
+                        return Err(content.error("expected private or restricted visibility"));
+                    }
+                }
+            };
+            content.parse::<Token![;]>()?;
+            visibilities.push(CheckedVisibility { role, visibility });
+        } else if content.peek(keyword::constructor) {
+            if constructor.is_some() {
+                return Err(content.error("duplicate checked constructor"));
+            }
+            content.parse::<keyword::constructor>()?;
+            content.parse::<Token![=]>()?;
+            let path = content.parse()?;
+            let arguments_content;
+            parenthesized!(arguments_content in content);
+            let arguments = arguments_content
+                .parse_terminated(parse_constructor_argument, Token![,])?
+                .into_iter()
+                .collect();
+            content.parse::<Token![;]>()?;
+            constructor = Some(ConstructorBinding { path, arguments });
+        } else {
+            return Err(content.error("expected visibility or constructor in checked metadata"));
+        }
+    }
+
+    let constructor =
+        constructor.ok_or_else(|| input.error("checked metadata requires a constructor"))?;
+    Ok(Checked {
+        visibilities,
+        constructor,
+    })
+}
+
+fn parse_constructor_argument(input: ParseStream<'_>) -> syn::Result<ConstructorArgument> {
+    if input.peek(keyword::context) {
+        let token = input.parse::<keyword::context>()?;
+        return Ok(ConstructorArgument::Context(token.span()));
+    }
+
+    let ident: Ident = input.parse()?;
+    if ident == "vec" && input.peek(Token![!]) {
+        input.parse::<Token![!]>()?;
+        let content;
+        bracketed!(content in input);
+        let role = content.parse()?;
+        if !content.is_empty() {
+            return Err(content.error("vec! constructor arguments accept exactly one role"));
+        }
+        return Ok(ConstructorArgument::VecRole {
+            span: ident.span(),
+            role,
+        });
+    }
+    if input.peek(Token![.]) || input.peek(Token![::]) || input.peek(syn::token::Paren) {
+        return Err(syn::Error::new(
+            ident.span(),
+            "checked constructor arguments must be roles, context, or vec![role]",
+        ));
+    }
+    Ok(ConstructorArgument::Role(ident))
+}
+
+fn parse_requirement(input: ParseStream<'_>) -> syn::Result<RoleRefinement> {
+    let token = input.parse::<keyword::require>()?;
+    let role = input.parse()?;
+    if !input.peek(keyword::is) {
+        return Err(deferred(token.span(), "general require"));
+    }
+    input.parse::<keyword::is>()?;
+    let variant = input.parse()?;
+    input.parse::<Token![;]>()?;
+    Ok(RoleRefinement { role, variant })
+}
+
+fn parse_equation(input: ParseStream<'_>) -> syn::Result<FeatureEquation> {
+    let derive_token = input.parse::<keyword::derive>()?;
+    let first: Ident = input.parse()?;
+    let target = if input.peek(Token![=]) {
+        let Some(feature) = feature_from_ident(&first) else {
+            return Err(deferred(first.span(), "derive target"));
+        };
+        FeaturePlace::Construction(feature)
+    } else {
+        if !input.peek(Token![.]) {
+            return Err(deferred(derive_token.span(), "derive target"));
+        }
+        input.parse::<Token![.]>()?;
+        let feature_ident: Ident = input.parse()?;
+        if feature_ident != "agreement" {
+            return Err(deferred(feature_ident.span(), "derive target"));
+        }
+        FeaturePlace::Role {
+            field: first,
+            feature: Feature::Agreement,
+        }
+    };
+    input.parse::<Token![=]>()?;
+
+    let value = if input.peek(Token![match]) {
+        input.parse::<Token![match]>()?;
+        let role = input.parse()?;
+        let arms_content;
+        braced!(arms_content in input);
+        let mut arms = Vec::new();
+        while !arms_content.is_empty() {
+            let variant = arms_content.parse()?;
+            arms_content.parse::<Token![=>]>()?;
+            let value = arms_content.parse()?;
+            arms.push(FeatureMatchArm { variant, value });
+            if arms_content.is_empty() {
+                break;
+            }
+            arms_content.parse::<Token![,]>()?;
+        }
+        FeatureValue::Match { role, arms }
+    } else if input.peek(Ident) && input.peek2(Token![.]) {
+        let role = input.parse()?;
+        input.parse::<Token![.]>()?;
+        let feature_ident: Ident = input.parse()?;
+        let Some(feature) = feature_from_ident(&feature_ident) else {
+            return Err(deferred(feature_ident.span(), "derive source"));
+        };
+        FeatureValue::FromRole(FeatureSlot { role, feature })
+    } else {
+        let path: Path = input.parse()?;
+        FeatureValue::Constant(path)
+    };
+    input.parse::<Token![;]>()?;
+    Ok(FeatureEquation { target, value })
+}
+
+fn feature_from_ident(ident: &Ident) -> Option<Feature> {
+    match ident.to_string().as_str() {
+        "agreement" => Some(Feature::Agreement),
+        "number" => Some(Feature::Number),
+        _ => None,
+    }
+}
+
+fn parse_form(input: ParseStream<'_>) -> syn::Result<Form> {
+    input.parse::<keyword::form>()?;
+    let name = input.parse()?;
+    if input.peek(keyword::when) {
+        return Err(deferred(input.span(), "when"));
+    }
+    if input.peek(keyword::otherwise) {
+        return Err(deferred(input.span(), "otherwise"));
+    }
+    input.parse::<Token![=]>()?;
+    let mut atoms = Vec::new();
+    while !input.peek(Token![;]) {
+        if input.peek(keyword::when) {
+            return Err(deferred(input.span(), "when"));
+        }
+        if input.peek(keyword::otherwise) {
+            return Err(deferred(input.span(), "otherwise"));
+        }
+        if input.peek(LitStr) {
+            atoms.push(FormAtom::Literal(input.parse()?));
+            continue;
+        }
+
+        let ident: Ident = input.parse()?;
+        let atom = if input.peek(syn::token::Paren) {
+            let content;
+            parenthesized!(content in input);
+            match ident.to_string().as_str() {
+                "verb" => {
+                    let path: Path = content.parse()?;
+                    if !content.is_empty() {
+                        return Err(content.error("verb atoms accept exactly one operand"));
+                    }
+                    FormAtom::Verb(classify_verb_operand(path))
+                }
+                "lex" | "identity" | "noun" => {
+                    let role = content.parse()?;
+                    if !content.is_empty() {
+                        return Err(content.error("form atoms accept exactly one role"));
+                    }
+                    match ident.to_string().as_str() {
+                        "lex" => FormAtom::Lex(role),
+                        "identity" => FormAtom::Identity(role),
+                        "noun" => FormAtom::Noun(role),
+                        _ => unreachable!(),
+                    }
+                }
+                _ => return Err(syn::Error::new(ident.span(), "unknown form atom")),
+            }
+        } else {
+            FormAtom::Role(ident)
+        };
+        atoms.push(atom);
+    }
+    input.parse::<Token![;]>()?;
+    Ok(Form { name, atoms })
+}
+
+fn classify_verb_operand(path: Path) -> VerbOperand {
+    if path.leading_colon.is_none() && path.segments.len() == 1 {
+        let segment = path.segments.first().expect("one path segment");
+        if matches!(segment.arguments, syn::PathArguments::None) {
+            return VerbOperand::Projected(segment.ident.clone());
+        }
+    }
+    VerbOperand::Fixed(path)
+}
+
+fn parse_vocab(input: ParseStream<'_>) -> syn::Result<Vocab> {
+    input.parse::<keyword::vocab>()?;
+    let name = input.parse()?;
+    let content;
+    braced!(content in input);
+    let mut variants = Vec::new();
+    while !content.is_empty() {
+        reject_doc_comment(&content)?;
+        let name = content.parse()?;
+        content.parse::<Token![=]>()?;
+        let word = content.parse()?;
+        variants.push(VocabVariant { name, word });
+        content.parse::<Token![,]>()?;
+    }
+    Ok(Vocab { name, variants })
+}
+
+fn parse_lexeme(input: ParseStream<'_>) -> syn::Result<Lexeme> {
+    input.parse::<keyword::lexeme>()?;
+    let name = input.parse()?;
+    let content;
+    braced!(content in input);
+    let mut variants = Vec::new();
+    while !content.is_empty() {
+        reject_doc_comment(&content)?;
+        variants.push(content.parse()?);
+        content.parse::<Token![,]>()?;
+    }
+    Ok(Lexeme { name, variants })
+}
+
+#[derive(Clone, Copy)]
+enum BindingKind {
+    Codec,
+    Identity,
+}
+
+impl BindingKind {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Codec => "codec",
+            Self::Identity => "identity",
+        }
+    }
+}
+
+fn parse_terminal_binding(
+    input: ParseStream<'_>,
+    kind: BindingKind,
+) -> syn::Result<TerminalBinding> {
+    match kind {
+        BindingKind::Codec => {
+            input.parse::<keyword::codec>()?;
+        }
+        BindingKind::Identity => {
+            input.parse::<keyword::identity>()?;
+        }
+    }
+    let name: Ident = input.parse()?;
+    let content;
+    braced!(content in input);
+    let mut value_type = None;
+    let mut lexical_variant = None;
+    let mut render = None;
+    let mut build = None;
+    let mut traversal = None;
+
+    while !content.is_empty() {
+        if content.peek(keyword::generate) {
+            return Err(deferred(
+                content.span(),
+                &format!("generative {}", kind.name()),
+            ));
+        }
+        if content.peek(Token![#]) {
+            return Err(deferred(content.span(), "doc comments"));
+        }
+        let slot: Ident = content.parse()?;
+        match slot.to_string().as_str() {
+            "value_type" => {
+                reject_duplicate(&value_type, &slot)?;
+                content.parse::<Token![=]>()?;
+                value_type = Some(content.parse()?);
+                content.parse::<Token![;]>()?;
+            }
+            "lexical" => {
+                reject_duplicate(&lexical_variant, &slot)?;
+                content.parse::<Token![=]>()?;
+                lexical_variant = Some(content.parse()?);
+                content.parse::<Token![;]>()?;
+            }
+            "render" => {
+                reject_duplicate(&render, &slot)?;
+                content.parse::<Token![=]>()?;
+                render = Some(content.parse()?);
+                content.parse::<Token![;]>()?;
+            }
+            "build" => {
+                reject_duplicate(&build, &slot)?;
+                build = Some(parse_build_leaf(&content)?);
+            }
+            "traversal" => {
+                reject_duplicate(&traversal, &slot)?;
+                traversal = Some(parse_traversal(&content)?);
+            }
+            _ => {
+                return Err(deferred(
+                    slot.span(),
+                    &format!("generative {} content", kind.name()),
+                ));
+            }
+        }
+    }
+
+    Ok(TerminalBinding {
+        name: name.clone(),
+        value_type: required(value_type, &name, "value_type")?,
+        lexical_variant: required(lexical_variant, &name, "lexical")?,
+        render: required(render, &name, "render")?,
+        build: required(build, &name, "build")?,
+        traversal: required(traversal, &name, "traversal")?,
+    })
+}
+
+fn parse_build_leaf(input: ParseStream<'_>) -> syn::Result<BuildLeaf> {
+    let content;
+    braced!(content in input);
+    let mut pattern = None;
+    let mut construct = None;
+    while !content.is_empty() {
+        reject_doc_comment(&content)?;
+        if content.peek(keyword::pattern) {
+            let slot = content.parse::<keyword::pattern>()?;
+            if pattern.is_some() {
+                return Err(syn::Error::new(slot.span(), "duplicate pattern slot"));
+            }
+            content.parse::<Token![=]>()?;
+            pattern = Some(content.call(Pat::parse_single)?);
+            content.parse::<Token![;]>()?;
+        } else if content.peek(keyword::construct) {
+            let slot = content.parse::<keyword::construct>()?;
+            if construct.is_some() {
+                return Err(syn::Error::new(slot.span(), "duplicate construct slot"));
+            }
+            content.parse::<Token![=]>()?;
+            construct = Some(content.parse()?);
+            content.parse::<Token![;]>()?;
+        } else {
+            return Err(content.error("binding build requires pattern and construct slots"));
+        }
+    }
+    let span = input.span();
+    Ok(BuildLeaf {
+        pattern: pattern.ok_or_else(|| syn::Error::new(span, "binding build requires pattern"))?,
+        construct: construct
+            .ok_or_else(|| syn::Error::new(span, "binding build requires construct"))?,
+    })
+}
+
+fn parse_traversal(input: ParseStream<'_>) -> syn::Result<Traversal> {
+    let content;
+    braced!(content in input);
+    let mut parts = Vec::new();
+    let mut visit_order = Vec::new();
+    while !content.is_empty() {
+        reject_doc_comment(&content)?;
+        if content.peek(keyword::part) {
+            content.parse::<keyword::part>()?;
+            let name = content.parse()?;
+            content.parse::<Token![=]>()?;
+            let kind_ident: Ident = content.parse()?;
+            let kind = match kind_ident.to_string().as_str() {
+                "scalar" => TraversalKind::Scalar,
+                "identity" => TraversalKind::Identity,
+                "subtree" => TraversalKind::Subtree,
+                _ => {
+                    return Err(syn::Error::new(
+                        kind_ident.span(),
+                        "unknown traversal part kind",
+                    ));
+                }
+            };
+            let value_content;
+            parenthesized!(value_content in content);
+            let value = value_content.parse()?;
+            if !value_content.is_empty() {
+                return Err(value_content.error("traversal part accepts exactly one expression"));
+            }
+            content.parse::<Token![;]>()?;
+            parts.push(TraversalPart { name, kind, value });
+        } else if content.peek(keyword::visit) {
+            content.parse::<keyword::visit>()?;
+            visit_order.push(content.parse()?);
+            content.parse::<Token![;]>()?;
+        } else {
+            return Err(content.error("expected part or visit in traversal schema"));
+        }
+    }
+    Ok(Traversal { parts, visit_order })
+}
+
+fn parse_root(input: ParseStream<'_>) -> syn::Result<Root> {
+    input.parse::<keyword::root>()?;
+    let category: Path = input.parse()?;
+    let content;
+    braced!(content in input);
+    let mut punctuation = None;
+    let mut eoi = None;
+    let mut standalone_render = None;
+    while !content.is_empty() {
+        reject_doc_comment(&content)?;
+        let slot: Ident = content.parse()?;
+        content.parse::<Token![=]>()?;
+        match slot.to_string().as_str() {
+            "punctuation" => {
+                reject_duplicate(&punctuation, &slot)?;
+                punctuation = Some(content.parse()?);
+            }
+            "eoi" => {
+                reject_duplicate(&eoi, &slot)?;
+                eoi = Some(content.parse::<LitBool>()?.value);
+            }
+            "standalone_render" => {
+                reject_duplicate(&standalone_render, &slot)?;
+                standalone_render = Some(content.parse::<LitBool>()?.value);
+            }
+            _ => return Err(syn::Error::new(slot.span(), "unknown root metadata slot")),
+        }
+        content.parse::<Token![;]>()?;
+    }
+    let span = category.span();
+    Ok(Root {
+        category,
+        punctuation: punctuation
+            .ok_or_else(|| syn::Error::new(span, "root requires punctuation"))?,
+        eoi: eoi.ok_or_else(|| syn::Error::new(span, "root requires eoi"))?,
+        standalone_render: standalone_render
+            .ok_or_else(|| syn::Error::new(span, "root requires standalone_render"))?,
+    })
+}
+
+fn reject_duplicate<T>(slot: &Option<T>, name: &Ident) -> syn::Result<()> {
+    if slot.is_some() {
+        Err(syn::Error::new(
+            name.span(),
+            format!("duplicate {name} slot"),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn required<T>(slot: Option<T>, name: &Ident, slot_name: &str) -> syn::Result<T> {
+    slot.ok_or_else(|| {
+        syn::Error::new(
+            name.span(),
+            format!("binding requires explicit {slot_name} slot"),
+        )
+    })
+}
+
+fn reject_doc_comment(input: ParseStream<'_>) -> syn::Result<()> {
+    if input.peek(Token![#]) {
+        Err(deferred(input.span(), "doc comments"))
+    } else {
+        Ok(())
+    }
+}
+
+fn deferred(span: proc_macro2::Span, construct: &str) -> syn::Error {
+    syn::Error::new(span, format!("{construct} unimplemented in MVP"))
+}
+
+#[cfg(test)]
+mod tests {
+    use quote::ToTokens;
+
+    use crate::ConstructorArgument;
+    use crate::Declaration;
+    use crate::Feature;
+    use crate::FeaturePlace;
+    use crate::FeatureValue;
+    use crate::FormAtom;
+    use crate::NonPublicVisibility;
+    use crate::TraversalKind;
+    use crate::VerbOperand;
+
+    const GOLDEN_SHAPED_DECLARATIONS: &str = r#"
+        construction triggered: Ability {
+            trigger: lex TriggerWord,
+            event: Clause,
+            effect: Sentence,
+            checked {
+                visibility trigger = pub(crate);
+                visibility event = pub(crate);
+                visibility effect = pub(crate);
+                constructor = Triggered::new(trigger, event, vec![effect]);
+            }
+            require event is Event;
+            form triggered = lex(trigger) event "," effect;
+        }
+
+        construction with_where: Sentence {
+            body: Sentence,
+            clause: Clause,
+            require clause is Where;
+            form with_where = body "," clause;
+        }
+
+        construction count: NounPhrase {
+            head: lex Noun,
+            controller: lex Pronoun,
+            threshold: lex SignedNumber,
+            require controller is You;
+            derive number = NounNumber::Plural;
+            form count = noun(head) lex(controller) verb(VerbLexeme::Control)
+                "with" "power" lex(threshold) "or" "less";
+        }
+
+        construction imperative: Sentence {
+            predicate: VerbPhrase,
+            derive agreement = Agreement::Bare;
+            form imperative = predicate;
+        }
+
+        construction declarative: Sentence {
+            subject: NounPhrase,
+            predicate: VerbPhrase,
+            derive predicate.agreement = subject.agreement;
+            form declarative = subject predicate;
+        }
+
+        construction demonstrative: NounPhrase {
+            word: lex Demonstrative,
+            head: lex Noun,
+            derive number = match word {
+                That => NounNumber::Singular,
+                Those => NounNumber::Plural,
+            };
+            form demonstrative = lex(word) noun(head);
+        }
+
+        vocab Pronoun {
+            You = "you",
+            It = "it",
+        }
+
+        lexeme VerbLexeme {
+            Be,
+            Deal,
+        }
+
+        codec SignedNumber {
+            value_type = crate::ast::SignedNumber;
+            lexical = Lexical::SignedNumber;
+            render = crate::render::render_signed_number;
+            build {
+                pattern = BuildValue::SignedNumber(value);
+                construct = value;
+            }
+            traversal {
+                part sign = scalar(value.sign);
+                part whole = scalar(value.whole);
+                visit sign;
+                visit whole;
+            }
+        }
+
+        identity CatalogIdentity {
+            value_type = crate::ast::CatalogIdentity;
+            lexical = Lexical::CatalogIdentity;
+            render = crate::render::render_catalog_identity;
+            build {
+                pattern = BuildValue::CatalogIdentity(identity, spelling);
+                construct = crate::ast::CatalogIdentity::new(identity, spelling);
+            }
+            traversal {
+                part identity = identity(identity);
+                part spelling = scalar(spelling);
+                visit identity;
+                visit spelling;
+            }
+        }
+
+        root crate::ast::Ability {
+            punctuation = ".";
+            eoi = true;
+            standalone_render = true;
+        }
+    "#;
+
+    fn parse(input: &str) -> syn::Result<crate::Declarations> {
+        crate::parse_declarations(input.parse().expect("test declaration tokenizes"))
+    }
+
+    fn path(path: &syn::Path) -> String {
+        path.to_token_stream().to_string()
+    }
+
+    fn tokens(value: &impl ToTokens) -> String {
+        value.to_token_stream().to_string()
+    }
+
+    #[test]
+    fn parses_golden_shaped_mvp_stream_without_losing_data() {
+        let declarations =
+            parse(GOLDEN_SHAPED_DECLARATIONS).expect("golden-shaped MVP declarations parse");
+        assert_eq!(declarations.declarations.len(), 11);
+
+        let Declaration::Construction(triggered) = &declarations.declarations[0] else {
+            panic!("first declaration should remain the construction");
+        };
+        assert_eq!(triggered.name, "triggered");
+        assert_eq!(path(&triggered.category), "Ability");
+        assert_eq!(
+            triggered
+                .fields
+                .iter()
+                .map(|field| field.name.to_string())
+                .collect::<Vec<_>>(),
+            ["trigger", "event", "effect"]
+        );
+
+        let checked = triggered
+            .checked
+            .as_ref()
+            .expect("checked metadata retained");
+        assert_eq!(checked.visibilities.len(), 3);
+        assert!(
+            checked.visibilities.iter().all(|visibility| matches!(
+                visibility.visibility,
+                NonPublicVisibility::Restricted(_)
+            ))
+        );
+        assert_eq!(path(&checked.constructor.path), "Triggered :: new");
+        assert!(
+            matches!(checked.constructor.arguments[0], ConstructorArgument::Role(ref role) if role == "trigger")
+        );
+        assert!(
+            matches!(checked.constructor.arguments[1], ConstructorArgument::Role(ref role) if role == "event")
+        );
+        assert!(
+            matches!(checked.constructor.arguments[2], ConstructorArgument::VecRole { ref role, .. } if role == "effect")
+        );
+
+        assert_eq!(
+            declarations.declarations[0..3]
+                .iter()
+                .map(|declaration| {
+                    let Declaration::Construction(construction) = declaration else {
+                        panic!("first declarations are constructions");
+                    };
+                    let requirement = &construction.requirements[0];
+                    (
+                        requirement.role.to_string(),
+                        requirement.variant.to_string(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                ("event".into(), "Event".into()),
+                ("clause".into(), "Where".into()),
+                ("controller".into(), "You".into())
+            ]
+        );
+
+        assert!(matches!(triggered.form.atoms[0], FormAtom::Lex(ref role) if role == "trigger"));
+        assert!(matches!(triggered.form.atoms[1], FormAtom::Role(ref role) if role == "event"));
+        assert!(
+            matches!(triggered.form.atoms[2], FormAtom::Literal(ref word) if word.value() == ",")
+        );
+        assert!(matches!(triggered.form.atoms[3], FormAtom::Role(ref role) if role == "effect"));
+
+        let Declaration::Construction(count) = &declarations.declarations[2] else {
+            panic!("third declaration is count");
+        };
+        let FormAtom::Verb(VerbOperand::Fixed(control)) = &count.form.atoms[2] else {
+            panic!("count uses a fixed control verb");
+        };
+        assert_eq!(path(control), "VerbLexeme :: Control");
+
+        let Declaration::Construction(imperative) = &declarations.declarations[3] else {
+            panic!("fourth declaration is imperative");
+        };
+        assert!(matches!(
+            imperative.equations[0].target,
+            FeaturePlace::Construction(Feature::Agreement)
+        ));
+        let FeatureValue::Constant(imperative_value) = &imperative.equations[0].value else {
+            panic!("imperative agreement is constant");
+        };
+        assert_eq!(path(imperative_value), "Agreement :: Bare");
+
+        let Declaration::Construction(declarative) = &declarations.declarations[4] else {
+            panic!("fifth declaration is declarative");
+        };
+        assert!(matches!(
+            &declarative.equations[0].target,
+            FeaturePlace::Role { field, feature: Feature::Agreement } if field == "predicate"
+        ));
+        let FeatureValue::FromRole(source) = &declarative.equations[0].value else {
+            panic!("declarative agreement comes from its subject");
+        };
+        assert_eq!(source.role, "subject");
+        assert_eq!(source.feature, Feature::Agreement);
+
+        let Declaration::Construction(demonstrative) = &declarations.declarations[5] else {
+            panic!("sixth declaration is demonstrative");
+        };
+        assert!(matches!(
+            demonstrative.equations[0].target,
+            FeaturePlace::Construction(Feature::Number)
+        ));
+        let FeatureValue::Match { role, arms } = &demonstrative.equations[0].value else {
+            panic!("demonstrative number retains its match equation");
+        };
+        assert_eq!(role, "word");
+        assert_eq!(
+            arms.iter()
+                .map(|arm| (arm.variant.to_string(), path(&arm.value)))
+                .collect::<Vec<_>>(),
+            [
+                ("That".into(), "NounNumber :: Singular".into()),
+                ("Those".into(), "NounNumber :: Plural".into()),
+            ]
+        );
+
+        let Declaration::Codec(codec) = &declarations.declarations[8] else {
+            panic!("codec should retain its source position");
+        };
+        assert_eq!(
+            path(codec.value_type.path()),
+            "crate :: ast :: SignedNumber"
+        );
+        assert_eq!(path(&codec.lexical_variant), "Lexical :: SignedNumber");
+        assert_eq!(
+            path(&codec.render),
+            "crate :: render :: render_signed_number"
+        );
+        assert_eq!(
+            tokens(&codec.build.pattern),
+            "BuildValue :: SignedNumber (value)"
+        );
+        assert_eq!(tokens(&codec.build.construct), "value");
+        assert_eq!(
+            codec
+                .traversal
+                .parts
+                .iter()
+                .map(|part| (part.name.to_string(), part.kind, tokens(&part.value)))
+                .collect::<Vec<_>>(),
+            [
+                ("sign".into(), TraversalKind::Scalar, "value . sign".into()),
+                (
+                    "whole".into(),
+                    TraversalKind::Scalar,
+                    "value . whole".into()
+                ),
+            ]
+        );
+        assert_eq!(
+            codec
+                .traversal
+                .visit_order
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["sign", "whole"]
+        );
+
+        let Declaration::Identity(identity) = &declarations.declarations[9] else {
+            panic!("identity should retain its source position");
+        };
+        assert_eq!(
+            path(identity.value_type.path()),
+            "crate :: ast :: CatalogIdentity"
+        );
+        assert_eq!(
+            path(&identity.lexical_variant),
+            "Lexical :: CatalogIdentity"
+        );
+        assert_eq!(
+            path(&identity.render),
+            "crate :: render :: render_catalog_identity"
+        );
+        assert_eq!(
+            tokens(&identity.build.pattern),
+            "BuildValue :: CatalogIdentity (identity , spelling)"
+        );
+        assert_eq!(
+            tokens(&identity.build.construct),
+            "crate :: ast :: CatalogIdentity :: new (identity , spelling)"
+        );
+        assert_eq!(
+            identity
+                .traversal
+                .parts
+                .iter()
+                .map(|part| (part.name.to_string(), part.kind, tokens(&part.value)))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "identity".into(),
+                    TraversalKind::Identity,
+                    "identity".into()
+                ),
+                ("spelling".into(), TraversalKind::Scalar, "spelling".into()),
+            ]
+        );
+        assert_eq!(
+            identity
+                .traversal
+                .visit_order
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["identity", "spelling"]
+        );
+
+        let Declaration::Root(root) = &declarations.declarations[10] else {
+            panic!("root should retain its source position");
+        };
+        assert_eq!(path(&root.category), "crate :: ast :: Ability");
+        assert_eq!(root.punctuation.value(), ".");
+        assert!(root.eoi);
+        assert!(root.standalone_render);
+    }
+
+    trait TypePath {
+        fn path(&self) -> &syn::Path;
+    }
+
+    impl TypePath for syn::Type {
+        fn path(&self) -> &syn::Path {
+            let syn::Type::Path(path) = self else {
+                panic!("fixture uses a path type");
+            };
+            &path.path
+        }
+    }
+
+    #[test]
+    fn feature_places_accept_construction_and_authorized_role_targets_only() {
+        let declarations = parse(
+            r#"
+                construction imperative: Sentence {
+                    predicate: VerbPhrase,
+                    derive agreement = Agreement::Bare;
+                    form imperative = predicate;
+                }
+                construction count: NounPhrase {
+                    head: lex Noun,
+                    derive number = NounNumber::Plural;
+                    form count = noun(head);
+                }
+                construction declarative: Sentence {
+                    subject: NounPhrase,
+                    predicate: VerbPhrase,
+                    derive predicate.agreement = subject.agreement;
+                    form declarative = subject predicate;
+                }
+            "#,
+        )
+        .expect("construction and role agreement targets are in the MVP");
+
+        let expected = [
+            FeaturePlace::Construction(Feature::Agreement),
+            FeaturePlace::Construction(Feature::Number),
+            FeaturePlace::Role {
+                field: syn::parse_str("predicate").expect("identifier"),
+                feature: Feature::Agreement,
+            },
+        ];
+        for (declaration, expected) in declarations.declarations.iter().zip(expected) {
+            let Declaration::Construction(construction) = declaration else {
+                panic!("fixtures contain only constructions");
+            };
+            match (&construction.equations[0].target, expected) {
+                (FeaturePlace::Construction(actual), FeaturePlace::Construction(expected)) => {
+                    assert_eq!(*actual, expected);
+                }
+                (
+                    FeaturePlace::Role { field, feature },
+                    FeaturePlace::Role {
+                        field: expected_field,
+                        feature: expected_feature,
+                    },
+                ) => {
+                    assert_eq!(field, &expected_field);
+                    assert_eq!(*feature, expected_feature);
+                }
+                (actual, expected) => panic!("feature target mismatch: {actual:?} != {expected:?}"),
+            }
+        }
+
+        let Declaration::Construction(declarative) = &declarations.declarations[2] else {
+            panic!("third declaration is declarative");
+        };
+        let FeatureValue::FromRole(source) = &declarative.equations[0].value else {
+            panic!("declarative equation should retain its role source");
+        };
+        assert_eq!(source.role, "subject");
+        assert_eq!(source.feature, Feature::Agreement);
+
+        let error = parse(
+            "construction x: X { role: X, derive role.number = NounNumber::Plural; form x = role; }",
+        )
+        .expect_err("role.number is not an architecture-authorized target")
+        .to_string();
+        assert!(error.contains("derive target"), "{error}");
+        assert!(error.contains("unimplemented in MVP"), "{error}");
+    }
+
+    #[test]
+    fn verb_atoms_accept_fixed_paths_and_projected_roles() {
+        let declarations = parse(
+            r#"
+                construction where_clause: Clause {
+                    variable: lex Variable,
+                    value: NounPhrase,
+                    form where_clause = "where" lex(variable) verb(VerbLexeme::Be)
+                        "the" "number" "of" value;
+                }
+                construction count: NounPhrase {
+                    head: lex Noun,
+                    controller: lex Pronoun,
+                    threshold: lex SignedNumber,
+                    form count = noun(head) lex(controller) verb(VerbLexeme::Control)
+                        "with" "power" lex(threshold) "or" "less";
+                }
+                construction destroy: VerbPhrase {
+                    object: NounPhrase,
+                    form destroy = verb(VerbLexeme::Destroy) object;
+                }
+                construction projected: VerbPhrase {
+                    word: lex VerbLexeme,
+                    form projected = verb(word);
+                }
+            "#,
+        )
+        .expect("fixed verb paths and a projected lexeme role are distinct MVP operands");
+
+        let expected_fixed = [
+            "VerbLexeme :: Be",
+            "VerbLexeme :: Control",
+            "VerbLexeme :: Destroy",
+        ];
+        for (declaration, expected) in declarations.declarations.iter().take(3).zip(expected_fixed)
+        {
+            let Declaration::Construction(construction) = declaration else {
+                panic!("fixtures contain only constructions");
+            };
+            let operand = construction
+                .form
+                .atoms
+                .iter()
+                .find_map(|atom| match atom {
+                    FormAtom::Verb(operand) => Some(operand),
+                    _ => None,
+                })
+                .expect("fixture has a verb atom");
+            let VerbOperand::Fixed(path) = operand else {
+                panic!("golden verb constants must remain fixed paths");
+            };
+            assert_eq!(path.to_token_stream().to_string(), expected);
+        }
+
+        let Declaration::Construction(projected) = &declarations.declarations[3] else {
+            panic!("fourth declaration is projected");
+        };
+        let FormAtom::Verb(VerbOperand::Projected(field)) = &projected.form.atoms[0] else {
+            panic!("bare verb operand should remain a projected role");
+        };
+        assert_eq!(field, "word");
+    }
+
+    #[test]
+    fn nested_doc_comments_receive_the_named_mvp_error() {
+        let cases = [
+            "vocab Word { /// docs\n One = \"one\", }",
+            "lexeme VerbLexeme { /// docs\n Be, }",
+            r#"codec Number {
+                value_type = Number;
+                lexical = Lexical::Number;
+                render = render_number;
+                build { /// docs
+                    pattern = BuildValue::Number(value);
+                    construct = value;
+                }
+                traversal {}
+            }"#,
+            r#"codec Number {
+                value_type = Number;
+                lexical = Lexical::Number;
+                render = render_number;
+                build {
+                    pattern = BuildValue::Number(value);
+                    construct = value;
+                }
+                traversal { /// docs
+                    part value = scalar(value);
+                    visit value;
+                }
+            }"#,
+            "root Ability { /// docs\n punctuation = \".\"; eoi = true; standalone_render = true; }",
+        ];
+
+        for input in cases {
+            let error = parse(input)
+                .expect_err("nested doc comment is deferred")
+                .to_string();
+            assert!(error.contains("doc comments"), "{error}");
+            assert!(error.contains("unimplemented in MVP"), "{error}");
+        }
+    }
+
+    #[test]
+    fn rejects_deferred_declaration_forms_by_name() {
+        let cases = [
+            ("construction x: X { xs: opt X, form x = xs; }", "opt"),
+            ("construction x: X { xs: seq X, form x = xs; }", "seq"),
+            (
+                "construction x: X { value: X, require value != None; form x = value; }",
+                "general require",
+            ),
+            (
+                "construction x: X { value: X, form x when value = value; }",
+                "when",
+            ),
+            (
+                "construction x: X { value: X, form x otherwise = value; }",
+                "otherwise",
+            ),
+            ("codec X { generate { anything } }", "generative codec"),
+            (
+                "identity X { generate { anything } }",
+                "generative identity",
+            ),
+            ("morphology English { anything }", "morphology"),
+            ("scanner Words { anything }", "scanner"),
+            (
+                "construction x: X { value: X, derive value.case = Case::Upper; form x = value; }",
+                "derive target",
+            ),
+            (
+                "/// docs\nconstruction x: X { value: X, form x = value; }",
+                "doc comments",
+            ),
+        ];
+
+        for (input, construct) in cases {
+            let error = parse(input)
+                .expect_err("deferred syntax must be rejected")
+                .to_string();
+            assert!(error.contains(construct), "{construct}: {error}");
+            assert!(
+                error.contains("unimplemented in MVP"),
+                "{construct}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_a_second_form_by_name() {
+        let error = parse("construction x: X { value: X, form one = value; form two = value; }")
+            .expect_err("a second form is deferred")
+            .to_string();
+        assert!(error.contains("multiple forms"), "{error}");
+        assert!(error.contains("unimplemented in MVP"), "{error}");
+    }
+}
