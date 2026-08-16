@@ -226,7 +226,29 @@ pub struct Invocation {
     pub span: Span,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Expansion {
-    pub tokens: TokenStream,
+    pub(crate) plan: crate::plan::EmissionPlan,
+}
+
+impl Expansion {
+    #[must_use]
+    pub fn plan(&self) -> &crate::plan::EmissionPlan {
+        &self.plan
+    }
+
+    #[must_use]
+    pub fn items(&self) -> &[crate::plan::GeneratedItem] {
+        self.plan.items()
+    }
+
+    #[must_use]
+    pub fn terminal_contributions(&self) -> &[crate::plan::TerminalContribution] {
+        self.plan.terminal_contributions()
+    }
+
+    #[must_use]
+    pub fn tokens(&self) -> TokenStream {
+        self.plan.tokens()
+    }
 }

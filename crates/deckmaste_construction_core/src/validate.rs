@@ -2201,7 +2201,7 @@ fn finish(errors: Option<syn::Error>) -> syn::Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use quote::quote;
 
     use crate::Declaration;
@@ -3029,9 +3029,8 @@ mod tests {
         assert_eq!(inventory.roots().len(), 1);
     }
 
-    #[test]
-    fn full_golden_shaped_grammar_parses_and_validates_all_output_identities() {
-        let raw = crate::parse_declarations(quote! {
+    pub(crate) fn full_golden_tokens() -> proc_macro2::TokenStream {
+        quote! {
             vocab TriggerWord { Whenever = "whenever", }
             vocab Article { A = "a", An = "an", }
             vocab Demonstrative { That = "that", Those = "those", }
@@ -3201,10 +3200,64 @@ mod tests {
             }
 
             root Ability { punctuation = "."; eoi = true; standalone_render = true; }
-        })
-        .expect("full golden-shaped declaration stream parses through the public API");
+        }
+    }
+
+    #[test]
+    fn full_golden_shaped_grammar_parses_and_validates_all_output_identities() {
+        let tokens = full_golden_tokens();
+        let raw = crate::parse_declarations(tokens.clone())
+            .expect("full golden-shaped declaration stream parses through the public API");
         let validated = crate::validate_declarations(raw)
             .expect("all 19 golden-shaped constructions validate together");
+
+        let expansion =
+            crate::generate(tokens).expect("public generation accepts the full grammar");
+        let plan = expansion.plan();
+        assert_eq!(
+            plan.items()
+                .iter()
+                .map(|item| match &item.key {
+                    crate::ItemKey::Named { name, .. } => name.as_str(),
+                    crate::ItemKey::Impl { .. } => panic!("Task 4 emits no impls"),
+                })
+                .collect::<Vec<_>>(),
+            [
+                "Ability",
+                "Sentence",
+                "Clause",
+                "NounPhrase",
+                "VerbPhrase",
+                "Amount",
+                "Spell",
+                "Triggered",
+                "Imperative",
+                "Declarative",
+                "WithWhere",
+                "EventClause",
+                "WhereClause",
+                "PronounNp",
+                "Common",
+                "DemonstrativeNp",
+                "TargetNp",
+                "SelfReferenceNp",
+                "CountNp",
+                "Destroy",
+                "Connive",
+                "DealDamage",
+                "GainLife",
+                "NumberAmount",
+                "VariableAmount",
+                "TriggerWord",
+                "Article",
+                "Demonstrative",
+                "Pronoun",
+                "Variable",
+                "NounLexeme",
+                "VerbLexeme",
+            ]
+        );
+        assert_eq!(plan.terminal_contributions().len(), 7);
 
         assert_eq!(validated.contributions().constructions().len(), 19);
         assert_eq!(validated.contributions().terminals().len(), 10);
