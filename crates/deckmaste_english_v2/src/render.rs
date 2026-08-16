@@ -37,15 +37,12 @@ use crate::ast::VerbPhrase;
 use crate::ast::WhereClause;
 use crate::ast::WithWhere;
 use crate::context::ParseContext;
+use crate::features::Agreement;
+use crate::features::agreement_for_pronoun;
+use crate::features::inflect;
 
 pub trait Render {
     fn render(&self, context: &ParseContext<'_>) -> String;
-}
-
-#[derive(Clone, Copy)]
-enum Agreement {
-    Bare,
-    ThirdPersonSingular,
 }
 
 #[derive(Clone, Copy)]
@@ -354,13 +351,6 @@ fn agreement_for_noun_phrase(phrase: &NounPhrase) -> Agreement {
     }
 }
 
-fn agreement_for_pronoun(pronoun: Pronoun) -> Agreement {
-    match pronoun {
-        Pronoun::It => Agreement::ThirdPersonSingular,
-        Pronoun::You => Agreement::Bare,
-    }
-}
-
 fn number_for_noun_phrase(phrase: &NounPhrase) -> Number {
     match phrase {
         NounPhrase::Pronoun(PronounNp {
@@ -385,23 +375,6 @@ fn number_for_noun_phrase(phrase: &NounPhrase) -> Number {
             controller: _,
             threshold: _,
         }) => Number::Plural,
-    }
-}
-
-fn inflect(lexeme: VerbLexeme, agreement: Agreement) -> &'static str {
-    match (lexeme, agreement) {
-        (VerbLexeme::Destroy, Agreement::Bare) => "destroy",
-        (VerbLexeme::Destroy, Agreement::ThirdPersonSingular) => "destroys",
-        (VerbLexeme::Connive, Agreement::Bare) => "connive",
-        (VerbLexeme::Connive, Agreement::ThirdPersonSingular) => "connives",
-        (VerbLexeme::Deal, Agreement::Bare) => "deal",
-        (VerbLexeme::Deal, Agreement::ThirdPersonSingular) => "deals",
-        (VerbLexeme::Gain, Agreement::Bare) => "gain",
-        (VerbLexeme::Gain, Agreement::ThirdPersonSingular) => "gains",
-        (VerbLexeme::Control, Agreement::Bare) => "control",
-        (VerbLexeme::Control, Agreement::ThirdPersonSingular) => "controls",
-        (VerbLexeme::Be, Agreement::Bare) => "are",
-        (VerbLexeme::Be, Agreement::ThirdPersonSingular) => "is",
     }
 }
 

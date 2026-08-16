@@ -1,6 +1,5 @@
 use deckmaste_catalogs::CatalogKind;
 
-use super::build::Agreement;
 use super::engine::ChartFailure;
 use super::engine::Forest;
 use super::engine::LexicalMatch;
@@ -25,6 +24,8 @@ use crate::ast::Variable;
 use crate::ast::VerbLexeme;
 use crate::catalogs::ParserCatalogs;
 use crate::context::ParseContext;
+use crate::features::Agreement;
+use crate::features::inflect;
 
 pub(crate) struct SliceGrammar<'a> {
     pub(crate) catalogs: &'a ParserCatalogs,
@@ -294,23 +295,6 @@ fn noun_forms(singular: &str, wanted: NounNumber) -> Vec<(NounNumber, String)> {
             (NounNumber::Singular, singular.to_owned()),
             (NounNumber::Plural, format!("{singular}s")),
         ],
-    }
-}
-
-fn inflect(lexeme: VerbLexeme, agreement: Agreement) -> &'static str {
-    match (lexeme, agreement) {
-        (VerbLexeme::Destroy, Agreement::Bare) => "destroy",
-        (VerbLexeme::Destroy, Agreement::ThirdPersonSingular) => "destroys",
-        (VerbLexeme::Connive, Agreement::Bare) => "connive",
-        (VerbLexeme::Connive, Agreement::ThirdPersonSingular) => "connives",
-        (VerbLexeme::Deal, Agreement::Bare) => "deal",
-        (VerbLexeme::Deal, Agreement::ThirdPersonSingular) => "deals",
-        (VerbLexeme::Gain, Agreement::Bare) => "gain",
-        (VerbLexeme::Gain, Agreement::ThirdPersonSingular) => "gains",
-        (VerbLexeme::Control, Agreement::Bare) => "control",
-        (VerbLexeme::Control, Agreement::ThirdPersonSingular) => "controls",
-        (VerbLexeme::Be, Agreement::Bare) => "are",
-        (VerbLexeme::Be, Agreement::ThirdPersonSingular) => "is",
     }
 }
 

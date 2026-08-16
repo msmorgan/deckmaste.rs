@@ -30,12 +30,8 @@ use crate::ast::VerbPhrase;
 use crate::ast::WhereClause;
 use crate::ast::WithWhere;
 use crate::context::ParseContext;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Agreement {
-    Bare,
-    ThirdPersonSingular,
-}
+pub(crate) use crate::features::Agreement;
+use crate::features::agreement_for_pronoun;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum BuildValue {
@@ -316,12 +312,5 @@ pub(super) fn build(
             }
             _ => None,
         },
-    }
-}
-
-fn agreement_for_pronoun(pronoun: Pronoun) -> Agreement {
-    match pronoun {
-        Pronoun::It => Agreement::ThirdPersonSingular,
-        Pronoun::You => Agreement::Bare,
     }
 }
