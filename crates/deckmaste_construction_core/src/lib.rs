@@ -1,15 +1,28 @@
+mod feature;
 mod model;
 mod parse;
 mod source;
+mod validate;
 
 pub use crate::model::*;
+pub use crate::validate::ValidatedDeclarations;
 
 pub fn parse_declarations(tokens: proc_macro2::TokenStream) -> syn::Result<Declarations> {
     parse::parse_declarations(tokens)
 }
 
+/// Validates and lowers parsed declarations into the sealed code-generation IR.
+///
+/// # Errors
+///
+/// Returns combined, span-bearing errors from the earliest validation pass that
+/// finds invalid declarations.
+pub fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarations> {
+    validate::validate_declarations(raw)
+}
+
 pub fn generate(tokens: proc_macro2::TokenStream) -> syn::Result<Expansion> {
-    let _declarations = parse_declarations(tokens)?;
+    let _declarations = validate_declarations(parse_declarations(tokens)?)?;
     Ok(Expansion::default())
 }
 

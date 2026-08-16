@@ -8,6 +8,7 @@ use syn::Token;
 use syn::Visibility;
 use syn::braced;
 use syn::bracketed;
+use syn::ext::IdentExt;
 use syn::parenthesized;
 use syn::parse::Parse;
 use syn::parse::ParseStream;
@@ -16,11 +17,13 @@ use syn::spanned::Spanned;
 use crate::model::BuildLeaf;
 use crate::model::Checked;
 use crate::model::CheckedVisibility;
+use crate::model::CodecAtomClass;
 use crate::model::Construction;
 use crate::model::ConstructorArgument;
 use crate::model::ConstructorBinding;
 use crate::model::Declaration;
 use crate::model::Declarations;
+use crate::model::Element;
 use crate::model::Feature;
 use crate::model::FeatureEquation;
 use crate::model::FeatureMatchArm;
@@ -52,6 +55,7 @@ mod keyword {
     syn::custom_keyword!(context);
     syn::custom_keyword!(derive);
     syn::custom_keyword!(eoi);
+    syn::custom_keyword!(element);
     syn::custom_keyword!(form);
     syn::custom_keyword!(generate);
     syn::custom_keyword!(identity);
@@ -124,13 +128,16 @@ impl Parse for Declarations {
 
 fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
     input.parse::<keyword::construction>()?;
-    let name: Ident = input.parse()?;
+    let name = input.call(Ident::parse_any)?;
     input.parse::<Token![:]>()?;
     let category = input.parse()?;
     let content;
     braced!(content in input);
 
-    let mut fields = Vec::new();
+    if !content.peek(keyword::element) {
+        return Err(content.error("construction requires exactly one named element product"));
+    }
+    let element = parse_element(&content)?;
     let mut checked = None;
     let mut requirements = Vec::new();
     let mut equations = Vec::new();
@@ -158,11 +165,10 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
             return Err(deferred(content.span(), "when"));
         } else if content.peek(keyword::otherwise) {
             return Err(deferred(content.span(), "otherwise"));
+        } else if content.peek(keyword::element) {
+            return Err(content.error("construction requires exactly one named element product"));
         } else {
-            if form.is_some() {
-                return Err(content.error("construction fields must precede the form"));
-            }
-            fields.push(parse_field(&content)?);
+            return Err(content.error("expected checked, require, derive, or form after element"));
         }
     }
 
@@ -171,12 +177,25 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
     Ok(Construction {
         name,
         category,
-        fields,
+        element,
         checked,
         requirements,
         equations,
         form,
     })
+}
+
+fn parse_element(input: ParseStream<'_>) -> syn::Result<Element> {
+    input.parse::<keyword::element>()?;
+    let name = input.parse()?;
+    let content;
+    braced!(content in input);
+    let mut fields = Vec::new();
+    while !content.is_empty() {
+        reject_doc_comment(&content)?;
+        fields.push(parse_field(&content)?);
+    }
+    Ok(Element { name, fields })
 }
 
 fn parse_field(input: ParseStream<'_>) -> syn::Result<Field> {
@@ -374,7 +393,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
 
 fn parse_form(input: ParseStream<'_>) -> syn::Result<Form> {
     input.parse::<keyword::form>()?;
-    let name = input.parse()?;
+    let name = input.call(Ident::parse_any)?;
     if input.peek(keyword::when) {
         return Err(deferred(input.span(), "when"));
     }
@@ -471,7 +490,7 @@ fn parse_lexeme(input: ParseStream<'_>) -> syn::Result<Lexeme> {
     Ok(Lexeme { name, variants })
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum BindingKind {
     Codec,
     Identity,
@@ -502,6 +521,7 @@ fn parse_terminal_binding(
     let content;
     braced!(content in input);
     let mut value_type = None;
+    let mut codec_atom = None;
     let mut lexical_variant = None;
     let mut render = None;
     let mut build = None;
@@ -519,6 +539,28 @@ fn parse_terminal_binding(
         }
         let slot: Ident = content.parse()?;
         match slot.to_string().as_str() {
+            "atom" => {
+                if kind == BindingKind::Identity {
+                    return Err(syn::Error::new(
+                        slot.span(),
+                        "identity binding does not accept an atom slot",
+                    ));
+                }
+                reject_duplicate(&codec_atom, &slot)?;
+                content.parse::<Token![=]>()?;
+                let atom = content.call(Ident::parse_any)?;
+                codec_atom = Some(match atom.to_string().as_str() {
+                    "lex" => CodecAtomClass::Lex,
+                    "noun" => CodecAtomClass::Noun,
+                    _ => {
+                        return Err(syn::Error::new(
+                            atom.span(),
+                            "codec atom class must be `lex` or `noun`",
+                        ));
+                    }
+                });
+                content.parse::<Token![;]>()?;
+            }
             "value_type" => {
                 reject_duplicate(&value_type, &slot)?;
                 content.parse::<Token![=]>()?;
@@ -554,8 +596,15 @@ fn parse_terminal_binding(
         }
     }
 
+    let codec_atom = match kind {
+        BindingKind::Codec => Some(codec_atom.ok_or_else(|| {
+            syn::Error::new(name.span(), "codec binding requires explicit atom slot")
+        })?),
+        BindingKind::Identity => None,
+    };
     Ok(TerminalBinding {
         name: name.clone(),
+        codec_atom,
         value_type: required(value_type, &name, "value_type")?,
         lexical_variant: required(lexical_variant, &name, "lexical")?,
         render: required(render, &name, "render")?,
@@ -729,9 +778,11 @@ mod tests {
 
     const GOLDEN_SHAPED_DECLARATIONS: &str = r#"
         construction triggered: Ability {
-            trigger: lex TriggerWord,
-            event: Clause,
-            effect: Sentence,
+            element Triggered {
+                trigger: lex TriggerWord,
+                event: Clause,
+                effect: Sentence,
+            }
             checked {
                 visibility trigger = pub(crate);
                 visibility event = pub(crate);
@@ -743,16 +794,20 @@ mod tests {
         }
 
         construction with_where: Sentence {
-            body: Sentence,
-            clause: Clause,
+            element WithWhere {
+                body: Sentence,
+                clause: Clause,
+            }
             require clause is Where;
             form with_where = body "," clause;
         }
 
         construction count: NounPhrase {
-            head: lex Noun,
-            controller: lex Pronoun,
-            threshold: lex SignedNumber,
+            element CountNp {
+                head: lex Noun,
+                controller: lex Pronoun,
+                threshold: lex SignedNumber,
+            }
             require controller is You;
             derive number = NounNumber::Plural;
             form count = noun(head) lex(controller) verb(VerbLexeme::Control)
@@ -760,21 +815,25 @@ mod tests {
         }
 
         construction imperative: Sentence {
-            predicate: VerbPhrase,
+            element Imperative { predicate: VerbPhrase, }
             derive agreement = Agreement::Bare;
             form imperative = predicate;
         }
 
         construction declarative: Sentence {
-            subject: NounPhrase,
-            predicate: VerbPhrase,
+            element Declarative {
+                subject: NounPhrase,
+                predicate: VerbPhrase,
+            }
             derive predicate.agreement = subject.agreement;
             form declarative = subject predicate;
         }
 
         construction demonstrative: NounPhrase {
-            word: lex Demonstrative,
-            head: lex Noun,
+            element DemonstrativeNp {
+                word: lex Demonstrative,
+                head: lex Noun,
+            }
             derive number = match word {
                 That => NounNumber::Singular,
                 Those => NounNumber::Plural,
@@ -793,6 +852,7 @@ mod tests {
         }
 
         codec SignedNumber {
+            atom = lex;
             value_type = crate::ast::SignedNumber;
             lexical = Lexical::SignedNumber;
             render = crate::render::render_signed_number;
@@ -856,6 +916,7 @@ mod tests {
         assert_eq!(path(&triggered.category), "Ability");
         assert_eq!(
             triggered
+                .element
                 .fields
                 .iter()
                 .map(|field| field.name.to_string())
@@ -970,6 +1031,7 @@ mod tests {
         let Declaration::Codec(codec) = &declarations.declarations[8] else {
             panic!("codec should retain its source position");
         };
+        assert_eq!(codec.codec_atom, Some(crate::CodecAtomClass::Lex));
         assert_eq!(
             path(codec.value_type.path()),
             "crate :: ast :: SignedNumber"
@@ -1013,6 +1075,7 @@ mod tests {
         let Declaration::Identity(identity) = &declarations.declarations[9] else {
             panic!("identity should retain its source position");
         };
+        assert_eq!(identity.codec_atom, None);
         assert_eq!(
             path(identity.value_type.path()),
             "crate :: ast :: CatalogIdentity"
@@ -1086,18 +1149,20 @@ mod tests {
         let declarations = parse(
             r#"
                 construction imperative: Sentence {
-                    predicate: VerbPhrase,
+                    element Imperative { predicate: VerbPhrase, }
                     derive agreement = Agreement::Bare;
                     form imperative = predicate;
                 }
                 construction count: NounPhrase {
-                    head: lex Noun,
+                    element CountNp { head: lex Noun, }
                     derive number = NounNumber::Plural;
                     form count = noun(head);
                 }
                 construction declarative: Sentence {
-                    subject: NounPhrase,
-                    predicate: VerbPhrase,
+                    element Declarative {
+                        subject: NounPhrase,
+                        predicate: VerbPhrase,
+                    }
                     derive predicate.agreement = subject.agreement;
                     form declarative = subject predicate;
                 }
@@ -1145,7 +1210,7 @@ mod tests {
         assert_eq!(source.feature, Feature::Agreement);
 
         let error = parse(
-            "construction x: X { role: X, derive role.number = NounNumber::Plural; form x = role; }",
+            "construction x: X { element XNode { role: X, } derive role.number = NounNumber::Plural; form x = role; }",
         )
         .expect_err("role.number is not an architecture-authorized target")
         .to_string();
@@ -1158,24 +1223,28 @@ mod tests {
         let declarations = parse(
             r#"
                 construction where_clause: Clause {
-                    variable: lex Variable,
-                    value: NounPhrase,
+                    element WhereClause {
+                        variable: lex Variable,
+                        value: NounPhrase,
+                    }
                     form where_clause = "where" lex(variable) verb(VerbLexeme::Be)
                         "the" "number" "of" value;
                 }
                 construction count: NounPhrase {
-                    head: lex Noun,
-                    controller: lex Pronoun,
-                    threshold: lex SignedNumber,
+                    element CountNp {
+                        head: lex Noun,
+                        controller: lex Pronoun,
+                        threshold: lex SignedNumber,
+                    }
                     form count = noun(head) lex(controller) verb(VerbLexeme::Control)
                         "with" "power" lex(threshold) "or" "less";
                 }
                 construction destroy: VerbPhrase {
-                    object: NounPhrase,
+                    element Destroy { object: NounPhrase, }
                     form destroy = verb(VerbLexeme::Destroy) object;
                 }
                 construction projected: VerbPhrase {
-                    word: lex VerbLexeme,
+                    element Projected { word: lex VerbLexeme, }
                     form projected = verb(word);
                 }
             "#,
@@ -1259,18 +1328,24 @@ mod tests {
     #[test]
     fn rejects_deferred_declaration_forms_by_name() {
         let cases = [
-            ("construction x: X { xs: opt X, form x = xs; }", "opt"),
-            ("construction x: X { xs: seq X, form x = xs; }", "seq"),
             (
-                "construction x: X { value: X, require value != None; form x = value; }",
+                "construction x: X { element XNode { xs: opt X, } form x = xs; }",
+                "opt",
+            ),
+            (
+                "construction x: X { element XNode { xs: seq X, } form x = xs; }",
+                "seq",
+            ),
+            (
+                "construction x: X { element XNode { value: X, } require value != None; form x = value; }",
                 "general require",
             ),
             (
-                "construction x: X { value: X, form x when value = value; }",
+                "construction x: X { element XNode { value: X, } form x when value = value; }",
                 "when",
             ),
             (
-                "construction x: X { value: X, form x otherwise = value; }",
+                "construction x: X { element XNode { value: X, } form x otherwise = value; }",
                 "otherwise",
             ),
             ("codec X { generate { anything } }", "generative codec"),
@@ -1281,11 +1356,11 @@ mod tests {
             ("morphology English { anything }", "morphology"),
             ("scanner Words { anything }", "scanner"),
             (
-                "construction x: X { value: X, derive value.case = Case::Upper; form x = value; }",
+                "construction x: X { element XNode { value: X, } derive value.case = Case::Upper; form x = value; }",
                 "derive target",
             ),
             (
-                "/// docs\nconstruction x: X { value: X, form x = value; }",
+                "/// docs\nconstruction x: X { element XNode { value: X, } form x = value; }",
                 "doc comments",
             ),
         ];
@@ -1304,10 +1379,101 @@ mod tests {
 
     #[test]
     fn rejects_a_second_form_by_name() {
-        let error = parse("construction x: X { value: X, form one = value; form two = value; }")
-            .expect_err("a second form is deferred")
-            .to_string();
+        let error = parse(
+            "construction x: X { element XNode { value: X, } form one = value; form two = value; }",
+        )
+        .expect_err("a second form is deferred")
+        .to_string();
         assert!(error.contains("multiple forms"), "{error}");
         assert!(error.contains("unimplemented in MVP"), "{error}");
+    }
+
+    #[test]
+    fn codecs_require_one_closed_atom_class() {
+        let binding = |atom: &str| {
+            format!(
+                r#"codec Value {{
+                    {atom}
+                    value_type = Value;
+                    lexical = Lexical::Value;
+                    render = render_value;
+                    build {{ pattern = BuildValue::Value(value); construct = value; }}
+                    traversal {{ part value = scalar(value); visit value; }}
+                }}"#
+            )
+        };
+
+        let missing = parse(&binding(""))
+            .expect_err("codec atom class is mandatory")
+            .to_string();
+        assert!(
+            missing.contains("codec binding requires explicit atom slot"),
+            "{missing}"
+        );
+
+        let duplicate = parse(&binding("atom = lex; atom = noun;"))
+            .expect_err("codec atom class occurs once")
+            .to_string();
+        assert!(duplicate.contains("duplicate atom slot"), "{duplicate}");
+
+        let invalid = parse(&binding("atom = identity;"))
+            .expect_err("codec atom class is closed")
+            .to_string();
+        assert!(
+            invalid.contains("codec atom class must be `lex` or `noun`"),
+            "{invalid}"
+        );
+
+        let identity = binding("atom = lex;").replacen("codec Value", "identity Value", 1);
+        let identity_error = parse(&identity)
+            .expect_err("identity bindings have an intrinsic atom class")
+            .to_string();
+        assert!(
+            identity_error.contains("identity binding does not accept an atom slot"),
+            "{identity_error}"
+        );
+    }
+
+    #[test]
+    fn parses_mandatory_named_element_product_separately_from_rule_identity() {
+        let declarations = parse(
+            r#"
+                construction event: Clause {
+                    element EventClause {
+                        subject: NounPhrase,
+                        predicate: VerbPhrase,
+                    }
+                    derive predicate.agreement = subject.agreement;
+                    form event = subject predicate;
+                }
+            "#,
+        )
+        .expect("named element product is the mandatory MVP construction shape");
+        let Declaration::Construction(construction) = &declarations.declarations[0] else {
+            panic!("fixture is a construction");
+        };
+        assert_eq!(construction.name, "event");
+        assert_eq!(construction.element.name, "EventClause");
+        assert_eq!(construction.element.fields.len(), 2);
+    }
+
+    #[test]
+    fn rejects_missing_or_repeated_element_products() {
+        let missing = parse("construction x: X { form x = \"x\"; }")
+            .expect_err("element product is mandatory")
+            .to_string();
+        assert!(
+            missing.contains("exactly one named element product"),
+            "{missing}"
+        );
+
+        let repeated =
+            parse("construction x: X { element First {} element Second {} form x = \"x\"; }")
+                .expect_err("only one element product is allowed")
+                .to_string();
+        assert!(
+            repeated.contains("exactly one named element product"),
+            "{repeated}"
+        );
     }
 }

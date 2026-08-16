@@ -26,11 +26,17 @@ pub enum Declaration {
 pub struct Construction {
     pub name: Ident,
     pub category: Path,
-    pub fields: Vec<Field>,
+    pub element: Element,
     pub checked: Option<Checked>,
     pub requirements: Vec<RoleRefinement>,
     pub equations: Vec<FeatureEquation>,
     pub form: Form,
+}
+
+#[derive(Debug)]
+pub struct Element {
+    pub name: Ident,
+    pub fields: Vec<Field>,
 }
 
 #[derive(Debug)]
@@ -101,7 +107,7 @@ pub struct FeatureSlot {
     pub feature: Feature,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Feature {
     Agreement,
     Number,
@@ -166,11 +172,18 @@ pub struct Lexeme {
 #[derive(Debug)]
 pub struct TerminalBinding {
     pub name: Ident,
+    pub codec_atom: Option<CodecAtomClass>,
     pub value_type: syn::Type,
     pub lexical_variant: Path,
     pub render: Path,
     pub build: BuildLeaf,
     pub traversal: Traversal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CodecAtomClass {
+    Lex,
+    Noun,
 }
 
 #[derive(Debug)]

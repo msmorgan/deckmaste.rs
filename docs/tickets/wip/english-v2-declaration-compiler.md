@@ -40,10 +40,12 @@ STOP and report; that is a design gap, not an implementer choice.
    arguments, no build script, no OUT_DIR. Syntax comes from the ADR
    §The-declaration-language vocabulary and nowhere else; the MVP implements
    exactly the subset the emission table below requires — single-`form`
-   constructions with literal / role / `lex(..)` / `verb(lexeme)` /
+   constructions with one mandatory named `element` product and literal /
+   role / `lex(..)` / `verb(lexeme)` /
    `noun(role)` atoms; `vocab` declarations generating enum + variant→word
    render fn; name-only `lexeme` declarations generating the enum alone;
-   binding-only `codec` and `identity` declarations for existing runtime
+   binding-only `codec` declarations with an explicit `lex`/`noun` atom class
+   and intrinsic-identity `identity` declarations for existing runtime
    terminals; checked construction mappings to hand-written constructors;
    `require <role> is <Variant>` role refinements; the pinned
    agreement/number feature equations; and roots. Terminal bindings, checked
