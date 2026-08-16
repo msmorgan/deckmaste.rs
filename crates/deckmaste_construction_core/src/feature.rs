@@ -1,6 +1,10 @@
+use std::hash::Hash;
+use std::hash::Hasher;
+
 use proc_macro2::Span;
 use syn::Ident;
 
+use crate::identifier;
 use crate::model;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -15,6 +19,13 @@ pub(crate) enum FeatureValue {
     ThirdPersonSingular,
     Singular,
     Plural,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FeatureResolution {
+    Known(FeatureValue),
+    Runtime,
+    External,
 }
 
 #[derive(Debug)]
@@ -62,10 +73,48 @@ pub(crate) enum FeatureExpr {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub(crate) enum FeaturePlace {
     Construction(Feature),
     Role { field: Ident, feature: Feature },
+}
+
+impl PartialEq for FeaturePlace {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Construction(left), Self::Construction(right)) => left == right,
+            (
+                Self::Role {
+                    field: left_field,
+                    feature: left_feature,
+                },
+                Self::Role {
+                    field: right_field,
+                    feature: right_feature,
+                },
+            ) => left_feature == right_feature && identifier::same(left_field, right_field),
+            (Self::Construction(_), Self::Role { .. })
+            | (Self::Role { .. }, Self::Construction(_)) => false,
+        }
+    }
+}
+
+impl Eq for FeaturePlace {}
+
+impl Hash for FeaturePlace {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Construction(feature) => {
+                0_u8.hash(state);
+                feature.hash(state);
+            }
+            Self::Role { field, feature } => {
+                1_u8.hash(state);
+                identifier::key(field).hash(state);
+                feature.hash(state);
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -100,16 +149,13 @@ pub(crate) fn lower_constant(
     feature: model::Feature,
     path: &syn::Path,
 ) -> syn::Result<FeatureValue> {
-    let Some(name) = path
-        .segments
-        .last()
-        .map(|segment| segment.ident.to_string())
-    else {
+    let Some(_) = path.segments.last() else {
         return Err(syn::Error::new_spanned(
             path,
             "feature value path cannot be empty",
         ));
     };
+    let name = identifier::path_key(path);
     let value = match (feature, name.as_str()) {
         (model::Feature::Agreement, "Bare") => FeatureValue::Bare,
         (model::Feature::Agreement, "ThirdPersonSingular") => FeatureValue::ThirdPersonSingular,

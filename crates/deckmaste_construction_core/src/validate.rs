@@ -5,6 +5,10 @@ use quote::ToTokens;
 use syn::spanned::Spanned;
 
 use crate::feature;
+use crate::identifier::key as identifier_key;
+use crate::identifier::path_key;
+use crate::identifier::same as same_identifier;
+use crate::identifier::spelling_key;
 use crate::model::CodecAtomClass;
 use crate::model::ConstructorArgument;
 use crate::model::Declaration;
@@ -42,11 +46,20 @@ pub struct ValidatedDeclarations {
         reason = "feature equations are consumed by Task 4 code generation"
     )]
     feature_equations: HashMap<String, Vec<feature::FeatureEquation>>,
+    feature_resolutions:
+        HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
+    category_agreement: HashMap<String, CategoryAgreementCapability>,
     #[allow(
         dead_code,
         reason = "sealed contribution inventory is consumed by Task 4 code generation"
     )]
     contributions: ContributionInventory,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct CategoryAgreementCapability {
+    carries_output: bool,
+    requires_external_input: bool,
 }
 
 #[derive(Debug)]
@@ -329,6 +342,29 @@ impl ValidatedDeclarations {
             .map_or(&[], Vec::as_slice)
     }
 
+    pub(crate) fn category_carries_agreement(&self, category: &str) -> bool {
+        self.category_agreement
+            .get(category)
+            .is_some_and(|capability| capability.carries_output)
+    }
+
+    pub(crate) fn category_requires_external_agreement(&self, category: &str) -> bool {
+        self.category_agreement
+            .get(category)
+            .is_some_and(|capability| capability.requires_external_input)
+    }
+
+    pub(crate) fn feature_resolution(
+        &self,
+        construction: &str,
+        place: &feature::FeaturePlace,
+    ) -> Option<feature::FeatureResolution> {
+        self.feature_resolutions
+            .get(construction)
+            .and_then(|resolutions| resolutions.get(place))
+            .copied()
+    }
+
     #[allow(
         dead_code,
         reason = "sealed boxing metadata is consumed by Task 4 code generation"
@@ -395,8 +431,11 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     validate_bindings_and_checked_metadata(&raw)?;
     validate_refinements(&raw, &symbols)?;
     let (feature_equations, dynamic_numbers) = validate_features(&raw, &symbols)?;
+    let feature_resolutions = seal_feature_resolutions(&raw, &feature_equations);
+    let category_agreement = seal_category_agreement_capabilities(&raw, &feature_resolutions);
+    validate_contextual_agreement_uses(&raw, &category_agreement)?;
     let boxed_fields = validate_category_graph(&raw);
-    validate_roots(&raw, &symbols)?;
+    validate_roots(&raw, &symbols, &category_agreement)?;
     let contributions = validate_backend_completeness(&raw, &resolved)?;
     Ok(ValidatedDeclarations {
         raw,
@@ -404,6 +443,8 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
         boxed_fields,
         dynamic_numbers,
         feature_equations,
+        feature_resolutions,
+        category_agreement,
         contributions,
     })
 }
@@ -426,7 +467,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
     for declaration in &raw.declarations {
         match declaration {
             Declaration::Construction(construction) => {
-                let name = construction.name.to_string();
+                let name = identifier_key(&construction.name);
                 declaration_names.push(name.clone());
                 let category = path_name(&construction.category);
                 if categories.insert(category.clone()) {
@@ -445,12 +486,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                         &mut errors,
                     );
                 }
-                duplicate_name(
-                    &mut source_names,
-                    &name,
-                    construction.name.span(),
-                    &mut errors,
-                );
+                duplicate_name(&mut source_names, &name, &construction.name, &mut errors);
                 register_rust_name(
                     &mut rust_names,
                     &construction.element.name.to_string(),
@@ -486,7 +522,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     &mut errors,
                 );
                 validate_generated_rust_ident(
-                    &pascal_case(&construction.form.name.to_string()),
+                    &pascal_case(&identifier_key(&construction.form.name)),
                     &format!("form/rule fragment for construction `{name}`"),
                     construction.form.name.span(),
                     &mut errors,
@@ -516,22 +552,22 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
 
                 let mut fields = HashSet::new();
                 for field in &construction.element.fields {
-                    let field_name = field.name.to_string();
-                    if !fields.insert(field_name.clone()) {
+                    let field_key = identifier_key(&field.name);
+                    if !fields.insert(field_key) {
                         combine(
                             &mut errors,
                             syn::Error::new(
                                 field.name.span(),
-                                format!("duplicate field `{field_name}`"),
+                                format!("duplicate field `{}`", field.name),
                             ),
                         );
                     }
                 }
             }
             Declaration::Vocab(vocab) => {
-                let name = vocab.name.to_string();
+                let name = identifier_key(&vocab.name);
                 declaration_names.push(name.clone());
-                duplicate_name(&mut source_names, &name, vocab.name.span(), &mut errors);
+                duplicate_name(&mut source_names, &name, &vocab.name, &mut errors);
                 register_rust_name(
                     &mut rust_names,
                     &pascal_case(&name),
@@ -550,15 +586,15 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 let mut variant_order = Vec::new();
                 let mut words = HashSet::new();
                 for variant in &vocab.variants {
-                    let variant_name = variant.name.to_string();
-                    if variants.insert(variant_name.clone()) {
-                        variant_order.push(variant_name);
+                    let variant_key = identifier_key(&variant.name);
+                    if variants.insert(variant_key.clone()) {
+                        variant_order.push(variant_key);
                     } else {
                         combine(
                             &mut errors,
                             syn::Error::new(
                                 variant.name.span(),
-                                format!("duplicate variant `{variant_name}`"),
+                                format!("duplicate variant `{}`", variant.name),
                             ),
                         );
                     }
@@ -581,9 +617,9 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 });
             }
             Declaration::Lexeme(lexeme) => {
-                let name = lexeme.name.to_string();
+                let name = identifier_key(&lexeme.name);
                 declaration_names.push(name.clone());
-                duplicate_name(&mut source_names, &name, lexeme.name.span(), &mut errors);
+                duplicate_name(&mut source_names, &name, &lexeme.name, &mut errors);
                 register_rust_name(
                     &mut rust_names,
                     &pascal_case(&name),
@@ -594,15 +630,15 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 let mut variants = HashSet::new();
                 let mut variant_order = Vec::new();
                 for variant in &lexeme.variants {
-                    let variant_name = variant.to_string();
-                    if variants.insert(variant_name.clone()) {
-                        variant_order.push(variant_name);
+                    let variant_key = identifier_key(variant);
+                    if variants.insert(variant_key.clone()) {
+                        variant_order.push(variant_key);
                     } else {
                         combine(
                             &mut errors,
                             syn::Error::new(
                                 variant.span(),
-                                format!("duplicate variant `{variant_name}`"),
+                                format!("duplicate variant `{variant}`"),
                             ),
                         );
                     }
@@ -615,9 +651,9 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 });
             }
             Declaration::Codec(binding) | Declaration::Identity(binding) => {
-                let name = binding.name.to_string();
+                let name = identifier_key(&binding.name);
                 declaration_names.push(name.clone());
-                duplicate_name(&mut source_names, &name, binding.name.span(), &mut errors);
+                duplicate_name(&mut source_names, &name, &binding.name, &mut errors);
                 register_rust_name(
                     &mut rust_names,
                     &pascal_case(&name),
@@ -664,14 +700,20 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
 
 fn duplicate_name(
     names: &mut HashMap<String, proc_macro2::Span>,
-    name: &str,
-    span: proc_macro2::Span,
+    semantic_name: &str,
+    authored_name: &syn::Ident,
     errors: &mut Option<syn::Error>,
 ) {
-    if names.insert(name.to_owned(), span).is_some() {
+    if names
+        .insert(semantic_name.to_owned(), authored_name.span())
+        .is_some()
+    {
         combine(
             errors,
-            syn::Error::new(span, format!("duplicate declaration `{name}`")),
+            syn::Error::new(
+                authored_name.span(),
+                format!("duplicate declaration `{authored_name}`"),
+            ),
         );
     }
 }
@@ -684,7 +726,8 @@ fn register_rust_name(
     errors: &mut Option<syn::Error>,
 ) {
     validate_generated_rust_ident(generated, owner, span, errors);
-    if let Some((previous, _)) = names.get(generated) {
+    let semantic_generated = spelling_key(generated);
+    if let Some((previous, _)) = names.get(&semantic_generated) {
         if previous != owner {
             combine(
                 errors,
@@ -697,7 +740,7 @@ fn register_rust_name(
             );
         }
     } else {
-        names.insert(generated.to_owned(), (owner.to_owned(), span));
+        names.insert(semantic_generated, (owner.to_owned(), span));
     }
 }
 
@@ -727,7 +770,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
             .element
             .fields
             .iter()
-            .map(|field| (field.name.to_string(), &field.kind))
+            .map(|field| (identifier_key(&field.name), &field.kind))
             .collect();
         let verb_operands: Vec<_> = construction
             .form
@@ -756,7 +799,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 .element
                 .fields
                 .iter()
-                .find(|field| field.name == "verb")
+                .find(|field| identifier_key(&field.name) == "verb")
                 .map_or(construction.form.name.span(), |field| field.name.span());
             combine(
                 &mut errors,
@@ -809,7 +852,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
             match atom {
                 FormAtom::Role(role) => check_role_kind(role, &fields, true, &mut errors),
                 FormAtom::Lex(role) => check_lex_role(role, &fields, symbols, &mut errors),
-                FormAtom::Identity(role) => match fields.get(&role.to_string()) {
+                FormAtom::Identity(role) => match fields.get(&identifier_key(role)) {
                     None => combine(
                         &mut errors,
                         syn::Error::new(role.span(), format!("unknown role `{role}`")),
@@ -893,36 +936,36 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
             .element
             .fields
             .iter()
-            .map(|field| (field.name.to_string(), &field.kind))
+            .map(|field| (identifier_key(&field.name), &field.kind))
             .collect();
         let mut atoms = Vec::new();
         for atom in &construction.form.atoms {
             let resolved = match atom {
                 FormAtom::Literal(_) => Some(AtomContribution::Literal),
-                FormAtom::Role(role) => match fields.get(&role.to_string()) {
+                FormAtom::Role(role) => match fields.get(&identifier_key(role)) {
                     Some(FieldKind::Category(path)) => Some(AtomContribution::Category {
-                        role: role.to_string(),
+                        role: identifier_key(role),
                         category: path_name(path),
                     }),
                     _ => None,
                 },
-                FormAtom::Lex(role) => match fields.get(&role.to_string()) {
+                FormAtom::Lex(role) => match fields.get(&identifier_key(role)) {
                     Some(FieldKind::Lex(path)) => Some(AtomContribution::Lex {
-                        role: role.to_string(),
+                        role: identifier_key(role),
                         terminal: path_name(path),
                     }),
                     _ => None,
                 },
-                FormAtom::Identity(role) => match fields.get(&role.to_string()) {
+                FormAtom::Identity(role) => match fields.get(&identifier_key(role)) {
                     Some(FieldKind::Identity(path)) => Some(AtomContribution::Identity {
-                        role: role.to_string(),
+                        role: identifier_key(role),
                         terminal: path_name(path),
                     }),
                     _ => None,
                 },
-                FormAtom::Noun(role) => match fields.get(&role.to_string()) {
+                FormAtom::Noun(role) => match fields.get(&identifier_key(role)) {
                     Some(FieldKind::Lex(path)) => Some(AtomContribution::Noun {
-                        role: role.to_string(),
+                        role: identifier_key(role),
                         terminal: path_name(path),
                     }),
                     _ => None,
@@ -931,8 +974,8 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                     let segments: Vec<_> = path.segments.iter().collect();
                     let Some(terminal) = segments.iter().rev().nth(1) else { continue };
                     let Some(variant) = segments.last() else { continue };
-                    let terminal = terminal.ident.to_string();
-                    let variant = variant.ident.to_string();
+                    let terminal = identifier_key(&terminal.ident);
+                    let variant = identifier_key(&variant.ident);
                     record_verb_provider(
                         &terminal,
                         path.span(),
@@ -947,7 +990,7 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                 atoms.push(resolved);
             }
         }
-        atoms_by_construction.insert(construction.name.to_string(), atoms);
+        atoms_by_construction.insert(identifier_key(&construction.name), atoms);
     }
 
     if let Some((first, _)) = verb_providers.first() {
@@ -988,7 +1031,7 @@ fn check_lex_role(
     errors: &mut Option<syn::Error>,
 ) {
     check_role_kind(role, fields, false, errors);
-    if let Some(FieldKind::Lex(path)) = fields.get(&role.to_string()) {
+    if let Some(FieldKind::Lex(path)) = fields.get(&identifier_key(role)) {
         let terminal = path_name(path);
         match symbols.terminals.get(&terminal).map(|info| info.kind) {
             Some(TerminalKind::Vocab) | None => {}
@@ -1034,7 +1077,7 @@ fn check_noun_role(
     errors: &mut Option<syn::Error>,
 ) {
     check_role_kind(role, fields, false, errors);
-    let supported = match fields.get(&role.to_string()) {
+    let supported = match fields.get(&identifier_key(role)) {
         Some(FieldKind::Lex(path)) => symbols.terminals.get(&path_name(path)).is_some_and(|info| {
             info.kind == TerminalKind::Codec && info.codec_atom == Some(CodecAtomClass::Noun)
         }),
@@ -1042,7 +1085,7 @@ fn check_noun_role(
         Some(FieldKind::Category(_)) | None => return,
     };
     if !supported {
-        let declared = match fields.get(&role.to_string()) {
+        let declared = match fields.get(&identifier_key(role)) {
             Some(FieldKind::Lex(path)) => symbols
                 .terminals
                 .get(&path_name(path))
@@ -1080,7 +1123,7 @@ fn check_feature_role(
     verb_operands: &[&VerbOperand],
     errors: &mut Option<syn::Error>,
 ) {
-    if role == "verb" && has_fixed_verb {
+    if identifier_key(role) == "verb" && has_fixed_verb {
         if feature != ParsedFeature::Agreement {
             combine(
                 errors,
@@ -1095,7 +1138,7 @@ fn check_feature_role(
         }
         return;
     }
-    match fields.get(&role.to_string()) {
+    match fields.get(&identifier_key(role)) {
         Some(FieldKind::Category(path)) => {
             let category = path_name(path);
             if !providers.contains(&(category.clone(), feature)) {
@@ -1111,11 +1154,13 @@ fn check_feature_role(
                 );
             }
         }
-        Some(FieldKind::Lex(_)) if local_vocab_providers.contains(&(role.to_string(), feature)) => {
+        Some(FieldKind::Lex(_))
+            if local_vocab_providers.contains(&(identifier_key(role), feature)) =>
+        {
         }
         Some(FieldKind::Lex(path))
             if verb_operands.iter().any(
-                |operand| matches!(operand, VerbOperand::Projected(field) if field == role),
+                |operand| matches!(operand, VerbOperand::Projected(field) if same_identifier(field, role)),
             ) && symbols
                 .terminals
                 .get(&path_name(path))
@@ -1173,10 +1218,10 @@ fn local_vocab_feature_providers(
             let ParsedFeatureValue::Match { role, arms } = &equation.value else {
                 return None;
             };
-            if field != role {
+            if !same_identifier(field, role) {
                 return None;
             }
-            let Some(FieldKind::Lex(path)) = fields.get(&role.to_string()) else {
+            let Some(FieldKind::Lex(path)) = fields.get(&identifier_key(role)) else {
                 return None;
             };
             let terminal = symbols.terminals.get(&path_name(path))?;
@@ -1185,10 +1230,10 @@ fn local_vocab_feature_providers(
             }
             let variants = arms
                 .iter()
-                .map(|arm| arm.variant.to_string())
+                .map(|arm| identifier_key(&arm.variant))
                 .collect::<HashSet<_>>();
             (variants.len() == arms.len() && variants == terminal.variants)
-                .then(|| (role.to_string(), *feature))
+                .then(|| (identifier_key(role), *feature))
         })
         .collect()
 }
@@ -1199,7 +1244,7 @@ fn check_role_kind(
     category: bool,
     errors: &mut Option<syn::Error>,
 ) {
-    match fields.get(&role.to_string()) {
+    match fields.get(&identifier_key(role)) {
         None => combine(
             errors,
             syn::Error::new(role.span(), format!("unknown role `{role}`")),
@@ -1229,7 +1274,7 @@ fn check_verb_role(
     errors: &mut Option<syn::Error>,
 ) {
     check_role_kind(role, fields, false, errors);
-    let supported = match fields.get(&role.to_string()) {
+    let supported = match fields.get(&identifier_key(role)) {
         Some(FieldKind::Lex(path)) => symbols
             .terminals
             .get(&path_name(path))
@@ -1255,7 +1300,7 @@ fn check_vocab_role(
     errors: &mut Option<syn::Error>,
 ) {
     check_role_kind(role, fields, false, errors);
-    if let Some(FieldKind::Lex(path)) = fields.get(&role.to_string()) {
+    if let Some(FieldKind::Lex(path)) = fields.get(&identifier_key(role)) {
         let name = path_name(path);
         if symbols
             .terminals
@@ -1287,8 +1332,8 @@ fn check_terminal_variant(
         );
         return;
     }
-    let terminal = segments[segments.len() - 2].ident.to_string();
-    let variant = segments.last().expect("at least two").ident.to_string();
+    let terminal = identifier_key(&segments[segments.len() - 2].ident);
+    let variant = identifier_key(&segments.last().expect("at least two").ident);
     match symbols.terminals.get(&terminal) {
         None => combine(
             errors,
@@ -1317,7 +1362,7 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
             .element
             .fields
             .iter()
-            .map(|field| (field.name.to_string(), 0))
+            .map(|field| (identifier_key(&field.name), 0))
             .collect();
         for atom in &construction.form.atoms {
             let role = match atom {
@@ -1329,13 +1374,13 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
                 FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::Literal(_) => None,
             };
             if let Some(role) = role
-                && let Some(count) = counts.get_mut(&role.to_string())
+                && let Some(count) = counts.get_mut(&identifier_key(role))
             {
                 *count += 1;
             }
         }
         for field in &construction.element.fields {
-            match counts[&field.name.to_string()] {
+            match counts[&identifier_key(&field.name)] {
                 0 => combine(
                     &mut errors,
                     syn::Error::new(
@@ -1368,11 +1413,11 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                     .element
                     .fields
                     .iter()
-                    .map(|field| field.name.to_string())
+                    .map(|field| identifier_key(&field.name))
                     .collect();
                 let mut visible = HashSet::new();
                 for visibility in &checked.visibilities {
-                    let name = visibility.role.to_string();
+                    let name = identifier_key(&visibility.role);
                     if !fields.contains(&name) {
                         combine(
                             &mut errors,
@@ -1392,7 +1437,7 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                     }
                 }
                 for field in &construction.element.fields {
-                    if !visible.contains(&field.name.to_string()) {
+                    if !visible.contains(&identifier_key(&field.name)) {
                         combine(
                             &mut errors,
                             syn::Error::new(
@@ -1407,7 +1452,7 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                 }
                 let mut accessor_roles = HashSet::new();
                 for accessor in &checked.accessors {
-                    let name = accessor.role.to_string();
+                    let name = identifier_key(&accessor.role);
                     if !fields.contains(&name) {
                         combine(
                             &mut errors,
@@ -1427,7 +1472,7 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                     }
                 }
                 for visibility in &checked.visibilities {
-                    let name = visibility.role.to_string();
+                    let name = identifier_key(&visibility.role);
                     let is_private = matches!(
                         visibility.visibility,
                         crate::NonPublicVisibility::Private(_)
@@ -1460,7 +1505,7 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                         ConstructorArgument::Context(_) => None,
                     };
                     if let Some(role) = role {
-                        let name = role.to_string();
+                        let name = identifier_key(role);
                         if !fields.contains(&name) {
                             combine(
                                 &mut errors,
@@ -1481,7 +1526,7 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                     }
                 }
                 for field in &construction.element.fields {
-                    if !arguments.contains(&field.name.to_string()) {
+                    if !arguments.contains(&identifier_key(&field.name)) {
                         combine(
                             &mut errors,
                             syn::Error::new(
@@ -1544,7 +1589,7 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
                         errors,
                     );
                 }
-                let element = construction.element.name.to_string();
+                let element = identifier_key(&construction.element.name);
                 for (prefix, registry) in [
                     ("walk", &mut callbacks.walkers),
                     ("visit", &mut callbacks.visitors),
@@ -1578,7 +1623,7 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
                 if let Some(mode) = binding.traversal.callback_mode {
                     register_terminal_callbacks_as(
                         &mut callbacks,
-                        &binding.name.to_string(),
+                        &identifier_key(&binding.name),
                         &simple_type_name(&binding.value_type),
                         mode,
                         format!("binding `{}`", binding.name),
@@ -1597,7 +1642,7 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
         for leaf in &binding.traversal.leaf_callbacks {
             register_traversal_callback(
                 &mut callbacks.visitors,
-                leaf.name.to_string(),
+                identifier_key(&leaf.name),
                 leaf.mode,
                 type_name(&leaf.value_type),
                 format!("binding `{}` leaf callback", binding.name),
@@ -1616,7 +1661,7 @@ fn register_terminal_callbacks(
     owner: String,
     errors: &mut Option<syn::Error>,
 ) {
-    let ty = name.to_string();
+    let ty = identifier_key(name);
     register_terminal_callbacks_as(callbacks, &ty, &ty, mode, owner, name.span(), errors);
 }
 
@@ -1691,8 +1736,8 @@ fn validate_binding(
     let mut bound = HashSet::new();
     let Some(build) = &binding.build else {
         bound.insert(binding.traversal.argument.as_ref().map_or_else(
-            || snake_case(&binding.name.to_string()),
-            ToString::to_string,
+            || snake_case(&identifier_key(&binding.name)),
+            identifier_key,
         ));
         validate_traversal(binding, &bound, callbacks, errors);
         return;
@@ -1714,17 +1759,27 @@ fn validate_binding(
                 .segments
                 .last()
                 .zip(lexical_variant.segments.last())
-                .is_some_and(|(left, right)| left.ident == right.ident);
-            let shapes_ok = tuple.elems.iter().all(|pat| match pat {
-                syn::Pat::Ident(ident)
-                    if ident.by_ref.is_none()
-                        && ident.mutability.is_none()
-                        && ident.subpat.is_none() =>
-                {
-                    bound.insert(ident.ident.to_string())
+                .is_some_and(|(left, right)| same_identifier(&left.ident, &right.ident));
+            let mut shapes_ok = true;
+            for pat in &tuple.elems {
+                let syn::Pat::Ident(ident) = pat else {
+                    shapes_ok = false;
+                    continue;
+                };
+                if ident.by_ref.is_some() || ident.mutability.is_some() || ident.subpat.is_some() {
+                    shapes_ok = false;
+                    continue;
                 }
-                _ => false,
-            });
+                if !bound.insert(identifier_key(&ident.ident)) {
+                    combine(
+                        errors,
+                        syn::Error::new(
+                            ident.ident.span(),
+                            format!("duplicate binding pattern slot `{}`", ident.ident),
+                        ),
+                    );
+                }
+            }
             variant_matches && shapes_ok
         }
         _ => false,
@@ -1738,11 +1793,22 @@ fn validate_binding(
             ),
         );
     }
-    if binding.codec_atom == Some(CodecAtomClass::Noun) && bound.contains("number") {
+    let noun_number_slot = (binding.codec_atom == Some(CodecAtomClass::Noun))
+        .then(|| match &build.pattern {
+            syn::Pat::TupleStruct(tuple) => tuple.elems.iter().find_map(|pattern| {
+                let syn::Pat::Ident(slot) = pattern else {
+                    return None;
+                };
+                (identifier_key(&slot.ident) == "number").then_some(&slot.ident)
+            }),
+            _ => None,
+        })
+        .flatten();
+    if let Some(number) = noun_number_slot {
         combine(
             errors,
-            syn::Error::new_spanned(
-                &build.pattern,
+            syn::Error::new(
+                number.span(),
                 "noun binding pattern slot `number` collides with the generated scanner-number field",
             ),
         );
@@ -1792,7 +1858,7 @@ fn validate_binding_value_type(binding: &TerminalBinding, errors: &mut Option<sy
         .segments
         .last()
         .map(|segment| &segment.ident)
-        != Some(&binding.name)
+        .is_none_or(|name| !same_identifier(name, &binding.name))
     {
         combine(
             errors,
@@ -1822,7 +1888,7 @@ fn validate_context_identity(binding: &TerminalBinding, errors: &mut Option<syn:
     }
     let mut seen = HashSet::new();
     for arm in arms {
-        if !seen.insert(arm.variant.to_string()) {
+        if !seen.insert(identifier_key(&arm.variant)) {
             combine(
                 errors,
                 syn::Error::new(
@@ -1836,7 +1902,7 @@ fn validate_context_identity(binding: &TerminalBinding, errors: &mut Option<syn:
         .traversal
         .variants
         .iter()
-        .map(ToString::to_string)
+        .map(identifier_key)
         .collect::<HashSet<_>>();
     for variant in seen.difference(&traversal) {
         combine(
@@ -1956,7 +2022,7 @@ fn validate_traversal(
         }
         let mut names = HashSet::new();
         for variant in &traversal.variants {
-            if !names.insert(variant.to_string()) {
+            if !names.insert(identifier_key(variant)) {
                 combine(
                     errors,
                     syn::Error::new(
@@ -1969,13 +2035,14 @@ fn validate_traversal(
         names.clear();
         let mut call_bound = bound.clone();
         let argument = traversal.argument.as_ref().map_or_else(
-            || snake_case(&binding.name.to_string()),
-            ToString::to_string,
+            || snake_case(&identifier_key(&binding.name)),
+            identifier_key,
         );
         call_bound.insert(argument.clone());
+        names.insert(argument.clone());
         let mut call_types = HashMap::from([(argument, simple_type_name(&binding.value_type))]);
         for field in &traversal.fields {
-            let name = field.name.to_string();
+            let name = identifier_key(&field.name);
             if !names.insert(name.clone()) {
                 combine(
                     errors,
@@ -1990,7 +2057,7 @@ fn validate_traversal(
         }
         names.clear();
         for leaf in &traversal.leaf_callbacks {
-            if !leaf.name.to_string().starts_with("visit_") {
+            if !identifier_key(&leaf.name).starts_with("visit_") {
                 combine(
                     errors,
                     syn::Error::new(
@@ -1999,7 +2066,7 @@ fn validate_traversal(
                     ),
                 );
             }
-            if !names.insert(leaf.name.to_string()) {
+            if !names.insert(identifier_key(&leaf.name)) {
                 combine(
                     errors,
                     syn::Error::new(
@@ -2058,7 +2125,7 @@ fn validate_traversal(
                     .variant
                     .segments
                     .last()
-                    .map(|segment| segment.ident.to_string())
+                    .map(|segment| identifier_key(&segment.ident))
                     .unwrap_or_default();
                 if !covered.insert(variant.clone()) {
                     combine(
@@ -2075,7 +2142,7 @@ fn validate_traversal(
                     .iter()
                     .rev()
                     .nth(1)
-                    .map(|segment| segment.ident.to_string());
+                    .map(|segment| identifier_key(&segment.ident));
                 if owner.as_ref() != matched_type.as_ref() {
                     combine(
                         errors,
@@ -2085,7 +2152,7 @@ fn validate_traversal(
                         ),
                     );
                 }
-                let binding_name = arm.binding.to_string();
+                let binding_name = identifier_key(&arm.binding);
                 arm_bound.insert(binding_name.clone());
                 arm_types.insert(binding_name, type_name(&arm.value_type));
                 validate_traversal_call(&arm.call, &arm_bound, &arm_types, callbacks, errors);
@@ -2093,7 +2160,7 @@ fn validate_traversal(
             let declared = traversal
                 .variants
                 .iter()
-                .map(ToString::to_string)
+                .map(identifier_key)
                 .collect::<HashSet<_>>();
             for variant in covered.difference(&declared) {
                 combine(
@@ -2117,7 +2184,7 @@ fn validate_traversal(
     }
     let mut parts = HashSet::new();
     for part in &binding.traversal.parts {
-        let name = part.name.to_string();
+        let name = identifier_key(&part.name);
         if !parts.insert(name.clone()) {
             combine(
                 errors,
@@ -2140,7 +2207,7 @@ fn validate_traversal(
     }
     let mut visited = HashSet::new();
     for visit in &binding.traversal.visit_order {
-        let name = visit.to_string();
+        let name = identifier_key(visit);
         if !parts.contains(&name) {
             combine(
                 errors,
@@ -2157,7 +2224,7 @@ fn validate_traversal(
         }
     }
     for part in &binding.traversal.parts {
-        if !visited.contains(&part.name.to_string()) {
+        if !visited.contains(&identifier_key(&part.name)) {
             combine(
                 errors,
                 syn::Error::new(
@@ -2179,15 +2246,15 @@ fn validate_traversal_call(
     let (valid_callback, callback_name, registry) = match call.callback.segments.len() {
         1 if call.callback.leading_colon.is_none() => (
             true,
-            call.callback.segments[0].ident.to_string(),
+            identifier_key(&call.callback.segments[0].ident),
             &callbacks.walkers,
         ),
         2 if call.callback.leading_colon.is_none()
-            && call.callback.segments[0].ident == "visitor" =>
+            && identifier_key(&call.callback.segments[0].ident) == "visitor" =>
         {
             (
                 true,
-                call.callback.segments[1].ident.to_string(),
+                identifier_key(&call.callback.segments[1].ident),
                 &callbacks.visitors,
             )
         }
@@ -2267,9 +2334,9 @@ fn validate_traversal_call(
 
 fn expr_type(expr: &syn::Expr, types: &HashMap<String, String>) -> Option<String> {
     match expr {
-        syn::Expr::Path(path) if path.qself.is_none() && path.path.segments.len() == 1 => {
-            types.get(&path.path.segments[0].ident.to_string()).cloned()
-        }
+        syn::Expr::Path(path) if path.qself.is_none() && path.path.segments.len() == 1 => types
+            .get(&identifier_key(&path.path.segments[0].ident))
+            .cloned(),
         syn::Expr::Paren(paren) => expr_type(&paren.expr, types),
         _ => None,
     }
@@ -2279,14 +2346,34 @@ fn simple_type_name(value_type: &syn::Type) -> String {
     match value_type {
         syn::Type::Path(path) => path.path.segments.last().map_or_else(
             || type_name(value_type),
-            |segment| segment.ident.to_string(),
+            |segment| identifier_key(&segment.ident),
         ),
         _ => type_name(value_type),
     }
 }
 
 fn type_name(value_type: &syn::Type) -> String {
-    value_type.to_token_stream().to_string().replace(' ', "")
+    semantic_token_name(value_type.to_token_stream())
+}
+
+fn semantic_token_name(tokens: proc_macro2::TokenStream) -> String {
+    tokens
+        .into_iter()
+        .map(|token| match token {
+            proc_macro2::TokenTree::Group(group) => {
+                let inner = semantic_token_name(group.stream());
+                match group.delimiter() {
+                    proc_macro2::Delimiter::Parenthesis => format!("({inner})"),
+                    proc_macro2::Delimiter::Brace => format!("{{{inner}}}"),
+                    proc_macro2::Delimiter::Bracket => format!("[{inner}]"),
+                    proc_macro2::Delimiter::None => inner,
+                }
+            }
+            proc_macro2::TokenTree::Ident(ident) => identifier_key(&ident),
+            proc_macro2::TokenTree::Punct(punct) => punct.as_char().to_string(),
+            proc_macro2::TokenTree::Literal(literal) => literal.to_string(),
+        })
+        .collect()
 }
 
 fn visit_mode_name(mode: VisitMode) -> &'static str {
@@ -2305,7 +2392,7 @@ fn closed_expr(expr: &syn::Expr, bound: &HashSet<String>, allow_calls: bool) -> 
                     .path
                     .segments
                     .first()
-                    .is_some_and(|segment| bound.contains(&segment.ident.to_string()))
+                    .is_some_and(|segment| bound.contains(&identifier_key(&segment.ident)))
         }
         syn::Expr::Field(field) => closed_expr(&field.base, bound, false),
         syn::Expr::Call(call) if allow_calls => {
@@ -2325,11 +2412,11 @@ fn validate_refinements(raw: &Declarations, symbols: &Symbols) -> syn::Result<()
             .element
             .fields
             .iter()
-            .map(|field| (field.name.to_string(), &field.kind))
+            .map(|field| (identifier_key(&field.name), &field.kind))
             .collect();
         let mut refined = HashSet::new();
         for requirement in &construction.requirements {
-            let role = requirement.role.to_string();
+            let role = identifier_key(&requirement.role);
             if !refined.insert(role.clone()) {
                 combine(
                     &mut errors,
@@ -2339,7 +2426,7 @@ fn validate_refinements(raw: &Declarations, symbols: &Symbols) -> syn::Result<()
                     ),
                 );
             }
-            let variant = requirement.variant.to_string();
+            let variant = identifier_key(&requirement.variant);
             match fields.get(&role) {
                 None => combine(
                     &mut errors,
@@ -2421,7 +2508,7 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
             .element
             .fields
             .iter()
-            .map(|field| (field.name.to_string(), &field.kind))
+            .map(|field| (identifier_key(&field.name), &field.kind))
             .collect();
         let mut writers = HashSet::new();
         let mut edges: HashMap<String, Vec<String>> = HashMap::new();
@@ -2433,12 +2520,13 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
             };
             let target_key = place_key(&equation.target);
             if !writers.insert(target_key.clone()) {
+                let span = match &equation.target {
+                    ParsedFeaturePlace::Construction(_) => construction.name.span(),
+                    ParsedFeaturePlace::Role { field, .. } => field.span(),
+                };
                 combine(
                     &mut errors,
-                    syn::Error::new(
-                        construction.name.span(),
-                        format!("duplicate writer for `{target_key}`"),
-                    ),
+                    syn::Error::new(span, format!("duplicate writer for `{target_key}`")),
                 );
             }
             let target = match &equation.target {
@@ -2446,7 +2534,7 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                     feature::FeaturePlace::Construction((*feature).into())
                 }
                 ParsedFeaturePlace::Role { field, feature } => {
-                    if let Some(FieldKind::Category(path)) = fields.get(&field.to_string()) {
+                    if let Some(FieldKind::Category(path)) = fields.get(&identifier_key(field)) {
                         let category = path_name(path);
                         if !providers.contains(&(category.clone(), *feature)) {
                             combine(
@@ -2488,7 +2576,8 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                         );
                         continue;
                     }
-                    if let Some(FieldKind::Category(path)) = fields.get(&slot.role.to_string()) {
+                    if let Some(FieldKind::Category(path)) = fields.get(&identifier_key(&slot.role))
+                    {
                         let category = path_name(path);
                         if !providers.contains(&(category.clone(), slot.feature)) {
                             combine(
@@ -2503,7 +2592,11 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                             );
                         }
                     }
-                    let source_key = format!("{}.{}", slot.role, feature_name(slot.feature));
+                    let source_key = format!(
+                        "{}.{}",
+                        identifier_key(&slot.role),
+                        feature_name(slot.feature)
+                    );
                     edges.entry(target_key).or_default().push(source_key);
                     feature::FeatureExpr::FromRole {
                         role: slot.role.clone(),
@@ -2513,12 +2606,12 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                 ParsedFeatureValue::Match { role, arms } => {
                     let mut lowered_arms = Vec::new();
                     let mut seen = HashSet::new();
-                    let terminal = match fields.get(&role.to_string()) {
+                    let terminal = match fields.get(&identifier_key(role)) {
                         Some(FieldKind::Lex(path)) => symbols.terminals.get(&path_name(path)),
                         _ => None,
                     };
                     for arm in arms {
-                        let variant = arm.variant.to_string();
+                        let variant = identifier_key(&arm.variant);
                         if !seen.insert(variant.clone()) {
                             combine(
                                 &mut errors,
@@ -2559,7 +2652,7 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                         }
                     }
                     if target_feature == ParsedFeature::Number {
-                        dynamic_numbers.insert(construction.name.to_string());
+                        dynamic_numbers.insert(identifier_key(&construction.name));
                     }
                     feature::FeatureExpr::MatchVocab {
                         role: role.clone(),
@@ -2591,7 +2684,7 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
         for atom in &construction.form.atoms {
             let slot = match atom {
                 FormAtom::Verb(VerbOperand::Fixed(_)) => Some("verb".to_owned()),
-                FormAtom::Verb(VerbOperand::Projected(role)) => Some(role.to_string()),
+                FormAtom::Verb(VerbOperand::Projected(role)) => Some(identifier_key(role)),
                 _ => None,
             };
             let Some(slot) = slot else { continue };
@@ -2602,7 +2695,7 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                     (
                         ParsedFeaturePlace::Construction(ParsedFeature::Agreement),
                         ParsedFeatureValue::FromRole(source)
-                    ) if source.role == slot && source.feature == ParsedFeature::Agreement
+                    ) if identifier_key(&source.role) == slot && source.feature == ParsedFeature::Agreement
                 )
             });
             if !direct_writer && !equality_writer {
@@ -2615,10 +2708,263 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                 );
             }
         }
-        lowered.insert(construction.name.to_string(), equations);
+        lowered.insert(identifier_key(&construction.name), equations);
     }
     finish(errors)?;
     Ok((lowered, dynamic_numbers))
+}
+
+fn seal_feature_resolutions(
+    raw: &Declarations,
+    equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+) -> HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>> {
+    let mut sealed = HashMap::new();
+    for declaration in &raw.declarations {
+        let Declaration::Construction(construction) = declaration else { continue };
+        let local_equations = equations
+            .get(&identifier_key(&construction.name))
+            .map_or(&[] as &[feature::FeatureEquation], Vec::as_slice);
+        let mut places = local_equations
+            .iter()
+            .map(|equation| equation.target().clone())
+            .collect::<Vec<_>>();
+        if construction
+            .form
+            .atoms
+            .iter()
+            .any(|atom| matches!(atom, FormAtom::Verb(VerbOperand::Fixed(_))))
+        {
+            places.push(feature::FeaturePlace::Role {
+                field: syn::Ident::new("verb", construction.form.name.span()),
+                feature: feature::Feature::Agreement,
+            });
+        }
+        let mut resolutions = HashMap::new();
+        for place in places {
+            let resolution =
+                resolve_local_feature(construction, local_equations, &place, &mut HashSet::new());
+            resolutions.insert(place, resolution);
+        }
+        sealed.insert(identifier_key(&construction.name), resolutions);
+    }
+    sealed
+}
+
+fn seal_category_agreement_capabilities(
+    raw: &Declarations,
+    resolutions: &HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
+) -> HashMap<String, CategoryAgreementCapability> {
+    let constructions = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Construction(construction) => Some(construction),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let providers = feature_providers(raw);
+    let mut contextual = HashSet::new();
+
+    for construction in &constructions {
+        let has_fixed_verb = construction
+            .form
+            .atoms
+            .iter()
+            .any(|atom| matches!(atom, FormAtom::Verb(VerbOperand::Fixed(_))));
+        let verb_place = feature::FeaturePlace::Role {
+            field: syn::Ident::new("verb", construction.form.name.span()),
+            feature: feature::Feature::Agreement,
+        };
+        if has_fixed_verb
+            && resolutions
+                .get(&identifier_key(&construction.name))
+                .and_then(|values| values.get(&verb_place))
+                == Some(&feature::FeatureResolution::External)
+        {
+            contextual.insert(path_name(&construction.category));
+        }
+    }
+
+    loop {
+        let before = contextual.len();
+        for construction in &constructions {
+            let passes_external_to_child = construction.form.atoms.iter().any(|atom| {
+                let FormAtom::Role(role) = atom else { return false };
+                let Some(category) = construction.element.fields.iter().find_map(|field| {
+                    same_identifier(&field.name, role)
+                        .then_some(&field.kind)
+                        .and_then(|kind| match kind {
+                            FieldKind::Category(category) => Some(path_name(category)),
+                            FieldKind::Lex(_) | FieldKind::Identity(_) => None,
+                        })
+                }) else {
+                    return false;
+                };
+                let place = feature::FeaturePlace::Role {
+                    field: role.clone(),
+                    feature: feature::Feature::Agreement,
+                };
+                contextual.contains(&category)
+                    && construction.equations.iter().any(|equation| {
+                        matches!(
+                            &equation.target,
+                            ParsedFeaturePlace::Role {
+                                field,
+                                feature: ParsedFeature::Agreement,
+                            } if same_identifier(field, role)
+                        )
+                    })
+                    && resolutions
+                        .get(&identifier_key(&construction.name))
+                        .and_then(|values| values.get(&place))
+                        == Some(&feature::FeatureResolution::External)
+            });
+            if passes_external_to_child {
+                contextual.insert(path_name(&construction.category));
+            }
+        }
+        if contextual.len() == before {
+            break;
+        }
+    }
+
+    let mut capabilities = HashMap::new();
+    for construction in constructions {
+        let category = path_name(&construction.category);
+        capabilities
+            .entry(category.clone())
+            .or_insert_with(CategoryAgreementCapability::default)
+            .requires_external_input = contextual.contains(&category);
+    }
+    for (category, capability) in &mut capabilities {
+        capability.carries_output =
+            providers.contains(&(category.clone(), ParsedFeature::Agreement));
+    }
+    capabilities
+}
+
+fn resolve_local_feature(
+    construction: &crate::Construction,
+    equations: &[feature::FeatureEquation],
+    place: &feature::FeaturePlace,
+    visiting: &mut HashSet<feature::FeaturePlace>,
+) -> feature::FeatureResolution {
+    if !visiting.insert(place.clone()) {
+        return feature::FeatureResolution::Runtime;
+    }
+    let resolved = equation_for_place(equations, place).map_or_else(
+        || match place {
+            feature::FeaturePlace::Role {
+                field,
+                feature: feature::Feature::Agreement,
+            } if identifier_key(field) == "verb"
+                && !construction
+                    .element
+                    .fields
+                    .iter()
+                    .any(|candidate| same_identifier(&candidate.name, field)) =>
+            {
+                feature::FeatureResolution::External
+            }
+            feature::FeaturePlace::Construction(_) | feature::FeaturePlace::Role { .. } => {
+                feature::FeatureResolution::Runtime
+            }
+        },
+        |equation| match equation.value() {
+            feature::FeatureExpr::Constant(value) => {
+                feature::FeatureResolution::Known(*value.value())
+            }
+            feature::FeatureExpr::FromRole { role, feature } => resolve_local_feature(
+                construction,
+                equations,
+                &feature::FeaturePlace::Role {
+                    field: role.clone(),
+                    feature: *feature,
+                },
+                visiting,
+            ),
+            feature::FeatureExpr::MatchVocab { role, arms } => {
+                let refined = construction
+                    .requirements
+                    .iter()
+                    .find(|requirement| same_identifier(&requirement.role, role))
+                    .and_then(|requirement| {
+                        arms.iter()
+                            .find(|(variant, _)| {
+                                same_identifier(variant.value(), &requirement.variant)
+                            })
+                            .map(|(_, value)| *value)
+                    });
+                let uniform = arms
+                    .first()
+                    .map(|(_, first)| *first)
+                    .filter(|first| arms.iter().all(|(_, value)| value == first));
+                refined.or(uniform).map_or(
+                    feature::FeatureResolution::Runtime,
+                    feature::FeatureResolution::Known,
+                )
+            }
+        },
+    );
+    visiting.remove(place);
+    resolved
+}
+
+fn equation_for_place<'a>(
+    equations: &'a [feature::FeatureEquation],
+    place: &feature::FeaturePlace,
+) -> Option<&'a feature::FeatureEquation> {
+    equations.iter().find(|equation| equation.target() == place)
+}
+
+fn validate_contextual_agreement_uses(
+    raw: &Declarations,
+    capabilities: &HashMap<String, CategoryAgreementCapability>,
+) -> syn::Result<()> {
+    let mut errors = None;
+    for declaration in &raw.declarations {
+        let Declaration::Construction(construction) = declaration else { continue };
+        for atom in &construction.form.atoms {
+            let FormAtom::Role(role) = atom else { continue };
+            let Some(category) = construction.element.fields.iter().find_map(|field| {
+                same_identifier(&field.name, role)
+                    .then_some(&field.kind)
+                    .and_then(|kind| match kind {
+                        FieldKind::Category(category) => Some(path_name(category)),
+                        FieldKind::Lex(_) | FieldKind::Identity(_) => None,
+                    })
+            }) else {
+                continue;
+            };
+            if !capabilities
+                .get(&category)
+                .is_some_and(|capability| capability.requires_external_input)
+            {
+                continue;
+            }
+            let has_writer = construction.equations.iter().any(|equation| {
+                matches!(
+                    &equation.target,
+                    ParsedFeaturePlace::Role {
+                        field,
+                        feature: ParsedFeature::Agreement,
+                    } if same_identifier(field, role)
+                )
+            });
+            if !has_writer {
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        role.span(),
+                        format!(
+                            "contextual category `{category}` requires a `{role}.agreement` writer at every bare role use"
+                        ),
+                    ),
+                );
+            }
+        }
+    }
+    finish(errors)
 }
 
 fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
@@ -2648,7 +2994,7 @@ fn place_key(place: &ParsedFeaturePlace) -> String {
             format!("construction.{}", feature_name(*feature))
         }
         ParsedFeaturePlace::Role { field, feature } => {
-            format!("{field}.{}", feature_name(*feature))
+            format!("{}.{}", identifier_key(field), feature_name(*feature))
         }
     }
 }
@@ -2724,7 +3070,10 @@ fn validate_category_graph(raw: &Declarations) -> HashSet<(String, String)> {
                 if let FieldKind::Category(path) = &field.kind {
                     let target = path_name(path);
                     if reaches(&target, &owner) {
-                        boxed.insert((construction.name.to_string(), field.name.to_string()));
+                        boxed.insert((
+                            identifier_key(&construction.name),
+                            identifier_key(&field.name),
+                        ));
                     }
                 }
             }
@@ -2733,7 +3082,11 @@ fn validate_category_graph(raw: &Declarations) -> HashSet<(String, String)> {
     boxed
 }
 
-fn validate_roots(raw: &Declarations, symbols: &Symbols) -> syn::Result<()> {
+fn validate_roots(
+    raw: &Declarations,
+    symbols: &Symbols,
+    capabilities: &HashMap<String, CategoryAgreementCapability>,
+) -> syn::Result<()> {
     let mut errors = None;
     let roots: Vec<_> = raw
         .declarations
@@ -2783,6 +3136,19 @@ fn validate_roots(raw: &Declarations, symbols: &Symbols) -> syn::Result<()> {
                 ),
             );
         }
+        if root.standalone_render
+            && capabilities
+                .get(&category)
+                .is_some_and(|capability| capability.requires_external_input)
+        {
+            combine(
+                &mut errors,
+                syn::Error::new_spanned(
+                    &root.category,
+                    format!("standalone render root `{category}` requires external agreement"),
+                ),
+            );
+        }
     }
     if !roots.iter().any(|root| root.eoi) {
         combine(
@@ -2819,11 +3185,11 @@ fn validate_backend_completeness(
     for declaration in &raw.declarations {
         match declaration {
             Declaration::Construction(construction) => {
-                let construction_id = construction.name.to_string();
-                let element_type = construction.element.name.to_string();
+                let construction_id = identifier_key(&construction.name);
+                let element_type = identifier_key(&construction.element.name);
                 let category = path_name(&construction.category);
                 let category_variant = pascal_case(&construction_id);
-                let form = construction.form.name.to_string();
+                let form = identifier_key(&construction.form.name);
                 let rule_id = format!("{}{category_variant}", pascal_case(&category));
                 let atoms = resolved
                     .atoms_by_construction
@@ -2848,7 +3214,7 @@ fn validate_backend_completeness(
                 constructions.push(record);
             }
             Declaration::Vocab(vocab) => terminals.push(TerminalContribution {
-                name: vocab.name.to_string(),
+                name: identifier_key(&vocab.name),
                 lex_atom: true,
                 identity_atom: false,
                 noun_atom: false,
@@ -2858,20 +3224,20 @@ fn validate_backend_completeness(
                 traversal: true,
             }),
             Declaration::Lexeme(lexeme) => terminals.push(TerminalContribution {
-                name: lexeme.name.to_string(),
+                name: identifier_key(&lexeme.name),
                 lex_atom: false,
                 identity_atom: false,
                 noun_atom: false,
                 verb_atom: resolved
                     .verb_lexeme_provider
                     .as_ref()
-                    .is_some_and(|provider| provider == &lexeme.name.to_string()),
+                    .is_some_and(|provider| provider == &identifier_key(&lexeme.name)),
                 direct_render: false,
                 direct_build: false,
                 traversal: true,
             }),
             Declaration::Codec(binding) => terminals.push(TerminalContribution {
-                name: binding.name.to_string(),
+                name: identifier_key(&binding.name),
                 lex_atom: binding.codec_atom == Some(CodecAtomClass::Lex),
                 identity_atom: false,
                 noun_atom: binding.codec_atom == Some(CodecAtomClass::Noun),
@@ -2882,7 +3248,7 @@ fn validate_backend_completeness(
             }),
             Declaration::Identity(binding) => {
                 terminals.push(TerminalContribution {
-                    name: binding.name.to_string(),
+                    name: identifier_key(&binding.name),
                     lex_atom: false,
                     identity_atom: true,
                     noun_atom: false,
@@ -3003,7 +3369,7 @@ fn validate_lowerable_feature_compositions(
         .element
         .fields
         .iter()
-        .map(|field| (field.name.to_string(), &field.kind))
+        .map(|field| (identifier_key(&field.name), &field.kind))
         .collect::<HashMap<_, _>>();
     let has_noun = construction
         .form
@@ -3024,7 +3390,7 @@ fn validate_lowerable_feature_compositions(
     let number_match_role = matched_role(ParsedFeature::Number);
     if agreement_match_role
         .zip(number_match_role)
-        .is_some_and(|(agreement, number)| agreement != number)
+        .is_some_and(|(agreement, number)| !same_identifier(agreement, number))
     {
         combine(
             errors,
@@ -3051,7 +3417,7 @@ fn validate_lowerable_feature_compositions(
             ) => {
                 !has_noun
                     || matches!(
-                        fields.get(&source.role.to_string()),
+                        fields.get(&identifier_key(&source.role)),
                         Some(FieldKind::Category(_))
                     )
             }
@@ -3062,11 +3428,15 @@ fn validate_lowerable_feature_compositions(
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
             ) => {
-                field == "verb"
-                    || matches!(fields.get(&field.to_string()), Some(FieldKind::Category(_)))
+                identifier_key(field) == "verb"
+                    || matches!(
+                        fields.get(&identifier_key(field)),
+                        Some(FieldKind::Category(_))
+                    )
             }
             (ParsedFeaturePlace::Role { field, .. }, ParsedFeatureValue::Match { role, .. }) => {
-                field == role && matches!(fields.get(&field.to_string()), Some(FieldKind::Lex(_)))
+                same_identifier(field, role)
+                    && matches!(fields.get(&identifier_key(field)), Some(FieldKind::Lex(_)))
             }
             (
                 ParsedFeaturePlace::Role {
@@ -3164,8 +3534,7 @@ fn binding_value_type_is_lowerable(binding: &TerminalBinding) -> bool {
             .path
             .segments
             .last()
-            .map(|segment| &segment.ident)
-            == Some(&binding.name)
+            .is_some_and(|segment| same_identifier(&segment.ident, &binding.name))
 }
 
 fn closed_traversal_is_lowerable(binding: &TerminalBinding) -> bool {
@@ -3185,9 +3554,7 @@ fn closed_traversal_is_lowerable(binding: &TerminalBinding) -> bool {
 }
 
 fn path_name(path: &syn::Path) -> String {
-    path.segments
-        .last()
-        .map_or_else(String::new, |segment| segment.ident.to_string())
+    path_key(path)
 }
 
 fn pascal_case(name: &str) -> String {
@@ -3507,6 +3874,7 @@ pub(crate) mod tests {
             construction only: Cat {
                 element Only {}
                 derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
                 form only = verb(Actions::Go);
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
@@ -3526,11 +3894,13 @@ pub(crate) mod tests {
             construction destroy: Cat {
                 element Destroy {}
                 derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
                 form destroy = verb(VerbLexeme::Destroy);
             }
             construction player: Cat {
                 element Player {}
                 derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
                 form player = verb(NounLexeme::Player);
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
@@ -4419,7 +4789,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn noun_binding_number_slot_fails_before_sealing() {
+    fn semantic_identifier_domain_is_validated_before_sealing() {
         let message = crate::generate(quote! {
             codec Head {
                 atom = noun;
@@ -4448,6 +4818,175 @@ pub(crate) mod tests {
             "{message}"
         );
         assert!(!message.contains("internal"), "{message}");
+
+        let declaration = error(quote! {
+            vocab Marker { One = "one", }
+            vocab r#Marker { Two = "two", }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            declaration.contains("duplicate declaration `r#Marker`"),
+            "{declaration}"
+        );
+
+        let product = error(quote! {
+            vocab Marker { One = "one", }
+            construction only: Root {
+                element Only { payload: lex Marker, r#payload: lex Marker, }
+                form only = lex(payload) lex(r#payload);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(product.contains("duplicate field `r#payload`"), "{product}");
+
+        let build_slots = error(quote! {
+            codec Pair {
+                atom = lex;
+                value_type = Pair;
+                lexical = Lexical::Pair;
+                render = render_pair;
+                build {
+                    pattern = BuildValue::Pair(payload, r#payload);
+                    construct = Pair::new(payload, r#payload);
+                }
+                traversal {
+                    callback = borrowed;
+                    argument = pair;
+                    call visitor::visit_pair(borrowed(pair));
+                }
+            }
+            construction only: Root {
+                element Only { pair: lex Pair, }
+                form only = lex(pair);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            build_slots.contains("duplicate binding pattern slot `r#payload`"),
+            "{build_slots}"
+        );
+        assert!(!build_slots.contains("internal"), "{build_slots}");
+
+        let traversal_fields = error(quote! {
+            codec Runtime {
+                value_type = Runtime;
+                traversal {
+                    callback = borrowed;
+                    argument = runtime;
+                    leaf visit_piece: i32 = copy;
+                    field payload: i32;
+                    field r#payload: i32;
+                    call visitor::visit_piece(copy(payload));
+                    call visitor::r#visit_piece(copy(r#payload));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            traversal_fields.contains("duplicate traversal field `r#payload`"),
+            "{traversal_fields}"
+        );
+        assert!(
+            !traversal_fields.contains("unknown traversal callback"),
+            "{traversal_fields}"
+        );
+
+        let traversal_argument = error(quote! {
+            codec Runtime {
+                value_type = Runtime;
+                traversal {
+                    callback = borrowed;
+                    argument = payload;
+                    leaf visit_piece: Runtime = borrowed;
+                    field r#payload: Runtime;
+                    call visitor::visit_piece(borrowed(payload));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            traversal_argument.contains("duplicate traversal field `r#payload`"),
+            "{traversal_argument}"
+        );
+
+        let raw_number = error(quote! {
+            codec Head {
+                atom = noun;
+                value_type = Head;
+                lexical = Lexical::Head;
+                render = render_head;
+                build { pattern = BuildValue::Head(r#number); construct = r#number; }
+                traversal {
+                    callback = borrowed;
+                    argument = head;
+                    call visitor::visit_head(borrowed(head));
+                }
+            }
+            construction only: Root {
+                element Only { head: lex Head, }
+                form only = noun(head);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            raw_number.contains(
+                "noun binding pattern slot `number` collides with the generated scanner-number field"
+            ),
+            "{raw_number}"
+        );
+        assert!(!raw_number.contains("internal"), "{raw_number}");
+
+        crate::generate(quote! {
+            vocab r#Marker { One = "one", }
+            construction only: Root {
+                element Only { r#payload: lex Marker, }
+                checked {
+                    visibility payload = pub(crate);
+                    constructor = Only::new(payload);
+                }
+                form only = lex(payload);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("raw declarations and fields resolve through ordinary references");
+
+        crate::generate(quote! {
+            codec Part {
+                value_type = Part;
+                traversal { callback = copy; argument = part; variant Value; }
+            }
+            codec Runtime {
+                value_type = Runtime;
+                traversal {
+                    callback = borrowed;
+                    argument = r#runtime;
+                    variant Part;
+                    match runtime {
+                        Runtime::Part(r#payload: Part) => r#walk_part(copy(payload)),
+                    }
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("raw traversal arguments, bindings, and callbacks resolve canonically");
+
+        crate::generate(quote! {
+            vocab r#Mode { r#One = "one", }
+            construction only: Root {
+                element Only { r#mode: lex Mode, }
+                derive agreement = r#mode.agreement;
+                derive mode.agreement = match r#mode {
+                    One => Values::Bare,
+                };
+                form only = lex(mode);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("feature places, match variants, and role references share semantic keys");
     }
 
     #[test]
@@ -4678,6 +5217,141 @@ pub(crate) mod tests {
             assert!(message.contains(diagnostic), "{name}: {message}");
             assert!(!message.contains("internal"), "{name}: {message}");
         }
+    }
+
+    #[test]
+    fn task_11_feature_chains_generate_independent_of_source_and_equation_order() {
+        let fixtures = [
+            (
+                "category constant to construction, provider declared later",
+                quote! {
+                    construction parent: Parent {
+                        element ParentNode { child: Child, }
+                        derive agreement = child.agreement;
+                        derive child.agreement = Values::Bare;
+                        form parent = child;
+                    }
+                    construction child: Child {
+                        element ChildNode {}
+                        derive agreement = Values::Bare;
+                        form child = "child";
+                    }
+                    construction entry: Entry { element EntryNode {} form entry = "entry"; }
+                    root Entry { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "implicit verb constant to construction",
+                quote! {
+                    lexeme Verbs { Act, }
+                    construction action: Action {
+                        element ActionNode {}
+                        derive agreement = verb.agreement;
+                        derive verb.agreement = Values::Bare;
+                        form action = verb(Verbs::Act);
+                    }
+                    construction entry: Entry { element EntryNode {} form entry = "entry"; }
+                    root Entry { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "refined writer through category to construction",
+                quote! {
+                    vocab Mode { One = "one", Many = "many", }
+                    construction parent: Parent {
+                        element ParentNode { child: Child, mode: lex Mode, }
+                        require mode is One;
+                        derive agreement = child.agreement;
+                        derive child.agreement = mode.agreement;
+                        derive mode.agreement = match mode {
+                            One => Values::ThirdPersonSingular,
+                            Many => Values::Bare,
+                        };
+                        form parent = child lex(mode);
+                    }
+                    construction bare: Child {
+                        element BareChild {}
+                        derive agreement = Values::Bare;
+                        form bare = "bare";
+                    }
+                    construction third: Child {
+                        element ThirdChild {}
+                        derive agreement = Values::ThirdPersonSingular;
+                        form third = "third";
+                    }
+                    construction entry: Entry { element EntryNode {} form entry = "entry"; }
+                    root Entry { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "bound category chain with source after consumer",
+                quote! {
+                    construction pair: Pair {
+                        element PairNode { right: Child, left: Child, }
+                        derive agreement = right.agreement;
+                        derive right.agreement = left.agreement;
+                        form pair = right left;
+                    }
+                    construction bare: Child {
+                        element BareChild {}
+                        derive agreement = Values::Bare;
+                        form bare = "bare";
+                    }
+                    construction third: Child {
+                        element ThirdChild {}
+                        derive agreement = Values::ThirdPersonSingular;
+                        form third = "third";
+                    }
+                    construction entry: Entry { element EntryNode {} form entry = "entry"; }
+                    root Entry { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+        ];
+
+        for (name, fixture) in fixtures {
+            if let Err(error) = crate::generate(fixture) {
+                let message = error.to_string();
+                assert!(!message.contains("internal"), "{name}: {message}");
+                panic!("accepted transitive feature chain `{name}` failed: {message}");
+            }
+        }
+    }
+
+    #[test]
+    fn task_11_contextual_category_requirements_fail_at_roles_and_roots() {
+        let nested = crate::generate(quote! {
+            lexeme Verbs { Act, }
+            construction action: Child {
+                element ActionNode {}
+                derive agreement = verb.agreement;
+                form action = verb(Verbs::Act);
+            }
+            construction parent: Parent {
+                element ParentNode { child: Child, }
+                form parent = child;
+            }
+            root Parent { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("a contextual category role requires an agreement writer")
+        .to_string();
+        assert!(nested.contains("child.agreement"), "{nested}");
+        assert!(nested.contains("contextual category `Child`"), "{nested}");
+        assert!(!nested.contains("internal"), "{nested}");
+
+        let root = crate::generate(quote! {
+            lexeme Verbs { Act, }
+            construction action: Child {
+                element ActionNode {}
+                derive agreement = verb.agreement;
+                form action = verb(Verbs::Act);
+            }
+            root Child { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("a contextual category cannot be a standalone render root")
+        .to_string();
+        assert!(root.contains("standalone render root `Child`"), "{root}");
+        assert!(root.contains("external agreement"), "{root}");
+        assert!(!root.contains("internal"), "{root}");
     }
 
     #[test]

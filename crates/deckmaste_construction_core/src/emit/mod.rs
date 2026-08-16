@@ -1,5 +1,10 @@
+use std::collections::HashSet;
+
 use proc_macro2::TokenStream;
 use quote::quote;
+
+use crate::identifier::key as identifier_key;
+use crate::identifier::spelling_key;
 
 pub(crate) mod ast;
 pub(crate) mod build;
@@ -9,6 +14,114 @@ pub(crate) mod terminal;
 pub(crate) mod visit;
 
 const RUST_SOURCE_MARGIN: usize = 100;
+
+#[derive(Clone, Default)]
+pub(super) struct LocalAllocator {
+    used: HashSet<String>,
+}
+
+impl LocalAllocator {
+    pub(super) fn reserve(&mut self, name: impl AsRef<str>) {
+        self.used.insert(spelling_key(name.as_ref()));
+    }
+
+    pub(super) fn reserve_ident(&mut self, name: &syn::Ident) {
+        self.used.insert(identifier_key(name));
+    }
+
+    pub(super) fn allocate(&mut self, preferred: &str) -> syn::Ident {
+        let preferred = legal_local_base(&spelling_key(preferred));
+        if self.used.insert(preferred.clone()) {
+            return local_ident(&preferred);
+        }
+        for suffix in 2.. {
+            let candidate = format!("{preferred}_{suffix}");
+            if self.used.insert(candidate.clone()) {
+                return local_ident(&candidate);
+            }
+        }
+        unreachable!("the local binder suffix space is unbounded")
+    }
+
+    pub(super) fn allocate_ident(&mut self, preferred: &syn::Ident) -> syn::Ident {
+        self.allocate(&identifier_key(preferred))
+    }
+}
+
+fn legal_local_base(preferred: &str) -> String {
+    if !is_rust_keyword(preferred) && syn::parse_str::<syn::Ident>(preferred).is_ok() {
+        return preferred.to_owned();
+    }
+    let candidate = format!("{}_value", preferred.to_lowercase());
+    assert!(
+        syn::parse_str::<syn::Ident>(&candidate).is_ok(),
+        "authored identifier must admit a legal generated local alias"
+    );
+    candidate
+}
+
+fn local_ident(name: &str) -> syn::Ident {
+    syn::parse_str(name).expect("allocator only returns legal ordinary Rust identifiers")
+}
+
+fn is_rust_keyword(name: &str) -> bool {
+    matches!(
+        name,
+        "Self"
+            | "abstract"
+            | "as"
+            | "async"
+            | "await"
+            | "become"
+            | "box"
+            | "break"
+            | "const"
+            | "continue"
+            | "crate"
+            | "do"
+            | "dyn"
+            | "else"
+            | "enum"
+            | "extern"
+            | "false"
+            | "final"
+            | "fn"
+            | "for"
+            | "gen"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "macro"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "override"
+            | "priv"
+            | "pub"
+            | "ref"
+            | "return"
+            | "self"
+            | "static"
+            | "struct"
+            | "super"
+            | "trait"
+            | "true"
+            | "try"
+            | "type"
+            | "typeof"
+            | "union"
+            | "unsafe"
+            | "unsized"
+            | "use"
+            | "virtual"
+            | "where"
+            | "while"
+            | "yield"
+    )
+}
 
 pub(super) fn call_match_arm(
     pattern: &TokenStream,
@@ -38,4 +151,28 @@ fn compact_rust_width(tokens: &TokenStream) -> usize {
         .replace(" ;", ";")
         .chars()
         .count()
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn local_allocator_keys_raw_names_semantically_and_legalizes_keywords() {
+        let mut allocator = super::LocalAllocator::default();
+        allocator.reserve("context");
+
+        let cases = [
+            ("r#payload", "payload"),
+            ("payload", "payload_2"),
+            ("r#context", "context_2"),
+            ("where", "where_value"),
+            ("r#where", "where_value_2"),
+            ("r#self", "self_value"),
+            ("Self", "self_value_2"),
+            ("super", "super_value"),
+            ("crate", "crate_value"),
+        ];
+        for (preferred, expected) in cases {
+            assert_eq!(allocator.allocate(preferred), expected, "{preferred}");
+        }
+    }
 }

@@ -1,6 +1,7 @@
 use quote::quote;
 
 use crate::ValidatedDeclarations;
+use crate::identifier::key as identifier_key;
 use crate::model::Declaration;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
@@ -19,14 +20,14 @@ pub(crate) fn emit(
     for declaration in &validated.raw().declarations {
         match declaration {
             Declaration::Vocab(vocab) => {
-                let name = vocab.name.to_string();
+                let name = identifier_key(&vocab.name);
                 let origin = DeclarationKey::new(DeclarationKind::Vocab, &name);
                 let variants = vocab
                     .variants
                     .iter()
                     .map(|variant| {
                         TerminalVariantContribution::new(
-                            variant.name.to_string(),
+                            identifier_key(&variant.name),
                             Some(variant.word.value()),
                         )
                     })
@@ -54,7 +55,7 @@ pub(crate) fn emit(
                 ));
             }
             Declaration::Lexeme(lexeme) => {
-                let name = lexeme.name.to_string();
+                let name = identifier_key(&lexeme.name);
                 let terminal = validated
                     .contributions()
                     .terminals()
@@ -71,7 +72,7 @@ pub(crate) fn emit(
                 let variants = lexeme
                     .variants
                     .iter()
-                    .map(|variant| TerminalVariantContribution::new(variant.to_string(), None))
+                    .map(|variant| TerminalVariantContribution::new(identifier_key(variant), None))
                     .collect::<Vec<_>>();
                 let variant_idents = &lexeme.variants;
                 let ident = &lexeme.name;

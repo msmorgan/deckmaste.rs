@@ -23,6 +23,7 @@ pub(crate) fn representative_expansion() -> crate::Expansion {
         construction action: Action {
             element ActionElement { node: Node, }
             derive agreement = verb.agreement;
+            derive verb.agreement = Values::Bare;
             form action = verb(Verbs::Act) node;
         }
 

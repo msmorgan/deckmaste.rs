@@ -5,6 +5,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::ValidatedDeclarations;
+use crate::identifier::key as identifier_key;
 use crate::model::Declaration;
 use crate::model::FieldKind;
 use crate::model::NonPublicVisibility;
@@ -33,8 +34,8 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
     let mut categories = Vec::<CategoryItem>::new();
     let mut category_indices = HashMap::<String, usize>::new();
     for (construction, record) in constructions.iter().zip(records) {
-        if construction.name != record.construction_id()
-            || construction.element.name != record.element_type()
+        if identifier_key(&construction.name) != record.construction_id()
+            || identifier_key(&construction.element.name) != record.element_type()
         {
             return Err(internal_error(
                 "validated construction identity is inconsistent",
@@ -123,7 +124,7 @@ fn emit_product(
         });
     }
 
-    let construction_name = construction.name.to_string();
+    let construction_name = identifier_key(&construction.name);
     let fields = construction
         .element
         .fields
@@ -138,7 +139,7 @@ fn emit_product(
             };
             let boxed = validated
                 .boxed_fields()
-                .contains(&(construction_name.clone(), field.name.to_string()));
+                .contains(&(construction_name.clone(), identifier_key(&field.name)));
             Ok(if boxed {
                 quote! { #visibility #name: Box<#ty> }
             } else {
@@ -164,7 +165,7 @@ fn field_visibility(
     let visibility = checked
         .visibilities
         .iter()
-        .find(|visibility| visibility.role == field.name)
+        .find(|visibility| identifier_key(&visibility.role) == identifier_key(&field.name))
         .ok_or_else(|| internal_error("validated checked visibility is incomplete"))?;
     Ok(match &visibility.visibility {
         NonPublicVisibility::Private(_) => TokenStream::new(),

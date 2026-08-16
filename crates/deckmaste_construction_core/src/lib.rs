@@ -1,6 +1,7 @@
 mod emit;
 mod feature;
 mod format;
+mod identifier;
 mod model;
 mod parse;
 mod plan;

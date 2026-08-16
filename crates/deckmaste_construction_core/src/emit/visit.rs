@@ -8,6 +8,9 @@ use quote::format_ident;
 use quote::quote;
 
 use crate::ValidatedDeclarations;
+use crate::emit::LocalAllocator;
+use crate::identifier::key as identifier_key;
+use crate::identifier::path_key;
 use crate::model::Declaration;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
@@ -133,31 +136,34 @@ fn emit_trait(
 ) -> syn::Result<GeneratedItem> {
     let mut methods = Vec::new();
     for (category, _) in categories {
-        methods.push(default_method(category, category_argument(category)));
+        methods.push(default_method(category, &category_argument(category)));
     }
     for binding in containers {
         methods.push(default_method(
-            &binding.name.to_string(),
-            binding_argument(binding),
+            &identifier_key(&binding.name),
+            &binding_argument(binding),
         ));
     }
     for construction in constructions {
         methods.push(default_method(
-            &construction.element.name.to_string(),
-            ident(&snake_case(&construction.element.name.to_string())),
+            &identifier_key(&construction.element.name),
+            &snake_case(&identifier_key(&construction.element.name)),
         ));
     }
     for vocab in vocabs {
-        methods.push(noop_method(&vocab.name.to_string(), VisitMode::Copy));
+        methods.push(noop_method(&identifier_key(&vocab.name), VisitMode::Copy));
     }
     for binding in copy_bindings {
-        methods.push(noop_method(&binding.name.to_string(), VisitMode::Copy));
+        methods.push(noop_method(&identifier_key(&binding.name), VisitMode::Copy));
     }
     for lexeme in lexemes {
-        methods.push(noop_method(&lexeme.name.to_string(), VisitMode::Copy));
+        methods.push(noop_method(&identifier_key(&lexeme.name), VisitMode::Copy));
     }
     for binding in borrowed_bindings {
-        methods.push(noop_method(&binding.name.to_string(), VisitMode::Borrowed));
+        methods.push(noop_method(
+            &identifier_key(&binding.name),
+            VisitMode::Borrowed,
+        ));
     }
 
     let mut leaf_origins = Vec::new();
@@ -168,12 +174,14 @@ fn emit_trait(
         .chain(borrowed_bindings)
     {
         for leaf in &binding.traversal.leaf_callbacks {
-            if seen.insert(leaf.name.to_string()) {
+            if seen.insert(identifier_key(&leaf.name)) {
                 let name = &leaf.name;
                 let ty = &leaf.value_type;
-                let name_string = name.to_string();
+                let name_string = identifier_key(name);
                 let callback_subject = name_string.strip_prefix("visit_").unwrap_or(&name_string);
-                let argument = ident(&format!("_{}", leaf_argument(callback_subject)));
+                let mut allocator = LocalAllocator::default();
+                allocator.reserve("self");
+                let argument = allocator.allocate(&format!("_{}", leaf_argument(callback_subject)));
                 let signature = match leaf.mode {
                     VisitMode::Copy => quote! { #argument: #ty },
                     VisitMode::Borrowed => quote! { #argument: &#ty },
@@ -181,7 +189,7 @@ fn emit_trait(
                 methods.push(quote! { fn #name(&mut self, #signature) {} });
                 leaf_origins.push(DeclarationKey::new(
                     binding_kind(binding),
-                    binding.name.to_string(),
+                    identifier_key(&binding.name),
                 ));
             }
         }
@@ -190,7 +198,10 @@ fn emit_trait(
         .iter()
         .flat_map(|(_, members)| {
             members.iter().map(|construction| {
-                DeclarationKey::new(DeclarationKind::Construction, construction.name.to_string())
+                DeclarationKey::new(
+                    DeclarationKind::Construction,
+                    identifier_key(&construction.name),
+                )
             })
         })
         .collect::<Vec<_>>();
@@ -200,12 +211,15 @@ fn emit_trait(
             .map(|binding| binding_origin(binding, constructions)),
     );
     origins.extend(constructions.iter().map(|construction| {
-        DeclarationKey::new(DeclarationKind::Construction, construction.name.to_string())
+        DeclarationKey::new(
+            DeclarationKind::Construction,
+            identifier_key(&construction.name),
+        )
     }));
     origins.extend(
         vocabs
             .iter()
-            .map(|vocab| DeclarationKey::new(DeclarationKind::Vocab, vocab.name.to_string())),
+            .map(|vocab| DeclarationKey::new(DeclarationKind::Vocab, identifier_key(&vocab.name))),
     );
     origins.extend(
         copy_bindings
@@ -213,9 +227,9 @@ fn emit_trait(
             .map(|binding| binding_origin(binding, constructions)),
     );
     origins.extend(
-        lexemes
-            .iter()
-            .map(|lexeme| DeclarationKey::new(DeclarationKind::Lexeme, lexeme.name.to_string())),
+        lexemes.iter().map(|lexeme| {
+            DeclarationKey::new(DeclarationKind::Lexeme, identifier_key(&lexeme.name))
+        }),
     );
     origins.extend(
         borrowed_bindings
@@ -233,14 +247,14 @@ fn emit_trait(
     ))
 }
 
-#[allow(
-    clippy::needless_pass_by_value,
-    reason = "the identifier is consumed by token interpolation"
-)]
-fn default_method(type_name: &str, argument: syn::Ident) -> TokenStream {
+fn default_method(type_name: &str, argument: &str) -> TokenStream {
     let ty = ident(type_name);
     let method = format_ident!("visit_{}", snake_case(type_name));
     let walker = format_ident!("walk_{}", snake_case(type_name));
+    let mut allocator = LocalAllocator::default();
+    allocator.reserve("self");
+    allocator.reserve(walker.to_string());
+    let argument = allocator.allocate(argument);
     quote! {
         fn #method(&mut self, #argument: &#ty) { #walker(self, #argument); }
     }
@@ -249,7 +263,9 @@ fn default_method(type_name: &str, argument: syn::Ident) -> TokenStream {
 fn noop_method(type_name: &str, mode: VisitMode) -> TokenStream {
     let ty = ident(type_name);
     let method = format_ident!("visit_{}", snake_case(type_name));
-    let argument = ident(&format!("_{}", leaf_argument(type_name)));
+    let mut allocator = LocalAllocator::default();
+    allocator.reserve("self");
+    let argument = allocator.allocate(&format!("_{}", leaf_argument(type_name)));
     match mode {
         VisitMode::Copy => quote! { fn #method(&mut self, #argument: #ty) {} },
         VisitMode::Borrowed => quote! { fn #method(&mut self, #argument: &#ty) {} },
@@ -259,13 +275,17 @@ fn noop_method(type_name: &str, mode: VisitMode) -> TokenStream {
 fn emit_category_walker(category: &str, members: &[&crate::Construction]) -> GeneratedItem {
     let ty = ident(category);
     let function = format_ident!("walk_{}", snake_case(category));
-    let argument = category_argument(category);
+    let mut allocator = LocalAllocator::default();
+    allocator.reserve("visitor");
+    let argument = allocator.allocate(&category_argument(category));
     let arms = members.iter().map(|construction| {
-        let variant = ident(&pascal_case(&construction.name.to_string()));
-        let payload = ident(&snake_case(&construction.element.name.to_string()));
+        let mut arm_allocator = allocator.clone();
+        let variant = ident(&pascal_case(&identifier_key(&construction.name)));
+        let payload =
+            arm_allocator.allocate(&snake_case(&identifier_key(&construction.element.name)));
         let callback = format_ident!(
             "visit_{}",
-            snake_case(&construction.element.name.to_string())
+            snake_case(&identifier_key(&construction.element.name))
         );
         crate::emit::call_match_arm(
             &quote! { #ty::#variant(#payload) },
@@ -282,19 +302,51 @@ fn emit_category_walker(category: &str, members: &[&crate::Construction]) -> Gen
         members
             .iter()
             .map(|construction| {
-                DeclarationKey::new(DeclarationKind::Construction, construction.name.to_string())
+                DeclarationKey::new(
+                    DeclarationKind::Construction,
+                    identifier_key(&construction.name),
+                )
             })
             .collect(),
     )
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "construction walkers lower the closed form order and every typed access mode together"
+)]
 fn emit_construction_walker(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
 ) -> syn::Result<GeneratedItem> {
     let ty = &construction.element.name;
-    let argument = ident(&snake_case(&ty.to_string()));
-    let function = format_ident!("walk_{}", snake_case(&ty.to_string()));
+    let function = format_ident!("walk_{}", snake_case(&identifier_key(ty)));
+    let mut allocator = LocalAllocator::default();
+    allocator.reserve("visitor");
+    for atom in &construction.form.atoms {
+        let terminal = match atom {
+            FormAtom::Lex(role) | FormAtom::Identity(role) => construction
+                .element
+                .fields
+                .iter()
+                .find(|field| identifier_key(&field.name) == identifier_key(role))
+                .map(field_terminal),
+            FormAtom::Verb(crate::VerbOperand::Fixed(path)) => path
+                .segments
+                .iter()
+                .rev()
+                .nth(1)
+                .map(|segment| identifier_key(&segment.ident)),
+            FormAtom::Literal(_)
+            | FormAtom::Role(_)
+            | FormAtom::Noun(_)
+            | FormAtom::Verb(crate::VerbOperand::Projected(_)) => None,
+        };
+        if let Some(terminal) = terminal {
+            allocator.reserve(format!("walk_{}", snake_case(&terminal)));
+        }
+    }
+    let argument = allocator.allocate(&snake_case(&identifier_key(ty)));
     let private = construction.checked.as_ref().is_some_and(|checked| {
         checked.visibilities.iter().any(|visibility| {
             matches!(
@@ -303,19 +355,34 @@ fn emit_construction_walker(
             )
         })
     });
+    let mut field_locals = HashMap::new();
     let destructure = if construction.element.fields.is_empty() {
         quote! { let #ty = #argument; }
     } else if private {
         TokenStream::new()
     } else {
-        let fields = construction.element.fields.iter().map(|field| &field.name);
+        let fields = construction
+            .element
+            .fields
+            .iter()
+            .map(|field| {
+                let source = &field.name;
+                let local = allocator.allocate_ident(source);
+                field_locals.insert(identifier_key(source), local.clone());
+                if local == *source {
+                    quote! { #source }
+                } else {
+                    quote! { #source: #local }
+                }
+            })
+            .collect::<Vec<_>>();
         quote! { let #ty { #(#fields),* } = #argument; }
     };
     let fields = construction
         .element
         .fields
         .iter()
-        .map(|field| (field.name.to_string(), field))
+        .map(|field| (identifier_key(&field.name), field))
         .collect::<HashMap<_, _>>();
     let mut calls = Vec::new();
     for atom in &construction.form.atoms {
@@ -323,22 +390,22 @@ fn emit_construction_walker(
             FormAtom::Literal(_) => None,
             FormAtom::Role(role) => {
                 let field = fields
-                    .get(&role.to_string())
+                    .get(&identifier_key(role))
                     .ok_or_else(|| internal("walker category role absent"))?;
                 let FieldKind::Category(path) = &field.kind else {
                     return Err(internal("walker bare role is not category"));
                 };
                 let callback = format_ident!("visit_{}", snake_case(&path_name(path)));
-                let value = field_value(construction, role, &argument);
+                let value = field_value(construction, role, &argument, &field_locals)?;
                 Some(quote! { visitor.#callback(#value); })
             }
             FormAtom::Lex(role) => {
                 let field = fields
-                    .get(&role.to_string())
+                    .get(&identifier_key(role))
                     .ok_or_else(|| internal("walker lex role absent"))?;
                 let terminal = field_terminal(field);
                 let walker = format_ident!("walk_{}", snake_case(&terminal));
-                let value = field_value(construction, role, &argument);
+                let value = field_value(construction, role, &argument, &field_locals)?;
                 let copy = terminal_mode(validated, &terminal)? == VisitMode::Copy;
                 Some(if copy {
                     if has_accessor(construction, role) {
@@ -352,11 +419,11 @@ fn emit_construction_walker(
             }
             FormAtom::Identity(role) => {
                 let field = fields
-                    .get(&role.to_string())
+                    .get(&identifier_key(role))
                     .ok_or_else(|| internal("walker identity role absent"))?;
                 let terminal = field_terminal(field);
                 let walker = format_ident!("walk_{}", snake_case(&terminal));
-                let value = field_value(construction, role, &argument);
+                let value = field_value(construction, role, &argument, &field_locals)?;
                 let copy = terminal_mode(validated, &terminal)? == VisitMode::Copy;
                 Some(if copy {
                     if has_accessor(construction, role) {
@@ -370,22 +437,22 @@ fn emit_construction_walker(
             }
             FormAtom::Noun(role) => {
                 let field = fields
-                    .get(&role.to_string())
+                    .get(&identifier_key(role))
                     .ok_or_else(|| internal("walker noun role absent"))?;
                 let terminal = field_terminal(field);
                 let callback = format_ident!("visit_{}", snake_case(&terminal));
-                let value = field_value(construction, role, &argument);
+                let value = field_value(construction, role, &argument, &field_locals)?;
                 Some(quote! { visitor.#callback(#value); })
             }
             FormAtom::Verb(crate::VerbOperand::Fixed(path)) => {
-                let terminal = path
+                let terminal = &path
                     .segments
                     .iter()
                     .rev()
                     .nth(1)
                     .ok_or_else(|| internal("fixed verb path lacks terminal"))?
-                    .ident
-                    .to_string();
+                    .ident;
+                let terminal = identifier_key(terminal);
                 let walker = format_ident!("walk_{}", snake_case(&terminal));
                 Some(quote! { #walker(visitor, #path); })
             }
@@ -405,7 +472,7 @@ fn emit_construction_walker(
         quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) { #destructure #(#calls)* } },
         vec![DeclarationKey::new(
             DeclarationKind::Construction,
-            construction.name.to_string(),
+            identifier_key(&construction.name),
         )],
     ))
 }
@@ -415,10 +482,11 @@ fn emit_enum_walker<'a>(
     variants: impl Iterator<Item = &'a syn::Ident>,
     kind: DeclarationKind,
 ) -> GeneratedItem {
-    let function = format_ident!("walk_{}", snake_case(&ty.to_string()));
-    let argument = leaf_argument(&ty.to_string());
-    let argument = ident(&argument);
-    let callback = format_ident!("visit_{}", snake_case(&ty.to_string()));
+    let function = format_ident!("walk_{}", snake_case(&identifier_key(ty)));
+    let mut allocator = LocalAllocator::default();
+    allocator.reserve("visitor");
+    let argument = allocator.allocate(&leaf_argument(&identifier_key(ty)));
+    let callback = format_ident!("visit_{}", snake_case(&identifier_key(ty)));
     let arms = variants
         .map(|variant| {
             crate::emit::call_match_arm(
@@ -434,15 +502,28 @@ fn emit_enum_walker<'a>(
             name: function.to_string(),
         },
         quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: #ty) { match #argument { #(#arms,)* } } },
-        vec![DeclarationKey::new(kind, ty.to_string())],
+        vec![DeclarationKey::new(kind, identifier_key(ty))],
     )
 }
 
 fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<GeneratedItem> {
     let ty = simple_type_ident(&binding.value_type)?;
-    let type_name = ty.to_string();
+    let type_name = identifier_key(ty);
     let function = format_ident!("walk_{}", snake_case(&type_name));
-    let argument = binding_argument(binding);
+    let source_argument = binding_argument(binding);
+    let mut allocator = LocalAllocator::default();
+    allocator.reserve("visitor");
+    for call in binding.traversal.calls.iter().chain(
+        binding
+            .traversal
+            .branches
+            .iter()
+            .flat_map(|branch| branch.arms.iter().map(|arm| &arm.call)),
+    ) {
+        reserve_callback(&mut allocator, call);
+    }
+    let argument = allocator.allocate(&source_argument);
+    let mut bindings = HashMap::from([(source_argument, argument.clone())]);
     let mode = binding
         .traversal
         .callback_mode
@@ -451,18 +532,46 @@ fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<Generate
         VisitMode::Copy => quote! { #argument: #ty },
         VisitMode::Borrowed => quote! { #argument: &#ty },
     };
+    let mut field_patterns = Vec::new();
+    for field in &binding.traversal.fields {
+        let source = &field.name;
+        let local = allocator.allocate_ident(source);
+        bindings.insert(identifier_key(source), local.clone());
+        if local == *source {
+            field_patterns.push(quote! { #source });
+        } else {
+            field_patterns.push(quote! { #source: #local });
+        }
+    }
+    let destructure = if field_patterns.is_empty() {
+        TokenStream::new()
+    } else {
+        quote! { let #ty { #(#field_patterns),* } = #argument; }
+    };
     let body = if !binding.traversal.branches.is_empty() {
-        let branches = binding.traversal.branches.iter().map(|branch| {
-            let value = &branch.value;
-            let arms = branch.arms.iter().map(|arm| {
-                let variant = &arm.variant;
-                let binding = &arm.binding;
-                let call = emit_call_expr(&arm.call);
-                quote! { #variant(#binding) => #call }
-            });
-            quote! { match #value { #(#arms,)* } }
-        });
-        quote! { #(#branches)* }
+        let branches = binding
+            .traversal
+            .branches
+            .iter()
+            .map(|branch| -> syn::Result<TokenStream> {
+                let value = lower_traversal_expr(&branch.value, &bindings)?;
+                let arms = branch
+                    .arms
+                    .iter()
+                    .map(|arm| -> syn::Result<TokenStream> {
+                        let mut arm_allocator = allocator.clone();
+                        let mut arm_bindings = bindings.clone();
+                        let variant = &arm.variant;
+                        let local = arm_allocator.allocate_ident(&arm.binding);
+                        arm_bindings.insert(identifier_key(&arm.binding), local.clone());
+                        let call = emit_call_expr(&arm.call, &arm_bindings)?;
+                        Ok(quote! { #variant(#local) => #call })
+                    })
+                    .collect::<syn::Result<Vec<_>>>()?;
+                Ok(quote! { match #value { #(#arms,)* } })
+            })
+            .collect::<syn::Result<Vec<_>>>()?;
+        quote! { #destructure #(#branches)* }
     } else if !binding.traversal.variants.is_empty() {
         let callback = format_ident!("visit_{}", snake_case(&type_name));
         let variants = binding.traversal.variants.iter().map(|variant| {
@@ -480,11 +589,6 @@ fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<Generate
             .iter()
             .map(|field| &field.name)
             .collect::<Vec<_>>();
-        let destructure = if fields.is_empty() {
-            TokenStream::new()
-        } else {
-            quote! { let #ty { #(#fields),* } = #argument; }
-        };
         let used_fields = fields
             .iter()
             .map(|field| {
@@ -508,15 +612,20 @@ fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<Generate
                 .unwrap_or(fields.len());
             for field_index in 0..next_used_field {
                 if !used_fields[field_index] && !ignored_fields[field_index] {
-                    let field = fields[field_index];
+                    let field = bindings
+                        .get(&identifier_key(fields[field_index]))
+                        .expect("traversal field has an allocated local");
                     statements.push(quote! { let _ = #field; });
                     ignored_fields[field_index] = true;
                 }
             }
-            statements.push(emit_call(call));
+            statements.push(emit_call(call, &bindings)?);
         }
         for (field_index, field) in fields.iter().enumerate() {
             if !used_fields[field_index] && !ignored_fields[field_index] {
+                let field = bindings
+                    .get(&identifier_key(field))
+                    .expect("traversal field has an allocated local");
                 statements.push(quote! { let _ = #field; });
             }
         }
@@ -530,29 +639,72 @@ fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<Generate
         quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #signature) { #body } },
         vec![DeclarationKey::new(
             binding_kind(binding),
-            binding.name.to_string(),
+            identifier_key(&binding.name),
         )],
     ))
 }
 
-fn emit_call(call: &TraversalCall) -> TokenStream {
-    let call = emit_call_expr(call);
-    quote! { #call; }
+fn reserve_callback(allocator: &mut LocalAllocator, call: &TraversalCall) {
+    if call.callback.leading_colon.is_none() && call.callback.segments.len() == 1 {
+        allocator.reserve_ident(&call.callback.segments[0].ident);
+    }
 }
 
-fn emit_call_expr(call: &TraversalCall) -> TokenStream {
-    let value = &call.value;
+fn emit_call(
+    call: &TraversalCall,
+    bindings: &HashMap<String, syn::Ident>,
+) -> syn::Result<TokenStream> {
+    let call = emit_call_expr(call, bindings)?;
+    Ok(quote! { #call; })
+}
+
+fn emit_call_expr(
+    call: &TraversalCall,
+    bindings: &HashMap<String, syn::Ident>,
+) -> syn::Result<TokenStream> {
+    let value = lower_traversal_expr(&call.value, bindings)?;
     let argument = match call.mode {
         VisitMode::Copy => quote! { *#value },
         VisitMode::Borrowed => quote! { #value },
     };
     let segments = call.callback.segments.iter().collect::<Vec<_>>();
-    if segments.len() == 2 && segments[0].ident == "visitor" {
+    if segments.len() == 2 && identifier_key(&segments[0].ident) == "visitor" {
         let method = &segments[1].ident;
-        quote! { visitor.#method(#argument) }
+        Ok(quote! { visitor.#method(#argument) })
     } else {
         let callback = &call.callback;
-        quote! { #callback(visitor, #argument) }
+        Ok(quote! { #callback(visitor, #argument) })
+    }
+}
+
+fn lower_traversal_expr(
+    expression: &syn::Expr,
+    bindings: &HashMap<String, syn::Ident>,
+) -> syn::Result<TokenStream> {
+    match expression {
+        syn::Expr::Path(path)
+            if path.qself.is_none()
+                && path.path.leading_colon.is_none()
+                && path.path.segments.len() == 1 =>
+        {
+            let source = &path.path.segments[0].ident;
+            let local = bindings.get(&identifier_key(source)).ok_or_else(|| {
+                internal("validated traversal expression lacks its allocated root local")
+            })?;
+            Ok(quote! { #local })
+        }
+        syn::Expr::Field(field) => {
+            let base = lower_traversal_expr(&field.base, bindings)?;
+            let member = &field.member;
+            Ok(quote! { #base.#member })
+        }
+        syn::Expr::Paren(paren) => {
+            let inner = lower_traversal_expr(&paren.expr, bindings)?;
+            Ok(quote! { (#inner) })
+        }
+        _ => Err(internal(
+            "validated traversal expression is outside the closed field-path grammar",
+        )),
     }
 }
 
@@ -560,12 +712,12 @@ fn expr_mentions(expression: &syn::Expr, ident: &syn::Ident) -> bool {
     expression
         .to_token_stream()
         .into_iter()
-        .any(|token| matches!(token, proc_macro2::TokenTree::Ident(found) if found == *ident))
+        .any(|token| matches!(token, proc_macro2::TokenTree::Ident(found) if identifier_key(&found) == identifier_key(ident)))
 }
 
 fn terminal_mode(validated: &ValidatedDeclarations, terminal: &str) -> syn::Result<VisitMode> {
     if validated.raw().declarations.iter().any(
-        |declaration| matches!(declaration, Declaration::Vocab(vocab) if vocab.name == terminal),
+        |declaration| matches!(declaration, Declaration::Vocab(vocab) if identifier_key(&vocab.name) == terminal),
     ) {
         return Ok(VisitMode::Copy);
     }
@@ -575,7 +727,7 @@ fn terminal_mode(validated: &ValidatedDeclarations, terminal: &str) -> syn::Resu
         .iter()
         .find_map(|declaration| match declaration {
             Declaration::Codec(binding) | Declaration::Identity(binding)
-                if binding.name == terminal =>
+                if identifier_key(&binding.name) == terminal =>
             {
                 binding.traversal.callback_mode
             }
@@ -588,7 +740,7 @@ fn binding_origin(
     binding: &crate::TerminalBinding,
     _constructions: &[&crate::Construction],
 ) -> DeclarationKey {
-    DeclarationKey::new(binding_kind(binding), binding.name.to_string())
+    DeclarationKey::new(binding_kind(binding), identifier_key(&binding.name))
 }
 
 fn binding_kind(binding: &crate::TerminalBinding) -> DeclarationKind {
@@ -626,30 +778,33 @@ fn field_terminal(field: &crate::Field) -> String {
         }
     }
 }
-fn binding_argument(binding: &crate::TerminalBinding) -> syn::Ident {
-    binding
-        .traversal
-        .argument
-        .clone()
-        .unwrap_or_else(|| ident(&leaf_argument(&binding.name.to_string())))
+fn binding_argument(binding: &crate::TerminalBinding) -> String {
+    binding.traversal.argument.as_ref().map_or_else(
+        || leaf_argument(&identifier_key(&binding.name)),
+        identifier_key,
+    )
 }
 fn field_value(
     construction: &crate::Construction,
     role: &syn::Ident,
     whole: &syn::Ident,
-) -> TokenStream {
+    fields: &HashMap<String, syn::Ident>,
+) -> syn::Result<TokenStream> {
     if let Some(accessor) = construction.checked.as_ref().and_then(|checked| {
         checked
             .accessors
             .iter()
-            .find(|accessor| accessor.role == *role)
+            .find(|accessor| identifier_key(&accessor.role) == identifier_key(role))
     }) {
         let method = &accessor.method;
-        quote! { #whole.#method() }
+        Ok(quote! { #whole.#method() })
     } else if has_private_fields(construction) {
-        quote! { &#whole.#role }
+        Ok(quote! { &#whole.#role })
     } else {
-        quote! { #role }
+        let local = fields
+            .get(&identifier_key(role))
+            .ok_or_else(|| internal("public walker field lacks its allocated local"))?;
+        Ok(quote! { #local })
     }
 }
 fn has_accessor(construction: &crate::Construction, role: &syn::Ident) -> bool {
@@ -657,7 +812,7 @@ fn has_accessor(construction: &crate::Construction, role: &syn::Ident) -> bool {
         checked
             .accessors
             .iter()
-            .any(|accessor| accessor.role == *role)
+            .any(|accessor| identifier_key(&accessor.role) == identifier_key(role))
     })
 }
 fn has_private_fields(construction: &crate::Construction) -> bool {
@@ -670,9 +825,8 @@ fn has_private_fields(construction: &crate::Construction) -> bool {
         })
     })
 }
-fn category_argument(category: &str) -> syn::Ident {
-    let snake = snake_case(category);
-    ident(&snake)
+fn category_argument(category: &str) -> String {
+    snake_case(category)
 }
 fn leaf_argument(name: &str) -> String {
     let snake = snake_case(name);
@@ -702,12 +856,10 @@ fn simple_type_ident(ty: &syn::Type) -> syn::Result<&syn::Ident> {
     }
 }
 fn path_name(path: &syn::Path) -> String {
-    path.segments
-        .last()
-        .map_or_else(String::new, |segment| segment.ident.to_string())
+    path_key(path)
 }
 fn ident(name: &str) -> syn::Ident {
-    syn::Ident::new(name, Span::call_site())
+    syn::parse_str(name).expect("validated visitor identifier")
 }
 fn pascal_case(name: &str) -> String {
     name.split('_')
@@ -755,6 +907,121 @@ mod tests {
     )]
     use quote::ToTokens;
     use syn::visit::Visit;
+
+    #[test]
+    fn generated_walker_locals_are_hygienic_across_abi_and_helper_names() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Marker { One = "marker", }
+            lexeme VisitorLexeme { Act, }
+            codec Token {
+                atom = lex;
+                value_type = Token;
+                lexical = Lexical::Token;
+                render = render_token;
+                build { pattern = BuildValue::Token(token); construct = token; }
+                traversal {
+                    callback = borrowed;
+                    argument = visitor;
+                    call visitor::visit_token(borrowed(visitor));
+                }
+            }
+            codec FieldToken {
+                value_type = FieldToken;
+                traversal {
+                    callback = borrowed;
+                    argument = field_token;
+                    field visitor: Marker;
+                    call walk_marker(copy(visitor));
+                }
+            }
+            codec BranchToken {
+                value_type = BranchToken;
+                traversal {
+                    callback = borrowed;
+                    argument = branch_token;
+                    variant Marker;
+                    match branch_token {
+                        BranchToken::Marker(walk_marker: Marker) =>
+                            walk_marker(copy(walk_marker)),
+                    }
+                }
+            }
+            codec RawBranchToken {
+                value_type = RawBranchToken;
+                traversal {
+                    callback = borrowed;
+                    argument = r#payload;
+                    variant Marker;
+                    match r#payload {
+                        RawBranchToken::Marker(r#walk_marker: Marker) =>
+                            walk_marker(copy(r#walk_marker)),
+                    }
+                }
+            }
+
+            construction visit_node: Root {
+                element VisitNode { visitor: lex Marker, }
+                form visit_node = lex(visitor);
+            }
+            construction visitor_category: Visitor {
+                element VisitorNode {}
+                form visitor_category = "visitor";
+            }
+            construction checked_marker: CheckedMarker {
+                element WalkMarker { marker: lex Marker, }
+                checked {
+                    visibility marker = private;
+                    access marker = marker;
+                    constructor = WalkMarker::new(marker);
+                }
+                form checked_marker = lex(marker);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("adversarial walker names remain valid declaration vocabulary");
+
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for fragment in [
+            "let VisitNode { visitor : visitor_2 } = visit_node",
+            "walk_marker (visitor , * visitor_2)",
+            "fn walk_visitor_lexeme < V : Visitor + ? Sized > (visitor : & mut V , visitor_2 : VisitorLexeme)",
+            "fn walk_visitor < V : Visitor + ? Sized > (visitor : & mut V , visitor_2 : & Visitor)",
+            "match visitor_2",
+            "fn walk_token < V : Visitor + ? Sized > (visitor : & mut V , visitor_2 : & Token)",
+            "visitor . visit_token (visitor_2)",
+            "fn walk_walk_marker < V : Visitor + ? Sized > (visitor : & mut V , walk_marker_2 : & WalkMarker)",
+            "walk_marker (visitor , walk_marker_2 . marker ())",
+            "let FieldToken { visitor : visitor_2 } = field_token",
+            "BranchToken :: Marker (walk_marker_2) => walk_marker (visitor , * walk_marker_2)",
+            "fn walk_raw_branch_token < V : Visitor + ? Sized > (visitor : & mut V , payload : & RawBranchToken)",
+            "match payload",
+            "RawBranchToken :: Marker (walk_marker_2) => walk_marker (visitor , * walk_marker_2)",
+        ] {
+            assert!(
+                source.contains(fragment),
+                "missing hygienic `{fragment}`: {source}"
+            );
+        }
+        for shadowed in [
+            "let VisitNode { visitor }",
+            "visitor : & mut V , visitor : VisitorLexeme",
+            "visitor : & mut V , visitor : & Visitor",
+            "visitor : & mut V , visitor : & Token",
+            "visitor : & mut V , walk_marker : & WalkMarker",
+            "FieldToken { visitor }",
+            "BranchToken :: Marker (walk_marker) => walk_marker",
+        ] {
+            assert!(
+                !source.contains(shadowed),
+                "shadowed binding survived as `{shadowed}`: {source}",
+            );
+        }
+    }
 
     #[test]
     fn copy_identity_and_mixed_checked_fields_use_explicit_access_modes() {

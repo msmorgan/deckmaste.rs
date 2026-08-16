@@ -8,6 +8,8 @@ use crate::feature::Feature;
 use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
 use crate::feature::FeatureValue;
+use crate::identifier::key as identifier_key;
+use crate::identifier::path_key;
 use crate::model::Declaration;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
@@ -164,12 +166,12 @@ fn lexical_variant(
 ) -> syn::Result<TokenStream> {
     for declaration in &validated.raw().declarations {
         match declaration {
-            Declaration::Vocab(vocab) if vocab.name == path_name(terminal) => {
+            Declaration::Vocab(vocab) if identifier_key(&vocab.name) == path_name(terminal) => {
                 let name = &vocab.name;
                 return Ok(quote! { Lexical::#name });
             }
             Declaration::Codec(binding) | Declaration::Identity(binding)
-                if binding.name == path_name(terminal) =>
+                if identifier_key(&binding.name) == path_name(terminal) =>
             {
                 let path = binding.lexical_variant.as_ref().ok_or_else(|| {
                     internal("atom-capable terminal binding has no lexical variant")
@@ -187,7 +189,7 @@ fn noun_number(
     construction: &crate::Construction,
 ) -> syn::Result<syn::Ident> {
     let equation = validated
-        .feature_equations(&construction.name.to_string())
+        .feature_equations(&identifier_key(&construction.name))
         .iter()
         .find(|equation| equation.target() == &FeaturePlace::Construction(Feature::Number))
         .ok_or_else(|| internal("noun atom has no validated construction number"))?;
@@ -220,7 +222,10 @@ fn construction_origins(constructions: &[&crate::Construction]) -> Vec<Declarati
     constructions
         .iter()
         .map(|construction| {
-            DeclarationKey::new(DeclarationKind::Construction, construction.name.to_string())
+            DeclarationKey::new(
+                DeclarationKind::Construction,
+                identifier_key(&construction.name),
+            )
         })
         .collect()
 }
@@ -264,7 +269,7 @@ fn field<'a>(
         .element
         .fields
         .iter()
-        .find(|field| field.name == *role)
+        .find(|field| identifier_key(&field.name) == identifier_key(role))
         .ok_or_else(|| internal("resolved form role is absent"))
 }
 
@@ -276,9 +281,7 @@ fn terminal_path(field: &crate::Field) -> syn::Result<&syn::Path> {
 }
 
 fn path_name(path: &syn::Path) -> String {
-    path.segments
-        .last()
-        .map_or_else(String::new, |segment| segment.ident.to_string())
+    path_key(path)
 }
 
 fn ident(name: &str) -> syn::Ident {

@@ -1,5 +1,7 @@
 use crate::Declaration;
 use crate::ValidatedDeclarations;
+use crate::identifier::key as identifier_key;
+use crate::identifier::path_key;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TerminalBindingDeclarationKind {
@@ -58,23 +60,18 @@ pub(crate) fn escape_hatch_report(validated: &ValidatedDeclarations) -> EscapeHa
         match declaration {
             Declaration::Codec(binding) => terminal_bindings.push(TerminalBindingDeclaration {
                 kind: TerminalBindingDeclarationKind::Codec,
-                name: binding.name.to_string(),
+                name: identifier_key(&binding.name),
             }),
             Declaration::Identity(binding) => {
                 terminal_bindings.push(TerminalBindingDeclaration {
                     kind: TerminalBindingDeclarationKind::Identity,
-                    name: binding.name.to_string(),
+                    name: identifier_key(&binding.name),
                 });
             }
             Declaration::Construction(construction) if construction.checked.is_some() => {
-                checked_constructor_bindings.push(construction.element.name.to_string());
+                checked_constructor_bindings.push(identifier_key(&construction.element.name));
             }
-            Declaration::Root(root) => roots.push(
-                root.category
-                    .segments
-                    .last()
-                    .map_or_else(String::new, |segment| segment.ident.to_string()),
-            ),
+            Declaration::Root(root) => roots.push(path_key(&root.category)),
             Declaration::Construction(_) | Declaration::Vocab(_) | Declaration::Lexeme(_) => {}
         }
     }

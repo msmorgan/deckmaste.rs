@@ -7,10 +7,13 @@ use quote::format_ident;
 use quote::quote;
 
 use crate::ValidatedDeclarations;
+use crate::emit::LocalAllocator;
 use crate::feature::Feature;
 use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
 use crate::feature::FeatureValue;
+use crate::identifier::key as identifier_key;
+use crate::identifier::path_key;
 use crate::model::Declaration;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
@@ -59,17 +62,6 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         .map(|root| path_name(&root.category))
         .collect::<HashSet<_>>();
     let context_categories = context_categories(&categories);
-    let agreement_parameter_categories = categories
-        .iter()
-        .filter(|(_, members)| members.iter().any(|construction| {
-            validated.feature_equations(&construction.name.to_string()).iter().any(|equation| {
-                matches!(equation.target(), FeaturePlace::Construction(Feature::Agreement))
-                    && matches!(equation.value(), FeatureExpr::FromRole { role, .. } if !construction.element.fields.iter().any(|field| field.name == *role))
-            })
-        }))
-        .map(|(name, _)| name.clone())
-        .collect::<HashSet<_>>();
-
     let mut items = Vec::new();
     for root in &roots {
         let category = path_name(&root.category);
@@ -84,13 +76,23 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
             let helper = render_category_name(&category, true);
             quote! { #helper(&mut writer, self, context); }
         } else {
+            let allocator = render_allocator(
+                validated,
+                members,
+                true,
+                &root_names,
+                &context_categories,
+                false,
+                true,
+            )?;
             let arms = render_arms(
                 validated,
                 members,
                 true,
-                &categories,
                 &root_names,
                 &context_categories,
+                &allocator,
+                &quote! { self },
             )?;
             quote! { match self { #(#arms)* } }
         };
@@ -126,9 +128,19 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         }
         let helper = render_category_name(&category, root_names.contains(&category));
         let ty = ident(&category);
-        let argument = category_argument(&category);
-        let takes_agreement = agreement_parameter_categories.contains(&category);
+        let takes_agreement = validated.category_requires_external_agreement(&category);
         let takes_context = context_categories.contains(&category);
+        let allocator = render_allocator(
+            validated,
+            members,
+            false,
+            &root_names,
+            &context_categories,
+            takes_agreement,
+            takes_context,
+        )?;
+        let mut signature_allocator = allocator.clone();
+        let argument = signature_allocator.allocate(&category_argument(&category));
         let agreement = takes_agreement.then(|| quote! { agreement: Agreement });
         let context = takes_context.then(|| quote! { context: &ParseContext<'_> });
         let separators = signature_tail(&[agreement, context]);
@@ -136,9 +148,10 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
             validated,
             members,
             false,
-            &categories,
             &root_names,
             &context_categories,
+            &signature_allocator,
+            &quote! { #argument },
         )?;
         let tokens = quote! {
             fn #helper(writer: &mut Writer, #argument: &#ty #separators) {
@@ -156,7 +169,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
                 .map(|construction| {
                     DeclarationKey::new(
                         DeclarationKind::Construction,
-                        construction.name.to_string(),
+                        identifier_key(&construction.name),
                     )
                 })
                 .collect(),
@@ -165,9 +178,11 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
 
     for declaration in &validated.raw().declarations {
         let Declaration::Vocab(vocab) = declaration else { continue };
-        let function = format_ident!("render_{}", snake_case(&vocab.name.to_string()));
+        let function = format_ident!("render_{}", snake_case(&identifier_key(&vocab.name)));
         let ty = &vocab.name;
-        let argument = render_vocab_argument(&vocab.name.to_string());
+        let mut allocator = LocalAllocator::default();
+        allocator.reserve("writer");
+        let argument = allocator.allocate(&render_vocab_argument(&vocab.name));
         let arms = vocab.variants.iter().map(|variant| {
             let name = &variant.name;
             let word = &variant.word;
@@ -186,7 +201,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
             tokens,
             vec![DeclarationKey::new(
                 DeclarationKind::Vocab,
-                vocab.name.to_string(),
+                identifier_key(&vocab.name),
             )],
         ));
     }
@@ -207,18 +222,222 @@ fn signature_tail(parts: &[Option<TokenStream>]) -> TokenStream {
     quote! { #(, #parts)* }
 }
 
+fn render_allocator(
+    validated: &ValidatedDeclarations,
+    members: &[&crate::Construction],
+    root_impl: bool,
+    root_names: &HashSet<String>,
+    _context_categories: &HashSet<String>,
+    takes_agreement: bool,
+    takes_context: bool,
+) -> syn::Result<LocalAllocator> {
+    let mut allocator = LocalAllocator::default();
+    allocator.reserve("writer");
+    if root_impl {
+        allocator.reserve("self");
+    }
+    if takes_agreement {
+        allocator.reserve("agreement");
+    }
+    if takes_context {
+        allocator.reserve("context");
+    }
+    for construction in members {
+        let fields = construction
+            .element
+            .fields
+            .iter()
+            .map(|field| (identifier_key(&field.name), field))
+            .collect::<HashMap<_, _>>();
+        for atom in &construction.form.atoms {
+            match atom {
+                FormAtom::Literal(_) => {}
+                FormAtom::Role(role) => {
+                    let field = fields
+                        .get(&identifier_key(role))
+                        .ok_or_else(|| internal("resolved role is absent"))?;
+                    let FieldKind::Category(path) = &field.kind else {
+                        return Err(internal("bare role is not a category"));
+                    };
+                    let category = path_name(path);
+                    allocator.reserve(
+                        render_category_name(&category, root_names.contains(&category)).to_string(),
+                    );
+                    if validated.category_requires_external_agreement(&category)
+                        && let Some(equation) = validated
+                            .feature_equations(&identifier_key(&construction.name))
+                            .iter()
+                            .find(|equation| {
+                                matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == identifier_key(role))
+                            })
+                    {
+                        reserve_feature_callees(
+                            validated,
+                            construction,
+                            equation.value(),
+                            &mut allocator,
+                        )?;
+                    }
+                }
+                FormAtom::Lex(role) => {
+                    let field = fields
+                        .get(&identifier_key(role))
+                        .ok_or_else(|| internal("resolved lexical role is absent"))?;
+                    let terminal = field_terminal(field);
+                    if let Some(vocab) = find_vocab(validated, &terminal) {
+                        allocator.reserve(format!(
+                            "render_{}",
+                            snake_case(&identifier_key(&vocab.name))
+                        ));
+                    } else if let RenderBinding::Runtime(path) = find_binding(validated, &terminal)?
+                        .render
+                        .as_ref()
+                        .ok_or_else(|| internal("lex terminal lacks render metadata"))?
+                    {
+                        reserve_bare_path(&mut allocator, path);
+                    }
+                }
+                FormAtom::Identity(role) => {
+                    let field = fields
+                        .get(&identifier_key(role))
+                        .ok_or_else(|| internal("resolved identity role is absent"))?;
+                    if let RenderBinding::Runtime(path) =
+                        find_binding(validated, &field_terminal(field))?
+                            .render
+                            .as_ref()
+                            .ok_or_else(|| internal("identity lacks render metadata"))?
+                    {
+                        reserve_bare_path(&mut allocator, path);
+                    }
+                }
+                FormAtom::Verb(_) => {
+                    allocator.reserve("inflect");
+                    let equations =
+                        validated.feature_equations(&identifier_key(&construction.name));
+                    if let Some(equation) = equations.iter().find(|equation| {
+                        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == "verb")
+                    }) {
+                        reserve_feature_callees(
+                            validated,
+                            construction,
+                            equation.value(),
+                            &mut allocator,
+                        )?;
+                    }
+                }
+                FormAtom::Noun(role) => {
+                    let field = fields
+                        .get(&identifier_key(role))
+                        .ok_or_else(|| internal("resolved noun role is absent"))?;
+                    let binding = find_binding(validated, &field_terminal(field))?;
+                    let Some(RenderBinding::Runtime(path)) = &binding.render else {
+                        return Err(internal("noun terminal lacks runtime render binding"));
+                    };
+                    reserve_bare_path(&mut allocator, path);
+                    allocator.reserve(format!(
+                        "number_for_{}",
+                        snake_case(&path_name(&construction.category))
+                    ));
+                }
+            }
+        }
+    }
+    Ok(allocator)
+}
+
+fn reserve_bare_path(allocator: &mut LocalAllocator, path: &syn::Path) {
+    if path.segments.len() == 1 {
+        allocator.reserve_ident(&path.segments[0].ident);
+    }
+}
+
+fn reserve_feature_callees(
+    validated: &ValidatedDeclarations,
+    construction: &crate::Construction,
+    expression: &FeatureExpr,
+    allocator: &mut LocalAllocator,
+) -> syn::Result<()> {
+    let FeatureExpr::FromRole {
+        role,
+        feature: source_feature,
+    } = expression
+    else {
+        return Ok(());
+    };
+    if !construction
+        .element
+        .fields
+        .iter()
+        .any(|field| identifier_key(&field.name) == identifier_key(role))
+    {
+        if let Some(writer) = validated
+            .feature_equations(&identifier_key(&construction.name))
+            .iter()
+            .find(|equation| {
+                matches!(equation.target(), FeaturePlace::Role { field, feature } if identifier_key(field) == identifier_key(role) && feature == source_feature)
+            })
+        {
+            reserve_feature_callees(validated, construction, writer.value(), allocator)?;
+        }
+        return Ok(());
+    }
+    let field = construction
+        .element
+        .fields
+        .iter()
+        .find(|field| identifier_key(&field.name) == identifier_key(role))
+        .expect("resolved feature role");
+    if matches!(field.kind, FieldKind::Category(_))
+        && let Some(writer) = validated
+            .feature_equations(&identifier_key(&construction.name))
+            .iter()
+            .find(|equation| {
+                matches!(equation.target(), FeaturePlace::Role { field, feature } if identifier_key(field) == identifier_key(role) && feature == source_feature)
+            })
+    {
+        return reserve_feature_callees(validated, construction, writer.value(), allocator);
+    }
+    let source = match &field.kind {
+        FieldKind::Category(path) => path_name(path),
+        FieldKind::Lex(_) => {
+            let (_, vocabulary) =
+                canonical_lexical_feature_lowering(validated, construction, role, *source_feature)?;
+            path_name(vocabulary)
+        }
+        FieldKind::Identity(_) => {
+            return Err(internal(
+                "identity roles cannot provide grammatical features",
+            ));
+        }
+    };
+    allocator.reserve(format!(
+        "{}_for_{}",
+        feature_name(*source_feature),
+        snake_case(&source)
+    ));
+    Ok(())
+}
+
+struct RenderLocals {
+    whole: Option<syn::Ident>,
+    fields: HashMap<String, syn::Ident>,
+    category: TokenStream,
+}
+
 fn render_arms(
     validated: &ValidatedDeclarations,
     members: &[&crate::Construction],
     root_impl: bool,
-    categories: &[(String, Vec<&crate::Construction>)],
     root_names: &HashSet<String>,
     context_categories: &HashSet<String>,
+    allocator: &LocalAllocator,
+    category_value: &TokenStream,
 ) -> syn::Result<Vec<TokenStream>> {
     members
         .iter()
         .map(|construction| {
-            let variant = ident(&pascal_case(&construction.name.to_string()));
+            let mut allocator = allocator.clone();
+            let variant = ident(&pascal_case(&identifier_key(&construction.name)));
             let element = &construction.element.name;
             let qualifier = if root_impl {
                 quote! { Self }
@@ -234,20 +453,42 @@ fn render_arms(
                     )
                 })
             });
-            let whole = ident(&construction.name.to_string());
+            let whole = private.then(|| allocator.allocate_ident(&construction.name));
+            let mut field_locals = HashMap::new();
             let pattern = if construction.element.fields.is_empty() {
                 quote! { #qualifier::#variant(#element) }
             } else if private {
+                let whole = whole
+                    .as_ref()
+                    .expect("private construction has a whole local");
                 quote! { #qualifier::#variant(#whole) }
             } else {
-                let fields = construction.element.fields.iter().map(|field| &field.name);
+                let fields = construction
+                    .element
+                    .fields
+                    .iter()
+                    .map(|field| {
+                        let source = &field.name;
+                        let local = allocator.allocate_ident(source);
+                        field_locals.insert(identifier_key(source), local.clone());
+                        if local == *source {
+                            quote! { #source }
+                        } else {
+                            quote! { #source: #local }
+                        }
+                    })
+                    .collect::<Vec<_>>();
                 quote! { #qualifier::#variant(#element { #(#fields),* }) }
+            };
+            let locals = RenderLocals {
+                whole,
+                fields: field_locals,
+                category: category_value.clone(),
             };
             let statements = render_atoms(
                 validated,
                 construction,
-                &whole,
-                categories,
+                &locals,
                 root_names,
                 context_categories,
                 root_impl,
@@ -274,8 +515,7 @@ fn render_arms(
 fn render_atoms(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
-    whole: &syn::Ident,
-    categories: &[(String, Vec<&crate::Construction>)],
+    locals: &RenderLocals,
     root_names: &HashSet<String>,
     context_categories: &HashSet<String>,
     root_impl: bool,
@@ -290,7 +530,7 @@ fn render_atoms(
         .element
         .fields
         .iter()
-        .map(|field| (field.name.to_string(), field))
+        .map(|field| (identifier_key(&field.name), field))
         .collect::<HashMap<_, _>>();
     construction
         .form
@@ -312,20 +552,19 @@ fn render_atoms(
             }
             FormAtom::Role(role) => {
                 let field = fields
-                    .get(&role.to_string())
+                    .get(&identifier_key(role))
                     .ok_or_else(|| internal("resolved role is absent"))?;
                 let FieldKind::Category(path) = &field.kind else {
                     return Err(internal("bare role is not a category"));
                 };
                 let category = path_name(path);
                 let helper = render_category_name(&category, root_names.contains(&category));
-                let value = field_value(construction, role, whole);
-                let agreement =
-                    if category_takes_agreement_parameter(validated, categories, &category) {
-                        role_agreement(validated, construction, role, whole, categories)?
-                    } else {
-                        None
-                    };
+                let value = field_value(construction, role, locals)?;
+                let agreement = if validated.category_requires_external_agreement(&category) {
+                    role_agreement(validated, construction, role, locals)?
+                } else {
+                    None
+                };
                 let context = context_categories
                     .contains(&category)
                     .then(|| quote! { context });
@@ -334,12 +573,13 @@ fn render_atoms(
             }
             FormAtom::Lex(role) => {
                 let field = fields
-                    .get(&role.to_string())
+                    .get(&identifier_key(role))
                     .ok_or_else(|| internal("resolved lexical role is absent"))?;
                 let terminal = field_terminal(field);
-                let value = field_value(construction, role, whole);
+                let value = field_value(construction, role, locals)?;
                 if let Some(vocab) = find_vocab(validated, &terminal) {
-                    let function = format_ident!("render_{}", snake_case(&vocab.name.to_string()));
+                    let function =
+                        format_ident!("render_{}", snake_case(&identifier_key(&vocab.name)));
                     let value = copy_value(construction, role, value);
                     Ok(quote! { #function(#call_writer, #value); })
                 } else {
@@ -357,10 +597,10 @@ fn render_atoms(
             }
             FormAtom::Identity(role) => {
                 let field = fields
-                    .get(&role.to_string())
+                    .get(&identifier_key(role))
                     .ok_or_else(|| internal("resolved identity role is absent"))?;
                 let binding = find_binding(validated, &field_terminal(field))?;
-                let value = field_value(construction, role, whole);
+                let value = field_value(construction, role, locals)?;
                 match binding
                     .render
                     .as_ref()
@@ -401,12 +641,12 @@ fn render_atoms(
                         return Err(internal("projected verb has no fixed render lexeme"));
                     }
                 };
-                let agreement = verb_agreement(validated, construction, whole)?;
+                let agreement = verb_agreement(validated, construction, locals)?;
                 Ok(quote! { #method_writer.word(inflect(#variant, #agreement)); })
             }
             FormAtom::Noun(role) => {
                 let field = fields
-                    .get(&role.to_string())
+                    .get(&identifier_key(role))
                     .ok_or_else(|| internal("resolved noun role is absent"))?;
                 let binding = find_binding(validated, &field_terminal(field))?;
                 let Some(RenderBinding::Runtime(function)) = &binding.render else {
@@ -414,13 +654,8 @@ fn render_atoms(
                 };
                 let category = path_name(&construction.category);
                 let number = format_ident!("number_for_{}", snake_case(&category));
-                let category_value = if root_impl {
-                    quote! { self }
-                } else {
-                    let category_value = category_argument(&category);
-                    quote! { #category_value }
-                };
-                let value = field_value(construction, role, whole);
+                let category_value = &locals.category;
+                let value = field_value(construction, role, locals)?;
                 Ok(quote! { #function(#call_writer, #value, #number(#category_value)); })
             }
         })
@@ -431,11 +666,10 @@ fn role_agreement(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
     role: &syn::Ident,
-    whole: &syn::Ident,
-    categories: &[(String, Vec<&crate::Construction>)],
+    locals: &RenderLocals,
 ) -> syn::Result<Option<TokenStream>> {
-    let equation = validated.feature_equations(&construction.name.to_string()).iter().find(|equation| {
-        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if field == role)
+    let equation = validated.feature_equations(&identifier_key(&construction.name)).iter().find(|equation| {
+        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == identifier_key(role))
     });
     equation
         .map(|equation| {
@@ -444,65 +678,32 @@ fn role_agreement(
                 construction,
                 equation.value(),
                 Feature::Agreement,
-                categories,
-                Some(whole),
+                locals,
             )
         })
         .transpose()
 }
 
-fn category_takes_agreement_parameter(
-    validated: &ValidatedDeclarations,
-    categories: &[(String, Vec<&crate::Construction>)],
-    category: &str,
-) -> bool {
-    categories
-        .iter()
-        .find(|(name, _)| name == category)
-        .is_some_and(|(_, members)| {
-            members.iter().any(|construction| {
-                validated
-                    .feature_equations(&construction.name.to_string())
-                    .iter()
-                    .any(|equation| {
-                        matches!(
-                            equation.target(),
-                            FeaturePlace::Construction(Feature::Agreement)
-                        ) && matches!(
-                            equation.value(),
-                            FeatureExpr::FromRole { role, .. }
-                                if !construction
-                                    .element
-                                    .fields
-                                    .iter()
-                                    .any(|field| field.name == *role)
-                        )
-                    })
-            })
-        })
-}
-
 fn verb_agreement(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
-    whole: &syn::Ident,
+    locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
-    let equations = validated.feature_equations(&construction.name.to_string());
+    let equations = validated.feature_equations(&identifier_key(&construction.name));
     if let Some(equation) = equations.iter().find(|equation| {
-        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if field == "verb")
+        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == "verb")
     }) {
         return feature_expr(
             validated,
             construction,
             equation.value(),
             Feature::Agreement,
-            &[],
-            Some(whole),
+            locals,
         );
     }
     if equations.iter().any(|equation| {
         matches!(equation.target(), FeaturePlace::Construction(Feature::Agreement))
-            && matches!(equation.value(), FeatureExpr::FromRole { role, feature: Feature::Agreement } if role == "verb")
+            && matches!(equation.value(), FeatureExpr::FromRole { role, feature: Feature::Agreement } if identifier_key(role) == "verb")
     }) {
         return Ok(quote! { agreement });
     }
@@ -514,8 +715,7 @@ fn feature_expr(
     construction: &crate::Construction,
     expression: &FeatureExpr,
     _feature: Feature,
-    _categories: &[(String, Vec<&crate::Construction>)],
-    whole: Option<&syn::Ident>,
+    locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
     Ok(match expression {
         FeatureExpr::Constant(value) => feature_value(*value.value()),
@@ -527,20 +727,56 @@ fn feature_expr(
                 .element
                 .fields
                 .iter()
-                .any(|field| field.name == *role)
+                .any(|field| identifier_key(&field.name) == identifier_key(role))
             {
+                if let Some(writer) = validated
+                    .feature_equations(&identifier_key(&construction.name))
+                    .iter()
+                    .find(|equation| {
+                        matches!(
+                            equation.target(),
+                            FeaturePlace::Role { field, feature }
+                                if identifier_key(field) == identifier_key(role) && feature == source_feature
+                        )
+                    })
+                {
+                    return feature_expr(
+                        validated,
+                        construction,
+                        writer.value(),
+                        *source_feature,
+                        locals,
+                    );
+                }
                 return Ok(quote! { agreement });
             }
             let field = construction
                 .element
                 .fields
                 .iter()
-                .find(|field| field.name == *role)
+                .find(|field| identifier_key(&field.name) == identifier_key(role))
                 .expect("resolved role");
-            let role_value = whole.map_or_else(
-                || quote! { #role },
-                |whole| field_value(construction, role, whole),
-            );
+            if matches!(field.kind, FieldKind::Category(_))
+                && let Some(writer) = validated
+                    .feature_equations(&identifier_key(&construction.name))
+                    .iter()
+                    .find(|equation| {
+                        matches!(
+                            equation.target(),
+                            FeaturePlace::Role { field, feature }
+                                if identifier_key(field) == identifier_key(role) && feature == source_feature
+                        )
+                    })
+            {
+                return feature_expr(
+                    validated,
+                    construction,
+                    writer.value(),
+                    *source_feature,
+                    locals,
+                );
+            }
+            let role_value = field_value(construction, role, locals)?;
             let (source, value) = match &field.kind {
                 FieldKind::Category(path) => (path_name(path), role_value),
                 FieldKind::Lex(_) => {
@@ -550,10 +786,7 @@ fn feature_expr(
                         role,
                         *source_feature,
                     )?;
-                    let writer_value = whole.map_or_else(
-                        || quote! { #writer_role },
-                        |whole| field_value(construction, writer_role, whole),
-                    );
+                    let writer_value = field_value(construction, writer_role, locals)?;
                     (
                         path_name(vocabulary),
                         copy_value(construction, writer_role, writer_value),
@@ -577,7 +810,7 @@ fn feature_expr(
                 .element
                 .fields
                 .iter()
-                .find(|field| field.name == *role)
+                .find(|field| identifier_key(&field.name) == identifier_key(role))
                 .ok_or_else(|| internal("match feature role is absent"))?;
             let ty = ident(&field_terminal(field));
             let match_arms = arms.iter().map(|(variant, value)| {
@@ -585,10 +818,7 @@ fn feature_expr(
                 let value = feature_value(*value);
                 quote! { #ty::#variant => #value }
             });
-            let role_value = whole.map_or_else(
-                || quote! { #role },
-                |whole| field_value(construction, role, whole),
-            );
+            let role_value = field_value(construction, role, locals)?;
             let role_value = copy_value(construction, role, role_value);
             quote! { match #role_value { #(#match_arms),* } }
         }
@@ -602,7 +832,7 @@ fn canonical_lexical_feature_lowering<'a>(
     feature: Feature,
 ) -> syn::Result<(&'a syn::Ident, &'a syn::Path)> {
     let writer = validated
-        .feature_equations(&construction.name.to_string())
+        .feature_equations(&identifier_key(&construction.name))
         .iter()
         .find(|equation| {
             matches!(
@@ -610,7 +840,7 @@ fn canonical_lexical_feature_lowering<'a>(
                 FeaturePlace::Role {
                     field,
                     feature: writer_feature,
-                } if field == role && *writer_feature == feature
+                } if identifier_key(field) == identifier_key(role) && *writer_feature == feature
             )
         })
         .ok_or_else(|| {
@@ -629,7 +859,7 @@ fn canonical_lexical_feature_lowering<'a>(
             feature_name(feature),
         )));
     };
-    if writer_role != role {
+    if identifier_key(writer_role) != identifier_key(role) {
         return Err(internal(&format!(
             "lexical feature read `{role}.{}` has a mismatched local match writer",
             feature_name(feature),
@@ -639,7 +869,7 @@ fn canonical_lexical_feature_lowering<'a>(
         .element
         .fields
         .iter()
-        .find(|field| field.name == *writer_role)
+        .find(|field| identifier_key(&field.name) == identifier_key(writer_role))
         .and_then(|field| match &field.kind {
             FieldKind::Lex(path) => Some(path),
             FieldKind::Category(_) | FieldKind::Identity(_) => None,
@@ -656,31 +886,43 @@ fn emit_feature_helper(
 ) -> syn::Result<GeneratedItem> {
     let function = format_ident!("{}_for_{}", feature_name(feature), snake_case(category));
     let ty = ident(category);
-    let argument = category_argument(category);
+    let mut allocator = LocalAllocator::default();
+    for construction in members {
+        let equation = validated
+            .feature_equations(&identifier_key(&construction.name))
+            .iter()
+            .find(|equation| {
+                matches!(equation.target(), FeaturePlace::Construction(found) if *found == feature)
+            })
+            .ok_or_else(|| internal("feature helper construction lacks equation"))?;
+        reserve_feature_callees(validated, construction, equation.value(), &mut allocator)?;
+    }
+    let argument = allocator.allocate(&category_argument(category));
     let return_ty = match feature {
         Feature::Agreement => quote! { Agreement },
         Feature::Number => quote! { Number },
     };
     let mut entries: Vec<(TokenStream, String, TokenStream)> = Vec::new();
     for construction in members {
-        let equation = validated.feature_equations(&construction.name.to_string()).iter().find(|equation| {
+        let mut arm_allocator = allocator.clone();
+        let equation = validated.feature_equations(&identifier_key(&construction.name)).iter().find(|equation| {
             matches!(equation.target(), FeaturePlace::Construction(found) if *found == feature)
         }).ok_or_else(|| internal("feature helper construction lacks equation"))?;
-        let variant = ident(&pascal_case(&construction.name.to_string()));
+        let variant = ident(&pascal_case(&identifier_key(&construction.name)));
         let element = &construction.element.name;
         if let FeatureExpr::MatchVocab { role, arms: values } = equation.value() {
             let field = construction
                 .element
                 .fields
                 .iter()
-                .find(|field| field.name == *role)
+                .find(|field| identifier_key(&field.name) == identifier_key(role))
                 .ok_or_else(|| internal("feature match role absent"))?;
             let field_type = ident(&field_terminal(field));
             let other_fields = construction
                 .element
                 .fields
                 .iter()
-                .filter(|candidate| candidate.name != *role)
+                .filter(|candidate| identifier_key(&candidate.name) != identifier_key(role))
                 .map(|candidate| {
                     let name = &candidate.name;
                     quote! { #name: _ }
@@ -693,24 +935,17 @@ fn emit_feature_helper(
                 entries.push((pattern, value.to_string(), value));
             }
         } else {
-            let whole = ident(&construction.name.to_string());
-            let pattern = feature_constant_pattern(
+            let roles = feature_roles(validated, construction, equation.value())?;
+            let (pattern, locals) = feature_constant_pattern(
                 validated,
                 construction,
                 &ty,
                 &variant,
                 element,
-                equation.value(),
-                &whole,
-            )?;
-            let value = feature_expr(
-                validated,
-                construction,
-                equation.value(),
-                feature,
-                &[],
-                Some(&whole),
-            )?;
+                &roles,
+                &mut arm_allocator,
+            );
+            let value = feature_expr(validated, construction, equation.value(), feature, &locals)?;
             entries.push((pattern, value.to_string(), value));
         }
     }
@@ -739,7 +974,10 @@ fn emit_feature_helper(
         members
             .iter()
             .map(|construction| {
-                DeclarationKey::new(DeclarationKind::Construction, construction.name.to_string())
+                DeclarationKey::new(
+                    DeclarationKind::Construction,
+                    identifier_key(&construction.name),
+                )
             })
             .collect(),
     ))
@@ -749,17 +987,91 @@ fn emit_feature_helper(
     clippy::unnecessary_wraps,
     reason = "keeps the feature-pattern lowering interface uniformly fallible"
 )]
+fn feature_roles(
+    validated: &ValidatedDeclarations,
+    construction: &crate::Construction,
+    expression: &FeatureExpr,
+) -> syn::Result<HashSet<String>> {
+    fn collect(
+        validated: &ValidatedDeclarations,
+        construction: &crate::Construction,
+        expression: &FeatureExpr,
+        roles: &mut HashSet<String>,
+        visiting: &mut HashSet<(String, Feature)>,
+    ) -> syn::Result<()> {
+        match expression {
+            FeatureExpr::Constant(_) => Ok(()),
+            FeatureExpr::MatchVocab { role, .. } => {
+                roles.insert(identifier_key(role));
+                Ok(())
+            }
+            FeatureExpr::FromRole {
+                role,
+                feature: source_feature,
+            } => {
+                let key = (identifier_key(role), *source_feature);
+                if !visiting.insert(key.clone()) {
+                    return Err(internal("sealed feature flow contains a cycle"));
+                }
+                let field = construction
+                    .element
+                    .fields
+                    .iter()
+                    .find(|field| identifier_key(&field.name) == identifier_key(role));
+                let writer = validated
+                    .feature_equations(&identifier_key(&construction.name))
+                    .iter()
+                    .find(|equation| {
+                        matches!(equation.target(), FeaturePlace::Role { field, feature } if identifier_key(field) == identifier_key(role) && feature == source_feature)
+                    });
+                let result = if field.is_none()
+                    || field.is_some_and(|field| matches!(field.kind, FieldKind::Category(_)))
+                        && writer.is_some()
+                {
+                    if let Some(writer) = writer {
+                        collect(validated, construction, writer.value(), roles, visiting)
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    roles.insert(identifier_key(role));
+                    Ok(())
+                };
+                visiting.remove(&key);
+                result
+            }
+        }
+    }
+
+    let mut roles = HashSet::new();
+    collect(
+        validated,
+        construction,
+        expression,
+        &mut roles,
+        &mut HashSet::new(),
+    )?;
+    Ok(roles)
+}
+
 fn feature_constant_pattern(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
     category: &syn::Ident,
     variant: &syn::Ident,
     element: &syn::Ident,
-    expression: &FeatureExpr,
-    whole: &syn::Ident,
-) -> syn::Result<TokenStream> {
+    roles: &HashSet<String>,
+    allocator: &mut LocalAllocator,
+) -> (TokenStream, RenderLocals) {
     if construction.element.fields.is_empty() {
-        return Ok(quote! { #category::#variant(#element) });
+        return (
+            quote! { #category::#variant(#element) },
+            RenderLocals {
+                whole: None,
+                fields: HashMap::new(),
+                category: TokenStream::new(),
+            },
+        );
     }
     if construction.checked.as_ref().is_some_and(|checked| {
         checked.visibilities.iter().any(|visibility| {
@@ -769,23 +1081,38 @@ fn feature_constant_pattern(
             )
         })
     }) {
-        if matches!(expression, FeatureExpr::FromRole { role, .. } if construction.element.fields.iter().any(|field| field.name == *role))
-        {
-            return Ok(quote! { #category::#variant(#whole) });
-        }
-        return Ok(quote! { #category::#variant(_) });
+        let whole = (!roles.is_empty()).then(|| allocator.allocate_ident(&construction.name));
+        let pattern = whole.as_ref().map_or_else(
+            || quote! { #category::#variant(_) },
+            |whole| quote! { #category::#variant(#whole) },
+        );
+        return (
+            pattern,
+            RenderLocals {
+                whole,
+                fields: HashMap::new(),
+                category: TokenStream::new(),
+            },
+        );
     }
     let mut fields = Vec::new();
+    let mut locals = HashMap::new();
     for field in &construction.element.fields {
         let name = &field.name;
-        if matches!(expression, FeatureExpr::FromRole { role, .. } if role == name) {
-            fields.push(quote! { #name });
+        if roles.contains(&identifier_key(name)) {
+            let local = allocator.allocate_ident(name);
+            locals.insert(identifier_key(name), local.clone());
+            if local == *name {
+                fields.push(quote! { #name });
+            } else {
+                fields.push(quote! { #name: #local });
+            }
             continue;
         }
         let refined = construction
             .requirements
             .iter()
-            .any(|requirement| requirement.role == *name);
+            .any(|requirement| identifier_key(&requirement.role) == identifier_key(name));
         let pattern = if refined {
             quote! { #name: _ }
         } else if let FieldKind::Lex(path) = &field.kind {
@@ -804,7 +1131,14 @@ fn feature_constant_pattern(
         };
         fields.push(pattern);
     }
-    Ok(quote! { #category::#variant(#element { #(#fields),* }) })
+    (
+        quote! { #category::#variant(#element { #(#fields),* }) },
+        RenderLocals {
+            whole: None,
+            fields: locals,
+            category: TokenStream::new(),
+        },
+    )
 }
 
 fn feature_value(value: FeatureValue) -> TokenStream {
@@ -823,8 +1157,10 @@ fn feature_is_read(
     feature: Feature,
 ) -> bool {
     constructions.iter().any(|construction| {
-        validated.feature_equations(&construction.name.to_string()).iter().any(|equation| {
-            matches!(equation.value(), FeatureExpr::FromRole { role, feature: found } if *found == feature && construction.element.fields.iter().any(|field| field.name == *role && matches!(&field.kind, FieldKind::Category(path) if path_name(path) == category)))
+        validated.feature_equations(&identifier_key(&construction.name)).iter().any(|equation| {
+            matches!(equation.value(), FeatureExpr::FromRole { role, feature: found } if *found == feature
+                && construction.element.fields.iter().any(|field| identifier_key(&field.name) == identifier_key(role) && matches!(&field.kind, FieldKind::Category(path) if path_name(path) == category))
+                && !validated.feature_equations(&identifier_key(&construction.name)).iter().any(|writer| matches!(writer.target(), FeaturePlace::Role { field, feature: writer_feature } if identifier_key(field) == identifier_key(role) && *writer_feature == feature)))
         }) || (feature == Feature::Number && construction.form.atoms.iter().any(|atom| matches!(atom, FormAtom::Noun(_))) && path_name(&construction.category) == category)
     })
 }
@@ -837,7 +1173,7 @@ fn context_categories(categories: &[(String, Vec<&crate::Construction>)]) -> Has
             if members.iter().any(|construction| {
                 construction.form.atoms.iter().any(|atom| match atom {
                     FormAtom::Identity(_) => true,
-                    FormAtom::Role(role) => construction.element.fields.iter().find(|field| field.name == *role).is_some_and(|field| matches!(&field.kind, FieldKind::Category(path) if result.contains(&path_name(path)))),
+                    FormAtom::Role(role) => construction.element.fields.iter().find(|field| identifier_key(&field.name) == identifier_key(role)).is_some_and(|field| matches!(&field.kind, FieldKind::Category(path) if result.contains(&path_name(path)))),
                     _ => false,
                 })
             }) {
@@ -895,7 +1231,7 @@ fn enqueue_role_categories(
                 .element
                 .fields
                 .iter()
-                .find(|field| field.name == *role)
+                .find(|field| identifier_key(&field.name) == identifier_key(role))
             else {
                 continue;
             };
@@ -935,7 +1271,7 @@ fn find_vocab<'a>(validated: &'a ValidatedDeclarations, name: &str) -> Option<&'
         .declarations
         .iter()
         .find_map(|declaration| match declaration {
-            Declaration::Vocab(vocab) if vocab.name == name => Some(vocab),
+            Declaration::Vocab(vocab) if identifier_key(&vocab.name) == name => Some(vocab),
             _ => None,
         })
 }
@@ -950,7 +1286,7 @@ fn find_binding<'a>(
         .iter()
         .find_map(|declaration| match declaration {
             Declaration::Codec(binding) | Declaration::Identity(binding)
-                if binding.name == name =>
+                if identifier_key(&binding.name) == name =>
             {
                 Some(binding)
             }
@@ -970,20 +1306,32 @@ fn field_terminal(field: &crate::Field) -> String {
 fn field_value(
     construction: &crate::Construction,
     role: &syn::Ident,
-    whole: &syn::Ident,
-) -> TokenStream {
+    locals: &RenderLocals,
+) -> syn::Result<TokenStream> {
     if let Some(accessor) = construction.checked.as_ref().and_then(|checked| {
         checked
             .accessors
             .iter()
-            .find(|accessor| accessor.role == *role)
+            .find(|accessor| identifier_key(&accessor.role) == identifier_key(role))
     }) {
+        let whole = locals
+            .whole
+            .as_ref()
+            .ok_or_else(|| internal("checked render accessor lacks its allocated whole local"))?;
         let method = &accessor.method;
-        quote! { #whole.#method() }
+        Ok(quote! { #whole.#method() })
     } else if has_private_fields(construction) {
-        quote! { &#whole.#role }
+        let whole = locals
+            .whole
+            .as_ref()
+            .ok_or_else(|| internal("private render field lacks its allocated whole local"))?;
+        Ok(quote! { &#whole.#role })
     } else {
-        quote! { #role }
+        let local = locals
+            .fields
+            .get(&identifier_key(role))
+            .ok_or_else(|| internal("public render field lacks its allocated local"))?;
+        Ok(quote! { #local })
     }
 }
 
@@ -1004,7 +1352,7 @@ fn has_accessor(construction: &crate::Construction, role: &syn::Ident) -> bool {
         checked
             .accessors
             .iter()
-            .any(|accessor| accessor.role == *role)
+            .any(|accessor| identifier_key(&accessor.role) == identifier_key(role))
     })
 }
 
@@ -1028,13 +1376,13 @@ fn render_category_name(category: &str, root: bool) -> syn::Ident {
     format_ident!("render_{suffix}")
 }
 
-fn category_argument(category: &str) -> syn::Ident {
+fn category_argument(category: &str) -> String {
     let snake = snake_case(category);
-    if snake.ends_with("_phrase") { ident("phrase") } else { ident(&snake) }
+    if snake.ends_with("_phrase") { "phrase".to_owned() } else { snake }
 }
-fn render_vocab_argument(name: &str) -> syn::Ident {
-    let snake = snake_case(name);
-    ident(snake.strip_suffix("_word").unwrap_or(&snake))
+fn render_vocab_argument(name: &syn::Ident) -> String {
+    let snake = snake_case(&identifier_key(name));
+    snake.strip_suffix("_word").unwrap_or(&snake).to_owned()
 }
 
 fn feature_name(feature: Feature) -> &'static str {
@@ -1044,12 +1392,10 @@ fn feature_name(feature: Feature) -> &'static str {
     }
 }
 fn ident(name: &str) -> syn::Ident {
-    syn::Ident::new(name, Span::call_site())
+    syn::parse_str(name).expect("validated render identifier")
 }
 fn path_name(path: &syn::Path) -> String {
-    path.segments
-        .last()
-        .map_or_else(String::new, |segment| segment.ident.to_string())
+    path_key(path)
 }
 fn simple_type_ident(ty: &syn::Type) -> syn::Result<&syn::Ident> {
     match ty {
@@ -1121,6 +1467,188 @@ mod tests {
         reason = "literal full-surface structural oracles retain detailed mismatch output"
     )]
     use quote::ToTokens;
+
+    #[test]
+    fn raw_fields_and_keyword_checked_constructions_lower_to_valid_render_locals() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Marker { One = "marker", }
+            lexeme Verbs { Act, }
+
+            construction payload: PayloadBox {
+                element PayloadNode { r#payload: lex Marker, }
+                form payload = lex(r#payload);
+            }
+            construction writer_field: WriterField {
+                element WriterFieldNode { r#writer: lex Marker, }
+                form writer_field = lex(r#writer);
+            }
+            construction where: Keyword {
+                element KeywordNode { marker: lex Marker, }
+                checked {
+                    visibility marker = private;
+                    access marker = marker;
+                    constructor = KeywordNode::new(marker);
+                }
+                derive agreement = Values::Bare;
+                form where = lex(marker);
+            }
+            construction root: Root {
+                element RootNode {
+                    payload: PayloadBox,
+                    writer_field: WriterField,
+                    keyword: Keyword,
+                }
+                derive verb.agreement = keyword.agreement;
+                form root = payload writer_field keyword verb(Verbs::Act);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("raw fields and a DSL-keyword checked construction generate without panic");
+
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for fragment in [
+            "PayloadNode { r#payload : payload }",
+            "render_marker (writer , * payload)",
+            "WriterFieldNode { r#writer : writer_2 }",
+            "render_marker (writer , * writer_2)",
+            "Keyword :: Where (where_value)",
+            "render_marker (writer , where_value . marker ())",
+            "map (| where_value |",
+        ] {
+            assert!(source.contains(fragment), "missing `{fragment}`: {source}");
+        }
+        syn::parse2::<syn::File>(expansion.tokens()).expect("the complete expansion reparses");
+    }
+
+    #[test]
+    fn generated_render_locals_are_hygienic_across_abi_and_helper_names() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Marker { One = "marker", }
+            vocab WriterWord { One = "writer", }
+            lexeme Verbs { Act, }
+            identity SelfRef {
+                value_type = SelfRef;
+                lexical = Lexical::SelfRef;
+                render context_identity { Full => card_name, }
+                build { pattern = BuildValue::SelfRef(value); construct = value; }
+                traversal {
+                    callback = copy;
+                    argument = value;
+                    variant Full;
+                }
+            }
+
+            construction child: Child {
+                element ChildNode {}
+                derive agreement = Values::Bare;
+                form child = "child";
+            }
+            construction contextual: Action {
+                element ContextualAction { agreement: lex Marker, }
+                derive agreement = verb.agreement;
+                form contextual = lex(agreement) verb(Verbs::Act);
+            }
+            construction wrapper: RenderChild {
+                element Wrapper { child: Child, }
+                form wrapper = child;
+            }
+            construction wrapped: AgreementForChild {
+                element Wrapped { child: Child, }
+                checked {
+                    visibility child = private;
+                    access child = child;
+                    constructor = Wrapped::new(child);
+                }
+                derive agreement = child.agreement;
+                form wrapped = child;
+            }
+            construction writer: CheckedRender {
+                element CheckedRenderNode { marker: lex Marker, }
+                checked {
+                    visibility marker = private;
+                    access marker = marker;
+                    constructor = CheckedRenderNode::new(marker);
+                }
+                form writer = lex(marker);
+            }
+            construction root: Root {
+                element RootNode {
+                    writer: lex Marker,
+                    context: identity SelfRef,
+                    action: Action,
+                    wrapper: RenderChild,
+                    wrapped: AgreementForChild,
+                    word: lex WriterWord,
+                }
+                derive action.agreement = Values::Bare;
+                derive verb.agreement = wrapped.agreement;
+                form root = lex(writer) identity(context) action wrapper wrapped lex(word)
+                    verb(Verbs::Act);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("adversarial render names remain valid declaration vocabulary");
+
+        let source = expansion
+            .items()
+            .iter()
+            .filter(|item| match &item.key {
+                crate::ItemKey::Impl { trait_name, .. } => trait_name.as_deref() == Some("Render"),
+                crate::ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name,
+                } => {
+                    name.starts_with("render_")
+                        || name.starts_with("agreement_for_")
+                        || name.starts_with("number_for_")
+                }
+                crate::ItemKey::Named { .. } => false,
+            })
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for fragment in [
+            "ContextualAction { agreement : agreement_2 }",
+            "render_marker (writer , * agreement_2)",
+            "inflect (Verbs :: Act , agreement)",
+            "RootNode { writer : writer_2 , context : context_2",
+            "render_marker (& mut writer , * writer_2)",
+            "writer . identity (context . card_name ())",
+            "match * context_2",
+            "fn render_writer_word (writer : & mut Writer , writer_2 : WriterWord)",
+            "fn render_render_child (writer : & mut Writer , render_child_2 : & RenderChild)",
+            "match render_child_2",
+            "render_child (writer , child)",
+            "fn agreement_for_agreement_for_child (agreement_for_child_2 : & AgreementForChild)",
+            "match agreement_for_child_2",
+            "agreement_for_child (wrapped . child ())",
+            "CheckedRender :: Writer (writer_2)",
+            "render_marker (writer , writer_2 . marker ())",
+        ] {
+            assert!(
+                source.contains(fragment),
+                "missing hygienic `{fragment}`: {source}"
+            );
+        }
+        for shadowed in [
+            "ContextualAction { agreement })",
+            "RootNode { writer , context",
+            "writer : & mut Writer , writer : WriterWord",
+            "writer : & mut Writer , render_child : & RenderChild",
+            "fn agreement_for_agreement_for_child (agreement_for_child : & AgreementForChild)",
+            "CheckedRender :: Writer (writer)",
+        ] {
+            assert!(
+                !source.contains(shadowed),
+                "shadowed binding survived as `{shadowed}`: {source}",
+            );
+        }
+    }
 
     #[test]
     fn role_derived_noun_render_uses_declared_feature_helper() {
