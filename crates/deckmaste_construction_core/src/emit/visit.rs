@@ -267,7 +267,11 @@ fn emit_category_walker(category: &str, members: &[&crate::Construction]) -> Gen
             "visit_{}",
             snake_case(&construction.element.name.to_string())
         );
-        quote! { #ty::#variant(#payload) => visitor.#callback(#payload) }
+        crate::emit::call_match_arm(
+            &quote! { #ty::#variant(#payload) },
+            &quote! { visitor.#callback(#payload) },
+            8,
+        )
     });
     GeneratedItem::new(
         ItemKey::Named {
@@ -416,7 +420,13 @@ fn emit_enum_walker<'a>(
     let argument = ident(&argument);
     let callback = format_ident!("visit_{}", snake_case(&ty.to_string()));
     let arms = variants
-        .map(|variant| quote! { #ty::#variant => visitor.#callback(#ty::#variant) })
+        .map(|variant| {
+            crate::emit::call_match_arm(
+                &quote! { #ty::#variant },
+                &quote! { visitor.#callback(#ty::#variant) },
+                8,
+            )
+        })
         .collect::<Vec<_>>();
     GeneratedItem::new(
         ItemKey::Named {
@@ -455,11 +465,13 @@ fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<Generate
         quote! { #(#branches)* }
     } else if !binding.traversal.variants.is_empty() {
         let callback = format_ident!("visit_{}", snake_case(&type_name));
-        let variants = binding
-            .traversal
-            .variants
-            .iter()
-            .map(|variant| quote! { #ty::#variant => visitor.#callback(#ty::#variant) });
+        let variants = binding.traversal.variants.iter().map(|variant| {
+            crate::emit::call_match_arm(
+                &quote! { #ty::#variant },
+                &quote! { visitor.#callback(#ty::#variant) },
+                8,
+            )
+        });
         quote! { match #argument { #(#variants,)* } }
     } else {
         let fields = binding
@@ -1261,7 +1273,7 @@ mod tests {
             pub fn walk_ability<V: Visitor + ?Sized>(visitor: &mut V, ability: &Ability) { match ability { Ability::Spell(spell) => visitor.visit_spell(spell), Ability::Triggered(triggered) => visitor.visit_triggered(triggered), } }
             pub fn walk_sentence<V: Visitor + ?Sized>(visitor: &mut V, sentence: &Sentence) { match sentence { Sentence::Imperative(imperative) => visitor.visit_imperative(imperative), Sentence::Declarative(declarative) => visitor.visit_declarative(declarative), Sentence::WithWhere(with_where) => visitor.visit_with_where(with_where), } }
             pub fn walk_clause<V: Visitor + ?Sized>(visitor: &mut V, clause: &Clause) { match clause { Clause::Event(event_clause) => visitor.visit_event_clause(event_clause), Clause::Where(where_clause) => visitor.visit_where_clause(where_clause), } }
-            pub fn walk_noun_phrase<V: Visitor + ?Sized>(visitor: &mut V, noun_phrase: &NounPhrase) { match noun_phrase { NounPhrase::Pronoun(pronoun_np) => visitor.visit_pronoun_np(pronoun_np), NounPhrase::Common(common) => visitor.visit_common(common), NounPhrase::Demonstrative(demonstrative_np) => visitor.visit_demonstrative_np(demonstrative_np), NounPhrase::Target(target_np) => visitor.visit_target_np(target_np), NounPhrase::SelfReference(self_reference_np) => visitor.visit_self_reference_np(self_reference_np), NounPhrase::Count(count_np) => visitor.visit_count_np(count_np), } }
+            pub fn walk_noun_phrase<V: Visitor + ?Sized>(visitor: &mut V, noun_phrase: &NounPhrase) { match noun_phrase { NounPhrase::Pronoun(pronoun_np) => visitor.visit_pronoun_np(pronoun_np), NounPhrase::Common(common) => visitor.visit_common(common), NounPhrase::Demonstrative(demonstrative_np) => { visitor.visit_demonstrative_np(demonstrative_np); }, NounPhrase::Target(target_np) => visitor.visit_target_np(target_np), NounPhrase::SelfReference(self_reference_np) => { visitor.visit_self_reference_np(self_reference_np); }, NounPhrase::Count(count_np) => visitor.visit_count_np(count_np), } }
             pub fn walk_verb_phrase<V: Visitor + ?Sized>(visitor: &mut V, verb_phrase: &VerbPhrase) { match verb_phrase { VerbPhrase::Destroy(destroy) => visitor.visit_destroy(destroy), VerbPhrase::Connive(connive) => visitor.visit_connive(connive), VerbPhrase::DealDamage(deal_damage) => visitor.visit_deal_damage(deal_damage), VerbPhrase::GainLife(gain_life) => visitor.visit_gain_life(gain_life), } }
             pub fn walk_amount<V: Visitor + ?Sized>(visitor: &mut V, amount: &Amount) { match amount { Amount::Number(number_amount) => visitor.visit_number_amount(number_amount), Amount::Variable(variable_amount) => visitor.visit_variable_amount(variable_amount), } }
             pub fn walk_noun<V: Visitor + ?Sized>(visitor: &mut V, noun: &Noun) { match noun { Noun::Lexeme(noun_lexeme) => walk_noun_lexeme(visitor, *noun_lexeme), Noun::Catalog(catalog_identity) => walk_catalog_identity(visitor, catalog_identity), } }
@@ -1290,7 +1302,7 @@ mod tests {
             pub fn walk_pronoun<V: Visitor + ?Sized>(visitor: &mut V, pronoun: Pronoun) { match pronoun { Pronoun::It => visitor.visit_pronoun(Pronoun::It), Pronoun::You => visitor.visit_pronoun(Pronoun::You), } }
             pub fn walk_variable<V: Visitor + ?Sized>(visitor: &mut V, variable: Variable) { match variable { Variable::X => visitor.visit_variable(Variable::X), } }
             pub fn walk_sign<V: Visitor + ?Sized>(visitor: &mut V, sign: Sign) { match sign { Sign::Positive => visitor.visit_sign(Sign::Positive), Sign::Negative => visitor.visit_sign(Sign::Negative), } }
-            pub fn walk_self_reference_spelling<V: Visitor + ?Sized>(visitor: &mut V, spelling: SelfReferenceSpelling) { match spelling { SelfReferenceSpelling::Full => visitor.visit_self_reference_spelling(SelfReferenceSpelling::Full), SelfReferenceSpelling::Abbreviated => visitor.visit_self_reference_spelling(SelfReferenceSpelling::Abbreviated), } }
+            pub fn walk_self_reference_spelling<V: Visitor + ?Sized>(visitor: &mut V, spelling: SelfReferenceSpelling) { match spelling { SelfReferenceSpelling::Full => { visitor.visit_self_reference_spelling(SelfReferenceSpelling::Full); }, SelfReferenceSpelling::Abbreviated => { visitor.visit_self_reference_spelling(SelfReferenceSpelling::Abbreviated); }, } }
             pub fn walk_noun_lexeme<V: Visitor + ?Sized>(visitor: &mut V, noun: NounLexeme) { match noun { NounLexeme::Player => visitor.visit_noun_lexeme(NounLexeme::Player), } }
             pub fn walk_verb_lexeme<V: Visitor + ?Sized>(visitor: &mut V, verb: VerbLexeme) { match verb { VerbLexeme::Destroy => visitor.visit_verb_lexeme(VerbLexeme::Destroy), VerbLexeme::Connive => visitor.visit_verb_lexeme(VerbLexeme::Connive), VerbLexeme::Deal => visitor.visit_verb_lexeme(VerbLexeme::Deal), VerbLexeme::Gain => visitor.visit_verb_lexeme(VerbLexeme::Gain), VerbLexeme::Control => visitor.visit_verb_lexeme(VerbLexeme::Control), VerbLexeme::Be => visitor.visit_verb_lexeme(VerbLexeme::Be), } }
             pub fn walk_signed_number<V: Visitor + ?Sized>(visitor: &mut V, number: &SignedNumber) { let SignedNumber { sign, magnitude } = number; walk_sign(visitor, *sign); let _ = magnitude; visitor.visit_signed_number(number); }

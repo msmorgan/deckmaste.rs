@@ -374,7 +374,11 @@ fn render_atoms(
                         let match_arms = arms.iter().map(|arm| {
                             let variant = &arm.variant;
                             let accessor = &arm.accessor;
-                            quote! { #ty::#variant => #method_writer.identity(context.#accessor()) }
+                            crate::emit::call_match_arm(
+                                &quote! { #ty::#variant },
+                                &quote! { #method_writer.identity(context.#accessor()) },
+                                12,
+                            )
                         });
                         let value = match binding.traversal.callback_mode {
                             Some(VisitMode::Copy) => copy_value(construction, role, value),
@@ -1403,7 +1407,9 @@ mod tests {
                     }
                     NounPhrase::SelfReference(self_reference) => match self_reference.spelling() {
                         SelfReferenceSpelling::Full => writer.identity(context.card_name()),
-                        SelfReferenceSpelling::Abbreviated => writer.identity(context.abbreviated_card_name())
+                        SelfReferenceSpelling::Abbreviated => {
+                            writer.identity(context.abbreviated_card_name());
+                        }
                     },
                     NounPhrase::Count(CountNp { head, controller, threshold }) => {
                         render_noun(writer, head, number_for_noun_phrase(phrase));
