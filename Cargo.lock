@@ -2206,6 +2206,7 @@ dependencies = [
  "clap",
  "deckmaste_card",
  "deckmaste_catalogs",
+ "deckmaste_construction_core",
  "deckmaste_core",
  "deckmaste_english",
  "deckmaste_legacy_render",

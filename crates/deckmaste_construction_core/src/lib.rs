@@ -4,6 +4,7 @@ mod format;
 mod model;
 mod parse;
 mod plan;
+mod report;
 mod source;
 mod validate;
 
@@ -20,6 +21,9 @@ pub use crate::plan::NamedKind;
 pub use crate::plan::TerminalContribution;
 pub use crate::plan::TerminalKind;
 pub use crate::plan::TerminalVariantContribution;
+pub use crate::report::EscapeHatchReport;
+pub use crate::report::TerminalBindingDeclaration;
+pub use crate::report::TerminalBindingDeclarationKind;
 pub use crate::validate::ValidatedDeclarations;
 
 /// Parses one grammar-wide declaration invocation.
@@ -49,7 +53,11 @@ pub fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarat
 pub fn generate(tokens: proc_macro2::TokenStream) -> syn::Result<Expansion> {
     let declarations = validate_declarations(parse_declarations(tokens)?)?;
     let plan = plan::plan_emission(&declarations)?;
-    Ok(Expansion { plan })
+    let escape_hatches = report::escape_hatch_report(&declarations);
+    Ok(Expansion {
+        plan,
+        escape_hatches,
+    })
 }
 
 pub fn expand(tokens: proc_macro2::TokenStream) -> proc_macro2::TokenStream {

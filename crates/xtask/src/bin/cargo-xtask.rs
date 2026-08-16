@@ -11,6 +11,7 @@ use xtask::catalogs::CatalogArgs;
 use xtask::cite::CiteArgs;
 use xtask::derive_cards::DeriveCardsArgs;
 use xtask::english::EnglishArgs;
+use xtask::english_v2::EnglishV2Args;
 use xtask::extract::ExtractArgs;
 use xtask::fidelity::FidelityArgs;
 use xtask::generate::GenerateArgs;
@@ -59,6 +60,9 @@ enum Cmd {
     Cite(CiteArgs),
     /// Inspect parsed Oracle text and audit unresolved English phrases.
     English(EnglishArgs),
+    /// Inspect the declaration-driven English-v2 grammar.
+    #[command(name = "english_v2")]
+    EnglishV2(EnglishV2Args),
     /// Frame-layer tooling: compiled-frame dumps, `template:` upkeep, and
     /// the gates and sweeps that read the frame set against real cards.
     Macro(MacroArgs),
@@ -87,6 +91,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Graduate(args) => xtask::graduate::run(&args),
         Cmd::Cite(args) => xtask::cite::dispatch(&args),
         Cmd::English(args) => xtask::english::run(args),
+        Cmd::EnglishV2(args) => xtask::english_v2::run(&args),
         Cmd::Macro(args) => xtask::macros::run(args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
         Cmd::Map(args) => xtask::map::run(&args),
@@ -111,6 +116,13 @@ mod tests {
     fn derive_cards_subcommand_parses_with_defaults() {
         let cli = Cli::try_parse_from(["cargo xtask", "derive-cards"]).unwrap();
         assert!(matches!(cli.command, Cmd::DeriveCards(_)));
+    }
+
+    #[test]
+    fn english_v2_expand_is_the_only_complete_command_shape() {
+        let cli = Cli::try_parse_from(["cargo xtask", "english_v2", "expand"]).unwrap();
+        assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+        assert!(Cli::try_parse_from(["cargo xtask", "english_v2"]).is_err());
     }
 
     #[test]

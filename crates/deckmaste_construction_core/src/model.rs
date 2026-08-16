@@ -302,6 +302,7 @@ pub struct Invocation {
 #[derive(Debug)]
 pub struct Expansion {
     pub(crate) plan: crate::plan::EmissionPlan,
+    pub(crate) escape_hatches: crate::report::EscapeHatchReport,
 }
 
 impl Expansion {
@@ -318,6 +319,11 @@ impl Expansion {
     #[must_use]
     pub fn terminal_contributions(&self) -> &[crate::plan::TerminalContribution] {
         self.plan.terminal_contributions()
+    }
+
+    #[must_use]
+    pub fn escape_hatches(&self) -> &crate::report::EscapeHatchReport {
+        &self.escape_hatches
     }
 
     #[must_use]
