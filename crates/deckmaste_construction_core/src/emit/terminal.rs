@@ -137,6 +137,12 @@ fn snake_case(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::items_after_statements,
+        clippy::too_many_lines,
+        clippy::type_complexity,
+        reason = "literal full-surface structural oracles are intentionally table-dense"
+    )]
     use syn::Item;
     use syn::parse::Parser;
 

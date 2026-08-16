@@ -118,6 +118,10 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
     Ok(items)
 }
 
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "keeps every visitor phase finalizer on one fallible interface"
+)]
 fn emit_trait(
     categories: &[(String, Vec<&crate::Construction>)],
     containers: &[&crate::TerminalBinding],
@@ -169,7 +173,7 @@ fn emit_trait(
                 let ty = &leaf.value_type;
                 let name_string = name.to_string();
                 let callback_subject = name_string.strip_prefix("visit_").unwrap_or(&name_string);
-                let argument = ident(&format!("_{}", leaf_argument(&callback_subject)));
+                let argument = ident(&format!("_{}", leaf_argument(callback_subject)));
                 let signature = match leaf.mode {
                     VisitMode::Copy => quote! { #argument: #ty },
                     VisitMode::Borrowed => quote! { #argument: &#ty },
@@ -229,6 +233,10 @@ fn emit_trait(
     ))
 }
 
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "the identifier is consumed by token interpolation"
+)]
 fn default_method(type_name: &str, argument: syn::Ident) -> TokenStream {
     let ty = ident(type_name);
     let method = format_ident!("visit_{}", snake_case(type_name));
@@ -652,7 +660,7 @@ fn has_private_fields(construction: &crate::Construction) -> bool {
 }
 fn category_argument(category: &str) -> syn::Ident {
     let snake = snake_case(category);
-    if snake.ends_with("_phrase") { ident(&snake) } else { ident(&snake) }
+    ident(&snake)
 }
 fn leaf_argument(name: &str) -> String {
     let snake = snake_case(name);
@@ -727,6 +735,12 @@ fn internal(message: &str) -> syn::Error {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::collapsible_if,
+        clippy::items_after_statements,
+        clippy::too_many_lines,
+        reason = "literal full-surface structural oracles are intentionally table-dense"
+    )]
     use quote::ToTokens;
     use syn::visit::Visit;
 

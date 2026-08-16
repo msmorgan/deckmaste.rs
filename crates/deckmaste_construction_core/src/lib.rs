@@ -22,6 +22,11 @@ pub use crate::plan::TerminalKind;
 pub use crate::plan::TerminalVariantContribution;
 pub use crate::validate::ValidatedDeclarations;
 
+/// Parses one grammar-wide declaration invocation.
+///
+/// # Errors
+///
+/// Returns a span-bearing syntax error for malformed or deferred MVP input.
 pub fn parse_declarations(tokens: proc_macro2::TokenStream) -> syn::Result<Declarations> {
     parse::parse_declarations(tokens)
 }
@@ -36,6 +41,11 @@ pub fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarat
     validate::validate_declarations(raw)
 }
 
+/// Parses, validates, and plans all generated Rust items.
+///
+/// # Errors
+///
+/// Returns a span-bearing parse, validation, or internal emission error.
 pub fn generate(tokens: proc_macro2::TokenStream) -> syn::Result<Expansion> {
     let declarations = validate_declarations(parse_declarations(tokens)?)?;
     let plan = plan::plan_emission(&declarations)?;
@@ -48,6 +58,11 @@ pub fn expand(tokens: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     })
 }
 
+/// Extracts the sole direct grammar-wide invocation from Rust source.
+///
+/// # Errors
+///
+/// Returns an error for missing, repeated, or indirect invocations.
 pub fn invocation_from_source(source: &str) -> syn::Result<Invocation> {
     source::invocation_from_source(source)
 }

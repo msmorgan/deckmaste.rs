@@ -205,6 +205,8 @@ pub(crate) fn plan_emission(validated: &ValidatedDeclarations) -> syn::Result<Em
     items.extend(terminal_items);
     items.extend(crate::emit::render::emit(validated)?);
     items.extend(crate::emit::visit::emit(validated)?);
+    items.extend(crate::emit::rules::emit(validated)?);
+    items.extend(crate::emit::build::emit(validated)?);
 
     let mut keys = HashSet::new();
     for item in &items {
@@ -284,7 +286,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 20);
+        assert_eq!(keys.len(), 26);
         assert_eq!(
             keys.len(),
             keys.iter().copied().collect::<HashSet<_>>().len()

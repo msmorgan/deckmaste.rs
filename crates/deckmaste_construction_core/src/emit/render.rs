@@ -22,6 +22,10 @@ use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the phase finalizer preserves the pinned source-order item sequence"
+)]
 pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = validated
         .raw()
@@ -254,13 +258,10 @@ fn render_arms(
                 let statement = syn::parse2::<syn::Stmt>(
                     statements.into_iter().next().expect("one statement"),
                 )?;
-                let expression = match statement {
-                    syn::Stmt::Expr(expression, _) => expression,
-                    _ => {
-                        return Err(internal(
-                            "render atom did not lower to an expression statement",
-                        ));
-                    }
+                let syn::Stmt::Expr(expression, _) = statement else {
+                    return Err(internal(
+                        "render atom did not lower to an expression statement",
+                    ));
                 };
                 Ok(quote! { #pattern => #expression, })
             } else {
@@ -595,44 +596,41 @@ fn emit_feature_helper(
         }).ok_or_else(|| internal("feature helper construction lacks equation"))?;
         let variant = ident(&pascal_case(&construction.name.to_string()));
         let element = &construction.element.name;
-        match equation.value() {
-            FeatureExpr::MatchVocab { role, arms: values } => {
-                let field = construction
-                    .element
-                    .fields
-                    .iter()
-                    .find(|field| field.name == *role)
-                    .ok_or_else(|| internal("feature match role absent"))?;
-                let field_type = ident(&field_terminal(field));
-                let other_fields = construction
-                    .element
-                    .fields
-                    .iter()
-                    .filter(|candidate| candidate.name != *role)
-                    .map(|candidate| {
-                        let name = &candidate.name;
-                        quote! { #name: _ }
-                    })
-                    .collect::<Vec<_>>();
-                for (value_variant, value) in values {
-                    let value_variant = value_variant.value();
-                    let value = feature_value(*value);
-                    let pattern = quote! { #ty::#variant(#element { #role: #field_type::#value_variant, #(#other_fields),* }) };
-                    entries.push((pattern, value.to_string(), value));
-                }
-            }
-            _ => {
-                let pattern = feature_constant_pattern(
-                    validated,
-                    construction,
-                    &ty,
-                    &variant,
-                    element,
-                    equation.value(),
-                )?;
-                let value = feature_expr(validated, construction, equation.value(), feature, &[])?;
+        if let FeatureExpr::MatchVocab { role, arms: values } = equation.value() {
+            let field = construction
+                .element
+                .fields
+                .iter()
+                .find(|field| field.name == *role)
+                .ok_or_else(|| internal("feature match role absent"))?;
+            let field_type = ident(&field_terminal(field));
+            let other_fields = construction
+                .element
+                .fields
+                .iter()
+                .filter(|candidate| candidate.name != *role)
+                .map(|candidate| {
+                    let name = &candidate.name;
+                    quote! { #name: _ }
+                })
+                .collect::<Vec<_>>();
+            for (value_variant, value) in values {
+                let value_variant = value_variant.value();
+                let value = feature_value(*value);
+                let pattern = quote! { #ty::#variant(#element { #role: #field_type::#value_variant, #(#other_fields),* }) };
                 entries.push((pattern, value.to_string(), value));
             }
+        } else {
+            let pattern = feature_constant_pattern(
+                validated,
+                construction,
+                &ty,
+                &variant,
+                element,
+                equation.value(),
+            )?;
+            let value = feature_expr(validated, construction, equation.value(), feature, &[])?;
+            entries.push((pattern, value.to_string(), value));
         }
     }
     let mut groups: Vec<(String, TokenStream, Vec<TokenStream>)> = Vec::new();
@@ -666,6 +664,10 @@ fn emit_feature_helper(
     ))
 }
 
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "keeps the feature-pattern lowering interface uniformly fallible"
+)]
 fn feature_constant_pattern(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
@@ -698,18 +700,16 @@ fn feature_constant_pattern(
             .requirements
             .iter()
             .any(|requirement| requirement.role == *name);
-        let pattern = if !refined {
-            if let FieldKind::Lex(path) = &field.kind {
-                if let Some(vocab) = find_vocab(validated, &path_name(path)) {
-                    let ty = &vocab.name;
-                    let variants = vocab.variants.iter().map(|variant| {
-                        let variant = &variant.name;
-                        quote! { #ty::#variant }
-                    });
-                    quote! { #name: #(#variants)|* }
-                } else {
-                    quote! { #name: _ }
-                }
+        let pattern = if refined {
+            quote! { #name: _ }
+        } else if let FieldKind::Lex(path) = &field.kind {
+            if let Some(vocab) = find_vocab(validated, &path_name(path)) {
+                let ty = &vocab.name;
+                let variants = vocab.variants.iter().map(|variant| {
+                    let variant = &variant.name;
+                    quote! { #ty::#variant }
+                });
+                quote! { #name: #(#variants)|* }
             } else {
                 quote! { #name: _ }
             }
@@ -875,8 +875,9 @@ fn find_binding<'a>(
 
 fn field_terminal(field: &crate::Field) -> String {
     match &field.kind {
-        FieldKind::Lex(path) | FieldKind::Identity(path) => path_name(path),
-        FieldKind::Category(path) => path_name(path),
+        FieldKind::Lex(path) | FieldKind::Identity(path) | FieldKind::Category(path) => {
+            path_name(path)
+        }
     }
 }
 
@@ -1027,6 +1028,12 @@ fn internal(message: &str) -> syn::Error {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::manual_assert,
+        clippy::match_wildcard_for_single_variants,
+        clippy::too_many_lines,
+        reason = "literal full-surface structural oracles retain detailed mismatch output"
+    )]
     use quote::ToTokens;
 
     #[test]

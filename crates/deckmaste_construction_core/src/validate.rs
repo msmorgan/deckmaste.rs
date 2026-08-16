@@ -85,6 +85,10 @@ pub(crate) enum AtomContribution {
 }
 
 #[derive(Debug)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "the sealed inventory records independent backend capabilities"
+)]
 pub(crate) struct TerminalContribution {
     name: String,
     lex_atom: bool,
@@ -407,6 +411,10 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     })
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "namespace validation accumulates every independent declaration error in source order"
+)]
 fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)> {
     let mut errors = None;
     let mut declaration_names = Vec::new();
@@ -546,7 +554,9 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 let mut words = HashSet::new();
                 for variant in &vocab.variants {
                     let variant_name = variant.name.to_string();
-                    if !variants.insert(variant_name.clone()) {
+                    if variants.insert(variant_name.clone()) {
+                        variant_order.push(variant_name);
+                    } else {
                         combine(
                             &mut errors,
                             syn::Error::new(
@@ -554,8 +564,6 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                                 format!("duplicate variant `{variant_name}`"),
                             ),
                         );
-                    } else {
-                        variant_order.push(variant_name);
                     }
                     let word = variant.word.value();
                     if !words.insert(word.clone()) {
@@ -590,7 +598,9 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 let mut variant_order = Vec::new();
                 for variant in &lexeme.variants {
                     let variant_name = variant.to_string();
-                    if !variants.insert(variant_name.clone()) {
+                    if variants.insert(variant_name.clone()) {
+                        variant_order.push(variant_name);
+                    } else {
                         combine(
                             &mut errors,
                             syn::Error::new(
@@ -598,8 +608,6 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                                 format!("duplicate variant `{variant_name}`"),
                             ),
                         );
-                    } else {
-                        variant_order.push(variant_name);
                     }
                 }
                 terminals.entry(name).or_insert(TerminalInfo {
@@ -820,10 +828,10 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 },
                 FormAtom::Noun(role) => check_noun_role(role, &fields, symbols, &mut errors),
                 FormAtom::Verb(VerbOperand::Projected(role)) => {
-                    check_verb_role(role, &fields, symbols, &mut errors)
+                    check_verb_role(role, &fields, symbols, &mut errors);
                 }
                 FormAtom::Verb(VerbOperand::Fixed(path)) => {
-                    check_terminal_variant(path, TerminalKind::Lexeme, symbols, &mut errors)
+                    check_terminal_variant(path, TerminalKind::Lexeme, symbols, &mut errors);
                 }
                 FormAtom::Literal(_) => {}
             }
@@ -855,7 +863,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     &mut errors,
                 ),
                 ParsedFeatureValue::Match { role, .. } => {
-                    check_vocab_role(role, &fields, symbols, &mut errors)
+                    check_vocab_role(role, &fields, symbols, &mut errors);
                 }
                 ParsedFeatureValue::Constant(_) => {}
             }
@@ -992,7 +1000,7 @@ fn check_lex_role(
     if let Some(FieldKind::Lex(path)) = fields.get(&role.to_string()) {
         let terminal = path_name(path);
         match symbols.terminals.get(&terminal).map(|info| info.kind) {
-            Some(TerminalKind::Vocab) => {}
+            Some(TerminalKind::Vocab) | None => {}
             Some(TerminalKind::Codec) => {
                 if symbols
                     .terminals
@@ -1024,7 +1032,6 @@ fn check_lex_role(
                     format!("lex atom role `{role}` resolves to name-only lexeme `{terminal}`"),
                 ),
             ),
-            None => {}
         }
     }
 }
@@ -1067,6 +1074,10 @@ fn check_noun_role(
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the validation check receives the closed symbol and feature environments explicitly"
+)]
 fn check_feature_role(
     role: &syn::Ident,
     feature: ParsedFeature,
@@ -1494,7 +1505,7 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                 }
             }
             Declaration::Codec(binding) | Declaration::Identity(binding) => {
-                validate_binding(binding, &callbacks, &mut errors)
+                validate_binding(binding, &callbacks, &mut errors);
             }
             _ => {}
         }
@@ -1798,6 +1809,10 @@ fn validate_context_identity(binding: &TerminalBinding, errors: &mut Option<syn:
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the closed traversal schema is validated as one ordered diagnostic pass"
+)]
 fn validate_traversal(
     binding: &TerminalBinding,
     bound: &HashSet<String>,
@@ -2046,7 +2061,7 @@ fn validate_traversal(
                 ),
             );
         }
-        if !closed_expr(&part.value, &bound, false) {
+        if !closed_expr(&part.value, bound, false) {
             combine(
                 errors,
                 syn::Error::new_spanned(
@@ -2325,6 +2340,10 @@ type FeatureValidation = (
     HashSet<String>,
 );
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "feature validation accumulates the complete directional graph before sealing it"
+)]
 fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<FeatureValidation> {
     let mut errors = None;
     let providers = feature_providers(raw);
@@ -2913,6 +2932,10 @@ fn finish(errors: Option<syn::Error>) -> syn::Result<()> {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #![allow(
+        clippy::too_many_lines,
+        reason = "validation fixtures pin complete closed-schema diagnostics and golden input"
+    )]
     use quote::quote;
 
     use crate::Declaration;
@@ -4305,7 +4328,7 @@ pub(crate) mod tests {
                 "VerbLexeme",
             ]
         );
-        assert_eq!(plan.items().len(), 84);
+        assert_eq!(plan.items().len(), 90);
         assert_eq!(plan.terminal_contributions().len(), 7);
 
         assert_eq!(validated.contributions().constructions().len(), 19);

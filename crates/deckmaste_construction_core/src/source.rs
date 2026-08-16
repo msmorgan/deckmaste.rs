@@ -96,17 +96,16 @@ fn reject_indirection(tokens: &proc_macro2::TokenStream) -> syn::Result<()> {
 fn include_span(tokens: proc_macro2::TokenStream) -> Option<proc_macro2::Span> {
     let trees: Vec<_> = tokens.into_iter().collect();
     for (index, tree) in trees.iter().enumerate() {
-        if let TokenTree::Ident(ident) = tree {
-            if ident == "include"
-                && matches!(trees.get(index + 1), Some(TokenTree::Punct(punct)) if punct.as_char() == '!')
-            {
-                return Some(ident.span());
-            }
+        if let TokenTree::Ident(ident) = tree
+            && ident == "include"
+            && matches!(trees.get(index + 1), Some(TokenTree::Punct(punct)) if punct.as_char() == '!')
+        {
+            return Some(ident.span());
         }
-        if let TokenTree::Group(group) = tree {
-            if let Some(span) = include_span(group.stream()) {
-                return Some(span);
-            }
+        if let TokenTree::Group(group) = tree
+            && let Some(span) = include_span(group.stream())
+        {
+            return Some(span);
         }
     }
     None

@@ -577,7 +577,7 @@ fn parse_terminal_binding(
                         "identity binding does not accept an atom slot",
                     ));
                 }
-                reject_duplicate(&codec_atom, &slot)?;
+                reject_duplicate(codec_atom.as_ref(), &slot)?;
                 content.parse::<Token![=]>()?;
                 let atom = content.call(Ident::parse_any)?;
                 codec_atom = Some(match atom.to_string().as_str() {
@@ -593,19 +593,19 @@ fn parse_terminal_binding(
                 content.parse::<Token![;]>()?;
             }
             "value_type" => {
-                reject_duplicate(&value_type, &slot)?;
+                reject_duplicate(value_type.as_ref(), &slot)?;
                 content.parse::<Token![=]>()?;
                 value_type = Some(content.parse()?);
                 content.parse::<Token![;]>()?;
             }
             "lexical" => {
-                reject_duplicate(&lexical_variant, &slot)?;
+                reject_duplicate(lexical_variant.as_ref(), &slot)?;
                 content.parse::<Token![=]>()?;
                 lexical_variant = Some(content.parse()?);
                 content.parse::<Token![;]>()?;
             }
             "render" => {
-                reject_duplicate(&render, &slot)?;
+                reject_duplicate(render.as_ref(), &slot)?;
                 if content.peek(Token![=]) {
                     content.parse::<Token![=]>()?;
                     render = Some(RenderBinding::Runtime(content.parse()?));
@@ -629,11 +629,11 @@ fn parse_terminal_binding(
                 }
             }
             "build" => {
-                reject_duplicate(&build, &slot)?;
+                reject_duplicate(build.as_ref(), &slot)?;
                 build = Some(parse_build_leaf(&content)?);
             }
             "traversal" => {
-                reject_duplicate(&traversal, &slot)?;
+                reject_duplicate(traversal.as_ref(), &slot)?;
                 traversal = Some(parse_traversal(&content)?);
             }
             _ => {
@@ -906,15 +906,15 @@ fn parse_root(input: ParseStream<'_>) -> syn::Result<Root> {
         content.parse::<Token![=]>()?;
         match slot.to_string().as_str() {
             "punctuation" => {
-                reject_duplicate(&punctuation, &slot)?;
+                reject_duplicate(punctuation.as_ref(), &slot)?;
                 punctuation = Some(content.parse()?);
             }
             "eoi" => {
-                reject_duplicate(&eoi, &slot)?;
+                reject_duplicate(eoi.as_ref(), &slot)?;
                 eoi = Some(content.parse::<LitBool>()?.value);
             }
             "standalone_render" => {
-                reject_duplicate(&standalone_render, &slot)?;
+                reject_duplicate(standalone_render.as_ref(), &slot)?;
                 standalone_render = Some(content.parse::<LitBool>()?.value);
             }
             _ => return Err(syn::Error::new(slot.span(), "unknown root metadata slot")),
@@ -932,7 +932,7 @@ fn parse_root(input: ParseStream<'_>) -> syn::Result<Root> {
     })
 }
 
-fn reject_duplicate<T>(slot: &Option<T>, name: &Ident) -> syn::Result<()> {
+fn reject_duplicate<T>(slot: Option<&T>, name: &Ident) -> syn::Result<()> {
     if slot.is_some() {
         Err(syn::Error::new(
             name.span(),
@@ -966,6 +966,10 @@ fn deferred(span: proc_macro2::Span, construct: &str) -> syn::Error {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::too_many_lines,
+        reason = "parser fixtures pin one complete declaration stream"
+    )]
     use quote::ToTokens;
 
     use crate::ConstructorArgument;
@@ -1351,7 +1355,7 @@ mod tests {
     #[test]
     fn feature_places_accept_construction_and_authorized_role_targets_only() {
         let declarations = parse(
-            r#"
+            r"
                 construction imperative: Sentence {
                     element Imperative { predicate: VerbPhrase, }
                     derive agreement = Agreement::Bare;
@@ -1370,7 +1374,7 @@ mod tests {
                     derive predicate.agreement = subject.agreement;
                     form declarative = subject predicate;
                 }
-            "#,
+            ",
         )
         .expect("construction and role agreement targets are in the MVP");
 
@@ -1494,7 +1498,7 @@ mod tests {
         let cases = [
             "vocab Word { /// docs\n One = \"one\", }",
             "lexeme VerbLexeme { /// docs\n Be, }",
-            r#"codec Number {
+            r"codec Number {
                 value_type = Number;
                 lexical = Lexical::Number;
                 render = render_number;
@@ -1503,8 +1507,8 @@ mod tests {
                     construct = value;
                 }
                 traversal {}
-            }"#,
-            r#"codec Number {
+            }",
+            r"codec Number {
                 value_type = Number;
                 lexical = Lexical::Number;
                 render = render_number;
@@ -1516,7 +1520,7 @@ mod tests {
                     part value = scalar(value);
                     visit value;
                 }
-            }"#,
+            }",
             "root Ability { /// docs\n punctuation = \".\"; eoi = true; standalone_render = true; }",
         ];
 
@@ -1596,14 +1600,14 @@ mod tests {
     fn codecs_require_one_closed_atom_class() {
         let binding = |atom: &str| {
             format!(
-                r#"codec Value {{
+                r"codec Value {{
                     {atom}
                     value_type = Value;
                     lexical = Lexical::Value;
                     render = render_value;
                     build {{ pattern = BuildValue::Value(value); construct = value; }}
                     traversal {{ part value = scalar(value); visit value; }}
-                }}"#
+                }}"
             )
         };
 
@@ -1641,7 +1645,7 @@ mod tests {
     #[test]
     fn parses_mandatory_named_element_product_separately_from_rule_identity() {
         let declarations = parse(
-            r#"
+            r"
                 construction event: Clause {
                     element EventClause {
                         subject: NounPhrase,
@@ -1650,7 +1654,7 @@ mod tests {
                     derive predicate.agreement = subject.agreement;
                     form event = subject predicate;
                 }
-            "#,
+            ",
         )
         .expect("named element product is the mandatory MVP construction shape");
         let Declaration::Construction(construction) = &declarations.declarations[0] else {

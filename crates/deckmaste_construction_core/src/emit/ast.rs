@@ -178,6 +178,13 @@ fn internal_error(message: &str) -> syn::Error {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::items_after_statements,
+        clippy::match_wildcard_for_single_variants,
+        clippy::too_many_lines,
+        clippy::type_complexity,
+        reason = "literal full-surface structural oracles are intentionally table-dense"
+    )]
     use quote::ToTokens;
     use syn::Fields;
     use syn::Item;
