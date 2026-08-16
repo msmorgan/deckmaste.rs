@@ -1,0 +1,1478 @@
+use std::collections::HashMap;
+use std::collections::HashSet;
+
+use proc_macro2::Span;
+use proc_macro2::TokenStream;
+use quote::format_ident;
+use quote::quote;
+
+use crate::ValidatedDeclarations;
+use crate::feature::Feature;
+use crate::feature::FeatureExpr;
+use crate::feature::FeaturePlace;
+use crate::feature::FeatureValue;
+use crate::model::Declaration;
+use crate::model::FieldKind;
+use crate::model::FormAtom;
+use crate::model::RenderBinding;
+use crate::model::VisitMode;
+use crate::plan::DeclarationKey;
+use crate::plan::DeclarationKind;
+use crate::plan::GeneratedItem;
+use crate::plan::ItemKey;
+use crate::plan::NamedKind;
+
+pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<GeneratedItem>> {
+    let constructions = validated
+        .raw()
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Construction(value) => Some(value),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let roots = validated
+        .raw()
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Root(value) if value.standalone_render => Some(value),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let categories = category_groups(validated, &constructions);
+    let nested_categories = constructions
+        .iter()
+        .flat_map(|construction| &construction.element.fields)
+        .filter_map(|field| match &field.kind {
+            FieldKind::Category(path) => Some(path_name(path)),
+            FieldKind::Lex(_) | FieldKind::Identity(_) => None,
+        })
+        .collect::<HashSet<_>>();
+    let root_names = roots
+        .iter()
+        .map(|root| path_name(&root.category))
+        .collect::<HashSet<_>>();
+    let context_categories = context_categories(&categories);
+    let agreement_parameter_categories = categories
+        .iter()
+        .filter(|(_, members)| members.iter().any(|construction| {
+            validated.feature_equations(&construction.name.to_string()).iter().any(|equation| {
+                matches!(equation.target(), FeaturePlace::Construction(Feature::Agreement))
+                    && matches!(equation.value(), FeatureExpr::FromRole { role, .. } if !construction.element.fields.iter().any(|field| field.name == *role))
+            })
+        }))
+        .map(|(name, _)| name.clone())
+        .collect::<HashSet<_>>();
+
+    let mut items = Vec::new();
+    for root in &roots {
+        let category = path_name(&root.category);
+        let members = categories
+            .iter()
+            .find(|(name, _)| name == &category)
+            .map(|(_, members)| members.as_slice())
+            .ok_or_else(|| internal("validated root category is absent"))?;
+        let ty = &root.category;
+        let punctuation = punctuation(&root.punctuation)?;
+        let render_body = if nested_categories.contains(&category) {
+            let helper = render_category_name(&category, true);
+            quote! { #helper(&mut writer, self, context); }
+        } else {
+            let arms = render_arms(
+                validated,
+                members,
+                true,
+                &categories,
+                &root_names,
+                &context_categories,
+            )?;
+            quote! { match self { #(#arms)* } }
+        };
+        let tokens = quote! {
+            impl Render for #ty {
+                fn render(&self, context: &ParseContext<'_>) -> String {
+                    let mut writer = Writer::new();
+                    #render_body
+                    writer.punctuation(#punctuation);
+                    writer.finish()
+                }
+            }
+        };
+        items.push(GeneratedItem::new(
+            ItemKey::Impl {
+                trait_name: Some("Render".to_owned()),
+                self_ty: category.clone(),
+            },
+            tokens,
+            vec![DeclarationKey::new(DeclarationKind::Root, category)],
+        ));
+    }
+
+    let render_order = render_category_order(&categories, &roots, &nested_categories);
+    for category in render_order {
+        let members = categories
+            .iter()
+            .find(|(name, _)| name == &category)
+            .map(|(_, members)| members)
+            .ok_or_else(|| internal("render category order is inconsistent"))?;
+        if root_names.contains(&category) && !nested_categories.contains(&category) {
+            continue;
+        }
+        let helper = render_category_name(&category, root_names.contains(&category));
+        let ty = ident(&category);
+        let argument = category_argument(&category);
+        let takes_agreement = agreement_parameter_categories.contains(&category);
+        let takes_context = context_categories.contains(&category);
+        let agreement = takes_agreement.then(|| quote! { agreement: Agreement });
+        let context = takes_context.then(|| quote! { context: &ParseContext<'_> });
+        let separators = signature_tail(&[agreement, context]);
+        let arms = render_arms(
+            validated,
+            members,
+            false,
+            &categories,
+            &root_names,
+            &context_categories,
+        )?;
+        let tokens = quote! {
+            fn #helper(writer: &mut Writer, #argument: &#ty #separators) {
+                match #argument { #(#arms)* }
+            }
+        };
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: helper.to_string(),
+            },
+            tokens,
+            members
+                .iter()
+                .map(|construction| {
+                    DeclarationKey::new(
+                        DeclarationKind::Construction,
+                        construction.name.to_string(),
+                    )
+                })
+                .collect(),
+        ));
+    }
+
+    for declaration in &validated.raw().declarations {
+        let Declaration::Vocab(vocab) = declaration else { continue };
+        let function = format_ident!("render_{}", snake_case(&vocab.name.to_string()));
+        let ty = &vocab.name;
+        let argument = render_vocab_argument(&vocab.name.to_string());
+        let arms = vocab.variants.iter().map(|variant| {
+            let name = &variant.name;
+            let word = &variant.word;
+            quote! { #ty::#name => writer.word(#word) }
+        });
+        let tokens = quote! {
+            fn #function(writer: &mut Writer, #argument: #ty) {
+                match #argument { #(#arms,)* }
+            }
+        };
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: function.to_string(),
+            },
+            tokens,
+            vec![DeclarationKey::new(
+                DeclarationKind::Vocab,
+                vocab.name.to_string(),
+            )],
+        ));
+    }
+
+    for feature in [Feature::Agreement, Feature::Number] {
+        for (category, members) in &categories {
+            if !feature_is_read(validated, &constructions, category, feature) {
+                continue;
+            }
+            items.push(emit_feature_helper(validated, category, members, feature)?);
+        }
+    }
+    Ok(items)
+}
+
+fn signature_tail(parts: &[Option<TokenStream>]) -> TokenStream {
+    let parts = parts.iter().flatten();
+    quote! { #(, #parts)* }
+}
+
+fn render_arms(
+    validated: &ValidatedDeclarations,
+    members: &[&crate::Construction],
+    root_impl: bool,
+    categories: &[(String, Vec<&crate::Construction>)],
+    root_names: &HashSet<String>,
+    context_categories: &HashSet<String>,
+) -> syn::Result<Vec<TokenStream>> {
+    members
+        .iter()
+        .map(|construction| {
+            let variant = ident(&pascal_case(&construction.name.to_string()));
+            let element = &construction.element.name;
+            let qualifier = if root_impl {
+                quote! { Self }
+            } else {
+                let category = &construction.category;
+                quote! { #category }
+            };
+            let private = construction.checked.as_ref().is_some_and(|checked| {
+                checked.visibilities.iter().any(|visibility| {
+                    matches!(
+                        visibility.visibility,
+                        crate::NonPublicVisibility::Private(_)
+                    )
+                })
+            });
+            let whole = ident(&construction.name.to_string());
+            let pattern = if construction.element.fields.is_empty() {
+                quote! { #qualifier::#variant(#element) }
+            } else if private {
+                quote! { #qualifier::#variant(#whole) }
+            } else {
+                let fields = construction.element.fields.iter().map(|field| &field.name);
+                quote! { #qualifier::#variant(#element { #(#fields),* }) }
+            };
+            let statements = render_atoms(
+                validated,
+                construction,
+                &whole,
+                categories,
+                root_names,
+                context_categories,
+                root_impl,
+            )?;
+            let category_role_block =
+                !root_impl && matches!(construction.form.atoms.as_slice(), [FormAtom::Role(_)]);
+            if statements.len() == 1 && !category_role_block {
+                let statement = syn::parse2::<syn::Stmt>(
+                    statements.into_iter().next().expect("one statement"),
+                )?;
+                let expression = match statement {
+                    syn::Stmt::Expr(expression, _) => expression,
+                    _ => {
+                        return Err(internal(
+                            "render atom did not lower to an expression statement",
+                        ));
+                    }
+                };
+                Ok(quote! { #pattern => #expression, })
+            } else {
+                Ok(quote! { #pattern => { #(#statements)* } })
+            }
+        })
+        .collect()
+}
+
+fn render_atoms(
+    validated: &ValidatedDeclarations,
+    construction: &crate::Construction,
+    whole: &syn::Ident,
+    categories: &[(String, Vec<&crate::Construction>)],
+    root_names: &HashSet<String>,
+    context_categories: &HashSet<String>,
+    root_impl: bool,
+) -> syn::Result<Vec<TokenStream>> {
+    let call_writer = if root_impl {
+        quote! { &mut writer }
+    } else {
+        quote! { writer }
+    };
+    let method_writer = quote! { writer };
+    let fields = construction
+        .element
+        .fields
+        .iter()
+        .map(|field| (field.name.to_string(), field))
+        .collect::<HashMap<_, _>>();
+    construction
+        .form
+        .atoms
+        .iter()
+        .map(|atom| match atom {
+            FormAtom::Literal(literal) => {
+                let value = literal.value();
+                if value.chars().count() == 1
+                    && value
+                        .chars()
+                        .all(|character| character.is_ascii_punctuation())
+                {
+                    let mark = value.chars().next().expect("one punctuation character");
+                    Ok(quote! { #method_writer.punctuation(#mark); })
+                } else {
+                    Ok(quote! { #method_writer.word(#literal); })
+                }
+            }
+            FormAtom::Role(role) => {
+                let field = fields
+                    .get(&role.to_string())
+                    .ok_or_else(|| internal("resolved role is absent"))?;
+                let FieldKind::Category(path) = &field.kind else {
+                    return Err(internal("bare role is not a category"));
+                };
+                let category = path_name(path);
+                let helper = render_category_name(&category, root_names.contains(&category));
+                let value = field_value(construction, role, whole);
+                let agreement = role_agreement(validated, construction, role, categories)?;
+                let context = context_categories
+                    .contains(&category)
+                    .then(|| quote! { context });
+                let tail = signature_tail(&[agreement, context]);
+                Ok(quote! { #helper(#call_writer, #value #tail); })
+            }
+            FormAtom::Lex(role) => {
+                let field = fields
+                    .get(&role.to_string())
+                    .ok_or_else(|| internal("resolved lexical role is absent"))?;
+                let terminal = field_terminal(field);
+                let value = field_value(construction, role, whole);
+                if let Some(vocab) = find_vocab(validated, &terminal) {
+                    let function = format_ident!("render_{}", snake_case(&vocab.name.to_string()));
+                    let value = copy_value(construction, role, value);
+                    Ok(quote! { #function(#call_writer, #value); })
+                } else {
+                    let binding = find_binding(validated, &terminal)?;
+                    let Some(RenderBinding::Runtime(function)) = &binding.render else {
+                        return Err(internal("lex terminal lacks runtime render binding"));
+                    };
+                    let value = match binding.traversal.callback_mode {
+                        Some(VisitMode::Copy) => copy_value(construction, role, value),
+                        Some(VisitMode::Borrowed) => value,
+                        None => return Err(internal("lex terminal lacks traversal pass mode")),
+                    };
+                    Ok(quote! { #function(#call_writer, #value); })
+                }
+            }
+            FormAtom::Identity(role) => {
+                let field = fields
+                    .get(&role.to_string())
+                    .ok_or_else(|| internal("resolved identity role is absent"))?;
+                let binding = find_binding(validated, &field_terminal(field))?;
+                let value = field_value(construction, role, whole);
+                match binding
+                    .render
+                    .as_ref()
+                    .ok_or_else(|| internal("identity lacks render metadata"))?
+                {
+                    RenderBinding::Runtime(function) => {
+                        let value = match binding.traversal.callback_mode {
+                            Some(VisitMode::Copy) => copy_value(construction, role, value),
+                            Some(VisitMode::Borrowed) => value,
+                            None => return Err(internal("identity lacks traversal pass mode")),
+                        };
+                        Ok(quote! { #function(#call_writer, #value, context); })
+                    }
+                    RenderBinding::ContextIdentity(arms) => {
+                        let ty = simple_type_ident(&binding.value_type)?;
+                        let match_arms = arms.iter().map(|arm| {
+                            let variant = &arm.variant;
+                            let accessor = &arm.accessor;
+                            quote! { #ty::#variant => #method_writer.identity(context.#accessor()) }
+                        });
+                        let value = match binding.traversal.callback_mode {
+                            Some(VisitMode::Copy) => copy_value(construction, role, value),
+                            Some(VisitMode::Borrowed) => value,
+                            None => return Err(internal("identity lacks traversal pass mode")),
+                        };
+                        Ok(quote! { match #value { #(#match_arms),* } })
+                    }
+                }
+            }
+            FormAtom::Verb(operand) => {
+                let variant = match operand {
+                    crate::VerbOperand::Fixed(path) => path,
+                    crate::VerbOperand::Projected(_) => {
+                        return Err(internal("projected verb has no fixed render lexeme"));
+                    }
+                };
+                let agreement = verb_agreement(validated, construction)?;
+                Ok(quote! { #method_writer.word(inflect(#variant, #agreement)); })
+            }
+            FormAtom::Noun(role) => {
+                let field = fields
+                    .get(&role.to_string())
+                    .ok_or_else(|| internal("resolved noun role is absent"))?;
+                let binding = find_binding(validated, &field_terminal(field))?;
+                let Some(RenderBinding::Runtime(function)) = &binding.render else {
+                    return Err(internal("noun terminal lacks runtime render binding"));
+                };
+                let category = path_name(&construction.category);
+                let number = format_ident!("number_for_{}", snake_case(&category));
+                let category_value = category_argument(&category);
+                let value = field_value(construction, role, whole);
+                Ok(quote! { #function(#call_writer, #value, #number(#category_value)); })
+            }
+        })
+        .collect()
+}
+
+fn role_agreement(
+    validated: &ValidatedDeclarations,
+    construction: &crate::Construction,
+    role: &syn::Ident,
+    categories: &[(String, Vec<&crate::Construction>)],
+) -> syn::Result<Option<TokenStream>> {
+    let equation = validated.feature_equations(&construction.name.to_string()).iter().find(|equation| {
+        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if field == role)
+    });
+    equation
+        .map(|equation| {
+            feature_expr(
+                validated,
+                construction,
+                equation.value(),
+                Feature::Agreement,
+                categories,
+            )
+        })
+        .transpose()
+}
+
+fn verb_agreement(
+    validated: &ValidatedDeclarations,
+    construction: &crate::Construction,
+) -> syn::Result<TokenStream> {
+    let equations = validated.feature_equations(&construction.name.to_string());
+    if let Some(equation) = equations.iter().find(|equation| {
+        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if field == "verb")
+    }) {
+        return feature_expr(validated, construction, equation.value(), Feature::Agreement, &[]);
+    }
+    if equations.iter().any(|equation| {
+        matches!(equation.target(), FeaturePlace::Construction(Feature::Agreement))
+            && matches!(equation.value(), FeatureExpr::FromRole { role, feature: Feature::Agreement } if role == "verb")
+    }) {
+        return Ok(quote! { agreement });
+    }
+    Err(internal("verb atom lacks validated agreement flow"))
+}
+
+fn feature_expr(
+    validated: &ValidatedDeclarations,
+    construction: &crate::Construction,
+    expression: &FeatureExpr,
+    _feature: Feature,
+    _categories: &[(String, Vec<&crate::Construction>)],
+) -> syn::Result<TokenStream> {
+    Ok(match expression {
+        FeatureExpr::Constant(value) => feature_value(*value.value()),
+        FeatureExpr::FromRole {
+            role,
+            feature: source_feature,
+        } => {
+            if !construction
+                .element
+                .fields
+                .iter()
+                .any(|field| field.name == *role)
+            {
+                return Ok(quote! { agreement });
+            }
+            let field = construction
+                .element
+                .fields
+                .iter()
+                .find(|field| field.name == *role)
+                .expect("resolved role");
+            let (source, value) = match &field.kind {
+                FieldKind::Category(path) => (path_name(path), quote! { #role }),
+                FieldKind::Lex(_) => {
+                    let (writer_role, vocabulary) = canonical_lexical_feature_lowering(
+                        validated,
+                        construction,
+                        role,
+                        *source_feature,
+                    )?;
+                    (path_name(vocabulary), quote! { *#writer_role })
+                }
+                FieldKind::Identity(_) => {
+                    return Err(internal(
+                        "identity roles cannot provide grammatical features",
+                    ));
+                }
+            };
+            let function = format_ident!(
+                "{}_for_{}",
+                feature_name(*source_feature),
+                snake_case(&source)
+            );
+            quote! { #function(#value) }
+        }
+        FeatureExpr::MatchVocab { role, arms } => {
+            let field = construction
+                .element
+                .fields
+                .iter()
+                .find(|field| field.name == *role)
+                .ok_or_else(|| internal("match feature role is absent"))?;
+            let ty = ident(&field_terminal(field));
+            let match_arms = arms.iter().map(|(variant, value)| {
+                let variant = variant.value();
+                let value = feature_value(*value);
+                quote! { #ty::#variant => #value }
+            });
+            quote! { match #role { #(#match_arms),* } }
+        }
+    })
+}
+
+fn canonical_lexical_feature_lowering<'a>(
+    validated: &'a ValidatedDeclarations,
+    construction: &'a crate::Construction,
+    role: &syn::Ident,
+    feature: Feature,
+) -> syn::Result<(&'a syn::Ident, &'a syn::Path)> {
+    let writer = validated
+        .feature_equations(&construction.name.to_string())
+        .iter()
+        .find(|equation| {
+            matches!(
+                equation.target(),
+                FeaturePlace::Role {
+                    field,
+                    feature: writer_feature,
+                } if field == role && *writer_feature == feature
+            )
+        })
+        .ok_or_else(|| {
+            internal(&format!(
+                "lexical feature read `{role}.{}` lacks its exact local {} writer",
+                feature_name(feature),
+                feature_name(feature),
+            ))
+        })?;
+    let FeatureExpr::MatchVocab {
+        role: writer_role, ..
+    } = writer.value()
+    else {
+        return Err(internal(&format!(
+            "lexical feature read `{role}.{}` requires an exhaustive local match writer",
+            feature_name(feature),
+        )));
+    };
+    if writer_role != role {
+        return Err(internal(&format!(
+            "lexical feature read `{role}.{}` has a mismatched local match writer",
+            feature_name(feature),
+        )));
+    }
+    let vocabulary = construction
+        .element
+        .fields
+        .iter()
+        .find(|field| field.name == *writer_role)
+        .and_then(|field| match &field.kind {
+            FieldKind::Lex(path) => Some(path),
+            FieldKind::Category(_) | FieldKind::Identity(_) => None,
+        })
+        .ok_or_else(|| internal("lexical feature writer is not rooted in a vocabulary role"))?;
+    Ok((writer_role, vocabulary))
+}
+
+fn emit_feature_helper(
+    validated: &ValidatedDeclarations,
+    category: &str,
+    members: &[&crate::Construction],
+    feature: Feature,
+) -> syn::Result<GeneratedItem> {
+    let function = format_ident!("{}_for_{}", feature_name(feature), snake_case(category));
+    let ty = ident(category);
+    let argument = category_argument(category);
+    let return_ty = match feature {
+        Feature::Agreement => quote! { Agreement },
+        Feature::Number => quote! { Number },
+    };
+    let mut entries: Vec<(TokenStream, String, TokenStream)> = Vec::new();
+    for construction in members {
+        let equation = validated.feature_equations(&construction.name.to_string()).iter().find(|equation| {
+            matches!(equation.target(), FeaturePlace::Construction(found) if *found == feature)
+        }).ok_or_else(|| internal("feature helper construction lacks equation"))?;
+        let variant = ident(&pascal_case(&construction.name.to_string()));
+        let element = &construction.element.name;
+        match equation.value() {
+            FeatureExpr::MatchVocab { role, arms: values } => {
+                let field = construction
+                    .element
+                    .fields
+                    .iter()
+                    .find(|field| field.name == *role)
+                    .ok_or_else(|| internal("feature match role absent"))?;
+                let field_type = ident(&field_terminal(field));
+                let other_fields = construction
+                    .element
+                    .fields
+                    .iter()
+                    .filter(|candidate| candidate.name != *role)
+                    .map(|candidate| {
+                        let name = &candidate.name;
+                        quote! { #name: _ }
+                    })
+                    .collect::<Vec<_>>();
+                for (value_variant, value) in values {
+                    let value_variant = value_variant.value();
+                    let value = feature_value(*value);
+                    let pattern = quote! { #ty::#variant(#element { #role: #field_type::#value_variant, #(#other_fields),* }) };
+                    entries.push((pattern, value.to_string(), value));
+                }
+            }
+            _ => {
+                let pattern = feature_constant_pattern(
+                    validated,
+                    construction,
+                    &ty,
+                    &variant,
+                    element,
+                    equation.value(),
+                )?;
+                let value = feature_expr(validated, construction, equation.value(), feature, &[])?;
+                entries.push((pattern, value.to_string(), value));
+            }
+        }
+    }
+    let mut groups: Vec<(String, TokenStream, Vec<TokenStream>)> = Vec::new();
+    for (pattern, key, value) in entries {
+        if let Some((_, _, patterns)) = groups.iter_mut().find(|(found, _, _)| found == &key) {
+            patterns.push(pattern);
+        } else {
+            groups.push((key, value, vec![pattern]));
+        }
+    }
+    let arms = groups
+        .into_iter()
+        .map(|(_, value, patterns)| quote! { #(#patterns)|* => #value });
+    let tokens = quote! {
+        fn #function(#argument: &#ty) -> #return_ty {
+            match #argument { #(#arms,)* }
+        }
+    };
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function.to_string(),
+        },
+        tokens,
+        members
+            .iter()
+            .map(|construction| {
+                DeclarationKey::new(DeclarationKind::Construction, construction.name.to_string())
+            })
+            .collect(),
+    ))
+}
+
+fn feature_constant_pattern(
+    validated: &ValidatedDeclarations,
+    construction: &crate::Construction,
+    category: &syn::Ident,
+    variant: &syn::Ident,
+    element: &syn::Ident,
+    expression: &FeatureExpr,
+) -> syn::Result<TokenStream> {
+    if construction.element.fields.is_empty() {
+        return Ok(quote! { #category::#variant(#element) });
+    }
+    if construction.checked.as_ref().is_some_and(|checked| {
+        checked.visibilities.iter().any(|visibility| {
+            matches!(
+                visibility.visibility,
+                crate::NonPublicVisibility::Private(_)
+            )
+        })
+    }) {
+        return Ok(quote! { #category::#variant(_) });
+    }
+    let mut fields = Vec::new();
+    for field in &construction.element.fields {
+        let name = &field.name;
+        if matches!(expression, FeatureExpr::FromRole { role, .. } if role == name) {
+            fields.push(quote! { #name });
+            continue;
+        }
+        let refined = construction
+            .requirements
+            .iter()
+            .any(|requirement| requirement.role == *name);
+        let pattern = if !refined {
+            if let FieldKind::Lex(path) = &field.kind {
+                if let Some(vocab) = find_vocab(validated, &path_name(path)) {
+                    let ty = &vocab.name;
+                    let variants = vocab.variants.iter().map(|variant| {
+                        let variant = &variant.name;
+                        quote! { #ty::#variant }
+                    });
+                    quote! { #name: #(#variants)|* }
+                } else {
+                    quote! { #name: _ }
+                }
+            } else {
+                quote! { #name: _ }
+            }
+        } else {
+            quote! { #name: _ }
+        };
+        fields.push(pattern);
+    }
+    Ok(quote! { #category::#variant(#element { #(#fields),* }) })
+}
+
+fn feature_value(value: FeatureValue) -> TokenStream {
+    match value {
+        FeatureValue::Bare => quote! { Agreement::Bare },
+        FeatureValue::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
+        FeatureValue::Singular => quote! { Number::Singular },
+        FeatureValue::Plural => quote! { Number::Plural },
+    }
+}
+
+fn feature_is_read(
+    validated: &ValidatedDeclarations,
+    constructions: &[&crate::Construction],
+    category: &str,
+    feature: Feature,
+) -> bool {
+    constructions.iter().any(|construction| {
+        validated.feature_equations(&construction.name.to_string()).iter().any(|equation| {
+            matches!(equation.value(), FeatureExpr::FromRole { role, feature: found } if *found == feature && construction.element.fields.iter().any(|field| field.name == *role && matches!(&field.kind, FieldKind::Category(path) if path_name(path) == category)))
+        }) || (feature == Feature::Number && construction.form.atoms.iter().any(|atom| matches!(atom, FormAtom::Noun(_))) && path_name(&construction.category) == category)
+    })
+}
+
+fn context_categories(categories: &[(String, Vec<&crate::Construction>)]) -> HashSet<String> {
+    let mut result = HashSet::new();
+    loop {
+        let before = result.len();
+        for (category, members) in categories {
+            if members.iter().any(|construction| {
+                construction.form.atoms.iter().any(|atom| match atom {
+                    FormAtom::Identity(_) => true,
+                    FormAtom::Role(role) => construction.element.fields.iter().find(|field| field.name == *role).is_some_and(|field| matches!(&field.kind, FieldKind::Category(path) if result.contains(&path_name(path)))),
+                    _ => false,
+                })
+            }) {
+                result.insert(category.clone());
+            }
+        }
+        if result.len() == before {
+            break;
+        }
+    }
+    result
+}
+
+fn render_category_order(
+    categories: &[(String, Vec<&crate::Construction>)],
+    roots: &[&crate::Root],
+    nested: &HashSet<String>,
+) -> Vec<String> {
+    let mut order = Vec::new();
+    let mut queued = HashSet::new();
+    for root in roots {
+        let root_name = path_name(&root.category);
+        if nested.contains(&root_name) {
+            continue;
+        }
+        if let Some((_, members)) = categories.iter().find(|(name, _)| name == &root_name) {
+            enqueue_role_categories(members, &mut order, &mut queued);
+        }
+    }
+    let mut index = 0;
+    while index < order.len() {
+        let name = order[index].clone();
+        if let Some((_, members)) = categories.iter().find(|(category, _)| category == &name) {
+            enqueue_role_categories(members, &mut order, &mut queued);
+        }
+        index += 1;
+    }
+    for (name, _) in categories {
+        if queued.insert(name.clone()) {
+            order.push(name.clone());
+        }
+    }
+    order
+}
+
+fn enqueue_role_categories(
+    members: &[&crate::Construction],
+    order: &mut Vec<String>,
+    queued: &mut HashSet<String>,
+) {
+    for construction in members {
+        for atom in &construction.form.atoms {
+            let FormAtom::Role(role) = atom else { continue };
+            let Some(field) = construction
+                .element
+                .fields
+                .iter()
+                .find(|field| field.name == *role)
+            else {
+                continue;
+            };
+            let FieldKind::Category(path) = &field.kind else { continue };
+            let category = path_name(path);
+            if queued.insert(category.clone()) {
+                order.push(category);
+            }
+        }
+    }
+}
+
+fn category_groups<'a>(
+    validated: &ValidatedDeclarations,
+    constructions: &[&'a crate::Construction],
+) -> Vec<(String, Vec<&'a crate::Construction>)> {
+    let mut result: Vec<(String, Vec<&crate::Construction>)> = Vec::new();
+    for (construction, record) in constructions
+        .iter()
+        .zip(validated.contributions().constructions())
+    {
+        if let Some((_, members)) = result
+            .iter_mut()
+            .find(|(name, _)| name == record.category())
+        {
+            members.push(*construction);
+        } else {
+            result.push((record.category().to_owned(), vec![*construction]));
+        }
+    }
+    result
+}
+
+fn find_vocab<'a>(validated: &'a ValidatedDeclarations, name: &str) -> Option<&'a crate::Vocab> {
+    validated
+        .raw()
+        .declarations
+        .iter()
+        .find_map(|declaration| match declaration {
+            Declaration::Vocab(vocab) if vocab.name == name => Some(vocab),
+            _ => None,
+        })
+}
+
+fn find_binding<'a>(
+    validated: &'a ValidatedDeclarations,
+    name: &str,
+) -> syn::Result<&'a crate::TerminalBinding> {
+    validated
+        .raw()
+        .declarations
+        .iter()
+        .find_map(|declaration| match declaration {
+            Declaration::Codec(binding) | Declaration::Identity(binding)
+                if binding.name == name =>
+            {
+                Some(binding)
+            }
+            _ => None,
+        })
+        .ok_or_else(|| internal("resolved terminal binding is absent"))
+}
+
+fn field_terminal(field: &crate::Field) -> String {
+    match &field.kind {
+        FieldKind::Lex(path) | FieldKind::Identity(path) => path_name(path),
+        FieldKind::Category(path) => path_name(path),
+    }
+}
+
+fn field_value(
+    construction: &crate::Construction,
+    role: &syn::Ident,
+    whole: &syn::Ident,
+) -> TokenStream {
+    if let Some(accessor) = construction.checked.as_ref().and_then(|checked| {
+        checked
+            .accessors
+            .iter()
+            .find(|accessor| accessor.role == *role)
+    }) {
+        let method = &accessor.method;
+        quote! { #whole.#method() }
+    } else if has_private_fields(construction) {
+        quote! { &#whole.#role }
+    } else {
+        quote! { #role }
+    }
+}
+
+fn copy_value(
+    construction: &crate::Construction,
+    role: &syn::Ident,
+    value: TokenStream,
+) -> TokenStream {
+    if has_accessor(construction, role) {
+        value
+    } else {
+        quote! { *#value }
+    }
+}
+
+fn has_accessor(construction: &crate::Construction, role: &syn::Ident) -> bool {
+    construction.checked.as_ref().is_some_and(|checked| {
+        checked
+            .accessors
+            .iter()
+            .any(|accessor| accessor.role == *role)
+    })
+}
+
+fn has_private_fields(construction: &crate::Construction) -> bool {
+    construction.checked.as_ref().is_some_and(|checked| {
+        checked.visibilities.iter().any(|visibility| {
+            matches!(
+                visibility.visibility,
+                crate::NonPublicVisibility::Private(_)
+            )
+        })
+    })
+}
+
+fn render_category_name(category: &str, root: bool) -> syn::Ident {
+    let suffix = if root {
+        format!("{}_body", snake_case(category))
+    } else {
+        snake_case(category)
+    };
+    format_ident!("render_{suffix}")
+}
+
+fn category_argument(category: &str) -> syn::Ident {
+    let snake = snake_case(category);
+    if snake.ends_with("_phrase") { ident("phrase") } else { ident(&snake) }
+}
+fn render_vocab_argument(name: &str) -> syn::Ident {
+    let snake = snake_case(name);
+    ident(snake.strip_suffix("_word").unwrap_or(&snake))
+}
+
+fn feature_name(feature: Feature) -> &'static str {
+    match feature {
+        Feature::Agreement => "agreement",
+        Feature::Number => "number",
+    }
+}
+fn ident(name: &str) -> syn::Ident {
+    syn::Ident::new(name, Span::call_site())
+}
+fn path_name(path: &syn::Path) -> String {
+    path.segments
+        .last()
+        .map_or_else(String::new, |segment| segment.ident.to_string())
+}
+fn simple_type_ident(ty: &syn::Type) -> syn::Result<&syn::Ident> {
+    match ty {
+        syn::Type::Path(path) => path
+            .path
+            .segments
+            .last()
+            .map(|segment| &segment.ident)
+            .ok_or_else(|| internal("empty binding type")),
+        _ => Err(internal("binding type must be a path")),
+    }
+}
+fn punctuation(value: &syn::LitStr) -> syn::Result<char> {
+    let text = value.value();
+    let mut chars = text.chars();
+    let first = chars
+        .next()
+        .ok_or_else(|| syn::Error::new(value.span(), "root punctuation cannot be empty"))?;
+    if chars.next().is_some() {
+        return Err(syn::Error::new(
+            value.span(),
+            "root punctuation must be one character",
+        ));
+    }
+    Ok(first)
+}
+fn pascal_case(name: &str) -> String {
+    name.split('_')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut chars = part.chars();
+            chars.next().map_or_else(String::new, |first| {
+                first.to_uppercase().chain(chars).collect()
+            })
+        })
+        .collect()
+}
+fn snake_case(name: &str) -> String {
+    let characters = name.chars().collect::<Vec<_>>();
+    let mut result = String::new();
+    for (index, character) in characters.iter().copied().enumerate() {
+        if character.is_uppercase() {
+            let lower = index > 0 && characters[index - 1].is_lowercase();
+            let acronym = index > 0
+                && characters[index - 1].is_uppercase()
+                && characters
+                    .get(index + 1)
+                    .is_some_and(|next| next.is_lowercase());
+            if (lower || acronym) && !result.ends_with('_') {
+                result.push('_');
+            }
+            result.extend(character.to_lowercase());
+        } else {
+            result.push(character);
+        }
+    }
+    result
+}
+fn internal(message: &str) -> syn::Error {
+    syn::Error::new(Span::call_site(), message)
+}
+
+#[cfg(test)]
+mod tests {
+    use quote::ToTokens;
+
+    #[test]
+    fn explicit_lexical_feature_dependencies_drive_render_lowering() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Person { One = "one", Many = "many", }
+            lexeme Verbs { Be, }
+            construction only: Root {
+                element Only { person: lex Person, }
+                require person is One;
+                derive person.agreement = match person {
+                    One => Values::Bare,
+                    Many => Values::ThirdPersonSingular,
+                };
+                derive agreement = person.agreement;
+                derive verb.agreement = person.agreement;
+                form only = lex(person) verb(Verbs::Be);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("an explicit lexical provider is valid");
+        let implementation = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.as_deref() == Some("Render")))
+            .expect("root Render impl");
+        let source = implementation.tokens.to_string();
+        assert!(
+            source.contains("agreement_for_person (* person)"),
+            "the consuming verb operand uses the canonical helper from the explicit writer: {source}",
+        );
+    }
+
+    #[test]
+    fn canonical_lexical_feature_lowering_requires_the_exact_writer() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Person { One = "one", Many = "many", }
+                construction only: Root {
+                    element Only { person: lex Person, }
+                    derive person.agreement = match person {
+                        One => Values::Bare,
+                        Many => Values::ThirdPersonSingular,
+                    };
+                    derive agreement = person.agreement;
+                    form only = lex(person);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .unwrap(),
+        )
+        .expect("the exact lexical writer validates");
+        let construction = validated
+            .raw()
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                crate::Declaration::Construction(construction) => Some(construction),
+                _ => None,
+            })
+            .expect("construction");
+        let role = syn::parse_quote!(person);
+        let (writer_role, vocabulary) = super::canonical_lexical_feature_lowering(
+            &validated,
+            construction,
+            &role,
+            crate::feature::Feature::Agreement,
+        )
+        .expect("the exact role.feature writer is retrievable");
+        assert_eq!(writer_role, "person");
+        assert_eq!(super::path_name(vocabulary), "Person");
+        let missing = super::canonical_lexical_feature_lowering(
+            &validated,
+            construction,
+            &role,
+            crate::feature::Feature::Number,
+        )
+        .expect_err("a different role.feature writer cannot satisfy the read");
+        assert!(
+            missing.to_string().contains("exact local number writer"),
+            "{missing}"
+        );
+    }
+
+    #[test]
+    fn mixed_checked_render_accesses_each_field_explicitly() {
+        let expansion = crate::test_support::access_modes_expansion();
+        let implementation = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.as_deref() == Some("Render")))
+            .expect("root Render impl");
+        let syn::Item::Impl(item) = parse(implementation) else {
+            panic!("root render is an impl");
+        };
+        let syn::ImplItem::Fn(method) = &item.items[0] else {
+            panic!("root render method");
+        };
+        let body = method.block.to_token_stream().to_string();
+        assert!(body.contains("mixed . hidden ()"));
+        assert!(body.contains("render_child (\u{26} mut writer , \u{26} mixed . child)"));
+    }
+
+    #[test]
+    fn representative_root_metadata_controls_standalone_rendering() {
+        let expansion = crate::test_support::representative_expansion();
+        let render_impls = expansion
+            .items()
+            .iter()
+            .filter(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Impl { trait_name, .. }
+                        if trait_name.as_deref() == Some("Render")
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(render_impls.len(), 1);
+        assert!(matches!(
+            &render_impls[0].key,
+            crate::ItemKey::Impl { self_ty, .. } if self_ty == "Action"
+        ));
+        let syn::Item::Impl(item) = parse(render_impls[0]) else {
+            panic!("root render item is an impl");
+        };
+        let syn::ImplItem::Fn(method) = &item.items[0] else {
+            panic!("root render impl contains a method");
+        };
+        assert!(
+            method
+                .block
+                .to_token_stream()
+                .to_string()
+                .contains("writer . punctuation ('.')")
+        );
+    }
+
+    #[test]
+    fn full_golden_has_exact_render_item_count() {
+        let expansion = crate::generate(crate::validate::tests::full_golden_tokens())
+            .expect("the full golden declaration expands");
+        let render_items = expansion
+            .items()
+            .iter()
+            .filter(|item| match &item.key {
+                crate::ItemKey::Impl { trait_name, .. } => trait_name.as_deref() == Some("Render"),
+                crate::ItemKey::Named { kind, name } => {
+                    *kind == crate::NamedKind::Function
+                        && (name.starts_with("render_")
+                            || name == "agreement_for_noun_phrase"
+                            || name == "number_for_noun_phrase")
+                }
+            })
+            .count();
+        assert_eq!(render_items, 14);
+    }
+
+    #[test]
+    fn full_golden_render_has_exact_items_signatures_origins_and_dispatch_tables() {
+        let expansion = crate::generate(crate::validate::tests::full_golden_tokens()).unwrap();
+        let render = expansion
+            .items()
+            .iter()
+            .filter(|item| match &item.key {
+                crate::ItemKey::Impl { trait_name, .. } => trait_name.as_deref() == Some("Render"),
+                crate::ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name,
+                } => name.starts_with("render_") || name.ends_with("_for_noun_phrase"),
+                _ => false,
+            })
+            .collect::<Vec<_>>();
+        let actual_keys = render
+            .iter()
+            .map(|item| match &item.key {
+                crate::ItemKey::Impl { self_ty, .. } => format!("impl Render for {self_ty}"),
+                crate::ItemKey::Named { name, .. } => name.clone(),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual_keys,
+            [
+                "impl Render for Ability",
+                "impl Render for Sentence",
+                "render_sentence_body",
+                "render_clause",
+                "render_verb_phrase",
+                "render_noun_phrase",
+                "render_amount",
+                "render_trigger_word",
+                "render_article",
+                "render_demonstrative",
+                "render_pronoun",
+                "render_variable",
+                "agreement_for_noun_phrase",
+                "number_for_noun_phrase",
+            ]
+        );
+        let actual_origins = render
+            .iter()
+            .map(|item| {
+                item.origins
+                    .iter()
+                    .map(crate::DeclarationKey::name)
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual_origins,
+            [
+                vec!["Ability"],
+                vec!["Sentence"],
+                vec!["imperative", "declarative", "with_where"],
+                vec!["event", "where"],
+                vec!["destroy", "connive", "deal_damage", "gain_life"],
+                vec![
+                    "pronoun",
+                    "common",
+                    "demonstrative",
+                    "target",
+                    "self_reference",
+                    "count"
+                ],
+                vec!["number", "variable"],
+                vec!["TriggerWord"],
+                vec!["Article"],
+                vec!["Demonstrative"],
+                vec!["Pronoun"],
+                vec!["Variable"],
+                vec![
+                    "pronoun",
+                    "common",
+                    "demonstrative",
+                    "target",
+                    "self_reference",
+                    "count"
+                ],
+                vec![
+                    "pronoun",
+                    "common",
+                    "demonstrative",
+                    "target",
+                    "self_reference",
+                    "count"
+                ],
+            ]
+        );
+
+        let expected_items = expected_render_items();
+        assert_eq!(render.len(), expected_items.len());
+        for (generated, expected) in render.iter().zip(expected_items) {
+            let actual = parse(generated);
+            if actual != expected {
+                panic!(
+                    "literal syn structure for {:?}\nactual:\n{}\nexpected:\n{}",
+                    generated.key,
+                    prettyplease::unparse(&syn::File {
+                        shebang: None,
+                        attrs: Vec::new(),
+                        items: vec![actual]
+                    }),
+                    prettyplease::unparse(&syn::File {
+                        shebang: None,
+                        attrs: Vec::new(),
+                        items: vec![expected]
+                    }),
+                );
+            }
+        }
+    }
+
+    fn expected_render_items() -> Vec<syn::Item> {
+        syn::parse2::<syn::File>(quote::quote! {
+            impl Render for Ability {
+                fn render(&self, context: &ParseContext<'_>) -> String {
+                    let mut writer = Writer::new();
+                    match self {
+                        Self::Spell(Spell { effect }) => render_sentence_body(&mut writer, effect, context),
+                        Self::Triggered(Triggered { trigger, event, effect }) => {
+                            render_trigger_word(&mut writer, *trigger);
+                            render_clause(&mut writer, event, context);
+                            writer.punctuation(',');
+                            render_sentence_body(&mut writer, effect, context);
+                        }
+                    }
+                    writer.punctuation('.');
+                    writer.finish()
+                }
+            }
+            impl Render for Sentence {
+                fn render(&self, context: &ParseContext<'_>) -> String {
+                    let mut writer = Writer::new();
+                    render_sentence_body(&mut writer, self, context);
+                    writer.punctuation('.');
+                    writer.finish()
+                }
+            }
+            fn render_sentence_body(writer: &mut Writer, sentence: &Sentence, context: &ParseContext<'_>) {
+                match sentence {
+                    Sentence::Imperative(Imperative { predicate }) => {
+                        render_verb_phrase(writer, predicate, Agreement::Bare, context);
+                    }
+                    Sentence::Declarative(Declarative { subject, predicate }) => {
+                        render_noun_phrase(writer, subject, context);
+                        render_verb_phrase(writer, predicate, agreement_for_noun_phrase(subject), context);
+                    }
+                    Sentence::WithWhere(WithWhere { body, clause }) => {
+                        render_sentence_body(writer, body, context);
+                        writer.punctuation(',');
+                        render_clause(writer, clause, context);
+                    }
+                }
+            }
+            fn render_clause(writer: &mut Writer, clause: &Clause, context: &ParseContext<'_>) {
+                match clause {
+                    Clause::Event(EventClause { subject, predicate }) => {
+                        render_noun_phrase(writer, subject, context);
+                        render_verb_phrase(writer, predicate, agreement_for_noun_phrase(subject), context);
+                    }
+                    Clause::Where(WhereClause { variable, value }) => {
+                        writer.word("where");
+                        render_variable(writer, *variable);
+                        writer.word(inflect(VerbLexeme::Be, Agreement::ThirdPersonSingular));
+                        writer.word("the");
+                        writer.word("number");
+                        writer.word("of");
+                        render_noun_phrase(writer, value, context);
+                    }
+                }
+            }
+            fn render_verb_phrase(writer: &mut Writer, phrase: &VerbPhrase, agreement: Agreement, context: &ParseContext<'_>) {
+                match phrase {
+                    VerbPhrase::Destroy(Destroy { object }) => {
+                        writer.word(inflect(VerbLexeme::Destroy, agreement));
+                        render_noun_phrase(writer, object, context);
+                    }
+                    VerbPhrase::Connive(Connive) => writer.word(inflect(VerbLexeme::Connive, agreement)),
+                    VerbPhrase::DealDamage(DealDamage { amount, to }) => {
+                        writer.word(inflect(VerbLexeme::Deal, agreement));
+                        render_amount(writer, amount);
+                        writer.word("damage");
+                        writer.word("to");
+                        render_noun_phrase(writer, to, context);
+                    }
+                    VerbPhrase::GainLife(GainLife { amount }) => {
+                        writer.word(inflect(VerbLexeme::Gain, agreement));
+                        render_amount(writer, amount);
+                        writer.word("life");
+                    }
+                }
+            }
+            fn render_noun_phrase(writer: &mut Writer, phrase: &NounPhrase, context: &ParseContext<'_>) {
+                match phrase {
+                    NounPhrase::Pronoun(PronounNp { word }) => render_pronoun(writer, *word),
+                    NounPhrase::Common(Common { article, head }) => {
+                        render_article(writer, *article);
+                        render_noun(writer, head, number_for_noun_phrase(phrase));
+                    }
+                    NounPhrase::Demonstrative(DemonstrativeNp { word, head }) => {
+                        render_demonstrative(writer, *word);
+                        render_noun(writer, head, number_for_noun_phrase(phrase));
+                    }
+                    NounPhrase::Target(TargetNp { head }) => {
+                        writer.word("target");
+                        render_noun(writer, head, number_for_noun_phrase(phrase));
+                    }
+                    NounPhrase::SelfReference(self_reference) => match self_reference.spelling() {
+                        SelfReferenceSpelling::Full => writer.identity(context.card_name()),
+                        SelfReferenceSpelling::Abbreviated => writer.identity(context.abbreviated_card_name())
+                    },
+                    NounPhrase::Count(CountNp { head, controller, threshold }) => {
+                        render_noun(writer, head, number_for_noun_phrase(phrase));
+                        render_pronoun(writer, *controller);
+                        writer.word(inflect(VerbLexeme::Control, agreement_for_pronoun(*controller)));
+                        writer.word("with");
+                        writer.word("power");
+                        render_signed_number(writer, threshold);
+                        writer.word("or");
+                        writer.word("less");
+                    }
+                }
+            }
+            fn render_amount(writer: &mut Writer, amount: &Amount) {
+                match amount {
+                    Amount::Number(NumberAmount { number }) => render_signed_number(writer, number),
+                    Amount::Variable(VariableAmount { variable }) => render_variable(writer, *variable),
+                }
+            }
+            fn render_trigger_word(writer: &mut Writer, trigger: TriggerWord) {
+                match trigger { TriggerWord::Whenever => writer.word("whenever"), }
+            }
+            fn render_article(writer: &mut Writer, article: Article) {
+                match article {
+                    Article::A => writer.word("a"),
+                    Article::An => writer.word("an"),
+                }
+            }
+            fn render_demonstrative(writer: &mut Writer, demonstrative: Demonstrative) {
+                match demonstrative {
+                    Demonstrative::That => writer.word("that"),
+                    Demonstrative::Those => writer.word("those"),
+                }
+            }
+            fn render_pronoun(writer: &mut Writer, pronoun: Pronoun) {
+                match pronoun {
+                    Pronoun::It => writer.word("it"),
+                    Pronoun::You => writer.word("you"),
+                }
+            }
+            fn render_variable(writer: &mut Writer, variable: Variable) {
+                match variable { Variable::X => writer.word("X"), }
+            }
+            fn agreement_for_noun_phrase(phrase: &NounPhrase) -> Agreement {
+                match phrase {
+                    NounPhrase::Pronoun(PronounNp { word }) => agreement_for_pronoun(*word),
+                    NounPhrase::Common(Common { article: Article::A | Article::An, head: _ })
+                    | NounPhrase::Demonstrative(DemonstrativeNp { word: Demonstrative::That, head: _ })
+                    | NounPhrase::Target(TargetNp { head: _ })
+                    | NounPhrase::SelfReference(_) => Agreement::ThirdPersonSingular,
+                    NounPhrase::Demonstrative(DemonstrativeNp { word: Demonstrative::Those, head: _ })
+                    | NounPhrase::Count(CountNp { head: _, controller: _, threshold: _ }) => Agreement::Bare,
+                }
+            }
+            fn number_for_noun_phrase(phrase: &NounPhrase) -> Number {
+                match phrase {
+                    NounPhrase::Pronoun(PronounNp { word: Pronoun::It | Pronoun::You })
+                    | NounPhrase::Common(Common { article: Article::A | Article::An, head: _ })
+                    | NounPhrase::Demonstrative(DemonstrativeNp { word: Demonstrative::That, head: _ })
+                    | NounPhrase::Target(TargetNp { head: _ })
+                    | NounPhrase::SelfReference(_) => Number::Singular,
+                    NounPhrase::Demonstrative(DemonstrativeNp { word: Demonstrative::Those, head: _ })
+                    | NounPhrase::Count(CountNp { head: _, controller: _, threshold: _ }) => Number::Plural,
+                }
+            }
+        })
+        .unwrap()
+        .items
+    }
+
+    fn parse(item: &crate::GeneratedItem) -> syn::Item {
+        syn::parse2::<syn::File>(item.tokens.clone())
+            .unwrap()
+            .items
+            .into_iter()
+            .next()
+            .unwrap()
+    }
+}

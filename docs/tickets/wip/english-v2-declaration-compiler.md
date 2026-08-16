@@ -46,9 +46,16 @@ STOP and report; that is a design gap, not an implementer choice.
    render fn; name-only `lexeme` declarations generating the enum alone;
    binding-only `codec` declarations with an explicit `lex`/`noun` atom class
    and intrinsic-identity `identity` declarations for existing runtime
-   terminals; checked construction mappings to hand-written constructors;
+   terminals. Their closed render/traversal schemas declare context-identity
+   accessors, callback pass modes, exhaustive branches, field access, and call
+   order; traversal-only bindings may omit parse/render leaf slots for nested
+   runtime residue (`Sign`, `CatalogIdentity`). These schemas are metadata,
+   not generative codec bodies. Checked construction mappings to hand-written constructors;
    `require <role> is <Variant>` role refinements; the pinned
-   agreement/number feature equations; and roots. Terminal bindings, checked
+   agreement/number feature equations; their pinned lowering requires a
+   lexical `FromRole role.feature` to consume that exact role's exhaustive
+   local `MatchVocab` writer before calling the canonical runtime helper
+   `{feature}_for_{declared_vocab_type}`; and roots. Terminal bindings, checked
    construction mappings, and roots are the three counted metadata escape
    hatches. General `require` predicates, generative `codec`/`identity`
    bodies, and every other deferred ADR construct (`opt`, `seq`,

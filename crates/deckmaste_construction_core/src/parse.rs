@@ -16,11 +16,13 @@ use syn::spanned::Spanned;
 
 use crate::model::BuildLeaf;
 use crate::model::Checked;
+use crate::model::CheckedAccessor;
 use crate::model::CheckedVisibility;
 use crate::model::CodecAtomClass;
 use crate::model::Construction;
 use crate::model::ConstructorArgument;
 use crate::model::ConstructorBinding;
+use crate::model::ContextIdentityArm;
 use crate::model::Declaration;
 use crate::model::Declarations;
 use crate::model::Element;
@@ -34,34 +36,51 @@ use crate::model::Field;
 use crate::model::FieldKind;
 use crate::model::Form;
 use crate::model::FormAtom;
+use crate::model::LeafCallback;
 use crate::model::Lexeme;
 use crate::model::NonPublicVisibility;
+use crate::model::RenderBinding;
 use crate::model::RoleRefinement;
 use crate::model::Root;
 use crate::model::TerminalBinding;
+use crate::model::TerminalBindingKind;
 use crate::model::Traversal;
+use crate::model::TraversalBranch;
+use crate::model::TraversalBranchArm;
+use crate::model::TraversalCall;
+use crate::model::TraversalField;
 use crate::model::TraversalKind;
 use crate::model::TraversalPart;
 use crate::model::VerbOperand;
+use crate::model::VisitMode;
 use crate::model::Vocab;
 use crate::model::VocabVariant;
 
 mod keyword {
     syn::custom_keyword!(checked);
+    syn::custom_keyword!(borrowed);
+    syn::custom_keyword!(argument);
+    syn::custom_keyword!(access);
+    syn::custom_keyword!(callback);
+    syn::custom_keyword!(call);
     syn::custom_keyword!(codec);
     syn::custom_keyword!(construct);
     syn::custom_keyword!(construction);
     syn::custom_keyword!(constructor);
     syn::custom_keyword!(context);
+    syn::custom_keyword!(context_identity);
+    syn::custom_keyword!(copy);
     syn::custom_keyword!(derive);
     syn::custom_keyword!(eoi);
     syn::custom_keyword!(element);
+    syn::custom_keyword!(field);
     syn::custom_keyword!(form);
     syn::custom_keyword!(generate);
     syn::custom_keyword!(identity);
     syn::custom_keyword!(is);
     syn::custom_keyword!(lex);
     syn::custom_keyword!(lexeme);
+    syn::custom_keyword!(leaf);
     syn::custom_keyword!(morphology);
     syn::custom_keyword!(noun);
     syn::custom_keyword!(otherwise);
@@ -76,6 +95,7 @@ mod keyword {
     syn::custom_keyword!(standalone_render);
     syn::custom_keyword!(traversal);
     syn::custom_keyword!(value_type);
+    syn::custom_keyword!(variant);
     syn::custom_keyword!(verb);
     syn::custom_keyword!(visibility);
     syn::custom_keyword!(visit);
@@ -227,6 +247,7 @@ fn parse_checked(input: ParseStream<'_>) -> syn::Result<Checked> {
     let content;
     braced!(content in input);
     let mut visibilities = Vec::new();
+    let mut accessors = Vec::new();
     let mut constructor = None;
 
     while !content.is_empty() {
@@ -257,6 +278,13 @@ fn parse_checked(input: ParseStream<'_>) -> syn::Result<Checked> {
             };
             content.parse::<Token![;]>()?;
             visibilities.push(CheckedVisibility { role, visibility });
+        } else if content.peek(keyword::access) {
+            content.parse::<keyword::access>()?;
+            let role = content.parse()?;
+            content.parse::<Token![=]>()?;
+            let method = content.parse()?;
+            content.parse::<Token![;]>()?;
+            accessors.push(CheckedAccessor { role, method });
         } else if content.peek(keyword::constructor) {
             if constructor.is_some() {
                 return Err(content.error("duplicate checked constructor"));
@@ -273,7 +301,9 @@ fn parse_checked(input: ParseStream<'_>) -> syn::Result<Checked> {
             content.parse::<Token![;]>()?;
             constructor = Some(ConstructorBinding { path, arguments });
         } else {
-            return Err(content.error("expected visibility or constructor in checked metadata"));
+            return Err(
+                content.error("expected visibility, access, or constructor in checked metadata")
+            );
         }
     }
 
@@ -281,6 +311,7 @@ fn parse_checked(input: ParseStream<'_>) -> syn::Result<Checked> {
         constructor.ok_or_else(|| input.error("checked metadata requires a constructor"))?;
     Ok(Checked {
         visibilities,
+        accessors,
         constructor,
     })
 }
@@ -575,9 +606,27 @@ fn parse_terminal_binding(
             }
             "render" => {
                 reject_duplicate(&render, &slot)?;
-                content.parse::<Token![=]>()?;
-                render = Some(content.parse()?);
-                content.parse::<Token![;]>()?;
+                if content.peek(Token![=]) {
+                    content.parse::<Token![=]>()?;
+                    render = Some(RenderBinding::Runtime(content.parse()?));
+                    content.parse::<Token![;]>()?;
+                } else if content.peek(keyword::context_identity) {
+                    content.parse::<keyword::context_identity>()?;
+                    let arms_content;
+                    braced!(arms_content in content);
+                    let mut arms = Vec::new();
+                    while !arms_content.is_empty() {
+                        let variant = arms_content.parse()?;
+                        arms_content.parse::<Token![=>]>()?;
+                        let accessor = arms_content.parse()?;
+                        arms.push(ContextIdentityArm { variant, accessor });
+                        arms_content.parse::<Token![,]>()?;
+                    }
+                    render = Some(RenderBinding::ContextIdentity(arms));
+                } else {
+                    return Err(content
+                        .error("render requires `= runtime_path;` or `context_identity { ... }`"));
+                }
             }
             "build" => {
                 reject_duplicate(&build, &slot)?;
@@ -597,18 +646,42 @@ fn parse_terminal_binding(
     }
 
     let codec_atom = match kind {
-        BindingKind::Codec => Some(codec_atom.ok_or_else(|| {
-            syn::Error::new(name.span(), "codec binding requires explicit atom slot")
-        })?),
+        BindingKind::Codec => codec_atom,
         BindingKind::Identity => None,
     };
+    let leaf_slots = [lexical_variant.is_some(), render.is_some(), build.is_some()];
+    if leaf_slots.iter().any(|present| *present) && !leaf_slots.iter().all(|present| *present) {
+        return Err(syn::Error::new(
+            name.span(),
+            "terminal leaf metadata requires lexical, render, and build together",
+        ));
+    }
+    if codec_atom.is_some() && !leaf_slots.iter().all(|present| *present) {
+        return Err(syn::Error::new(
+            name.span(),
+            "an atom-capable codec binding requires lexical, render, and build",
+        ));
+    }
+    if kind == BindingKind::Codec
+        && codec_atom.is_none()
+        && leaf_slots.iter().all(|present| *present)
+    {
+        return Err(syn::Error::new(
+            name.span(),
+            "codec binding requires explicit atom slot unless it is traversal-only",
+        ));
+    }
     Ok(TerminalBinding {
         name: name.clone(),
+        kind: match kind {
+            BindingKind::Codec => TerminalBindingKind::Codec,
+            BindingKind::Identity => TerminalBindingKind::Identity,
+        },
         codec_atom,
         value_type: required(value_type, &name, "value_type")?,
-        lexical_variant: required(lexical_variant, &name, "lexical")?,
-        render: required(render, &name, "render")?,
-        build: required(build, &name, "build")?,
+        lexical_variant,
+        render,
+        build,
         traversal: required(traversal, &name, "traversal")?,
     })
 }
@@ -653,9 +726,98 @@ fn parse_traversal(input: ParseStream<'_>) -> syn::Result<Traversal> {
     braced!(content in input);
     let mut parts = Vec::new();
     let mut visit_order = Vec::new();
+    let mut callback_mode = None;
+    let mut argument = None;
+    let mut variants = Vec::new();
+    let mut fields = Vec::new();
+    let mut calls = Vec::new();
+    let mut branches = Vec::new();
+    let mut leaf_callbacks = Vec::new();
     while !content.is_empty() {
         reject_doc_comment(&content)?;
-        if content.peek(keyword::part) {
+        if content.peek(keyword::callback) {
+            let slot = content.parse::<keyword::callback>()?;
+            if callback_mode.is_some() {
+                return Err(syn::Error::new(slot.span(), "duplicate callback slot"));
+            }
+            content.parse::<Token![=]>()?;
+            callback_mode = Some(parse_visit_mode(&content)?);
+            content.parse::<Token![;]>()?;
+        } else if content.peek(keyword::argument) {
+            let slot = content.parse::<keyword::argument>()?;
+            if argument.is_some() {
+                return Err(syn::Error::new(
+                    slot.span(),
+                    "duplicate traversal value slot",
+                ));
+            }
+            content.parse::<Token![=]>()?;
+            argument = Some(content.parse()?);
+            content.parse::<Token![;]>()?;
+        } else if content.peek(keyword::variant) {
+            content.parse::<keyword::variant>()?;
+            variants.push(content.parse()?);
+            content.parse::<Token![;]>()?;
+        } else if content.peek(keyword::field) {
+            content.parse::<keyword::field>()?;
+            let name = content.parse()?;
+            content.parse::<Token![:]>()?;
+            let value_type = content.parse()?;
+            fields.push(TraversalField { name, value_type });
+            content.parse::<Token![;]>()?;
+        } else if content.peek(keyword::call) {
+            content.parse::<keyword::call>()?;
+            calls.push(parse_traversal_call(&content)?);
+            content.parse::<Token![;]>()?;
+        } else if content.peek(keyword::leaf) {
+            content.parse::<keyword::leaf>()?;
+            let name = content.parse()?;
+            content.parse::<Token![:]>()?;
+            let value_type = content.parse()?;
+            content.parse::<Token![=]>()?;
+            let mode = parse_visit_mode(&content)?;
+            content.parse::<Token![;]>()?;
+            leaf_callbacks.push(LeafCallback {
+                name,
+                value_type,
+                mode,
+            });
+        } else if content.peek(Token![match]) {
+            content.parse::<Token![match]>()?;
+            let value = syn::Expr::Path(content.parse()?);
+            let arms_content;
+            braced!(arms_content in content);
+            let mut arms = Vec::new();
+            while !arms_content.is_empty() {
+                if arms_content.peek(Token![_]) {
+                    return Err(arms_content
+                        .error("traversal match arm requires a closed variant-binding pattern"));
+                }
+                let variant: Path = arms_content.parse().map_err(|_| {
+                    arms_content
+                        .error("traversal match arm requires a closed variant-binding pattern")
+                })?;
+                let binding_content;
+                parenthesized!(binding_content in arms_content);
+                let binding = binding_content.parse()?;
+                binding_content.parse::<Token![:]>()?;
+                let value_type = binding_content.parse()?;
+                if !binding_content.is_empty() {
+                    return Err(binding_content
+                        .error("closed variant-binding pattern accepts one typed binding"));
+                }
+                arms_content.parse::<Token![=>]>()?;
+                let call = parse_traversal_call(&arms_content)?;
+                arms.push(TraversalBranchArm {
+                    variant,
+                    binding,
+                    value_type,
+                    call,
+                });
+                arms_content.parse::<Token![,]>()?;
+            }
+            branches.push(TraversalBranch { value, arms });
+        } else if content.peek(keyword::part) {
             content.parse::<keyword::part>()?;
             let name = content.parse()?;
             content.parse::<Token![=]>()?;
@@ -687,7 +849,47 @@ fn parse_traversal(input: ParseStream<'_>) -> syn::Result<Traversal> {
             return Err(content.error("expected part or visit in traversal schema"));
         }
     }
-    Ok(Traversal { parts, visit_order })
+    Ok(Traversal {
+        parts,
+        visit_order,
+        callback_mode,
+        argument,
+        variants,
+        fields,
+        calls,
+        branches,
+        leaf_callbacks,
+    })
+}
+
+fn parse_visit_mode(input: ParseStream<'_>) -> syn::Result<VisitMode> {
+    if input.peek(keyword::copy) {
+        input.parse::<keyword::copy>()?;
+        Ok(VisitMode::Copy)
+    } else if input.peek(keyword::borrowed) {
+        input.parse::<keyword::borrowed>()?;
+        Ok(VisitMode::Borrowed)
+    } else {
+        Err(input.error("visitor mode must be `copy` or `borrowed`"))
+    }
+}
+
+fn parse_traversal_call(input: ParseStream<'_>) -> syn::Result<TraversalCall> {
+    let callback = input.parse()?;
+    let content;
+    parenthesized!(content in input);
+    let mode = parse_visit_mode(&content)?;
+    let value_content;
+    parenthesized!(value_content in content);
+    let value = value_content.parse()?;
+    if !value_content.is_empty() || !content.is_empty() {
+        return Err(content.error("traversal callback accepts one copy/borrowed expression"));
+    }
+    Ok(TraversalCall {
+        callback,
+        mode,
+        value,
+    })
 }
 
 fn parse_root(input: ParseStream<'_>) -> syn::Result<Root> {
@@ -1036,16 +1238,17 @@ mod tests {
             path(codec.value_type.path()),
             "crate :: ast :: SignedNumber"
         );
-        assert_eq!(path(&codec.lexical_variant), "Lexical :: SignedNumber");
         assert_eq!(
-            path(&codec.render),
-            "crate :: render :: render_signed_number"
+            path(codec.lexical_variant.as_ref().unwrap()),
+            "Lexical :: SignedNumber"
         );
-        assert_eq!(
-            tokens(&codec.build.pattern),
-            "BuildValue :: SignedNumber (value)"
-        );
-        assert_eq!(tokens(&codec.build.construct), "value");
+        let Some(crate::RenderBinding::Runtime(render)) = codec.render.as_ref() else {
+            panic!("codec has a runtime render binding");
+        };
+        assert_eq!(path(render), "crate :: render :: render_signed_number");
+        let build = codec.build.as_ref().unwrap();
+        assert_eq!(tokens(&build.pattern), "BuildValue :: SignedNumber (value)");
+        assert_eq!(tokens(&build.construct), "value");
         assert_eq!(
             codec
                 .traversal
@@ -1081,19 +1284,20 @@ mod tests {
             "crate :: ast :: CatalogIdentity"
         );
         assert_eq!(
-            path(&identity.lexical_variant),
+            path(identity.lexical_variant.as_ref().unwrap()),
             "Lexical :: CatalogIdentity"
         );
+        let Some(crate::RenderBinding::Runtime(render)) = identity.render.as_ref() else {
+            panic!("identity has a runtime render binding");
+        };
+        assert_eq!(path(render), "crate :: render :: render_catalog_identity");
+        let build = identity.build.as_ref().unwrap();
         assert_eq!(
-            path(&identity.render),
-            "crate :: render :: render_catalog_identity"
-        );
-        assert_eq!(
-            tokens(&identity.build.pattern),
+            tokens(&build.pattern),
             "BuildValue :: CatalogIdentity (identity , spelling)"
         );
         assert_eq!(
-            tokens(&identity.build.construct),
+            tokens(&build.construct),
             "crate :: ast :: CatalogIdentity :: new (identity , spelling)"
         );
         assert_eq!(

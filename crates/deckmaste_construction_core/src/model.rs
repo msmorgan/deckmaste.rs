@@ -55,7 +55,14 @@ pub enum FieldKind {
 #[derive(Debug)]
 pub struct Checked {
     pub visibilities: Vec<CheckedVisibility>,
+    pub accessors: Vec<CheckedAccessor>,
     pub constructor: ConstructorBinding,
+}
+
+#[derive(Debug)]
+pub struct CheckedAccessor {
+    pub role: Ident,
+    pub method: Ident,
 }
 
 #[derive(Debug)]
@@ -172,12 +179,31 @@ pub struct Lexeme {
 #[derive(Debug)]
 pub struct TerminalBinding {
     pub name: Ident,
+    pub kind: TerminalBindingKind,
     pub codec_atom: Option<CodecAtomClass>,
     pub value_type: syn::Type,
-    pub lexical_variant: Path,
-    pub render: Path,
-    pub build: BuildLeaf,
+    pub lexical_variant: Option<Path>,
+    pub render: Option<RenderBinding>,
+    pub build: Option<BuildLeaf>,
     pub traversal: Traversal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TerminalBindingKind {
+    Codec,
+    Identity,
+}
+
+#[derive(Debug)]
+pub enum RenderBinding {
+    Runtime(Path),
+    ContextIdentity(Vec<ContextIdentityArm>),
+}
+
+#[derive(Debug)]
+pub struct ContextIdentityArm {
+    pub variant: Ident,
+    pub accessor: Ident,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -196,6 +222,53 @@ pub struct BuildLeaf {
 pub struct Traversal {
     pub parts: Vec<TraversalPart>,
     pub visit_order: Vec<Ident>,
+    pub callback_mode: Option<VisitMode>,
+    pub argument: Option<Ident>,
+    pub variants: Vec<Ident>,
+    pub fields: Vec<TraversalField>,
+    pub calls: Vec<TraversalCall>,
+    pub branches: Vec<TraversalBranch>,
+    pub leaf_callbacks: Vec<LeafCallback>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VisitMode {
+    Copy,
+    Borrowed,
+}
+
+#[derive(Debug)]
+pub struct TraversalCall {
+    pub callback: Path,
+    pub mode: VisitMode,
+    pub value: Expr,
+}
+
+#[derive(Debug)]
+pub struct TraversalField {
+    pub name: Ident,
+    pub value_type: syn::Type,
+}
+
+#[derive(Debug)]
+pub struct TraversalBranch {
+    pub value: Expr,
+    pub arms: Vec<TraversalBranchArm>,
+}
+
+#[derive(Debug)]
+pub struct TraversalBranchArm {
+    pub variant: Path,
+    pub binding: Ident,
+    pub value_type: syn::Type,
+    pub call: TraversalCall,
+}
+
+#[derive(Debug)]
+pub struct LeafCallback {
+    pub name: Ident,
+    pub value_type: syn::Type,
+    pub mode: VisitMode,
 }
 
 #[derive(Debug)]

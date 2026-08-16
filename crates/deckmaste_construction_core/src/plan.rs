@@ -203,6 +203,8 @@ pub(crate) fn plan_emission(validated: &ValidatedDeclarations) -> syn::Result<Em
     let mut items = crate::emit::ast::emit(validated)?;
     let (terminal_items, terminal_contributions) = crate::emit::terminal::emit(validated)?;
     items.extend(terminal_items);
+    items.extend(crate::emit::render::emit(validated)?);
+    items.extend(crate::emit::visit::emit(validated)?);
 
     let mut keys = HashSet::new();
     for item in &items {
@@ -212,7 +214,12 @@ pub(crate) fn plan_emission(validated: &ValidatedDeclarations) -> syn::Result<Em
                 format!("duplicate generated item key {:?}", item.key),
             ));
         }
-        crate::format::validate_item(item)?;
+        crate::format::validate_item(item).map_err(|error| {
+            syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!("generated item {:?} is invalid: {error}", item.key),
+            )
+        })?;
     }
 
     Ok(EmissionPlan {
@@ -241,23 +248,43 @@ mod tests {
             .map(|item| &item.key)
             .collect::<Vec<_>>();
         assert_eq!(
-            keys.iter()
-                .map(|key| match key {
-                    ItemKey::Named { kind, name } => (*kind, name.as_str()),
-                    ItemKey::Impl { .. } => panic!("Task 4 emits no impls"),
-                })
-                .collect::<Vec<_>>(),
-            [
-                (NamedKind::Type, "Node"),
-                (NamedKind::Type, "Action"),
-                (NamedKind::Type, "Leaf"),
-                (NamedKind::Type, "Chain"),
-                (NamedKind::Type, "ActionElement"),
-                (NamedKind::Type, "Words"),
-                (NamedKind::Type, "Nouns"),
-                (NamedKind::Type, "Verbs"),
+            &keys[..8],
+            &[
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "Node".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "Action".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "Leaf".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "Chain".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "ActionElement".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "Words".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "Nouns".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "Verbs".into()
+                },
             ]
         );
+        assert_eq!(keys.len(), 20);
         assert_eq!(
             keys.len(),
             keys.iter().copied().collect::<HashSet<_>>().len()
@@ -278,6 +305,7 @@ mod tests {
             first
                 .items()
                 .iter()
+                .take(8)
                 .map(|item| item
                     .origins
                     .iter()

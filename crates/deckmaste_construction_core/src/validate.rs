@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use quote::ToTokens;
 use syn::spanned::Spanned;
 
 use crate::feature;
@@ -16,6 +17,7 @@ use crate::model::FormAtom;
 use crate::model::TerminalBinding;
 use crate::model::TraversalKind;
 use crate::model::VerbOperand;
+use crate::model::VisitMode;
 
 #[derive(Debug)]
 pub struct ValidatedDeclarations {
@@ -624,13 +626,6 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     TerminalKind::Identity
                 };
                 match declaration {
-                    Declaration::Codec(_) if binding.codec_atom.is_none() => combine(
-                        &mut errors,
-                        syn::Error::new(
-                            binding.name.span(),
-                            "codec binding requires explicit atom class",
-                        ),
-                    ),
                     Declaration::Identity(_) if binding.codec_atom.is_some() => combine(
                         &mut errors,
                         syn::Error::new(
@@ -741,6 +736,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
         let has_fixed_verb = verb_operands
             .iter()
             .any(|operand| matches!(operand, VerbOperand::Fixed(_)));
+        let local_vocab_providers = local_vocab_feature_providers(construction, &fields, symbols);
         if verb_operands.len() > 1 {
             combine(
                 &mut errors,
@@ -840,6 +836,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     &fields,
                     symbols,
                     &feature_providers,
+                    &local_vocab_providers,
                     has_fixed_verb,
                     &verb_operands,
                     &mut errors,
@@ -852,6 +849,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     &fields,
                     symbols,
                     &feature_providers,
+                    &local_vocab_providers,
                     has_fixed_verb,
                     &verb_operands,
                     &mut errors,
@@ -1075,6 +1073,7 @@ fn check_feature_role(
     fields: &HashMap<String, &FieldKind>,
     symbols: &Symbols,
     providers: &HashSet<(String, ParsedFeature)>,
+    local_vocab_providers: &HashSet<(String, ParsedFeature)>,
     has_fixed_verb: bool,
     verb_operands: &[&VerbOperand],
     errors: &mut Option<syn::Error>,
@@ -1110,6 +1109,8 @@ fn check_feature_role(
                 );
             }
         }
+        Some(FieldKind::Lex(_)) if local_vocab_providers.contains(&(role.to_string(), feature)) => {
+        }
         Some(FieldKind::Lex(path))
             if verb_operands.iter().any(
                 |operand| matches!(operand, VerbOperand::Projected(field) if field == role),
@@ -1131,6 +1132,16 @@ fn check_feature_role(
                 );
             }
         }
+        Some(FieldKind::Lex(_)) => combine(
+            errors,
+            syn::Error::new(
+                role.span(),
+                format!(
+                    "lexical role `{role}` does not have an exhaustive local {} writer",
+                    feature_name(feature)
+                ),
+            ),
+        ),
         Some(_) => combine(
             errors,
             syn::Error::new(
@@ -1143,6 +1154,41 @@ fn check_feature_role(
             syn::Error::new(role.span(), format!("unknown feature role `{role}`")),
         ),
     }
+}
+
+fn local_vocab_feature_providers(
+    construction: &crate::Construction,
+    fields: &HashMap<String, &FieldKind>,
+    symbols: &Symbols,
+) -> HashSet<(String, ParsedFeature)> {
+    construction
+        .equations
+        .iter()
+        .filter_map(|equation| {
+            let ParsedFeaturePlace::Role { field, feature } = &equation.target else {
+                return None;
+            };
+            let ParsedFeatureValue::Match { role, arms } = &equation.value else {
+                return None;
+            };
+            if field != role {
+                return None;
+            }
+            let Some(FieldKind::Lex(path)) = fields.get(&role.to_string()) else {
+                return None;
+            };
+            let terminal = symbols.terminals.get(&path_name(path))?;
+            if terminal.kind != TerminalKind::Vocab {
+                return None;
+            }
+            let variants = arms
+                .iter()
+                .map(|arm| arm.variant.to_string())
+                .collect::<HashSet<_>>();
+            (variants.len() == arms.len() && variants == terminal.variants)
+                .then(|| (role.to_string(), *feature))
+        })
+        .collect()
 }
 
 fn check_role_kind(
@@ -1311,6 +1357,7 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
 
 fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()> {
     let mut errors = None;
+    let callbacks = traversal_callbacks(raw, &mut errors);
     for declaration in &raw.declarations {
         match declaration {
             Declaration::Construction(construction) => {
@@ -1351,6 +1398,53 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                                 format!(
                                     "checked construction requires explicit visibility for field `{}`",
                                     field.name
+                                ),
+                            ),
+                        );
+                    }
+                }
+                let mut accessor_roles = HashSet::new();
+                for accessor in &checked.accessors {
+                    let name = accessor.role.to_string();
+                    if !fields.contains(&name) {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                accessor.role.span(),
+                                format!("unknown checked accessor field `{name}`"),
+                            ),
+                        );
+                    } else if !accessor_roles.insert(name.clone()) {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                accessor.role.span(),
+                                format!("duplicate checked accessor for `{name}`"),
+                            ),
+                        );
+                    }
+                }
+                for visibility in &checked.visibilities {
+                    let name = visibility.role.to_string();
+                    let is_private = matches!(
+                        visibility.visibility,
+                        crate::NonPublicVisibility::Private(_)
+                    );
+                    if is_private && !accessor_roles.contains(&name) {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                visibility.role.span(),
+                                format!("private checked field `{name}` requires an accessor"),
+                            ),
+                        );
+                    } else if !is_private && accessor_roles.contains(&name) {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                visibility.role.span(),
+                                format!(
+                                    "non-private checked field `{name}` cannot declare an accessor"
                                 ),
                             ),
                         );
@@ -1400,7 +1494,7 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                 }
             }
             Declaration::Codec(binding) | Declaration::Identity(binding) => {
-                validate_binding(binding, &mut errors)
+                validate_binding(binding, &callbacks, &mut errors)
             }
             _ => {}
         }
@@ -1408,15 +1502,215 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
     finish(errors)
 }
 
-fn validate_binding(binding: &TerminalBinding, errors: &mut Option<syn::Error>) {
+#[derive(Clone)]
+struct TraversalSignature {
+    mode: VisitMode,
+    value_type: String,
+    owner: String,
+}
+
+#[derive(Default)]
+struct TraversalCallbacks {
+    walkers: HashMap<String, TraversalSignature>,
+    visitors: HashMap<String, TraversalSignature>,
+}
+
+fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> TraversalCallbacks {
+    let mut callbacks = TraversalCallbacks::default();
+    let mut categories = HashSet::new();
+    for declaration in &raw.declarations {
+        match declaration {
+            Declaration::Construction(construction) => {
+                let category = path_name(&construction.category);
+                if categories.insert(category.clone()) {
+                    register_traversal_callback(
+                        &mut callbacks.walkers,
+                        format!("walk_{}", snake_case(&category)),
+                        VisitMode::Borrowed,
+                        category.clone(),
+                        format!("category `{category}`"),
+                        construction.category.span(),
+                        errors,
+                    );
+                    register_traversal_callback(
+                        &mut callbacks.visitors,
+                        format!("visit_{}", snake_case(&category)),
+                        VisitMode::Borrowed,
+                        category.clone(),
+                        format!("category `{category}`"),
+                        construction.category.span(),
+                        errors,
+                    );
+                }
+                let element = construction.element.name.to_string();
+                for (prefix, registry) in [
+                    ("walk", &mut callbacks.walkers),
+                    ("visit", &mut callbacks.visitors),
+                ] {
+                    register_traversal_callback(
+                        registry,
+                        format!("{prefix}_{}", snake_case(&element)),
+                        VisitMode::Borrowed,
+                        element.clone(),
+                        format!("construction `{}`", construction.name),
+                        construction.element.name.span(),
+                        errors,
+                    );
+                }
+            }
+            Declaration::Vocab(vocab) => register_terminal_callbacks(
+                &mut callbacks,
+                &vocab.name,
+                VisitMode::Copy,
+                format!("vocab `{}`", vocab.name),
+                errors,
+            ),
+            Declaration::Lexeme(lexeme) => register_terminal_callbacks(
+                &mut callbacks,
+                &lexeme.name,
+                VisitMode::Copy,
+                format!("lexeme `{}`", lexeme.name),
+                errors,
+            ),
+            Declaration::Codec(binding) | Declaration::Identity(binding) => {
+                if let Some(mode) = binding.traversal.callback_mode {
+                    register_terminal_callbacks_as(
+                        &mut callbacks,
+                        &binding.name.to_string(),
+                        &simple_type_name(&binding.value_type),
+                        mode,
+                        format!("binding `{}`", binding.name),
+                        binding.name.span(),
+                        errors,
+                    );
+                }
+            }
+            Declaration::Root(_) => {}
+        }
+    }
+    for declaration in &raw.declarations {
+        let (Declaration::Codec(binding) | Declaration::Identity(binding)) = declaration else {
+            continue;
+        };
+        for leaf in &binding.traversal.leaf_callbacks {
+            register_traversal_callback(
+                &mut callbacks.visitors,
+                leaf.name.to_string(),
+                leaf.mode,
+                type_name(&leaf.value_type),
+                format!("binding `{}` leaf callback", binding.name),
+                leaf.name.span(),
+                errors,
+            );
+        }
+    }
+    callbacks
+}
+
+fn register_terminal_callbacks(
+    callbacks: &mut TraversalCallbacks,
+    name: &syn::Ident,
+    mode: VisitMode,
+    owner: String,
+    errors: &mut Option<syn::Error>,
+) {
+    let ty = name.to_string();
+    register_terminal_callbacks_as(callbacks, &ty, &ty, mode, owner, name.span(), errors);
+}
+
+fn register_terminal_callbacks_as(
+    callbacks: &mut TraversalCallbacks,
+    generated_name: &str,
+    value_type: &str,
+    mode: VisitMode,
+    owner: String,
+    span: proc_macro2::Span,
+    errors: &mut Option<syn::Error>,
+) {
+    register_traversal_callback(
+        &mut callbacks.walkers,
+        format!("walk_{}", snake_case(generated_name)),
+        mode,
+        value_type.to_owned(),
+        owner.clone(),
+        span,
+        errors,
+    );
+    register_traversal_callback(
+        &mut callbacks.visitors,
+        format!("visit_{}", snake_case(generated_name)),
+        mode,
+        value_type.to_owned(),
+        owner,
+        span,
+        errors,
+    );
+}
+
+fn register_traversal_callback(
+    callbacks: &mut HashMap<String, TraversalSignature>,
+    name: String,
+    mode: VisitMode,
+    value_type: String,
+    owner: String,
+    span: proc_macro2::Span,
+    errors: &mut Option<syn::Error>,
+) {
+    if let Some(previous) = callbacks.get(&name) {
+        combine(
+            errors,
+            syn::Error::new(
+                span,
+                format!(
+                    "traversal callback `{name}` collides between {} and {owner}",
+                    previous.owner
+                ),
+            ),
+        );
+    } else {
+        callbacks.insert(
+            name,
+            TraversalSignature {
+                mode,
+                value_type,
+                owner,
+            },
+        );
+    }
+}
+
+fn validate_binding(
+    binding: &TerminalBinding,
+    callbacks: &TraversalCallbacks,
+    errors: &mut Option<syn::Error>,
+) {
+    validate_context_identity(binding, errors);
     let mut bound = HashSet::new();
-    let pattern_ok = match &binding.build.pattern {
+    let Some(build) = &binding.build else {
+        bound.insert(binding.traversal.argument.as_ref().map_or_else(
+            || snake_case(&binding.name.to_string()),
+            ToString::to_string,
+        ));
+        validate_traversal(binding, &bound, callbacks, errors);
+        return;
+    };
+    let Some(lexical_variant) = &binding.lexical_variant else {
+        combine(
+            errors,
+            syn::Error::new(
+                binding.name.span(),
+                "binding build requires lexical metadata",
+            ),
+        );
+        return;
+    };
+    let pattern_ok = match &build.pattern {
         syn::Pat::TupleStruct(tuple) => {
             let variant_matches = tuple
                 .path
                 .segments
                 .last()
-                .zip(binding.lexical_variant.segments.last())
+                .zip(lexical_variant.segments.last())
                 .is_some_and(|(left, right)| left.ident == right.ident);
             let shapes_ok = tuple.elems.iter().all(|pat| match pat {
                 syn::Pat::Ident(ident)
@@ -1436,19 +1730,309 @@ fn validate_binding(binding: &TerminalBinding, errors: &mut Option<syn::Error>) 
         combine(
             errors,
             syn::Error::new_spanned(
-                &binding.build.pattern,
+                &build.pattern,
                 "binding pattern must be one declared BuildValue tuple variant with unique identifier slots",
             ),
         );
     }
-    if !closed_expr(&binding.build.construct, &bound, true) {
+    if !closed_expr(&build.construct, &bound, true) {
         combine(
             errors,
             syn::Error::new_spanned(
-                &binding.build.construct,
+                &build.construct,
                 "binding construct expression is outside the closed path/call/field syntax or references an undeclared pattern name",
             ),
         );
+    }
+    validate_traversal(binding, &bound, callbacks, errors);
+}
+
+fn validate_context_identity(binding: &TerminalBinding, errors: &mut Option<syn::Error>) {
+    let Some(crate::RenderBinding::ContextIdentity(arms)) = &binding.render else {
+        return;
+    };
+    if arms.is_empty() {
+        combine(
+            errors,
+            syn::Error::new(
+                binding.name.span(),
+                "context identity render requires at least one arm",
+            ),
+        );
+    }
+    let mut seen = HashSet::new();
+    for arm in arms {
+        if !seen.insert(arm.variant.to_string()) {
+            combine(
+                errors,
+                syn::Error::new(
+                    arm.variant.span(),
+                    format!("duplicate context identity variant `{}`", arm.variant),
+                ),
+            );
+        }
+    }
+    let traversal = binding
+        .traversal
+        .variants
+        .iter()
+        .map(ToString::to_string)
+        .collect::<HashSet<_>>();
+    for variant in seen.difference(&traversal) {
+        combine(
+            errors,
+            syn::Error::new(
+                binding.name.span(),
+                format!("unknown context identity variant `{variant}`"),
+            ),
+        );
+    }
+    for variant in traversal.difference(&seen) {
+        combine(
+            errors,
+            syn::Error::new(
+                binding.name.span(),
+                format!("missing context identity variant `{variant}`"),
+            ),
+        );
+    }
+}
+
+fn validate_traversal(
+    binding: &TerminalBinding,
+    bound: &HashSet<String>,
+    callbacks: &TraversalCallbacks,
+    errors: &mut Option<syn::Error>,
+) {
+    let traversal = &binding.traversal;
+    let uses_closed_recipe = traversal.callback_mode.is_some()
+        || traversal.argument.is_some()
+        || !traversal.variants.is_empty()
+        || !traversal.fields.is_empty()
+        || !traversal.calls.is_empty()
+        || !traversal.branches.is_empty()
+        || !traversal.leaf_callbacks.is_empty();
+    if uses_closed_recipe {
+        if traversal.callback_mode.is_none() {
+            combine(
+                errors,
+                syn::Error::new(
+                    binding.name.span(),
+                    "closed traversal recipe requires callback pass mode",
+                ),
+            );
+        }
+        if traversal.argument.is_none() {
+            combine(
+                errors,
+                syn::Error::new(
+                    binding.name.span(),
+                    "closed traversal recipe requires an argument name",
+                ),
+            );
+        }
+        if !traversal.parts.is_empty() || !traversal.visit_order.is_empty() {
+            combine(
+                errors,
+                syn::Error::new(
+                    binding.name.span(),
+                    "closed traversal recipe cannot mix legacy part/visit metadata",
+                ),
+            );
+        }
+        let enum_body = !traversal.variants.is_empty() && traversal.branches.is_empty();
+        let calls_body = !traversal.calls.is_empty();
+        let match_body = !traversal.branches.is_empty();
+        let body_kinds = [enum_body, calls_body, match_body]
+            .into_iter()
+            .filter(|present| *present)
+            .count();
+        if body_kinds != 1 {
+            combine(
+                errors,
+                syn::Error::new(
+                    binding.name.span(),
+                    "closed traversal recipe requires exactly one enum, calls, or match body",
+                ),
+            );
+        }
+        if let Some(mode) = traversal.callback_mode {
+            let mismatch = match (enum_body, calls_body, match_body, mode) {
+                (true, false, false, VisitMode::Borrowed) => {
+                    Some("enum traversal body requires copy callback mode")
+                }
+                (false, true, false, VisitMode::Copy) => {
+                    Some("calls traversal body requires borrowed callback mode")
+                }
+                (false, false, true, VisitMode::Copy) => {
+                    Some("match traversal body requires borrowed callback mode")
+                }
+                _ => None,
+            };
+            if let Some(message) = mismatch {
+                combine(errors, syn::Error::new(binding.name.span(), message));
+            }
+        }
+        let mut names = HashSet::new();
+        for variant in &traversal.variants {
+            if !names.insert(variant.to_string()) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        variant.span(),
+                        format!("duplicate traversal variant `{variant}`"),
+                    ),
+                );
+            }
+        }
+        names.clear();
+        let mut call_bound = bound.clone();
+        let argument = traversal.argument.as_ref().map_or_else(
+            || snake_case(&binding.name.to_string()),
+            ToString::to_string,
+        );
+        call_bound.insert(argument.clone());
+        let mut call_types = HashMap::from([(argument, simple_type_name(&binding.value_type))]);
+        for field in &traversal.fields {
+            let name = field.name.to_string();
+            if !names.insert(name.clone()) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        field.name.span(),
+                        format!("duplicate traversal field `{}`", field.name),
+                    ),
+                );
+            }
+            call_bound.insert(name.clone());
+            call_types.insert(name, type_name(&field.value_type));
+        }
+        names.clear();
+        for leaf in &traversal.leaf_callbacks {
+            if !leaf.name.to_string().starts_with("visit_") {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        leaf.name.span(),
+                        "leaf callback name must start with `visit_`",
+                    ),
+                );
+            }
+            if !names.insert(leaf.name.to_string()) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        leaf.name.span(),
+                        format!("duplicate traversal leaf callback `{}`", leaf.name),
+                    ),
+                );
+            }
+        }
+        for call in &traversal.calls {
+            validate_traversal_call(call, &call_bound, &call_types, callbacks, errors);
+        }
+        if traversal.branches.len() > 1 {
+            combine(
+                errors,
+                syn::Error::new(
+                    binding.name.span(),
+                    "closed traversal recipe accepts exactly one match body",
+                ),
+            );
+        }
+        for branch in &traversal.branches {
+            if !closed_expr(&branch.value, &call_bound, false) {
+                combine(
+                    errors,
+                    syn::Error::new_spanned(
+                        &branch.value,
+                        "traversal match value must be rooted in the bound runtime value",
+                    ),
+                );
+            }
+            if branch.arms.is_empty() {
+                combine(
+                    errors,
+                    syn::Error::new_spanned(
+                        &branch.value,
+                        "traversal match requires at least one branch",
+                    ),
+                );
+            }
+            if traversal.variants.is_empty() {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        binding.name.span(),
+                        "traversal match requires declared exhaustive variants",
+                    ),
+                );
+            }
+            let matched_type = expr_type(&branch.value, &call_types);
+            let mut covered = HashSet::new();
+            for arm in &branch.arms {
+                let mut arm_bound = call_bound.clone();
+                let mut arm_types = call_types.clone();
+                let variant = arm
+                    .variant
+                    .segments
+                    .last()
+                    .map(|segment| segment.ident.to_string())
+                    .unwrap_or_default();
+                if !covered.insert(variant.clone()) {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            &arm.variant,
+                            format!("duplicate traversal match variant `{variant}`"),
+                        ),
+                    );
+                }
+                let owner = arm
+                    .variant
+                    .segments
+                    .iter()
+                    .rev()
+                    .nth(1)
+                    .map(|segment| segment.ident.to_string());
+                if owner.as_ref() != matched_type.as_ref() {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            &arm.variant,
+                            "traversal match variant type does not match the matched runtime value",
+                        ),
+                    );
+                }
+                let binding_name = arm.binding.to_string();
+                arm_bound.insert(binding_name.clone());
+                arm_types.insert(binding_name, type_name(&arm.value_type));
+                validate_traversal_call(&arm.call, &arm_bound, &arm_types, callbacks, errors);
+            }
+            let declared = traversal
+                .variants
+                .iter()
+                .map(ToString::to_string)
+                .collect::<HashSet<_>>();
+            for variant in covered.difference(&declared) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        binding.name.span(),
+                        format!("unknown traversal match variant `{variant}`"),
+                    ),
+                );
+            }
+            for variant in declared.difference(&covered) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        binding.name.span(),
+                        format!("missing traversal match variant `{variant}`"),
+                    ),
+                );
+            }
+        }
     }
     let mut parts = HashSet::new();
     for part in &binding.traversal.parts {
@@ -1501,6 +2085,133 @@ fn validate_binding(binding: &TerminalBinding, errors: &mut Option<syn::Error>) 
                 ),
             );
         }
+    }
+}
+
+fn validate_traversal_call(
+    call: &crate::TraversalCall,
+    bound: &HashSet<String>,
+    types: &HashMap<String, String>,
+    callbacks: &TraversalCallbacks,
+    errors: &mut Option<syn::Error>,
+) {
+    let (valid_callback, callback_name, registry) = match call.callback.segments.len() {
+        1 if call.callback.leading_colon.is_none() => (
+            true,
+            call.callback.segments[0].ident.to_string(),
+            &callbacks.walkers,
+        ),
+        2 if call.callback.leading_colon.is_none()
+            && call.callback.segments[0].ident == "visitor" =>
+        {
+            (
+                true,
+                call.callback.segments[1].ident.to_string(),
+                &callbacks.visitors,
+            )
+        }
+        _ => (
+            false,
+            call.callback.to_token_stream().to_string(),
+            &callbacks.walkers,
+        ),
+    };
+    if !valid_callback {
+        combine(
+            errors,
+            syn::Error::new_spanned(
+                &call.callback,
+                "traversal callback must be a local walker or `visitor::method`",
+            ),
+        );
+    }
+    let signature = valid_callback
+        .then(|| registry.get(&callback_name))
+        .flatten();
+    if valid_callback && signature.is_none() {
+        combine(
+            errors,
+            syn::Error::new_spanned(
+                &call.callback,
+                format!("unknown traversal callback `{callback_name}`"),
+            ),
+        );
+    }
+    if let Some(signature) = signature {
+        if signature.mode != call.mode {
+            combine(
+                errors,
+                syn::Error::new_spanned(
+                    &call.callback,
+                    format!(
+                        "traversal callback `{callback_name}` requires {} traversal mode",
+                        visit_mode_name(signature.mode)
+                    ),
+                ),
+            );
+        }
+        if let Some(value_type) = expr_type(&call.value, types) {
+            if value_type != signature.value_type {
+                combine(
+                    errors,
+                    syn::Error::new_spanned(
+                        &call.value,
+                        format!(
+                            "traversal callback `{callback_name}` expects `{}` but argument is `{value_type}`",
+                            signature.value_type
+                        ),
+                    ),
+                );
+            }
+        } else {
+            combine(
+                errors,
+                syn::Error::new_spanned(
+                    &call.value,
+                    "traversal callback argument lacks a declared value type",
+                ),
+            );
+        }
+    }
+    if !closed_expr(&call.value, bound, false) {
+        combine(
+            errors,
+            syn::Error::new_spanned(
+                &call.value,
+                "traversal callback argument must be a field path rooted in a declared runtime value",
+            ),
+        );
+    }
+}
+
+fn expr_type(expr: &syn::Expr, types: &HashMap<String, String>) -> Option<String> {
+    match expr {
+        syn::Expr::Path(path) if path.qself.is_none() && path.path.segments.len() == 1 => {
+            types.get(&path.path.segments[0].ident.to_string()).cloned()
+        }
+        syn::Expr::Paren(paren) => expr_type(&paren.expr, types),
+        _ => None,
+    }
+}
+
+fn simple_type_name(value_type: &syn::Type) -> String {
+    match value_type {
+        syn::Type::Path(path) => path.path.segments.last().map_or_else(
+            || type_name(value_type),
+            |segment| segment.ident.to_string(),
+        ),
+        _ => type_name(value_type),
+    }
+}
+
+fn type_name(value_type: &syn::Type) -> String {
+    value_type.to_token_stream().to_string().replace(' ', "")
+}
+
+fn visit_mode_name(mode: VisitMode) -> &'static str {
+    match mode {
+        VisitMode::Copy => "copy",
+        VisitMode::Borrowed => "borrowed",
     }
 }
 
@@ -2075,8 +2786,8 @@ fn validate_backend_completeness(
                 identity_atom: false,
                 noun_atom: binding.codec_atom == Some(CodecAtomClass::Noun),
                 verb_atom: false,
-                direct_render: true,
-                direct_build: true,
+                direct_render: binding.render.is_some(),
+                direct_build: binding.build.is_some(),
                 traversal: true,
             }),
             Declaration::Identity(binding) => {
@@ -2086,8 +2797,8 @@ fn validate_backend_completeness(
                     identity_atom: true,
                     noun_atom: false,
                     verb_atom: false,
-                    direct_render: true,
-                    direct_build: true,
+                    direct_render: binding.render.is_some(),
+                    direct_build: binding.build.is_some(),
                     traversal: true,
                 });
             }
@@ -2658,6 +3369,296 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn lexical_feature_reads_require_an_exhaustive_same_construction_writer() {
+        validate(quote! {
+            vocab Person { One = "one", Many = "many", }
+            construction valid: Root {
+                element Valid { person: lex Person, }
+                derive person.agreement = match person {
+                    One => Values::Bare,
+                    Many => Values::ThirdPersonSingular,
+                };
+                derive agreement = person.agreement;
+                form valid = lex(person);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("the explicit exhaustive role writer provides agreement");
+
+        let missing = error(quote! {
+            vocab Person { One = "one", Many = "many", }
+            construction missing: Root {
+                element Missing { person: lex Person, }
+                derive agreement = person.agreement;
+                form missing = lex(person);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            missing.contains("does not have an exhaustive local agreement writer"),
+            "{missing}"
+        );
+
+        let mismatched = error(quote! {
+            vocab Person { One = "one", Many = "many", }
+            construction mismatched: Root {
+                element Mismatched { person: lex Person, other: lex Person, }
+                derive person.agreement = match other {
+                    One => Values::Bare,
+                    Many => Values::ThirdPersonSingular,
+                };
+                derive agreement = person.agreement;
+                form mismatched = lex(person) lex(other);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            mismatched.contains("does not have an exhaustive local agreement writer"),
+            "{mismatched}"
+        );
+
+        let mixed = error(quote! {
+            vocab Person { One = "one", Many = "many", }
+            construction mixed: Root {
+                element Mixed { person: lex Person, }
+                derive person.agreement = match person {
+                    One => Values::Singular,
+                    Many => Values::Plural,
+                };
+                derive agreement = person.agreement;
+                form mixed = lex(person);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(mixed.contains("is not an agreement value"), "{mixed}");
+    }
+
+    #[test]
+    fn rejects_open_or_incompatible_closed_traversal_schemas() {
+        let empty_context = error(quote! {
+            identity Flag {
+                value_type = Flag;
+                lexical = Lexical::Flag;
+                render context_identity {}
+                build { pattern = BuildValue::Flag(flag); construct = flag; }
+                traversal { callback = copy; argument = flag; variant Full; variant Short; }
+            }
+            construction only: Root { element Only { flag: identity Flag, } form only = identity(flag); }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            empty_context.contains("context identity render requires at least one arm"),
+            "{empty_context}"
+        );
+
+        let duplicate_context = error(quote! {
+            identity Flag {
+                value_type = Flag;
+                lexical = Lexical::Flag;
+                render context_identity { Full => card_name, Full => abbreviated_card_name, }
+                build { pattern = BuildValue::Flag(flag); construct = flag; }
+                traversal { callback = copy; argument = flag; variant Full; variant Short; }
+            }
+            construction only: Root { element Only { flag: identity Flag, } form only = identity(flag); }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            duplicate_context.contains("duplicate context identity variant `Full`"),
+            "{duplicate_context}"
+        );
+        assert!(
+            duplicate_context.contains("missing context identity variant `Short`"),
+            "{duplicate_context}"
+        );
+
+        let open_pattern = error(quote! {
+            codec Runtime {
+                value_type = Runtime;
+                traversal {
+                    callback = borrowed;
+                    argument = runtime;
+                    match runtime {
+                        _ => visitor::visit_runtime(borrowed(runtime)),
+                    }
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            open_pattern.contains("closed variant-binding pattern"),
+            "{open_pattern}"
+        );
+
+        let coverage = error(quote! {
+            codec Runtime {
+                value_type = Runtime;
+                traversal {
+                    callback = borrowed;
+                    argument = runtime;
+                    variant First;
+                    variant Second;
+                    match runtime {
+                        Runtime::First(value: Runtime) => visitor::visit_runtime(borrowed(value)),
+                        Runtime::First(other: Runtime) => visitor::visit_runtime(borrowed(other)),
+                    }
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            coverage.contains("duplicate traversal match variant `First`"),
+            "{coverage}"
+        );
+        assert!(
+            coverage.contains("missing traversal match variant `Second`"),
+            "{coverage}"
+        );
+
+        let callback = error(quote! {
+            codec Runtime {
+                value_type = Runtime;
+                traversal {
+                    callback = borrowed;
+                    argument = runtime;
+                    call walk_missing(borrowed(runtime));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            callback.contains("unknown traversal callback `walk_missing`"),
+            "{callback}"
+        );
+
+        let pass = error(quote! {
+            codec Runtime {
+                value_type = Runtime;
+                traversal {
+                    callback = borrowed;
+                    argument = runtime;
+                    call visitor::visit_runtime(copy(runtime));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(pass.contains("requires borrowed traversal mode"), "{pass}");
+
+        let value_type = error(quote! {
+            codec Sign {
+                value_type = Sign;
+                traversal { callback = copy; argument = sign; variant Positive; }
+            }
+            codec Runtime {
+                value_type = Runtime;
+                traversal {
+                    callback = borrowed;
+                    argument = runtime;
+                    field sign: Runtime;
+                    call walk_sign(copy(sign));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            value_type.contains("expects `Sign` but argument is `Runtime`"),
+            "{value_type}"
+        );
+
+        let collision = error(quote! {
+            codec First {
+                value_type = First;
+                traversal {
+                    callback = borrowed;
+                    argument = first;
+                    leaf visit_shared: str = borrowed;
+                    call visitor::visit_shared(borrowed(first));
+                }
+            }
+            identity Second {
+                value_type = Second;
+                traversal {
+                    callback = borrowed;
+                    argument = second;
+                    leaf visit_shared: str = borrowed;
+                    call visitor::visit_shared(borrowed(second));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            collision.contains("traversal callback `visit_shared` collides"),
+            "{collision}"
+        );
+    }
+
+    #[test]
+    fn rejects_traversal_body_modes_codegen_does_not_support() {
+        let borrowed_variants = error(quote! {
+            codec BorrowedEnum {
+                value_type = BorrowedEnum;
+                traversal {
+                    callback = borrowed;
+                    argument = borrowed_enum;
+                    variant One;
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            borrowed_variants.contains("enum traversal body requires copy callback mode"),
+            "{borrowed_variants}"
+        );
+
+        let copy_calls = error(quote! {
+            codec CopyCalls {
+                value_type = CopyCalls;
+                traversal {
+                    callback = copy;
+                    argument = copy_calls;
+                    call visitor::visit_copy_calls(copy(copy_calls));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            copy_calls.contains("calls traversal body requires borrowed callback mode"),
+            "{copy_calls}"
+        );
+
+        let copy_match = error(quote! {
+            codec Part {
+                value_type = Part;
+                traversal { callback = copy; argument = part; variant Value; }
+            }
+            codec CopyMatch {
+                value_type = CopyMatch;
+                traversal {
+                    callback = copy;
+                    argument = copy_match;
+                    variant Part;
+                    match copy_match {
+                        CopyMatch::Part(part: Part) => walk_part(copy(part)),
+                    }
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            copy_match.contains("match traversal body requires borrowed callback mode"),
+            "{copy_match}"
+        );
+    }
+
+    #[test]
     fn rejects_unbound_reads_cycles_and_missing_atom_features() {
         let unbound = error(quote! {
             construction leaf_node: Leaf { element LeafNode {} form leaf = "leaf"; }
@@ -3044,29 +4045,69 @@ pub(crate) mod tests {
                 atom = noun;
                 value_type = crate::ast::Noun;
                 lexical = Lexical::Noun;
-                render = crate::render::render_noun;
-                build { pattern = BuildValue::Noun(value); construct = value; }
-                traversal { part value = subtree(value); visit value; }
-            }
-            codec SignedNumber {
-                atom = lex;
-                value_type = crate::ast::SignedNumber;
-                lexical = Lexical::SignedNumber;
-                render = crate::render::render_signed_number;
-                build { pattern = BuildValue::SignedNumber(value); construct = value; }
+                render = render_noun;
+                build { pattern = BuildValue::Noun(noun); construct = noun; }
                 traversal {
-                    part sign = scalar(value.sign);
-                    part magnitude = scalar(value.magnitude);
-                    visit sign;
-                    visit magnitude;
+                    callback = borrowed;
+                    argument = noun;
+                    variant Lexeme;
+                    variant Catalog;
+                    match noun {
+                        Noun::Lexeme(noun_lexeme: NounLexeme) => walk_noun_lexeme(copy(noun_lexeme)),
+                        Noun::Catalog(catalog_identity: CatalogIdentity) => walk_catalog_identity(borrowed(catalog_identity)),
+                    }
+                }
+            }
+            codec Sign {
+                value_type = crate::ast::Sign;
+                traversal {
+                    callback = copy;
+                    argument = sign;
+                    variant Positive;
+                    variant Negative;
                 }
             }
             identity SelfReferenceSpelling {
                 value_type = crate::ast::SelfReferenceSpelling;
                 lexical = Lexical::SelfReference;
-                render = crate::render::render_self_reference;
+                render context_identity {
+                    Full => card_name,
+                    Abbreviated => abbreviated_card_name,
+                }
                 build { pattern = BuildValue::SelfReference(spelling); construct = spelling; }
-                traversal { part spelling = scalar(spelling); visit spelling; }
+                traversal {
+                    callback = copy;
+                    argument = spelling;
+                    variant Full;
+                    variant Abbreviated;
+                }
+            }
+            codec SignedNumber {
+                atom = lex;
+                value_type = crate::ast::SignedNumber;
+                lexical = Lexical::SignedNumber;
+                render = render_signed_number;
+                build { pattern = BuildValue::SignedNumber(number); construct = number; }
+                traversal {
+                    callback = borrowed;
+                    argument = number;
+                    field sign: Sign;
+                    field magnitude: u32;
+                    call walk_sign(copy(sign));
+                    call visitor::visit_signed_number(borrowed(number));
+                }
+            }
+            identity CatalogIdentity {
+                value_type = crate::ast::CatalogIdentity;
+                traversal {
+                    callback = borrowed;
+                    argument = identity;
+                    leaf visit_catalog_spelling: str = borrowed;
+                    field kind: CatalogKind;
+                    field spelling: str;
+                    call visitor::visit_catalog_identity(borrowed(identity));
+                    call visitor::visit_catalog_spelling(borrowed(spelling));
+                }
             }
 
             construction spell: Ability {
@@ -3116,10 +4157,11 @@ pub(crate) mod tests {
             }
             construction pronoun: NounPhrase {
                 element PronounNp { word: lex Pronoun, }
-                derive agreement = match word {
+                derive word.agreement = match word {
                     It => Values::ThirdPersonSingular,
                     You => Values::Bare,
                 };
+                derive agreement = word.agreement;
                 derive number = Values::Singular;
                 form pronoun = lex(word);
             }
@@ -3151,6 +4193,7 @@ pub(crate) mod tests {
                 element SelfReferenceNp { spelling: identity SelfReferenceSpelling, }
                 checked {
                     visibility spelling = private;
+                    access spelling = spelling;
                     constructor = SelfReferenceNp::new(spelling, context);
                 }
                 derive agreement = Values::ThirdPersonSingular;
@@ -3166,7 +4209,11 @@ pub(crate) mod tests {
                 require controller is You;
                 derive agreement = Values::Bare;
                 derive number = Values::Plural;
-                derive verb.agreement = Values::Bare;
+                derive controller.agreement = match controller {
+                    It => Values::ThirdPersonSingular,
+                    You => Values::Bare,
+                };
+                derive verb.agreement = controller.agreement;
                 form count = noun(head) lex(controller) verb(VerbLexeme::Control)
                     "with" "power" lex(threshold) "or" "less";
             }
@@ -3200,6 +4247,7 @@ pub(crate) mod tests {
             }
 
             root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+            root Sentence { punctuation = "."; eoi = false; standalone_render = true; }
         }
     }
 
@@ -3215,11 +4263,11 @@ pub(crate) mod tests {
             crate::generate(tokens).expect("public generation accepts the full grammar");
         let plan = expansion.plan();
         assert_eq!(
-            plan.items()
+            plan.items()[..32]
                 .iter()
                 .map(|item| match &item.key {
                     crate::ItemKey::Named { name, .. } => name.as_str(),
-                    crate::ItemKey::Impl { .. } => panic!("Task 4 emits no impls"),
+                    crate::ItemKey::Impl { .. } => panic!("AST/terminal prefix has no impls"),
                 })
                 .collect::<Vec<_>>(),
             [
@@ -3257,11 +4305,12 @@ pub(crate) mod tests {
                 "VerbLexeme",
             ]
         );
+        assert_eq!(plan.items().len(), 84);
         assert_eq!(plan.terminal_contributions().len(), 7);
 
         assert_eq!(validated.contributions().constructions().len(), 19);
-        assert_eq!(validated.contributions().terminals().len(), 10);
-        assert_eq!(validated.contributions().roots().len(), 1);
+        assert_eq!(validated.contributions().terminals().len(), 12);
+        assert_eq!(validated.contributions().roots().len(), 2);
         assert_eq!(
             validated
                 .contributions()
