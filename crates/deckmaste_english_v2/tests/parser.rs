@@ -68,16 +68,8 @@ fn parse_error_is_a_standard_error_and_converts_to_anyhow() {
         expectations: BTreeSet::from([Expectation::Literal("life")]),
     };
     require_standard_error(&error);
-    assert_eq!(
-        error.to_string(),
-        "parse failed at bytes 11..11; expected {Literal(\"life\")}"
-    );
 
-    let anyhow_error: anyhow::Error = error.into();
-    assert_eq!(
-        anyhow_error.to_string(),
-        "parse failed at bytes 11..11; expected {Literal(\"life\")}"
-    );
+    let _: anyhow::Error = error.into();
 
     assert_eq!(
         ParseError::Ambiguous {

@@ -45,11 +45,6 @@ impl Parser {
     /// Returns a structured failure when the checked chart cannot consume the
     /// input. Returns an ambiguity when structural selection cannot choose one
     /// reading.
-    ///
-    /// # Panics
-    ///
-    /// Panics if a chart root admitted by checked completion cannot be
-    /// materialized, which indicates an internal grammar invariant violation.
     pub fn parse(&self, text: &str, context: &ParseContext<'_>) -> Result<Ability, ParseError> {
         let grammar = SliceGrammar {
             catalogs: &self.catalogs,
@@ -57,8 +52,7 @@ impl Parser {
         };
         let forest =
             parse_forest(&grammar, text).map_err(|failure| chart_failure(text, failure))?;
-        Ok(select(materialize(&forest, context))?
-            .expect("validated chart roots must have a checked materialization"))
+        select(materialize(&forest, context))?.ok_or(ParseError::ValidatedRootDidNotMaterialize)
     }
 }
 
