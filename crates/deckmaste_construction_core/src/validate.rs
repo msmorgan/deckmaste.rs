@@ -64,7 +64,7 @@ pub struct ValidatedDeclarations {
     feature_equations: HashMap<String, Vec<feature::FeatureEquation>>,
     feature_resolutions:
         HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
-    category_agreement: HashMap<String, CategoryAgreementCapability>,
+    category_render: HashMap<String, CategoryRenderCapability>,
     #[allow(
         dead_code,
         reason = "sealed contribution inventory is consumed by Task 4 code generation"
@@ -73,9 +73,24 @@ pub struct ValidatedDeclarations {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct CategoryAgreementCapability {
+pub(crate) struct CategoryRenderCapability {
     carries_output: bool,
     requires_external_input: bool,
+    requires_context: bool,
+}
+
+impl CategoryRenderCapability {
+    pub(crate) fn carries_agreement(self) -> bool {
+        self.carries_output
+    }
+
+    pub(crate) fn requires_external_agreement(self) -> bool {
+        self.requires_external_input
+    }
+
+    pub(crate) fn requires_context(self) -> bool {
+        self.requires_context
+    }
 }
 
 #[derive(Debug)]
@@ -359,15 +374,20 @@ impl ValidatedDeclarations {
     }
 
     pub(crate) fn category_carries_agreement(&self, category: &str) -> bool {
-        self.category_agreement
-            .get(category)
-            .is_some_and(|capability| capability.carries_output)
+        self.category_render_capability(category)
+            .carries_agreement()
     }
 
     pub(crate) fn category_requires_external_agreement(&self, category: &str) -> bool {
-        self.category_agreement
+        self.category_render_capability(category)
+            .requires_external_agreement()
+    }
+
+    pub(crate) fn category_render_capability(&self, category: &str) -> CategoryRenderCapability {
+        self.category_render
             .get(category)
-            .is_some_and(|capability| capability.requires_external_input)
+            .copied()
+            .unwrap_or_default()
     }
 
     pub(crate) fn category_reads_feature(&self, category: &str, feature: Feature) -> bool {
@@ -446,16 +466,17 @@ struct ResolvedGrammar {
 
 pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarations> {
     let (symbols, declaration_names) = validate_namespaces(&raw)?;
+    validate_generated_owned_paths(&raw)?;
     let resolved = validate_resolution(&raw, &symbols)?;
     validate_stored_fields(&raw)?;
     validate_bindings_and_checked_metadata(&raw)?;
     validate_refinements(&raw, &symbols)?;
     let (feature_equations, dynamic_numbers) = validate_features(&raw, &symbols)?;
     let feature_resolutions = seal_feature_resolutions(&raw, &feature_equations);
-    let category_agreement = seal_category_agreement_capabilities(&raw, &feature_resolutions);
-    validate_contextual_agreement_uses(&raw, &category_agreement)?;
+    let category_render = seal_category_render_capabilities(&raw, &feature_resolutions);
+    validate_contextual_agreement_uses(&raw, &category_render)?;
     let boxed_fields = validate_category_graph(&raw);
-    validate_roots(&raw, &symbols, &category_agreement)?;
+    validate_roots(&raw, &symbols, &category_render)?;
     let contributions = validate_backend_completeness(&raw, &resolved)?;
     Ok(ValidatedDeclarations {
         raw,
@@ -464,9 +485,108 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
         dynamic_numbers,
         feature_equations,
         feature_resolutions,
-        category_agreement,
+        category_render,
         contributions,
     })
+}
+
+fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
+    let mut errors = None;
+    for declaration in &raw.declarations {
+        match declaration {
+            Declaration::Construction(construction) => {
+                validate_generated_owned_path(&construction.category, &mut errors);
+                for field in &construction.element.fields {
+                    let path = match &field.kind {
+                        FieldKind::Category(path)
+                        | FieldKind::Lex(path)
+                        | FieldKind::Identity(path) => path,
+                    };
+                    validate_generated_owned_path(path, &mut errors);
+                }
+                for equation in &construction.equations {
+                    match &equation.value {
+                        ParsedFeatureValue::Constant(path) => {
+                            validate_generated_owned_path(path, &mut errors);
+                        }
+                        ParsedFeatureValue::Match { arms, .. } => {
+                            for arm in arms {
+                                validate_generated_owned_path(&arm.value, &mut errors);
+                            }
+                        }
+                        ParsedFeatureValue::FromRole(_) => {}
+                    }
+                }
+                for atom in &construction.form.atoms {
+                    if let FormAtom::Verb(VerbOperand::Fixed(path)) = atom {
+                        validate_generated_owned_path(path, &mut errors);
+                    }
+                }
+                if let Some(checked) = &construction.checked {
+                    validate_checked_generated_owner(
+                        &checked.constructor.path,
+                        &construction.element.name,
+                        &mut errors,
+                    );
+                }
+            }
+            Declaration::Root(root) => {
+                validate_generated_owned_path(&root.category, &mut errors);
+            }
+            Declaration::Codec(binding) | Declaration::Identity(binding) => {
+                for call in &binding.traversal.calls {
+                    validate_generated_owned_path(&call.callback, &mut errors);
+                }
+                for branch in &binding.traversal.branches {
+                    for arm in &branch.arms {
+                        validate_generated_owned_path(&arm.call.callback, &mut errors);
+                    }
+                }
+            }
+            Declaration::Vocab(_) | Declaration::Lexeme(_) => {}
+        }
+    }
+    finish(errors)
+}
+
+fn validate_generated_owned_path(path: &syn::Path, errors: &mut Option<syn::Error>) {
+    if path
+        .segments
+        .iter()
+        .any(|segment| !matches!(segment.arguments, syn::PathArguments::None))
+    {
+        combine(
+            errors,
+            syn::Error::new_spanned(
+                path,
+                "compiler-generated identity requires a qself-free, non-generic identifier path",
+            ),
+        );
+    }
+}
+
+fn validate_checked_generated_owner(
+    constructor: &syn::Path,
+    element: &syn::Ident,
+    errors: &mut Option<syn::Error>,
+) {
+    for segment in constructor
+        .segments
+        .iter()
+        .take(constructor.segments.len().saturating_sub(1))
+    {
+        if same_identifier(&segment.ident, element)
+            && !matches!(segment.arguments, syn::PathArguments::None)
+        {
+            combine(
+                errors,
+                syn::Error::new_spanned(
+                    segment,
+                    "compiler-generated identity requires a qself-free, non-generic identifier path",
+                ),
+            );
+        }
+    }
 }
 
 #[allow(
@@ -3146,10 +3266,10 @@ fn seal_feature_resolutions(
     sealed
 }
 
-fn seal_category_agreement_capabilities(
+fn seal_category_render_capabilities(
     raw: &Declarations,
     resolutions: &HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
-) -> HashMap<String, CategoryAgreementCapability> {
+) -> HashMap<String, CategoryRenderCapability> {
     let constructions = raw
         .declarations
         .iter()
@@ -3159,7 +3279,7 @@ fn seal_category_agreement_capabilities(
         })
         .collect::<Vec<_>>();
     let providers = feature_providers(raw);
-    let mut contextual = HashSet::new();
+    let mut agreement_contextual = HashSet::new();
 
     for construction in &constructions {
         let has_fixed_verb = construction
@@ -3177,12 +3297,12 @@ fn seal_category_agreement_capabilities(
                 .and_then(|values| values.get(&verb_place))
                 == Some(&feature::FeatureResolution::External)
         {
-            contextual.insert(path_name(&construction.category));
+            agreement_contextual.insert(path_name(&construction.category));
         }
     }
 
     loop {
-        let before = contextual.len();
+        let before = agreement_contextual.len();
         for construction in &constructions {
             let passes_external_to_child = construction.form.atoms.iter().any(|atom| {
                 let FormAtom::Role(role) = atom else { return false };
@@ -3200,7 +3320,7 @@ fn seal_category_agreement_capabilities(
                     field: role.clone(),
                     feature: feature::Feature::Agreement,
                 };
-                contextual.contains(&category)
+                agreement_contextual.contains(&category)
                     && construction.equations.iter().any(|equation| {
                         matches!(
                             &equation.target,
@@ -3216,10 +3336,38 @@ fn seal_category_agreement_capabilities(
                         == Some(&feature::FeatureResolution::External)
             });
             if passes_external_to_child {
-                contextual.insert(path_name(&construction.category));
+                agreement_contextual.insert(path_name(&construction.category));
             }
         }
-        if contextual.len() == before {
+        if agreement_contextual.len() == before {
+            break;
+        }
+    }
+
+    let mut context_required = HashSet::new();
+    loop {
+        let before = context_required.len();
+        for construction in &constructions {
+            let reads_context = construction.form.atoms.iter().any(|atom| match atom {
+                FormAtom::Identity(_) => true,
+                FormAtom::Role(role) => construction
+                    .element
+                    .fields
+                    .iter()
+                    .find(|field| same_identifier(&field.name, role))
+                    .is_some_and(|field| {
+                        matches!(&field.kind, FieldKind::Category(path) if context_required.contains(&path_name(path)))
+                    }),
+                FormAtom::Literal(_)
+                | FormAtom::Lex(_)
+                | FormAtom::Verb(_)
+                | FormAtom::Noun(_) => false,
+            });
+            if reads_context {
+                context_required.insert(path_name(&construction.category));
+            }
+        }
+        if context_required.len() == before {
             break;
         }
     }
@@ -3229,12 +3377,13 @@ fn seal_category_agreement_capabilities(
         let category = path_name(&construction.category);
         capabilities
             .entry(category.clone())
-            .or_insert_with(CategoryAgreementCapability::default)
-            .requires_external_input = contextual.contains(&category);
+            .or_insert_with(CategoryRenderCapability::default)
+            .requires_external_input = agreement_contextual.contains(&category);
     }
     for (category, capability) in &mut capabilities {
         capability.carries_output =
             providers.contains(&(category.clone(), ParsedFeature::Agreement));
+        capability.requires_context = context_required.contains(category);
     }
     capabilities
 }
@@ -3315,7 +3464,7 @@ fn equation_for_place<'a>(
 
 fn validate_contextual_agreement_uses(
     raw: &Declarations,
-    capabilities: &HashMap<String, CategoryAgreementCapability>,
+    capabilities: &HashMap<String, CategoryRenderCapability>,
 ) -> syn::Result<()> {
     let mut errors = None;
     for declaration in &raw.declarations {
@@ -3481,7 +3630,7 @@ fn validate_category_graph(raw: &Declarations) -> HashSet<(String, String)> {
 fn validate_roots(
     raw: &Declarations,
     symbols: &Symbols,
-    capabilities: &HashMap<String, CategoryAgreementCapability>,
+    capabilities: &HashMap<String, CategoryRenderCapability>,
 ) -> syn::Result<()> {
     let mut errors = None;
     let roots: Vec<_> = raw
@@ -5560,6 +5709,264 @@ pub(crate) mod tests {
             assert!(message.contains("binding value_type"), "{message}");
             assert!(!message.contains("internal"), "{message}");
         }
+    }
+
+    #[test]
+    fn generated_owned_paths_reject_unsupported_shapes_before_emission() {
+        let cases = [
+            (
+                "generic construction category",
+                quote! {
+                    construction only: Root<u8> {
+                        element Only {}
+                        form only = "only";
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "generic category role",
+                quote! {
+                    construction child: Child { element ChildNode {} form child = "child"; }
+                    construction parent: Parent {
+                        element ParentNode { child: Child<u8>, }
+                        form parent = child;
+                    }
+                    root Parent { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "qself category role",
+                quote! {
+                    construction child: Child { element ChildNode {} form child = "child"; }
+                    construction parent: Parent {
+                        element ParentNode { child: <Projection as Trait>::Child, }
+                        form parent = child;
+                    }
+                    root Parent { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "parenthesized category role",
+                quote! {
+                    construction child: Child { element ChildNode {} form child = "child"; }
+                    construction parent: Parent {
+                        element ParentNode { child: Child(u8), }
+                        form parent = child;
+                    }
+                    root Parent { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "associated generic category role",
+                quote! {
+                    construction child: Child { element ChildNode {} form child = "child"; }
+                    construction parent: Parent {
+                        element ParentNode { child: Child<Item = u8>, }
+                        form parent = child;
+                    }
+                    root Parent { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "generic generated terminal role",
+                quote! {
+                    vocab Word { One = "one", }
+                    construction only: Root {
+                        element Only { word: lex Word<u8>, }
+                        form only = lex(word);
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "generic generated verb variant",
+                quote! {
+                    lexeme Verbs { Act, }
+                    construction only: Root {
+                        element Only {}
+                        derive agreement = verb.agreement;
+                        derive verb.agreement = Values::Bare;
+                        form only = verb(Verbs<u8>::Act);
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "generic generated checked owner",
+                quote! {
+                    construction only: Root {
+                        element Only {}
+                        checked { constructor = Only::<u8>::new(); }
+                        form only = "only";
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "associated arguments on a lowered feature value",
+                quote! {
+                    construction only: Root {
+                        element Only {}
+                        derive agreement = Values<Item = u8>::Bare;
+                        form only = "only";
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "generic generated root category",
+                quote! {
+                    construction only: Root { element Only {} form only = "only"; }
+                    root Root<u8> { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+        ];
+
+        for (name, tokens) in cases {
+            let message = crate::generate(tokens)
+                .expect_err("unsupported generated-owned path must fail public generation")
+                .to_string();
+            assert!(
+                message.contains(
+                    "compiler-generated identity requires a qself-free, non-generic identifier path"
+                ),
+                "{name}: {message}",
+            );
+            assert!(!message.contains("internal"), "{name}: {message}");
+        }
+    }
+
+    #[test]
+    fn generic_external_runtime_callbacks_and_constructors_remain_supported() {
+        let expansion = crate::generate(quote! {
+            codec Thing {
+                atom = lex;
+                value_type = Thing;
+                lexical = Lexical::Thing;
+                render = runtime::render::<u8>;
+                build { pattern = BuildValue::Thing(value); construct = value; }
+                traversal {
+                    callback = borrowed;
+                    argument = thing;
+                    call visitor::visit_thing(borrowed(thing));
+                }
+            }
+            construction only: Root {
+                element Only { thing: lex Thing, }
+                checked {
+                    visibility thing = pub(crate);
+                    constructor = runtime::construct::<u8>(thing);
+                }
+                form only = lex(thing);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("external runtime callback and constructor paths may be generic");
+        let output = expansion.tokens().to_string();
+        assert!(output.contains("runtime :: render :: < u8 >"), "{output}");
+        assert!(
+            output.contains("runtime :: construct :: < u8 >"),
+            "{output}"
+        );
+    }
+
+    fn assert_generated_traversal_callback_rejected(tokens: proc_macro2::TokenStream) {
+        let message = crate::generate(tokens)
+            .expect_err("generated traversal callback arguments must fail public generation")
+            .to_string();
+        assert!(
+            message.contains(
+                "compiler-generated identity requires a qself-free, non-generic identifier path"
+            ),
+            "{message}",
+        );
+        assert!(!message.contains("internal"), "{message}");
+    }
+
+    #[test]
+    fn generated_traversal_callback_rejects_codec_local_walker_arguments() {
+        assert_generated_traversal_callback_rejected(quote! {
+            codec Thing {
+                value_type = Thing;
+                traversal {
+                    callback = borrowed;
+                    argument = thing;
+                    call walk_thing::<u8>(borrowed(thing));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+    }
+
+    #[test]
+    fn generated_traversal_callback_rejects_identity_visitor_arguments() {
+        assert_generated_traversal_callback_rejected(quote! {
+            identity Thing {
+                value_type = Thing;
+                traversal {
+                    callback = borrowed;
+                    argument = thing;
+                    call visitor::visit_thing::<u8>(borrowed(thing));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+    }
+
+    #[test]
+    fn generated_traversal_callback_rejects_branch_target_arguments() {
+        assert_generated_traversal_callback_rejected(quote! {
+            vocab Marker { One = "one", }
+            codec Thing {
+                value_type = Thing;
+                traversal {
+                    callback = borrowed;
+                    argument = thing;
+                    variant Marker;
+                    match thing {
+                        Thing::Marker(marker: Marker) =>
+                            visitor::visit_marker::<Item = u8>(copy(marker)),
+                    }
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+    }
+
+    #[test]
+    fn generated_traversal_callback_rejects_qself_target() {
+        assert_generated_traversal_callback_rejected(quote! {
+            codec Thing {
+                value_type = Thing;
+                traversal {
+                    callback = borrowed;
+                    argument = thing;
+                    call <Callbacks as VisitorCallbacks>::walk_thing(borrowed(thing));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+    }
+
+    #[test]
+    fn generated_traversal_callback_rejects_parenthesized_target() {
+        assert_generated_traversal_callback_rejected(quote! {
+            codec Thing {
+                value_type = Thing;
+                traversal {
+                    callback = borrowed;
+                    argument = thing;
+                    call walk_thing(u8)(borrowed(thing));
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
     }
 
     #[test]

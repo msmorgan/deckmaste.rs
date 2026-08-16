@@ -6,9 +6,10 @@
 use deckmaste_construction::constructions;
 
 mod fixture {
-    use super::constructions;
     use RulePosition::Lexical as L;
     use RulePosition::Nonterminal as N;
+
+    use super::constructions;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum Agreement {
@@ -205,6 +206,7 @@ mod fixture {
         RawPayload(RawPayload),
         Keyword(Keyword, Agreement),
         HygieneRoot(HygieneRoot),
+        ContextEnvelope(ContextEnvelope),
         VisitCategory(VisitCategory),
         CheckedMarker(CheckedMarker),
         RawCategory(RawCategory),
@@ -432,6 +434,11 @@ mod fixture {
                 lex(writer_word) raw_payload keyword;
         }
 
+        construction context_envelope: ContextEnvelope {
+            element ContextEnvelopeNode { inner: HygieneRoot, }
+            form context_envelope = inner;
+        }
+
         construction visit_node: VisitCategory {
             element VisitNode { visitor: lex Marker, }
             form visit_node = lex(visitor);
@@ -453,6 +460,7 @@ mod fixture {
         }
 
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root RenderChild { punctuation = "."; eoi = false; standalone_render = true; }
         root HygieneRoot { punctuation = "!"; eoi = true; standalone_render = true; }
         root r#RawCategory { punctuation = "?"; eoi = true; standalone_render = true; }
     }
@@ -814,6 +822,14 @@ mod fixture {
             "marker card marker act bare writer marker marker!",
             "allocated render locals preserve ABI values and generated helper calls",
         );
+        let context_free_nested_root = RenderChild::Wrapper(RenderChildNode {
+            child: Child::Bare(BareChild),
+        });
+        assert_eq!(
+            Render::render(&context_free_nested_root, &context),
+            "bare.",
+            "a context-free nested category and its standalone root share one helper arity",
+        );
 
         let mut recording = RecordingVisitor::default();
         walk_visit_node(
@@ -824,7 +840,17 @@ mod fixture {
         );
         walk_visitor_lexeme(&mut recording, VisitorLexeme::Act);
         walk_token(&mut recording, &Token(7));
+        assert_eq!(
+            recording.0.last(),
+            Some(&VisitEvent::Token(7)),
+            "an ordinary declared visitor callback remains executable",
+        );
         walk_raw_branch_token(&mut recording, &RawBranchToken::Marker(Marker::One));
+        assert_eq!(
+            recording.0.last(),
+            Some(&VisitEvent::Marker(Marker::One)),
+            "an ordinary generated walker callback in a branch remains executable",
+        );
         let walk_marker = WalkMarker::new(Marker::One).expect("checked walker fixture");
         walk_walk_marker(&mut recording, &walk_marker);
         assert_eq!(

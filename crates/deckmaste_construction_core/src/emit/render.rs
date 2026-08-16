@@ -65,7 +65,6 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         .iter()
         .map(|root| path_name(&root.category))
         .collect::<HashSet<_>>();
-    let context_categories = context_categories(&categories);
     let mut items = Vec::new();
     for root in &roots {
         let category = path_name(&root.category);
@@ -78,23 +77,22 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         let punctuation = punctuation(&root.punctuation)?;
         let render_body = if nested_categories.contains(&category) {
             let helper = render_category_name(&category, true);
-            quote! { #helper(&mut writer, self, context); }
+            let capability = validated.category_render_capability(&category);
+            if capability.requires_external_agreement() {
+                return Err(internal(
+                    "validated standalone render root requires external agreement",
+                ));
+            }
+            let context = capability.requires_context().then(|| quote! { context });
+            let tail = signature_tail(&[None, context]);
+            quote! { #helper(&mut writer, self #tail); }
         } else {
-            let allocator = render_allocator(
-                validated,
-                members,
-                true,
-                &root_names,
-                &context_categories,
-                false,
-                true,
-            )?;
+            let allocator = render_allocator(validated, members, true, &root_names, false, true)?;
             let arms = render_arms(
                 validated,
                 members,
                 true,
                 &root_names,
-                &context_categories,
                 &allocator,
                 &quote! { self },
             )?;
@@ -132,14 +130,14 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         }
         let helper = render_category_name(&category, root_names.contains(&category));
         let ty = ident(&category);
-        let takes_agreement = validated.category_requires_external_agreement(&category);
-        let takes_context = context_categories.contains(&category);
+        let capability = validated.category_render_capability(&category);
+        let takes_agreement = capability.requires_external_agreement();
+        let takes_context = capability.requires_context();
         let allocator = render_allocator(
             validated,
             members,
             false,
             &root_names,
-            &context_categories,
             takes_agreement,
             takes_context,
         )?;
@@ -153,7 +151,6 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
             members,
             false,
             &root_names,
-            &context_categories,
             &signature_allocator,
             &quote! { #argument },
         )?;
@@ -234,7 +231,6 @@ fn render_allocator(
     members: &[&crate::Construction],
     root_impl: bool,
     root_names: &HashSet<String>,
-    _context_categories: &HashSet<String>,
     takes_agreement: bool,
     takes_context: bool,
 ) -> syn::Result<LocalAllocator> {
@@ -433,7 +429,6 @@ fn render_arms(
     members: &[&crate::Construction],
     root_impl: bool,
     root_names: &HashSet<String>,
-    context_categories: &HashSet<String>,
     allocator: &LocalAllocator,
     category_value: &TokenStream,
 ) -> syn::Result<Vec<TokenStream>> {
@@ -489,14 +484,7 @@ fn render_arms(
                 fields: field_locals,
                 category: category_value.clone(),
             };
-            let statements = render_atoms(
-                validated,
-                construction,
-                &locals,
-                root_names,
-                context_categories,
-                root_impl,
-            )?;
+            let statements = render_atoms(validated, construction, &locals, root_names, root_impl)?;
             let category_role_block =
                 !root_impl && matches!(construction.form.atoms.as_slice(), [FormAtom::Role(_)]);
             if statements.len() == 1 && !category_role_block {
@@ -521,7 +509,6 @@ fn render_atoms(
     construction: &crate::Construction,
     locals: &RenderLocals,
     root_names: &HashSet<String>,
-    context_categories: &HashSet<String>,
     root_impl: bool,
 ) -> syn::Result<Vec<TokenStream>> {
     let call_writer = if root_impl {
@@ -564,14 +551,13 @@ fn render_atoms(
                 let category = path_name(path);
                 let helper = render_category_name(&category, root_names.contains(&category));
                 let value = field_value(construction, role, locals)?;
-                let agreement = if validated.category_requires_external_agreement(&category) {
+                let capability = validated.category_render_capability(&category);
+                let agreement = if capability.requires_external_agreement() {
                     role_agreement(validated, construction, role, locals)?
                 } else {
                     None
                 };
-                let context = context_categories
-                    .contains(&category)
-                    .then(|| quote! { context });
+                let context = capability.requires_context().then(|| quote! { context });
                 let tail = signature_tail(&[agreement, context]);
                 Ok(quote! { #helper(#call_writer, #value #tail); })
             }
@@ -1150,28 +1136,6 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Singular => quote! { Number::Singular },
         FeatureValue::Plural => quote! { Number::Plural },
     }
-}
-
-fn context_categories(categories: &[(String, Vec<&crate::Construction>)]) -> HashSet<String> {
-    let mut result = HashSet::new();
-    loop {
-        let before = result.len();
-        for (category, members) in categories {
-            if members.iter().any(|construction| {
-                construction.form.atoms.iter().any(|atom| match atom {
-                    FormAtom::Identity(_) => true,
-                    FormAtom::Role(role) => construction.element.fields.iter().find(|field| identifier_key(&field.name) == identifier_key(role)).is_some_and(|field| matches!(&field.kind, FieldKind::Category(path) if result.contains(&path_name(path)))),
-                    _ => false,
-                })
-            }) {
-                result.insert(category.clone());
-            }
-        }
-        if result.len() == before {
-            break;
-        }
-    }
-    result
 }
 
 fn render_category_order(

@@ -150,7 +150,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
     input.parse::<keyword::construction>()?;
     let name = input.call(Ident::parse_any)?;
     input.parse::<Token![:]>()?;
-    let category = input.parse()?;
+    let category = parse_generated_owned_path(input)?;
     let content;
     braced!(content in input);
 
@@ -223,18 +223,20 @@ fn parse_field(input: ParseStream<'_>) -> syn::Result<Field> {
     input.parse::<Token![:]>()?;
     let kind = if input.peek(keyword::lex) {
         input.parse::<keyword::lex>()?;
-        FieldKind::Lex(input.parse()?)
+        FieldKind::Lex(parse_generated_owned_path(input)?)
     } else if input.peek(keyword::identity) {
         input.parse::<keyword::identity>()?;
-        FieldKind::Identity(input.parse()?)
+        FieldKind::Identity(parse_generated_owned_path(input)?)
     } else if input.peek(Ident) {
         let fork = input.fork();
         let possible_deferred: Ident = fork.parse()?;
         match possible_deferred.to_string().as_str() {
             "opt" => return Err(deferred(input.span(), "opt")),
             "seq" => return Err(deferred(input.span(), "seq")),
-            _ => FieldKind::Category(input.parse()?),
+            _ => FieldKind::Category(parse_generated_owned_path(input)?),
         }
+    } else if input.peek(Token![<]) {
+        return Err(generated_owned_path_error(input.span()));
     } else {
         return Err(input.error("expected a category, lex terminal, or identity terminal field"));
     };
@@ -407,7 +409,7 @@ fn parse_equation(input: ParseStream<'_>) -> syn::Result<FeatureEquation> {
         };
         FeatureValue::FromRole(FeatureSlot { role, feature })
     } else {
-        let path: Path = input.parse()?;
+        let path = parse_generated_owned_path(input)?;
         FeatureValue::Constant(path)
     };
     input.parse::<Token![;]>()?;
@@ -451,7 +453,7 @@ fn parse_form(input: ParseStream<'_>) -> syn::Result<Form> {
             parenthesized!(content in input);
             match ident.to_string().as_str() {
                 "verb" => {
-                    let path: Path = content.parse()?;
+                    let path = parse_generated_owned_path(&content)?;
                     if !content.is_empty() {
                         return Err(content.error("verb atoms accept exactly one operand"));
                     }
@@ -875,9 +877,12 @@ fn parse_visit_mode(input: ParseStream<'_>) -> syn::Result<VisitMode> {
 }
 
 fn parse_traversal_call(input: ParseStream<'_>) -> syn::Result<TraversalCall> {
-    let callback = input.parse()?;
+    let callback = parse_generated_owned_callback_path(input)?;
     let content;
     parenthesized!(content in input);
+    if !content.peek(keyword::copy) && !content.peek(keyword::borrowed) {
+        return Err(generated_owned_path_error(callback.span()));
+    }
     let mode = parse_visit_mode(&content)?;
     let value_content;
     parenthesized!(value_content in content);
@@ -894,7 +899,7 @@ fn parse_traversal_call(input: ParseStream<'_>) -> syn::Result<TraversalCall> {
 
 fn parse_root(input: ParseStream<'_>) -> syn::Result<Root> {
     input.parse::<keyword::root>()?;
-    let category: Path = input.parse()?;
+    let category = parse_generated_owned_path(input)?;
     let content;
     braced!(content in input);
     let mut punctuation = None;
@@ -930,6 +935,31 @@ fn parse_root(input: ParseStream<'_>) -> syn::Result<Root> {
         standalone_render: standalone_render
             .ok_or_else(|| syn::Error::new(span, "root requires standalone_render"))?,
     })
+}
+
+fn parse_generated_owned_path(input: ParseStream<'_>) -> syn::Result<Path> {
+    if input.peek(Token![<]) {
+        return Err(generated_owned_path_error(input.span()));
+    }
+    let path = input.parse()?;
+    if input.peek(syn::token::Paren) {
+        return Err(generated_owned_path_error(input.span()));
+    }
+    Ok(path)
+}
+
+fn parse_generated_owned_callback_path(input: ParseStream<'_>) -> syn::Result<Path> {
+    if input.peek(Token![<]) {
+        return Err(generated_owned_path_error(input.span()));
+    }
+    input.parse()
+}
+
+fn generated_owned_path_error(span: proc_macro2::Span) -> syn::Error {
+    syn::Error::new(
+        span,
+        "compiler-generated identity requires a qself-free, non-generic identifier path",
+    )
 }
 
 fn reject_duplicate<T>(slot: Option<&T>, name: &Ident) -> syn::Result<()> {
