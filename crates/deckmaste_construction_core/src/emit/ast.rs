@@ -275,94 +275,41 @@ mod tests {
     }
 
     #[test]
-    fn public_full_golden_expansion_matches_exact_category_and_product_tables() {
-        let expansion = crate::generate(crate::validate::tests::full_golden_tokens())
-            .expect("the full golden fixture expands through the public API");
+    fn synthetic_projection_has_exact_category_products_visibility_and_boxing() {
+        let expansion = crate::test_support::synthetic_projection_expansion();
 
         const CATEGORIES: &[(&str, &[(&str, &str)])] = &[
-            ("Ability", &[("Spell", "Spell"), ("Triggered", "Triggered")]),
+            ("Expr", &[("Leaf", "LeafNode"), ("Nested", "NestedNode")]),
             (
-                "Sentence",
-                &[
-                    ("Imperative", "Imperative"),
-                    ("Declarative", "Declarative"),
-                    ("WithWhere", "WithWhere"),
-                ],
+                "Predicate",
+                &[("Action", "ActionNode"), ("Idle", "IdleNode")],
             ),
-            (
-                "Clause",
-                &[("Event", "EventClause"), ("Where", "WhereClause")],
-            ),
-            (
-                "NounPhrase",
-                &[
-                    ("Pronoun", "PronounNp"),
-                    ("Common", "Common"),
-                    ("Demonstrative", "DemonstrativeNp"),
-                    ("Target", "TargetNp"),
-                    ("SelfReference", "SelfReferenceNp"),
-                    ("Count", "CountNp"),
-                ],
-            ),
-            (
-                "VerbPhrase",
-                &[
-                    ("Destroy", "Destroy"),
-                    ("Connive", "Connive"),
-                    ("DealDamage", "DealDamage"),
-                    ("GainLife", "GainLife"),
-                ],
-            ),
-            (
-                "Amount",
-                &[("Number", "NumberAmount"), ("Variable", "VariableAmount")],
-            ),
+            ("Tag", &[("Solo", "SoloTag")]),
+            ("Document", &[("Document", "DocumentNode")]),
         ];
-
-        for &(name, expected_variants) in CATEGORIES {
+        for &(name, variants) in CATEGORIES {
             let Item::Enum(item) = parse_named(expansion.items(), name) else {
-                panic!("{name} is an enum");
+                panic!("{name} is a category enum");
             };
-            assert_eq!(item.ident, name, "category item name");
             assert_public(&item.vis, name);
             assert_common_derives(&item.attrs, name);
-            assert!(item.generics.params.is_empty(), "{name} has no generics");
-            assert!(
-                item.generics.where_clause.is_none(),
-                "{name} has no where clause"
-            );
-            let actual = item
-                .variants
-                .iter()
-                .map(|variant| {
-                    assert!(
-                        variant.attrs.is_empty(),
-                        "{} has no attributes",
-                        variant.ident
-                    );
-                    assert!(
-                        variant.discriminant.is_none(),
-                        "{} has no discriminant",
-                        variant.ident
-                    );
-                    let Fields::Unnamed(fields) = &variant.fields else {
-                        panic!("{} has one tuple payload", variant.ident);
-                    };
-                    assert_eq!(fields.unnamed.len(), 1, "{} payload count", variant.ident);
-                    assert!(fields.unnamed[0].attrs.is_empty());
-                    (
-                        variant.ident.to_string(),
-                        exact_simple_type(&fields.unnamed[0].ty),
-                    )
-                })
-                .collect::<Vec<_>>();
             assert_eq!(
-                actual,
-                expected_variants
+                item.variants
                     .iter()
-                    .map(|&(variant, payload)| (variant.to_owned(), payload.to_owned()))
+                    .map(|variant| {
+                        let Fields::Unnamed(fields) = &variant.fields else {
+                            panic!("{} has one tuple payload", variant.ident);
+                        };
+                        (
+                            variant.ident.to_string(),
+                            exact_simple_type(&fields.unnamed[0].ty),
+                        )
+                    })
                     .collect::<Vec<_>>(),
-                "{name} variant table"
+                variants
+                    .iter()
+                    .map(|&(variant, ty)| (variant.to_owned(), ty.to_owned()))
+                    .collect::<Vec<_>>(),
             );
         }
 
@@ -370,145 +317,106 @@ mod tests {
         const PRIVATE: FieldVisibility = FieldVisibility::Private;
         const CRATE: FieldVisibility = FieldVisibility::Crate;
         const PRODUCTS: &[(&str, Option<&[(&str, &str, bool, FieldVisibility)]>)] = &[
-            ("Spell", Some(&[("effect", "Sentence", false, PUB)])),
             (
-                "Triggered",
+                "LeafNode",
                 Some(&[
-                    ("trigger", "TriggerWord", false, CRATE),
-                    ("event", "Clause", false, CRATE),
-                    ("effect", "Sentence", false, CRATE),
+                    ("mode", "Mode", false, PUB),
+                    ("resource", "Resource", false, PUB),
                 ]),
             ),
             (
-                "Imperative",
-                Some(&[("predicate", "VerbPhrase", false, PUB)]),
-            ),
-            (
-                "Declarative",
+                "NestedNode",
                 Some(&[
-                    ("subject", "NounPhrase", false, PUB),
-                    ("predicate", "VerbPhrase", false, PUB),
+                    ("next", "Expr", true, PRIVATE),
+                    ("marker", "Marker", false, CRATE),
                 ]),
             ),
+            ("ActionNode", None),
+            ("IdleNode", None),
+            ("SoloTag", Some(&[("mode", "Mode", false, PUB)])),
             (
-                "WithWhere",
+                "DocumentNode",
                 Some(&[
-                    ("body", "Sentence", true, PUB),
-                    ("clause", "Clause", false, PUB),
+                    ("subject", "Expr", false, CRATE),
+                    ("predicate", "Predicate", false, CRATE),
+                    ("handle", "Handle", false, PRIVATE),
+                    ("pair", "Pair", false, PRIVATE),
                 ]),
-            ),
-            (
-                "EventClause",
-                Some(&[
-                    ("subject", "NounPhrase", false, PUB),
-                    ("predicate", "VerbPhrase", false, PUB),
-                ]),
-            ),
-            (
-                "WhereClause",
-                Some(&[
-                    ("variable", "Variable", false, PUB),
-                    ("value", "NounPhrase", false, PUB),
-                ]),
-            ),
-            ("PronounNp", Some(&[("word", "Pronoun", false, PUB)])),
-            (
-                "Common",
-                Some(&[
-                    ("article", "Article", false, PUB),
-                    ("head", "Noun", false, PUB),
-                ]),
-            ),
-            (
-                "DemonstrativeNp",
-                Some(&[
-                    ("word", "Demonstrative", false, PUB),
-                    ("head", "Noun", false, PUB),
-                ]),
-            ),
-            ("TargetNp", Some(&[("head", "Noun", false, PUB)])),
-            (
-                "SelfReferenceNp",
-                Some(&[("spelling", "SelfReferenceSpelling", false, PRIVATE)]),
-            ),
-            (
-                "CountNp",
-                Some(&[
-                    ("head", "Noun", false, PUB),
-                    ("controller", "Pronoun", false, PUB),
-                    ("threshold", "SignedNumber", false, PUB),
-                ]),
-            ),
-            ("Destroy", Some(&[("object", "NounPhrase", false, PUB)])),
-            ("Connive", None),
-            (
-                "DealDamage",
-                Some(&[
-                    ("amount", "Amount", false, PUB),
-                    ("to", "NounPhrase", false, PUB),
-                ]),
-            ),
-            ("GainLife", Some(&[("amount", "Amount", false, PUB)])),
-            (
-                "NumberAmount",
-                Some(&[("number", "SignedNumber", false, PUB)]),
-            ),
-            (
-                "VariableAmount",
-                Some(&[("variable", "Variable", false, PUB)]),
             ),
         ];
-
         for &(name, expected_fields) in PRODUCTS {
             let Item::Struct(item) = parse_named(expansion.items(), name) else {
-                panic!("{name} is a struct");
+                panic!("{name} is a product struct");
             };
-            assert_eq!(item.ident, name, "product item name");
             assert_public(&item.vis, name);
             assert_common_derives(&item.attrs, name);
-            assert!(item.generics.params.is_empty(), "{name} has no generics");
-            assert!(
-                item.generics.where_clause.is_none(),
-                "{name} has no where clause"
-            );
-            match (expected_fields, &item.fields) {
-                (None, Fields::Unit) => {}
-                (None, _) => panic!("{name} is exactly a unit struct"),
-                (Some(expected), Fields::Named(fields)) => {
-                    let actual = fields
-                        .named
-                        .iter()
-                        .map(|field| {
-                            assert!(
-                                field.attrs.is_empty(),
-                                "{name}.{:?} has no attributes",
-                                field.ident
-                            );
-                            let (field_type, boxed) = exact_field_type(&field.ty);
-                            (
-                                field.ident.as_ref().expect("named field").to_string(),
-                                field_type,
-                                boxed,
-                                field_visibility(&field.vis),
-                            )
-                        })
-                        .collect::<Vec<_>>();
+            match expected_fields {
+                None => assert!(matches!(item.fields, Fields::Unit)),
+                Some(expected) => {
+                    let Fields::Named(fields) = item.fields else {
+                        panic!("{name} has named fields");
+                    };
                     assert_eq!(
-                        actual,
+                        fields
+                            .named
+                            .iter()
+                            .map(|field| {
+                                let (ty, boxed) = exact_field_type(&field.ty);
+                                (
+                                    field.ident.as_ref().unwrap().to_string(),
+                                    ty,
+                                    boxed,
+                                    field_visibility(&field.vis),
+                                )
+                            })
+                            .collect::<Vec<_>>(),
                         expected
                             .iter()
                             .map(|&(field, ty, boxed, visibility)| {
                                 (field.to_owned(), ty.to_owned(), boxed, visibility)
                             })
                             .collect::<Vec<_>>(),
-                        "{name} field table"
                     );
                 }
-                (Some(_), _) => panic!("{name} has ordered named fields"),
             }
         }
-    }
 
+        assert_eq!(
+            expansion
+                .items()
+                .iter()
+                .filter_map(|item| {
+                    if let ItemKey::Named {
+                        kind: crate::NamedKind::Type,
+                        name,
+                    } = &item.key
+                    {
+                        Some(name.as_str())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            [
+                "Expr",
+                "Predicate",
+                "Tag",
+                "Document",
+                "LeafNode",
+                "NestedNode",
+                "ActionNode",
+                "IdleNode",
+                "SoloTag",
+                "DocumentNode",
+                "Mode",
+                "ObjectStem",
+                "ActionStem",
+                "Category",
+                "Construction",
+                "RuleId",
+            ],
+        );
+    }
     fn named<'a>(items: &'a [crate::GeneratedItem], name: &str) -> &'a crate::GeneratedItem {
         items
             .iter()

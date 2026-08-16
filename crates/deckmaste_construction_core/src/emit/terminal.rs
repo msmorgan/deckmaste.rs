@@ -178,168 +178,55 @@ mod tests {
     }
 
     #[test]
-    fn public_full_golden_expansion_matches_exact_terminal_tables() {
-        let expansion = crate::generate(crate::validate::tests::full_golden_tokens())
-            .expect("the full golden fixture expands through the public API");
+    fn synthetic_projection_has_exact_terminal_tables_and_capabilities() {
+        let expansion = crate::test_support::synthetic_projection_expansion();
 
-        const COPY_DERIVES: &[&str] = &["Debug", "Clone", "Copy", "PartialEq", "Eq"];
-        const ORDERED_DERIVES: &[&str] = &[
-            "Debug",
-            "Clone",
-            "Copy",
-            "PartialEq",
-            "Eq",
-            "Ord",
-            "PartialOrd",
-        ];
-        const ENUMS: &[(&str, &[&str], &[&str])] = &[
-            ("TriggerWord", &["Whenever"], COPY_DERIVES),
-            ("Article", &["A", "An"], COPY_DERIVES),
-            ("Demonstrative", &["That", "Those"], COPY_DERIVES),
-            ("Pronoun", &["It", "You"], COPY_DERIVES),
-            ("Variable", &["X"], COPY_DERIVES),
-            ("NounLexeme", &["Player"], COPY_DERIVES),
-            (
-                "VerbLexeme",
-                &["Destroy", "Connive", "Deal", "Gain", "Control", "Be"],
-                ORDERED_DERIVES,
-            ),
-        ];
+        assert_enum(&expansion, "Mode", &["Solo", "Group"], false);
+        assert_enum(&expansion, "ObjectStem", &["Widget"], false);
+        assert_enum(&expansion, "ActionStem", &["Activate"], true);
 
-        for &(name, expected_variants, expected_derives) in ENUMS {
-            let item = expansion
-                .items()
-                .iter()
-                .find(
-                    |item| matches!(&item.key, ItemKey::Named { name: found, .. } if found == name),
-                )
-                .unwrap_or_else(|| panic!("terminal enum `{name}` exists"));
-            let file = syn::parse2::<syn::File>(item.tokens.clone())
-                .expect("terminal item parses as a file");
-            assert_eq!(file.items.len(), 1);
-            let Item::Enum(item) = &file.items[0] else {
-                panic!("{name} is an enum");
-            };
-            assert_eq!(item.ident, name, "terminal item name");
-            assert!(
-                matches!(item.vis, syn::Visibility::Public(_)),
-                "{name} is public"
-            );
-            assert!(item.generics.params.is_empty(), "{name} has no generics");
-            assert!(
-                item.generics.where_clause.is_none(),
-                "{name} has no where clause"
-            );
-            assert_eq!(
-                derive_names(&item.attrs),
-                expected_derives,
-                "{name} derives"
-            );
-            assert_eq!(
-                item.variants
-                    .iter()
-                    .map(|variant| {
-                        assert!(
-                            variant.attrs.is_empty(),
-                            "{} has no attributes",
-                            variant.ident
-                        );
-                        assert!(
-                            variant.discriminant.is_none(),
-                            "{} has no discriminant",
-                            variant.ident
-                        );
-                        assert!(matches!(variant.fields, syn::Fields::Unit));
-                        variant.ident.to_string()
-                    })
-                    .collect::<Vec<_>>(),
-                expected_variants,
-                "{name} variants"
-            );
-        }
-
-        const VOCABS: &[(&str, &str, &[(&str, &str)])] = &[
-            (
-                "TriggerWord",
-                "render_trigger_word",
-                &[("Whenever", "whenever")],
-            ),
-            ("Article", "render_article", &[("A", "a"), ("An", "an")]),
-            (
-                "Demonstrative",
-                "render_demonstrative",
-                &[("That", "that"), ("Those", "those")],
-            ),
-            ("Pronoun", "render_pronoun", &[("It", "it"), ("You", "you")]),
-            ("Variable", "render_variable", &[("X", "X")]),
-        ];
         let contributions = expansion.terminal_contributions();
+        assert_eq!(contributions.len(), 3);
         assert_eq!(
             contributions
                 .iter()
-                .map(crate::TerminalContribution::name)
+                .map(|terminal| (
+                    terminal.name(),
+                    terminal.kind(),
+                    terminal.render_function(),
+                    terminal.is_verb_provider(),
+                ))
                 .collect::<Vec<_>>(),
             [
-                "TriggerWord",
-                "Article",
-                "Demonstrative",
-                "Pronoun",
-                "Variable",
-                "NounLexeme",
-                "VerbLexeme",
+                ("Mode", TerminalKind::Vocab, Some("render_mode"), false),
+                ("ObjectStem", TerminalKind::Lexeme, None, false),
+                ("ActionStem", TerminalKind::Lexeme, None, true),
             ]
         );
-        for (contribution, &(name, render_function, expected_variants)) in
-            contributions.iter().take(VOCABS.len()).zip(VOCABS)
-        {
-            assert_eq!(contribution.kind(), TerminalKind::Vocab, "{name} kind");
-            assert_eq!(contribution.name(), name);
-            assert_eq!(contribution.origin().kind(), crate::DeclarationKind::Vocab);
-            assert_eq!(contribution.origin().name(), name);
-            assert_eq!(contribution.render_function(), Some(render_function));
-            assert!(!contribution.is_verb_provider());
-            assert_eq!(
-                contribution
-                    .variants()
-                    .iter()
-                    .map(|variant| (variant.name(), variant.word().expect("vocab word")))
-                    .collect::<Vec<_>>(),
-                expected_variants,
-                "{name} word table"
-            );
-        }
-        for (index, (name, variants, verb_provider)) in [
-            ("NounLexeme", &["Player"][..], false),
-            (
-                "VerbLexeme",
-                &["Destroy", "Connive", "Deal", "Gain", "Control", "Be"][..],
-                true,
-            ),
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            let contribution = &contributions[VOCABS.len() + index];
-            assert_eq!(contribution.kind(), TerminalKind::Lexeme);
-            assert_eq!(contribution.name(), name);
-            assert_eq!(contribution.origin().kind(), crate::DeclarationKind::Lexeme);
-            assert_eq!(contribution.origin().name(), name);
-            assert_eq!(contribution.render_function(), None);
-            assert_eq!(contribution.is_verb_provider(), verb_provider);
-            assert_eq!(
-                contribution
-                    .variants()
-                    .iter()
-                    .map(|variant| {
-                        assert_eq!(variant.word(), None);
-                        variant.name()
-                    })
-                    .collect::<Vec<_>>(),
-                variants
-            );
-        }
-    }
+        assert_eq!(
+            contributions[0]
+                .variants()
+                .iter()
+                .map(|variant| (variant.name(), variant.word()))
+                .collect::<Vec<_>>(),
+            [("Solo", Some("solo")), ("Group", Some("group"))],
+        );
 
+        let emitted = expansion
+            .items()
+            .iter()
+            .filter_map(|item| match &item.key {
+                ItemKey::Named {
+                    kind: crate::NamedKind::Type,
+                    name,
+                } if ["Mode", "ObjectStem", "ActionStem"].contains(&name.as_str()) => {
+                    Some(name.as_str())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(emitted, ["Mode", "ObjectStem", "ActionStem"]);
+    }
     fn assert_enum(expansion: &crate::Expansion, name: &str, variants: &[&str], ordered: bool) {
         let item = expansion
             .items()
@@ -384,25 +271,5 @@ mod tests {
                 .collect::<Vec<_>>(),
             expected
         );
-    }
-
-    fn derive_names(attrs: &[syn::Attribute]) -> Vec<String> {
-        assert_eq!(attrs.len(), 1, "derive is the only item attribute");
-        let derive = attrs
-            .iter()
-            .find(|attribute| attribute.path().is_ident("derive"))
-            .expect("derive attribute");
-        let syn::Meta::List(list) = &derive.meta else {
-            panic!("derive is a list");
-        };
-        syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated
-            .parse2(list.tokens.clone())
-            .expect("derive paths parse")
-            .iter()
-            .map(|path| {
-                assert_eq!(path.segments.len(), 1, "derive path is unqualified");
-                path.segments[0].ident.to_string()
-            })
-            .collect()
     }
 }

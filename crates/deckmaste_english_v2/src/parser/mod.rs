@@ -1,23 +1,59 @@
 use engine::ChartFailure;
-use engine::RulePosition;
 use materialize::materialize;
-use rules::Category;
-use rules::Lexical;
-use scan::Leaf;
 use scan::SliceGrammar;
 use scan::parse_forest;
 use selection::select;
 
 use crate::ast::Ability;
 use crate::catalogs::ParserCatalogs;
+use crate::constructions::Category;
 use crate::context::ParseContext;
 
-mod build;
 mod engine;
+mod lexical;
 mod materialize;
-mod rules;
 mod scan;
 mod selection;
+
+pub(crate) use engine::Rule;
+pub(crate) use engine::RulePosition;
+pub(crate) use lexical::Lexical;
+pub(crate) use lexical::NounNumber;
+pub(crate) use materialize::BuildValue;
+pub(crate) use scan::Leaf;
+
+#[cfg(test)]
+mod build {
+    pub(crate) use crate::features::Agreement;
+}
+
+#[cfg(test)]
+#[rustfmt::skip]
+mod rules {
+pub(crate) use super::lexical::Lexical;
+pub(crate) use super::lexical::NounNumber;
+pub(crate) use crate::constructions::Category;
+pub(crate) use crate::constructions::Construction;
+use crate::constructions::RULES;
+use crate::constructions::RuleId;
+
+#[cfg(test)]
+mod tests {
+    use super::RULES;
+    use super::RuleId;
+
+    #[test]
+    fn slice_table_has_exactly_one_row_and_build_arm_per_rule_id() {
+        assert_eq!(RULES.len(), RuleId::COUNT);
+        assert!(
+            RULES
+                .iter()
+                .enumerate()
+                .all(|(index, rule)| rule.id.index() == index)
+        );
+    }
+}
+}
 
 pub use error::Expectation;
 pub use error::NonterminalCategory;

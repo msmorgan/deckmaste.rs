@@ -298,18 +298,101 @@ mod tests {
     use quote::quote;
 
     #[test]
-    fn full_golden_rules_are_the_five_exact_structural_items() {
+    fn synthetic_projection_rules_have_exact_ids_rows_and_ownership() {
         let validated = crate::validate_declarations(
-            crate::parse_declarations(crate::validate::tests::full_golden_tokens()).unwrap(),
+            crate::parse_declarations(crate::test_support::synthetic_projection_tokens()).unwrap(),
         )
         .unwrap();
         let generated = super::emit(&validated).unwrap();
+        assert_eq!(generated.len(), 5);
         let actual = generated
             .iter()
             .map(|item| syn::parse2::<syn::Item>(item.tokens.clone()).unwrap())
             .collect::<Vec<_>>();
-        let expected = expected_items();
-        let construction_origins = expected_construction_origins();
+
+        let enum_variants = |item: &syn::Item| {
+            let syn::Item::Enum(item) = item else {
+                panic!("expected enum");
+            };
+            item.variants
+                .iter()
+                .map(|variant| variant.ident.to_string())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            enum_variants(&actual[0]),
+            ["Expr", "Predicate", "Tag", "Document"]
+        );
+        let ids = [
+            "ExprLeaf",
+            "ExprNested",
+            "PredicateAction",
+            "PredicateIdle",
+            "TagSolo",
+            "DocumentDocument",
+        ];
+        assert_eq!(enum_variants(&actual[1]), ids);
+        assert_eq!(enum_variants(&actual[2]), ids);
+
+        let expected_rules: syn::Item = syn::parse_quote! {
+            pub(crate) const RULES: &[Rule<Category, Lexical, RuleId>] = &[
+                Rule {
+                    id: RuleId::ExprLeaf,
+                    lhs: Category::Expr,
+                    rhs: &[
+                        L(Lexical::Mode),
+                        L(Lexical::Resource(NounNumber::Either)),
+                    ],
+                },
+                Rule {
+                    id: RuleId::ExprNested,
+                    lhs: Category::Expr,
+                    rhs: &[
+                        L(Lexical::Literal("nest")),
+                        N(Category::Expr),
+                        L(Lexical::Marker),
+                    ],
+                },
+                Rule {
+                    id: RuleId::PredicateAction,
+                    lhs: Category::Predicate,
+                    rhs: &[L(Lexical::Verb(ActionStem::Activate))],
+                },
+                Rule {
+                    id: RuleId::PredicateIdle,
+                    lhs: Category::Predicate,
+                    rhs: &[L(Lexical::Literal("idle"))],
+                },
+                Rule {
+                    id: RuleId::TagSolo,
+                    lhs: Category::Tag,
+                    rhs: &[L(Lexical::Mode)],
+                },
+                Rule {
+                    id: RuleId::DocumentDocument,
+                    lhs: Category::Document,
+                    rhs: &[
+                        N(Category::Expr),
+                        N(Category::Predicate),
+                        L(Lexical::Handle),
+                        L(Lexical::Pair),
+                        L(Lexical::Literal("!")),
+                        L(Lexical::EndOfInput),
+                    ],
+                },
+            ];
+        };
+        let normalize = |item: syn::Item| {
+            prettyplease::unparse(&syn::File {
+                shebang: None,
+                attrs: Vec::new(),
+                items: vec![item],
+            })
+        };
+        assert_eq!(normalize(actual[4].clone()), normalize(expected_rules));
+
+        let construction_origins = ["leaf", "nested", "action", "idle", "solo", "document"]
+            .map(|name| (crate::DeclarationKind::Construction, name));
         for item in &generated[..4] {
             assert_eq!(
                 item.origins
@@ -326,37 +409,11 @@ mod tests {
                 .map(|origin| (origin.kind(), origin.name()))
                 .collect::<Vec<_>>(),
             construction_origins
-                .iter()
-                .copied()
-                .chain([(crate::DeclarationKind::Root, "Ability")])
+                .into_iter()
+                .chain([(crate::DeclarationKind::Root, "Document")])
                 .collect::<Vec<_>>(),
-        );
-        for (index, (actual, expected)) in actual.iter().zip(&expected).enumerate() {
-            let actual = prettyplease::unparse(&syn::File {
-                shebang: None,
-                attrs: vec![],
-                items: vec![actual.clone()],
-            });
-            let expected = prettyplease::unparse(&syn::File {
-                shebang: None,
-                attrs: vec![],
-                items: vec![expected.clone()],
-            });
-            assert_eq!(
-                &actual, &expected,
-                "rule item {index}\nactual:\n{actual}\nexpected:\n{expected}",
-            );
-        }
-        assert_eq!(actual.len(), 5);
-        assert_eq!(
-            actual
-                .iter()
-                .map(|item| syn::parse2::<syn::File>(quote!(#item)).unwrap().items.len())
-                .collect::<Vec<_>>(),
-            [1, 1, 1, 1, 1]
         );
     }
-
     #[test]
     fn root_eoi_and_number_equations_control_rule_projection() {
         let expansion = crate::generate(quote! {
@@ -404,119 +461,5 @@ mod tests {
         assert!(rules.contains("NounNumber :: Singular"));
         assert!(rules.contains("Lexical :: Literal (\"!\")"));
         assert!(rules.contains("Lexical :: EndOfInput"));
-    }
-
-    fn expected_items() -> Vec<syn::Item> {
-        let construction_variants = quote! {
-            AbilitySpell, AbilityTriggered, SentenceImperative, SentenceDeclarative,
-            SentenceWithWhere, ClauseEvent, ClauseWhere, NounPhrasePronoun,
-            NounPhraseCommon, NounPhraseDemonstrative, NounPhraseTarget,
-            NounPhraseSelfReference, NounPhraseCount, VerbPhraseDestroy,
-            VerbPhraseConnive, VerbPhraseDealDamage, VerbPhraseGainLife,
-            AmountNumber, AmountVariable
-        };
-        let items = vec![
-            quote! {
-                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum Category { Ability, Sentence, Clause, NounPhrase, VerbPhrase, Amount }
-            },
-            quote! {
-                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum Construction { #construction_variants }
-            },
-            quote! {
-                #[repr(usize)]
-                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum RuleId { #construction_variants }
-            },
-            quote! {
-                impl RuleId {
-                    #[cfg(test)]
-                    pub(crate) const COUNT: usize = 19;
-                    pub(crate) const fn construction(self) -> Construction {
-                        match self {
-                            Self::AbilitySpell => Construction::AbilitySpell,
-                            Self::AbilityTriggered => Construction::AbilityTriggered,
-                            Self::SentenceImperative => Construction::SentenceImperative,
-                            Self::SentenceDeclarative => Construction::SentenceDeclarative,
-                            Self::SentenceWithWhere => Construction::SentenceWithWhere,
-                            Self::ClauseEvent => Construction::ClauseEvent,
-                            Self::ClauseWhere => Construction::ClauseWhere,
-                            Self::NounPhrasePronoun => Construction::NounPhrasePronoun,
-                            Self::NounPhraseCommon => Construction::NounPhraseCommon,
-                            Self::NounPhraseDemonstrative => Construction::NounPhraseDemonstrative,
-                            Self::NounPhraseTarget => Construction::NounPhraseTarget,
-                            Self::NounPhraseSelfReference => Construction::NounPhraseSelfReference,
-                            Self::NounPhraseCount => Construction::NounPhraseCount,
-                            Self::VerbPhraseDestroy => Construction::VerbPhraseDestroy,
-                            Self::VerbPhraseConnive => Construction::VerbPhraseConnive,
-                            Self::VerbPhraseDealDamage => Construction::VerbPhraseDealDamage,
-                            Self::VerbPhraseGainLife => Construction::VerbPhraseGainLife,
-                            Self::AmountNumber => Construction::AmountNumber,
-                            Self::AmountVariable => Construction::AmountVariable,
-                        }
-                    }
-                    pub(crate) const fn index(self) -> usize { self as usize }
-                }
-            },
-            expected_rules(),
-        ];
-        items
-            .into_iter()
-            .map(|tokens| syn::parse2(tokens).unwrap())
-            .collect()
-    }
-
-    fn expected_rules() -> proc_macro2::TokenStream {
-        quote! {
-            pub(crate) const RULES: &[Rule<Category, Lexical, RuleId>] = &[
-                Rule { id: RuleId::AbilitySpell, lhs: Category::Ability, rhs: &[N(Category::Sentence), L(Lexical::Literal(".")), L(Lexical::EndOfInput)] },
-                Rule { id: RuleId::AbilityTriggered, lhs: Category::Ability, rhs: &[L(Lexical::TriggerWord), N(Category::Clause), L(Lexical::Literal(",")), N(Category::Sentence), L(Lexical::Literal(".")), L(Lexical::EndOfInput)] },
-                Rule { id: RuleId::SentenceImperative, lhs: Category::Sentence, rhs: &[N(Category::VerbPhrase)] },
-                Rule { id: RuleId::SentenceDeclarative, lhs: Category::Sentence, rhs: &[N(Category::NounPhrase), N(Category::VerbPhrase)] },
-                Rule { id: RuleId::SentenceWithWhere, lhs: Category::Sentence, rhs: &[N(Category::Sentence), L(Lexical::Literal(",")), N(Category::Clause)] },
-                Rule { id: RuleId::ClauseEvent, lhs: Category::Clause, rhs: &[N(Category::NounPhrase), N(Category::VerbPhrase)] },
-                Rule { id: RuleId::ClauseWhere, lhs: Category::Clause, rhs: &[L(Lexical::Literal("where")), L(Lexical::Variable), L(Lexical::Verb(VerbLexeme::Be)), L(Lexical::Literal("the")), L(Lexical::Literal("number")), L(Lexical::Literal("of")), N(Category::NounPhrase)] },
-                Rule { id: RuleId::NounPhrasePronoun, lhs: Category::NounPhrase, rhs: &[L(Lexical::Pronoun)] },
-                Rule { id: RuleId::NounPhraseCommon, lhs: Category::NounPhrase, rhs: &[L(Lexical::Article), L(Lexical::Noun(NounNumber::Singular))] },
-                Rule { id: RuleId::NounPhraseDemonstrative, lhs: Category::NounPhrase, rhs: &[L(Lexical::Demonstrative), L(Lexical::Noun(NounNumber::Either))] },
-                Rule { id: RuleId::NounPhraseTarget, lhs: Category::NounPhrase, rhs: &[L(Lexical::Literal("target")), L(Lexical::Noun(NounNumber::Singular))] },
-                Rule { id: RuleId::NounPhraseSelfReference, lhs: Category::NounPhrase, rhs: &[L(Lexical::SelfReference)] },
-                Rule { id: RuleId::NounPhraseCount, lhs: Category::NounPhrase, rhs: &[L(Lexical::Noun(NounNumber::Plural)), L(Lexical::Pronoun), L(Lexical::Verb(VerbLexeme::Control)), L(Lexical::Literal("with")), L(Lexical::Literal("power")), L(Lexical::SignedNumber), L(Lexical::Literal("or")), L(Lexical::Literal("less"))] },
-                Rule { id: RuleId::VerbPhraseDestroy, lhs: Category::VerbPhrase, rhs: &[L(Lexical::Verb(VerbLexeme::Destroy)), N(Category::NounPhrase)] },
-                Rule { id: RuleId::VerbPhraseConnive, lhs: Category::VerbPhrase, rhs: &[L(Lexical::Verb(VerbLexeme::Connive))] },
-                Rule { id: RuleId::VerbPhraseDealDamage, lhs: Category::VerbPhrase, rhs: &[L(Lexical::Verb(VerbLexeme::Deal)), N(Category::Amount), L(Lexical::Literal("damage")), L(Lexical::Literal("to")), N(Category::NounPhrase)] },
-                Rule { id: RuleId::VerbPhraseGainLife, lhs: Category::VerbPhrase, rhs: &[L(Lexical::Verb(VerbLexeme::Gain)), N(Category::Amount), L(Lexical::Literal("life"))] },
-                Rule { id: RuleId::AmountNumber, lhs: Category::Amount, rhs: &[L(Lexical::SignedNumber)] },
-                Rule { id: RuleId::AmountVariable, lhs: Category::Amount, rhs: &[L(Lexical::Variable)] },
-            ];
-        }
-    }
-
-    fn expected_construction_origins() -> Vec<(crate::DeclarationKind, &'static str)> {
-        [
-            "spell",
-            "triggered",
-            "imperative",
-            "declarative",
-            "with_where",
-            "event",
-            "where",
-            "pronoun",
-            "common",
-            "demonstrative",
-            "target",
-            "self_reference",
-            "count",
-            "destroy",
-            "connive",
-            "deal_damage",
-            "gain_life",
-            "number",
-            "variable",
-        ]
-        .into_iter()
-        .map(|name| (crate::DeclarationKind::Construction, name))
-        .collect()
     }
 }

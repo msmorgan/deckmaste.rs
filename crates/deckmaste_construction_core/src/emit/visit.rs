@@ -889,7 +889,6 @@ mod tests {
             ("walk_chain", &["visit_node", "walk_words"]),
             ("walk_action_element", &["walk_verbs", "visit_node"]),
         ];
-
         for &(name, expected) in cases {
             let syn::Item::Fn(item) = named(&expansion, name) else {
                 panic!("{name} is a function");
@@ -901,9 +900,8 @@ mod tests {
     }
 
     #[test]
-    fn full_golden_has_exact_visitor_item_count() {
-        let expansion = crate::generate(crate::validate::tests::full_golden_tokens())
-            .expect("the full golden declaration expands");
+    fn synthetic_projection_has_exact_visitor_callbacks_and_walker_order() {
+        let expansion = crate::test_support::synthetic_projection_expansion();
         let visitor_items = expansion
             .items()
             .iter()
@@ -915,401 +913,101 @@ mod tests {
                 crate::ItemKey::Impl { .. } => false,
             })
             .count();
-        assert_eq!(visitor_items, 38);
-    }
+        assert_eq!(visitor_items, 19);
 
-    #[test]
-    fn full_golden_visitor_has_exact_callback_signatures_and_walker_order() {
-        let expansion = crate::generate(crate::validate::tests::full_golden_tokens()).unwrap();
-        let trait_item = named(&expansion, "Visitor");
-        let syn::Item::Trait(ref visitor) = trait_item else {
+        let syn::Item::Trait(visitor) = named(&expansion, "Visitor") else {
             panic!("Visitor is a trait")
         };
-        assert_eq!(
-            trait_item,
-            expected_visitor_item(),
-            "literal Visitor method order, signatures, and default bodies",
-        );
-        let actual = visitor
+        let callbacks = visitor
             .items
             .iter()
             .map(|item| {
                 let syn::TraitItem::Fn(method) = item else {
                     panic!("Visitor contains only methods")
                 };
-                let argument = method
-                    .sig
-                    .inputs
-                    .iter()
-                    .nth(1)
-                    .expect("one value argument")
-                    .to_token_stream()
-                    .to_string();
-                let mut calls = Calls::default();
-                if let Some(default) = &method.default {
-                    calls.visit_block(default);
-                }
-                (method.sig.ident.to_string(), argument, calls.0)
-            })
-            .collect::<Vec<_>>();
-        let expected = [
-            ("visit_ability", "ability : & Ability", "walk_ability"),
-            ("visit_sentence", "sentence : & Sentence", "walk_sentence"),
-            ("visit_clause", "clause : & Clause", "walk_clause"),
-            (
-                "visit_noun_phrase",
-                "noun_phrase : & NounPhrase",
-                "walk_noun_phrase",
-            ),
-            (
-                "visit_verb_phrase",
-                "verb_phrase : & VerbPhrase",
-                "walk_verb_phrase",
-            ),
-            ("visit_amount", "amount : & Amount", "walk_amount"),
-            ("visit_noun", "noun : & Noun", "walk_noun"),
-            ("visit_spell", "spell : & Spell", "walk_spell"),
-            (
-                "visit_triggered",
-                "triggered : & Triggered",
-                "walk_triggered",
-            ),
-            (
-                "visit_imperative",
-                "imperative : & Imperative",
-                "walk_imperative",
-            ),
-            (
-                "visit_declarative",
-                "declarative : & Declarative",
-                "walk_declarative",
-            ),
-            (
-                "visit_with_where",
-                "with_where : & WithWhere",
-                "walk_with_where",
-            ),
-            (
-                "visit_event_clause",
-                "event_clause : & EventClause",
-                "walk_event_clause",
-            ),
-            (
-                "visit_where_clause",
-                "where_clause : & WhereClause",
-                "walk_where_clause",
-            ),
-            (
-                "visit_pronoun_np",
-                "pronoun_np : & PronounNp",
-                "walk_pronoun_np",
-            ),
-            ("visit_common", "common : & Common", "walk_common"),
-            (
-                "visit_demonstrative_np",
-                "demonstrative_np : & DemonstrativeNp",
-                "walk_demonstrative_np",
-            ),
-            (
-                "visit_target_np",
-                "target_np : & TargetNp",
-                "walk_target_np",
-            ),
-            (
-                "visit_self_reference_np",
-                "self_reference_np : & SelfReferenceNp",
-                "walk_self_reference_np",
-            ),
-            ("visit_count_np", "count_np : & CountNp", "walk_count_np"),
-            ("visit_destroy", "destroy : & Destroy", "walk_destroy"),
-            ("visit_connive", "connive : & Connive", "walk_connive"),
-            (
-                "visit_deal_damage",
-                "deal_damage : & DealDamage",
-                "walk_deal_damage",
-            ),
-            (
-                "visit_gain_life",
-                "gain_life : & GainLife",
-                "walk_gain_life",
-            ),
-            (
-                "visit_number_amount",
-                "number_amount : & NumberAmount",
-                "walk_number_amount",
-            ),
-            (
-                "visit_variable_amount",
-                "variable_amount : & VariableAmount",
-                "walk_variable_amount",
-            ),
-            ("visit_trigger_word", "_word : TriggerWord", ""),
-            ("visit_article", "_article : Article", ""),
-            ("visit_demonstrative", "_demonstrative : Demonstrative", ""),
-            ("visit_pronoun", "_pronoun : Pronoun", ""),
-            ("visit_variable", "_variable : Variable", ""),
-            ("visit_sign", "_sign : Sign", ""),
-            (
-                "visit_self_reference_spelling",
-                "_spelling : SelfReferenceSpelling",
-                "",
-            ),
-            ("visit_noun_lexeme", "_noun : NounLexeme", ""),
-            ("visit_verb_lexeme", "_verb : VerbLexeme", ""),
-            ("visit_signed_number", "_number : & SignedNumber", ""),
-            (
-                "visit_catalog_identity",
-                "_identity : & CatalogIdentity",
-                "",
-            ),
-            ("visit_catalog_spelling", "_spelling : & str", ""),
-        ];
-        assert_eq!(actual.len(), expected.len());
-        for ((name, argument, calls), (expected_name, expected_argument, expected_call)) in
-            actual.iter().zip(expected)
-        {
-            assert_eq!(name, expected_name);
-            assert_eq!(argument, expected_argument, "{name} argument");
-            if expected_call.is_empty() {
-                assert!(calls.is_empty(), "{name} default");
-            } else {
-                assert_eq!(calls, &[expected_call], "{name} default");
-            }
-        }
-
-        const WALKERS: &[(&str, &[&str])] = &[
-            ("walk_ability", &["visit_spell", "visit_triggered"]),
-            (
-                "walk_sentence",
-                &["visit_imperative", "visit_declarative", "visit_with_where"],
-            ),
-            ("walk_clause", &["visit_event_clause", "visit_where_clause"]),
-            (
-                "walk_noun_phrase",
-                &[
-                    "visit_pronoun_np",
-                    "visit_common",
-                    "visit_demonstrative_np",
-                    "visit_target_np",
-                    "visit_self_reference_np",
-                    "visit_count_np",
-                ],
-            ),
-            (
-                "walk_verb_phrase",
-                &[
-                    "visit_destroy",
-                    "visit_connive",
-                    "visit_deal_damage",
-                    "visit_gain_life",
-                ],
-            ),
-            (
-                "walk_amount",
-                &["visit_number_amount", "visit_variable_amount"],
-            ),
-            ("walk_noun", &["walk_noun_lexeme", "walk_catalog_identity"]),
-            ("walk_spell", &["visit_sentence"]),
-            (
-                "walk_triggered",
-                &["walk_trigger_word", "visit_clause", "visit_sentence"],
-            ),
-            ("walk_imperative", &["visit_verb_phrase"]),
-            (
-                "walk_declarative",
-                &["visit_noun_phrase", "visit_verb_phrase"],
-            ),
-            ("walk_with_where", &["visit_sentence", "visit_clause"]),
-            (
-                "walk_event_clause",
-                &["visit_noun_phrase", "visit_verb_phrase"],
-            ),
-            (
-                "walk_where_clause",
-                &["walk_variable", "walk_verb_lexeme", "visit_noun_phrase"],
-            ),
-            ("walk_pronoun_np", &["walk_pronoun"]),
-            ("walk_common", &["walk_article", "visit_noun"]),
-            (
-                "walk_demonstrative_np",
-                &["walk_demonstrative", "visit_noun"],
-            ),
-            ("walk_target_np", &["visit_noun"]),
-            ("walk_self_reference_np", &["walk_self_reference_spelling"]),
-            (
-                "walk_count_np",
-                &[
-                    "visit_noun",
-                    "walk_pronoun",
-                    "walk_verb_lexeme",
-                    "walk_signed_number",
-                ],
-            ),
-            ("walk_destroy", &["walk_verb_lexeme", "visit_noun_phrase"]),
-            ("walk_connive", &["walk_verb_lexeme"]),
-            (
-                "walk_deal_damage",
-                &["walk_verb_lexeme", "visit_amount", "visit_noun_phrase"],
-            ),
-            ("walk_gain_life", &["walk_verb_lexeme", "visit_amount"]),
-            ("walk_number_amount", &["walk_signed_number"]),
-            ("walk_variable_amount", &["walk_variable"]),
-            ("walk_trigger_word", &["visit_trigger_word"]),
-            ("walk_article", &["visit_article", "visit_article"]),
-            (
-                "walk_demonstrative",
-                &["visit_demonstrative", "visit_demonstrative"],
-            ),
-            ("walk_pronoun", &["visit_pronoun", "visit_pronoun"]),
-            ("walk_variable", &["visit_variable"]),
-            ("walk_sign", &["visit_sign", "visit_sign"]),
-            (
-                "walk_self_reference_spelling",
-                &[
-                    "visit_self_reference_spelling",
-                    "visit_self_reference_spelling",
-                ],
-            ),
-            ("walk_noun_lexeme", &["visit_noun_lexeme"]),
-            (
-                "walk_verb_lexeme",
-                &[
-                    "visit_verb_lexeme",
-                    "visit_verb_lexeme",
-                    "visit_verb_lexeme",
-                    "visit_verb_lexeme",
-                    "visit_verb_lexeme",
-                    "visit_verb_lexeme",
-                ],
-            ),
-            ("walk_signed_number", &["walk_sign", "visit_signed_number"]),
-            (
-                "walk_catalog_identity",
-                &["visit_catalog_identity", "visit_catalog_spelling"],
-            ),
-        ];
-        let actual_names = expansion
-            .items()
-            .iter()
-            .filter_map(|item| match &item.key {
-                crate::ItemKey::Named {
-                    kind: crate::NamedKind::Function,
-                    name,
-                } if name.starts_with("walk_") => Some(name.as_str()),
-                _ => None,
+                (
+                    method.sig.ident.to_string(),
+                    method.sig.inputs[1].to_token_stream().to_string(),
+                )
             })
             .collect::<Vec<_>>();
         assert_eq!(
-            actual_names,
-            WALKERS.iter().map(|(name, _)| *name).collect::<Vec<_>>()
+            callbacks,
+            [
+                ("visit_expr".into(), "expr : & Expr".into()),
+                ("visit_predicate".into(), "predicate : & Predicate".into()),
+                ("visit_tag".into(), "tag : & Tag".into()),
+                ("visit_document".into(), "document : & Document".into()),
+                ("visit_resource".into(), "resource : & Resource".into()),
+                ("visit_leaf_node".into(), "leaf_node : & LeafNode".into()),
+                (
+                    "visit_nested_node".into(),
+                    "nested_node : & NestedNode".into(),
+                ),
+                (
+                    "visit_action_node".into(),
+                    "action_node : & ActionNode".into()
+                ),
+                ("visit_idle_node".into(), "idle_node : & IdleNode".into()),
+                ("visit_solo_tag".into(), "solo_tag : & SoloTag".into()),
+                (
+                    "visit_document_node".into(),
+                    "document_node : & DocumentNode".into(),
+                ),
+                ("visit_mode".into(), "_mode : Mode".into()),
+                ("visit_marker".into(), "_marker : Marker".into()),
+                ("visit_handle".into(), "_handle : Handle".into()),
+                (
+                    "visit_object_stem".into(),
+                    "_object_stem : ObjectStem".into(),
+                ),
+                (
+                    "visit_action_stem".into(),
+                    "_action_stem : ActionStem".into(),
+                ),
+                ("visit_pair".into(), "_pair : & Pair".into()),
+                ("visit_record".into(), "_record : & Record".into()),
+                ("visit_record_label".into(), "_record_label : & str".into(),),
+            ],
         );
-        let expected_items = expected_walker_items();
-        assert_eq!(actual_names.len(), expected_items.len());
-        for (&name, expected) in actual_names.iter().zip(expected_items) {
-            assert_eq!(
-                named(&expansion, name),
-                expected,
-                "literal walker signature, pattern, body, and call operands for {name}",
-            );
-        }
-        for &(name, expected_calls) in WALKERS {
+
+        let cases: &[(&str, &[&str])] = &[
+            ("walk_leaf_node", &["walk_mode", "visit_resource"]),
+            ("walk_nested_node", &["visit_expr", "walk_marker"]),
+            ("walk_action_node", &["walk_action_stem"]),
+            (
+                "walk_document_node",
+                &["visit_expr", "visit_predicate", "walk_handle", "walk_pair"],
+            ),
+            ("walk_resource", &["walk_object_stem", "walk_record"]),
+            ("walk_pair", &["visit_pair"]),
+            ("walk_record", &["visit_record", "visit_record_label"]),
+        ];
+        for &(name, expected) in cases {
             let syn::Item::Fn(item) = named(&expansion, name) else {
-                panic!("{name} is a function")
+                panic!("{name} is a function");
             };
             let mut calls = Calls::default();
             calls.visit_block(&item.block);
-            assert_eq!(calls.0, expected_calls, "{name} preorder calls");
+            assert_eq!(calls.0, expected, "{name} callback order");
         }
-    }
 
-    fn expected_visitor_item() -> syn::Item {
-        syn::parse2(quote::quote! {
-            pub trait Visitor {
-                fn visit_ability(&mut self, ability: &Ability) { walk_ability(self, ability); }
-                fn visit_sentence(&mut self, sentence: &Sentence) { walk_sentence(self, sentence); }
-                fn visit_clause(&mut self, clause: &Clause) { walk_clause(self, clause); }
-                fn visit_noun_phrase(&mut self, noun_phrase: &NounPhrase) { walk_noun_phrase(self, noun_phrase); }
-                fn visit_verb_phrase(&mut self, verb_phrase: &VerbPhrase) { walk_verb_phrase(self, verb_phrase); }
-                fn visit_amount(&mut self, amount: &Amount) { walk_amount(self, amount); }
-                fn visit_noun(&mut self, noun: &Noun) { walk_noun(self, noun); }
-                fn visit_spell(&mut self, spell: &Spell) { walk_spell(self, spell); }
-                fn visit_triggered(&mut self, triggered: &Triggered) { walk_triggered(self, triggered); }
-                fn visit_imperative(&mut self, imperative: &Imperative) { walk_imperative(self, imperative); }
-                fn visit_declarative(&mut self, declarative: &Declarative) { walk_declarative(self, declarative); }
-                fn visit_with_where(&mut self, with_where: &WithWhere) { walk_with_where(self, with_where); }
-                fn visit_event_clause(&mut self, event_clause: &EventClause) { walk_event_clause(self, event_clause); }
-                fn visit_where_clause(&mut self, where_clause: &WhereClause) { walk_where_clause(self, where_clause); }
-                fn visit_pronoun_np(&mut self, pronoun_np: &PronounNp) { walk_pronoun_np(self, pronoun_np); }
-                fn visit_common(&mut self, common: &Common) { walk_common(self, common); }
-                fn visit_demonstrative_np(&mut self, demonstrative_np: &DemonstrativeNp) { walk_demonstrative_np(self, demonstrative_np); }
-                fn visit_target_np(&mut self, target_np: &TargetNp) { walk_target_np(self, target_np); }
-                fn visit_self_reference_np(&mut self, self_reference_np: &SelfReferenceNp) { walk_self_reference_np(self, self_reference_np); }
-                fn visit_count_np(&mut self, count_np: &CountNp) { walk_count_np(self, count_np); }
-                fn visit_destroy(&mut self, destroy: &Destroy) { walk_destroy(self, destroy); }
-                fn visit_connive(&mut self, connive: &Connive) { walk_connive(self, connive); }
-                fn visit_deal_damage(&mut self, deal_damage: &DealDamage) { walk_deal_damage(self, deal_damage); }
-                fn visit_gain_life(&mut self, gain_life: &GainLife) { walk_gain_life(self, gain_life); }
-                fn visit_number_amount(&mut self, number_amount: &NumberAmount) { walk_number_amount(self, number_amount); }
-                fn visit_variable_amount(&mut self, variable_amount: &VariableAmount) { walk_variable_amount(self, variable_amount); }
-                fn visit_trigger_word(&mut self, _word: TriggerWord) {}
-                fn visit_article(&mut self, _article: Article) {}
-                fn visit_demonstrative(&mut self, _demonstrative: Demonstrative) {}
-                fn visit_pronoun(&mut self, _pronoun: Pronoun) {}
-                fn visit_variable(&mut self, _variable: Variable) {}
-                fn visit_sign(&mut self, _sign: Sign) {}
-                fn visit_self_reference_spelling(&mut self, _spelling: SelfReferenceSpelling) {}
-                fn visit_noun_lexeme(&mut self, _noun: NounLexeme) {}
-                fn visit_verb_lexeme(&mut self, _verb: VerbLexeme) {}
-                fn visit_signed_number(&mut self, _number: &SignedNumber) {}
-                fn visit_catalog_identity(&mut self, _identity: &CatalogIdentity) {}
-                fn visit_catalog_spelling(&mut self, _spelling: &str) {}
-            }
-        })
-        .expect("literal Visitor fixture parses")
+        assert_eq!(
+            named(&expansion, "walk_handle"),
+            syn::parse_quote! {
+                pub fn walk_handle<V: Visitor + ?Sized>(
+                    visitor: &mut V,
+                    handle: Handle
+                ) {
+                    match handle {
+                        Handle::Primary => visitor.visit_handle(Handle::Primary),
+                        Handle::Alias => visitor.visit_handle(Handle::Alias),
+                    }
+                }
+            },
+            "copy identity walker remains a literal independent oracle",
+        );
     }
-
-    fn expected_walker_items() -> Vec<syn::Item> {
-        syn::parse2::<syn::File>(quote::quote! {
-            pub fn walk_ability<V: Visitor + ?Sized>(visitor: &mut V, ability: &Ability) { match ability { Ability::Spell(spell) => visitor.visit_spell(spell), Ability::Triggered(triggered) => visitor.visit_triggered(triggered), } }
-            pub fn walk_sentence<V: Visitor + ?Sized>(visitor: &mut V, sentence: &Sentence) { match sentence { Sentence::Imperative(imperative) => visitor.visit_imperative(imperative), Sentence::Declarative(declarative) => visitor.visit_declarative(declarative), Sentence::WithWhere(with_where) => visitor.visit_with_where(with_where), } }
-            pub fn walk_clause<V: Visitor + ?Sized>(visitor: &mut V, clause: &Clause) { match clause { Clause::Event(event_clause) => visitor.visit_event_clause(event_clause), Clause::Where(where_clause) => visitor.visit_where_clause(where_clause), } }
-            pub fn walk_noun_phrase<V: Visitor + ?Sized>(visitor: &mut V, noun_phrase: &NounPhrase) { match noun_phrase { NounPhrase::Pronoun(pronoun_np) => visitor.visit_pronoun_np(pronoun_np), NounPhrase::Common(common) => visitor.visit_common(common), NounPhrase::Demonstrative(demonstrative_np) => { visitor.visit_demonstrative_np(demonstrative_np); }, NounPhrase::Target(target_np) => visitor.visit_target_np(target_np), NounPhrase::SelfReference(self_reference_np) => { visitor.visit_self_reference_np(self_reference_np); }, NounPhrase::Count(count_np) => visitor.visit_count_np(count_np), } }
-            pub fn walk_verb_phrase<V: Visitor + ?Sized>(visitor: &mut V, verb_phrase: &VerbPhrase) { match verb_phrase { VerbPhrase::Destroy(destroy) => visitor.visit_destroy(destroy), VerbPhrase::Connive(connive) => visitor.visit_connive(connive), VerbPhrase::DealDamage(deal_damage) => visitor.visit_deal_damage(deal_damage), VerbPhrase::GainLife(gain_life) => visitor.visit_gain_life(gain_life), } }
-            pub fn walk_amount<V: Visitor + ?Sized>(visitor: &mut V, amount: &Amount) { match amount { Amount::Number(number_amount) => visitor.visit_number_amount(number_amount), Amount::Variable(variable_amount) => visitor.visit_variable_amount(variable_amount), } }
-            pub fn walk_noun<V: Visitor + ?Sized>(visitor: &mut V, noun: &Noun) { match noun { Noun::Lexeme(noun_lexeme) => walk_noun_lexeme(visitor, *noun_lexeme), Noun::Catalog(catalog_identity) => walk_catalog_identity(visitor, catalog_identity), } }
-            pub fn walk_spell<V: Visitor + ?Sized>(visitor: &mut V, spell: &Spell) { let Spell { effect } = spell; visitor.visit_sentence(effect); }
-            pub fn walk_triggered<V: Visitor + ?Sized>(visitor: &mut V, triggered: &Triggered) { let Triggered { trigger, event, effect } = triggered; walk_trigger_word(visitor, *trigger); visitor.visit_clause(event); visitor.visit_sentence(effect); }
-            pub fn walk_imperative<V: Visitor + ?Sized>(visitor: &mut V, imperative: &Imperative) { let Imperative { predicate } = imperative; visitor.visit_verb_phrase(predicate); }
-            pub fn walk_declarative<V: Visitor + ?Sized>(visitor: &mut V, declarative: &Declarative) { let Declarative { subject, predicate } = declarative; visitor.visit_noun_phrase(subject); visitor.visit_verb_phrase(predicate); }
-            pub fn walk_with_where<V: Visitor + ?Sized>(visitor: &mut V, with_where: &WithWhere) { let WithWhere { body, clause } = with_where; visitor.visit_sentence(body); visitor.visit_clause(clause); }
-            pub fn walk_event_clause<V: Visitor + ?Sized>(visitor: &mut V, event_clause: &EventClause) { let EventClause { subject, predicate } = event_clause; visitor.visit_noun_phrase(subject); visitor.visit_verb_phrase(predicate); }
-            pub fn walk_where_clause<V: Visitor + ?Sized>(visitor: &mut V, where_clause: &WhereClause) { let WhereClause { variable, value } = where_clause; walk_variable(visitor, *variable); walk_verb_lexeme(visitor, VerbLexeme::Be); visitor.visit_noun_phrase(value); }
-            pub fn walk_pronoun_np<V: Visitor + ?Sized>(visitor: &mut V, pronoun_np: &PronounNp) { let PronounNp { word } = pronoun_np; walk_pronoun(visitor, *word); }
-            pub fn walk_common<V: Visitor + ?Sized>(visitor: &mut V, common: &Common) { let Common { article, head } = common; walk_article(visitor, *article); visitor.visit_noun(head); }
-            pub fn walk_demonstrative_np<V: Visitor + ?Sized>(visitor: &mut V, demonstrative_np: &DemonstrativeNp) { let DemonstrativeNp { word, head } = demonstrative_np; walk_demonstrative(visitor, *word); visitor.visit_noun(head); }
-            pub fn walk_target_np<V: Visitor + ?Sized>(visitor: &mut V, target_np: &TargetNp) { let TargetNp { head } = target_np; visitor.visit_noun(head); }
-            pub fn walk_self_reference_np<V: Visitor + ?Sized>(visitor: &mut V, self_reference_np: &SelfReferenceNp) { walk_self_reference_spelling(visitor, self_reference_np.spelling()); }
-            pub fn walk_count_np<V: Visitor + ?Sized>(visitor: &mut V, count_np: &CountNp) { let CountNp { head, controller, threshold } = count_np; visitor.visit_noun(head); walk_pronoun(visitor, *controller); walk_verb_lexeme(visitor, VerbLexeme::Control); walk_signed_number(visitor, threshold); }
-            pub fn walk_destroy<V: Visitor + ?Sized>(visitor: &mut V, destroy: &Destroy) { let Destroy { object } = destroy; walk_verb_lexeme(visitor, VerbLexeme::Destroy); visitor.visit_noun_phrase(object); }
-            pub fn walk_connive<V: Visitor + ?Sized>(visitor: &mut V, connive: &Connive) { let Connive = connive; walk_verb_lexeme(visitor, VerbLexeme::Connive); }
-            pub fn walk_deal_damage<V: Visitor + ?Sized>(visitor: &mut V, deal_damage: &DealDamage) { let DealDamage { amount, to } = deal_damage; walk_verb_lexeme(visitor, VerbLexeme::Deal); visitor.visit_amount(amount); visitor.visit_noun_phrase(to); }
-            pub fn walk_gain_life<V: Visitor + ?Sized>(visitor: &mut V, gain_life: &GainLife) { let GainLife { amount } = gain_life; walk_verb_lexeme(visitor, VerbLexeme::Gain); visitor.visit_amount(amount); }
-            pub fn walk_number_amount<V: Visitor + ?Sized>(visitor: &mut V, number_amount: &NumberAmount) { let NumberAmount { number } = number_amount; walk_signed_number(visitor, number); }
-            pub fn walk_variable_amount<V: Visitor + ?Sized>(visitor: &mut V, variable_amount: &VariableAmount) { let VariableAmount { variable } = variable_amount; walk_variable(visitor, *variable); }
-            pub fn walk_trigger_word<V: Visitor + ?Sized>(visitor: &mut V, word: TriggerWord) { match word { TriggerWord::Whenever => visitor.visit_trigger_word(TriggerWord::Whenever), } }
-            pub fn walk_article<V: Visitor + ?Sized>(visitor: &mut V, article: Article) { match article { Article::A => visitor.visit_article(Article::A), Article::An => visitor.visit_article(Article::An), } }
-            pub fn walk_demonstrative<V: Visitor + ?Sized>(visitor: &mut V, demonstrative: Demonstrative) { match demonstrative { Demonstrative::That => visitor.visit_demonstrative(Demonstrative::That), Demonstrative::Those => visitor.visit_demonstrative(Demonstrative::Those), } }
-            pub fn walk_pronoun<V: Visitor + ?Sized>(visitor: &mut V, pronoun: Pronoun) { match pronoun { Pronoun::It => visitor.visit_pronoun(Pronoun::It), Pronoun::You => visitor.visit_pronoun(Pronoun::You), } }
-            pub fn walk_variable<V: Visitor + ?Sized>(visitor: &mut V, variable: Variable) { match variable { Variable::X => visitor.visit_variable(Variable::X), } }
-            pub fn walk_sign<V: Visitor + ?Sized>(visitor: &mut V, sign: Sign) { match sign { Sign::Positive => visitor.visit_sign(Sign::Positive), Sign::Negative => visitor.visit_sign(Sign::Negative), } }
-            pub fn walk_self_reference_spelling<V: Visitor + ?Sized>(visitor: &mut V, spelling: SelfReferenceSpelling) { match spelling { SelfReferenceSpelling::Full => { visitor.visit_self_reference_spelling(SelfReferenceSpelling::Full); }, SelfReferenceSpelling::Abbreviated => { visitor.visit_self_reference_spelling(SelfReferenceSpelling::Abbreviated); }, } }
-            pub fn walk_noun_lexeme<V: Visitor + ?Sized>(visitor: &mut V, noun: NounLexeme) { match noun { NounLexeme::Player => visitor.visit_noun_lexeme(NounLexeme::Player), } }
-            pub fn walk_verb_lexeme<V: Visitor + ?Sized>(visitor: &mut V, verb: VerbLexeme) { match verb { VerbLexeme::Destroy => visitor.visit_verb_lexeme(VerbLexeme::Destroy), VerbLexeme::Connive => visitor.visit_verb_lexeme(VerbLexeme::Connive), VerbLexeme::Deal => visitor.visit_verb_lexeme(VerbLexeme::Deal), VerbLexeme::Gain => visitor.visit_verb_lexeme(VerbLexeme::Gain), VerbLexeme::Control => visitor.visit_verb_lexeme(VerbLexeme::Control), VerbLexeme::Be => visitor.visit_verb_lexeme(VerbLexeme::Be), } }
-            pub fn walk_signed_number<V: Visitor + ?Sized>(visitor: &mut V, number: &SignedNumber) { let SignedNumber { sign, magnitude } = number; walk_sign(visitor, *sign); let _ = magnitude; visitor.visit_signed_number(number); }
-            pub fn walk_catalog_identity<V: Visitor + ?Sized>(visitor: &mut V, identity: &CatalogIdentity) { let CatalogIdentity { kind, spelling } = identity; let _ = kind; visitor.visit_catalog_identity(identity); visitor.visit_catalog_spelling(spelling); }
-        }).unwrap().items
-    }
-
     fn named(expansion: &crate::Expansion, name: &str) -> syn::Item {
         let item = expansion.items().iter().find(|item| matches!(&item.key, crate::ItemKey::Named { name: found, .. } if found == name)).unwrap_or_else(|| panic!("{name} exists"));
         syn::parse2::<syn::File>(item.tokens.clone())

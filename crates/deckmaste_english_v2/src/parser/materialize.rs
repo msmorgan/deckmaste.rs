@@ -1,22 +1,38 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-use super::build::BuildValue;
-use super::build::build;
 use super::engine::Child;
 use super::engine::Family;
 use super::engine::Forest;
 use super::engine::NodeId;
 use super::engine::Rule;
 use super::engine::RulePosition;
-use super::rules::Category;
-use super::rules::Construction;
-use super::rules::Lexical;
-use super::rules::RULES;
-use super::rules::RuleId;
+use super::lexical::Lexical;
 use super::scan::Leaf;
 use crate::ast::Ability;
+use crate::ast::Amount;
+use crate::ast::Clause;
+use crate::ast::NounPhrase;
+use crate::ast::Sentence;
+use crate::ast::VerbPhrase;
+use crate::constructions::Category;
+use crate::constructions::Construction;
+use crate::constructions::RULES;
+use crate::constructions::RuleId;
+use crate::constructions::build;
 use crate::context::ParseContext;
+use crate::features::Agreement;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum BuildValue {
+    Ability(Ability),
+    Sentence(Sentence),
+    Clause(Clause),
+    NounPhrase(NounPhrase, Agreement),
+    VerbPhrase(VerbPhrase, Agreement),
+    Amount(Amount),
+    Leaf(Leaf),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct MaterializedCandidate<V, C> {

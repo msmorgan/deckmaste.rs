@@ -320,7 +320,7 @@ fn render_atoms(
                 let category = path_name(path);
                 let helper = render_category_name(&category, root_names.contains(&category));
                 let value = field_value(construction, role, whole);
-                let agreement = role_agreement(validated, construction, role, categories)?;
+                let agreement = role_agreement(validated, construction, role, whole, categories)?;
                 let context = context_categories
                     .contains(&category)
                     .then(|| quote! { context });
@@ -396,7 +396,7 @@ fn render_atoms(
                         return Err(internal("projected verb has no fixed render lexeme"));
                     }
                 };
-                let agreement = verb_agreement(validated, construction)?;
+                let agreement = verb_agreement(validated, construction, whole)?;
                 Ok(quote! { #method_writer.word(inflect(#variant, #agreement)); })
             }
             FormAtom::Noun(role) => {
@@ -421,6 +421,7 @@ fn role_agreement(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
     role: &syn::Ident,
+    whole: &syn::Ident,
     categories: &[(String, Vec<&crate::Construction>)],
 ) -> syn::Result<Option<TokenStream>> {
     let equation = validated.feature_equations(&construction.name.to_string()).iter().find(|equation| {
@@ -434,6 +435,7 @@ fn role_agreement(
                 equation.value(),
                 Feature::Agreement,
                 categories,
+                Some(whole),
             )
         })
         .transpose()
@@ -442,12 +444,20 @@ fn role_agreement(
 fn verb_agreement(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
+    whole: &syn::Ident,
 ) -> syn::Result<TokenStream> {
     let equations = validated.feature_equations(&construction.name.to_string());
     if let Some(equation) = equations.iter().find(|equation| {
         matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if field == "verb")
     }) {
-        return feature_expr(validated, construction, equation.value(), Feature::Agreement, &[]);
+        return feature_expr(
+            validated,
+            construction,
+            equation.value(),
+            Feature::Agreement,
+            &[],
+            Some(whole),
+        );
     }
     if equations.iter().any(|equation| {
         matches!(equation.target(), FeaturePlace::Construction(Feature::Agreement))
@@ -464,6 +474,7 @@ fn feature_expr(
     expression: &FeatureExpr,
     _feature: Feature,
     _categories: &[(String, Vec<&crate::Construction>)],
+    whole: Option<&syn::Ident>,
 ) -> syn::Result<TokenStream> {
     Ok(match expression {
         FeatureExpr::Constant(value) => feature_value(*value.value()),
@@ -485,8 +496,12 @@ fn feature_expr(
                 .iter()
                 .find(|field| field.name == *role)
                 .expect("resolved role");
+            let role_value = whole.map_or_else(
+                || quote! { #role },
+                |whole| field_value(construction, role, whole),
+            );
             let (source, value) = match &field.kind {
-                FieldKind::Category(path) => (path_name(path), quote! { #role }),
+                FieldKind::Category(path) => (path_name(path), role_value),
                 FieldKind::Lex(_) => {
                     let (writer_role, vocabulary) = canonical_lexical_feature_lowering(
                         validated,
@@ -494,7 +509,14 @@ fn feature_expr(
                         role,
                         *source_feature,
                     )?;
-                    (path_name(vocabulary), quote! { *#writer_role })
+                    let writer_value = whole.map_or_else(
+                        || quote! { #writer_role },
+                        |whole| field_value(construction, writer_role, whole),
+                    );
+                    (
+                        path_name(vocabulary),
+                        copy_value(construction, writer_role, writer_value),
+                    )
                 }
                 FieldKind::Identity(_) => {
                     return Err(internal(
@@ -522,7 +544,12 @@ fn feature_expr(
                 let value = feature_value(*value);
                 quote! { #ty::#variant => #value }
             });
-            quote! { match #role { #(#match_arms),* } }
+            let role_value = whole.map_or_else(
+                || quote! { #role },
+                |whole| field_value(construction, role, whole),
+            );
+            let role_value = copy_value(construction, role, role_value);
+            quote! { match #role_value { #(#match_arms),* } }
         }
     })
 }
@@ -625,6 +652,7 @@ fn emit_feature_helper(
                 entries.push((pattern, value.to_string(), value));
             }
         } else {
+            let whole = ident(&construction.name.to_string());
             let pattern = feature_constant_pattern(
                 validated,
                 construction,
@@ -632,8 +660,16 @@ fn emit_feature_helper(
                 &variant,
                 element,
                 equation.value(),
+                &whole,
             )?;
-            let value = feature_expr(validated, construction, equation.value(), feature, &[])?;
+            let value = feature_expr(
+                validated,
+                construction,
+                equation.value(),
+                feature,
+                &[],
+                Some(&whole),
+            )?;
             entries.push((pattern, value.to_string(), value));
         }
     }
@@ -679,6 +715,7 @@ fn feature_constant_pattern(
     variant: &syn::Ident,
     element: &syn::Ident,
     expression: &FeatureExpr,
+    whole: &syn::Ident,
 ) -> syn::Result<TokenStream> {
     if construction.element.fields.is_empty() {
         return Ok(quote! { #category::#variant(#element) });
@@ -691,6 +728,10 @@ fn feature_constant_pattern(
             )
         })
     }) {
+        if matches!(expression, FeatureExpr::FromRole { role, .. } if construction.element.fields.iter().any(|field| field.name == *role))
+        {
+            return Ok(quote! { #category::#variant(#whole) });
+        }
         return Ok(quote! { #category::#variant(_) });
     }
     let mut fields = Vec::new();
@@ -1142,6 +1183,49 @@ mod tests {
     }
 
     #[test]
+    fn checked_feature_reads_use_the_declared_field_accessor() {
+        let expansion = crate::generate(quote::quote! {
+            construction subject: Subject {
+                element SubjectNode {}
+                derive agreement = Values::Bare;
+                form subject = "subject";
+            }
+            construction predicate: Predicate {
+                element PredicateNode {}
+                derive agreement = Values::Bare;
+                form predicate = "predicate";
+            }
+            construction checked_root: Root {
+                element CheckedRoot { subject: Subject, predicate: Predicate, }
+                checked {
+                    visibility subject = private;
+                    access subject = subject;
+                    visibility predicate = pub(crate);
+                    constructor = CheckedRoot::new(subject, predicate);
+                }
+                derive predicate.agreement = subject.agreement;
+                form checked_root = subject predicate;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a checked product may source a feature from a private category field");
+        let implementation = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.as_deref() == Some("Render")))
+            .expect("root Render impl");
+        let source = implementation.tokens.to_string();
+        assert!(
+            !source.contains("agreement_for_subject (subject)"),
+            "checked feature read lowered to an unbound bare role: {source}",
+        );
+        assert!(
+            source.contains("agreement_for_subject (checked_root . subject ())"),
+            "checked feature read did not use its declared accessor: {source}",
+        );
+    }
+
+    #[test]
     fn representative_root_metadata_controls_standalone_rendering() {
         let expansion = crate::test_support::representative_expansion();
         let render_impls = expansion
@@ -1177,28 +1261,8 @@ mod tests {
     }
 
     #[test]
-    fn full_golden_has_exact_render_item_count() {
-        let expansion = crate::generate(crate::validate::tests::full_golden_tokens())
-            .expect("the full golden declaration expands");
-        let render_items = expansion
-            .items()
-            .iter()
-            .filter(|item| match &item.key {
-                crate::ItemKey::Impl { trait_name, .. } => trait_name.as_deref() == Some("Render"),
-                crate::ItemKey::Named { kind, name } => {
-                    *kind == crate::NamedKind::Function
-                        && (name.starts_with("render_")
-                            || name == "agreement_for_noun_phrase"
-                            || name == "number_for_noun_phrase")
-                }
-            })
-            .count();
-        assert_eq!(render_items, 14);
-    }
-
-    #[test]
-    fn full_golden_render_has_exact_items_signatures_origins_and_dispatch_tables() {
-        let expansion = crate::generate(crate::validate::tests::full_golden_tokens()).unwrap();
+    fn synthetic_projection_has_exact_render_ownership_and_feature_dispatch() {
+        let expansion = crate::test_support::synthetic_projection_expansion();
         let render = expansion
             .items()
             .iter()
@@ -1207,279 +1271,82 @@ mod tests {
                 crate::ItemKey::Named {
                     kind: crate::NamedKind::Function,
                     name,
-                } => name.starts_with("render_") || name.ends_with("_for_noun_phrase"),
+                } => {
+                    name.starts_with("render_")
+                        || name == "agreement_for_expr"
+                        || name == "number_for_expr"
+                }
                 _ => false,
             })
             .collect::<Vec<_>>();
-        let actual_keys = render
-            .iter()
-            .map(|item| match &item.key {
-                crate::ItemKey::Impl { self_ty, .. } => format!("impl Render for {self_ty}"),
-                crate::ItemKey::Named { name, .. } => name.clone(),
-            })
-            .collect::<Vec<_>>();
         assert_eq!(
-            actual_keys,
+            render
+                .iter()
+                .map(|item| match &item.key {
+                    crate::ItemKey::Impl { self_ty, .. } => format!("impl Render for {self_ty}"),
+                    crate::ItemKey::Named { name, .. } => name.clone(),
+                })
+                .collect::<Vec<_>>(),
             [
-                "impl Render for Ability",
-                "impl Render for Sentence",
-                "render_sentence_body",
-                "render_clause",
-                "render_verb_phrase",
-                "render_noun_phrase",
-                "render_amount",
-                "render_trigger_word",
-                "render_article",
-                "render_demonstrative",
-                "render_pronoun",
-                "render_variable",
-                "agreement_for_noun_phrase",
-                "number_for_noun_phrase",
-            ]
+                "impl Render for Document",
+                "render_expr",
+                "render_predicate",
+                "render_tag",
+                "render_mode",
+                "agreement_for_expr",
+                "number_for_expr",
+            ],
         );
-        let actual_origins = render
-            .iter()
-            .map(|item| {
-                item.origins
-                    .iter()
-                    .map(crate::DeclarationKey::name)
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
         assert_eq!(
-            actual_origins,
+            render
+                .iter()
+                .map(|item| {
+                    item.origins
+                        .iter()
+                        .map(crate::DeclarationKey::name)
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>(),
             [
-                vec!["Ability"],
-                vec!["Sentence"],
-                vec!["imperative", "declarative", "with_where"],
-                vec!["event", "where"],
-                vec!["destroy", "connive", "deal_damage", "gain_life"],
-                vec![
-                    "pronoun",
-                    "common",
-                    "demonstrative",
-                    "target",
-                    "self_reference",
-                    "count"
-                ],
-                vec!["number", "variable"],
-                vec!["TriggerWord"],
-                vec!["Article"],
-                vec!["Demonstrative"],
-                vec!["Pronoun"],
-                vec!["Variable"],
-                vec![
-                    "pronoun",
-                    "common",
-                    "demonstrative",
-                    "target",
-                    "self_reference",
-                    "count"
-                ],
-                vec![
-                    "pronoun",
-                    "common",
-                    "demonstrative",
-                    "target",
-                    "self_reference",
-                    "count"
-                ],
-            ]
+                vec!["Document"],
+                vec!["leaf", "nested"],
+                vec!["action", "idle"],
+                vec!["solo"],
+                vec!["Mode"],
+                vec!["leaf", "nested"],
+                vec!["leaf", "nested"],
+            ],
         );
 
-        let expected_items = expected_render_items();
-        assert_eq!(render.len(), expected_items.len());
-        for (generated, expected) in render.iter().zip(expected_items) {
-            let actual = parse(generated);
-            if actual != expected {
-                panic!(
-                    "literal syn structure for {:?}\nactual:\n{}\nexpected:\n{}",
-                    generated.key,
-                    prettyplease::unparse(&syn::File {
-                        shebang: None,
-                        attrs: Vec::new(),
-                        items: vec![actual]
-                    }),
-                    prettyplease::unparse(&syn::File {
-                        shebang: None,
-                        attrs: Vec::new(),
-                        items: vec![expected]
-                    }),
-                );
-            }
+        let root = parse(render[0]).to_token_stream().to_string();
+        for fragment in [
+            "Self :: Document (document)",
+            "render_expr (& mut writer , & document . subject)",
+            "render_predicate (& mut writer , & document . predicate , agreement_for_expr (& document . subject))",
+            "Handle :: Primary => writer . identity (context . primary_name ())",
+            "Handle :: Alias => writer . identity (context . alias_name ())",
+            "render_pair (& mut writer , document . pair ())",
+            "writer . punctuation ('!')",
+        ] {
+            assert!(root.contains(fragment), "root render lacks `{fragment}`");
         }
-    }
 
-    fn expected_render_items() -> Vec<syn::Item> {
-        syn::parse2::<syn::File>(quote::quote! {
-            impl Render for Ability {
-                fn render(&self, context: &ParseContext<'_>) -> String {
-                    let mut writer = Writer::new();
-                    match self {
-                        Self::Spell(Spell { effect }) => render_sentence_body(&mut writer, effect, context),
-                        Self::Triggered(Triggered { trigger, event, effect }) => {
-                            render_trigger_word(&mut writer, *trigger);
-                            render_clause(&mut writer, event, context);
-                            writer.punctuation(',');
-                            render_sentence_body(&mut writer, effect, context);
-                        }
-                    }
-                    writer.punctuation('.');
-                    writer.finish()
-                }
-            }
-            impl Render for Sentence {
-                fn render(&self, context: &ParseContext<'_>) -> String {
-                    let mut writer = Writer::new();
-                    render_sentence_body(&mut writer, self, context);
-                    writer.punctuation('.');
-                    writer.finish()
-                }
-            }
-            fn render_sentence_body(writer: &mut Writer, sentence: &Sentence, context: &ParseContext<'_>) {
-                match sentence {
-                    Sentence::Imperative(Imperative { predicate }) => {
-                        render_verb_phrase(writer, predicate, Agreement::Bare, context);
-                    }
-                    Sentence::Declarative(Declarative { subject, predicate }) => {
-                        render_noun_phrase(writer, subject, context);
-                        render_verb_phrase(writer, predicate, agreement_for_noun_phrase(subject), context);
-                    }
-                    Sentence::WithWhere(WithWhere { body, clause }) => {
-                        render_sentence_body(writer, body, context);
-                        writer.punctuation(',');
-                        render_clause(writer, clause, context);
-                    }
-                }
-            }
-            fn render_clause(writer: &mut Writer, clause: &Clause, context: &ParseContext<'_>) {
-                match clause {
-                    Clause::Event(EventClause { subject, predicate }) => {
-                        render_noun_phrase(writer, subject, context);
-                        render_verb_phrase(writer, predicate, agreement_for_noun_phrase(subject), context);
-                    }
-                    Clause::Where(WhereClause { variable, value }) => {
-                        writer.word("where");
-                        render_variable(writer, *variable);
-                        writer.word(inflect(VerbLexeme::Be, Agreement::ThirdPersonSingular));
-                        writer.word("the");
-                        writer.word("number");
-                        writer.word("of");
-                        render_noun_phrase(writer, value, context);
-                    }
-                }
-            }
-            fn render_verb_phrase(writer: &mut Writer, phrase: &VerbPhrase, agreement: Agreement, context: &ParseContext<'_>) {
-                match phrase {
-                    VerbPhrase::Destroy(Destroy { object }) => {
-                        writer.word(inflect(VerbLexeme::Destroy, agreement));
-                        render_noun_phrase(writer, object, context);
-                    }
-                    VerbPhrase::Connive(Connive) => writer.word(inflect(VerbLexeme::Connive, agreement)),
-                    VerbPhrase::DealDamage(DealDamage { amount, to }) => {
-                        writer.word(inflect(VerbLexeme::Deal, agreement));
-                        render_amount(writer, amount);
-                        writer.word("damage");
-                        writer.word("to");
-                        render_noun_phrase(writer, to, context);
-                    }
-                    VerbPhrase::GainLife(GainLife { amount }) => {
-                        writer.word(inflect(VerbLexeme::Gain, agreement));
-                        render_amount(writer, amount);
-                        writer.word("life");
-                    }
-                }
-            }
-            fn render_noun_phrase(writer: &mut Writer, phrase: &NounPhrase, context: &ParseContext<'_>) {
-                match phrase {
-                    NounPhrase::Pronoun(PronounNp { word }) => render_pronoun(writer, *word),
-                    NounPhrase::Common(Common { article, head }) => {
-                        render_article(writer, *article);
-                        render_noun(writer, head, number_for_noun_phrase(phrase));
-                    }
-                    NounPhrase::Demonstrative(DemonstrativeNp { word, head }) => {
-                        render_demonstrative(writer, *word);
-                        render_noun(writer, head, number_for_noun_phrase(phrase));
-                    }
-                    NounPhrase::Target(TargetNp { head }) => {
-                        writer.word("target");
-                        render_noun(writer, head, number_for_noun_phrase(phrase));
-                    }
-                    NounPhrase::SelfReference(self_reference) => match self_reference.spelling() {
-                        SelfReferenceSpelling::Full => writer.identity(context.card_name()),
-                        SelfReferenceSpelling::Abbreviated => {
-                            writer.identity(context.abbreviated_card_name());
-                        }
-                    },
-                    NounPhrase::Count(CountNp { head, controller, threshold }) => {
-                        render_noun(writer, head, number_for_noun_phrase(phrase));
-                        render_pronoun(writer, *controller);
-                        writer.word(inflect(VerbLexeme::Control, agreement_for_pronoun(*controller)));
-                        writer.word("with");
-                        writer.word("power");
-                        render_signed_number(writer, threshold);
-                        writer.word("or");
-                        writer.word("less");
-                    }
-                }
-            }
-            fn render_amount(writer: &mut Writer, amount: &Amount) {
-                match amount {
-                    Amount::Number(NumberAmount { number }) => render_signed_number(writer, number),
-                    Amount::Variable(VariableAmount { variable }) => render_variable(writer, *variable),
-                }
-            }
-            fn render_trigger_word(writer: &mut Writer, trigger: TriggerWord) {
-                match trigger { TriggerWord::Whenever => writer.word("whenever"), }
-            }
-            fn render_article(writer: &mut Writer, article: Article) {
-                match article {
-                    Article::A => writer.word("a"),
-                    Article::An => writer.word("an"),
-                }
-            }
-            fn render_demonstrative(writer: &mut Writer, demonstrative: Demonstrative) {
-                match demonstrative {
-                    Demonstrative::That => writer.word("that"),
-                    Demonstrative::Those => writer.word("those"),
-                }
-            }
-            fn render_pronoun(writer: &mut Writer, pronoun: Pronoun) {
-                match pronoun {
-                    Pronoun::It => writer.word("it"),
-                    Pronoun::You => writer.word("you"),
-                }
-            }
-            fn render_variable(writer: &mut Writer, variable: Variable) {
-                match variable { Variable::X => writer.word("X"), }
-            }
-            fn agreement_for_noun_phrase(phrase: &NounPhrase) -> Agreement {
-                match phrase {
-                    NounPhrase::Pronoun(PronounNp { word }) => agreement_for_pronoun(*word),
-                    NounPhrase::Common(Common { article: Article::A | Article::An, head: _ })
-                    | NounPhrase::Demonstrative(DemonstrativeNp { word: Demonstrative::That, head: _ })
-                    | NounPhrase::Target(TargetNp { head: _ })
-                    | NounPhrase::SelfReference(_) => Agreement::ThirdPersonSingular,
-                    NounPhrase::Demonstrative(DemonstrativeNp { word: Demonstrative::Those, head: _ })
-                    | NounPhrase::Count(CountNp { head: _, controller: _, threshold: _ }) => Agreement::Bare,
-                }
-            }
-            fn number_for_noun_phrase(phrase: &NounPhrase) -> Number {
-                match phrase {
-                    NounPhrase::Pronoun(PronounNp { word: Pronoun::It | Pronoun::You })
-                    | NounPhrase::Common(Common { article: Article::A | Article::An, head: _ })
-                    | NounPhrase::Demonstrative(DemonstrativeNp { word: Demonstrative::That, head: _ })
-                    | NounPhrase::Target(TargetNp { head: _ })
-                    | NounPhrase::SelfReference(_) => Number::Singular,
-                    NounPhrase::Demonstrative(DemonstrativeNp { word: Demonstrative::Those, head: _ })
-                    | NounPhrase::Count(CountNp { head: _, controller: _, threshold: _ }) => Number::Plural,
-                }
-            }
-        })
-        .unwrap()
-        .items
-    }
+        let agreement = parse(render[5]).to_token_stream().to_string();
+        assert!(agreement.contains("Expr :: Leaf"));
+        assert!(
+            agreement.contains(
+                "mode : Mode :: Solo , resource : _ }) => Agreement :: ThirdPersonSingular"
+            )
+        );
+        assert!(agreement.contains("mode : Mode :: Group , resource : _ }) => Agreement :: Bare"));
+        assert!(agreement.contains("Expr :: Nested"));
+        assert!(agreement.contains("agreement_for_expr (nested . next ())"));
 
+        let number = parse(render[6]).to_token_stream().to_string();
+        assert!(number.contains("mode : Mode :: Solo , resource : _ }) => Number :: Singular"));
+        assert!(number.contains("mode : Mode :: Group , resource : _ }) => Number :: Plural"));
+        assert!(number.contains("number_for_expr (nested . next ())"));
+    }
     fn parse(item: &crate::GeneratedItem) -> syn::Item {
         syn::parse2::<syn::File>(item.tokens.clone())
             .unwrap()

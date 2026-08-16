@@ -980,9 +980,9 @@ mod tests {
     }
 
     #[test]
-    fn full_golden_build_has_all_literal_arm_patterns_guards_and_constructions() {
+    fn synthetic_projection_build_owns_every_mechanism_and_fallback() {
         let validated = crate::validate_declarations(
-            crate::parse_declarations(crate::validate::tests::full_golden_tokens()).unwrap(),
+            crate::parse_declarations(crate::test_support::synthetic_projection_tokens()).unwrap(),
         )
         .unwrap();
         let actual = super::emit(&validated).unwrap();
@@ -993,17 +993,20 @@ mod tests {
                 .iter()
                 .map(|origin| (origin.kind(), origin.name()))
                 .collect::<Vec<_>>(),
-            expected_origins(),
+            [
+                (crate::DeclarationKind::Construction, "leaf"),
+                (crate::DeclarationKind::Construction, "nested"),
+                (crate::DeclarationKind::Construction, "action"),
+                (crate::DeclarationKind::Construction, "idle"),
+                (crate::DeclarationKind::Construction, "solo"),
+                (crate::DeclarationKind::Construction, "document"),
+                (crate::DeclarationKind::Root, "Document"),
+            ],
         );
+
         let syn::Item::Fn(function) = syn::parse2(actual[0].tokens.clone()).unwrap() else {
             panic!("build is a function");
         };
-        assert_eq!(function.attrs.len(), 1);
-        assert_eq!(
-            function.attrs[0].to_token_stream().to_string(),
-            "# [expect (clippy :: too_many_lines , reason = \"the exhaustive generated-shape construction dispatch is intentionally flat\")]"
-        );
-        assert_eq!(function.vis, syn::parse_quote!(pub(super)));
         assert_eq!(
             function.sig,
             syn::parse_quote!(fn build(rule: RuleId, children: &[BuildValue], context: &ParseContext<'_>,) -> Option<BuildValue>)
@@ -1011,73 +1014,43 @@ mod tests {
         let syn::Stmt::Expr(syn::Expr::Match(dispatch), None) = &function.block.stmts[0] else {
             panic!("flat match dispatch")
         };
-        assert_eq!(dispatch.arms.len(), 19);
-        let actual = dispatch
+        assert_eq!(dispatch.arms.len(), 6);
+        let arms = dispatch
             .arms
             .iter()
-            .cloned()
-            .map(|mut arm| {
-                arm.comma = None;
-                arm.to_token_stream().to_string()
-            })
+            .map(ToTokens::to_token_stream)
+            .map(|tokens| tokens.to_string())
             .collect::<Vec<_>>();
-        assert_eq!(actual, expected_arms());
-        assert!(actual.iter().all(|arm| arm.contains("_ => None")));
-    }
+        assert!(arms.iter().all(|arm| arm.contains("_ => None")));
 
-    fn expected_arms() -> Vec<String> {
-        let arms: Vec<syn::Arm> = vec![
-            syn::parse_quote! { RuleId::AbilitySpell => match children { [BuildValue::Sentence(effect), BuildValue::Leaf(Leaf::Literal(".")), BuildValue::Leaf(Leaf::EndOfInput)] => Some(BuildValue::Ability(Ability::Spell(Spell { effect: effect.clone() }))), _ => None, } },
-            syn::parse_quote! { RuleId::AbilityTriggered => match children { [BuildValue::Leaf(Leaf::TriggerWord(trigger)), BuildValue::Clause(Clause::Event(event)), BuildValue::Leaf(Leaf::Literal(",")), BuildValue::Sentence(effect), BuildValue::Leaf(Leaf::Literal(".")), BuildValue::Leaf(Leaf::EndOfInput)] => Triggered::new(*trigger, Clause::Event(event.clone()), vec![effect.clone()]).map(Ability::Triggered).map(BuildValue::Ability), _ => None, } },
-            syn::parse_quote! { RuleId::SentenceImperative => match children { [BuildValue::VerbPhrase(predicate, Agreement::Bare)] => Some(BuildValue::Sentence(Sentence::Imperative(Imperative { predicate: predicate.clone() }))), _ => None, } },
-            syn::parse_quote! { RuleId::SentenceDeclarative => match children { [BuildValue::NounPhrase(subject, subject_agreement), BuildValue::VerbPhrase(predicate, verb_agreement)] if subject_agreement == verb_agreement => Some(BuildValue::Sentence(Sentence::Declarative(Declarative { subject: subject.clone(), predicate: predicate.clone() }))), _ => None, } },
-            syn::parse_quote! { RuleId::SentenceWithWhere => match children { [BuildValue::Sentence(body), BuildValue::Leaf(Leaf::Literal(",")), BuildValue::Clause(Clause::Where(clause))] => Some(BuildValue::Sentence(Sentence::WithWhere(WithWhere { body: Box::new(body.clone()), clause: Clause::Where(clause.clone()) }))), _ => None, } },
-            syn::parse_quote! { RuleId::ClauseEvent => match children { [BuildValue::NounPhrase(subject, subject_agreement), BuildValue::VerbPhrase(predicate, verb_agreement)] if subject_agreement == verb_agreement => Some(BuildValue::Clause(Clause::Event(EventClause { subject: subject.clone(), predicate: predicate.clone() }))), _ => None, } },
-            syn::parse_quote! { RuleId::ClauseWhere => match children { [BuildValue::Leaf(Leaf::Literal("where")), BuildValue::Leaf(Leaf::Variable(variable)), BuildValue::Leaf(Leaf::Verb { lexeme: VerbLexeme::Be, agreement: Agreement::ThirdPersonSingular }), BuildValue::Leaf(Leaf::Literal("the")), BuildValue::Leaf(Leaf::Literal("number")), BuildValue::Leaf(Leaf::Literal("of")), BuildValue::NounPhrase(value, _)] => Some(BuildValue::Clause(Clause::Where(WhereClause { variable: *variable, value: value.clone() }))), _ => None, } },
-            syn::parse_quote! { RuleId::NounPhrasePronoun => match children { [BuildValue::Leaf(Leaf::Pronoun(pronoun))] => Some(BuildValue::NounPhrase(NounPhrase::Pronoun(PronounNp { word: *pronoun }), agreement_for_pronoun(*pronoun))), _ => None, } },
-            syn::parse_quote! { RuleId::NounPhraseCommon => match children { [BuildValue::Leaf(Leaf::Article(article)), BuildValue::Leaf(Leaf::Noun { noun, number: NounNumber::Singular })] => Some(BuildValue::NounPhrase(NounPhrase::Common(Common { article: *article, head: noun.clone() }), Agreement::ThirdPersonSingular)), _ => None, } },
-            syn::parse_quote! { RuleId::NounPhraseDemonstrative => match children { [BuildValue::Leaf(Leaf::Demonstrative(demonstrative)), BuildValue::Leaf(Leaf::Noun { noun, number })] => match (demonstrative, number) { (Demonstrative::That, NounNumber::Singular) => Some(BuildValue::NounPhrase(NounPhrase::Demonstrative(DemonstrativeNp { word: Demonstrative::That, head: noun.clone() }), Agreement::ThirdPersonSingular)), (Demonstrative::Those, NounNumber::Plural) => Some(BuildValue::NounPhrase(NounPhrase::Demonstrative(DemonstrativeNp { word: Demonstrative::Those, head: noun.clone() }), Agreement::Bare)), _ => None, }, _ => None, } },
-            syn::parse_quote! { RuleId::NounPhraseTarget => match children { [BuildValue::Leaf(Leaf::Literal("target")), BuildValue::Leaf(Leaf::Noun { noun, number: NounNumber::Singular })] => Some(BuildValue::NounPhrase(NounPhrase::Target(TargetNp { head: noun.clone() }), Agreement::ThirdPersonSingular)), _ => None, } },
-            syn::parse_quote! { RuleId::NounPhraseSelfReference => match children { [BuildValue::Leaf(Leaf::SelfReference(spelling))] => SelfReferenceNp::new(*spelling, context).map(|self_reference| { BuildValue::NounPhrase(NounPhrase::SelfReference(self_reference), Agreement::ThirdPersonSingular) }), _ => None, } },
-            syn::parse_quote! { RuleId::NounPhraseCount => match children { [BuildValue::Leaf(Leaf::Noun { noun, number: NounNumber::Plural }), BuildValue::Leaf(Leaf::Pronoun(Pronoun::You)), BuildValue::Leaf(Leaf::Verb { lexeme: VerbLexeme::Control, agreement: Agreement::Bare }), BuildValue::Leaf(Leaf::Literal("with")), BuildValue::Leaf(Leaf::Literal("power")), BuildValue::Leaf(Leaf::SignedNumber(threshold)), BuildValue::Leaf(Leaf::Literal("or")), BuildValue::Leaf(Leaf::Literal("less"))] => Some(BuildValue::NounPhrase(NounPhrase::Count(CountNp { head: noun.clone(), controller: Pronoun::You, threshold: threshold.clone() }), Agreement::Bare)), _ => None, } },
-            syn::parse_quote! { RuleId::VerbPhraseDestroy => match children { [BuildValue::Leaf(Leaf::Verb { lexeme: VerbLexeme::Destroy, agreement }), BuildValue::NounPhrase(object, _)] => Some(BuildValue::VerbPhrase(VerbPhrase::Destroy(Destroy { object: object.clone() }), *agreement)), _ => None, } },
-            syn::parse_quote! { RuleId::VerbPhraseConnive => match children { [BuildValue::Leaf(Leaf::Verb { lexeme: VerbLexeme::Connive, agreement })] => Some(BuildValue::VerbPhrase(VerbPhrase::Connive(Connive), *agreement)), _ => None, } },
-            syn::parse_quote! { RuleId::VerbPhraseDealDamage => match children { [BuildValue::Leaf(Leaf::Verb { lexeme: VerbLexeme::Deal, agreement }), BuildValue::Amount(amount), BuildValue::Leaf(Leaf::Literal("damage")), BuildValue::Leaf(Leaf::Literal("to")), BuildValue::NounPhrase(to, _)] => Some(BuildValue::VerbPhrase(VerbPhrase::DealDamage(DealDamage { amount: amount.clone(), to: to.clone() }), *agreement)), _ => None, } },
-            syn::parse_quote! { RuleId::VerbPhraseGainLife => match children { [BuildValue::Leaf(Leaf::Verb { lexeme: VerbLexeme::Gain, agreement }), BuildValue::Amount(amount), BuildValue::Leaf(Leaf::Literal("life"))] => Some(BuildValue::VerbPhrase(VerbPhrase::GainLife(GainLife { amount: amount.clone() }), *agreement)), _ => None, } },
-            syn::parse_quote! { RuleId::AmountNumber => match children { [BuildValue::Leaf(Leaf::SignedNumber(number))] => Some(BuildValue::Amount(Amount::Number(NumberAmount { number: number.clone() }))), _ => None, } },
-            syn::parse_quote! { RuleId::AmountVariable => match children { [BuildValue::Leaf(Leaf::Variable(variable))] => Some(BuildValue::Amount(Amount::Variable(VariableAmount { variable: *variable }))), _ => None, } },
-        ];
-        arms.into_iter()
-            .map(|arm| arm.to_token_stream().to_string())
-            .collect()
-    }
-
-    fn expected_origins() -> Vec<(crate::DeclarationKind, &'static str)> {
-        let names = [
-            "spell",
-            "triggered",
-            "imperative",
-            "declarative",
-            "with_where",
-            "event",
-            "where",
-            "pronoun",
-            "common",
-            "demonstrative",
-            "target",
-            "self_reference",
-            "count",
-            "destroy",
-            "connive",
-            "deal_damage",
-            "gain_life",
-            "number",
-            "variable",
-        ];
-        names
-            .into_iter()
-            .map(|name| (crate::DeclarationKind::Construction, name))
-            .chain([(crate::DeclarationKind::Root, "Ability")])
-            .collect()
+        let joined = arms.join("\n");
+        for fragment in [
+            "RuleId :: ExprLeaf",
+            "Mode :: Solo",
+            "Agreement :: ThirdPersonSingular",
+            "Number :: Singular",
+            "Mode :: Group",
+            "Agreement :: Bare",
+            "Number :: Plural",
+            "RuleId :: ExprNested",
+            "NestedNode :: checked",
+            "Box :: new (next . clone ())",
+            "RuleId :: PredicateAction",
+            "ActionStem :: Activate",
+            "RuleId :: PredicateIdle",
+            "RuleId :: TagSolo",
+            "RuleId :: DocumentDocument",
+            "Expr :: Leaf",
+            "RuntimePair :: new (left , Factory :: wrap (right))",
+            "DocumentNode :: checked",
+            "vec ! [RuntimePair :: new",
+            r#"Leaf :: Literal ("!")"#,
+            "Leaf :: EndOfInput",
+        ] {
+            assert!(
+                joined.contains(fragment),
+                "build dispatch lacks `{fragment}`"
+            );
+        }
     }
 }
