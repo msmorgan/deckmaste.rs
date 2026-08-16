@@ -296,14 +296,10 @@ fn self_reference_identity_preserves_its_inherent_case() {
 #[test]
 fn unrelated_catalog_collision_is_a_parse_failure() {
     let text = "Destroy target Forest.";
-    let offset = "Destroy target".len();
     assert_eq!(
         parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {
-            span: TextSpan {
-                start: offset,
-                end: offset,
-            },
+            span: TextSpan { start: 15, end: 21 },
             expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::Noun)]),
         })
     );
@@ -331,7 +327,7 @@ fn agreement_mismatch_reports_a_nonempty_chart_failure() {
     assert_eq!(
         parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {
-            span: TextSpan { start: 11, end: 11 },
+            span: TextSpan { start: 12, end: 16 },
             expectations: BTreeSet::from([Expectation::Literal("life")]),
         })
     );
@@ -345,7 +341,7 @@ fn count_controller_mismatch_reports_a_nonempty_chart_failure() {
     assert_eq!(
         parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {
-            span: TextSpan { start: 79, end: 79 },
+            span: TextSpan { start: 80, end: 84 },
             expectations: BTreeSet::from([Expectation::Literal("less")]),
         })
     );
@@ -353,18 +349,26 @@ fn count_controller_mismatch_reports_a_nonempty_chart_failure() {
 
 #[test]
 fn lexical_matches_reject_prefixes_of_longer_lexemes() {
-    for (text, card_name, offset) in [
-        ("Destroyed target creature.", "Context Card", 0),
+    for (text, card_name, expected_span) in [
+        (
+            "Destroyed target creature.",
+            "Context Card",
+            TextSpan { start: 0, end: 9 },
+        ),
         (
             "Zacama deals 3x damage to target creature.",
             "Zacama, Primal Calamity",
-            12,
+            TextSpan { start: 13, end: 15 },
         ),
-        ("Destroy target creaturex.", "Context Card", 14),
+        (
+            "Destroy target creaturex.",
+            "Context Card",
+            TextSpan { start: 15, end: 24 },
+        ),
         (
             "Zacamaé deals 3 damage to target creature.",
             "Zacama, Primal Calamity",
-            0,
+            TextSpan { start: 0, end: 8 },
         ),
     ] {
         let Err(ParseError::Failure { span, expectations }) =
@@ -373,14 +377,7 @@ fn lexical_matches_reject_prefixes_of_longer_lexemes() {
             panic!("lexical prefix must fail for {text:?}");
         };
 
-        assert_eq!(
-            span,
-            TextSpan {
-                start: offset,
-                end: offset
-            },
-            "{text:?}"
-        );
+        assert_eq!(span, expected_span, "{text:?}");
         assert!(!expectations.is_empty(), "{text:?}");
     }
 }
@@ -395,7 +392,7 @@ fn doubled_period_reports_the_first_trailing_byte() {
         Err(ParseError::Failure {
             span: TextSpan {
                 start: trailing,
-                end: trailing,
+                end: trailing + 1,
             },
             expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::EndOfInput,)]),
         })

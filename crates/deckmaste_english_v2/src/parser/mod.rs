@@ -55,20 +55,49 @@ impl Parser {
             catalogs: &self.catalogs,
             context,
         };
-        let forest = parse_forest(&grammar, text).map_err(chart_failure)?;
+        let forest =
+            parse_forest(&grammar, text).map_err(|failure| chart_failure(text, failure))?;
         Ok(select(materialize(&forest, context))?
             .expect("validated chart roots must have a checked materialization"))
     }
 }
 
-fn chart_failure(failure: ChartFailure<Category, Lexical>) -> ParseError {
+fn chart_failure(text: &str, failure: ChartFailure<Category, Lexical>) -> ParseError {
     ParseError::Failure {
-        span: TextSpan {
-            start: failure.offset,
-            end: failure.offset,
-        },
+        span: failure_span(text, failure.offset),
         expectations: failure.live.into_iter().map(expectation).collect(),
     }
+}
+
+fn failure_span(text: &str, offset: usize) -> TextSpan {
+    if offset == text.len() {
+        return TextSpan {
+            start: offset,
+            end: offset,
+        };
+    }
+
+    let start = text[offset..]
+        .char_indices()
+        .find(|&(_, character)| !character.is_whitespace())
+        .map_or(text.len(), |(index, _)| offset + index);
+    if start == text.len() {
+        return TextSpan { start, end: start };
+    }
+
+    let mut characters = text[start..].char_indices();
+    let (_, first) = characters.next().expect("nonempty failure span");
+    if matches!(first, ',' | '.') {
+        return TextSpan {
+            start,
+            end: start + first.len_utf8(),
+        };
+    }
+
+    let end = characters
+        .find(|&(_, character)| character.is_whitespace() || matches!(character, ',' | '.'))
+        .map_or(text.len(), |(index, _)| start + index);
+    TextSpan { start, end }
 }
 
 const fn expectation(position: RulePosition<Category, Lexical>) -> Expectation {
