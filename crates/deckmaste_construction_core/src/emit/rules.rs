@@ -1,6 +1,5 @@
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
-use quote::format_ident;
 use quote::quote;
 
 use crate::ValidatedDeclarations;
@@ -8,6 +7,14 @@ use crate::feature::Feature;
 use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
 use crate::feature::FeatureValue;
+use crate::identifier::RULE_CATEGORY_TYPE;
+use crate::identifier::RULE_CONSTRUCTION_TYPE;
+use crate::identifier::RULE_ID_CONSTRUCTION;
+use crate::identifier::RULE_ID_COUNT;
+use crate::identifier::RULE_ID_INDEX;
+use crate::identifier::RULE_ID_TYPE;
+use crate::identifier::RULES_CONSTANT;
+use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
 use crate::identifier::path_key;
 use crate::model::Declaration;
@@ -21,6 +28,13 @@ use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 
 pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<GeneratedItem>> {
+    let category_type = ident(RULE_CATEGORY_TYPE);
+    let construction_type = ident(RULE_CONSTRUCTION_TYPE);
+    let rule_id_type = ident(RULE_ID_TYPE);
+    let rule_id_count = ident(RULE_ID_COUNT);
+    let rule_id_construction = ident(RULE_ID_CONSTRUCTION);
+    let rule_id_index = ident(RULE_ID_INDEX);
+    let rules_constant = ident(RULES_CONSTANT);
     let constructions = constructions(validated);
     let origins = construction_origins(&constructions);
     let categories = category_names(&constructions);
@@ -57,43 +71,43 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
     );
     Ok(vec![
         GeneratedItem::new(
-            ItemKey::named_type("Category"),
+            ItemKey::named_type(RULE_CATEGORY_TYPE),
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum Category { #(#categories),* }
+                pub(crate) enum #category_type { #(#categories),* }
             },
             origins.clone(),
         ),
         GeneratedItem::new(
-            ItemKey::named_type("Construction"),
+            ItemKey::named_type(RULE_CONSTRUCTION_TYPE),
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum Construction { #(#rule_ids),* }
+                pub(crate) enum #construction_type { #(#rule_ids),* }
             },
             origins.clone(),
         ),
         GeneratedItem::new(
-            ItemKey::named_type("RuleId"),
+            ItemKey::named_type(RULE_ID_TYPE),
             quote! {
                 #[repr(usize)]
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum RuleId { #(#rule_ids),* }
+                pub(crate) enum #rule_id_type { #(#rule_ids),* }
             },
             origins.clone(),
         ),
         GeneratedItem::new(
             ItemKey::Impl {
                 trait_name: None,
-                self_ty: "RuleId".to_owned(),
+                self_ty: RULE_ID_TYPE.to_owned(),
             },
             quote! {
                 impl RuleId {
                     #[cfg(test)]
-                    pub(crate) const COUNT: usize = #count;
-                    pub(crate) const fn construction(self) -> Construction {
+                    pub(crate) const #rule_id_count: usize = #count;
+                    pub(crate) const fn #rule_id_construction(self) -> Construction {
                         match self { #(#construction_matches,)* }
                     }
-                    pub(crate) const fn index(self) -> usize { self as usize }
+                    pub(crate) const fn #rule_id_index(self) -> usize { self as usize }
                 }
             },
             origins.clone(),
@@ -101,9 +115,9 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         GeneratedItem::new(
             ItemKey::Named {
                 kind: NamedKind::Constant,
-                name: "RULES".to_owned(),
+                name: RULES_CONSTANT.to_owned(),
             },
-            quote! { pub(crate) const RULES: &[Rule<Category, Lexical, RuleId>] = &[#(#rows),*]; },
+            quote! { pub(crate) const #rules_constant: &[Rule<Category, Lexical, RuleId>] = &[#(#rows),*]; },
             rule_origins,
         ),
     ])
@@ -114,14 +128,15 @@ fn emit_rule(
     construction: &crate::Construction,
     rule_id: &syn::Ident,
 ) -> syn::Result<TokenStream> {
-    let lhs = &construction.category;
+    let lhs_path = &construction.category;
+    let lhs = ident(&path_name(lhs_path));
     let mut rhs = construction
         .form
         .atoms
         .iter()
         .map(|atom| emit_position(validated, construction, atom))
         .collect::<syn::Result<Vec<_>>>()?;
-    if let Some(root) = parse_root(validated, lhs) {
+    if let Some(root) = parse_root(validated, lhs_path) {
         let punctuation = &root.punctuation;
         rhs.push(quote! { L(Lexical::Literal(#punctuation)) });
         rhs.push(quote! { L(Lexical::EndOfInput) });
@@ -140,6 +155,7 @@ fn emit_position(
             let FieldKind::Category(category) = &field(construction, role)?.kind else {
                 return Err(internal("validated category role has the wrong field kind"));
             };
+            let category = ident(&path_name(category));
             Ok(quote! { N(Category::#category) })
         }
         FormAtom::Lex(role) | FormAtom::Identity(role) => {
@@ -167,7 +183,7 @@ fn lexical_variant(
     for declaration in &validated.raw().declarations {
         match declaration {
             Declaration::Vocab(vocab) if identifier_key(&vocab.name) == path_name(terminal) => {
-                let name = &vocab.name;
+                let name = ident(&identifier_key(&vocab.name));
                 return Ok(quote! { Lexical::#name });
             }
             Declaration::Codec(binding) | Declaration::Identity(binding)
@@ -230,17 +246,15 @@ fn construction_origins(constructions: &[&crate::Construction]) -> Vec<Declarati
         .collect()
 }
 
-fn category_names(constructions: &[&crate::Construction]) -> Vec<syn::Path> {
-    let mut names = Vec::<syn::Path>::new();
+fn category_names(constructions: &[&crate::Construction]) -> Vec<syn::Ident> {
+    let mut names = Vec::<String>::new();
     for construction in constructions {
-        if !names
-            .iter()
-            .any(|name| path_name(name) == path_name(&construction.category))
-        {
-            names.push(construction.category.clone());
+        let name = path_name(&construction.category);
+        if !names.contains(&name) {
+            names.push(name);
         }
     }
-    names
+    names.into_iter().map(|name| ident(&name)).collect()
 }
 
 fn parse_root<'a>(
@@ -285,7 +299,7 @@ fn path_name(path: &syn::Path) -> String {
 }
 
 fn ident(name: &str) -> syn::Ident {
-    format_ident!("{name}")
+    emitted_ident(name, Span::call_site())
 }
 fn internal(message: &str) -> syn::Error {
     syn::Error::new(Span::call_site(), message)

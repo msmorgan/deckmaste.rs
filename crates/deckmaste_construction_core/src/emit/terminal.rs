@@ -1,7 +1,9 @@
 use quote::quote;
 
 use crate::ValidatedDeclarations;
+use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
+use crate::identifier::snake_case;
 use crate::model::Declaration;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
@@ -32,8 +34,14 @@ pub(crate) fn emit(
                         )
                     })
                     .collect::<Vec<_>>();
-                let variant_idents = vocab.variants.iter().map(|variant| &variant.name);
-                let ident = &vocab.name;
+                let variant_idents = vocab
+                    .variants
+                    .iter()
+                    .map(|variant| {
+                        emitted_ident(&identifier_key(&variant.name), variant.name.span())
+                    })
+                    .collect::<Vec<_>>();
+                let ident = emitted_ident(&name, vocab.name.span());
                 let tokens = quote! {
                     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
                     pub enum #ident {
@@ -74,8 +82,12 @@ pub(crate) fn emit(
                     .iter()
                     .map(|variant| TerminalVariantContribution::new(identifier_key(variant), None))
                     .collect::<Vec<_>>();
-                let variant_idents = &lexeme.variants;
-                let ident = &lexeme.name;
+                let variant_idents = lexeme
+                    .variants
+                    .iter()
+                    .map(|variant| emitted_ident(&identifier_key(variant), variant.span()))
+                    .collect::<Vec<_>>();
+                let ident = emitted_ident(&name, lexeme.name.span());
                 let tokens = if verb_provider {
                     quote! {
                         #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -112,28 +124,6 @@ pub(crate) fn emit(
         }
     }
     Ok((items, contributions))
-}
-
-fn snake_case(name: &str) -> String {
-    let characters = name.chars().collect::<Vec<_>>();
-    let mut result = String::new();
-    for (index, character) in characters.iter().copied().enumerate() {
-        if character.is_uppercase() {
-            let previous_is_lower = index > 0 && characters[index - 1].is_lowercase();
-            let acronym_boundary = index > 0
-                && characters[index - 1].is_uppercase()
-                && characters
-                    .get(index + 1)
-                    .is_some_and(|next| next.is_lowercase());
-            if (previous_is_lower || acronym_boundary) && !result.ends_with('_') {
-                result.push('_');
-            }
-            result.extend(character.to_lowercase());
-        } else {
-            result.push(character);
-        }
-    }
-    result
 }
 
 #[cfg(test)]

@@ -3,7 +3,6 @@ use std::collections::HashSet;
 
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
-use quote::format_ident;
 use quote::quote;
 
 use crate::ValidatedDeclarations;
@@ -12,8 +11,13 @@ use crate::feature::Feature;
 use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
 use crate::feature::FeatureValue;
+use crate::identifier::BUILD_FUNCTION;
+use crate::identifier::emitted_ident;
+use crate::identifier::feature_helper;
 use crate::identifier::key as identifier_key;
+use crate::identifier::pascal_case;
 use crate::identifier::path_key;
+use crate::identifier::snake_case;
 use crate::model::ConstructorArgument;
 use crate::model::Declaration;
 use crate::model::FieldKind;
@@ -27,6 +31,7 @@ use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 
 pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<GeneratedItem>> {
+    let build_function = ident(BUILD_FUNCTION);
     let constructions = validated
         .raw()
         .declarations
@@ -70,7 +75,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
             clippy::too_many_lines,
             reason = "the exhaustive generated-shape construction dispatch is intentionally flat"
         )]
-        pub(super) fn build(
+        pub(super) fn #build_function(
             rule: RuleId,
             children: &[BuildValue],
             context: &ParseContext<'_>,
@@ -81,7 +86,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
     Ok(vec![GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Function,
-            name: "build".to_owned(),
+            name: BUILD_FUNCTION.to_owned(),
         },
         tokens,
         origins,
@@ -215,7 +220,7 @@ fn lower_category_role(
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
     let field = field(construction, role)?;
-    let FieldKind::Category(category) = &field.kind else {
+    let FieldKind::Category(category_path) = &field.kind else {
         return Err(internal("validated category role has the wrong field kind"));
     };
     let role_name = identifier_key(role);
@@ -224,24 +229,25 @@ fn lower_category_role(
         .requirements
         .iter()
         .find(|requirement| identifier_key(&requirement.role) == role_name);
+    let category = ident(&path_name(category_path));
     let value_pattern = if let Some(requirement) = refinement {
-        let variant = &requirement.variant;
+        let variant = ident(&identifier_key(&requirement.variant));
         quote! { #category::#variant(#role_binding) }
     } else {
         quote! { #role_binding }
     };
     let stored = if let Some(requirement) = refinement {
-        let variant = &requirement.variant;
+        let variant = ident(&identifier_key(&requirement.variant));
         quote! { #category::#variant(#role_binding.clone()) }
     } else {
         quote! { #role_binding.clone() }
     };
     lowering.field_values.insert(role_name.clone(), stored);
 
-    let carries_agreement = category_has_agreement(validated, category);
-    let carries_number = category_carries_number(validated, category);
+    let carries_agreement = category_has_agreement(validated, category_path);
+    let carries_number = category_carries_number(validated, category_path);
     let agreement = carries_agreement
-        .then(|| role_agreement_pattern(validated, construction, role, category, lowering))
+        .then(|| role_agreement_pattern(validated, construction, role, category_path, lowering))
         .transpose()?;
     let number =
         carries_number.then(|| role_number_pattern(validated, construction, role, lowering));
@@ -342,13 +348,13 @@ fn lower_terminal_role(
     let field = field(construction, role)?;
     let terminal = terminal_path(field)?;
     if let Some(vocab) = find_vocab(validated, &path_name(terminal)) {
-        let leaf = &vocab.name;
+        let leaf = ident(&identifier_key(&vocab.name));
         if let Some(requirement) = construction
             .requirements
             .iter()
             .find(|item| identifier_key(&item.role) == identifier_key(role))
         {
-            let variant = &requirement.variant;
+            let variant = ident(&identifier_key(&requirement.variant));
             lowering
                 .patterns
                 .push(quote! { BuildValue::Leaf(Leaf::#leaf(#leaf::#variant)) });
@@ -633,8 +639,9 @@ fn emit_success(
     agreement_override: Option<FeatureValue>,
     number_override: Option<FeatureValue>,
 ) -> syn::Result<TokenStream> {
-    let element = &construction.element.name;
-    let category = &construction.category;
+    let element = ident(&identifier_key(&construction.element.name));
+    let category_path = &construction.category;
+    let category = ident(&path_name(category_path));
     let variant = ident(&pascal_case(&identifier_key(&construction.name)));
     let element_value = if let Some(checked) = &construction.checked {
         let path = &checked.constructor.path;
@@ -654,8 +661,8 @@ fn emit_success(
             })
             .collect::<syn::Result<Vec<_>>>()?;
         let mapped = quote! { #category::#variant };
-        let carries_agreement = category_has_agreement(validated, category);
-        let carries_number = category_carries_number(validated, category);
+        let carries_agreement = category_has_agreement(validated, category_path);
+        let carries_number = category_carries_number(validated, category_path);
         if carries_agreement || carries_number {
             let agreement = carries_agreement
                 .then(|| {
@@ -702,8 +709,8 @@ fn emit_success(
         quote! { #element { #(#fields),* } }
     };
     let category_value = quote! { #category::#variant(#element_value) };
-    let carries_agreement = category_has_agreement(validated, category);
-    let carries_number = category_carries_number(validated, category);
+    let carries_agreement = category_has_agreement(validated, category_path);
+    let carries_number = category_carries_number(validated, category_path);
     let wrapped = if carries_agreement && carries_number {
         let agreement =
             construction_agreement(validated, construction, lowering, agreement_override)?;
@@ -918,8 +925,7 @@ fn resolve_feature_place(
                     ..
                 } => {
                     let terminal = terminal_path(source_field)?;
-                    let helper =
-                        format_ident!("agreement_for_{}", snake_case(&path_name(terminal)));
+                    let helper = ident(&feature_helper("agreement", &path_name(terminal)));
                     ResolvedFeatureValue::Computed(quote! { #helper(#source) })
                 }
                 FeaturePlace::Construction(Feature::Number)
@@ -1207,37 +1213,7 @@ fn path_name(path: &syn::Path) -> String {
     path_key(path)
 }
 fn ident(name: &str) -> syn::Ident {
-    format_ident!("{name}")
-}
-fn pascal_case(name: &str) -> String {
-    name.split('_')
-        .filter(|part| !part.is_empty())
-        .map(|part| {
-            let mut chars = part.chars();
-            chars.next().map_or_else(String::new, |first| {
-                first.to_uppercase().chain(chars).collect()
-            })
-        })
-        .collect()
-}
-fn snake_case(name: &str) -> String {
-    let chars = name.chars().collect::<Vec<_>>();
-    let mut result = String::new();
-    for (index, ch) in chars.iter().copied().enumerate() {
-        if ch.is_uppercase() {
-            let lower = index > 0 && chars[index - 1].is_lowercase();
-            let acronym = index > 0
-                && chars[index - 1].is_uppercase()
-                && chars.get(index + 1).is_some_and(|next| next.is_lowercase());
-            if (lower || acronym) && !result.ends_with('_') {
-                result.push('_');
-            }
-            result.extend(ch.to_lowercase());
-        } else {
-            result.push(ch);
-        }
-    }
-    result
+    emitted_ident(name, Span::call_site())
 }
 fn internal(message: &str) -> syn::Error {
     syn::Error::new(Span::call_site(), message)

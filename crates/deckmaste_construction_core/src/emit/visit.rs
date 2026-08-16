@@ -4,13 +4,16 @@ use std::collections::HashSet;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use quote::format_ident;
 use quote::quote;
 
 use crate::ValidatedDeclarations;
 use crate::emit::LocalAllocator;
+use crate::identifier::VISITOR_TRAIT;
+use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
+use crate::identifier::pascal_case;
 use crate::identifier::path_key;
+use crate::identifier::snake_case;
 use crate::model::Declaration;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
@@ -134,6 +137,7 @@ fn emit_trait(
     lexemes: &[&crate::Lexeme],
     borrowed_bindings: &[&crate::TerminalBinding],
 ) -> syn::Result<GeneratedItem> {
+    let visitor = ident(VISITOR_TRAIT);
     let mut methods = Vec::new();
     for (category, _) in categories {
         methods.push(default_method(category, &category_argument(category)));
@@ -240,17 +244,17 @@ fn emit_trait(
     Ok(GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Trait,
-            name: "Visitor".to_owned(),
+            name: VISITOR_TRAIT.to_owned(),
         },
-        quote! { pub trait Visitor { #(#methods)* } },
+        quote! { pub trait #visitor { #(#methods)* } },
         origins,
     ))
 }
 
 fn default_method(type_name: &str, argument: &str) -> TokenStream {
     let ty = ident(type_name);
-    let method = format_ident!("visit_{}", snake_case(type_name));
-    let walker = format_ident!("walk_{}", snake_case(type_name));
+    let method = ident(&format!("visit_{}", snake_case(type_name)));
+    let walker = ident(&format!("walk_{}", snake_case(type_name)));
     let mut allocator = LocalAllocator::default();
     allocator.reserve("self");
     allocator.reserve(walker.to_string());
@@ -262,7 +266,7 @@ fn default_method(type_name: &str, argument: &str) -> TokenStream {
 
 fn noop_method(type_name: &str, mode: VisitMode) -> TokenStream {
     let ty = ident(type_name);
-    let method = format_ident!("visit_{}", snake_case(type_name));
+    let method = ident(&format!("visit_{}", snake_case(type_name)));
     let mut allocator = LocalAllocator::default();
     allocator.reserve("self");
     let argument = allocator.allocate(&format!("_{}", leaf_argument(type_name)));
@@ -274,7 +278,7 @@ fn noop_method(type_name: &str, mode: VisitMode) -> TokenStream {
 
 fn emit_category_walker(category: &str, members: &[&crate::Construction]) -> GeneratedItem {
     let ty = ident(category);
-    let function = format_ident!("walk_{}", snake_case(category));
+    let function = ident(&format!("walk_{}", snake_case(category)));
     let mut allocator = LocalAllocator::default();
     allocator.reserve("visitor");
     let argument = allocator.allocate(&category_argument(category));
@@ -283,10 +287,10 @@ fn emit_category_walker(category: &str, members: &[&crate::Construction]) -> Gen
         let variant = ident(&pascal_case(&identifier_key(&construction.name)));
         let payload =
             arm_allocator.allocate(&snake_case(&identifier_key(&construction.element.name)));
-        let callback = format_ident!(
+        let callback = ident(&format!(
             "visit_{}",
             snake_case(&identifier_key(&construction.element.name))
-        );
+        ));
         crate::emit::call_match_arm(
             &quote! { #ty::#variant(#payload) },
             &quote! { visitor.#callback(#payload) },
@@ -319,8 +323,9 @@ fn emit_construction_walker(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
 ) -> syn::Result<GeneratedItem> {
-    let ty = &construction.element.name;
-    let function = format_ident!("walk_{}", snake_case(&identifier_key(ty)));
+    let type_name = identifier_key(&construction.element.name);
+    let ty = ident(&type_name);
+    let function = ident(&format!("walk_{}", snake_case(&type_name)));
     let mut allocator = LocalAllocator::default();
     allocator.reserve("visitor");
     for atom in &construction.form.atoms {
@@ -346,7 +351,7 @@ fn emit_construction_walker(
             allocator.reserve(format!("walk_{}", snake_case(&terminal)));
         }
     }
-    let argument = allocator.allocate(&snake_case(&identifier_key(ty)));
+    let argument = allocator.allocate(&snake_case(&type_name));
     let private = construction.checked.as_ref().is_some_and(|checked| {
         checked.visibilities.iter().any(|visibility| {
             matches!(
@@ -395,7 +400,7 @@ fn emit_construction_walker(
                 let FieldKind::Category(path) = &field.kind else {
                     return Err(internal("walker bare role is not category"));
                 };
-                let callback = format_ident!("visit_{}", snake_case(&path_name(path)));
+                let callback = ident(&format!("visit_{}", snake_case(&path_name(path))));
                 let value = field_value(construction, role, &argument, &field_locals)?;
                 Some(quote! { visitor.#callback(#value); })
             }
@@ -404,7 +409,7 @@ fn emit_construction_walker(
                     .get(&identifier_key(role))
                     .ok_or_else(|| internal("walker lex role absent"))?;
                 let terminal = field_terminal(field);
-                let walker = format_ident!("walk_{}", snake_case(&terminal));
+                let walker = ident(&format!("walk_{}", snake_case(&terminal)));
                 let value = field_value(construction, role, &argument, &field_locals)?;
                 let copy = terminal_mode(validated, &terminal)? == VisitMode::Copy;
                 Some(if copy {
@@ -422,7 +427,7 @@ fn emit_construction_walker(
                     .get(&identifier_key(role))
                     .ok_or_else(|| internal("walker identity role absent"))?;
                 let terminal = field_terminal(field);
-                let walker = format_ident!("walk_{}", snake_case(&terminal));
+                let walker = ident(&format!("walk_{}", snake_case(&terminal)));
                 let value = field_value(construction, role, &argument, &field_locals)?;
                 let copy = terminal_mode(validated, &terminal)? == VisitMode::Copy;
                 Some(if copy {
@@ -440,7 +445,7 @@ fn emit_construction_walker(
                     .get(&identifier_key(role))
                     .ok_or_else(|| internal("walker noun role absent"))?;
                 let terminal = field_terminal(field);
-                let callback = format_ident!("visit_{}", snake_case(&terminal));
+                let callback = ident(&format!("visit_{}", snake_case(&terminal)));
                 let value = field_value(construction, role, &argument, &field_locals)?;
                 Some(quote! { visitor.#callback(#value); })
             }
@@ -453,7 +458,7 @@ fn emit_construction_walker(
                     .ok_or_else(|| internal("fixed verb path lacks terminal"))?
                     .ident;
                 let terminal = identifier_key(terminal);
-                let walker = format_ident!("walk_{}", snake_case(&terminal));
+                let walker = ident(&format!("walk_{}", snake_case(&terminal)));
                 Some(quote! { #walker(visitor, #path); })
             }
             FormAtom::Verb(crate::VerbOperand::Projected(_)) => {
@@ -478,17 +483,20 @@ fn emit_construction_walker(
 }
 
 fn emit_enum_walker<'a>(
-    ty: &syn::Ident,
+    authored_ty: &syn::Ident,
     variants: impl Iterator<Item = &'a syn::Ident>,
     kind: DeclarationKind,
 ) -> GeneratedItem {
-    let function = format_ident!("walk_{}", snake_case(&identifier_key(ty)));
+    let type_name = identifier_key(authored_ty);
+    let ty = ident(&type_name);
+    let function = ident(&format!("walk_{}", snake_case(&type_name)));
     let mut allocator = LocalAllocator::default();
     allocator.reserve("visitor");
-    let argument = allocator.allocate(&leaf_argument(&identifier_key(ty)));
-    let callback = format_ident!("visit_{}", snake_case(&identifier_key(ty)));
+    let argument = allocator.allocate(&leaf_argument(&type_name));
+    let callback = ident(&format!("visit_{}", snake_case(&type_name)));
     let arms = variants
         .map(|variant| {
+            let variant = ident(&identifier_key(variant));
             crate::emit::call_match_arm(
                 &quote! { #ty::#variant },
                 &quote! { visitor.#callback(#ty::#variant) },
@@ -502,14 +510,15 @@ fn emit_enum_walker<'a>(
             name: function.to_string(),
         },
         quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: #ty) { match #argument { #(#arms,)* } } },
-        vec![DeclarationKey::new(kind, identifier_key(ty))],
+        vec![DeclarationKey::new(kind, type_name)],
     )
 }
 
 fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<GeneratedItem> {
-    let ty = simple_type_ident(&binding.value_type)?;
-    let type_name = identifier_key(ty);
-    let function = format_ident!("walk_{}", snake_case(&type_name));
+    let authored_ty = simple_type_ident(&binding.value_type)?;
+    let type_name = identifier_key(authored_ty);
+    let ty = ident(&type_name);
+    let function = ident(&format!("walk_{}", snake_case(&type_name)));
     let source_argument = binding_argument(binding);
     let mut allocator = LocalAllocator::default();
     allocator.reserve("visitor");
@@ -573,7 +582,7 @@ fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<Generate
             .collect::<syn::Result<Vec<_>>>()?;
         quote! { #destructure #(#branches)* }
     } else if !binding.traversal.variants.is_empty() {
-        let callback = format_ident!("visit_{}", snake_case(&type_name));
+        let callback = ident(&format!("visit_{}", snake_case(&type_name)));
         let variants = binding.traversal.variants.iter().map(|variant| {
             crate::emit::call_match_arm(
                 &quote! { #ty::#variant },
@@ -859,39 +868,7 @@ fn path_name(path: &syn::Path) -> String {
     path_key(path)
 }
 fn ident(name: &str) -> syn::Ident {
-    syn::parse_str(name).expect("validated visitor identifier")
-}
-fn pascal_case(name: &str) -> String {
-    name.split('_')
-        .filter(|part| !part.is_empty())
-        .map(|part| {
-            let mut chars = part.chars();
-            chars.next().map_or_else(String::new, |first| {
-                first.to_uppercase().chain(chars).collect()
-            })
-        })
-        .collect()
-}
-fn snake_case(name: &str) -> String {
-    let characters = name.chars().collect::<Vec<_>>();
-    let mut result = String::new();
-    for (index, character) in characters.iter().copied().enumerate() {
-        if character.is_uppercase() {
-            let lower = index > 0 && characters[index - 1].is_lowercase();
-            let acronym = index > 0
-                && characters[index - 1].is_uppercase()
-                && characters
-                    .get(index + 1)
-                    .is_some_and(|next| next.is_lowercase());
-            if (lower || acronym) && !result.ends_with('_') {
-                result.push('_');
-            }
-            result.extend(character.to_lowercase());
-        } else {
-            result.push(character);
-        }
-    }
-    result
+    emitted_ident(name, Span::call_site())
 }
 fn internal(message: &str) -> syn::Error {
     syn::Error::new(Span::call_site(), message)
@@ -963,7 +940,7 @@ mod tests {
                 element VisitNode { visitor: lex Marker, }
                 form visit_node = lex(visitor);
             }
-            construction visitor_category: Visitor {
+            construction visitor_category: VISITOR {
                 element VisitorNode {}
                 form visitor_category = "visitor";
             }
@@ -990,7 +967,7 @@ mod tests {
             "let VisitNode { visitor : visitor_2 } = visit_node",
             "walk_marker (visitor , * visitor_2)",
             "fn walk_visitor_lexeme < V : Visitor + ? Sized > (visitor : & mut V , visitor_2 : VisitorLexeme)",
-            "fn walk_visitor < V : Visitor + ? Sized > (visitor : & mut V , visitor_2 : & Visitor)",
+            "fn walk_visitor < V : Visitor + ? Sized > (visitor : & mut V , visitor_2 : & VISITOR)",
             "match visitor_2",
             "fn walk_token < V : Visitor + ? Sized > (visitor : & mut V , visitor_2 : & Token)",
             "visitor . visit_token (visitor_2)",

@@ -5,9 +5,25 @@ use quote::ToTokens;
 use syn::spanned::Spanned;
 
 use crate::feature;
+use crate::feature::Feature;
+use crate::identifier::BUILD_FUNCTION;
+use crate::identifier::RULE_CATEGORY_TYPE;
+use crate::identifier::RULE_CONSTRUCTION_TYPE;
+use crate::identifier::RULE_ID_CONSTRUCTION;
+use crate::identifier::RULE_ID_COUNT;
+use crate::identifier::RULE_ID_INDEX;
+use crate::identifier::RULE_ID_TYPE;
+use crate::identifier::RULES_CONSTANT;
+use crate::identifier::VISITOR_TRAIT;
+use crate::identifier::category_renderer;
+use crate::identifier::feature_helper;
+use crate::identifier::is_raw_keyword;
 use crate::identifier::key as identifier_key;
+use crate::identifier::pascal_case;
 use crate::identifier::path_key;
+use crate::identifier::prefixed;
 use crate::identifier::same as same_identifier;
+use crate::identifier::snake_case;
 use crate::identifier::spelling_key;
 use crate::model::CodecAtomClass;
 use crate::model::ConstructorArgument;
@@ -354,6 +370,10 @@ impl ValidatedDeclarations {
             .is_some_and(|capability| capability.requires_external_input)
     }
 
+    pub(crate) fn category_reads_feature(&self, category: &str, feature: Feature) -> bool {
+        raw_category_reads_feature(&self.raw, category, feature)
+    }
+
     pub(crate) fn feature_resolution(
         &self,
         construction: &str,
@@ -457,9 +477,6 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
     let mut errors = None;
     let mut declaration_names = Vec::new();
     let mut source_names: HashMap<String, proc_macro2::Span> = HashMap::new();
-    let mut rust_names: HashMap<String, (String, proc_macro2::Span)> = HashMap::new();
-    let mut rule_ids: HashMap<String, (String, proc_macro2::Span)> = HashMap::new();
-    let mut visitor_names: HashMap<String, (String, proc_macro2::Span)> = HashMap::new();
     let mut categories = HashSet::new();
     let mut category_variants: HashMap<String, HashSet<String>> = HashMap::new();
     let mut terminals = HashMap::new();
@@ -470,50 +487,30 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 let name = identifier_key(&construction.name);
                 declaration_names.push(name.clone());
                 let category = path_name(&construction.category);
-                if categories.insert(category.clone()) {
-                    register_rust_name(
-                        &mut rust_names,
-                        &pascal_case(&category),
-                        &format!("category {category}"),
-                        construction.category.span(),
-                        &mut errors,
-                    );
-                    register_rust_name(
-                        &mut rust_names,
-                        &format!("render_{}", snake_case(&category)),
-                        &format!("category renderer {category}"),
-                        construction.category.span(),
+                reject_raw_keyword_identifier(
+                    &construction.name,
+                    "generated category variant and rule identity",
+                    &mut errors,
+                );
+                if let Some(category_ident) = construction.category.segments.last() {
+                    reject_raw_keyword_identifier(
+                        &category_ident.ident,
+                        "generated category type",
                         &mut errors,
                     );
                 }
+                reject_raw_keyword_identifier(
+                    &construction.element.name,
+                    "generated element type",
+                    &mut errors,
+                );
+                reject_raw_keyword_identifier(
+                    &construction.form.name,
+                    "generated form/rule fragment",
+                    &mut errors,
+                );
+                categories.insert(category.clone());
                 duplicate_name(&mut source_names, &name, &construction.name, &mut errors);
-                register_rust_name(
-                    &mut rust_names,
-                    &construction.element.name.to_string(),
-                    &format!("element {}", construction.element.name),
-                    construction.element.name.span(),
-                    &mut errors,
-                );
-                register_rust_name(
-                    &mut rust_names,
-                    &format!(
-                        "walk_{}",
-                        snake_case(&construction.element.name.to_string())
-                    ),
-                    &format!("construction walker {name}"),
-                    construction.element.name.span(),
-                    &mut errors,
-                );
-                register_rust_name(
-                    &mut visitor_names,
-                    &format!(
-                        "visit_{}",
-                        snake_case(&construction.element.name.to_string())
-                    ),
-                    &format!("construction visitor {name}"),
-                    construction.element.name.span(),
-                    &mut errors,
-                );
                 let category_variant = pascal_case(&name);
                 validate_generated_rust_ident(
                     &category_variant,
@@ -527,28 +524,10 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     construction.form.name.span(),
                     &mut errors,
                 );
-                register_rust_name(
-                    &mut rule_ids,
-                    &format!("{}{category_variant}", pascal_case(&category)),
-                    &format!("RuleId for construction {name}"),
-                    construction.name.span(),
-                    &mut errors,
-                );
-                if !category_variants
+                category_variants
                     .entry(category.clone())
                     .or_default()
-                    .insert(category_variant.clone())
-                {
-                    combine(
-                        &mut errors,
-                        syn::Error::new(
-                            construction.name.span(),
-                            format!(
-                                "generated Rust name `{category}::{category_variant}` collides"
-                            ),
-                        ),
-                    );
-                }
+                    .insert(category_variant.clone());
 
                 let mut fields = HashSet::new();
                 for field in &construction.element.fields {
@@ -567,26 +546,24 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
             Declaration::Vocab(vocab) => {
                 let name = identifier_key(&vocab.name);
                 declaration_names.push(name.clone());
+                reject_raw_keyword_identifier(&vocab.name, "generated vocab type", &mut errors);
                 duplicate_name(&mut source_names, &name, &vocab.name, &mut errors);
-                register_rust_name(
-                    &mut rust_names,
-                    &pascal_case(&name),
-                    &format!("vocab {name}"),
-                    vocab.name.span(),
-                    &mut errors,
-                );
-                register_rust_name(
-                    &mut rust_names,
-                    &format!("render_{}", snake_case(&name)),
-                    &format!("vocab renderer {name}"),
-                    vocab.name.span(),
-                    &mut errors,
-                );
                 let mut variants = HashSet::new();
                 let mut variant_order = Vec::new();
                 let mut words = HashSet::new();
                 for variant in &vocab.variants {
                     let variant_key = identifier_key(&variant.name);
+                    reject_raw_keyword_identifier(
+                        &variant.name,
+                        "generated vocab variant",
+                        &mut errors,
+                    );
+                    validate_generated_rust_ident(
+                        &variant_key,
+                        &format!("generated vocab variant for `{name}`"),
+                        variant.name.span(),
+                        &mut errors,
+                    );
                     if variants.insert(variant_key.clone()) {
                         variant_order.push(variant_key);
                     } else {
@@ -619,18 +596,19 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
             Declaration::Lexeme(lexeme) => {
                 let name = identifier_key(&lexeme.name);
                 declaration_names.push(name.clone());
+                reject_raw_keyword_identifier(&lexeme.name, "generated lexeme type", &mut errors);
                 duplicate_name(&mut source_names, &name, &lexeme.name, &mut errors);
-                register_rust_name(
-                    &mut rust_names,
-                    &pascal_case(&name),
-                    &format!("lexeme {name}"),
-                    lexeme.name.span(),
-                    &mut errors,
-                );
                 let mut variants = HashSet::new();
                 let mut variant_order = Vec::new();
                 for variant in &lexeme.variants {
                     let variant_key = identifier_key(variant);
+                    reject_raw_keyword_identifier(variant, "generated lexeme variant", &mut errors);
+                    validate_generated_rust_ident(
+                        &variant_key,
+                        &format!("generated lexeme variant for `{name}`"),
+                        variant.span(),
+                        &mut errors,
+                    );
                     if variants.insert(variant_key.clone()) {
                         variant_order.push(variant_key);
                     } else {
@@ -653,14 +631,14 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
             Declaration::Codec(binding) | Declaration::Identity(binding) => {
                 let name = identifier_key(&binding.name);
                 declaration_names.push(name.clone());
-                duplicate_name(&mut source_names, &name, &binding.name, &mut errors);
-                register_rust_name(
-                    &mut rust_names,
-                    &pascal_case(&name),
-                    &format!("binding {name}"),
-                    binding.name.span(),
+                let binding_kind =
+                    if matches!(declaration, Declaration::Codec(_)) { "codec" } else { "identity" };
+                reject_raw_keyword_identifier(
+                    &binding.name,
+                    &format!("generated {binding_kind} binding type"),
                     &mut errors,
                 );
+                duplicate_name(&mut source_names, &name, &binding.name, &mut errors);
                 let kind = if matches!(declaration, Declaration::Codec(_)) {
                     TerminalKind::Codec
                 } else {
@@ -687,6 +665,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
         }
     }
 
+    validate_generated_name_inventory(raw, &mut errors);
     finish(errors)?;
     Ok((
         Symbols {
@@ -718,30 +697,447 @@ fn duplicate_name(
     }
 }
 
-fn register_rust_name(
-    names: &mut HashMap<String, (String, proc_macro2::Span)>,
+fn reject_raw_keyword_identifier(
+    authored: &syn::Ident,
+    generated_role: &str,
+    errors: &mut Option<syn::Error>,
+) {
+    if is_raw_keyword(authored) {
+        combine(
+            errors,
+            syn::Error::new(
+                authored.span(),
+                format!(
+                    "raw keyword `{authored}` has semantic identity `{}` and is unsupported for {generated_role}",
+                    identifier_key(authored)
+                ),
+            ),
+        );
+    }
+}
+
+#[derive(Default)]
+struct GeneratedNameInventory {
+    type_names: HashMap<String, String>,
+    value_names: HashMap<String, String>,
+    visitor_items: HashMap<String, String>,
+    category_variants: HashMap<String, String>,
+    rule_variants: HashMap<String, String>,
+    rule_id_items: HashMap<String, String>,
+}
+
+impl GeneratedNameInventory {
+    fn register_type(
+        &mut self,
+        generated: &str,
+        role: &str,
+        span: proc_macro2::Span,
+        errors: &mut Option<syn::Error>,
+    ) {
+        register_module_name(&mut self.type_names, "type", generated, role, span, errors);
+    }
+
+    fn register_value(
+        &mut self,
+        generated: &str,
+        role: &str,
+        span: proc_macro2::Span,
+        errors: &mut Option<syn::Error>,
+    ) {
+        register_module_name(
+            &mut self.value_names,
+            "value",
+            generated,
+            role,
+            span,
+            errors,
+        );
+    }
+
+    fn register_visitor_item(
+        &mut self,
+        generated: &str,
+        role: &str,
+        span: proc_macro2::Span,
+        errors: &mut Option<syn::Error>,
+    ) {
+        let semantic_generated = spelling_key(generated);
+        if role.starts_with("declared traversal callback")
+            && self
+                .visitor_items
+                .get(&semantic_generated)
+                .is_some_and(|previous| previous.starts_with("declared traversal callback"))
+        {
+            return;
+        }
+        register_module_name(
+            &mut self.visitor_items,
+            "Visitor item",
+            generated,
+            role,
+            span,
+            errors,
+        );
+    }
+
+    fn register_category_variant(
+        &mut self,
+        category: &str,
+        variant: &str,
+        role: &str,
+        span: proc_macro2::Span,
+        errors: &mut Option<syn::Error>,
+    ) {
+        let semantic_identity = format!("{category}::{variant}");
+        register_associated_name(
+            &mut self.category_variants,
+            "category variant",
+            &semantic_identity,
+            role,
+            span,
+            errors,
+        );
+    }
+
+    fn register_rule_variant(
+        &mut self,
+        generated: &str,
+        role: &str,
+        span: proc_macro2::Span,
+        errors: &mut Option<syn::Error>,
+    ) {
+        validate_generated_rust_ident(generated, role, span, errors);
+        register_associated_name(
+            &mut self.rule_variants,
+            "Construction/RuleId variant",
+            generated,
+            role,
+            span,
+            errors,
+        );
+        register_associated_name(
+            &mut self.rule_id_items,
+            "RuleId associated item",
+            generated,
+            role,
+            span,
+            errors,
+        );
+    }
+}
+
+fn register_module_name(
+    names: &mut HashMap<String, String>,
+    namespace: &str,
     generated: &str,
-    owner: &str,
+    role: &str,
     span: proc_macro2::Span,
     errors: &mut Option<syn::Error>,
 ) {
-    validate_generated_rust_ident(generated, owner, span, errors);
+    validate_generated_rust_ident(generated, role, span, errors);
     let semantic_generated = spelling_key(generated);
-    if let Some((previous, _)) = names.get(&semantic_generated) {
-        if previous != owner {
+    if let Some(previous) = names.get(&semantic_generated) {
+        if previous != role {
             combine(
                 errors,
                 syn::Error::new(
                     span,
                     format!(
-                        "generated Rust name `{generated}` collides for `{previous}` and `{owner}`"
+                        "generated Rust {namespace} name `{generated}` collides: semantic identity `{semantic_generated}` is shared by {previous} and {role}"
                     ),
                 ),
             );
         }
     } else {
-        names.insert(semantic_generated, (owner.to_owned(), span));
+        names.insert(semantic_generated, role.to_owned());
     }
+}
+
+fn register_associated_name(
+    names: &mut HashMap<String, String>,
+    namespace: &str,
+    semantic_identity: &str,
+    role: &str,
+    span: proc_macro2::Span,
+    errors: &mut Option<syn::Error>,
+) {
+    if let Some(previous) = names.get(semantic_identity) {
+        if previous != role {
+            combine(
+                errors,
+                syn::Error::new(
+                    span,
+                    format!(
+                        "generated Rust {namespace} `{semantic_identity}` collides: semantic identity `{semantic_identity}` is shared by {previous} and {role}"
+                    ),
+                ),
+            );
+        }
+    } else {
+        names.insert(semantic_identity.to_owned(), role.to_owned());
+    }
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "the sealed source-ordered inventory enumerates every emitted Rust namespace"
+)]
+fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn::Error>) {
+    let mut names = GeneratedNameInventory::default();
+    let fixed_span = proc_macro2::Span::call_site();
+    for (name, role) in [
+        (VISITOR_TRAIT, "fixed generated visitor trait"),
+        (RULE_CATEGORY_TYPE, "fixed generated rules category type"),
+        (
+            RULE_CONSTRUCTION_TYPE,
+            "fixed generated rules construction type",
+        ),
+        (RULE_ID_TYPE, "fixed generated rules rule-id type"),
+    ] {
+        names.register_type(name, role, fixed_span, errors);
+    }
+    for (name, role) in [
+        (RULES_CONSTANT, "fixed generated rules table constant"),
+        (BUILD_FUNCTION, "fixed generated build function"),
+    ] {
+        names.register_value(name, role, fixed_span, errors);
+    }
+    for (name, role) in [
+        (RULE_ID_COUNT, "fixed generated RuleId test count"),
+        (
+            RULE_ID_CONSTRUCTION,
+            "fixed generated RuleId construction accessor",
+        ),
+        (RULE_ID_INDEX, "fixed generated RuleId index accessor"),
+    ] {
+        register_associated_name(
+            &mut names.rule_id_items,
+            "RuleId associated item",
+            name,
+            role,
+            fixed_span,
+            errors,
+        );
+    }
+
+    let nested_categories = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Construction(construction) => Some(&construction.element.fields),
+            _ => None,
+        })
+        .flatten()
+        .filter_map(|field| match &field.kind {
+            FieldKind::Category(path) => Some(path_name(path)),
+            FieldKind::Lex(_) | FieldKind::Identity(_) => None,
+        })
+        .collect::<HashSet<_>>();
+    let standalone_roots = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Root(root) if root.standalone_render => Some(path_name(&root.category)),
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
+    let mut seen_categories = HashSet::new();
+
+    for declaration in &raw.declarations {
+        match declaration {
+            Declaration::Construction(construction) => {
+                let construction_name = identifier_key(&construction.name);
+                let category = path_name(&construction.category);
+                if seen_categories.insert(category.clone()) {
+                    let category_span = construction.category.span();
+                    names.register_type(
+                        &category,
+                        &format!("generated category type for `{category}`"),
+                        category_span,
+                        errors,
+                    );
+                    let standalone_root = standalone_roots.contains(&category);
+                    if !standalone_root || nested_categories.contains(&category) {
+                        let renderer = category_renderer(&category, standalone_root);
+                        let role = if standalone_root {
+                            format!("generated nested-root category renderer for `{category}`")
+                        } else {
+                            format!("generated category renderer for `{category}`")
+                        };
+                        names.register_value(&renderer, &role, category_span, errors);
+                    }
+                    names.register_value(
+                        &prefixed("walk_", &category),
+                        &format!("generated category walker for `{category}`"),
+                        category_span,
+                        errors,
+                    );
+                    names.register_visitor_item(
+                        &prefixed("visit_", &category),
+                        &format!("generated category callback for `{category}`"),
+                        category_span,
+                        errors,
+                    );
+                    for (feature, spelling, display) in [
+                        (Feature::Agreement, "agreement", "Agreement"),
+                        (Feature::Number, "number", "Number"),
+                    ] {
+                        if raw_category_reads_feature(raw, &category, feature) {
+                            names.register_value(
+                                &feature_helper(spelling, &category),
+                                &format!("generated {display} helper for category `{category}`"),
+                                category_span,
+                                errors,
+                            );
+                        }
+                    }
+                }
+
+                let element = identifier_key(&construction.element.name);
+                let element_span = construction.element.name.span();
+                names.register_type(
+                    &element,
+                    &format!("generated element type for `{construction_name}`"),
+                    element_span,
+                    errors,
+                );
+                if construction.element.fields.is_empty() {
+                    names.register_value(
+                        &element,
+                        &format!("generated unit element constructor for `{construction_name}`"),
+                        element_span,
+                        errors,
+                    );
+                }
+                names.register_value(
+                    &prefixed("walk_", &element),
+                    &format!("generated construction walker for `{construction_name}`"),
+                    element_span,
+                    errors,
+                );
+                names.register_visitor_item(
+                    &prefixed("visit_", &element),
+                    &format!("generated construction callback for `{construction_name}`"),
+                    element_span,
+                    errors,
+                );
+
+                let category_variant = pascal_case(&construction_name);
+                names.register_category_variant(
+                    &category,
+                    &category_variant,
+                    &format!("generated category variants for construction `{construction_name}`"),
+                    construction.name.span(),
+                    errors,
+                );
+                names.register_rule_variant(
+                    &format!("{}{category_variant}", pascal_case(&category)),
+                    &format!("RuleId for construction {construction_name}"),
+                    construction.name.span(),
+                    errors,
+                );
+            }
+            Declaration::Vocab(vocab) => {
+                register_terminal_names(
+                    &mut names,
+                    &identifier_key(&vocab.name),
+                    "vocab",
+                    vocab.name.span(),
+                    true,
+                    errors,
+                );
+            }
+            Declaration::Lexeme(lexeme) => {
+                register_terminal_names(
+                    &mut names,
+                    &identifier_key(&lexeme.name),
+                    "lexeme",
+                    lexeme.name.span(),
+                    false,
+                    errors,
+                );
+            }
+            Declaration::Codec(binding) | Declaration::Identity(binding) => {
+                let kind =
+                    if matches!(declaration, Declaration::Codec(_)) { "codec" } else { "identity" };
+                let name = identifier_key(&binding.name);
+                register_terminal_names(
+                    &mut names,
+                    &name,
+                    kind,
+                    binding.name.span(),
+                    false,
+                    errors,
+                );
+                for leaf in &binding.traversal.leaf_callbacks {
+                    names.register_visitor_item(
+                        &identifier_key(&leaf.name),
+                        &format!("declared traversal callback for `{name}`"),
+                        leaf.name.span(),
+                        errors,
+                    );
+                }
+            }
+            Declaration::Root(_) => {}
+        }
+    }
+}
+
+fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Feature) -> bool {
+    let parsed_feature = match feature {
+        Feature::Agreement => ParsedFeature::Agreement,
+        Feature::Number => ParsedFeature::Number,
+    };
+    raw.declarations.iter().any(|declaration| {
+        let Declaration::Construction(construction) = declaration else { return false };
+        construction.equations.iter().any(|equation| {
+            matches!(&equation.value, ParsedFeatureValue::FromRole(slot) if slot.feature == parsed_feature
+                && construction.element.fields.iter().any(|field| identifier_key(&field.name) == identifier_key(&slot.role) && matches!(&field.kind, FieldKind::Category(path) if path_name(path) == category))
+                && !construction.equations.iter().any(|writer| matches!(&writer.target, ParsedFeaturePlace::Role { field, feature: writer_feature } if identifier_key(field) == identifier_key(&slot.role) && *writer_feature == parsed_feature)))
+        }) || (feature == Feature::Number
+            && construction
+                .form
+                .atoms
+                .iter()
+                .any(|atom| matches!(atom, FormAtom::Noun(_)))
+            && path_name(&construction.category) == category)
+    })
+}
+
+fn register_terminal_names(
+    names: &mut GeneratedNameInventory,
+    name: &str,
+    kind: &str,
+    span: proc_macro2::Span,
+    has_renderer: bool,
+    errors: &mut Option<syn::Error>,
+) {
+    names.register_type(
+        name,
+        &format!("generated {kind} type for `{name}`"),
+        span,
+        errors,
+    );
+    if has_renderer {
+        names.register_value(
+            &prefixed("render_", name),
+            &format!("generated {kind} renderer for `{name}`"),
+            span,
+            errors,
+        );
+    }
+    names.register_value(
+        &prefixed("walk_", name),
+        &format!("generated {kind} walker for `{name}`"),
+        span,
+        errors,
+    );
+    names.register_visitor_item(
+        &prefixed("visit_", name),
+        &format!("generated {kind} callback for `{name}`"),
+        span,
+        errors,
+    );
 }
 
 fn validate_generated_rust_ident(
@@ -3557,50 +3953,6 @@ fn path_name(path: &syn::Path) -> String {
     path_key(path)
 }
 
-fn pascal_case(name: &str) -> String {
-    name.split('_')
-        .filter(|part| !part.is_empty())
-        .map(|part| {
-            let mut chars = part.chars();
-            chars.next().map_or_else(String::new, |first| {
-                first.to_uppercase().chain(chars).collect()
-            })
-        })
-        .collect()
-}
-
-fn snake_case(name: &str) -> String {
-    let characters: Vec<_> = name.chars().collect();
-    let mut result = String::new();
-    for (index, character) in characters.iter().copied().enumerate() {
-        if character == '_' {
-            if !result.is_empty() && !result.ends_with('_') {
-                result.push('_');
-            }
-            continue;
-        }
-        if character.is_uppercase() {
-            let previous_is_lower =
-                index > 0 && characters[index - 1] != '_' && characters[index - 1].is_lowercase();
-            let acronym_boundary = index > 0
-                && characters[index - 1].is_uppercase()
-                && characters
-                    .get(index + 1)
-                    .is_some_and(|next| next.is_lowercase());
-            if (previous_is_lower || acronym_boundary) && !result.ends_with('_') {
-                result.push('_');
-            }
-            result.extend(character.to_lowercase());
-        } else {
-            result.push(character);
-        }
-    }
-    while result.ends_with('_') {
-        result.pop();
-    }
-    result
-}
-
 fn combine(errors: &mut Option<syn::Error>, error: syn::Error) {
     if let Some(errors) = errors {
         errors.combine(error);
@@ -3620,6 +3972,7 @@ pub(crate) mod tests {
         reason = "validation fixtures pin complete closed-schema diagnostics and golden input"
     )]
     use quote::quote;
+    use syn::spanned::Spanned;
 
     use crate::Declaration;
 
@@ -3632,6 +3985,10 @@ pub(crate) mod tests {
             .expect_err("fixture must be invalid")
             .into_compile_error()
             .to_string()
+    }
+
+    fn assert_same_span(actual: proc_macro2::Span, expected: proc_macro2::Span) {
+        assert_eq!(format!("{actual:?}"), format!("{expected:?}"));
     }
 
     #[test]
@@ -3653,7 +4010,11 @@ pub(crate) mod tests {
         assert!(message.contains("duplicate variant `One`"), "{message}");
         assert!(message.contains("duplicate word `same`"), "{message}");
         assert!(message.contains("duplicate field `child`"), "{message}");
-        assert!(message.contains("generated Rust name"), "{message}");
+        assert!(
+            message.contains("semantic identity `Cat::SameName`")
+                && message.contains("generated category variants"),
+            "{message}"
+        );
 
         let snake_collision = error(quote! {
             vocab FOOBar { One = "one", }
@@ -3723,8 +4084,9 @@ pub(crate) mod tests {
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            raw_element.contains("generated Rust identifier `walk_r#type`")
-                && raw_element.contains("walker"),
+            raw_element.contains("raw keyword `r#type`")
+                && raw_element.contains("semantic identity `type`")
+                && raw_element.contains("generated element type"),
             "{raw_element}"
         );
 
@@ -3733,6 +4095,418 @@ pub(crate) mod tests {
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         })
         .expect("a DSL keyword is valid when every derived Rust identifier is valid");
+    }
+
+    fn assert_raw_keyword_declaration_rejected(
+        tokens: proc_macro2::TokenStream,
+        generated_role: &str,
+    ) {
+        let message = crate::generate(tokens)
+            .expect_err("a raw-keyword declaration name must fail before backend emission")
+            .to_string();
+        assert!(
+            message.contains("raw keyword `r#type`")
+                && message.contains("semantic identity `type`")
+                && message.contains(generated_role),
+            "{message}"
+        );
+        assert!(!message.contains("internal"), "{message}");
+    }
+
+    #[test]
+    fn rejects_raw_keyword_category_names_at_the_authored_declaration() {
+        assert_raw_keyword_declaration_rejected(
+            quote! {
+                construction only: r#type { element Only {} form only = "only"; }
+                root r#type { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            "generated category type",
+        );
+    }
+
+    #[test]
+    fn rejects_raw_keyword_construction_names_at_the_authored_declaration() {
+        assert_raw_keyword_declaration_rejected(
+            quote! {
+                construction r#type: Root { element Only {} form only = "only"; }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            "generated category variant",
+        );
+    }
+
+    #[test]
+    fn rejects_raw_keyword_form_and_terminal_variant_names_at_the_authored_declaration() {
+        assert_raw_keyword_declaration_rejected(
+            quote! {
+                construction only: Root { element Only {} form r#type = "only"; }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            "generated form/rule fragment",
+        );
+        assert_raw_keyword_declaration_rejected(
+            quote! {
+                vocab Word { r#type = "type", }
+                construction only: Root { element Only {} form only = "only"; }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            "generated vocab variant",
+        );
+        assert_raw_keyword_declaration_rejected(
+            quote! {
+                lexeme Word { r#type, }
+                construction only: Root { element Only {} form only = "only"; }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            "generated lexeme variant",
+        );
+    }
+
+    #[test]
+    fn rejects_raw_keyword_element_names_at_the_authored_declaration() {
+        assert_raw_keyword_declaration_rejected(
+            quote! {
+                construction only: Root { element r#type {} form only = "only"; }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            "generated element type",
+        );
+    }
+
+    #[test]
+    fn rejects_raw_keyword_vocab_names_at_the_authored_declaration() {
+        assert_raw_keyword_declaration_rejected(
+            quote! {
+                vocab r#type { One = "one", }
+                construction only: Root {
+                    element Only { word: lex r#type, }
+                    form only = lex(word);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            "generated vocab type",
+        );
+    }
+
+    #[test]
+    fn rejects_raw_keyword_lexeme_names_at_the_authored_declaration() {
+        assert_raw_keyword_declaration_rejected(
+            quote! {
+                lexeme r#type { One, }
+                construction only: Root { element Only {} form only = "only"; }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            "generated lexeme type",
+        );
+    }
+
+    #[test]
+    fn rejects_raw_keyword_codec_names_at_the_authored_declaration() {
+        assert_raw_keyword_declaration_rejected(
+            quote! {
+                codec r#type {
+                    value_type = r#type;
+                    traversal { callback = copy; argument = value; variant One; }
+                }
+                construction only: Root { element Only {} form only = "only"; }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            "generated codec binding type",
+        );
+    }
+
+    #[test]
+    fn rejects_raw_keyword_identity_names_at_the_authored_declaration() {
+        assert_raw_keyword_declaration_rejected(
+            quote! {
+                identity r#type {
+                    value_type = r#type;
+                    lexical = Lexical::r#type;
+                    render context_identity { One => card_name, }
+                    build { pattern = BuildValue::r#type(value); construct = value; }
+                    traversal { callback = copy; argument = value; variant One; }
+                }
+                construction only: Root { element Only {} form only = "only"; }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            "generated identity binding type",
+        );
+    }
+
+    #[test]
+    fn canonicalizes_raw_nonkeyword_element_names_across_public_items_and_helpers() {
+        let expansion = crate::generate(quote! {
+            construction r#raw_node: r#RawCategory {
+                element r#RawNode {}
+                form raw_node = "raw";
+            }
+            root r#RawCategory { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a raw nonkeyword element has one legal generated identity");
+        let formatted = crate::format_expansion(&expansion).expect("generated items format");
+        assert!(formatted.contains("pub struct RawNode;"), "{formatted}");
+        assert!(
+            formatted.contains("fn visit_raw_node") && formatted.contains("pub fn walk_raw_node"),
+            "{formatted}"
+        );
+        assert!(!formatted.contains("r#"), "{formatted}");
+    }
+
+    #[test]
+    fn rejects_case_folded_walker_and_callback_collisions_before_emission() {
+        let case_folded = crate::generate(quote! {
+            lexeme HttpServer { One, }
+            construction only: HTTPServer { element Only {} form only = "only"; }
+            root HTTPServer { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("case-folded helper identities must be unique")
+        .to_string();
+        assert!(
+            case_folded.contains("semantic identity `walk_http_server`")
+                && case_folded.contains("generated category walker")
+                && case_folded.contains("generated lexeme walker"),
+            "{case_folded}"
+        );
+
+        let prefixed = crate::generate(quote! {
+            codec Runtime {
+                value_type = Runtime;
+                traversal {
+                    callback = borrowed;
+                    argument = runtime;
+                    leaf visit_http_server: i32 = copy;
+                    field value: i32;
+                    call visitor::visit_http_server(copy(value));
+                }
+            }
+            construction only: HTTPServer { element Only {} form only = "only"; }
+            root HTTPServer { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("authored callback names must not collide with generated callbacks")
+        .to_string();
+        assert!(
+            prefixed.contains("semantic identity `visit_http_server`")
+                && prefixed.contains("generated category callback")
+                && prefixed.contains("declared traversal callback"),
+            "{prefixed}"
+        );
+        assert!(!prefixed.contains("internal"), "{prefixed}");
+    }
+
+    #[test]
+    fn rejects_case_converted_category_variant_and_rule_identity_collisions() {
+        let category_variant = error(quote! {
+            construction foo_bar: Root { element First {} form first = "first"; }
+            construction FooBar: Root { element Second {} form second = "second"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            category_variant.contains("semantic identity `Root::FooBar`")
+                && category_variant.contains("generated category variants"),
+            "{category_variant}"
+        );
+
+        let rule = error(quote! {
+            construction bar_baz: Foo { element First {} form first = "first"; }
+            construction baz: FooBar { element Second {} form second = "second"; }
+            root Foo { punctuation = "."; eoi = true; standalone_render = true; }
+            root FooBar { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            rule.contains("semantic identity `FooBarBaz`")
+                && rule.contains("RuleId for construction bar_baz")
+                && rule.contains("RuleId for construction baz"),
+            "{rule}"
+        );
+    }
+
+    #[test]
+    fn rejects_rule_id_variants_colliding_with_fixed_associated_items() {
+        let source: proc_macro2::TokenStream = r#"
+            construction o_u_n_t: C {
+                element CountNode {}
+                form count = "count";
+            }
+            root C { punctuation = "."; eoi = true; standalone_render = true; }
+        "#
+        .parse()
+        .expect("RuleId associated-item collision declaration syntax");
+        let parsed = crate::parse_declarations(source.clone()).expect("collision syntax parses");
+        let Declaration::Construction(construction) = &parsed.declarations[0] else {
+            panic!("first declaration is the colliding construction")
+        };
+        let expected_span = construction.name.span();
+        let error = crate::generate(source)
+            .expect_err("a RuleId variant cannot shadow a fixed associated item");
+        assert_same_span(error.span(), expected_span);
+        let message = error.to_string();
+        assert!(
+            message.contains("semantic identity `COUNT`")
+                && message.contains("fixed generated RuleId test count")
+                && message.contains("RuleId for construction o_u_n_t"),
+            "{message}"
+        );
+        assert!(!message.contains("internal"), "{message}");
+    }
+
+    #[test]
+    fn rejects_authored_types_colliding_with_fixed_generated_aggregates() {
+        for (fixed, fixed_role) in [
+            ("Visitor", "fixed generated visitor trait"),
+            ("Category", "fixed generated rules category type"),
+            ("Construction", "fixed generated rules construction type"),
+            ("RuleId", "fixed generated rules rule-id type"),
+        ] {
+            let source: proc_macro2::TokenStream = format!(
+                r#"
+                construction only: {fixed} {{
+                    element FixedCollisionNode {{}}
+                    form only = "only";
+                }}
+                root {fixed} {{ punctuation = "."; eoi = true; standalone_render = true; }}
+                "#
+            )
+            .parse()
+            .expect("fixed-collision declaration syntax");
+            let parsed =
+                crate::parse_declarations(source.clone()).expect("collision syntax parses");
+            let Declaration::Construction(construction) = &parsed.declarations[0] else {
+                panic!("first declaration is the colliding construction")
+            };
+            let expected_span = construction.category.span();
+            let error = crate::generate(source)
+                .expect_err("an authored type cannot escape into a fixed generated aggregate");
+            assert_same_span(error.span(), expected_span);
+            let message = error.to_string();
+            assert!(
+                message.contains(&format!("semantic identity `{fixed}`"))
+                    && message.contains(fixed_role)
+                    && message.contains("generated category type"),
+                "{message}"
+            );
+            assert!(!message.contains("internal"), "{message}");
+        }
+    }
+
+    #[test]
+    fn rejects_authored_unit_constructors_colliding_with_fixed_generated_values() {
+        for (element, fixed_role) in [
+            ("RULES", "fixed generated rules table constant"),
+            ("build", "fixed generated build function"),
+        ] {
+            let source: proc_macro2::TokenStream = format!(
+                r#"
+                construction only: Root {{
+                    element {element} {{}}
+                    form only = "only";
+                }}
+                root Root {{ punctuation = "."; eoi = true; standalone_render = true; }}
+                "#
+            )
+            .parse()
+            .expect("fixed-value collision declaration syntax");
+            let parsed =
+                crate::parse_declarations(source.clone()).expect("collision syntax parses");
+            let Declaration::Construction(construction) = &parsed.declarations[0] else {
+                panic!("first declaration is the colliding construction")
+            };
+            let expected_span = construction.element.name.span();
+            let error = crate::generate(source)
+                .expect_err("a unit constructor cannot escape into a fixed generated value");
+            assert_same_span(error.span(), expected_span);
+            let message = error.to_string();
+            assert!(
+                message.contains(&format!("semantic identity `{element}`"))
+                    && message.contains(fixed_role)
+                    && message.contains("generated unit element constructor"),
+                "{message}"
+            );
+            assert!(!message.contains("internal"), "{message}");
+        }
+
+        crate::generate(quote! {
+            vocab RULES { One = "one", }
+            construction only: Root {
+                element build { word: lex RULES, }
+                form only = lex(word);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("types without value constructors may share fixed value spellings");
+    }
+
+    #[test]
+    fn rejects_conditional_render_names_in_the_complete_value_namespace() {
+        let nested_source: proc_macro2::TokenStream = r#"
+            construction foo: Foo { element FooNode {} form foo = "foo"; }
+            construction wrapper: Wrapper {
+                element WrapperNode { foo: Foo, }
+                form wrapper = foo;
+            }
+            construction foo_body: FooBody {
+                element FooBodyNode {}
+                form foo_body = "body";
+            }
+            root Foo { punctuation = "."; eoi = true; standalone_render = true; }
+        "#
+        .parse()
+        .expect("nested-root collision declaration syntax");
+        let parsed =
+            crate::parse_declarations(nested_source.clone()).expect("collision syntax parses");
+        let Declaration::Construction(foo_body) = &parsed.declarations[2] else {
+            panic!("third declaration is the colliding FooBody construction")
+        };
+        let expected_span = foo_body.category.span();
+        let nested_error = crate::generate(nested_source)
+            .expect_err("a nested standalone root reserves its exact body renderer");
+        assert_same_span(nested_error.span(), expected_span);
+        let nested_root = nested_error.to_string();
+        assert!(
+            nested_root.contains("semantic identity `render_foo_body`")
+                && nested_root.contains("generated nested-root category renderer for `Foo`")
+                && nested_root.contains("generated category renderer for `FooBody`"),
+            "{nested_root}"
+        );
+        assert!(!nested_root.contains("internal"), "{nested_root}");
+
+        let feature_helper = crate::generate(quote! {
+            codec Head {
+                atom = noun;
+                value_type = Head;
+                lexical = Lexical::Head;
+                render = render_head;
+                build { pattern = BuildValue::Head(head); construct = head; }
+                traversal {
+                    callback = borrowed;
+                    argument = head;
+                    call visitor::visit_head(borrowed(head));
+                }
+            }
+            construction source: Source {
+                element SourceNode {}
+                derive number = Values::Singular;
+                form source = "source";
+            }
+            construction phrase: Phrase {
+                element PhraseNode { source: Source, head: lex Head, }
+                derive number = source.number;
+                form phrase = source noun(head);
+            }
+            construction collision: Collision {
+                element number_for_source {}
+                form collision = "collision";
+            }
+            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("a conditional feature helper participates in the value namespace")
+        .to_string();
+        assert!(
+            feature_helper.contains("semantic identity `number_for_source`")
+                && feature_helper.contains("generated Number helper for category `Source`")
+                && feature_helper.contains("generated unit element constructor"),
+            "{feature_helper}"
+        );
+        assert!(!feature_helper.contains("internal"), "{feature_helper}");
     }
 
     #[test]

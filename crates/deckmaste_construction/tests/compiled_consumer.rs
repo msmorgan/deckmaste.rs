@@ -207,6 +207,7 @@ mod fixture {
         HygieneRoot(HygieneRoot),
         VisitCategory(VisitCategory),
         CheckedMarker(CheckedMarker),
+        RawCategory(RawCategory),
         Leaf(Leaf),
     }
 
@@ -215,9 +216,9 @@ mod fixture {
         vocab r#Marker { One = "marker", }
         vocab WriterWord { One = "writer", }
         lexeme Verbs { Act, }
-        lexeme VisitorLexeme { Act, }
+        lexeme r#VisitorLexeme { Act, }
 
-        identity SelfRef {
+        identity r#SelfRef {
             value_type = SelfRef;
             lexical = Lexical::SelfRef;
             render context_identity { Full => card_name, }
@@ -229,7 +230,7 @@ mod fixture {
             }
         }
 
-        codec Token {
+        codec r#Token {
             atom = lex;
             value_type = Token;
             lexical = Lexical::Token;
@@ -446,8 +447,14 @@ mod fixture {
             form checked_marker = lex(marker);
         }
 
+        construction r#raw_leaf: r#RawCategory {
+            element r#RawNode {}
+            form raw_leaf = "raw";
+        }
+
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         root HygieneRoot { punctuation = "!"; eoi = true; standalone_render = true; }
+        root r#RawCategory { punctuation = "?"; eoi = true; standalone_render = true; }
     }
 
     impl CheckedContextNode {
@@ -831,6 +838,22 @@ mod fixture {
             ],
             "generated walkers retain callback order and the allocated operand values",
         );
+
+        let raw_category = build(
+            RuleId::RawCategoryRawLeaf,
+            &[
+                BuildValue::Leaf(Leaf::Literal("raw")),
+                BuildValue::Leaf(Leaf::Literal("?")),
+                BuildValue::Leaf(Leaf::EndOfInput),
+            ],
+            &context,
+        )
+        .expect("raw nonkeyword declaration spellings build through canonical generated names");
+        let BuildValue::RawCategory(raw_category) = raw_category else {
+            panic!("raw nonkeyword root preserves its generated category value")
+        };
+        assert_eq!(Render::render(&raw_category, &context), "raw?");
+        walk_raw_category(&mut recording, &raw_category);
     }
 }
 

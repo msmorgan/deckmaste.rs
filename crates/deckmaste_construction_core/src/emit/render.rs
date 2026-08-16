@@ -3,7 +3,6 @@ use std::collections::HashSet;
 
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
-use quote::format_ident;
 use quote::quote;
 
 use crate::ValidatedDeclarations;
@@ -12,8 +11,13 @@ use crate::feature::Feature;
 use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
 use crate::feature::FeatureValue;
+use crate::identifier::category_renderer;
+use crate::identifier::emitted_ident;
+use crate::identifier::feature_helper;
 use crate::identifier::key as identifier_key;
+use crate::identifier::pascal_case;
 use crate::identifier::path_key;
+use crate::identifier::snake_case;
 use crate::model::Declaration;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
@@ -70,7 +74,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
             .find(|(name, _)| name == &category)
             .map(|(_, members)| members.as_slice())
             .ok_or_else(|| internal("validated root category is absent"))?;
-        let ty = &root.category;
+        let ty = ident(&category);
         let punctuation = punctuation(&root.punctuation)?;
         let render_body = if nested_categories.contains(&category) {
             let helper = render_category_name(&category, true);
@@ -178,13 +182,16 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
 
     for declaration in &validated.raw().declarations {
         let Declaration::Vocab(vocab) = declaration else { continue };
-        let function = format_ident!("render_{}", snake_case(&identifier_key(&vocab.name)));
-        let ty = &vocab.name;
+        let function = ident(&format!(
+            "render_{}",
+            snake_case(&identifier_key(&vocab.name))
+        ));
+        let ty = emitted_ident(&identifier_key(&vocab.name), vocab.name.span());
         let mut allocator = LocalAllocator::default();
         allocator.reserve("writer");
         let argument = allocator.allocate(&render_vocab_argument(&vocab.name));
         let arms = vocab.variants.iter().map(|variant| {
-            let name = &variant.name;
+            let name = emitted_ident(&identifier_key(&variant.name), variant.name.span());
             let word = &variant.word;
             quote! { #ty::#name => writer.word(#word) }
         });
@@ -208,7 +215,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
 
     for feature in [Feature::Agreement, Feature::Number] {
         for (category, members) in &categories {
-            if !feature_is_read(validated, &constructions, category, feature) {
+            if !validated.category_reads_feature(category, feature) {
                 continue;
             }
             items.push(emit_feature_helper(validated, category, members, feature)?);
@@ -334,10 +341,7 @@ fn render_allocator(
                         return Err(internal("noun terminal lacks runtime render binding"));
                     };
                     reserve_bare_path(&mut allocator, path);
-                    allocator.reserve(format!(
-                        "number_for_{}",
-                        snake_case(&path_name(&construction.category))
-                    ));
+                    allocator.reserve(feature_helper("number", &path_name(&construction.category)));
                 }
             }
         }
@@ -438,11 +442,11 @@ fn render_arms(
         .map(|construction| {
             let mut allocator = allocator.clone();
             let variant = ident(&pascal_case(&identifier_key(&construction.name)));
-            let element = &construction.element.name;
+            let element = ident(&identifier_key(&construction.element.name));
             let qualifier = if root_impl {
                 quote! { Self }
             } else {
-                let category = &construction.category;
+                let category = ident(&path_name(&construction.category));
                 quote! { #category }
             };
             let private = construction.checked.as_ref().is_some_and(|checked| {
@@ -578,8 +582,10 @@ fn render_atoms(
                 let terminal = field_terminal(field);
                 let value = field_value(construction, role, locals)?;
                 if let Some(vocab) = find_vocab(validated, &terminal) {
-                    let function =
-                        format_ident!("render_{}", snake_case(&identifier_key(&vocab.name)));
+                    let function = ident(&format!(
+                        "render_{}",
+                        snake_case(&identifier_key(&vocab.name))
+                    ));
                     let value = copy_value(construction, role, value);
                     Ok(quote! { #function(#call_writer, #value); })
                 } else {
@@ -653,7 +659,7 @@ fn render_atoms(
                     return Err(internal("noun terminal lacks runtime render binding"));
                 };
                 let category = path_name(&construction.category);
-                let number = format_ident!("number_for_{}", snake_case(&category));
+                let number = ident(&feature_helper("number", &category));
                 let category_value = &locals.category;
                 let value = field_value(construction, role, locals)?;
                 Ok(quote! { #function(#call_writer, #value, #number(#category_value)); })
@@ -798,11 +804,7 @@ fn feature_expr(
                     ));
                 }
             };
-            let function = format_ident!(
-                "{}_for_{}",
-                feature_name(*source_feature),
-                snake_case(&source)
-            );
+            let function = ident(&feature_helper(feature_name(*source_feature), &source));
             quote! { #function(#value) }
         }
         FeatureExpr::MatchVocab { role, arms } => {
@@ -884,7 +886,7 @@ fn emit_feature_helper(
     members: &[&crate::Construction],
     feature: Feature,
 ) -> syn::Result<GeneratedItem> {
-    let function = format_ident!("{}_for_{}", feature_name(feature), snake_case(category));
+    let function = ident(&feature_helper(feature_name(feature), category));
     let ty = ident(category);
     let mut allocator = LocalAllocator::default();
     for construction in members {
@@ -909,7 +911,7 @@ fn emit_feature_helper(
             matches!(equation.target(), FeaturePlace::Construction(found) if *found == feature)
         }).ok_or_else(|| internal("feature helper construction lacks equation"))?;
         let variant = ident(&pascal_case(&identifier_key(&construction.name)));
-        let element = &construction.element.name;
+        let element = ident(&identifier_key(&construction.element.name));
         if let FeatureExpr::MatchVocab { role, arms: values } = equation.value() {
             let field = construction
                 .element
@@ -941,7 +943,7 @@ fn emit_feature_helper(
                 construction,
                 &ty,
                 &variant,
-                element,
+                &element,
                 &roles,
                 &mut arm_allocator,
             );
@@ -1117,9 +1119,9 @@ fn feature_constant_pattern(
             quote! { #name: _ }
         } else if let FieldKind::Lex(path) = &field.kind {
             if let Some(vocab) = find_vocab(validated, &path_name(path)) {
-                let ty = &vocab.name;
+                let ty = ident(&identifier_key(&vocab.name));
                 let variants = vocab.variants.iter().map(|variant| {
-                    let variant = &variant.name;
+                    let variant = ident(&identifier_key(&variant.name));
                     quote! { #ty::#variant }
                 });
                 quote! { #name: #(#variants)|* }
@@ -1148,21 +1150,6 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Singular => quote! { Number::Singular },
         FeatureValue::Plural => quote! { Number::Plural },
     }
-}
-
-fn feature_is_read(
-    validated: &ValidatedDeclarations,
-    constructions: &[&crate::Construction],
-    category: &str,
-    feature: Feature,
-) -> bool {
-    constructions.iter().any(|construction| {
-        validated.feature_equations(&identifier_key(&construction.name)).iter().any(|equation| {
-            matches!(equation.value(), FeatureExpr::FromRole { role, feature: found } if *found == feature
-                && construction.element.fields.iter().any(|field| identifier_key(&field.name) == identifier_key(role) && matches!(&field.kind, FieldKind::Category(path) if path_name(path) == category))
-                && !validated.feature_equations(&identifier_key(&construction.name)).iter().any(|writer| matches!(writer.target(), FeaturePlace::Role { field, feature: writer_feature } if identifier_key(field) == identifier_key(role) && *writer_feature == feature)))
-        }) || (feature == Feature::Number && construction.form.atoms.iter().any(|atom| matches!(atom, FormAtom::Noun(_))) && path_name(&construction.category) == category)
-    })
 }
 
 fn context_categories(categories: &[(String, Vec<&crate::Construction>)]) -> HashSet<String> {
@@ -1368,12 +1355,7 @@ fn has_private_fields(construction: &crate::Construction) -> bool {
 }
 
 fn render_category_name(category: &str, root: bool) -> syn::Ident {
-    let suffix = if root {
-        format!("{}_body", snake_case(category))
-    } else {
-        snake_case(category)
-    };
-    format_ident!("render_{suffix}")
+    ident(&category_renderer(category, root))
 }
 
 fn category_argument(category: &str) -> String {
@@ -1392,7 +1374,7 @@ fn feature_name(feature: Feature) -> &'static str {
     }
 }
 fn ident(name: &str) -> syn::Ident {
-    syn::parse_str(name).expect("validated render identifier")
+    emitted_ident(name, Span::call_site())
 }
 fn path_name(path: &syn::Path) -> String {
     path_key(path)
@@ -1421,38 +1403,6 @@ fn punctuation(value: &syn::LitStr) -> syn::Result<char> {
         ));
     }
     Ok(first)
-}
-fn pascal_case(name: &str) -> String {
-    name.split('_')
-        .filter(|part| !part.is_empty())
-        .map(|part| {
-            let mut chars = part.chars();
-            chars.next().map_or_else(String::new, |first| {
-                first.to_uppercase().chain(chars).collect()
-            })
-        })
-        .collect()
-}
-fn snake_case(name: &str) -> String {
-    let characters = name.chars().collect::<Vec<_>>();
-    let mut result = String::new();
-    for (index, character) in characters.iter().copied().enumerate() {
-        if character.is_uppercase() {
-            let lower = index > 0 && characters[index - 1].is_lowercase();
-            let acronym = index > 0
-                && characters[index - 1].is_uppercase()
-                && characters
-                    .get(index + 1)
-                    .is_some_and(|next| next.is_lowercase());
-            if (lower || acronym) && !result.ends_with('_') {
-                result.push('_');
-            }
-            result.extend(character.to_lowercase());
-        } else {
-            result.push(character);
-        }
-    }
-    result
 }
 fn internal(message: &str) -> syn::Error {
     syn::Error::new(Span::call_site(), message)

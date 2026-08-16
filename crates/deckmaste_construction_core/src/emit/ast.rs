@@ -5,6 +5,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::ValidatedDeclarations;
+use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
 use crate::model::Declaration;
 use crate::model::FieldKind;
@@ -72,7 +73,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         .map(CategoryItem::finish)
         .collect::<Vec<_>>();
     for (construction, record) in constructions.into_iter().zip(records) {
-        let ident = syn::Ident::new(record.element_type(), construction.element.name.span());
+        let ident = emitted_ident(record.element_type(), construction.element.name.span());
         let origins = vec![DeclarationKey::new(
             DeclarationKind::Construction,
             record.construction_id(),
@@ -96,10 +97,10 @@ struct CategoryItem {
 
 impl CategoryItem {
     fn finish(self) -> GeneratedItem {
-        let ident = syn::Ident::new(&self.name, self.span);
+        let ident = emitted_ident(&self.name, self.span);
         let variants = self.variants.into_iter().map(|(variant, element, span)| {
-            let variant = syn::Ident::new(&variant, span);
-            let element = syn::Ident::new(&element, span);
+            let variant = emitted_ident(&variant, span);
+            let element = emitted_ident(&element, span);
             quote! { #variant(#element) }
         });
         let tokens = quote! {

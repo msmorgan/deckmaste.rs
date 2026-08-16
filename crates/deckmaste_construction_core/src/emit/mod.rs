@@ -4,6 +4,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::identifier::key as identifier_key;
+use crate::identifier::local_name;
 use crate::identifier::spelling_key;
 
 pub(crate) mod ast;
@@ -30,7 +31,7 @@ impl LocalAllocator {
     }
 
     pub(super) fn allocate(&mut self, preferred: &str) -> syn::Ident {
-        let preferred = legal_local_base(&spelling_key(preferred));
+        let preferred = local_name(preferred);
         if self.used.insert(preferred.clone()) {
             return local_ident(&preferred);
         }
@@ -48,79 +49,8 @@ impl LocalAllocator {
     }
 }
 
-fn legal_local_base(preferred: &str) -> String {
-    if !is_rust_keyword(preferred) && syn::parse_str::<syn::Ident>(preferred).is_ok() {
-        return preferred.to_owned();
-    }
-    let candidate = format!("{}_value", preferred.to_lowercase());
-    assert!(
-        syn::parse_str::<syn::Ident>(&candidate).is_ok(),
-        "authored identifier must admit a legal generated local alias"
-    );
-    candidate
-}
-
 fn local_ident(name: &str) -> syn::Ident {
-    syn::parse_str(name).expect("allocator only returns legal ordinary Rust identifiers")
-}
-
-fn is_rust_keyword(name: &str) -> bool {
-    matches!(
-        name,
-        "Self"
-            | "abstract"
-            | "as"
-            | "async"
-            | "await"
-            | "become"
-            | "box"
-            | "break"
-            | "const"
-            | "continue"
-            | "crate"
-            | "do"
-            | "dyn"
-            | "else"
-            | "enum"
-            | "extern"
-            | "false"
-            | "final"
-            | "fn"
-            | "for"
-            | "gen"
-            | "if"
-            | "impl"
-            | "in"
-            | "let"
-            | "loop"
-            | "macro"
-            | "match"
-            | "mod"
-            | "move"
-            | "mut"
-            | "override"
-            | "priv"
-            | "pub"
-            | "ref"
-            | "return"
-            | "self"
-            | "static"
-            | "struct"
-            | "super"
-            | "trait"
-            | "true"
-            | "try"
-            | "type"
-            | "typeof"
-            | "union"
-            | "unsafe"
-            | "unsized"
-            | "use"
-            | "virtual"
-            | "where"
-            | "while"
-            | "yield"
-    )
+    crate::identifier::emitted_ident(name, proc_macro2::Span::call_site())
 }
 
 pub(super) fn call_match_arm(
@@ -170,6 +100,10 @@ mod tests {
             ("Self", "self_value_2"),
             ("super", "super_value"),
             ("crate", "crate_value"),
+            (
+                "not an ident",
+                "_generated_local_6e_6f_74_20_61_6e_20_69_64_65_6e_74",
+            ),
         ];
         for (preferred, expected) in cases {
             assert_eq!(allocator.allocate(preferred), expected, "{preferred}");
