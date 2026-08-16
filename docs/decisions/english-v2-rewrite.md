@@ -118,6 +118,63 @@ construction quantity_at_least: Quantity {        construction quantity_at_least
 Every deleted line bridged to a sealed handwritten type; the old declaration
 already stored everything the new guards read.
 
+### Stage-4 MVP subset
+
+Settled 2026-08-15 after the stage-4 preplan audit surfaced expressibility
+gaps between the frozen golden and the ticket's original allow-list (the
+golden contains codec-, identity-, and require-shaped facts the allow-list
+banned; the STOP fence held). The compiler MVP implements exactly this
+subset:
+
+- **One grammar-wide invocation.** Every declaration — constructions, vocab,
+  lexemes, terminal bindings, roots — lives in a single function-like
+  invocation, so validation sees the whole declaration set and each
+  aggregate item (category enums, the visitor, rule ids, `RULES`, `build`)
+  has one unambiguous producer. Separate per-tier macros cannot validate one
+  another and are rejected.
+- **Terminal bindings.** `codec` and `identity` declarations appear in
+  binding-only form: they generate nothing, but declare an existing runtime
+  terminal — its value type, its `Lexical` variant, its runtime render
+  function and build leaf, and its traversal schema (parts and visit order,
+  e.g. signed-number visits sign then whole value; catalog identity visits
+  the identity then its spelling) — so construction roles can reference it
+  (`lex SignedNumber`) and codegen can emit the golden's render/walk/build
+  references without a type-name switch inside the compiler.
+- **Checked constructions.** A construction marked `checked` emits the
+  golden's non-public field visibilities, and its build arm calls the
+  hand-written checked constructor instead of literal struct construction;
+  the constructor-call binding (argument mapping, including `Triggered::new`'s
+  interim `vec![effect]` wrapping) is written in the declaration. This is
+  the MVP stand-in for `require`-generated constructors; full `require`
+  codegen replaces it at buildout.
+- **Role refinements.** `require <role> is <Variant>` is the one `require`
+  form the MVP implements: it emits the golden's category-variant and
+  vocab-value narrowing in `build` (`Triggered.event` accepts
+  `Clause::Event` only; `WithWhere.clause` accepts `Clause::Where` only;
+  `CountNp.controller` accepts `Pronoun::You` only). Every other `require`
+  form remains a named hard error.
+- **Feature equations.** Agreement/number derivation uses the equation
+  grammar from the stage-4 architecture plan: constant, from-role, and
+  exhaustive match-over-vocab equations with a directional IR — sufficient
+  for imperative bare agreement, subject→predicate inheritance and equality,
+  fixed third-person `Be`, demonstrative word→number (one rule with
+  `NounNumber::Either` plus the exhaustive build check), and the count
+  construction's fixed pairing.
+- **Roots.** A `root` declaration names a category as a parse/render entry
+  point: standalone `Render` impl, terminal punctuation, end-of-input in its
+  rules.
+- Everything else in this section's vocabulary (`opt`, `seq`, general
+  `require` predicates, `when`/`otherwise` multi-form, generative `codec`
+  bodies, morphology, scanners) remains a named hard error until stage 5.
+
+Terminal bindings, checked-constructor bindings, and root declarations are
+counted escape hatches (§Guardrails). A known hole this subset records
+rather than fixes: the golden's public AST still admits values the parser
+cannot rebuild (a `WithWhere` holding an event clause, a count controlled by
+`it`), narrowing `parse(render(v))` to slice acceptance; the structural fix
+— require-generated checked constructors or narrowed role types — is
+stage-5 work.
+
 ## Generated code contract
 
 - **Struct per construction, wrapped in its category enum** (the `syn`
@@ -260,9 +317,10 @@ Structural, not disciplinary:
    separate honest metrics — never one gameable one.
 2. **Every escape hatch is countable.** The optional per-category
    bidirectional mapping layer (`map` declarations in their own files),
-   handwritten codecs, stored form tags, stored-spelling codecs, and
-   selection-exception entries are each enumerable lists reviewed in code
-   review; a rising count is the tumor marker.
+   handwritten codecs, stored form tags, stored-spelling codecs,
+   selection-exception entries, and the stage-4 MVP's terminal bindings,
+   checked-constructor bindings, and root declarations are each enumerable
+   lists reviewed in code review; a rising count is the tumor marker.
 3. **Corpus irregularities are quarantined as data** — a known-uncovered
    list, never grammar special cases.
 
@@ -343,7 +401,8 @@ aspiration.
 - **`movers`** — old-versus-new difference reports during the parallel
   period; diagnostic only, never a preservation baseline.
 - **Counted-list report** — mapping-layer uses, handwritten codecs, stored
-  form tags, stored-spelling codecs, exception entries.
+  form tags, stored-spelling codecs, exception entries, terminal bindings,
+  checked-constructor bindings, root declarations.
 - Performance stays bounded (full-corpus parse remains a routine local
   command), measured once real grammar exists; no premature targets.
 
@@ -388,7 +447,10 @@ the `semantics` shape and are handled separately.
    **ends with the flip**: english_v2 consumes the macro, and the golden's
    generated items and the proof harness are deleted in the same ticket — no
    dual grammar authority survives the stage. `xtask english_v2 expand`
-   renders the generated items for human review thereafter.
+   renders the generated items for human review thereafter. The MVP
+   declaration subset — settled after the stage-4 preplan audit found the
+   original allow-list could not express the golden — is §Stage-4 MVP
+   subset under §The declaration language.
 5. Grammar buildout — style-guide-driven construction porting with the corpus
    ratchet and gates as the measure; selection pass and exception table grow
    with the first real ambiguity.
