@@ -27,25 +27,31 @@ STOP and report; that is a design gap, not an implementer choice.
    validation, and codegen over `proc_macro2::TokenStream`; fully
    unit-testable; also consumed by xtask for `expand`. Deps: `proc-macro2`,
    `quote`, `syn`, `prettyplease`. `crates/deckmaste_construction` —
-   `proc-macro = true`, thin wrappers only: each exported macro delegates
-   straight to core. Neither depends on anything else — nothing
+   `proc-macro = true`, thin wrapper only: its sole exported
+   `constructions!` macro delegates straight to core. Neither depends on anything else — nothing
    deletion-slated anywhere in the graph. `deckmaste_english_v2` gains
    exactly one new dependency: `deckmaste_construction`. xtask gains
    `deckmaste_construction_core`.
 
-2. **Declaration surface.** Function-like macros
-   (`constructions!`/`vocab!`/`lexeme!`), invocations inline in
-   `deckmaste_english_v2` source. A macro NEVER reads a file: no `include!`,
-   no path arguments, no build script, no OUT_DIR. Syntax comes from the ADR
+2. **Declaration surface.** One grammar-wide function-like
+   `constructions!` invocation lives inline in `deckmaste_english_v2` source
+   and contains every declaration: constructions, vocab, lexemes, terminal
+   bindings, and roots. The macro NEVER reads a file: no `include!`, no path
+   arguments, no build script, no OUT_DIR. Syntax comes from the ADR
    §The-declaration-language vocabulary and nowhere else; the MVP implements
    exactly the subset the emission table below requires — single-`form`
    constructions with literal / role / `lex(..)` / `verb(lexeme)` /
-   `noun(role)` atoms plus the agreement/number feature derivation the
-   golden's render dispatch performs; `vocab` declarations generating enum +
-   variant→word render fn; name-only `lexeme` declarations generating the
-   enum alone. Every other ADR construct (`opt`, `seq`, `require`
-   predicates, `when`/`otherwise` multi-form, `identity`, `codec`, `derive`
-   beyond agreement/number) is a hard "unimplemented in MVP" compile error
+   `noun(role)` atoms; `vocab` declarations generating enum + variant→word
+   render fn; name-only `lexeme` declarations generating the enum alone;
+   binding-only `codec` and `identity` declarations for existing runtime
+   terminals; checked construction mappings to hand-written constructors;
+   `require <role> is <Variant>` role refinements; the pinned
+   agreement/number feature equations; and roots. Terminal bindings, checked
+   construction mappings, and roots are the three counted metadata escape
+   hatches. General `require` predicates, generative `codec`/`identity`
+   bodies, and every other deferred ADR construct (`opt`, `seq`,
+   `when`/`otherwise` multi-form, morphology, scanners, `derive` beyond the
+   pinned feature equations) are hard "unimplemented in MVP" compile errors
    naming the construct — never a silent partial implementation.
 
 3. **The emission table.** The compiler must generate, and the proof harness
@@ -93,8 +99,8 @@ STOP and report; that is a design gap, not an implementer choice.
    permanent gate.
 
 5. **The flip.** In one commit after the proof holds: the declarations move
-   into `deckmaste_english_v2` as a new `src/constructions.rs` module (all
-   macro invocations plus the hand-written `impl Triggered` /
+   into `deckmaste_english_v2` as a new `src/constructions.rs` module (the
+   macro invocation plus the hand-written `impl Triggered` /
    `impl SelfReferenceNp` blocks), and every emission-table item is deleted
    from its golden file. Post-flip layout, pinned: ast.rs keeps its runtime
    residue plus `pub use` re-exports of every generated AST item so `ast::*`
@@ -119,11 +125,11 @@ declared forms is BANNED here — it changes `RULES` and breaks
 diff-identical; it is stage 5's first multi-form declaration.
 
 OUT OF SCOPE, stage 5+: scanner (word→variant) and morphology/`inflect`
-generation; `require`-predicate language (checked-constructor bodies stay
-hand-written); `opt`/`seq`/`when`/`otherwise`/multi-form; `codec`
-declarations; doc-comment support in declarations; selection growth; any
-engine/scan/materialize/selection behavior change (import paths only);
-catalog changes; migrations.
+generation; general `require` predicates (checked-constructor bodies stay
+hand-written); generative `codec`/`identity` bodies; `opt`/`seq`/
+`when`/`otherwise`/multi-form; doc-comment support in declarations; selection
+growth; any engine/scan/materialize/selection behavior change (import paths
+only); catalog changes; migrations.
 
 Acceptance: item 0 lands first and behavior-neutral. The proof harness
 passes covering every emission-table item before the flip. After the flip:
