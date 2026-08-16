@@ -320,7 +320,12 @@ fn render_atoms(
                 let category = path_name(path);
                 let helper = render_category_name(&category, root_names.contains(&category));
                 let value = field_value(construction, role, whole);
-                let agreement = role_agreement(validated, construction, role, whole, categories)?;
+                let agreement =
+                    if category_takes_agreement_parameter(validated, categories, &category) {
+                        role_agreement(validated, construction, role, whole, categories)?
+                    } else {
+                        None
+                    };
                 let context = context_categories
                     .contains(&category)
                     .then(|| quote! { context });
@@ -409,7 +414,12 @@ fn render_atoms(
                 };
                 let category = path_name(&construction.category);
                 let number = format_ident!("number_for_{}", snake_case(&category));
-                let category_value = category_argument(&category);
+                let category_value = if root_impl {
+                    quote! { self }
+                } else {
+                    let category_value = category_argument(&category);
+                    quote! { #category_value }
+                };
                 let value = field_value(construction, role, whole);
                 Ok(quote! { #function(#call_writer, #value, #number(#category_value)); })
             }
@@ -439,6 +449,37 @@ fn role_agreement(
             )
         })
         .transpose()
+}
+
+fn category_takes_agreement_parameter(
+    validated: &ValidatedDeclarations,
+    categories: &[(String, Vec<&crate::Construction>)],
+    category: &str,
+) -> bool {
+    categories
+        .iter()
+        .find(|(name, _)| name == category)
+        .is_some_and(|(_, members)| {
+            members.iter().any(|construction| {
+                validated
+                    .feature_equations(&construction.name.to_string())
+                    .iter()
+                    .any(|equation| {
+                        matches!(
+                            equation.target(),
+                            FeaturePlace::Construction(Feature::Agreement)
+                        ) && matches!(
+                            equation.value(),
+                            FeatureExpr::FromRole { role, .. }
+                                if !construction
+                                    .element
+                                    .fields
+                                    .iter()
+                                    .any(|field| field.name == *role)
+                        )
+                    })
+            })
+        })
 }
 
 fn verb_agreement(
@@ -1082,6 +1123,76 @@ mod tests {
     use quote::ToTokens;
 
     #[test]
+    fn role_derived_noun_render_uses_declared_feature_helper() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::role_derived_noun_tokens()).unwrap(),
+        )
+        .unwrap();
+        let generated = super::emit(&validated).expect("role-derived noun render lowers");
+        let source = generated
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            source.contains("number_for_source (source)"),
+            "the derived feature helper must read the declared source role: {source}"
+        );
+        assert!(
+            source.contains("render_head (& mut writer , head , number_for_phrase (self))"),
+            "noun rendering must consume the construction feature helper: {source}"
+        );
+    }
+
+    #[test]
+    fn zero_noun_vocab_match_emits_exact_category_feature_arms() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(
+                crate::test_support::vocab_matched_number_without_noun_tokens(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let generated = super::emit(&validated).expect("zero-noun feature helpers lower");
+        let source = generated
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            source.contains(
+                "Source :: Source (SourceNode { count : Count :: One , }) => Number :: Singular"
+            ) && source.contains(
+                "Source :: Source (SourceNode { count : Count :: Many , }) => Number :: Plural"
+            ),
+            "the stored vocab drives the exact number helper arms: {source}"
+        );
+    }
+
+    #[test]
+    fn two_noun_render_calls_share_the_declared_category_number() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(
+                crate::test_support::vocab_matched_number_with_two_nouns_tokens(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let generated = super::emit(&validated).expect("two noun render atoms lower");
+        let source = generated
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for fragment in [
+            "render_head (& mut writer , left , number_for_phrase (self))",
+            "render_head (& mut writer , right , number_for_phrase (self))",
+        ] {
+            assert!(source.contains(fragment), "missing `{fragment}`: {source}");
+        }
+    }
+
+    #[test]
     fn explicit_lexical_feature_dependencies_drive_render_lowering() {
         let expansion = crate::generate(quote::quote! {
             vocab Person { One = "one", Many = "many", }
@@ -1220,8 +1331,12 @@ mod tests {
             "checked feature read lowered to an unbound bare role: {source}",
         );
         assert!(
-            source.contains("agreement_for_subject (checked_root . subject ())"),
-            "checked feature read did not use its declared accessor: {source}",
+            !source.contains("agreement_for_subject"),
+            "a category without an agreement parameter must not receive a stray argument: {source}",
+        );
+        assert!(
+            source.contains("render_predicate (& mut writer , & checked_root . predicate)"),
+            "checked role rendering must still use its declared field access: {source}",
         );
     }
 

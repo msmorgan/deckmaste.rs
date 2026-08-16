@@ -81,7 +81,6 @@ pub(crate) enum AtomContribution {
     Identity { role: String, terminal: String },
     Noun { role: String, terminal: String },
     VerbFixed { terminal: String, variant: String },
-    VerbProjected { role: String, terminal: String },
 }
 
 #[derive(Debug)]
@@ -209,8 +208,7 @@ impl AtomContribution {
             Self::Lex { terminal, .. }
             | Self::Identity { terminal, .. }
             | Self::Noun { terminal, .. }
-            | Self::VerbFixed { terminal, .. }
-            | Self::VerbProjected { terminal, .. } => Some(terminal),
+            | Self::VerbFixed { terminal, .. } => Some(terminal),
             Self::Literal | Self::Category { .. } => None,
         }
     }
@@ -221,8 +219,7 @@ impl AtomContribution {
             Self::Category { role, category } => !role.is_empty() && !category.is_empty(),
             Self::Lex { role, terminal }
             | Self::Identity { role, terminal }
-            | Self::Noun { role, terminal }
-            | Self::VerbProjected { role, terminal } => !role.is_empty() && !terminal.is_empty(),
+            | Self::Noun { role, terminal } => !role.is_empty() && !terminal.is_empty(),
             Self::VerbFixed { terminal, variant } => !terminal.is_empty() && !variant.is_empty(),
         }
     }
@@ -241,7 +238,7 @@ impl AtomContribution {
             Self::Noun { terminal, .. } => terminals.get(terminal.as_str()).is_some_and(|info| {
                 info.supports_noun_atom() && info.has_direct_render_build_traversal()
             }),
-            Self::VerbFixed { terminal, .. } | Self::VerbProjected { terminal, .. } => terminals
+            Self::VerbFixed { terminal, .. } => terminals
                 .get(terminal.as_str())
                 .is_some_and(|info| info.supports_verb_atom() && info.has_traversal()),
         }
@@ -829,6 +826,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 FormAtom::Noun(role) => check_noun_role(role, &fields, symbols, &mut errors),
                 FormAtom::Verb(VerbOperand::Projected(role)) => {
                     check_verb_role(role, &fields, symbols, &mut errors);
+                    reject_projected_verb_role(role, &mut errors);
                 }
                 FormAtom::Verb(VerbOperand::Fixed(path)) => {
                     check_terminal_variant(path, TerminalKind::Lexeme, symbols, &mut errors);
@@ -871,6 +869,16 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
     }
     finish(errors)?;
     resolve_grammar_uses(raw)
+}
+
+fn reject_projected_verb_role(role: &syn::Ident, errors: &mut Option<syn::Error>) {
+    combine(
+        errors,
+        syn::Error::new(
+            role.span(),
+            "unimplemented in MVP: `projected verb role`; use a fixed verb path",
+        ),
+    );
 }
 
 fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
@@ -933,24 +941,7 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                     );
                     Some(AtomContribution::VerbFixed { terminal, variant })
                 }
-                FormAtom::Verb(VerbOperand::Projected(role)) => {
-                    match fields.get(&role.to_string()) {
-                        Some(FieldKind::Lex(path)) => {
-                            let terminal = path_name(path);
-                            record_verb_provider(
-                                &terminal,
-                                role.span(),
-                                &mut seen_verb_providers,
-                                &mut verb_providers,
-                            );
-                            Some(AtomContribution::VerbProjected {
-                                role: role.to_string(),
-                                terminal,
-                            })
-                        }
-                        _ => None,
-                    }
-                }
+                FormAtom::Verb(VerbOperand::Projected(_)) => None,
             };
             if let Some(resolved) = resolved {
                 atoms.push(resolved);
@@ -1695,6 +1686,7 @@ fn validate_binding(
     callbacks: &TraversalCallbacks,
     errors: &mut Option<syn::Error>,
 ) {
+    validate_binding_value_type(binding, errors);
     validate_context_identity(binding, errors);
     let mut bound = HashSet::new();
     let Some(build) = &binding.build else {
@@ -1746,6 +1738,15 @@ fn validate_binding(
             ),
         );
     }
+    if binding.codec_atom == Some(CodecAtomClass::Noun) && bound.contains("number") {
+        combine(
+            errors,
+            syn::Error::new_spanned(
+                &build.pattern,
+                "noun binding pattern slot `number` collides with the generated scanner-number field",
+            ),
+        );
+    }
     if !closed_expr(&build.construct, &bound, true) {
         combine(
             errors,
@@ -1756,6 +1757,54 @@ fn validate_binding(
         );
     }
     validate_traversal(binding, &bound, callbacks, errors);
+}
+
+fn validate_binding_value_type(binding: &TerminalBinding, errors: &mut Option<syn::Error>) {
+    let syn::Type::Path(value_type) = &binding.value_type else {
+        combine(
+            errors,
+            syn::Error::new_spanned(
+                &binding.value_type,
+                "binding value_type must be a qself-free, non-generic identifier path",
+            ),
+        );
+        return;
+    };
+    let supported_shape = value_type.qself.is_none()
+        && !value_type.path.segments.is_empty()
+        && value_type
+            .path
+            .segments
+            .iter()
+            .all(|segment| matches!(segment.arguments, syn::PathArguments::None));
+    if !supported_shape {
+        combine(
+            errors,
+            syn::Error::new_spanned(
+                &binding.value_type,
+                "binding value_type must be a qself-free, non-generic identifier path",
+            ),
+        );
+        return;
+    }
+    if value_type
+        .path
+        .segments
+        .last()
+        .map(|segment| &segment.ident)
+        != Some(&binding.name)
+    {
+        combine(
+            errors,
+            syn::Error::new_spanned(
+                &binding.value_type,
+                format!(
+                    "binding value_type final identifier must match binding declaration `{}`",
+                    binding.name
+                ),
+            ),
+        );
+    }
 }
 
 fn validate_context_identity(binding: &TerminalBinding, errors: &mut Option<syn::Error>) {
@@ -1820,6 +1869,23 @@ fn validate_traversal(
     errors: &mut Option<syn::Error>,
 ) {
     let traversal = &binding.traversal;
+    if let Some(part) = traversal.parts.first() {
+        combine(
+            errors,
+            syn::Error::new(
+                part.name.span(),
+                "unimplemented in MVP: `legacy traversal part/visit`; use the typed callback/argument/body schema",
+            ),
+        );
+    } else if let Some(visit) = traversal.visit_order.first() {
+        combine(
+            errors,
+            syn::Error::new(
+                visit.span(),
+                "unimplemented in MVP: `legacy traversal part/visit`; use the typed callback/argument/body schema",
+            ),
+        );
+    }
     let uses_closed_recipe = traversal.callback_mode.is_some()
         || traversal.argument.is_some()
         || !traversal.variants.is_empty()
@@ -2708,10 +2774,13 @@ fn validate_roots(raw: &Declarations, symbols: &Symbols) -> syn::Result<()> {
                 ),
             );
         }
-        if root.punctuation.value().is_empty() {
+        if root.punctuation.value().chars().count() != 1 {
             combine(
                 &mut errors,
-                syn::Error::new(root.punctuation.span(), "root punctuation cannot be empty"),
+                syn::Error::new(
+                    root.punctuation.span(),
+                    "root punctuation must be exactly one Unicode scalar",
+                ),
             );
         }
     }
@@ -2744,6 +2813,8 @@ fn validate_backend_completeness(
     let mut constructions = Vec::new();
     let mut terminals = Vec::new();
     let mut roots = Vec::new();
+
+    validate_lowerable_backend_shapes(raw)?;
 
     for declaration in &raw.declarations {
         match declaration {
@@ -2807,7 +2878,7 @@ fn validate_backend_completeness(
                 verb_atom: false,
                 direct_render: binding.render.is_some(),
                 direct_build: binding.build.is_some(),
-                traversal: true,
+                traversal: closed_traversal_is_lowerable(binding),
             }),
             Declaration::Identity(binding) => {
                 terminals.push(TerminalContribution {
@@ -2818,7 +2889,7 @@ fn validate_backend_completeness(
                     verb_atom: false,
                     direct_render: binding.render.is_some(),
                     direct_build: binding.build.is_some(),
-                    traversal: true,
+                    traversal: closed_traversal_is_lowerable(binding),
                 });
             }
             Declaration::Root(root) => roots.push(RootContribution {
@@ -2866,6 +2937,251 @@ fn validate_backend_completeness(
         terminals,
         roots,
     })
+}
+
+fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
+    let mut errors = None;
+
+    for declaration in &raw.declarations {
+        match declaration {
+            Declaration::Construction(construction) => {
+                for atom in &construction.form.atoms {
+                    if let FormAtom::Verb(VerbOperand::Projected(role)) = atom {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                role.span(),
+                                "unimplemented in MVP: `projected verb role`; backend closure requires a fixed verb path",
+                            ),
+                        );
+                    }
+                }
+                validate_lowerable_feature_compositions(construction, &mut errors);
+            }
+            Declaration::Codec(binding) | Declaration::Identity(binding) => {
+                if !binding_value_type_is_lowerable(binding)
+                    || !closed_traversal_is_lowerable(binding)
+                {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            binding.name.span(),
+                            format!(
+                                "binding `{}` is outside the lowerable MVP value/traversal shape",
+                                binding.name
+                            ),
+                        ),
+                    );
+                }
+            }
+            Declaration::Root(root) => {
+                if root.punctuation.value().chars().count() != 1 {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            root.punctuation.span(),
+                            "root punctuation must be exactly one Unicode scalar",
+                        ),
+                    );
+                }
+            }
+            Declaration::Vocab(_) | Declaration::Lexeme(_) => {}
+        }
+    }
+    validate_category_feature_uniformity(raw, &mut errors);
+    if let Some(errors) = errors.take() {
+        return Err(errors);
+    }
+    Ok(())
+}
+
+fn validate_lowerable_feature_compositions(
+    construction: &crate::Construction,
+    errors: &mut Option<syn::Error>,
+) {
+    let fields = construction
+        .element
+        .fields
+        .iter()
+        .map(|field| (field.name.to_string(), &field.kind))
+        .collect::<HashMap<_, _>>();
+    let has_noun = construction
+        .form
+        .atoms
+        .iter()
+        .any(|atom| matches!(atom, FormAtom::Noun(_)));
+    let matched_role = |feature| {
+        construction.equations.iter().find_map(|equation| {
+            matches!(&equation.target, ParsedFeaturePlace::Construction(found) if *found == feature)
+                .then_some(&equation.value)
+                .and_then(|value| match value {
+                    ParsedFeatureValue::Match { role, .. } => Some(role),
+                    ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_) => None,
+                })
+        })
+    };
+    let agreement_match_role = matched_role(ParsedFeature::Agreement);
+    let number_match_role = matched_role(ParsedFeature::Number);
+    if agreement_match_role
+        .zip(number_match_role)
+        .is_some_and(|(agreement, number)| agreement != number)
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                construction.name.span(),
+                "unimplemented in MVP: `feature equation composition`; construction agreement and number matches must use the same vocabulary role",
+            ),
+        );
+    }
+
+    for equation in &construction.equations {
+        let lowerable = match (&equation.target, &equation.value) {
+            (
+                ParsedFeaturePlace::Construction(_),
+                ParsedFeatureValue::Constant(_) | ParsedFeatureValue::Match { .. },
+            )
+            | (
+                ParsedFeaturePlace::Construction(ParsedFeature::Agreement),
+                ParsedFeatureValue::FromRole(_),
+            ) => true,
+            (
+                ParsedFeaturePlace::Construction(ParsedFeature::Number),
+                ParsedFeatureValue::FromRole(source),
+            ) => {
+                !has_noun
+                    || matches!(
+                        fields.get(&source.role.to_string()),
+                        Some(FieldKind::Category(_))
+                    )
+            }
+            (
+                ParsedFeaturePlace::Role {
+                    field,
+                    feature: ParsedFeature::Agreement,
+                },
+                ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
+            ) => {
+                field == "verb"
+                    || matches!(fields.get(&field.to_string()), Some(FieldKind::Category(_)))
+            }
+            (ParsedFeaturePlace::Role { field, .. }, ParsedFeatureValue::Match { role, .. }) => {
+                field == role && matches!(fields.get(&field.to_string()), Some(FieldKind::Lex(_)))
+            }
+            (
+                ParsedFeaturePlace::Role {
+                    feature: ParsedFeature::Number,
+                    ..
+                },
+                ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
+            ) => false,
+        };
+        if !lowerable {
+            let span = match &equation.target {
+                ParsedFeaturePlace::Construction(_) => construction.name.span(),
+                ParsedFeaturePlace::Role { field, .. } => field.span(),
+            };
+            combine(
+                errors,
+                syn::Error::new(
+                    span,
+                    "unimplemented in MVP: `feature equation composition` is not lowerable by every backend",
+                ),
+            );
+        }
+    }
+}
+
+fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<syn::Error>) {
+    let mut categories: Vec<(String, Vec<&crate::Construction>)> = Vec::new();
+    for construction in raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Construction(construction) => Some(construction),
+            _ => None,
+        })
+    {
+        let category = path_name(&construction.category);
+        if let Some((_, members)) = categories.iter_mut().find(|(name, _)| name == &category) {
+            members.push(construction);
+        } else {
+            categories.push((category, vec![construction]));
+        }
+    }
+
+    for (category, members) in categories {
+        for feature in [ParsedFeature::Agreement, ParsedFeature::Number] {
+            let provides = |construction: &crate::Construction| {
+                construction.equations.iter().any(|equation| {
+                    matches!(
+                        equation.target,
+                        ParsedFeaturePlace::Construction(found) if found == feature
+                    )
+                })
+            };
+            if !members.iter().any(|construction| provides(construction)) {
+                continue;
+            }
+            for construction in members
+                .iter()
+                .copied()
+                .filter(|construction| !provides(construction))
+            {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        construction.name.span(),
+                        format!(
+                            "unimplemented in MVP: `category feature provider uniformity`; category `{category}` construction `{}` must provide `{}`",
+                            construction.name,
+                            parsed_feature_name(feature),
+                        ),
+                    ),
+                );
+            }
+        }
+    }
+}
+
+fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
+    match feature {
+        ParsedFeature::Agreement => "agreement",
+        ParsedFeature::Number => "number",
+    }
+}
+
+fn binding_value_type_is_lowerable(binding: &TerminalBinding) -> bool {
+    let syn::Type::Path(value_type) = &binding.value_type else { return false };
+    value_type.qself.is_none()
+        && !value_type.path.segments.is_empty()
+        && value_type
+            .path
+            .segments
+            .iter()
+            .all(|segment| matches!(segment.arguments, syn::PathArguments::None))
+        && value_type
+            .path
+            .segments
+            .last()
+            .map(|segment| &segment.ident)
+            == Some(&binding.name)
+}
+
+fn closed_traversal_is_lowerable(binding: &TerminalBinding) -> bool {
+    let traversal = &binding.traversal;
+    let enum_body = !traversal.variants.is_empty() && traversal.branches.is_empty();
+    let calls_body = !traversal.calls.is_empty();
+    let match_body = !traversal.branches.is_empty();
+    traversal.parts.is_empty()
+        && traversal.visit_order.is_empty()
+        && traversal.callback_mode.is_some()
+        && traversal.argument.is_some()
+        && [enum_body, calls_body, match_body]
+            .into_iter()
+            .filter(|present| *present)
+            .count()
+            == 1
 }
 
 fn path_name(path: &syn::Path) -> String {
@@ -3124,21 +3440,6 @@ pub(crate) mod tests {
             wrong_domain.contains("is not a variant of category `Leaf`"),
             "{wrong_domain}"
         );
-
-        let lexeme_domain = error(quote! {
-            lexeme Verbs { Be, }
-            construction only: Cat {
-                element Only { word: lex Verbs, }
-                require word is Be;
-                derive word.agreement = Anything::Bare;
-                form only = verb(word);
-            }
-            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
-        });
-        assert!(
-            lexeme_domain.contains("is not a category or vocab refinement domain"),
-            "{lexeme_domain}"
-        );
     }
 
     #[test]
@@ -3149,7 +3450,7 @@ pub(crate) mod tests {
                 lexical = Lexical::Existing;
                 render = render_existing;
                 build { pattern = BuildValue::Existing(value); construct = value; }
-                traversal { part value = identity(value); visit value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_existing(borrowed(value)); }
             }
             construction only: Cat {
                 element Only { value: lex Existing, }
@@ -3168,7 +3469,7 @@ pub(crate) mod tests {
                 lexical = Lexical::Existing;
                 render = render_existing;
                 build { pattern = BuildValue::Existing(value); construct = value; }
-                traversal { part value = identity(value); visit value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_existing(borrowed(value)); }
             }
             construction only: Cat {
                 element Only { value: identity Existing, }
@@ -3188,7 +3489,7 @@ pub(crate) mod tests {
                 lexical = Lexical::Existing;
                 render = render_existing;
                 build { pattern = BuildValue::Existing(value); construct = value; }
-                traversal { part value = identity(value); visit value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_existing(borrowed(value)); }
             }
             construction only: Cat {
                 element Only { value: identity Existing, }
@@ -3272,7 +3573,7 @@ pub(crate) mod tests {
                 lexical = Lexical::SignedNumber;
                 render = render_signed_number;
                 build { pattern = BuildValue::SignedNumber(value); construct = value; }
-                traversal { part value = scalar(value); visit value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_signed_number(borrowed(value)); }
             }
             construction only: Cat {
                 element Only { value: lex SignedNumber, }
@@ -3294,7 +3595,7 @@ pub(crate) mod tests {
                 lexical = Lexical::Noun;
                 render = render_noun;
                 build { pattern = BuildValue::Noun(value); construct = value; }
-                traversal { part value = subtree(value); visit value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_noun(borrowed(value)); }
             }
             construction only: Cat {
                 element Only { value: lex Noun, }
@@ -3371,7 +3672,7 @@ pub(crate) mod tests {
                 lexical = Lexical::Noun;
                 render = render_noun;
                 build { pattern = BuildValue::Noun(value); construct = value; }
-                traversal { part value = scalar(value); visit value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_noun(borrowed(value)); }
             }
             construction broken: Cat {
                 element Broken { word: lex NumberWord, noun: lex Noun, }
@@ -3714,7 +4015,7 @@ pub(crate) mod tests {
                 lexical = Lexical::Nouns;
                 render = render_nouns;
                 build { pattern = BuildValue::Nouns(value); construct = value; }
-                traversal { part value = scalar(value); visit value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_nouns(borrowed(value)); }
             }
             construction broken: Cat {
                 element Broken { noun: lex Nouns, }
@@ -3737,7 +4038,7 @@ pub(crate) mod tests {
                 lexical = RuntimeLeaf::ObjectWord;
                 render = crate::runtime::render_object;
                 build { pattern = RuntimeValue::ObjectWord(value); construct = value; }
-                traversal { part value = scalar(value); visit value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_object_word(borrowed(value)); }
             }
             construction nested: Loop {
                 element Nested { body: Loop, }
@@ -3796,7 +4097,7 @@ pub(crate) mod tests {
                 lexical = Lexical::Heads;
                 render = render_heads;
                 build { pattern = BuildValue::Heads(value); construct = value; }
-                traversal { part value = scalar(value); visit value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_heads(borrowed(value)); }
             }
             lexeme Actions { Destroy, Be, Control, }
 
@@ -3848,7 +4149,7 @@ pub(crate) mod tests {
                 lexical = RuntimeLeaf::HeadWord;
                 render = crate::runtime::render_head;
                 build { pattern = RuntimeValue::HeadWord(value); construct = value; }
-                traversal { part value = scalar(value); visit value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_head_word(borrowed(value)); }
             }
             construction demonstrative: NounPhrase {
                 element DemonstrativeNp { word: lex PointingWords, head: lex HeadWord, }
@@ -3992,6 +4293,391 @@ pub(crate) mod tests {
         });
         assert!(general.contains("general require"), "{general}");
         assert!(general.contains("unimplemented in MVP"), "{general}");
+    }
+
+    #[test]
+    fn projected_verb_is_rejected_before_backend_planning() {
+        let generated = crate::generate(quote! {
+            lexeme Verbs { Be, }
+            construction projected: Cat {
+                element Projected { word: lex Verbs, }
+                derive word.agreement = Values::Bare;
+                form projected = verb(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("projected verb roles are outside the fixed-path MVP");
+        let message = generated.to_string();
+        assert!(
+            message.contains("unimplemented in MVP: `projected verb role`"),
+            "{message}"
+        );
+        assert!(
+            !message.contains("internal"),
+            "validation must own this diagnostic: {message}"
+        );
+    }
+
+    #[test]
+    fn legacy_traversal_is_rejected_even_when_the_binding_is_unused() {
+        for tokens in [
+            quote! {
+                codec Legacy {
+                    atom = lex;
+                    value_type = Legacy;
+                    lexical = Lexical::Legacy;
+                    render = render_legacy;
+                    build { pattern = BuildValue::Legacy(value); construct = value; }
+                    traversal { part value = scalar(value); visit value; }
+                }
+                construction used: Root { element Used { value: lex Legacy, } form used = lex(value); }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            quote! {
+                codec Legacy {
+                    atom = lex;
+                    value_type = Legacy;
+                    lexical = Lexical::Legacy;
+                    render = render_legacy;
+                    build { pattern = BuildValue::Legacy(value); construct = value; }
+                    traversal { part value = scalar(value); visit value; }
+                }
+                construction unused: Root { element Unused {} form unused = "unused"; }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+        ] {
+            let failure = crate::generate(tokens).expect_err("legacy traversal is deferred");
+            let message = failure.to_string();
+            assert!(
+                message.contains("unimplemented in MVP: `legacy traversal part/visit`"),
+                "{message}"
+            );
+            assert!(
+                !message.contains("internal"),
+                "validation must reject unused legacy metadata too: {message}"
+            );
+        }
+    }
+
+    #[test]
+    fn roots_require_exactly_one_unicode_scalar() {
+        for punctuation in ["", "..", "e\u{301}"] {
+            let punctuation = syn::LitStr::new(punctuation, proc_macro2::Span::call_site());
+            let message = crate::generate(quote! {
+                construction only: Root { element Only {} form only = "only"; }
+                root Root { punctuation = #punctuation; eoi = true; standalone_render = true; }
+            })
+            .expect_err("root punctuation must be one scalar")
+            .to_string();
+            assert!(
+                message.contains("root punctuation must be exactly one Unicode scalar"),
+                "{message}"
+            );
+            assert!(!message.contains("internal"), "{message}");
+        }
+
+        crate::generate(quote! {
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "❤"; eoi = true; standalone_render = true; }
+        })
+        .expect("one non-ASCII Unicode scalar is valid punctuation metadata");
+    }
+
+    #[test]
+    fn binding_value_type_is_an_identifier_path_ending_in_the_binding_name() {
+        let fixture = |value_type: syn::Type| {
+            quote! {
+                codec Thing {
+                    atom = lex;
+                    value_type = #value_type;
+                    lexical = Lexical::Thing;
+                    render = render_thing;
+                    build { pattern = BuildValue::Thing(value); construct = value; }
+                    traversal { callback = borrowed; argument = thing; call visitor::visit_thing(borrowed(thing)); }
+                }
+                construction only: Root { element Only { thing: lex Thing, } form only = lex(thing); }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            }
+        };
+
+        crate::generate(fixture(syn::parse_quote!(crate::runtime::Thing)))
+            .expect("an identifier-only namespace path with a matching final ident is supported");
+        for invalid in [
+            syn::parse_quote!((Thing, Thing)),
+            syn::parse_quote!(&Thing),
+            syn::parse_quote!(crate::runtime::Thing<u8>),
+            syn::parse_quote!(<Thing as Trait>::Associated),
+            syn::parse_quote!(Thing!()),
+            syn::parse_quote!(crate::runtime::Other),
+        ] {
+            let message = crate::generate(fixture(invalid))
+                .expect_err("unsupported binding type must fail validation")
+                .to_string();
+            assert!(message.contains("binding value_type"), "{message}");
+            assert!(!message.contains("internal"), "{message}");
+        }
+    }
+
+    #[test]
+    fn noun_binding_number_slot_fails_before_sealing() {
+        let message = crate::generate(quote! {
+            codec Head {
+                atom = noun;
+                value_type = Head;
+                lexical = Lexical::Head;
+                render = render_head;
+                build { pattern = BuildValue::Head(number); construct = number; }
+                traversal {
+                    callback = borrowed;
+                    argument = number;
+                    call visitor::visit_head(borrowed(number));
+                }
+            }
+            construction only: Root {
+                element Only { head: lex Head, }
+                form only = noun(head);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("an unrenamable noun scanner field collision must fail validation")
+        .to_string();
+        assert!(
+            message.contains(
+                "noun binding pattern slot `number` collides with the generated scanner-number field"
+            ),
+            "{message}"
+        );
+        assert!(!message.contains("internal"), "{message}");
+    }
+
+    #[test]
+    fn partial_category_feature_providers_fail_validation() {
+        for (feature, equation) in [
+            ("agreement", quote! { derive agreement = Values::Bare; }),
+            ("number", quote! { derive number = Values::Singular; }),
+        ] {
+            let message = crate::generate(quote! {
+                construction provider: Root {
+                    element Provider {}
+                    #equation
+                    form provider = "provider";
+                }
+                construction missing: Root {
+                    element Missing {}
+                    form missing = "missing";
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect_err("category feature providers must be total before sealing")
+            .to_string();
+            assert!(
+                message.contains("category feature provider uniformity")
+                    && message.contains(feature)
+                    && message.contains("missing"),
+                "{message}"
+            );
+            assert!(!message.contains("internal"), "{message}");
+        }
+    }
+
+    #[test]
+    fn feature_composition_matrix_matches_backend_lowerability() {
+        let head_binding = quote! {
+            codec Head {
+                atom = noun;
+                value_type = Head;
+                lexical = Lexical::Head;
+                render = render_head;
+                build { pattern = BuildValue::Head(head); construct = head; }
+                traversal {
+                    callback = borrowed;
+                    argument = head;
+                    call visitor::visit_head(borrowed(head));
+                }
+            }
+        };
+        let accepted = [
+            (
+                "constant construction features",
+                quote! {
+                    #head_binding
+                    construction only: Root {
+                        element Only { head: lex Head, }
+                        derive agreement = Values::Bare;
+                        derive number = Values::Singular;
+                        form only = noun(head);
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "category FromRole with a noun",
+                crate::test_support::role_derived_noun_tokens(),
+            ),
+            (
+                "same-writer paired matches with zero nouns",
+                crate::test_support::vocab_matched_number_without_noun_tokens(),
+            ),
+            (
+                "number match with one noun",
+                quote! {
+                    vocab Count { One = "one", Many = "many", }
+                    #head_binding
+                    construction only: Root {
+                        element Only { count: lex Count, head: lex Head, }
+                        derive number = match count {
+                            One => Values::Singular,
+                            Many => Values::Plural,
+                        };
+                        form only = lex(count) noun(head);
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "number match with two nouns",
+                crate::test_support::vocab_matched_number_with_two_nouns_tokens(),
+            ),
+            (
+                "refined dynamic vocabulary role",
+                quote! {
+                    vocab Count { One = "one", Many = "many", }
+                    construction only: Root {
+                        element Only { count: lex Count, }
+                        require count is One;
+                        derive number = match count {
+                            One => Values::Singular,
+                            Many => Values::Plural,
+                        };
+                        form only = lex(count);
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "agreement match with constant noun number",
+                quote! {
+                    vocab Count { One = "one", Many = "many", }
+                    #head_binding
+                    construction only: Root {
+                        element Only { count: lex Count, head: lex Head, }
+                        derive agreement = match count {
+                            One => Values::ThirdPersonSingular,
+                            Many => Values::Bare,
+                        };
+                        derive number = Values::Singular;
+                        form only = lex(count) noun(head);
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+            (
+                "full category providers",
+                quote! {
+                    construction first: Root {
+                        element First {}
+                        derive agreement = Values::Bare;
+                        derive number = Values::Singular;
+                        form first = "first";
+                    }
+                    construction second: Root {
+                        element Second {}
+                        derive agreement = Values::ThirdPersonSingular;
+                        derive number = Values::Plural;
+                        form second = "second";
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+            ),
+        ];
+        for (name, fixture) in accepted {
+            if let Err(error) = crate::generate(fixture) {
+                let message = error.to_string();
+                assert!(!message.contains("internal"), "{name}: {message}");
+                panic!("accepted feature composition `{name}` failed: {message}");
+            }
+        }
+
+        let rejected = [
+            (
+                "different match writers",
+                quote! {
+                    vocab Count { One = "one", Many = "many", }
+                    vocab Tone { Plain = "plain", Marked = "marked", }
+                    construction only: Root {
+                        element Only { count: lex Count, tone: lex Tone, }
+                        derive agreement = match count {
+                            One => Values::ThirdPersonSingular,
+                            Many => Values::Bare,
+                        };
+                        derive number = match tone {
+                            Plain => Values::Singular,
+                            Marked => Values::Plural,
+                        };
+                        form only = lex(count) lex(tone);
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+                "feature equation composition",
+            ),
+            (
+                "lexical FromRole noun source",
+                quote! {
+                    vocab Count { One = "one", Many = "many", }
+                    #head_binding
+                    construction only: Root {
+                        element Only { count: lex Count, head: lex Head, }
+                        derive count.number = match count {
+                            One => Values::Singular,
+                            Many => Values::Plural,
+                        };
+                        derive number = count.number;
+                        form only = lex(count) noun(head);
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+                "derive target unimplemented in MVP",
+            ),
+            (
+                "partial agreement provider",
+                quote! {
+                    construction provider: Root {
+                        element Provider {}
+                        derive agreement = Values::Bare;
+                        form provider = "provider";
+                    }
+                    construction missing: Root {
+                        element Missing {}
+                        form missing = "missing";
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+                "category feature provider uniformity",
+            ),
+            (
+                "partial number provider",
+                quote! {
+                    construction provider: Root {
+                        element Provider {}
+                        derive number = Values::Singular;
+                        form provider = "provider";
+                    }
+                    construction missing: Root {
+                        element Missing {}
+                        form missing = "missing";
+                    }
+                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+                "category feature provider uniformity",
+            ),
+        ];
+        for (name, fixture, diagnostic) in rejected {
+            let message = crate::generate(fixture)
+                .expect_err("a deferred composition must fail validation")
+                .to_string();
+            assert!(message.contains(diagnostic), "{name}: {message}");
+            assert!(!message.contains("internal"), "{name}: {message}");
+        }
     }
 
     #[test]

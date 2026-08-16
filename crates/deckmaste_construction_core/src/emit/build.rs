@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
@@ -87,7 +88,28 @@ struct Lowering {
     field_values: HashMap<String, TokenStream>,
     role_features: HashMap<(String, Feature), TokenStream>,
     guards: Vec<TokenStream>,
-    dynamic_number: Option<syn::Ident>,
+    dynamic_numbers: Vec<syn::Ident>,
+    binders: BinderAllocator,
+}
+
+#[derive(Default)]
+struct BinderAllocator {
+    used: HashSet<String>,
+}
+
+impl BinderAllocator {
+    fn allocate(&mut self, preferred: &str) -> syn::Ident {
+        if self.used.insert(preferred.to_owned()) {
+            return ident(preferred);
+        }
+        for suffix in 2.. {
+            let candidate = format!("{preferred}_{suffix}");
+            if self.used.insert(candidate.clone()) {
+                return ident(&candidate);
+            }
+        }
+        unreachable!("the local binder suffix space is unbounded")
+    }
 }
 
 fn emit_arm(
@@ -112,7 +134,7 @@ fn emit_arm(
     let success = if let Some(dynamic_role) = dynamic_match_role(validated, construction) {
         emit_dynamic_match(validated, construction, &lowering, &dynamic_role)?
     } else {
-        emit_success(validated, construction, &lowering, None)?
+        emit_success(validated, construction, &lowering, None, None, None)?
     };
     let rule_id = ident(rule_id);
     let patterns = &lowering.patterns;
@@ -178,33 +200,47 @@ fn lower_category_role(
         return Err(internal("validated category role has the wrong field kind"));
     };
     let role_name = role.to_string();
+    let role_binding = lowering.binders.allocate(&role_name);
     let refinement = construction
         .requirements
         .iter()
         .find(|requirement| requirement.role == *role);
     let value_pattern = if let Some(requirement) = refinement {
         let variant = &requirement.variant;
-        quote! { #category::#variant(#role) }
+        quote! { #category::#variant(#role_binding) }
     } else {
-        quote! { #role }
+        quote! { #role_binding }
     };
     let stored = if let Some(requirement) = refinement {
         let variant = &requirement.variant;
-        quote! { #category::#variant(#role.clone()) }
+        quote! { #category::#variant(#role_binding.clone()) }
     } else {
-        quote! { #role.clone() }
+        quote! { #role_binding.clone() }
     };
     lowering.field_values.insert(role_name.clone(), stored);
 
-    if category_has_agreement(validated, category) {
-        let pattern = role_agreement_pattern(validated, construction, role, category, lowering)?;
-        lowering
+    let carries_agreement = category_has_agreement(validated, category);
+    let carries_number = category_carries_number(validated, category);
+    let agreement = carries_agreement
+        .then(|| role_agreement_pattern(validated, construction, role, category, lowering))
+        .transpose()?;
+    let number =
+        carries_number.then(|| role_number_pattern(validated, construction, role, lowering));
+    match (agreement, number) {
+        (Some(agreement), Some(number)) => lowering
             .patterns
-            .push(quote! { BuildValue::#category(#value_pattern, #pattern) });
-    } else {
-        lowering
+            .push(quote! { BuildValue::#category(#value_pattern, #agreement, #number) }),
+        (Some(pattern), None) => {
+            lowering
+                .patterns
+                .push(quote! { BuildValue::#category(#value_pattern, #pattern) });
+        }
+        (None, Some(number)) => lowering
             .patterns
-            .push(quote! { BuildValue::#category(#value_pattern) });
+            .push(quote! { BuildValue::#category(#value_pattern, #number) }),
+        (None, None) => lowering
+            .patterns
+            .push(quote! { BuildValue::#category(#value_pattern) }),
     }
     Ok(())
 }
@@ -223,11 +259,19 @@ fn role_agreement_pattern(
     if let Some(equation) = equation(validated, construction, &target) {
         return match equation.value() {
             FeatureExpr::Constant(value) => Ok(feature_value(*value.value())),
-            FeatureExpr::FromRole { .. } => {
+            FeatureExpr::FromRole {
+                role: source,
+                feature,
+            } => {
+                if let Some(value) =
+                    refined_vocab_feature(validated, construction, source, *feature)
+                {
+                    return Ok(feature_value(value));
+                }
                 let stem = snake_case(&path_name(category))
                     .trim_end_matches("_phrase")
                     .to_owned();
-                let name = ident(&format!("{stem}_agreement"));
+                let name = lowering.binders.allocate(&format!("{stem}_agreement"));
                 lowering
                     .role_features
                     .insert((role.to_string(), Feature::Agreement), quote! { #name });
@@ -239,13 +283,30 @@ fn role_agreement_pattern(
         };
     }
     if feature_is_read(validated, construction, role, Feature::Agreement) {
-        let name = ident(&format!("{role}_agreement"));
+        let name = lowering.binders.allocate(&format!("{role}_agreement"));
         lowering
             .role_features
             .insert((role.to_string(), Feature::Agreement), quote! { #name });
         Ok(quote! { #name })
     } else {
         Ok(quote! { _ })
+    }
+}
+
+fn role_number_pattern(
+    validated: &ValidatedDeclarations,
+    construction: &crate::Construction,
+    role: &syn::Ident,
+    lowering: &mut Lowering,
+) -> TokenStream {
+    if role_number_is_needed_in_build(validated, construction, role) {
+        let name = lowering.binders.allocate(&format!("{role}_number"));
+        lowering
+            .role_features
+            .insert((role.to_string(), Feature::Number), quote! { #name });
+        quote! { #name }
+    } else {
+        quote! { _ }
     }
 }
 
@@ -273,7 +334,9 @@ fn lower_terminal_role(
                 .field_values
                 .insert(role.to_string(), quote! { #leaf::#variant });
         } else {
-            let binding = ident(&vocab_argument(&vocab.name.to_string()));
+            let binding = lowering
+                .binders
+                .allocate(&vocab_argument(&vocab.name.to_string()));
             lowering
                 .patterns
                 .push(quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) });
@@ -292,20 +355,50 @@ fn lower_terminal_role(
         .as_ref()
         .ok_or_else(|| internal("atom-capable binding has no build metadata"))?;
     let (variant, names) = binding_pattern(&build.pattern)?;
-    let pattern_names = if noun || names.len() != 1 { names.clone() } else { vec![role.clone()] };
+    let noun_count = construction
+        .form
+        .atoms
+        .iter()
+        .filter(|atom| matches!(atom, FormAtom::Noun(_)))
+        .count();
+    let preferred_names = if noun && noun_count > 1 {
+        names
+            .iter()
+            .map(
+                |name| {
+                    if names.len() == 1 { role.clone() } else { ident(&format!("{role}_{name}")) }
+                },
+            )
+            .collect::<Vec<_>>()
+    } else if noun || names.len() != 1 {
+        names.clone()
+    } else {
+        vec![role.clone()]
+    };
+    let pattern_names = preferred_names
+        .iter()
+        .map(|name| lowering.binders.allocate(&name.to_string()))
+        .collect::<Vec<_>>();
     let substitutions = names
         .iter()
         .zip(&pattern_names)
         .map(|(declared, emitted)| (declared.to_string(), quote! { #emitted }))
         .collect::<HashMap<_, _>>();
     let inner = if noun {
-        let number = noun_number_pattern(validated, construction, lowering)?;
+        let number = noun_number_pattern(validated, construction, role, lowering)?;
         let number_field = if number.to_string() == "number" {
             quote! { number }
         } else {
             quote! { number: #number }
         };
-        quote! { Leaf::#variant { #(#pattern_names),*, #number_field } }
+        let pattern_fields = names.iter().zip(&pattern_names).map(|(declared, emitted)| {
+            if declared == emitted {
+                quote! { #declared }
+            } else {
+                quote! { #declared: #emitted }
+            }
+        });
+        quote! { Leaf::#variant { #(#pattern_fields),*, #number_field } }
     } else {
         quote! { Leaf::#variant(#(#pattern_names),*) }
     };
@@ -375,6 +468,7 @@ fn direct_bound_path(expr: &syn::Expr) -> Option<&syn::Path> {
 fn noun_number_pattern(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
+    role: &syn::Ident,
     lowering: &mut Lowering,
 ) -> syn::Result<TokenStream> {
     let target = FeaturePlace::Construction(Feature::Number);
@@ -382,14 +476,16 @@ fn noun_number_pattern(
         .ok_or_else(|| internal("noun atom has no construction number"))?;
     match equation.value() {
         FeatureExpr::Constant(value) => Ok(feature_value(*value.value())),
-        FeatureExpr::MatchVocab { .. } => {
-            let number = ident("number");
-            lowering.dynamic_number = Some(number.clone());
+        FeatureExpr::MatchVocab { .. } | FeatureExpr::FromRole { .. } => {
+            let preferred = if lowering.dynamic_numbers.is_empty() {
+                "number".to_owned()
+            } else {
+                format!("{role}_number")
+            };
+            let number = lowering.binders.allocate(&preferred);
+            lowering.dynamic_numbers.push(number.clone());
             Ok(quote! { #number })
         }
-        FeatureExpr::FromRole { .. } => Err(internal(
-            "role-derived noun number is not a closed parser pattern",
-        )),
     }
 }
 
@@ -409,7 +505,7 @@ fn verb_agreement_pattern(
             if let Some(value) = refined_vocab_feature(validated, construction, role, *feature) {
                 return Ok(feature_value(value));
             }
-            let agreement = ident("agreement");
+            let agreement = lowering.binders.allocate("agreement");
             lowering.role_features.insert(
                 ("verb".to_owned(), Feature::Agreement),
                 quote! { #agreement },
@@ -420,7 +516,7 @@ fn verb_agreement_pattern(
             Err(internal("verb agreement cannot be a vocab match"))
         }
         None => {
-            let agreement = ident("agreement");
+            let agreement = lowering.binders.allocate("agreement");
             lowering.role_features.insert(
                 ("verb".to_owned(), Feature::Agreement),
                 quote! { #agreement },
@@ -436,6 +532,32 @@ fn lower_feature_guards(
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
     for equation in validated.feature_equations(&construction.name.to_string()) {
+        if let (
+            FeaturePlace::Construction(Feature::Number),
+            FeatureExpr::FromRole {
+                role,
+                feature: Feature::Number,
+            },
+        ) = (equation.target(), equation.value())
+        {
+            if construction
+                .form
+                .atoms
+                .iter()
+                .any(|atom| matches!(atom, FormAtom::Noun(_)))
+            {
+                let source = lowering
+                    .role_features
+                    .get(&(role.to_string(), Feature::Number))
+                    .ok_or_else(|| {
+                        internal("category number source was not bound by build pattern")
+                    })?;
+                for number in &lowering.dynamic_numbers {
+                    lowering.guards.push(quote! { *#source == *#number });
+                }
+            }
+            continue;
+        }
         let FeaturePlace::Role { field, feature } = equation.target() else { continue };
         let FeatureExpr::FromRole {
             role,
@@ -445,8 +567,7 @@ fn lower_feature_guards(
             continue;
         };
         if feature != source_feature
-            || field == "verb"
-                && refined_vocab_feature(validated, construction, role, *feature).is_some()
+            || refined_vocab_feature(validated, construction, role, *feature).is_some()
         {
             continue;
         }
@@ -468,6 +589,8 @@ fn emit_success(
     construction: &crate::Construction,
     lowering: &Lowering,
     overrides: Option<&HashMap<String, TokenStream>>,
+    agreement_override: Option<FeatureValue>,
+    number_override: Option<FeatureValue>,
 ) -> syn::Result<TokenStream> {
     let element = &construction.element.name;
     let category = &construction.category;
@@ -490,9 +613,29 @@ fn emit_success(
             })
             .collect::<syn::Result<Vec<_>>>()?;
         let mapped = quote! { #category::#variant };
-        if category_has_agreement(validated, category) {
-            let output = construction_agreement(validated, construction, lowering, overrides)?;
+        let carries_agreement = category_has_agreement(validated, category);
+        let carries_number = category_carries_number(validated, category);
+        if carries_agreement || carries_number {
+            let agreement = carries_agreement
+                .then(|| {
+                    construction_agreement(validated, construction, lowering, agreement_override)
+                })
+                .transpose()?;
+            let number = carries_number
+                .then(|| construction_number(validated, construction, lowering, number_override))
+                .transpose()?;
             let argument = ident(&snake_case(&construction.name.to_string()));
+            if let (Some(agreement), Some(number)) = (&agreement, &number) {
+                return Ok(quote! {
+                    #path(#(#arguments),*).map(|#argument| { BuildValue::#category(#category::#variant(#argument), #agreement, #number) })
+                });
+            }
+            if let Some(number) = number {
+                return Ok(quote! {
+                    #path(#(#arguments),*).map(|#argument| { BuildValue::#category(#category::#variant(#argument), #number) })
+                });
+            }
+            let output = agreement.expect("one carried checked-construction feature");
             return Ok(quote! {
                 #path(#(#arguments),*).map(|#argument| { BuildValue::#category(#category::#variant(#argument), #output) })
             });
@@ -514,9 +657,20 @@ fn emit_success(
         quote! { #element { #(#fields),* } }
     };
     let category_value = quote! { #category::#variant(#element_value) };
-    let wrapped = if category_has_agreement(validated, category) {
-        let agreement = construction_agreement(validated, construction, lowering, overrides)?;
+    let carries_agreement = category_has_agreement(validated, category);
+    let carries_number = category_carries_number(validated, category);
+    let wrapped = if carries_agreement && carries_number {
+        let agreement =
+            construction_agreement(validated, construction, lowering, agreement_override)?;
+        let number = construction_number(validated, construction, lowering, number_override)?;
+        quote! { BuildValue::#category(#category_value, #agreement, #number) }
+    } else if carries_agreement {
+        let agreement =
+            construction_agreement(validated, construction, lowering, agreement_override)?;
         quote! { BuildValue::#category(#category_value, #agreement) }
+    } else if carries_number {
+        let number = construction_number(validated, construction, lowering, number_override)?;
+        quote! { BuildValue::#category(#category_value, #number) }
     } else {
         quote! { BuildValue::#category(#category_value) }
     };
@@ -529,91 +683,80 @@ fn emit_dynamic_match(
     lowering: &Lowering,
     role: &syn::Ident,
 ) -> syn::Result<TokenStream> {
-    let number = lowering
-        .dynamic_number
-        .as_ref()
-        .ok_or_else(|| internal("dynamic number pattern is absent"))?;
     let role_value = lowering
         .role_features
         .get(&(role.to_string(), Feature::Agreement))
+        .or_else(|| lowering.field_values.get(&role.to_string()))
         .ok_or_else(|| internal("dynamic vocabulary role pattern is absent"))?;
-    let number_equation = equation(
+    let number_arms = equation(
         validated,
         construction,
         &FeaturePlace::Construction(Feature::Number),
     )
-    .unwrap();
-    let FeatureExpr::MatchVocab {
-        arms: number_arms, ..
-    } = number_equation.value()
-    else {
-        unreachable!()
-    };
-    let agreement_equation = equation(
+    .and_then(|equation| match equation.value() {
+        FeatureExpr::MatchVocab { arms, .. } => Some(arms.as_slice()),
+        FeatureExpr::Constant(_) | FeatureExpr::FromRole { .. } => None,
+    });
+    let agreement_arms = equation(
         validated,
         construction,
         &FeaturePlace::Construction(Feature::Agreement),
     )
-    .ok_or_else(|| internal("dynamic noun number requires an agreement equation"))?;
-    let FeatureExpr::MatchVocab {
-        arms: agreement_arms,
-        ..
-    } = agreement_equation.value()
-    else {
-        return Err(internal(
-            "dynamic noun number requires a parallel agreement match",
-        ));
-    };
+    .and_then(|equation| match equation.value() {
+        FeatureExpr::MatchVocab { arms, .. } => Some(arms.as_slice()),
+        FeatureExpr::Constant(_) | FeatureExpr::FromRole { .. } => None,
+    });
+    let driving_arms = number_arms
+        .or(agreement_arms)
+        .ok_or_else(|| internal("dynamic feature match has no vocab arms"))?;
     let field = field(construction, role)?;
     let terminal = terminal_path(field)?;
     let ty = terminal;
     let mut arms = Vec::new();
-    for (variant, number_value) in number_arms {
-        let agreement_value = agreement_arms
-            .iter()
-            .find(|(candidate, _)| candidate.value() == variant.value())
-            .map(|(_, value)| *value)
-            .ok_or_else(|| internal("dynamic feature maps are inconsistent"))?;
+    for (variant, _) in driving_arms {
         let variant = variant.value();
-        let number_value = feature_value(*number_value);
         let mut overrides = HashMap::new();
         overrides.insert(role.to_string(), quote! { #ty::#variant });
-        let success = emit_success_with_agreement(
+        let agreement_value = agreement_arms.and_then(|arms| {
+            arms.iter()
+                .find(|(candidate, _)| candidate.value() == variant)
+                .map(|(_, value)| *value)
+        });
+        let number_value = number_arms.and_then(|arms| {
+            arms.iter()
+                .find(|(candidate, _)| candidate.value() == variant)
+                .map(|(_, value)| *value)
+        });
+        let success = emit_success(
             validated,
             construction,
             lowering,
-            &overrides,
+            Some(&overrides),
             agreement_value,
+            number_value,
         )?;
-        arms.push(quote! { (#ty::#variant, #number_value) => #success });
+        let variant_pattern = quote! { #ty::#variant };
+        let pattern = if let Some(number_arms) = number_arms
+            && !lowering.dynamic_numbers.is_empty()
+        {
+            let number_value = number_arms
+                .iter()
+                .find(|(candidate, _)| candidate.value() == variant)
+                .map(|(_, value)| feature_value(*value))
+                .ok_or_else(|| internal("dynamic feature maps are inconsistent"))?;
+            let number_values = lowering.dynamic_numbers.iter().map(|_| &number_value);
+            quote! { (#variant_pattern, #(#number_values),*) }
+        } else {
+            variant_pattern
+        };
+        arms.push(quote! { #pattern => #success });
     }
-    Ok(quote! { match (#role_value, #number) { #(#arms,)* _ => None, } })
-}
-
-fn emit_success_with_agreement(
-    validated: &ValidatedDeclarations,
-    construction: &crate::Construction,
-    lowering: &Lowering,
-    overrides: &HashMap<String, TokenStream>,
-    agreement: FeatureValue,
-) -> syn::Result<TokenStream> {
-    let element = &construction.element.name;
-    let category = &construction.category;
-    let variant = ident(&pascal_case(&construction.name.to_string()));
-    let fields = construction
-        .element
-        .fields
-        .iter()
-        .map(|field| {
-            let name = &field.name;
-            let value = stored_value(validated, construction, lowering, name, Some(overrides))?;
-            Ok(quote! { #name: #value })
-        })
-        .collect::<syn::Result<Vec<_>>>()?;
-    let agreement = feature_value(agreement);
-    Ok(
-        quote! { Some(BuildValue::#category(#category::#variant(#element { #(#fields),* }), #agreement)) },
-    )
+    if number_arms.is_some() && !lowering.dynamic_numbers.is_empty() {
+        let numbers = &lowering.dynamic_numbers;
+        Ok(quote! { match (#role_value, #(#numbers),*) { #(#arms,)* _ => None, } })
+    } else {
+        Ok(quote! { match #role_value { #(#arms,)* _ => None, } })
+    }
 }
 
 fn stored_value(
@@ -644,15 +787,18 @@ fn construction_agreement(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
     lowering: &Lowering,
-    _overrides: Option<&HashMap<String, TokenStream>>,
+    agreement_override: Option<FeatureValue>,
 ) -> syn::Result<TokenStream> {
-    let equation = equation(
+    if let Some(agreement) = agreement_override {
+        return Ok(feature_value(agreement));
+    }
+    let output_equation = equation(
         validated,
         construction,
         &FeaturePlace::Construction(Feature::Agreement),
     )
     .ok_or_else(|| internal("agreement-carrying category construction has no agreement"))?;
-    match equation.value() {
+    match output_equation.value() {
         FeatureExpr::Constant(value) => Ok(feature_value(*value.value())),
         FeatureExpr::FromRole { role, feature } if role == "verb" => {
             let value = lowering
@@ -696,19 +842,82 @@ fn construction_agreement(
     }
 }
 
-fn dynamic_match_role(
+fn construction_number(
     validated: &ValidatedDeclarations,
     construction: &crate::Construction,
-) -> Option<syn::Ident> {
-    equation(
+    lowering: &Lowering,
+    number_override: Option<FeatureValue>,
+) -> syn::Result<TokenStream> {
+    if let Some(number) = number_override {
+        return Ok(feature_value(number));
+    }
+    let output_equation = equation(
         validated,
         construction,
         &FeaturePlace::Construction(Feature::Number),
     )
-    .and_then(|equation| match equation.value() {
-        FeatureExpr::MatchVocab { role, .. } => Some(role.clone()),
-        _ => None,
-    })
+    .ok_or_else(|| internal("number-carrying category construction has no number"))?;
+    match output_equation.value() {
+        FeatureExpr::Constant(value) => Ok(feature_value(*value.value())),
+        FeatureExpr::FromRole { role, feature } => {
+            if let Some(value) = refined_vocab_feature(validated, construction, role, *feature) {
+                return Ok(feature_value(value));
+            }
+            let source_field = field(construction, role)?;
+            if matches!(source_field.kind, FieldKind::Category(_)) {
+                let value = lowering
+                    .role_features
+                    .get(&(role.to_string(), *feature))
+                    .ok_or_else(|| internal("category number source was not bound"))?;
+                return Ok(quote! { *#value });
+            }
+            let writer = equation(
+                validated,
+                construction,
+                &FeaturePlace::Role {
+                    field: role.clone(),
+                    feature: *feature,
+                },
+            )
+            .ok_or_else(|| internal("lexical number source has no local writer"))?;
+            let FeatureExpr::MatchVocab { arms, .. } = writer.value() else {
+                return Err(internal("lexical number writer is not an exhaustive match"));
+            };
+            let ty = terminal_path(source_field)?;
+            let source = lowering
+                .field_values
+                .get(&role.to_string())
+                .ok_or_else(|| internal("lexical number source value was not bound"))?;
+            let arms = arms.iter().map(|(variant, value)| {
+                let variant = variant.value();
+                let value = feature_value(*value);
+                quote! { #ty::#variant => #value }
+            });
+            Ok(quote! { match #source { #(#arms,)* } })
+        }
+        FeatureExpr::MatchVocab { .. } => Err(internal(
+            "dynamic number must be lowered with its vocabulary match",
+        )),
+    }
+}
+
+fn dynamic_match_role(
+    validated: &ValidatedDeclarations,
+    construction: &crate::Construction,
+) -> Option<syn::Ident> {
+    [Feature::Number, Feature::Agreement]
+        .into_iter()
+        .find_map(|feature| {
+            equation(
+                validated,
+                construction,
+                &FeaturePlace::Construction(feature),
+            )
+            .and_then(|equation| match equation.value() {
+                FeatureExpr::MatchVocab { role, .. } => Some(role.clone()),
+                FeatureExpr::Constant(_) | FeatureExpr::FromRole { .. } => None,
+            })
+        })
 }
 
 fn refined_vocab_feature(
@@ -775,6 +984,90 @@ fn category_has_agreement(validated: &ValidatedDeclarations, category: &syn::Pat
             )
             .is_some()
         })
+}
+
+fn category_carries_number(validated: &ValidatedDeclarations, category: &syn::Path) -> bool {
+    number_carry_categories(validated).contains(&path_name(category))
+}
+
+fn number_carry_categories(validated: &ValidatedDeclarations) -> HashSet<String> {
+    let constructions = validated
+        .raw()
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Construction(construction) => Some(construction),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let mut carried = HashSet::new();
+    loop {
+        let before = carried.len();
+        for construction in &constructions {
+            let output_is_needed = construction
+                .form
+                .atoms
+                .iter()
+                .any(|atom| matches!(atom, FormAtom::Noun(_)))
+                || carried.contains(&path_name(&construction.category));
+            if !output_is_needed {
+                continue;
+            }
+            let Some(FeatureExpr::FromRole {
+                role,
+                feature: Feature::Number,
+            }) = equation(
+                validated,
+                construction,
+                &FeaturePlace::Construction(Feature::Number),
+            )
+            .map(crate::feature::FeatureEquation::value)
+            else {
+                continue;
+            };
+            if let Some(source) = construction
+                .element
+                .fields
+                .iter()
+                .find(|field| field.name == *role)
+                .and_then(|field| match &field.kind {
+                    FieldKind::Category(category) => Some(path_name(category)),
+                    FieldKind::Lex(_) | FieldKind::Identity(_) => None,
+                })
+            {
+                carried.insert(source);
+            }
+        }
+        if carried.len() == before {
+            return carried;
+        }
+    }
+}
+
+fn role_number_is_needed_in_build(
+    validated: &ValidatedDeclarations,
+    construction: &crate::Construction,
+    role: &syn::Ident,
+) -> bool {
+    let output_needs_number = construction
+        .form
+        .atoms
+        .iter()
+        .any(|atom| matches!(atom, FormAtom::Noun(_)))
+        || category_carries_number(validated, &construction.category);
+    output_needs_number
+        && matches!(
+            equation(
+                validated,
+                construction,
+                &FeaturePlace::Construction(Feature::Number),
+            )
+            .map(crate::feature::FeatureEquation::value),
+            Some(FeatureExpr::FromRole {
+                role: source,
+                feature: Feature::Number,
+            }) if source == role
+        )
 }
 
 fn binding_pattern(pattern: &syn::Pat) -> syn::Result<(syn::Ident, Vec<syn::Ident>)> {
@@ -924,7 +1217,295 @@ fn internal(message: &str) -> syn::Error {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use quote::ToTokens;
+    use syn::visit::Visit;
+
+    struct Binders(Vec<String>);
+
+    impl<'ast> Visit<'ast> for Binders {
+        fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
+            self.0.push(pattern.ident.to_string());
+            syn::visit::visit_pat_ident(self, pattern);
+        }
+    }
+
+    #[test]
+    fn role_derived_noun_build_guards_scanner_number_and_keeps_fallback() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::role_derived_noun_tokens()).unwrap(),
+        )
+        .unwrap();
+        let items = super::emit(&validated).expect("role-derived noun build lowers");
+        let source = items[0].tokens.to_string();
+        assert!(
+            source.contains("Leaf :: Head { head , number }"),
+            "{source}"
+        );
+        assert!(
+            source.contains("* source_number == * number"),
+            "the scanner number must equal the bound parser-domain source number: {source}"
+        );
+        assert!(
+            !source.contains("number_for_source"),
+            "build must not call a render-domain number helper: {source}"
+        );
+        assert!(
+            source.contains("head : head . clone ()"),
+            "the noun value must be propagated into the construction: {source}"
+        );
+        assert!(
+            source.contains("_ => None"),
+            "a scanner-number mismatch must retain the ordinary fallback: {source}"
+        );
+    }
+
+    #[test]
+    fn vocab_matched_number_without_noun_matches_only_the_stored_vocab() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(
+                crate::test_support::vocab_matched_number_without_noun_tokens(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let source = super::emit(&validated)
+            .expect("zero-noun vocab number match lowers")
+            .remove(0)
+            .tokens
+            .to_string();
+        assert!(
+            source.contains("Count :: One => Some") && source.contains("Count :: Many => Some"),
+            "the stored vocab alone selects the output features: {source}"
+        );
+        assert!(
+            !source.contains("dynamic number pattern is absent"),
+            "{source}"
+        );
+    }
+
+    #[test]
+    fn vocab_matched_number_constrains_every_noun_number() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(
+                crate::test_support::vocab_matched_number_with_two_nouns_tokens(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let source = super::emit(&validated)
+            .expect("two-noun vocab number match lowers")
+            .remove(0)
+            .tokens
+            .to_string();
+        assert!(source.contains("number , right_number"), "{source}");
+        assert!(
+            source.contains("Count :: One , NounNumber :: Singular , NounNumber :: Singular")
+                && source.contains("Count :: Many , NounNumber :: Plural , NounNumber :: Plural"),
+            "every noun scanner number must match the vocab-selected number: {source}"
+        );
+        assert!(source.contains("_ => None"), "{source}");
+    }
+
+    #[test]
+    fn agreement_match_with_constant_number_uses_vocab_only_dispatch() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Count { One = "one", Many = "many", }
+                codec Head {
+                    atom = noun;
+                    value_type = Head;
+                    lexical = Lexical::Head;
+                    render = render_head;
+                    build { pattern = BuildValue::Head(head); construct = head; }
+                    traversal { callback = borrowed; argument = head; call visitor::visit_head(borrowed(head)); }
+                }
+                construction only: Root {
+                    element Only { count: lex Count, head: lex Head, }
+                    derive agreement = match count {
+                        One => Values::ThirdPersonSingular,
+                        Many => Values::Bare,
+                    };
+                    derive number = Values::Singular;
+                    form only = lex(count) noun(head);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        let source = super::emit(&validated)
+            .expect("agreement-only vocab dispatch lowers")
+            .remove(0)
+            .tokens
+            .to_string();
+        assert!(
+            source.contains("Leaf :: Head { head , number : NounNumber :: Singular }")
+                && source.contains("match count")
+                && source.contains("Count :: One => Some")
+                && source.contains("Agreement :: ThirdPersonSingular")
+                && source.contains("Count :: Many => Some")
+                && source.contains("Agreement :: Bare"),
+            "agreement matching is vocab-only while noun number stays constant: {source}"
+        );
+        assert!(source.contains("_ => None"), "{source}");
+    }
+
+    #[test]
+    fn role_derived_number_guards_every_noun_scanner_value() {
+        let fixture = quote::quote! {
+            codec Head {
+                atom = noun;
+                value_type = Head;
+                lexical = Lexical::Head;
+                render = render_head;
+                build { pattern = BuildValue::Head(head); construct = head; }
+                traversal { callback = borrowed; argument = head; call visitor::visit_head(borrowed(head)); }
+            }
+            construction source: Source {
+                element SourceNode {}
+                derive number = Values::Singular;
+                form source = "source";
+            }
+            construction pair: Phrase {
+                element PairNode { source: Source, left: lex Head, right: lex Head, }
+                derive number = source.number;
+                form pair = source noun(left) noun(right);
+            }
+            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        };
+        let expansion =
+            crate::generate(fixture.clone()).expect("two FromRole nouns are backend-complete");
+        assert!(!expansion.items().is_empty());
+        let validated =
+            crate::validate_declarations(crate::parse_declarations(fixture).unwrap()).unwrap();
+        let source = super::emit(&validated)
+            .expect("two FromRole noun guards lower")
+            .remove(0)
+            .tokens
+            .to_string();
+        for fragment in [
+            "* source_number == * number",
+            "* source_number == * right_number",
+            "Leaf :: Head { head : left , number }",
+            "Leaf :: Head { head : right , number : right_number }",
+            "_ => None",
+        ] {
+            assert!(source.contains(fragment), "missing `{fragment}`: {source}");
+        }
+        assert!(!source.contains("number_for_source"), "{source}");
+    }
+
+    #[test]
+    fn refined_vocab_writer_constrains_a_category_feature_with_a_literal_pattern() {
+        let fixture = quote::quote! {
+            vocab Mode { One = "one", Many = "many", }
+            construction bare: Child {
+                element BareChild {}
+                derive agreement = Values::Bare;
+                form bare = "bare";
+            }
+            construction third: Child {
+                element ThirdChild {}
+                derive agreement = Values::ThirdPersonSingular;
+                form third = "third";
+            }
+            construction parent: Parent {
+                element ParentNode { mode: lex Mode, child: Child, }
+                require mode is One;
+                derive mode.agreement = match mode {
+                    One => Values::ThirdPersonSingular,
+                    Many => Values::Bare,
+                };
+                derive child.agreement = mode.agreement;
+                form parent = lex(mode) child;
+            }
+            root Parent { punctuation = "."; eoi = true; standalone_render = true; }
+        };
+        let validated =
+            crate::validate_declarations(crate::parse_declarations(fixture.clone()).unwrap())
+                .unwrap();
+        crate::generate(fixture).expect("a refined local writer is backend-complete");
+        let source = super::emit(&validated)
+            .expect("the refined writer lowers to a literal child pattern")
+            .remove(0)
+            .tokens
+            .to_string();
+        assert!(
+            source.contains("BuildValue :: Child (child , Agreement :: ThirdPersonSingular)"),
+            "the required Mode::One arm must constrain the child agreement: {source}"
+        );
+        assert!(!source.contains("feature source was not bound"), "{source}");
+        assert!(source.contains("_ => None"), "{source}");
+    }
+
+    #[test]
+    fn adversarial_roles_receive_unique_pattern_binders_and_exact_substitutions() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Count { One = "one", Many = "many", }
+                codec Head {
+                    atom = noun;
+                    value_type = Head;
+                    lexical = Lexical::Head;
+                    render = render_head;
+                    build { pattern = BuildValue::Head(head); construct = head; }
+                    traversal { callback = borrowed; argument = head; call visitor::visit_head(borrowed(head)); }
+                }
+                construction collision: Collision {
+                    element CollisionNode {
+                        count: lex Count,
+                        number: lex Head,
+                        right_number: lex Head,
+                    }
+                    derive number = match count {
+                        One => Values::Singular,
+                        Many => Values::Plural,
+                    };
+                    form collision = noun(number) noun(right_number) lex(count);
+                }
+                root Collision { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        let item = super::emit(&validated)
+            .expect("colliding preferred names are allocated safely")
+            .remove(0);
+        let syn::Item::Fn(function) = syn::parse2(item.tokens.clone()).unwrap() else {
+            panic!("build is a function")
+        };
+        let syn::Stmt::Expr(syn::Expr::Match(dispatch), None) = &function.block.stmts[0] else {
+            panic!("flat match dispatch")
+        };
+        let arm = dispatch
+            .arms
+            .iter()
+            .find(|arm| {
+                quote::ToTokens::to_token_stream(&arm.pat)
+                    .to_string()
+                    .contains("Collision")
+            })
+            .expect("collision rule arm");
+        let syn::Expr::Match(children) = &*arm.body else {
+            panic!("rule arm matches children")
+        };
+        let mut binders = Binders(Vec::new());
+        binders.visit_pat(&children.arms[0].pat);
+        assert_eq!(
+            binders.0.len(),
+            binders.0.iter().collect::<HashSet<_>>().len(),
+            "every binding in one child pattern must be unique: {:?}",
+            binders.0
+        );
+        let source = item.tokens.to_string();
+        assert!(source.contains("number : number . clone ()"), "{source}");
+        assert!(
+            source.contains("right_number : right_number . clone ()"),
+            "{source}"
+        );
+    }
 
     #[test]
     fn binding_build_construct_consumes_every_declared_pattern_slot() {
@@ -932,18 +1513,17 @@ mod tests {
             crate::parse_declarations(quote::quote! {
                 codec Pair {
                     atom = lex;
-                    value_type = RuntimeType;
+                    value_type = Pair;
                     lexical = Lexical::Pair;
                     render = render_runtime_type;
                     build {
                         pattern = BuildValue::Pair(left, right);
-                        construct = RuntimeType::new(left.code, (Factory::wrap(right)));
+                        construct = Pair::new(left.code, (Factory::wrap(right)));
                     }
                     traversal {
-                        part left = scalar(left);
-                        part right = scalar(right);
-                        visit left;
-                        visit right;
+                        callback = borrowed;
+                        argument = value;
+                        call visitor::visit_pair(borrowed(value));
                     }
                 }
                 construction wrapped: Root {
@@ -971,7 +1551,7 @@ mod tests {
                     BuildValue::Leaf(Leaf::Literal("!")),
                     BuildValue::Leaf(Leaf::EndOfInput)
                 ] => Some(BuildValue::Root(Root::Wrapped(Wrapped {
-                    value: RuntimeType::new(left.code, (Factory::wrap(right)))
+                    value: Pair::new(left.code, (Factory::wrap(right)))
                 }))),
                 _ => None,
             }

@@ -199,12 +199,7 @@ fn noun_number(
                 return Err(internal("noun number has an agreement value"));
             }
         },
-        FeatureExpr::MatchVocab { .. } => "Either",
-        FeatureExpr::FromRole { .. } => {
-            return Err(internal(
-                "role-derived noun number cannot project one parser request",
-            ));
-        }
+        FeatureExpr::MatchVocab { .. } | FeatureExpr::FromRole { .. } => "Either",
     };
     Ok(ident(name))
 }
@@ -296,6 +291,40 @@ fn internal(message: &str) -> syn::Error {
 #[cfg(test)]
 mod tests {
     use quote::quote;
+
+    #[test]
+    fn role_derived_noun_requests_either_number() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::role_derived_noun_tokens()).unwrap(),
+        )
+        .unwrap();
+        let generated = super::emit(&validated).expect("role-derived noun rules lower");
+        let rules = generated.last().expect("rules item").tokens.to_string();
+        assert!(
+            rules.contains("Lexical :: Head (NounNumber :: Either)"),
+            "role-derived noun must let the scanner return either number: {rules}"
+        );
+    }
+
+    #[test]
+    fn vocab_matched_number_requests_either_for_every_noun() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(
+                crate::test_support::vocab_matched_number_with_two_nouns_tokens(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let generated = super::emit(&validated).expect("two dynamic nouns lower to rules");
+        let rules = generated.last().expect("rules item").tokens.to_string();
+        assert_eq!(
+            rules
+                .matches("Lexical :: Head (NounNumber :: Either)")
+                .count(),
+            2,
+            "each noun scanner is independently unconstrained until build: {rules}"
+        );
+    }
 
     #[test]
     fn synthetic_projection_rules_have_exact_ids_rows_and_ownership() {

@@ -221,8 +221,125 @@ pub(crate) fn synthetic_projection_expansion() -> crate::Expansion {
     crate::generate(synthetic_projection_tokens()).expect("synthetic projection fixture generates")
 }
 
+pub(crate) fn role_derived_noun_tokens() -> proc_macro2::TokenStream {
+    quote! {
+        codec Head {
+            atom = noun;
+            value_type = Head;
+            lexical = Lexical::Head;
+            render = render_head;
+            build { pattern = BuildValue::Head(head); construct = head; }
+            traversal {
+                callback = borrowed;
+                argument = head;
+                call visitor::visit_head(borrowed(head));
+            }
+        }
+
+        construction source: Source {
+            element SourceNode {}
+            derive number = Values::Singular;
+            form source = "source";
+        }
+        construction phrase: Phrase {
+            element PhraseNode { source: Source, head: lex Head, }
+            derive number = source.number;
+            form phrase = source noun(head);
+        }
+
+        root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+    }
+}
+
+pub(crate) fn vocab_matched_number_without_noun_tokens() -> proc_macro2::TokenStream {
+    quote! {
+        vocab Count { One = "one", Many = "many", }
+
+        construction source: Source {
+            element SourceNode { count: lex Count, }
+            derive agreement = match count {
+                One => Values::ThirdPersonSingular,
+                Many => Values::Bare,
+            };
+            derive number = match count {
+                One => Values::Singular,
+                Many => Values::Plural,
+            };
+            form source = lex(count);
+        }
+        construction phrase: Phrase {
+            element PhraseNode { source: Source, }
+            derive agreement = source.agreement;
+            derive number = source.number;
+            form phrase = source;
+        }
+
+        root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+    }
+}
+
+pub(crate) fn vocab_matched_number_with_two_nouns_tokens() -> proc_macro2::TokenStream {
+    quote! {
+        vocab Count { One = "one", Many = "many", }
+        codec Head {
+            atom = noun;
+            value_type = Head;
+            lexical = Lexical::Head;
+            render = render_head;
+            build { pattern = BuildValue::Head(head); construct = head; }
+            traversal {
+                callback = borrowed;
+                argument = head;
+                call visitor::visit_head(borrowed(head));
+            }
+        }
+
+        construction pair: Phrase {
+            element PairNode { count: lex Count, left: lex Head, right: lex Head, }
+            derive number = match count {
+                One => Values::Singular,
+                Many => Values::Plural,
+            };
+            form pair = lex(count) noun(left) noun(right);
+        }
+
+        root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+    }
+}
+
 #[test]
 fn synthetic_projection_fixture_generates() {
     let expansion = synthetic_projection_expansion();
     assert_eq!(expansion.plan().items().len(), 45);
+}
+
+#[test]
+fn role_derived_noun_fixture_generates_all_phases() {
+    let expansion = crate::generate(role_derived_noun_tokens())
+        .expect("the accepted role-derived noun composition is backend-complete");
+    assert!(
+        expansion
+            .items()
+            .iter()
+            .any(|item| item.tokens.to_string().contains("number_for_source"))
+    );
+}
+
+#[test]
+fn vocab_matched_number_without_noun_generates_all_phases() {
+    let expansion = crate::generate(vocab_matched_number_without_noun_tokens())
+        .expect("a stored vocab match does not require a noun scanner binder");
+    let source = expansion
+        .items()
+        .iter()
+        .map(|item| item.tokens.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(source.contains("number_for_source"), "{source}");
+}
+
+#[test]
+fn vocab_matched_number_with_two_nouns_generates_all_phases() {
+    crate::generate(vocab_matched_number_with_two_nouns_tokens())
+        .expect("every dynamic noun number is lowerable");
 }

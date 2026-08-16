@@ -1427,7 +1427,7 @@ mod tests {
     }
 
     #[test]
-    fn verb_atoms_accept_fixed_paths_and_projected_roles() {
+    fn verb_parser_distinguishes_fixed_paths_from_deferred_projected_roles() {
         let declarations = parse(
             r#"
                 construction where_clause: Clause {
@@ -1457,7 +1457,7 @@ mod tests {
                 }
             "#,
         )
-        .expect("fixed verb paths and a projected lexeme role are distinct MVP operands");
+        .expect("parsing preserves fixed paths and deferred projected roles for validation");
 
         let expected_fixed = [
             "VerbLexeme :: Be",
