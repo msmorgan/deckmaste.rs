@@ -38,7 +38,8 @@ construct exists only to bridge a gap this design removes.
 ## Crates
 
 ~~~text
-deckmaste_construction   proc-macro: declaration parsing, validation, codegen
+deckmaste_construction        proc-macro façade over the core lib
+deckmaste_construction_core   declaration parsing, validation, codegen
         │ generates code inside
         ▼
 deckmaste_english_v2     generated AST + grammar, Earley chart parser,
@@ -53,6 +54,11 @@ Runtime support the proc-macro cannot export (chart engine, forest, codec
 traits, loader) lives in `deckmaste_english_v2` itself; generated code only
 ever expands inside that crate and references it by `crate::` paths. A
 separate runtime crate is minted only if a second macro consumer ever exists.
+The compiler is itself split core + façade — `deckmaste_construction_core` is
+an ordinary library (declaration parsing, validation, codegen over token
+streams; unit-testable, and the engine behind `xtask english_v2 expand`) and
+`deckmaste_construction` the thin `proc-macro = true` wrapper — because a
+proc-macro crate can export nothing but macros.
 At cutover, `deckmaste_spelling` and xtask display paths switch to v2 and the
 old `deckmaste_english` / `deckmaste_construction_compiler` crates are
 deleted; v2 then takes the `deckmaste_english` name. Shared snapshot models
@@ -369,9 +375,20 @@ the `semantics` shape and are handled separately.
    over hand-written grammar tables for the slice corpus: english_v2's only
    parser, ever. No interim parser exists at any point in the sequence;
    ordered-choice/PEG/recursive-descent stopgaps are banned outright.
-4. Declaration compiler MVP — `deckmaste_construction` generates the stage-2
-   AST/renderer/visitor diff-identical and the stage-3 grammar tables
-   diff-identical.
+4. **`english-v2-declaration-compiler`** (minted) — the compiler MVP
+   generates the stage-2 AST/renderer/visitor and the stage-3 grammar tables
+   diff-identical. Settled mechanics (2026-08-15): comparison is
+   **item-level** — the generated-item emission set, not whole files; runtime
+   residue (context, catalog loading, checked-constructor bodies, scanners,
+   morphology tables, codec value types) stays hand-written — and byte-exact
+   after both sides normalize through `syn` parse + `prettyplease::unparse`.
+   Declarations are inline function-like macro invocations; a macro never
+   reads a file. Vocab enums and their variant→word render maps generate from
+   day one; word→variant scanners and morphology join at stage 5. The stage
+   **ends with the flip**: english_v2 consumes the macro, and the golden's
+   generated items and the proof harness are deleted in the same ticket — no
+   dual grammar authority survives the stage. `xtask english_v2 expand`
+   renders the generated items for human review thereafter.
 5. Grammar buildout — style-guide-driven construction porting with the corpus
    ratchet and gates as the measure; selection pass and exception table grow
    with the first real ambiguity.
