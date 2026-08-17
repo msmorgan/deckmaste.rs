@@ -518,6 +518,18 @@ fn construction_name_v1(construction: Construction) -> String {
     format!("{construction:?}")
 }
 
+#[cfg(test)]
+fn generated_constructions_v1() -> Vec<Construction> {
+    let mut constructions = Vec::new();
+    for rule in crate::constructions::RULES {
+        let construction = rule.id.construction();
+        if !constructions.contains(&construction) {
+            constructions.push(construction);
+        }
+    }
+    constructions
+}
+
 const fn construction_name(construction: Construction) -> &'static str {
     match construction {
         Construction::AbilitySpell => "AbilitySpell",
@@ -552,6 +564,7 @@ mod tests {
     use super::SelectionResolution;
     use super::SpecificityTier;
     use super::construction_name_v1;
+    use super::generated_constructions_v1;
     use super::select_ranked;
     use super::select_with_exceptions;
     use super::selection_analysis_with_exceptions;
@@ -910,30 +923,10 @@ mod tests {
 
     #[test]
     fn selection_diagnostic_pins_every_generated_construction_name_v1() {
-        let names = [
-            Construction::AbilitySpell,
-            Construction::AbilityTriggered,
-            Construction::SentenceImperative,
-            Construction::SentenceDeclarative,
-            Construction::SentenceWithWhere,
-            Construction::ClauseEvent,
-            Construction::ClauseWhere,
-            Construction::NounPhrasePronoun,
-            Construction::NounPhraseCommon,
-            Construction::NounPhraseDemonstrative,
-            Construction::NounPhraseTarget,
-            Construction::NounPhraseSelfReference,
-            Construction::NounPhraseCount,
-            Construction::VerbPhraseDestroy,
-            Construction::VerbPhraseConnive,
-            Construction::VerbPhraseDealDamage,
-            Construction::VerbPhraseGainLife,
-            Construction::AmountNumber,
-            Construction::AmountVariable,
-        ]
-        .into_iter()
-        .map(construction_name_v1)
-        .collect::<Vec<_>>();
+        let names = generated_constructions_v1()
+            .into_iter()
+            .map(construction_name_v1)
+            .collect::<Vec<_>>();
 
         assert_eq!(
             names,
