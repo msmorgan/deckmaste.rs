@@ -118,6 +118,18 @@ impl StructuralTrace {
         &self.tokens
     }
     #[allow(dead_code, reason = "Task 6 owns the public structural trace facade.")]
+    pub(crate) fn chart(&self) -> &Bounded<ChartItem> {
+        &self.chart
+    }
+    #[allow(dead_code, reason = "Task 6 owns the public structural trace facade.")]
+    pub(crate) fn forest(&self) -> &Bounded<ForestNode> {
+        &self.forest
+    }
+    #[allow(dead_code, reason = "Task 6 owns the public structural trace facade.")]
+    pub(crate) fn accepted_roots(&self) -> &Bounded<usize> {
+        &self.accepted_roots
+    }
+    #[allow(dead_code, reason = "Task 6 owns the public structural trace facade.")]
     pub(crate) fn checked_completion_rejections(&self) -> &Bounded<CheckedCompletionRejection> {
         &self.checked_completion_rejections
     }
@@ -139,9 +151,19 @@ pub(crate) struct ForestNode {
     pub(crate) end: usize,
     pub(crate) families: Bounded<ForestFamily>,
 }
+impl ForestNode {
+    pub(crate) fn families(&self) -> &Bounded<ForestFamily> {
+        &self.families
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ForestFamily {
     pub(crate) children: Bounded<ForestChild>,
+}
+impl ForestFamily {
+    pub(crate) fn children(&self) -> &Bounded<ForestChild> {
+        &self.children
+    }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ForestChild {
