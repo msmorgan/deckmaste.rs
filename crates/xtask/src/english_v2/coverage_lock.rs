@@ -197,6 +197,13 @@ mod tests {
         let second = fs::read(&path).unwrap();
 
         assert_eq!(first, second);
+        assert_eq!(
+            fs::read_dir(directory.path())
+                .unwrap()
+                .filter_map(Result::ok)
+                .count(),
+            1,
+        );
         assert!(first.ends_with(b"\n"));
         assert!(!first.ends_with(b"\n\n"));
         let serialized = String::from_utf8(first).unwrap();
