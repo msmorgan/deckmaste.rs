@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 use super::ParseError;
 use crate::ast::Ability;
@@ -81,6 +82,35 @@ pub(crate) struct ScannedToken {
     pub(crate) end: usize,
     pub(crate) terminal_name_v1: String,
     pub(crate) value_label_v1: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct SemanticTokenInventory {
+    entries: BTreeSet<(usize, usize, String, String)>,
+}
+impl SemanticTokenInventory {
+    pub(crate) fn record(
+        &mut self,
+        start: usize,
+        end: usize,
+        terminal_name_v1: String,
+        value_label_v1: String,
+    ) {
+        self.entries
+            .insert((start, end, terminal_name_v1, value_label_v1));
+    }
+    pub(crate) fn into_bounded(self, limit: usize) -> Bounded<ScannedToken> {
+        let mut tokens = Bounded::new(limit);
+        for (start, end, terminal_name_v1, value_label_v1) in self.entries {
+            tokens.push_with(|| ScannedToken {
+                start,
+                end,
+                terminal_name_v1,
+                value_label_v1,
+            });
+        }
+        tokens
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

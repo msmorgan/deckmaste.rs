@@ -757,4 +757,91 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn structural_trace_grammar_scanner_retries_dedupes_and_keeps_overlaps() {
+        const TOKEN_TRACE_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[
+            Rule {
+                id: ToyRuleId::DirectStart,
+                lhs: ToyCategory::Start,
+                rhs: &[RulePosition::Lexical("shared")],
+            },
+            Rule {
+                id: ToyRuleId::WrapperStart,
+                lhs: ToyCategory::Start,
+                rhs: &[RulePosition::Lexical("shared")],
+            },
+        ];
+        struct TokenRecording {
+            inventory: super::super::diagnostic::SemanticTokenInventory,
+            callbacks: usize,
+        }
+        impl Observation<ToyRuleId, &'static str, &'static str> for TokenRecording {
+            fn scanned(
+                &mut self,
+                start: usize,
+                terminal: &'static str,
+                end: usize,
+                value: &&'static str,
+            ) {
+                self.callbacks += 1;
+                self.inventory
+                    .record(start, end, terminal.to_owned(), (*value).to_owned());
+            }
+        }
+        let mut recording = TokenRecording {
+            inventory: super::super::diagnostic::SemanticTokenInventory::default(),
+            callbacks: 0,
+        };
+        assert!(
+            parse_observed(
+                TOKEN_TRACE_RULES,
+                ToyCategory::Start,
+                2,
+                |terminal, start| (terminal == "shared" && start == 0)
+                    .then_some(vec![
+                        LexicalMatch {
+                            end: 1,
+                            value: "same"
+                        },
+                        LexicalMatch {
+                            end: 2,
+                            value: "overlap"
+                        }
+                    ])
+                    .unwrap_or_default(),
+                |_, _, _| true,
+                &mut recording
+            )
+            .is_ok()
+        );
+        assert_eq!(recording.callbacks, 4);
+        for (limit, expected) in [
+            (0, vec![]),
+            (1, vec![(0, 1, "shared", "same")]),
+            (
+                8,
+                vec![(0, 1, "shared", "same"), (0, 2, "shared", "overlap")],
+            ),
+        ] {
+            let bounded = recording.inventory.clone().into_bounded(limit);
+            assert_eq!(
+                (bounded.total(), bounded.shown(), bounded.omitted()),
+                (2, expected.len(), 2 - expected.len())
+            );
+            assert_eq!(
+                bounded
+                    .items()
+                    .iter()
+                    .map(|item| (
+                        item.start,
+                        item.end,
+                        item.terminal_name_v1.as_str(),
+                        item.value_label_v1.as_str()
+                    ))
+                    .collect::<Vec<_>>(),
+                expected
+            );
+        }
+    }
 }

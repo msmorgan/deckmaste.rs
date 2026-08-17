@@ -10,7 +10,7 @@ use super::diagnostic::FamilyIdentityChild;
 use super::diagnostic::ForestChild;
 use super::diagnostic::ForestFamily;
 use super::diagnostic::ForestNode;
-use super::diagnostic::ScannedToken;
+use super::diagnostic::SemanticTokenInventory;
 use super::diagnostic::StructuralTrace;
 use super::diagnostic::TraceLimits;
 use super::engine::ChartFailure;
@@ -105,7 +105,7 @@ pub(crate) fn parse_forest_observed(
 
 struct StructuralObservation {
     limit: usize,
-    tokens: BTreeSet<(usize, usize, String, String)>,
+    tokens: SemanticTokenInventory,
     chart: Bounded<ChartItem>,
     forest: Bounded<ForestNode>,
     roots: Bounded<usize>,
@@ -116,7 +116,7 @@ impl StructuralObservation {
     fn new(limits: TraceLimits) -> Self {
         Self {
             limit: limits.per_collection(),
-            tokens: BTreeSet::new(),
+            tokens: SemanticTokenInventory::default(),
             chart: Bounded::new(limits.per_collection()),
             forest: Bounded::new(limits.per_collection()),
             roots: Bounded::new(limits.per_collection()),
@@ -125,15 +125,7 @@ impl StructuralObservation {
     }
 
     fn finish(self) -> StructuralTrace {
-        let mut tokens = Bounded::new(self.limit);
-        for (start, end, terminal_name_v1, value_label_v1) in self.tokens {
-            tokens.push_with(|| ScannedToken {
-                start,
-                end,
-                terminal_name_v1,
-                value_label_v1,
-            });
-        }
+        let tokens = self.tokens.into_bounded(self.limit);
         let mut rejections = Bounded::new(self.limit);
         for (rule_name_v1, start, end, family_identity_v1) in self.rejections {
             rejections.push_with(|| CheckedCompletionRejection {
@@ -147,12 +139,12 @@ impl StructuralObservation {
     }
 
     fn record_token(&mut self, start: usize, end: usize, terminal: Lexical, value: &Leaf) {
-        self.tokens.insert((
+        self.tokens.record(
             start,
             end,
             terminal_name_v1(terminal),
             value_label_v1(value),
-        ));
+        );
     }
 }
 
