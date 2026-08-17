@@ -13,6 +13,10 @@ pub struct Declarations {
 }
 
 impl Declarations {
+    #[allow(
+        dead_code,
+        reason = "semantic rows resolve only through their owning semantic plan"
+    )]
     pub(crate) fn source_at(&self, index: usize) -> &Declaration {
         &self.declarations[index]
     }

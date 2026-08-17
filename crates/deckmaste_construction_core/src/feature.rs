@@ -152,7 +152,7 @@ impl FeatureEquation {
 
 #[cfg(test)]
 impl FeaturePlace {
-    fn snapshot(&self) -> String {
+    pub(crate) fn snapshot(&self) -> String {
         match self {
             Self::Construction(feature) => feature.snapshot().to_owned(),
             Self::Role { field, feature } => format!("{field}.{}", feature.snapshot()),
@@ -166,7 +166,13 @@ impl FeatureExpr {
         match self {
             Self::Constant(value) => value.value().snapshot().to_owned(),
             Self::FromRole { role, feature } => format!("{role}.{}", feature.snapshot()),
-            Self::MatchVocab { role, .. } => format!("match {role}"),
+            Self::MatchVocab { role, arms } => format!(
+                "match {role} {{ {} }}",
+                arms.iter()
+                    .map(|(variant, value)| format!("{} => {}", variant.value(), value.snapshot()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         }
     }
 }
@@ -183,12 +189,23 @@ impl Feature {
 
 #[cfg(test)]
 impl FeatureValue {
-    fn snapshot(self) -> &'static str {
+    pub(crate) fn snapshot(self) -> &'static str {
         match self {
             Self::Bare => "Bare",
             Self::ThirdPersonSingular => "ThirdPersonSingular",
             Self::Singular => "Singular",
             Self::Plural => "Plural",
+        }
+    }
+}
+
+#[cfg(test)]
+impl FeatureResolution {
+    pub(crate) fn snapshot(self) -> String {
+        match self {
+            Self::Known(value) => format!("Known({})", value.snapshot()),
+            Self::Runtime => "Runtime".to_owned(),
+            Self::External => "External".to_owned(),
         }
     }
 }

@@ -379,7 +379,7 @@ impl ValidatedDeclarations {
     }
 
     pub(crate) fn category_reads_feature(&self, category: &str, feature: Feature) -> bool {
-        raw_category_reads_feature(self.semantic.source(), category, feature)
+        self.semantic.category_reads_feature(category, feature)
     }
 
     pub(crate) fn feature_resolution(
@@ -471,6 +471,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     let (feature_equations, dynamic_numbers) = validate_features(&raw, &symbols)?;
     let feature_resolutions = seal_feature_resolutions(&raw, &feature_equations);
     let category_render = seal_category_render_capabilities(&raw, &feature_resolutions);
+    let category_reads = seal_category_feature_reads(&raw);
     validate_contextual_agreement_uses(&raw, &category_render)?;
     let boxed_fields = validate_category_graph(&raw);
     validate_roots(&raw, &symbols, &category_render)?;
@@ -480,12 +481,38 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             raw,
             boxed_fields,
             dynamic_numbers,
+            category_reads,
             feature_equations,
             feature_resolutions,
             category_render,
             contributions,
         ),
     })
+}
+
+fn seal_category_feature_reads(raw: &Declarations) -> HashMap<String, HashSet<Feature>> {
+    let categories = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Construction(construction) => Some(path_name(&construction.category)),
+            Declaration::Vocab(_)
+            | Declaration::Lexeme(_)
+            | Declaration::Codec(_)
+            | Declaration::Identity(_)
+            | Declaration::Root(_) => None,
+        })
+        .collect::<HashSet<_>>();
+    categories
+        .into_iter()
+        .filter_map(|category| {
+            let reads = [Feature::Agreement, Feature::Number]
+                .into_iter()
+                .filter(|feature| raw_category_reads_feature(raw, &category, *feature))
+                .collect::<HashSet<_>>();
+            (!reads.is_empty()).then_some((category, reads))
+        })
+        .collect()
 }
 
 fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
@@ -4118,6 +4145,7 @@ pub(crate) mod tests {
         clippy::too_many_lines,
         reason = "validation fixtures pin complete closed-schema diagnostics and golden input"
     )]
+    use quote::ToTokens;
     use quote::quote;
     use syn::spanned::Spanned;
 
@@ -6884,7 +6912,7 @@ pub(crate) mod tests {
             vec![
                 (
                     "leaf".to_owned(),
-                    "agreement = match mode; number = match mode".to_owned()
+                    "agreement = match mode { Solo => ThirdPersonSingular, Group => Bare }; number = match mode { Solo => Singular, Group => Plural }".to_owned()
                 ),
                 (
                     "nested".to_owned(),
@@ -6907,5 +6935,138 @@ pub(crate) mod tests {
             vec!["leaf".to_owned()]
         );
         assert_eq!(expansion.plan().items().len(), 45);
+    }
+
+    #[test]
+    fn semantic_plan_seals_source_indexes_resolutions_and_capabilities() {
+        let tokens = crate::test_support::synthetic_projection_tokens();
+        let validated = {
+            let raw = crate::parse_declarations(tokens).expect("synthetic fixture parses");
+            crate::validate_declarations(raw).expect("synthetic fixture validates")
+        };
+        let semantic = validated.semantic();
+
+        assert!(semantic.category_reads_feature("Expr", crate::feature::Feature::Agreement));
+        assert!(semantic.category_reads_feature("Expr", crate::feature::Feature::Number));
+        assert!(!semantic.category_reads_feature("Predicate", crate::feature::Feature::Agreement));
+        assert!(!semantic.category_reads_feature("Tag", crate::feature::Feature::Number));
+
+        assert_eq!(
+            semantic
+                .constructions()
+                .iter()
+                .map(|row| (
+                    row.source_index(),
+                    semantic.construction_source(row).name.to_string()
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (8, "leaf".to_owned()),
+                (9, "nested".to_owned()),
+                (10, "action".to_owned()),
+                (11, "idle".to_owned()),
+                (12, "solo".to_owned()),
+                (13, "document".to_owned()),
+            ]
+        );
+        assert_eq!(
+            semantic
+                .terminals()
+                .iter()
+                .map(|row| match row {
+                    crate::semantic::TerminalPlan::Vocab(value) => (
+                        value.source_index(),
+                        "vocab",
+                        semantic.vocab_source(value).name.to_string(),
+                    ),
+                    crate::semantic::TerminalPlan::Lexeme(value) => (
+                        value.source_index(),
+                        "lexeme",
+                        semantic.lexeme_source(value).name.to_string(),
+                    ),
+                    crate::semantic::TerminalPlan::Binding(value) => (
+                        value.source_index(),
+                        match semantic.binding_source(value).kind {
+                            crate::TerminalBindingKind::Codec => "codec",
+                            crate::TerminalBindingKind::Identity => "identity",
+                        },
+                        semantic.binding_source(value).name.to_string(),
+                    ),
+                })
+                .collect::<Vec<_>>(),
+            [
+                (0, "vocab", "Mode".to_owned()),
+                (1, "lexeme", "ObjectStem".to_owned()),
+                (2, "lexeme", "ActionStem".to_owned()),
+                (3, "codec", "Resource".to_owned()),
+                (4, "codec", "Marker".to_owned()),
+                (5, "identity", "Handle".to_owned()),
+                (6, "codec", "Pair".to_owned()),
+                (7, "identity", "Record".to_owned()),
+            ]
+        );
+        assert_eq!(
+            semantic
+                .roots()
+                .iter()
+                .map(|row| (
+                    row.source_index(),
+                    semantic
+                        .root_source(row)
+                        .category
+                        .to_token_stream()
+                        .to_string()
+                ))
+                .collect::<Vec<_>>(),
+            [(14, "Document".to_owned())]
+        );
+        assert_eq!(
+            semantic.feature_resolutions_snapshot(),
+            vec![
+                (
+                    "leaf".to_owned(),
+                    vec![
+                        ("agreement".to_owned(), "Runtime".to_owned()),
+                        ("number".to_owned(), "Runtime".to_owned())
+                    ]
+                ),
+                (
+                    "nested".to_owned(),
+                    vec![
+                        ("agreement".to_owned(), "Runtime".to_owned()),
+                        ("number".to_owned(), "Runtime".to_owned())
+                    ]
+                ),
+                (
+                    "action".to_owned(),
+                    vec![
+                        ("agreement".to_owned(), "External".to_owned()),
+                        ("verb.agreement".to_owned(), "External".to_owned())
+                    ]
+                ),
+                (
+                    "idle".to_owned(),
+                    vec![("agreement".to_owned(), "Known(Bare)".to_owned())]
+                ),
+                ("solo".to_owned(), vec![]),
+                (
+                    "document".to_owned(),
+                    vec![("predicate.agreement".to_owned(), "Runtime".to_owned())]
+                ),
+            ]
+        );
+        assert_eq!(
+            semantic.category_render_capabilities_snapshot(),
+            vec![
+                ("Document".to_owned(), false, false, true),
+                ("Expr".to_owned(), true, false, false),
+                ("Predicate".to_owned(), true, true, false),
+                ("Tag".to_owned(), false, false, false),
+            ]
+        );
+
+        let emission = crate::plan::plan_emission(&validated)
+            .expect("the already validated semantic plan emits");
+        assert_eq!(emission.items().len(), 45);
     }
 }

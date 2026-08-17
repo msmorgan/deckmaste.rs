@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::feature;
+use crate::feature::Feature;
 use crate::model::Declaration;
 use crate::model::Declarations;
 #[cfg(test)]
@@ -104,6 +105,7 @@ pub(crate) struct RootPlan {
 pub(crate) struct FeaturePlan {
     boxed_fields: HashSet<(String, String)>,
     dynamic_numbers: HashSet<String>,
+    category_reads: HashMap<String, HashSet<Feature>>,
     equations: HashMap<String, Vec<feature::FeatureEquation>>,
     resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
     category_render: HashMap<String, CategoryRenderCapability>,
@@ -118,6 +120,7 @@ impl SemanticPlan {
         source: Declarations,
         boxed_fields: HashSet<(String, String)>,
         dynamic_numbers: HashSet<String>,
+        category_reads: HashMap<String, HashSet<Feature>>,
         equations: HashMap<String, Vec<feature::FeatureEquation>>,
         resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
         category_render: HashMap<String, CategoryRenderCapability>,
@@ -195,6 +198,7 @@ impl SemanticPlan {
             features: FeaturePlan {
                 boxed_fields,
                 dynamic_numbers,
+                category_reads,
                 equations,
                 resolutions,
                 category_render,
@@ -262,6 +266,13 @@ impl SemanticPlan {
             .unwrap_or_default()
     }
 
+    pub(crate) fn category_reads_feature(&self, category: &str, feature: Feature) -> bool {
+        self.features
+            .category_reads
+            .get(category)
+            .is_some_and(|features| features.contains(&feature))
+    }
+
     pub(crate) fn boxed_fields(&self) -> &HashSet<(String, String)> {
         &self.features.boxed_fields
     }
@@ -272,6 +283,61 @@ impl SemanticPlan {
 
     pub(crate) fn contributions(&self) -> &ContributionInventory {
         &self.contributions
+    }
+
+    #[allow(
+        dead_code,
+        reason = "future emitters resolve source rows through their owning plan"
+    )]
+    pub(crate) fn construction_source(&self, row: &ConstructionPlan) -> &crate::Construction {
+        match self.source.source_at(row.source_index) {
+            Declaration::Construction(value) => value,
+            _ => unreachable!("construction semantic row points at its construction source"),
+        }
+    }
+
+    #[allow(
+        dead_code,
+        reason = "future emitters resolve source rows through their owning plan"
+    )]
+    pub(crate) fn vocab_source(&self, row: &VocabPlan) -> &crate::Vocab {
+        match self.source.source_at(row.source_index) {
+            Declaration::Vocab(value) => value,
+            _ => unreachable!("vocab semantic row points at its vocab source"),
+        }
+    }
+
+    #[allow(
+        dead_code,
+        reason = "future emitters resolve source rows through their owning plan"
+    )]
+    pub(crate) fn lexeme_source(&self, row: &LexemePlan) -> &crate::Lexeme {
+        match self.source.source_at(row.source_index) {
+            Declaration::Lexeme(value) => value,
+            _ => unreachable!("lexeme semantic row points at its lexeme source"),
+        }
+    }
+
+    #[allow(
+        dead_code,
+        reason = "future emitters resolve source rows through their owning plan"
+    )]
+    pub(crate) fn binding_source(&self, row: &BindingPlan) -> &crate::TerminalBinding {
+        match self.source.source_at(row.source_index) {
+            Declaration::Codec(value) | Declaration::Identity(value) => value,
+            _ => unreachable!("binding semantic row points at its binding source"),
+        }
+    }
+
+    #[allow(
+        dead_code,
+        reason = "future emitters resolve source rows through their owning plan"
+    )]
+    pub(crate) fn root_source(&self, row: &RootPlan) -> &crate::Root {
+        match self.source.source_at(row.source_index) {
+            Declaration::Root(value) => value,
+            _ => unreachable!("root semantic row points at its root source"),
+        }
     }
 
     #[cfg(test)]
@@ -336,6 +402,44 @@ impl SemanticPlan {
             dynamic_number_constructions,
         }
     }
+
+    #[cfg(test)]
+    pub(crate) fn feature_resolutions_snapshot(&self) -> Vec<(String, Vec<(String, String)>)> {
+        self.constructions
+            .iter()
+            .map(|construction| {
+                let mut resolutions = self
+                    .features
+                    .resolutions
+                    .get(&construction.construction_id)
+                    .into_iter()
+                    .flat_map(|resolutions| resolutions.iter())
+                    .map(|(place, resolution)| (place.snapshot(), resolution.snapshot()))
+                    .collect::<Vec<_>>();
+                resolutions.sort();
+                (construction.construction_id.clone(), resolutions)
+            })
+            .collect()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn category_render_capabilities_snapshot(&self) -> Vec<(String, bool, bool, bool)> {
+        let mut capabilities = self
+            .features
+            .category_render
+            .iter()
+            .map(|(category, capability)| {
+                (
+                    category.clone(),
+                    capability.carries_agreement(),
+                    capability.requires_external_agreement(),
+                    capability.requires_context(),
+                )
+            })
+            .collect::<Vec<_>>();
+        capabilities.sort();
+        capabilities
+    }
 }
 
 impl ConstructionPlan {
@@ -358,13 +462,10 @@ impl ConstructionPlan {
 
     #[allow(
         dead_code,
-        reason = "future emitters resolve source rows through this typed accessor"
+        reason = "future emitters retain source order through this index"
     )]
-    pub(crate) fn source<'a>(&self, source: &'a Declarations) -> &'a crate::Construction {
-        match source.source_at(self.source_index) {
-            Declaration::Construction(value) => value,
-            _ => unreachable!("construction semantic row points at its construction source"),
-        }
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
     }
 }
 
@@ -416,52 +517,40 @@ impl TerminalPlan {
 impl VocabPlan {
     #[allow(
         dead_code,
-        reason = "future emitters resolve source rows through this typed accessor"
+        reason = "future emitters retain source order through this index"
     )]
-    pub(crate) fn source<'a>(&self, source: &'a Declarations) -> &'a crate::Vocab {
-        match source.source_at(self.source_index) {
-            Declaration::Vocab(value) => value,
-            _ => unreachable!("vocab semantic row points at its vocab source"),
-        }
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
     }
 }
 
 impl LexemePlan {
     #[allow(
         dead_code,
-        reason = "future emitters resolve source rows through this typed accessor"
+        reason = "future emitters retain source order through this index"
     )]
-    pub(crate) fn source<'a>(&self, source: &'a Declarations) -> &'a crate::Lexeme {
-        match source.source_at(self.source_index) {
-            Declaration::Lexeme(value) => value,
-            _ => unreachable!("lexeme semantic row points at its lexeme source"),
-        }
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
     }
 }
 
 impl BindingPlan {
     #[allow(
         dead_code,
-        reason = "future emitters resolve source rows through this typed accessor"
+        reason = "future emitters retain source order through this index"
     )]
-    pub(crate) fn source<'a>(&self, source: &'a Declarations) -> &'a crate::TerminalBinding {
-        match source.source_at(self.source_index) {
-            Declaration::Codec(value) | Declaration::Identity(value) => value,
-            _ => unreachable!("binding semantic row points at its binding source"),
-        }
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
     }
 }
 
 impl RootPlan {
     #[allow(
         dead_code,
-        reason = "future emitters resolve source rows through this typed accessor"
+        reason = "future emitters retain source order through this index"
     )]
-    pub(crate) fn source<'a>(&self, source: &'a Declarations) -> &'a crate::Root {
-        match source.source_at(self.source_index) {
-            Declaration::Root(value) => value,
-            _ => unreachable!("root semantic row points at its root source"),
-        }
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
     }
 }
 
