@@ -39,6 +39,10 @@ impl<T> Bounded<T> {
         }
     }
 
+    #[allow(
+        dead_code,
+        reason = "Tests exercise eager insertion alongside the production lazy seam."
+    )]
     pub(crate) fn push(&mut self, item: T) {
         self.total += 1;
         if self.items.len() < self.limit {

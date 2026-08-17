@@ -127,7 +127,7 @@ impl StructuralObservation {
     fn finish(self) -> StructuralTrace {
         let mut tokens = Bounded::new(self.limit);
         for (start, end, terminal_name_v1, value_label_v1) in self.tokens {
-            tokens.push(ScannedToken {
+            tokens.push_with(|| ScannedToken {
                 start,
                 end,
                 terminal_name_v1,
