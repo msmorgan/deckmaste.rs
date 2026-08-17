@@ -61,6 +61,13 @@ impl<R, T> Forest<R, T> {
         self.accepted_roots.iter().copied()
     }
 
+    pub(crate) fn nodes(&self) -> impl Iterator<Item = (NodeId, &PackedNode<R, T>)> {
+        self.nodes
+            .iter()
+            .enumerate()
+            .map(|(index, node)| (NodeId(index), node))
+    }
+
     #[cfg(test)]
     pub(crate) fn from_test_parts(
         nodes: Vec<PackedNode<R, T>>,
@@ -79,20 +86,71 @@ pub(crate) struct ChartFailure<N, L> {
     pub live: BTreeSet<RulePosition<N, L>>,
 }
 
+pub(crate) trait Observation<R, T> {
+    fn scanned(&mut self, _start: usize, _terminal: &str, _end: usize, _value: &T) {}
+    fn checked_completion(
+        &mut self,
+        _rule: R,
+        _start: usize,
+        _end: usize,
+        _family: &Family<T>,
+        _accepted: bool,
+    ) {
+    }
+    fn chart_item(
+        &mut self,
+        _column: usize,
+        _rule: R,
+        _dot: usize,
+        _origin: usize,
+        _family_count: usize,
+    ) {
+    }
+}
+
+impl<R, T> Observation<R, T> for () {}
+
 pub(crate) fn parse<N, L, R, T, Scan, ValidateCompletion>(
+    rules: &'static [Rule<N, L, R>],
+    start: N,
+    input_length: usize,
+    scan: Scan,
+    validate_completion: ValidateCompletion,
+) -> Result<Forest<R, T>, ChartFailure<N, L>>
+where
+    N: Copy + Eq + Ord + 'static,
+    L: Copy + Eq + Ord + std::fmt::Debug + 'static,
+    R: Copy + Eq,
+    T: Clone + Eq,
+    Scan: FnMut(L, usize) -> Vec<LexicalMatch<T>>,
+    ValidateCompletion: FnMut(R, &Family<T>, &Forest<R, T>) -> bool,
+{
+    parse_observed(
+        rules,
+        start,
+        input_length,
+        scan,
+        validate_completion,
+        &mut (),
+    )
+}
+
+pub(crate) fn parse_observed<N, L, R, T, Scan, ValidateCompletion, O>(
     rules: &'static [Rule<N, L, R>],
     start: N,
     input_length: usize,
     mut scan: Scan,
     mut validate_completion: ValidateCompletion,
+    observation: &mut O,
 ) -> Result<Forest<R, T>, ChartFailure<N, L>>
 where
     N: Copy + Eq + Ord + 'static,
-    L: Copy + Eq + Ord + 'static,
+    L: Copy + Eq + Ord + std::fmt::Debug + 'static,
     R: Copy + Eq,
     T: Clone + Eq,
     Scan: FnMut(L, usize) -> Vec<LexicalMatch<T>>,
     ValidateCompletion: FnMut(R, &Family<T>, &Forest<R, T>) -> bool,
+    O: Observation<R, T>,
 {
     let mut forest = Forest {
         nodes: Vec::new(),
@@ -112,7 +170,9 @@ where
     while let Some((column, (rule_index, dot, origin), family)) = agenda.pop_front() {
         let rule = &rules[rule_index];
         if dot == rule.rhs.len() {
-            if !validate_completion(rule.id, &family, &forest) {
+            let accepted = validate_completion(rule.id, &family, &forest);
+            observation.checked_completion(rule.id, origin, column, &family, accepted);
+            if !accepted {
                 continue;
             }
             let node_id = forest
@@ -212,6 +272,12 @@ where
                     if !(column..=input_length).contains(&lexical_match.end) {
                         continue;
                     }
+                    observation.scanned(
+                        column,
+                        &format!("{lexical:?}"),
+                        lexical_match.end,
+                        &lexical_match.value,
+                    );
                     let mut children = family.children.clone();
                     children.push(Child::Lexical(lexical_match.value));
                     insert_item(
@@ -223,6 +289,12 @@ where
                     );
                 }
             }
+        }
+    }
+
+    for (column, items) in chart.iter().enumerate() {
+        for (&(rule_index, dot, origin), families) in items {
+            observation.chart_item(column, rules[rule_index].id, dot, origin, families.len());
         }
     }
 

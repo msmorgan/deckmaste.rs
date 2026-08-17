@@ -1,9 +1,25 @@
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+
 use deckmaste_catalogs::CatalogKind;
 
+use super::diagnostic::Bounded;
+use super::diagnostic::ChartItem;
+use super::diagnostic::CheckedCompletionRejection;
+use super::diagnostic::ForestChild;
+use super::diagnostic::ForestFamily;
+use super::diagnostic::ForestNode;
+use super::diagnostic::ScannedToken;
+use super::diagnostic::StructuralTrace;
+use super::diagnostic::TraceLimits;
 use super::engine::ChartFailure;
+use super::engine::Child;
+use super::engine::Family;
 use super::engine::Forest;
 use super::engine::LexicalMatch;
+use super::engine::Observation;
 use super::engine::parse;
+use super::engine::parse_observed;
 use super::lexical::Lexical;
 use super::lexical::NounNumber;
 use super::materialize::completion_has_checked_build;
@@ -64,6 +80,146 @@ pub(crate) fn parse_forest(
         |lexical, offset| grammar.scan(lexical, text, offset),
         |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),
     )
+}
+
+type ObservedForestResult = Result<Forest<RuleId, Leaf>, ChartFailure<Category, Lexical>>;
+
+pub(crate) fn parse_forest_observed(
+    grammar: &SliceGrammar<'_>,
+    text: &str,
+    limits: TraceLimits,
+) -> (ObservedForestResult, StructuralTrace) {
+    let mut observation = StructuralObservation::new(limits);
+    let result = parse_observed(
+        RULES,
+        Category::Ability,
+        text.len(),
+        |lexical, offset| grammar.scan(lexical, text, offset),
+        |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),
+        &mut observation,
+    );
+    let trace = observation.finish(result.as_ref().ok());
+    (result, trace)
+}
+
+struct StructuralObservation {
+    limit: usize,
+    tokens: BTreeSet<(usize, usize, String, String)>,
+    chart: Vec<ChartItem>,
+    rejections: BTreeMap<(String, usize, usize, String), CheckedCompletionRejection>,
+}
+
+impl StructuralObservation {
+    fn new(limits: TraceLimits) -> Self {
+        Self {
+            limit: limits.per_collection(),
+            tokens: BTreeSet::new(),
+            chart: Vec::new(),
+            rejections: BTreeMap::new(),
+        }
+    }
+
+    fn finish(self, forest: Option<&Forest<RuleId, Leaf>>) -> StructuralTrace {
+        let mut tokens = Bounded::new(self.limit);
+        for (start, end, terminal_name_v1, value_label_v1) in self.tokens {
+            tokens.push(ScannedToken {
+                start,
+                end,
+                terminal_name_v1,
+                value_label_v1,
+            });
+        }
+        let mut chart = Bounded::new(self.limit);
+        for item in self.chart {
+            chart.push(item);
+        }
+        let mut nodes = Bounded::new(self.limit);
+        let mut roots = Bounded::new(self.limit);
+        if let Some(forest) = forest {
+            for root in forest.accepted_root_ids() {
+                roots.push(root.0);
+            }
+            for (id, node) in forest.nodes() {
+                let mut families = Bounded::new(self.limit);
+                for family in &node.families {
+                    let mut children = Bounded::new(self.limit);
+                    for child in &family.children {
+                        children.push(match child {
+                            Child::Node(id) => ForestChild {
+                                node_id: Some(id.0),
+                                value_label_v1: None,
+                            },
+                            Child::Lexical(value) => ForestChild {
+                                node_id: None,
+                                value_label_v1: Some(format!("{value:?}")),
+                            },
+                        });
+                    }
+                    families.push(ForestFamily { children });
+                }
+                nodes.push(ForestNode {
+                    id: id.0,
+                    rule_name_v1: format!("{:?}", node.rule),
+                    start: node.start,
+                    end: node.end,
+                    families,
+                });
+            }
+        }
+        let mut rejections = Bounded::new(self.limit);
+        for (_, rejection) in self.rejections {
+            rejections.push(rejection);
+        }
+        StructuralTrace::new(tokens, chart, nodes, roots, rejections)
+    }
+}
+
+impl Observation<RuleId, Leaf> for StructuralObservation {
+    fn scanned(&mut self, start: usize, terminal: &str, end: usize, value: &Leaf) {
+        self.tokens
+            .insert((start, end, terminal.to_owned(), format!("{value:?}")));
+    }
+
+    fn checked_completion(
+        &mut self,
+        rule: RuleId,
+        start: usize,
+        end: usize,
+        family: &Family<Leaf>,
+        accepted: bool,
+    ) {
+        let key = (format!("{rule:?}"), start, end, format!("{family:?}"));
+        if accepted {
+            self.rejections.remove(&key);
+        } else {
+            self.rejections.insert(
+                key.clone(),
+                CheckedCompletionRejection {
+                    rule_name_v1: key.0.clone(),
+                    start,
+                    end,
+                    family_identity_v1: key.3.clone(),
+                },
+            );
+        }
+    }
+
+    fn chart_item(
+        &mut self,
+        column: usize,
+        rule: RuleId,
+        dot: usize,
+        origin: usize,
+        family_count: usize,
+    ) {
+        self.chart.push(ChartItem {
+            column,
+            rule_name_v1: format!("{rule:?}"),
+            dot,
+            origin,
+            family_count,
+        });
+    }
 }
 
 impl SliceGrammar<'_> {

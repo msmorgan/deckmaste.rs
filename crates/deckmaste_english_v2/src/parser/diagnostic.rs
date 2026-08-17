@@ -3,6 +3,148 @@ use std::cmp::Ordering;
 use super::ParseError;
 use crate::ast::Ability;
 
+/// The independent retention cap for each repeated diagnostic collection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TraceLimits {
+    per_collection: usize,
+}
+
+impl TraceLimits {
+    #[must_use]
+    pub const fn new(per_collection: usize) -> Self {
+        Self { per_collection }
+    }
+
+    #[must_use]
+    pub const fn per_collection(self) -> usize {
+        self.per_collection
+    }
+}
+
+/// A prefix-retained collection with exact, untruncated accounting.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Bounded<T> {
+    total: usize,
+    items: Vec<T>,
+    limit: usize,
+}
+
+impl<T> Bounded<T> {
+    #[must_use]
+    pub(crate) fn new(limit: usize) -> Self {
+        Self {
+            total: 0,
+            items: Vec::new(),
+            limit,
+        }
+    }
+
+    pub(crate) fn push(&mut self, item: T) {
+        self.total += 1;
+        if self.items.len() < self.limit {
+            self.items.push(item);
+        }
+    }
+
+    #[must_use]
+    pub const fn total(&self) -> usize {
+        self.total
+    }
+    #[must_use]
+    pub fn shown(&self) -> usize {
+        self.items.len()
+    }
+    #[must_use]
+    pub fn omitted(&self) -> usize {
+        self.total - self.shown()
+    }
+    #[must_use]
+    pub fn items(&self) -> &[T] {
+        &self.items
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ScannedToken {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) terminal_name_v1: String,
+    pub(crate) value_label_v1: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StructuralTrace {
+    tokens: Bounded<ScannedToken>,
+    chart: Bounded<ChartItem>,
+    forest: Bounded<ForestNode>,
+    accepted_roots: Bounded<usize>,
+    checked_completion_rejections: Bounded<CheckedCompletionRejection>,
+}
+
+impl StructuralTrace {
+    pub(crate) fn empty() -> Self {
+        Self {
+            tokens: Bounded::new(0),
+            chart: Bounded::new(0),
+            forest: Bounded::new(0),
+            accepted_roots: Bounded::new(0),
+            checked_completion_rejections: Bounded::new(0),
+        }
+    }
+    pub(crate) fn new(
+        tokens: Bounded<ScannedToken>,
+        chart: Bounded<ChartItem>,
+        forest: Bounded<ForestNode>,
+        accepted_roots: Bounded<usize>,
+        checked_completion_rejections: Bounded<CheckedCompletionRejection>,
+    ) -> Self {
+        Self {
+            tokens,
+            chart,
+            forest,
+            accepted_roots,
+            checked_completion_rejections,
+        }
+    }
+    #[allow(dead_code, reason = "Task 6 owns the public structural trace facade.")]
+    pub(crate) fn tokens(&self) -> &Bounded<ScannedToken> {
+        &self.tokens
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ChartItem {
+    pub(crate) column: usize,
+    pub(crate) rule_name_v1: String,
+    pub(crate) dot: usize,
+    pub(crate) origin: usize,
+    pub(crate) family_count: usize,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ForestNode {
+    pub(crate) id: usize,
+    pub(crate) rule_name_v1: String,
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) families: Bounded<ForestFamily>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ForestFamily {
+    pub(crate) children: Bounded<ForestChild>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ForestChild {
+    pub(crate) node_id: Option<usize>,
+    pub(crate) value_label_v1: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedCompletionRejection {
+    pub(crate) rule_name_v1: String,
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) family_identity_v1: String,
+}
+
 /// The provisional Stage 4 specificity assigned to one materialized position.
 ///
 /// Future generated specificity metadata must preserve this diagnostic meaning
@@ -258,6 +400,7 @@ impl ParseAnalysis {
 mod tests {
     use std::collections::BTreeSet;
 
+    use super::Bounded;
     use super::InternalFailureKind;
     use super::ParseAnalysis;
     use super::ParseAnalysisOutcome;
@@ -295,5 +438,19 @@ mod tests {
             ParseAnalysisOutcome::InternalFailure(InternalFailureKind::SelectionConfiguration)
         );
         assert_eq!(parse_failure.outcome(), ParseAnalysisOutcome::ParseFailure);
+    }
+
+    #[test]
+    fn structural_trace_bounded_collector_keeps_exact_counts_and_prefix_only() {
+        let mut bounded = Bounded::new(1);
+        bounded.push("first".to_owned());
+        bounded.push("second".to_owned());
+        assert_eq!(bounded.total(), 2);
+        assert_eq!(bounded.shown(), 1);
+        assert_eq!(bounded.omitted(), 1);
+        assert_eq!(bounded.items(), ["first"]);
+
+        let zero = Bounded::<String>::new(0);
+        assert_eq!((zero.total(), zero.shown(), zero.omitted()), (0, 0, 0));
     }
 }

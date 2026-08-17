@@ -2,6 +2,7 @@ use engine::ChartFailure;
 use materialize::materialize;
 use scan::SliceGrammar;
 use scan::parse_forest;
+use scan::parse_forest_observed;
 use selection::analyze_selection;
 
 use crate::ast::Ability;
@@ -56,6 +57,7 @@ mod tests {
 }
 }
 
+pub use diagnostic::Bounded;
 pub use diagnostic::InternalFailureKind;
 pub use diagnostic::ParseAnalysis;
 pub use diagnostic::ParseAnalysisOutcome;
@@ -65,6 +67,7 @@ pub use diagnostic::SelectionDecision;
 pub use diagnostic::SelectionDecisive;
 pub use diagnostic::SelectionResolution;
 pub use diagnostic::SpecificityTier;
+pub use diagnostic::TraceLimits;
 pub use error::Expectation;
 pub use error::NonterminalCategory;
 pub use error::ParseError;
@@ -101,11 +104,40 @@ impl Parser {
     /// Parses one complete ability and retains its complete selection decision.
     #[must_use]
     pub fn analyze(&self, text: &str, context: &ParseContext<'_>) -> ParseAnalysis {
+        self.analyze_with_trace(text, context, None).0
+    }
+
+    #[allow(
+        dead_code,
+        reason = "Task 6 exposes this internal trace seam publicly."
+    )]
+    pub(crate) fn observe_structural(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+        limits: TraceLimits,
+    ) -> (ParseAnalysis, diagnostic::StructuralTrace) {
+        self.analyze_with_trace(text, context, Some(limits))
+    }
+
+    fn analyze_with_trace(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+        limits: Option<TraceLimits>,
+    ) -> (ParseAnalysis, diagnostic::StructuralTrace) {
         let grammar = SliceGrammar {
             catalogs: &self.catalogs,
             context,
         };
-        let result = parse_forest(&grammar, text)
+        let (forest, trace) = match limits {
+            Some(limits) => parse_forest_observed(&grammar, text, limits),
+            None => (
+                parse_forest(&grammar, text),
+                diagnostic::StructuralTrace::empty(),
+            ),
+        };
+        let result = forest
             .map_err(|failure| chart_failure(text, failure))
             .and_then(|forest| {
                 let selection = analyze_selection(materialize(&forest, context))?;
@@ -115,10 +147,38 @@ impl Parser {
                 });
                 Ok((result, decision))
             });
-        match result {
+        let analysis = match result {
             Ok((result, decision)) => ParseAnalysis::from_result(result, decision),
             Err(error) => ParseAnalysis::from_result(Err(error), None),
-        }
+        };
+        (analysis, trace)
+    }
+}
+
+#[cfg(test)]
+mod structural_trace_tests {
+    use std::path::Path;
+
+    use super::Parser;
+    use super::TraceLimits;
+    use crate::catalogs::ParserCatalogs;
+    use crate::context::ParseContext;
+
+    #[test]
+    fn structural_trace_observation_is_repeatable_and_inert() {
+        let catalogs = ParserCatalogs::load(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
+        )
+        .expect("canonical generated catalogs load");
+        let parser = Parser::new(catalogs);
+        let context = ParseContext::new("Trace Card").expect("valid context");
+        let text = "Whenever a player connives, you gain X life.";
+        let (analysis, first) = parser.observe_structural(text, &context, TraceLimits::new(1));
+        let (_, second) = parser.observe_structural(text, &context, TraceLimits::new(1));
+        assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
+        assert_eq!(first, second);
+        assert_eq!(first.tokens().total(), 11);
+        assert_eq!(first.tokens().shown(), 1);
     }
 }
 
