@@ -46,6 +46,13 @@ impl<T> Bounded<T> {
         }
     }
 
+    pub(crate) fn push_with(&mut self, make_item: impl FnOnce() -> T) {
+        self.total += 1;
+        if self.items.len() < self.limit {
+            self.items.push(make_item());
+        }
+    }
+
     #[must_use]
     pub const fn total(&self) -> usize {
         self.total

@@ -86,8 +86,8 @@ pub(crate) struct ChartFailure<N, L> {
     pub live: BTreeSet<RulePosition<N, L>>,
 }
 
-pub(crate) trait Observation<R, T> {
-    fn scanned(&mut self, _start: usize, _terminal: &str, _end: usize, _value: &T) {}
+pub(crate) trait Observation<R, T, L> {
+    fn scanned(&mut self, _start: usize, _terminal: L, _end: usize, _value: &T) {}
     fn checked_completion(
         &mut self,
         _rule: R,
@@ -106,9 +106,10 @@ pub(crate) trait Observation<R, T> {
         _family_count: usize,
     ) {
     }
+    fn final_forest(&mut self, _forest: &Forest<R, T>) {}
 }
 
-impl<R, T> Observation<R, T> for () {}
+impl<R, T, L> Observation<R, T, L> for () {}
 
 pub(crate) fn parse<N, L, R, T, Scan, ValidateCompletion>(
     rules: &'static [Rule<N, L, R>],
@@ -150,7 +151,7 @@ where
     T: Clone + Eq,
     Scan: FnMut(L, usize) -> Vec<LexicalMatch<T>>,
     ValidateCompletion: FnMut(R, &Family<T>, &Forest<R, T>) -> bool,
-    O: Observation<R, T>,
+    O: Observation<R, T, L>,
 {
     let mut forest = Forest {
         nodes: Vec::new(),
@@ -272,12 +273,7 @@ where
                     if !(column..=input_length).contains(&lexical_match.end) {
                         continue;
                     }
-                    observation.scanned(
-                        column,
-                        &format!("{lexical:?}"),
-                        lexical_match.end,
-                        &lexical_match.value,
-                    );
+                    observation.scanned(column, lexical, lexical_match.end, &lexical_match.value);
                     let mut children = family.children.clone();
                     children.push(Child::Lexical(lexical_match.value));
                     insert_item(
@@ -297,6 +293,7 @@ where
             observation.chart_item(column, rules[rule_index].id, dot, origin, families.len());
         }
     }
+    observation.final_forest(&forest);
 
     if forest.accepted_roots.is_empty() {
         Err(chart_failure(&chart, rules))

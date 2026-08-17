@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 use deckmaste_catalogs::CatalogKind;
@@ -98,15 +97,17 @@ pub(crate) fn parse_forest_observed(
         |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),
         &mut observation,
     );
-    let trace = observation.finish(result.as_ref().ok());
+    let trace = observation.finish();
     (result, trace)
 }
 
 struct StructuralObservation {
     limit: usize,
     tokens: BTreeSet<(usize, usize, String, String)>,
-    chart: Vec<ChartItem>,
-    rejections: BTreeMap<(String, usize, usize, String), CheckedCompletionRejection>,
+    chart: Bounded<ChartItem>,
+    forest: Bounded<ForestNode>,
+    roots: Bounded<usize>,
+    rejections: BTreeSet<(String, usize, usize, String)>,
 }
 
 impl StructuralObservation {
@@ -114,12 +115,14 @@ impl StructuralObservation {
         Self {
             limit: limits.per_collection(),
             tokens: BTreeSet::new(),
-            chart: Vec::new(),
-            rejections: BTreeMap::new(),
+            chart: Bounded::new(limits.per_collection()),
+            forest: Bounded::new(limits.per_collection()),
+            roots: Bounded::new(limits.per_collection()),
+            rejections: BTreeSet::new(),
         }
     }
 
-    fn finish(self, forest: Option<&Forest<RuleId, Leaf>>) -> StructuralTrace {
+    fn finish(self) -> StructuralTrace {
         let mut tokens = Bounded::new(self.limit);
         for (start, end, terminal_name_v1, value_label_v1) in self.tokens {
             tokens.push(ScannedToken {
@@ -129,55 +132,23 @@ impl StructuralObservation {
                 value_label_v1,
             });
         }
-        let mut chart = Bounded::new(self.limit);
-        for item in self.chart {
-            chart.push(item);
-        }
-        let mut nodes = Bounded::new(self.limit);
-        let mut roots = Bounded::new(self.limit);
-        if let Some(forest) = forest {
-            for root in forest.accepted_root_ids() {
-                roots.push(root.0);
-            }
-            for (id, node) in forest.nodes() {
-                let mut families = Bounded::new(self.limit);
-                for family in &node.families {
-                    let mut children = Bounded::new(self.limit);
-                    for child in &family.children {
-                        children.push(match child {
-                            Child::Node(id) => ForestChild {
-                                node_id: Some(id.0),
-                                value_label_v1: None,
-                            },
-                            Child::Lexical(value) => ForestChild {
-                                node_id: None,
-                                value_label_v1: Some(format!("{value:?}")),
-                            },
-                        });
-                    }
-                    families.push(ForestFamily { children });
-                }
-                nodes.push(ForestNode {
-                    id: id.0,
-                    rule_name_v1: format!("{:?}", node.rule),
-                    start: node.start,
-                    end: node.end,
-                    families,
-                });
-            }
-        }
         let mut rejections = Bounded::new(self.limit);
-        for (_, rejection) in self.rejections {
-            rejections.push(rejection);
+        for (rule_name_v1, start, end, family_identity_v1) in self.rejections {
+            rejections.push_with(|| CheckedCompletionRejection {
+                rule_name_v1,
+                start,
+                end,
+                family_identity_v1,
+            });
         }
-        StructuralTrace::new(tokens, chart, nodes, roots, rejections)
+        StructuralTrace::new(tokens, self.chart, self.forest, self.roots, rejections)
     }
 }
 
-impl Observation<RuleId, Leaf> for StructuralObservation {
-    fn scanned(&mut self, start: usize, terminal: &str, end: usize, value: &Leaf) {
+impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
+    fn scanned(&mut self, start: usize, terminal: Lexical, end: usize, value: &Leaf) {
         self.tokens
-            .insert((start, end, terminal.to_owned(), format!("{value:?}")));
+            .insert((start, end, format!("{terminal:?}"), format!("{value:?}")));
     }
 
     fn checked_completion(
@@ -192,15 +163,7 @@ impl Observation<RuleId, Leaf> for StructuralObservation {
         if accepted {
             self.rejections.remove(&key);
         } else {
-            self.rejections.insert(
-                key.clone(),
-                CheckedCompletionRejection {
-                    rule_name_v1: key.0.clone(),
-                    start,
-                    end,
-                    family_identity_v1: key.3.clone(),
-                },
-            );
+            self.rejections.insert(key);
         }
     }
 
@@ -212,13 +175,49 @@ impl Observation<RuleId, Leaf> for StructuralObservation {
         origin: usize,
         family_count: usize,
     ) {
-        self.chart.push(ChartItem {
+        self.chart.push_with(|| ChartItem {
             column,
             rule_name_v1: format!("{rule:?}"),
             dot,
             origin,
             family_count,
         });
+    }
+
+    fn final_forest(&mut self, forest: &Forest<RuleId, Leaf>) {
+        for root in forest.accepted_root_ids() {
+            self.roots.push_with(|| root.0);
+        }
+        for (id, node) in forest.nodes() {
+            self.forest.push_with(|| {
+                let mut families = Bounded::new(self.limit);
+                for family in &node.families {
+                    families.push_with(|| {
+                        let mut children = Bounded::new(self.limit);
+                        for child in &family.children {
+                            children.push_with(|| match child {
+                                Child::Node(id) => ForestChild {
+                                    node_id: Some(id.0),
+                                    value_label_v1: None,
+                                },
+                                Child::Lexical(value) => ForestChild {
+                                    node_id: None,
+                                    value_label_v1: Some(format!("{value:?}")),
+                                },
+                            });
+                        }
+                        ForestFamily { children }
+                    });
+                }
+                ForestNode {
+                    id: id.0,
+                    rule_name_v1: format!("{:?}", node.rule),
+                    start: node.start,
+                    end: node.end,
+                    families,
+                }
+            });
+        }
     }
 }
 
