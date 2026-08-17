@@ -5,38 +5,24 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::identifier::emitted_ident;
-use crate::identifier::key as identifier_key;
-use crate::model::FieldKind;
-use crate::model::NonPublicVisibility;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::semantic::ConstructionPlan;
+use crate::semantic::FieldVisibilityPlan;
 use crate::semantic::SemanticPlan;
 
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let mut categories = Vec::<CategoryItem>::new();
     let mut category_indices = HashMap::<String, usize>::new();
     for construction in plan.constructions() {
-        let source = plan.construction_source(construction)?;
-        if identifier_key(&source.name) != construction.construction_id()
-            || identifier_key(&source.element.name) != construction.element_type()
-        {
-            return Err(internal_error(
-                "sealed construction identity is inconsistent",
-            ));
-        }
         let category = construction.category().to_owned();
         let index = *category_indices.entry(category.clone()).or_insert_with(|| {
             let index = categories.len();
             categories.push(CategoryItem {
                 name: category,
-                span: source
-                    .category
-                    .segments
-                    .last()
-                    .map_or_else(Span::call_site, |segment| segment.ident.span()),
+                span: construction.category_span(),
                 variants: Vec::new(),
                 origins: Vec::new(),
             });
@@ -45,7 +31,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         categories[index].variants.push((
             construction.category_variant().to_owned(),
             construction.element_type().to_owned(),
-            source.name.span(),
+            construction.origin_span(),
         ));
         categories[index].origins.push(DeclarationKey::new(
             DeclarationKind::Construction,
@@ -58,8 +44,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         .map(CategoryItem::finish)
         .collect::<Vec<_>>();
     for construction in plan.constructions() {
-        let source = plan.construction_source(construction)?;
-        let ident = emitted_ident(construction.element_type(), source.element.name.span());
+        let ident = emitted_ident(construction.element_type(), construction.origin_span());
         let origins = vec![DeclarationKey::new(
             DeclarationKind::Construction,
             construction.construction_id(),
@@ -104,8 +89,7 @@ fn emit_product(
     construction: &ConstructionPlan,
     ident: &syn::Ident,
 ) -> syn::Result<TokenStream> {
-    let source = plan.construction_source(construction)?;
-    if source.element.fields.is_empty() {
+    if construction.fields().is_empty() {
         return Ok(quote! {
             #[derive(Debug, Clone, PartialEq, Eq)]
             pub struct #ident;
@@ -113,21 +97,16 @@ fn emit_product(
     }
 
     let construction_name = construction.construction_id();
-    let fields = source
-        .element
-        .fields
+    let fields = construction
+        .fields()
         .iter()
         .map(|field| {
-            let name = &field.name;
-            let visibility = field_visibility(source, field)?;
-            let ty = match &field.kind {
-                FieldKind::Category(path) | FieldKind::Lex(path) | FieldKind::Identity(path) => {
-                    path
-                }
-            };
+            let name = field.name();
+            let visibility = field_visibility(field.visibility());
+            let ty = field.value_type();
             let boxed = plan
                 .boxed_fields()
-                .contains(&(construction_name.to_owned(), identifier_key(&field.name)));
+                .contains(&(construction_name.to_owned(), field.name_key()));
             Ok(if boxed {
                 quote! { #visibility #name: Box<#ty> }
             } else {
@@ -143,26 +122,12 @@ fn emit_product(
     })
 }
 
-fn field_visibility(
-    construction: &crate::Construction,
-    field: &crate::Field,
-) -> syn::Result<TokenStream> {
-    let Some(checked) = &construction.checked else {
-        return Ok(quote! { pub });
-    };
-    let visibility = checked
-        .visibilities
-        .iter()
-        .find(|visibility| identifier_key(&visibility.role) == identifier_key(&field.name))
-        .ok_or_else(|| internal_error("validated checked visibility is incomplete"))?;
-    Ok(match &visibility.visibility {
-        NonPublicVisibility::Private(_) => TokenStream::new(),
-        NonPublicVisibility::Restricted(visibility) => quote! { #visibility },
-    })
-}
-
-fn internal_error(message: &str) -> syn::Error {
-    syn::Error::new(Span::call_site(), message)
+fn field_visibility(visibility: &FieldVisibilityPlan) -> TokenStream {
+    match visibility {
+        FieldVisibilityPlan::Public => quote! { pub },
+        FieldVisibilityPlan::Private => TokenStream::new(),
+        FieldVisibilityPlan::Restricted(visibility) => quote! { #visibility },
+    }
 }
 
 #[cfg(test)]

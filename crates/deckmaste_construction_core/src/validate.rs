@@ -66,30 +66,6 @@ impl CategoryRenderCapability {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct ContributionInventory {
-    constructions: Vec<ConstructionContribution>,
-    terminals: Vec<TerminalContribution>,
-    roots: Vec<RootContribution>,
-}
-
-#[derive(Debug)]
-pub(crate) struct ConstructionContribution {
-    construction_id: String,
-    element_type: String,
-    category: String,
-    category_variant: String,
-    form: String,
-    rule_id: String,
-    build_arm: String,
-    render_arm: String,
-    visitor_method: String,
-    walker: String,
-    atoms: Vec<AtomContribution>,
-    atom_count_complete: bool,
-    terminal_capabilities_complete: bool,
-}
-
 #[derive(Debug, Clone)]
 pub(crate) enum AtomContribution {
     Literal,
@@ -105,7 +81,7 @@ pub(crate) enum AtomContribution {
     clippy::struct_excessive_bools,
     reason = "the sealed inventory records independent backend capabilities"
 )]
-pub(crate) struct TerminalContribution {
+struct TerminalCapabilities {
     name: String,
     lex_atom: bool,
     identity_atom: bool,
@@ -114,105 +90,6 @@ pub(crate) struct TerminalContribution {
     direct_render: bool,
     direct_build: bool,
     traversal: bool,
-}
-
-#[derive(Debug)]
-#[allow(
-    dead_code,
-    reason = "sealed root contributions are consumed by Task 4 code generation"
-)]
-pub(crate) struct RootContribution {
-    category: String,
-    parse_entry: bool,
-    render_entry: bool,
-}
-
-#[allow(
-    dead_code,
-    reason = "sealed contribution inventory is consumed by Task 4 code generation"
-)]
-impl ContributionInventory {
-    pub(crate) fn constructions(&self) -> &[ConstructionContribution] {
-        &self.constructions
-    }
-
-    pub(crate) fn terminals(&self) -> &[TerminalContribution] {
-        &self.terminals
-    }
-
-    pub(crate) fn roots(&self) -> &[RootContribution] {
-        &self.roots
-    }
-}
-
-#[allow(
-    dead_code,
-    reason = "sealed construction contributions are consumed by Task 4 code generation"
-)]
-impl ConstructionContribution {
-    pub(crate) fn construction_id(&self) -> &str {
-        &self.construction_id
-    }
-
-    pub(crate) fn element_type(&self) -> &str {
-        &self.element_type
-    }
-
-    pub(crate) fn category_variant(&self) -> &str {
-        &self.category_variant
-    }
-
-    pub(crate) fn category(&self) -> &str {
-        &self.category
-    }
-
-    pub(crate) fn form(&self) -> &str {
-        &self.form
-    }
-
-    pub(crate) fn rule_id(&self) -> &str {
-        &self.rule_id
-    }
-
-    pub(crate) fn build_arm(&self) -> &str {
-        &self.build_arm
-    }
-
-    pub(crate) fn render_arm(&self) -> &str {
-        &self.render_arm
-    }
-
-    pub(crate) fn visitor_method(&self) -> &str {
-        &self.visitor_method
-    }
-
-    pub(crate) fn walker(&self) -> &str {
-        &self.walker
-    }
-
-    pub(crate) fn atoms(&self) -> &[AtomContribution] {
-        &self.atoms
-    }
-
-    pub(crate) fn is_complete(&self) -> bool {
-        [
-            &self.construction_id,
-            &self.element_type,
-            &self.category,
-            &self.category_variant,
-            &self.form,
-            &self.rule_id,
-            &self.build_arm,
-            &self.render_arm,
-            &self.visitor_method,
-            &self.walker,
-        ]
-        .into_iter()
-        .all(|slot| !slot.is_empty())
-            && self.atom_count_complete
-            && self.terminal_capabilities_complete
-            && self.atoms.iter().all(AtomContribution::is_complete)
-    }
 }
 
 #[allow(
@@ -241,7 +118,7 @@ impl AtomContribution {
         }
     }
 
-    fn is_supported_by(&self, terminals: &HashMap<&str, &TerminalContribution>) -> bool {
+    fn is_supported_by(&self, terminals: &HashMap<&str, &TerminalCapabilities>) -> bool {
         match self {
             Self::Literal | Self::Category { .. } => true,
             Self::Lex { terminal, .. } => terminals.get(terminal.as_str()).is_some_and(|info| {
@@ -278,7 +155,7 @@ impl AtomContribution {
     dead_code,
     reason = "sealed terminal contributions are consumed by Task 4 code generation"
 )]
-impl TerminalContribution {
+impl TerminalCapabilities {
     pub(crate) fn name(&self) -> &str {
         &self.name
     }
@@ -313,24 +190,6 @@ impl TerminalContribution {
 
     pub(crate) fn supports_verb_atom(&self) -> bool {
         self.verb_atom
-    }
-}
-
-#[allow(
-    dead_code,
-    reason = "sealed root contributions are consumed by Task 4 code generation"
-)]
-impl RootContribution {
-    pub(crate) fn category(&self) -> &str {
-        &self.category
-    }
-
-    pub(crate) fn is_parse_entry(&self) -> bool {
-        self.parse_entry
-    }
-
-    pub(crate) fn is_render_entry(&self) -> bool {
-        self.render_entry
     }
 }
 
@@ -377,29 +236,12 @@ impl ValidatedDeclarations {
         self.semantic.dynamic_number_constructions()
     }
 
-    #[allow(
-        dead_code,
-        reason = "sealed contributions are consumed by Task 4 code generation"
-    )]
-    pub(crate) fn contributions(&self) -> &ContributionInventory {
-        self.semantic.contributions()
-    }
-
     #[cfg(test)]
     fn declaration_names(&self) -> Vec<String> {
         self.semantic
-            .source()
-            .declarations
+            .declaration_keys()
             .iter()
-            .map(|declaration| match declaration {
-                Declaration::Construction(value) => identifier_key(&value.name),
-                Declaration::Vocab(value) => identifier_key(&value.name),
-                Declaration::Lexeme(value) => identifier_key(&value.name),
-                Declaration::Codec(value) | Declaration::Identity(value) => {
-                    identifier_key(&value.name)
-                }
-                Declaration::Root(value) => path_name(&value.category),
-            })
+            .map(|declaration| declaration.name().to_owned())
             .collect()
     }
 }
@@ -429,10 +271,14 @@ struct Symbols {
 
 #[derive(Debug)]
 struct ResolvedGrammar {
-    atoms_by_construction: HashMap<String, Vec<AtomContribution>>,
+    atoms_by_construction: HashMap<String, (proc_macro2::Span, Vec<AtomContribution>)>,
     verb_lexeme_provider: Option<String>,
 }
 
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "the validation boundary consumes the unsealed declaration graph"
+)]
 pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarations> {
     let (symbols, _) = validate_namespaces(&raw)?;
     validate_generated_owned_paths(&raw)?;
@@ -447,17 +293,22 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     validate_contextual_agreement_uses(&raw, &category_render)?;
     let boxed_fields = validate_category_graph(&raw);
     validate_roots(&raw, &symbols, &category_render)?;
-    let contributions = validate_backend_completeness(&raw, &resolved)?;
+    validate_backend_completeness(&raw, &resolved)?;
+    let ResolvedGrammar {
+        atoms_by_construction,
+        verb_lexeme_provider,
+    } = resolved;
     Ok(ValidatedDeclarations {
         semantic: SemanticPlan::new(
-            raw,
+            &raw,
             boxed_fields,
             dynamic_numbers,
             category_reads,
             feature_equations,
             feature_resolutions,
             category_render,
-            contributions,
+            atoms_by_construction,
+            verb_lexeme_provider.as_deref(),
         )?,
     })
 }
@@ -1503,7 +1354,10 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                 atoms.push(resolved);
             }
         }
-        atoms_by_construction.insert(identifier_key(&construction.name), atoms);
+        atoms_by_construction.insert(
+            identifier_key(&construction.name),
+            (construction.name.span(), atoms),
+        );
     }
 
     if let Some((first, _)) = verb_providers.first() {
@@ -3716,46 +3570,16 @@ fn validate_roots(
 fn validate_backend_completeness(
     raw: &Declarations,
     resolved: &ResolvedGrammar,
-) -> syn::Result<ContributionInventory> {
+) -> syn::Result<()> {
     let mut errors = None;
-    let mut constructions = Vec::new();
     let mut terminals = Vec::new();
-    let mut roots = Vec::new();
 
     validate_lowerable_backend_shapes(raw)?;
 
     for declaration in &raw.declarations {
         match declaration {
-            Declaration::Construction(construction) => {
-                let construction_id = identifier_key(&construction.name);
-                let element_type = identifier_key(&construction.element.name);
-                let category = path_name(&construction.category);
-                let category_variant = pascal_case(&construction_id);
-                let form = identifier_key(&construction.form.name);
-                let rule_id = format!("{}{category_variant}", pascal_case(&category));
-                let atoms = resolved
-                    .atoms_by_construction
-                    .get(&construction_id)
-                    .cloned()
-                    .unwrap_or_default();
-                let record = ConstructionContribution {
-                    construction_id,
-                    element_type: element_type.clone(),
-                    category,
-                    category_variant,
-                    form,
-                    build_arm: rule_id.clone(),
-                    render_arm: element_type.clone(),
-                    visitor_method: format!("visit_{}", snake_case(&element_type)),
-                    walker: format!("walk_{}", snake_case(&element_type)),
-                    atom_count_complete: atoms.len() == construction.form.atoms.len(),
-                    terminal_capabilities_complete: false,
-                    atoms,
-                    rule_id,
-                };
-                constructions.push(record);
-            }
-            Declaration::Vocab(vocab) => terminals.push(TerminalContribution {
+            Declaration::Construction(_) | Declaration::Root(_) => {}
+            Declaration::Vocab(vocab) => terminals.push(TerminalCapabilities {
                 name: identifier_key(&vocab.name),
                 lex_atom: true,
                 identity_atom: false,
@@ -3765,7 +3589,7 @@ fn validate_backend_completeness(
                 direct_build: true,
                 traversal: true,
             }),
-            Declaration::Lexeme(lexeme) => terminals.push(TerminalContribution {
+            Declaration::Lexeme(lexeme) => terminals.push(TerminalCapabilities {
                 name: identifier_key(&lexeme.name),
                 lex_atom: false,
                 identity_atom: false,
@@ -3778,7 +3602,7 @@ fn validate_backend_completeness(
                 direct_build: false,
                 traversal: true,
             }),
-            Declaration::Codec(binding) => terminals.push(TerminalContribution {
+            Declaration::Codec(binding) => terminals.push(TerminalCapabilities {
                 name: identifier_key(&binding.name),
                 lex_atom: binding.codec_atom == Some(CodecAtomClass::Lex),
                 identity_atom: false,
@@ -3789,7 +3613,7 @@ fn validate_backend_completeness(
                 traversal: closed_traversal_is_lowerable(binding),
             }),
             Declaration::Identity(binding) => {
-                terminals.push(TerminalContribution {
+                terminals.push(TerminalCapabilities {
                     name: identifier_key(&binding.name),
                     lex_atom: false,
                     identity_atom: true,
@@ -3800,15 +3624,14 @@ fn validate_backend_completeness(
                     traversal: closed_traversal_is_lowerable(binding),
                 });
             }
-            Declaration::Root(root) => roots.push(RootContribution {
-                category: path_name(&root.category),
-                parse_entry: root.eoi,
-                render_entry: root.standalone_render,
-            }),
         }
     }
 
-    if constructions.is_empty() {
+    if !raw
+        .declarations
+        .iter()
+        .any(|declaration| matches!(declaration, Declaration::Construction(_)))
+    {
         combine(
             &mut errors,
             syn::Error::new(
@@ -3821,30 +3644,36 @@ fn validate_backend_completeness(
         .iter()
         .map(|terminal| (terminal.name.as_str(), terminal))
         .collect();
-    for construction in &mut constructions {
-        construction.terminal_capabilities_complete = construction
-            .atoms
-            .iter()
-            .all(|atom| atom.is_supported_by(&terminal_capabilities));
-        if !construction.is_complete() {
+    for declaration in &raw.declarations {
+        let Declaration::Construction(construction) = declaration else {
+            continue;
+        };
+        let construction_id = identifier_key(&construction.name);
+        let Some((_, atoms)) = resolved.atoms_by_construction.get(&construction_id) else {
             combine(
                 &mut errors,
                 syn::Error::new(
-                    proc_macro2::Span::call_site(),
-                    format!(
-                        "construction `{}` is missing a resolved backend contribution",
-                        construction.construction_id
-                    ),
+                    construction.name.span(),
+                    format!("construction `{construction_id}` is missing resolved backend atoms"),
+                ),
+            );
+            continue;
+        };
+        if atoms.len() != construction.form.atoms.len()
+            || atoms
+                .iter()
+                .any(|atom| !atom.is_complete() || !atom.is_supported_by(&terminal_capabilities))
+        {
+            combine(
+                &mut errors,
+                syn::Error::new(
+                    construction.name.span(),
+                    format!("construction `{construction_id}` is missing a resolved backend fact"),
                 ),
             );
         }
     }
-    finish(errors)?;
-    Ok(ContributionInventory {
-        constructions,
-        terminals,
-        roots,
-    })
+    finish(errors)
 }
 
 fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
@@ -4117,7 +3946,6 @@ pub(crate) mod tests {
         clippy::too_many_lines,
         reason = "validation fixtures pin complete closed-schema diagnostics and golden input"
     )]
-    use quote::ToTokens;
     use quote::quote;
     use syn::spanned::Spanned;
 
@@ -4802,11 +4630,11 @@ pub(crate) mod tests {
         })
         .expect("a sole used lexeme is the verb provider regardless of its name");
         let actions = validated
-            .contributions()
+            .semantic()
             .terminals()
             .iter()
             .find(|terminal| terminal.name() == "Actions")
-            .expect("Actions terminal is inventoried");
+            .expect("Actions terminal is planned");
         assert!(actions.supports_verb_atom());
 
         let inconsistent = error(quote! {
@@ -4843,10 +4671,10 @@ pub(crate) mod tests {
         })
         .expect("an unused name-only lexeme still contributes its visitor traversal");
         let terminal = validated
-            .contributions()
+            .semantic()
             .terminals()
             .first()
-            .expect("lexeme terminal is inventoried");
+            .expect("lexeme terminal is planned");
         assert!(terminal.has_traversal());
         assert!(!terminal.has_direct_render());
         assert!(!terminal.has_direct_build());
@@ -5490,17 +5318,11 @@ pub(crate) mod tests {
         );
         let construction = validated
             .semantic()
-            .source()
-            .declarations
+            .constructions()
             .iter()
-            .find_map(|declaration| match declaration {
-                Declaration::Construction(construction) if construction.name == "demonstrative" => {
-                    Some(construction)
-                }
-                _ => None,
-            })
+            .find(|construction| construction.construction_id() == "demonstrative")
             .expect("demonstrative construction remains in the sealed IR");
-        assert_eq!(construction.form.name, "demonstrative");
+        assert_eq!(construction.form(), "demonstrative");
     }
 
     #[test]
@@ -6577,20 +6399,18 @@ pub(crate) mod tests {
                 .contains(&("recursive".to_owned(), "child".to_owned()))
         );
         assert!(validated.dynamic_number_constructions().is_empty());
-        let inventory = validated.contributions();
-        assert_eq!(inventory.constructions().len(), 1);
-        let construction = &inventory.constructions()[0];
+        let semantic = validated.semantic();
+        assert_eq!(semantic.constructions().len(), 1);
+        let construction = &semantic.constructions()[0];
         assert_eq!(construction.construction_id(), "recursive");
         assert_eq!(construction.element_type(), "Recursive");
         assert_eq!(construction.category_variant(), "Recursive");
-        assert!(construction.is_complete());
-        assert_eq!(inventory.terminals().len(), 1);
-        let terminal = &inventory.terminals()[0];
+        assert_eq!(semantic.terminals().len(), 1);
+        let terminal = &semantic.terminals()[0];
         assert!(terminal.has_direct_render());
         assert!(terminal.has_direct_build());
         assert!(terminal.has_traversal());
-        assert!(terminal.has_direct_render_build_traversal());
-        assert_eq!(inventory.roots().len(), 1);
+        assert_eq!(semantic.roots().len(), 1);
     }
 
     #[test]
@@ -6602,9 +6422,9 @@ pub(crate) mod tests {
             .expect("synthetic projection declarations validate together");
         let expansion = crate::generate(tokens).expect("synthetic projection declarations emit");
 
-        assert_eq!(validated.contributions().constructions().len(), 6);
-        assert_eq!(validated.contributions().terminals().len(), 8);
-        assert_eq!(validated.contributions().roots().len(), 1);
+        assert_eq!(validated.semantic().constructions().len(), 6);
+        assert_eq!(validated.semantic().terminals().len(), 8);
+        assert_eq!(validated.semantic().roots().len(), 1);
         assert_eq!(expansion.plan().items().len(), 45);
         assert!(
             validated
@@ -6615,26 +6435,24 @@ pub(crate) mod tests {
 
         let refinements = validated
             .semantic()
-            .source()
-            .declarations
+            .constructions()
             .iter()
-            .filter_map(|declaration| match declaration {
-                Declaration::Construction(construction) => construction
-                    .requirements
+            .filter_map(|construction| {
+                construction
+                    .refinements()
                     .first()
-                    .map(|requirement| requirement.variant.to_string()),
-                _ => None,
+                    .map(|requirement| requirement.variant().to_string())
             })
             .collect::<Vec<_>>();
         assert_eq!(refinements, ["Solo", "Leaf"]);
 
         let terminal = |name| {
             validated
-                .contributions()
+                .semantic()
                 .terminals()
                 .iter()
                 .find(|terminal| terminal.name() == name)
-                .unwrap_or_else(|| panic!("synthetic terminal `{name}` is inventoried"))
+                .unwrap_or_else(|| panic!("synthetic terminal `{name}` is planned"))
         };
         assert!(terminal("ActionStem").supports_verb_atom());
         assert!(!terminal("ObjectStem").supports_verb_atom());
@@ -6648,7 +6466,7 @@ pub(crate) mod tests {
 
         assert_eq!(
             validated
-                .contributions()
+                .semantic()
                 .constructions()
                 .iter()
                 .map(|contribution| (
@@ -6929,10 +6747,7 @@ pub(crate) mod tests {
             semantic
                 .constructions()
                 .iter()
-                .map(|row| (
-                    row.source_index(),
-                    semantic.construction_source(row).unwrap().name.to_string()
-                ))
+                .map(|row| (row.source_index(), row.construction_id().to_owned()))
                 .collect::<Vec<_>>(),
             [
                 (8, "leaf".to_owned()),
@@ -6948,23 +6763,17 @@ pub(crate) mod tests {
                 .terminals()
                 .iter()
                 .map(|row| match row {
-                    crate::semantic::TerminalPlan::Vocab(value) => (
-                        value.source_index(),
-                        "vocab",
-                        semantic.vocab_source(value).unwrap().name.to_string(),
-                    ),
-                    crate::semantic::TerminalPlan::Lexeme(value) => (
-                        value.source_index(),
-                        "lexeme",
-                        semantic.lexeme_source(value).unwrap().name.to_string(),
-                    ),
+                    crate::semantic::TerminalPlan::Vocab(value) =>
+                        (value.source_index(), "vocab", value.name().to_owned(),),
+                    crate::semantic::TerminalPlan::Lexeme(value) =>
+                        (value.source_index(), "lexeme", value.name().to_owned(),),
                     crate::semantic::TerminalPlan::Binding(value) => (
                         value.source_index(),
-                        match semantic.binding_source(value).unwrap().kind {
+                        match value.kind() {
                             crate::TerminalBindingKind::Codec => "codec",
                             crate::TerminalBindingKind::Identity => "identity",
                         },
-                        semantic.binding_source(value).unwrap().name.to_string(),
+                        value.name().to_owned(),
                     ),
                 })
                 .collect::<Vec<_>>(),
@@ -6983,15 +6792,7 @@ pub(crate) mod tests {
             semantic
                 .roots()
                 .iter()
-                .map(|row| (
-                    row.source_index(),
-                    semantic
-                        .root_source(row)
-                        .unwrap()
-                        .category
-                        .to_token_stream()
-                        .to_string()
-                ))
+                .map(|row| (row.source_index(), row.category().to_owned()))
                 .collect::<Vec<_>>(),
             [(14, "Document".to_owned())]
         );

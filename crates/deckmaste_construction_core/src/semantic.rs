@@ -9,39 +9,39 @@ use crate::feature::Feature;
 use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
 use crate::identifier::key as identifier_key;
+use crate::identifier::pascal_case;
+use crate::identifier::path_key;
+use crate::identifier::snake_case;
 use crate::model::Declaration;
 use crate::model::Declarations;
 use crate::model::Form;
 use crate::model::FormAtom;
 use crate::model::VerbOperand;
-#[cfg(test)]
 use crate::plan::DeclarationKey;
-#[cfg(test)]
 use crate::plan::DeclarationKind;
 use crate::validate::AtomContribution;
 use crate::validate::CategoryRenderCapability;
-use crate::validate::ConstructionContribution;
-use crate::validate::ContributionInventory;
-use crate::validate::TerminalContribution;
 
 /// The one sealed semantic authority produced after validation succeeds.
 #[derive(Debug)]
 pub(crate) struct SemanticPlan {
-    source: Declarations,
+    declaration_keys: Vec<DeclarationKey>,
     constructions: Vec<ConstructionPlan>,
     terminals: Vec<TerminalPlan>,
     roots: Vec<RootPlan>,
     features: FeaturePlan,
-    contributions: ContributionInventory,
 }
 
 #[derive(Debug)]
 #[allow(
+    clippy::large_enum_variant,
     dead_code,
-    reason = "sealed rows are the next generation phase's semantic input"
+    reason = "typed terminal rows deliberately own their complete lowering payloads"
 )]
 pub(crate) struct ConstructionPlan {
     source_index: usize,
+    origin_span: Span,
+    category_span: Span,
     construction_id: String,
     category: String,
     category_variant: String,
@@ -53,23 +53,87 @@ pub(crate) struct ConstructionPlan {
     visitor_method: String,
     walker: String,
     checked_constructor: bool,
+    private_fields: bool,
+    fields: Vec<ConstructionFieldPlan>,
+    refinements: Vec<RefinementPlan>,
+    constructor: Option<CheckedConstructorPlan>,
     atoms: Vec<AtomPlan>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ConstructionFieldPlan {
+    name: syn::Ident,
+    kind: ConstructionFieldKind,
+    terminal: String,
+    value_type: syn::Path,
+    visibility: FieldVisibilityPlan,
+    accessor: Option<syn::Ident>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ConstructionFieldKind {
+    Category,
+    Lex,
+    Identity,
+}
+
+#[derive(Debug)]
+pub(crate) enum FieldVisibilityPlan {
+    Public,
+    Private,
+    Restricted(syn::Visibility),
+}
+
+#[derive(Debug)]
+pub(crate) struct RefinementPlan {
+    role: syn::Ident,
+    variant: syn::Ident,
+}
+
+#[derive(Debug)]
+pub(crate) struct CheckedConstructorPlan {
+    path: syn::Path,
+    arguments: Vec<ConstructorArgumentPlan>,
+}
+
+#[derive(Debug)]
+pub(crate) enum ConstructorArgumentPlan {
+    Role(syn::Ident),
+    VecRole(syn::Ident),
+    Context,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum AtomPlan {
     Literal(String),
-    Category { role: String, category: String },
-    Lex { role: String, terminal: String },
-    Identity { role: String, terminal: String },
-    Noun { role: String, terminal: String },
-    VerbFixed { terminal: String, variant: String },
+    Category {
+        role: String,
+        category: String,
+    },
+    Lex {
+        role: String,
+        terminal: String,
+    },
+    Identity {
+        role: String,
+        terminal: String,
+    },
+    Noun {
+        role: String,
+        terminal: String,
+    },
+    VerbFixed {
+        terminal: String,
+        variant: String,
+        path: syn::Path,
+    },
 }
 
 #[derive(Debug)]
 #[allow(
+    clippy::large_enum_variant,
     dead_code,
-    reason = "sealed rows are the next generation phase's semantic input"
+    reason = "typed terminal rows deliberately own their complete lowering payloads"
 )]
 pub(crate) enum TerminalPlan {
     Vocab(VocabPlan),
@@ -78,8 +142,8 @@ pub(crate) enum TerminalPlan {
 }
 
 pub(crate) enum AtomTerminal<'a> {
-    Vocab(&'a crate::Vocab),
-    Binding(&'a crate::TerminalBinding),
+    Vocab(&'a VocabPlan),
+    Binding(&'a BindingPlan),
 }
 
 #[derive(Debug)]
@@ -89,7 +153,15 @@ pub(crate) enum AtomTerminal<'a> {
 )]
 pub(crate) struct VocabPlan {
     source_index: usize,
-    terminal: TerminalContribution,
+    name: syn::Ident,
+    name_key: String,
+    variants: Vec<VocabVariantPlan>,
+}
+
+#[derive(Debug)]
+pub(crate) struct VocabVariantPlan {
+    name: syn::Ident,
+    word: syn::LitStr,
 }
 
 #[derive(Debug)]
@@ -99,7 +171,10 @@ pub(crate) struct VocabPlan {
 )]
 pub(crate) struct LexemePlan {
     source_index: usize,
-    terminal: TerminalContribution,
+    name: syn::Ident,
+    name_key: String,
+    variants: Vec<syn::Ident>,
+    verb_provider: bool,
 }
 
 #[derive(Debug)]
@@ -109,9 +184,94 @@ pub(crate) struct LexemePlan {
 )]
 pub(crate) struct BindingPlan {
     source_index: usize,
-    terminal: TerminalContribution,
+    origin: DeclarationKey,
+    origin_span: Span,
+    name: syn::Ident,
+    name_key: String,
     kind: crate::model::TerminalBindingKind,
+    codec_atom: Option<crate::model::CodecAtomClass>,
+    value_type: syn::Type,
+    lexical_variant: Option<syn::Path>,
+    render: Option<BindingRenderPlan>,
+    build: Option<BindingBuildPlan>,
+    traversal: BindingTraversalPlan,
     stored_spelling: bool,
+}
+
+#[derive(Debug)]
+pub(crate) enum BindingRenderPlan {
+    Runtime(syn::Path),
+    ContextIdentity(Vec<ContextIdentityPlan>),
+}
+
+#[derive(Debug)]
+pub(crate) struct ContextIdentityPlan {
+    variant: syn::Ident,
+    accessor: syn::Ident,
+}
+
+#[derive(Debug)]
+pub(crate) struct BindingBuildPlan {
+    pattern: syn::Pat,
+    construct: syn::Expr,
+}
+
+#[derive(Debug)]
+pub(crate) struct BindingTraversalPlan {
+    mode: crate::model::VisitMode,
+    argument: String,
+    fields: Vec<TraversalFieldPlan>,
+    recipe: BindingTraversalRecipe,
+    leaf_callbacks: Vec<LeafCallbackPlan>,
+}
+
+#[derive(Debug)]
+pub(crate) enum BindingTraversalRecipe {
+    Branches(Vec<TraversalBranchPlan>),
+    Variants(Vec<syn::Ident>),
+    Calls(Vec<TraversalCallPlan>),
+}
+
+#[derive(Debug)]
+pub(crate) struct TraversalFieldPlan {
+    name: syn::Ident,
+}
+
+#[derive(Debug)]
+pub(crate) struct TraversalCallPlan {
+    callback: syn::Path,
+    mode: crate::model::VisitMode,
+    value: TraversalValuePlan,
+}
+
+#[derive(Debug)]
+pub(crate) struct TraversalBranchPlan {
+    value: TraversalValuePlan,
+    arms: Vec<TraversalBranchArmPlan>,
+}
+
+#[derive(Debug)]
+pub(crate) enum TraversalValuePlan {
+    Root(String),
+    Field {
+        base: Box<TraversalValuePlan>,
+        member: syn::Member,
+    },
+    Parenthesized(Box<TraversalValuePlan>),
+}
+
+#[derive(Debug)]
+pub(crate) struct TraversalBranchArmPlan {
+    variant: syn::Path,
+    binding: syn::Ident,
+    call: TraversalCallPlan,
+}
+
+#[derive(Debug)]
+pub(crate) struct LeafCallbackPlan {
+    name: syn::Ident,
+    value_type: syn::Type,
+    mode: crate::model::VisitMode,
 }
 
 #[derive(Debug)]
@@ -144,115 +304,96 @@ impl SemanticPlan {
         reason = "validation seals its independent facts together"
     )]
     pub(crate) fn new(
-        source: Declarations,
+        source: &Declarations,
         boxed_fields: HashSet<(String, String)>,
         dynamic_numbers: HashSet<String>,
         category_reads: HashMap<String, HashSet<Feature>>,
         equations: HashMap<String, Vec<feature::FeatureEquation>>,
         resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
         category_render: HashMap<String, CategoryRenderCapability>,
-        contributions: ContributionInventory,
+        mut atoms_by_construction: HashMap<String, (Span, Vec<AtomContribution>)>,
+        verb_lexeme_provider: Option<&str>,
     ) -> syn::Result<Self> {
-        let construction_indexes = source
+        let declaration_keys = source
             .declarations
             .iter()
-            .enumerate()
-            .filter_map(|(index, declaration)| {
-                matches!(declaration, Declaration::Construction(_)).then_some(index)
-            })
-            .collect::<Vec<_>>();
-        if construction_indexes.len() != contributions.constructions().len() {
-            return Err(sealed_error("construction contribution count"));
+            .map(DeclarationKey::from_source)
+            .collect();
+        let constructions =
+            source
+                .declarations
+                .iter()
+                .enumerate()
+                .filter_map(|(source_index, declaration)| match declaration {
+                    Declaration::Construction(construction) => Some((source_index, construction)),
+                    Declaration::Vocab(_)
+                    | Declaration::Lexeme(_)
+                    | Declaration::Codec(_)
+                    | Declaration::Identity(_)
+                    | Declaration::Root(_) => None,
+                })
+                .map(|(source_index, construction)| {
+                    let construction_id = identifier_key(&construction.name);
+                    let (_, atoms) = atoms_by_construction.remove(&construction_id).ok_or_else(|| {
+                    syn::Error::new(
+                        construction.name.span(),
+                        format!(
+                            "sealed semantic plan is missing construction `{construction_id}`"
+                        ),
+                    )
+                })?;
+                    ConstructionPlan::from_source(source_index, construction, &atoms)
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+        if let Some((name, (span, _))) = atoms_by_construction.into_iter().next() {
+            return Err(syn::Error::new(
+                span,
+                format!("sealed semantic plan has surplus construction `{name}`"),
+            ));
         }
-        let constructions = construction_indexes
-            .into_iter()
-            .enumerate()
-            .map(|(record_index, source_index)| {
-                let record = contributions
-                    .constructions()
-                    .get(record_index)
-                    .ok_or_else(|| sealed_error("construction contribution"))?;
-                let Some(Declaration::Construction(construction)) =
-                    source.declarations.get(source_index)
-                else {
-                    return Err(sealed_error("construction source"));
-                };
-                ConstructionPlan::from_record(source_index, construction, record)
-            })
-            .collect::<syn::Result<Vec<_>>>()?;
         let number_carry_categories = number_carry_categories(&constructions, &equations);
 
-        let terminal_count = source
+        let terminals = source
             .declarations
             .iter()
-            .filter(|declaration| {
-                matches!(
-                    declaration,
-                    Declaration::Vocab(_)
-                        | Declaration::Lexeme(_)
-                        | Declaration::Codec(_)
-                        | Declaration::Identity(_)
-                )
-            })
-            .count();
-        if terminal_count != contributions.terminals().len() {
-            return Err(sealed_error("terminal contribution count"));
-        }
-        let mut terminal_index = 0;
-        let terminals = source.declarations.iter().enumerate().filter_map(|(source_index, declaration)| match declaration {
-                Declaration::Vocab(_) => { let terminal = contributions.terminals().get(terminal_index)?; terminal_index += 1; Some(TerminalPlan::Vocab(VocabPlan { source_index, terminal: terminal.clone() })) }
-                Declaration::Lexeme(_) => { let terminal = contributions.terminals().get(terminal_index)?; terminal_index += 1; Some(TerminalPlan::Lexeme(LexemePlan { source_index, terminal: terminal.clone() })) }
-                Declaration::Codec(_) | Declaration::Identity(_) => { let terminal = contributions.terminals().get(terminal_index)?; terminal_index += 1; Some({
-                        let (Declaration::Codec(binding) | Declaration::Identity(binding)) = declaration else {
-                            return None;
-                        };
-                        TerminalPlan::Binding(BindingPlan {
-                            source_index,
-                            terminal: terminal.clone(),
-                            kind: binding.kind,
-                            stored_spelling: matches!(
-                                binding.render,
-                                Some(crate::model::RenderBinding::ContextIdentity(ref arms)) if arms.len() >= 2
-                            ),
-                        }) }) }
+            .enumerate()
+            .filter_map(|(source_index, declaration)| match declaration {
+                Declaration::Vocab(vocab) => Some(Ok(TerminalPlan::Vocab(VocabPlan::from_source(
+                    source_index,
+                    vocab,
+                )))),
+                Declaration::Lexeme(lexeme) => Some(Ok(TerminalPlan::Lexeme(
+                    LexemePlan::from_source(source_index, lexeme, verb_lexeme_provider),
+                ))),
+                Declaration::Codec(binding) | Declaration::Identity(binding) => {
+                    Some(BindingPlan::from_source(source_index, binding).map(TerminalPlan::Binding))
+                }
                 Declaration::Construction(_) | Declaration::Root(_) => None,
+            })
+            .collect::<syn::Result<Vec<_>>>()?;
+
+        let roots = source
+            .declarations
+            .iter()
+            .enumerate()
+            .filter_map(|(source_index, declaration)| match declaration {
+                Declaration::Root(root) => Some(RootPlan {
+                    source_index,
+                    category: crate::identifier::path_key(&root.category),
+                    punctuation: root.punctuation.value(),
+                    parse_entry: root.eoi,
+                    render_entry: root.standalone_render,
+                }),
+                Declaration::Construction(_)
+                | Declaration::Vocab(_)
+                | Declaration::Lexeme(_)
+                | Declaration::Codec(_)
+                | Declaration::Identity(_) => None,
             })
             .collect();
 
-        let root_indexes = source
-            .declarations
-            .iter()
-            .enumerate()
-            .filter_map(|(index, declaration)| {
-                matches!(declaration, Declaration::Root(_)).then_some(index)
-            })
-            .collect::<Vec<_>>();
-        if root_indexes.len() != contributions.roots().len() {
-            return Err(sealed_error("root contribution count"));
-        }
-        let roots = root_indexes
-            .into_iter()
-            .enumerate()
-            .map(|(root_index, source_index)| {
-                let root = contributions
-                    .roots()
-                    .get(root_index)
-                    .ok_or_else(|| sealed_error("root contribution"))?;
-                let Declaration::Root(source) = source.source_at(source_index) else {
-                    return Err(sealed_error("root source kind"));
-                };
-                Ok(RootPlan {
-                    source_index,
-                    category: root.category().to_owned(),
-                    punctuation: source.punctuation.value(),
-                    parse_entry: root.is_parse_entry(),
-                    render_entry: root.is_render_entry(),
-                })
-            })
-            .collect::<syn::Result<Vec<_>>>()?;
-
         Ok(Self {
-            source,
+            declaration_keys,
             constructions,
             terminals,
             roots,
@@ -265,17 +406,16 @@ impl SemanticPlan {
                 category_render,
                 number_carry_categories,
             },
-            contributions,
         })
     }
 
-    #[cfg(test)]
-    pub(crate) fn source(&self) -> &Declarations {
-        &self.source
+    pub(crate) fn declaration_count(&self) -> usize {
+        self.declaration_keys.len()
     }
 
-    pub(crate) fn declaration_count(&self) -> usize {
-        self.source.declarations.len()
+    #[cfg(test)]
+    pub(crate) fn declaration_keys(&self) -> &[DeclarationKey] {
+        &self.declaration_keys
     }
 
     #[allow(
@@ -358,24 +498,6 @@ impl SemanticPlan {
         self.features.number_carry_categories.contains(category)
     }
 
-    pub(crate) fn contributions(&self) -> &ContributionInventory {
-        &self.contributions
-    }
-
-    #[allow(
-        dead_code,
-        reason = "future emitters resolve source rows through their owning plan"
-    )]
-    pub(crate) fn construction_source(
-        &self,
-        row: &ConstructionPlan,
-    ) -> syn::Result<&crate::Construction> {
-        match self.source.declarations.get(row.source_index) {
-            Some(Declaration::Construction(value)) => Ok(value),
-            _ => Err(sealed_error("construction source")),
-        }
-    }
-
     #[cfg(test)]
     pub(crate) fn test_only_replace_planned_literal(
         &mut self,
@@ -399,19 +521,11 @@ impl SemanticPlan {
         spelling: &str,
     ) {
         let vocab = self
-            .source
-            .declarations
+            .terminals
             .iter_mut()
-            .find_map(|declaration| match declaration {
-                Declaration::Vocab(vocab) if identifier_key(&vocab.name) == vocabulary => {
-                    Some(vocab)
-                }
-                Declaration::Construction(_)
-                | Declaration::Vocab(_)
-                | Declaration::Lexeme(_)
-                | Declaration::Codec(_)
-                | Declaration::Identity(_)
-                | Declaration::Root(_) => None,
+            .find_map(|terminal| match terminal {
+                TerminalPlan::Vocab(vocab) if vocab.name() == vocabulary => Some(vocab),
+                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
             })
             .expect("test vocabulary is present");
         let word = vocab
@@ -423,37 +537,45 @@ impl SemanticPlan {
     }
 
     #[cfg(test)]
-    pub(crate) fn test_only_mispoint_construction_source(&mut self, construction_id: &str) {
-        let root_index = self
-            .source
-            .declarations
-            .iter()
-            .position(|declaration| matches!(declaration, Declaration::Root(_)))
-            .expect("test root is present");
-        self.constructions
-            .iter_mut()
-            .find(|row| row.construction_id == construction_id)
-            .expect("test construction is present")
-            .source_index = root_index;
-    }
-
-    #[cfg(test)]
-    pub(crate) fn test_only_mispoint_vocab_source(&mut self, name: &str) {
-        let root_index = self
-            .source
-            .declarations
-            .iter()
-            .position(|declaration| matches!(declaration, Declaration::Root(_)))
-            .expect("test root is present");
-        let row = self
+    pub(crate) fn test_only_replace_vocab_name(&mut self, old: &str, new: &str) {
+        let vocab = self
             .terminals
             .iter_mut()
             .find_map(|terminal| match terminal {
-                TerminalPlan::Vocab(row) if row.terminal.name() == name => Some(row),
+                TerminalPlan::Vocab(vocab) if vocab.name() == old => Some(vocab),
                 TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
             })
             .expect("test vocabulary is present");
-        row.source_index = root_index;
+        vocab.name = syn::Ident::new(new, vocab.name.span());
+        vocab.name_key = new.to_owned();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_replace_binding_name(&mut self, old: &str, new: &str) {
+        let binding = self
+            .terminals
+            .iter_mut()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::Binding(binding) if binding.name() == old => Some(binding),
+                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+            })
+            .expect("test binding is present");
+        binding.name = syn::Ident::new(new, binding.name.span());
+        binding.name_key = new.to_owned();
+        binding.origin = DeclarationKey::new(binding.origin.kind(), new);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_mismatch_binding_origin(&mut self, name: &str) {
+        let binding = self
+            .terminals
+            .iter_mut()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::Binding(binding) if binding.name() == name => Some(binding),
+                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+            })
+            .expect("test binding is present");
+        binding.origin = DeclarationKey::new(DeclarationKind::Identity, binding.name());
     }
 
     #[cfg(test)]
@@ -462,50 +584,6 @@ impl SemanticPlan {
         atoms: &[AtomContribution],
     ) -> syn::Result<Vec<AtomPlan>> {
         seal_atoms(form, atoms)
-    }
-
-    #[allow(
-        dead_code,
-        reason = "future emitters resolve source rows through their owning plan"
-    )]
-    pub(crate) fn vocab_source(&self, row: &VocabPlan) -> syn::Result<&crate::Vocab> {
-        match self.source.declarations.get(row.source_index) {
-            Some(Declaration::Vocab(value)) => Ok(value),
-            _ => Err(sealed_error("vocabulary source")),
-        }
-    }
-
-    #[allow(
-        dead_code,
-        reason = "future emitters resolve source rows through their owning plan"
-    )]
-    pub(crate) fn lexeme_source(&self, row: &LexemePlan) -> syn::Result<&crate::Lexeme> {
-        match self.source.declarations.get(row.source_index) {
-            Some(Declaration::Lexeme(value)) => Ok(value),
-            _ => Err(sealed_error("lexeme source")),
-        }
-    }
-
-    #[allow(
-        dead_code,
-        reason = "future emitters resolve source rows through their owning plan"
-    )]
-    pub(crate) fn binding_source(&self, row: &BindingPlan) -> syn::Result<&crate::TerminalBinding> {
-        match self.source.declarations.get(row.source_index) {
-            Some(Declaration::Codec(value) | Declaration::Identity(value)) => Ok(value),
-            _ => Err(sealed_error("terminal binding source")),
-        }
-    }
-
-    #[allow(
-        dead_code,
-        reason = "future emitters resolve source rows through their owning plan"
-    )]
-    pub(crate) fn root_source(&self, row: &RootPlan) -> syn::Result<&crate::Root> {
-        match self.source.declarations.get(row.source_index) {
-            Some(Declaration::Root(value)) => Ok(value),
-            _ => Err(sealed_error("root source")),
-        }
     }
 
     pub(crate) fn parse_root(&self, category: &str) -> Option<&RootPlan> {
@@ -517,11 +595,11 @@ impl SemanticPlan {
     pub(crate) fn atom_terminal(&self, name: &str) -> syn::Result<AtomTerminal<'_>> {
         for terminal in &self.terminals {
             match terminal {
-                TerminalPlan::Vocab(row) if row.terminal.name() == name => {
-                    return self.vocab_source(row).map(AtomTerminal::Vocab);
+                TerminalPlan::Vocab(row) if row.name() == name => {
+                    return Ok(AtomTerminal::Vocab(row));
                 }
-                TerminalPlan::Binding(row) if row.terminal.name() == name => {
-                    return self.binding_source(row).map(AtomTerminal::Binding);
+                TerminalPlan::Binding(row) if row.name() == name => {
+                    return Ok(AtomTerminal::Binding(row));
                 }
                 TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => {}
             }
@@ -532,10 +610,8 @@ impl SemanticPlan {
     #[cfg(test)]
     pub(crate) fn snapshot(&self) -> SemanticSnapshot {
         let declaration_keys = self
-            .source
-            .declarations
+            .declaration_keys
             .iter()
-            .map(DeclarationKey::from_source)
             .map(|key| (key.kind(), key.name().to_owned()))
             .collect();
         let constructions = self
@@ -632,25 +708,141 @@ impl SemanticPlan {
 }
 
 impl ConstructionPlan {
-    fn from_record(
+    fn from_source(
         source_index: usize,
         source: &crate::Construction,
-        record: &ConstructionContribution,
+        resolved_atoms: &[AtomContribution],
     ) -> syn::Result<Self> {
-        let atoms = seal_atoms(&source.form, record.atoms())?;
+        let construction_id = identifier_key(&source.name);
+        let category = path_key(&source.category);
+        let category_variant = pascal_case(&construction_id);
+        let element_type = identifier_key(&source.element.name);
+        let rule_id = format!("{}{category_variant}", pascal_case(&category));
+        let private_fields = source.checked.as_ref().is_some_and(|checked| {
+            checked.visibilities.iter().any(|visibility| {
+                matches!(
+                    visibility.visibility,
+                    crate::model::NonPublicVisibility::Private(_)
+                )
+            })
+        });
+        let fields = source
+            .element
+            .fields
+            .iter()
+            .map(|field| {
+                let (kind, terminal, value_type) = match &field.kind {
+                    crate::model::FieldKind::Category(path) => (
+                        ConstructionFieldKind::Category,
+                        path_key(path),
+                        path.clone(),
+                    ),
+                    crate::model::FieldKind::Lex(path) => {
+                        (ConstructionFieldKind::Lex, path_key(path), path.clone())
+                    }
+                    crate::model::FieldKind::Identity(path) => (
+                        ConstructionFieldKind::Identity,
+                        path_key(path),
+                        path.clone(),
+                    ),
+                };
+                let visibility = if let Some(checked) = &source.checked {
+                    let visibility = checked
+                        .visibilities
+                        .iter()
+                        .find(|visibility| {
+                            identifier_key(&visibility.role) == identifier_key(&field.name)
+                        })
+                        .ok_or_else(|| {
+                            syn::Error::new(
+                                field.name.span(),
+                                "sealed checked field visibility is absent",
+                            )
+                        })?;
+                    match &visibility.visibility {
+                        crate::model::NonPublicVisibility::Private(_) => {
+                            FieldVisibilityPlan::Private
+                        }
+                        crate::model::NonPublicVisibility::Restricted(visibility) => {
+                            FieldVisibilityPlan::Restricted(visibility.clone())
+                        }
+                    }
+                } else {
+                    FieldVisibilityPlan::Public
+                };
+                let accessor = source.checked.as_ref().and_then(|checked| {
+                    checked
+                        .accessors
+                        .iter()
+                        .find(|accessor| {
+                            identifier_key(&accessor.role) == identifier_key(&field.name)
+                        })
+                        .map(|accessor| accessor.method.clone())
+                });
+                Ok(ConstructionFieldPlan {
+                    name: field.name.clone(),
+                    kind,
+                    terminal,
+                    value_type,
+                    visibility,
+                    accessor,
+                })
+            })
+            .collect::<syn::Result<Vec<_>>>()?;
+        let refinements = source
+            .requirements
+            .iter()
+            .map(|requirement| RefinementPlan {
+                role: requirement.role.clone(),
+                variant: requirement.variant.clone(),
+            })
+            .collect();
+        let constructor = source
+            .checked
+            .as_ref()
+            .map(|checked| CheckedConstructorPlan {
+                path: checked.constructor.path.clone(),
+                arguments: checked
+                    .constructor
+                    .arguments
+                    .iter()
+                    .map(|argument| match argument {
+                        crate::model::ConstructorArgument::Role(role) => {
+                            ConstructorArgumentPlan::Role(role.clone())
+                        }
+                        crate::model::ConstructorArgument::VecRole { role, .. } => {
+                            ConstructorArgumentPlan::VecRole(role.clone())
+                        }
+                        crate::model::ConstructorArgument::Context(_) => {
+                            ConstructorArgumentPlan::Context
+                        }
+                    })
+                    .collect(),
+            });
+        let atoms = seal_atoms(&source.form, resolved_atoms)?;
         Ok(Self {
             source_index,
-            construction_id: record.construction_id().to_owned(),
-            category: record.category().to_owned(),
-            category_variant: record.category_variant().to_owned(),
-            element_type: record.element_type().to_owned(),
-            form: record.form().to_owned(),
-            rule_id: record.rule_id().to_owned(),
-            build_arm: record.build_arm().to_owned(),
-            render_arm: record.render_arm().to_owned(),
-            visitor_method: record.visitor_method().to_owned(),
-            walker: record.walker().to_owned(),
+            origin_span: source.name.span(),
+            category_span: source
+                .category
+                .segments
+                .last()
+                .map_or_else(Span::call_site, |segment| segment.ident.span()),
+            construction_id,
+            category,
+            category_variant,
+            element_type: element_type.clone(),
+            form: identifier_key(&source.form.name),
+            rule_id: rule_id.clone(),
+            build_arm: rule_id,
+            render_arm: element_type.clone(),
+            visitor_method: format!("visit_{}", snake_case(&element_type)),
+            walker: format!("walk_{}", snake_case(&element_type)),
             checked_constructor: source.checked.is_some(),
+            private_fields,
+            fields,
+            refinements,
+            constructor,
             atoms,
         })
     }
@@ -665,6 +857,11 @@ impl ConstructionPlan {
 
     pub(crate) fn construction_id(&self) -> &str {
         &self.construction_id
+    }
+
+    #[cfg(test)]
+    pub(crate) fn form(&self) -> &str {
+        &self.form
     }
 
     pub(crate) fn category(&self) -> &str {
@@ -693,6 +890,91 @@ impl ConstructionPlan {
 
     pub(crate) fn atoms(&self) -> &[AtomPlan] {
         &self.atoms
+    }
+
+    pub(crate) fn origin_span(&self) -> Span {
+        self.origin_span
+    }
+
+    pub(crate) fn category_span(&self) -> Span {
+        self.category_span
+    }
+
+    pub(crate) fn fields(&self) -> &[ConstructionFieldPlan] {
+        &self.fields
+    }
+
+    pub(crate) fn field(&self, role: &str) -> syn::Result<&ConstructionFieldPlan> {
+        self.fields
+            .iter()
+            .find(|field| field.name_key() == role)
+            .ok_or_else(|| syn::Error::new(self.origin_span, "sealed construction field is absent"))
+    }
+
+    pub(crate) fn refinements(&self) -> &[RefinementPlan] {
+        &self.refinements
+    }
+
+    pub(crate) fn has_private_fields(&self) -> bool {
+        self.private_fields
+    }
+
+    pub(crate) fn constructor(&self) -> Option<&CheckedConstructorPlan> {
+        self.constructor.as_ref()
+    }
+}
+
+impl ConstructionFieldPlan {
+    pub(crate) fn name(&self) -> &syn::Ident {
+        &self.name
+    }
+
+    pub(crate) fn name_key(&self) -> String {
+        identifier_key(&self.name)
+    }
+
+    pub(crate) fn kind(&self) -> ConstructionFieldKind {
+        self.kind
+    }
+
+    pub(crate) fn terminal(&self) -> &str {
+        &self.terminal
+    }
+
+    pub(crate) fn accessor(&self) -> Option<&syn::Ident> {
+        self.accessor.as_ref()
+    }
+
+    pub(crate) fn has_accessor(&self) -> bool {
+        self.accessor.is_some()
+    }
+
+    pub(crate) fn value_type(&self) -> &syn::Path {
+        &self.value_type
+    }
+
+    pub(crate) fn visibility(&self) -> &FieldVisibilityPlan {
+        &self.visibility
+    }
+}
+
+impl RefinementPlan {
+    pub(crate) fn role(&self) -> &syn::Ident {
+        &self.role
+    }
+
+    pub(crate) fn variant(&self) -> &syn::Ident {
+        &self.variant
+    }
+}
+
+impl CheckedConstructorPlan {
+    pub(crate) fn path(&self) -> &syn::Path {
+        &self.path
+    }
+
+    pub(crate) fn arguments(&self) -> &[ConstructorArgumentPlan] {
+        &self.arguments
     }
 }
 
@@ -723,11 +1005,12 @@ impl AtomPlan {
                 terminal: terminal.clone(),
             }),
             (
-                FormAtom::Verb(VerbOperand::Fixed(_)),
+                FormAtom::Verb(VerbOperand::Fixed(path)),
                 AtomContribution::VerbFixed { terminal, variant },
             ) => Ok(Self::VerbFixed {
                 terminal: terminal.clone(),
                 variant: variant.clone(),
+                path: path.clone(),
             }),
             _ => Err(syn::Error::new(
                 form_atom_span(source),
@@ -744,7 +1027,9 @@ impl AtomPlan {
             Self::Lex { role, .. } => format!("lex({role})"),
             Self::Identity { role, .. } => format!("identity({role})"),
             Self::Noun { role, .. } => format!("noun({role})"),
-            Self::VerbFixed { terminal, variant } => format!("verb({terminal}::{variant})"),
+            Self::VerbFixed {
+                terminal, variant, ..
+            } => format!("verb({terminal}::{variant})"),
         }
     }
 }
@@ -831,52 +1116,116 @@ fn sealed_error(fact: &str) -> syn::Error {
     )
 }
 
+#[cfg(test)]
 impl TerminalPlan {
-    #[cfg(test)]
-    fn terminal(&self) -> &TerminalContribution {
+    pub(crate) fn name(&self) -> &str {
         match self {
-            Self::Vocab(plan) => &plan.terminal,
-            Self::Lexeme(plan) => &plan.terminal,
-            Self::Binding(plan) => &plan.terminal,
+            Self::Vocab(plan) => plan.name(),
+            Self::Lexeme(plan) => plan.name(),
+            Self::Binding(plan) => plan.name(),
         }
     }
 
     #[cfg(test)]
     fn snapshot(&self) -> (String, String, Vec<String>) {
-        let terminal = self.terminal();
         let kind = match self {
             Self::Vocab(_) => "vocab",
             Self::Lexeme(_) => "lexeme",
-            Self::Binding(_) if terminal.supports_identity_atom() => "identity",
+            Self::Binding(binding)
+                if binding.kind() == crate::model::TerminalBindingKind::Identity =>
+            {
+                "identity"
+            }
             Self::Binding(_) => "codec",
         };
         let mut capabilities = Vec::new();
-        if terminal.supports_lex_atom() {
+        if self.supports_lex_atom() {
             capabilities.push("lex".to_owned());
         }
-        if terminal.supports_identity_atom() {
+        if self.supports_identity_atom() {
             capabilities.push("identity".to_owned());
         }
-        if terminal.supports_noun_atom() {
+        if self.supports_noun_atom() {
             capabilities.push("noun".to_owned());
         }
-        if terminal.supports_verb_atom() {
+        if self.supports_verb_atom() {
             capabilities.push("verb".to_owned());
         }
-        if terminal.has_direct_render() {
+        if self.has_direct_render() {
             capabilities.push("render".to_owned());
         }
-        if terminal.has_direct_build() {
+        if self.has_direct_build() {
             capabilities.push("build".to_owned());
         }
-        if terminal.has_traversal() {
-            capabilities.push("traversal".to_owned());
-        }
-        (terminal.name().to_owned(), kind.to_owned(), capabilities)
+        capabilities.push("traversal".to_owned());
+        (self.name().to_owned(), kind.to_owned(), capabilities)
+    }
+
+    pub(crate) fn supports_lex_atom(&self) -> bool {
+        matches!(self, Self::Vocab(_))
+            || matches!(self, Self::Binding(binding) if binding.codec_atom() == Some(crate::model::CodecAtomClass::Lex))
+    }
+
+    pub(crate) fn supports_identity_atom(&self) -> bool {
+        matches!(self, Self::Binding(binding) if binding.kind() == crate::model::TerminalBindingKind::Identity)
+    }
+
+    pub(crate) fn supports_noun_atom(&self) -> bool {
+        matches!(self, Self::Binding(binding) if binding.codec_atom() == Some(crate::model::CodecAtomClass::Noun))
+    }
+
+    pub(crate) fn supports_verb_atom(&self) -> bool {
+        matches!(self, Self::Lexeme(lexeme) if lexeme.is_verb_provider())
+    }
+
+    pub(crate) fn has_direct_render(&self) -> bool {
+        matches!(self, Self::Vocab(_))
+            || matches!(self, Self::Binding(binding) if binding.render().is_some())
+    }
+
+    pub(crate) fn has_direct_build(&self) -> bool {
+        matches!(self, Self::Vocab(_))
+            || matches!(self, Self::Binding(binding) if binding.build().is_some())
+    }
+
+    #[allow(
+        clippy::unused_self,
+        reason = "every closed terminal row owns a traversal recipe"
+    )]
+    pub(crate) fn has_traversal(&self) -> bool {
+        true
     }
 }
 
 impl VocabPlan {
+    fn from_source(source_index: usize, source: &crate::Vocab) -> Self {
+        Self {
+            source_index,
+            name: source.name.clone(),
+            name_key: identifier_key(&source.name),
+            variants: source
+                .variants
+                .iter()
+                .map(|variant| VocabVariantPlan {
+                    name: variant.name.clone(),
+                    word: variant.word.clone(),
+                })
+                .collect(),
+        }
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name_key
+    }
+
+    pub(crate) fn name_ident(&self) -> &syn::Ident {
+        &self.name
+    }
+
+    pub(crate) fn variants(&self) -> &[VocabVariantPlan] {
+        &self.variants
+    }
+
     #[allow(
         dead_code,
         reason = "future emitters retain source order through this index"
@@ -887,8 +1236,35 @@ impl VocabPlan {
 }
 
 impl LexemePlan {
+    fn from_source(
+        source_index: usize,
+        source: &crate::Lexeme,
+        verb_provider: Option<&str>,
+    ) -> Self {
+        Self {
+            source_index,
+            name: source.name.clone(),
+            name_key: identifier_key(&source.name),
+            variants: source.variants.clone(),
+            verb_provider: verb_provider
+                .is_some_and(|provider| provider == identifier_key(&source.name)),
+        }
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name_key
+    }
+
+    pub(crate) fn name_ident(&self) -> &syn::Ident {
+        &self.name
+    }
+
+    pub(crate) fn variants(&self) -> &[syn::Ident] {
+        &self.variants
+    }
+
     pub(crate) fn is_verb_provider(&self) -> bool {
-        self.terminal.supports_verb_atom()
+        self.verb_provider
     }
     #[allow(
         dead_code,
@@ -900,12 +1276,145 @@ impl LexemePlan {
 }
 
 impl BindingPlan {
+    fn from_source(source_index: usize, source: &crate::TerminalBinding) -> syn::Result<Self> {
+        let render = source.render.as_ref().map(|render| match render {
+            crate::model::RenderBinding::Runtime(path) => BindingRenderPlan::Runtime(path.clone()),
+            crate::model::RenderBinding::ContextIdentity(arms) => {
+                BindingRenderPlan::ContextIdentity(
+                    arms.iter()
+                        .map(|arm| ContextIdentityPlan {
+                            variant: arm.variant.clone(),
+                            accessor: arm.accessor.clone(),
+                        })
+                        .collect(),
+                )
+            }
+        });
+        let build = source.build.as_ref().map(|build| BindingBuildPlan {
+            pattern: build.pattern.clone(),
+            construct: build.construct.clone(),
+        });
+        let mode = source.traversal.callback_mode.ok_or_else(|| {
+            syn::Error::new(
+                source.name.span(),
+                "sealed terminal traversal mode is absent",
+            )
+        })?;
+        let argument = source.traversal.argument.as_ref().map_or_else(
+            || default_leaf_argument(&identifier_key(&source.name)),
+            identifier_key,
+        );
+        let fields = source
+            .traversal
+            .fields
+            .iter()
+            .map(|field| TraversalFieldPlan {
+                name: field.name.clone(),
+            })
+            .collect();
+        let recipe = if !source.traversal.branches.is_empty() {
+            BindingTraversalRecipe::Branches(
+                source
+                    .traversal
+                    .branches
+                    .iter()
+                    .map(TraversalBranchPlan::from_source)
+                    .collect::<syn::Result<Vec<_>>>()?,
+            )
+        } else if !source.traversal.variants.is_empty() {
+            BindingTraversalRecipe::Variants(source.traversal.variants.clone())
+        } else {
+            BindingTraversalRecipe::Calls(
+                source
+                    .traversal
+                    .calls
+                    .iter()
+                    .map(TraversalCallPlan::from_source)
+                    .collect::<syn::Result<Vec<_>>>()?,
+            )
+        };
+        let leaf_callbacks = source
+            .traversal
+            .leaf_callbacks
+            .iter()
+            .map(|leaf| LeafCallbackPlan {
+                name: leaf.name.clone(),
+                value_type: leaf.value_type.clone(),
+                mode: leaf.mode,
+            })
+            .collect();
+        Ok(Self {
+            source_index,
+            origin: DeclarationKey::new(
+                match source.kind {
+                    crate::model::TerminalBindingKind::Codec => DeclarationKind::Codec,
+                    crate::model::TerminalBindingKind::Identity => DeclarationKind::Identity,
+                },
+                identifier_key(&source.name),
+            ),
+            origin_span: source.name.span(),
+            name: source.name.clone(),
+            name_key: identifier_key(&source.name),
+            kind: source.kind,
+            codec_atom: source.codec_atom,
+            value_type: source.value_type.clone(),
+            lexical_variant: source.lexical_variant.clone(),
+            stored_spelling: matches!(&render, Some(BindingRenderPlan::ContextIdentity(arms)) if arms.len() >= 2),
+            render,
+            build,
+            traversal: BindingTraversalPlan {
+                mode,
+                argument,
+                fields,
+                recipe,
+                leaf_callbacks,
+            },
+        })
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name_key
+    }
+
     pub(crate) fn kind(&self) -> crate::model::TerminalBindingKind {
         self.kind
     }
 
+    #[cfg(test)]
+    pub(crate) fn codec_atom(&self) -> Option<crate::model::CodecAtomClass> {
+        self.codec_atom
+    }
+
+    pub(crate) fn value_type(&self) -> &syn::Type {
+        &self.value_type
+    }
+
+    pub(crate) fn lexical_variant(&self) -> Option<&syn::Path> {
+        self.lexical_variant.as_ref()
+    }
+
+    pub(crate) fn render(&self) -> Option<&BindingRenderPlan> {
+        self.render.as_ref()
+    }
+
+    pub(crate) fn build(&self) -> Option<&BindingBuildPlan> {
+        self.build.as_ref()
+    }
+
+    pub(crate) fn traversal(&self) -> &BindingTraversalPlan {
+        &self.traversal
+    }
+
     pub(crate) fn has_stored_spelling(&self) -> bool {
         self.stored_spelling
+    }
+
+    pub(crate) fn origin(&self) -> &DeclarationKey {
+        &self.origin
+    }
+
+    pub(crate) fn origin_span(&self) -> Span {
+        self.origin_span
     }
     #[allow(
         dead_code,
@@ -913,6 +1422,200 @@ impl BindingPlan {
     )]
     pub(crate) fn source_index(&self) -> usize {
         self.source_index
+    }
+}
+
+impl VocabVariantPlan {
+    pub(crate) fn name(&self) -> &syn::Ident {
+        &self.name
+    }
+
+    pub(crate) fn word(&self) -> &syn::LitStr {
+        &self.word
+    }
+}
+
+impl BindingBuildPlan {
+    pub(crate) fn pattern(&self) -> &syn::Pat {
+        &self.pattern
+    }
+
+    pub(crate) fn construct(&self) -> &syn::Expr {
+        &self.construct
+    }
+}
+
+impl ContextIdentityPlan {
+    pub(crate) fn variant(&self) -> &syn::Ident {
+        &self.variant
+    }
+
+    pub(crate) fn accessor(&self) -> &syn::Ident {
+        &self.accessor
+    }
+}
+
+impl BindingTraversalPlan {
+    pub(crate) fn mode(&self) -> crate::model::VisitMode {
+        self.mode
+    }
+
+    pub(crate) fn argument(&self) -> &str {
+        &self.argument
+    }
+
+    pub(crate) fn fields(&self) -> &[TraversalFieldPlan] {
+        &self.fields
+    }
+
+    pub(crate) fn recipe(&self) -> &BindingTraversalRecipe {
+        &self.recipe
+    }
+
+    pub(crate) fn leaf_callbacks(&self) -> &[LeafCallbackPlan] {
+        &self.leaf_callbacks
+    }
+}
+
+impl TraversalCallPlan {
+    fn from_source(source: &crate::model::TraversalCall) -> syn::Result<Self> {
+        Ok(Self {
+            callback: source.callback.clone(),
+            mode: source.mode,
+            value: TraversalValuePlan::from_source(&source.value)?,
+        })
+    }
+
+    pub(crate) fn callback(&self) -> &syn::Path {
+        &self.callback
+    }
+
+    pub(crate) fn mode(&self) -> crate::model::VisitMode {
+        self.mode
+    }
+
+    pub(crate) fn value(&self) -> &TraversalValuePlan {
+        &self.value
+    }
+
+    pub(crate) fn mentions(&self, name: &str) -> bool {
+        self.value.mentions(name)
+    }
+}
+
+impl TraversalFieldPlan {
+    pub(crate) fn name(&self) -> &syn::Ident {
+        &self.name
+    }
+}
+
+impl TraversalBranchPlan {
+    fn from_source(source: &crate::model::TraversalBranch) -> syn::Result<Self> {
+        Ok(Self {
+            value: TraversalValuePlan::from_source(&source.value)?,
+            arms: source
+                .arms
+                .iter()
+                .map(TraversalBranchArmPlan::from_source)
+                .collect::<syn::Result<Vec<_>>>()?,
+        })
+    }
+
+    pub(crate) fn value(&self) -> &TraversalValuePlan {
+        &self.value
+    }
+
+    pub(crate) fn arms(&self) -> &[TraversalBranchArmPlan] {
+        &self.arms
+    }
+}
+
+impl TraversalBranchArmPlan {
+    fn from_source(source: &crate::model::TraversalBranchArm) -> syn::Result<Self> {
+        Ok(Self {
+            variant: source.variant.clone(),
+            binding: source.binding.clone(),
+            call: TraversalCallPlan::from_source(&source.call)?,
+        })
+    }
+
+    pub(crate) fn variant(&self) -> &syn::Path {
+        &self.variant
+    }
+
+    pub(crate) fn binding(&self) -> &syn::Ident {
+        &self.binding
+    }
+
+    pub(crate) fn call(&self) -> &TraversalCallPlan {
+        &self.call
+    }
+}
+
+impl TraversalValuePlan {
+    fn from_source(source: &syn::Expr) -> syn::Result<Self> {
+        match source {
+            syn::Expr::Path(path)
+                if path.qself.is_none()
+                    && path.path.leading_colon.is_none()
+                    && path.path.segments.len() == 1 =>
+            {
+                let root =
+                    path.path.segments.first().ok_or_else(|| {
+                        syn::Error::new(source.span(), "traversal root is absent")
+                    })?;
+                Ok(Self::Root(identifier_key(&root.ident)))
+            }
+            syn::Expr::Field(field) => Ok(Self::Field {
+                base: Box::new(Self::from_source(&field.base)?),
+                member: field.member.clone(),
+            }),
+            syn::Expr::Paren(paren) => Ok(Self::Parenthesized(Box::new(Self::from_source(
+                &paren.expr,
+            )?))),
+            _ => Err(syn::Error::new(
+                source.span(),
+                "sealed traversal value is outside the validated field-path grammar",
+            )),
+        }
+    }
+
+    pub(crate) fn mentions(&self, name: &str) -> bool {
+        match self {
+            Self::Root(root) => root == name,
+            Self::Field { base, .. } | Self::Parenthesized(base) => base.mentions(name),
+        }
+    }
+}
+
+impl LeafCallbackPlan {
+    pub(crate) fn name(&self) -> &syn::Ident {
+        &self.name
+    }
+
+    pub(crate) fn value_type(&self) -> &syn::Type {
+        &self.value_type
+    }
+
+    pub(crate) fn mode(&self) -> crate::model::VisitMode {
+        self.mode
+    }
+}
+
+fn default_leaf_argument(name: &str) -> String {
+    let snake = snake_case(name);
+    if snake.ends_with("_word") {
+        "word".to_owned()
+    } else if snake.ends_with("_spelling") {
+        "spelling".to_owned()
+    } else if let Some(prefix) = snake.strip_suffix("_lexeme") {
+        prefix.to_owned()
+    } else if snake.ends_with("_identity") {
+        "identity".to_owned()
+    } else if snake.ends_with("_number") {
+        "number".to_owned()
+    } else {
+        snake
     }
 }
 

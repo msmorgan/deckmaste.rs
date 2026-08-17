@@ -14,7 +14,6 @@ use crate::identifier::RULE_ID_INDEX;
 use crate::identifier::RULE_ID_TYPE;
 use crate::identifier::RULES_CONSTANT;
 use crate::identifier::emitted_ident;
-use crate::identifier::key as identifier_key;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
@@ -153,7 +152,9 @@ fn emit_position(
             let number = noun_number(plan, construction)?;
             Ok(quote! { L(#lexical(NounNumber::#number)) })
         }
-        AtomPlan::VerbFixed { terminal, variant } => {
+        AtomPlan::VerbFixed {
+            terminal, variant, ..
+        } => {
             let terminal = ident(terminal);
             let variant = ident(variant);
             Ok(quote! { L(Lexical::Verb(#terminal::#variant)) })
@@ -164,13 +165,12 @@ fn emit_position(
 fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> {
     match plan.atom_terminal(name)? {
         AtomTerminal::Vocab(vocab) => {
-            let name = ident(&identifier_key(&vocab.name));
+            let name = ident(vocab.name());
             Ok(quote! { Lexical::#name })
         }
         AtomTerminal::Binding(binding) => {
             let path = binding
-                .lexical_variant
-                .as_ref()
+                .lexical_variant()
                 .ok_or_else(|| internal("atom-capable terminal binding has no lexical variant"))?;
             Ok(quote! { #path })
         }
@@ -229,22 +229,6 @@ fn internal(message: &str) -> syn::Error {
 #[cfg(test)]
 mod tests {
     use quote::quote;
-
-    #[test]
-    fn corrupted_vocab_source_error_is_not_treated_as_a_binding_probe() {
-        let mut plan = crate::validate_declarations(
-            crate::parse_declarations(crate::test_support::representative_tokens()).unwrap(),
-        )
-        .unwrap()
-        .into_semantic();
-        plan.test_only_mispoint_vocab_source("Words");
-
-        let error = super::emit(&plan).expect_err("corrupt vocabulary source must propagate");
-        assert_eq!(
-            error.to_string(),
-            "sealed semantic plan has an inconsistent vocabulary source"
-        );
-    }
 
     #[test]
     fn role_derived_noun_requests_either_number() {

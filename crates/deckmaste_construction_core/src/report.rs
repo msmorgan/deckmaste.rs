@@ -1,4 +1,3 @@
-use crate::identifier::key as identifier_key;
 use crate::model::TerminalBindingKind;
 use crate::semantic::SemanticPlan;
 use crate::semantic::TerminalPlan;
@@ -115,8 +114,23 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
         let TerminalPlan::Binding(binding) = terminal else {
             continue;
         };
-        let source = plan.binding_source(binding)?;
-        let name = identifier_key(&source.name);
+        let name = binding.name().to_owned();
+        let expected_origin_kind = match binding.kind() {
+            TerminalBindingKind::Codec => crate::DeclarationKind::Codec,
+            TerminalBindingKind::Identity => crate::DeclarationKind::Identity,
+        };
+        if binding.origin().kind() != expected_origin_kind {
+            return Err(syn::Error::new(
+                binding.origin_span(),
+                format!("sealed terminal binding `{name}` has a mismatched declaration kind"),
+            ));
+        }
+        if binding.origin().name() != name {
+            return Err(syn::Error::new(
+                binding.origin_span(),
+                format!("sealed terminal binding `{name}` has a mismatched declaration name"),
+            ));
+        }
         match binding.kind() {
             TerminalBindingKind::Codec => {
                 handwritten_codecs.push(name.clone());

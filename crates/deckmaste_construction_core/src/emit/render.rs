@@ -14,60 +14,60 @@ use crate::identifier::category_renderer;
 use crate::identifier::emitted_ident;
 use crate::identifier::feature_helper;
 use crate::identifier::key as identifier_key;
-use crate::identifier::pascal_case;
-use crate::identifier::path_key;
 use crate::identifier::snake_case;
-use crate::model::FieldKind;
-use crate::model::FormAtom;
-use crate::model::RenderBinding;
 use crate::model::VisitMode;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::AtomPlan;
+use crate::semantic::BindingPlan;
+use crate::semantic::BindingRenderPlan;
+use crate::semantic::ConstructionFieldKind;
+use crate::semantic::ConstructionFieldPlan;
+use crate::semantic::ConstructionPlan;
+use crate::semantic::RootPlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::TerminalPlan;
+use crate::semantic::VocabPlan;
 
 #[allow(
     clippy::too_many_lines,
     reason = "the phase finalizer preserves the pinned source-order item sequence"
 )]
 pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
-    let constructions = validated
-        .constructions()
-        .iter()
-        .map(|row| validated.construction_source(row))
-        .collect::<syn::Result<Vec<_>>>()?;
+    let constructions = validated.constructions();
     let roots = validated
         .roots()
         .iter()
         .filter(|root| root.is_render_entry())
-        .map(|row| validated.root_source(row))
-        .collect::<syn::Result<Vec<_>>>()?;
-    let categories = category_groups(validated, &constructions);
+        .collect::<Vec<_>>();
+    let categories = category_groups(constructions);
     let nested_categories = constructions
         .iter()
-        .flat_map(|construction| &construction.element.fields)
-        .filter_map(|field| match &field.kind {
-            FieldKind::Category(path) => Some(path_name(path)),
-            FieldKind::Lex(_) | FieldKind::Identity(_) => None,
-        })
+        .flat_map(ConstructionPlan::fields)
+        .filter(|field| field.kind() == ConstructionFieldKind::Category)
+        .map(|field| field.terminal().to_owned())
         .collect::<HashSet<_>>();
     let root_names = roots
         .iter()
-        .map(|root| path_name(&root.category))
+        .map(|root| root.category().to_owned())
         .collect::<HashSet<_>>();
     let mut items = Vec::new();
     for root in &roots {
-        let category = path_name(&root.category);
+        let category = root.category().to_owned();
         let members = categories
             .iter()
             .find(|(name, _)| name == &category)
             .map(|(_, members)| members.as_slice())
             .ok_or_else(|| internal("validated root category is absent"))?;
         let ty = ident(&category);
-        let punctuation = punctuation(&root.punctuation)?;
+        let punctuation = root
+            .punctuation()
+            .chars()
+            .next()
+            .ok_or_else(|| internal("validated root punctuation is absent"))?;
         let render_body = if nested_categories.contains(&category) {
             let helper = render_category_name(&category, true);
             let capability = validated.category_render_capability(&category);
@@ -163,7 +163,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                 .map(|construction| {
                     DeclarationKey::new(
                         DeclarationKind::Construction,
-                        identifier_key(&construction.name),
+                        construction.construction_id(),
                     )
                 })
                 .collect(),
@@ -174,18 +174,14 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         let TerminalPlan::Vocab(row) = terminal else {
             continue;
         };
-        let vocab = validated.vocab_source(row)?;
-        let function = ident(&format!(
-            "render_{}",
-            snake_case(&identifier_key(&vocab.name))
-        ));
-        let ty = emitted_ident(&identifier_key(&vocab.name), vocab.name.span());
+        let function = ident(&format!("render_{}", snake_case(row.name())));
+        let ty = emitted_ident(row.name(), row.name_ident().span());
         let mut allocator = LocalAllocator::default();
         allocator.reserve("writer");
-        let argument = allocator.allocate(&render_vocab_argument(&vocab.name));
-        let arms = vocab.variants.iter().map(|variant| {
-            let name = emitted_ident(&identifier_key(&variant.name), variant.name.span());
-            let word = &variant.word;
+        let argument = allocator.allocate(&render_vocab_argument(row.name()));
+        let arms = row.variants().iter().map(|variant| {
+            let name = emitted_ident(&identifier_key(variant.name()), variant.name().span());
+            let word = variant.word();
             quote! { #ty::#name => writer.word(#word) }
         });
         let tokens = quote! {
@@ -199,10 +195,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                 name: function.to_string(),
             },
             tokens,
-            vec![DeclarationKey::new(
-                DeclarationKind::Vocab,
-                identifier_key(&vocab.name),
-            )],
+            vec![DeclarationKey::new(DeclarationKind::Vocab, row.name())],
         ));
     }
 
@@ -224,7 +217,7 @@ fn signature_tail(parts: &[Option<TokenStream>]) -> TokenStream {
 
 fn render_allocator(
     validated: &SemanticPlan,
-    members: &[&crate::Construction],
+    members: &[&ConstructionPlan],
     root_impl: bool,
     root_names: &HashSet<String>,
     takes_agreement: bool,
@@ -243,31 +236,30 @@ fn render_allocator(
     }
     for construction in members {
         let fields = construction
-            .element
-            .fields
+            .fields()
             .iter()
-            .map(|field| (identifier_key(&field.name), field))
+            .map(|field| (field.name_key(), field))
             .collect::<HashMap<_, _>>();
-        for atom in &construction.form.atoms {
+        for atom in construction.atoms() {
             match atom {
-                FormAtom::Literal(_) => {}
-                FormAtom::Role(role) => {
+                AtomPlan::Literal(_) => {}
+                AtomPlan::Category { role, .. } => {
                     let field = fields
-                        .get(&identifier_key(role))
+                        .get(role)
                         .ok_or_else(|| internal("resolved role is absent"))?;
-                    let FieldKind::Category(path) = &field.kind else {
+                    if field.kind() != ConstructionFieldKind::Category {
                         return Err(internal("bare role is not a category"));
-                    };
-                    let category = path_name(path);
+                    }
+                    let category = field.terminal();
                     allocator.reserve(
-                        render_category_name(&category, root_names.contains(&category)).to_string(),
+                        render_category_name(category, root_names.contains(category)).to_string(),
                     );
-                    if validated.category_requires_external_agreement(&category)
+                    if validated.category_requires_external_agreement(category)
                         && let Some(equation) = validated
-                            .feature_equations(&identifier_key(&construction.name))
+                            .feature_equations(construction.construction_id())
                             .iter()
                             .find(|equation| {
-                                matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == identifier_key(role))
+                                matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == role.as_str())
                             })
                     {
                         reserve_feature_callees(
@@ -278,41 +270,36 @@ fn render_allocator(
                         )?;
                     }
                 }
-                FormAtom::Lex(role) => {
+                AtomPlan::Lex { role, .. } => {
                     let field = fields
-                        .get(&identifier_key(role))
+                        .get(role)
                         .ok_or_else(|| internal("resolved lexical role is absent"))?;
-                    let terminal = field_terminal(field);
-                    if let Some(vocab) = find_vocab(validated, &terminal)? {
-                        allocator.reserve(format!(
-                            "render_{}",
-                            snake_case(&identifier_key(&vocab.name))
-                        ));
-                    } else if let RenderBinding::Runtime(path) = find_binding(validated, &terminal)?
-                        .render
-                        .as_ref()
-                        .ok_or_else(|| internal("lex terminal lacks render metadata"))?
+                    let terminal = field.terminal();
+                    if let Some(vocab) = find_vocab(validated, terminal) {
+                        allocator.reserve(format!("render_{}", snake_case(vocab.name())));
+                    } else if let BindingRenderPlan::Runtime(path) =
+                        find_binding(validated, terminal)?
+                            .render()
+                            .ok_or_else(|| internal("lex terminal lacks render metadata"))?
                     {
                         reserve_bare_path(&mut allocator, path);
                     }
                 }
-                FormAtom::Identity(role) => {
+                AtomPlan::Identity { role, .. } => {
                     let field = fields
-                        .get(&identifier_key(role))
+                        .get(role)
                         .ok_or_else(|| internal("resolved identity role is absent"))?;
-                    if let RenderBinding::Runtime(path) =
-                        find_binding(validated, &field_terminal(field))?
-                            .render
-                            .as_ref()
+                    if let BindingRenderPlan::Runtime(path) =
+                        find_binding(validated, field.terminal())?
+                            .render()
                             .ok_or_else(|| internal("identity lacks render metadata"))?
                     {
                         reserve_bare_path(&mut allocator, path);
                     }
                 }
-                FormAtom::Verb(_) => {
+                AtomPlan::VerbFixed { .. } => {
                     allocator.reserve("inflect");
-                    let equations =
-                        validated.feature_equations(&identifier_key(&construction.name));
+                    let equations = validated.feature_equations(construction.construction_id());
                     if let Some(equation) = equations.iter().find(|equation| {
                         matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == "verb")
                     }) {
@@ -324,16 +311,16 @@ fn render_allocator(
                         )?;
                     }
                 }
-                FormAtom::Noun(role) => {
+                AtomPlan::Noun { role, .. } => {
                     let field = fields
-                        .get(&identifier_key(role))
+                        .get(role)
                         .ok_or_else(|| internal("resolved noun role is absent"))?;
-                    let binding = find_binding(validated, &field_terminal(field))?;
-                    let Some(RenderBinding::Runtime(path)) = &binding.render else {
+                    let binding = find_binding(validated, field.terminal())?;
+                    let Some(BindingRenderPlan::Runtime(path)) = binding.render() else {
                         return Err(internal("noun terminal lacks runtime render binding"));
                     };
                     reserve_bare_path(&mut allocator, path);
-                    allocator.reserve(feature_helper("number", &path_name(&construction.category)));
+                    allocator.reserve(feature_helper("number", construction.category()));
                 }
             }
         }
@@ -349,7 +336,7 @@ fn reserve_bare_path(allocator: &mut LocalAllocator, path: &syn::Path) {
 
 fn reserve_feature_callees(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    construction: &ConstructionPlan,
     expression: &FeatureExpr,
     allocator: &mut LocalAllocator,
 ) -> syn::Result<()> {
@@ -361,13 +348,12 @@ fn reserve_feature_callees(
         return Ok(());
     };
     if !construction
-        .element
-        .fields
+        .fields()
         .iter()
-        .any(|field| identifier_key(&field.name) == identifier_key(role))
+        .any(|field| field.name_key() == identifier_key(role))
     {
         if let Some(writer) = validated
-            .feature_equations(&identifier_key(&construction.name))
+            .feature_equations(construction.construction_id())
             .iter()
             .find(|equation| {
                 matches!(equation.target(), FeaturePlace::Role { field, feature } if identifier_key(field) == identifier_key(role) && feature == source_feature)
@@ -377,15 +363,10 @@ fn reserve_feature_callees(
         }
         return Ok(());
     }
-    let field = construction
-        .element
-        .fields
-        .iter()
-        .find(|field| identifier_key(&field.name) == identifier_key(role))
-        .expect("resolved feature role");
-    if matches!(field.kind, FieldKind::Category(_))
+    let field = construction.field(&identifier_key(role))?;
+    if field.kind() == ConstructionFieldKind::Category
         && let Some(writer) = validated
-            .feature_equations(&identifier_key(&construction.name))
+            .feature_equations(construction.construction_id())
             .iter()
             .find(|equation| {
                 matches!(equation.target(), FeaturePlace::Role { field, feature } if identifier_key(field) == identifier_key(role) && feature == source_feature)
@@ -393,14 +374,14 @@ fn reserve_feature_callees(
     {
         return reserve_feature_callees(validated, construction, writer.value(), allocator);
     }
-    let source = match &field.kind {
-        FieldKind::Category(path) => path_name(path),
-        FieldKind::Lex(_) => {
+    let source = match field.kind() {
+        ConstructionFieldKind::Category => field.terminal().to_owned(),
+        ConstructionFieldKind::Lex => {
             let (_, vocabulary) =
                 canonical_lexical_feature_lowering(validated, construction, role, *source_feature)?;
-            path_name(vocabulary)
+            vocabulary.to_owned()
         }
-        FieldKind::Identity(_) => {
+        ConstructionFieldKind::Identity => {
             return Err(internal(
                 "identity roles cannot provide grammatical features",
             ));
@@ -422,7 +403,7 @@ struct RenderLocals {
 
 fn render_arms(
     validated: &SemanticPlan,
-    members: &[&crate::Construction],
+    members: &[&ConstructionPlan],
     root_impl: bool,
     root_names: &HashSet<String>,
     allocator: &LocalAllocator,
@@ -432,38 +413,30 @@ fn render_arms(
         .iter()
         .map(|construction| {
             let mut allocator = allocator.clone();
-            let variant = ident(&pascal_case(&identifier_key(&construction.name)));
-            let element = ident(&identifier_key(&construction.element.name));
+            let variant = ident(construction.category_variant());
+            let element = ident(construction.element_type());
             let qualifier = if root_impl {
                 quote! { Self }
             } else {
-                let category = ident(&path_name(&construction.category));
+                let category = ident(construction.category());
                 quote! { #category }
             };
-            let private = construction.checked.as_ref().is_some_and(|checked| {
-                checked.visibilities.iter().any(|visibility| {
-                    matches!(
-                        visibility.visibility,
-                        crate::NonPublicVisibility::Private(_)
-                    )
-                })
-            });
-            let whole = private.then(|| allocator.allocate_ident(&construction.name));
+            let private = construction.has_private_fields();
+            let whole = private.then(|| allocator.allocate(construction.construction_id()));
             let mut field_locals = HashMap::new();
-            let pattern = if construction.element.fields.is_empty() {
+            let pattern = if construction.fields().is_empty() {
                 quote! { #qualifier::#variant(#element) }
             } else if private {
                 let whole = whole
                     .as_ref()
-                    .expect("private construction has a whole local");
+                    .ok_or_else(|| internal("private construction lacks a whole local"))?;
                 quote! { #qualifier::#variant(#whole) }
             } else {
                 let fields = construction
-                    .element
-                    .fields
+                    .fields()
                     .iter()
                     .map(|field| {
-                        let source = &field.name;
+                        let source = field.name();
                         let local = allocator.allocate_ident(source);
                         field_locals.insert(identifier_key(source), local.clone());
                         if local == *source {
@@ -482,10 +455,13 @@ fn render_arms(
             };
             let statements = render_atoms(validated, construction, &locals, root_names, root_impl)?;
             let category_role_block =
-                !root_impl && matches!(construction.form.atoms.as_slice(), [FormAtom::Role(_)]);
+                !root_impl && matches!(construction.atoms(), [AtomPlan::Category { .. }]);
             if statements.len() == 1 && !category_role_block {
                 let statement = syn::parse2::<syn::Stmt>(
-                    statements.into_iter().next().expect("one statement"),
+                    statements
+                        .into_iter()
+                        .next()
+                        .ok_or_else(|| internal("one render statement is absent"))?,
                 )?;
                 let syn::Stmt::Expr(expression, _) = statement else {
                     return Err(internal(
@@ -502,7 +478,7 @@ fn render_arms(
 
 fn render_atoms(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    construction: &ConstructionPlan,
     locals: &RenderLocals,
     root_names: &HashSet<String>,
     root_impl: bool,
@@ -514,40 +490,41 @@ fn render_atoms(
     };
     let method_writer = quote! { writer };
     let fields = construction
-        .element
-        .fields
+        .fields()
         .iter()
-        .map(|field| (identifier_key(&field.name), field))
+        .map(|field| (field.name_key(), field))
         .collect::<HashMap<_, _>>();
     construction
-        .form
-        .atoms
+        .atoms()
         .iter()
         .map(|atom| match atom {
-            FormAtom::Literal(literal) => {
-                let value = literal.value();
+            AtomPlan::Literal(value) => {
                 if value.chars().count() == 1
                     && value
                         .chars()
                         .all(|character| character.is_ascii_punctuation())
                 {
-                    let mark = value.chars().next().expect("one punctuation character");
+                    let mark = value
+                        .chars()
+                        .next()
+                        .ok_or_else(|| internal("one punctuation character is absent"))?;
                     Ok(quote! { #method_writer.punctuation(#mark); })
                 } else {
+                    let literal = syn::LitStr::new(value, Span::call_site());
                     Ok(quote! { #method_writer.word(#literal); })
                 }
             }
-            FormAtom::Role(role) => {
+            AtomPlan::Category { role, .. } => {
                 let field = fields
-                    .get(&identifier_key(role))
+                    .get(role)
                     .ok_or_else(|| internal("resolved role is absent"))?;
-                let FieldKind::Category(path) = &field.kind else {
+                if field.kind() != ConstructionFieldKind::Category {
                     return Err(internal("bare role is not a category"));
-                };
-                let category = path_name(path);
-                let helper = render_category_name(&category, root_names.contains(&category));
+                }
+                let category = field.terminal();
+                let helper = render_category_name(category, root_names.contains(category));
                 let value = field_value(construction, role, locals)?;
-                let capability = validated.category_render_capability(&category);
+                let capability = validated.category_render_capability(category);
                 let agreement = if capability.requires_external_agreement() {
                     role_agreement(validated, construction, role, locals)?
                 } else {
@@ -557,91 +534,77 @@ fn render_atoms(
                 let tail = signature_tail(&[agreement, context]);
                 Ok(quote! { #helper(#call_writer, #value #tail); })
             }
-            FormAtom::Lex(role) => {
+            AtomPlan::Lex { role, .. } => {
                 let field = fields
-                    .get(&identifier_key(role))
+                    .get(role)
                     .ok_or_else(|| internal("resolved lexical role is absent"))?;
-                let terminal = field_terminal(field);
+                let terminal = field.terminal();
                 let value = field_value(construction, role, locals)?;
-                if let Some(vocab) = find_vocab(validated, &terminal)? {
-                    let function = ident(&format!(
-                        "render_{}",
-                        snake_case(&identifier_key(&vocab.name))
-                    ));
+                if let Some(vocab) = find_vocab(validated, terminal) {
+                    let function = ident(&format!("render_{}", snake_case(vocab.name())));
                     let value = copy_value(construction, role, value);
                     Ok(quote! { #function(#call_writer, #value); })
                 } else {
-                    let binding = find_binding(validated, &terminal)?;
-                    let Some(RenderBinding::Runtime(function)) = &binding.render else {
+                    let binding = find_binding(validated, terminal)?;
+                    let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
                         return Err(internal("lex terminal lacks runtime render binding"));
                     };
-                    let value = match binding.traversal.callback_mode {
-                        Some(VisitMode::Copy) => copy_value(construction, role, value),
-                        Some(VisitMode::Borrowed) => value,
-                        None => return Err(internal("lex terminal lacks traversal pass mode")),
+                    let value = match binding.traversal().mode() {
+                        VisitMode::Copy => copy_value(construction, role, value),
+                        VisitMode::Borrowed => value,
                     };
                     Ok(quote! { #function(#call_writer, #value); })
                 }
             }
-            FormAtom::Identity(role) => {
+            AtomPlan::Identity { role, .. } => {
                 let field = fields
-                    .get(&identifier_key(role))
+                    .get(role)
                     .ok_or_else(|| internal("resolved identity role is absent"))?;
-                let binding = find_binding(validated, &field_terminal(field))?;
+                let binding = find_binding(validated, field.terminal())?;
                 let value = field_value(construction, role, locals)?;
                 match binding
-                    .render
-                    .as_ref()
+                    .render()
                     .ok_or_else(|| internal("identity lacks render metadata"))?
                 {
-                    RenderBinding::Runtime(function) => {
-                        let value = match binding.traversal.callback_mode {
-                            Some(VisitMode::Copy) => copy_value(construction, role, value),
-                            Some(VisitMode::Borrowed) => value,
-                            None => return Err(internal("identity lacks traversal pass mode")),
+                    BindingRenderPlan::Runtime(function) => {
+                        let value = match binding.traversal().mode() {
+                            VisitMode::Copy => copy_value(construction, role, value),
+                            VisitMode::Borrowed => value,
                         };
                         Ok(quote! { #function(#call_writer, #value, context); })
                     }
-                    RenderBinding::ContextIdentity(arms) => {
-                        let ty = simple_type_ident(&binding.value_type)?;
+                    BindingRenderPlan::ContextIdentity(arms) => {
+                        let ty = simple_type_ident(binding.value_type())?;
                         let match_arms = arms.iter().map(|arm| {
-                            let variant = &arm.variant;
-                            let accessor = &arm.accessor;
+                            let variant = arm.variant();
+                            let accessor = arm.accessor();
                             crate::emit::call_match_arm(
                                 &quote! { #ty::#variant },
                                 &quote! { #method_writer.identity(context.#accessor()) },
                                 12,
                             )
                         });
-                        let value = match binding.traversal.callback_mode {
-                            Some(VisitMode::Copy) => copy_value(construction, role, value),
-                            Some(VisitMode::Borrowed) => value,
-                            None => return Err(internal("identity lacks traversal pass mode")),
+                        let value = match binding.traversal().mode() {
+                            VisitMode::Copy => copy_value(construction, role, value),
+                            VisitMode::Borrowed => value,
                         };
                         Ok(quote! { match #value { #(#match_arms),* } })
                     }
                 }
             }
-            FormAtom::Verb(operand) => {
-                let variant = match operand {
-                    crate::VerbOperand::Fixed(path) => path,
-                    crate::VerbOperand::Projected(_) => {
-                        return Err(internal("projected verb has no fixed render lexeme"));
-                    }
-                };
+            AtomPlan::VerbFixed { path: variant, .. } => {
                 let agreement = verb_agreement(validated, construction, locals)?;
                 Ok(quote! { #method_writer.word(inflect(#variant, #agreement)); })
             }
-            FormAtom::Noun(role) => {
+            AtomPlan::Noun { role, .. } => {
                 let field = fields
-                    .get(&identifier_key(role))
+                    .get(role)
                     .ok_or_else(|| internal("resolved noun role is absent"))?;
-                let binding = find_binding(validated, &field_terminal(field))?;
-                let Some(RenderBinding::Runtime(function)) = &binding.render else {
+                let binding = find_binding(validated, field.terminal())?;
+                let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
                     return Err(internal("noun terminal lacks runtime render binding"));
                 };
-                let category = path_name(&construction.category);
-                let number = ident(&feature_helper("number", &category));
+                let number = ident(&feature_helper("number", construction.category()));
                 let category_value = &locals.category;
                 let value = field_value(construction, role, locals)?;
                 Ok(quote! { #function(#call_writer, #value, #number(#category_value)); })
@@ -652,12 +615,12 @@ fn render_atoms(
 
 fn role_agreement(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
-    role: &syn::Ident,
+    construction: &ConstructionPlan,
+    role: &str,
     locals: &RenderLocals,
 ) -> syn::Result<Option<TokenStream>> {
-    let equation = validated.feature_equations(&identifier_key(&construction.name)).iter().find(|equation| {
-        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == identifier_key(role))
+    let equation = validated.feature_equations(construction.construction_id()).iter().find(|equation| {
+        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == role)
     });
     equation
         .map(|equation| {
@@ -674,10 +637,10 @@ fn role_agreement(
 
 fn verb_agreement(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    construction: &ConstructionPlan,
     locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
-    let equations = validated.feature_equations(&identifier_key(&construction.name));
+    let equations = validated.feature_equations(construction.construction_id());
     if let Some(equation) = equations.iter().find(|equation| {
         matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == "verb")
     }) {
@@ -700,7 +663,7 @@ fn verb_agreement(
 
 fn feature_expr(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    construction: &ConstructionPlan,
     expression: &FeatureExpr,
     _feature: Feature,
     locals: &RenderLocals,
@@ -712,13 +675,12 @@ fn feature_expr(
             feature: source_feature,
         } => {
             if !construction
-                .element
-                .fields
+                .fields()
                 .iter()
-                .any(|field| identifier_key(&field.name) == identifier_key(role))
+                .any(|field| field.name_key() == identifier_key(role))
             {
                 if let Some(writer) = validated
-                    .feature_equations(&identifier_key(&construction.name))
+                    .feature_equations(construction.construction_id())
                     .iter()
                     .find(|equation| {
                         matches!(
@@ -738,15 +700,11 @@ fn feature_expr(
                 }
                 return Ok(quote! { agreement });
             }
-            let field = construction
-                .element
-                .fields
-                .iter()
-                .find(|field| identifier_key(&field.name) == identifier_key(role))
-                .expect("resolved role");
-            if matches!(field.kind, FieldKind::Category(_))
+            let role_key = identifier_key(role);
+            let field = construction.field(&role_key)?;
+            if field.kind() == ConstructionFieldKind::Category
                 && let Some(writer) = validated
-                    .feature_equations(&identifier_key(&construction.name))
+                    .feature_equations(construction.construction_id())
                     .iter()
                     .find(|equation| {
                         matches!(
@@ -764,23 +722,24 @@ fn feature_expr(
                     locals,
                 );
             }
-            let role_value = field_value(construction, role, locals)?;
-            let (source, value) = match &field.kind {
-                FieldKind::Category(path) => (path_name(path), role_value),
-                FieldKind::Lex(_) => {
+            let role_value = field_value(construction, &role_key, locals)?;
+            let (source, value) = match field.kind() {
+                ConstructionFieldKind::Category => (field.terminal().to_owned(), role_value),
+                ConstructionFieldKind::Lex => {
                     let (writer_role, vocabulary) = canonical_lexical_feature_lowering(
                         validated,
                         construction,
                         role,
                         *source_feature,
                     )?;
-                    let writer_value = field_value(construction, writer_role, locals)?;
+                    let writer_value =
+                        field_value(construction, &identifier_key(writer_role), locals)?;
                     (
-                        path_name(vocabulary),
-                        copy_value(construction, writer_role, writer_value),
+                        vocabulary.to_owned(),
+                        copy_value(construction, &identifier_key(writer_role), writer_value),
                     )
                 }
-                FieldKind::Identity(_) => {
+                ConstructionFieldKind::Identity => {
                     return Err(internal(
                         "identity roles cannot provide grammatical features",
                     ));
@@ -790,20 +749,16 @@ fn feature_expr(
             quote! { #function(#value) }
         }
         FeatureExpr::MatchVocab { role, arms } => {
-            let field = construction
-                .element
-                .fields
-                .iter()
-                .find(|field| identifier_key(&field.name) == identifier_key(role))
-                .ok_or_else(|| internal("match feature role is absent"))?;
-            let ty = ident(&field_terminal(field));
+            let role_key = identifier_key(role);
+            let field = construction.field(&role_key)?;
+            let ty = ident(field.terminal());
             let match_arms = arms.iter().map(|(variant, value)| {
                 let variant = variant.value();
                 let value = feature_value(*value);
                 quote! { #ty::#variant => #value }
             });
-            let role_value = field_value(construction, role, locals)?;
-            let role_value = copy_value(construction, role, role_value);
+            let role_value = field_value(construction, &role_key, locals)?;
+            let role_value = copy_value(construction, &role_key, role_value);
             quote! { match #role_value { #(#match_arms),* } }
         }
     })
@@ -811,12 +766,12 @@ fn feature_expr(
 
 fn canonical_lexical_feature_lowering<'a>(
     validated: &'a SemanticPlan,
-    construction: &'a crate::Construction,
+    construction: &'a ConstructionPlan,
     role: &syn::Ident,
     feature: Feature,
-) -> syn::Result<(&'a syn::Ident, &'a syn::Path)> {
+) -> syn::Result<(&'a syn::Ident, &'a str)> {
     let writer = validated
-        .feature_equations(&identifier_key(&construction.name))
+        .feature_equations(construction.construction_id())
         .iter()
         .find(|equation| {
             matches!(
@@ -849,23 +804,19 @@ fn canonical_lexical_feature_lowering<'a>(
             feature_name(feature),
         )));
     }
-    let vocabulary = construction
-        .element
-        .fields
-        .iter()
-        .find(|field| identifier_key(&field.name) == identifier_key(writer_role))
-        .and_then(|field| match &field.kind {
-            FieldKind::Lex(path) => Some(path),
-            FieldKind::Category(_) | FieldKind::Identity(_) => None,
-        })
-        .ok_or_else(|| internal("lexical feature writer is not rooted in a vocabulary role"))?;
-    Ok((writer_role, vocabulary))
+    let vocabulary = construction.field(&identifier_key(writer_role))?;
+    if vocabulary.kind() != ConstructionFieldKind::Lex {
+        return Err(internal(
+            "lexical feature writer is not rooted in a vocabulary role",
+        ));
+    }
+    Ok((writer_role, vocabulary.terminal()))
 }
 
 fn emit_feature_helper(
     validated: &SemanticPlan,
     category: &str,
-    members: &[&crate::Construction],
+    members: &[&ConstructionPlan],
     feature: Feature,
 ) -> syn::Result<GeneratedItem> {
     let function = ident(&feature_helper(feature_name(feature), category));
@@ -873,7 +824,7 @@ fn emit_feature_helper(
     let mut allocator = LocalAllocator::default();
     for construction in members {
         let equation = validated
-            .feature_equations(&identifier_key(&construction.name))
+            .feature_equations(construction.construction_id())
             .iter()
             .find(|equation| {
                 matches!(equation.target(), FeaturePlace::Construction(found) if *found == feature)
@@ -889,26 +840,20 @@ fn emit_feature_helper(
     let mut entries: Vec<(TokenStream, String, TokenStream)> = Vec::new();
     for construction in members {
         let mut arm_allocator = allocator.clone();
-        let equation = validated.feature_equations(&identifier_key(&construction.name)).iter().find(|equation| {
+        let equation = validated.feature_equations(construction.construction_id()).iter().find(|equation| {
             matches!(equation.target(), FeaturePlace::Construction(found) if *found == feature)
         }).ok_or_else(|| internal("feature helper construction lacks equation"))?;
-        let variant = ident(&pascal_case(&identifier_key(&construction.name)));
-        let element = ident(&identifier_key(&construction.element.name));
+        let variant = ident(construction.category_variant());
+        let element = ident(construction.element_type());
         if let FeatureExpr::MatchVocab { role, arms: values } = equation.value() {
-            let field = construction
-                .element
-                .fields
-                .iter()
-                .find(|field| identifier_key(&field.name) == identifier_key(role))
-                .ok_or_else(|| internal("feature match role absent"))?;
-            let field_type = ident(&field_terminal(field));
+            let field = construction.field(&identifier_key(role))?;
+            let field_type = ident(field.terminal());
             let other_fields = construction
-                .element
-                .fields
+                .fields()
                 .iter()
-                .filter(|candidate| identifier_key(&candidate.name) != identifier_key(role))
+                .filter(|candidate| candidate.name_key() != identifier_key(role))
                 .map(|candidate| {
-                    let name = &candidate.name;
+                    let name = candidate.name();
                     quote! { #name: _ }
                 })
                 .collect::<Vec<_>>();
@@ -928,7 +873,7 @@ fn emit_feature_helper(
                 &element,
                 &roles,
                 &mut arm_allocator,
-            )?;
+            );
             let value = feature_expr(validated, construction, equation.value(), feature, &locals)?;
             entries.push((pattern, value.to_string(), value));
         }
@@ -960,7 +905,7 @@ fn emit_feature_helper(
             .map(|construction| {
                 DeclarationKey::new(
                     DeclarationKind::Construction,
-                    identifier_key(&construction.name),
+                    construction.construction_id(),
                 )
             })
             .collect(),
@@ -973,12 +918,12 @@ fn emit_feature_helper(
 )]
 fn feature_roles(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    construction: &ConstructionPlan,
     expression: &FeatureExpr,
 ) -> syn::Result<HashSet<String>> {
     fn collect(
         validated: &SemanticPlan,
-        construction: &crate::Construction,
+        construction: &ConstructionPlan,
         expression: &FeatureExpr,
         roles: &mut HashSet<String>,
         visiting: &mut HashSet<(String, Feature)>,
@@ -998,18 +943,17 @@ fn feature_roles(
                     return Err(internal("sealed feature flow contains a cycle"));
                 }
                 let field = construction
-                    .element
-                    .fields
+                    .fields()
                     .iter()
-                    .find(|field| identifier_key(&field.name) == identifier_key(role));
+                    .find(|field| field.name_key() == identifier_key(role));
                 let writer = validated
-                    .feature_equations(&identifier_key(&construction.name))
+                    .feature_equations(construction.construction_id())
                     .iter()
                     .find(|equation| {
                         matches!(equation.target(), FeaturePlace::Role { field, feature } if identifier_key(field) == identifier_key(role) && feature == source_feature)
                     });
                 let result = if field.is_none()
-                    || field.is_some_and(|field| matches!(field.kind, FieldKind::Category(_)))
+                    || field.is_some_and(|field| field.kind() == ConstructionFieldKind::Category)
                         && writer.is_some()
                 {
                     if let Some(writer) = writer {
@@ -1040,49 +984,42 @@ fn feature_roles(
 
 fn feature_constant_pattern(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    construction: &ConstructionPlan,
     category: &syn::Ident,
     variant: &syn::Ident,
     element: &syn::Ident,
     roles: &HashSet<String>,
     allocator: &mut LocalAllocator,
-) -> syn::Result<(TokenStream, RenderLocals)> {
-    if construction.element.fields.is_empty() {
-        return Ok((
+) -> (TokenStream, RenderLocals) {
+    if construction.fields().is_empty() {
+        return (
             quote! { #category::#variant(#element) },
             RenderLocals {
                 whole: None,
                 fields: HashMap::new(),
                 category: TokenStream::new(),
             },
-        ));
+        );
     }
-    if construction.checked.as_ref().is_some_and(|checked| {
-        checked.visibilities.iter().any(|visibility| {
-            matches!(
-                visibility.visibility,
-                crate::NonPublicVisibility::Private(_)
-            )
-        })
-    }) {
-        let whole = (!roles.is_empty()).then(|| allocator.allocate_ident(&construction.name));
+    if construction.has_private_fields() {
+        let whole = (!roles.is_empty()).then(|| allocator.allocate(construction.construction_id()));
         let pattern = whole.as_ref().map_or_else(
             || quote! { #category::#variant(_) },
             |whole| quote! { #category::#variant(#whole) },
         );
-        return Ok((
+        return (
             pattern,
             RenderLocals {
                 whole,
                 fields: HashMap::new(),
                 category: TokenStream::new(),
             },
-        ));
+        );
     }
     let mut fields = Vec::new();
     let mut locals = HashMap::new();
-    for field in &construction.element.fields {
-        let name = &field.name;
+    for field in construction.fields() {
+        let name = field.name();
         if roles.contains(&identifier_key(name)) {
             let local = allocator.allocate_ident(name);
             locals.insert(identifier_key(name), local.clone());
@@ -1094,16 +1031,16 @@ fn feature_constant_pattern(
             continue;
         }
         let refined = construction
-            .requirements
+            .refinements()
             .iter()
-            .any(|requirement| identifier_key(&requirement.role) == identifier_key(name));
+            .any(|requirement| identifier_key(requirement.role()) == identifier_key(name));
         let pattern = if refined {
             quote! { #name: _ }
-        } else if let FieldKind::Lex(path) = &field.kind {
-            if let Some(vocab) = find_vocab(validated, &path_name(path))? {
-                let ty = ident(&identifier_key(&vocab.name));
-                let variants = vocab.variants.iter().map(|variant| {
-                    let variant = ident(&identifier_key(&variant.name));
+        } else if field.kind() == ConstructionFieldKind::Lex {
+            if let Some(vocab) = find_vocab(validated, field.terminal()) {
+                let ty = ident(vocab.name());
+                let variants = vocab.variants().iter().map(|variant| {
+                    let variant = ident(&identifier_key(variant.name()));
                     quote! { #ty::#variant }
                 });
                 quote! { #name: #(#variants)|* }
@@ -1115,14 +1052,14 @@ fn feature_constant_pattern(
         };
         fields.push(pattern);
     }
-    Ok((
+    (
         quote! { #category::#variant(#element { #(#fields),* }) },
         RenderLocals {
             whole: None,
             fields: locals,
             category: TokenStream::new(),
         },
-    ))
+    )
 }
 
 fn feature_value(value: FeatureValue) -> TokenStream {
@@ -1135,14 +1072,14 @@ fn feature_value(value: FeatureValue) -> TokenStream {
 }
 
 fn render_category_order(
-    categories: &[(String, Vec<&crate::Construction>)],
-    roots: &[&crate::Root],
+    categories: &[(String, Vec<&ConstructionPlan>)],
+    roots: &[&RootPlan],
     nested: &HashSet<String>,
 ) -> Vec<String> {
     let mut order = Vec::new();
     let mut queued = HashSet::new();
     for root in roots {
-        let root_name = path_name(&root.category);
+        let root_name = root.category().to_owned();
         if nested.contains(&root_name) {
             continue;
         }
@@ -1167,123 +1104,86 @@ fn render_category_order(
 }
 
 fn enqueue_role_categories(
-    members: &[&crate::Construction],
+    members: &[&ConstructionPlan],
     order: &mut Vec<String>,
     queued: &mut HashSet<String>,
 ) {
     for construction in members {
-        for atom in &construction.form.atoms {
-            let FormAtom::Role(role) = atom else { continue };
-            let Some(field) = construction
-                .element
-                .fields
-                .iter()
-                .find(|field| identifier_key(&field.name) == identifier_key(role))
-            else {
-                continue;
-            };
-            let FieldKind::Category(path) = &field.kind else { continue };
-            let category = path_name(path);
+        for atom in construction.atoms() {
+            let AtomPlan::Category { category, .. } = atom else { continue };
             if queued.insert(category.clone()) {
-                order.push(category);
+                order.push(category.clone());
             }
         }
     }
 }
 
-fn category_groups<'a>(
-    validated: &SemanticPlan,
-    constructions: &[&'a crate::Construction],
-) -> Vec<(String, Vec<&'a crate::Construction>)> {
-    let mut result: Vec<(String, Vec<&crate::Construction>)> = Vec::new();
-    for (construction, record) in constructions.iter().zip(validated.constructions()) {
+fn category_groups(constructions: &[ConstructionPlan]) -> Vec<(String, Vec<&ConstructionPlan>)> {
+    let mut result: Vec<(String, Vec<&ConstructionPlan>)> = Vec::new();
+    for construction in constructions {
         if let Some((_, members)) = result
             .iter_mut()
-            .find(|(name, _)| name == record.category())
+            .find(|(name, _)| name == construction.category())
         {
-            members.push(*construction);
+            members.push(construction);
         } else {
-            result.push((record.category().to_owned(), vec![*construction]));
+            result.push((construction.category().to_owned(), vec![construction]));
         }
     }
     result
 }
 
-fn find_vocab<'a>(
-    validated: &'a SemanticPlan,
-    name: &str,
-) -> syn::Result<Option<&'a crate::Vocab>> {
+fn find_vocab<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a VocabPlan> {
     for terminal in validated.terminals() {
-        if let TerminalPlan::Vocab(row) = terminal {
-            let vocab = validated.vocab_source(row)?;
-            if identifier_key(&vocab.name) == name {
-                return Ok(Some(vocab));
-            }
+        if let TerminalPlan::Vocab(row) = terminal
+            && row.name() == name
+        {
+            return Some(row);
         }
     }
-    Ok(None)
+    None
 }
 
-fn find_binding<'a>(
-    validated: &'a SemanticPlan,
-    name: &str,
-) -> syn::Result<&'a crate::TerminalBinding> {
+fn find_binding<'a>(validated: &'a SemanticPlan, name: &str) -> syn::Result<&'a BindingPlan> {
     for terminal in validated.terminals() {
-        if let TerminalPlan::Binding(row) = terminal {
-            let binding = validated.binding_source(row)?;
-            if identifier_key(&binding.name) == name {
-                return Ok(binding);
-            }
+        if let TerminalPlan::Binding(row) = terminal
+            && row.name() == name
+        {
+            return Ok(row);
         }
     }
     Err(internal("resolved terminal binding is absent"))
 }
 
-fn field_terminal(field: &crate::Field) -> String {
-    match &field.kind {
-        FieldKind::Lex(path) | FieldKind::Identity(path) | FieldKind::Category(path) => {
-            path_name(path)
-        }
-    }
-}
-
 fn field_value(
-    construction: &crate::Construction,
-    role: &syn::Ident,
+    construction: &ConstructionPlan,
+    role: &str,
     locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
-    if let Some(accessor) = construction.checked.as_ref().and_then(|checked| {
-        checked
-            .accessors
-            .iter()
-            .find(|accessor| identifier_key(&accessor.role) == identifier_key(role))
-    }) {
+    let field = construction.field(role)?;
+    if let Some(method) = field.accessor() {
         let whole = locals
             .whole
             .as_ref()
             .ok_or_else(|| internal("checked render accessor lacks its allocated whole local"))?;
-        let method = &accessor.method;
         Ok(quote! { #whole.#method() })
-    } else if has_private_fields(construction) {
+    } else if construction.has_private_fields() {
         let whole = locals
             .whole
             .as_ref()
             .ok_or_else(|| internal("private render field lacks its allocated whole local"))?;
+        let role = field.name();
         Ok(quote! { &#whole.#role })
     } else {
         let local = locals
             .fields
-            .get(&identifier_key(role))
+            .get(role)
             .ok_or_else(|| internal("public render field lacks its allocated local"))?;
         Ok(quote! { #local })
     }
 }
 
-fn copy_value(
-    construction: &crate::Construction,
-    role: &syn::Ident,
-    value: TokenStream,
-) -> TokenStream {
+fn copy_value(construction: &ConstructionPlan, role: &str, value: TokenStream) -> TokenStream {
     if has_accessor(construction, role) {
         value
     } else {
@@ -1291,24 +1191,12 @@ fn copy_value(
     }
 }
 
-fn has_accessor(construction: &crate::Construction, role: &syn::Ident) -> bool {
-    construction.checked.as_ref().is_some_and(|checked| {
-        checked
-            .accessors
-            .iter()
-            .any(|accessor| identifier_key(&accessor.role) == identifier_key(role))
-    })
-}
-
-fn has_private_fields(construction: &crate::Construction) -> bool {
-    construction.checked.as_ref().is_some_and(|checked| {
-        checked.visibilities.iter().any(|visibility| {
-            matches!(
-                visibility.visibility,
-                crate::NonPublicVisibility::Private(_)
-            )
-        })
-    })
+fn has_accessor(construction: &ConstructionPlan, role: &str) -> bool {
+    construction
+        .fields()
+        .iter()
+        .find(|field| field.name_key() == role)
+        .is_some_and(ConstructionFieldPlan::has_accessor)
 }
 
 fn render_category_name(category: &str, root: bool) -> syn::Ident {
@@ -1319,8 +1207,8 @@ fn category_argument(category: &str) -> String {
     let snake = snake_case(category);
     if snake.ends_with("_phrase") { "phrase".to_owned() } else { snake }
 }
-fn render_vocab_argument(name: &syn::Ident) -> String {
-    let snake = snake_case(&identifier_key(name));
+fn render_vocab_argument(name: &str) -> String {
+    let snake = snake_case(name);
     snake.strip_suffix("_word").unwrap_or(&snake).to_owned()
 }
 
@@ -1333,9 +1221,6 @@ fn feature_name(feature: Feature) -> &'static str {
 fn ident(name: &str) -> syn::Ident {
     emitted_ident(name, Span::call_site())
 }
-fn path_name(path: &syn::Path) -> String {
-    path_key(path)
-}
 fn simple_type_ident(ty: &syn::Type) -> syn::Result<&syn::Ident> {
     match ty {
         syn::Type::Path(path) => path
@@ -1346,20 +1231,6 @@ fn simple_type_ident(ty: &syn::Type) -> syn::Result<&syn::Ident> {
             .ok_or_else(|| internal("empty binding type")),
         _ => Err(internal("binding type must be a path")),
     }
-}
-fn punctuation(value: &syn::LitStr) -> syn::Result<char> {
-    let text = value.value();
-    let mut chars = text.chars();
-    let first = chars
-        .next()
-        .ok_or_else(|| syn::Error::new(value.span(), "root punctuation cannot be empty"))?;
-    if chars.next().is_some() {
-        return Err(syn::Error::new(
-            value.span(),
-            "root punctuation must be one character",
-        ));
-    }
-    Ok(first)
 }
 fn internal(message: &str) -> syn::Error {
     syn::Error::new(Span::call_site(), message)
@@ -1678,12 +1549,7 @@ mod tests {
         )
         .expect("the exact lexical writer validates");
         let plan = validated.semantic();
-        let construction = plan
-            .constructions()
-            .first()
-            .map(|row| plan.construction_source(row))
-            .expect("construction row")
-            .expect("sealed construction source");
+        let construction = plan.constructions().first().expect("construction row");
         let role = syn::parse_quote!(person);
         let (writer_role, vocabulary) = super::canonical_lexical_feature_lowering(
             plan,
@@ -1693,7 +1559,7 @@ mod tests {
         )
         .expect("the exact role.feature writer is retrievable");
         assert_eq!(writer_role, "person");
-        assert_eq!(super::path_name(vocabulary), "Person");
+        assert_eq!(vocabulary, "Person");
         let missing = super::canonical_lexical_feature_lowering(
             plan,
             construction,

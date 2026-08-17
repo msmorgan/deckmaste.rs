@@ -13,6 +13,10 @@ use crate::plan::TerminalVariantContribution;
 use crate::semantic::SemanticPlan;
 use crate::semantic::TerminalPlan;
 
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "emitter phases share one fallible interface"
+)]
 pub(crate) fn emit(
     validated: &SemanticPlan,
 ) -> syn::Result<(Vec<GeneratedItem>, Vec<TerminalContribution>)> {
@@ -22,27 +26,26 @@ pub(crate) fn emit(
     for terminal in validated.terminals() {
         match terminal {
             TerminalPlan::Vocab(row) => {
-                let vocab = validated.vocab_source(row)?;
-                let name = identifier_key(&vocab.name);
+                let name = row.name().to_owned();
                 let origin = DeclarationKey::new(DeclarationKind::Vocab, &name);
-                let variants = vocab
-                    .variants
+                let variants = row
+                    .variants()
                     .iter()
                     .map(|variant| {
                         TerminalVariantContribution::new(
-                            identifier_key(&variant.name),
-                            Some(variant.word.value()),
+                            identifier_key(variant.name()),
+                            Some(variant.word().value()),
                         )
                     })
                     .collect::<Vec<_>>();
-                let variant_idents = vocab
-                    .variants
+                let variant_idents = row
+                    .variants()
                     .iter()
                     .map(|variant| {
-                        emitted_ident(&identifier_key(&variant.name), variant.name.span())
+                        emitted_ident(&identifier_key(variant.name()), variant.name().span())
                     })
                     .collect::<Vec<_>>();
-                let ident = emitted_ident(&name, vocab.name.span());
+                let ident = emitted_ident(&name, row.name_ident().span());
                 let tokens = quote! {
                     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
                     pub enum #ident {
@@ -64,21 +67,20 @@ pub(crate) fn emit(
                 ));
             }
             TerminalPlan::Lexeme(row) => {
-                let lexeme = validated.lexeme_source(row)?;
-                let name = identifier_key(&lexeme.name);
+                let name = row.name().to_owned();
                 let verb_provider = row.is_verb_provider();
                 let origin = DeclarationKey::new(DeclarationKind::Lexeme, &name);
-                let variants = lexeme
-                    .variants
+                let variants = row
+                    .variants()
                     .iter()
                     .map(|variant| TerminalVariantContribution::new(identifier_key(variant), None))
                     .collect::<Vec<_>>();
-                let variant_idents = lexeme
-                    .variants
+                let variant_idents = row
+                    .variants()
                     .iter()
                     .map(|variant| emitted_ident(&identifier_key(variant), variant.span()))
                     .collect::<Vec<_>>();
-                let ident = emitted_ident(&name, lexeme.name.span());
+                let ident = emitted_ident(&name, row.name_ident().span());
                 let tokens = if verb_provider {
                     quote! {
                         #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]

@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use proc_macro2::TokenStream;
 
-#[cfg(test)]
 use crate::model::Declaration;
 use crate::semantic::SemanticPlan;
 
@@ -69,7 +68,6 @@ impl DeclarationKey {
         &self.name
     }
 
-    #[cfg(test)]
     pub(crate) fn from_source(declaration: &Declaration) -> Self {
         match declaration {
             Declaration::Construction(value) => {
@@ -266,15 +264,19 @@ mod tests {
 
     #[test]
     fn semantic_plan_construction_emitters_share_one_mutated_fact() {
+        let input = crate::test_support::representative_tokens().to_string();
         let mut plan = crate::test_support::representative_semantic_plan();
         plan.test_only_replace_planned_literal("first", 0, "changed");
-        assert_eq!(authored_first_literal(&plan), "first");
         let ast = crate::emit::ast::emit(&plan).unwrap();
         let rules = crate::emit::rules::emit(&plan).unwrap();
         let build = crate::emit::build::emit(&plan).unwrap();
         assert!(formatted(&rules).contains("Literal (\"changed\")"));
         assert!(formatted(&build).contains("Leaf :: Literal (\"changed\")"));
         assert_eq!(named_types(&ast), expected_category_and_product_types());
+        assert_eq!(
+            crate::test_support::representative_tokens().to_string(),
+            input
+        );
     }
 
     #[test]
@@ -285,19 +287,51 @@ mod tests {
         let terminal = crate::emit::terminal::emit(&plan).unwrap();
         assert_eq!(terminal_word(&terminal, "First"), "changed");
         assert!(formatted(&crate::emit::render::emit(&plan).unwrap()).contains("\"changed\""));
-        assert!(
-            visitor_origins(&crate::emit::visit::emit(&plan).unwrap())
-                .contains(&"Words".to_owned())
-        );
-        assert!(
-            crate::report::escape_hatch_report(&plan)
-                .unwrap()
-                .terminal_bindings()
-                .is_empty()
-        );
+
+        let visitor_before = visitor_origins(&crate::emit::visit::emit(&plan).unwrap());
+        assert!(visitor_before.contains(&"Words".to_owned()));
+        plan.test_only_replace_vocab_name("Words", "ChangedWords");
+        let visitor_after = visitor_origins(&crate::emit::visit::emit(&plan).unwrap());
+        assert!(!visitor_after.contains(&"Words".to_owned()));
+        assert!(visitor_after.contains(&"ChangedWords".to_owned()));
         assert_eq!(
             crate::test_support::representative_tokens().to_string(),
             input
+        );
+
+        let binding_input = crate::test_support::synthetic_projection_tokens().to_string();
+        let mut binding_plan = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::synthetic_projection_tokens())
+                .expect("synthetic fixture parses"),
+        )
+        .expect("synthetic fixture validates")
+        .into_semantic();
+        assert_eq!(
+            report_binding_names(&binding_plan),
+            ["Resource", "Marker", "Handle", "Pair", "Record"]
+        );
+        binding_plan.test_only_replace_binding_name("Resource", "ChangedResource");
+        assert_eq!(
+            report_binding_names(&binding_plan),
+            ["ChangedResource", "Marker", "Handle", "Pair", "Record"]
+        );
+        assert_eq!(
+            crate::test_support::synthetic_projection_tokens().to_string(),
+            binding_input
+        );
+
+        let mut corrupt_plan = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::synthetic_projection_tokens())
+                .expect("synthetic fixture parses"),
+        )
+        .expect("synthetic fixture validates")
+        .into_semantic();
+        corrupt_plan.test_only_mismatch_binding_origin("Resource");
+        assert_eq!(
+            crate::generate_from_semantic(&corrupt_plan)
+                .expect_err("generation propagates binding-origin mismatches")
+                .to_string(),
+            "sealed terminal binding `Resource` has a mismatched declaration kind"
         );
     }
 
@@ -312,19 +346,21 @@ mod tests {
     }
 
     #[test]
-    fn sealed_plan_source_mismatches_are_emission_errors() {
-        let mut plan = crate::test_support::representative_semantic_plan();
-        plan.test_only_mispoint_construction_source("first");
-        let error = crate::emit::build::emit(&plan).expect_err("bad sealed plan is fallible");
-        assert!(error.to_string().contains("construction source"));
-    }
-
-    #[test]
     fn sealed_construction_atoms_reject_count_and_kind_mismatches() {
-        let plan = crate::test_support::representative_semantic_plan();
-        let crate::Declaration::Construction(construction) = &plan.source().declarations[0] else {
-            panic!("representative source begins with its construction");
-        };
+        let source = crate::parse_declarations(crate::test_support::representative_tokens())
+            .expect("representative fixture parses");
+        let construction = source
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                crate::Declaration::Construction(construction) => Some(construction),
+                crate::Declaration::Vocab(_)
+                | crate::Declaration::Lexeme(_)
+                | crate::Declaration::Codec(_)
+                | crate::Declaration::Identity(_)
+                | crate::Declaration::Root(_) => None,
+            })
+            .expect("representative source has a construction");
 
         let count_error = SemanticPlan::test_only_seal_construction_atoms(&construction.form, &[])
             .expect_err("a sealed atom list cannot silently truncate");
@@ -383,6 +419,15 @@ mod tests {
             .collect()
     }
 
+    fn report_binding_names(plan: &SemanticPlan) -> Vec<String> {
+        crate::report::escape_hatch_report(plan)
+            .expect("sealed report facts are consistent")
+            .terminal_bindings()
+            .iter()
+            .map(|binding| binding.name().to_owned())
+            .collect()
+    }
+
     fn named_types(items: &[GeneratedItem]) -> Vec<String> {
         items
             .iter()
@@ -402,16 +447,6 @@ mod tests {
 
     fn expected_category_and_product_types() -> Vec<String> {
         ["Node", "First"].into_iter().map(str::to_owned).collect()
-    }
-
-    fn authored_first_literal(plan: &SemanticPlan) -> String {
-        let crate::Declaration::Construction(construction) = &plan.source().declarations[0] else {
-            panic!("representative source begins with its construction");
-        };
-        let crate::FormAtom::Literal(literal) = &construction.form.atoms[0] else {
-            panic!("representative construction begins with its literal");
-        };
-        literal.value()
     }
 
     #[test]

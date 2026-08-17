@@ -3,82 +3,79 @@ use std::collections::HashSet;
 
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
-use quote::ToTokens;
 use quote::quote;
 
 use crate::emit::LocalAllocator;
 use crate::identifier::VISITOR_TRAIT;
 use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
-use crate::identifier::pascal_case;
-use crate::identifier::path_key;
 use crate::identifier::snake_case;
-use crate::model::FieldKind;
-use crate::model::FormAtom;
-use crate::model::TraversalCall;
 use crate::model::VisitMode;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::AtomPlan;
+use crate::semantic::BindingPlan;
+use crate::semantic::BindingTraversalRecipe;
+use crate::semantic::ConstructionFieldKind;
+use crate::semantic::ConstructionFieldPlan;
+use crate::semantic::ConstructionPlan;
+use crate::semantic::LexemePlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::TerminalPlan;
+use crate::semantic::TraversalBranchArmPlan;
+use crate::semantic::TraversalCallPlan;
+use crate::semantic::TraversalFieldPlan;
+use crate::semantic::TraversalValuePlan;
+use crate::semantic::VocabPlan;
+use crate::semantic::VocabVariantPlan;
 
 pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
-    let constructions = validated
-        .constructions()
-        .iter()
-        .map(|row| validated.construction_source(row))
-        .collect::<syn::Result<Vec<_>>>()?;
-    let categories = category_groups(validated, &constructions);
-    let vocabs = validated
-        .terminals()
-        .iter()
-        .filter_map(|terminal| match terminal {
-            TerminalPlan::Vocab(row) => Some(validated.vocab_source(row)),
-            TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
-        })
-        .collect::<syn::Result<Vec<_>>>()?;
-    let lexemes = validated
-        .terminals()
-        .iter()
-        .filter_map(|terminal| match terminal {
-            TerminalPlan::Lexeme(row) => Some(validated.lexeme_source(row)),
-            TerminalPlan::Vocab(_) | TerminalPlan::Binding(_) => None,
-        })
-        .collect::<syn::Result<Vec<_>>>()?;
-    let bindings = validated
-        .terminals()
-        .iter()
-        .filter_map(|terminal| match terminal {
-            TerminalPlan::Binding(row) => Some(validated.binding_source(row)),
-            TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) => None,
-        })
-        .collect::<syn::Result<Vec<_>>>()?;
+    let constructions = validated.constructions();
+    let categories = category_groups(constructions);
+    let mut vocabs = Vec::new();
+    let mut lexemes = Vec::new();
+    let mut bindings = Vec::new();
+    for terminal in validated.terminals() {
+        match terminal {
+            TerminalPlan::Vocab(row) => vocabs.push(row),
+            TerminalPlan::Lexeme(row) => lexemes.push(row),
+            TerminalPlan::Binding(row) => bindings.push(row),
+        }
+    }
     let containers = bindings
         .iter()
         .copied()
-        .filter(|binding| !binding.traversal.branches.is_empty())
+        .filter(|binding| {
+            matches!(
+                binding.traversal().recipe(),
+                BindingTraversalRecipe::Branches(_)
+            )
+        })
         .collect::<Vec<_>>();
     let copy_bindings = bindings
         .iter()
         .copied()
-        .filter(|binding| binding.traversal.callback_mode == Some(VisitMode::Copy))
+        .filter(|binding| binding.traversal().mode() == VisitMode::Copy)
         .collect::<Vec<_>>();
     let borrowed_bindings = bindings
         .iter()
         .copied()
         .filter(|binding| {
-            binding.traversal.callback_mode == Some(VisitMode::Borrowed)
-                && binding.traversal.branches.is_empty()
+            binding.traversal().mode() == VisitMode::Borrowed
+                && !matches!(
+                    binding.traversal().recipe(),
+                    BindingTraversalRecipe::Branches(_)
+                )
         })
         .collect::<Vec<_>>();
 
     let trait_item = emit_trait(
         &categories,
         &containers,
-        &constructions,
+        constructions,
         &vocabs,
         &copy_bindings,
         &lexemes,
@@ -91,13 +88,13 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     for binding in &containers {
         items.push(emit_binding_walker(binding)?);
     }
-    for construction in &constructions {
+    for construction in constructions {
         items.push(emit_construction_walker(validated, construction)?);
     }
     for vocab in &vocabs {
         items.push(emit_enum_walker(
-            &vocab.name,
-            vocab.variants.iter().map(|variant| &variant.name),
+            vocab.name_ident(),
+            vocab.variants().iter().map(VocabVariantPlan::name),
             DeclarationKind::Vocab,
         ));
     }
@@ -106,8 +103,8 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     }
     for lexeme in &lexemes {
         items.push(emit_enum_walker(
-            &lexeme.name,
-            lexeme.variants.iter(),
+            lexeme.name_ident(),
+            lexeme.variants().iter(),
             DeclarationKind::Lexeme,
         ));
     }
@@ -122,13 +119,13 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     reason = "keeps every visitor phase finalizer on one fallible interface"
 )]
 fn emit_trait(
-    categories: &[(String, Vec<&crate::Construction>)],
-    containers: &[&crate::TerminalBinding],
-    constructions: &[&crate::Construction],
-    vocabs: &[&crate::Vocab],
-    copy_bindings: &[&crate::TerminalBinding],
-    lexemes: &[&crate::Lexeme],
-    borrowed_bindings: &[&crate::TerminalBinding],
+    categories: &[(String, Vec<&ConstructionPlan>)],
+    containers: &[&BindingPlan],
+    constructions: &[ConstructionPlan],
+    vocabs: &[&VocabPlan],
+    copy_bindings: &[&BindingPlan],
+    lexemes: &[&LexemePlan],
+    borrowed_bindings: &[&BindingPlan],
 ) -> syn::Result<GeneratedItem> {
     let visitor = ident(VISITOR_TRAIT);
     let mut methods = Vec::new();
@@ -136,31 +133,25 @@ fn emit_trait(
         methods.push(default_method(category, &category_argument(category)));
     }
     for binding in containers {
-        methods.push(default_method(
-            &identifier_key(&binding.name),
-            &binding_argument(binding),
-        ));
+        methods.push(default_method(binding.name(), &binding_argument(binding)));
     }
     for construction in constructions {
         methods.push(default_method(
-            &identifier_key(&construction.element.name),
-            &snake_case(&identifier_key(&construction.element.name)),
+            construction.element_type(),
+            &snake_case(construction.element_type()),
         ));
     }
     for vocab in vocabs {
-        methods.push(noop_method(&identifier_key(&vocab.name), VisitMode::Copy));
+        methods.push(noop_method(vocab.name(), VisitMode::Copy));
     }
     for binding in copy_bindings {
-        methods.push(noop_method(&identifier_key(&binding.name), VisitMode::Copy));
+        methods.push(noop_method(binding.name(), VisitMode::Copy));
     }
     for lexeme in lexemes {
-        methods.push(noop_method(&identifier_key(&lexeme.name), VisitMode::Copy));
+        methods.push(noop_method(lexeme.name(), VisitMode::Copy));
     }
     for binding in borrowed_bindings {
-        methods.push(noop_method(
-            &identifier_key(&binding.name),
-            VisitMode::Borrowed,
-        ));
+        methods.push(noop_method(binding.name(), VisitMode::Borrowed));
     }
 
     let mut leaf_origins = Vec::new();
@@ -170,24 +161,21 @@ fn emit_trait(
         .chain(copy_bindings)
         .chain(borrowed_bindings)
     {
-        for leaf in &binding.traversal.leaf_callbacks {
-            if seen.insert(identifier_key(&leaf.name)) {
-                let name = &leaf.name;
-                let ty = &leaf.value_type;
+        for leaf in binding.traversal().leaf_callbacks() {
+            if seen.insert(identifier_key(leaf.name())) {
+                let name = leaf.name();
+                let ty = leaf.value_type();
                 let name_string = identifier_key(name);
                 let callback_subject = name_string.strip_prefix("visit_").unwrap_or(&name_string);
                 let mut allocator = LocalAllocator::default();
                 allocator.reserve("self");
                 let argument = allocator.allocate(&format!("_{}", leaf_argument(callback_subject)));
-                let signature = match leaf.mode {
+                let signature = match leaf.mode() {
                     VisitMode::Copy => quote! { #argument: #ty },
                     VisitMode::Borrowed => quote! { #argument: &#ty },
                 };
                 methods.push(quote! { fn #name(&mut self, #signature) {} });
-                leaf_origins.push(DeclarationKey::new(
-                    binding_kind(binding),
-                    identifier_key(&binding.name),
-                ));
+                leaf_origins.push(DeclarationKey::new(binding_kind(binding), binding.name()));
             }
         }
     }
@@ -197,7 +185,7 @@ fn emit_trait(
             members.iter().map(|construction| {
                 DeclarationKey::new(
                     DeclarationKind::Construction,
-                    identifier_key(&construction.name),
+                    construction.construction_id(),
                 )
             })
         })
@@ -210,13 +198,13 @@ fn emit_trait(
     origins.extend(constructions.iter().map(|construction| {
         DeclarationKey::new(
             DeclarationKind::Construction,
-            identifier_key(&construction.name),
+            construction.construction_id(),
         )
     }));
     origins.extend(
         vocabs
             .iter()
-            .map(|vocab| DeclarationKey::new(DeclarationKind::Vocab, identifier_key(&vocab.name))),
+            .map(|vocab| DeclarationKey::new(DeclarationKind::Vocab, vocab.name())),
     );
     origins.extend(
         copy_bindings
@@ -224,9 +212,9 @@ fn emit_trait(
             .map(|binding| binding_origin(binding, constructions)),
     );
     origins.extend(
-        lexemes.iter().map(|lexeme| {
-            DeclarationKey::new(DeclarationKind::Lexeme, identifier_key(&lexeme.name))
-        }),
+        lexemes
+            .iter()
+            .map(|lexeme| DeclarationKey::new(DeclarationKind::Lexeme, lexeme.name())),
     );
     origins.extend(
         borrowed_bindings
@@ -269,7 +257,7 @@ fn noop_method(type_name: &str, mode: VisitMode) -> TokenStream {
     }
 }
 
-fn emit_category_walker(category: &str, members: &[&crate::Construction]) -> GeneratedItem {
+fn emit_category_walker(category: &str, members: &[&ConstructionPlan]) -> GeneratedItem {
     let ty = ident(category);
     let function = ident(&format!("walk_{}", snake_case(category)));
     let mut allocator = LocalAllocator::default();
@@ -277,12 +265,11 @@ fn emit_category_walker(category: &str, members: &[&crate::Construction]) -> Gen
     let argument = allocator.allocate(&category_argument(category));
     let arms = members.iter().map(|construction| {
         let mut arm_allocator = allocator.clone();
-        let variant = ident(&pascal_case(&identifier_key(&construction.name)));
-        let payload =
-            arm_allocator.allocate(&snake_case(&identifier_key(&construction.element.name)));
+        let variant = ident(construction.category_variant());
+        let payload = arm_allocator.allocate(&snake_case(construction.element_type()));
         let callback = ident(&format!(
             "visit_{}",
-            snake_case(&identifier_key(&construction.element.name))
+            snake_case(construction.element_type())
         ));
         crate::emit::call_match_arm(
             &quote! { #ty::#variant(#payload) },
@@ -301,7 +288,7 @@ fn emit_category_walker(category: &str, members: &[&crate::Construction]) -> Gen
             .map(|construction| {
                 DeclarationKey::new(
                     DeclarationKind::Construction,
-                    identifier_key(&construction.name),
+                    construction.construction_id(),
                 )
             })
             .collect(),
@@ -314,57 +301,37 @@ fn emit_category_walker(category: &str, members: &[&crate::Construction]) -> Gen
 )]
 fn emit_construction_walker(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    construction: &ConstructionPlan,
 ) -> syn::Result<GeneratedItem> {
-    let type_name = identifier_key(&construction.element.name);
+    let type_name = construction.element_type().to_owned();
     let ty = ident(&type_name);
     let function = ident(&format!("walk_{}", snake_case(&type_name)));
     let mut allocator = LocalAllocator::default();
     allocator.reserve("visitor");
-    for atom in &construction.form.atoms {
+    for atom in construction.atoms() {
         let terminal = match atom {
-            FormAtom::Lex(role) | FormAtom::Identity(role) => construction
-                .element
-                .fields
-                .iter()
-                .find(|field| identifier_key(&field.name) == identifier_key(role))
-                .map(field_terminal),
-            FormAtom::Verb(crate::VerbOperand::Fixed(path)) => path
-                .segments
-                .iter()
-                .rev()
-                .nth(1)
-                .map(|segment| identifier_key(&segment.ident)),
-            FormAtom::Literal(_)
-            | FormAtom::Role(_)
-            | FormAtom::Noun(_)
-            | FormAtom::Verb(crate::VerbOperand::Projected(_)) => None,
+            AtomPlan::Lex { terminal, .. }
+            | AtomPlan::Identity { terminal, .. }
+            | AtomPlan::VerbFixed { terminal, .. } => Some(terminal.clone()),
+            AtomPlan::Literal(_) | AtomPlan::Category { .. } | AtomPlan::Noun { .. } => None,
         };
         if let Some(terminal) = terminal {
             allocator.reserve(format!("walk_{}", snake_case(&terminal)));
         }
     }
     let argument = allocator.allocate(&snake_case(&type_name));
-    let private = construction.checked.as_ref().is_some_and(|checked| {
-        checked.visibilities.iter().any(|visibility| {
-            matches!(
-                visibility.visibility,
-                crate::NonPublicVisibility::Private(_)
-            )
-        })
-    });
+    let private = construction.has_private_fields();
     let mut field_locals = HashMap::new();
-    let destructure = if construction.element.fields.is_empty() {
+    let destructure = if construction.fields().is_empty() {
         quote! { let #ty = #argument; }
     } else if private {
         TokenStream::new()
     } else {
         let fields = construction
-            .element
-            .fields
+            .fields()
             .iter()
             .map(|field| {
-                let source = &field.name;
+                let source = field.name();
                 let local = allocator.allocate_ident(source);
                 field_locals.insert(identifier_key(source), local.clone());
                 if local == *source {
@@ -377,34 +344,32 @@ fn emit_construction_walker(
         quote! { let #ty { #(#fields),* } = #argument; }
     };
     let fields = construction
-        .element
-        .fields
+        .fields()
         .iter()
-        .map(|field| (identifier_key(&field.name), field))
+        .map(|field| (field.name_key(), field))
         .collect::<HashMap<_, _>>();
     let mut calls = Vec::new();
-    for atom in &construction.form.atoms {
+    for atom in construction.atoms() {
         let call = match atom {
-            FormAtom::Literal(_) => None,
-            FormAtom::Role(role) => {
+            AtomPlan::Literal(_) => None,
+            AtomPlan::Category { role, category } => {
                 let field = fields
-                    .get(&identifier_key(role))
+                    .get(role)
                     .ok_or_else(|| internal("walker category role absent"))?;
-                let FieldKind::Category(path) = &field.kind else {
+                if field.kind() != ConstructionFieldKind::Category {
                     return Err(internal("walker bare role is not category"));
-                };
-                let callback = ident(&format!("visit_{}", snake_case(&path_name(path))));
+                }
+                let callback = ident(&format!("visit_{}", snake_case(category)));
                 let value = field_value(construction, role, &argument, &field_locals)?;
                 Some(quote! { visitor.#callback(#value); })
             }
-            FormAtom::Lex(role) => {
-                let field = fields
-                    .get(&identifier_key(role))
+            AtomPlan::Lex { role, terminal } => {
+                fields
+                    .get(role)
                     .ok_or_else(|| internal("walker lex role absent"))?;
-                let terminal = field_terminal(field);
-                let walker = ident(&format!("walk_{}", snake_case(&terminal)));
+                let walker = ident(&format!("walk_{}", snake_case(terminal)));
                 let value = field_value(construction, role, &argument, &field_locals)?;
-                let copy = terminal_mode(validated, &terminal)? == VisitMode::Copy;
+                let copy = terminal_mode(validated, terminal)? == VisitMode::Copy;
                 Some(if copy {
                     if has_accessor(construction, role) {
                         quote! { #walker(visitor, #value); }
@@ -415,14 +380,13 @@ fn emit_construction_walker(
                     quote! { #walker(visitor, #value); }
                 })
             }
-            FormAtom::Identity(role) => {
-                let field = fields
-                    .get(&identifier_key(role))
+            AtomPlan::Identity { role, terminal } => {
+                fields
+                    .get(role)
                     .ok_or_else(|| internal("walker identity role absent"))?;
-                let terminal = field_terminal(field);
-                let walker = ident(&format!("walk_{}", snake_case(&terminal)));
+                let walker = ident(&format!("walk_{}", snake_case(terminal)));
                 let value = field_value(construction, role, &argument, &field_locals)?;
-                let copy = terminal_mode(validated, &terminal)? == VisitMode::Copy;
+                let copy = terminal_mode(validated, terminal)? == VisitMode::Copy;
                 Some(if copy {
                     if has_accessor(construction, role) {
                         quote! { #walker(visitor, #value); }
@@ -433,29 +397,17 @@ fn emit_construction_walker(
                     quote! { #walker(visitor, #value); }
                 })
             }
-            FormAtom::Noun(role) => {
-                let field = fields
-                    .get(&identifier_key(role))
+            AtomPlan::Noun { role, terminal } => {
+                fields
+                    .get(role)
                     .ok_or_else(|| internal("walker noun role absent"))?;
-                let terminal = field_terminal(field);
-                let callback = ident(&format!("visit_{}", snake_case(&terminal)));
+                let callback = ident(&format!("visit_{}", snake_case(terminal)));
                 let value = field_value(construction, role, &argument, &field_locals)?;
                 Some(quote! { visitor.#callback(#value); })
             }
-            FormAtom::Verb(crate::VerbOperand::Fixed(path)) => {
-                let terminal = &path
-                    .segments
-                    .iter()
-                    .rev()
-                    .nth(1)
-                    .ok_or_else(|| internal("fixed verb path lacks terminal"))?
-                    .ident;
-                let terminal = identifier_key(terminal);
-                let walker = ident(&format!("walk_{}", snake_case(&terminal)));
+            AtomPlan::VerbFixed { terminal, path, .. } => {
+                let walker = ident(&format!("walk_{}", snake_case(terminal)));
                 Some(quote! { #walker(visitor, #path); })
-            }
-            FormAtom::Verb(crate::VerbOperand::Projected(_)) => {
-                return Err(internal("projected verb walker is unsupported"));
             }
         };
         if let Some(call) = call {
@@ -470,7 +422,7 @@ fn emit_construction_walker(
         quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) { #destructure #(#calls)* } },
         vec![DeclarationKey::new(
             DeclarationKind::Construction,
-            identifier_key(&construction.name),
+            construction.construction_id(),
         )],
     ))
 }
@@ -507,36 +459,40 @@ fn emit_enum_walker<'a>(
     )
 }
 
-fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<GeneratedItem> {
-    let authored_ty = simple_type_ident(&binding.value_type)?;
+fn emit_binding_walker(binding: &BindingPlan) -> syn::Result<GeneratedItem> {
+    let authored_ty = simple_type_ident(binding.value_type())?;
     let type_name = identifier_key(authored_ty);
     let ty = ident(&type_name);
     let function = ident(&format!("walk_{}", snake_case(&type_name)));
     let source_argument = binding_argument(binding);
     let mut allocator = LocalAllocator::default();
     allocator.reserve("visitor");
-    for call in binding.traversal.calls.iter().chain(
-        binding
-            .traversal
-            .branches
-            .iter()
-            .flat_map(|branch| branch.arms.iter().map(|arm| &arm.call)),
-    ) {
-        reserve_callback(&mut allocator, call);
+    match binding.traversal().recipe() {
+        BindingTraversalRecipe::Branches(branches) => {
+            for call in branches
+                .iter()
+                .flat_map(|branch| branch.arms().iter().map(TraversalBranchArmPlan::call))
+            {
+                reserve_callback(&mut allocator, call);
+            }
+        }
+        BindingTraversalRecipe::Calls(calls) => {
+            for call in calls {
+                reserve_callback(&mut allocator, call);
+            }
+        }
+        BindingTraversalRecipe::Variants(_) => {}
     }
     let argument = allocator.allocate(&source_argument);
     let mut bindings = HashMap::from([(source_argument, argument.clone())]);
-    let mode = binding
-        .traversal
-        .callback_mode
-        .ok_or_else(|| internal("traversal binding lacks callback mode"))?;
+    let mode = binding.traversal().mode();
     let signature = match mode {
         VisitMode::Copy => quote! { #argument: #ty },
         VisitMode::Borrowed => quote! { #argument: &#ty },
     };
     let mut field_patterns = Vec::new();
-    for field in &binding.traversal.fields {
-        let source = &field.name;
+    for field in binding.traversal().fields() {
+        let source = field.name();
         let local = allocator.allocate_ident(source);
         bindings.insert(identifier_key(source), local.clone());
         if local == *source {
@@ -550,88 +506,88 @@ fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<Generate
     } else {
         quote! { let #ty { #(#field_patterns),* } = #argument; }
     };
-    let body = if !binding.traversal.branches.is_empty() {
-        let branches = binding
-            .traversal
-            .branches
-            .iter()
-            .map(|branch| -> syn::Result<TokenStream> {
-                let value = lower_traversal_expr(&branch.value, &bindings)?;
-                let arms = branch
-                    .arms
-                    .iter()
-                    .map(|arm| -> syn::Result<TokenStream> {
-                        let mut arm_allocator = allocator.clone();
-                        let mut arm_bindings = bindings.clone();
-                        let variant = &arm.variant;
-                        let local = arm_allocator.allocate_ident(&arm.binding);
-                        arm_bindings.insert(identifier_key(&arm.binding), local.clone());
-                        let call = emit_call_expr(&arm.call, &arm_bindings)?;
-                        Ok(quote! { #variant(#local) => #call })
-                    })
-                    .collect::<syn::Result<Vec<_>>>()?;
-                Ok(quote! { match #value { #(#arms,)* } })
-            })
-            .collect::<syn::Result<Vec<_>>>()?;
-        quote! { #destructure #(#branches)* }
-    } else if !binding.traversal.variants.is_empty() {
-        let callback = ident(&format!("visit_{}", snake_case(&type_name)));
-        let variants = binding.traversal.variants.iter().map(|variant| {
-            crate::emit::call_match_arm(
-                &quote! { #ty::#variant },
-                &quote! { visitor.#callback(#ty::#variant) },
-                8,
-            )
-        });
-        quote! { match #argument { #(#variants,)* } }
-    } else {
-        let fields = binding
-            .traversal
-            .fields
-            .iter()
-            .map(|field| &field.name)
-            .collect::<Vec<_>>();
-        let used_fields = fields
-            .iter()
-            .map(|field| {
-                binding
-                    .traversal
-                    .calls
-                    .iter()
-                    .any(|call| expr_mentions(&call.value, field))
-            })
-            .collect::<Vec<_>>();
-        let mut ignored_fields = vec![false; fields.len()];
-        let mut statements = Vec::new();
-        for (call_index, call) in binding.traversal.calls.iter().enumerate() {
-            let next_used_field = binding.traversal.calls[call_index..]
+    let body = match binding.traversal().recipe() {
+        BindingTraversalRecipe::Branches(branches) => {
+            let branches = branches
                 .iter()
-                .find_map(|candidate| {
-                    fields
+                .map(|branch| -> syn::Result<TokenStream> {
+                    let value = lower_traversal_expr(branch.value(), &bindings)?;
+                    let arms = branch
+                        .arms()
                         .iter()
-                        .position(|field| expr_mentions(&candidate.value, field))
+                        .map(|arm| -> syn::Result<TokenStream> {
+                            let mut arm_allocator = allocator.clone();
+                            let mut arm_bindings = bindings.clone();
+                            let variant = arm.variant();
+                            let local = arm_allocator.allocate_ident(arm.binding());
+                            arm_bindings.insert(identifier_key(arm.binding()), local.clone());
+                            let call = emit_call_expr(arm.call(), &arm_bindings)?;
+                            Ok(quote! { #variant(#local) => #call })
+                        })
+                        .collect::<syn::Result<Vec<_>>>()?;
+                    Ok(quote! { match #value { #(#arms,)* } })
                 })
-                .unwrap_or(fields.len());
-            for field_index in 0..next_used_field {
+                .collect::<syn::Result<Vec<_>>>()?;
+            quote! { #destructure #(#branches)* }
+        }
+        BindingTraversalRecipe::Variants(variants) => {
+            let callback = ident(&format!("visit_{}", snake_case(&type_name)));
+            let variants = variants.iter().map(|variant| {
+                crate::emit::call_match_arm(
+                    &quote! { #ty::#variant },
+                    &quote! { visitor.#callback(#ty::#variant) },
+                    8,
+                )
+            });
+            quote! { match #argument { #(#variants,)* } }
+        }
+        BindingTraversalRecipe::Calls(calls) => {
+            let fields = binding
+                .traversal()
+                .fields()
+                .iter()
+                .map(TraversalFieldPlan::name)
+                .collect::<Vec<_>>();
+            let used_fields = fields
+                .iter()
+                .map(|field| {
+                    calls
+                        .iter()
+                        .any(|call| call.mentions(&identifier_key(field)))
+                })
+                .collect::<Vec<_>>();
+            let mut ignored_fields = vec![false; fields.len()];
+            let mut statements = Vec::new();
+            for (call_index, call) in calls.iter().enumerate() {
+                let next_used_field = calls[call_index..]
+                    .iter()
+                    .find_map(|candidate| {
+                        fields
+                            .iter()
+                            .position(|field| candidate.mentions(&identifier_key(field)))
+                    })
+                    .unwrap_or(fields.len());
+                for field_index in 0..next_used_field {
+                    if !used_fields[field_index] && !ignored_fields[field_index] {
+                        let field = bindings
+                            .get(&identifier_key(fields[field_index]))
+                            .ok_or_else(|| internal("traversal field lacks its allocated local"))?;
+                        statements.push(quote! { let _ = #field; });
+                        ignored_fields[field_index] = true;
+                    }
+                }
+                statements.push(emit_call(call, &bindings)?);
+            }
+            for (field_index, field) in fields.iter().enumerate() {
                 if !used_fields[field_index] && !ignored_fields[field_index] {
                     let field = bindings
-                        .get(&identifier_key(fields[field_index]))
-                        .expect("traversal field has an allocated local");
+                        .get(&identifier_key(field))
+                        .ok_or_else(|| internal("traversal field lacks its allocated local"))?;
                     statements.push(quote! { let _ = #field; });
-                    ignored_fields[field_index] = true;
                 }
             }
-            statements.push(emit_call(call, &bindings)?);
+            quote! { #destructure #(#statements)* }
         }
-        for (field_index, field) in fields.iter().enumerate() {
-            if !used_fields[field_index] && !ignored_fields[field_index] {
-                let field = bindings
-                    .get(&identifier_key(field))
-                    .expect("traversal field has an allocated local");
-                statements.push(quote! { let _ = #field; });
-            }
-        }
-        quote! { #destructure #(#statements)* }
     };
     Ok(GeneratedItem::new(
         ItemKey::Named {
@@ -639,21 +595,18 @@ fn emit_binding_walker(binding: &crate::TerminalBinding) -> syn::Result<Generate
             name: function.to_string(),
         },
         quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #signature) { #body } },
-        vec![DeclarationKey::new(
-            binding_kind(binding),
-            identifier_key(&binding.name),
-        )],
+        vec![DeclarationKey::new(binding_kind(binding), binding.name())],
     ))
 }
 
-fn reserve_callback(allocator: &mut LocalAllocator, call: &TraversalCall) {
-    if call.callback.leading_colon.is_none() && call.callback.segments.len() == 1 {
-        allocator.reserve_ident(&call.callback.segments[0].ident);
+fn reserve_callback(allocator: &mut LocalAllocator, call: &TraversalCallPlan) {
+    if call.callback().leading_colon.is_none() && call.callback().segments.len() == 1 {
+        allocator.reserve_ident(&call.callback().segments[0].ident);
     }
 }
 
 fn emit_call(
-    call: &TraversalCall,
+    call: &TraversalCallPlan,
     bindings: &HashMap<String, syn::Ident>,
 ) -> syn::Result<TokenStream> {
     let call = emit_call_expr(call, bindings)?;
@@ -661,83 +614,57 @@ fn emit_call(
 }
 
 fn emit_call_expr(
-    call: &TraversalCall,
+    call: &TraversalCallPlan,
     bindings: &HashMap<String, syn::Ident>,
 ) -> syn::Result<TokenStream> {
-    let value = lower_traversal_expr(&call.value, bindings)?;
-    let argument = match call.mode {
+    let value = lower_traversal_expr(call.value(), bindings)?;
+    let argument = match call.mode() {
         VisitMode::Copy => quote! { *#value },
         VisitMode::Borrowed => quote! { #value },
     };
-    let segments = call.callback.segments.iter().collect::<Vec<_>>();
+    let segments = call.callback().segments.iter().collect::<Vec<_>>();
     if segments.len() == 2 && identifier_key(&segments[0].ident) == "visitor" {
         let method = &segments[1].ident;
         Ok(quote! { visitor.#method(#argument) })
     } else {
-        let callback = &call.callback;
+        let callback = call.callback();
         Ok(quote! { #callback(visitor, #argument) })
     }
 }
 
 fn lower_traversal_expr(
-    expression: &syn::Expr,
+    expression: &TraversalValuePlan,
     bindings: &HashMap<String, syn::Ident>,
 ) -> syn::Result<TokenStream> {
     match expression {
-        syn::Expr::Path(path)
-            if path.qself.is_none()
-                && path.path.leading_colon.is_none()
-                && path.path.segments.len() == 1 =>
-        {
-            let source = &path.path.segments[0].ident;
-            let local = bindings.get(&identifier_key(source)).ok_or_else(|| {
+        TraversalValuePlan::Root(source) => {
+            let local = bindings.get(source).ok_or_else(|| {
                 internal("validated traversal expression lacks its allocated root local")
             })?;
             Ok(quote! { #local })
         }
-        syn::Expr::Field(field) => {
-            let base = lower_traversal_expr(&field.base, bindings)?;
-            let member = &field.member;
+        TraversalValuePlan::Field { base, member } => {
+            let base = lower_traversal_expr(base, bindings)?;
             Ok(quote! { #base.#member })
         }
-        syn::Expr::Paren(paren) => {
-            let inner = lower_traversal_expr(&paren.expr, bindings)?;
+        TraversalValuePlan::Parenthesized(inner) => {
+            let inner = lower_traversal_expr(inner, bindings)?;
             Ok(quote! { (#inner) })
         }
-        _ => Err(internal(
-            "validated traversal expression is outside the closed field-path grammar",
-        )),
     }
-}
-
-fn expr_mentions(expression: &syn::Expr, ident: &syn::Ident) -> bool {
-    expression
-        .to_token_stream()
-        .into_iter()
-        .any(|token| matches!(token, proc_macro2::TokenTree::Ident(found) if identifier_key(&found) == identifier_key(ident)))
 }
 
 fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitMode> {
     for planned in validated.terminals() {
         match planned {
-            TerminalPlan::Vocab(row)
-                if identifier_key(&validated.vocab_source(row)?.name) == terminal =>
-            {
+            TerminalPlan::Vocab(row) if row.name() == terminal => {
                 return Ok(VisitMode::Copy);
             }
-            TerminalPlan::Lexeme(row)
-                if identifier_key(&validated.lexeme_source(row)?.name) == terminal =>
-            {
+            TerminalPlan::Lexeme(row) if row.name() == terminal => {
                 return Ok(VisitMode::Copy);
             }
-            TerminalPlan::Binding(row)
-                if identifier_key(&validated.binding_source(row)?.name) == terminal =>
-            {
-                return validated
-                    .binding_source(row)?
-                    .traversal
-                    .callback_mode
-                    .ok_or_else(|| internal("terminal traversal mode is absent"));
+            TerminalPlan::Binding(row) if row.name() == terminal => {
+                return Ok(row.traversal().mode());
             }
             TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => {}
         }
@@ -745,91 +672,60 @@ fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitM
     Err(internal("terminal traversal mode is absent"))
 }
 
-fn binding_origin(
-    binding: &crate::TerminalBinding,
-    _constructions: &[&crate::Construction],
-) -> DeclarationKey {
-    DeclarationKey::new(binding_kind(binding), identifier_key(&binding.name))
+fn binding_origin(binding: &BindingPlan, _constructions: &[ConstructionPlan]) -> DeclarationKey {
+    DeclarationKey::new(binding_kind(binding), binding.name())
 }
 
-fn binding_kind(binding: &crate::TerminalBinding) -> DeclarationKind {
-    match binding.kind {
+fn binding_kind(binding: &BindingPlan) -> DeclarationKind {
+    match binding.kind() {
         crate::TerminalBindingKind::Codec => DeclarationKind::Codec,
         crate::TerminalBindingKind::Identity => DeclarationKind::Identity,
     }
 }
 
-fn category_groups<'a>(
-    validated: &SemanticPlan,
-    constructions: &[&'a crate::Construction],
-) -> Vec<(String, Vec<&'a crate::Construction>)> {
-    let mut result: Vec<(String, Vec<&crate::Construction>)> = Vec::new();
-    for (construction, record) in constructions.iter().zip(validated.constructions()) {
+fn category_groups(constructions: &[ConstructionPlan]) -> Vec<(String, Vec<&ConstructionPlan>)> {
+    let mut result: Vec<(String, Vec<&ConstructionPlan>)> = Vec::new();
+    for construction in constructions {
         if let Some((_, members)) = result
             .iter_mut()
-            .find(|(name, _)| name == record.category())
+            .find(|(name, _)| name == construction.category())
         {
-            members.push(*construction);
+            members.push(construction);
         } else {
-            result.push((record.category().to_owned(), vec![*construction]));
+            result.push((construction.category().to_owned(), vec![construction]));
         }
     }
     result
 }
 
-fn field_terminal(field: &crate::Field) -> String {
-    match &field.kind {
-        FieldKind::Category(path) | FieldKind::Lex(path) | FieldKind::Identity(path) => {
-            path_name(path)
-        }
-    }
-}
-fn binding_argument(binding: &crate::TerminalBinding) -> String {
-    binding.traversal.argument.as_ref().map_or_else(
-        || leaf_argument(&identifier_key(&binding.name)),
-        identifier_key,
-    )
+fn binding_argument(binding: &BindingPlan) -> String {
+    binding.traversal().argument().to_owned()
 }
 fn field_value(
-    construction: &crate::Construction,
-    role: &syn::Ident,
+    construction: &ConstructionPlan,
+    role: &str,
     whole: &syn::Ident,
     fields: &HashMap<String, syn::Ident>,
 ) -> syn::Result<TokenStream> {
-    if let Some(accessor) = construction.checked.as_ref().and_then(|checked| {
-        checked
-            .accessors
-            .iter()
-            .find(|accessor| identifier_key(&accessor.role) == identifier_key(role))
-    }) {
-        let method = &accessor.method;
+    let field = construction.field(role)?;
+    if let Some(method) = field.accessor() {
         Ok(quote! { #whole.#method() })
-    } else if has_private_fields(construction) {
+    } else if construction.has_private_fields() {
+        let role = field.name();
         Ok(quote! { &#whole.#role })
     } else {
         let local = fields
-            .get(&identifier_key(role))
+            .get(role)
             .ok_or_else(|| internal("public walker field lacks its allocated local"))?;
         Ok(quote! { #local })
     }
 }
-fn has_accessor(construction: &crate::Construction, role: &syn::Ident) -> bool {
-    construction.checked.as_ref().is_some_and(|checked| {
-        checked
-            .accessors
-            .iter()
-            .any(|accessor| identifier_key(&accessor.role) == identifier_key(role))
-    })
-}
-fn has_private_fields(construction: &crate::Construction) -> bool {
-    construction.checked.as_ref().is_some_and(|checked| {
-        checked.visibilities.iter().any(|visibility| {
-            matches!(
-                visibility.visibility,
-                crate::NonPublicVisibility::Private(_)
-            )
-        })
-    })
+fn has_accessor(construction: &ConstructionPlan, role: &str) -> bool {
+    construction
+        .fields()
+        .iter()
+        .find(|field| field.name_key() == role)
+        .is_some_and(ConstructionFieldPlan::has_accessor)
 }
 fn category_argument(category: &str) -> String {
     snake_case(category)
@@ -860,9 +756,6 @@ fn simple_type_ident(ty: &syn::Type) -> syn::Result<&syn::Ident> {
             .ok_or_else(|| internal("empty binding type")),
         _ => Err(internal("binding type must be path")),
     }
-}
-fn path_name(path: &syn::Path) -> String {
-    path_key(path)
 }
 fn ident(name: &str) -> syn::Ident {
     emitted_ident(name, Span::call_site())
