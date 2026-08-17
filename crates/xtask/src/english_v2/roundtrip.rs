@@ -50,13 +50,17 @@ fn render_report(report: &AuditReport, json: bool, output: &mut dyn Write) -> an
         .iter()
         .filter(|row| row.status() == AuditStatus::Mismatch)
     {
+        let id = serde_json::to_string(row.id())
+            .context("encoding English-v2 round-trip mismatch ID")?;
+        let face = serde_json::to_string(row.printed_face())
+            .context("encoding English-v2 round-trip mismatch face")?;
+        let expected = serde_json::to_string(row.text())
+            .context("encoding English-v2 round-trip mismatch expected text")?;
+        let actual = serde_json::to_string(row.rendered().unwrap_or_default())
+            .context("encoding English-v2 round-trip mismatch actual text")?;
         writeln!(
             output,
-            "mismatch\t{}\t{}\t{}\t{}",
-            row.id(),
-            row.printed_face(),
-            row.text(),
-            row.rendered().unwrap_or_default(),
+            "mismatch id={id} face={face} expected={expected} actual={actual}",
         )
         .context("writing English-v2 round-trip mismatch")?;
     }
@@ -115,43 +119,83 @@ mod tests {
     use crate::english_v2::audit::AuditStatus;
 
     fn complete_fixture_report() -> AuditReport {
-        AuditReport::from_statuses_for_test(&[
-            AuditStatus::Clean,
-            AuditStatus::Mismatch,
-            AuditStatus::ParseFailure,
-            AuditStatus::Ambiguous,
-            AuditStatus::InternalFailure,
+        AuditReport::from_rows_for_test(&[
+            (
+                AuditStatus::Clean,
+                "Fixture 1",
+                "Fixture 1 text.",
+                Some("Fixture 1 text."),
+            ),
+            (
+                AuditStatus::Mismatch,
+                "Fixture 2",
+                "Fixture 2 expected.\nsecond\tcolumn",
+                Some("Different \"fixture\" 2 text.\\"),
+            ),
+            (
+                AuditStatus::Mismatch,
+                "Fixture 3",
+                "Fixture 3 expected.",
+                Some("Different fixture 3 text."),
+            ),
+            (
+                AuditStatus::ParseFailure,
+                "Fixture 4",
+                "Fixture 4 text.",
+                None,
+            ),
+            (AuditStatus::Ambiguous, "Fixture 5", "Fixture 5 text.", None),
+            (
+                AuditStatus::InternalFailure,
+                "Fixture 6",
+                "Fixture 6 text.",
+                None,
+            ),
         ])
     }
 
     #[test]
-    fn render_report_enumerates_every_mismatch_and_keeps_all_rows_in_json() {
+    fn render_report_keeps_every_mismatch_single_line_and_all_json_rows() {
         let report = complete_fixture_report();
         let mut human = Vec::new();
 
         render_report(&report, false, &mut human).unwrap();
+        let output = String::from_utf8(human).unwrap();
 
         assert_eq!(
-            String::from_utf8(human).unwrap(),
+            output,
             concat!(
-                "mismatch\t",
-                "0000000000000000000000000000000000000000000000000000000000000002\t",
-                "Fixture 2\tFixture 2 text.\tDifferent fixture 2 text.\n",
+                "mismatch id=\"0000000000000000000000000000000000000000000000000000000000000002\" ",
+                "face=\"Fixture 2\" expected=\"Fixture 2 expected.\\nsecond\\tcolumn\" ",
+                "actual=\"Different \\\"fixture\\\" 2 text.\\\\\"\n",
+                "mismatch id=\"0000000000000000000000000000000000000000000000000000000000000003\" ",
+                "face=\"Fixture 3\" expected=\"Fixture 3 expected.\" ",
+                "actual=\"Different fixture 3 text.\"\n",
                 "English v2 accepted-set round trip\n",
-                "  parse accepted         2\n",
+                "  parse accepted         3\n",
                 "  clean                  1\n",
-                "  mismatched             1\n",
+                "  mismatched             2\n",
                 "  not parse accepted     3\n",
             )
         );
 
+        assert_eq!(output.matches("mismatch id=").count(), 2);
+        assert!(!output.contains("Fixture 2 expected.\nsecond\tcolumn"));
+
         let mut json = Vec::new();
         render_report(&report, true, &mut json).unwrap();
         let json: serde_json::Value = serde_json::from_slice(&json).unwrap();
-        assert_eq!(json["rows"].as_array().unwrap().len(), 5);
+        assert_eq!(json["rows"].as_array().unwrap().len(), 6);
         assert_eq!(json["rows"][1]["status"], "mismatch");
-        assert_eq!(json["rows"][1]["text"], "Fixture 2 text.");
-        assert_eq!(json["rows"][1]["rendered"], "Different fixture 2 text.");
+        assert_eq!(
+            json["rows"][1]["text"],
+            "Fixture 2 expected.\nsecond\tcolumn"
+        );
+        assert_eq!(
+            json["rows"][1]["rendered"],
+            "Different \"fixture\" 2 text.\\"
+        );
+        assert_eq!(json["rows"][2]["status"], "mismatch");
         assert_eq!(json["summary"]["parse_failures"], 1);
         assert_eq!(json["summary"]["ambiguous"], 1);
         assert_eq!(json["summary"]["internal_failures"], 1);

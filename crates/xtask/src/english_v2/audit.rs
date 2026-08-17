@@ -167,6 +167,30 @@ fn audit_unit(unit: &CorpusUnit, parser: &Parser) -> AuditRow {
 
 #[cfg(test)]
 impl AuditReport {
+    pub(super) fn from_rows_for_test(rows: &[(AuditStatus, &str, &str, Option<&str>)]) -> Self {
+        let rows = rows
+            .iter()
+            .enumerate()
+            .map(|(index, (status, face, text, rendered))| {
+                let number = index + 1;
+                AuditRow {
+                    id: format!("{number:064x}"),
+                    card_name: (*face).to_owned(),
+                    face_name: None,
+                    text: (*text).to_owned(),
+                    status: *status,
+                    rendered: rendered.map(str::to_owned),
+                    message: None,
+                }
+            })
+            .collect();
+        Self {
+            schema_version: 1,
+            source_fingerprint: "0".repeat(64),
+            rows,
+        }
+    }
+
     pub(super) fn from_statuses_for_test(statuses: &[AuditStatus]) -> Self {
         let rows = statuses
             .iter()
