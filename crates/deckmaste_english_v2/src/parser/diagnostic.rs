@@ -1130,9 +1130,10 @@ pub enum BoundedParseOutcome {
 ///
 /// The complete analysis is deliberately private and is consumed only by
 /// [`ParserTrace::into_parse_result`].
-/// Its [`Debug`](std::fmt::Debug) representation is also a bounded public
-/// projection: it formats only the outcome and trace sections available from
-/// the public read-only accessors, never the private analysis or raw error.
+/// Its [`Debug`](std::fmt::Debug) representation and [`PartialEq`] / [`Eq`]
+/// semantics are also bounded public projections: they observe only the
+/// outcome and trace sections available from the public read-only accessors,
+/// never the private analysis or raw error.
 ///
 /// ```compile_fail
 /// use deckmaste_english_v2::parser::ParserTrace;
@@ -1143,13 +1144,28 @@ pub enum BoundedParseOutcome {
 /// use deckmaste_english_v2::parser::ParserTrace;
 /// fn leak_error(trace: ParserTrace) { let _ = trace.parse_error(); }
 /// ```
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct ParserTrace {
     analysis: ParseAnalysis,
     outcome: BoundedParseOutcome,
     structural: StructuralTrace,
     materialization: MaterializationTrace,
 }
+
+impl PartialEq for ParserTrace {
+    fn eq(&self, other: &Self) -> bool {
+        self.outcome() == other.outcome()
+            && self.tokens() == other.tokens()
+            && self.chart() == other.chart()
+            && self.forest() == other.forest()
+            && self.accepted_roots() == other.accepted_roots()
+            && self.checked_completion_rejections() == other.checked_completion_rejections()
+            && self.materialized_candidates() == other.materialized_candidates()
+            && self.materialization_cycles() == other.materialization_cycles()
+    }
+}
+
+impl Eq for ParserTrace {}
 
 impl std::fmt::Debug for ParserTrace {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -1450,6 +1466,65 @@ mod tests {
         assert!(!debug.contains(PRIVATE_SENTINEL), "{debug}");
         assert!(!debug.contains("analysis:"), "{debug}");
         assert!(debug.contains("ParseFailure"), "{debug}");
+    }
+
+    #[test]
+    fn parser_trace_equality_observes_only_the_bounded_public_projection() {
+        const LEFT_SENTINEL: &str = "PRIVATE_TRACE_EQUALITY_SENTINEL_LEFT";
+        const RIGHT_SENTINEL: &str = "PRIVATE_TRACE_EQUALITY_SENTINEL_RIGHT";
+
+        let context = ParseContext::new("Trace Card").expect("context");
+        let make_trace = |sentinel| {
+            ParserTrace::from_parts(
+                ParseAnalysis::from_result(
+                    Err(ParseError::Failure {
+                        span: TextSpan { start: 0, end: 0 },
+                        expectations: BTreeSet::from([Expectation::Literal(sentinel)]),
+                    }),
+                    None,
+                ),
+                StructuralTrace::empty(),
+                MaterializationTrace::empty(0),
+                TraceLimits::new(0),
+                &context,
+            )
+        };
+        let left = make_trace(LEFT_SENTINEL);
+        let right = make_trace(RIGHT_SENTINEL);
+
+        assert_eq!(left.outcome(), right.outcome());
+        assert_eq!(left.tokens(), right.tokens());
+        assert_eq!(left.chart(), right.chart());
+        assert_eq!(left.forest(), right.forest());
+        assert_eq!(left.accepted_roots(), right.accepted_roots());
+        assert_eq!(
+            left.checked_completion_rejections(),
+            right.checked_completion_rejections()
+        );
+        assert_eq!(
+            left.materialized_candidates(),
+            right.materialized_candidates()
+        );
+        assert_eq!(
+            left.materialization_cycles(),
+            right.materialization_cycles()
+        );
+        assert_eq!(left, right);
+
+        assert_eq!(
+            left.into_parse_result(),
+            Err(ParseError::Failure {
+                span: TextSpan { start: 0, end: 0 },
+                expectations: BTreeSet::from([Expectation::Literal(LEFT_SENTINEL)]),
+            })
+        );
+        assert_eq!(
+            right.into_parse_result(),
+            Err(ParseError::Failure {
+                span: TextSpan { start: 0, end: 0 },
+                expectations: BTreeSet::from([Expectation::Literal(RIGHT_SENTINEL)]),
+            })
+        );
     }
 
     #[test]
