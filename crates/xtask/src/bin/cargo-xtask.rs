@@ -139,11 +139,21 @@ mod tests {
             "fixtures/catalogs",
             "--json",
             "--require-complete",
+            "--lock",
+            "fixtures/coverage.lock",
+            "--bless",
         ])
         .unwrap();
         assert!(matches!(cli.command, Cmd::EnglishV2(_)));
 
-        for flag in ["--data", "--catalogs", "--json", "--require-complete"] {
+        for flag in [
+            "--data",
+            "--catalogs",
+            "--json",
+            "--require-complete",
+            "--lock",
+            "--bless",
+        ] {
             let args = if matches!(flag, "--data" | "--catalogs") {
                 vec!["cargo xtask", "english_v2", "expand", flag, "fixtures"]
             } else {

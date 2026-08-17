@@ -2,6 +2,7 @@
 
 mod audit;
 mod corpus;
+mod coverage_lock;
 mod parse;
 mod roundtrip;
 
@@ -52,6 +53,10 @@ struct ParseArgs {
     json: bool,
     #[arg(long)]
     require_complete: bool,
+    #[arg(long, default_value = "english-v2-coverage.lock")]
+    lock: PathBuf,
+    #[arg(long)]
+    bless: bool,
 }
 
 #[derive(Debug, clap::Args)]
