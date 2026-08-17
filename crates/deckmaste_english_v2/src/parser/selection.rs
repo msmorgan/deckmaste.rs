@@ -9,62 +9,54 @@ use crate::constructions::Construction;
 
 const SELECTION_EXCEPTIONS: &[SelectionException<Construction>] = &[];
 
+/// Stable public metadata for one validated selection exception.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelectionExceptionInfo {
+    /// Stable registry identifier.
     pub id: &'static str,
+    /// Lexically first construction name in the exception pair.
     pub left: &'static str,
+    /// Lexically second construction name in the exception pair.
     pub right: &'static str,
+    /// Explicit construction name that wins the exception pair.
     pub winner: &'static str,
+    /// Human-readable justification for the exception.
     pub rationale: &'static str,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Reports an invalid typed selection-exception registry.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SelectionExceptionInventoryError {
+    /// An entry identifier was empty or whitespace-only.
+    #[error("invalid selection exception configuration: entry id is empty or whitespace-only")]
     BlankId,
-    DuplicateId {
-        id: &'static str,
-    },
+    /// Two entries use the same identifier.
+    #[error("invalid selection exception configuration: duplicate entry id `{id}`")]
+    DuplicateId { id: &'static str },
+    /// Two entries describe the same unordered construction pair.
+    #[error(
+        "invalid selection exception configuration: duplicate unordered pair `{left}` and `{right}`"
+    )]
     DuplicatePair {
         left: &'static str,
         right: &'static str,
     },
-    SelfPair {
-        construction: &'static str,
-    },
-    BlankRationale {
-        id: &'static str,
-    },
-    WinnerOutsidePair {
-        id: &'static str,
-    },
+    /// An entry describes the same construction on both sides.
+    #[error(
+        "invalid selection exception configuration: self-pair for construction `{construction}`"
+    )]
+    SelfPair { construction: &'static str },
+    /// An entry rationale was empty or whitespace-only.
+    #[error(
+        "invalid selection exception configuration: entry `{id}` has an empty or whitespace-only rationale"
+    )]
+    BlankRationale { id: &'static str },
+    /// An entry winner is not one of its two constructions.
+    #[error(
+        "invalid selection exception configuration: entry `{id}` names a winner outside its pair"
+    )]
+    WinnerOutsidePair { id: &'static str },
 }
-
-impl std::fmt::Display for SelectionExceptionInventoryError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("invalid selection exception configuration: ")?;
-        match self {
-            Self::BlankId => formatter.write_str("entry id is empty or whitespace-only"),
-            Self::DuplicateId { id } => write!(formatter, "duplicate entry id `{id}`"),
-            Self::DuplicatePair { left, right } => {
-                write!(formatter, "duplicate unordered pair `{left}` and `{right}`")
-            }
-            Self::SelfPair { construction } => {
-                write!(formatter, "self-pair for construction `{construction}`")
-            }
-            Self::BlankRationale { id } => {
-                write!(
-                    formatter,
-                    "entry `{id}` has an empty or whitespace-only rationale"
-                )
-            }
-            Self::WinnerOutsidePair { id } => {
-                write!(formatter, "entry `{id}` names a winner outside its pair")
-            }
-        }
-    }
-}
-
-impl std::error::Error for SelectionExceptionInventoryError {}
 
 #[derive(Debug, Clone, Copy)]
 struct SelectionException<C> {
@@ -168,12 +160,7 @@ enum PositionSpecificity {
 }
 
 pub(crate) fn select(candidates: Vec<Candidate>) -> Result<Option<Ability>, ParseError> {
-    validate_selection_exceptions(SELECTION_EXCEPTIONS, &construction_name)
-        .map_err(ParseError::InvalidSelectionExceptionConfiguration)?;
-    if candidates.is_empty() {
-        return Ok(None);
-    }
-    select_ranked(
+    select_with_exceptions(
         candidates,
         |candidate| candidate.constructions.as_slice(),
         |candidate| {
@@ -184,7 +171,32 @@ pub(crate) fn select(candidates: Vec<Candidate>) -> Result<Option<Ability>, Pars
         construction_name,
         SELECTION_EXCEPTIONS,
     )
-    .map(|candidate| Some(candidate.ability))
+    .map(|candidate| candidate.map(|candidate| candidate.ability))
+}
+
+fn select_with_exceptions<T, C>(
+    candidates: Vec<T>,
+    constructions: impl Fn(&T) -> &[C],
+    specificity: impl Fn(&T) -> Specificity,
+    construction_name: impl Fn(C) -> &'static str,
+    exceptions: &[SelectionException<C>],
+) -> Result<Option<T>, ParseError>
+where
+    C: Copy + Eq,
+{
+    validate_selection_exceptions(exceptions, &construction_name)
+        .map_err(ParseError::InvalidSelectionExceptionConfiguration)?;
+    if candidates.is_empty() {
+        return Ok(None);
+    }
+    select_ranked(
+        candidates,
+        constructions,
+        specificity,
+        construction_name,
+        exceptions,
+    )
+    .map(Some)
 }
 
 fn structural_specificity<N, L>(
@@ -344,6 +356,7 @@ mod tests {
     use super::SelectionException;
     use super::SelectionExceptionInventoryError;
     use super::select_ranked;
+    use super::select_with_exceptions;
     use super::selection_exception_inventory;
     use super::selection_exception_inventory_for;
     use super::structural_specificity;
@@ -950,6 +963,31 @@ mod tests {
     #[test]
     fn selection_exception_inventory_is_empty_in_production() {
         assert!(selection_exception_inventory().unwrap().is_empty());
+    }
+
+    #[test]
+    fn validated_selection_rejects_an_invalid_synthetic_registry() {
+        let error = select_with_exceptions(
+            test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| structural_specificity(&candidate.positions, |_| false),
+            construction_name,
+            &[SelectionException {
+                id: " ",
+                left: TestConstruction::TestLeft,
+                right: TestConstruction::TestRight,
+                winner: TestConstruction::TestLeft,
+                rationale: "valid rationale",
+            }],
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error,
+            ParseError::InvalidSelectionExceptionConfiguration(
+                SelectionExceptionInventoryError::BlankId
+            )
+        );
     }
 
     fn test_tied_candidates(

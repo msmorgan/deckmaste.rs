@@ -567,6 +567,7 @@ dependencies = [
  "deckmaste_catalogs",
  "deckmaste_construction",
  "tempfile",
+ "thiserror",
 ]
 
 [[package]]

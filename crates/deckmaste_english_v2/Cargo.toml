@@ -11,6 +11,7 @@ workspace = true
 anyhow = "1.0.102"
 deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
 deckmaste_construction = { version = "0.1.0", path = "../deckmaste_construction" }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3.27.0"

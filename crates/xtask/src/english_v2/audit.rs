@@ -153,12 +153,17 @@ fn audit_unit(unit: &CorpusUnit, parser: &Parser) -> AuditRow {
             row.rendered = Some(rendered);
         }
         Err(error) => {
-            row.status = audit_status_for_error(&error);
-            row.message = Some(error.to_string());
+            apply_parse_error(&mut row, &error);
         }
     }
 
     row
+}
+
+fn apply_parse_error(row: &mut AuditRow, error: &ParseError) {
+    row.status = audit_status_for_error(error);
+    row.rendered = None;
+    row.message = Some(error.to_string());
 }
 
 fn audit_status_for_error(error: &ParseError) -> AuditStatus {
@@ -259,6 +264,7 @@ mod tests {
     use deckmaste_english_v2::parser::SelectionExceptionInventoryError;
 
     use super::AuditReport;
+    use super::AuditRow;
     use super::AuditStatus;
     use super::AuditSummary;
     use crate::english_v2::corpus::Corpus;
@@ -341,6 +347,31 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "invalid selection exception configuration: entry id is empty or whitespace-only"
+        );
+    }
+
+    #[test]
+    fn invalid_selection_configuration_writes_its_complete_message_to_the_audit_row() {
+        let error = ParseError::InvalidSelectionExceptionConfiguration(
+            SelectionExceptionInventoryError::BlankId,
+        );
+        let mut row = AuditRow {
+            id: "fixture-id".to_owned(),
+            card_name: "Fixture".to_owned(),
+            face_name: None,
+            text: "Fixture text.".to_owned(),
+            status: AuditStatus::Clean,
+            rendered: Some("Fixture text.".to_owned()),
+            message: None,
+        };
+
+        super::apply_parse_error(&mut row, &error);
+
+        assert_eq!(row.status(), AuditStatus::InternalFailure);
+        assert_eq!(row.rendered(), None);
+        assert_eq!(
+            row.message(),
+            Some("invalid selection exception configuration: entry id is empty or whitespace-only")
         );
     }
 }

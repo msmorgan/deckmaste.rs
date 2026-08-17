@@ -28,6 +28,8 @@ impl TerminalBindingDeclaration {
     }
 
     #[must_use]
+    /// Returns the canonical declaration identity: `codec:<Name>` or
+    /// `identity:<Name>`.
     pub fn canonical_identity(&self) -> String {
         format!("{}:{}", self.kind.canonical_prefix(), self.name)
     }
@@ -55,21 +57,32 @@ pub struct EscapeHatchReport {
 
 impl EscapeHatchReport {
     #[must_use]
+    /// Returns mapping-layer declarations in source order.
+    ///
+    /// This explicit category remains empty until mapping-layer declaration
+    /// syntax exists.
     pub fn mapping_layers(&self) -> &[String] {
         &self.mapping_layers
     }
 
     #[must_use]
+    /// Returns every handwritten codec declaration in source order.
     pub fn handwritten_codecs(&self) -> &[String] {
         &self.handwritten_codecs
     }
 
     #[must_use]
+    /// Returns stored form-tag declarations in source order.
+    ///
+    /// This explicit category remains empty until stored form-tag declaration
+    /// syntax exists.
     pub fn stored_form_tags(&self) -> &[String] {
         &self.stored_form_tags
     }
 
     #[must_use]
+    /// Returns identities with a context-identity render binding of two or
+    /// more arms, in source order.
     pub fn stored_spelling_codecs(&self) -> &[String] {
         &self.stored_spelling_codecs
     }
