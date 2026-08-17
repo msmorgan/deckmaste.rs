@@ -152,7 +152,9 @@ fn apply_coverage_lock(
     }
     let mut diagnostics = String::new();
     if bless {
-        let replacement = baseline.bless(&accepted, report.source_fingerprint())?;
+        let replacement = baseline
+            .bless(&accepted, report.source_fingerprint())
+            .map_err(|error| anyhow::anyhow!("coverage lock bless refused: {error}"))?;
         let old_count = baseline.accepted().len();
         for identity in replacement.accepted().difference(baseline.accepted()) {
             writeln!(diagnostics, "newly accepted\t{identity}")
@@ -477,42 +479,73 @@ mod tests {
     }
 
     #[test]
-    fn missing_lock_bless_creates_and_reports_a_valid_baseline() {
+    fn runner_bless_creates_a_canonical_baseline_after_rendering_its_report() {
         let directory = tempfile::tempdir().unwrap();
+        let data = directory.path().join("cards.json");
         let path = directory.path().join("missing.lock");
-        let report = AuditReport::from_statuses_for_test(&[AuditStatus::Clean]);
+        fs::write(&data, snapshot(&[("Clean", CLEAN_TEXT)])).unwrap();
+        let corpus = Corpus::load(&data).unwrap();
         let mut output = Vec::new();
-
         let mut diagnostics = Vec::new();
-        apply_coverage_lock(&report, &path, true, false, &mut output, &mut diagnostics).unwrap();
+
+        run_with_diagnostics(
+            &args(&data, &path, false, true, false),
+            &mut output,
+            &mut diagnostics,
+        )
+        .unwrap();
 
         let lock = CoverageLock::read(&path).unwrap();
         assert_eq!(lock.accepted().len(), 1);
-        assert_eq!(lock.source_fingerprint(), "0".repeat(64));
+        assert_eq!(lock.source_fingerprint(), corpus.source_fingerprint());
+        assert_eq!(
+            lock.accepted(),
+            &corpus
+                .units()
+                .iter()
+                .map(|unit| unit.id().to_owned())
+                .collect::<BTreeSet<_>>(),
+        );
         let output = String::from_utf8(output).unwrap();
         assert!(output.contains("newly accepted"));
         assert!(output.contains("coverage lock blessed: accepted 0 -> 1"));
+        assert!(
+            output.find("English v2 parse census").unwrap()
+                < output
+                    .find("coverage lock blessed: accepted 0 -> 1")
+                    .unwrap()
+        );
+        assert!(diagnostics.is_empty());
     }
 
     #[test]
-    fn failed_bless_preserves_existing_lock_bytes() {
+    fn runner_bless_refuses_lost_identities_after_rendering_without_mutating_lock() {
         let directory = tempfile::tempdir().unwrap();
+        let data = directory.path().join("cards.json");
         let path = directory.path().join("coverage.lock");
+        fs::write(&data, snapshot(&[("Clean", CLEAN_TEXT)])).unwrap();
         CoverageLock::new([id('a')].into_iter().collect(), id('1'))
             .unwrap()
             .write(&path)
             .unwrap();
         let before = fs::read(&path).unwrap();
-        let report = AuditReport::from_statuses_for_test(&[AuditStatus::Clean]);
         let mut output = Vec::new();
-
         let mut diagnostics = Vec::new();
-        let error = apply_coverage_lock(&report, &path, true, false, &mut output, &mut diagnostics)
-            .unwrap_err()
-            .to_string();
+        let error = run_with_diagnostics(
+            &args(&data, &path, false, true, false),
+            &mut output,
+            &mut diagnostics,
+        )
+        .unwrap_err()
+        .to_string();
 
+        let output = String::from_utf8(output).unwrap();
+        assert!(error.contains("coverage lock bless refused"));
         assert!(error.contains("lost 1 previously accepted corpus identity"));
         assert_eq!(fs::read(&path).unwrap(), before);
+        assert!(output.contains("English v2 parse census"));
+        assert!(output.contains("coverage lock source fingerprint changed: old"));
+        assert!(diagnostics.is_empty());
     }
 
     #[test]
