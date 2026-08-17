@@ -34,8 +34,12 @@ impl AuditRow {
         self.status
     }
 
-    pub(super) fn rendered(&self) -> Option<&str> {
-        self.rendered.as_deref()
+    pub(super) fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub(super) fn printed_face(&self) -> &str {
+        self.face_name.as_deref().unwrap_or(&self.card_name)
     }
 
     pub(super) fn message(&self) -> Option<&str> {
@@ -65,6 +69,14 @@ impl AuditReport {
 
     pub(super) fn rows(&self) -> &[AuditRow] {
         &self.rows
+    }
+
+    pub(super) const fn schema_version(&self) -> u32 {
+        self.schema_version
+    }
+
+    pub(super) fn source_fingerprint(&self) -> &str {
+        &self.source_fingerprint
     }
 
     pub(super) fn summary(&self) -> AuditSummary {
@@ -230,7 +242,10 @@ mod tests {
         ]);
         let report = AuditReport::run(&corpus, &parser());
         assert_eq!(report.rows()[0].status(), AuditStatus::Clean);
-        assert_eq!(report.rows()[0].rendered(), Some(corpus.units()[0].text()));
+        assert_eq!(
+            report.rows()[0].rendered.as_deref(),
+            Some(corpus.units()[0].text())
+        );
         assert_eq!(report.rows()[1].status(), AuditStatus::ParseFailure);
         assert!(
             report.rows()[1]

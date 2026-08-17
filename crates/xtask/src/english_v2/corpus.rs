@@ -32,10 +32,6 @@ impl CorpusUnit {
         self.face_name.as_deref()
     }
 
-    pub(super) fn side(&self) -> Option<&str> {
-        self.side.as_deref()
-    }
-
     pub(super) fn context_name(&self) -> &str {
         &self.context_name
     }
@@ -311,7 +307,7 @@ mod tests {
         let front = &left.units()[1];
         assert_eq!(front.card_name(), "Front // Back");
         assert_eq!(front.face_name(), Some("Front"));
-        assert_eq!(front.side(), Some("a"));
+        assert_eq!(front.side.as_deref(), Some("a"));
         assert_eq!(front.text(), "1–2 | Choose one.");
     }
 }

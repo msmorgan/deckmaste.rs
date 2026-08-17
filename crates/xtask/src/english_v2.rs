@@ -2,6 +2,7 @@
 
 mod audit;
 mod corpus;
+mod parse;
 
 use std::fmt::Write as _;
 use std::fs;
@@ -28,13 +29,31 @@ pub struct EnglishV2Args {
 enum EnglishV2Command {
     /// Print generated items and counted declaration escape hatches.
     Expand,
+    /// Audit every normalized corpus face with the English-v2 parser.
+    Parse(ParseArgs),
+}
+
+#[derive(Debug, clap::Args)]
+struct ParseArgs {
+    #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
+    data: PathBuf,
+    #[arg(long, default_value = "data/gen/catalogs")]
+    catalogs: PathBuf,
+    #[arg(long)]
+    json: bool,
+    #[arg(long)]
+    require_complete: bool,
 }
 
 pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
-    match args.command {
+    match &args.command {
         EnglishV2Command::Expand => {
             let mut stdout = std::io::stdout().lock();
             run_from_path(&production_declaration_path(), &mut stdout)
+        }
+        EnglishV2Command::Parse(args) => {
+            let mut stdout = std::io::stdout().lock();
+            parse::run(args, &mut stdout)
         }
     }
 }

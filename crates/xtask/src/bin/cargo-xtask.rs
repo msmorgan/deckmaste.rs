@@ -119,10 +119,38 @@ mod tests {
     }
 
     #[test]
-    fn english_v2_expand_is_the_only_complete_command_shape() {
-        let cli = Cli::try_parse_from(["cargo xtask", "english_v2", "expand"]).unwrap();
-        assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+    fn english_v2_commands_require_and_accept_a_subcommand() {
+        for command in ["expand", "parse"] {
+            let cli = Cli::try_parse_from(["cargo xtask", "english_v2", command]).unwrap();
+            assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+        }
         assert!(Cli::try_parse_from(["cargo xtask", "english_v2"]).is_err());
+    }
+
+    #[test]
+    fn english_v2_parse_accepts_its_flags_and_expand_rejects_them() {
+        let cli = Cli::try_parse_from([
+            "cargo xtask",
+            "english_v2",
+            "parse",
+            "--data",
+            "fixtures/atomic-cards.json",
+            "--catalogs",
+            "fixtures/catalogs",
+            "--json",
+            "--require-complete",
+        ])
+        .unwrap();
+        assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+
+        for flag in ["--data", "--catalogs", "--json", "--require-complete"] {
+            let args = if matches!(flag, "--data" | "--catalogs") {
+                vec!["cargo xtask", "english_v2", "expand", flag, "fixtures"]
+            } else {
+                vec!["cargo xtask", "english_v2", "expand", flag]
+            };
+            assert!(Cli::try_parse_from(args).is_err(), "expand accepted {flag}");
+        }
     }
 
     #[test]
