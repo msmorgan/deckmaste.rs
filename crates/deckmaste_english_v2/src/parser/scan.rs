@@ -487,6 +487,7 @@ fn noun_forms(singular: &str, wanted: NounNumber) -> Vec<(NounNumber, String)> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::path::Path;
 
     use super::Category;
@@ -499,7 +500,10 @@ mod tests {
     use super::StructuralObservation;
     use super::TraceLimits;
     use super::parse_forest;
+    use super::rule_name_v1;
+    use super::terminal_name_v1;
     use crate::catalogs::ParserCatalogs;
+    use crate::constructions::RULES;
     use crate::context::ParseContext;
 
     fn slice_candidates(
@@ -549,6 +553,86 @@ mod tests {
         assert_eq!(tokens.items()[0].start, 0);
         assert_eq!(tokens.items()[1].end, 7);
         assert_eq!(tokens.items()[2].start, 4);
+    }
+
+    #[test]
+    fn structural_trace_generated_rule_and_terminal_names_are_pinned() {
+        let mut seen_rules = BTreeSet::new();
+        let rules = RULES
+            .iter()
+            .filter_map(|rule| seen_rules.insert(rule.id).then_some(rule_name_v1(rule.id)))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rules,
+            [
+                "AbilitySpell",
+                "AbilityTriggered",
+                "SentenceImperative",
+                "SentenceDeclarative",
+                "SentenceWithWhere",
+                "ClauseEvent",
+                "ClauseWhere",
+                "NounPhrasePronoun",
+                "NounPhraseCommon",
+                "NounPhraseDemonstrative",
+                "NounPhraseTarget",
+                "NounPhraseSelfReference",
+                "NounPhraseCount",
+                "VerbPhraseDestroy",
+                "VerbPhraseConnive",
+                "VerbPhraseDealDamage",
+                "VerbPhraseGainLife",
+                "AmountNumber",
+                "AmountVariable"
+            ]
+        );
+        let mut seen_lexical = BTreeSet::new();
+        let terminals = RULES
+            .iter()
+            .flat_map(|rule| rule.rhs)
+            .filter_map(|position| match position {
+                super::super::engine::RulePosition::Lexical(lexical) => seen_lexical
+                    .insert(*lexical)
+                    .then_some(terminal_name_v1(*lexical)),
+                super::super::engine::RulePosition::Nonterminal(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            terminals,
+            [
+                "Literal(\".\")",
+                "EndOfInput",
+                "TriggerWord",
+                "Literal(\",\")",
+                "Literal(\"where\")",
+                "Variable",
+                "Verb(Be)",
+                "Literal(\"the\")",
+                "Literal(\"number\")",
+                "Literal(\"of\")",
+                "Pronoun",
+                "Article",
+                "Noun(Singular)",
+                "Demonstrative",
+                "Noun(Either)",
+                "Literal(\"target\")",
+                "SelfReference",
+                "Noun(Plural)",
+                "Verb(Control)",
+                "Literal(\"with\")",
+                "Literal(\"power\")",
+                "SignedNumber",
+                "Literal(\"or\")",
+                "Literal(\"less\")",
+                "Verb(Destroy)",
+                "Verb(Connive)",
+                "Verb(Deal)",
+                "Literal(\"damage\")",
+                "Literal(\"to\")",
+                "Verb(Gain)",
+                "Literal(\"life\")"
+            ]
+        );
     }
 
     #[test]
