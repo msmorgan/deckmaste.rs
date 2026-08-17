@@ -13,10 +13,14 @@ use super::audit::AuditStatus;
 use super::corpus::Corpus;
 
 pub(super) fn run(args: &ParseArgs, output: &mut dyn Write) -> anyhow::Result<()> {
-    let corpus = Corpus::load(&args.data)
-        .with_context(|| format!("loading corpus from {}", args.data.display()))?;
-    let catalogs = ParserCatalogs::load(&args.catalogs)
-        .with_context(|| format!("loading parser catalogs from {}", args.catalogs.display()))?;
+    let corpus = Corpus::load(&args.corpus.data)
+        .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
+    let catalogs = ParserCatalogs::load(&args.corpus.catalogs).with_context(|| {
+        format!(
+            "loading parser catalogs from {}",
+            args.corpus.catalogs.display()
+        )
+    })?;
     let parser = Parser::new(catalogs);
     let report = AuditReport::run(&corpus, &parser);
 

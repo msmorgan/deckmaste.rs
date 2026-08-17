@@ -3,6 +3,7 @@
 mod audit;
 mod corpus;
 mod parse;
+mod roundtrip;
 
 use std::fmt::Write as _;
 use std::fs;
@@ -31,18 +32,36 @@ enum EnglishV2Command {
     Expand,
     /// Audit every normalized corpus face with the English-v2 parser.
     Parse(ParseArgs),
+    /// Gate exact rendering for every corpus face the parser accepts.
+    Roundtrip(RoundtripArgs),
 }
 
 #[derive(Debug, clap::Args)]
-struct ParseArgs {
+struct CorpusArgs {
     #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
     data: PathBuf,
     #[arg(long, default_value = "data/gen/catalogs")]
     catalogs: PathBuf,
+}
+
+#[derive(Debug, clap::Args)]
+struct ParseArgs {
+    #[command(flatten)]
+    corpus: CorpusArgs,
     #[arg(long)]
     json: bool,
     #[arg(long)]
     require_complete: bool,
+}
+
+#[derive(Debug, clap::Args)]
+struct RoundtripArgs {
+    #[command(flatten)]
+    corpus: CorpusArgs,
+    #[arg(long)]
+    json: bool,
+    #[arg(long)]
+    require_clean: bool,
 }
 
 pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
@@ -54,6 +73,10 @@ pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
         EnglishV2Command::Parse(args) => {
             let mut stdout = std::io::stdout().lock();
             parse::run(args, &mut stdout)
+        }
+        EnglishV2Command::Roundtrip(args) => {
+            let mut stdout = std::io::stdout().lock();
+            roundtrip::run(args, &mut stdout)
         }
     }
 }

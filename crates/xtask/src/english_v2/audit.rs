@@ -42,6 +42,14 @@ impl AuditRow {
         self.face_name.as_deref().unwrap_or(&self.card_name)
     }
 
+    pub(super) fn text(&self) -> &str {
+        &self.text
+    }
+
+    pub(super) fn rendered(&self) -> Option<&str> {
+        self.rendered.as_deref()
+    }
+
     pub(super) fn message(&self) -> Option<&str> {
         self.message.as_deref()
     }

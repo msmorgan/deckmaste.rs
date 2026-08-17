@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn english_v2_commands_require_and_accept_a_subcommand() {
-        for command in ["expand", "parse"] {
+        for command in ["expand", "parse", "roundtrip"] {
             let cli = Cli::try_parse_from(["cargo xtask", "english_v2", command]).unwrap();
             assert!(matches!(cli.command, Cmd::EnglishV2(_)));
         }
@@ -151,6 +151,37 @@ mod tests {
             };
             assert!(Cli::try_parse_from(args).is_err(), "expand accepted {flag}");
         }
+    }
+
+    #[test]
+    fn english_v2_roundtrip_accepts_only_its_corpus_and_gate_flags() {
+        let cli = Cli::try_parse_from([
+            "cargo xtask",
+            "english_v2",
+            "roundtrip",
+            "--data",
+            "fixtures/atomic-cards.json",
+            "--catalogs",
+            "fixtures/catalogs",
+            "--json",
+            "--require-clean",
+        ])
+        .unwrap();
+        assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+
+        assert!(
+            Cli::try_parse_from([
+                "cargo xtask",
+                "english_v2",
+                "roundtrip",
+                "--require-complete",
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from(["cargo xtask", "english_v2", "parse", "--require-clean",])
+                .is_err()
+        );
     }
 
     #[test]
