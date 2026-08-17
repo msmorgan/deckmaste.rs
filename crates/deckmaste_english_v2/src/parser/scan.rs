@@ -145,16 +145,20 @@ impl StructuralObservation {
         }
         StructuralTrace::new(tokens, self.chart, self.forest, self.roots, rejections)
     }
-}
 
-impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
-    fn scanned(&mut self, start: usize, terminal: Lexical, end: usize, value: &Leaf) {
+    fn record_token(&mut self, start: usize, end: usize, terminal: Lexical, value: &Leaf) {
         self.tokens.insert((
             start,
             end,
             terminal_name_v1(terminal),
             value_label_v1(value),
         ));
+    }
+}
+
+impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
+    fn scanned(&mut self, start: usize, terminal: Lexical, end: usize, value: &Leaf) {
+        self.record_token(start, end, terminal, value);
     }
 
     fn checked_completion(
@@ -492,6 +496,8 @@ mod tests {
     use super::Lexical;
     use super::RuleId;
     use super::SliceGrammar;
+    use super::StructuralObservation;
+    use super::TraceLimits;
     use super::parse_forest;
     use crate::catalogs::ParserCatalogs;
     use crate::context::ParseContext;
@@ -525,6 +531,24 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn structural_trace_scanner_inventory_dedupes_retries_sorts_and_keeps_overlaps() {
+        let mut observed = StructuralObservation::new(TraceLimits::new(8));
+        observed.record_token(4, 9, Lexical::Literal("z"), &Leaf::Literal("z"));
+        observed.record_token(0, 5, Lexical::Literal("a"), &Leaf::Literal("a"));
+        observed.record_token(0, 5, Lexical::Literal("a"), &Leaf::Literal("a"));
+        observed.record_token(0, 7, Lexical::Literal("b"), &Leaf::Literal("b"));
+        let trace = observed.finish();
+        let tokens = trace.tokens();
+        assert_eq!(
+            (tokens.total(), tokens.shown(), tokens.omitted()),
+            (3, 3, 0)
+        );
+        assert_eq!(tokens.items()[0].start, 0);
+        assert_eq!(tokens.items()[1].end, 7);
+        assert_eq!(tokens.items()[2].start, 4);
     }
 
     #[test]
