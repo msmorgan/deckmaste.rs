@@ -286,6 +286,28 @@ mod tests {
     }
 
     #[test]
+    fn sealed_construction_atoms_reject_count_and_kind_mismatches() {
+        let plan = crate::test_support::representative_semantic_plan();
+        let crate::Declaration::Construction(construction) = &plan.source().declarations[0] else {
+            panic!("representative source begins with its construction");
+        };
+
+        let count_error = SemanticPlan::test_only_seal_construction_atoms(&construction.form, &[])
+            .expect_err("a sealed atom list cannot silently truncate");
+        assert!(count_error.to_string().contains("atom count"));
+
+        let kind_error = SemanticPlan::test_only_seal_construction_atoms(
+            &construction.form,
+            &[crate::validate::AtomContribution::Category {
+                role: "ignored".to_owned(),
+                category: "Node".to_owned(),
+            }],
+        )
+        .expect_err("a sealed atom kind cannot panic");
+        assert!(kind_error.to_string().contains("atom kind"));
+    }
+
+    #[test]
     fn construction_emitters_do_not_fall_back_to_validated_raw_declarations() {
         for source in [
             include_str!("emit/ast.rs"),

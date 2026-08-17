@@ -21,6 +21,7 @@ use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 use crate::semantic::AtomPlan;
+use crate::semantic::AtomTerminal;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::SemanticPlan;
 
@@ -161,16 +162,19 @@ fn emit_position(
 }
 
 fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> {
-    if let Ok(vocab) = plan.vocab(name) {
-        let name = ident(&identifier_key(&vocab.name));
-        return Ok(quote! { Lexical::#name });
+    match plan.atom_terminal(name)? {
+        AtomTerminal::Vocab(vocab) => {
+            let name = ident(&identifier_key(&vocab.name));
+            Ok(quote! { Lexical::#name })
+        }
+        AtomTerminal::Binding(binding) => {
+            let path = binding
+                .lexical_variant
+                .as_ref()
+                .ok_or_else(|| internal("atom-capable terminal binding has no lexical variant"))?;
+            Ok(quote! { #path })
+        }
     }
-    let binding = plan.binding(name)?;
-    let path = binding
-        .lexical_variant
-        .as_ref()
-        .ok_or_else(|| internal("atom-capable terminal binding has no lexical variant"))?;
-    Ok(quote! { #path })
 }
 
 fn noun_number(plan: &SemanticPlan, construction: &ConstructionPlan) -> syn::Result<syn::Ident> {
@@ -225,6 +229,22 @@ fn internal(message: &str) -> syn::Error {
 #[cfg(test)]
 mod tests {
     use quote::quote;
+
+    #[test]
+    fn corrupted_vocab_source_error_is_not_treated_as_a_binding_probe() {
+        let mut plan = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::representative_tokens()).unwrap(),
+        )
+        .unwrap()
+        .into_semantic();
+        plan.test_only_mispoint_vocab_source("Words");
+
+        let error = super::emit(&plan).expect_err("corrupt vocabulary source must propagate");
+        assert_eq!(
+            error.to_string(),
+            "sealed semantic plan has an inconsistent vocabulary source"
+        );
+    }
 
     #[test]
     fn role_derived_noun_requests_either_number() {

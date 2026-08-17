@@ -465,7 +465,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             feature_resolutions,
             category_render,
             contributions,
-        ),
+        )?,
     })
 }
 

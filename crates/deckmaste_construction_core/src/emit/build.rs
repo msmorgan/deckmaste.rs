@@ -23,6 +23,7 @@ use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 use crate::semantic::AtomPlan;
+use crate::semantic::AtomTerminal;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::SemanticPlan;
 
@@ -338,37 +339,39 @@ fn lower_terminal_role(
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
     let role = ident(role);
-    if let Some(vocab) = find_vocab(validated, terminal_name)? {
-        let leaf = ident(&identifier_key(&vocab.name));
-        if let Some(requirement) = construction
-            .requirements
-            .iter()
-            .find(|item| identifier_key(&item.role) == identifier_key(&role))
-        {
-            let variant = ident(&identifier_key(&requirement.variant));
-            lowering
-                .patterns
-                .push(quote! { BuildValue::Leaf(Leaf::#leaf(#leaf::#variant)) });
-            lowering
-                .field_values
-                .insert(identifier_key(&role), quote! { #leaf::#variant });
-        } else {
-            let binding = lowering
-                .binders
-                .allocate(&vocab_argument(&identifier_key(&vocab.name)));
-            lowering
-                .patterns
-                .push(quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) });
-            lowering
-                .field_values
-                .insert(identifier_key(&role), quote! { *#binding });
-            lowering
-                .vocab_values
-                .insert(identifier_key(&role), binding.clone());
+    let binding = match validated.atom_terminal(terminal_name)? {
+        AtomTerminal::Vocab(vocab) => {
+            let leaf = ident(&identifier_key(&vocab.name));
+            if let Some(requirement) = construction
+                .requirements
+                .iter()
+                .find(|item| identifier_key(&item.role) == identifier_key(&role))
+            {
+                let variant = ident(&identifier_key(&requirement.variant));
+                lowering
+                    .patterns
+                    .push(quote! { BuildValue::Leaf(Leaf::#leaf(#leaf::#variant)) });
+                lowering
+                    .field_values
+                    .insert(identifier_key(&role), quote! { #leaf::#variant });
+            } else {
+                let binding = lowering
+                    .binders
+                    .allocate(&vocab_argument(&identifier_key(&vocab.name)));
+                lowering
+                    .patterns
+                    .push(quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) });
+                lowering
+                    .field_values
+                    .insert(identifier_key(&role), quote! { *#binding });
+                lowering
+                    .vocab_values
+                    .insert(identifier_key(&role), binding.clone());
+            }
+            return Ok(());
         }
-        return Ok(());
-    }
-    let binding = find_binding(validated, terminal_name)?;
+        AtomTerminal::Binding(binding) => binding,
+    };
     let build = binding
         .build
         .as_ref()
@@ -1046,24 +1049,6 @@ fn binding_pattern(pattern: &syn::Pat) -> syn::Result<(syn::Ident, Vec<syn::Iden
     Ok((variant, names))
 }
 
-fn find_vocab<'a>(
-    validated: &'a SemanticPlan,
-    name: &str,
-) -> syn::Result<Option<&'a crate::Vocab>> {
-    match validated.vocab(name) {
-        Ok(vocab) => Ok(Some(vocab)),
-        Err(_) => validated
-            .binding(name)
-            .map(|_| None)
-            .map_err(|_| internal("resolved terminal is absent from the sealed semantic plan")),
-    }
-}
-fn find_binding<'a>(
-    validated: &'a SemanticPlan,
-    name: &str,
-) -> syn::Result<&'a crate::TerminalBinding> {
-    validated.binding(name)
-}
 fn terminal_for_role<'a>(row: &'a ConstructionPlan, role: &syn::Ident) -> syn::Result<&'a str> {
     row.atoms()
         .iter()
@@ -1113,6 +1098,22 @@ mod tests {
 
     use quote::ToTokens;
     use syn::visit::Visit;
+
+    #[test]
+    fn corrupted_vocab_source_error_is_not_treated_as_a_binding_probe() {
+        let mut plan = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::representative_tokens()).unwrap(),
+        )
+        .unwrap()
+        .into_semantic();
+        plan.test_only_mispoint_vocab_source("Words");
+
+        let error = super::emit(&plan).expect_err("corrupt vocabulary source must propagate");
+        assert_eq!(
+            error.to_string(),
+            "sealed semantic plan has an inconsistent vocabulary source"
+        );
+    }
 
     struct Binders(Vec<String>);
 
