@@ -4,6 +4,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use deckmaste_data::mtgjson::AtomicCards;
+use deckmaste_english_v2::context::ParseContext;
 use sha2::Digest;
 use sha2::Sha256;
 
@@ -76,6 +77,7 @@ impl Corpus {
             })
             .collect::<Vec<_>>();
         units.sort_by(|left, right| corpus_sort_key(left).cmp(&corpus_sort_key(right)));
+        validate_contexts(&units)?;
 
         Ok(Self {
             source_fingerprint: sha256_hex(&Sha256::digest(bytes)),
@@ -95,6 +97,26 @@ impl Corpus {
     pub(super) fn units(&self) -> &[CorpusUnit] {
         &self.units
     }
+}
+
+fn validate_contexts(units: &[CorpusUnit]) -> anyhow::Result<()> {
+    for unit in units {
+        if ParseContext::new(unit.context_name()).is_some() {
+            continue;
+        }
+        let reason = if unit.context_name().is_empty() {
+            "context name is empty"
+        } else {
+            "card-name abbreviation before comma is empty"
+        };
+        anyhow::bail!(
+            "invalid parser context: {reason}; card name {:?}, face name {:?}, side {:?}",
+            unit.card_name(),
+            unit.face_name(),
+            unit.side(),
+        );
+    }
+    Ok(())
 }
 
 fn corpus_unit(
@@ -197,6 +219,7 @@ impl CorpusUnit {
 impl Corpus {
     pub(super) fn from_units_for_test(mut units: Vec<CorpusUnit>) -> Self {
         units.sort_by(|left, right| corpus_sort_key(left).cmp(&corpus_sort_key(right)));
+        validate_contexts(&units).expect("test corpus must contain valid parser contexts");
         Self {
             source_fingerprint: "0".repeat(64),
             units,
@@ -313,5 +336,32 @@ mod tests {
         assert_eq!(front.face_name(), Some("Front"));
         assert_eq!(front.side.as_deref(), Some("a"));
         assert_eq!(front.text(), "1–2 | Choose one.");
+    }
+
+    #[test]
+    fn corpus_rejects_context_names_that_cannot_construct_parse_contexts() {
+        for (name, expected_reason) in [
+            ("", "context name is empty"),
+            (", Leading", "card-name abbreviation before comma is empty"),
+        ] {
+            let snapshot = format!(
+                r#"{{"data": {{"Fixture": [{{"name": "{name}", "layout": "normal", "types": ["Creature"], "supertypes": [], "subtypes": [], "legalities": {{"vintage": "Legal"}}, "text": "Fixture text."}}]}}}}"#
+            );
+
+            let error = Corpus::from_bytes(snapshot.as_bytes())
+                .expect_err("invalid parser context must reject the MTGJSON source")
+                .to_string();
+
+            assert!(error.contains("invalid parser context"));
+            assert!(error.contains(expected_reason));
+            assert!(error.contains(&format!("card name {name:?}")));
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid parser context")]
+    fn test_corpus_constructor_rejects_invalid_contexts() {
+        let _ =
+            Corpus::from_units_for_test(vec![CorpusUnit::for_test(", Leading", "Fixture text.")]);
     }
 }

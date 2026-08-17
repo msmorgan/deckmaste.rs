@@ -45,7 +45,6 @@ enum AmbiguityStatus {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum InternalKind {
-    ContextDidNotMaterialize,
     ValidatedRootDidNotMaterialize,
     SelectionConfiguration,
 }
@@ -212,12 +211,8 @@ struct AmbiguityRow {
 impl AmbiguityRow {
     fn from_unit(unit: &CorpusUnit, parser: &Parser) -> Self {
         let mut row = Self::base(unit);
-        let Some(context) = ParseContext::new(unit.context_name()) else {
-            row.status = AmbiguityStatus::InternalFailure;
-            row.message = Some("parse context did not materialize".to_owned());
-            row.internal_kind = Some(InternalKind::ContextDidNotMaterialize);
-            return row;
-        };
+        let context = ParseContext::new(unit.context_name())
+            .expect("corpus admission validates every parser context");
 
         let analysis = parser.analyze(unit.text(), &context);
         row.decision = analysis.decision().map(SelectionDecision::from_parser);
@@ -438,18 +433,21 @@ impl AmbiguityReport {
                 decision: None,
             }
         }
-        fn decision(resolution: SelectionResolution, exception_uses: &[&str]) -> SelectionDecision {
+        fn candidate(ordinal: usize, tier: SpecificityTier) -> SelectionCandidate {
+            SelectionCandidate {
+                ordinal,
+                construction_path: vec![format!("Candidate{ordinal}")],
+                specificity: vec![tier],
+            }
+        }
+        fn decision(resolution: SelectionResolution) -> SelectionDecision {
             SelectionDecision {
-                candidates: vec![SelectionCandidate {
-                    ordinal: 0,
-                    construction_path: vec!["Ability".to_owned()],
-                    specificity: vec![SpecificityTier::Literal],
-                }],
+                candidates: vec![candidate(0, SpecificityTier::Literal)],
                 comparisons: vec![],
                 survivors: vec![0],
                 selected: Some(0),
                 resolution,
-                exception_uses: exception_uses.iter().map(|id| (*id).to_owned()).collect(),
+                exception_uses: vec![],
             }
         }
 
@@ -461,9 +459,41 @@ impl AmbiguityReport {
             row(5, AmbiguityStatus::UnresolvedTie),
             row(6, AmbiguityStatus::InternalFailure),
         ];
-        rows[0].decision = Some(decision(SelectionResolution::Unique, &[]));
-        rows[1].decision = Some(decision(SelectionResolution::Specificity, &[]));
-        rows[2].decision = Some(decision(SelectionResolution::Exception, &["winner"]));
+        rows[0].decision = Some(decision(SelectionResolution::Unique));
+        rows[1].decision = Some(SelectionDecision {
+            candidates: vec![
+                candidate(0, SpecificityTier::TypedLexical),
+                candidate(1, SpecificityTier::Literal),
+            ],
+            comparisons: vec![SelectionComparison {
+                left_ordinal: 0,
+                right_ordinal: 1,
+                ordering: OrderingKind::Less,
+                decisive: SelectionDecisive::Position { index: 0 },
+                exception_id: None,
+            }],
+            survivors: vec![1],
+            selected: Some(1),
+            resolution: SelectionResolution::Specificity,
+            exception_uses: vec![],
+        });
+        rows[2].decision = Some(SelectionDecision {
+            candidates: vec![
+                candidate(0, SpecificityTier::Literal),
+                candidate(1, SpecificityTier::Literal),
+            ],
+            comparisons: vec![SelectionComparison {
+                left_ordinal: 0,
+                right_ordinal: 1,
+                ordering: OrderingKind::Less,
+                decisive: SelectionDecisive::Tie,
+                exception_id: Some("fixture-right-wins".to_owned()),
+            }],
+            survivors: vec![1],
+            selected: Some(1),
+            resolution: SelectionResolution::Exception,
+            exception_uses: vec!["fixture-right-wins".to_owned()],
+        });
         rows[4].decision = Some(SelectionDecision {
             candidates: (0..3)
                 .map(|ordinal| SelectionCandidate {
@@ -478,7 +508,7 @@ impl AmbiguityReport {
                     right_ordinal: 1,
                     ordering: OrderingKind::Equal,
                     decisive: SelectionDecisive::Tie,
-                    exception_id: Some("cycle-a".to_owned()),
+                    exception_id: None,
                 },
                 SelectionComparison {
                     left_ordinal: 0,
@@ -498,7 +528,7 @@ impl AmbiguityReport {
             survivors: vec![0, 1, 2],
             selected: None,
             resolution: SelectionResolution::UnresolvedTie,
-            exception_uses: vec!["cycle-a".to_owned()],
+            exception_uses: vec![],
         });
         rows[5].internal_kind = Some(InternalKind::SelectionConfiguration);
         Self::new("f".repeat(64), rows).expect("fixture report validates")
@@ -740,6 +770,25 @@ mod tests {
         assert_eq!(json["schema_version"], 1);
         assert_eq!(json["rows"].as_array().unwrap().len(), 6);
         assert_eq!(
+            json["rows"][1]["decision"]["comparisons"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            json["rows"][1]["decision"]["comparisons"][0]["decisive"]["position"]["index"],
+            0
+        );
+        assert_eq!(
+            json["rows"][2]["decision"]["comparisons"][0]["exception_id"],
+            "fixture-right-wins"
+        );
+        assert_eq!(
+            json["rows"][2]["decision"]["exception_uses"],
+            serde_json::json!(["fixture-right-wins"])
+        );
+        assert_eq!(
             json["rows"][4]["decision"]["survivors"],
             serde_json::json!([0, 1, 2])
         );
@@ -762,7 +811,7 @@ mod tests {
                 "unresolved_ties": 1,
                 "parse_failures": 1,
                 "internal_failures": 1,
-                "exception_uses": 2,
+                "exception_uses": 1,
             })
         );
     }
@@ -806,7 +855,7 @@ mod tests {
             summary.selected,
             summary.unique + summary.specificity_resolved + summary.exception_resolved
         );
-        assert_eq!(summary.exception_uses, 2);
+        assert_eq!(summary.exception_uses, 1);
     }
 
     #[test]
