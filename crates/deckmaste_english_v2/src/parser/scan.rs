@@ -502,9 +502,22 @@ mod tests {
     use super::parse_forest;
     use super::rule_name_v1;
     use super::terminal_name_v1;
+    use super::value_label_v1;
+    use crate::ast::Article;
+    use crate::ast::Demonstrative;
+    use crate::ast::Noun;
+    use crate::ast::NounLexeme;
+    use crate::ast::Pronoun;
+    use crate::ast::SelfReferenceSpelling;
+    use crate::ast::Sign;
+    use crate::ast::SignedNumber;
+    use crate::ast::TriggerWord;
+    use crate::ast::Variable;
+    use crate::ast::VerbLexeme;
     use crate::catalogs::ParserCatalogs;
     use crate::constructions::RULES;
     use crate::context::ParseContext;
+    use crate::features::Agreement;
 
     fn slice_candidates(
         text: &str,
@@ -633,6 +646,84 @@ mod tests {
                 "Literal(\"life\")"
             ]
         );
+    }
+
+    #[test]
+    fn structural_trace_non_catalog_value_labels_are_pinned() {
+        let values = [
+            (Leaf::Literal("where"), "Literal(\"where\")"),
+            (Leaf::EndOfInput, "EndOfInput"),
+            (
+                Leaf::TriggerWord(TriggerWord::Whenever),
+                "TriggerWord(Whenever)",
+            ),
+            (Leaf::Article(Article::A), "Article(A)"),
+            (Leaf::Article(Article::An), "Article(An)"),
+            (
+                Leaf::Demonstrative(Demonstrative::That),
+                "Demonstrative(That)",
+            ),
+            (
+                Leaf::Demonstrative(Demonstrative::Those),
+                "Demonstrative(Those)",
+            ),
+            (Leaf::Pronoun(Pronoun::It), "Pronoun(It)"),
+            (Leaf::Pronoun(Pronoun::You), "Pronoun(You)"),
+            (Leaf::Variable(Variable::X), "Variable(X)"),
+            (
+                Leaf::Noun {
+                    noun: Noun::Lexeme(NounLexeme::Player),
+                    number: super::NounNumber::Singular,
+                },
+                "Noun { noun: Lexeme(Player), number: Singular }",
+            ),
+            (
+                Leaf::Noun {
+                    noun: Noun::Lexeme(NounLexeme::Player),
+                    number: super::NounNumber::Plural,
+                },
+                "Noun { noun: Lexeme(Player), number: Plural }",
+            ),
+            (
+                Leaf::Verb {
+                    lexeme: VerbLexeme::Destroy,
+                    agreement: Agreement::Bare,
+                },
+                "Verb { lexeme: Destroy, agreement: Bare }",
+            ),
+            (
+                Leaf::Verb {
+                    lexeme: VerbLexeme::Deal,
+                    agreement: Agreement::ThirdPersonSingular,
+                },
+                "Verb { lexeme: Deal, agreement: ThirdPersonSingular }",
+            ),
+            (
+                Leaf::SignedNumber(SignedNumber {
+                    sign: Sign::Positive,
+                    magnitude: 2,
+                }),
+                "SignedNumber(SignedNumber { sign: Positive, magnitude: 2 })",
+            ),
+            (
+                Leaf::SignedNumber(SignedNumber {
+                    sign: Sign::Negative,
+                    magnitude: 2,
+                }),
+                "SignedNumber(SignedNumber { sign: Negative, magnitude: 2 })",
+            ),
+            (
+                Leaf::SelfReference(SelfReferenceSpelling::Full),
+                "SelfReference(Full)",
+            ),
+            (
+                Leaf::SelfReference(SelfReferenceSpelling::Abbreviated),
+                "SelfReference(Abbreviated)",
+            ),
+        ];
+        for (value, expected) in values {
+            assert_eq!(value_label_v1(&value), expected);
+        }
     }
 
     #[test]
