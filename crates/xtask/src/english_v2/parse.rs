@@ -524,7 +524,8 @@ mod tests {
         let data = directory.path().join("cards.json");
         let path = directory.path().join("coverage.lock");
         fs::write(&data, snapshot(&[("Clean", CLEAN_TEXT)])).unwrap();
-        CoverageLock::new([id('a')].into_iter().collect(), id('1'))
+        let (a, b) = (id('a'), id('b'));
+        CoverageLock::new([a.clone(), b.clone()].into_iter().collect(), id('1'))
             .unwrap()
             .write(&path)
             .unwrap();
@@ -541,7 +542,10 @@ mod tests {
 
         let output = String::from_utf8(output).unwrap();
         assert!(error.contains("coverage lock bless refused"));
-        assert!(error.contains("lost 1 previously accepted corpus identity"));
+        assert!(error.contains("lost 2 previously accepted corpus identities"));
+        assert!(error.contains(&a));
+        assert!(error.contains(&b));
+        assert!(error.find(&a).unwrap() < error.find(&b).unwrap());
         assert_eq!(fs::read(&path).unwrap(), before);
         assert!(output.contains("English v2 parse census"));
         assert!(output.contains("coverage lock source fingerprint changed: old"));
