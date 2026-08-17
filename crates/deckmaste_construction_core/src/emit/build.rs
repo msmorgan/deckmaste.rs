@@ -23,6 +23,7 @@ use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 use crate::semantic::AtomPlan;
 use crate::semantic::AtomTerminal;
+use crate::semantic::BindingBuildExprPlan;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::ConstructorArgumentPlan;
 use crate::semantic::SemanticPlan;
@@ -359,7 +360,8 @@ fn lower_terminal_role(
     let build = binding
         .build()
         .ok_or_else(|| internal("atom-capable binding has no build metadata"))?;
-    let (variant, names) = binding_pattern(build.pattern())?;
+    let variant = build.variant();
+    let names = build.slots();
     let noun_count = row
         .atoms()
         .iter()
@@ -409,8 +411,8 @@ fn lower_terminal_role(
         quote! { Leaf::#variant(#(#pattern_names),*) }
     };
     lowering.patterns.push(quote! { BuildValue::Leaf(#inner) });
-    let construct = lower_build_expr(build.construct(), &substitutions)?;
-    let stored = if direct_bound_path(build.construct()).is_some() {
+    let construct = lower_build_recipe(build.recipe(), &substitutions)?;
+    let stored = if build.construct_is_direct_slot() {
         match binding.kind() {
             TerminalBindingKind::Codec => quote! { #construct.clone() },
             TerminalBindingKind::Identity => quote! { *#construct },
@@ -422,52 +424,33 @@ fn lower_terminal_role(
     Ok(())
 }
 
-fn lower_build_expr(
-    expr: &syn::Expr,
+fn lower_build_recipe(
+    expression: &BindingBuildExprPlan,
     substitutions: &HashMap<String, TokenStream>,
 ) -> syn::Result<TokenStream> {
-    match expr {
-        syn::Expr::Path(path) if path.qself.is_none() && path.path.segments.len() == 1 => {
-            let name = identifier_key(&path.path.segments[0].ident);
-            substitutions
-                .get(&name)
-                .cloned()
-                .ok_or_else(|| internal("validated build expression references an absent binder"))
-        }
-        syn::Expr::Field(field) => {
-            let base = lower_build_expr(&field.base, substitutions)?;
-            let member = &field.member;
+    match expression {
+        BindingBuildExprPlan::Slot(name) => substitutions
+            .get(name)
+            .cloned()
+            .ok_or_else(|| internal("validated build expression references an absent binder")),
+        BindingBuildExprPlan::Field { base, member } => {
+            let base = lower_build_recipe(base, substitutions)?;
             Ok(quote! { #base.#member })
         }
-        syn::Expr::Call(call) => {
-            let syn::Expr::Path(function) = &*call.func else {
-                return Err(internal("validated build call target is not a static path"));
-            };
-            if function.qself.is_some() || function.path.segments.len() <= 1 {
-                return Err(internal("validated build call target is not a static path"));
-            }
-            let arguments = call
-                .args
+        BindingBuildExprPlan::Call {
+            function,
+            arguments,
+        } => {
+            let arguments = arguments
                 .iter()
-                .map(|argument| lower_build_expr(argument, substitutions))
+                .map(|argument| lower_build_recipe(argument, substitutions))
                 .collect::<syn::Result<Vec<_>>>()?;
             Ok(quote! { #function(#(#arguments),*) })
         }
-        syn::Expr::Paren(paren) => {
-            let inner = lower_build_expr(&paren.expr, substitutions)?;
+        BindingBuildExprPlan::Parenthesized(inner) => {
+            let inner = lower_build_recipe(inner, substitutions)?;
             Ok(quote! { (#inner) })
         }
-        _ => Err(internal(
-            "validated build expression is outside the lowerable closed grammar",
-        )),
-    }
-}
-
-fn direct_bound_path(expr: &syn::Expr) -> Option<&syn::Path> {
-    match expr {
-        syn::Expr::Path(path) => Some(&path.path),
-        syn::Expr::Paren(paren) => direct_bound_path(&paren.expr),
-        _ => None,
     }
 }
 
@@ -1003,30 +986,6 @@ fn role_number_is_needed_in_build(
                 feature: Feature::Number,
             }) if identifier_key(source) == identifier_key(role)
         )
-}
-
-fn binding_pattern(pattern: &syn::Pat) -> syn::Result<(syn::Ident, Vec<syn::Ident>)> {
-    let syn::Pat::TupleStruct(tuple) = pattern else {
-        return Err(internal("validated binding pattern is not tuple-like"));
-    };
-    let variant = tuple
-        .path
-        .segments
-        .last()
-        .ok_or_else(|| internal("binding pattern path is empty"))?
-        .ident
-        .clone();
-    let names = tuple
-        .elems
-        .iter()
-        .map(|pattern| match pattern {
-            syn::Pat::Ident(value) => Ok(value.ident.clone()),
-            _ => Err(internal(
-                "validated binding pattern slot is not an identifier",
-            )),
-        })
-        .collect::<syn::Result<Vec<_>>>()?;
-    Ok((variant, names))
 }
 
 fn terminal_for_role<'a>(row: &'a ConstructionPlan, role: &syn::Ident) -> syn::Result<&'a str> {

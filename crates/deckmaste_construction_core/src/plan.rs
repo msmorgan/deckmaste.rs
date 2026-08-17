@@ -289,11 +289,18 @@ mod tests {
         assert!(formatted(&crate::emit::render::emit(&plan).unwrap()).contains("\"changed\""));
 
         let visitor_before = visitor_origins(&crate::emit::visit::emit(&plan).unwrap());
-        assert!(visitor_before.contains(&"Words".to_owned()));
+        let expected_visitor_after = visitor_before
+            .iter()
+            .map(
+                |origin| {
+                    if origin == "Words" { "ChangedWords".to_owned() } else { origin.clone() }
+                },
+            )
+            .collect::<Vec<_>>();
+        assert!(visitor_before.iter().any(|origin| origin == "Words"));
         plan.test_only_replace_vocab_name("Words", "ChangedWords");
         let visitor_after = visitor_origins(&crate::emit::visit::emit(&plan).unwrap());
-        assert!(!visitor_after.contains(&"Words".to_owned()));
-        assert!(visitor_after.contains(&"ChangedWords".to_owned()));
+        assert_eq!(visitor_after, expected_visitor_after);
         assert_eq!(
             crate::test_support::representative_tokens().to_string(),
             input
@@ -332,6 +339,31 @@ mod tests {
                 .expect_err("generation propagates binding-origin mismatches")
                 .to_string(),
             "sealed terminal binding `Resource` has a mismatched declaration kind"
+        );
+    }
+
+    #[test]
+    fn semantic_plan_binding_emitters_share_typed_build_and_value_facts() {
+        let input = crate::test_support::synthetic_projection_tokens().to_string();
+        let mut plan = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::synthetic_projection_tokens())
+                .expect("synthetic fixture parses"),
+        )
+        .expect("synthetic fixture validates")
+        .into_semantic();
+
+        plan.test_only_replace_binding_build_variant("Pair", "ChangedPair");
+        let build = formatted(&crate::emit::build::emit(&plan).unwrap());
+        assert!(build.contains("Leaf :: ChangedPair"));
+
+        plan.test_only_replace_binding_value_type_name("Handle", "ChangedHandle");
+        let render = formatted(&crate::emit::render::emit(&plan).unwrap());
+        let visitor = formatted(&crate::emit::visit::emit(&plan).unwrap());
+        assert!(render.contains("ChangedHandle :: Primary"));
+        assert!(visitor.contains("ChangedHandle"));
+        assert_eq!(
+            crate::test_support::synthetic_projection_tokens().to_string(),
+            input
         );
     }
 
@@ -378,6 +410,66 @@ mod tests {
     }
 
     #[test]
+    fn sealed_construction_atoms_reject_every_name_mismatch() {
+        let cases = [
+            (
+                parsed_form(&quote::quote! { child }),
+                crate::validate::AtomContribution::Category {
+                    role: "other".to_owned(),
+                    category: "Cat".to_owned(),
+                },
+                "category atom role name",
+            ),
+            (
+                parsed_form(&quote::quote! { lex(word) }),
+                crate::validate::AtomContribution::Lex {
+                    role: "other".to_owned(),
+                    terminal: "Words".to_owned(),
+                },
+                "lex atom role name",
+            ),
+            (
+                parsed_form(&quote::quote! { identity(owner) }),
+                crate::validate::AtomContribution::Identity {
+                    role: "other".to_owned(),
+                    terminal: "Owner".to_owned(),
+                },
+                "identity atom role name",
+            ),
+            (
+                parsed_form(&quote::quote! { noun(object) }),
+                crate::validate::AtomContribution::Noun {
+                    role: "other".to_owned(),
+                    terminal: "Object".to_owned(),
+                },
+                "noun atom role name",
+            ),
+            (
+                parsed_form(&quote::quote! { verb(Verbs::Act) }),
+                crate::validate::AtomContribution::VerbFixed {
+                    terminal: "OtherVerbs".to_owned(),
+                    variant: "Act".to_owned(),
+                },
+                "fixed-verb terminal name",
+            ),
+            (
+                parsed_form(&quote::quote! { verb(Verbs::Act) }),
+                crate::validate::AtomContribution::VerbFixed {
+                    terminal: "Verbs".to_owned(),
+                    variant: "Other".to_owned(),
+                },
+                "fixed-verb variant name",
+            ),
+        ];
+
+        for (form, resolved, expected) in cases {
+            let error = SemanticPlan::test_only_seal_construction_atoms(&form, &[resolved])
+                .expect_err("authored and resolved atom names must agree");
+            assert!(error.to_string().contains(expected), "{error}");
+        }
+    }
+
+    #[test]
     fn construction_emitters_do_not_fall_back_to_validated_raw_declarations() {
         for source in [
             include_str!("emit/ast.rs"),
@@ -387,6 +479,60 @@ mod tests {
             assert!(!source.contains("ValidatedDeclarations"));
             assert!(!source.contains(".raw()"));
         }
+    }
+
+    #[test]
+    fn binding_emitters_do_not_reclassify_authored_syntax() {
+        for source in [
+            include_str!("emit/build.rs"),
+            include_str!("emit/render.rs"),
+            include_str!("emit/visit.rs"),
+        ] {
+            let production = source
+                .split_once("#[cfg(test)]")
+                .map_or(source, |(production, _)| production);
+            for forbidden in [
+                "binding.pattern()",
+                "binding.construct()",
+                "build.pattern()",
+                "build.construct()",
+                "binding.value_type()",
+                "syn::Pat::",
+                "syn::Expr::",
+                "syn::Type::",
+                "binding_pattern",
+                "lower_build_expr",
+                "direct_bound_path",
+                "simple_type_ident",
+            ] {
+                assert!(
+                    !production.contains(forbidden),
+                    "production emitter still reclassifies `{forbidden}`"
+                );
+            }
+        }
+    }
+
+    fn parsed_form(atom: &proc_macro2::TokenStream) -> crate::Form {
+        let source = crate::parse_declarations(quote::quote! {
+            construction only: Cat {
+                element Only {}
+                form only = #atom;
+            }
+        })
+        .expect("single-atom construction parses");
+        source
+            .declarations
+            .into_iter()
+            .find_map(|declaration| match declaration {
+                crate::Declaration::Construction(construction) => Some(construction.form),
+                crate::Declaration::Vocab(_)
+                | crate::Declaration::Lexeme(_)
+                | crate::Declaration::Codec(_)
+                | crate::Declaration::Identity(_)
+                | crate::Declaration::Root(_) => None,
+            })
+            .expect("fixture has one construction")
     }
 
     fn formatted(items: &[GeneratedItem]) -> String {
@@ -564,7 +710,6 @@ mod tests {
                 file.items.into_iter().next().expect("one planned item")
             })
             .collect::<Vec<_>>();
-
         assert_eq!(flattened.items.len(), expansion.items().len());
         assert_eq!(flattened.items, individual);
         assert_eq!(

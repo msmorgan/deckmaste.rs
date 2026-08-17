@@ -190,7 +190,7 @@ pub(crate) struct BindingPlan {
     name_key: String,
     kind: crate::model::TerminalBindingKind,
     codec_atom: Option<crate::model::CodecAtomClass>,
-    value_type: syn::Type,
+    value_type_name: syn::Ident,
     lexical_variant: Option<syn::Path>,
     render: Option<BindingRenderPlan>,
     build: Option<BindingBuildPlan>,
@@ -212,8 +212,24 @@ pub(crate) struct ContextIdentityPlan {
 
 #[derive(Debug)]
 pub(crate) struct BindingBuildPlan {
-    pattern: syn::Pat,
-    construct: syn::Expr,
+    variant: syn::Ident,
+    slots: Vec<syn::Ident>,
+    construct: BindingBuildExprPlan,
+    construct_is_direct_slot: bool,
+}
+
+#[derive(Debug)]
+pub(crate) enum BindingBuildExprPlan {
+    Slot(String),
+    Field {
+        base: Box<BindingBuildExprPlan>,
+        member: syn::Member,
+    },
+    Call {
+        function: syn::Path,
+        arguments: Vec<BindingBuildExprPlan>,
+    },
+    Parenthesized(Box<BindingBuildExprPlan>),
 }
 
 #[derive(Debug)]
@@ -563,6 +579,36 @@ impl SemanticPlan {
         binding.name = syn::Ident::new(new, binding.name.span());
         binding.name_key = new.to_owned();
         binding.origin = DeclarationKey::new(binding.origin.kind(), new);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_replace_binding_build_variant(&mut self, name: &str, variant: &str) {
+        let binding = self
+            .terminals
+            .iter_mut()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::Binding(binding) if binding.name() == name => Some(binding),
+                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+            })
+            .expect("test binding is present");
+        let build = binding
+            .build
+            .as_mut()
+            .expect("test binding build is present");
+        build.variant = syn::Ident::new(variant, build.variant.span());
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_replace_binding_value_type_name(&mut self, name: &str, value: &str) {
+        let binding = self
+            .terminals
+            .iter_mut()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::Binding(binding) if binding.name() == name => Some(binding),
+                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+            })
+            .expect("test binding is present");
+        binding.value_type_name = syn::Ident::new(value, binding.value_type_name.span());
     }
 
     #[cfg(test)]
@@ -984,34 +1030,63 @@ impl AtomPlan {
             (FormAtom::Literal(literal), AtomContribution::Literal) => {
                 Ok(Self::Literal(literal.value()))
             }
-            (FormAtom::Role(_), AtomContribution::Category { role, category }) => {
+            (FormAtom::Role(authored), AtomContribution::Category { role, category }) => {
+                ensure_atom_name(authored, role, "category atom role name")?;
                 Ok(Self::Category {
                     role: role.clone(),
                     category: category.clone(),
                 })
             }
-            (FormAtom::Lex(_), AtomContribution::Lex { role, terminal }) => Ok(Self::Lex {
-                role: role.clone(),
-                terminal: terminal.clone(),
-            }),
-            (FormAtom::Identity(_), AtomContribution::Identity { role, terminal }) => {
+            (FormAtom::Lex(authored), AtomContribution::Lex { role, terminal }) => {
+                ensure_atom_name(authored, role, "lex atom role name")?;
+                Ok(Self::Lex {
+                    role: role.clone(),
+                    terminal: terminal.clone(),
+                })
+            }
+            (FormAtom::Identity(authored), AtomContribution::Identity { role, terminal }) => {
+                ensure_atom_name(authored, role, "identity atom role name")?;
                 Ok(Self::Identity {
                     role: role.clone(),
                     terminal: terminal.clone(),
                 })
             }
-            (FormAtom::Noun(_), AtomContribution::Noun { role, terminal }) => Ok(Self::Noun {
-                role: role.clone(),
-                terminal: terminal.clone(),
-            }),
+            (FormAtom::Noun(authored), AtomContribution::Noun { role, terminal }) => {
+                ensure_atom_name(authored, role, "noun atom role name")?;
+                Ok(Self::Noun {
+                    role: role.clone(),
+                    terminal: terminal.clone(),
+                })
+            }
             (
                 FormAtom::Verb(VerbOperand::Fixed(path)),
                 AtomContribution::VerbFixed { terminal, variant },
-            ) => Ok(Self::VerbFixed {
-                terminal: terminal.clone(),
-                variant: variant.clone(),
-                path: path.clone(),
-            }),
+            ) => {
+                let mut segments = path.segments.iter().rev();
+                let authored_variant = segments.next().ok_or_else(|| {
+                    syn::Error::new(path.span(), "sealed fixed-verb path is empty")
+                })?;
+                let authored_terminal = segments.next().ok_or_else(|| {
+                    syn::Error::new(path.span(), "sealed fixed-verb path has no terminal name")
+                })?;
+                if identifier_key(&authored_terminal.ident) != *terminal {
+                    return Err(syn::Error::new(
+                        authored_terminal.ident.span(),
+                        "sealed fixed-verb terminal name is inconsistent",
+                    ));
+                }
+                if identifier_key(&authored_variant.ident) != *variant {
+                    return Err(syn::Error::new(
+                        authored_variant.ident.span(),
+                        "sealed fixed-verb variant name is inconsistent",
+                    ));
+                }
+                Ok(Self::VerbFixed {
+                    terminal: terminal.clone(),
+                    variant: variant.clone(),
+                    path: path.clone(),
+                })
+            }
             _ => Err(syn::Error::new(
                 form_atom_span(source),
                 "sealed construction atom kind is inconsistent",
@@ -1031,6 +1106,17 @@ impl AtomPlan {
                 terminal, variant, ..
             } => format!("verb({terminal}::{variant})"),
         }
+    }
+}
+
+fn ensure_atom_name(authored: &syn::Ident, resolved: &str, fact: &str) -> syn::Result<()> {
+    if identifier_key(authored) == resolved {
+        Ok(())
+    } else {
+        Err(syn::Error::new(
+            authored.span(),
+            format!("sealed construction {fact} is inconsistent"),
+        ))
     }
 }
 
@@ -1290,10 +1376,12 @@ impl BindingPlan {
                 )
             }
         });
-        let build = source.build.as_ref().map(|build| BindingBuildPlan {
-            pattern: build.pattern.clone(),
-            construct: build.construct.clone(),
-        });
+        let build = source
+            .build
+            .as_ref()
+            .map(BindingBuildPlan::from_source)
+            .transpose()?;
+        let value_type_name = binding_value_type_name(&source.value_type)?;
         let mode = source.traversal.callback_mode.ok_or_else(|| {
             syn::Error::new(
                 source.name.span(),
@@ -1357,7 +1445,7 @@ impl BindingPlan {
             name_key: identifier_key(&source.name),
             kind: source.kind,
             codec_atom: source.codec_atom,
-            value_type: source.value_type.clone(),
+            value_type_name,
             lexical_variant: source.lexical_variant.clone(),
             stored_spelling: matches!(&render, Some(BindingRenderPlan::ContextIdentity(arms)) if arms.len() >= 2),
             render,
@@ -1385,8 +1473,8 @@ impl BindingPlan {
         self.codec_atom
     }
 
-    pub(crate) fn value_type(&self) -> &syn::Type {
-        &self.value_type
+    pub(crate) fn value_type_name(&self) -> &syn::Ident {
+        &self.value_type_name
     }
 
     pub(crate) fn lexical_variant(&self) -> Option<&syn::Path> {
@@ -1436,12 +1524,112 @@ impl VocabVariantPlan {
 }
 
 impl BindingBuildPlan {
-    pub(crate) fn pattern(&self) -> &syn::Pat {
-        &self.pattern
+    fn from_source(source: &crate::model::BuildLeaf) -> syn::Result<Self> {
+        let syn::Pat::TupleStruct(pattern) = &source.pattern else {
+            return Err(syn::Error::new_spanned(
+                &source.pattern,
+                "sealed binding build pattern kind is inconsistent",
+            ));
+        };
+        let variant = pattern
+            .path
+            .segments
+            .last()
+            .ok_or_else(|| {
+                syn::Error::new_spanned(
+                    &source.pattern,
+                    "sealed binding build pattern path is empty",
+                )
+            })?
+            .ident
+            .clone();
+        let slots = pattern
+            .elems
+            .iter()
+            .map(|slot| match slot {
+                syn::Pat::Ident(slot) => Ok(slot.ident.clone()),
+                _ => Err(syn::Error::new_spanned(
+                    slot,
+                    "sealed binding build pattern slot kind is inconsistent",
+                )),
+            })
+            .collect::<syn::Result<Vec<_>>>()?;
+        let construct = BindingBuildExprPlan::from_source(&source.construct, true)?;
+        let construct_is_direct_slot = construct.is_direct_slot();
+        Ok(Self {
+            variant,
+            slots,
+            construct,
+            construct_is_direct_slot,
+        })
     }
 
-    pub(crate) fn construct(&self) -> &syn::Expr {
+    pub(crate) fn variant(&self) -> &syn::Ident {
+        &self.variant
+    }
+
+    pub(crate) fn slots(&self) -> &[syn::Ident] {
+        &self.slots
+    }
+
+    pub(crate) fn recipe(&self) -> &BindingBuildExprPlan {
         &self.construct
+    }
+
+    pub(crate) fn construct_is_direct_slot(&self) -> bool {
+        self.construct_is_direct_slot
+    }
+}
+
+impl BindingBuildExprPlan {
+    fn from_source(source: &syn::Expr, allow_calls: bool) -> syn::Result<Self> {
+        match source {
+            syn::Expr::Path(path) if path.qself.is_none() && path.path.segments.len() == 1 => {
+                Ok(Self::Slot(identifier_key(&path.path.segments[0].ident)))
+            }
+            syn::Expr::Field(field) => Ok(Self::Field {
+                base: Box::new(Self::from_source(&field.base, false)?),
+                member: field.member.clone(),
+            }),
+            syn::Expr::Call(call) if allow_calls => {
+                let syn::Expr::Path(function) = &*call.func else {
+                    return Err(syn::Error::new_spanned(
+                        &call.func,
+                        "sealed binding build call target kind is inconsistent",
+                    ));
+                };
+                if function.qself.is_some() || function.path.segments.len() <= 1 {
+                    return Err(syn::Error::new_spanned(
+                        &call.func,
+                        "sealed binding build call target path is inconsistent",
+                    ));
+                }
+                Ok(Self::Call {
+                    function: function.path.clone(),
+                    arguments: call
+                        .args
+                        .iter()
+                        .map(|argument| Self::from_source(argument, true))
+                        .collect::<syn::Result<Vec<_>>>()?,
+                })
+            }
+            syn::Expr::Paren(paren) => Ok(Self::Parenthesized(Box::new(Self::from_source(
+                &paren.expr,
+                allow_calls,
+            )?))),
+            _ => Err(syn::Error::new_spanned(
+                source,
+                "sealed binding build expression kind is inconsistent",
+            )),
+        }
+    }
+
+    fn is_direct_slot(&self) -> bool {
+        match self {
+            Self::Slot(_) => true,
+            Self::Parenthesized(inner) => inner.is_direct_slot(),
+            Self::Field { .. } | Self::Call { .. } => false,
+        }
     }
 }
 
@@ -1600,6 +1788,23 @@ impl LeafCallbackPlan {
     pub(crate) fn mode(&self) -> crate::model::VisitMode {
         self.mode
     }
+}
+
+fn binding_value_type_name(value_type: &syn::Type) -> syn::Result<syn::Ident> {
+    let syn::Type::Path(value_type) = value_type else {
+        return Err(syn::Error::new_spanned(
+            value_type,
+            "sealed binding value type kind is inconsistent",
+        ));
+    };
+    value_type
+        .path
+        .segments
+        .last()
+        .map(|segment| segment.ident.clone())
+        .ok_or_else(|| {
+            syn::Error::new_spanned(value_type, "sealed binding value type path is empty")
+        })
 }
 
 fn default_leaf_argument(name: &str) -> String {

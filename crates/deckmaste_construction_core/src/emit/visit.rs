@@ -460,8 +460,7 @@ fn emit_enum_walker<'a>(
 }
 
 fn emit_binding_walker(binding: &BindingPlan) -> syn::Result<GeneratedItem> {
-    let authored_ty = simple_type_ident(binding.value_type())?;
-    let type_name = identifier_key(authored_ty);
+    let type_name = identifier_key(binding.value_type_name());
     let ty = ident(&type_name);
     let function = ident(&format!("walk_{}", snake_case(&type_name)));
     let source_argument = binding_argument(binding);
@@ -744,17 +743,6 @@ fn leaf_argument(name: &str) -> String {
         "number".to_owned()
     } else {
         snake
-    }
-}
-fn simple_type_ident(ty: &syn::Type) -> syn::Result<&syn::Ident> {
-    match ty {
-        syn::Type::Path(path) => path
-            .path
-            .segments
-            .last()
-            .map(|segment| &segment.ident)
-            .ok_or_else(|| internal("empty binding type")),
-        _ => Err(internal("binding type must be path")),
     }
 }
 fn ident(name: &str) -> syn::Ident {

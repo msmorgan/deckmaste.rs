@@ -574,7 +574,7 @@ fn render_atoms(
                         Ok(quote! { #function(#call_writer, #value, context); })
                     }
                     BindingRenderPlan::ContextIdentity(arms) => {
-                        let ty = simple_type_ident(binding.value_type())?;
+                        let ty = binding.value_type_name();
                         let match_arms = arms.iter().map(|arm| {
                             let variant = arm.variant();
                             let accessor = arm.accessor();
@@ -1220,17 +1220,6 @@ fn feature_name(feature: Feature) -> &'static str {
 }
 fn ident(name: &str) -> syn::Ident {
     emitted_ident(name, Span::call_site())
-}
-fn simple_type_ident(ty: &syn::Type) -> syn::Result<&syn::Ident> {
-    match ty {
-        syn::Type::Path(path) => path
-            .path
-            .segments
-            .last()
-            .map(|segment| &segment.ident)
-            .ok_or_else(|| internal("empty binding type")),
-        _ => Err(internal("binding type must be a path")),
-    }
 }
 fn internal(message: &str) -> syn::Error {
     syn::Error::new(Span::call_site(), message)
