@@ -5,8 +5,8 @@ use crate::ast::Ability;
 
 /// The provisional Stage 4 specificity assigned to one materialized position.
 ///
-/// Roadmap plan 06 replaces this producer with generated specificity metadata
-/// while preserving this diagnostic meaning or bumping its machine schema.
+/// Future generated specificity metadata must preserve this diagnostic meaning
+/// or bump its machine schema.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub enum SpecificityTier {
     Nonterminal,

@@ -189,7 +189,7 @@ pub(crate) fn analyze_selection(
                 matches!(lexical, Lexical::Literal(_))
             })
         },
-        |construction| format!("{construction:?}"),
+        construction_name_v1,
         construction_name,
         SELECTION_EXCEPTIONS,
     )
@@ -514,6 +514,10 @@ fn ambiguity_names<'a, C: Copy + Eq + 'a>(
     })
 }
 
+fn construction_name_v1(construction: Construction) -> String {
+    format!("{construction:?}")
+}
+
 const fn construction_name(construction: Construction) -> &'static str {
     match construction {
         Construction::AbilitySpell => "AbilitySpell",
@@ -547,6 +551,7 @@ mod tests {
     use super::SelectionExceptionInventoryError;
     use super::SelectionResolution;
     use super::SpecificityTier;
+    use super::construction_name_v1;
     use super::select_ranked;
     use super::select_with_exceptions;
     use super::selection_analysis_with_exceptions;
@@ -901,6 +906,59 @@ mod tests {
     fn structural_specificity_selects_without_authored_dominance() {
         let selected = parse_and_select_specificity_toy("alpha").unwrap();
         assert_eq!(selected.construction, TestConstruction::LiteralAlpha);
+    }
+
+    #[test]
+    fn selection_diagnostic_pins_every_generated_construction_name_v1() {
+        let names = [
+            Construction::AbilitySpell,
+            Construction::AbilityTriggered,
+            Construction::SentenceImperative,
+            Construction::SentenceDeclarative,
+            Construction::SentenceWithWhere,
+            Construction::ClauseEvent,
+            Construction::ClauseWhere,
+            Construction::NounPhrasePronoun,
+            Construction::NounPhraseCommon,
+            Construction::NounPhraseDemonstrative,
+            Construction::NounPhraseTarget,
+            Construction::NounPhraseSelfReference,
+            Construction::NounPhraseCount,
+            Construction::VerbPhraseDestroy,
+            Construction::VerbPhraseConnive,
+            Construction::VerbPhraseDealDamage,
+            Construction::VerbPhraseGainLife,
+            Construction::AmountNumber,
+            Construction::AmountVariable,
+        ]
+        .into_iter()
+        .map(construction_name_v1)
+        .collect::<Vec<_>>();
+
+        assert_eq!(
+            names,
+            vec![
+                "AbilitySpell",
+                "AbilityTriggered",
+                "SentenceImperative",
+                "SentenceDeclarative",
+                "SentenceWithWhere",
+                "ClauseEvent",
+                "ClauseWhere",
+                "NounPhrasePronoun",
+                "NounPhraseCommon",
+                "NounPhraseDemonstrative",
+                "NounPhraseTarget",
+                "NounPhraseSelfReference",
+                "NounPhraseCount",
+                "VerbPhraseDestroy",
+                "VerbPhraseConnive",
+                "VerbPhraseDealDamage",
+                "VerbPhraseGainLife",
+                "AmountNumber",
+                "AmountVariable",
+            ]
+        );
     }
 
     #[test]
