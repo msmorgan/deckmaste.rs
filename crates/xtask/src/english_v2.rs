@@ -1,5 +1,7 @@
 //! Human-readable expansion of the English-v2 construction declaration.
 
+mod corpus;
+
 use std::fmt::Write as _;
 use std::fs;
 use std::io::Write;
