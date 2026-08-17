@@ -490,6 +490,8 @@ mod tests {
     use std::collections::BTreeSet;
     use std::path::Path;
 
+    use super::CatalogIdentity;
+    use super::CatalogKind;
     use super::Category;
     use super::ChartFailure;
     use super::Forest;
@@ -724,6 +726,25 @@ mod tests {
         for (value, expected) in values {
             assert_eq!(value_label_v1(&value), expected);
         }
+    }
+
+    #[test]
+    fn structural_trace_catalog_value_label_is_pinned() {
+        let catalogs = ParserCatalogs::load(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
+        )
+        .expect("canonical generated catalogs load");
+        let identity =
+            CatalogIdentity::new(&catalogs, CatalogKind::CardTypes, "Creature".to_owned())
+                .expect("canonical Creature catalog identity");
+        let value = Leaf::Noun {
+            noun: Noun::Catalog(identity),
+            number: super::NounNumber::Plural,
+        };
+        assert_eq!(
+            value_label_v1(&value),
+            "Noun { noun: Catalog(CatalogIdentity { kind: CardTypes, spelling: \"Creature\" }), number: Plural }"
+        );
     }
 
     #[test]
