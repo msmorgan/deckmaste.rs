@@ -469,4 +469,47 @@ mod tests {
         let zero = Bounded::<String>::new(0);
         assert_eq!((zero.total(), zero.shown(), zero.omitted()), (0, 0, 0));
     }
+
+    #[test]
+    fn structural_trace_bounded_caps_are_exact_and_lazy() {
+        for (limit, expected_items) in [
+            (0, Vec::<usize>::new()),
+            (1, vec![10]),
+            (8, vec![10, 20, 30]),
+        ] {
+            let mut bounded = Bounded::new(limit);
+            let mut constructions = 0;
+            for value in [10, 20, 30] {
+                bounded.push_with(|| {
+                    constructions += 1;
+                    value
+                });
+            }
+            assert_eq!(bounded.total(), 3);
+            assert_eq!(bounded.shown(), expected_items.len());
+            assert_eq!(bounded.omitted(), 3 - expected_items.len());
+            assert_eq!(bounded.items(), expected_items);
+            assert_eq!(constructions, expected_items.len());
+        }
+    }
+
+    #[test]
+    fn structural_trace_family_identity_is_structured_and_ordered() {
+        use super::FamilyIdentity;
+        use super::FamilyIdentityChild;
+        let identity = FamilyIdentity(vec![
+            FamilyIdentityChild::Node(7),
+            FamilyIdentityChild::Lexical(
+                "SignedNumber(SignedNumber { sign: Negative, magnitude: 3 })".to_owned(),
+            ),
+        ]);
+        assert_eq!(identity.0[0], FamilyIdentityChild::Node(7));
+        assert_eq!(
+            identity.0[1],
+            FamilyIdentityChild::Lexical(
+                "SignedNumber(SignedNumber { sign: Negative, magnitude: 3 })".to_owned()
+            )
+        );
+        assert!(identity < FamilyIdentity(vec![FamilyIdentityChild::Node(8)]));
+    }
 }
