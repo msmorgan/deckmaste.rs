@@ -554,20 +554,26 @@ mod tests {
 
     #[test]
     fn structural_trace_scanner_inventory_dedupes_retries_sorts_and_keeps_overlaps() {
-        let mut observed = StructuralObservation::new(TraceLimits::new(8));
-        observed.record_token(4, 9, Lexical::Literal("z"), &Leaf::Literal("z"));
-        observed.record_token(0, 5, Lexical::Literal("a"), &Leaf::Literal("a"));
-        observed.record_token(0, 5, Lexical::Literal("a"), &Leaf::Literal("a"));
-        observed.record_token(0, 7, Lexical::Literal("b"), &Leaf::Literal("b"));
-        let trace = observed.finish();
-        let tokens = trace.tokens();
-        assert_eq!(
-            (tokens.total(), tokens.shown(), tokens.omitted()),
-            (3, 3, 0)
-        );
-        assert_eq!(tokens.items()[0].start, 0);
-        assert_eq!(tokens.items()[1].end, 7);
-        assert_eq!(tokens.items()[2].start, 4);
+        for (limit, shown) in [(0, 0), (1, 1), (8, 3)] {
+            let mut observed = StructuralObservation::new(TraceLimits::new(limit));
+            observed.record_token(4, 9, Lexical::Literal("z"), &Leaf::Literal("z"));
+            observed.record_token(0, 5, Lexical::Literal("a"), &Leaf::Literal("a"));
+            observed.record_token(0, 5, Lexical::Literal("a"), &Leaf::Literal("a"));
+            observed.record_token(0, 7, Lexical::Literal("b"), &Leaf::Literal("b"));
+            let tokens = observed.finish().tokens().clone();
+            assert_eq!(
+                (tokens.total(), tokens.shown(), tokens.omitted()),
+                (3, shown, 3 - shown)
+            );
+            assert_eq!(
+                tokens
+                    .items()
+                    .iter()
+                    .map(|token| (token.start, token.end))
+                    .collect::<Vec<_>>(),
+                [(0, 5), (0, 7), (4, 9)][..shown]
+            );
+        }
     }
 
     #[test]
