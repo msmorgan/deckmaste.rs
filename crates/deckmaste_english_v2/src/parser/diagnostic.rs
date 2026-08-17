@@ -152,6 +152,7 @@ pub(crate) struct ForestNode {
     pub(crate) families: Bounded<ForestFamily>,
 }
 impl ForestNode {
+    #[allow(dead_code, reason = "Task 6 owns the public structural trace facade.")]
     pub(crate) fn families(&self) -> &Bounded<ForestFamily> {
         &self.families
     }
@@ -161,6 +162,7 @@ pub(crate) struct ForestFamily {
     pub(crate) children: Bounded<ForestChild>,
 }
 impl ForestFamily {
+    #[allow(dead_code, reason = "Task 6 owns the public structural trace facade.")]
     pub(crate) fn children(&self) -> &Bounded<ForestChild> {
         &self.children
     }
