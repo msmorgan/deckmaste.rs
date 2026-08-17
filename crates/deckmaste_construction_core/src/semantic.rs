@@ -3,6 +3,7 @@ use std::collections::HashSet;
 
 use crate::feature;
 use crate::feature::Feature;
+use crate::identifier::key as identifier_key;
 use crate::model::Declaration;
 use crate::model::Declarations;
 #[cfg(test)]
@@ -273,6 +274,16 @@ impl SemanticPlan {
             .is_some_and(|features| features.contains(&feature))
     }
 
+    pub(crate) fn category_carries_agreement(&self, category: &str) -> bool {
+        self.category_render_capability(category)
+            .carries_agreement()
+    }
+
+    pub(crate) fn category_requires_external_agreement(&self, category: &str) -> bool {
+        self.category_render_capability(category)
+            .requires_external_agreement()
+    }
+
     pub(crate) fn boxed_fields(&self) -> &HashSet<(String, String)> {
         &self.features.boxed_fields
     }
@@ -294,6 +305,27 @@ impl SemanticPlan {
             Declaration::Construction(value) => value,
             _ => unreachable!("construction semantic row points at its construction source"),
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_replace_literal(
+        &mut self,
+        construction_id: &str,
+        atom_index: usize,
+        literal: &str,
+    ) {
+        let construction = self
+            .constructions
+            .iter()
+            .find(|row| row.construction_id == construction_id)
+            .expect("test construction is present");
+        let Declaration::Construction(source) =
+            &mut self.source.declarations[construction.source_index]
+        else {
+            unreachable!("construction semantic row points at its construction source");
+        };
+        source.form.atoms[atom_index] =
+            crate::FormAtom::Literal(syn::LitStr::new(literal, proc_macro2::Span::call_site()));
     }
 
     #[allow(
@@ -338,6 +370,50 @@ impl SemanticPlan {
             Declaration::Root(value) => value,
             _ => unreachable!("root semantic row points at its root source"),
         }
+    }
+
+    pub(crate) fn parse_root(&self, category: &str) -> Option<&RootPlan> {
+        self.roots
+            .iter()
+            .find(|root| root.parse_entry && root.category == category)
+    }
+
+    pub(crate) fn vocab(&self, name: &str) -> syn::Result<&crate::Vocab> {
+        self.terminals
+            .iter()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::Vocab(row)
+                    if identifier_key(&self.vocab_source(row).name) == name =>
+                {
+                    Some(self.vocab_source(row))
+                }
+                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+            })
+            .ok_or_else(|| {
+                syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    "sealed semantic plan has no resolved vocabulary",
+                )
+            })
+    }
+
+    pub(crate) fn binding(&self, name: &str) -> syn::Result<&crate::TerminalBinding> {
+        self.terminals
+            .iter()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::Binding(row)
+                    if identifier_key(&self.binding_source(row).name) == name =>
+                {
+                    Some(self.binding_source(row))
+                }
+                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+            })
+            .ok_or_else(|| {
+                syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    "sealed semantic plan has no resolved terminal binding",
+                )
+            })
     }
 
     #[cfg(test)]
@@ -467,6 +543,26 @@ impl ConstructionPlan {
     pub(crate) fn source_index(&self) -> usize {
         self.source_index
     }
+
+    pub(crate) fn construction_id(&self) -> &str {
+        &self.construction_id
+    }
+
+    pub(crate) fn category(&self) -> &str {
+        &self.category
+    }
+
+    pub(crate) fn category_variant(&self) -> &str {
+        &self.category_variant
+    }
+
+    pub(crate) fn element_type(&self) -> &str {
+        &self.element_type
+    }
+
+    pub(crate) fn rule_id(&self) -> &str {
+        &self.rule_id
+    }
 }
 
 impl TerminalPlan {
@@ -551,6 +647,14 @@ impl RootPlan {
     )]
     pub(crate) fn source_index(&self) -> usize {
         self.source_index
+    }
+
+    pub(crate) fn category(&self) -> &str {
+        &self.category
+    }
+
+    pub(crate) fn is_parse_entry(&self) -> bool {
+        self.parse_entry
     }
 }
 

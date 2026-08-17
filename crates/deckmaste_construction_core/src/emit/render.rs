@@ -5,7 +5,6 @@ use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::ValidatedDeclarations;
 use crate::emit::LocalAllocator;
 use crate::feature::Feature;
 use crate::feature::FeatureExpr;
@@ -28,14 +27,15 @@ use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::SemanticPlan;
 
 #[allow(
     clippy::too_many_lines,
     reason = "the phase finalizer preserves the pinned source-order item sequence"
 )]
-pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<GeneratedItem>> {
+pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = validated
-        .raw()
+        .source()
         .declarations
         .iter()
         .filter_map(|declaration| match declaration {
@@ -44,7 +44,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         })
         .collect::<Vec<_>>();
     let roots = validated
-        .raw()
+        .source()
         .declarations
         .iter()
         .filter_map(|declaration| match declaration {
@@ -177,7 +177,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         ));
     }
 
-    for declaration in &validated.raw().declarations {
+    for declaration in &validated.source().declarations {
         let Declaration::Vocab(vocab) = declaration else { continue };
         let function = ident(&format!(
             "render_{}",
@@ -227,7 +227,7 @@ fn signature_tail(parts: &[Option<TokenStream>]) -> TokenStream {
 }
 
 fn render_allocator(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     members: &[&crate::Construction],
     root_impl: bool,
     root_names: &HashSet<String>,
@@ -352,7 +352,7 @@ fn reserve_bare_path(allocator: &mut LocalAllocator, path: &syn::Path) {
 }
 
 fn reserve_feature_callees(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     expression: &FeatureExpr,
     allocator: &mut LocalAllocator,
@@ -425,7 +425,7 @@ struct RenderLocals {
 }
 
 fn render_arms(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     members: &[&crate::Construction],
     root_impl: bool,
     root_names: &HashSet<String>,
@@ -505,7 +505,7 @@ fn render_arms(
 }
 
 fn render_atoms(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     locals: &RenderLocals,
     root_names: &HashSet<String>,
@@ -655,7 +655,7 @@ fn render_atoms(
 }
 
 fn role_agreement(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     role: &syn::Ident,
     locals: &RenderLocals,
@@ -677,7 +677,7 @@ fn role_agreement(
 }
 
 fn verb_agreement(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
@@ -703,7 +703,7 @@ fn verb_agreement(
 }
 
 fn feature_expr(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     expression: &FeatureExpr,
     _feature: Feature,
@@ -814,7 +814,7 @@ fn feature_expr(
 }
 
 fn canonical_lexical_feature_lowering<'a>(
-    validated: &'a ValidatedDeclarations,
+    validated: &'a SemanticPlan,
     construction: &'a crate::Construction,
     role: &syn::Ident,
     feature: Feature,
@@ -867,7 +867,7 @@ fn canonical_lexical_feature_lowering<'a>(
 }
 
 fn emit_feature_helper(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     category: &str,
     members: &[&crate::Construction],
     feature: Feature,
@@ -976,12 +976,12 @@ fn emit_feature_helper(
     reason = "keeps the feature-pattern lowering interface uniformly fallible"
 )]
 fn feature_roles(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     expression: &FeatureExpr,
 ) -> syn::Result<HashSet<String>> {
     fn collect(
-        validated: &ValidatedDeclarations,
+        validated: &SemanticPlan,
         construction: &crate::Construction,
         expression: &FeatureExpr,
         roles: &mut HashSet<String>,
@@ -1043,7 +1043,7 @@ fn feature_roles(
 }
 
 fn feature_constant_pattern(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     category: &syn::Ident,
     variant: &syn::Ident,
@@ -1196,7 +1196,7 @@ fn enqueue_role_categories(
 }
 
 fn category_groups<'a>(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     constructions: &[&'a crate::Construction],
 ) -> Vec<(String, Vec<&'a crate::Construction>)> {
     let mut result: Vec<(String, Vec<&crate::Construction>)> = Vec::new();
@@ -1216,9 +1216,9 @@ fn category_groups<'a>(
     result
 }
 
-fn find_vocab<'a>(validated: &'a ValidatedDeclarations, name: &str) -> Option<&'a crate::Vocab> {
+fn find_vocab<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a crate::Vocab> {
     validated
-        .raw()
+        .source()
         .declarations
         .iter()
         .find_map(|declaration| match declaration {
@@ -1228,11 +1228,11 @@ fn find_vocab<'a>(validated: &'a ValidatedDeclarations, name: &str) -> Option<&'
 }
 
 fn find_binding<'a>(
-    validated: &'a ValidatedDeclarations,
+    validated: &'a SemanticPlan,
     name: &str,
 ) -> syn::Result<&'a crate::TerminalBinding> {
     validated
-        .raw()
+        .source()
         .declarations
         .iter()
         .find_map(|declaration| match declaration {
@@ -1570,7 +1570,7 @@ mod tests {
             crate::parse_declarations(crate::test_support::role_derived_noun_tokens()).unwrap(),
         )
         .unwrap();
-        let generated = super::emit(&validated).expect("role-derived noun render lowers");
+        let generated = super::emit(validated.semantic()).expect("role-derived noun render lowers");
         let source = generated
             .iter()
             .map(|item| item.tokens.to_string())
@@ -1595,7 +1595,7 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        let generated = super::emit(&validated).expect("zero-noun feature helpers lower");
+        let generated = super::emit(validated.semantic()).expect("zero-noun feature helpers lower");
         let source = generated
             .iter()
             .map(|item| item.tokens.to_string())
@@ -1620,7 +1620,7 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        let generated = super::emit(&validated).expect("two noun render atoms lower");
+        let generated = super::emit(validated.semantic()).expect("two noun render atoms lower");
         let source = generated
             .iter()
             .map(|item| item.tokens.to_string())
@@ -1684,8 +1684,9 @@ mod tests {
             .unwrap(),
         )
         .expect("the exact lexical writer validates");
-        let construction = validated
-            .raw()
+        let plan = validated.semantic();
+        let construction = plan
+            .source()
             .declarations
             .iter()
             .find_map(|declaration| match declaration {
@@ -1695,7 +1696,7 @@ mod tests {
             .expect("construction");
         let role = syn::parse_quote!(person);
         let (writer_role, vocabulary) = super::canonical_lexical_feature_lowering(
-            &validated,
+            plan,
             construction,
             &role,
             crate::feature::Feature::Agreement,
@@ -1704,7 +1705,7 @@ mod tests {
         assert_eq!(writer_role, "person");
         assert_eq!(super::path_name(vocabulary), "Person");
         let missing = super::canonical_lexical_feature_lowering(
-            &validated,
+            plan,
             construction,
             &role,
             crate::feature::Feature::Number,

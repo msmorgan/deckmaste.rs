@@ -35,6 +35,21 @@ pub(crate) fn representative_expansion() -> crate::Expansion {
     crate::generate(representative_tokens()).expect("representative declarations generate")
 }
 
+pub(crate) fn representative_semantic_plan() -> crate::semantic::SemanticPlan {
+    crate::validate_declarations(
+        crate::parse_declarations(quote! {
+            construction first: Node {
+                element First {}
+                form first = "first";
+            }
+            root Node { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("representative semantic-plan declarations parse"),
+    )
+    .expect("representative semantic-plan declarations validate")
+    .into_semantic()
+}
+
 pub(crate) fn access_modes_expansion() -> crate::Expansion {
     crate::generate(quote! {
         identity Flag {

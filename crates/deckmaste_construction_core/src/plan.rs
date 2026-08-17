@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use proc_macro2::TokenStream;
 
-use crate::ValidatedDeclarations;
 #[cfg(test)]
 use crate::model::Declaration;
+use crate::semantic::SemanticPlan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NamedKind {
@@ -222,14 +222,14 @@ impl EmissionPlan {
     }
 }
 
-pub(crate) fn plan_emission(validated: &ValidatedDeclarations) -> syn::Result<EmissionPlan> {
-    let mut items = crate::emit::ast::emit(validated)?;
-    let (terminal_items, terminal_contributions) = crate::emit::terminal::emit(validated)?;
+pub(crate) fn plan_emission(plan: &SemanticPlan) -> syn::Result<EmissionPlan> {
+    let mut items = crate::emit::ast::emit(plan)?;
+    let (terminal_items, terminal_contributions) = crate::emit::terminal::emit(plan)?;
     items.extend(terminal_items);
-    items.extend(crate::emit::render::emit(validated)?);
-    items.extend(crate::emit::visit::emit(validated)?);
-    items.extend(crate::emit::rules::emit(validated)?);
-    items.extend(crate::emit::build::emit(validated)?);
+    items.extend(crate::emit::render::emit(plan)?);
+    items.extend(crate::emit::visit::emit(plan)?);
+    items.extend(crate::emit::rules::emit(plan)?);
+    items.extend(crate::emit::build::emit(plan)?);
 
     let mut keys = HashSet::new();
     for item in &items {
@@ -258,9 +258,63 @@ mod tests {
     use std::collections::HashSet;
 
     use crate::DeclarationKind;
+    use crate::GeneratedItem;
     use crate::ItemKey;
     use crate::NamedKind;
     use crate::test_support::representative_expansion;
+
+    #[test]
+    fn semantic_plan_construction_emitters_share_one_mutated_fact() {
+        let mut plan = crate::test_support::representative_semantic_plan();
+        plan.test_only_replace_literal("first", 0, "changed");
+        let ast = crate::emit::ast::emit(&plan).unwrap();
+        let rules = crate::emit::rules::emit(&plan).unwrap();
+        let build = crate::emit::build::emit(&plan).unwrap();
+        assert!(formatted(&rules).contains("Literal (\"changed\")"));
+        assert!(formatted(&build).contains("Leaf :: Literal (\"changed\")"));
+        assert_eq!(named_types(&ast), expected_category_and_product_types());
+    }
+
+    #[test]
+    fn construction_emitters_do_not_fall_back_to_validated_raw_declarations() {
+        for source in [
+            include_str!("emit/ast.rs"),
+            include_str!("emit/rules.rs"),
+            include_str!("emit/build.rs"),
+        ] {
+            assert!(!source.contains("ValidatedDeclarations"));
+            assert!(!source.contains(".raw()"));
+        }
+    }
+
+    fn formatted(items: &[GeneratedItem]) -> String {
+        items
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn named_types(items: &[GeneratedItem]) -> Vec<String> {
+        items
+            .iter()
+            .filter_map(|item| match &item.key {
+                ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name,
+                } => Some(name.clone()),
+                ItemKey::Named {
+                    kind: NamedKind::Trait | NamedKind::Function | NamedKind::Constant,
+                    ..
+                }
+                | ItemKey::Impl { .. } => None,
+            })
+            .collect()
+    }
+
+    fn expected_category_and_product_types() -> Vec<String> {
+        ["Node", "First"].into_iter().map(str::to_owned).collect()
+    }
 
     #[test]
     fn plan_is_unique_repeatable_and_phase_ordered_with_exact_origins() {

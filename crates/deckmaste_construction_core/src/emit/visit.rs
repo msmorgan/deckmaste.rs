@@ -6,7 +6,6 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use quote::quote;
 
-use crate::ValidatedDeclarations;
 use crate::emit::LocalAllocator;
 use crate::identifier::VISITOR_TRAIT;
 use crate::identifier::emitted_ident;
@@ -24,10 +23,11 @@ use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::SemanticPlan;
 
-pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<GeneratedItem>> {
+pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = validated
-        .raw()
+        .source()
         .declarations
         .iter()
         .filter_map(|declaration| match declaration {
@@ -37,7 +37,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         .collect::<Vec<_>>();
     let categories = category_groups(validated, &constructions);
     let vocabs = validated
-        .raw()
+        .source()
         .declarations
         .iter()
         .filter_map(|declaration| match declaration {
@@ -46,7 +46,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         })
         .collect::<Vec<_>>();
     let lexemes = validated
-        .raw()
+        .source()
         .declarations
         .iter()
         .filter_map(|declaration| match declaration {
@@ -55,7 +55,7 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
         })
         .collect::<Vec<_>>();
     let bindings = validated
-        .raw()
+        .source()
         .declarations
         .iter()
         .filter_map(|declaration| match declaration {
@@ -320,7 +320,7 @@ fn emit_category_walker(category: &str, members: &[&crate::Construction]) -> Gen
     reason = "construction walkers lower the closed form order and every typed access mode together"
 )]
 fn emit_construction_walker(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
 ) -> syn::Result<GeneratedItem> {
     let type_name = identifier_key(&construction.element.name);
@@ -724,14 +724,14 @@ fn expr_mentions(expression: &syn::Expr, ident: &syn::Ident) -> bool {
         .any(|token| matches!(token, proc_macro2::TokenTree::Ident(found) if identifier_key(&found) == identifier_key(ident)))
 }
 
-fn terminal_mode(validated: &ValidatedDeclarations, terminal: &str) -> syn::Result<VisitMode> {
-    if validated.raw().declarations.iter().any(
+fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitMode> {
+    if validated.source().declarations.iter().any(
         |declaration| matches!(declaration, Declaration::Vocab(vocab) if identifier_key(&vocab.name) == terminal),
     ) {
         return Ok(VisitMode::Copy);
     }
     validated
-        .raw()
+        .source()
         .declarations
         .iter()
         .find_map(|declaration| match declaration {
@@ -760,7 +760,7 @@ fn binding_kind(binding: &crate::TerminalBinding) -> DeclarationKind {
 }
 
 fn category_groups<'a>(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     constructions: &[&'a crate::Construction],
 ) -> Vec<(String, Vec<&'a crate::Construction>)> {
     let mut result: Vec<(String, Vec<&crate::Construction>)> = Vec::new();

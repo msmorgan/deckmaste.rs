@@ -348,6 +348,11 @@ impl ValidatedDeclarations {
         &self.semantic
     }
 
+    #[cfg(test)]
+    pub(crate) fn into_semantic(self) -> SemanticPlan {
+        self.semantic
+    }
+
     #[allow(
         dead_code,
         reason = "sealed raw declarations are consumed by Task 4 code generation"
@@ -362,32 +367,6 @@ impl ValidatedDeclarations {
     )]
     pub(crate) fn feature_equations(&self, construction: &str) -> &[feature::FeatureEquation] {
         self.semantic.feature_equations(construction)
-    }
-
-    pub(crate) fn category_carries_agreement(&self, category: &str) -> bool {
-        self.category_render_capability(category)
-            .carries_agreement()
-    }
-
-    pub(crate) fn category_requires_external_agreement(&self, category: &str) -> bool {
-        self.category_render_capability(category)
-            .requires_external_agreement()
-    }
-
-    pub(crate) fn category_render_capability(&self, category: &str) -> CategoryRenderCapability {
-        self.semantic.category_render_capability(category)
-    }
-
-    pub(crate) fn category_reads_feature(&self, category: &str, feature: Feature) -> bool {
-        self.semantic.category_reads_feature(category, feature)
-    }
-
-    pub(crate) fn feature_resolution(
-        &self,
-        construction: &str,
-        place: &feature::FeaturePlace,
-    ) -> Option<feature::FeatureResolution> {
-        self.semantic.feature_resolution(construction, place)
     }
 
     #[allow(
@@ -7065,7 +7044,7 @@ pub(crate) mod tests {
             ]
         );
 
-        let emission = crate::plan::plan_emission(&validated)
+        let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
         assert_eq!(emission.items().len(), 45);
     }

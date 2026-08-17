@@ -1,6 +1,5 @@
 use quote::quote;
 
-use crate::ValidatedDeclarations;
 use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
 use crate::identifier::snake_case;
@@ -12,14 +11,15 @@ use crate::plan::ItemKey;
 use crate::plan::TerminalContribution;
 use crate::plan::TerminalKind;
 use crate::plan::TerminalVariantContribution;
+use crate::semantic::SemanticPlan;
 
 pub(crate) fn emit(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
 ) -> syn::Result<(Vec<GeneratedItem>, Vec<TerminalContribution>)> {
     let mut items = Vec::new();
     let mut contributions = Vec::new();
 
-    for declaration in &validated.raw().declarations {
+    for declaration in &validated.source().declarations {
         match declaration {
             Declaration::Vocab(vocab) => {
                 let name = identifier_key(&vocab.name);

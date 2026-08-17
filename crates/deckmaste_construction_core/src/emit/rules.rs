@@ -2,7 +2,6 @@ use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::ValidatedDeclarations;
 use crate::feature::Feature;
 use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
@@ -17,7 +16,6 @@ use crate::identifier::RULES_CONSTANT;
 use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
 use crate::identifier::path_key;
-use crate::model::Declaration;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
 use crate::model::VerbOperand;
@@ -26,8 +24,10 @@ use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::ConstructionPlan;
+use crate::semantic::SemanticPlan;
 
-pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<GeneratedItem>> {
+pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let category_type = ident(RULE_CATEGORY_TYPE);
     let construction_type = ident(RULE_CONSTRUCTION_TYPE);
     let rule_id_type = ident(RULE_ID_TYPE);
@@ -35,18 +35,13 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
     let rule_id_construction = ident(RULE_ID_CONSTRUCTION);
     let rule_id_index = ident(RULE_ID_INDEX);
     let rules_constant = ident(RULES_CONSTANT);
-    let constructions = constructions(validated);
-    let origins = construction_origins(&constructions);
-    let categories = category_names(&constructions);
-    let rule_ids = validated
-        .contributions()
-        .constructions()
+    let constructions = plan.constructions();
+    let origins = construction_origins(constructions);
+    let categories = category_names(constructions);
+    let rule_ids = constructions
         .iter()
-        .map(|record| ident(record.rule_id()))
+        .map(|construction| ident(construction.rule_id()))
         .collect::<Vec<_>>();
-    if constructions.len() != rule_ids.len() {
-        return Err(internal("validated rule inventory is inconsistent"));
-    }
     let count = syn::LitInt::new(&constructions.len().to_string(), Span::call_site());
     let construction_matches = rule_ids.iter().map(|rule_id| {
         quote! { Self::#rule_id => Construction::#rule_id }
@@ -54,20 +49,15 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
     let rows = constructions
         .iter()
         .zip(&rule_ids)
-        .map(|(construction, rule_id)| emit_rule(validated, construction, rule_id))
+        .map(|(construction, rule_id)| emit_rule(plan, construction, rule_id))
         .collect::<syn::Result<Vec<_>>>()?;
 
     let mut rule_origins = origins.clone();
     rule_origins.extend(
-        validated
-            .raw()
-            .declarations
+        plan.roots()
             .iter()
-            .filter_map(|declaration| {
-                let Declaration::Root(root) = declaration else { return None };
-                root.eoi
-                    .then(|| DeclarationKey::new(DeclarationKind::Root, path_name(&root.category)))
-            }),
+            .filter(|root| root.is_parse_entry())
+            .map(|root| DeclarationKey::new(DeclarationKind::Root, root.category())),
     );
     Ok(vec![
         GeneratedItem::new(
@@ -124,20 +114,20 @@ pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<Generat
 }
 
 fn emit_rule(
-    validated: &ValidatedDeclarations,
-    construction: &crate::Construction,
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
     rule_id: &syn::Ident,
 ) -> syn::Result<TokenStream> {
-    let lhs_path = &construction.category;
-    let lhs = ident(&path_name(lhs_path));
-    let mut rhs = construction
+    let source = plan.construction_source(construction);
+    let lhs = ident(construction.category());
+    let mut rhs = source
         .form
         .atoms
         .iter()
-        .map(|atom| emit_position(validated, construction, atom))
+        .map(|atom| emit_position(plan, construction, atom))
         .collect::<syn::Result<Vec<_>>>()?;
-    if let Some(root) = parse_root(validated, lhs_path) {
-        let punctuation = &root.punctuation;
+    if let Some(root) = plan.parse_root(construction.category()) {
+        let punctuation = &plan.root_source(root).punctuation;
         rhs.push(quote! { L(Lexical::Literal(#punctuation)) });
         rhs.push(quote! { L(Lexical::EndOfInput) });
     }
@@ -145,28 +135,30 @@ fn emit_rule(
 }
 
 fn emit_position(
-    validated: &ValidatedDeclarations,
-    construction: &crate::Construction,
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
     atom: &FormAtom,
 ) -> syn::Result<TokenStream> {
     match atom {
         FormAtom::Literal(literal) => Ok(quote! { L(Lexical::Literal(#literal)) }),
         FormAtom::Role(role) => {
-            let FieldKind::Category(category) = &field(construction, role)?.kind else {
+            let FieldKind::Category(category) =
+                &field(plan.construction_source(construction), role)?.kind
+            else {
                 return Err(internal("validated category role has the wrong field kind"));
             };
             let category = ident(&path_name(category));
             Ok(quote! { N(Category::#category) })
         }
         FormAtom::Lex(role) | FormAtom::Identity(role) => {
-            let terminal = terminal_path(field(construction, role)?)?;
-            let lexical = lexical_variant(validated, terminal)?;
+            let terminal = terminal_path(field(plan.construction_source(construction), role)?)?;
+            let lexical = lexical_variant(plan, terminal)?;
             Ok(quote! { L(#lexical) })
         }
         FormAtom::Noun(role) => {
-            let terminal = terminal_path(field(construction, role)?)?;
-            let lexical = lexical_variant(validated, terminal)?;
-            let number = noun_number(validated, construction)?;
+            let terminal = terminal_path(field(plan.construction_source(construction), role)?)?;
+            let lexical = lexical_variant(plan, terminal)?;
+            let number = noun_number(plan, construction)?;
             Ok(quote! { L(#lexical(NounNumber::#number)) })
         }
         FormAtom::Verb(VerbOperand::Fixed(path)) => Ok(quote! { L(Lexical::Verb(#path)) }),
@@ -176,36 +168,23 @@ fn emit_position(
     }
 }
 
-fn lexical_variant(
-    validated: &ValidatedDeclarations,
-    terminal: &syn::Path,
-) -> syn::Result<TokenStream> {
-    for declaration in &validated.raw().declarations {
-        match declaration {
-            Declaration::Vocab(vocab) if identifier_key(&vocab.name) == path_name(terminal) => {
-                let name = ident(&identifier_key(&vocab.name));
-                return Ok(quote! { Lexical::#name });
-            }
-            Declaration::Codec(binding) | Declaration::Identity(binding)
-                if identifier_key(&binding.name) == path_name(terminal) =>
-            {
-                let path = binding.lexical_variant.as_ref().ok_or_else(|| {
-                    internal("atom-capable terminal binding has no lexical variant")
-                })?;
-                return Ok(quote! { #path });
-            }
-            _ => {}
-        }
+fn lexical_variant(plan: &SemanticPlan, terminal: &syn::Path) -> syn::Result<TokenStream> {
+    let name = path_name(terminal);
+    if let Ok(vocab) = plan.vocab(&name) {
+        let name = ident(&identifier_key(&vocab.name));
+        return Ok(quote! { Lexical::#name });
     }
-    Err(internal("resolved terminal has no lexical projection"))
+    let binding = plan.binding(&name)?;
+    let path = binding
+        .lexical_variant
+        .as_ref()
+        .ok_or_else(|| internal("atom-capable terminal binding has no lexical variant"))?;
+    Ok(quote! { #path })
 }
 
-fn noun_number(
-    validated: &ValidatedDeclarations,
-    construction: &crate::Construction,
-) -> syn::Result<syn::Ident> {
-    let equation = validated
-        .feature_equations(&identifier_key(&construction.name))
+fn noun_number(plan: &SemanticPlan, construction: &ConstructionPlan) -> syn::Result<syn::Ident> {
+    let equation = plan
+        .feature_equations(construction.construction_id())
         .iter()
         .find(|equation| equation.target() == &FeaturePlace::Construction(Feature::Number))
         .ok_or_else(|| internal("noun atom has no validated construction number"))?;
@@ -222,57 +201,27 @@ fn noun_number(
     Ok(ident(name))
 }
 
-fn constructions(validated: &ValidatedDeclarations) -> Vec<&crate::Construction> {
-    validated
-        .raw()
-        .declarations
-        .iter()
-        .filter_map(|declaration| match declaration {
-            Declaration::Construction(construction) => Some(construction),
-            _ => None,
-        })
-        .collect()
-}
-
-fn construction_origins(constructions: &[&crate::Construction]) -> Vec<DeclarationKey> {
+fn construction_origins(constructions: &[ConstructionPlan]) -> Vec<DeclarationKey> {
     constructions
         .iter()
         .map(|construction| {
             DeclarationKey::new(
                 DeclarationKind::Construction,
-                identifier_key(&construction.name),
+                construction.construction_id(),
             )
         })
         .collect()
 }
 
-fn category_names(constructions: &[&crate::Construction]) -> Vec<syn::Ident> {
+fn category_names(constructions: &[ConstructionPlan]) -> Vec<syn::Ident> {
     let mut names = Vec::<String>::new();
     for construction in constructions {
-        let name = path_name(&construction.category);
+        let name = construction.category().to_owned();
         if !names.contains(&name) {
             names.push(name);
         }
     }
     names.into_iter().map(|name| ident(&name)).collect()
-}
-
-fn parse_root<'a>(
-    validated: &'a ValidatedDeclarations,
-    category: &syn::Path,
-) -> Option<&'a crate::Root> {
-    validated
-        .raw()
-        .declarations
-        .iter()
-        .find_map(|declaration| match declaration {
-            Declaration::Root(root)
-                if root.eoi && path_name(&root.category) == path_name(category) =>
-            {
-                Some(root)
-            }
-            _ => None,
-        })
 }
 
 fn field<'a>(
@@ -315,7 +264,7 @@ mod tests {
             crate::parse_declarations(crate::test_support::role_derived_noun_tokens()).unwrap(),
         )
         .unwrap();
-        let generated = super::emit(&validated).expect("role-derived noun rules lower");
+        let generated = super::emit(validated.semantic()).expect("role-derived noun rules lower");
         let rules = generated.last().expect("rules item").tokens.to_string();
         assert!(
             rules.contains("Lexical :: Head (NounNumber :: Either)"),
@@ -332,7 +281,8 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        let generated = super::emit(&validated).expect("two dynamic nouns lower to rules");
+        let generated =
+            super::emit(validated.semantic()).expect("two dynamic nouns lower to rules");
         let rules = generated.last().expect("rules item").tokens.to_string();
         assert_eq!(
             rules
@@ -349,7 +299,7 @@ mod tests {
             crate::parse_declarations(crate::test_support::synthetic_projection_tokens()).unwrap(),
         )
         .unwrap();
-        let generated = super::emit(&validated).unwrap();
+        let generated = super::emit(validated.semantic()).unwrap();
         assert_eq!(generated.len(), 5);
         let actual = generated
             .iter()
@@ -502,7 +452,7 @@ mod tests {
                 root Phrase { punctuation = "!"; eoi = true; standalone_render = true; }
             }).unwrap(),
         ).unwrap();
-        let items = super::emit(&validated).unwrap();
+        let items = super::emit(validated.semantic()).unwrap();
         let rules = items.last().unwrap().tokens.to_string();
         assert!(rules.contains("NounNumber :: Singular"));
         assert!(rules.contains("Lexical :: Literal (\"!\")"));

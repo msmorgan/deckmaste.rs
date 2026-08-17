@@ -54,7 +54,7 @@ pub fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarat
 /// Returns a span-bearing parse, validation, or internal emission error.
 pub fn generate(tokens: proc_macro2::TokenStream) -> syn::Result<Expansion> {
     let declarations = validate_declarations(parse_declarations(tokens)?)?;
-    let plan = plan::plan_emission(&declarations)?;
+    let plan = plan::plan_emission(declarations.semantic())?;
     let escape_hatches = report::escape_hatch_report(&declarations);
     Ok(Expansion {
         plan,

@@ -5,7 +5,6 @@ use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::ValidatedDeclarations;
 use crate::emit::LocalAllocator;
 use crate::feature::Feature;
 use crate::feature::FeatureExpr;
@@ -19,7 +18,6 @@ use crate::identifier::pascal_case;
 use crate::identifier::path_key;
 use crate::identifier::snake_case;
 use crate::model::ConstructorArgument;
-use crate::model::Declaration;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
 use crate::model::TerminalBindingKind;
@@ -29,46 +27,35 @@ use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::SemanticPlan;
 
-pub(crate) fn emit(validated: &ValidatedDeclarations) -> syn::Result<Vec<GeneratedItem>> {
+pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let build_function = ident(BUILD_FUNCTION);
-    let constructions = validated
-        .raw()
-        .declarations
-        .iter()
-        .filter_map(|declaration| match declaration {
-            Declaration::Construction(construction) => Some(construction),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    let records = validated.contributions().constructions();
-    if constructions.len() != records.len() {
-        return Err(internal("validated build inventory is inconsistent"));
-    }
+    let constructions = plan.constructions();
     let arms = constructions
         .iter()
-        .zip(records)
-        .map(|(construction, record)| emit_arm(validated, construction, record.rule_id()))
+        .map(|construction| {
+            emit_arm(
+                plan,
+                plan.construction_source(construction),
+                construction.rule_id(),
+            )
+        })
         .collect::<syn::Result<Vec<_>>>()?;
     let mut origins = constructions
         .iter()
         .map(|construction| {
             DeclarationKey::new(
                 DeclarationKind::Construction,
-                identifier_key(&construction.name),
+                construction.construction_id(),
             )
         })
         .collect::<Vec<_>>();
     origins.extend(
-        validated
-            .raw()
-            .declarations
+        plan.roots()
             .iter()
-            .filter_map(|declaration| {
-                let Declaration::Root(root) = declaration else { return None };
-                root.eoi
-                    .then(|| DeclarationKey::new(DeclarationKind::Root, path_name(&root.category)))
-            }),
+            .filter(|root| root.is_parse_entry())
+            .map(|root| DeclarationKey::new(DeclarationKind::Root, root.category())),
     );
     let tokens = quote! {
         #[expect(
@@ -137,15 +124,16 @@ enum ResolvedFeatureValue {
 }
 
 fn emit_arm(
-    validated: &ValidatedDeclarations,
+    plan: &SemanticPlan,
     construction: &crate::Construction,
     rule_id: &str,
 ) -> syn::Result<TokenStream> {
     let mut lowering = Lowering::default();
     for atom in &construction.form.atoms {
-        lower_atom(validated, construction, atom, &mut lowering)?;
+        lower_atom(plan, construction, atom, &mut lowering)?;
     }
-    if let Some(root) = parse_root(validated, &construction.category) {
+    if let Some(root) = plan.parse_root(&path_name(&construction.category)) {
+        let root = plan.root_source(root);
         let punctuation = &root.punctuation;
         lowering
             .patterns
@@ -154,11 +142,11 @@ fn emit_arm(
             .patterns
             .push(quote! { BuildValue::Leaf(Leaf::EndOfInput) });
     }
-    lower_feature_guards(validated, construction, &mut lowering)?;
-    let success = if let Some(dynamic_role) = dynamic_match_role(validated, construction) {
-        emit_dynamic_match(validated, construction, &mut lowering, &dynamic_role)?
+    lower_feature_guards(plan, construction, &mut lowering)?;
+    let success = if let Some(dynamic_role) = dynamic_match_role(plan, construction) {
+        emit_dynamic_match(plan, construction, &mut lowering, &dynamic_role)?
     } else {
-        emit_success(validated, construction, &mut lowering, None, None, None)?
+        emit_success(plan, construction, &mut lowering, None, None, None)?
     };
     let rule_id = ident(rule_id);
     let patterns = &lowering.patterns;
@@ -177,7 +165,7 @@ fn emit_arm(
 }
 
 fn lower_atom(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     atom: &FormAtom,
     lowering: &mut Lowering,
@@ -214,7 +202,7 @@ fn lower_atom(
 }
 
 fn lower_category_role(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     role: &syn::Ident,
     lowering: &mut Lowering,
@@ -271,7 +259,7 @@ fn lower_category_role(
 }
 
 fn role_agreement_pattern(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     role: &syn::Ident,
     category: &syn::Path,
@@ -319,7 +307,7 @@ fn role_agreement_pattern(
 }
 
 fn role_number_pattern(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     role: &syn::Ident,
     lowering: &mut Lowering,
@@ -339,7 +327,7 @@ fn role_number_pattern(
 }
 
 fn lower_terminal_role(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     role: &syn::Ident,
     noun: bool,
@@ -347,7 +335,7 @@ fn lower_terminal_role(
 ) -> syn::Result<()> {
     let field = field(construction, role)?;
     let terminal = terminal_path(field)?;
-    if let Some(vocab) = find_vocab(validated, &path_name(terminal)) {
+    if let Some(vocab) = find_vocab(validated, &path_name(terminal))? {
         let leaf = ident(&identifier_key(&vocab.name));
         if let Some(requirement) = construction
             .requirements
@@ -496,7 +484,7 @@ fn direct_bound_path(expr: &syn::Expr) -> Option<&syn::Path> {
 }
 
 fn noun_number_pattern(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     role: &syn::Ident,
     lowering: &mut Lowering,
@@ -525,7 +513,7 @@ fn noun_number_pattern(
 }
 
 fn verb_agreement_pattern(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     lowering: &mut Lowering,
 ) -> syn::Result<TokenStream> {
@@ -558,7 +546,7 @@ fn verb_agreement_pattern(
 }
 
 fn lower_feature_guards(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
@@ -632,7 +620,7 @@ fn lower_feature_guards(
 }
 
 fn emit_success(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     lowering: &mut Lowering,
     overrides: Option<&HashMap<String, TokenStream>>,
@@ -730,7 +718,7 @@ fn emit_success(
 }
 
 fn emit_dynamic_match(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     lowering: &mut Lowering,
     role: &syn::Ident,
@@ -813,7 +801,7 @@ fn emit_dynamic_match(
 }
 
 fn stored_value(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     lowering: &Lowering,
     role: &syn::Ident,
@@ -837,7 +825,7 @@ fn stored_value(
 }
 
 fn construction_agreement(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     lowering: &Lowering,
     agreement_override: Option<FeatureValue>,
@@ -856,7 +844,7 @@ fn construction_agreement(
 }
 
 fn construction_number(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     lowering: &Lowering,
     number_override: Option<FeatureValue>,
@@ -875,7 +863,7 @@ fn construction_number(
 }
 
 fn resolve_feature_place(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     lowering: &Lowering,
     place: &FeaturePlace,
@@ -984,7 +972,7 @@ fn same_known_feature(left: &ResolvedFeatureValue, right: &ResolvedFeatureValue)
 }
 
 fn dynamic_match_role(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
 ) -> Option<syn::Ident> {
     [Feature::Number, Feature::Agreement]
@@ -1003,7 +991,7 @@ fn dynamic_match_role(
 }
 
 fn equation<'a>(
-    validated: &'a ValidatedDeclarations,
+    validated: &'a SemanticPlan,
     construction: &crate::Construction,
     target: &FeaturePlace,
 ) -> Option<&'a crate::feature::FeatureEquation> {
@@ -1014,7 +1002,7 @@ fn equation<'a>(
 }
 
 fn feature_is_read(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     role: &syn::Ident,
     feature: Feature,
@@ -1024,28 +1012,20 @@ fn feature_is_read(
     })
 }
 
-fn category_has_agreement(validated: &ValidatedDeclarations, category: &syn::Path) -> bool {
+fn category_has_agreement(validated: &SemanticPlan, category: &syn::Path) -> bool {
     validated.category_carries_agreement(&path_name(category))
 }
 
-fn category_carries_number(validated: &ValidatedDeclarations, category: &syn::Path) -> bool {
+fn category_carries_number(validated: &SemanticPlan, category: &syn::Path) -> bool {
     number_carry_categories(validated).contains(&path_name(category))
 }
 
-fn number_carry_categories(validated: &ValidatedDeclarations) -> HashSet<String> {
-    let constructions = validated
-        .raw()
-        .declarations
-        .iter()
-        .filter_map(|declaration| match declaration {
-            Declaration::Construction(construction) => Some(construction),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
+fn number_carry_categories(validated: &SemanticPlan) -> HashSet<String> {
     let mut carried = HashSet::new();
     loop {
         let before = carried.len();
-        for construction in &constructions {
+        for row in validated.constructions() {
+            let construction = validated.construction_source(row);
             let output_is_needed = construction
                 .form
                 .atoms
@@ -1087,7 +1067,7 @@ fn number_carry_categories(validated: &ValidatedDeclarations) -> HashSet<String>
 }
 
 fn role_number_is_needed_in_build(
-    validated: &ValidatedDeclarations,
+    validated: &SemanticPlan,
     construction: &crate::Construction,
     role: &syn::Ident,
 ) -> bool {
@@ -1136,50 +1116,23 @@ fn binding_pattern(pattern: &syn::Pat) -> syn::Result<(syn::Ident, Vec<syn::Iden
     Ok((variant, names))
 }
 
-fn find_vocab<'a>(validated: &'a ValidatedDeclarations, name: &str) -> Option<&'a crate::Vocab> {
-    validated
-        .raw()
-        .declarations
-        .iter()
-        .find_map(|declaration| match declaration {
-            Declaration::Vocab(vocab) if identifier_key(&vocab.name) == name => Some(vocab),
-            _ => None,
-        })
+fn find_vocab<'a>(
+    validated: &'a SemanticPlan,
+    name: &str,
+) -> syn::Result<Option<&'a crate::Vocab>> {
+    match validated.vocab(name) {
+        Ok(vocab) => Ok(Some(vocab)),
+        Err(_) => validated
+            .binding(name)
+            .map(|_| None)
+            .map_err(|_| internal("resolved terminal is absent from the sealed semantic plan")),
+    }
 }
 fn find_binding<'a>(
-    validated: &'a ValidatedDeclarations,
+    validated: &'a SemanticPlan,
     name: &str,
 ) -> syn::Result<&'a crate::TerminalBinding> {
-    validated
-        .raw()
-        .declarations
-        .iter()
-        .find_map(|declaration| match declaration {
-            Declaration::Codec(binding) | Declaration::Identity(binding)
-                if identifier_key(&binding.name) == name =>
-            {
-                Some(binding)
-            }
-            _ => None,
-        })
-        .ok_or_else(|| internal("resolved terminal binding is absent"))
-}
-fn parse_root<'a>(
-    validated: &'a ValidatedDeclarations,
-    category: &syn::Path,
-) -> Option<&'a crate::Root> {
-    validated
-        .raw()
-        .declarations
-        .iter()
-        .find_map(|declaration| match declaration {
-            Declaration::Root(root)
-                if root.eoi && path_name(&root.category) == path_name(category) =>
-            {
-                Some(root)
-            }
-            _ => None,
-        })
+    validated.binding(name)
 }
 fn field<'a>(
     construction: &'a crate::Construction,
@@ -1241,7 +1194,7 @@ mod tests {
             crate::parse_declarations(crate::test_support::role_derived_noun_tokens()).unwrap(),
         )
         .unwrap();
-        let items = super::emit(&validated).expect("role-derived noun build lowers");
+        let items = super::emit(validated.semantic()).expect("role-derived noun build lowers");
         let source = items[0].tokens.to_string();
         assert!(
             source.contains("Leaf :: Head { head , number }"),
@@ -1274,7 +1227,7 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        let source = super::emit(&validated)
+        let source = super::emit(validated.semantic())
             .expect("zero-noun vocab number match lowers")
             .remove(0)
             .tokens
@@ -1298,7 +1251,7 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        let source = super::emit(&validated)
+        let source = super::emit(validated.semantic())
             .expect("two-noun vocab number match lowers")
             .remove(0)
             .tokens
@@ -1339,7 +1292,7 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        let source = super::emit(&validated)
+        let source = super::emit(validated.semantic())
             .expect("agreement-only vocab dispatch lowers")
             .remove(0)
             .tokens
@@ -1384,7 +1337,7 @@ mod tests {
         assert!(!expansion.items().is_empty());
         let validated =
             crate::validate_declarations(crate::parse_declarations(fixture).unwrap()).unwrap();
-        let source = super::emit(&validated)
+        let source = super::emit(validated.semantic())
             .expect("two FromRole noun guards lower")
             .remove(0)
             .tokens
@@ -1431,7 +1384,7 @@ mod tests {
             crate::validate_declarations(crate::parse_declarations(fixture.clone()).unwrap())
                 .unwrap();
         crate::generate(fixture).expect("a refined local writer is backend-complete");
-        let source = super::emit(&validated)
+        let source = super::emit(validated.semantic())
             .expect("the refined writer lowers to a literal child pattern")
             .remove(0)
             .tokens
@@ -1474,7 +1427,7 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        let item = super::emit(&validated)
+        let item = super::emit(validated.semantic())
             .expect("colliding preferred names are allocated safely")
             .remove(0);
         let syn::Item::Fn(function) = syn::parse2(item.tokens.clone()).unwrap() else {
@@ -1539,7 +1492,8 @@ mod tests {
             .unwrap(),
         )
         .expect("a two-slot closed binding construction validates");
-        let items = super::emit(&validated).expect("validated binding construction lowers");
+        let items =
+            super::emit(validated.semantic()).expect("validated binding construction lowers");
         let syn::Item::Fn(function) = syn::parse2(items[0].tokens.clone()).unwrap() else {
             panic!("build is a function")
         };
@@ -1607,7 +1561,7 @@ mod tests {
             .unwrap(),
         )
         .expect("the adversarial ABI-local fixture validates");
-        let source = super::emit(&validated)
+        let source = super::emit(validated.semantic())
             .expect("all accepted local names lower hygienically")
             .remove(0)
             .tokens
@@ -1674,7 +1628,7 @@ mod tests {
             crate::parse_declarations(crate::test_support::synthetic_projection_tokens()).unwrap(),
         )
         .unwrap();
-        let actual = super::emit(&validated).unwrap();
+        let actual = super::emit(validated.semantic()).unwrap();
         assert_eq!(actual.len(), 1);
         assert_eq!(
             actual[0]
