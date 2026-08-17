@@ -161,10 +161,17 @@ impl SemanticPlan {
                 matches!(declaration, Declaration::Construction(_)).then_some(index)
             })
             .collect::<Vec<_>>();
+        if construction_indexes.len() != contributions.constructions().len() {
+            return Err(sealed_error("construction contribution count"));
+        }
         let constructions = construction_indexes
             .into_iter()
-            .zip(contributions.constructions())
-            .map(|(source_index, record)| {
+            .enumerate()
+            .map(|(record_index, source_index)| {
+                let record = contributions
+                    .constructions()
+                    .get(record_index)
+                    .ok_or_else(|| sealed_error("construction contribution"))?;
                 let Some(Declaration::Construction(construction)) =
                     source.declarations.get(source_index)
                 else {
@@ -175,28 +182,29 @@ impl SemanticPlan {
             .collect::<syn::Result<Vec<_>>>()?;
         let number_carry_categories = number_carry_categories(&constructions, &equations);
 
-        let mut terminal_records = contributions.terminals().iter();
-        let terminals = source
+        let terminal_count = source
             .declarations
             .iter()
-            .enumerate()
-            .filter_map(|(source_index, declaration)| match declaration {
-                Declaration::Vocab(_) => terminal_records.next().map(|terminal| {
-                    TerminalPlan::Vocab(VocabPlan {
-                        source_index,
-                        terminal: terminal.clone(),
-                    })
-                }),
-                Declaration::Lexeme(_) => terminal_records.next().map(|terminal| {
-                    TerminalPlan::Lexeme(LexemePlan {
-                        source_index,
-                        terminal: terminal.clone(),
-                    })
-                }),
-                Declaration::Codec(_) | Declaration::Identity(_) => {
-                    terminal_records.next().map(|terminal| {
+            .filter(|declaration| {
+                matches!(
+                    declaration,
+                    Declaration::Vocab(_)
+                        | Declaration::Lexeme(_)
+                        | Declaration::Codec(_)
+                        | Declaration::Identity(_)
+                )
+            })
+            .count();
+        if terminal_count != contributions.terminals().len() {
+            return Err(sealed_error("terminal contribution count"));
+        }
+        let mut terminal_index = 0;
+        let terminals = source.declarations.iter().enumerate().filter_map(|(source_index, declaration)| match declaration {
+                Declaration::Vocab(_) => { let terminal = contributions.terminals().get(terminal_index)?; terminal_index += 1; Some(TerminalPlan::Vocab(VocabPlan { source_index, terminal: terminal.clone() })) }
+                Declaration::Lexeme(_) => { let terminal = contributions.terminals().get(terminal_index)?; terminal_index += 1; Some(TerminalPlan::Lexeme(LexemePlan { source_index, terminal: terminal.clone() })) }
+                Declaration::Codec(_) | Declaration::Identity(_) => { let terminal = contributions.terminals().get(terminal_index)?; terminal_index += 1; Some({
                         let (Declaration::Codec(binding) | Declaration::Identity(binding)) = declaration else {
-                            unreachable!("binding terminal was selected from a binding declaration");
+                            return None;
                         };
                         TerminalPlan::Binding(BindingPlan {
                             source_index,
@@ -206,13 +214,10 @@ impl SemanticPlan {
                                 binding.render,
                                 Some(crate::model::RenderBinding::ContextIdentity(ref arms)) if arms.len() >= 2
                             ),
-                        })
-                    })
-                }
+                        }) }) }
                 Declaration::Construction(_) | Declaration::Root(_) => None,
             })
             .collect();
-        debug_assert!(terminal_records.next().is_none());
 
         let root_indexes = source
             .declarations
@@ -222,22 +227,29 @@ impl SemanticPlan {
                 matches!(declaration, Declaration::Root(_)).then_some(index)
             })
             .collect::<Vec<_>>();
+        if root_indexes.len() != contributions.roots().len() {
+            return Err(sealed_error("root contribution count"));
+        }
         let roots = root_indexes
             .into_iter()
-            .zip(contributions.roots())
-            .map(|(source_index, root)| {
+            .enumerate()
+            .map(|(root_index, source_index)| {
+                let root = contributions
+                    .roots()
+                    .get(root_index)
+                    .ok_or_else(|| sealed_error("root contribution"))?;
                 let Declaration::Root(source) = source.source_at(source_index) else {
-                    unreachable!("root index was selected from root declarations");
+                    return Err(sealed_error("root source kind"));
                 };
-                RootPlan {
+                Ok(RootPlan {
                     source_index,
                     category: root.category().to_owned(),
                     punctuation: source.punctuation.value(),
                     parse_entry: root.is_parse_entry(),
                     render_entry: root.is_render_entry(),
-                }
+                })
             })
-            .collect();
+            .collect::<syn::Result<Vec<_>>>()?;
 
         Ok(Self {
             source,

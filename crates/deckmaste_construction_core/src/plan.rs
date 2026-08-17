@@ -291,6 +291,7 @@ mod tests {
         );
         assert!(
             crate::report::escape_hatch_report(&plan)
+                .unwrap()
                 .terminal_bindings()
                 .is_empty()
         );

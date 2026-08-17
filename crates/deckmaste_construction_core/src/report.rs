@@ -102,7 +102,7 @@ impl EscapeHatchReport {
     }
 }
 
-pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> EscapeHatchReport {
+pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatchReport> {
     let mapping_layers = Vec::new();
     let mut handwritten_codecs = Vec::new();
     let stored_form_tags = Vec::new();
@@ -115,9 +115,7 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> EscapeHatchReport {
         let TerminalPlan::Binding(binding) = terminal else {
             continue;
         };
-        let source = plan
-            .binding_source(binding)
-            .expect("sealed terminal binding source");
+        let source = plan.binding_source(binding)?;
         let name = identifier_key(&source.name);
         match binding.kind() {
             TerminalBindingKind::Codec => {
@@ -145,7 +143,7 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> EscapeHatchReport {
     }
     roots.extend(plan.roots().iter().map(|root| root.category().to_owned()));
 
-    EscapeHatchReport {
+    Ok(EscapeHatchReport {
         mapping_layers,
         handwritten_codecs,
         stored_form_tags,
@@ -153,7 +151,7 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> EscapeHatchReport {
         terminal_bindings,
         checked_constructor_bindings,
         roots,
-    }
+    })
 }
 
 #[cfg(test)]
