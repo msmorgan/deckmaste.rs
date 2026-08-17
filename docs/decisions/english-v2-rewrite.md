@@ -270,7 +270,15 @@ out of tier 3's handwritten examples; mana symbols and P/T expressions
 remain handwritten codecs until each earns its own reviewed recipe. The
 stage-4 binding-only `codec`/`identity` forms are migration scaffolding
 retired at the Plan 03 gate — generated recipes are ordinary declarations,
-not escape hatches, and no dual terminal authority survives.
+not escape hatches, and no dual terminal authority survives. A recipe
+accepts its **full structural domain** — every surface its shape admits
+under the style guide's canonical form — never an observed-corpus subset;
+the corpus is conformance evidence and ratchet fuel, not an acceptance
+filter (the same rule §Source-hierarchy sets for sentences, one level
+down). Spelled-out number words, when they arrive, are a generative recipe
+over English number grammar for this reason, never a word list.
+Representation bounds (a declared magnitude type) are declaration-side
+facts that fail loudly, not hidden limits.
 
 **Lexical coverage gate:** every token of every accepted corpus sentence must
 be claimed by a form literal, vocab, lexeme, codec, or identity — an
