@@ -257,6 +257,36 @@ mod structural_trace_tests {
             assert_eq!(trace, repeated);
         }
     }
+
+    #[test]
+    fn structural_trace_observed_engine_matches_noop_success_and_failure() {
+        let catalogs = ParserCatalogs::load(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
+        )
+        .expect("catalogs");
+        let parser = Parser::new(catalogs.clone());
+        let context = ParseContext::new("Trace Card").expect("context");
+        for text in [
+            "Whenever a player connives, you gain X life.",
+            "Whenever a player connives, you gain X life",
+        ] {
+            let grammar = super::SliceGrammar {
+                catalogs: &catalogs,
+                context: &context,
+            };
+            let ordinary = super::parse_forest(&grammar, text);
+            let (observed, trace) =
+                super::parse_forest_observed(&grammar, text, TraceLimits::new(usize::MAX));
+            assert_eq!(ordinary, observed);
+            let (analysis, _) =
+                parser.observe_structural(text, &context, TraceLimits::new(usize::MAX));
+            assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
+            if text.ends_with("life") {
+                assert_eq!(trace.accepted_roots().total(), 0);
+                assert!(trace.forest().total() > 0);
+            }
+        }
+    }
 }
 
 fn chart_failure(text: &str, failure: ChartFailure<Category, Lexical>) -> ParseError {

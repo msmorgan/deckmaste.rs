@@ -33,6 +33,7 @@ pub(crate) struct Family<T> {
     pub children: Vec<Child<T>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PackedNode<R, T> {
     pub rule: R,
     pub start: usize,
@@ -40,6 +41,7 @@ pub(crate) struct PackedNode<R, T> {
     pub families: Vec<Family<T>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Forest<R, T> {
     nodes: Vec<PackedNode<R, T>>,
     accepted_roots: Vec<NodeId>,
