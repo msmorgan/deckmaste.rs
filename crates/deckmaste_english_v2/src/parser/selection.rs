@@ -184,11 +184,7 @@ pub(crate) fn analyze_selection(
     selection_analysis_with_exceptions(
         candidates,
         |candidate| candidate.constructions.as_slice(),
-        |candidate| {
-            structural_specificity(&candidate.positions, |lexical| {
-                matches!(lexical, Lexical::Literal(_))
-            })
-        },
+        |candidate| Specificity(candidate.specificity.clone()),
         construction_name_v1,
         construction_name,
         SELECTION_EXCEPTIONS,
@@ -289,6 +285,12 @@ fn structural_specificity<N, L>(
             })
             .collect(),
     )
+}
+
+pub(crate) fn specificity_tiers(
+    positions: &[RulePosition<crate::constructions::Category, Lexical>],
+) -> Vec<SpecificityTier> {
+    structural_specificity(positions, |lexical| matches!(lexical, Lexical::Literal(_))).0
 }
 
 fn decide_ranked<T, C, Name>(
@@ -514,7 +516,7 @@ fn ambiguity_names<'a, C: Copy + Eq + 'a>(
     })
 }
 
-fn construction_name_v1(construction: Construction) -> String {
+pub(crate) fn construction_name_v1(construction: Construction) -> String {
     format!("{construction:?}")
 }
 
@@ -558,6 +560,15 @@ const fn construction_name(construction: Construction) -> &'static str {
 mod tests {
     use std::cmp::Ordering;
 
+    use super::super::Bounded;
+    use super::super::diagnostic::BoundedParseOutcome;
+    use super::super::diagnostic::BoundedSelectionDecision;
+    use super::super::diagnostic::MaterializationTrace;
+    use super::super::diagnostic::ParserTrace;
+    use super::super::diagnostic::SelectionLoserReason;
+    use super::super::diagnostic::StructuralTrace;
+    use super::super::diagnostic::TraceLimits;
+    use super::SelectionDecision;
     use super::SelectionDecisive;
     use super::SelectionException;
     use super::SelectionExceptionInventoryError;
@@ -571,6 +582,8 @@ mod tests {
     use super::selection_exception_inventory;
     use super::selection_exception_inventory_for;
     use super::structural_specificity;
+    use crate::context::ParseContext;
+    use crate::parser::ParseAnalysis;
     use crate::parser::ParseError;
     use crate::parser::engine::Child;
     use crate::parser::engine::Forest;
@@ -1341,6 +1354,299 @@ mod tests {
         assert_eq!(
             decision.exception_uses(),
             ["left-over-right", "third-over-left", "right-over-third"]
+        );
+    }
+
+    fn assert_bounded<T>(bounded: &Bounded<T>, limit: usize) {
+        assert_eq!(bounded.total(), bounded.shown() + bounded.omitted());
+        assert_eq!(bounded.shown(), bounded.items().len());
+        assert!(bounded.shown() <= limit);
+    }
+
+    fn traced_decision(
+        candidates: Vec<TestCandidate>,
+        exceptions: &[SelectionException<TestConstruction>],
+        limit: usize,
+    ) -> BoundedSelectionDecision {
+        BoundedSelectionDecision::from_complete(&complete_decision(candidates, exceptions), limit)
+    }
+
+    fn complete_decision(
+        candidates: Vec<TestCandidate>,
+        exceptions: &[SelectionException<TestConstruction>],
+    ) -> SelectionDecision {
+        let analysis = selection_analysis_with_exceptions(
+            candidates,
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |construction| format!("{construction:?}"),
+            construction_name,
+            exceptions,
+        )
+        .unwrap();
+        analysis
+            .decision()
+            .expect("nonempty selection decision")
+            .clone()
+    }
+
+    #[test]
+    fn parser_trace_bounded_selection_authenticates_all_resolution_modes_and_loser_reasons() {
+        let unique = traced_decision(
+            vec![TestCandidate {
+                ability: "unique",
+                construction: TestConstruction::TestLeft,
+                constructions: vec![TestConstruction::TestLeft, TestConstruction::Empty],
+                positions: vec![
+                    RulePosition::Lexical(TestLexical::Word),
+                    RulePosition::Nonterminal(TestCategory::Empty),
+                ],
+            }],
+            &[],
+            8,
+        );
+        assert_eq!(unique.resolution(), SelectionResolution::Unique);
+        assert_eq!(unique.selected().unwrap().ordinal(), 0);
+        assert_eq!(
+            unique.selected().unwrap().construction_path().items(),
+            ["TestLeft", "Empty"]
+        );
+        assert_eq!(
+            unique.selected().unwrap().specificity().items(),
+            [SpecificityTier::TypedLexical, SpecificityTier::Nonterminal]
+        );
+        assert_eq!(unique.unselected_candidates().total(), 0);
+
+        let specificity = traced_decision(
+            vec![
+                TestCandidate {
+                    ability: "typed",
+                    construction: TestConstruction::BroadAlpha,
+                    constructions: vec![TestConstruction::BroadAlpha],
+                    positions: vec![RulePosition::Lexical(TestLexical::Word)],
+                },
+                TestCandidate {
+                    ability: "longer",
+                    construction: TestConstruction::LiteralAlpha,
+                    constructions: vec![TestConstruction::LiteralAlpha],
+                    positions: vec![
+                        RulePosition::Lexical(TestLexical::Word),
+                        RulePosition::Nonterminal(TestCategory::Empty),
+                    ],
+                },
+            ],
+            &[],
+            8,
+        );
+        assert_eq!(specificity.resolution(), SelectionResolution::Specificity);
+        assert_eq!(specificity.selected().unwrap().ordinal(), 1);
+        assert_eq!(specificity.comparisons().total(), 1);
+        assert_eq!(specificity.survivors().items(), [1]);
+        assert_eq!(specificity.unselected_candidates().total(), 1);
+        let loser = &specificity.unselected_candidates().items()[0];
+        assert_eq!(loser.candidate().ordinal(), 0);
+        assert_eq!(loser.reason(), SelectionLoserReason::LessSpecific);
+        assert_eq!(loser.evidence().total(), 1);
+
+        let exception = SelectionException {
+            id: "left-over-right",
+            left: TestConstruction::TestLeft,
+            right: TestConstruction::TestRight,
+            winner: TestConstruction::TestLeft,
+            rationale: "synthetic trace edge",
+        };
+        let exception_resolved = traced_decision(
+            test_tied_candidates(TestConstruction::TestRight, TestConstruction::TestLeft),
+            &[exception],
+            8,
+        );
+        assert_eq!(
+            exception_resolved.resolution(),
+            SelectionResolution::Exception
+        );
+        assert_eq!(exception_resolved.selected().unwrap().ordinal(), 1);
+        assert_eq!(
+            exception_resolved.exception_uses().items(),
+            ["left-over-right"]
+        );
+        let loser = &exception_resolved.unselected_candidates().items()[0];
+        assert_eq!(loser.candidate().ordinal(), 0);
+        assert_eq!(loser.reason(), SelectionLoserReason::ExceptionLoser);
+        assert_eq!(
+            loser.evidence().items()[0].exception_id(),
+            Some("left-over-right")
+        );
+
+        let unresolved = traced_decision(
+            test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
+            &[],
+            8,
+        );
+        assert_eq!(unresolved.resolution(), SelectionResolution::UnresolvedTie);
+        assert!(unresolved.selected().is_none());
+        assert_eq!(unresolved.survivors().items(), [0, 1]);
+        assert_eq!(unresolved.unselected_candidates().total(), 2);
+        assert!(
+            unresolved
+                .unselected_candidates()
+                .items()
+                .iter()
+                .all(|loser| {
+                    loser.reason() == SelectionLoserReason::UnresolvedSurvivor
+                        && loser.evidence().total() == 1
+                })
+        );
+    }
+
+    #[test]
+    fn parser_trace_selection_caps_every_outer_and_nested_collection_independently() {
+        let mut candidates = vec![TestCandidate {
+            ability: "less specific",
+            construction: TestConstruction::BroadAlpha,
+            constructions: vec![TestConstruction::BroadAlpha, TestConstruction::Empty],
+            positions: vec![RulePosition::Nonterminal(TestCategory::Empty)],
+        }];
+        candidates.extend(
+            [
+                TestConstruction::TestLeft,
+                TestConstruction::TestRight,
+                TestConstruction::TestThird,
+            ]
+            .into_iter()
+            .map(|construction| TestCandidate {
+                ability: construction_name(construction),
+                construction,
+                constructions: vec![construction, TestConstruction::Empty],
+                positions: vec![
+                    RulePosition::Lexical(TestLexical::Word),
+                    RulePosition::Nonterminal(TestCategory::Empty),
+                ],
+            }),
+        );
+        let exceptions = [
+            SelectionException {
+                id: "left-over-right",
+                left: TestConstruction::TestLeft,
+                right: TestConstruction::TestRight,
+                winner: TestConstruction::TestLeft,
+                rationale: "synthetic cycle edge",
+            },
+            SelectionException {
+                id: "right-over-third",
+                left: TestConstruction::TestRight,
+                right: TestConstruction::TestThird,
+                winner: TestConstruction::TestRight,
+                rationale: "synthetic cycle edge",
+            },
+            SelectionException {
+                id: "third-over-left",
+                left: TestConstruction::TestThird,
+                right: TestConstruction::TestLeft,
+                winner: TestConstruction::TestThird,
+                rationale: "synthetic cycle edge",
+            },
+        ];
+
+        for limit in [0, 1, 8] {
+            let projection = traced_decision(candidates.clone(), &exceptions, limit);
+            assert_eq!(projection.resolution(), SelectionResolution::UnresolvedTie);
+            assert_bounded(projection.candidates(), limit);
+            assert_bounded(projection.comparisons(), limit);
+            assert_bounded(projection.survivors(), limit);
+            assert_bounded(projection.exception_uses(), limit);
+            assert_bounded(projection.unselected_candidates(), limit);
+            assert_eq!(projection.candidates().total(), 4);
+            assert_eq!(projection.comparisons().total(), 6);
+            assert_eq!(projection.exception_uses().total(), 3);
+            assert_eq!(projection.unselected_candidates().total(), 4);
+            for candidate in projection.candidates().items() {
+                assert_bounded(candidate.construction_path(), limit);
+                assert_bounded(candidate.specificity(), limit);
+            }
+            for loser in projection.unselected_candidates().items() {
+                assert_bounded(loser.candidate().construction_path(), limit);
+                assert_bounded(loser.candidate().specificity(), limit);
+                assert_bounded(loser.evidence(), limit);
+            }
+            if limit > 0 {
+                let loser = &projection.unselected_candidates().items()[0];
+                assert_eq!(loser.reason(), SelectionLoserReason::LessSpecific);
+                assert_eq!(loser.evidence().total(), 3);
+                assert_eq!(loser.evidence().shown(), usize::min(limit, 3));
+            }
+            let repeated = traced_decision(candidates.clone(), &exceptions, limit);
+            assert_eq!(projection, repeated);
+        }
+
+        let complete = complete_decision(candidates, &exceptions);
+        let projection = BoundedSelectionDecision::from_complete(&complete, usize::MAX);
+        assert_eq!(projection.resolution(), complete.resolution());
+        assert_eq!(projection.survivors().items(), complete.survivors());
+        assert_eq!(
+            projection.exception_uses().items(),
+            complete.exception_uses()
+        );
+        for (projected, complete) in projection
+            .candidates()
+            .items()
+            .iter()
+            .zip(complete.candidates())
+        {
+            assert_eq!(projected.ordinal(), complete.ordinal());
+            assert_eq!(
+                projected.construction_path().items(),
+                complete.construction_path()
+            );
+            assert_eq!(projected.specificity().items(), complete.specificity());
+        }
+        for (projected, complete) in projection
+            .comparisons()
+            .items()
+            .iter()
+            .zip(complete.comparisons())
+        {
+            assert_eq!(projected.left_ordinal(), complete.left_ordinal());
+            assert_eq!(projected.right_ordinal(), complete.right_ordinal());
+            assert_eq!(projected.ordering(), complete.ordering());
+            assert_eq!(projected.decisive(), complete.decisive());
+            assert_eq!(projected.exception_id(), complete.exception_id());
+        }
+    }
+
+    #[test]
+    fn parser_trace_unresolved_outcome_contains_the_bounded_complete_decision() {
+        let complete = complete_decision(
+            test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
+            &[],
+        );
+        let context = ParseContext::new("Trace Card").expect("context");
+        let trace = ParserTrace::from_parts(
+            ParseAnalysis::from_result(
+                Err(ParseError::Ambiguous {
+                    first: "TestLeft",
+                    second: "TestRight",
+                }),
+                Some(complete.clone()),
+            ),
+            StructuralTrace::empty(),
+            MaterializationTrace::empty(1),
+            TraceLimits::new(1),
+            &context,
+        );
+
+        let BoundedParseOutcome::UnresolvedAmbiguity(unresolved) = trace.outcome() else {
+            panic!("hard tie must project as unresolved");
+        };
+        assert_eq!(
+            unresolved.selection(),
+            &BoundedSelectionDecision::from_complete(&complete, 1)
+        );
+        assert_eq!(
+            trace.into_parse_result(),
+            Err(ParseError::Ambiguous {
+                first: "TestLeft",
+                second: "TestRight",
+            })
         );
     }
 

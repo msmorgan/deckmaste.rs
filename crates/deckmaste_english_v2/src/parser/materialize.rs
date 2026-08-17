@@ -1,6 +1,10 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
+use super::diagnostic::MaterializationTrace;
+use super::diagnostic::MaterializationTraceBuilder;
+use super::diagnostic::MaterializedCandidateInfo;
+use super::diagnostic::TraceLimits;
 use super::engine::Child;
 use super::engine::Family;
 use super::engine::Forest;
@@ -9,6 +13,7 @@ use super::engine::Rule;
 use super::engine::RulePosition;
 use super::lexical::Lexical;
 use super::scan::Leaf;
+use super::selection::specificity_tiers;
 use crate::ast::Ability;
 use crate::ast::Amount;
 use crate::ast::Clause;
@@ -22,6 +27,7 @@ use crate::constructions::RuleId;
 use crate::constructions::build;
 use crate::context::ParseContext;
 use crate::features::Agreement;
+use crate::render::Render;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum BuildValue {
@@ -46,6 +52,24 @@ pub(crate) struct Candidate {
     pub ability: Ability,
     pub constructions: Vec<Construction>,
     pub positions: Vec<RulePosition<Category, Lexical>>,
+    pub specificity: Vec<super::SpecificityTier>,
+}
+
+trait MaterializationObservation<C> {
+    const ENABLED: bool;
+    fn cycle_pruned(&mut self, _node_id: NodeId, _construction_path: &[C]) {}
+}
+
+impl<C> MaterializationObservation<C> for () {
+    const ENABLED: bool = false;
+}
+
+impl MaterializationObservation<Construction> for MaterializationTraceBuilder {
+    const ENABLED: bool = true;
+
+    fn cycle_pruned(&mut self, node_id: NodeId, construction_path: &[Construction]) {
+        self.record_cycle(node_id.0, construction_path);
+    }
 }
 
 struct MaterializationStateFor<V, C> {
@@ -86,23 +110,45 @@ where
     C: Copy + PartialEq,
     Build: Fn(R, &[V]) -> Option<V>,
 {
-    fn materialize(&self, forest: &Forest<R, T>) -> Vec<MaterializedCandidate<V, C>> {
+    fn materialize<O>(
+        &self,
+        forest: &Forest<R, T>,
+        observation: &mut O,
+    ) -> Vec<MaterializedCandidate<V, C>>
+    where
+        O: MaterializationObservation<C>,
+    {
         let mut candidates = Vec::new();
         let mut state = MaterializationStateFor::default();
+        let mut construction_path = Vec::new();
         for root in forest.accepted_root_ids() {
-            for built in self.materialize_node(forest, root, &mut state).values {
+            for built in self
+                .materialize_node(
+                    forest,
+                    root,
+                    &mut state,
+                    &mut construction_path,
+                    observation,
+                )
+                .values
+            {
                 push_unique(&mut candidates, built);
             }
         }
         candidates
     }
 
-    fn materialize_node(
+    fn materialize_node<O>(
         &self,
         forest: &Forest<R, T>,
         node_id: NodeId,
         state: &mut MaterializationStateFor<V, C>,
-    ) -> MaterializationOutcomeFor<V, C> {
+        construction_path: &mut Vec<C>,
+        observation: &mut O,
+    ) -> MaterializationOutcomeFor<V, C>
+    where
+        O: MaterializationObservation<C>,
+    {
         if let Some(values) = state.memo.get(&node_id) {
             return MaterializationOutcomeFor {
                 values: values.clone(),
@@ -110,6 +156,7 @@ where
             };
         }
         if !state.in_progress.insert(node_id) {
+            observation.cycle_pruned(node_id, construction_path);
             return MaterializationOutcomeFor {
                 values: Vec::new(),
                 cycle_pruned: true,
@@ -120,7 +167,14 @@ where
         let mut values = Vec::new();
         let mut cycle_pruned = false;
         for family in &node.families {
-            let outcome = self.materialize_family(forest, node.rule, family, state);
+            let outcome = self.materialize_family(
+                forest,
+                node.rule,
+                family,
+                state,
+                construction_path,
+                observation,
+            );
             cycle_pruned |= outcome.cycle_pruned;
             for built in outcome.values {
                 push_unique(&mut values, built);
@@ -136,21 +190,30 @@ where
         }
     }
 
-    fn materialize_family(
+    fn materialize_family<O>(
         &self,
         forest: &Forest<R, T>,
         rule_id: R,
         family: &Family<T>,
         state: &mut MaterializationStateFor<V, C>,
-    ) -> MaterializationOutcomeFor<V, C> {
+        construction_path: &mut Vec<C>,
+        observation: &mut O,
+    ) -> MaterializationOutcomeFor<V, C>
+    where
+        O: MaterializationObservation<C>,
+    {
         let rule = &self.rules[(self.rule_index)(rule_id)];
         let construction = (self.construction)(rule_id);
+        if O::ENABLED {
+            construction_path.push(construction);
+        }
         let mut combinations = vec![Vec::new()];
         let mut cycle_pruned = false;
         for child in &family.children {
             let child_values = match child {
                 Child::Node(id) => {
-                    let outcome = self.materialize_node(forest, *id, state);
+                    let outcome =
+                        self.materialize_node(forest, *id, state, construction_path, observation);
                     cycle_pruned |= outcome.cycle_pruned;
                     outcome.values
                 }
@@ -193,6 +256,9 @@ where
                 );
             }
         }
+        if O::ENABLED {
+            construction_path.pop();
+        }
         MaterializationOutcomeFor {
             values,
             cycle_pruned,
@@ -200,6 +266,7 @@ where
     }
 }
 
+#[cfg(test)]
 pub(super) fn materialize_with<R, T, V, C, Build>(
     forest: &Forest<R, T>,
     rules: &[Rule<Category, Lexical, R>],
@@ -221,31 +288,72 @@ where
         build_leaf,
         build,
     }
-    .materialize(forest)
+    .materialize(forest, &mut ())
 }
 
 pub(crate) fn materialize(
     forest: &Forest<RuleId, Leaf>,
     context: &ParseContext<'_>,
 ) -> Vec<Candidate> {
+    let built = MaterializationKernel {
+        rules: RULES,
+        rule_index: RuleId::index,
+        construction: RuleId::construction,
+        build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
+        build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
+    }
+    .materialize(forest, &mut ());
+    finalize_candidates(built, context, None)
+}
+
+pub(crate) fn materialize_observed(
+    forest: &Forest<RuleId, Leaf>,
+    context: &ParseContext<'_>,
+    limits: TraceLimits,
+) -> (Vec<Candidate>, MaterializationTrace) {
+    let mut observation = MaterializationTraceBuilder::new(limits);
+    let built = MaterializationKernel {
+        rules: RULES,
+        rule_index: RuleId::index,
+        construction: RuleId::construction,
+        build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
+        build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
+    }
+    .materialize(forest, &mut observation);
+    let candidates = finalize_candidates(built, context, Some((&mut observation, limits)));
+    (candidates, observation.finish())
+}
+
+fn finalize_candidates(
+    built_values: Vec<MaterializedCandidate<BuildValue, Construction>>,
+    context: &ParseContext<'_>,
+    mut observation: Option<(&mut MaterializationTraceBuilder, TraceLimits)>,
+) -> Vec<Candidate> {
     let mut candidates = Vec::new();
-    for built in materialize_with(
-        forest,
-        RULES,
-        RuleId::index,
-        RuleId::construction,
-        |leaf| BuildValue::Leaf(leaf.clone()),
-        |rule, children| build(rule, children, context),
-    ) {
+    for built in built_values {
         if let BuildValue::Ability(ability) = built.value {
-            push_unique(
-                &mut candidates,
-                Candidate {
-                    ability,
-                    constructions: built.constructions,
-                    positions: built.positions,
-                },
-            );
+            let candidate = Candidate {
+                ability,
+                constructions: built.constructions,
+                specificity: specificity_tiers(&built.positions),
+                positions: built.positions,
+            };
+            let ordinal = candidates.len();
+            if push_unique(&mut candidates, candidate)
+                && let Some((trace, limits)) = observation.as_mut()
+            {
+                let candidate = candidates.last().expect("just inserted candidate");
+                trace.record_candidate_with(|| {
+                    MaterializedCandidateInfo::new(
+                        ordinal,
+                        candidate.ability.render(context),
+                        format!("{:?}", candidate.ability),
+                        &candidate.constructions,
+                        &candidate.specificity,
+                        limits.per_collection(),
+                    )
+                });
+            }
         }
     }
     candidates
@@ -266,7 +374,7 @@ fn materialize_node(
             build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
             build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
         };
-    kernel.materialize_node(forest, node_id, state)
+    kernel.materialize_node(forest, node_id, state, &mut Vec::new(), &mut ())
 }
 
 pub(super) fn completion_has_checked_build(
@@ -284,14 +392,24 @@ pub(super) fn completion_has_checked_build(
             build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
         };
     !kernel
-        .materialize_family(forest, rule, family, &mut MaterializationState::default())
+        .materialize_family(
+            forest,
+            rule,
+            family,
+            &mut MaterializationState::default(),
+            &mut Vec::new(),
+            &mut (),
+        )
         .values
         .is_empty()
 }
 
-fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) {
-    if !values.contains(&value) {
+fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) -> bool {
+    if values.contains(&value) {
+        false
+    } else {
         values.push(value);
+        true
     }
 }
 
@@ -309,6 +427,7 @@ mod tests {
     use super::RuleId;
     use super::materialize;
     use super::materialize_node;
+    use super::materialize_observed;
     use crate::ast::Clause;
     use crate::ast::Connive;
     use crate::ast::Imperative;
@@ -326,6 +445,10 @@ mod tests {
     use crate::catalogs::ParserCatalogs;
     use crate::context::ParseContext;
     use crate::parser::build::Agreement;
+    use crate::parser::diagnostic::BoundedParseOutcome;
+    use crate::parser::diagnostic::ParserTrace;
+    use crate::parser::diagnostic::StructuralTrace;
+    use crate::parser::diagnostic::TraceLimits;
     use crate::parser::engine::ChartFailure;
     use crate::parser::engine::Child;
     use crate::parser::engine::Family;
@@ -639,6 +762,138 @@ mod tests {
                 RulePosition::Lexical(Lexical::Literal("target")),
                 RulePosition::Lexical(Lexical::Noun(NounNumber::Singular)),
             ]
+        );
+    }
+
+    fn ability_forest_with_duplicate_root_cycles() -> Forest<RuleId, Leaf> {
+        let forest = slice_candidates("Destroy target creature.", "Context Card")
+            .expect("ordinary slice forest");
+        let root = forest
+            .accepted_root_ids()
+            .next()
+            .expect("slice has an accepted root");
+        let mut nodes = forest
+            .nodes()
+            .map(|(_, node)| node.clone())
+            .collect::<Vec<_>>();
+        let bridge = NodeId(nodes.len());
+        nodes.push(PackedNode {
+            rule: RuleId::SentenceImperative,
+            start: 0,
+            end: 0,
+            families: vec![Family {
+                children: vec![Child::Node(root)],
+            }],
+        });
+        nodes[root.0].families.insert(
+            0,
+            Family {
+                children: vec![Child::Node(bridge)],
+            },
+        );
+        nodes[root.0].families.insert(
+            1,
+            Family {
+                children: vec![Child::Node(bridge)],
+            },
+        );
+        Forest::from_test_parts(nodes, vec![root, root])
+    }
+
+    #[test]
+    fn parser_trace_cycle_pruning_is_deduplicated_bounded_and_semantically_inert() {
+        let context = context("Context Card");
+        for limit in [0, 1, 8] {
+            let forest = ability_forest_with_duplicate_root_cycles();
+            let ordinary_candidates = materialize(&forest, &context);
+            let (candidates, materialization) =
+                materialize_observed(&forest, &context, TraceLimits::new(limit));
+            let (repeated_candidates, repeated_materialization) =
+                materialize_observed(&forest, &context, TraceLimits::new(limit));
+            assert_eq!(ordinary_candidates, candidates);
+            assert_eq!(candidates, repeated_candidates);
+            assert_eq!(materialization, repeated_materialization);
+            let expected_debug = format!("{:?}", candidates[0].ability);
+            let analysis = crate::parser::analyze_materialized(candidates);
+            let trace = ParserTrace::from_parts(
+                analysis,
+                StructuralTrace::empty(),
+                materialization,
+                TraceLimits::new(limit),
+                &context,
+            );
+
+            let BoundedParseOutcome::Selected(selected) = trace.outcome() else {
+                panic!("well-founded candidate survives the pruned cycle");
+            };
+            assert_eq!(selected.selection().unselected_candidates().total(), 0);
+            assert_eq!(trace.materialization_cycles().total(), 1);
+            assert_eq!(
+                trace.materialization_cycles().shown(),
+                usize::from(limit > 0)
+            );
+            assert_eq!(trace.materialized_candidates().total(), 1);
+            assert_eq!(
+                trace.materialized_candidates().shown(),
+                usize::from(limit > 0)
+            );
+            if limit > 0 {
+                let cycle = &trace.materialization_cycles().items()[0];
+                assert_eq!(cycle.node_ordinal(), 3);
+                assert_eq!(cycle.construction_path().total(), 2);
+                assert_eq!(cycle.construction_path().shown(), usize::min(limit, 2));
+                assert_eq!(
+                    cycle.construction_path().items(),
+                    &["AbilitySpell".to_owned(), "SentenceImperative".to_owned(),]
+                        [..usize::min(limit, 2)]
+                );
+                let candidate = &trace.materialized_candidates().items()[0];
+                assert_eq!(candidate.rendered(), "Destroy target creature.");
+                assert_eq!(candidate.ast_debug_v1(), expected_debug);
+            }
+            assert!(trace.into_parse_result().is_ok());
+        }
+    }
+
+    #[test]
+    fn parser_trace_internal_only_cycle_keeps_typed_materialization_failure() {
+        let forest = Forest::from_test_parts(
+            vec![PackedNode {
+                rule: RuleId::AbilitySpell,
+                start: 0,
+                end: 0,
+                families: vec![Family {
+                    children: vec![Child::Node(NodeId(0))],
+                }],
+            }],
+            vec![NodeId(0)],
+        );
+        let context = context("Context Card");
+        let (candidates, materialization) =
+            materialize_observed(&forest, &context, TraceLimits::new(8));
+        let trace = ParserTrace::from_parts(
+            crate::parser::analyze_materialized(candidates),
+            StructuralTrace::empty(),
+            materialization,
+            TraceLimits::new(8),
+            &context,
+        );
+
+        let BoundedParseOutcome::InternalFailure(failure) = trace.outcome() else {
+            panic!("cycle-only root must remain an internal failure");
+        };
+        assert_eq!(
+            failure.kind(),
+            crate::parser::InternalFailureKind::ValidatedRootDidNotMaterialize
+        );
+        assert_eq!(
+            failure.message(),
+            "validated chart root did not materialize"
+        );
+        assert_eq!(trace.materialization_cycles().total(), 1);
+        assert_eq!(
+            trace.into_parse_result(),
+            Err(crate::parser::ParseError::ValidatedRootDidNotMaterialize)
         );
     }
 }

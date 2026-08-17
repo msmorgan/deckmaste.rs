@@ -5,11 +5,14 @@ use deckmaste_catalogs::CatalogKind;
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::parser::BoundedParseOutcome;
 use deckmaste_english_v2::parser::Expectation;
 use deckmaste_english_v2::parser::ParseError;
 use deckmaste_english_v2::parser::Parser;
+use deckmaste_english_v2::parser::SelectionLoserReason;
 use deckmaste_english_v2::parser::TerminalClass;
 use deckmaste_english_v2::parser::TextSpan;
+use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
 
 fn catalogs() -> ParserCatalogs {
@@ -224,6 +227,15 @@ fn parses_and_round_trips_the_five_slice_abilities() {
             parser.parse(text, &context),
             parser.analyze(text, &context).into_parse_result()
         );
+        for limit in [0, 1, usize::MAX] {
+            assert_eq!(
+                parser.parse(text, &context),
+                parser
+                    .trace(text, &context, TraceLimits::new(limit))
+                    .into_parse_result(),
+                "{text:?} at cap {limit}",
+            );
+        }
         assert_eq!(expected.render(&context), text);
 
         let rendered = expected.render(&context);
@@ -267,7 +279,158 @@ fn parser_analysis_projects_representative_parse_failures_without_changing_them(
             parser.analyze(text, &context).into_parse_result(),
             "{text:?}",
         );
+        for limit in [0, 1, usize::MAX] {
+            assert_eq!(
+                parser.parse(text, &context),
+                parser
+                    .trace(text, &context, TraceLimits::new(limit))
+                    .into_parse_result(),
+                "{text:?} at cap {limit}",
+            );
+        }
     }
+}
+
+fn assert_bounded<T>(bounded: &deckmaste_english_v2::parser::Bounded<T>, limit: usize) {
+    assert_eq!(bounded.total(), bounded.shown() + bounded.omitted());
+    assert_eq!(bounded.shown(), bounded.items().len());
+    assert!(bounded.shown() <= limit);
+}
+
+#[test]
+fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_result_preserving() {
+    let parser = parser();
+    let context = context("Context Card");
+    let text = "Destroy target creature.";
+
+    for limit in [0, 1, usize::MAX] {
+        let limits = TraceLimits::new(limit);
+        let trace = parser.trace(text, &context, limits);
+        let repeated = parser.trace(text, &context, limits);
+        assert_eq!(trace, repeated);
+        assert_bounded(trace.tokens(), limit);
+        assert_bounded(trace.chart(), limit);
+        assert_bounded(trace.forest(), limit);
+        assert_bounded(trace.accepted_roots(), limit);
+        assert_bounded(trace.checked_completion_rejections(), limit);
+        assert_bounded(trace.materialized_candidates(), limit);
+        assert_bounded(trace.materialization_cycles(), limit);
+
+        let BoundedParseOutcome::Selected(selected) = trace.outcome() else {
+            panic!("rendered slice must select");
+        };
+        assert_eq!(selected.rendered(), text);
+        let selection = selected.selection();
+        assert_eq!(
+            selection.resolution(),
+            deckmaste_english_v2::parser::SelectionResolution::Unique
+        );
+        assert_bounded(selection.candidates(), limit);
+        assert_bounded(selection.comparisons(), limit);
+        assert_bounded(selection.survivors(), limit);
+        assert_bounded(selection.exception_uses(), limit);
+        assert_bounded(selection.unselected_candidates(), limit);
+        let selected_candidate = selection.selected().expect("selected metadata");
+        assert_eq!(selected_candidate.ordinal(), 0);
+        assert_bounded(selected_candidate.construction_path(), limit);
+        assert_bounded(selected_candidate.specificity(), limit);
+
+        if limit > 0 {
+            let candidate = &trace.materialized_candidates().items()[0];
+            assert_eq!(candidate.construction_path().total(), 4);
+            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 4));
+            assert_eq!(candidate.specificity().total(), 8);
+            assert_eq!(candidate.specificity().shown(), usize::min(limit, 8));
+        }
+
+        if limit == usize::MAX {
+            let candidate = &trace.materialized_candidates().items()[0];
+            let parsed = parser.parse(text, &context).expect("selected ability");
+            let analysis = parser.analyze(text, &context);
+            let complete = analysis.decision().expect("complete Task 3 decision");
+            assert_eq!(candidate.ordinal(), 0);
+            assert_eq!(candidate.rendered(), text);
+            assert_eq!(candidate.ast_debug_v1(), format!("{parsed:?}"));
+            assert_eq!(
+                candidate.construction_path().items(),
+                [
+                    "AbilitySpell",
+                    "SentenceImperative",
+                    "VerbPhraseDestroy",
+                    "NounPhraseTarget",
+                ]
+            );
+            assert_eq!(candidate.specificity().total(), 8);
+            assert!(selection.unselected_candidates().items().is_empty());
+            assert_eq!(selection.resolution(), complete.resolution());
+            assert_eq!(selection.survivors().items(), complete.survivors());
+            assert_eq!(
+                selection.exception_uses().items(),
+                complete.exception_uses()
+            );
+            assert_eq!(
+                selection.candidates().items()[0]
+                    .construction_path()
+                    .items(),
+                complete.candidates()[0].construction_path()
+            );
+            assert_eq!(
+                selection.candidates().items()[0].specificity().items(),
+                complete.candidates()[0].specificity()
+            );
+        }
+
+        assert_eq!(
+            parser.parse(text, &context),
+            trace.into_parse_result(),
+            "public cap {limit} must not truncate the private legacy result",
+        );
+    }
+}
+
+#[test]
+fn parser_trace_parse_failure_bounds_expectations_without_truncating_private_error() {
+    let parser = parser();
+    let context = context("Context Card");
+    let text = "Destroy target creature";
+    let complete = parser.parse(text, &context);
+
+    for (limit, expected_shown) in [(0, 0), (1, 1), (8, 2)] {
+        let trace = parser.trace(text, &context, TraceLimits::new(limit));
+        let BoundedParseOutcome::ParseFailure(failure) = trace.outcome() else {
+            panic!("missing period is an ordinary parse failure");
+        };
+        assert_eq!(
+            failure.span(),
+            TextSpan {
+                start: text.len(),
+                end: text.len()
+            }
+        );
+        assert_eq!(failure.expectations().total(), 2);
+        assert_eq!(failure.expectations().shown(), expected_shown);
+        assert_eq!(failure.expectations().omitted(), 2 - expected_shown);
+        if limit > 0 {
+            assert_eq!(
+                failure.expectations().items()[0],
+                deckmaste_english_v2::parser::ExpectationInfo::Literal(",")
+            );
+        }
+        assert_eq!(complete, trace.into_parse_result());
+    }
+}
+
+#[test]
+fn parser_trace_public_loser_reason_spellings_are_stable() {
+    assert_eq!(SelectionLoserReason::LessSpecific.as_str(), "less_specific");
+    assert_eq!(
+        SelectionLoserReason::ExceptionLoser.as_str(),
+        "exception_loser"
+    );
+    assert_eq!(
+        SelectionLoserReason::UnresolvedSurvivor.as_str(),
+        "unresolved_survivor"
+    );
 }
 
 #[test]
