@@ -149,7 +149,16 @@ pub(crate) struct CheckedCompletionRejection {
     pub(crate) rule_name_v1: String,
     pub(crate) start: usize,
     pub(crate) end: usize,
-    pub(crate) family_identity_v1: String,
+    pub(crate) family_identity_v1: FamilyIdentity,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) struct FamilyIdentity(pub(crate) Vec<FamilyIdentityChild>);
+
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum FamilyIdentityChild {
+    Node(usize),
+    Lexical(String),
 }
 
 /// The provisional Stage 4 specificity assigned to one materialized position.

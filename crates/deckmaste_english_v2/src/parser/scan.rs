@@ -5,6 +5,8 @@ use deckmaste_catalogs::CatalogKind;
 use super::diagnostic::Bounded;
 use super::diagnostic::ChartItem;
 use super::diagnostic::CheckedCompletionRejection;
+use super::diagnostic::FamilyIdentity;
+use super::diagnostic::FamilyIdentityChild;
 use super::diagnostic::ForestChild;
 use super::diagnostic::ForestFamily;
 use super::diagnostic::ForestNode;
@@ -107,7 +109,7 @@ struct StructuralObservation {
     chart: Bounded<ChartItem>,
     forest: Bounded<ForestNode>,
     roots: Bounded<usize>,
-    rejections: BTreeSet<(String, usize, usize, String)>,
+    rejections: BTreeSet<(String, usize, usize, FamilyIdentity)>,
 }
 
 impl StructuralObservation {
@@ -147,8 +149,12 @@ impl StructuralObservation {
 
 impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
     fn scanned(&mut self, start: usize, terminal: Lexical, end: usize, value: &Leaf) {
-        self.tokens
-            .insert((start, end, format!("{terminal:?}"), format!("{value:?}")));
+        self.tokens.insert((
+            start,
+            end,
+            terminal_name_v1(terminal),
+            value_label_v1(value),
+        ));
     }
 
     fn checked_completion(
@@ -159,7 +165,7 @@ impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
         family: &Family<Leaf>,
         accepted: bool,
     ) {
-        let key = (format!("{rule:?}"), start, end, format!("{family:?}"));
+        let key = (rule_name_v1(rule), start, end, family_identity_v1(family));
         if accepted {
             self.rejections.remove(&key);
         } else {
@@ -177,7 +183,7 @@ impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
     ) {
         self.chart.push_with(|| ChartItem {
             column,
-            rule_name_v1: format!("{rule:?}"),
+            rule_name_v1: rule_name_v1(rule),
             dot,
             origin,
             family_count,
@@ -202,7 +208,7 @@ impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
                                 },
                                 Child::Lexical(value) => ForestChild {
                                     node_id: None,
-                                    value_label_v1: Some(format!("{value:?}")),
+                                    value_label_v1: Some(value_label_v1(value)),
                                 },
                             });
                         }
@@ -211,7 +217,7 @@ impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
                 }
                 ForestNode {
                     id: id.0,
-                    rule_name_v1: format!("{:?}", node.rule),
+                    rule_name_v1: rule_name_v1(node.rule),
                     start: node.start,
                     end: node.end,
                     families,
@@ -219,6 +225,28 @@ impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
             });
         }
     }
+}
+
+fn rule_name_v1(rule: RuleId) -> String {
+    format!("{rule:?}")
+}
+fn terminal_name_v1(terminal: Lexical) -> String {
+    format!("{terminal:?}")
+}
+fn value_label_v1(value: &Leaf) -> String {
+    format!("{value:?}")
+}
+fn family_identity_v1(family: &Family<Leaf>) -> FamilyIdentity {
+    FamilyIdentity(
+        family
+            .children
+            .iter()
+            .map(|child| match child {
+                Child::Node(id) => FamilyIdentityChild::Node(id.0),
+                Child::Lexical(value) => FamilyIdentityChild::Lexical(value_label_v1(value)),
+            })
+            .collect(),
+    )
 }
 
 impl SliceGrammar<'_> {
