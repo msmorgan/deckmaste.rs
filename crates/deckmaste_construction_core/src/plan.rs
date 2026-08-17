@@ -3,6 +3,8 @@ use std::collections::HashSet;
 use proc_macro2::TokenStream;
 
 use crate::ValidatedDeclarations;
+#[cfg(test)]
+use crate::model::Declaration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NamedKind {
@@ -65,6 +67,27 @@ impl DeclarationKey {
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    #[cfg(test)]
+    pub(crate) fn from_source(declaration: &Declaration) -> Self {
+        match declaration {
+            Declaration::Construction(value) => {
+                Self::new(DeclarationKind::Construction, value.name.to_string())
+            }
+            Declaration::Vocab(value) => Self::new(DeclarationKind::Vocab, value.name.to_string()),
+            Declaration::Lexeme(value) => {
+                Self::new(DeclarationKind::Lexeme, value.name.to_string())
+            }
+            Declaration::Codec(value) => Self::new(DeclarationKind::Codec, value.name.to_string()),
+            Declaration::Identity(value) => {
+                Self::new(DeclarationKind::Identity, value.name.to_string())
+            }
+            Declaration::Root(value) => Self::new(
+                DeclarationKind::Root,
+                crate::identifier::path_key(&value.category),
+            ),
+        }
     }
 }
 

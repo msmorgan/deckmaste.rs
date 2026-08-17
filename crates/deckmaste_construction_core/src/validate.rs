@@ -38,38 +38,11 @@ use crate::model::TerminalBinding;
 use crate::model::TraversalKind;
 use crate::model::VerbOperand;
 use crate::model::VisitMode;
+use crate::semantic::SemanticPlan;
 
 #[derive(Debug)]
 pub struct ValidatedDeclarations {
-    raw: Declarations,
-    #[allow(
-        dead_code,
-        reason = "source-order metadata is consumed by Task 4 code generation"
-    )]
-    declaration_names: Vec<String>,
-    #[allow(
-        dead_code,
-        reason = "boxing metadata is consumed by Task 4 code generation"
-    )]
-    boxed_fields: HashSet<(String, String)>,
-    #[allow(
-        dead_code,
-        reason = "dynamic-number metadata is consumed by Task 4 code generation"
-    )]
-    dynamic_numbers: HashSet<String>,
-    #[allow(
-        dead_code,
-        reason = "feature equations are consumed by Task 4 code generation"
-    )]
-    feature_equations: HashMap<String, Vec<feature::FeatureEquation>>,
-    feature_resolutions:
-        HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
-    category_render: HashMap<String, CategoryRenderCapability>,
-    #[allow(
-        dead_code,
-        reason = "sealed contribution inventory is consumed by Task 4 code generation"
-    )]
-    contributions: ContributionInventory,
+    semantic: SemanticPlan,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -127,7 +100,7 @@ pub(crate) enum AtomContribution {
     VerbFixed { terminal: String, variant: String },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "the sealed inventory records independent backend capabilities"
@@ -287,6 +260,18 @@ impl AtomContribution {
                 .is_some_and(|info| info.supports_verb_atom() && info.has_traversal()),
         }
     }
+
+    #[cfg(test)]
+    pub(crate) fn snapshot(&self) -> String {
+        match self {
+            Self::Literal => "literal".to_owned(),
+            Self::Category { role, category } => format!("category({role}: {category})"),
+            Self::Lex { role, .. } => format!("lex({role})"),
+            Self::Identity { role, .. } => format!("identity({role})"),
+            Self::Noun { role, .. } => format!("noun({role})"),
+            Self::VerbFixed { terminal, variant } => format!("verb({terminal}::{variant})"),
+        }
+    }
 }
 
 #[allow(
@@ -352,7 +337,15 @@ impl RootContribution {
 impl ValidatedDeclarations {
     #[must_use]
     pub fn declaration_count(&self) -> usize {
-        self.raw.declarations.len()
+        self.semantic.declaration_count()
+    }
+
+    #[allow(
+        dead_code,
+        reason = "the sealed semantic authority is introduced ahead of emitter migration"
+    )]
+    pub(crate) fn semantic(&self) -> &SemanticPlan {
+        &self.semantic
     }
 
     #[allow(
@@ -360,7 +353,7 @@ impl ValidatedDeclarations {
         reason = "sealed raw declarations are consumed by Task 4 code generation"
     )]
     pub(crate) fn raw(&self) -> &Declarations {
-        &self.raw
+        self.semantic.source()
     }
 
     #[allow(
@@ -368,9 +361,7 @@ impl ValidatedDeclarations {
         reason = "sealed feature IR is consumed by Task 4 code generation"
     )]
     pub(crate) fn feature_equations(&self, construction: &str) -> &[feature::FeatureEquation] {
-        self.feature_equations
-            .get(construction)
-            .map_or(&[], Vec::as_slice)
+        self.semantic.feature_equations(construction)
     }
 
     pub(crate) fn category_carries_agreement(&self, category: &str) -> bool {
@@ -384,14 +375,11 @@ impl ValidatedDeclarations {
     }
 
     pub(crate) fn category_render_capability(&self, category: &str) -> CategoryRenderCapability {
-        self.category_render
-            .get(category)
-            .copied()
-            .unwrap_or_default()
+        self.semantic.category_render_capability(category)
     }
 
     pub(crate) fn category_reads_feature(&self, category: &str, feature: Feature) -> bool {
-        raw_category_reads_feature(&self.raw, category, feature)
+        raw_category_reads_feature(self.semantic.source(), category, feature)
     }
 
     pub(crate) fn feature_resolution(
@@ -399,10 +387,7 @@ impl ValidatedDeclarations {
         construction: &str,
         place: &feature::FeaturePlace,
     ) -> Option<feature::FeatureResolution> {
-        self.feature_resolutions
-            .get(construction)
-            .and_then(|resolutions| resolutions.get(place))
-            .copied()
+        self.semantic.feature_resolution(construction, place)
     }
 
     #[allow(
@@ -410,7 +395,7 @@ impl ValidatedDeclarations {
         reason = "sealed boxing metadata is consumed by Task 4 code generation"
     )]
     pub(crate) fn boxed_fields(&self) -> &HashSet<(String, String)> {
-        &self.boxed_fields
+        self.semantic.boxed_fields()
     }
 
     #[allow(
@@ -418,7 +403,7 @@ impl ValidatedDeclarations {
         reason = "sealed number metadata is consumed by Task 4 code generation"
     )]
     pub(crate) fn dynamic_number_constructions(&self) -> &HashSet<String> {
-        &self.dynamic_numbers
+        self.semantic.dynamic_number_constructions()
     }
 
     #[allow(
@@ -426,12 +411,24 @@ impl ValidatedDeclarations {
         reason = "sealed contributions are consumed by Task 4 code generation"
     )]
     pub(crate) fn contributions(&self) -> &ContributionInventory {
-        &self.contributions
+        self.semantic.contributions()
     }
 
     #[cfg(test)]
-    fn declaration_names(&self) -> Vec<&str> {
-        self.declaration_names.iter().map(String::as_str).collect()
+    fn declaration_names(&self) -> Vec<String> {
+        self.raw()
+            .declarations
+            .iter()
+            .map(|declaration| match declaration {
+                Declaration::Construction(value) => identifier_key(&value.name),
+                Declaration::Vocab(value) => identifier_key(&value.name),
+                Declaration::Lexeme(value) => identifier_key(&value.name),
+                Declaration::Codec(value) | Declaration::Identity(value) => {
+                    identifier_key(&value.name)
+                }
+                Declaration::Root(value) => path_name(&value.category),
+            })
+            .collect()
     }
 }
 
@@ -465,7 +462,7 @@ struct ResolvedGrammar {
 }
 
 pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarations> {
-    let (symbols, declaration_names) = validate_namespaces(&raw)?;
+    let (symbols, _) = validate_namespaces(&raw)?;
     validate_generated_owned_paths(&raw)?;
     let resolved = validate_resolution(&raw, &symbols)?;
     validate_stored_fields(&raw)?;
@@ -479,14 +476,15 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     validate_roots(&raw, &symbols, &category_render)?;
     let contributions = validate_backend_completeness(&raw, &resolved)?;
     Ok(ValidatedDeclarations {
-        raw,
-        declaration_names,
-        boxed_fields,
-        dynamic_numbers,
-        feature_equations,
-        feature_resolutions,
-        category_render,
-        contributions,
+        semantic: SemanticPlan::new(
+            raw,
+            boxed_fields,
+            dynamic_numbers,
+            feature_equations,
+            feature_resolutions,
+            category_render,
+            contributions,
+        ),
     })
 }
 
@@ -6666,5 +6664,248 @@ pub(crate) mod tests {
                 ("document", "Document", "DocumentNode"),
             ]
         );
+    }
+
+    #[test]
+    fn semantic_plan_is_source_ordered_complete_and_repeatable() {
+        let tokens = crate::test_support::representative_tokens();
+        let first = crate::validate_declarations(
+            crate::parse_declarations(tokens.clone()).expect("representative fixture parses"),
+        )
+        .expect("representative fixture validates");
+        let second = crate::validate_declarations(
+            crate::parse_declarations(tokens).expect("representative fixture parses again"),
+        )
+        .expect("representative fixture validates again");
+
+        let expected = crate::semantic::SemanticSnapshot {
+            declaration_keys: vec![
+                (crate::DeclarationKind::Vocab, "Words".to_owned()),
+                (crate::DeclarationKind::Lexeme, "Nouns".to_owned()),
+                (crate::DeclarationKind::Lexeme, "Verbs".to_owned()),
+                (crate::DeclarationKind::Construction, "leaf".to_owned()),
+                (crate::DeclarationKind::Construction, "chain".to_owned()),
+                (crate::DeclarationKind::Construction, "action".to_owned()),
+                (crate::DeclarationKind::Root, "Action".to_owned()),
+            ],
+            constructions: vec![
+                (
+                    "leaf".to_owned(),
+                    "Leaf".to_owned(),
+                    "leaf".to_owned(),
+                    vec!["lex(word)".to_owned()],
+                ),
+                (
+                    "chain".to_owned(),
+                    "Chain".to_owned(),
+                    "chain".to_owned(),
+                    vec!["category(next: Node)".to_owned(), "lex(word)".to_owned()],
+                ),
+                (
+                    "action".to_owned(),
+                    "ActionElement".to_owned(),
+                    "action".to_owned(),
+                    vec![
+                        "verb(Verbs::Act)".to_owned(),
+                        "category(node: Node)".to_owned(),
+                    ],
+                ),
+            ],
+            terminals: vec![
+                (
+                    "Words".to_owned(),
+                    "vocab".to_owned(),
+                    vec![
+                        "lex".to_owned(),
+                        "render".to_owned(),
+                        "build".to_owned(),
+                        "traversal".to_owned(),
+                    ],
+                ),
+                (
+                    "Nouns".to_owned(),
+                    "lexeme".to_owned(),
+                    vec!["traversal".to_owned()],
+                ),
+                (
+                    "Verbs".to_owned(),
+                    "lexeme".to_owned(),
+                    vec!["verb".to_owned(), "traversal".to_owned()],
+                ),
+            ],
+            roots: vec![("Action".to_owned(), true, true)],
+            feature_equations: vec![(
+                "action".to_owned(),
+                "agreement = verb.agreement; verb.agreement = Bare".to_owned(),
+            )],
+            boxed_fields: vec![("chain".to_owned(), "next".to_owned())],
+            dynamic_number_constructions: vec![],
+        };
+
+        assert_eq!(first.semantic().snapshot(), expected);
+        assert_eq!(first.semantic().snapshot(), second.semantic().snapshot());
+    }
+
+    #[test]
+    fn semantic_plan_owns_every_existing_resolved_fact() {
+        let tokens = crate::test_support::synthetic_projection_tokens();
+        let raw = crate::parse_declarations(tokens.clone()).expect("synthetic fixture parses");
+        let validated = crate::validate_declarations(raw).expect("synthetic fixture validates");
+        let snapshot = validated.semantic().snapshot();
+        let expansion = crate::generate(tokens).expect("synthetic fixture still emits");
+
+        assert_eq!(
+            snapshot.declaration_keys.len(),
+            validated.declaration_count()
+        );
+        assert_eq!(
+            snapshot.constructions,
+            vec![
+                (
+                    "leaf".to_owned(),
+                    "LeafNode".to_owned(),
+                    "leaf".to_owned(),
+                    vec!["lex(mode)".to_owned(), "noun(resource)".to_owned()]
+                ),
+                (
+                    "nested".to_owned(),
+                    "NestedNode".to_owned(),
+                    "nested".to_owned(),
+                    vec![
+                        "literal".to_owned(),
+                        "category(next: Expr)".to_owned(),
+                        "lex(marker)".to_owned()
+                    ]
+                ),
+                (
+                    "action".to_owned(),
+                    "ActionNode".to_owned(),
+                    "action".to_owned(),
+                    vec!["verb(ActionStem::Activate)".to_owned()]
+                ),
+                (
+                    "idle".to_owned(),
+                    "IdleNode".to_owned(),
+                    "idle".to_owned(),
+                    vec!["literal".to_owned()]
+                ),
+                (
+                    "solo".to_owned(),
+                    "SoloTag".to_owned(),
+                    "solo".to_owned(),
+                    vec!["lex(mode)".to_owned()]
+                ),
+                (
+                    "document".to_owned(),
+                    "DocumentNode".to_owned(),
+                    "document".to_owned(),
+                    vec![
+                        "category(subject: Expr)".to_owned(),
+                        "category(predicate: Predicate)".to_owned(),
+                        "identity(handle)".to_owned(),
+                        "lex(pair)".to_owned()
+                    ]
+                ),
+            ]
+        );
+        assert_eq!(
+            snapshot.terminals,
+            vec![
+                (
+                    "Mode".to_owned(),
+                    "vocab".to_owned(),
+                    vec![
+                        "lex".to_owned(),
+                        "render".to_owned(),
+                        "build".to_owned(),
+                        "traversal".to_owned()
+                    ]
+                ),
+                (
+                    "ObjectStem".to_owned(),
+                    "lexeme".to_owned(),
+                    vec!["traversal".to_owned()]
+                ),
+                (
+                    "ActionStem".to_owned(),
+                    "lexeme".to_owned(),
+                    vec!["verb".to_owned(), "traversal".to_owned()]
+                ),
+                (
+                    "Resource".to_owned(),
+                    "codec".to_owned(),
+                    vec![
+                        "noun".to_owned(),
+                        "render".to_owned(),
+                        "build".to_owned(),
+                        "traversal".to_owned()
+                    ]
+                ),
+                (
+                    "Marker".to_owned(),
+                    "codec".to_owned(),
+                    vec![
+                        "lex".to_owned(),
+                        "render".to_owned(),
+                        "build".to_owned(),
+                        "traversal".to_owned()
+                    ]
+                ),
+                (
+                    "Handle".to_owned(),
+                    "identity".to_owned(),
+                    vec![
+                        "identity".to_owned(),
+                        "render".to_owned(),
+                        "build".to_owned(),
+                        "traversal".to_owned()
+                    ]
+                ),
+                (
+                    "Pair".to_owned(),
+                    "codec".to_owned(),
+                    vec![
+                        "lex".to_owned(),
+                        "render".to_owned(),
+                        "build".to_owned(),
+                        "traversal".to_owned()
+                    ]
+                ),
+                (
+                    "Record".to_owned(),
+                    "identity".to_owned(),
+                    vec!["identity".to_owned(), "traversal".to_owned()]
+                ),
+            ]
+        );
+        assert_eq!(snapshot.roots, vec![("Document".to_owned(), true, true)]);
+        assert_eq!(
+            snapshot.feature_equations,
+            vec![
+                (
+                    "leaf".to_owned(),
+                    "agreement = match mode; number = match mode".to_owned()
+                ),
+                (
+                    "nested".to_owned(),
+                    "agreement = next.agreement; number = next.number".to_owned()
+                ),
+                ("action".to_owned(), "agreement = verb.agreement".to_owned()),
+                ("idle".to_owned(), "agreement = Bare".to_owned()),
+                (
+                    "document".to_owned(),
+                    "predicate.agreement = subject.agreement".to_owned()
+                ),
+            ]
+        );
+        assert_eq!(
+            snapshot.boxed_fields,
+            vec![("nested".to_owned(), "next".to_owned())]
+        );
+        assert_eq!(
+            snapshot.dynamic_number_constructions,
+            vec!["leaf".to_owned()]
+        );
+        assert_eq!(expansion.plan().items().len(), 45);
     }
 }

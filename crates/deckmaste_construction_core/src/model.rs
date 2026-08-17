@@ -12,6 +12,12 @@ pub struct Declarations {
     pub declarations: Vec<Declaration>,
 }
 
+impl Declarations {
+    pub(crate) fn source_at(&self, index: usize) -> &Declaration {
+        &self.declarations[index]
+    }
+}
+
 #[derive(Debug)]
 pub enum Declaration {
     Construction(Construction),

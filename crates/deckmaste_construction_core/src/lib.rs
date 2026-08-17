@@ -6,6 +6,7 @@ mod model;
 mod parse;
 mod plan;
 mod report;
+mod semantic;
 mod source;
 mod validate;
 

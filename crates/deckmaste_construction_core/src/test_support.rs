@@ -1,7 +1,7 @@
 use quote::quote;
 
-pub(crate) fn representative_expansion() -> crate::Expansion {
-    crate::generate(quote! {
+pub(crate) fn representative_tokens() -> proc_macro2::TokenStream {
+    quote! {
         vocab Words { First = "first", Second = "second", }
         lexeme Nouns { Person, }
         lexeme Verbs { Act, }
@@ -28,8 +28,11 @@ pub(crate) fn representative_expansion() -> crate::Expansion {
         }
 
         root Action { punctuation = "."; eoi = true; standalone_render = true; }
-    })
-    .expect("representative declarations generate")
+    }
+}
+
+pub(crate) fn representative_expansion() -> crate::Expansion {
+    crate::generate(representative_tokens()).expect("representative declarations generate")
 }
 
 pub(crate) fn access_modes_expansion() -> crate::Expansion {
