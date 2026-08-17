@@ -120,11 +120,36 @@ mod tests {
 
     #[test]
     fn english_v2_commands_require_and_accept_a_subcommand() {
-        for command in ["expand", "parse", "roundtrip"] {
+        for command in ["expand", "parse", "roundtrip", "report"] {
             let cli = Cli::try_parse_from(["cargo xtask", "english_v2", command]).unwrap();
             assert!(matches!(cli.command, Cmd::EnglishV2(_)));
         }
         assert!(Cli::try_parse_from(["cargo xtask", "english_v2"]).is_err());
+    }
+
+    #[test]
+    fn english_v2_report_accepts_only_json() {
+        let cli = Cli::try_parse_from(["cargo xtask", "english_v2", "report", "--json"])
+            .expect("report accepts JSON output");
+        assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+
+        for flag in [
+            "--data",
+            "--catalogs",
+            "--lock",
+            "--bless",
+            "--require",
+            "--require-complete",
+            "--require-clean",
+            "--trace",
+        ] {
+            let args = if matches!(flag, "--data" | "--catalogs" | "--lock") {
+                vec!["cargo xtask", "english_v2", "report", flag, "fixtures"]
+            } else {
+                vec!["cargo xtask", "english_v2", "report", flag]
+            };
+            assert!(Cli::try_parse_from(args).is_err(), "report accepted {flag}");
+        }
     }
 
     #[test]

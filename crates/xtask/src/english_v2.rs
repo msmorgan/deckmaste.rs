@@ -4,6 +4,7 @@ mod audit;
 mod corpus;
 mod coverage_lock;
 mod parse;
+mod report;
 mod roundtrip;
 
 use std::fmt::Write as _;
@@ -35,6 +36,8 @@ enum EnglishV2Command {
     Parse(ParseArgs),
     /// Gate exact rendering for every corpus face the parser accepts.
     Roundtrip(RoundtripArgs),
+    /// Print schema-versioned counted English-v2 escape hatches.
+    Report(ReportArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -69,6 +72,12 @@ struct RoundtripArgs {
     require_clean: bool,
 }
 
+#[derive(Debug, clap::Args)]
+struct ReportArgs {
+    #[arg(long)]
+    json: bool,
+}
+
 pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
     match &args.command {
         EnglishV2Command::Expand => {
@@ -82,6 +91,10 @@ pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
         EnglishV2Command::Roundtrip(args) => {
             let mut stdout = std::io::stdout().lock();
             roundtrip::run(args, &mut stdout)
+        }
+        EnglishV2Command::Report(args) => {
+            let mut stdout = std::io::stdout().lock();
+            report::run(args, &mut stdout)
         }
     }
 }
