@@ -679,4 +679,80 @@ mod tests {
                 .any(|node| node.rule == ToyRuleId::DirectParent)
         );
     }
+
+    #[test]
+    fn structural_trace_delayed_growth_rechecks_and_chart_keys_are_final() {
+        #[derive(Default)]
+        struct Recording {
+            checked: Vec<(ToyRuleId, usize, usize, Family<&'static str>, bool)>,
+            chart: Vec<(usize, ToyRuleId, usize, usize, usize)>,
+        }
+        impl Observation<ToyRuleId, &'static str, &'static str> for Recording {
+            fn checked_completion(
+                &mut self,
+                rule: ToyRuleId,
+                start: usize,
+                end: usize,
+                family: &Family<&'static str>,
+                accepted: bool,
+            ) {
+                self.checked
+                    .push((rule, start, end, family.clone(), accepted));
+            }
+            fn chart_item(
+                &mut self,
+                column: usize,
+                rule: ToyRuleId,
+                dot: usize,
+                origin: usize,
+                families: usize,
+            ) {
+                self.chart.push((column, rule, dot, origin, families));
+            }
+        }
+        let mut observed = Recording::default();
+        let forest = parse_observed(
+            DELAYED_PACKING_RULES,
+            ToyCategory::Start,
+            1,
+            |literal, start| {
+                (start == 0)
+                    .then_some(vec![LexicalMatch {
+                        end: 1,
+                        value: literal,
+                    }])
+                    .unwrap_or_default()
+            },
+            |rule, family, forest| match rule {
+                ToyRuleId::DirectParent | ToyRuleId::DirectStart | ToyRuleId::WrapperStart => {
+                    reaches_delayed_child(forest, family)
+                }
+                _ => true,
+            },
+            &mut observed,
+        )
+        .expect("delayed growth succeeds");
+        assert_eq!(forest.accepted_roots().count(), 2);
+        assert!(observed.checked.iter().enumerate().any(|(index, event)| {
+            !event.4
+                && observed.checked[index + 1..].iter().any(|later| {
+                    later.0 == event.0
+                        && later.1 == event.1
+                        && later.2 == event.2
+                        && later.3 == event.3
+                        && later.4
+                })
+        }));
+        assert!(observed.chart.iter().all(|event| event.4 > 0));
+        for (index, event) in observed.chart.iter().enumerate() {
+            assert!(
+                !observed.chart[..index]
+                    .iter()
+                    .any(|prior| prior.0 == event.0
+                        && prior.1 == event.1
+                        && prior.2 == event.2
+                        && prior.3 == event.3)
+            );
+        }
+    }
 }
