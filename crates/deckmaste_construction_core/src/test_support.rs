@@ -42,6 +42,7 @@ pub(crate) fn representative_semantic_plan() -> crate::semantic::SemanticPlan {
                 element First {}
                 form first = "first";
             }
+            vocab Words { First = "first", }
             root Node { punctuation = "."; eoi = true; standalone_render = true; }
         })
         .expect("representative semantic-plan declarations parse"),

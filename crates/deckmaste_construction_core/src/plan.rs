@@ -278,6 +278,39 @@ mod tests {
     }
 
     #[test]
+    fn semantic_plan_terminal_emitters_share_one_mutated_fact() {
+        let input = crate::test_support::representative_tokens().to_string();
+        let mut plan = crate::test_support::representative_semantic_plan();
+        plan.test_only_replace_vocab_spelling("Words", "First", "changed");
+        let terminal = crate::emit::terminal::emit(&plan).unwrap();
+        assert_eq!(terminal_word(&terminal, "First"), "changed");
+        assert!(formatted(&crate::emit::render::emit(&plan).unwrap()).contains("\"changed\""));
+        assert!(
+            visitor_origins(&crate::emit::visit::emit(&plan).unwrap())
+                .contains(&"Words".to_owned())
+        );
+        assert!(
+            crate::report::escape_hatch_report(&plan)
+                .terminal_bindings()
+                .is_empty()
+        );
+        assert_eq!(
+            crate::test_support::representative_tokens().to_string(),
+            input
+        );
+    }
+
+    #[test]
+    fn representative_generated_body_is_pinned() {
+        let actual = crate::format_expansion(&representative_expansion())
+            .expect("representative expansion formats");
+        assert_eq!(
+            actual,
+            include_str!("../tests/golden/representative-expansion.txt")
+        );
+    }
+
+    #[test]
     fn sealed_plan_source_mismatches_are_emission_errors() {
         let mut plan = crate::test_support::representative_semantic_plan();
         plan.test_only_mispoint_construction_source("first");
@@ -325,6 +358,28 @@ mod tests {
             .map(|item| item.tokens.to_string())
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    fn terminal_word(
+        emitted: &(Vec<GeneratedItem>, Vec<crate::TerminalContribution>),
+        variant_name: &str,
+    ) -> String {
+        emitted
+            .1
+            .iter()
+            .flat_map(crate::TerminalContribution::variants)
+            .find(|variant| variant.name() == variant_name)
+            .and_then(crate::TerminalVariantContribution::word)
+            .expect("terminal variant has a word")
+            .to_owned()
+    }
+
+    fn visitor_origins(items: &[GeneratedItem]) -> Vec<String> {
+        items
+            .iter()
+            .flat_map(|item| item.origins.iter().map(crate::DeclarationKey::name))
+            .map(str::to_owned)
+            .collect()
     }
 
     fn named_types(items: &[GeneratedItem]) -> Vec<String> {

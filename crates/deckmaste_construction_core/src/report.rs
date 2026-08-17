@@ -1,8 +1,7 @@
-use crate::Declaration;
-use crate::RenderBinding;
-use crate::ValidatedDeclarations;
 use crate::identifier::key as identifier_key;
-use crate::identifier::path_key;
+use crate::model::TerminalBindingKind;
+use crate::semantic::SemanticPlan;
+use crate::semantic::TerminalPlan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TerminalBindingDeclarationKind {
@@ -103,7 +102,7 @@ impl EscapeHatchReport {
     }
 }
 
-pub(crate) fn escape_hatch_report(validated: &ValidatedDeclarations) -> EscapeHatchReport {
+pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> EscapeHatchReport {
     let mapping_layers = Vec::new();
     let mut handwritten_codecs = Vec::new();
     let stored_form_tags = Vec::new();
@@ -112,22 +111,24 @@ pub(crate) fn escape_hatch_report(validated: &ValidatedDeclarations) -> EscapeHa
     let mut checked_constructor_bindings = Vec::new();
     let mut roots = Vec::new();
 
-    for declaration in &validated.raw().declarations {
-        match declaration {
-            Declaration::Codec(binding) => {
-                let name = identifier_key(&binding.name);
+    for terminal in plan.terminals() {
+        let TerminalPlan::Binding(binding) = terminal else {
+            continue;
+        };
+        let source = plan
+            .binding_source(binding)
+            .expect("sealed terminal binding source");
+        let name = identifier_key(&source.name);
+        match binding.kind() {
+            TerminalBindingKind::Codec => {
                 handwritten_codecs.push(name.clone());
                 terminal_bindings.push(TerminalBindingDeclaration {
                     kind: TerminalBindingDeclarationKind::Codec,
                     name,
                 });
             }
-            Declaration::Identity(binding) => {
-                let name = identifier_key(&binding.name);
-                if matches!(
-                    binding.render,
-                    Some(RenderBinding::ContextIdentity(ref arms)) if arms.len() >= 2
-                ) {
+            TerminalBindingKind::Identity => {
+                if binding.has_stored_spelling() {
                     stored_spelling_codecs.push(name.clone());
                 }
                 terminal_bindings.push(TerminalBindingDeclaration {
@@ -135,13 +136,14 @@ pub(crate) fn escape_hatch_report(validated: &ValidatedDeclarations) -> EscapeHa
                     name,
                 });
             }
-            Declaration::Construction(construction) if construction.checked.is_some() => {
-                checked_constructor_bindings.push(identifier_key(&construction.element.name));
-            }
-            Declaration::Root(root) => roots.push(path_key(&root.category)),
-            Declaration::Construction(_) | Declaration::Vocab(_) | Declaration::Lexeme(_) => {}
         }
     }
+    for construction in plan.constructions() {
+        if construction.has_checked_constructor() {
+            checked_constructor_bindings.push(construction.element_type().to_owned());
+        }
+    }
+    roots.extend(plan.roots().iter().map(|root| root.category().to_owned()));
 
     EscapeHatchReport {
         mapping_layers,

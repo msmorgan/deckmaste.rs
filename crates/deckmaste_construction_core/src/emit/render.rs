@@ -17,7 +17,6 @@ use crate::identifier::key as identifier_key;
 use crate::identifier::pascal_case;
 use crate::identifier::path_key;
 use crate::identifier::snake_case;
-use crate::model::Declaration;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
 use crate::model::RenderBinding;
@@ -28,6 +27,7 @@ use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 use crate::semantic::SemanticPlan;
+use crate::semantic::TerminalPlan;
 
 #[allow(
     clippy::too_many_lines,
@@ -35,23 +35,16 @@ use crate::semantic::SemanticPlan;
 )]
 pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = validated
-        .source()
-        .declarations
+        .constructions()
         .iter()
-        .filter_map(|declaration| match declaration {
-            Declaration::Construction(value) => Some(value),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
+        .map(|row| validated.construction_source(row))
+        .collect::<syn::Result<Vec<_>>>()?;
     let roots = validated
-        .source()
-        .declarations
+        .roots()
         .iter()
-        .filter_map(|declaration| match declaration {
-            Declaration::Root(value) if value.standalone_render => Some(value),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
+        .filter(|root| root.is_render_entry())
+        .map(|row| validated.root_source(row))
+        .collect::<syn::Result<Vec<_>>>()?;
     let categories = category_groups(validated, &constructions);
     let nested_categories = constructions
         .iter()
@@ -177,8 +170,11 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         ));
     }
 
-    for declaration in &validated.source().declarations {
-        let Declaration::Vocab(vocab) = declaration else { continue };
+    for terminal in validated.terminals() {
+        let TerminalPlan::Vocab(row) = terminal else {
+            continue;
+        };
+        let vocab = validated.vocab_source(row)?;
         let function = ident(&format!(
             "render_{}",
             snake_case(&identifier_key(&vocab.name))
@@ -287,7 +283,7 @@ fn render_allocator(
                         .get(&identifier_key(role))
                         .ok_or_else(|| internal("resolved lexical role is absent"))?;
                     let terminal = field_terminal(field);
-                    if let Some(vocab) = find_vocab(validated, &terminal) {
+                    if let Some(vocab) = find_vocab(validated, &terminal)? {
                         allocator.reserve(format!(
                             "render_{}",
                             snake_case(&identifier_key(&vocab.name))
@@ -567,7 +563,7 @@ fn render_atoms(
                     .ok_or_else(|| internal("resolved lexical role is absent"))?;
                 let terminal = field_terminal(field);
                 let value = field_value(construction, role, locals)?;
-                if let Some(vocab) = find_vocab(validated, &terminal) {
+                if let Some(vocab) = find_vocab(validated, &terminal)? {
                     let function = ident(&format!(
                         "render_{}",
                         snake_case(&identifier_key(&vocab.name))
@@ -932,7 +928,7 @@ fn emit_feature_helper(
                 &element,
                 &roles,
                 &mut arm_allocator,
-            );
+            )?;
             let value = feature_expr(validated, construction, equation.value(), feature, &locals)?;
             entries.push((pattern, value.to_string(), value));
         }
@@ -1050,16 +1046,16 @@ fn feature_constant_pattern(
     element: &syn::Ident,
     roles: &HashSet<String>,
     allocator: &mut LocalAllocator,
-) -> (TokenStream, RenderLocals) {
+) -> syn::Result<(TokenStream, RenderLocals)> {
     if construction.element.fields.is_empty() {
-        return (
+        return Ok((
             quote! { #category::#variant(#element) },
             RenderLocals {
                 whole: None,
                 fields: HashMap::new(),
                 category: TokenStream::new(),
             },
-        );
+        ));
     }
     if construction.checked.as_ref().is_some_and(|checked| {
         checked.visibilities.iter().any(|visibility| {
@@ -1074,14 +1070,14 @@ fn feature_constant_pattern(
             || quote! { #category::#variant(_) },
             |whole| quote! { #category::#variant(#whole) },
         );
-        return (
+        return Ok((
             pattern,
             RenderLocals {
                 whole,
                 fields: HashMap::new(),
                 category: TokenStream::new(),
             },
-        );
+        ));
     }
     let mut fields = Vec::new();
     let mut locals = HashMap::new();
@@ -1104,7 +1100,7 @@ fn feature_constant_pattern(
         let pattern = if refined {
             quote! { #name: _ }
         } else if let FieldKind::Lex(path) = &field.kind {
-            if let Some(vocab) = find_vocab(validated, &path_name(path)) {
+            if let Some(vocab) = find_vocab(validated, &path_name(path))? {
                 let ty = ident(&identifier_key(&vocab.name));
                 let variants = vocab.variants.iter().map(|variant| {
                     let variant = ident(&identifier_key(&variant.name));
@@ -1119,14 +1115,14 @@ fn feature_constant_pattern(
         };
         fields.push(pattern);
     }
-    (
+    Ok((
         quote! { #category::#variant(#element { #(#fields),* }) },
         RenderLocals {
             whole: None,
             fields: locals,
             category: TokenStream::new(),
         },
-    )
+    ))
 }
 
 fn feature_value(value: FeatureValue) -> TokenStream {
@@ -1200,10 +1196,7 @@ fn category_groups<'a>(
     constructions: &[&'a crate::Construction],
 ) -> Vec<(String, Vec<&'a crate::Construction>)> {
     let mut result: Vec<(String, Vec<&crate::Construction>)> = Vec::new();
-    for (construction, record) in constructions
-        .iter()
-        .zip(validated.contributions().constructions())
-    {
+    for (construction, record) in constructions.iter().zip(validated.constructions()) {
         if let Some((_, members)) = result
             .iter_mut()
             .find(|(name, _)| name == record.category())
@@ -1216,34 +1209,34 @@ fn category_groups<'a>(
     result
 }
 
-fn find_vocab<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a crate::Vocab> {
-    validated
-        .source()
-        .declarations
-        .iter()
-        .find_map(|declaration| match declaration {
-            Declaration::Vocab(vocab) if identifier_key(&vocab.name) == name => Some(vocab),
-            _ => None,
-        })
+fn find_vocab<'a>(
+    validated: &'a SemanticPlan,
+    name: &str,
+) -> syn::Result<Option<&'a crate::Vocab>> {
+    for terminal in validated.terminals() {
+        if let TerminalPlan::Vocab(row) = terminal {
+            let vocab = validated.vocab_source(row)?;
+            if identifier_key(&vocab.name) == name {
+                return Ok(Some(vocab));
+            }
+        }
+    }
+    Ok(None)
 }
 
 fn find_binding<'a>(
     validated: &'a SemanticPlan,
     name: &str,
 ) -> syn::Result<&'a crate::TerminalBinding> {
-    validated
-        .source()
-        .declarations
-        .iter()
-        .find_map(|declaration| match declaration {
-            Declaration::Codec(binding) | Declaration::Identity(binding)
-                if identifier_key(&binding.name) == name =>
-            {
-                Some(binding)
+    for terminal in validated.terminals() {
+        if let TerminalPlan::Binding(row) = terminal {
+            let binding = validated.binding_source(row)?;
+            if identifier_key(&binding.name) == name {
+                return Ok(binding);
             }
-            _ => None,
-        })
-        .ok_or_else(|| internal("resolved terminal binding is absent"))
+        }
+    }
+    Err(internal("resolved terminal binding is absent"))
 }
 
 fn field_terminal(field: &crate::Field) -> String {
@@ -1686,14 +1679,11 @@ mod tests {
         .expect("the exact lexical writer validates");
         let plan = validated.semantic();
         let construction = plan
-            .source()
-            .declarations
-            .iter()
-            .find_map(|declaration| match declaration {
-                crate::Declaration::Construction(construction) => Some(construction),
-                _ => None,
-            })
-            .expect("construction");
+            .constructions()
+            .first()
+            .map(|row| plan.construction_source(row))
+            .expect("construction row")
+            .expect("sealed construction source");
         let role = syn::parse_quote!(person);
         let (writer_role, vocabulary) = super::canonical_lexical_feature_lowering(
             plan,

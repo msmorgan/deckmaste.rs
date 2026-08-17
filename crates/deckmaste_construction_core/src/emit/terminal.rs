@@ -3,7 +3,6 @@ use quote::quote;
 use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
 use crate::identifier::snake_case;
-use crate::model::Declaration;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
@@ -12,6 +11,7 @@ use crate::plan::TerminalContribution;
 use crate::plan::TerminalKind;
 use crate::plan::TerminalVariantContribution;
 use crate::semantic::SemanticPlan;
+use crate::semantic::TerminalPlan;
 
 pub(crate) fn emit(
     validated: &SemanticPlan,
@@ -19,9 +19,10 @@ pub(crate) fn emit(
     let mut items = Vec::new();
     let mut contributions = Vec::new();
 
-    for declaration in &validated.source().declarations {
-        match declaration {
-            Declaration::Vocab(vocab) => {
+    for terminal in validated.terminals() {
+        match terminal {
+            TerminalPlan::Vocab(row) => {
+                let vocab = validated.vocab_source(row)?;
                 let name = identifier_key(&vocab.name);
                 let origin = DeclarationKey::new(DeclarationKind::Vocab, &name);
                 let variants = vocab
@@ -62,20 +63,10 @@ pub(crate) fn emit(
                     false,
                 ));
             }
-            Declaration::Lexeme(lexeme) => {
+            TerminalPlan::Lexeme(row) => {
+                let lexeme = validated.lexeme_source(row)?;
                 let name = identifier_key(&lexeme.name);
-                let terminal = validated
-                    .contributions()
-                    .terminals()
-                    .iter()
-                    .find(|terminal| terminal.name() == name)
-                    .ok_or_else(|| {
-                        syn::Error::new(
-                            lexeme.name.span(),
-                            "validated terminal inventory is inconsistent",
-                        )
-                    })?;
-                let verb_provider = terminal.supports_verb_atom();
+                let verb_provider = row.is_verb_provider();
                 let origin = DeclarationKey::new(DeclarationKind::Lexeme, &name);
                 let variants = lexeme
                     .variants
@@ -117,10 +108,7 @@ pub(crate) fn emit(
                     verb_provider,
                 ));
             }
-            Declaration::Construction(_)
-            | Declaration::Codec(_)
-            | Declaration::Identity(_)
-            | Declaration::Root(_) => {}
+            TerminalPlan::Binding(_) => {}
         }
     }
     Ok((items, contributions))

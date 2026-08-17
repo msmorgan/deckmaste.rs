@@ -13,7 +13,6 @@ use crate::identifier::key as identifier_key;
 use crate::identifier::pascal_case;
 use crate::identifier::path_key;
 use crate::identifier::snake_case;
-use crate::model::Declaration;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
 use crate::model::TraversalCall;
@@ -24,45 +23,39 @@ use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 use crate::semantic::SemanticPlan;
+use crate::semantic::TerminalPlan;
 
 pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = validated
-        .source()
-        .declarations
+        .constructions()
         .iter()
-        .filter_map(|declaration| match declaration {
-            Declaration::Construction(value) => Some(value),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
+        .map(|row| validated.construction_source(row))
+        .collect::<syn::Result<Vec<_>>>()?;
     let categories = category_groups(validated, &constructions);
     let vocabs = validated
-        .source()
-        .declarations
+        .terminals()
         .iter()
-        .filter_map(|declaration| match declaration {
-            Declaration::Vocab(value) => Some(value),
-            _ => None,
+        .filter_map(|terminal| match terminal {
+            TerminalPlan::Vocab(row) => Some(validated.vocab_source(row)),
+            TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
         })
-        .collect::<Vec<_>>();
+        .collect::<syn::Result<Vec<_>>>()?;
     let lexemes = validated
-        .source()
-        .declarations
+        .terminals()
         .iter()
-        .filter_map(|declaration| match declaration {
-            Declaration::Lexeme(value) => Some(value),
-            _ => None,
+        .filter_map(|terminal| match terminal {
+            TerminalPlan::Lexeme(row) => Some(validated.lexeme_source(row)),
+            TerminalPlan::Vocab(_) | TerminalPlan::Binding(_) => None,
         })
-        .collect::<Vec<_>>();
+        .collect::<syn::Result<Vec<_>>>()?;
     let bindings = validated
-        .source()
-        .declarations
+        .terminals()
         .iter()
-        .filter_map(|declaration| match declaration {
-            Declaration::Codec(value) | Declaration::Identity(value) => Some(value),
-            _ => None,
+        .filter_map(|terminal| match terminal {
+            TerminalPlan::Binding(row) => Some(validated.binding_source(row)),
+            TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) => None,
         })
-        .collect::<Vec<_>>();
+        .collect::<syn::Result<Vec<_>>>()?;
     let containers = bindings
         .iter()
         .copied()
@@ -725,24 +718,31 @@ fn expr_mentions(expression: &syn::Expr, ident: &syn::Ident) -> bool {
 }
 
 fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitMode> {
-    if validated.source().declarations.iter().any(
-        |declaration| matches!(declaration, Declaration::Vocab(vocab) if identifier_key(&vocab.name) == terminal),
-    ) {
-        return Ok(VisitMode::Copy);
-    }
-    validated
-        .source()
-        .declarations
-        .iter()
-        .find_map(|declaration| match declaration {
-            Declaration::Codec(binding) | Declaration::Identity(binding)
-                if identifier_key(&binding.name) == terminal =>
+    for planned in validated.terminals() {
+        match planned {
+            TerminalPlan::Vocab(row)
+                if identifier_key(&validated.vocab_source(row)?.name) == terminal =>
             {
-                binding.traversal.callback_mode
+                return Ok(VisitMode::Copy);
             }
-            _ => None,
-        })
-        .ok_or_else(|| internal("terminal traversal mode is absent"))
+            TerminalPlan::Lexeme(row)
+                if identifier_key(&validated.lexeme_source(row)?.name) == terminal =>
+            {
+                return Ok(VisitMode::Copy);
+            }
+            TerminalPlan::Binding(row)
+                if identifier_key(&validated.binding_source(row)?.name) == terminal =>
+            {
+                return validated
+                    .binding_source(row)?
+                    .traversal
+                    .callback_mode
+                    .ok_or_else(|| internal("terminal traversal mode is absent"));
+            }
+            TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => {}
+        }
+    }
+    Err(internal("terminal traversal mode is absent"))
 }
 
 fn binding_origin(
@@ -764,10 +764,7 @@ fn category_groups<'a>(
     constructions: &[&'a crate::Construction],
 ) -> Vec<(String, Vec<&'a crate::Construction>)> {
     let mut result: Vec<(String, Vec<&crate::Construction>)> = Vec::new();
-    for (construction, record) in constructions
-        .iter()
-        .zip(validated.contributions().constructions())
-    {
+    for (construction, record) in constructions.iter().zip(validated.constructions()) {
         if let Some((_, members)) = result
             .iter_mut()
             .find(|(name, _)| name == record.category())

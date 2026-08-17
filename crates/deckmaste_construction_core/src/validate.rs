@@ -355,14 +355,6 @@ impl ValidatedDeclarations {
 
     #[allow(
         dead_code,
-        reason = "sealed raw declarations are consumed by Task 4 code generation"
-    )]
-    pub(crate) fn raw(&self) -> &Declarations {
-        self.semantic.source()
-    }
-
-    #[allow(
-        dead_code,
         reason = "sealed feature IR is consumed by Task 4 code generation"
     )]
     pub(crate) fn feature_equations(&self, construction: &str) -> &[feature::FeatureEquation] {
@@ -395,7 +387,8 @@ impl ValidatedDeclarations {
 
     #[cfg(test)]
     fn declaration_names(&self) -> Vec<String> {
-        self.raw()
+        self.semantic
+            .source()
             .declarations
             .iter()
             .map(|declaration| match declaration {
@@ -5496,7 +5489,8 @@ pub(crate) mod tests {
             ]
         );
         let construction = validated
-            .raw()
+            .semantic()
+            .source()
             .declarations
             .iter()
             .find_map(|declaration| match declaration {
@@ -6620,7 +6614,8 @@ pub(crate) mod tests {
         assert!(validated.dynamic_number_constructions().contains("leaf"));
 
         let refinements = validated
-            .raw()
+            .semantic()
+            .source()
             .declarations
             .iter()
             .filter_map(|declaration| match declaration {

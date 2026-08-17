@@ -52,6 +52,7 @@ pub(crate) struct ConstructionPlan {
     render_arm: String,
     visitor_method: String,
     walker: String,
+    checked_constructor: bool,
     atoms: Vec<AtomPlan>,
 }
 
@@ -109,6 +110,8 @@ pub(crate) struct LexemePlan {
 pub(crate) struct BindingPlan {
     source_index: usize,
     terminal: TerminalContribution,
+    kind: crate::model::TerminalBindingKind,
+    stored_spelling: bool,
 }
 
 #[derive(Debug)]
@@ -192,9 +195,17 @@ impl SemanticPlan {
                 }),
                 Declaration::Codec(_) | Declaration::Identity(_) => {
                     terminal_records.next().map(|terminal| {
+                        let (Declaration::Codec(binding) | Declaration::Identity(binding)) = declaration else {
+                            unreachable!("binding terminal was selected from a binding declaration");
+                        };
                         TerminalPlan::Binding(BindingPlan {
                             source_index,
                             terminal: terminal.clone(),
+                            kind: binding.kind,
+                            stored_spelling: matches!(
+                                binding.render,
+                                Some(crate::model::RenderBinding::ContextIdentity(ref arms)) if arms.len() >= 2
+                            ),
                         })
                     })
                 }
@@ -246,6 +257,7 @@ impl SemanticPlan {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn source(&self) -> &Declarations {
         &self.source
     }
@@ -365,6 +377,37 @@ impl SemanticPlan {
             .find(|row| row.construction_id == construction_id)
             .expect("test construction is present");
         construction.atoms[atom_index] = AtomPlan::Literal(literal.to_owned());
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_replace_vocab_spelling(
+        &mut self,
+        vocabulary: &str,
+        variant: &str,
+        spelling: &str,
+    ) {
+        let vocab = self
+            .source
+            .declarations
+            .iter_mut()
+            .find_map(|declaration| match declaration {
+                Declaration::Vocab(vocab) if identifier_key(&vocab.name) == vocabulary => {
+                    Some(vocab)
+                }
+                Declaration::Construction(_)
+                | Declaration::Vocab(_)
+                | Declaration::Lexeme(_)
+                | Declaration::Codec(_)
+                | Declaration::Identity(_)
+                | Declaration::Root(_) => None,
+            })
+            .expect("test vocabulary is present");
+        let word = vocab
+            .variants
+            .iter_mut()
+            .find(|candidate| identifier_key(&candidate.name) == variant)
+            .expect("test vocabulary variant is present");
+        word.word = syn::LitStr::new(spelling, word.word.span());
     }
 
     #[cfg(test)]
@@ -595,6 +638,7 @@ impl ConstructionPlan {
             render_arm: record.render_arm().to_owned(),
             visitor_method: record.visitor_method().to_owned(),
             walker: record.walker().to_owned(),
+            checked_constructor: source.checked.is_some(),
             atoms,
         })
     }
@@ -629,6 +673,10 @@ impl ConstructionPlan {
 
     pub(crate) fn build_arm(&self) -> &str {
         &self.build_arm
+    }
+
+    pub(crate) fn has_checked_constructor(&self) -> bool {
+        self.checked_constructor
     }
 
     pub(crate) fn atoms(&self) -> &[AtomPlan] {
@@ -827,6 +875,9 @@ impl VocabPlan {
 }
 
 impl LexemePlan {
+    pub(crate) fn is_verb_provider(&self) -> bool {
+        self.terminal.supports_verb_atom()
+    }
     #[allow(
         dead_code,
         reason = "future emitters retain source order through this index"
@@ -837,6 +888,13 @@ impl LexemePlan {
 }
 
 impl BindingPlan {
+    pub(crate) fn kind(&self) -> crate::model::TerminalBindingKind {
+        self.kind
+    }
+
+    pub(crate) fn has_stored_spelling(&self) -> bool {
+        self.stored_spelling
+    }
     #[allow(
         dead_code,
         reason = "future emitters retain source order through this index"
@@ -861,6 +919,10 @@ impl RootPlan {
 
     pub(crate) fn is_parse_entry(&self) -> bool {
         self.parse_entry
+    }
+
+    pub(crate) fn is_render_entry(&self) -> bool {
+        self.render_entry
     }
 
     pub(crate) fn punctuation(&self) -> &str {

@@ -1,0 +1,228 @@
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Node {
+    Leaf(Leaf),
+    Chain(Chain),
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Action {
+    Action(ActionElement),
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Leaf {
+    pub word: Words,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Chain {
+    next: Box<Node>,
+    pub(crate) word: Words,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActionElement {
+    pub node: Node,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Words {
+    First,
+    Second,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Nouns {
+    Person,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub enum Verbs {
+    Act,
+}
+impl Render for Action {
+    fn render(&self, context: &ParseContext<'_>) -> String {
+        let mut writer = Writer::new();
+        match self {
+            Self::Action(ActionElement { node }) => {
+                writer.word(inflect(Verbs::Act, Agreement::Bare));
+                render_node(&mut writer, node);
+            }
+        }
+        writer.punctuation('.');
+        writer.finish()
+    }
+}
+fn render_node(writer: &mut Writer, node: &Node) {
+    match node {
+        Node::Leaf(Leaf { word }) => render_words(writer, *word),
+        Node::Chain(chain) => {
+            render_node(writer, chain.next());
+            render_words(writer, *&chain.word);
+        }
+    }
+}
+fn render_words(writer: &mut Writer, words: Words) {
+    match words {
+        Words::First => writer.word("first"),
+        Words::Second => writer.word("second"),
+    }
+}
+pub trait Visitor {
+    fn visit_node(&mut self, node: &Node) {
+        walk_node(self, node);
+    }
+    fn visit_action(&mut self, action: &Action) {
+        walk_action(self, action);
+    }
+    fn visit_leaf(&mut self, leaf: &Leaf) {
+        walk_leaf(self, leaf);
+    }
+    fn visit_chain(&mut self, chain: &Chain) {
+        walk_chain(self, chain);
+    }
+    fn visit_action_element(&mut self, action_element: &ActionElement) {
+        walk_action_element(self, action_element);
+    }
+    fn visit_words(&mut self, _words: Words) {}
+    fn visit_nouns(&mut self, _nouns: Nouns) {}
+    fn visit_verbs(&mut self, _verbs: Verbs) {}
+}
+pub fn walk_node<V: Visitor + ?Sized>(visitor: &mut V, node: &Node) {
+    match node {
+        Node::Leaf(leaf) => visitor.visit_leaf(leaf),
+        Node::Chain(chain) => visitor.visit_chain(chain),
+    }
+}
+pub fn walk_action<V: Visitor + ?Sized>(visitor: &mut V, action: &Action) {
+    match action {
+        Action::Action(action_element) => visitor.visit_action_element(action_element),
+    }
+}
+pub fn walk_leaf<V: Visitor + ?Sized>(visitor: &mut V, leaf: &Leaf) {
+    let Leaf { word } = leaf;
+    walk_words(visitor, *word);
+}
+pub fn walk_chain<V: Visitor + ?Sized>(visitor: &mut V, chain: &Chain) {
+    visitor.visit_node(chain.next());
+    walk_words(visitor, *&chain.word);
+}
+pub fn walk_action_element<V: Visitor + ?Sized>(
+    visitor: &mut V,
+    action_element: &ActionElement,
+) {
+    let ActionElement { node } = action_element;
+    walk_verbs(visitor, Verbs::Act);
+    visitor.visit_node(node);
+}
+pub fn walk_words<V: Visitor + ?Sized>(visitor: &mut V, words: Words) {
+    match words {
+        Words::First => visitor.visit_words(Words::First),
+        Words::Second => visitor.visit_words(Words::Second),
+    }
+}
+pub fn walk_nouns<V: Visitor + ?Sized>(visitor: &mut V, nouns: Nouns) {
+    match nouns {
+        Nouns::Person => visitor.visit_nouns(Nouns::Person),
+    }
+}
+pub fn walk_verbs<V: Visitor + ?Sized>(visitor: &mut V, verbs: Verbs) {
+    match verbs {
+        Verbs::Act => visitor.visit_verbs(Verbs::Act),
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum Category {
+    Node,
+    Action,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum Construction {
+    NodeLeaf,
+    NodeChain,
+    ActionAction,
+}
+#[repr(usize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum RuleId {
+    NodeLeaf,
+    NodeChain,
+    ActionAction,
+}
+impl RuleId {
+    #[cfg(test)]
+    pub(crate) const COUNT: usize = 3;
+    pub(crate) const fn construction(self) -> Construction {
+        match self {
+            Self::NodeLeaf => Construction::NodeLeaf,
+            Self::NodeChain => Construction::NodeChain,
+            Self::ActionAction => Construction::ActionAction,
+        }
+    }
+    pub(crate) const fn index(self) -> usize {
+        self as usize
+    }
+}
+pub(crate) const RULES: &[Rule<Category, Lexical, RuleId>] = &[
+    Rule {
+        id: RuleId::NodeLeaf,
+        lhs: Category::Node,
+        rhs: &[L(Lexical::Words)],
+    },
+    Rule {
+        id: RuleId::NodeChain,
+        lhs: Category::Node,
+        rhs: &[N(Category::Node), L(Lexical::Words)],
+    },
+    Rule {
+        id: RuleId::ActionAction,
+        lhs: Category::Action,
+        rhs: &[
+            L(Lexical::Verb(Verbs::Act)),
+            N(Category::Node),
+            L(Lexical::Literal(".")),
+            L(Lexical::EndOfInput),
+        ],
+    },
+];
+#[expect(
+    clippy::too_many_lines,
+    reason = "the exhaustive generated-shape construction dispatch is intentionally flat"
+)]
+pub(super) fn build(
+    rule: RuleId,
+    children: &[BuildValue],
+    context: &ParseContext<'_>,
+) -> Option<BuildValue> {
+    match rule {
+        RuleId::NodeLeaf => {
+            match children {
+                [BuildValue::Leaf(Leaf::Words(words))] => {
+                    Some(BuildValue::Node(Node::Leaf(Leaf { word: *words })))
+                }
+                _ => None,
+            }
+        }
+        RuleId::NodeChain => {
+            match children {
+                [BuildValue::Node(next), BuildValue::Leaf(Leaf::Words(words))] => {
+                    Chain::new(Box::new(next.clone()), *words)
+                        .map(Node::Chain)
+                        .map(BuildValue::Node)
+                }
+                _ => None,
+            }
+        }
+        RuleId::ActionAction => {
+            match children {
+                [BuildValue::Leaf(
+                    Leaf::Verb { lexeme: Verbs::Act, agreement: Agreement::Bare },
+                ), BuildValue::Node(node), BuildValue::Leaf(Leaf::Literal(".")),
+                BuildValue::Leaf(Leaf::EndOfInput)] => {
+                    Some(
+                        BuildValue::Action(
+                            Action::Action(ActionElement {
+                                node: node.clone(),
+                            }),
+                            Agreement::Bare,
+                        ),
+                    )
+                }
+                _ => None,
+            }
+        }
+    }
+}
