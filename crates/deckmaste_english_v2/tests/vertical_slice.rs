@@ -4,6 +4,7 @@ use deckmaste_catalogs::CatalogKind;
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
 use deckmaste_english_v2::visit::walk_amount;
@@ -128,6 +129,20 @@ fn triggered_damage() -> Ability {
         })),
     });
     Ability::Triggered(Triggered::new(TriggerWord::Whenever, event, vec![effect]).unwrap())
+}
+
+#[test]
+fn parser_analysis_preserves_the_vertical_slice_triggered_ability() {
+    let parser = Parser::new(catalogs());
+    let context = context("Context Card");
+    let expected = triggered_damage();
+    let text = expected.render(&context);
+
+    assert_eq!(parser.parse(&text, &context), Ok(expected));
+    assert_eq!(
+        parser.parse(&text, &context),
+        parser.analyze(&text, &context).into_parse_result(),
+    );
 }
 
 fn gain_life_with_where() -> Sentence {

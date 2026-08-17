@@ -2,13 +2,14 @@ use engine::ChartFailure;
 use materialize::materialize;
 use scan::SliceGrammar;
 use scan::parse_forest;
-use selection::select;
+use selection::analyze_selection;
 
 use crate::ast::Ability;
 use crate::catalogs::ParserCatalogs;
 use crate::constructions::Category;
 use crate::context::ParseContext;
 
+mod diagnostic;
 mod engine;
 mod lexical;
 mod materialize;
@@ -55,6 +56,15 @@ mod tests {
 }
 }
 
+pub use diagnostic::InternalFailureKind;
+pub use diagnostic::ParseAnalysis;
+pub use diagnostic::ParseAnalysisOutcome;
+pub use diagnostic::SelectionCandidate;
+pub use diagnostic::SelectionComparison;
+pub use diagnostic::SelectionDecision;
+pub use diagnostic::SelectionDecisive;
+pub use diagnostic::SelectionResolution;
+pub use diagnostic::SpecificityTier;
 pub use error::Expectation;
 pub use error::NonterminalCategory;
 pub use error::ParseError;
@@ -85,13 +95,30 @@ impl Parser {
     /// input. Returns an ambiguity when structural selection cannot choose one
     /// reading.
     pub fn parse(&self, text: &str, context: &ParseContext<'_>) -> Result<Ability, ParseError> {
+        self.analyze(text, context).into_parse_result()
+    }
+
+    /// Parses one complete ability and retains its complete selection decision.
+    #[must_use]
+    pub fn analyze(&self, text: &str, context: &ParseContext<'_>) -> ParseAnalysis {
         let grammar = SliceGrammar {
             catalogs: &self.catalogs,
             context,
         };
-        let forest =
-            parse_forest(&grammar, text).map_err(|failure| chart_failure(text, failure))?;
-        select(materialize(&forest, context))?.ok_or(ParseError::ValidatedRootDidNotMaterialize)
+        let result = parse_forest(&grammar, text)
+            .map_err(|failure| chart_failure(text, failure))
+            .and_then(|forest| {
+                let selection = analyze_selection(materialize(&forest, context))?;
+                let (result, decision) = selection.into_result_and_decision();
+                let result = result.and_then(|candidate| {
+                    candidate.ok_or(ParseError::ValidatedRootDidNotMaterialize)
+                });
+                Ok((result, decision))
+            });
+        match result {
+            Ok((result, decision)) => ParseAnalysis::from_result(result, decision),
+            Err(error) => ParseAnalysis::from_result(Err(error), None),
+        }
     }
 }
 

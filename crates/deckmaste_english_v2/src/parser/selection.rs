@@ -1,6 +1,12 @@
 use std::cmp::Ordering;
 
 use super::ParseError;
+use super::SelectionCandidate;
+use super::SelectionComparison;
+use super::SelectionDecision;
+use super::SelectionDecisive;
+use super::SelectionResolution;
+use super::SpecificityTier;
 use super::engine::RulePosition;
 use super::lexical::Lexical;
 use super::materialize::Candidate;
@@ -150,17 +156,32 @@ fn canonical_pair(left: &'static str, right: &'static str) -> (&'static str, &'s
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
-struct Specificity(Vec<PositionSpecificity>);
+struct Specificity(Vec<SpecificityTier>);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-enum PositionSpecificity {
-    Nonterminal,
-    TypedLexical,
-    Literal,
+pub(crate) struct SelectionAnalysis<T> {
+    selected: Option<T>,
+    decision: Option<SelectionDecision>,
+    ambiguity: Option<ParseError>,
 }
 
-pub(crate) fn select(candidates: Vec<Candidate>) -> Result<Option<Ability>, ParseError> {
-    select_with_exceptions(
+impl<T> SelectionAnalysis<T> {
+    #[cfg(test)]
+    pub(crate) fn decision(&self) -> Option<&SelectionDecision> {
+        self.decision.as_ref()
+    }
+
+    pub(crate) fn into_result_and_decision(
+        self,
+    ) -> (Result<Option<T>, ParseError>, Option<SelectionDecision>) {
+        let result = self.ambiguity.map_or_else(|| Ok(self.selected), Err);
+        (result, self.decision)
+    }
+}
+
+pub(crate) fn analyze_selection(
+    candidates: Vec<Candidate>,
+) -> Result<SelectionAnalysis<Ability>, ParseError> {
+    selection_analysis_with_exceptions(
         candidates,
         |candidate| candidate.constructions.as_slice(),
         |candidate| {
@@ -168,12 +189,49 @@ pub(crate) fn select(candidates: Vec<Candidate>) -> Result<Option<Ability>, Pars
                 matches!(lexical, Lexical::Literal(_))
             })
         },
+        |construction| format!("{construction:?}"),
         construction_name,
         SELECTION_EXCEPTIONS,
     )
-    .map(|candidate| candidate.map(|candidate| candidate.ability))
+    .map(|analysis| SelectionAnalysis {
+        selected: analysis.selected.map(|candidate| candidate.ability),
+        decision: analysis.decision,
+        ambiguity: analysis.ambiguity,
+    })
 }
 
+fn selection_analysis_with_exceptions<T, C, Name>(
+    candidates: Vec<T>,
+    constructions: impl Fn(&T) -> &[C],
+    specificity: impl Fn(&T) -> Specificity,
+    construction_name: Name,
+    legacy_construction_name: impl Fn(C) -> &'static str,
+    exceptions: &[SelectionException<C>],
+) -> Result<SelectionAnalysis<T>, ParseError>
+where
+    C: Copy + Eq,
+    Name: Fn(C) -> String,
+{
+    validate_selection_exceptions(exceptions, &legacy_construction_name)
+        .map_err(ParseError::InvalidSelectionExceptionConfiguration)?;
+    if candidates.is_empty() {
+        return Ok(SelectionAnalysis {
+            selected: None,
+            decision: None,
+            ambiguity: None,
+        });
+    }
+    Ok(decide_ranked(
+        candidates,
+        constructions,
+        specificity,
+        construction_name,
+        legacy_construction_name,
+        exceptions,
+    ))
+}
+
+#[cfg(test)]
 fn select_with_exceptions<T, C>(
     candidates: Vec<T>,
     constructions: impl Fn(&T) -> &[C],
@@ -184,39 +242,18 @@ fn select_with_exceptions<T, C>(
 where
     C: Copy + Eq,
 {
-    validate_selection_exceptions(exceptions, &construction_name)
-        .map_err(ParseError::InvalidSelectionExceptionConfiguration)?;
-    if candidates.is_empty() {
-        return Ok(None);
-    }
-    select_ranked(
+    selection_analysis_with_exceptions(
         candidates,
         constructions,
         specificity,
-        construction_name,
+        |construction| construction_name(construction).to_owned(),
+        &construction_name,
         exceptions,
     )
-    .map(Some)
+    .and_then(|analysis| analysis.into_result_and_decision().0)
 }
 
-fn structural_specificity<N, L>(
-    positions: &[RulePosition<N, L>],
-    is_literal: impl Fn(&L) -> bool,
-) -> Specificity {
-    Specificity(
-        positions
-            .iter()
-            .map(|position| match position {
-                RulePosition::Lexical(lexical) if is_literal(lexical) => {
-                    PositionSpecificity::Literal
-                }
-                RulePosition::Lexical(_) => PositionSpecificity::TypedLexical,
-                RulePosition::Nonterminal(_) => PositionSpecificity::Nonterminal,
-            })
-            .collect(),
-    )
-}
-
+#[cfg(test)]
 fn select_ranked<T, C>(
     candidates: Vec<T>,
     constructions: impl Fn(&T) -> &[C],
@@ -227,69 +264,219 @@ fn select_ranked<T, C>(
 where
     C: Copy + Eq,
 {
-    let best_specificity = candidates
+    let selected = select_with_exceptions(
+        candidates,
+        constructions,
+        specificity,
+        construction_name,
+        exceptions,
+    )?
+    .expect("select_ranked requires at least one candidate");
+    Ok(selected)
+}
+
+fn structural_specificity<N, L>(
+    positions: &[RulePosition<N, L>],
+    is_literal: impl Fn(&L) -> bool,
+) -> Specificity {
+    Specificity(
+        positions
+            .iter()
+            .map(|position| match position {
+                RulePosition::Lexical(lexical) if is_literal(lexical) => SpecificityTier::Literal,
+                RulePosition::Lexical(_) => SpecificityTier::TypedLexical,
+                RulePosition::Nonterminal(_) => SpecificityTier::Nonterminal,
+            })
+            .collect(),
+    )
+}
+
+fn decide_ranked<T, C, Name>(
+    candidates: Vec<T>,
+    constructions: impl Fn(&T) -> &[C],
+    specificity: impl Fn(&T) -> Specificity,
+    construction_name: Name,
+    legacy_construction_name: impl Fn(C) -> &'static str,
+    exceptions: &[SelectionException<C>],
+) -> SelectionAnalysis<T>
+where
+    C: Copy + Eq,
+    Name: Fn(C) -> String,
+{
+    let specifics = candidates.iter().map(&specificity).collect::<Vec<_>>();
+    let best_specificity = specifics
         .iter()
-        .map(&specificity)
         .max()
         .expect("selection requires at least one candidate");
-    let best = candidates
+    let candidates = candidates
         .into_iter()
-        .filter(|candidate| specificity(candidate) == best_specificity)
-        .collect::<Vec<_>>();
-    if best.len() == 1 {
-        return Ok(best.into_iter().next().unwrap());
-    }
-
-    let survivors = best
-        .iter()
         .enumerate()
-        .filter(|(candidate_index, candidate)| {
-            best.iter()
-                .enumerate()
-                .filter(|(other_index, _)| candidate_index != other_index)
-                .all(|(_, other)| {
-                    exception_order(constructions(candidate), constructions(other), exceptions)
-                        != Ordering::Less
-                })
+        .map(|(ordinal, candidate)| RankedCandidate {
+            candidate,
+            ordinal,
+            specificity: specifics[ordinal].clone(),
         })
-        .map(|(index, _)| index)
         .collect::<Vec<_>>();
-    if survivors.len() == 1 {
-        return Ok(best.into_iter().nth(survivors[0]).unwrap());
+    let diagnostic_candidates = candidates
+        .iter()
+        .map(|candidate| {
+            SelectionCandidate::new(
+                candidate.ordinal,
+                constructions(&candidate.candidate)
+                    .iter()
+                    .copied()
+                    .map(&construction_name)
+                    .collect(),
+                candidate.specificity.0.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let maximum = candidates
+        .iter()
+        .filter(|candidate| candidate.specificity == *best_specificity)
+        .map(|candidate| candidate.ordinal)
+        .collect::<Vec<_>>();
+
+    let mut comparisons = Vec::new();
+    let mut exception_uses = Vec::new();
+    for left in 0..candidates.len() {
+        for right in left + 1..candidates.len() {
+            let (mut ordering, decisive) = compare_specificity(
+                &candidates[left].specificity,
+                &candidates[right].specificity,
+            );
+            let mut exception_id = None;
+            if decisive == SelectionDecisive::Tie
+                && maximum.contains(&left)
+                && maximum.contains(&right)
+                && let Some((id, exception_order)) = exception_order(
+                    constructions(&candidates[left].candidate),
+                    constructions(&candidates[right].candidate),
+                    exceptions,
+                )
+            {
+                ordering = exception_order;
+                exception_id = Some(id.to_owned());
+                exception_uses.push(id.to_owned());
+            }
+            comparisons.push(SelectionComparison::new(
+                left,
+                right,
+                ordering,
+                decisive,
+                exception_id,
+            ));
+        }
     }
 
-    let tied = if survivors.is_empty() {
-        (0..best.len()).collect::<Vec<_>>()
+    let survivors = maximum
+        .iter()
+        .copied()
+        .filter(|&ordinal| {
+            maximum.iter().copied().all(|other| {
+                other == ordinal
+                    || comparison_ordering(&comparisons, ordinal, other) != Ordering::Less
+            })
+        })
+        .collect::<Vec<_>>();
+    let (selected, resolution) = if candidates.len() == 1 {
+        (Some(0), SelectionResolution::Unique)
+    } else if maximum.len() == 1 {
+        (maximum.first().copied(), SelectionResolution::Specificity)
+    } else if survivors.len() == 1 {
+        (survivors.first().copied(), SelectionResolution::Exception)
     } else {
-        survivors
+        (None, SelectionResolution::UnresolvedTie)
+    };
+    let decision = SelectionDecision::new(
+        diagnostic_candidates,
+        comparisons,
+        survivors,
+        selected,
+        resolution,
+        exception_uses,
+    );
+    if let Some(ordinal) = selected {
+        let candidate = candidates
+            .into_iter()
+            .find(|candidate| candidate.ordinal == ordinal)
+            .expect("selected ordinal is a materialized candidate")
+            .candidate;
+        return SelectionAnalysis {
+            selected: Some(candidate),
+            decision: Some(decision),
+            ambiguity: None,
+        };
+    }
+    let tied = if decision.survivors().is_empty() {
+        maximum
+    } else {
+        decision.survivors().to_vec()
     };
     let (first, second) = ambiguity_names(
-        tied.iter().map(|&index| constructions(&best[index])),
-        construction_name,
+        tied.iter()
+            .map(|&ordinal| constructions(&candidates[ordinal].candidate)),
+        legacy_construction_name,
     );
-    Err(ParseError::Ambiguous { first, second })
+    SelectionAnalysis {
+        selected: None,
+        decision: Some(decision),
+        ambiguity: Some(ParseError::Ambiguous { first, second }),
+    }
+}
+
+struct RankedCandidate<T> {
+    candidate: T,
+    ordinal: usize,
+    specificity: Specificity,
+}
+
+fn compare_specificity(left: &Specificity, right: &Specificity) -> (Ordering, SelectionDecisive) {
+    for (index, (left_tier, right_tier)) in left.0.iter().zip(&right.0).enumerate() {
+        let ordering = left_tier.cmp(right_tier);
+        if ordering != Ordering::Equal {
+            return (ordering, SelectionDecisive::Position(index));
+        }
+    }
+    if left.0.len() == right.0.len() {
+        (Ordering::Equal, SelectionDecisive::Tie)
+    } else {
+        (
+            left.0.len().cmp(&right.0.len()),
+            SelectionDecisive::VectorExhaustion(left.0.len().min(right.0.len())),
+        )
+    }
+}
+
+fn comparison_ordering(comparisons: &[SelectionComparison], left: usize, right: usize) -> Ordering {
+    let comparison = comparisons
+        .iter()
+        .find(|comparison| {
+            (comparison.left_ordinal() == left && comparison.right_ordinal() == right)
+                || (comparison.left_ordinal() == right && comparison.right_ordinal() == left)
+        })
+        .expect("every unordered pair has exactly one comparison");
+    if comparison.left_ordinal() == left {
+        comparison.ordering()
+    } else {
+        comparison.ordering().reverse()
+    }
 }
 
 fn exception_order<C: Copy + Eq>(
     left: &[C],
     right: &[C],
     exceptions: &[SelectionException<C>],
-) -> std::cmp::Ordering {
-    let Some((left, right)) = first_difference(left, right) else {
-        return std::cmp::Ordering::Equal;
-    };
-    exceptions
-        .iter()
-        .find_map(|exception| {
-            ((left, right) == (exception.left, exception.right)
-                || (left, right) == (exception.right, exception.left))
-                .then_some(if exception.winner == left {
-                    std::cmp::Ordering::Greater
-                } else {
-                    std::cmp::Ordering::Less
-                })
-        })
-        .unwrap_or(std::cmp::Ordering::Equal)
+) -> Option<(&'static str, Ordering)> {
+    let (left, right) = first_difference(left, right)?;
+    exceptions.iter().find_map(|exception| {
+        ((left, right) == (exception.left, exception.right)
+            || (left, right) == (exception.right, exception.left))
+            .then_some((
+                exception.id,
+                if exception.winner == left { Ordering::Greater } else { Ordering::Less },
+            ))
+    })
 }
 
 fn first_difference<C: Copy + Eq>(left: &[C], right: &[C]) -> Option<(C, C)> {
@@ -353,10 +540,16 @@ const fn construction_name(construction: Construction) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use std::cmp::Ordering;
+
+    use super::SelectionDecisive;
     use super::SelectionException;
     use super::SelectionExceptionInventoryError;
+    use super::SelectionResolution;
+    use super::SpecificityTier;
     use super::select_ranked;
     use super::select_with_exceptions;
+    use super::selection_analysis_with_exceptions;
     use super::selection_exception_inventory;
     use super::selection_exception_inventory_for;
     use super::structural_specificity;
@@ -394,6 +587,7 @@ mod tests {
         SharedForm,
         TestLeft,
         TestRight,
+        TestThird,
         LateLiteral,
         EarlyTyped,
         LateLiteralChild,
@@ -694,6 +888,7 @@ mod tests {
             TestConstruction::SharedForm => "SharedForm",
             TestConstruction::TestLeft => "TestLeft",
             TestConstruction::TestRight => "TestRight",
+            TestConstruction::TestThird => "TestThird",
             TestConstruction::LateLiteral => "LateLiteral",
             TestConstruction::EarlyTyped => "EarlyTyped",
             TestConstruction::LateLiteralChild => "LateLiteralChild",
@@ -824,6 +1019,278 @@ mod tests {
 
         assert_eq!(forward.construction, TestConstruction::TestLeft);
         assert_eq!(reverse.construction, TestConstruction::TestLeft);
+    }
+
+    #[test]
+    fn selection_diagnostic_records_complete_specificity_decisions() {
+        let literal = TestCandidate {
+            ability: "literal",
+            construction: TestConstruction::LiteralAlpha,
+            constructions: vec![TestConstruction::LiteralAlpha],
+            positions: vec![RulePosition::Lexical(TestLexical::LiteralAlpha)],
+        };
+        let typed = TestCandidate {
+            ability: "typed",
+            construction: TestConstruction::BroadAlpha,
+            constructions: vec![TestConstruction::BroadAlpha],
+            positions: vec![RulePosition::Lexical(TestLexical::Word)],
+        };
+
+        let analysis = selection_analysis_with_exceptions(
+            vec![typed, literal],
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| {
+                structural_specificity(&candidate.positions, |lexical| {
+                    matches!(lexical, TestLexical::LiteralAlpha)
+                })
+            },
+            |construction| format!("{construction:?}"),
+            construction_name,
+            &[],
+        )
+        .unwrap();
+        let decision = analysis
+            .decision()
+            .expect("materialized candidates have a decision");
+
+        assert_eq!(
+            decision
+                .candidates()
+                .iter()
+                .map(|candidate| (
+                    candidate.ordinal(),
+                    candidate.construction_path(),
+                    candidate.specificity(),
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    0,
+                    ["BroadAlpha".to_owned()].as_slice(),
+                    [SpecificityTier::TypedLexical].as_slice()
+                ),
+                (
+                    1,
+                    ["LiteralAlpha".to_owned()].as_slice(),
+                    [SpecificityTier::Literal].as_slice()
+                ),
+            ]
+        );
+        assert_eq!(decision.survivors(), &[1]);
+        assert_eq!(decision.selected(), Some(1));
+        assert_eq!(decision.resolution(), SelectionResolution::Specificity);
+        assert!(decision.exception_uses().is_empty());
+        assert_eq!(decision.comparisons().len(), 1);
+        let comparison = &decision.comparisons()[0];
+        assert_eq!(
+            (comparison.left_ordinal(), comparison.right_ordinal()),
+            (0, 1)
+        );
+        assert_eq!(comparison.ordering(), Ordering::Less);
+        assert_eq!(comparison.decisive(), SelectionDecisive::Position(0));
+        assert_eq!(comparison.exception_id(), None);
+    }
+
+    #[test]
+    fn selection_diagnostic_records_late_and_exhausted_specificity_positions() {
+        let late_literal = TestCandidate {
+            ability: "late literal",
+            construction: TestConstruction::LateLiteral,
+            constructions: vec![TestConstruction::LateLiteral],
+            positions: vec![
+                RulePosition::Nonterminal(TestCategory::Start),
+                RulePosition::Lexical(TestLexical::LiteralAlpha),
+            ],
+        };
+        let late_typed = TestCandidate {
+            ability: "late typed",
+            construction: TestConstruction::EarlyTyped,
+            constructions: vec![TestConstruction::EarlyTyped],
+            positions: vec![
+                RulePosition::Nonterminal(TestCategory::Start),
+                RulePosition::Lexical(TestLexical::Word),
+            ],
+        };
+        let late = selection_analysis_with_exceptions(
+            vec![late_typed, late_literal],
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| {
+                structural_specificity(&candidate.positions, |lexical| {
+                    matches!(lexical, TestLexical::LiteralAlpha)
+                })
+            },
+            |construction| format!("{construction:?}"),
+            construction_name,
+            &[],
+        )
+        .unwrap();
+        let late_comparison = &late.decision().unwrap().comparisons()[0];
+        assert_eq!(late_comparison.ordering(), Ordering::Less);
+        assert_eq!(late_comparison.decisive(), SelectionDecisive::Position(1));
+
+        let shorter = TestCandidate {
+            ability: "shorter",
+            construction: TestConstruction::TestLeft,
+            constructions: vec![TestConstruction::TestLeft],
+            positions: vec![RulePosition::Lexical(TestLexical::Word)],
+        };
+        let longer = TestCandidate {
+            ability: "longer",
+            construction: TestConstruction::TestRight,
+            constructions: vec![TestConstruction::TestRight],
+            positions: vec![
+                RulePosition::Lexical(TestLexical::Word),
+                RulePosition::Nonterminal(TestCategory::Empty),
+            ],
+        };
+        let exhausted = selection_analysis_with_exceptions(
+            vec![shorter, longer],
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |construction| format!("{construction:?}"),
+            construction_name,
+            &[],
+        )
+        .unwrap();
+        let exhausted_comparison = &exhausted.decision().unwrap().comparisons()[0];
+        assert_eq!(exhausted_comparison.ordering(), Ordering::Less);
+        assert_eq!(
+            exhausted_comparison.decisive(),
+            SelectionDecisive::VectorExhaustion(1)
+        );
+    }
+
+    #[test]
+    fn selection_diagnostic_records_exception_orientation_and_complete_ties() {
+        let exceptions = [SelectionException {
+            id: "test-left-over-right",
+            left: TestConstruction::TestLeft,
+            right: TestConstruction::TestRight,
+            winner: TestConstruction::TestLeft,
+            rationale: "the synthetic left construction wins",
+        }];
+        for (candidates, expected_selected, expected_ordering) in [
+            (
+                test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
+                0,
+                Ordering::Greater,
+            ),
+            (
+                test_tied_candidates(TestConstruction::TestRight, TestConstruction::TestLeft),
+                1,
+                Ordering::Less,
+            ),
+        ] {
+            let analysis = selection_analysis_with_exceptions(
+                candidates,
+                |candidate| candidate.constructions.as_slice(),
+                |candidate| structural_specificity(&candidate.positions, |_| false),
+                |construction| format!("{construction:?}"),
+                construction_name,
+                &exceptions,
+            )
+            .unwrap();
+            let decision = analysis.decision().unwrap();
+            assert_eq!(decision.selected(), Some(expected_selected));
+            assert_eq!(decision.survivors(), &[expected_selected]);
+            assert_eq!(decision.resolution(), SelectionResolution::Exception);
+            assert_eq!(decision.exception_uses(), ["test-left-over-right"]);
+            let comparison = &decision.comparisons()[0];
+            assert_eq!(comparison.ordering(), expected_ordering);
+            assert_eq!(comparison.decisive(), SelectionDecisive::Tie);
+            assert_eq!(comparison.exception_id(), Some("test-left-over-right"));
+        }
+
+        let hard_tie = selection_analysis_with_exceptions(
+            test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |construction| format!("{construction:?}"),
+            construction_name,
+            &[],
+        )
+        .unwrap();
+        let decision = hard_tie.decision().unwrap();
+        assert_eq!(decision.survivors(), &[0, 1]);
+        assert_eq!(decision.selected(), None);
+        assert_eq!(decision.resolution(), SelectionResolution::UnresolvedTie);
+        assert_eq!(decision.comparisons()[0].decisive(), SelectionDecisive::Tie);
+        assert_eq!(decision.comparisons()[0].exception_id(), None);
+    }
+
+    #[test]
+    fn selection_diagnostic_retains_all_pairs_and_empty_survivors_for_exception_cycles() {
+        let candidates = [
+            TestConstruction::TestLeft,
+            TestConstruction::TestRight,
+            TestConstruction::TestThird,
+        ]
+        .into_iter()
+        .map(|construction| TestCandidate {
+            ability: construction_name(construction),
+            construction,
+            constructions: vec![construction],
+            positions: vec![RulePosition::Lexical(TestLexical::Word)],
+        })
+        .collect();
+        let exceptions = [
+            SelectionException {
+                id: "left-over-right",
+                left: TestConstruction::TestLeft,
+                right: TestConstruction::TestRight,
+                winner: TestConstruction::TestLeft,
+                rationale: "synthetic cycle edge",
+            },
+            SelectionException {
+                id: "right-over-third",
+                left: TestConstruction::TestRight,
+                right: TestConstruction::TestThird,
+                winner: TestConstruction::TestRight,
+                rationale: "synthetic cycle edge",
+            },
+            SelectionException {
+                id: "third-over-left",
+                left: TestConstruction::TestThird,
+                right: TestConstruction::TestLeft,
+                winner: TestConstruction::TestThird,
+                rationale: "synthetic cycle edge",
+            },
+        ];
+
+        let analysis = selection_analysis_with_exceptions(
+            candidates,
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |construction| format!("{construction:?}"),
+            construction_name,
+            &exceptions,
+        )
+        .unwrap();
+        let decision = analysis.decision().unwrap();
+        assert_eq!(decision.survivors(), &[] as &[usize]);
+        assert_eq!(decision.selected(), None);
+        assert_eq!(decision.resolution(), SelectionResolution::UnresolvedTie);
+        assert_eq!(
+            decision
+                .comparisons()
+                .iter()
+                .map(|comparison| (
+                    comparison.left_ordinal(),
+                    comparison.right_ordinal(),
+                    comparison.ordering(),
+                    comparison.exception_id(),
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (0, 1, Ordering::Greater, Some("left-over-right")),
+                (0, 2, Ordering::Less, Some("third-over-left")),
+                (1, 2, Ordering::Greater, Some("right-over-third")),
+            ]
+        );
+        assert_eq!(
+            decision.exception_uses(),
+            ["left-over-right", "third-over-left", "right-over-third"]
+        );
     }
 
     #[test]

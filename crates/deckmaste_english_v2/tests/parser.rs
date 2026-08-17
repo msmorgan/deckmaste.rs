@@ -220,10 +220,53 @@ fn parses_and_round_trips_the_five_slice_abilities() {
     ] {
         let context = context(card_name);
         assert_eq!(parser.parse(text, &context), Ok(expected.clone()));
+        assert_eq!(
+            parser.parse(text, &context),
+            parser.analyze(text, &context).into_parse_result()
+        );
         assert_eq!(expected.render(&context), text);
 
         let rendered = expected.render(&context);
         assert_eq!(parser.parse(&rendered, &context), Ok(expected));
+    }
+}
+
+#[test]
+fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
+    let parser = parser();
+    let context = context("Context Card");
+    let text = "Destroy target creature.";
+    let first = parser.analyze(text, &context);
+    let second = parser.analyze(text, &context);
+
+    assert_eq!(first, second);
+    assert_eq!(first.selected().unwrap().render(&context), text);
+    assert_eq!(
+        first.decision().unwrap().candidates()[0].construction_path(),
+        [
+            "AbilitySpell".to_owned(),
+            "SentenceImperative".to_owned(),
+            "VerbPhraseDestroy".to_owned(),
+            "NounPhraseTarget".to_owned(),
+        ]
+    );
+    assert_eq!(parser.parse(text, &context), first.into_parse_result(),);
+}
+
+#[test]
+fn parser_analysis_projects_representative_parse_failures_without_changing_them() {
+    let parser = parser();
+    for text in [
+        "Destroy target creature",
+        "You gains X life.",
+        "Destroy target Forest.",
+    ] {
+        let context = context("Context Card");
+        assert_eq!(
+            parser.parse(text, &context),
+            parser.analyze(text, &context).into_parse_result(),
+            "{text:?}",
+        );
     }
 }
 
