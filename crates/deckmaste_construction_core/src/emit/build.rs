@@ -14,19 +14,16 @@ use crate::identifier::BUILD_FUNCTION;
 use crate::identifier::emitted_ident;
 use crate::identifier::feature_helper;
 use crate::identifier::key as identifier_key;
-use crate::identifier::pascal_case;
-use crate::identifier::path_key;
 use crate::identifier::snake_case;
 use crate::model::ConstructorArgument;
-use crate::model::FieldKind;
-use crate::model::FormAtom;
 use crate::model::TerminalBindingKind;
-use crate::model::VerbOperand;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::AtomPlan;
+use crate::semantic::ConstructionPlan;
 use crate::semantic::SemanticPlan;
 
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
@@ -34,13 +31,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = plan.constructions();
     let arms = constructions
         .iter()
-        .map(|construction| {
-            emit_arm(
-                plan,
-                plan.construction_source(construction),
-                construction.rule_id(),
-            )
-        })
+        .map(|construction| emit_arm(plan, construction))
         .collect::<syn::Result<Vec<_>>>()?;
     let mut origins = constructions
         .iter()
@@ -123,18 +114,22 @@ enum ResolvedFeatureValue {
     Computed(TokenStream),
 }
 
-fn emit_arm(
+fn emit_arm(plan: &SemanticPlan, row: &ConstructionPlan) -> syn::Result<TokenStream> {
+    let construction = plan.construction_source(row)?;
+    emit_arm_from_source(plan, row, construction)
+}
+
+fn emit_arm_from_source(
     plan: &SemanticPlan,
+    row: &ConstructionPlan,
     construction: &crate::Construction,
-    rule_id: &str,
 ) -> syn::Result<TokenStream> {
     let mut lowering = Lowering::default();
-    for atom in &construction.form.atoms {
-        lower_atom(plan, construction, atom, &mut lowering)?;
+    for atom in row.atoms() {
+        lower_atom(plan, row, construction, atom, &mut lowering)?;
     }
-    if let Some(root) = plan.parse_root(&path_name(&construction.category)) {
-        let root = plan.root_source(root);
-        let punctuation = &root.punctuation;
+    if let Some(root) = plan.parse_root(row.category()) {
+        let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
         lowering
             .patterns
             .push(quote! { BuildValue::Leaf(Leaf::Literal(#punctuation)) });
@@ -142,13 +137,13 @@ fn emit_arm(
             .patterns
             .push(quote! { BuildValue::Leaf(Leaf::EndOfInput) });
     }
-    lower_feature_guards(plan, construction, &mut lowering)?;
-    let success = if let Some(dynamic_role) = dynamic_match_role(plan, construction) {
-        emit_dynamic_match(plan, construction, &mut lowering, &dynamic_role)?
+    lower_feature_guards(plan, row, &mut lowering)?;
+    let success = if let Some(dynamic_role) = dynamic_match_role(plan, row) {
+        emit_dynamic_match(plan, row, construction, &mut lowering, &dynamic_role)?
     } else {
-        emit_success(plan, construction, &mut lowering, None, None, None)?
+        emit_success(plan, row, construction, &mut lowering, None, None, None)?
     };
-    let rule_id = ident(rule_id);
+    let rule_id = ident(row.build_arm());
     let patterns = &lowering.patterns;
     let guard = if lowering.guards.is_empty() {
         TokenStream::new()
@@ -166,36 +161,47 @@ fn emit_arm(
 
 fn lower_atom(
     validated: &SemanticPlan,
+    row: &ConstructionPlan,
     construction: &crate::Construction,
-    atom: &FormAtom,
+    atom: &AtomPlan,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
     match atom {
-        FormAtom::Literal(literal) => lowering
-            .patterns
-            .push(quote! { BuildValue::Leaf(Leaf::Literal(#literal)) }),
-        FormAtom::Role(role) => lower_category_role(validated, construction, role, lowering)?,
-        FormAtom::Lex(role) | FormAtom::Identity(role) => {
-            lower_terminal_role(validated, construction, role, false, lowering)?;
+        AtomPlan::Literal(literal) => {
+            let literal = syn::LitStr::new(literal, Span::call_site());
+            lowering
+                .patterns
+                .push(quote! { BuildValue::Leaf(Leaf::Literal(#literal)) });
         }
-        FormAtom::Noun(role) => {
-            lower_terminal_role(validated, construction, role, true, lowering)?;
+        AtomPlan::Category { role, category } => {
+            lower_category_role(validated, row, construction, role, category, lowering)?;
         }
-        FormAtom::Verb(VerbOperand::Fixed(path)) => {
-            let agreement = verb_agreement_pattern(validated, construction, lowering)?;
+        AtomPlan::Lex { role, terminal } | AtomPlan::Identity { role, terminal } => {
+            lower_terminal_role(
+                validated,
+                row,
+                construction,
+                role,
+                terminal,
+                false,
+                lowering,
+            )?;
+        }
+        AtomPlan::Noun { role, terminal } => {
+            lower_terminal_role(validated, row, construction, role, terminal, true, lowering)?;
+        }
+        AtomPlan::VerbFixed { terminal, variant } => {
+            let agreement = verb_agreement_pattern(validated, row, lowering)?;
             let agreement_field = if agreement.to_string() == "agreement" {
                 quote! { agreement }
             } else {
                 quote! { agreement: #agreement }
             };
+            let terminal = ident(terminal);
+            let variant = ident(variant);
             lowering.patterns.push(quote! {
-                BuildValue::Leaf(Leaf::Verb { lexeme: #path, #agreement_field })
+                BuildValue::Leaf(Leaf::Verb { lexeme: #terminal::#variant, #agreement_field })
             });
-        }
-        FormAtom::Verb(VerbOperand::Projected(_)) => {
-            return Err(internal(
-                "projected verb build requires a fixed lexical variant",
-            ));
         }
     }
     Ok(())
@@ -203,21 +209,20 @@ fn lower_atom(
 
 fn lower_category_role(
     validated: &SemanticPlan,
+    row: &ConstructionPlan,
     construction: &crate::Construction,
-    role: &syn::Ident,
+    role: &str,
+    category_name: &str,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
-    let field = field(construction, role)?;
-    let FieldKind::Category(category_path) = &field.kind else {
-        return Err(internal("validated category role has the wrong field kind"));
-    };
-    let role_name = identifier_key(role);
-    let role_binding = lowering.binders.allocate_ident(role);
+    let role = ident(role);
+    let role_name = identifier_key(&role);
+    let role_binding = lowering.binders.allocate_ident(&role);
     let refinement = construction
         .requirements
         .iter()
         .find(|requirement| identifier_key(&requirement.role) == role_name);
-    let category = ident(&path_name(category_path));
+    let category = ident(category_name);
     let value_pattern = if let Some(requirement) = refinement {
         let variant = ident(&identifier_key(&requirement.variant));
         quote! { #category::#variant(#role_binding) }
@@ -232,13 +237,12 @@ fn lower_category_role(
     };
     lowering.field_values.insert(role_name.clone(), stored);
 
-    let carries_agreement = category_has_agreement(validated, category_path);
-    let carries_number = category_carries_number(validated, category_path);
+    let carries_agreement = validated.category_carries_agreement(category_name);
+    let carries_number = validated.category_carries_number(category_name);
     let agreement = carries_agreement
-        .then(|| role_agreement_pattern(validated, construction, role, category_path, lowering))
+        .then(|| role_agreement_pattern(validated, row, &role, category_name, lowering))
         .transpose()?;
-    let number =
-        carries_number.then(|| role_number_pattern(validated, construction, role, lowering));
+    let number = carries_number.then(|| role_number_pattern(validated, row, &role, lowering));
     match (agreement, number) {
         (Some(agreement), Some(number)) => lowering
             .patterns
@@ -260,9 +264,9 @@ fn lower_category_role(
 
 fn role_agreement_pattern(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     role: &syn::Ident,
-    category: &syn::Path,
+    category: &str,
     lowering: &mut Lowering,
 ) -> syn::Result<TokenStream> {
     let target = FeaturePlace::Role {
@@ -270,7 +274,7 @@ fn role_agreement_pattern(
         feature: Feature::Agreement,
     };
     if let Some(crate::feature::FeatureResolution::Known(value)) =
-        validated.feature_resolution(&identifier_key(&construction.name), &target)
+        validated.feature_resolution(row.construction_id(), &target)
     {
         lowering.role_features.insert(
             (identifier_key(role), Feature::Agreement),
@@ -278,13 +282,11 @@ fn role_agreement_pattern(
         );
         return Ok(feature_value(value));
     }
-    if let Some(equation) = equation(validated, construction, &target) {
+    if let Some(equation) = equation(validated, row, &target) {
         if matches!(equation.value(), FeatureExpr::MatchVocab { .. }) {
             return Err(internal("category role feature cannot be a vocab match"));
         }
-        let stem = snake_case(&path_name(category))
-            .trim_end_matches("_phrase")
-            .to_owned();
+        let stem = snake_case(category).trim_end_matches("_phrase").to_owned();
         let name = lowering.binders.allocate(&format!("{stem}_agreement"));
         lowering.role_features.insert(
             (identifier_key(role), Feature::Agreement),
@@ -292,7 +294,7 @@ fn role_agreement_pattern(
         );
         return Ok(quote! { #name });
     }
-    if feature_is_read(validated, construction, role, Feature::Agreement) {
+    if feature_is_read(validated, row, role, Feature::Agreement) {
         let name = lowering
             .binders
             .allocate(&format!("{}_agreement", identifier_key(role)));
@@ -308,11 +310,11 @@ fn role_agreement_pattern(
 
 fn role_number_pattern(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     role: &syn::Ident,
     lowering: &mut Lowering,
 ) -> TokenStream {
-    if role_number_is_needed_in_build(validated, construction, role) {
+    if role_number_is_needed_in_build(validated, row, role) {
         let name = lowering
             .binders
             .allocate(&format!("{}_number", identifier_key(role)));
@@ -328,19 +330,20 @@ fn role_number_pattern(
 
 fn lower_terminal_role(
     validated: &SemanticPlan,
+    row: &ConstructionPlan,
     construction: &crate::Construction,
-    role: &syn::Ident,
+    role: &str,
+    terminal_name: &str,
     noun: bool,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
-    let field = field(construction, role)?;
-    let terminal = terminal_path(field)?;
-    if let Some(vocab) = find_vocab(validated, &path_name(terminal))? {
+    let role = ident(role);
+    if let Some(vocab) = find_vocab(validated, terminal_name)? {
         let leaf = ident(&identifier_key(&vocab.name));
         if let Some(requirement) = construction
             .requirements
             .iter()
-            .find(|item| identifier_key(&item.role) == identifier_key(role))
+            .find(|item| identifier_key(&item.role) == identifier_key(&role))
         {
             let variant = ident(&identifier_key(&requirement.variant));
             lowering
@@ -348,7 +351,7 @@ fn lower_terminal_role(
                 .push(quote! { BuildValue::Leaf(Leaf::#leaf(#leaf::#variant)) });
             lowering
                 .field_values
-                .insert(identifier_key(role), quote! { #leaf::#variant });
+                .insert(identifier_key(&role), quote! { #leaf::#variant });
         } else {
             let binding = lowering
                 .binders
@@ -358,40 +361,39 @@ fn lower_terminal_role(
                 .push(quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) });
             lowering
                 .field_values
-                .insert(identifier_key(role), quote! { *#binding });
+                .insert(identifier_key(&role), quote! { *#binding });
             lowering
                 .vocab_values
-                .insert(identifier_key(role), binding.clone());
+                .insert(identifier_key(&role), binding.clone());
         }
         return Ok(());
     }
-    let binding = find_binding(validated, &path_name(terminal))?;
+    let binding = find_binding(validated, terminal_name)?;
     let build = binding
         .build
         .as_ref()
         .ok_or_else(|| internal("atom-capable binding has no build metadata"))?;
     let (variant, names) = binding_pattern(&build.pattern)?;
-    let noun_count = construction
-        .form
-        .atoms
+    let noun_count = row
+        .atoms()
         .iter()
-        .filter(|atom| matches!(atom, FormAtom::Noun(_)))
+        .filter(|atom| matches!(atom, AtomPlan::Noun { .. }))
         .count();
     let preferred_names = if noun && noun_count > 1 {
         names
             .iter()
             .map(|name| {
                 if names.len() == 1 {
-                    identifier_key(role)
+                    identifier_key(&role)
                 } else {
-                    format!("{}_{}", identifier_key(role), identifier_key(name))
+                    format!("{}_{}", identifier_key(&role), identifier_key(name))
                 }
             })
             .collect::<Vec<_>>()
     } else if noun || names.len() != 1 {
         names.iter().map(identifier_key).collect()
     } else {
-        vec![identifier_key(role)]
+        vec![identifier_key(&role)]
     };
     let pattern_names = preferred_names
         .iter()
@@ -403,7 +405,7 @@ fn lower_terminal_role(
         .map(|(declared, emitted)| (identifier_key(declared), quote! { #emitted }))
         .collect::<HashMap<_, _>>();
     let inner = if noun {
-        let number = noun_number_pattern(validated, construction, role, lowering)?;
+        let number = noun_number_pattern(validated, row, &role, lowering)?;
         let number_field = if number.to_string() == "number" {
             quote! { number }
         } else {
@@ -430,7 +432,7 @@ fn lower_terminal_role(
     } else {
         construct
     };
-    lowering.field_values.insert(identifier_key(role), stored);
+    lowering.field_values.insert(identifier_key(&role), stored);
     Ok(())
 }
 
@@ -485,17 +487,17 @@ fn direct_bound_path(expr: &syn::Expr) -> Option<&syn::Path> {
 
 fn noun_number_pattern(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     role: &syn::Ident,
     lowering: &mut Lowering,
 ) -> syn::Result<TokenStream> {
     let target = FeaturePlace::Construction(Feature::Number);
     if let Some(crate::feature::FeatureResolution::Known(value)) =
-        validated.feature_resolution(&identifier_key(&construction.name), &target)
+        validated.feature_resolution(row.construction_id(), &target)
     {
         return Ok(feature_value(value));
     }
-    let equation = equation(validated, construction, &target)
+    let equation = equation(validated, row, &target)
         .ok_or_else(|| internal("noun atom has no construction number"))?;
     match equation.value() {
         FeatureExpr::Constant(value) => Ok(feature_value(*value.value())),
@@ -514,7 +516,7 @@ fn noun_number_pattern(
 
 fn verb_agreement_pattern(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     lowering: &mut Lowering,
 ) -> syn::Result<TokenStream> {
     let verb = ident("verb");
@@ -523,7 +525,7 @@ fn verb_agreement_pattern(
         feature: Feature::Agreement,
     };
     if let Some(crate::feature::FeatureResolution::Known(value)) =
-        validated.feature_resolution(&identifier_key(&construction.name), &target)
+        validated.feature_resolution(row.construction_id(), &target)
     {
         lowering.role_features.insert(
             ("verb".to_owned(), Feature::Agreement),
@@ -532,7 +534,7 @@ fn verb_agreement_pattern(
         return Ok(feature_value(value));
     }
     if matches!(
-        equation(validated, construction, &target).map(crate::feature::FeatureEquation::value),
+        equation(validated, row, &target).map(crate::feature::FeatureEquation::value),
         Some(FeatureExpr::MatchVocab { .. })
     ) {
         return Err(internal("verb agreement cannot be a vocab match"));
@@ -547,10 +549,10 @@ fn verb_agreement_pattern(
 
 fn lower_feature_guards(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
-    for equation in validated.feature_equations(&identifier_key(&construction.name)) {
+    for equation in validated.feature_equations(row.construction_id()) {
         if let (
             FeaturePlace::Construction(Feature::Number),
             FeatureExpr::FromRole {
@@ -559,15 +561,14 @@ fn lower_feature_guards(
             },
         ) = (equation.target(), equation.value())
         {
-            if construction
-                .form
-                .atoms
+            if row
+                .atoms()
                 .iter()
-                .any(|atom| matches!(atom, FormAtom::Noun(_)))
+                .any(|atom| matches!(atom, AtomPlan::Noun { .. }))
             {
                 let source = resolve_feature_place(
                     validated,
-                    construction,
+                    row,
                     lowering,
                     &FeaturePlace::Role {
                         field: role.clone(),
@@ -602,7 +603,7 @@ fn lower_feature_guards(
         };
         let source = resolve_feature_place(
             validated,
-            construction,
+            row,
             lowering,
             &FeaturePlace::Role {
                 field: role.clone(),
@@ -621,16 +622,16 @@ fn lower_feature_guards(
 
 fn emit_success(
     validated: &SemanticPlan,
+    row: &ConstructionPlan,
     construction: &crate::Construction,
     lowering: &mut Lowering,
     overrides: Option<&HashMap<String, TokenStream>>,
     agreement_override: Option<FeatureValue>,
     number_override: Option<FeatureValue>,
 ) -> syn::Result<TokenStream> {
-    let element = ident(&identifier_key(&construction.element.name));
-    let category_path = &construction.category;
-    let category = ident(&path_name(category_path));
-    let variant = ident(&pascal_case(&identifier_key(&construction.name)));
+    let element = ident(row.element_type());
+    let category = ident(row.category());
+    let variant = ident(row.category_variant());
     let element_value = if let Some(checked) = &construction.checked {
         let path = &checked.constructor.path;
         let arguments = checked
@@ -639,29 +640,27 @@ fn emit_success(
             .iter()
             .map(|argument| match argument {
                 ConstructorArgument::Role(role) => {
-                    stored_value(validated, construction, lowering, role, overrides)
+                    stored_value(validated, row, lowering, role, overrides)
                 }
                 ConstructorArgument::VecRole { role, .. } => {
-                    stored_value(validated, construction, lowering, role, overrides)
+                    stored_value(validated, row, lowering, role, overrides)
                         .map(|value| quote! { vec![#value] })
                 }
                 ConstructorArgument::Context(_) => Ok(quote! { context }),
             })
             .collect::<syn::Result<Vec<_>>>()?;
         let mapped = quote! { #category::#variant };
-        let carries_agreement = category_has_agreement(validated, category_path);
-        let carries_number = category_carries_number(validated, category_path);
+        let carries_agreement = validated.category_carries_agreement(row.category());
+        let carries_number = validated.category_carries_number(row.category());
         if carries_agreement || carries_number {
             let agreement = carries_agreement
-                .then(|| {
-                    construction_agreement(validated, construction, lowering, agreement_override)
-                })
+                .then(|| construction_agreement(validated, row, lowering, agreement_override))
                 .transpose()?;
             let number = carries_number
-                .then(|| construction_number(validated, construction, lowering, number_override))
+                .then(|| construction_number(validated, row, lowering, number_override))
                 .transpose()?;
             let argument = lowering.checked_map_local.clone().unwrap_or_else(|| {
-                let argument = lowering.binders.allocate_ident(&construction.name);
+                let argument = lowering.binders.allocate(row.construction_id());
                 lowering.checked_map_local = Some(argument.clone());
                 argument
             });
@@ -690,26 +689,24 @@ fn emit_success(
             .iter()
             .map(|field| {
                 let name = &field.name;
-                let value = stored_value(validated, construction, lowering, name, overrides)?;
+                let value = stored_value(validated, row, lowering, name, overrides)?;
                 Ok(quote! { #name: #value })
             })
             .collect::<syn::Result<Vec<_>>>()?;
         quote! { #element { #(#fields),* } }
     };
     let category_value = quote! { #category::#variant(#element_value) };
-    let carries_agreement = category_has_agreement(validated, category_path);
-    let carries_number = category_carries_number(validated, category_path);
+    let carries_agreement = validated.category_carries_agreement(row.category());
+    let carries_number = validated.category_carries_number(row.category());
     let wrapped = if carries_agreement && carries_number {
-        let agreement =
-            construction_agreement(validated, construction, lowering, agreement_override)?;
-        let number = construction_number(validated, construction, lowering, number_override)?;
+        let agreement = construction_agreement(validated, row, lowering, agreement_override)?;
+        let number = construction_number(validated, row, lowering, number_override)?;
         quote! { BuildValue::#category(#category_value, #agreement, #number) }
     } else if carries_agreement {
-        let agreement =
-            construction_agreement(validated, construction, lowering, agreement_override)?;
+        let agreement = construction_agreement(validated, row, lowering, agreement_override)?;
         quote! { BuildValue::#category(#category_value, #agreement) }
     } else if carries_number {
-        let number = construction_number(validated, construction, lowering, number_override)?;
+        let number = construction_number(validated, row, lowering, number_override)?;
         quote! { BuildValue::#category(#category_value, #number) }
     } else {
         quote! { BuildValue::#category(#category_value) }
@@ -719,6 +716,7 @@ fn emit_success(
 
 fn emit_dynamic_match(
     validated: &SemanticPlan,
+    row: &ConstructionPlan,
     construction: &crate::Construction,
     lowering: &mut Lowering,
     role: &syn::Ident,
@@ -729,18 +727,14 @@ fn emit_dynamic_match(
         .map(|value| quote! { #value })
         .or_else(|| lowering.field_values.get(&identifier_key(role)).cloned())
         .ok_or_else(|| internal("dynamic vocabulary role pattern is absent"))?;
-    let number_arms = equation(
-        validated,
-        construction,
-        &FeaturePlace::Construction(Feature::Number),
-    )
-    .and_then(|equation| match equation.value() {
-        FeatureExpr::MatchVocab { arms, .. } => Some(arms.as_slice()),
-        FeatureExpr::Constant(_) | FeatureExpr::FromRole { .. } => None,
-    });
+    let number_arms = equation(validated, row, &FeaturePlace::Construction(Feature::Number))
+        .and_then(|equation| match equation.value() {
+            FeatureExpr::MatchVocab { arms, .. } => Some(arms.as_slice()),
+            FeatureExpr::Constant(_) | FeatureExpr::FromRole { .. } => None,
+        });
     let agreement_arms = equation(
         validated,
-        construction,
+        row,
         &FeaturePlace::Construction(Feature::Agreement),
     )
     .and_then(|equation| match equation.value() {
@@ -750,9 +744,7 @@ fn emit_dynamic_match(
     let driving_arms = number_arms
         .or(agreement_arms)
         .ok_or_else(|| internal("dynamic feature match has no vocab arms"))?;
-    let field = field(construction, role)?;
-    let terminal = terminal_path(field)?;
-    let ty = terminal;
+    let ty = ident(terminal_for_role(row, role)?);
     let mut arms = Vec::new();
     for (variant, _) in driving_arms {
         let variant = variant.value();
@@ -770,6 +762,7 @@ fn emit_dynamic_match(
         });
         let success = emit_success(
             validated,
+            row,
             construction,
             lowering,
             Some(&overrides),
@@ -802,7 +795,7 @@ fn emit_dynamic_match(
 
 fn stored_value(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     lowering: &Lowering,
     role: &syn::Ident,
     overrides: Option<&HashMap<String, TokenStream>>,
@@ -817,7 +810,7 @@ fn stored_value(
         .ok_or_else(|| internal("stored field has no build value"))?;
     if validated
         .boxed_fields()
-        .contains(&(identifier_key(&construction.name), identifier_key(role)))
+        .contains(&(row.construction_id().to_owned(), identifier_key(role)))
     {
         value = quote! { Box::new(#value) };
     }
@@ -826,7 +819,7 @@ fn stored_value(
 
 fn construction_agreement(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     lowering: &Lowering,
     agreement_override: Option<FeatureValue>,
 ) -> syn::Result<TokenStream> {
@@ -835,7 +828,7 @@ fn construction_agreement(
     }
     let output = resolve_feature_place(
         validated,
-        construction,
+        row,
         lowering,
         &FeaturePlace::Construction(Feature::Agreement),
         &mut HashSet::new(),
@@ -845,7 +838,7 @@ fn construction_agreement(
 
 fn construction_number(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     lowering: &Lowering,
     number_override: Option<FeatureValue>,
 ) -> syn::Result<TokenStream> {
@@ -854,7 +847,7 @@ fn construction_number(
     }
     let output = resolve_feature_place(
         validated,
-        construction,
+        row,
         lowering,
         &FeaturePlace::Construction(Feature::Number),
         &mut HashSet::new(),
@@ -864,7 +857,7 @@ fn construction_number(
 
 fn resolve_feature_place(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     lowering: &Lowering,
     place: &FeaturePlace,
     visiting: &mut HashSet<FeaturePlace>,
@@ -877,7 +870,7 @@ fn resolve_feature_place(
         return Ok(local_feature_value(value));
     }
     if let Some(crate::feature::FeatureResolution::Known(value)) =
-        validated.feature_resolution(&identifier_key(&construction.name), place)
+        validated.feature_resolution(row.construction_id(), place)
     {
         return Ok(ResolvedFeatureValue::Known(value));
     }
@@ -886,13 +879,13 @@ fn resolve_feature_place(
             "validated feature equation graph contains a cycle",
         ));
     }
-    let equation = equation(validated, construction, place)
+    let equation = equation(validated, row, place)
         .ok_or_else(|| internal("accepted feature source has no symbolic binding"))?;
     let resolved = match equation.value() {
         FeatureExpr::Constant(value) => ResolvedFeatureValue::Known(*value.value()),
         FeatureExpr::FromRole { role, feature } => resolve_feature_place(
             validated,
-            construction,
+            row,
             lowering,
             &FeaturePlace::Role {
                 field: role.clone(),
@@ -901,7 +894,6 @@ fn resolve_feature_place(
             visiting,
         )?,
         FeatureExpr::MatchVocab { role, arms } => {
-            let source_field = field(construction, role)?;
             let source = lowering
                 .field_values
                 .get(&identifier_key(role))
@@ -912,8 +904,7 @@ fn resolve_feature_place(
                     feature: Feature::Agreement,
                     ..
                 } => {
-                    let terminal = terminal_path(source_field)?;
-                    let helper = ident(&feature_helper("agreement", &path_name(terminal)));
+                    let helper = ident(&feature_helper("agreement", terminal_for_role(row, role)?));
                     ResolvedFeatureValue::Computed(quote! { #helper(#source) })
                 }
                 FeaturePlace::Construction(Feature::Number)
@@ -921,7 +912,7 @@ fn resolve_feature_place(
                     feature: Feature::Number,
                     ..
                 } => {
-                    let ty = terminal_path(source_field)?;
+                    let ty = ident(terminal_for_role(row, role)?);
                     let arms = arms.iter().map(|(variant, value)| {
                         let variant = variant.value();
                         let value = feature_value(*value);
@@ -971,117 +962,56 @@ fn same_known_feature(left: &ResolvedFeatureValue, right: &ResolvedFeatureValue)
     )
 }
 
-fn dynamic_match_role(
-    validated: &SemanticPlan,
-    construction: &crate::Construction,
-) -> Option<syn::Ident> {
+fn dynamic_match_role(validated: &SemanticPlan, row: &ConstructionPlan) -> Option<syn::Ident> {
     [Feature::Number, Feature::Agreement]
         .into_iter()
         .find_map(|feature| {
-            equation(
-                validated,
-                construction,
-                &FeaturePlace::Construction(feature),
-            )
-            .and_then(|equation| match equation.value() {
-                FeatureExpr::MatchVocab { role, .. } => Some(role.clone()),
-                FeatureExpr::Constant(_) | FeatureExpr::FromRole { .. } => None,
+            equation(validated, row, &FeaturePlace::Construction(feature)).and_then(|equation| {
+                match equation.value() {
+                    FeatureExpr::MatchVocab { role, .. } => Some(role.clone()),
+                    FeatureExpr::Constant(_) | FeatureExpr::FromRole { .. } => None,
+                }
             })
         })
 }
 
 fn equation<'a>(
     validated: &'a SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     target: &FeaturePlace,
 ) -> Option<&'a crate::feature::FeatureEquation> {
     validated
-        .feature_equations(&identifier_key(&construction.name))
+        .feature_equations(row.construction_id())
         .iter()
         .find(|equation| equation.target() == target)
 }
 
 fn feature_is_read(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     role: &syn::Ident,
     feature: Feature,
 ) -> bool {
-    validated.feature_equations(&identifier_key(&construction.name)).iter().any(|equation| {
+    validated.feature_equations(row.construction_id()).iter().any(|equation| {
         matches!(equation.value(), FeatureExpr::FromRole { role: source, feature: found } if identifier_key(source) == identifier_key(role) && *found == feature)
     })
 }
 
-fn category_has_agreement(validated: &SemanticPlan, category: &syn::Path) -> bool {
-    validated.category_carries_agreement(&path_name(category))
-}
-
-fn category_carries_number(validated: &SemanticPlan, category: &syn::Path) -> bool {
-    number_carry_categories(validated).contains(&path_name(category))
-}
-
-fn number_carry_categories(validated: &SemanticPlan) -> HashSet<String> {
-    let mut carried = HashSet::new();
-    loop {
-        let before = carried.len();
-        for row in validated.constructions() {
-            let construction = validated.construction_source(row);
-            let output_is_needed = construction
-                .form
-                .atoms
-                .iter()
-                .any(|atom| matches!(atom, FormAtom::Noun(_)))
-                || carried.contains(&path_name(&construction.category));
-            if !output_is_needed {
-                continue;
-            }
-            let Some(FeatureExpr::FromRole {
-                role,
-                feature: Feature::Number,
-            }) = equation(
-                validated,
-                construction,
-                &FeaturePlace::Construction(Feature::Number),
-            )
-            .map(crate::feature::FeatureEquation::value)
-            else {
-                continue;
-            };
-            if let Some(source) = construction
-                .element
-                .fields
-                .iter()
-                .find(|field| identifier_key(&field.name) == identifier_key(role))
-                .and_then(|field| match &field.kind {
-                    FieldKind::Category(category) => Some(path_name(category)),
-                    FieldKind::Lex(_) | FieldKind::Identity(_) => None,
-                })
-            {
-                carried.insert(source);
-            }
-        }
-        if carried.len() == before {
-            return carried;
-        }
-    }
-}
-
 fn role_number_is_needed_in_build(
     validated: &SemanticPlan,
-    construction: &crate::Construction,
+    row: &ConstructionPlan,
     role: &syn::Ident,
 ) -> bool {
-    let output_needs_number = construction
-        .form
-        .atoms
+    let output_needs_number = row
+        .atoms()
         .iter()
-        .any(|atom| matches!(atom, FormAtom::Noun(_)))
-        || category_carries_number(validated, &construction.category);
+        .any(|atom| matches!(atom, AtomPlan::Noun { .. }))
+        || validated.category_carries_number(row.category());
     output_needs_number
         && matches!(
             equation(
                 validated,
-                construction,
+                row,
                 &FeaturePlace::Construction(Feature::Number),
             )
             .map(crate::feature::FeatureEquation::value),
@@ -1134,22 +1064,30 @@ fn find_binding<'a>(
 ) -> syn::Result<&'a crate::TerminalBinding> {
     validated.binding(name)
 }
-fn field<'a>(
-    construction: &'a crate::Construction,
-    role: &syn::Ident,
-) -> syn::Result<&'a crate::Field> {
-    construction
-        .element
-        .fields
+fn terminal_for_role<'a>(row: &'a ConstructionPlan, role: &syn::Ident) -> syn::Result<&'a str> {
+    row.atoms()
         .iter()
-        .find(|field| identifier_key(&field.name) == identifier_key(role))
-        .ok_or_else(|| internal("resolved role field is absent"))
-}
-fn terminal_path(field: &crate::Field) -> syn::Result<&syn::Path> {
-    match &field.kind {
-        FieldKind::Lex(path) | FieldKind::Identity(path) => Ok(path),
-        FieldKind::Category(_) => Err(internal("terminal role resolves to category")),
-    }
+        .find_map(|atom| match atom {
+            AtomPlan::Lex {
+                role: found,
+                terminal,
+            }
+            | AtomPlan::Identity {
+                role: found,
+                terminal,
+            }
+            | AtomPlan::Noun {
+                role: found,
+                terminal,
+            } if found == &identifier_key(role) => Some(terminal.as_str()),
+            AtomPlan::Literal(_)
+            | AtomPlan::Category { .. }
+            | AtomPlan::VerbFixed { .. }
+            | AtomPlan::Lex { .. }
+            | AtomPlan::Identity { .. }
+            | AtomPlan::Noun { .. } => None,
+        })
+        .ok_or_else(|| internal("resolved terminal role is absent from the semantic plan"))
 }
 fn feature_value(value: FeatureValue) -> TokenStream {
     match value {
@@ -1161,9 +1099,6 @@ fn feature_value(value: FeatureValue) -> TokenStream {
 }
 fn vocab_argument(name: &str) -> String {
     snake_case(name.strip_suffix("Word").unwrap_or(name))
-}
-fn path_name(path: &syn::Path) -> String {
-    path_key(path)
 }
 fn ident(name: &str) -> syn::Ident {
     emitted_ident(name, Span::call_site())

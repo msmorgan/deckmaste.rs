@@ -261,18 +261,28 @@ mod tests {
     use crate::GeneratedItem;
     use crate::ItemKey;
     use crate::NamedKind;
+    use crate::semantic::SemanticPlan;
     use crate::test_support::representative_expansion;
 
     #[test]
     fn semantic_plan_construction_emitters_share_one_mutated_fact() {
         let mut plan = crate::test_support::representative_semantic_plan();
-        plan.test_only_replace_literal("first", 0, "changed");
+        plan.test_only_replace_planned_literal("first", 0, "changed");
+        assert_eq!(authored_first_literal(&plan), "first");
         let ast = crate::emit::ast::emit(&plan).unwrap();
         let rules = crate::emit::rules::emit(&plan).unwrap();
         let build = crate::emit::build::emit(&plan).unwrap();
         assert!(formatted(&rules).contains("Literal (\"changed\")"));
         assert!(formatted(&build).contains("Leaf :: Literal (\"changed\")"));
         assert_eq!(named_types(&ast), expected_category_and_product_types());
+    }
+
+    #[test]
+    fn sealed_plan_source_mismatches_are_emission_errors() {
+        let mut plan = crate::test_support::representative_semantic_plan();
+        plan.test_only_mispoint_construction_source("first");
+        let error = crate::emit::build::emit(&plan).expect_err("bad sealed plan is fallible");
+        assert!(error.to_string().contains("construction source"));
     }
 
     #[test]
@@ -314,6 +324,16 @@ mod tests {
 
     fn expected_category_and_product_types() -> Vec<String> {
         ["Node", "First"].into_iter().map(str::to_owned).collect()
+    }
+
+    fn authored_first_literal(plan: &SemanticPlan) -> String {
+        let crate::Declaration::Construction(construction) = &plan.source().declarations[0] else {
+            panic!("representative source begins with its construction");
+        };
+        let crate::FormAtom::Literal(literal) = &construction.form.atoms[0] else {
+            panic!("representative construction begins with its literal");
+        };
+        literal.value()
     }
 
     #[test]

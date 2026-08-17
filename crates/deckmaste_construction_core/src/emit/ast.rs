@@ -19,7 +19,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let mut categories = Vec::<CategoryItem>::new();
     let mut category_indices = HashMap::<String, usize>::new();
     for construction in plan.constructions() {
-        let source = plan.construction_source(construction);
+        let source = plan.construction_source(construction)?;
         if identifier_key(&source.name) != construction.construction_id()
             || identifier_key(&source.element.name) != construction.element_type()
         {
@@ -58,7 +58,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         .map(CategoryItem::finish)
         .collect::<Vec<_>>();
     for construction in plan.constructions() {
-        let source = plan.construction_source(construction);
+        let source = plan.construction_source(construction)?;
         let ident = emitted_ident(construction.element_type(), source.element.name.span());
         let origins = vec![DeclarationKey::new(
             DeclarationKind::Construction,
@@ -104,7 +104,7 @@ fn emit_product(
     construction: &ConstructionPlan,
     ident: &syn::Ident,
 ) -> syn::Result<TokenStream> {
-    let source = plan.construction_source(construction);
+    let source = plan.construction_source(construction)?;
     if source.element.fields.is_empty() {
         return Ok(quote! {
             #[derive(Debug, Clone, PartialEq, Eq)]

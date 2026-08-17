@@ -15,15 +15,12 @@ use crate::identifier::RULE_ID_TYPE;
 use crate::identifier::RULES_CONSTANT;
 use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
-use crate::identifier::path_key;
-use crate::model::FieldKind;
-use crate::model::FormAtom;
-use crate::model::VerbOperand;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::AtomPlan;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::SemanticPlan;
 
@@ -118,16 +115,14 @@ fn emit_rule(
     construction: &ConstructionPlan,
     rule_id: &syn::Ident,
 ) -> syn::Result<TokenStream> {
-    let source = plan.construction_source(construction);
     let lhs = ident(construction.category());
-    let mut rhs = source
-        .form
-        .atoms
+    let mut rhs = construction
+        .atoms()
         .iter()
         .map(|atom| emit_position(plan, construction, atom))
         .collect::<syn::Result<Vec<_>>>()?;
     if let Some(root) = plan.parse_root(construction.category()) {
-        let punctuation = &plan.root_source(root).punctuation;
+        let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
         rhs.push(quote! { L(Lexical::Literal(#punctuation)) });
         rhs.push(quote! { L(Lexical::EndOfInput) });
     }
@@ -137,44 +132,40 @@ fn emit_rule(
 fn emit_position(
     plan: &SemanticPlan,
     construction: &ConstructionPlan,
-    atom: &FormAtom,
+    atom: &AtomPlan,
 ) -> syn::Result<TokenStream> {
     match atom {
-        FormAtom::Literal(literal) => Ok(quote! { L(Lexical::Literal(#literal)) }),
-        FormAtom::Role(role) => {
-            let FieldKind::Category(category) =
-                &field(plan.construction_source(construction), role)?.kind
-            else {
-                return Err(internal("validated category role has the wrong field kind"));
-            };
-            let category = ident(&path_name(category));
+        AtomPlan::Literal(literal) => {
+            let literal = syn::LitStr::new(literal, Span::call_site());
+            Ok(quote! { L(Lexical::Literal(#literal)) })
+        }
+        AtomPlan::Category { category, .. } => {
+            let category = ident(category);
             Ok(quote! { N(Category::#category) })
         }
-        FormAtom::Lex(role) | FormAtom::Identity(role) => {
-            let terminal = terminal_path(field(plan.construction_source(construction), role)?)?;
+        AtomPlan::Lex { terminal, .. } | AtomPlan::Identity { terminal, .. } => {
             let lexical = lexical_variant(plan, terminal)?;
             Ok(quote! { L(#lexical) })
         }
-        FormAtom::Noun(role) => {
-            let terminal = terminal_path(field(plan.construction_source(construction), role)?)?;
+        AtomPlan::Noun { terminal, .. } => {
             let lexical = lexical_variant(plan, terminal)?;
             let number = noun_number(plan, construction)?;
             Ok(quote! { L(#lexical(NounNumber::#number)) })
         }
-        FormAtom::Verb(VerbOperand::Fixed(path)) => Ok(quote! { L(Lexical::Verb(#path)) }),
-        FormAtom::Verb(VerbOperand::Projected(_)) => Err(internal(
-            "projected verb rules require a fixed lexical variant",
-        )),
+        AtomPlan::VerbFixed { terminal, variant } => {
+            let terminal = ident(terminal);
+            let variant = ident(variant);
+            Ok(quote! { L(Lexical::Verb(#terminal::#variant)) })
+        }
     }
 }
 
-fn lexical_variant(plan: &SemanticPlan, terminal: &syn::Path) -> syn::Result<TokenStream> {
-    let name = path_name(terminal);
-    if let Ok(vocab) = plan.vocab(&name) {
+fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> {
+    if let Ok(vocab) = plan.vocab(name) {
         let name = ident(&identifier_key(&vocab.name));
         return Ok(quote! { Lexical::#name });
     }
-    let binding = plan.binding(&name)?;
+    let binding = plan.binding(name)?;
     let path = binding
         .lexical_variant
         .as_ref()
@@ -222,29 +213,6 @@ fn category_names(constructions: &[ConstructionPlan]) -> Vec<syn::Ident> {
         }
     }
     names.into_iter().map(|name| ident(&name)).collect()
-}
-
-fn field<'a>(
-    construction: &'a crate::Construction,
-    role: &syn::Ident,
-) -> syn::Result<&'a crate::Field> {
-    construction
-        .element
-        .fields
-        .iter()
-        .find(|field| identifier_key(&field.name) == identifier_key(role))
-        .ok_or_else(|| internal("resolved form role is absent"))
-}
-
-fn terminal_path(field: &crate::Field) -> syn::Result<&syn::Path> {
-    match &field.kind {
-        FieldKind::Lex(path) | FieldKind::Identity(path) => Ok(path),
-        FieldKind::Category(_) => Err(internal("terminal atom resolves to category field")),
-    }
-}
-
-fn path_name(path: &syn::Path) -> String {
-    path_key(path)
 }
 
 fn ident(name: &str) -> syn::Ident {

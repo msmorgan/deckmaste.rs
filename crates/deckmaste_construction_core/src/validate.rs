@@ -6936,7 +6936,7 @@ pub(crate) mod tests {
                 .iter()
                 .map(|row| (
                     row.source_index(),
-                    semantic.construction_source(row).name.to_string()
+                    semantic.construction_source(row).unwrap().name.to_string()
                 ))
                 .collect::<Vec<_>>(),
             [
@@ -6956,20 +6956,20 @@ pub(crate) mod tests {
                     crate::semantic::TerminalPlan::Vocab(value) => (
                         value.source_index(),
                         "vocab",
-                        semantic.vocab_source(value).name.to_string(),
+                        semantic.vocab_source(value).unwrap().name.to_string(),
                     ),
                     crate::semantic::TerminalPlan::Lexeme(value) => (
                         value.source_index(),
                         "lexeme",
-                        semantic.lexeme_source(value).name.to_string(),
+                        semantic.lexeme_source(value).unwrap().name.to_string(),
                     ),
                     crate::semantic::TerminalPlan::Binding(value) => (
                         value.source_index(),
-                        match semantic.binding_source(value).kind {
+                        match semantic.binding_source(value).unwrap().kind {
                             crate::TerminalBindingKind::Codec => "codec",
                             crate::TerminalBindingKind::Identity => "identity",
                         },
-                        semantic.binding_source(value).name.to_string(),
+                        semantic.binding_source(value).unwrap().name.to_string(),
                     ),
                 })
                 .collect::<Vec<_>>(),
@@ -6992,6 +6992,7 @@ pub(crate) mod tests {
                     row.source_index(),
                     semantic
                         .root_source(row)
+                        .unwrap()
                         .category
                         .to_token_stream()
                         .to_string()
