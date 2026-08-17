@@ -1,0 +1,866 @@
+use std::cmp::Ordering;
+use std::io::Write;
+
+use anyhow::Context;
+use anyhow::bail;
+use deckmaste_english_v2::catalogs::ParserCatalogs;
+use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::parser::InternalFailureKind;
+use deckmaste_english_v2::parser::ParseAnalysisOutcome;
+use deckmaste_english_v2::parser::Parser;
+use deckmaste_english_v2::parser::SelectionDecision as ParserSelectionDecision;
+use deckmaste_english_v2::parser::SelectionDecisive as ParserSelectionDecisive;
+use deckmaste_english_v2::parser::SelectionResolution as ParserSelectionResolution;
+use deckmaste_english_v2::parser::SpecificityTier as ParserSpecificityTier;
+use serde::Serialize;
+
+use super::AmbiguityArgs;
+use super::corpus::Corpus;
+use super::corpus::CorpusUnit;
+
+pub(super) fn run(args: &AmbiguityArgs, output: &mut dyn Write) -> anyhow::Result<()> {
+    let corpus = Corpus::load(&args.corpus.data)
+        .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
+    let catalogs = ParserCatalogs::load(&args.corpus.catalogs).with_context(|| {
+        format!(
+            "loading parser catalogs from {}",
+            args.corpus.catalogs.display()
+        )
+    })?;
+    let parser = Parser::new(catalogs);
+    let report = AmbiguityReport::run(&corpus, &parser)?;
+
+    render_then_apply(&report, args.json, args.require_resolved, output)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum AmbiguityStatus {
+    Selected,
+    ParseFailure,
+    UnresolvedTie,
+    InternalFailure,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum InternalKind {
+    ContextDidNotMaterialize,
+    ValidatedRootDidNotMaterialize,
+    SelectionConfiguration,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum SelectionResolution {
+    Unique,
+    Specificity,
+    Exception,
+    UnresolvedTie,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum SpecificityTier {
+    Nonterminal,
+    TypedLexical,
+    Literal,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum SelectionDecisive {
+    Position { index: usize },
+    VectorExhaustion { index: usize },
+    Tie,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct SelectionCandidate {
+    ordinal: usize,
+    construction_path: Vec<String>,
+    specificity: Vec<SpecificityTier>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct SelectionComparison {
+    left_ordinal: usize,
+    right_ordinal: usize,
+    ordering: OrderingKind,
+    decisive: SelectionDecisive,
+    exception_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum OrderingKind {
+    Less,
+    Equal,
+    Greater,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct SelectionDecision {
+    candidates: Vec<SelectionCandidate>,
+    comparisons: Vec<SelectionComparison>,
+    survivors: Vec<usize>,
+    selected: Option<usize>,
+    resolution: SelectionResolution,
+    exception_uses: Vec<String>,
+}
+
+impl SelectionDecision {
+    fn from_parser(decision: &ParserSelectionDecision) -> Self {
+        Self {
+            candidates: decision
+                .candidates()
+                .iter()
+                .map(|candidate| SelectionCandidate {
+                    ordinal: candidate.ordinal(),
+                    construction_path: candidate.construction_path().to_vec(),
+                    specificity: candidate
+                        .specificity()
+                        .iter()
+                        .copied()
+                        .map(specificity_tier)
+                        .collect(),
+                })
+                .collect(),
+            comparisons: decision
+                .comparisons()
+                .iter()
+                .map(|comparison| SelectionComparison {
+                    left_ordinal: comparison.left_ordinal(),
+                    right_ordinal: comparison.right_ordinal(),
+                    ordering: ordering(comparison.ordering()),
+                    decisive: decisive(comparison.decisive()),
+                    exception_id: comparison.exception_id().map(str::to_owned),
+                })
+                .collect(),
+            survivors: decision.survivors().to_vec(),
+            selected: decision.selected(),
+            resolution: resolution(decision.resolution()),
+            exception_uses: decision.exception_uses().to_vec(),
+        }
+    }
+
+    #[cfg(test)]
+    fn resolution(&self) -> SelectionResolution {
+        self.resolution
+    }
+
+    #[cfg(test)]
+    fn survivors(&self) -> &[usize] {
+        &self.survivors
+    }
+
+    #[cfg(test)]
+    fn comparisons(&self) -> &[SelectionComparison] {
+        &self.comparisons
+    }
+}
+
+fn ordering(ordering: Ordering) -> OrderingKind {
+    match ordering {
+        Ordering::Less => OrderingKind::Less,
+        Ordering::Equal => OrderingKind::Equal,
+        Ordering::Greater => OrderingKind::Greater,
+    }
+}
+
+fn decisive(decisive: ParserSelectionDecisive) -> SelectionDecisive {
+    match decisive {
+        ParserSelectionDecisive::Position(index) => SelectionDecisive::Position { index },
+        ParserSelectionDecisive::VectorExhaustion(index) => {
+            SelectionDecisive::VectorExhaustion { index }
+        }
+        ParserSelectionDecisive::Tie => SelectionDecisive::Tie,
+    }
+}
+
+fn resolution(resolution: ParserSelectionResolution) -> SelectionResolution {
+    match resolution {
+        ParserSelectionResolution::Unique => SelectionResolution::Unique,
+        ParserSelectionResolution::Specificity => SelectionResolution::Specificity,
+        ParserSelectionResolution::Exception => SelectionResolution::Exception,
+        ParserSelectionResolution::UnresolvedTie => SelectionResolution::UnresolvedTie,
+    }
+}
+
+fn specificity_tier(tier: ParserSpecificityTier) -> SpecificityTier {
+    match tier {
+        ParserSpecificityTier::Nonterminal => SpecificityTier::Nonterminal,
+        ParserSpecificityTier::TypedLexical => SpecificityTier::TypedLexical,
+        ParserSpecificityTier::Literal => SpecificityTier::Literal,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct AmbiguityRow {
+    id: String,
+    card_name: String,
+    face_name: Option<String>,
+    side: Option<String>,
+    context_name: String,
+    text: String,
+    status: AmbiguityStatus,
+    message: Option<String>,
+    internal_kind: Option<InternalKind>,
+    decision: Option<SelectionDecision>,
+}
+
+impl AmbiguityRow {
+    fn from_unit(unit: &CorpusUnit, parser: &Parser) -> Self {
+        let mut row = Self::base(unit);
+        let Some(context) = ParseContext::new(unit.context_name()) else {
+            row.status = AmbiguityStatus::InternalFailure;
+            row.message = Some("parse context did not materialize".to_owned());
+            row.internal_kind = Some(InternalKind::ContextDidNotMaterialize);
+            return row;
+        };
+
+        let analysis = parser.analyze(unit.text(), &context);
+        row.decision = analysis.decision().map(SelectionDecision::from_parser);
+        match analysis.outcome() {
+            ParseAnalysisOutcome::Selected => {
+                row.status = AmbiguityStatus::Selected;
+            }
+            ParseAnalysisOutcome::ParseFailure => {
+                row.status = AmbiguityStatus::ParseFailure;
+            }
+            ParseAnalysisOutcome::UnresolvedAmbiguity => {
+                row.status = AmbiguityStatus::UnresolvedTie;
+            }
+            ParseAnalysisOutcome::InternalFailure(kind) => {
+                row.status = AmbiguityStatus::InternalFailure;
+                row.internal_kind = Some(internal_kind(kind));
+            }
+        }
+        row.message = analysis
+            .into_parse_result()
+            .err()
+            .map(|error| error.to_string());
+        row
+    }
+
+    fn base(unit: &CorpusUnit) -> Self {
+        Self {
+            id: unit.id().to_owned(),
+            card_name: unit.card_name().to_owned(),
+            face_name: unit.face_name().map(str::to_owned),
+            side: unit.side().map(str::to_owned),
+            context_name: unit.context_name().to_owned(),
+            text: unit.text().to_owned(),
+            status: AmbiguityStatus::InternalFailure,
+            message: None,
+            internal_kind: None,
+            decision: None,
+        }
+    }
+
+    #[cfg(test)]
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    #[cfg(test)]
+    fn status(&self) -> AmbiguityStatus {
+        self.status
+    }
+
+    #[cfg(test)]
+    fn decision(&self) -> Option<&SelectionDecision> {
+        self.decision.as_ref()
+    }
+
+    #[cfg(test)]
+    fn internal_kind(&self) -> Option<InternalKind> {
+        self.internal_kind
+    }
+
+    #[cfg(test)]
+    fn set_message(&mut self, message: Option<String>) {
+        self.message = message;
+    }
+
+    #[cfg(test)]
+    fn set_text(&mut self, text: String) {
+        self.text = text;
+    }
+}
+
+fn internal_kind(kind: InternalFailureKind) -> InternalKind {
+    match kind {
+        InternalFailureKind::ValidatedRootDidNotMaterialize => {
+            InternalKind::ValidatedRootDidNotMaterialize
+        }
+        InternalFailureKind::SelectionConfiguration => InternalKind::SelectionConfiguration,
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+struct AmbiguitySummary {
+    total: usize,
+    selected: usize,
+    unique: usize,
+    specificity_resolved: usize,
+    exception_resolved: usize,
+    unresolved_ties: usize,
+    parse_failures: usize,
+    internal_failures: usize,
+    exception_uses: usize,
+}
+
+impl AmbiguitySummary {
+    fn from_rows(rows: &[AmbiguityRow]) -> anyhow::Result<Self> {
+        let mut summary = Self::default();
+        for row in rows {
+            summary.total += 1;
+            match row.status {
+                AmbiguityStatus::Selected => {
+                    summary.selected += 1;
+                    let decision = row
+                        .decision
+                        .as_ref()
+                        .context("selected ambiguity row lacks decision")?;
+                    match decision.resolution {
+                        SelectionResolution::Unique => summary.unique += 1,
+                        SelectionResolution::Specificity => summary.specificity_resolved += 1,
+                        SelectionResolution::Exception => summary.exception_resolved += 1,
+                        SelectionResolution::UnresolvedTie => {
+                            bail!("selected ambiguity row has unresolved-tie decision")
+                        }
+                    }
+                    summary.exception_uses += decision.exception_uses.len();
+                }
+                AmbiguityStatus::ParseFailure => summary.parse_failures += 1,
+                AmbiguityStatus::UnresolvedTie => {
+                    summary.unresolved_ties += 1;
+                    let decision = row
+                        .decision
+                        .as_ref()
+                        .context("unresolved ambiguity row lacks decision")?;
+                    if decision.resolution != SelectionResolution::UnresolvedTie {
+                        bail!("unresolved ambiguity row has non-tie decision")
+                    }
+                    summary.exception_uses += decision.exception_uses.len();
+                }
+                AmbiguityStatus::InternalFailure => summary.internal_failures += 1,
+            }
+        }
+        Ok(summary)
+    }
+
+    fn validate(&self) -> anyhow::Result<()> {
+        if self.total
+            != self.selected + self.unresolved_ties + self.parse_failures + self.internal_failures
+        {
+            bail!("ambiguity summary total does not equal its row-status counts")
+        }
+        if self.selected != self.unique + self.specificity_resolved + self.exception_resolved {
+            bail!("ambiguity summary selected does not equal its resolution counts")
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct AmbiguityReport {
+    schema_version: u32,
+    source_fingerprint: String,
+    rows: Vec<AmbiguityRow>,
+    summary: AmbiguitySummary,
+}
+
+impl AmbiguityReport {
+    fn run(corpus: &Corpus, parser: &Parser) -> anyhow::Result<Self> {
+        let rows = corpus
+            .units()
+            .iter()
+            .map(|unit| AmbiguityRow::from_unit(unit, parser))
+            .collect();
+        let report = Self::new(corpus.source_fingerprint().to_owned(), rows)?;
+        report.validate_against_corpus(corpus)?;
+        Ok(report)
+    }
+
+    fn new(source_fingerprint: String, rows: Vec<AmbiguityRow>) -> anyhow::Result<Self> {
+        if !is_lower_hex_64(&source_fingerprint) {
+            bail!("ambiguity source fingerprint must be lowercase 64-hex")
+        }
+        for row in &rows {
+            if !is_lower_hex_64(&row.id) {
+                bail!("ambiguity row ID `{}` must be lowercase 64-hex", row.id)
+            }
+        }
+        let summary = AmbiguitySummary::from_rows(&rows)?;
+        summary.validate()?;
+        Ok(Self {
+            schema_version: 1,
+            source_fingerprint,
+            rows,
+            summary,
+        })
+    }
+
+    fn validate_against_corpus(&self, corpus: &Corpus) -> anyhow::Result<()> {
+        if self.rows.len() != corpus.units().len() {
+            bail!("ambiguity report row count does not match corpus order")
+        }
+        for (index, (row, unit)) in self.rows.iter().zip(corpus.units()).enumerate() {
+            if row.id != unit.id()
+                || row.card_name != unit.card_name()
+                || row.face_name.as_deref() != unit.face_name()
+                || row.side.as_deref() != unit.side()
+                || row.context_name != unit.context_name()
+                || row.text != unit.text()
+            {
+                bail!("ambiguity report row {index} does not match corpus order")
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn fixture_with_every_status() -> Self {
+        fn row(number: usize, status: AmbiguityStatus) -> AmbiguityRow {
+            AmbiguityRow {
+                id: format!("{number:064x}"),
+                card_name: format!("Fixture {number}"),
+                face_name: (number == 2).then(|| "Front".to_owned()),
+                side: (number == 2).then(|| "a".to_owned()),
+                context_name: format!("Context {number}"),
+                text: format!("Fixture {number} text."),
+                status,
+                message: (status != AmbiguityStatus::Selected)
+                    .then(|| format!("Fixture {number} failed.")),
+                internal_kind: None,
+                decision: None,
+            }
+        }
+        fn decision(resolution: SelectionResolution, exception_uses: &[&str]) -> SelectionDecision {
+            SelectionDecision {
+                candidates: vec![SelectionCandidate {
+                    ordinal: 0,
+                    construction_path: vec!["Ability".to_owned()],
+                    specificity: vec![SpecificityTier::Literal],
+                }],
+                comparisons: vec![],
+                survivors: vec![0],
+                selected: Some(0),
+                resolution,
+                exception_uses: exception_uses.iter().map(|id| (*id).to_owned()).collect(),
+            }
+        }
+
+        let mut rows = vec![
+            row(1, AmbiguityStatus::Selected),
+            row(2, AmbiguityStatus::Selected),
+            row(3, AmbiguityStatus::Selected),
+            row(4, AmbiguityStatus::ParseFailure),
+            row(5, AmbiguityStatus::UnresolvedTie),
+            row(6, AmbiguityStatus::InternalFailure),
+        ];
+        rows[0].decision = Some(decision(SelectionResolution::Unique, &[]));
+        rows[1].decision = Some(decision(SelectionResolution::Specificity, &[]));
+        rows[2].decision = Some(decision(SelectionResolution::Exception, &["winner"]));
+        rows[4].decision = Some(SelectionDecision {
+            candidates: (0..3)
+                .map(|ordinal| SelectionCandidate {
+                    ordinal,
+                    construction_path: vec![format!("Candidate{ordinal}")],
+                    specificity: vec![SpecificityTier::TypedLexical],
+                })
+                .collect(),
+            comparisons: vec![
+                SelectionComparison {
+                    left_ordinal: 0,
+                    right_ordinal: 1,
+                    ordering: OrderingKind::Equal,
+                    decisive: SelectionDecisive::Tie,
+                    exception_id: Some("cycle-a".to_owned()),
+                },
+                SelectionComparison {
+                    left_ordinal: 0,
+                    right_ordinal: 2,
+                    ordering: OrderingKind::Equal,
+                    decisive: SelectionDecisive::Tie,
+                    exception_id: None,
+                },
+                SelectionComparison {
+                    left_ordinal: 1,
+                    right_ordinal: 2,
+                    ordering: OrderingKind::Equal,
+                    decisive: SelectionDecisive::Tie,
+                    exception_id: None,
+                },
+            ],
+            survivors: vec![0, 1, 2],
+            selected: None,
+            resolution: SelectionResolution::UnresolvedTie,
+            exception_uses: vec!["cycle-a".to_owned()],
+        });
+        rows[5].internal_kind = Some(InternalKind::SelectionConfiguration);
+        Self::new("f".repeat(64), rows).expect("fixture report validates")
+    }
+
+    #[cfg(test)]
+    fn rows(&self) -> &[AmbiguityRow] {
+        &self.rows
+    }
+
+    #[cfg(test)]
+    fn rows_mut(&mut self) -> &mut [AmbiguityRow] {
+        &mut self.rows
+    }
+
+    #[cfg(test)]
+    fn schema_version(&self) -> u32 {
+        self.schema_version
+    }
+
+    #[cfg(test)]
+    fn source_fingerprint(&self) -> &str {
+        &self.source_fingerprint
+    }
+
+    #[cfg(test)]
+    fn summary(&self) -> &AmbiguitySummary {
+        &self.summary
+    }
+
+    #[cfg(test)]
+    fn with_statuses(&self, statuses: &[AmbiguityStatus]) -> Self {
+        let rows = self
+            .rows
+            .iter()
+            .filter(|row| statuses.contains(&row.status))
+            .cloned()
+            .collect();
+        Self::new(self.source_fingerprint.clone(), rows).expect("fixture statuses validate")
+    }
+
+    #[cfg(test)]
+    fn with_internal_kind(&self, kind: InternalKind) -> Self {
+        let mut row = self.rows[0].clone();
+        row.status = AmbiguityStatus::InternalFailure;
+        row.message = Some("fixture internal failure".to_owned());
+        row.internal_kind = Some(kind);
+        row.decision = None;
+        Self::new(self.source_fingerprint.clone(), vec![row])
+            .expect("fixture internal row validates")
+    }
+}
+
+fn is_lower_hex_64(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+}
+
+fn render_then_apply(
+    report: &AmbiguityReport,
+    json: bool,
+    require_resolved: bool,
+    output: &mut dyn Write,
+) -> anyhow::Result<()> {
+    render_report(report, json, output)?;
+    apply_exit_predicates(report, require_resolved)
+}
+
+fn render_report(
+    report: &AmbiguityReport,
+    json: bool,
+    output: &mut dyn Write,
+) -> anyhow::Result<()> {
+    if json {
+        serde_json::to_writer_pretty(&mut *output, report)
+            .context("writing English-v2 ambiguity census JSON")?;
+        writeln!(output).context("writing English-v2 ambiguity census JSON terminator")?;
+        return Ok(());
+    }
+
+    writeln!(output, "English v2 selection ambiguity census")
+        .context("writing English-v2 ambiguity census")?;
+    for row in &report.rows {
+        let id = json_value(&row.id)?;
+        let card_name = json_value(&row.card_name)?;
+        let face_name = json_value(&row.face_name)?;
+        let side = json_value(&row.side)?;
+        let context_name = json_value(&row.context_name)?;
+        let text = json_value(&row.text)?;
+        let message = json_value(&row.message)?;
+        let internal_kind = json_value(&row.internal_kind)?;
+        let decision = json_value(&row.decision)?;
+        writeln!(
+            output,
+            "row id={id} card_name={card_name} face_name={face_name} side={side} context_name={context_name} text={text} status={} message={message} internal_kind={internal_kind} decision={decision}",
+            status_name(row.status),
+        )
+        .context("writing English-v2 ambiguity census row")?;
+    }
+    let summary = &report.summary;
+    writeln!(output, "summary total={}", summary.total)
+        .context("writing English-v2 ambiguity census summary")?;
+    writeln!(output, "summary selected={}", summary.selected)
+        .context("writing English-v2 ambiguity census summary")?;
+    writeln!(output, "summary unique={}", summary.unique)
+        .context("writing English-v2 ambiguity census summary")?;
+    writeln!(
+        output,
+        "summary specificity_resolved={}",
+        summary.specificity_resolved
+    )
+    .context("writing English-v2 ambiguity census summary")?;
+    writeln!(
+        output,
+        "summary exception_resolved={}",
+        summary.exception_resolved
+    )
+    .context("writing English-v2 ambiguity census summary")?;
+    writeln!(
+        output,
+        "summary unresolved_ties={}",
+        summary.unresolved_ties
+    )
+    .context("writing English-v2 ambiguity census summary")?;
+    writeln!(output, "summary parse_failures={}", summary.parse_failures)
+        .context("writing English-v2 ambiguity census summary")?;
+    writeln!(
+        output,
+        "summary internal_failures={}",
+        summary.internal_failures
+    )
+    .context("writing English-v2 ambiguity census summary")?;
+    writeln!(output, "summary exception_uses={}", summary.exception_uses)
+        .context("writing English-v2 ambiguity census summary")?;
+    Ok(())
+}
+
+fn json_value<T: Serialize>(value: &T) -> anyhow::Result<String> {
+    serde_json::to_string(value).context("encoding English-v2 ambiguity human field")
+}
+
+fn status_name(status: AmbiguityStatus) -> &'static str {
+    match status {
+        AmbiguityStatus::Selected => "selected",
+        AmbiguityStatus::ParseFailure => "parse_failure",
+        AmbiguityStatus::UnresolvedTie => "unresolved_tie",
+        AmbiguityStatus::InternalFailure => "internal_failure",
+    }
+}
+
+fn apply_exit_predicates(report: &AmbiguityReport, require_resolved: bool) -> anyhow::Result<()> {
+    let summary = &report.summary;
+    if summary.internal_failures > 0 {
+        bail!(
+            "English-v2 ambiguity census found {}",
+            counted(
+                summary.internal_failures,
+                "internal failure",
+                "internal failures"
+            )
+        )
+    }
+    if require_resolved && summary.unresolved_ties > 0 {
+        bail!(
+            "English-v2 ambiguity census has {}",
+            counted(summary.unresolved_ties, "unresolved tie", "unresolved ties")
+        )
+    }
+    Ok(())
+}
+
+fn counted(count: usize, singular: &str, plural: &str) -> String {
+    format!("{count} {}", if count == 1 { singular } else { plural })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AmbiguityReport;
+    use super::AmbiguityRow;
+    use super::AmbiguityStatus;
+    use super::InternalKind;
+    use super::SelectionResolution;
+    use super::apply_exit_predicates;
+    use super::render_report;
+
+    fn complete_fixture_report() -> AmbiguityReport {
+        AmbiguityReport::fixture_with_every_status()
+    }
+
+    #[test]
+    fn complete_rows_preserve_every_identity_status_and_decision_in_corpus_order() {
+        let report = complete_fixture_report();
+        let rows = report.rows();
+
+        assert_eq!(report.schema_version(), 1);
+        assert_eq!(report.source_fingerprint(), "f".repeat(64));
+        assert_eq!(
+            rows.iter().map(AmbiguityRow::status).collect::<Vec<_>>(),
+            [
+                AmbiguityStatus::Selected,
+                AmbiguityStatus::Selected,
+                AmbiguityStatus::Selected,
+                AmbiguityStatus::ParseFailure,
+                AmbiguityStatus::UnresolvedTie,
+                AmbiguityStatus::InternalFailure,
+            ]
+        );
+        assert_eq!(
+            rows[0].decision().unwrap().resolution(),
+            SelectionResolution::Unique
+        );
+        assert_eq!(
+            rows[1].decision().unwrap().resolution(),
+            SelectionResolution::Specificity
+        );
+        assert_eq!(
+            rows[2].decision().unwrap().resolution(),
+            SelectionResolution::Exception
+        );
+        assert_eq!(rows[4].decision().unwrap().survivors(), [0, 1, 2]);
+        assert_eq!(rows[4].decision().unwrap().comparisons().len(), 3);
+        assert_eq!(
+            rows[5].internal_kind(),
+            Some(InternalKind::SelectionConfiguration)
+        );
+        assert!(rows.iter().all(|row| row.id().len() == 64));
+    }
+
+    #[test]
+    fn json_keeps_all_rows_and_complete_pair_comparisons() {
+        let report = complete_fixture_report();
+        let mut output = Vec::new();
+
+        render_report(&report, true, &mut output).unwrap();
+
+        let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(json["schema_version"], 1);
+        assert_eq!(json["rows"].as_array().unwrap().len(), 6);
+        assert_eq!(
+            json["rows"][4]["decision"]["survivors"],
+            serde_json::json!([0, 1, 2])
+        );
+        assert_eq!(
+            json["rows"][4]["decision"]["comparisons"]
+                .as_array()
+                .unwrap()
+                .len(),
+            3
+        );
+        assert_eq!(json["rows"][5]["internal_kind"], "selection_configuration");
+        assert_eq!(
+            json["summary"],
+            serde_json::json!({
+                "total": 6,
+                "selected": 3,
+                "unique": 1,
+                "specificity_resolved": 1,
+                "exception_resolved": 1,
+                "unresolved_ties": 1,
+                "parse_failures": 1,
+                "internal_failures": 1,
+                "exception_uses": 2,
+            })
+        );
+    }
+
+    #[test]
+    fn human_rendering_prints_every_row_with_json_escaped_variable_fields() {
+        let mut report = complete_fixture_report();
+        report.rows_mut()[3].set_message(Some("failed\nwith\ttab".to_owned()));
+        report.rows_mut()[3].set_text("first\nsecond\"\\".to_owned());
+        let mut output = Vec::new();
+
+        render_report(&report, false, &mut output).unwrap();
+
+        let output = String::from_utf8(output).unwrap();
+        assert_eq!(
+            output
+                .lines()
+                .filter(|line| line.starts_with("row "))
+                .count(),
+            6
+        );
+        assert!(output.contains("status=parse_failure"));
+        assert!(output.contains("text=\"first\\nsecond\\\"\\\\\""));
+        assert!(output.contains("message=\"failed\\nwith\\ttab\""));
+        assert!(!output.contains("failed\nwith"));
+    }
+
+    #[test]
+    fn summary_arithmetic_and_exception_uses_are_exact() {
+        let report = complete_fixture_report();
+        let summary = report.summary();
+
+        assert_eq!(
+            summary.total,
+            summary.selected
+                + summary.unresolved_ties
+                + summary.parse_failures
+                + summary.internal_failures
+        );
+        assert_eq!(
+            summary.selected,
+            summary.unique + summary.specificity_resolved + summary.exception_resolved
+        );
+        assert_eq!(summary.exception_uses, 2);
+    }
+
+    #[test]
+    fn resolved_gate_ignores_parse_failures_but_not_ties_or_internal_failures() {
+        let report = complete_fixture_report();
+        let parse_only = report.with_statuses(&[AmbiguityStatus::ParseFailure]);
+        assert!(apply_exit_predicates(&parse_only, true).is_ok());
+
+        let tie_error = apply_exit_predicates(
+            &report.with_statuses(&[AmbiguityStatus::UnresolvedTie]),
+            true,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(tie_error.contains("unresolved tie"));
+
+        let internal_error = apply_exit_predicates(
+            &report.with_statuses(&[AmbiguityStatus::InternalFailure]),
+            false,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(internal_error.contains("internal failure"));
+    }
+
+    #[test]
+    fn strict_exit_happens_after_the_complete_report() {
+        let report = complete_fixture_report().with_statuses(&[AmbiguityStatus::UnresolvedTie]);
+        let mut output = Vec::new();
+
+        let error = super::render_then_apply(&report, true, true, &mut output)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("unresolved tie"));
+        let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(json["rows"].as_array().unwrap().len(), 1);
+        assert_eq!(json["summary"]["unresolved_ties"], 1);
+    }
+
+    #[test]
+    fn typed_internal_kinds_remain_distinct() {
+        let report = complete_fixture_report();
+        let materialization =
+            report.with_internal_kind(InternalKind::ValidatedRootDidNotMaterialize);
+        let configuration = report.with_internal_kind(InternalKind::SelectionConfiguration);
+
+        assert_eq!(
+            materialization.rows()[0].internal_kind(),
+            Some(InternalKind::ValidatedRootDidNotMaterialize)
+        );
+        assert_eq!(
+            configuration.rows()[0].internal_kind(),
+            Some(InternalKind::SelectionConfiguration)
+        );
+    }
+}

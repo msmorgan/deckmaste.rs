@@ -32,6 +32,10 @@ impl CorpusUnit {
         self.face_name.as_deref()
     }
 
+    pub(super) fn side(&self) -> Option<&str> {
+        self.side.as_deref()
+    }
+
     pub(super) fn context_name(&self) -> &str {
         &self.context_name
     }

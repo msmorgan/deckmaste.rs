@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn english_v2_commands_require_and_accept_a_subcommand() {
-        for command in ["expand", "parse", "roundtrip", "report"] {
+        for command in ["expand", "parse", "roundtrip", "report", "ambiguity"] {
             let cli = Cli::try_parse_from(["cargo xtask", "english_v2", command]).unwrap();
             assert!(matches!(cli.command, Cmd::EnglishV2(_)));
         }
@@ -141,6 +141,7 @@ mod tests {
             "--require",
             "--require-complete",
             "--require-clean",
+            "--require-resolved",
             "--trace",
         ] {
             let args = if matches!(flag, "--data" | "--catalogs" | "--lock") {
@@ -149,6 +150,37 @@ mod tests {
                 vec!["cargo xtask", "english_v2", "report", flag]
             };
             assert!(Cli::try_parse_from(args).is_err(), "report accepted {flag}");
+        }
+    }
+
+    #[test]
+    fn english_v2_commands_ambiguity_accepts_only_corpus_json_and_resolution_flags() {
+        let cli = Cli::try_parse_from([
+            "cargo xtask",
+            "english_v2",
+            "ambiguity",
+            "--data",
+            "fixtures/atomic-cards.json",
+            "--catalogs",
+            "fixtures/catalogs",
+            "--json",
+            "--require-resolved",
+        ])
+        .expect("ambiguity accepts its corpus and resolution flags");
+        assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+
+        for flag in [
+            "--lock",
+            "--bless",
+            "--require",
+            "--require-complete",
+            "--require-clean",
+            "--trace",
+        ] {
+            assert!(
+                Cli::try_parse_from(["cargo xtask", "english_v2", "ambiguity", flag]).is_err(),
+                "ambiguity accepted {flag}"
+            );
         }
     }
 
@@ -214,7 +246,20 @@ mod tests {
             .is_err()
         );
         assert!(
+            Cli::try_parse_from([
+                "cargo xtask",
+                "english_v2",
+                "roundtrip",
+                "--require-resolved",
+            ])
+            .is_err()
+        );
+        assert!(
             Cli::try_parse_from(["cargo xtask", "english_v2", "parse", "--require-clean",])
+                .is_err()
+        );
+        assert!(
+            Cli::try_parse_from(["cargo xtask", "english_v2", "parse", "--require-resolved",])
                 .is_err()
         );
     }

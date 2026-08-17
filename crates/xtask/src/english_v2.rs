@@ -1,5 +1,6 @@
 //! Human-readable expansion of the English-v2 construction declaration.
 
+mod ambiguity;
 mod audit;
 mod corpus;
 mod coverage_lock;
@@ -38,6 +39,8 @@ enum EnglishV2Command {
     Roundtrip(RoundtripArgs),
     /// Print schema-versioned counted English-v2 escape hatches.
     Report(ReportArgs),
+    /// Census complete corpus selection decisions and unresolved ambiguities.
+    Ambiguity(AmbiguityArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -78,6 +81,16 @@ struct ReportArgs {
     json: bool,
 }
 
+#[derive(Debug, clap::Args)]
+struct AmbiguityArgs {
+    #[command(flatten)]
+    corpus: CorpusArgs,
+    #[arg(long)]
+    json: bool,
+    #[arg(long)]
+    require_resolved: bool,
+}
+
 pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
     match &args.command {
         EnglishV2Command::Expand => {
@@ -95,6 +108,10 @@ pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
         EnglishV2Command::Report(args) => {
             let mut stdout = std::io::stdout().lock();
             report::run(args, &mut stdout)
+        }
+        EnglishV2Command::Ambiguity(args) => {
+            let mut stdout = std::io::stdout().lock();
+            ambiguity::run(args, &mut stdout)
         }
     }
 }
