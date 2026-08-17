@@ -1,5 +1,6 @@
 //! Human-readable expansion of the English-v2 construction declaration.
 
+mod audit;
 mod corpus;
 
 use std::fmt::Write as _;

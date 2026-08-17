@@ -1,0 +1,276 @@
+use std::collections::BTreeSet;
+
+use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::parser::ParseError;
+use deckmaste_english_v2::parser::Parser;
+use deckmaste_english_v2::render::Render;
+
+use super::corpus::Corpus;
+use super::corpus::CorpusUnit;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum AuditStatus {
+    Clean,
+    Mismatch,
+    ParseFailure,
+    Ambiguous,
+    InternalFailure,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub(super) struct AuditRow {
+    id: String,
+    card_name: String,
+    face_name: Option<String>,
+    text: String,
+    status: AuditStatus,
+    rendered: Option<String>,
+    message: Option<String>,
+}
+
+impl AuditRow {
+    pub(super) const fn status(&self) -> AuditStatus {
+        self.status
+    }
+
+    pub(super) fn rendered(&self) -> Option<&str> {
+        self.rendered.as_deref()
+    }
+
+    pub(super) fn message(&self) -> Option<&str> {
+        self.message.as_deref()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub(super) struct AuditReport {
+    schema_version: u32,
+    source_fingerprint: String,
+    rows: Vec<AuditRow>,
+}
+
+impl AuditReport {
+    pub(super) fn run(corpus: &Corpus, parser: &Parser) -> Self {
+        Self {
+            schema_version: 1,
+            source_fingerprint: corpus.source_fingerprint().to_owned(),
+            rows: corpus
+                .units()
+                .iter()
+                .map(|unit| audit_unit(unit, parser))
+                .collect(),
+        }
+    }
+
+    pub(super) fn rows(&self) -> &[AuditRow] {
+        &self.rows
+    }
+
+    pub(super) fn summary(&self) -> AuditSummary {
+        AuditSummary::from_rows(&self.rows)
+    }
+
+    pub(super) fn accepted_ids(&self) -> BTreeSet<String> {
+        self.rows
+            .iter()
+            .filter(|row| matches!(row.status, AuditStatus::Clean | AuditStatus::Mismatch))
+            .map(|row| row.id.clone())
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+pub(super) struct AuditSummary {
+    pub(super) total: usize,
+    pub(super) clean: usize,
+    pub(super) mismatched: usize,
+    pub(super) parse_failures: usize,
+    pub(super) ambiguous: usize,
+    pub(super) internal_failures: usize,
+}
+
+impl AuditSummary {
+    fn from_rows(rows: &[AuditRow]) -> Self {
+        let mut summary = Self::default();
+        for row in rows {
+            summary.total += 1;
+            match row.status {
+                AuditStatus::Clean => summary.clean += 1,
+                AuditStatus::Mismatch => summary.mismatched += 1,
+                AuditStatus::ParseFailure => summary.parse_failures += 1,
+                AuditStatus::Ambiguous => summary.ambiguous += 1,
+                AuditStatus::InternalFailure => summary.internal_failures += 1,
+            }
+        }
+        summary
+    }
+}
+
+fn audit_unit(unit: &CorpusUnit, parser: &Parser) -> AuditRow {
+    let mut row = AuditRow {
+        id: unit.id().to_owned(),
+        card_name: unit.card_name().to_owned(),
+        face_name: unit.face_name().map(str::to_owned),
+        text: unit.text().to_owned(),
+        status: AuditStatus::InternalFailure,
+        rendered: None,
+        message: None,
+    };
+
+    let Some(context) = ParseContext::new(unit.context_name()) else {
+        row.message = Some("parse context did not materialize".to_owned());
+        return row;
+    };
+
+    match parser.parse(unit.text(), &context) {
+        Ok(ability) => {
+            let rendered = ability.render(&context);
+            row.status =
+                if rendered == unit.text() { AuditStatus::Clean } else { AuditStatus::Mismatch };
+            row.message =
+                (row.status == AuditStatus::Mismatch).then(|| "rendered bytes differ".to_owned());
+            row.rendered = Some(rendered);
+        }
+        Err(error) => {
+            row.status = match error {
+                ParseError::Failure { .. } => AuditStatus::ParseFailure,
+                ParseError::Ambiguous { .. } => AuditStatus::Ambiguous,
+                ParseError::ValidatedRootDidNotMaterialize => AuditStatus::InternalFailure,
+            };
+            row.message = Some(error.to_string());
+        }
+    }
+
+    row
+}
+
+#[cfg(test)]
+impl AuditReport {
+    pub(super) fn from_statuses_for_test(statuses: &[AuditStatus]) -> Self {
+        let rows = statuses
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(index, status)| {
+                let number = index + 1;
+                let text = format!("Fixture {number} text.");
+                let (rendered, message) = match status {
+                    AuditStatus::Clean => (Some(text.clone()), None),
+                    AuditStatus::Mismatch => (
+                        Some(format!("Different fixture {number} text.")),
+                        Some("rendered bytes differ".to_owned()),
+                    ),
+                    AuditStatus::ParseFailure => {
+                        (None, Some("parse failed at bytes 0..7".to_owned()))
+                    }
+                    AuditStatus::Ambiguous => (
+                        None,
+                        Some("ambiguous parse between first and second".to_owned()),
+                    ),
+                    AuditStatus::InternalFailure => (
+                        None,
+                        Some("validated chart root did not materialize".to_owned()),
+                    ),
+                };
+                AuditRow {
+                    id: format!("{number:064x}"),
+                    card_name: format!("Fixture {number}"),
+                    face_name: None,
+                    text,
+                    status,
+                    rendered,
+                    message,
+                }
+            })
+            .collect();
+        Self {
+            schema_version: 1,
+            source_fingerprint: "0".repeat(64),
+            rows,
+        }
+    }
+}
+
+#[cfg(test)]
+impl AuditSummary {
+    pub(super) fn from_statuses(statuses: impl IntoIterator<Item = AuditStatus>) -> Self {
+        let statuses = statuses.into_iter().collect::<Vec<_>>();
+        AuditReport::from_statuses_for_test(&statuses).summary()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use deckmaste_english_v2::catalogs::ParserCatalogs;
+    use deckmaste_english_v2::parser::Parser;
+
+    use super::AuditReport;
+    use super::AuditStatus;
+    use super::AuditSummary;
+    use crate::english_v2::corpus::Corpus;
+    use crate::english_v2::corpus::CorpusUnit;
+
+    fn unit(card_name: &str, text: &str) -> CorpusUnit {
+        CorpusUnit::for_test(card_name, text)
+    }
+
+    fn parser() -> Parser {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
+        Parser::new(ParserCatalogs::load(&path).expect("canonical catalogs load"))
+    }
+
+    #[test]
+    fn audit_keeps_parse_failure_distinct_from_exact_round_trip() {
+        let corpus = Corpus::from_units_for_test(vec![
+            unit("Clean", "Whenever a player connives, you gain X life."),
+            unit("Failed", "You frobnitz a card."),
+        ]);
+        let report = AuditReport::run(&corpus, &parser());
+        assert_eq!(report.rows()[0].status(), AuditStatus::Clean);
+        assert_eq!(report.rows()[0].rendered(), Some(corpus.units()[0].text()));
+        assert_eq!(report.rows()[1].status(), AuditStatus::ParseFailure);
+        assert!(
+            report.rows()[1]
+                .message()
+                .unwrap()
+                .contains("parse failed at bytes")
+        );
+    }
+
+    #[test]
+    fn summary_counts_every_status_without_collapsing_failures() {
+        let summary = AuditSummary::from_statuses([
+            AuditStatus::Clean,
+            AuditStatus::Mismatch,
+            AuditStatus::ParseFailure,
+            AuditStatus::Ambiguous,
+            AuditStatus::InternalFailure,
+        ]);
+        assert_eq!(summary.clean, 1);
+        assert_eq!(summary.mismatched, 1);
+        assert_eq!(summary.parse_failures, 1);
+        assert_eq!(summary.ambiguous, 1);
+        assert_eq!(summary.internal_failures, 1);
+    }
+
+    #[test]
+    fn accepted_ids_include_clean_and_mismatch_rows_only() {
+        let report = AuditReport::from_statuses_for_test(&[
+            AuditStatus::Clean,
+            AuditStatus::Mismatch,
+            AuditStatus::ParseFailure,
+            AuditStatus::Ambiguous,
+            AuditStatus::InternalFailure,
+        ]);
+
+        assert_eq!(
+            report.accepted_ids(),
+            [format!("{:064x}", 1), format!("{:064x}", 2)]
+                .into_iter()
+                .collect()
+        );
+    }
+}
