@@ -7,7 +7,155 @@ use super::materialize::Candidate;
 use crate::ast::Ability;
 use crate::constructions::Construction;
 
-const SELECTION_EXCEPTIONS: &[(Construction, Construction, Ordering)] = &[];
+const SELECTION_EXCEPTIONS: &[SelectionException<Construction>] = &[];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SelectionExceptionInfo {
+    pub id: &'static str,
+    pub left: &'static str,
+    pub right: &'static str,
+    pub winner: &'static str,
+    pub rationale: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SelectionExceptionInventoryError {
+    BlankId,
+    DuplicateId {
+        id: &'static str,
+    },
+    DuplicatePair {
+        left: &'static str,
+        right: &'static str,
+    },
+    SelfPair {
+        construction: &'static str,
+    },
+    BlankRationale {
+        id: &'static str,
+    },
+    WinnerOutsidePair {
+        id: &'static str,
+    },
+}
+
+impl std::fmt::Display for SelectionExceptionInventoryError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("invalid selection exception configuration: ")?;
+        match self {
+            Self::BlankId => formatter.write_str("entry id is empty or whitespace-only"),
+            Self::DuplicateId { id } => write!(formatter, "duplicate entry id `{id}`"),
+            Self::DuplicatePair { left, right } => {
+                write!(formatter, "duplicate unordered pair `{left}` and `{right}`")
+            }
+            Self::SelfPair { construction } => {
+                write!(formatter, "self-pair for construction `{construction}`")
+            }
+            Self::BlankRationale { id } => {
+                write!(
+                    formatter,
+                    "entry `{id}` has an empty or whitespace-only rationale"
+                )
+            }
+            Self::WinnerOutsidePair { id } => {
+                write!(formatter, "entry `{id}` names a winner outside its pair")
+            }
+        }
+    }
+}
+
+impl std::error::Error for SelectionExceptionInventoryError {}
+
+#[derive(Debug, Clone, Copy)]
+struct SelectionException<C> {
+    id: &'static str,
+    left: C,
+    right: C,
+    winner: C,
+    rationale: &'static str,
+}
+
+/// Returns the validated, public metadata for selection exceptions.
+///
+/// # Errors
+///
+/// Returns an error when the internal selection exception registry is invalid.
+pub fn selection_exception_inventory()
+-> Result<Vec<SelectionExceptionInfo>, SelectionExceptionInventoryError> {
+    selection_exception_inventory_for(SELECTION_EXCEPTIONS, construction_name)
+}
+
+fn selection_exception_inventory_for<C>(
+    exceptions: &[SelectionException<C>],
+    construction_name: impl Fn(C) -> &'static str,
+) -> Result<Vec<SelectionExceptionInfo>, SelectionExceptionInventoryError>
+where
+    C: Copy + Eq,
+{
+    validate_selection_exceptions(exceptions, &construction_name)?;
+    Ok(exceptions
+        .iter()
+        .map(|exception| {
+            let (left, right) = canonical_pair(
+                construction_name(exception.left),
+                construction_name(exception.right),
+            );
+            SelectionExceptionInfo {
+                id: exception.id,
+                left,
+                right,
+                winner: construction_name(exception.winner),
+                rationale: exception.rationale,
+            }
+        })
+        .collect())
+}
+
+fn validate_selection_exceptions<C>(
+    exceptions: &[SelectionException<C>],
+    construction_name: &impl Fn(C) -> &'static str,
+) -> Result<(), SelectionExceptionInventoryError>
+where
+    C: Copy + Eq,
+{
+    for (index, exception) in exceptions.iter().enumerate() {
+        if exception.id.trim().is_empty() {
+            return Err(SelectionExceptionInventoryError::BlankId);
+        }
+        if exceptions[..index]
+            .iter()
+            .any(|previous| previous.id == exception.id)
+        {
+            return Err(SelectionExceptionInventoryError::DuplicateId { id: exception.id });
+        }
+        if exception.left == exception.right {
+            return Err(SelectionExceptionInventoryError::SelfPair {
+                construction: construction_name(exception.left),
+            });
+        }
+        if exceptions[..index].iter().any(|previous| {
+            (previous.left == exception.left && previous.right == exception.right)
+                || (previous.left == exception.right && previous.right == exception.left)
+        }) {
+            let (left, right) = canonical_pair(
+                construction_name(exception.left),
+                construction_name(exception.right),
+            );
+            return Err(SelectionExceptionInventoryError::DuplicatePair { left, right });
+        }
+        if exception.rationale.trim().is_empty() {
+            return Err(SelectionExceptionInventoryError::BlankRationale { id: exception.id });
+        }
+        if exception.winner != exception.left && exception.winner != exception.right {
+            return Err(SelectionExceptionInventoryError::WinnerOutsidePair { id: exception.id });
+        }
+    }
+    Ok(())
+}
+
+fn canonical_pair(left: &'static str, right: &'static str) -> (&'static str, &'static str) {
+    if left <= right { (left, right) } else { (right, left) }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
 struct Specificity(Vec<PositionSpecificity>);
@@ -20,6 +168,8 @@ enum PositionSpecificity {
 }
 
 pub(crate) fn select(candidates: Vec<Candidate>) -> Result<Option<Ability>, ParseError> {
+    validate_selection_exceptions(SELECTION_EXCEPTIONS, &construction_name)
+        .map_err(ParseError::InvalidSelectionExceptionConfiguration)?;
     if candidates.is_empty() {
         return Ok(None);
     }
@@ -60,7 +210,7 @@ fn select_ranked<T, C>(
     constructions: impl Fn(&T) -> &[C],
     specificity: impl Fn(&T) -> Specificity,
     construction_name: impl Fn(C) -> &'static str,
-    exceptions: &[(C, C, Ordering)],
+    exceptions: &[SelectionException<C>],
 ) -> Result<T, ParseError>
 where
     C: Copy + Eq,
@@ -111,23 +261,23 @@ where
 fn exception_order<C: Copy + Eq>(
     left: &[C],
     right: &[C],
-    exceptions: &[(C, C, Ordering)],
-) -> Ordering {
+    exceptions: &[SelectionException<C>],
+) -> std::cmp::Ordering {
     let Some((left, right)) = first_difference(left, right) else {
-        return Ordering::Equal;
+        return std::cmp::Ordering::Equal;
     };
     exceptions
         .iter()
-        .find_map(|&(exception_left, exception_right, ordering)| {
-            if (left, right) == (exception_left, exception_right) {
-                Some(ordering)
-            } else if (left, right) == (exception_right, exception_left) {
-                Some(ordering.reverse())
-            } else {
-                None
-            }
+        .find_map(|exception| {
+            ((left, right) == (exception.left, exception.right)
+                || (left, right) == (exception.right, exception.left))
+                .then_some(if exception.winner == left {
+                    std::cmp::Ordering::Greater
+                } else {
+                    std::cmp::Ordering::Less
+                })
         })
-        .unwrap_or(Ordering::Equal)
+        .unwrap_or(std::cmp::Ordering::Equal)
 }
 
 fn first_difference<C: Copy + Eq>(left: &[C], right: &[C]) -> Option<(C, C)> {
@@ -191,7 +341,11 @@ const fn construction_name(construction: Construction) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use super::SelectionException;
+    use super::SelectionExceptionInventoryError;
     use super::select_ranked;
+    use super::selection_exception_inventory;
+    use super::selection_exception_inventory_for;
     use super::structural_specificity;
     use crate::parser::ParseError;
     use crate::parser::engine::Child;
@@ -626,5 +780,190 @@ mod tests {
         .unwrap();
 
         assert_eq!(selected.ability, "longer");
+    }
+
+    #[test]
+    fn selection_exception_registry_selects_its_winner_in_both_orientations() {
+        let exceptions = [SelectionException {
+            id: "test-left-over-right",
+            left: TestConstruction::TestLeft,
+            right: TestConstruction::TestRight,
+            winner: TestConstruction::TestLeft,
+            rationale: "the synthetic left construction wins",
+        }];
+
+        let forward = select_ranked(
+            test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| structural_specificity(&candidate.positions, |_| false),
+            construction_name,
+            &exceptions,
+        )
+        .unwrap();
+        let reverse = select_ranked(
+            test_tied_candidates(TestConstruction::TestRight, TestConstruction::TestLeft),
+            |candidate| candidate.constructions.as_slice(),
+            |candidate| structural_specificity(&candidate.positions, |_| false),
+            construction_name,
+            &exceptions,
+        )
+        .unwrap();
+
+        assert_eq!(forward.construction, TestConstruction::TestLeft);
+        assert_eq!(reverse.construction, TestConstruction::TestLeft);
+    }
+
+    #[test]
+    fn selection_exception_inventory_canonicalizes_pairs_and_keeps_winner() {
+        let inventory = selection_exception_inventory_for(
+            &[SelectionException {
+                id: "test-right-over-left",
+                left: TestConstruction::TestRight,
+                right: TestConstruction::TestLeft,
+                winner: TestConstruction::TestRight,
+                rationale: "the synthetic right construction wins",
+            }],
+            construction_name,
+        )
+        .unwrap();
+
+        assert_eq!(inventory.len(), 1);
+        assert_eq!(inventory[0].id, "test-right-over-left");
+        assert_eq!(inventory[0].left, "TestLeft");
+        assert_eq!(inventory[0].right, "TestRight");
+        assert_eq!(inventory[0].winner, "TestRight");
+        assert_eq!(
+            inventory[0].rationale,
+            "the synthetic right construction wins"
+        );
+    }
+
+    #[test]
+    fn selection_exception_inventory_rejects_invalid_registry_entries() {
+        let entry = |id, left, right, winner, rationale| SelectionException {
+            id,
+            left,
+            right,
+            winner,
+            rationale,
+        };
+        let name = construction_name;
+
+        assert!(matches!(
+            selection_exception_inventory_for(
+                &[entry(
+                    " ",
+                    TestConstruction::TestLeft,
+                    TestConstruction::TestRight,
+                    TestConstruction::TestLeft,
+                    "valid rationale",
+                )],
+                name,
+            ),
+            Err(SelectionExceptionInventoryError::BlankId)
+        ));
+        assert!(matches!(
+            selection_exception_inventory_for(
+                &[
+                    entry(
+                        "duplicate",
+                        TestConstruction::TestLeft,
+                        TestConstruction::TestRight,
+                        TestConstruction::TestLeft,
+                        "first rationale",
+                    ),
+                    entry(
+                        "duplicate",
+                        TestConstruction::LateLiteral,
+                        TestConstruction::EarlyTyped,
+                        TestConstruction::LateLiteral,
+                        "second rationale",
+                    ),
+                ],
+                name,
+            ),
+            Err(SelectionExceptionInventoryError::DuplicateId { .. })
+        ));
+        assert!(matches!(
+            selection_exception_inventory_for(
+                &[
+                    entry(
+                        "first-pair",
+                        TestConstruction::TestLeft,
+                        TestConstruction::TestRight,
+                        TestConstruction::TestLeft,
+                        "first rationale",
+                    ),
+                    entry(
+                        "same-pair",
+                        TestConstruction::TestRight,
+                        TestConstruction::TestLeft,
+                        TestConstruction::TestRight,
+                        "second rationale",
+                    ),
+                ],
+                name,
+            ),
+            Err(SelectionExceptionInventoryError::DuplicatePair { .. })
+        ));
+        assert!(matches!(
+            selection_exception_inventory_for(
+                &[entry(
+                    "self-pair",
+                    TestConstruction::TestLeft,
+                    TestConstruction::TestLeft,
+                    TestConstruction::TestLeft,
+                    "valid rationale",
+                )],
+                name,
+            ),
+            Err(SelectionExceptionInventoryError::SelfPair { .. })
+        ));
+        assert!(matches!(
+            selection_exception_inventory_for(
+                &[entry(
+                    "blank-rationale",
+                    TestConstruction::TestLeft,
+                    TestConstruction::TestRight,
+                    TestConstruction::TestLeft,
+                    "\t",
+                )],
+                name,
+            ),
+            Err(SelectionExceptionInventoryError::BlankRationale { .. })
+        ));
+        assert!(matches!(
+            selection_exception_inventory_for(
+                &[entry(
+                    "outside-winner",
+                    TestConstruction::TestLeft,
+                    TestConstruction::TestRight,
+                    TestConstruction::LateLiteral,
+                    "valid rationale",
+                )],
+                name,
+            ),
+            Err(SelectionExceptionInventoryError::WinnerOutsidePair { .. })
+        ));
+    }
+
+    #[test]
+    fn selection_exception_inventory_is_empty_in_production() {
+        assert!(selection_exception_inventory().unwrap().is_empty());
+    }
+
+    fn test_tied_candidates(
+        first: TestConstruction,
+        second: TestConstruction,
+    ) -> Vec<TestCandidate> {
+        [first, second]
+            .into_iter()
+            .map(|construction| TestCandidate {
+                ability: construction_name(construction),
+                construction,
+                constructions: vec![construction],
+                positions: vec![RulePosition::Lexical(TestLexical::Word)],
+            })
+            .collect()
     }
 }

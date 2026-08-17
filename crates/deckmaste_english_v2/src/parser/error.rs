@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+use super::SelectionExceptionInventoryError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub struct TextSpan {
     pub start: usize,
@@ -90,6 +92,7 @@ pub enum ParseError {
         first: &'static str,
         second: &'static str,
     },
+    InvalidSelectionExceptionConfiguration(SelectionExceptionInventoryError),
     ValidatedRootDidNotMaterialize,
 }
 
@@ -114,6 +117,7 @@ impl fmt::Display for ParseError {
             Self::Ambiguous { first, second } => {
                 write!(formatter, "ambiguous parse between {first} and {second}")
             }
+            Self::InvalidSelectionExceptionConfiguration(error) => error.fmt(formatter),
             Self::ValidatedRootDidNotMaterialize => {
                 formatter.write_str("validated chart root did not materialize")
             }

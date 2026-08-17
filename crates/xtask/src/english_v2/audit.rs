@@ -153,16 +153,21 @@ fn audit_unit(unit: &CorpusUnit, parser: &Parser) -> AuditRow {
             row.rendered = Some(rendered);
         }
         Err(error) => {
-            row.status = match error {
-                ParseError::Failure { .. } => AuditStatus::ParseFailure,
-                ParseError::Ambiguous { .. } => AuditStatus::Ambiguous,
-                ParseError::ValidatedRootDidNotMaterialize => AuditStatus::InternalFailure,
-            };
+            row.status = audit_status_for_error(&error);
             row.message = Some(error.to_string());
         }
     }
 
     row
+}
+
+fn audit_status_for_error(error: &ParseError) -> AuditStatus {
+    match error {
+        ParseError::Failure { .. } => AuditStatus::ParseFailure,
+        ParseError::Ambiguous { .. } => AuditStatus::Ambiguous,
+        ParseError::InvalidSelectionExceptionConfiguration(_)
+        | ParseError::ValidatedRootDidNotMaterialize => AuditStatus::InternalFailure,
+    }
 }
 
 #[cfg(test)]
@@ -249,7 +254,9 @@ mod tests {
     use std::path::Path;
 
     use deckmaste_english_v2::catalogs::ParserCatalogs;
+    use deckmaste_english_v2::parser::ParseError;
     use deckmaste_english_v2::parser::Parser;
+    use deckmaste_english_v2::parser::SelectionExceptionInventoryError;
 
     use super::AuditReport;
     use super::AuditStatus;
@@ -318,6 +325,22 @@ mod tests {
             [format!("{:064x}", 1), format!("{:064x}", 2)]
                 .into_iter()
                 .collect()
+        );
+    }
+
+    #[test]
+    fn invalid_selection_configuration_is_an_internal_failure_with_full_message() {
+        let error = ParseError::InvalidSelectionExceptionConfiguration(
+            SelectionExceptionInventoryError::BlankId,
+        );
+
+        assert_eq!(
+            super::audit_status_for_error(&error),
+            AuditStatus::InternalFailure
+        );
+        assert_eq!(
+            error.to_string(),
+            "invalid selection exception configuration: entry id is empty or whitespace-only"
         );
     }
 }

@@ -60,6 +60,9 @@ pub use error::NonterminalCategory;
 pub use error::ParseError;
 pub use error::TerminalClass;
 pub use error::TextSpan;
+pub use selection::SelectionExceptionInfo;
+pub use selection::SelectionExceptionInventoryError;
+pub use selection::selection_exception_inventory;
 
 mod error;
 
