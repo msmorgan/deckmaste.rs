@@ -117,6 +117,10 @@ impl StructuralTrace {
     pub(crate) fn tokens(&self) -> &Bounded<ScannedToken> {
         &self.tokens
     }
+    #[allow(dead_code, reason = "Task 6 owns the public structural trace facade.")]
+    pub(crate) fn checked_completion_rejections(&self) -> &Bounded<CheckedCompletionRejection> {
+        &self.checked_completion_rejections
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

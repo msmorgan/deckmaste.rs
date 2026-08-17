@@ -490,6 +490,10 @@ mod tests {
     use std::collections::BTreeSet;
     use std::path::Path;
 
+    use super::super::engine::Child;
+    use super::super::engine::Family;
+    use super::super::engine::NodeId;
+    use super::super::engine::Observation;
     use super::CatalogIdentity;
     use super::CatalogKind;
     use super::Category;
@@ -573,6 +577,48 @@ mod tests {
                     .collect::<Vec<_>>(),
                 [(0, 5), (0, 7), (4, 9)][..shown]
             );
+        }
+    }
+
+    #[test]
+    fn structural_trace_transient_checked_rejection_disappears() {
+        let family = Family {
+            children: vec![
+                Child::Node(NodeId(7)),
+                Child::Lexical(Leaf::Literal("where")),
+            ],
+        };
+        let mut observed = StructuralObservation::new(TraceLimits::new(1));
+        observed.checked_completion(RuleId::AmountNumber, 1, 4, &family, false);
+        observed.checked_completion(RuleId::AmountNumber, 1, 4, &family, true);
+        let rejections = observed.finish().checked_completion_rejections().clone();
+        assert_eq!(
+            (rejections.total(), rejections.shown(), rejections.omitted()),
+            (0, 0, 0)
+        );
+    }
+
+    #[test]
+    fn structural_trace_final_checked_rejection_is_structured_and_bounded() {
+        let family = Family {
+            children: vec![
+                Child::Node(NodeId(7)),
+                Child::Lexical(Leaf::Literal("where")),
+            ],
+        };
+        for (limit, shown) in [(0, 0), (1, 1)] {
+            let mut observed = StructuralObservation::new(TraceLimits::new(limit));
+            observed.checked_completion(RuleId::AmountNumber, 1, 4, &family, false);
+            let rejections = observed.finish().checked_completion_rejections().clone();
+            assert_eq!(
+                (rejections.total(), rejections.shown(), rejections.omitted()),
+                (1, shown, 1 - shown)
+            );
+            if let Some(rejection) = rejections.items().first() {
+                assert_eq!(rejection.rule_name_v1, "AmountNumber");
+                assert_eq!((rejection.start, rejection.end), (1, 4));
+                assert_eq!(rejection.family_identity_v1.0.len(), 2);
+            }
         }
     }
 
