@@ -221,6 +221,42 @@ mod structural_trace_tests {
             assert_eq!(trace, repeated);
         }
     }
+
+    #[test]
+    fn structural_trace_failure_retains_partial_forest_with_exact_bounds() {
+        fn bounded<T>(value: &super::Bounded<T>, limit: usize) {
+            assert_eq!(value.total(), value.shown() + value.omitted());
+            assert_eq!(value.shown(), value.items().len());
+            assert!(value.shown() <= limit);
+        }
+        let catalogs = ParserCatalogs::load(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
+        )
+        .expect("catalogs");
+        let parser = Parser::new(catalogs);
+        let context = ParseContext::new("Trace Card").expect("context");
+        let text = "Whenever a player connives, you gain X life";
+        for limit in [0, 1, usize::MAX] {
+            let (analysis, trace) =
+                parser.observe_structural(text, &context, TraceLimits::new(limit));
+            assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
+            bounded(trace.tokens(), limit);
+            bounded(trace.chart(), limit);
+            bounded(trace.forest(), limit);
+            bounded(trace.accepted_roots(), limit);
+            bounded(trace.checked_completion_rejections(), limit);
+            for node in trace.forest().items() {
+                bounded(node.families(), limit);
+                for family in node.families().items() {
+                    bounded(family.children(), limit);
+                }
+            }
+            assert_eq!(trace.accepted_roots().total(), 0);
+            assert!(trace.forest().total() > 0);
+            let (_, repeated) = parser.observe_structural(text, &context, TraceLimits::new(limit));
+            assert_eq!(trace, repeated);
+        }
+    }
 }
 
 fn chart_failure(text: &str, failure: ChartFailure<Category, Lexical>) -> ParseError {
