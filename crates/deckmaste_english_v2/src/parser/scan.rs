@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::cmp::Ordering;
 
 use deckmaste_catalogs::CatalogKind;
 
@@ -13,6 +13,7 @@ use super::diagnostic::ForestNode;
 use super::diagnostic::SemanticTokenInventory;
 use super::diagnostic::StructuralTrace;
 use super::diagnostic::TraceLimits;
+use super::diagnostic::order_bounded_prefix;
 use super::engine::ChartFailure;
 use super::engine::Child;
 use super::engine::Family;
@@ -105,11 +106,28 @@ pub(crate) fn parse_forest_observed(
 
 struct StructuralObservation {
     limit: usize,
-    tokens: SemanticTokenInventory,
+    tokens: SemanticTokenInventory<Lexical, Leaf>,
     chart: Bounded<ChartItem>,
     forest: Bounded<ForestNode>,
     roots: Bounded<usize>,
-    rejections: BTreeSet<(String, usize, usize, FamilyIdentity)>,
+    rejections: Vec<CheckedRejectionIdentity>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+struct CheckedRejectionIdentity {
+    rule: RuleId,
+    start: usize,
+    end: usize,
+    family: RawFamilyIdentity,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+struct RawFamilyIdentity(Vec<RawFamilyIdentityChild>);
+
+#[derive(Clone, PartialEq, Eq)]
+enum RawFamilyIdentityChild {
+    Node(usize),
+    Lexical(Leaf),
 }
 
 impl StructuralObservation {
@@ -120,31 +138,33 @@ impl StructuralObservation {
             chart: Bounded::new(limits.per_collection()),
             forest: Bounded::new(limits.per_collection()),
             roots: Bounded::new(limits.per_collection()),
-            rejections: BTreeSet::new(),
+            rejections: Vec::new(),
         }
     }
 
-    fn finish(self) -> StructuralTrace {
-        let tokens = self.tokens.into_bounded(self.limit);
+    fn finish(mut self) -> StructuralTrace {
+        let tokens = self.tokens.into_bounded_by(
+            self.limit,
+            stable_debug_cmp,
+            stable_debug_cmp,
+            terminal_name_v1,
+            value_label_v1,
+        );
+        order_bounded_prefix(&mut self.rejections, self.limit, rejection_identity_cmp);
         let mut rejections = Bounded::new(self.limit);
-        for (rule_name_v1, start, end, family_identity_v1) in self.rejections {
+        for rejection in self.rejections {
             rejections.push_with(|| CheckedCompletionRejection {
-                rule_name_v1,
-                start,
-                end,
-                family_identity_v1,
+                rule_name_v1: rule_name_v1(rejection.rule),
+                start: rejection.start,
+                end: rejection.end,
+                family_identity_v1: family_identity_v1(&rejection.family),
             });
         }
         StructuralTrace::new(tokens, self.chart, self.forest, self.roots, rejections)
     }
 
     fn record_token(&mut self, start: usize, end: usize, terminal: Lexical, value: &Leaf) {
-        self.tokens.record(
-            start,
-            end,
-            terminal_name_v1(terminal),
-            value_label_v1(value),
-        );
+        self.tokens.record(start, end, terminal, value.clone());
     }
 }
 
@@ -161,11 +181,16 @@ impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
         family: &Family<Leaf>,
         accepted: bool,
     ) {
-        let key = (rule_name_v1(rule), start, end, family_identity_v1(family));
+        let key = CheckedRejectionIdentity {
+            rule,
+            start,
+            end,
+            family: raw_family_identity(family),
+        };
         if accepted {
-            self.rejections.remove(&key);
-        } else {
-            self.rejections.insert(key);
+            self.rejections.retain(|rejection| rejection != &key);
+        } else if !self.rejections.contains(&key) {
+            self.rejections.push(key);
         }
     }
 
@@ -224,25 +249,184 @@ impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
 }
 
 fn rule_name_v1(rule: RuleId) -> String {
+    #[cfg(test)]
+    TRACE_LABEL_COUNTS.with(|counts| {
+        let mut current = counts.get();
+        current.rules += 1;
+        counts.set(current);
+    });
     format!("{rule:?}")
 }
 fn terminal_name_v1(terminal: Lexical) -> String {
+    #[cfg(test)]
+    TRACE_LABEL_COUNTS.with(|counts| {
+        let mut current = counts.get();
+        current.terminals += 1;
+        counts.set(current);
+    });
     format!("{terminal:?}")
 }
 fn value_label_v1(value: &Leaf) -> String {
+    #[cfg(test)]
+    TRACE_LABEL_COUNTS.with(|counts| {
+        let mut current = counts.get();
+        current.values += 1;
+        counts.set(current);
+    });
     format!("{value:?}")
 }
-fn family_identity_v1(family: &Family<Leaf>) -> FamilyIdentity {
-    FamilyIdentity(
+fn raw_family_identity(family: &Family<Leaf>) -> RawFamilyIdentity {
+    RawFamilyIdentity(
         family
             .children
             .iter()
             .map(|child| match child {
-                Child::Node(id) => FamilyIdentityChild::Node(id.0),
-                Child::Lexical(value) => FamilyIdentityChild::Lexical(value_label_v1(value)),
+                Child::Node(id) => RawFamilyIdentityChild::Node(id.0),
+                Child::Lexical(value) => RawFamilyIdentityChild::Lexical(value.clone()),
             })
             .collect(),
     )
+}
+
+fn family_identity_v1(family: &RawFamilyIdentity) -> FamilyIdentity {
+    #[cfg(test)]
+    TRACE_LABEL_COUNTS.with(|counts| {
+        let mut current = counts.get();
+        current.families += 1;
+        counts.set(current);
+    });
+    FamilyIdentity(
+        family
+            .0
+            .iter()
+            .map(|child| match child {
+                RawFamilyIdentityChild::Node(id) => FamilyIdentityChild::Node(*id),
+                RawFamilyIdentityChild::Lexical(value) => {
+                    FamilyIdentityChild::Lexical(value_label_v1(value))
+                }
+            })
+            .collect(),
+    )
+}
+
+fn rejection_identity_cmp(
+    left: &CheckedRejectionIdentity,
+    right: &CheckedRejectionIdentity,
+) -> Ordering {
+    stable_debug_cmp(&left.rule, &right.rule)
+        .then_with(|| left.start.cmp(&right.start))
+        .then_with(|| left.end.cmp(&right.end))
+        .then_with(|| raw_family_identity_cmp(&left.family, &right.family))
+}
+
+fn raw_family_identity_cmp(left: &RawFamilyIdentity, right: &RawFamilyIdentity) -> Ordering {
+    for (left, right) in left.0.iter().zip(&right.0) {
+        let ordering = match (left, right) {
+            (RawFamilyIdentityChild::Node(left), RawFamilyIdentityChild::Node(right)) => {
+                left.cmp(right)
+            }
+            (RawFamilyIdentityChild::Node(_), RawFamilyIdentityChild::Lexical(_)) => Ordering::Less,
+            (RawFamilyIdentityChild::Lexical(_), RawFamilyIdentityChild::Node(_)) => {
+                Ordering::Greater
+            }
+            (RawFamilyIdentityChild::Lexical(left), RawFamilyIdentityChild::Lexical(right)) => {
+                stable_debug_cmp(left, right)
+            }
+        };
+        if ordering != Ordering::Equal {
+            return ordering;
+        }
+    }
+    left.0.len().cmp(&right.0.len())
+}
+
+fn stable_debug_cmp<T: std::fmt::Debug>(left: &T, right: &T) -> Ordering {
+    // Schema-v1 ordering is the lexical order of the generated Debug labels.
+    // Compare fixed-size stack chunks so ordering never requires an owned
+    // label for an identity that the bounded projection will discard.
+    const CHUNK_SIZE: usize = 128;
+    let mut offset = 0;
+    loop {
+        let mut left_bytes = [0; CHUNK_SIZE];
+        let mut right_bytes = [0; CHUNK_SIZE];
+        let (left_len, left_complete) = debug_chunk(left, offset, &mut left_bytes);
+        let (right_len, right_complete) = debug_chunk(right, offset, &mut right_bytes);
+        let ordering = left_bytes[..left_len].cmp(&right_bytes[..right_len]);
+        if ordering != Ordering::Equal {
+            return ordering;
+        }
+        match (left_complete, right_complete) {
+            (true, true) => return Ordering::Equal,
+            (true, false) => return Ordering::Less,
+            (false, true) => return Ordering::Greater,
+            (false, false) => offset += CHUNK_SIZE,
+        }
+    }
+}
+
+fn debug_chunk<T: std::fmt::Debug>(value: &T, skip: usize, buffer: &mut [u8]) -> (usize, bool) {
+    struct ChunkWriter<'a> {
+        skip: usize,
+        buffer: &'a mut [u8],
+        len: usize,
+    }
+
+    impl std::fmt::Write for ChunkWriter<'_> {
+        fn write_str(&mut self, rendered: &str) -> std::fmt::Result {
+            let mut rendered = rendered.as_bytes();
+            if self.skip >= rendered.len() {
+                self.skip -= rendered.len();
+                return Ok(());
+            }
+            rendered = &rendered[self.skip..];
+            self.skip = 0;
+            let available = self.buffer.len() - self.len;
+            let copied = available.min(rendered.len());
+            self.buffer[self.len..self.len + copied].copy_from_slice(&rendered[..copied]);
+            self.len += copied;
+            (copied == rendered.len())
+                .then_some(())
+                .ok_or(std::fmt::Error)
+        }
+    }
+
+    let mut writer = ChunkWriter {
+        skip,
+        buffer,
+        len: 0,
+    };
+    let complete = std::fmt::write(&mut writer, format_args!("{value:?}")).is_ok();
+    (writer.len, complete)
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct TraceLabelCounts {
+    rules: usize,
+    terminals: usize,
+    values: usize,
+    families: usize,
+}
+
+#[cfg(test)]
+thread_local! {
+    static TRACE_LABEL_COUNTS: std::cell::Cell<TraceLabelCounts> =
+        const { std::cell::Cell::new(TraceLabelCounts {
+            rules: 0,
+            terminals: 0,
+            values: 0,
+            families: 0,
+        }) };
+}
+
+#[cfg(test)]
+fn reset_trace_label_counts() {
+    TRACE_LABEL_COUNTS.set(TraceLabelCounts::default());
+}
+
+#[cfg(test)]
+fn trace_label_counts() -> TraceLabelCounts {
+    TRACE_LABEL_COUNTS.get()
 }
 
 impl SliceGrammar<'_> {
@@ -498,8 +682,10 @@ mod tests {
     use super::StructuralObservation;
     use super::TraceLimits;
     use super::parse_forest;
+    use super::reset_trace_label_counts;
     use super::rule_name_v1;
     use super::terminal_name_v1;
+    use super::trace_label_counts;
     use super::value_label_v1;
     use crate::ast::Article;
     use crate::ast::Demonstrative;
@@ -573,6 +759,37 @@ mod tests {
     }
 
     #[test]
+    fn structural_trace_token_labels_are_built_only_for_retained_entries() {
+        for (limit, expected_labels) in [(0, 0), (1, 1)] {
+            reset_trace_label_counts();
+            let mut observed = StructuralObservation::new(TraceLimits::new(limit));
+            observed.record_token(0, 1, Lexical::Literal("z"), &Leaf::Literal("z"));
+            observed.record_token(0, 1, Lexical::Literal("a"), &Leaf::Literal("a"));
+
+            let tokens = observed.finish().tokens().clone();
+            assert_eq!(
+                (tokens.total(), tokens.shown(), tokens.omitted()),
+                (2, expected_labels, 2 - expected_labels)
+            );
+            if let Some(token) = tokens.items().first() {
+                assert_eq!(token.value_label_v1(), "Literal(\"a\")");
+            }
+            let counts = trace_label_counts();
+            assert_eq!(counts.terminals, expected_labels, "limit {limit}");
+            assert_eq!(counts.values, expected_labels, "limit {limit}");
+            assert_eq!(counts.rules, 0, "limit {limit}");
+            assert_eq!(counts.families, 0, "limit {limit}");
+        }
+    }
+
+    #[test]
+    fn structural_trace_noop_observer_builds_no_diagnostic_labels() {
+        reset_trace_label_counts();
+        assert!(slice_candidates("Destroy target creature.", "Context Card").is_ok());
+        assert_eq!(trace_label_counts(), super::TraceLabelCounts::default());
+    }
+
+    #[test]
     fn structural_trace_transient_checked_rejection_disappears() {
         let family = Family {
             children: vec![
@@ -611,6 +828,33 @@ mod tests {
                 assert_eq!((rejection.start, rejection.end), (1, 4));
                 assert_eq!(rejection.family_identity_v1.0.len(), 2);
             }
+        }
+    }
+
+    #[test]
+    fn structural_trace_rejection_labels_are_built_only_for_retained_entries() {
+        let family = Family {
+            children: vec![Child::Lexical(Leaf::Literal("family"))],
+        };
+        for (limit, expected_labels) in [(0, 0), (1, 1)] {
+            reset_trace_label_counts();
+            let mut observed = StructuralObservation::new(TraceLimits::new(limit));
+            observed.checked_completion(RuleId::VerbPhraseGainLife, 1, 2, &family, false);
+            observed.checked_completion(RuleId::AmountNumber, 1, 2, &family, false);
+
+            let rejections = observed.finish().checked_completion_rejections().clone();
+            assert_eq!(
+                (rejections.total(), rejections.shown(), rejections.omitted()),
+                (2, expected_labels, 2 - expected_labels)
+            );
+            if let Some(rejection) = rejections.items().first() {
+                assert_eq!(rejection.rule_name_v1(), "AmountNumber");
+            }
+            let counts = trace_label_counts();
+            assert_eq!(counts.rules, expected_labels, "limit {limit}");
+            assert_eq!(counts.values, expected_labels, "limit {limit}");
+            assert_eq!(counts.terminals, 0, "limit {limit}");
+            assert_eq!(counts.families, expected_labels, "limit {limit}");
         }
     }
 

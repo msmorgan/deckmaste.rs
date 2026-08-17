@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
 
 use super::Expectation;
 use super::ParseError;
@@ -108,33 +107,68 @@ impl ScannedToken {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub(crate) struct SemanticTokenInventory {
-    entries: BTreeSet<(usize, usize, String, String)>,
+#[derive(Debug, Clone)]
+pub(crate) struct SemanticTokenInventory<Terminal, Value> {
+    entries: Vec<(usize, usize, Terminal, Value)>,
 }
-impl SemanticTokenInventory {
-    pub(crate) fn record(
-        &mut self,
-        start: usize,
-        end: usize,
-        terminal_name_v1: String,
-        value_label_v1: String,
-    ) {
-        self.entries
-            .insert((start, end, terminal_name_v1, value_label_v1));
+
+impl<Terminal, Value> Default for SemanticTokenInventory<Terminal, Value> {
+    fn default() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
     }
-    pub(crate) fn into_bounded(self, limit: usize) -> Bounded<ScannedToken> {
+}
+
+impl<Terminal: PartialEq, Value: PartialEq> SemanticTokenInventory<Terminal, Value> {
+    pub(crate) fn record(&mut self, start: usize, end: usize, terminal: Terminal, value: Value) {
+        let entry = (start, end, terminal, value);
+        if !self.entries.contains(&entry) {
+            self.entries.push(entry);
+        }
+    }
+
+    pub(crate) fn into_bounded_by(
+        mut self,
+        limit: usize,
+        mut terminal_cmp: impl FnMut(&Terminal, &Terminal) -> Ordering,
+        mut value_cmp: impl FnMut(&Value, &Value) -> Ordering,
+        mut terminal_name_v1: impl FnMut(Terminal) -> String,
+        mut value_label_v1: impl FnMut(&Value) -> String,
+    ) -> Bounded<ScannedToken> {
+        order_bounded_prefix(&mut self.entries, limit, |left, right| {
+            left.0
+                .cmp(&right.0)
+                .then_with(|| left.1.cmp(&right.1))
+                .then_with(|| terminal_cmp(&left.2, &right.2))
+                .then_with(|| value_cmp(&left.3, &right.3))
+        });
         let mut tokens = Bounded::new(limit);
-        for (start, end, terminal_name_v1, value_label_v1) in self.entries {
+        for (start, end, terminal, value) in self.entries {
             tokens.push_with(|| ScannedToken {
                 start,
                 end,
-                terminal_name_v1,
-                value_label_v1,
+                terminal_name_v1: terminal_name_v1(terminal),
+                value_label_v1: value_label_v1(&value),
             });
         }
         tokens
     }
+}
+
+pub(crate) fn order_bounded_prefix<T>(
+    entries: &mut [T],
+    limit: usize,
+    mut compare: impl FnMut(&T, &T) -> Ordering,
+) {
+    let retained = limit.min(entries.len());
+    if retained == 0 {
+        return;
+    }
+    if retained < entries.len() {
+        entries.select_nth_unstable_by(retained, &mut compare);
+    }
+    entries[..retained].sort_by(compare);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1096,6 +1130,9 @@ pub enum BoundedParseOutcome {
 ///
 /// The complete analysis is deliberately private and is consumed only by
 /// [`ParserTrace::into_parse_result`].
+/// Its [`Debug`](std::fmt::Debug) representation is also a bounded public
+/// projection: it formats only the outcome and trace sections available from
+/// the public read-only accessors, never the private analysis or raw error.
 ///
 /// ```compile_fail
 /// use deckmaste_english_v2::parser::ParserTrace;
@@ -1106,12 +1143,31 @@ pub enum BoundedParseOutcome {
 /// use deckmaste_english_v2::parser::ParserTrace;
 /// fn leak_error(trace: ParserTrace) { let _ = trace.parse_error(); }
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ParserTrace {
     analysis: ParseAnalysis,
     outcome: BoundedParseOutcome,
     structural: StructuralTrace,
     materialization: MaterializationTrace,
+}
+
+impl std::fmt::Debug for ParserTrace {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ParserTrace")
+            .field("outcome", self.outcome())
+            .field("tokens", self.tokens())
+            .field("chart", self.chart())
+            .field("forest", self.forest())
+            .field("accepted_roots", self.accepted_roots())
+            .field(
+                "checked_completion_rejections",
+                self.checked_completion_rejections(),
+            )
+            .field("materialized_candidates", self.materialized_candidates())
+            .field("materialization_cycles", self.materialization_cycles())
+            .finish()
+    }
 }
 
 impl ParserTrace {
@@ -1364,6 +1420,36 @@ mod tests {
             assert_eq!(failure.message(), expected_message);
             assert_eq!(trace.into_parse_result(), Err(expected_error));
         }
+    }
+
+    #[test]
+    fn parser_trace_debug_redacts_private_analysis_and_raw_error() {
+        const PRIVATE_SENTINEL: &str = "PRIVATE_TRACE_DEBUG_SENTINEL";
+
+        let context = ParseContext::new("Trace Card").expect("context");
+        let trace = ParserTrace::from_parts(
+            ParseAnalysis::from_result(
+                Err(ParseError::Failure {
+                    span: TextSpan { start: 0, end: 0 },
+                    expectations: BTreeSet::from([Expectation::Literal(PRIVATE_SENTINEL)]),
+                }),
+                None,
+            ),
+            StructuralTrace::empty(),
+            MaterializationTrace::empty(0),
+            TraceLimits::new(0),
+            &context,
+        );
+        let BoundedParseOutcome::ParseFailure(failure) = trace.outcome() else {
+            panic!("parse-failure outcome");
+        };
+        assert_eq!(failure.expectations().total(), 1);
+        assert!(failure.expectations().items().is_empty());
+
+        let debug = format!("{trace:?}");
+        assert!(!debug.contains(PRIVATE_SENTINEL), "{debug}");
+        assert!(!debug.contains("analysis:"), "{debug}");
+        assert!(debug.contains("ParseFailure"), "{debug}");
     }
 
     #[test]

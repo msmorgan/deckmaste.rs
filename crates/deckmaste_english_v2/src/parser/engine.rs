@@ -773,7 +773,7 @@ mod tests {
             },
         ];
         struct TokenRecording {
-            inventory: super::super::diagnostic::SemanticTokenInventory,
+            inventory: super::super::diagnostic::SemanticTokenInventory<&'static str, &'static str>,
             callbacks: usize,
         }
         impl Observation<ToyRuleId, &'static str, &'static str> for TokenRecording {
@@ -785,8 +785,7 @@ mod tests {
                 value: &&'static str,
             ) {
                 self.callbacks += 1;
-                self.inventory
-                    .record(start, end, terminal.to_owned(), (*value).to_owned());
+                self.inventory.record(start, end, terminal, *value);
             }
         }
         let mut recording = TokenRecording {
@@ -824,7 +823,13 @@ mod tests {
                 vec![(0, 1, "shared", "same"), (0, 2, "shared", "overlap")],
             ),
         ] {
-            let bounded = recording.inventory.clone().into_bounded(limit);
+            let bounded = recording.inventory.clone().into_bounded_by(
+                limit,
+                Ord::cmp,
+                Ord::cmp,
+                str::to_owned,
+                |value| (*value).to_owned(),
+            );
             assert_eq!(
                 (bounded.total(), bounded.shown(), bounded.omitted()),
                 (2, expected.len(), 2 - expected.len())
