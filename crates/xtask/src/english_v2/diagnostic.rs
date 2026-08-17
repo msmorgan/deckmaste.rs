@@ -36,20 +36,53 @@ pub(super) struct DiagnosticReport {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-struct DiagnosticSource {
-    kind: SourceKind,
-    text: String,
-    context: String,
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum DiagnosticSource {
+    Probe {
+        text: String,
+        context: String,
+    },
+    Corpus {
+        id: String,
+        card: String,
+        face: Option<String>,
+        side: Option<String>,
+        text: String,
+        context: String,
+    },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SourceKind {
     Probe,
+    Corpus,
+}
+
+#[cfg(test)]
+impl DiagnosticSource {
+    const fn kind(&self) -> SourceKind {
+        match self {
+            Self::Probe { .. } => SourceKind::Probe,
+            Self::Corpus { .. } => SourceKind::Corpus,
+        }
+    }
+
+    fn text(&self) -> &str {
+        match self {
+            Self::Probe { text, .. } | Self::Corpus { text, .. } => text,
+        }
+    }
+
+    fn context(&self) -> &str {
+        match self {
+            Self::Probe { context, .. } | Self::Corpus { context, .. } => context,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-struct DiagnosticTrace {
+pub(super) struct DiagnosticTrace {
     tokens: Counted<ScannedToken>,
     final_chart: Counted<ChartItem>,
     forest_nodes: Counted<ForestNode>,
@@ -792,13 +825,31 @@ impl DiagnosticReport {
     ) -> Self {
         Self {
             schema_version: 1,
-            source: DiagnosticSource {
-                kind: SourceKind::Probe,
+            source: DiagnosticSource::Probe {
                 text: text.to_owned(),
                 context: context.to_owned(),
             },
             trace: DiagnosticTrace::from_source(trace),
         }
+    }
+
+    pub(super) fn from_corpus(unit: &super::corpus::CorpusUnit, trace: &ParserTrace) -> Self {
+        Self {
+            schema_version: 1,
+            source: corpus_source(unit),
+            trace: DiagnosticTrace::from_source(trace),
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn with_corpus_source_for_test(mut self, unit: &super::corpus::CorpusUnit) -> Self {
+        self.source = corpus_source(unit);
+        self
+    }
+
+    #[cfg(test)]
+    pub(super) fn trace_payload(&self) -> &DiagnosticTrace {
+        &self.trace
     }
 
     pub(super) fn internal_failure(&self) -> Option<(InternalFailureKind, &str)> {
@@ -810,6 +861,17 @@ impl DiagnosticReport {
             | DiagnosticOutcome::ParseFailure(_)
             | DiagnosticOutcome::UnresolvedAmbiguity(_) => None,
         }
+    }
+}
+
+fn corpus_source(unit: &super::corpus::CorpusUnit) -> DiagnosticSource {
+    DiagnosticSource::Corpus {
+        id: unit.id().to_owned(),
+        card: unit.card_name().to_owned(),
+        face: unit.face_name().map(str::to_owned),
+        side: unit.side().map(str::to_owned),
+        text: unit.text().to_owned(),
+        context: unit.context_name().to_owned(),
     }
 }
 
@@ -1069,8 +1131,8 @@ pub(super) fn render(
 ) -> anyhow::Result<()> {
     if json {
         serde_json::to_writer_pretty(&mut *output, report)
-            .context("write English-v2 probe JSON")?;
-        writeln!(output).context("writing English-v2 probe JSON terminator")?;
+            .context("write English-v2 diagnostic JSON")?;
+        writeln!(output).context("writing English-v2 diagnostic JSON terminator")?;
     } else {
         render_human(report, output)?;
     }
@@ -1078,14 +1140,34 @@ pub(super) fn render(
 }
 
 fn render_human(report: &DiagnosticReport, output: &mut dyn Write) -> anyhow::Result<()> {
-    writeln!(
-        output,
-        "English v2 diagnostic schema_version={} source_kind=probe text={} context={}",
-        report.schema_version,
-        json_value(&report.source.text)?,
-        json_value(&report.source.context)?,
-    )
-    .context("writing English-v2 probe human header")?;
+    match &report.source {
+        DiagnosticSource::Probe { text, context } => writeln!(
+            output,
+            "English v2 diagnostic schema_version={} source_kind=probe text={} context={}",
+            report.schema_version,
+            json_value(text)?,
+            json_value(context)?,
+        ),
+        DiagnosticSource::Corpus {
+            id,
+            card,
+            face,
+            side,
+            text,
+            context,
+        } => writeln!(
+            output,
+            "English v2 diagnostic schema_version={} source_kind=corpus id={} card={} face={} side={} text={} context={}",
+            report.schema_version,
+            json_value(id)?,
+            json_value(card)?,
+            json_value(face)?,
+            json_value(side)?,
+            json_value(text)?,
+            json_value(context)?,
+        ),
+    }
+    .context("writing English-v2 diagnostic human header")?;
     let trace = &report.trace;
     write_counted("tokens", &trace.tokens, output)?;
     write_items("token", &trace.tokens.items, output)?;
@@ -1101,7 +1183,7 @@ fn render_human(report: &DiagnosticReport, output: &mut dyn Write) -> anyhow::Re
             node.start,
             node.end,
         )
-        .context("writing English-v2 probe forest node")?;
+        .context("writing English-v2 diagnostic forest node")?;
         write_counted(
             &format!("forest_nodes[{node_index}].families"),
             &node.families,
@@ -1138,7 +1220,7 @@ fn render_human(report: &DiagnosticReport, output: &mut dyn Write) -> anyhow::Re
             json_value(&candidate.rendered)?,
             json_value(&candidate.ast_debug_v1)?,
         )
-        .context("writing English-v2 probe materialized candidate")?;
+        .context("writing English-v2 diagnostic materialized candidate")?;
         render_candidate_nested("materialized_candidates", index, candidate, output)?;
     }
     write_counted(
@@ -1152,7 +1234,7 @@ fn render_human(report: &DiagnosticReport, output: &mut dyn Write) -> anyhow::Re
             "materialization_cycle index={index} node_ordinal={}",
             cycle.node_ordinal
         )
-        .context("writing English-v2 probe materialization cycle")?;
+        .context("writing English-v2 diagnostic materialization cycle")?;
         let name = format!("materialization_cycles[{index}].construction_path");
         write_counted(&name, &cycle.construction_path, output)?;
         write_items(
@@ -1194,7 +1276,7 @@ fn render_outcome(outcome: &DiagnosticOutcome, output: &mut dyn Write) -> anyhow
                 "outcome status=selected rendered={}",
                 json_value(&selected.rendered)?
             )
-            .context("writing English-v2 probe selected outcome")?;
+            .context("writing English-v2 diagnostic selected outcome")?;
             render_selection(&selected.selection, output)
         }
         DiagnosticOutcome::ParseFailure(failure) => {
@@ -1203,13 +1285,13 @@ fn render_outcome(outcome: &DiagnosticOutcome, output: &mut dyn Write) -> anyhow
                 "outcome status=parse_failure span_start={} span_end={}",
                 failure.span.start, failure.span.end
             )
-            .context("writing English-v2 probe parse-failure outcome")?;
+            .context("writing English-v2 diagnostic parse-failure outcome")?;
             write_counted("outcome.expectations", &failure.expectations, output)?;
             write_items("outcome.expectation", &failure.expectations.items, output)
         }
         DiagnosticOutcome::UnresolvedAmbiguity(unresolved) => {
             writeln!(output, "outcome status=unresolved_ambiguity")
-                .context("writing English-v2 probe unresolved outcome")?;
+                .context("writing English-v2 diagnostic unresolved outcome")?;
             render_selection(&unresolved.selection, output)
         }
         DiagnosticOutcome::InternalFailure(failure) => writeln!(
@@ -1218,7 +1300,7 @@ fn render_outcome(outcome: &DiagnosticOutcome, output: &mut dyn Write) -> anyhow
             failure.kind.as_str(),
             json_value(&failure.message)?
         )
-        .context("writing English-v2 probe internal outcome"),
+        .context("writing English-v2 diagnostic internal outcome"),
     }
 }
 
@@ -1229,7 +1311,7 @@ fn render_selection(selection: &SelectionDecision, output: &mut dyn Write) -> an
         selection.resolution.as_str(),
         json_value(&selection.selected)?,
     )
-    .context("writing English-v2 probe selection")?;
+    .context("writing English-v2 diagnostic selection")?;
     write_counted("selection.candidates", &selection.candidates, output)?;
     for (index, candidate) in selection.candidates.items.iter().enumerate() {
         writeln!(
@@ -1237,7 +1319,7 @@ fn render_selection(selection: &SelectionDecision, output: &mut dyn Write) -> an
             "selection_candidate index={index} ordinal={}",
             candidate.ordinal
         )
-        .context("writing English-v2 probe selection candidate")?;
+        .context("writing English-v2 diagnostic selection candidate")?;
         render_selection_candidate_nested(
             &format!("selection.candidates[{index}]"),
             candidate,
@@ -1272,7 +1354,7 @@ fn render_selection(selection: &SelectionDecision, output: &mut dyn Write) -> an
             "selection_unselected_candidate index={index} item={}",
             json_value(unselected)?
         )
-        .context("writing English-v2 probe unselected candidate")?;
+        .context("writing English-v2 diagnostic unselected candidate")?;
         render_selection_candidate_nested(
             &format!("selection.unselected_candidates[{index}].candidate"),
             &unselected.candidate,
@@ -1320,7 +1402,7 @@ fn write_counted<T>(
         "{name} shown={} total={} omitted={}",
         counted.shown, counted.total, counted.omitted
     )
-    .with_context(|| format!("writing English-v2 probe {name} counts"))
+    .with_context(|| format!("writing English-v2 diagnostic {name} counts"))
 }
 
 fn write_items<T: Serialize>(
@@ -1330,13 +1412,13 @@ fn write_items<T: Serialize>(
 ) -> anyhow::Result<()> {
     for (index, item) in items.iter().enumerate() {
         writeln!(output, "{name} index={index} item={}", json_value(item)?)
-            .with_context(|| format!("writing English-v2 probe {name}"))?;
+            .with_context(|| format!("writing English-v2 diagnostic {name}"))?;
     }
     Ok(())
 }
 
 fn json_value<T: Serialize>(value: &T) -> anyhow::Result<String> {
-    serde_json::to_string(value).context("encoding English-v2 probe human field")
+    serde_json::to_string(value).context("encoding English-v2 diagnostic human field")
 }
 
 #[cfg(test)]
@@ -1460,8 +1542,7 @@ pub(super) fn fixture_report(outcome: FixtureOutcome) -> DiagnosticReport {
     };
     DiagnosticReport {
         schema_version: 1,
-        source: DiagnosticSource {
-            kind: SourceKind::Probe,
+        source: DiagnosticSource::Probe {
             text: "line\nbreak".to_owned(),
             context: "context\rbreak".to_owned(),
         },
@@ -2269,9 +2350,9 @@ mod tests {
             let runtime = trace(text, context, limit);
             let projected = DiagnosticReport::from_probe(text, context, &runtime);
             assert_eq!(projected.schema_version, 1);
-            assert_eq!(projected.source.kind, SourceKind::Probe);
-            assert_eq!(projected.source.text, text);
-            assert_eq!(projected.source.context, context);
+            assert_eq!(projected.source.kind(), SourceKind::Probe);
+            assert_eq!(projected.source.text(), text);
+            assert_eq!(projected.source.context(), context);
             assert_counts(runtime.tokens(), &projected.trace.tokens);
             assert_counts(runtime.chart(), &projected.trace.final_chart);
             assert_counts(runtime.forest(), &projected.trace.forest_nodes);

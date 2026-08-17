@@ -216,6 +216,81 @@ mod tests {
     }
 
     #[test]
+    fn english_v2_commands_inspect_accepts_only_exact_corpus_trace_flags() {
+        let cli = Cli::try_parse_from([
+            "cargo xtask",
+            "english_v2",
+            "inspect",
+            "--id",
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "--data",
+            "fixtures/atomic-cards.json",
+            "--catalogs",
+            "fixtures/catalogs",
+            "--limit",
+            "1",
+            "--json",
+        ])
+        .expect("inspect accepts exact corpus trace flags");
+        assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+
+        for args in [
+            vec!["cargo xtask", "english_v2", "inspect"],
+            vec!["cargo xtask", "english_v2", "inspect", "--id"],
+            vec![
+                "cargo xtask",
+                "english_v2",
+                "inspect",
+                "--id",
+                "x",
+                "--limit",
+            ],
+            vec![
+                "cargo xtask",
+                "english_v2",
+                "inspect",
+                "--id",
+                "x",
+                "--limit",
+                "not-a-number",
+            ],
+            vec![
+                "cargo xtask",
+                "english_v2",
+                "inspect",
+                "--id",
+                "x",
+                "--limit",
+                "184467440737095516160",
+            ],
+        ] {
+            assert!(Cli::try_parse_from(args).is_err());
+        }
+
+        for (flag, takes_value) in [
+            ("--text", true),
+            ("--context", true),
+            ("--lock", true),
+            ("--bless", false),
+            ("--require", false),
+            ("--require-complete", false),
+            ("--require-clean", false),
+            ("--require-resolved", false),
+            ("--trace", false),
+            ("--report", false),
+        ] {
+            let mut args = vec!["cargo xtask", "english_v2", "inspect", "--id", "x", flag];
+            if takes_value {
+                args.push("fixture");
+            }
+            assert!(
+                Cli::try_parse_from(args).is_err(),
+                "inspect accepted {flag}"
+            );
+        }
+    }
+
+    #[test]
     fn english_v2_report_accepts_only_json() {
         let cli = Cli::try_parse_from(["cargo xtask", "english_v2", "report", "--json"])
             .expect("report accepts JSON output");

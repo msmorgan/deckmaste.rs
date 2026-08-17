@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::Context;
+use anyhow::ensure;
 use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v2::context::ParseContext;
 use sha2::Digest;
@@ -43,6 +44,27 @@ impl CorpusUnit {
 
     pub(super) fn text(&self) -> &str {
         &self.text
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct ValidatedCorpusId(String);
+
+impl ValidatedCorpusId {
+    pub(super) fn parse(id: &str) -> anyhow::Result<Self> {
+        ensure!(
+            id.len() == 64
+                && id
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+            "invalid corpus ID {}; expected exactly 64 lowercase hexadecimal bytes",
+            quoted(id),
+        );
+        Ok(Self(id.to_owned()))
+    }
+
+    pub(super) fn as_str(&self) -> &str {
+        &self.0
     }
 }
 
@@ -97,6 +119,23 @@ impl Corpus {
     pub(super) fn units(&self) -> &[CorpusUnit] {
         &self.units
     }
+
+    pub(super) fn resolve_exact(&self, id: &ValidatedCorpusId) -> anyhow::Result<&CorpusUnit> {
+        let mut matches = self.units.iter().filter(|unit| unit.id() == id.as_str());
+        let Some(unit) = matches.next() else {
+            anyhow::bail!("no corpus unit has exact ID {}", quoted(id.as_str()));
+        };
+        ensure!(
+            matches.next().is_none(),
+            "multiple corpus units have exact ID {}",
+            quoted(id.as_str()),
+        );
+        Ok(unit)
+    }
+}
+
+fn quoted(value: &str) -> String {
+    serde_json::to_string(value).expect("serializing a string cannot fail")
 }
 
 fn validate_contexts(units: &[CorpusUnit]) -> anyhow::Result<()> {
@@ -210,6 +249,22 @@ impl CorpusUnit {
             None,
             None,
             card_name,
+            &normalize_oracle_text(text),
+        )
+    }
+
+    pub(super) fn for_test_with_metadata(
+        card_name: &str,
+        face_name: Option<&str>,
+        side: Option<&str>,
+        text: &str,
+    ) -> Self {
+        let context_name = face_name.unwrap_or(card_name);
+        corpus_unit(
+            card_name,
+            face_name,
+            side,
+            context_name,
             &normalize_oracle_text(text),
         )
     }

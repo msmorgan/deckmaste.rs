@@ -5,6 +5,7 @@ mod audit;
 mod corpus;
 mod coverage_lock;
 mod diagnostic;
+mod inspect;
 mod parse;
 mod probe;
 mod report;
@@ -45,6 +46,8 @@ enum EnglishV2Command {
     Ambiguity(AmbiguityArgs),
     /// Trace one explicit input through the bounded parser diagnostics.
     Probe(ProbeArgs),
+    /// Trace one exact corpus unit through the bounded parser diagnostics.
+    Inspect(InspectArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -109,6 +112,20 @@ struct ProbeArgs {
     json: bool,
 }
 
+#[derive(Debug, clap::Args)]
+struct InspectArgs {
+    #[arg(long)]
+    id: String,
+    #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
+    data: PathBuf,
+    #[arg(long, default_value = "data/gen/catalogs")]
+    catalogs: PathBuf,
+    #[arg(long, default_value_t = 256)]
+    limit: usize,
+    #[arg(long)]
+    json: bool,
+}
+
 pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
     match &args.command {
         EnglishV2Command::Expand => {
@@ -134,6 +151,10 @@ pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
         EnglishV2Command::Probe(args) => {
             let mut stdout = std::io::stdout().lock();
             probe::run(args, &mut stdout)
+        }
+        EnglishV2Command::Inspect(args) => {
+            let mut stdout = std::io::stdout().lock();
+            inspect::run(args, &mut stdout)
         }
     }
 }
