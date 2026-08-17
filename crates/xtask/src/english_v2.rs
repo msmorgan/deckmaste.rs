@@ -4,7 +4,9 @@ mod ambiguity;
 mod audit;
 mod corpus;
 mod coverage_lock;
+mod diagnostic;
 mod parse;
+mod probe;
 mod report;
 mod roundtrip;
 
@@ -41,6 +43,8 @@ enum EnglishV2Command {
     Report(ReportArgs),
     /// Census complete corpus selection decisions and unresolved ambiguities.
     Ambiguity(AmbiguityArgs),
+    /// Trace one explicit input through the bounded parser diagnostics.
+    Probe(ProbeArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -91,6 +95,20 @@ struct AmbiguityArgs {
     require_resolved: bool,
 }
 
+#[derive(Debug, clap::Args)]
+struct ProbeArgs {
+    #[arg(long)]
+    text: String,
+    #[arg(long)]
+    context: String,
+    #[arg(long, default_value = "data/gen/catalogs")]
+    catalogs: PathBuf,
+    #[arg(long, default_value_t = 256)]
+    limit: usize,
+    #[arg(long)]
+    json: bool,
+}
+
 pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
     match &args.command {
         EnglishV2Command::Expand => {
@@ -112,6 +130,10 @@ pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
         EnglishV2Command::Ambiguity(args) => {
             let mut stdout = std::io::stdout().lock();
             ambiguity::run(args, &mut stdout)
+        }
+        EnglishV2Command::Probe(args) => {
+            let mut stdout = std::io::stdout().lock();
+            probe::run(args, &mut stdout)
         }
     }
 }
