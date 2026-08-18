@@ -1,0 +1,947 @@
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+
+use super::*;
+
+const SCRY: &str = r#"
+KeywordAction(
+    name: "Scry",
+    params: [Amount],
+    spelling: "scry <Param(0)>",
+    grammar: Verb(
+        bare: "scry",
+        third_person: "scries",
+        valence: Numerative,
+    ),
+    body: Scry(Param(0)),
+)
+"#;
+
+const DESTROY: &str = r#"
+KeywordAction(
+    name: "Destroy",
+    spelling: "destroy",
+    grammar: Verb(
+        bare: "destroy",
+        valence: Transitive,
+    ),
+)
+"#;
+
+fn source_path(name: &str) -> PathBuf {
+    Path::new("/synthetic").join(name)
+}
+
+fn validation(source: &str) -> ValidationError {
+    let path = source_path("Broken.ron");
+    let error = read_str(path.clone(), source).expect_err("source must fail");
+    assert_eq!(error.path(), path);
+    let position = error.position().expect("validation has a source position");
+    assert!(position.line >= 1);
+    assert!(position.column >= 1);
+    match error {
+        ReadError::Validate { source, .. } => source,
+        ReadError::Io { .. } | ReadError::Parse { .. } => {
+            panic!("expected validation error, got {error}")
+        }
+    }
+}
+
+fn parse_error(source: &str) -> ReadError {
+    let path = source_path("Broken.ron");
+    let error = read_str(path.clone(), source).expect_err("source must fail");
+    assert_eq!(error.path(), path);
+    let position = error.position().expect("parse error has a source span");
+    assert!(position.line >= 1);
+    assert!(position.column >= 1);
+    assert!(matches!(error, ReadError::Parse { .. }));
+    error
+}
+
+fn assert_located(error: &ReadError, path: &Path) {
+    assert_eq!(error.path(), path);
+    let position = error.position().expect("error has a source position");
+    assert!(position.line >= 1 && position.column >= 1);
+}
+
+fn texts(declaration: &NormalizedDeclaration) -> Vec<&str> {
+    declaration
+        .grammar
+        .as_ref()
+        .unwrap()
+        .surfaces
+        .iter()
+        .map(|surface| surface.text.as_str())
+        .collect()
+}
+
+#[test]
+fn source_schema_rejects_legacy_and_unknown_fields() {
+    for extra in [
+        r#"template: "scry <Param(0)>","#,
+        r#"frames: ["scry <Param(0)>"],"#,
+        r"kinds: [OneShotEffect],",
+        r#"callback: "plugin_hook","#,
+    ] {
+        let source = format!("KeywordAction(name: \"Scry\", spelling: \"scry\", {extra})");
+        parse_error(&source);
+    }
+
+    parse_error(
+        r#"KeywordAction(
+            name: "Scry",
+            spelling: "scry",
+            grammar: Verb(
+                bare: "scry",
+                valence: Numerative,
+                repetition: "*",
+            ),
+        )"#,
+    );
+}
+
+#[test]
+fn nursery_and_graduated_sources_round_trip_without_legacy_translation() {
+    for source in [
+        r#"KeywordAbility(name:"Flying",spelling:"flying",grammar:FixedKeyword(surface:"flying"))"#,
+        r#"Subtype(category:Creature,name:"Merfolk",spelling:"Merfolk",grammar:Noun(singular:"Merfolk",plural:"Merfolk"))"#,
+        r#"Type(name:"Creature",spelling:"creature",grammar:Noun(singular:"creature"))"#,
+        r#"CounterKind(name:"Stun",spelling:"stun",grammar:FixedTerm(surface:"stun"))"#,
+        r#"Designation(name:"Monarch",spelling:"the monarch",grammar:FixedTerm(surface:"the monarch"))"#,
+        SCRY,
+    ] {
+        let parsed: Declaration = ron_options().from_str(source).unwrap();
+        let written = ron_options().to_string(&parsed).unwrap();
+        let reparsed: Declaration = ron_options().from_str(&written).unwrap();
+        assert_eq!(reparsed, parsed, "{source}");
+        assert!(!written.contains("template:"), "{written}");
+        assert!(!written.contains("frames:"), "{written}");
+        assert!(!written.contains("kinds:"), "{written}");
+    }
+}
+
+#[test]
+fn morphology_uses_only_dumb_defaults_and_whole_surface_replacements() {
+    let destroy = read_str(source_path("Destroy.ron"), DESTROY).unwrap();
+    assert_eq!(texts(&destroy), ["destroy", "destroys"]);
+
+    let scry = read_str(source_path("Scry.ron"), SCRY).unwrap();
+    assert_eq!(texts(&scry), ["scry", "scries"]);
+
+    let turn_face_up = read_str(
+        source_path("TurnFaceUp.ron"),
+        r#"KeywordAction(name:"TurnFaceUp",spelling:"turn face up",grammar:Verb(bare:"turn face up",third_person:"turns face up",valence:Transitive))"#,
+    )
+    .unwrap();
+    assert_eq!(texts(&turn_face_up), ["turn face up", "turns face up"]);
+
+    for (name, singular) in [("Sheep", "sheep"), ("Merfolk", "Merfolk")] {
+        let source = format!(
+            "Subtype(category:Creature,name:\"{name}\",spelling:\"{singular}\",grammar:Noun(singular:\"{singular}\",plural:\"{singular}\"))"
+        );
+        let declaration = read_str(source_path(&format!("{name}.ron")), &source).unwrap();
+        assert_eq!(texts(&declaration), [singular, singular]);
+    }
+
+    assert!(matches!(
+        validation(r#"Type(name:"Player",spelling:"player",grammar:Noun(singular:"player",plural:"players"))"#),
+        ValidationError::RedundantOverride { field: "plural", surface } if surface == "players"
+    ));
+}
+
+#[test]
+fn graduated_declaration_round_trips_and_normalizes() {
+    let parsed: Declaration = ron_options().from_str(SCRY).unwrap();
+    let written = ron_options().to_string(&parsed).unwrap();
+    let reparsed: Declaration = ron_options().from_str(&written).unwrap();
+    assert_eq!(reparsed, parsed);
+    assert!(written.starts_with("KeywordAction("), "{written}");
+    assert!(written.contains("params:[Amount]"), "{written}");
+
+    let declaration = read_str(source_path("Scry.ron"), SCRY).unwrap();
+    assert!(declaration.is_graduated());
+    assert_eq!(
+        declaration.identity,
+        DeclarationIdentity {
+            kind: DeclarationKind::KeywordAction,
+            name: "Scry".to_owned(),
+        }
+    );
+    assert_eq!(
+        declaration.spelling,
+        vec![
+            SpellingPart::Literal("scry ".to_owned()),
+            SpellingPart::Param(0),
+        ]
+    );
+    let row = declaration.grammar.unwrap();
+    assert_eq!(
+        row.recipe,
+        GrammarRecipe::Verb {
+            valence: VerbValence::Numerative,
+        }
+    );
+    assert_eq!(
+        row.surfaces,
+        vec![
+            RealizedSurface {
+                feature: SurfaceFeature::Bare,
+                text: "scry".to_owned(),
+            },
+            RealizedSurface {
+                feature: SurfaceFeature::ThirdPersonSingular,
+                text: "scries".to_owned(),
+            },
+        ]
+    );
+    assert!(!row.surfaces.iter().any(|surface| surface.text == "scrys"));
+}
+
+#[test]
+fn nursery_declaration_uses_dumb_verb_morphology() {
+    let declaration = read_str(source_path("Destroy.ron"), DESTROY).unwrap();
+    assert!(!declaration.is_graduated());
+    let row = declaration.grammar.unwrap();
+    assert_eq!(
+        row.surfaces,
+        vec![
+            RealizedSurface {
+                feature: SurfaceFeature::Bare,
+                text: "destroy".to_owned(),
+            },
+            RealizedSurface {
+                feature: SurfaceFeature::ThirdPersonSingular,
+                text: "destroys".to_owned(),
+            },
+        ]
+    );
+}
+
+#[test]
+fn noun_override_replaces_default_and_unavailable_suppresses_it() {
+    let merfolk = read_str(
+        source_path("Merfolk.ron"),
+        r#"
+Subtype(
+    category: Creature,
+    name: "Merfolk",
+    spelling: "Merfolk",
+    grammar: Noun(singular: "Merfolk", plural: "Merfolk"),
+)
+"#,
+    )
+    .unwrap();
+    assert_eq!(
+        merfolk.grammar.unwrap().surfaces,
+        vec![
+            RealizedSurface {
+                feature: SurfaceFeature::Singular,
+                text: "Merfolk".to_owned(),
+            },
+            RealizedSurface {
+                feature: SurfaceFeature::Plural,
+                text: "Merfolk".to_owned(),
+            },
+        ]
+    );
+
+    let proper_name = read_str(
+        source_path("Jace.ron"),
+        r#"
+Subtype(
+    category: Planeswalker,
+    name: "Jace",
+    spelling: "Jace",
+    grammar: Noun(singular: "Jace", plural: Unavailable),
+)
+"#,
+    )
+    .unwrap();
+    assert_eq!(
+        proper_name.grammar.unwrap().surfaces,
+        vec![RealizedSurface {
+            feature: SurfaceFeature::Singular,
+            text: "Jace".to_owned(),
+        }]
+    );
+}
+
+#[test]
+fn redundant_and_invalid_morphology_are_rejected() {
+    let error = validation(
+        r#"
+Type(
+    name: "Player",
+    spelling: "player",
+    grammar: Noun(singular: "player", plural: "players"),
+)
+"#,
+    );
+    assert!(matches!(
+        error,
+        ValidationError::RedundantOverride {
+            field: "plural",
+            surface,
+        } if surface == "players"
+    ));
+
+    let error = validation(
+        r#"
+KeywordAction(
+    name: "Scry",
+    spelling: "scry",
+    grammar: Verb(
+        bare: "scry",
+        third_person: "",
+        valence: Numerative,
+    ),
+)
+"#,
+    );
+    assert!(matches!(
+        error,
+        ValidationError::InvalidSurface {
+            field: "third_person"
+        }
+    ));
+
+    parse_error(
+        r#"
+KeywordAction(
+    name: "Scry",
+    spelling: "scry",
+    grammar: Verb(bare: "scry", third_person: 3, valence: Numerative),
+)
+"#,
+    );
+}
+
+#[test]
+fn custom_valence_has_exact_finite_atom_shapes() {
+    let expected = [
+        VerbValence::Intransitive,
+        VerbValence::Transitive,
+        VerbValence::Numerative,
+        VerbValence::Custom {
+            shapes: vec![
+                vec![],
+                vec![
+                    CustomTailAtom::Literal("with".to_owned()),
+                    CustomTailAtom::Amount,
+                    CustomTailAtom::ObjectNounPhrase,
+                ],
+            ],
+        },
+    ];
+    for (index, valence) in [
+        "Intransitive",
+        "Transitive",
+        "Numerative",
+        "Custom(shapes: [[], [Literal(\"with\"), Amount, ObjectNounPhrase]])",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let source = format!(
+            "KeywordAction(name:\"Verb{index}\",spelling:\"verb{index}\",grammar:Verb(bare:\"verb{index}\",valence:{valence}))"
+        );
+        let declaration = read_str(source_path(&format!("Verb{index}.ron")), &source).unwrap();
+        assert_eq!(
+            declaration.grammar.unwrap().recipe,
+            GrammarRecipe::Verb {
+                valence: expected[index].clone(),
+            }
+        );
+    }
+
+    let connive = read_str(
+        source_path("Connive.ron"),
+        r#"
+KeywordAction(
+    name: "Connive",
+    spelling: "connive",
+    grammar: Verb(
+        bare: "connive",
+        valence: Custom(shapes: [[], [Amount]]),
+    ),
+)
+"#,
+    )
+    .unwrap();
+    assert_eq!(
+        connive.grammar.unwrap().recipe,
+        GrammarRecipe::Verb {
+            valence: VerbValence::Custom {
+                shapes: vec![vec![], vec![CustomTailAtom::Amount]],
+            },
+        }
+    );
+
+    let error = validation(
+        r#"
+KeywordAction(
+    name: "Connive",
+    spelling: "connive",
+    grammar: Verb(bare: "connive", valence: Custom(shapes: [])),
+)
+"#,
+    );
+    assert!(matches!(error, ValidationError::EmptyCustomShapeSet));
+
+    let error = validation(
+        r#"
+KeywordAction(
+    name: "Connive",
+    spelling: "connive",
+    grammar: Verb(
+        bare: "connive",
+        valence: Custom(shapes: [[Amount], [Amount]]),
+    ),
+)
+"#,
+    );
+    assert!(matches!(
+        error,
+        ValidationError::DuplicateCustomShape { .. }
+    ));
+
+    let error = validation(
+        r#"
+KeywordAction(
+    name: "Clash",
+    spelling: "clash",
+    grammar: Verb(
+        bare: "clash",
+        valence: Custom(shapes: [[Literal("")]]),
+    ),
+)
+"#,
+    );
+    assert!(matches!(error, ValidationError::InvalidCustomLiteral));
+
+    parse_error(
+        r#"
+KeywordAction(
+    name: "Clash",
+    spelling: "clash",
+    grammar: Verb(
+        bare: "clash",
+        valence: Custom(shapes: [[Clause]]),
+    ),
+)
+"#,
+    );
+    parse_error(
+        r#"
+KeywordAction(
+    name: "Clash",
+    spelling: "clash",
+    grammar: Verb(bare: "clash"),
+)
+"#,
+    );
+    for literal in ["Literal(\" \")", "Literal(\"line\\nbreak\")"] {
+        let source = format!(
+            "KeywordAction(name:\"Clash\",spelling:\"clash\",grammar:Verb(bare:\"clash\",valence:Custom(shapes:[[{literal}]])))"
+        );
+        assert!(matches!(
+            validation(&source),
+            ValidationError::InvalidCustomLiteral
+        ));
+    }
+}
+
+#[test]
+fn spelling_and_body_holes_are_positional_and_bounded() {
+    let error = validation(
+        r#"
+KeywordAction(
+    name: "Scry",
+    params: [Amount],
+    spelling: "scry <Param(1)>",
+)
+"#,
+    );
+    assert!(matches!(
+        error,
+        ValidationError::ParamOutOfRange {
+            location: "spelling",
+            index: 1,
+            len: 1,
+        }
+    ));
+
+    let error = validation(
+        r#"
+KeywordAction(
+    name: "Scry",
+    params: [Amount],
+    spelling: "scry <Param(0)>",
+    body: Scry(Param(amount)),
+)
+"#,
+    );
+    assert!(
+        matches!(error, ValidationError::InvalidBody { reason } if reason.contains("positional"))
+    );
+
+    let error = validation(
+        r#"
+KeywordAction(
+    name: "Scry",
+    params: [Amount],
+    spelling: "scry <Param(0)>",
+    body: Scry(Param(1)),
+)
+"#,
+    );
+    assert!(matches!(
+        error,
+        ValidationError::ParamOutOfRange {
+            location: "body",
+            index: 1,
+            len: 1,
+        }
+    ));
+
+    let error = validation(
+        r#"
+KeywordAction(
+    name: "Scry",
+    spelling: "scry",
+    body: Scry(1),
+)
+"#,
+    );
+    assert!(matches!(error, ValidationError::BodyWithoutSignature));
+
+    for spelling in [
+        "scry <Param(amount)>",
+        "scry <Param(00)>",
+        "scry <Param(0)",
+        "scry >",
+    ] {
+        let source = format!(
+            r#"
+KeywordAction(
+    name: "Scry",
+    params: [Amount],
+    spelling: "{spelling}",
+)
+"#
+        );
+        assert!(matches!(
+            validation(&source),
+            ValidationError::InvalidSpelling { .. }
+        ));
+    }
+}
+
+#[test]
+fn grammar_and_spelling_are_bound_to_one_declaration() {
+    let error = validation(
+        r#"
+KeywordAction(
+    name: "Mill",
+    params: [Amount],
+    spelling: "scry <Param(0)>",
+    grammar: Verb(bare: "mill", valence: Numerative),
+)
+"#,
+    );
+    assert!(matches!(
+        error,
+        ValidationError::GrammarSpellingMismatch {
+            spelling_head,
+            grammar_head,
+        } if spelling_head == "scry" && grammar_head == "mill"
+    ));
+
+    let fixed = read_str(
+        source_path("TheRingTemptsYou.ron"),
+        r#"
+KeywordAction(
+    name: "TheRingTemptsYou",
+    spelling: "the Ring tempts you",
+    grammar: FixedClause(surface: "the Ring tempts you"),
+)
+"#,
+    )
+    .unwrap();
+    assert_eq!(fixed.grammar.unwrap().recipe, GrammarRecipe::FixedClause);
+}
+
+#[test]
+fn source_errors_always_carry_their_path_and_position() {
+    let error = parse_error(
+        r#"
+NotADeclaration(
+    name: "Scry",
+    spelling: "scry",
+)
+"#,
+    );
+    assert!(error.to_string().contains("/synthetic/Broken.ron"));
+
+    let error = validation(
+        r#"
+KeywordAction(
+    name: "not a name",
+    spelling: "scry",
+)
+"#,
+    );
+    assert!(matches!(error, ValidationError::InvalidName { .. }));
+}
+
+#[test]
+fn source_sets_are_sorted_and_reject_duplicate_identities() {
+    let first_path = source_path("a.ron");
+    let second_path = source_path("z.ron");
+    let error = read_sources(vec![
+        DeclarationSource::new(second_path.clone(), DESTROY),
+        DeclarationSource::new(first_path.clone(), DESTROY),
+    ])
+    .unwrap_err();
+    assert_eq!(error.path(), second_path);
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::DuplicateIdentity {
+            identity,
+            first_path: found,
+        }) if identity.name == "Destroy" && found == &first_path
+    ));
+}
+
+#[test]
+fn normalization_keeps_category_safe_identities_and_surface_ambiguity() {
+    let rows = read_sources(vec![
+        DeclarationSource::new(
+            source_path("action/Flying.ron"),
+            r#"KeywordAction(name:"Flying",spelling:"fly",grammar:Verb(bare:"fly",valence:Intransitive))"#,
+        ),
+        DeclarationSource::new(
+            source_path("ability/Flying.ron"),
+            r#"KeywordAbility(name:"Flying",spelling:"flying",grammar:FixedKeyword(surface:"flying"))"#,
+        ),
+    ])
+    .unwrap();
+    assert_ne!(rows[0].identity.kind, rows[1].identity.kind);
+
+    let rows = read_sources(vec![
+        DeclarationSource::new(
+            source_path("a.ron"),
+            r#"Type(name:"ChargeType",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+        ),
+        DeclarationSource::new(
+            source_path("b.ron"),
+            r#"CounterKind(name:"Charge",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+        ),
+    ])
+    .unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(texts(&rows[0]), ["charge"]);
+    assert_eq!(texts(&rows[1]), ["charge"]);
+}
+
+fn write_builtin(root: &Path, relative: &str, source: &str) {
+    let path = root.join("macros").join("stubs").join(relative);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, source).unwrap();
+}
+
+fn normalized_projection(
+    declarations: Vec<NormalizedDeclaration>,
+) -> Vec<(DeclarationIdentity, Vec<RealizedSurface>)> {
+    declarations
+        .into_iter()
+        .map(|declaration| {
+            (
+                declaration.identity,
+                declaration
+                    .grammar
+                    .map_or_else(Vec::new, |grammar| grammar.surfaces),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn builtin_reader_authenticates_every_final_path_family() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("builtin_v2");
+    fs::create_dir(&root).unwrap();
+    for (relative, source, kind, name) in [
+        (
+            "keyword_actions/Scry.ron",
+            r#"KeywordAction(name:"Scry",spelling:"scry",grammar:Verb(bare:"scry",valence:Numerative))"#,
+            DeclarationKind::KeywordAction,
+            "Scry",
+        ),
+        (
+            "keyword_abilities/Flying.ron",
+            r#"KeywordAbility(name:"Flying",spelling:"flying",grammar:FixedKeyword(surface:"flying"))"#,
+            DeclarationKind::KeywordAbility,
+            "Flying",
+        ),
+        (
+            "types/Creature.ron",
+            r#"Type(name:"Creature",spelling:"creature",grammar:Noun(singular:"creature"))"#,
+            DeclarationKind::Type,
+            "Creature",
+        ),
+        (
+            "counter_kinds/Stun.ron",
+            r#"CounterKind(name:"Stun",spelling:"stun",grammar:FixedTerm(surface:"stun"))"#,
+            DeclarationKind::CounterKind,
+            "Stun",
+        ),
+        (
+            "designations/Monarch.ron",
+            r#"Designation(name:"Monarch",spelling:"the monarch",grammar:FixedTerm(surface:"the monarch"))"#,
+            DeclarationKind::Designation,
+            "Monarch",
+        ),
+        (
+            "subtypes/artifact/Clue.ron",
+            r#"Subtype(category:Artifact,name:"Clue",spelling:"Clue",grammar:Noun(singular:"Clue"))"#,
+            DeclarationKind::Subtype(SubtypeCategory::Artifact),
+            "Clue",
+        ),
+        (
+            "subtypes/battle/Siege.ron",
+            r#"Subtype(category:Battle,name:"Siege",spelling:"Siege",grammar:Noun(singular:"Siege"))"#,
+            DeclarationKind::Subtype(SubtypeCategory::Battle),
+            "Siege",
+        ),
+        (
+            "subtypes/creature/Merfolk.ron",
+            r#"Subtype(category:Creature,name:"Merfolk",spelling:"Merfolk",grammar:Noun(singular:"Merfolk"))"#,
+            DeclarationKind::Subtype(SubtypeCategory::Creature),
+            "Merfolk",
+        ),
+        (
+            "subtypes/enchantment/Aura.ron",
+            r#"Subtype(category:Enchantment,name:"Aura",spelling:"Aura",grammar:Noun(singular:"Aura"))"#,
+            DeclarationKind::Subtype(SubtypeCategory::Enchantment),
+            "Aura",
+        ),
+        (
+            "subtypes/land/Forest.ron",
+            r#"Subtype(category:Land,name:"Forest",spelling:"Forest",grammar:Noun(singular:"Forest"))"#,
+            DeclarationKind::Subtype(SubtypeCategory::Land),
+            "Forest",
+        ),
+        (
+            "subtypes/planeswalker/Jace.ron",
+            r#"Subtype(category:Planeswalker,name:"Jace",spelling:"Jace",grammar:Noun(singular:"Jace",plural:Unavailable))"#,
+            DeclarationKind::Subtype(SubtypeCategory::Planeswalker),
+            "Jace",
+        ),
+        (
+            "subtypes/spell/Arcane.ron",
+            r#"Subtype(category:Spell,name:"Arcane",spelling:"Arcane",grammar:Noun(singular:"Arcane"))"#,
+            DeclarationKind::Subtype(SubtypeCategory::Spell),
+            "Arcane",
+        ),
+    ] {
+        write_builtin(&root, relative, source);
+        let expected_path = root.join("macros/stubs").join(relative);
+        let declaration = read_builtin_v2(&root)
+            .unwrap()
+            .into_iter()
+            .find(|row| row.provenance.path == expected_path)
+            .unwrap();
+        assert_eq!(declaration.identity.kind, kind);
+        assert_eq!(declaration.identity.name, name);
+        assert_eq!(declaration.provenance.path, expected_path);
+    }
+
+    let missing_temporary = tempfile::tempdir().unwrap();
+    let missing = missing_temporary.path().join("builtin_v2");
+    let error = read_builtin_v2(&missing).unwrap_err();
+    assert_eq!(error.path(), missing);
+    let position = error.position().unwrap();
+    assert!(position.line >= 1 && position.column >= 1);
+}
+
+#[test]
+fn builtin_reader_uses_final_paths_and_is_iteration_independent() {
+    let left = tempfile::tempdir().unwrap();
+    let left_root = left.path().join("builtin_v2");
+    fs::create_dir(&left_root).unwrap();
+    write_builtin(
+        &left_root,
+        "keyword_actions/Scry.ron",
+        r#"
+KeywordAction(
+    name: "Scry",
+    spelling: "scry",
+    grammar: Verb(bare: "scry", third_person: "scries", valence: Numerative),
+)
+"#,
+    );
+    write_builtin(&left_root, "keyword_actions/Destroy.ron", DESTROY);
+    write_builtin(
+        &left_root,
+        "types/ChargeType.ron",
+        r#"Type(name:"ChargeType",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+    );
+    write_builtin(
+        &left_root,
+        "counter_kinds/Charge.ron",
+        r#"CounterKind(name:"Charge",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+    );
+
+    let right = tempfile::tempdir().unwrap();
+    let right_root = right.path().join("builtin_v2");
+    fs::create_dir(&right_root).unwrap();
+    write_builtin(&right_root, "keyword_actions/Destroy.ron", DESTROY);
+    write_builtin(
+        &right_root,
+        "keyword_actions/Scry.ron",
+        r#"
+KeywordAction(
+    name: "Scry",
+    spelling: "scry",
+    grammar: Verb(bare: "scry", third_person: "scries", valence: Numerative),
+)
+"#,
+    );
+    write_builtin(
+        &right_root,
+        "counter_kinds/Charge.ron",
+        r#"CounterKind(name:"Charge",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+    );
+    write_builtin(
+        &right_root,
+        "types/ChargeType.ron",
+        r#"Type(name:"ChargeType",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+    );
+
+    let left = normalized_projection(read_builtin_v2(&left_root).unwrap());
+    let right = normalized_projection(read_builtin_v2(&right_root).unwrap());
+    assert_eq!(left, right);
+    assert_eq!(
+        left.iter()
+            .map(|(identity, _)| identity.name.as_str())
+            .collect::<Vec<_>>(),
+        ["Charge", "Destroy", "Scry", "ChargeType"]
+    );
+    assert_eq!(
+        left.iter()
+            .filter(|(_, surfaces)| surfaces.iter().any(|surface| surface.text == "charge"))
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn builtin_reader_authenticates_kind_category_name_and_root() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("builtin_v2");
+    fs::create_dir(&root).unwrap();
+    write_builtin(
+        &root,
+        "keyword_actions/Scry.ron",
+        r#"
+KeywordAbility(
+    name: "Scry",
+    spelling: "scry",
+    grammar: FixedKeyword(surface: "scry"),
+)
+"#,
+    );
+    let error = read_builtin_v2(&root).unwrap_err();
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::DeclarationKindMismatch {
+            expected: DeclarationKind::KeywordAction,
+            actual: DeclarationKind::KeywordAbility,
+        })
+    ));
+
+    fs::remove_dir_all(root.join("macros")).unwrap();
+    write_builtin(
+        &root,
+        "subtypes/creature/Merfolk.ron",
+        r#"
+Subtype(
+    category: Land,
+    name: "Merfolk",
+    spelling: "Merfolk",
+    grammar: Noun(singular: "Merfolk", plural: "Merfolk"),
+)
+"#,
+    );
+    let error = read_builtin_v2(&root).unwrap_err();
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::DeclarationKindMismatch {
+            expected: DeclarationKind::Subtype(SubtypeCategory::Creature),
+            actual: DeclarationKind::Subtype(SubtypeCategory::Land),
+        })
+    ));
+
+    fs::remove_dir_all(root.join("macros")).unwrap();
+    write_builtin(
+        &root,
+        "keyword_actions/Scry.ron",
+        r#"
+KeywordAction(
+    name: "Surveil",
+    spelling: "surveil",
+    grammar: Verb(bare: "surveil", valence: Numerative),
+)
+"#,
+    );
+    let error = read_builtin_v2(&root).unwrap_err();
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::DeclarationNameMismatch { expected, actual })
+            if expected == "Scry" && actual == "Surveil"
+    ));
+
+    let wrong_root = temporary.path().join("something_else");
+    fs::create_dir(&wrong_root).unwrap();
+    let error = read_builtin_v2(&wrong_root).unwrap_err();
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::InvalidBuiltinRoot)
+    ));
+}
+
+#[test]
+fn builtin_reader_rejects_malformed_and_nonfinal_locations() {
+    for (relative, source) in [
+        ("keyword_actions/extra/Scry.ron", DESTROY),
+        (
+            "subtypes/unknown/Thing.ron",
+            r#"Subtype(category:Creature,name:"Thing",spelling:"Thing")"#,
+        ),
+        ("mystery/Scry.ron", DESTROY),
+        ("keyword_actions/Scry.ron", "KeywordAction(name: \"Scry\""),
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("builtin_v2");
+        fs::create_dir(&root).unwrap();
+        write_builtin(&root, relative, source);
+        let path = root.join("macros/stubs").join(relative);
+        let error = read_builtin_v2(&root).unwrap_err();
+        assert_located(&error, &path);
+    }
+}
+
+#[test]
+fn unknown_builtin_nursery_locations_fail_closed() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("builtin_v2");
+    fs::create_dir(&root).unwrap();
+    write_builtin(&root, "mystery/Scry.ron", DESTROY);
+    let error = read_builtin_v2(&root).unwrap_err();
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::UnexpectedBuiltinLocation { .. })
+    ));
+}

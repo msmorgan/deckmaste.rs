@@ -18,3 +18,5 @@ serde = { version = "1.0.228", features = ["derive", "rc"] }
 macro_ron_derive = { version = "0.1.0", path = "../macro_ron_derive", optional = true }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+tempfile = "3.27.0"

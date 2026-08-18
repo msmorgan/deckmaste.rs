@@ -32,6 +32,7 @@ mod support;
 #[cfg(test)]
 mod tests;
 mod traverse;
+pub mod v2;
 
 pub use expansion::Expansion;
 pub use expansion::ExpansionArgs;
