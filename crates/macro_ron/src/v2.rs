@@ -16,8 +16,11 @@ use ron::extensions::Extensions;
 use ron::value::RawValue;
 use serde::Deserialize;
 use serde::Serialize;
+use serde::de::DeserializeSeed;
 use serde::de::Deserializer;
+use serde::de::EnumAccess;
 use serde::de::Error as _;
+use serde::de::Visitor;
 use serde::ser::Error as _;
 use serde::ser::Serializer;
 
@@ -480,6 +483,131 @@ impl fmt::Display for SourcePosition {
     }
 }
 
+/// Parser-authenticated positions for every authored value used by
+/// validation. The map is intentionally owned and short-lived: callers keep
+/// the normalized declaration, while readers retain this only long enough to
+/// report cross-source and builtin-path failures.
+struct ValidationSourceMap {
+    declaration: SourcePosition,
+    category: Option<SourcePosition>,
+    name: SourcePosition,
+    spelling: SourcePosition,
+    grammar: Option<GrammarSourceMap>,
+    body: Option<SourcePosition>,
+}
+
+enum GrammarSourceMap {
+    Verb {
+        bare: SourcePosition,
+        third_person: Option<SourcePosition>,
+        valence: SourcePosition,
+    },
+    Noun {
+        singular: SourcePosition,
+        plural: Option<SourcePosition>,
+    },
+    Fixed {
+        surface: SourcePosition,
+    },
+}
+
+#[derive(Deserialize)]
+enum DiagnosticDeclaration<'a> {
+    KeywordAction(#[serde(borrow)] DiagnosticFields<'a>),
+    KeywordAbility(#[serde(borrow)] DiagnosticFields<'a>),
+    Subtype(#[serde(borrow)] DiagnosticSubtype<'a>),
+    Type(#[serde(borrow)] DiagnosticFields<'a>),
+    CounterKind(#[serde(borrow)] DiagnosticFields<'a>),
+    Designation(#[serde(borrow)] DiagnosticFields<'a>),
+}
+
+#[derive(Deserialize)]
+struct DiagnosticFields<'a> {
+    #[serde(borrow)]
+    name: &'a RawValue,
+    #[serde(borrow)]
+    spelling: &'a RawValue,
+    #[serde(default, borrow)]
+    grammar: Option<DiagnosticGrammar<'a>>,
+    #[serde(default, borrow)]
+    body: Option<&'a RawValue>,
+}
+
+#[derive(Deserialize)]
+struct DiagnosticSubtype<'a> {
+    #[serde(borrow)]
+    category: &'a RawValue,
+    #[serde(borrow)]
+    name: &'a RawValue,
+    #[serde(borrow)]
+    spelling: &'a RawValue,
+    #[serde(default, borrow)]
+    grammar: Option<DiagnosticGrammar<'a>>,
+    #[serde(default, borrow)]
+    body: Option<&'a RawValue>,
+}
+
+struct DiagnosticFieldValues<'a> {
+    category: Option<&'a RawValue>,
+    name: &'a RawValue,
+    spelling: &'a RawValue,
+    grammar: Option<DiagnosticGrammar<'a>>,
+    body: Option<&'a RawValue>,
+}
+
+#[derive(Deserialize)]
+enum DiagnosticGrammar<'a> {
+    Verb {
+        #[serde(borrow)]
+        bare: &'a RawValue,
+        #[serde(default, borrow)]
+        third_person: Option<&'a RawValue>,
+        #[serde(borrow)]
+        valence: &'a RawValue,
+    },
+    Noun {
+        #[serde(borrow)]
+        singular: &'a RawValue,
+        #[serde(default, borrow)]
+        plural: Option<&'a RawValue>,
+    },
+    FixedTerm {
+        #[serde(borrow)]
+        surface: &'a RawValue,
+    },
+    FixedClause {
+        #[serde(borrow)]
+        surface: &'a RawValue,
+    },
+    FixedKeyword {
+        #[serde(borrow)]
+        surface: &'a RawValue,
+    },
+}
+
+struct LeadingVariant;
+
+impl<'de> DeserializeSeed<'de> for LeadingVariant {
+    type Value = crate::Ident;
+
+    fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        de.deserialize_enum("", &[], self)
+    }
+}
+
+impl<'de> Visitor<'de> for LeadingVariant {
+    type Value = crate::Ident;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("a declaration variant")
+    }
+
+    fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+        let (ident, _variant) = data.variant_seed(crate::IdentSeed)?;
+        Ok(ident)
+    }
+}
+
 /// A schema or normalization failure with no filesystem transport details.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ValidationError {
@@ -594,6 +722,214 @@ impl ReadError {
     }
 }
 
+impl ValidationSourceMap {
+    fn read(path: &Path, source: &str) -> Result<Self, ReadError> {
+        let declaration = leading_variant_position(path, source)?;
+        let diagnostic = ron_options()
+            .from_str::<DiagnosticDeclaration<'_>>(source)
+            .map_err(|source| ReadError::Parse {
+                path: path.to_owned(),
+                source: Box::new(source),
+            })?;
+
+        match diagnostic {
+            DiagnosticDeclaration::KeywordAction(fields)
+            | DiagnosticDeclaration::KeywordAbility(fields)
+            | DiagnosticDeclaration::Type(fields)
+            | DiagnosticDeclaration::CounterKind(fields)
+            | DiagnosticDeclaration::Designation(fields) => Self::from_fields(
+                path,
+                source,
+                declaration,
+                DiagnosticFieldValues {
+                    category: None,
+                    name: fields.name,
+                    spelling: fields.spelling,
+                    grammar: fields.grammar,
+                    body: fields.body,
+                },
+            ),
+            DiagnosticDeclaration::Subtype(subtype) => Self::from_fields(
+                path,
+                source,
+                declaration,
+                DiagnosticFieldValues {
+                    category: Some(subtype.category),
+                    name: subtype.name,
+                    spelling: subtype.spelling,
+                    grammar: subtype.grammar,
+                    body: subtype.body,
+                },
+            ),
+        }
+    }
+
+    fn from_fields(
+        path: &Path,
+        source: &str,
+        declaration: SourcePosition,
+        fields: DiagnosticFieldValues<'_>,
+    ) -> Result<Self, ReadError> {
+        Ok(Self {
+            declaration,
+            category: fields
+                .category
+                .map(|category| raw_position(path, source, category, declaration))
+                .transpose()?,
+            name: raw_position(path, source, fields.name, declaration)?,
+            spelling: raw_position(path, source, fields.spelling, declaration)?,
+            grammar: fields
+                .grammar
+                .map(|grammar| {
+                    GrammarSourceMap::from_diagnostic(path, source, declaration, &grammar)
+                })
+                .transpose()?,
+            body: fields
+                .body
+                .map(|body| raw_position(path, source, body, declaration))
+                .transpose()?,
+        })
+    }
+
+    fn kind(&self, path: &Path, kind: DeclarationKind) -> Result<SourcePosition, ReadError> {
+        match kind {
+            DeclarationKind::Subtype(_) => {
+                required_map_position(path, self.declaration, self.category, "Subtype.category")
+            }
+            _ => Ok(self.declaration),
+        }
+    }
+}
+
+impl GrammarSourceMap {
+    fn from_diagnostic(
+        path: &Path,
+        source: &str,
+        declaration: SourcePosition,
+        diagnostic: &DiagnosticGrammar<'_>,
+    ) -> Result<Self, ReadError> {
+        match diagnostic {
+            DiagnosticGrammar::Verb {
+                bare,
+                third_person,
+                valence,
+            } => Ok(Self::Verb {
+                bare: raw_position(path, source, bare, declaration)?,
+                third_person: third_person
+                    .map(|value| raw_position(path, source, value, declaration))
+                    .transpose()?,
+                valence: raw_position(path, source, valence, declaration)?,
+            }),
+            DiagnosticGrammar::Noun { singular, plural } => Ok(Self::Noun {
+                singular: raw_position(path, source, singular, declaration)?,
+                plural: plural
+                    .map(|value| raw_position(path, source, value, declaration))
+                    .transpose()?,
+            }),
+            DiagnosticGrammar::FixedTerm { surface }
+            | DiagnosticGrammar::FixedClause { surface }
+            | DiagnosticGrammar::FixedKeyword { surface } => Ok(Self::Fixed {
+                surface: raw_position(path, source, surface, declaration)?,
+            }),
+        }
+    }
+}
+
+fn leading_variant_position(path: &Path, source: &str) -> Result<SourcePosition, ReadError> {
+    let options = ron_options();
+    let mut deserializer =
+        ron::Deserializer::from_str_with_options(source, &options).map_err(|source| {
+            ReadError::Parse {
+                path: path.to_owned(),
+                source: Box::new(source),
+            }
+        })?;
+    let ident = LeadingVariant
+        .deserialize(&mut deserializer)
+        .map_err(|source| ReadError::Parse {
+            path: path.to_owned(),
+            source: Box::new(deserializer.span_error(source)),
+        })?;
+    let consumed = source
+        .len()
+        .checked_sub(deserializer.remainder().len())
+        .ok_or_else(|| ReadError::Parse {
+            path: path.to_owned(),
+            source: Box::new(deserializer.span_error(ron::error::Error::Message(
+                "could not derive validation source map: RON parser remainder was not a declaration source subslice"
+                    .to_owned(),
+            ))),
+        })?;
+    let offset = consumed.checked_sub(ident.as_str().len()).ok_or_else(|| {
+        source_map_parse_error(
+            path,
+            locate_offset(source, consumed),
+            "top-level declaration variant was not a source subslice",
+        )
+    })?;
+    Ok(locate_offset(source, offset))
+}
+
+fn raw_position(
+    path: &Path,
+    source: &str,
+    raw: &RawValue,
+    fallback: SourcePosition,
+) -> Result<SourcePosition, ReadError> {
+    let value = raw.trim().get_ron();
+    let source_start = source.as_ptr() as usize;
+    let value_start = value.as_ptr() as usize;
+    let Some(offset) = value_start.checked_sub(source_start) else {
+        return Err(source_map_parse_error(
+            path,
+            fallback,
+            "authored value was not borrowed from its declaration source",
+        ));
+    };
+    if offset > source.len() || value.len() > source.len() - offset {
+        return Err(source_map_parse_error(
+            path,
+            fallback,
+            "authored value extended outside its declaration source",
+        ));
+    }
+    Ok(locate_offset(source, offset))
+}
+
+fn required_map_position(
+    path: &Path,
+    fallback: SourcePosition,
+    position: Option<SourcePosition>,
+    field: &str,
+) -> Result<SourcePosition, ReadError> {
+    position.ok_or_else(|| {
+        source_map_parse_error(
+            path,
+            fallback,
+            &format!("validation source map omitted required `{field}` value"),
+        )
+    })
+}
+
+fn source_map_parse_error(path: &Path, position: SourcePosition, reason: &str) -> ReadError {
+    let position = ron::error::Position {
+        line: position.line,
+        col: position.column,
+    };
+    ReadError::Parse {
+        path: path.to_owned(),
+        source: Box::new(ron::error::SpannedError {
+            code: ron::error::Error::Message(format!(
+                "could not derive validation source map: {reason}"
+            )),
+            span: ron::error::Span {
+                start: position,
+                end: position,
+            },
+        }),
+    }
+}
+
 /// Reads and normalizes one v2 declaration source.
 ///
 /// # Errors
@@ -603,14 +939,27 @@ pub fn read_str(
     path: impl Into<PathBuf>,
     source: &str,
 ) -> Result<NormalizedDeclaration, ReadError> {
-    let path = path.into();
+    read_mapped(path.into(), source).map(|mapped| mapped.declaration)
+}
+
+struct MappedDeclaration {
+    declaration: NormalizedDeclaration,
+    source_map: ValidationSourceMap,
+}
+
+fn read_mapped(path: PathBuf, source: &str) -> Result<MappedDeclaration, ReadError> {
     let declaration = ron_options()
         .from_str::<Declaration>(source)
         .map_err(|source| ReadError::Parse {
             path: path.clone(),
             source: Box::new(source),
         })?;
-    normalize(path, source, declaration)
+    let source_map = ValidationSourceMap::read(&path, source)?;
+    let declaration = normalize(path, declaration, &source_map)?;
+    Ok(MappedDeclaration {
+        declaration,
+        source_map,
+    })
 }
 
 /// Reads, path-sorts, normalizes, and identity-deduplicates owned sources.
@@ -620,25 +969,35 @@ pub fn read_str(
 /// identity. The duplicate error points at the later path in sorted order and
 /// names the first.
 pub fn read_sources(
-    mut sources: Vec<DeclarationSource>,
+    sources: Vec<DeclarationSource>,
 ) -> Result<Vec<NormalizedDeclaration>, ReadError> {
+    read_sources_mapped(sources).map(|declarations| {
+        declarations
+            .into_iter()
+            .map(|mapped| mapped.declaration)
+            .collect()
+    })
+}
+
+fn read_sources_mapped(
+    mut sources: Vec<DeclarationSource>,
+) -> Result<Vec<MappedDeclaration>, ReadError> {
     sources.sort_by(|left, right| left.path.cmp(&right.path));
     let mut first_by_identity: HashMap<DeclarationIdentity, PathBuf> = HashMap::new();
     let mut declarations = Vec::with_capacity(sources.len());
     for source in sources {
-        let declaration = read_str(source.path.clone(), &source.source)?;
-        if let Some(first_path) = first_by_identity.get(&declaration.identity) {
-            return Err(validation_error(
+        let declaration = read_mapped(source.path.clone(), &source.source)?;
+        if let Some(first_path) = first_by_identity.get(&declaration.declaration.identity) {
+            return Err(validation_error_at(
                 &source.path,
-                &source.source,
-                "name",
+                declaration.source_map.name,
                 ValidationError::DuplicateIdentity {
-                    identity: declaration.identity,
+                    identity: declaration.declaration.identity,
                     first_path: first_path.clone(),
                 },
             ));
         }
-        first_by_identity.insert(declaration.identity.clone(), source.path);
+        first_by_identity.insert(declaration.declaration.identity.clone(), source.path);
         declarations.push(declaration);
     }
     Ok(declarations)
@@ -656,10 +1015,9 @@ pub fn read_sources(
 pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclaration>, ReadError> {
     let root = root.as_ref();
     if root.file_name().and_then(|name| name.to_str()) != Some("builtin_v2") || !root.is_dir() {
-        return Err(validation_error(
+        return Err(validation_error_at(
             root,
-            "",
-            "",
+            SourcePosition { line: 1, column: 1 },
             ValidationError::InvalidBuiltinRoot,
         ));
     }
@@ -675,54 +1033,50 @@ pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclarati
         sources.push(DeclarationSource::new(path, source));
     }
 
-    let declarations = read_sources(sources)?;
+    let declarations = read_sources_mapped(sources)?;
     for declaration in &declarations {
-        let (expected_kind, expected_name) = expected_builtin_identity(&nursery, declaration)?;
-        if declaration.identity.kind != expected_kind {
-            let source =
-                std::fs::read_to_string(&declaration.provenance.path).map_err(|source| {
-                    ReadError::Io {
-                        path: declaration.provenance.path.clone(),
-                        source,
-                    }
-                })?;
+        let normalized = &declaration.declaration;
+        let (expected_kind, expected_name) = expected_builtin_identity(&nursery, normalized)
+            .map_err(|source| {
+                validation_error_at(
+                    &normalized.provenance.path,
+                    declaration.source_map.declaration,
+                    source,
+                )
+            })?;
+        if normalized.identity.kind != expected_kind {
             return Err(validation_error_at(
-                &declaration.provenance.path,
-                builtin_kind_mismatch_position(
-                    &declaration.provenance.path,
-                    &source,
-                    declaration.identity.kind,
-                )?,
+                &normalized.provenance.path,
+                declaration
+                    .source_map
+                    .kind(&normalized.provenance.path, normalized.identity.kind)?,
                 ValidationError::DeclarationKindMismatch {
                     expected: expected_kind,
-                    actual: declaration.identity.kind,
+                    actual: normalized.identity.kind,
                 },
             ));
         }
-        if declaration.identity.name != expected_name {
-            return Err(validation_error(
-                &declaration.provenance.path,
-                &std::fs::read_to_string(&declaration.provenance.path).map_err(|source| {
-                    ReadError::Io {
-                        path: declaration.provenance.path.clone(),
-                        source,
-                    }
-                })?,
-                "name",
+        if normalized.identity.name != expected_name {
+            return Err(validation_error_at(
+                &normalized.provenance.path,
+                declaration.source_map.name,
                 ValidationError::DeclarationNameMismatch {
                     expected: expected_name,
-                    actual: declaration.identity.name.clone(),
+                    actual: normalized.identity.name.clone(),
                 },
             ));
         }
     }
-    Ok(declarations)
+    Ok(declarations
+        .into_iter()
+        .map(|mapped| mapped.declaration)
+        .collect())
 }
 
 fn normalize(
     path: PathBuf,
-    source: &str,
     declaration: Declaration,
+    source_map: &ValidationSourceMap,
 ) -> Result<NormalizedDeclaration, ReadError> {
     let (kind, fields) = declaration.into_parts();
     let DeclarationFields {
@@ -734,36 +1088,59 @@ fn normalize(
     } = fields;
 
     if !is_bare_ident(&name) {
-        return Err(validation_error(
+        return Err(validation_error_at(
             &path,
-            source,
-            "name",
+            source_map.name,
             ValidationError::InvalidName { name },
         ));
     }
     if body.is_some() && params.is_none() {
-        return Err(validation_error(
+        return Err(validation_error_at(
             &path,
-            source,
-            "body",
+            required_map_position(&path, source_map.declaration, source_map.body, "body")?,
             ValidationError::BodyWithoutSignature,
         ));
     }
 
     let spelling_parts = parse_spelling(&spelling).map_err(|reason| {
-        validation_error(
+        validation_error_at(
             &path,
-            source,
-            "spelling",
+            source_map.spelling,
             ValidationError::InvalidSpelling { reason },
         )
     })?;
-    validate_spelling_params(&path, source, &spelling_parts, params.as_deref())?;
-    validate_body_params(&path, source, body.as_deref(), params.as_deref())?;
+    validate_spelling_params(
+        &path,
+        source_map.spelling,
+        &spelling_parts,
+        params.as_deref(),
+    )?;
+    validate_body_params(
+        &path,
+        source_map.declaration,
+        source_map.body,
+        body.as_deref(),
+        params.as_deref(),
+    )?;
 
     let identity = DeclarationIdentity { kind, name };
     let grammar = grammar
-        .map(|grammar| normalize_grammar(&path, source, &spelling_parts, grammar))
+        .map(|grammar| {
+            let grammar_map = source_map.grammar.as_ref().ok_or_else(|| {
+                source_map_parse_error(
+                    &path,
+                    source_map.declaration,
+                    "parsed grammar has no validation source map",
+                )
+            })?;
+            normalize_grammar(
+                &path,
+                grammar_map,
+                source_map.spelling,
+                &spelling_parts,
+                grammar,
+            )
+        })
         .transpose()?;
 
     Ok(NormalizedDeclaration {
@@ -778,21 +1155,30 @@ fn normalize(
 
 fn normalize_grammar(
     path: &Path,
-    source: &str,
+    source_map: &GrammarSourceMap,
+    spelling_position: SourcePosition,
     spelling: &[SpellingPart],
     grammar: Grammar,
 ) -> Result<GrammarRow, ReadError> {
-    let (grammar_head, recipe, surfaces) = match grammar {
-        Grammar::Verb {
-            bare,
-            third_person,
-            valence,
-        } => {
-            validate_surface(path, source, "bare", &bare)?;
-            validate_valence(path, source, &valence)?;
+    let (grammar_head, recipe, surfaces) = match (grammar, source_map) {
+        (
+            Grammar::Verb {
+                bare,
+                third_person,
+                valence,
+            },
+            GrammarSourceMap::Verb {
+                bare: bare_position,
+                third_person: third_person_position,
+                valence: valence_position,
+            },
+        ) => {
+            validate_surface(path, *bare_position, "bare", &bare)?;
+            validate_valence(path, *valence_position, &valence)?;
             let third_person = realize_derived_surface(
                 path,
-                source,
+                *bare_position,
+                *third_person_position,
                 "third_person",
                 english_verb(&bare),
                 third_person,
@@ -809,10 +1195,22 @@ fn normalize_grammar(
             }
             (bare, GrammarRecipe::Verb { valence }, surfaces)
         }
-        Grammar::Noun { singular, plural } => {
-            validate_surface(path, source, "singular", &singular)?;
-            let plural =
-                realize_derived_surface(path, source, "plural", english_noun(&singular), plural)?;
+        (
+            Grammar::Noun { singular, plural },
+            GrammarSourceMap::Noun {
+                singular: singular_position,
+                plural: plural_position,
+            },
+        ) => {
+            validate_surface(path, *singular_position, "singular", &singular)?;
+            let plural = realize_derived_surface(
+                path,
+                *singular_position,
+                *plural_position,
+                "plural",
+                english_noun(&singular),
+                plural,
+            )?;
             let mut surfaces = vec![RealizedSurface {
                 feature: SurfaceFeature::Singular,
                 text: singular.clone(),
@@ -825,23 +1223,29 @@ fn normalize_grammar(
             }
             (singular, GrammarRecipe::Noun, surfaces)
         }
-        Grammar::FixedTerm { surface } => {
-            fixed_grammar(path, source, surface, GrammarRecipe::FixedTerm)?
+        (Grammar::FixedTerm { surface }, GrammarSourceMap::Fixed { surface: position }) => {
+            fixed_grammar(path, *position, surface, GrammarRecipe::FixedTerm)?
         }
-        Grammar::FixedClause { surface } => {
-            fixed_grammar(path, source, surface, GrammarRecipe::FixedClause)?
+        (Grammar::FixedClause { surface }, GrammarSourceMap::Fixed { surface: position }) => {
+            fixed_grammar(path, *position, surface, GrammarRecipe::FixedClause)?
         }
-        Grammar::FixedKeyword { surface } => {
-            fixed_grammar(path, source, surface, GrammarRecipe::FixedKeyword)?
+        (Grammar::FixedKeyword { surface }, GrammarSourceMap::Fixed { surface: position }) => {
+            fixed_grammar(path, *position, surface, GrammarRecipe::FixedKeyword)?
+        }
+        _ => {
+            return Err(source_map_parse_error(
+                path,
+                spelling_position,
+                "grammar recipe disagreed with its validation source map",
+            ));
         }
     };
 
     let spelling_head = spelling_head(spelling);
     if spelling_head != grammar_head {
-        return Err(validation_error(
+        return Err(validation_error_at(
             path,
-            source,
-            "spelling",
+            spelling_position,
             ValidationError::GrammarSpellingMismatch {
                 spelling_head,
                 grammar_head,
@@ -854,11 +1258,11 @@ fn normalize_grammar(
 
 fn fixed_grammar(
     path: &Path,
-    source: &str,
+    position: SourcePosition,
     surface: String,
     recipe: GrammarRecipe,
 ) -> Result<(String, GrammarRecipe, Vec<RealizedSurface>), ReadError> {
-    validate_surface(path, source, "surface", &surface)?;
+    validate_surface(path, position, "surface", &surface)?;
     Ok((
         surface.clone(),
         recipe,
@@ -871,7 +1275,8 @@ fn fixed_grammar(
 
 fn realize_derived_surface(
     path: &Path,
-    source: &str,
+    fallback: SourcePosition,
+    position: Option<SourcePosition>,
     field: &'static str,
     derived: String,
     authored: DerivedSurface,
@@ -880,12 +1285,12 @@ fn realize_derived_surface(
         DerivedSurface::Derived => Ok(Some(derived)),
         DerivedSurface::Unavailable => Ok(None),
         DerivedSurface::Override(surface) => {
-            validate_surface(path, source, field, &surface)?;
+            let position = required_map_position(path, fallback, position, field)?;
+            validate_surface(path, position, field, &surface)?;
             if surface == derived {
-                return Err(validation_error(
+                return Err(validation_error_at(
                     path,
-                    source,
-                    field,
+                    position,
                     ValidationError::RedundantOverride { field, surface },
                 ));
             }
@@ -902,25 +1307,27 @@ fn english_noun(singular: &str) -> String {
     format!("{singular}s")
 }
 
-fn validate_valence(path: &Path, source: &str, valence: &VerbValence) -> Result<(), ReadError> {
+fn validate_valence(
+    path: &Path,
+    position: SourcePosition,
+    valence: &VerbValence,
+) -> Result<(), ReadError> {
     let VerbValence::Custom { shapes } = valence else {
         return Ok(());
     };
     if shapes.is_empty() {
-        return Err(validation_error(
+        return Err(validation_error_at(
             path,
-            source,
-            "Custom",
+            position,
             ValidationError::EmptyCustomShapeSet,
         ));
     }
     let mut seen = HashSet::new();
     for shape in shapes {
         if !seen.insert(shape) {
-            return Err(validation_error(
+            return Err(validation_error_at(
                 path,
-                source,
-                "Custom",
+                position,
                 ValidationError::DuplicateCustomShape {
                     shape: shape.clone(),
                 },
@@ -930,10 +1337,9 @@ fn validate_valence(path: &Path, source: &str, valence: &VerbValence) -> Result<
             if let CustomTailAtom::Literal(literal) = atom
                 && !valid_surface(literal)
             {
-                return Err(validation_error(
+                return Err(validation_error_at(
                     path,
-                    source,
-                    "Literal",
+                    position,
                     ValidationError::InvalidCustomLiteral,
                 ));
             }
@@ -944,15 +1350,14 @@ fn validate_valence(path: &Path, source: &str, valence: &VerbValence) -> Result<
 
 fn validate_surface(
     path: &Path,
-    source: &str,
+    position: SourcePosition,
     field: &'static str,
     surface: &str,
 ) -> Result<(), ReadError> {
     if !valid_surface(surface) {
-        return Err(validation_error(
+        return Err(validation_error_at(
             path,
-            source,
-            field,
+            position,
             ValidationError::InvalidSurface { field },
         ));
     }
@@ -1015,7 +1420,7 @@ fn parse_spelling(spelling: &str) -> Result<Vec<SpellingPart>, String> {
 
 fn validate_spelling_params(
     path: &Path,
-    source: &str,
+    position: SourcePosition,
     spelling: &[SpellingPart],
     params: Option<&[ParameterType]>,
 ) -> Result<(), ReadError> {
@@ -1025,10 +1430,9 @@ fn validate_spelling_params(
         };
         let len = params.map_or(0, <[ParameterType]>::len);
         if params.is_none() || *index >= len {
-            return Err(validation_error(
+            return Err(validation_error_at(
                 path,
-                source,
-                &format!("<Param({index})>"),
+                position,
                 ValidationError::ParamOutOfRange {
                     location: "spelling",
                     index: *index,
@@ -1042,33 +1446,27 @@ fn validate_spelling_params(
 
 fn validate_body_params(
     path: &Path,
-    source: &str,
+    fallback: SourcePosition,
+    position: Option<SourcePosition>,
     body: Option<&RawValue>,
     params: Option<&[ParameterType]>,
 ) -> Result<(), ReadError> {
     let Some(body) = body else {
         return Ok(());
     };
+    let position = required_map_position(path, fallback, position, "body")?;
     let mut keys = Vec::new();
     crate::expand::collect_param_keys(body.get_ron(), &ron_options(), &mut keys).map_err(
-        |reason| {
-            validation_error(
-                path,
-                source,
-                "body",
-                ValidationError::InvalidBody { reason },
-            )
-        },
+        |reason| validation_error_at(path, position, ValidationError::InvalidBody { reason }),
     )?;
     let len = params.map_or(0, <[ParameterType]>::len);
     for key in keys {
         match key {
             crate::expand::ParamKey::Index(index) if index < len => {}
             crate::expand::ParamKey::Index(index) => {
-                return Err(validation_error(
+                return Err(validation_error_at(
                     path,
-                    source,
-                    &format!("Param({index})"),
+                    position,
                     ValidationError::ParamOutOfRange {
                         location: "body",
                         index,
@@ -1077,10 +1475,9 @@ fn validate_body_params(
                 ));
             }
             crate::expand::ParamKey::Name(name) => {
-                return Err(validation_error(
+                return Err(validation_error_at(
                     path,
-                    source,
-                    &format!("Param({name})"),
+                    position,
                     ValidationError::InvalidBody {
                         reason: format!(
                             "holes `Param({name})`, but v2 declarations are positional"
@@ -1108,53 +1505,6 @@ fn is_bare_ident(name: &str) -> bool {
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
-#[derive(Deserialize)]
-enum DiagnosticDeclaration<'a> {
-    Subtype(#[serde(borrow)] DiagnosticSubtype<'a>),
-}
-
-#[derive(Deserialize)]
-struct DiagnosticSubtype<'a> {
-    #[serde(borrow)]
-    category: &'a RawValue,
-}
-
-fn builtin_kind_mismatch_position(
-    path: &Path,
-    source: &str,
-    kind: DeclarationKind,
-) -> Result<SourcePosition, ReadError> {
-    match kind {
-        DeclarationKind::Subtype(_) => {
-            let DiagnosticDeclaration::Subtype(declaration) = ron_options()
-                .from_str::<DiagnosticDeclaration<'_>>(source)
-                .map_err(|source| ReadError::Parse {
-                    path: path.to_owned(),
-                    source: Box::new(source),
-                })?;
-            let category = declaration.category.trim().get_ron();
-            let offset = category.as_ptr() as usize - source.as_ptr() as usize;
-            Ok(locate_offset(source, offset))
-        }
-        kind => Ok(locate(source, declaration_kind_needle(kind))),
-    }
-}
-
-fn declaration_kind_needle(kind: DeclarationKind) -> &'static str {
-    match kind {
-        DeclarationKind::KeywordAction => "KeywordAction",
-        DeclarationKind::KeywordAbility => "KeywordAbility",
-        DeclarationKind::Type => "Type",
-        DeclarationKind::CounterKind => "CounterKind",
-        DeclarationKind::Designation => "Designation",
-        DeclarationKind::Subtype(_) => unreachable!("subtypes use their category field"),
-    }
-}
-
-fn validation_error(path: &Path, source: &str, needle: &str, error: ValidationError) -> ReadError {
-    validation_error_at(path, locate(source, needle), error)
-}
-
 fn validation_error_at(path: &Path, position: SourcePosition, error: ValidationError) -> ReadError {
     ReadError::Validate {
         path: path.to_owned(),
@@ -1163,24 +1513,20 @@ fn validation_error_at(path: &Path, position: SourcePosition, error: ValidationE
     }
 }
 
-fn locate(source: &str, needle: &str) -> SourcePosition {
-    let offset = if needle.is_empty() {
-        0
-    } else {
-        source
-            .find(needle)
-            .expect("validation location needle must occur in source")
-    };
-    locate_offset(source, offset)
-}
-
 fn locate_offset(source: &str, offset: usize) -> SourcePosition {
-    let before = &source[..offset];
-    let line = before.bytes().filter(|byte| *byte == b'\n').count() + 1;
-    let column = before.rsplit_once('\n').map_or_else(
-        || before.chars().count() + 1,
-        |(_, line)| line.chars().count() + 1,
-    );
+    let mut line = 1;
+    let mut column = 1;
+    for (index, character) in source.char_indices() {
+        if index >= offset {
+            break;
+        }
+        if character == '\n' {
+            line += 1;
+            column = 1;
+        } else {
+            column += 1;
+        }
+    }
     SourcePosition { line, column }
 }
 
@@ -1221,41 +1567,26 @@ fn ron_files_recursive(dir: &Path) -> Result<Vec<PathBuf>, ReadError> {
 fn expected_builtin_identity(
     nursery: &Path,
     declaration: &NormalizedDeclaration,
-) -> Result<(DeclarationKind, String), ReadError> {
+) -> Result<(DeclarationKind, String), ValidationError> {
     let path = &declaration.provenance.path;
-    let relative = path.strip_prefix(nursery).map_err(|_| {
-        validation_error(
-            path,
-            "",
-            "",
-            ValidationError::UnexpectedBuiltinLocation {
+    let relative =
+        path.strip_prefix(nursery)
+            .map_err(|_| ValidationError::UnexpectedBuiltinLocation {
                 relative: path.clone(),
-            },
-        )
-    })?;
+            })?;
     let components = relative
         .iter()
         .map(|component| component.to_str())
         .collect::<Option<Vec<_>>>();
     let Some(components) = components else {
-        return Err(validation_error(
-            path,
-            "",
-            "",
-            ValidationError::UnexpectedBuiltinLocation {
-                relative: relative.to_owned(),
-            },
-        ));
+        return Err(ValidationError::UnexpectedBuiltinLocation {
+            relative: relative.to_owned(),
+        });
     };
     let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) else {
-        return Err(validation_error(
-            path,
-            "",
-            "",
-            ValidationError::UnexpectedBuiltinLocation {
-                relative: relative.to_owned(),
-            },
-        ));
+        return Err(ValidationError::UnexpectedBuiltinLocation {
+            relative: relative.to_owned(),
+        });
     };
     let kind = match components.as_slice() {
         ["keyword_actions", _] => DeclarationKind::KeywordAction,
@@ -1272,25 +1603,15 @@ fn expected_builtin_identity(
             "planeswalker" => SubtypeCategory::Planeswalker,
             "spell" => SubtypeCategory::Spell,
             _ => {
-                return Err(validation_error(
-                    path,
-                    "",
-                    "",
-                    ValidationError::UnexpectedBuiltinLocation {
-                        relative: relative.to_owned(),
-                    },
-                ));
+                return Err(ValidationError::UnexpectedBuiltinLocation {
+                    relative: relative.to_owned(),
+                });
             }
         }),
         _ => {
-            return Err(validation_error(
-                path,
-                "",
-                "",
-                ValidationError::UnexpectedBuiltinLocation {
-                    relative: relative.to_owned(),
-                },
-            ));
+            return Err(ValidationError::UnexpectedBuiltinLocation {
+                relative: relative.to_owned(),
+            });
         }
     };
     Ok((kind, stem.to_owned()))

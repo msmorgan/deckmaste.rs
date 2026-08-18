@@ -548,6 +548,115 @@ KeywordAction(
 }
 
 #[test]
+fn formatted_body_holes_are_validation_errors_at_the_body_value() {
+    for (body, expected) in [
+        (
+            "Scry(Param( /* the positional index */ 1 ))",
+            ValidationError::ParamOutOfRange {
+                location: "body",
+                index: 1,
+                len: 1,
+            },
+        ),
+        (
+            "Scry(Param( /* named holes are forbidden */ amount ))",
+            ValidationError::InvalidBody {
+                reason: "holes `Param(amount)`, but v2 declarations are positional".to_owned(),
+            },
+        ),
+    ] {
+        let source = format!(
+            r#"KeywordAction(
+    name: "Scry",
+    params: [Amount],
+    spelling: "scry <Param(0)>",
+    body: {body},
+)"#
+        );
+        let error = read_str(source_path("Scry.ron"), &source).unwrap_err();
+        assert_eq!(
+            error.position(),
+            Some(SourcePosition {
+                line: 5,
+                column: 11,
+            })
+        );
+        assert_eq!(error.validation(), Some(&expected));
+    }
+}
+
+#[test]
+fn validation_locations_ignore_comment_string_and_raw_string_decoys() {
+    let redundant_plural = r##"Type(
+    name: "Player",
+    spelling: r#"plural and name are decoys"#,
+    grammar: Noun(
+        singular: "player",
+        plural:
+            "players",
+    ),
+)"##;
+    let error = read_str(source_path("Player.ron"), redundant_plural).unwrap_err();
+    assert_eq!(
+        error.position(),
+        Some(SourcePosition {
+            line: 7,
+            column: 13,
+        })
+    );
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::RedundantOverride {
+            field: "plural",
+            ..
+        })
+    ));
+
+    let spelling_mismatch = r#"// spelling: "scry <Param(0)>" is only a comment
+KeywordAction(
+    name: "Mill",
+    params: [Amount],
+    grammar: Verb(bare: "mill", valence: Numerative),
+    spelling:
+        "scry <Param(0)>",
+)"#;
+    let error = read_str(source_path("Mill.ron"), spelling_mismatch).unwrap_err();
+    assert_eq!(
+        error.position(),
+        Some(SourcePosition { line: 7, column: 9 })
+    );
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::GrammarSpellingMismatch { .. })
+    ));
+
+    let first_path = source_path("a.ron");
+    let second_path = source_path("z.ron");
+    let duplicate = r#"KeywordAction(
+    spelling: "name is a decoy",
+    name:
+        "Destroy",
+)"#;
+    let error = read_sources(vec![
+        DeclarationSource::new(
+            first_path,
+            r#"KeywordAction(name:"Destroy",spelling:"destroy")"#,
+        ),
+        DeclarationSource::new(second_path.clone(), duplicate),
+    ])
+    .unwrap_err();
+    assert_eq!(error.path(), second_path);
+    assert_eq!(
+        error.position(),
+        Some(SourcePosition { line: 4, column: 9 })
+    );
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::DuplicateIdentity { .. })
+    ));
+}
+
+#[test]
 fn grammar_and_spelling_are_bound_to_one_declaration() {
     let error = validation(
         r#"
@@ -955,6 +1064,51 @@ KeywordAction(
     assert!(matches!(
         error.validation(),
         Some(ValidationError::InvalidBuiltinRoot)
+    ));
+}
+
+#[test]
+fn builtin_kind_and_name_mismatches_ignore_decoys() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("builtin_v2");
+    fs::create_dir(&root).unwrap();
+    write_builtin(
+        &root,
+        "keyword_actions/Scry.ron",
+        r#"// KeywordAbility is a decoy
+KeywordAbility(
+    name: "Scry",
+    spelling: "scry",
+)"#,
+    );
+    let error = read_builtin_v2(&root).unwrap_err();
+    assert_eq!(
+        error.position(),
+        Some(SourcePosition { line: 2, column: 1 })
+    );
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::DeclarationKindMismatch { .. })
+    ));
+
+    fs::remove_dir_all(root.join("macros")).unwrap();
+    write_builtin(
+        &root,
+        "keyword_actions/Scry.ron",
+        r##"KeywordAction(
+    spelling: r#"name is only a decoy"#,
+    name:
+        "Surveil",
+)"##,
+    );
+    let error = read_builtin_v2(&root).unwrap_err();
+    assert_eq!(
+        error.position(),
+        Some(SourcePosition { line: 4, column: 9 })
+    );
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::DeclarationNameMismatch { .. })
     ));
 }
 
