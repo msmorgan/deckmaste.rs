@@ -993,6 +993,39 @@ Subtype(
 }
 
 #[test]
+fn builtin_subtype_category_mismatch_skips_field_text_inside_raw_strings() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("builtin_v2");
+    fs::create_dir(&root).unwrap();
+    write_builtin(
+        &root,
+        "subtypes/creature/Land.ron",
+        r##"
+Subtype(
+    name: "Land",
+    spelling: r#"decoy " category: Land still raw"#,
+    category
+        :
+        Land,
+)
+"##,
+    );
+
+    let error = read_builtin_v2(&root).unwrap_err();
+    assert_eq!(
+        error.position(),
+        Some(SourcePosition { line: 7, column: 9 })
+    );
+    assert!(matches!(
+        error.validation(),
+        Some(ValidationError::DeclarationKindMismatch {
+            expected: DeclarationKind::Subtype(SubtypeCategory::Creature),
+            actual: DeclarationKind::Subtype(SubtypeCategory::Land),
+        })
+    ));
+}
+
+#[test]
 fn builtin_reader_rejects_malformed_and_nonfinal_locations() {
     for (relative, source) in [
         ("keyword_actions/extra/Scry.ron", DESTROY),
