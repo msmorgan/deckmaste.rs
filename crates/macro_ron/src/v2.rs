@@ -300,8 +300,20 @@ pub enum CustomTailAtom {
 /// A category-safe declaration name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct DeclarationIdentity {
-    pub kind: DeclarationKind,
-    pub name: String,
+    kind: DeclarationKind,
+    name: String,
+}
+
+impl DeclarationIdentity {
+    #[must_use]
+    pub fn kind(&self) -> DeclarationKind {
+        self.kind
+    }
+
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl fmt::Display for DeclarationIdentity {
@@ -313,21 +325,58 @@ impl fmt::Display for DeclarationIdentity {
 /// Source provenance retained on every normalized row.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SourceProvenance {
-    pub path: PathBuf,
+    path: PathBuf,
+}
+
+impl SourceProvenance {
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
 }
 
 /// A validated declaration plus its optional normalized grammar row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NormalizedDeclaration {
-    pub identity: DeclarationIdentity,
-    pub params: Option<Vec<ParameterType>>,
-    pub spelling: Vec<SpellingPart>,
-    pub grammar: Option<GrammarRow>,
-    pub body: Option<Box<RawValue>>,
-    pub provenance: SourceProvenance,
+    identity: DeclarationIdentity,
+    params: Option<Vec<ParameterType>>,
+    spelling: Vec<SpellingPart>,
+    grammar: Option<GrammarRow>,
+    body: Option<Box<RawValue>>,
+    provenance: SourceProvenance,
 }
 
 impl NormalizedDeclaration {
+    #[must_use]
+    pub fn identity(&self) -> &DeclarationIdentity {
+        &self.identity
+    }
+
+    #[must_use]
+    pub fn params(&self) -> Option<&[ParameterType]> {
+        self.params.as_deref()
+    }
+
+    #[must_use]
+    pub fn spelling(&self) -> &[SpellingPart] {
+        &self.spelling
+    }
+
+    #[must_use]
+    pub fn grammar(&self) -> Option<&GrammarRow> {
+        self.grammar.as_ref()
+    }
+
+    #[must_use]
+    pub fn body(&self) -> Option<&RawValue> {
+        self.body.as_deref()
+    }
+
+    #[must_use]
+    pub fn provenance(&self) -> &SourceProvenance {
+        &self.provenance
+    }
+
     /// Whether this declaration has enough semantic information to become a
     /// spelling frame. Grammar-only nursery records deliberately return false.
     #[must_use]
@@ -346,10 +395,20 @@ pub enum SpellingPart {
 /// The parser-facing normalized grammar contract.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GrammarRow {
-    pub identity: DeclarationIdentity,
-    pub recipe: GrammarRecipe,
-    pub surfaces: Vec<RealizedSurface>,
-    pub provenance: SourceProvenance,
+    recipe: GrammarRecipe,
+    surfaces: Vec<RealizedSurface>,
+}
+
+impl GrammarRow {
+    #[must_use]
+    pub fn recipe(&self) -> &GrammarRecipe {
+        &self.recipe
+    }
+
+    #[must_use]
+    pub fn surfaces(&self) -> &[RealizedSurface] {
+        &self.surfaces
+    }
 }
 
 /// Closed recipe information retained after surface sealing.
@@ -375,8 +434,20 @@ pub enum SurfaceFeature {
 /// One complete scan/render surface row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RealizedSurface {
-    pub feature: SurfaceFeature,
-    pub text: String,
+    feature: SurfaceFeature,
+    text: String,
+}
+
+impl RealizedSurface {
+    #[must_use]
+    pub fn feature(&self) -> SurfaceFeature {
+        self.feature
+    }
+
+    #[must_use]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
 }
 
 /// An owned in-memory declaration source, used by providers and tests.
@@ -608,15 +679,17 @@ pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclarati
     for declaration in &declarations {
         let (expected_kind, expected_name) = expected_builtin_identity(&nursery, declaration)?;
         if declaration.identity.kind != expected_kind {
-            return Err(validation_error(
-                &declaration.provenance.path,
-                &std::fs::read_to_string(&declaration.provenance.path).map_err(|source| {
+            let source =
+                std::fs::read_to_string(&declaration.provenance.path).map_err(|source| {
                     ReadError::Io {
                         path: declaration.provenance.path.clone(),
                         source,
                     }
-                })?,
-                "Keyword",
+                })?;
+            return Err(validation_error(
+                &declaration.provenance.path,
+                &source,
+                declaration_kind_needle(declaration.identity.kind),
                 ValidationError::DeclarationKindMismatch {
                     expected: expected_kind,
                     actual: declaration.identity.kind,
@@ -687,16 +760,7 @@ fn normalize(
 
     let identity = DeclarationIdentity { kind, name };
     let grammar = grammar
-        .map(|grammar| {
-            normalize_grammar(
-                &path,
-                source,
-                &identity,
-                SourceProvenance { path: path.clone() },
-                &spelling_parts,
-                grammar,
-            )
-        })
+        .map(|grammar| normalize_grammar(&path, source, &spelling_parts, grammar))
         .transpose()?;
 
     Ok(NormalizedDeclaration {
@@ -712,8 +776,6 @@ fn normalize(
 fn normalize_grammar(
     path: &Path,
     source: &str,
-    identity: &DeclarationIdentity,
-    provenance: SourceProvenance,
     spelling: &[SpellingPart],
     grammar: Grammar,
 ) -> Result<GrammarRow, ReadError> {
@@ -784,12 +846,7 @@ fn normalize_grammar(
         ));
     }
 
-    Ok(GrammarRow {
-        identity: identity.clone(),
-        recipe,
-        surfaces,
-        provenance,
-    })
+    Ok(GrammarRow { recipe, surfaces })
 }
 
 fn fixed_grammar(
@@ -1048,6 +1105,23 @@ fn is_bare_ident(name: &str) -> bool {
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
+fn declaration_kind_needle(kind: DeclarationKind) -> &'static str {
+    match kind {
+        DeclarationKind::KeywordAction => "KeywordAction",
+        DeclarationKind::KeywordAbility => "KeywordAbility",
+        DeclarationKind::Subtype(SubtypeCategory::Artifact) => "Artifact",
+        DeclarationKind::Subtype(SubtypeCategory::Battle) => "Battle",
+        DeclarationKind::Subtype(SubtypeCategory::Creature) => "Creature",
+        DeclarationKind::Subtype(SubtypeCategory::Enchantment) => "Enchantment",
+        DeclarationKind::Subtype(SubtypeCategory::Land) => "Land",
+        DeclarationKind::Subtype(SubtypeCategory::Planeswalker) => "Planeswalker",
+        DeclarationKind::Subtype(SubtypeCategory::Spell) => "Spell",
+        DeclarationKind::Type => "Type",
+        DeclarationKind::CounterKind => "CounterKind",
+        DeclarationKind::Designation => "Designation",
+    }
+}
+
 fn validation_error(path: &Path, source: &str, needle: &str, error: ValidationError) -> ReadError {
     ReadError::Validate {
         path: path.to_owned(),
@@ -1057,7 +1131,13 @@ fn validation_error(path: &Path, source: &str, needle: &str, error: ValidationEr
 }
 
 fn locate(source: &str, needle: &str) -> SourcePosition {
-    let offset = if needle.is_empty() { 0 } else { source.find(needle).unwrap_or(0) };
+    let offset = if needle.is_empty() {
+        0
+    } else {
+        source
+            .find(needle)
+            .expect("validation location needle must occur in source")
+    };
     let before = &source[..offset];
     let line = before.bytes().filter(|byte| *byte == b'\n').count() + 1;
     let column = before.rsplit_once('\n').map_or_else(

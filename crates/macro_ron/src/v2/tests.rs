@@ -109,6 +109,7 @@ fn nursery_and_graduated_sources_round_trip_without_legacy_translation() {
         r#"Type(name:"Creature",spelling:"creature",grammar:Noun(singular:"creature"))"#,
         r#"CounterKind(name:"Stun",spelling:"stun",grammar:FixedTerm(surface:"stun"))"#,
         r#"Designation(name:"Monarch",spelling:"the monarch",grammar:FixedTerm(surface:"the monarch"))"#,
+        r#"KeywordAction(name:"Ping",params:[],spelling:"ping",body:Ping)"#,
         SCRY,
     ] {
         let parsed: Declaration = ron_options().from_str(source).unwrap();
@@ -118,6 +119,14 @@ fn nursery_and_graduated_sources_round_trip_without_legacy_translation() {
         assert!(!written.contains("template:"), "{written}");
         assert!(!written.contains("frames:"), "{written}");
         assert!(!written.contains("kinds:"), "{written}");
+        if source.contains("params:[]") {
+            assert!(written.contains("params:[]"), "{written}");
+            assert_eq!(
+                reparsed.into_parts().1.params,
+                Some(Vec::new()),
+                "{written}"
+            );
+        }
     }
 }
 
@@ -651,18 +660,36 @@ fn write_builtin(root: &Path, relative: &str, source: &str) {
     fs::write(path, source).unwrap();
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct NormalizedProjection {
+    identity: DeclarationIdentity,
+    params: Option<Vec<ParameterType>>,
+    spelling: Vec<SpellingPart>,
+    grammar: Option<(GrammarRecipe, Vec<RealizedSurface>)>,
+    body: Option<Box<ron::value::RawValue>>,
+    relative_provenance: PathBuf,
+}
+
 fn normalized_projection(
+    root: &Path,
     declarations: Vec<NormalizedDeclaration>,
-) -> Vec<(DeclarationIdentity, Vec<RealizedSurface>)> {
+) -> Vec<NormalizedProjection> {
     declarations
         .into_iter()
-        .map(|declaration| {
-            (
-                declaration.identity,
-                declaration
-                    .grammar
-                    .map_or_else(Vec::new, |grammar| grammar.surfaces),
-            )
+        .map(|declaration| NormalizedProjection {
+            identity: declaration.identity,
+            params: declaration.params,
+            spelling: declaration.spelling,
+            grammar: declaration
+                .grammar
+                .map(|grammar| (grammar.recipe, grammar.surfaces)),
+            body: declaration.body,
+            relative_provenance: declaration
+                .provenance
+                .path
+                .strip_prefix(root)
+                .unwrap()
+                .to_owned(),
         })
         .collect()
 }
@@ -820,18 +847,26 @@ KeywordAction(
         r#"Type(name:"ChargeType",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
     );
 
-    let left = normalized_projection(read_builtin_v2(&left_root).unwrap());
-    let right = normalized_projection(read_builtin_v2(&right_root).unwrap());
+    let left = normalized_projection(&left_root, read_builtin_v2(&left_root).unwrap());
+    let right = normalized_projection(&right_root, read_builtin_v2(&right_root).unwrap());
     assert_eq!(left, right);
     assert_eq!(
         left.iter()
-            .map(|(identity, _)| identity.name.as_str())
+            .map(|declaration| declaration.identity.name.as_str())
             .collect::<Vec<_>>(),
         ["Charge", "Destroy", "Scry", "ChargeType"]
     );
     assert_eq!(
         left.iter()
-            .filter(|(_, surfaces)| surfaces.iter().any(|surface| surface.text == "charge"))
+            .filter(|declaration| {
+                declaration
+                    .grammar
+                    .as_ref()
+                    .unwrap()
+                    .1
+                    .iter()
+                    .any(|surface| surface.text == "charge")
+            })
             .count(),
         2
     );
@@ -854,6 +889,10 @@ KeywordAbility(
 "#,
     );
     let error = read_builtin_v2(&root).unwrap_err();
+    assert_eq!(
+        error.position(),
+        Some(SourcePosition { line: 2, column: 1 })
+    );
     assert!(matches!(
         error.validation(),
         Some(ValidationError::DeclarationKindMismatch {
@@ -876,6 +915,13 @@ Subtype(
 "#,
     );
     let error = read_builtin_v2(&root).unwrap_err();
+    assert_eq!(
+        error.position(),
+        Some(SourcePosition {
+            line: 3,
+            column: 15
+        })
+    );
     assert!(matches!(
         error.validation(),
         Some(ValidationError::DeclarationKindMismatch {
