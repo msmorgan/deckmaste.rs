@@ -21,6 +21,14 @@ The lifecycle (`claim`/`start` → work in `.workspaces/NAME` → `integrate`, t
 
 Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
 
+- **A `_v2` sibling is a replacement marker, not a permanent variant.** If
+  `thing_v2` exists beside `thing`, `thing` is on the chopping block and is
+  retained only to hold the roof up while the actively developed `thing_v2`
+  reaches cutover. Put new architecture and features in `thing_v2`; touch
+  `thing` only to keep current users functioning or to enable cutover. Never
+  treat the pair as parallel long-term implementations or copy the v2 design
+  back into the deletion-bound one for parity.
+
 - **Deleted at cutover:** `deckmaste_english` (v2 takes its name),
   `deckmaste_construction_compiler`, `deckmaste_constructions_macro`, and
   `deckmaste_spelling`'s splice-and-reparse render/compile machinery (that

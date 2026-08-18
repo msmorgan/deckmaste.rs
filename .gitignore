@@ -4,6 +4,7 @@
 /.superpowers/
 /plugins/*/
 !/plugins/builtin/
+!/plugins/builtin_v2/
 !/plugins/canon/
 !/plugins/testing/
 !/plugins/demo/

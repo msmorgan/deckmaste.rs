@@ -3,13 +3,14 @@ needs: []
 ---
 **Design ticket: settle the `plugins/builtin_v2/macros/stubs` spelling-record
 design (keyword actions, keyword abilities, creature subtypes), record the
-ruling, and land the tree.** A discussion ticket in the mold of the
-construction-rewrite design dialogue: the deliverable is a design the user
-has explicitly ratified. The sketches below are the current state of the
-dialogue, NOT an accepted design — the user is explicitly not yet satisfied.
-The owner drives the open questions to closure with the user BEFORE
-generating anything. Runs independently of the stage-5 grammar buildout;
-after it lands the user relays a refresh to the buildout claim.
+ruling, and plan the tree.** The user ratified the split `spelling` / optional
+`grammar` design on 2026-08-17. The durable ruling is
+[`docs/decisions/builtin-v2-macro-spelling-and-grammar.md`](../../decisions/builtin-v2-macro-spelling-and-grammar.md);
+it supersedes the pre-ruling sketches and conflicting candidate fences kept
+below as dialogue history. Runs independently of the stage-5 grammar buildout;
+after it lands the user relays a refresh to the buildout claim. This design
+ticket lands the ADR and three inventory follow-up tickets only; it does not
+land stubs, a generator, a validator, or parser wiring.
 
 Why the tree exists (settled): CR-enumerated keyword actions and keyword
 abilities, and subtype spellings, are NOT core-grammar vocabulary. The
@@ -21,7 +22,8 @@ truth, and the one surface a custom-set author ever touches). Non-keyword
 game-action verbs (deal, gain, draw) are a closed set and STAY core
 grammar.
 
-Settled by the user — fences, do not reopen:
+Pre-ruling fences and candidate assumptions (the linked decision is now
+authoritative where these conflict):
 
 - Nursery ontology: stubs grow in place; no parallel registry ever.
 - `name:` is the authoring address and equals the filename minus extension
@@ -63,7 +65,7 @@ CreatureType(name: "Goblin", spelling: Noun(singular: "Goblin"))
 Graduated form, illustrative only:
 `spelling: Frame([Verb(bare: "amass"), Param(0, number: Plural), Param(1)])`.
 
-Open questions — the dissatisfaction lives here; settle each with the user:
+Questions closed by the ratified decision:
 
 1. The spelling enum's exact vocabulary and composition rules: the variant
    set (Verb/Clause/Term/Noun/…), how Frame atoms and holes are typed, and
@@ -108,14 +110,13 @@ keyword-actions 70, keyword-abilities 195, creature-types 324):
   support); also unverified-lowercase abilities "aura swap" and
   "power-up" (appear only ability-line-initial in the corpus).
 
-Acceptance: every open question closed by explicit user ratification (a
-design dialogue, not silently-applied defaults); the ruling recorded per
-question 7, including the scope statement (keyword actions/abilities/
+Acceptance: every open question closed by explicit user ratification; the
+ruling recorded, including the scope statement (keyword actions/abilities/
 subtype spellings are macro-sourced; deal/gain/draw stay core; the slice's
-`Destroy`/`Connive` are scaffolding until the frame seam); the three
-directories then generated in full from the canonical catalogs per the
-ratified shape, with the evidence above carried into the records; the
-catalog-integrity relationship stated in the recorded ruling; nothing
-consumes the tree yet — no loader wiring, no grammar change, no
-english_v2 edits; the stage-5 relay (no per-keyword core constructions in
-the buildout plans) handed to the user. Standard constraints apply.
+`Destroy`/`Connive` are scaffolding until the frame seam); three follow-up
+tickets minted for the committed keyword-action, keyword-ability, and
+creature-type inventories; the catalog-integrity relationship stated in the
+ruling; no stubs, generator, validator, loader wiring, grammar change, or
+english_v2 edit landed here; the stage-5 relay (no per-keyword core
+constructions in the buildout plans) handed to the user. Standard constraints
+apply.
