@@ -686,10 +686,9 @@ pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclarati
                         source,
                     }
                 })?;
-            return Err(validation_error(
+            return Err(validation_error_at(
                 &declaration.provenance.path,
-                &source,
-                declaration_kind_needle(declaration.identity.kind),
+                builtin_kind_mismatch_position(&source, declaration.identity.kind),
                 ValidationError::DeclarationKindMismatch {
                     expected: expected_kind,
                     actual: declaration.identity.kind,
@@ -1105,27 +1104,36 @@ fn is_bare_ident(name: &str) -> bool {
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
+fn builtin_kind_mismatch_position(source: &str, kind: DeclarationKind) -> SourcePosition {
+    match kind {
+        DeclarationKind::Subtype(category) => locate_offset(
+            source,
+            subtype_category_value_offset(source, category)
+                .expect("subtype category field must occur in source"),
+        ),
+        kind => locate(source, declaration_kind_needle(kind)),
+    }
+}
+
 fn declaration_kind_needle(kind: DeclarationKind) -> &'static str {
     match kind {
         DeclarationKind::KeywordAction => "KeywordAction",
         DeclarationKind::KeywordAbility => "KeywordAbility",
-        DeclarationKind::Subtype(SubtypeCategory::Artifact) => "Artifact",
-        DeclarationKind::Subtype(SubtypeCategory::Battle) => "Battle",
-        DeclarationKind::Subtype(SubtypeCategory::Creature) => "Creature",
-        DeclarationKind::Subtype(SubtypeCategory::Enchantment) => "Enchantment",
-        DeclarationKind::Subtype(SubtypeCategory::Land) => "Land",
-        DeclarationKind::Subtype(SubtypeCategory::Planeswalker) => "Planeswalker",
-        DeclarationKind::Subtype(SubtypeCategory::Spell) => "Spell",
         DeclarationKind::Type => "Type",
         DeclarationKind::CounterKind => "CounterKind",
         DeclarationKind::Designation => "Designation",
+        DeclarationKind::Subtype(_) => unreachable!("subtypes use their category field"),
     }
 }
 
 fn validation_error(path: &Path, source: &str, needle: &str, error: ValidationError) -> ReadError {
+    validation_error_at(path, locate(source, needle), error)
+}
+
+fn validation_error_at(path: &Path, position: SourcePosition, error: ValidationError) -> ReadError {
     ReadError::Validate {
         path: path.to_owned(),
-        position: locate(source, needle),
+        position,
         source: error,
     }
 }
@@ -1138,6 +1146,10 @@ fn locate(source: &str, needle: &str) -> SourcePosition {
             .find(needle)
             .expect("validation location needle must occur in source")
     };
+    locate_offset(source, offset)
+}
+
+fn locate_offset(source: &str, offset: usize) -> SourcePosition {
     let before = &source[..offset];
     let line = before.bytes().filter(|byte| *byte == b'\n').count() + 1;
     let column = before.rsplit_once('\n').map_or_else(
@@ -1145,6 +1157,95 @@ fn locate(source: &str, needle: &str) -> SourcePosition {
         |(_, line)| line.chars().count() + 1,
     );
     SourcePosition { line, column }
+}
+
+fn subtype_category_value_offset(source: &str, category: SubtypeCategory) -> Option<usize> {
+    let expected = match category {
+        SubtypeCategory::Artifact => "Artifact",
+        SubtypeCategory::Battle => "Battle",
+        SubtypeCategory::Creature => "Creature",
+        SubtypeCategory::Enchantment => "Enchantment",
+        SubtypeCategory::Land => "Land",
+        SubtypeCategory::Planeswalker => "Planeswalker",
+        SubtypeCategory::Spell => "Spell",
+    };
+    let mut offset = 0;
+    while offset < source.len() {
+        if let Some(next) = skip_ron_string_or_comment(source, offset) {
+            offset = next;
+            continue;
+        }
+        if source[offset..].starts_with("category")
+            && identifier_boundary(source, offset, "category")
+        {
+            let mut value = skip_ron_trivia(source, offset + "category".len());
+            if source[value..].starts_with(':') {
+                value = skip_ron_trivia(source, value + 1);
+                if source[value..].starts_with(expected)
+                    && identifier_boundary(source, value, expected)
+                {
+                    return Some(value);
+                }
+            }
+        }
+        offset += source[offset..].chars().next().unwrap().len_utf8();
+    }
+    None
+}
+
+fn identifier_boundary(source: &str, offset: usize, token: &str) -> bool {
+    let before = source[..offset].chars().next_back();
+    let after = source[offset + token.len()..].chars().next();
+    !before.is_some_and(is_ron_ident_char) && !after.is_some_and(is_ron_ident_char)
+}
+
+fn is_ron_ident_char(character: char) -> bool {
+    character.is_ascii_alphanumeric() || character == '_'
+}
+
+fn skip_ron_trivia(source: &str, mut offset: usize) -> usize {
+    loop {
+        while let Some(character) = source[offset..].chars().next() {
+            if !character.is_whitespace() {
+                break;
+            }
+            offset += character.len_utf8();
+        }
+        if source[offset..].starts_with("//") {
+            offset = source[offset..]
+                .find('\n')
+                .map_or(source.len(), |end| offset + end + 1);
+            continue;
+        }
+        if source[offset..].starts_with("/*") {
+            let end = source[offset + 2..]
+                .find("*/")
+                .expect("terminated RON block comment");
+            offset += end + 4;
+            continue;
+        }
+        return offset;
+    }
+}
+
+fn skip_ron_string_or_comment(source: &str, offset: usize) -> Option<usize> {
+    if source[offset..].starts_with('"') {
+        let mut next = offset + 1;
+        while next < source.len() {
+            let character = source[next..].chars().next().unwrap();
+            next += character.len_utf8();
+            if character == '\\' {
+                next += source[next..].chars().next().unwrap().len_utf8();
+            } else if character == '"' {
+                return Some(next);
+            }
+        }
+        panic!("terminated RON string");
+    }
+    if source[offset..].starts_with("//") || source[offset..].starts_with("/*") {
+        return Some(skip_ron_trivia(source, offset));
+    }
+    None
 }
 
 fn ron_files_recursive(dir: &Path) -> Result<Vec<PathBuf>, ReadError> {
