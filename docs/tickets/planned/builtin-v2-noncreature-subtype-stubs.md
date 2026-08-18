@@ -1,5 +1,5 @@
 ---
-needs: [builtin-v2-grammar-consumer]
+needs: [builtin-v2-declaration-schema]
 ---
 Author and commit the noncreature subtype records under
 `plugins/builtin_v2/macros/stubs/subtypes`, one category-scoped directory and
@@ -21,8 +21,10 @@ supported Oracle corpus, following style guide §7, "Types, subtypes, and
 supertypes as nouns and modifiers." In particular, artifact subtypes are not
 uniformly count nouns, proper-name planeswalker subtypes are not ordinary
 common nouns, and hyphenated or possessive catalog spellings are retained.
-Omit unattested morphology rather than deriving it mechanically from title
-case.
+Omission selects the schema's deliberately dumb `singular + "s"` default;
+use an explicit whole-surface replacement for an attested exception or the
+explicit unavailable state plus an evidence note for an unattested form.
+Never derive morphology from title case.
 
 Planar and dungeon subtypes are named semantic-model gaps, not covered
 inventory: the current subtype category axis cannot represent them. Do not

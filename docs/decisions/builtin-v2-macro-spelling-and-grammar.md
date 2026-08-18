@@ -1,6 +1,8 @@
 # Builtin-v2 macro spelling and grammar
 
-Amended 2026-08-18: verb grammar declarations carry grammatical valence.
+Amended 2026-08-18: verb grammar declarations carry grammatical valence, and
+the parser consumes declaration-backed vocabulary through one normalized open
+inventory during both bootstrap and final plugin loading.
 
 ## Decision
 
@@ -69,19 +71,51 @@ compound verb, a noun's attested number forms, or a fixed clause/keyword
 surface. Whole realized compound surfaces are data; there are no text offsets
 or head-position markers.
 
-This decision does not declare a morphology inventory or license guessing an
-unattested form. Catalog membership alone cannot establish a plural or an
-inflection. Those facts must be checked against the authoritative grammar
-sources when the committed records are authored.
+The only productive morphology recipes are deliberately dumb:
+
+- `english_verb` realizes the bare form as its lemma and third-person singular
+  as the lemma plus one ASCII `s`;
+- `english_noun` realizes singular as its lemma and plural as the lemma plus
+  one ASCII `s`.
+
+An omitted derived-form field selects that default. An explicit string is a
+replacement, not an additional alias: `third_person: "scries"` removes the
+derived `scrys`, and an invariant `plural: "Merfolk"` removes the derived
+`Merfolks`. Whole compound forms are likewise explicit whole-string
+replacements. A replacement equal to the default is rejected as redundant;
+there are no `-es` or `-ies` heuristics and no compound-head discovery. A
+record can explicitly mark a derived form unavailable when there is no
+authoritative attestation. Plain omission does not mean unattested, because it
+selects the default recipe.
+
+Catalog membership still does not establish that a form is attested. Authors
+must check supplied replacements and explicit unavailability against the
+authoritative grammar sources. Catalogs never supply morphology to the
+runtime.
 
 Every `Verb` declaration stores one closed grammatical valence:
 
 - `Intransitive` admits no direct complement, as with `explore`;
 - `Transitive` admits one ordinary object noun phrase, as with `destroy`;
 - `Numerative` admits one amount expression, as with `scry`; and
-- `Custom` carries one or more explicit VP-tail shapes over closed
-  compiler-owned grammatical categories and literal atoms, as with the empty
-  or amount-bearing tails of `connive` / `connive N`.
+- `Custom` carries one or more explicit VP-tail shapes over the exact atom
+  inventory below, as with the empty or amount-bearing tails of `connive` /
+  `connive N`.
+
+The serialized `Custom` tail atom inventory is closed and finite:
+
+- `Literal(String)` matches one nonempty exact terminal span;
+- `Amount` admits the ordinary amount category; and
+- `ObjectNounPhrase` admits an ordinary object-position noun phrase. Here
+  "object" is a grammatical role, not the Magic rules term.
+
+A custom shape is an ordered list of those atoms. The shape set must be finite
+and nonempty; an empty list is a valid individual shape for a no-tail
+alternative, while an empty shape set is invalid. Duplicate alternatives,
+empty literals, and any atom or nesting operator outside this list are load
+errors. Optionality is represented by listing alternatives, not by an
+optional or repetition operator. Adding another category is a reviewed
+compiler/ADR change, not plugin data.
 
 `Custom` is not an arbitrary plugin grammar production and does not accept an
 untyped tail: it cannot add recursion, precedence, callbacks, or semantic
@@ -104,6 +138,70 @@ encode the macro's semantic guards or rules legality.
 The contribution vocabulary is not a plugin-extensible grammar DSL. New
 lexemes and their inflections are open data; new grammatical recipes remain
 reviewed compiler work.
+
+## One normalized parser boundary
+
+All declaration sources normalize into one immutable grammar inventory before
+the scanner, parser, renderer, diagnostics, or construction machinery sees
+them. Those consumers accept only the normalized inventory/environment. They
+must not read a catalog, walk plugin files, distinguish builtin from third
+party, or consult a second static vocabulary table.
+
+Each normalized row carries:
+
+- a category-safe open identity, so a keyword action, keyword ability,
+  category-scoped subtype, type, counter kind, and designation cannot be
+  confused even when their spellings or local names coincide;
+- its closed recipe and complete realized surface rows;
+- the declaration identity and source provenance needed for diagnostics; and
+- for verbs, the required valence and any validated `Custom` tail shapes.
+
+The registry IDs are open carriers such as checked owned or interned IDs, not
+one exhaustive Rust enum variant per registered member. Closed grammatical
+recipes may remain enums. Runtime indexes are compiled from the normalized
+rows in both directions: surface to every compatible reading, and identity
+plus features to the one render surface. A surface collision retains all
+readings for ordinary ambiguity handling; registration order, catalog order,
+and filesystem order never select one.
+
+The grammar head and semantic spelling frame are coherent by construction and
+bound to the enclosing declaration identity. For a verb, the initial literal
+head in `spelling` must name that declaration's own bare grammar surface; each
+other fixed recipe applies the corresponding identity-local check. A record
+whose grammar declares `mill` but whose spelling begins
+`scry <Param(0)>` fails to load. The compiler never repairs this by looking
+up a matching global surface, and homonymous declarations remain distinct
+identities.
+
+Static semantic frames such as the current Destroy and Connive constructions
+may survive during bootstrap, but they request an open declaration identity;
+they do not define that identity or own its surface table. A nursery grammar
+record with no typed signature or semantic body participates in parsing and
+rendering but is not selectable as a semantic spelling frame.
+
+## Bootstrap and final authority
+
+The Stage 5 parser may be brought up corpus-first with handwritten
+definitions, but this does not create a second authority or a closed official
+vocabulary. Bootstrap records live at their final
+`plugins/builtin_v2/macros/stubs/...` addresses and use the neutral v2
+declaration schema. A narrow builtin-only reader normalizes those records into
+the same immutable inventory used by the parser. There is no generated stub
+manifest and no later content migration. These handwritten records, not a
+catalog-derived fallback, own the bootstrap grammatical facts.
+
+The final provider resolves the complete plugin dependency closure and feeds
+the same normalization boundary. It replaces the narrow bootstrap reader as a
+provider, not the normalized row contract or parser ABI. At that point the
+resolved `builtin_v2` plugin declarations are the builtin runtime authority,
+and dependency/plugin declarations can add or shadow same-kind identities
+under the ordinary loader rules. The canonical catalogs remain read-only
+completeness checklists for the builtin source tree; neither bootstrap nor the
+final provider turns them into runtime vocabulary, casing, valence, or
+morphology authority.
+
+Runtime efficiency comes from immutable compiled indexes over the open rows,
+not exhaustive switches or a generated construction per catalog member.
 
 ## Open plugins parse their own English
 
@@ -171,6 +269,10 @@ grammar contribution now; graduation adds positional parameter types, extends
 The canonical keyword catalogs and every currently representable subtype
 catalog back category-scoped directories:
 
+These are the CR-derived catalogs under `data/gen/catalogs`. Legacy
+Scryfall-derived vocabularies are not classification or completeness authority
+for this design.
+
 | Catalog | Current entries | Stub directory |
 |---|---:|---|
 | `keyword-actions.txt` | 70 | `keyword_actions/` |
@@ -227,9 +329,32 @@ runtime consumer. Those changes are follow-up work. The stage-5 buildout must
 consume open grammar contributions at the seam above; it must not mint one core
 construction per official keyword.
 
+## Stage 5 implementation relay
+
+The Stage 5 grammar-buildout workspace has completed Tasks 1 through 3. Before
+starting Task 4, refresh it onto this amendment and revise its local plan as
+follows. Do not reopen the completed tasks unless one of these requirements
+exposes a concrete incompatibility.
+
+- Task 4 must give generated terminals an open, category-safe declaration
+  identity carrier alongside the exhaustive enums for closed grammatical
+  structure. It must not generate one member enum variant per catalog entry.
+- Task 5 must receive the immutable normalized grammar environment in scan
+  input. `ParserCatalogs` is not the parser vocabulary interface.
+- Task 6 must seal normalized surface rows using the two dumb morphology
+  recipes above. Bootstrap definitions and later plugin definitions traverse
+  the same row compiler and reverse indexes.
+- Task 9 must construct nouns and other registry terminals from
+  declaration/registry identities in the environment, not make a catalog
+  domain the final runtime type or membership authority.
+- Task 10 must make provenance IDs migration-capable. Public accessors return
+  `&str`, backed by owned, shared, or interned storage as appropriate; public
+  `&'static str` owner IDs are forbidden.
+
 ## Follow-up work
 
-- [Load, compile, and consume plugin grammar](../tickets/planned/builtin-v2-grammar-consumer.md)
+- [Define the neutral declaration schema and bootstrap reader](../tickets/planned/builtin-v2-declaration-schema.md)
+- [Build the open grammar environment](../tickets/planned/english-v2-open-grammar-environment.md)
 - [Committed keyword-action stubs](../tickets/planned/builtin-v2-keyword-action-stubs.md)
 - [Committed keyword-ability stubs](../tickets/planned/builtin-v2-keyword-ability-stubs.md)
 - [Committed creature-type stubs](../tickets/planned/builtin-v2-creature-type-stubs.md)
@@ -238,6 +363,10 @@ construction per official keyword.
 - [Committed counter-kind declarations](../tickets/planned/builtin-v2-counter-kind-declarations.md)
 - [Committed designation declarations](../tickets/planned/builtin-v2-designation-declarations.md)
 - [Read-only catalog coverage validator](../tickets/planned/builtin-v2-catalog-coverage-validator.md)
+- [Resolve full plugin grammar providers](../tickets/planned/builtin-v2-plugin-grammar-provider.md)
+- [Compile and match positional spelling frames](../tickets/planned/builtin-v2-spelling-frame-consumer.md)
+- [Compile English-authored card sources](../tickets/planned/builtin-v2-english-card-consumer.md)
+- [Cut over the completed builtin grammar inventory](../tickets/planned/builtin-v2-grammar-consumer.md)
 
 ## Related decisions
 

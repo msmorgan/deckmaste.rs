@@ -1,5 +1,5 @@
 ---
-needs: [builtin-v2-grammar-consumer]
+needs: [builtin-v2-declaration-schema]
 ---
 Port the builtin counter-kind registry rows to committed `builtin_v2`
 declarations and give each declaration its semantic `spelling` plus any

@@ -1,5 +1,5 @@
 ---
-needs: [builtin-v2-grammar-consumer]
+needs: [builtin-v2-declaration-schema]
 ---
 Author and commit the keyword-ability records under
 `plugins/builtin_v2/macros/stubs/keyword_abilities`, one for each canonical

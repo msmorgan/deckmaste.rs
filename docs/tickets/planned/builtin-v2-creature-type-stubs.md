@@ -1,5 +1,5 @@
 ---
-needs: [builtin-v2-grammar-consumer]
+needs: [builtin-v2-declaration-schema]
 ---
 Author and commit the creature/kindred subtype records under
 `plugins/builtin_v2/macros/stubs/subtypes/creature`, one for each canonical
@@ -20,13 +20,16 @@ declaration rather than acquiring a second registry row.
 
 Verify morphology against the CR and supported Oracle corpus, following style
 guide §7, "Types, subtypes, and supertypes as nouns and modifiers."
-Catalog membership is not evidence that `+s` is valid: `Merfolk` is plural
-`Merfolk`, not `Merfolks`. Cover the two-word `Time Lord`, apostrophe mapping,
+Catalog membership is not evidence that `+s` is attested: `Merfolk` is
+plural `Merfolk`, not `Merfolks`. Omission deliberately selects the dumb
+`singular + "s"` default. Cover the two-word `Time Lord`, apostrophe mapping,
 regular plurals, irregular plurals, invariants, and a genuinely unattested
-plural. Omit an unattested form and annotate the evidence gap; do not guess.
+plural. Use an explicit replacement for an attested exception and the explicit
+unavailable state plus an evidence note for an unattested form; do not guess.
 
 These files are committed source code and graduate in place; do not generate
 them or create predicate twins per subtype. Acceptance loads every authored
 record through the v2 declaration reader and audits the representative
-morphology cases above; the catalog coverage ticket separately owns only the
-filename bijection. Standard constraints apply.
+morphology cases above, including rejection of a redundant default-equal
+override; the catalog coverage ticket separately owns only the filename
+bijection. Standard constraints apply.
