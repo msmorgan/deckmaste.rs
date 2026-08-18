@@ -1,5 +1,5 @@
 ---
-needs: [builtin-v2-spelling-stub-design]
+needs: [builtin-v2-grammar-consumer]
 ---
 Author and commit the creature/kindred subtype records under
 `plugins/builtin_v2/macros/stubs/subtypes/creature`, one for each canonical
@@ -11,7 +11,22 @@ the open-registry design. The sibling `builtin-v2-noncreature-subtype-stubs`
 ticket owns every other subtype category the semantic model can currently
 represent.
 
-These files are source code and graduate in place; do not generate them. Verify
-number morphology exhaustively against authoritative grammar evidence—catalog
-membership is not evidence that `+s` is valid (`Merfolk` is plural `Merfolk`,
-not `Merfolks`). Do not guess unattested forms. Standard constraints apply.
+Each record declares the catalog identity, the Creature/Kindred subtype
+category, the exact singular subtype spelling, and only attested noun
+morphology. The identity and category are semantic registry data; `grammar`
+owns realization facts such as plural or invariant number. Empty conferrals
+remain empty. A subtype with rules-defined conferrals keeps those on the same
+declaration rather than acquiring a second registry row.
+
+Verify morphology against the CR and supported Oracle corpus, following style
+guide §7, "Types, subtypes, and supertypes as nouns and modifiers."
+Catalog membership is not evidence that `+s` is valid: `Merfolk` is plural
+`Merfolk`, not `Merfolks`. Cover the two-word `Time Lord`, apostrophe mapping,
+regular plurals, irregular plurals, invariants, and a genuinely unattested
+plural. Omit an unattested form and annotate the evidence gap; do not guess.
+
+These files are committed source code and graduate in place; do not generate
+them or create predicate twins per subtype. Acceptance loads every authored
+record through the v2 declaration reader and audits the representative
+morphology cases above; the catalog coverage ticket separately owns only the
+filename bijection. Standard constraints apply.

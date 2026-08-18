@@ -119,9 +119,9 @@ Acceptance: every open question closed by explicit user ratification; the
 ruling recorded, including the scope statement (declaration-backed semantic
 vocabularies are macro-sourced; deal/gain/draw stay core; the slice's
 `Destroy`/`Connive` are scaffolding until the frame seam); follow-up tickets
-minted for every current declaration-backed registry family plus a separate
-read-only coverage gate; the catalog-integrity relationship stated in the
-ruling; no stubs, generator, validator, loader wiring, grammar change, or
-english_v2 edit landed here; the stage-5 relay (no per-keyword core
-constructions in the buildout plans) handed to the user. Standard constraints
-apply.
+minted for the loader/compiler/parser-consumer path, every current
+declaration-backed registry family, and a separate read-only coverage gate;
+the catalog-integrity relationship stated in the ruling; no stubs, generator,
+validator, loader wiring, grammar change, or english_v2 edit landed here; the
+stage-5 relay (no per-keyword core constructions in the buildout plans) handed
+to the user. Standard constraints apply.

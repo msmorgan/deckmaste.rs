@@ -207,6 +207,7 @@ construction per official keyword.
 
 ## Follow-up work
 
+- [Load, compile, and consume plugin grammar](../tickets/planned/builtin-v2-grammar-consumer.md)
 - [Committed keyword-action stubs](../tickets/planned/builtin-v2-keyword-action-stubs.md)
 - [Committed keyword-ability stubs](../tickets/planned/builtin-v2-keyword-ability-stubs.md)
 - [Committed creature-type stubs](../tickets/planned/builtin-v2-creature-type-stubs.md)
