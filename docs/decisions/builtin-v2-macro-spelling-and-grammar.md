@@ -1,5 +1,7 @@
 # Builtin-v2 macro spelling and grammar
 
+Amended 2026-08-18: verb grammar declarations carry grammatical valence.
+
 ## Decision
 
 Plugin macros keep semantic spelling and English-parser bootstrap data in two
@@ -22,7 +24,11 @@ KeywordAction(
     name: "Scry",
     params: [Amount],
     spelling: "scry <Param(0)>",
-    grammar: Verb("scry"),
+    grammar: Verb(
+        bare: "scry",
+        third_person: "scries",
+        valence: Numerative,
+    ),
 )
 ~~~
 
@@ -57,9 +63,9 @@ references and cannot affect validation.
 
 ## What `grammar` may declare
 
-`grammar` carries only the lexical and morphological facts needed to admit the
-macro's English: for example, that `scry` is a verb, the realized inflections
-of a compound verb, a noun's attested number forms, or a fixed clause/keyword
+`grammar` carries the grammatical facts needed to admit the macro's English:
+for example, that `scry` is a numerative verb, the realized inflections of a
+compound verb, a noun's attested number forms, or a fixed clause/keyword
 surface. Whole realized compound surfaces are data; there are no text offsets
 or head-position markers.
 
@@ -68,16 +74,32 @@ unattested form. Catalog membership alone cannot establish a plural or an
 inflection. Those facts must be checked against the authoritative grammar
 sources when the committed records are authored.
 
-`grammar` is not a valency or Magic-legality declaration. In particular,
-declaring `scry` as a verb does not say that Scry takes an amount, and declaring
-`destroy` as a verb does not say that Destroy takes an object noun phrase.
-The raw grammar may therefore admit both `scry 1` and syntactically plausible
-but semantically useless combinations such as `destroy 1` or `scry each
-creature target opponent controls`. Typed spelling-frame matching accepts
-`Scry([Amount])` and `Destroy([ObjectNoun])` and rejects the crossed readings;
-the Idris layer then validates the assembled semantic card. Teaching the
-English parser those semantic restrictions would violate the v2 parser's
-grammar-only boundary.
+Every `Verb` declaration stores one closed grammatical valence:
+
+- `Intransitive` admits no direct complement, as with `explore`;
+- `Transitive` admits one ordinary object noun phrase, as with `destroy`;
+- `Numerative` admits one amount expression, as with `scry`; and
+- `Custom` carries one or more explicit VP-tail shapes over closed
+  compiler-owned grammatical categories and literal atoms, as with the empty
+  or amount-bearing tails of `connive` / `connive N`.
+
+`Custom` is not an arbitrary plugin grammar production and does not accept an
+untyped tail: it cannot add recursion, precedence, callbacks, or semantic
+predicates. Its finite tail-shape set is declaration data compiled through the
+same generic extension point as the three ordinary valences. A missing, empty,
+or invalid custom shape set is a load error. Conversely, a fixed clause such
+as `the Ring tempts you` uses the fixed clause recipe and is not mislabeled as
+a `Custom` verb.
+
+Valence is grammatical structure, not the semantic parameter signature or a
+Magic-legality declaration. `Numerative` is enough for the English grammar to
+recognize both `scry 1` and `scry X`; `Transitive` admits an object noun phrase.
+The grammar therefore rejects the basic crossed shapes `destroy 1` and `scry
+each creature target opponent controls`. It can still overgenerate within a
+valence family. Typed spelling-frame matching must recover the declaration's
+positional parameter types from the parsed subtrees, and Idris must validate
+the assembled semantic card afterward. Neither valence nor the parser may
+encode the macro's semantic guards or rules legality.
 
 The contribution vocabulary is not a plugin-extensible grammar DSL. New
 lexemes and their inflections are open data; new grammatical recipes remain

@@ -61,14 +61,25 @@ Loading is explicitly two-phase and closure-wide:
 `grammar` is data for a closed set of compiler-owned runtime recipes, not a
 plugin grammar DSL. Reuse the stage-5 terminal contract: whole-surface English
 verb morphology, noun morphology, fixed term/clause/keyword surfaces,
-terminal choice, context identity, and the already reviewed codecs. A
-declaration chooses a recipe and supplies its surface table; it cannot submit
-Rust, callbacks, arbitrary productions, precedence, valency, or semantic
-guards. Extend the generated grammar once with generic extension points for
-those recipes. Do not generate Rust per plugin or mint a static construction
-per official catalog entry. The runtime compiler validates recipe fields,
-duplicate surfaces, declaration-category compatibility, and deterministic
-merge order, reporting the plugin and source path for every failure.
+terminal choice, context identity, and the already reviewed codecs. Every
+`Verb` recipe requires exactly one valence from `Intransitive`, `Transitive`,
+`Numerative`, or `Custom`; omission is a schema/load error. The first three
+compile generic VP rules with respectively no complement, one object noun
+phrase, or one amount expression. `Custom` carries an explicit VP-tail shape
+set over the same closed compiler-owned grammatical categories and literal
+atoms; the runtime compiler lowers those finite alternatives through the
+generic extension point. A missing or empty shape set, an unknown category, or
+an invalid atom sequence is a load error.
+
+A declaration chooses a recipe and supplies its surface table; it cannot
+submit Rust, callbacks, arbitrary productions, precedence, semantic guards,
+or an untyped custom tail. Extend the generated grammar once with generic
+extension points for the three ordinary valences and other closed recipes.
+Do not generate Rust per plugin or mint a static construction per official
+catalog entry. The runtime compiler validates recipe fields, duplicate
+surfaces, declaration-category compatibility, custom tail shapes, and
+deterministic merge order, reporting the plugin and source path for every
+failure.
 
 The contributed terminals and generic recipe rules enter the existing Earley
 chart and packed forest. Ordered choice, PEG, recursive descent, a plugin-only
@@ -86,11 +97,14 @@ environment or declaration-order lookup. Equally valid frame matches remain
 an explicit ambiguity and are never selected by registration or filesystem
 order.
 
-Keep syntax and semantics separate. The raw grammar may parse `scry 1`,
-`destroy 1`, and other syntactically plausible combinations. Typed frame
-matching accepts only a declaration whose hole types match the parsed
-subtrees, and Idris validates the assembled card afterward. Do not add Magic
-valency or legality to the English parser to suppress overgeneration.
+Keep syntax and semantics separate without discarding syntax. Valence makes
+`scry 1` and `scry X` grammatical and rejects the cross-family shapes
+`destroy 1` and `scry each creature target opponent controls`. It does not
+encode the positional semantic signature: the parser may still accept a
+same-valence noun phrase that the declaration's typed spelling frame cannot
+consume. Typed frame matching rejects that candidate, and Idris validates any
+assembled card afterward. Do not add Magic legality, semantic guards, or
+parameter-type refinements to the English parser.
 
 Acceptance is an end-to-end synthetic plugin suite, independent of the
 official vocabulary ceiling:
@@ -104,7 +118,14 @@ official vocabulary ceiling:
   is diagnosed;
 - a literal amount and `X` both fill an `Amount` hole, while an unbound `X`
   reaches semantic validation and fails there rather than in the parser;
-- a grammar-accepted crossed reading has no typed frame match;
+- representative declarations exercise all four valences; the parser rejects
+  a direct object after an intransitive verb, an amount after a transitive
+  verb, and an object noun phrase after a numerative verb;
+- a syntactically valid but hole-type-incompatible same-valence reading reaches
+  typed frame matching and has no match;
+- `Custom` admits exactly its declared typed tail alternatives, and omission
+  of valence or a missing/empty/invalid custom shape set fails
+  deterministically;
 - a same-kind redeclaration shadows its dependency coherently in semantics,
   grammar, and spelling, while a same-plugin duplicate fails deterministically;
 - an ungraduated stub adds vocabulary but cannot assemble a semantic macro;
