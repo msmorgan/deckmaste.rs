@@ -209,7 +209,8 @@ construction per official keyword.
 
 - [Committed keyword-action stubs](../tickets/planned/builtin-v2-keyword-action-stubs.md)
 - [Committed keyword-ability stubs](../tickets/planned/builtin-v2-keyword-ability-stubs.md)
-- [Committed subtype stubs](../tickets/planned/builtin-v2-subtype-stubs.md)
+- [Committed creature-type stubs](../tickets/planned/builtin-v2-creature-type-stubs.md)
+- [Committed noncreature-subtype stubs](../tickets/planned/builtin-v2-noncreature-subtype-stubs.md)
 - [Committed card-type declarations](../tickets/planned/builtin-v2-type-declarations.md)
 - [Committed counter-kind declarations](../tickets/planned/builtin-v2-counter-kind-declarations.md)
 - [Committed designation declarations](../tickets/planned/builtin-v2-designation-declarations.md)

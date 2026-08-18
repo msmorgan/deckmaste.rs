@@ -1,5 +1,5 @@
 ---
-needs: [builtin-v2-keyword-action-stubs, builtin-v2-keyword-ability-stubs, builtin-v2-subtype-stubs]
+needs: [builtin-v2-keyword-action-stubs, builtin-v2-keyword-ability-stubs, builtin-v2-creature-type-stubs, builtin-v2-noncreature-subtype-stubs]
 ---
 Add a read-only completeness gate for every catalog-backed `builtin_v2`
 inventory covered by the ratified
