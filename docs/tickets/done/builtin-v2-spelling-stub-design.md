@@ -2,18 +2,23 @@
 needs: []
 ---
 **Design ticket: settle the `plugins/builtin_v2/macros/stubs` spelling-record
-design (keyword actions, keyword abilities, creature subtypes), record the
+design for declaration-backed open vocabularies (keyword actions, keyword
+abilities, and creature subtypes were motivating examples, not an exhaustive
+list), record the
 ruling, and plan the tree.** The user ratified the split `spelling` / optional
 `grammar` design on 2026-08-17. The durable ruling is
 [`docs/decisions/builtin-v2-macro-spelling-and-grammar.md`](../../decisions/builtin-v2-macro-spelling-and-grammar.md);
 it supersedes the pre-ruling sketches and conflicting candidate fences kept
 below as dialogue history. Runs independently of the stage-5 grammar buildout;
 after it lands the user relays a refresh to the buildout claim. This design
-ticket lands the ADR and three inventory follow-up tickets only; it does not
+ticket lands the ADR and inventory follow-up tickets only; it does not
 land stubs, a generator, a validator, or parser wiring.
 
-Why the tree exists (settled): CR-enumerated keyword actions and keyword
-abilities, and subtype spellings, are NOT core-grammar vocabulary. The
+Why the tree exists (settled): declaration-backed semantic names and phrase
+shapes are NOT official-corpus-bounded core-grammar vocabulary. Keyword
+actions, keyword abilities, and subtype spellings supplied the initial
+examples; the same ownership applies to type, counter-kind, and designation
+declarations. The
 english_v2 slice currently hardcodes `Destroy`/`Connive` as lexemes; that is
 acknowledged scaffolding until the frame seam. Spellings of these
 inventories belong to the macro layer, and this tree is its nursery: each
@@ -74,7 +79,7 @@ Questions closed by the ratified decision:
    deliberately distinct).
 2. Field policy: omit-derivable (a present field always means a
    non-derivable fact; invariants like Sheep explicit) vs always-explicit.
-3. One shared spelling enum across the three categories vs per-category.
+3. One shared spelling enum across declaration categories vs per-category.
 4. `Term` naming; whether keyword abilities need grammatical kinds of
    their own.
 5. Catalog integrity: the catalog-line ↔ stub mapping (mechanical
@@ -111,11 +116,11 @@ keyword-actions 70, keyword-abilities 195, creature-types 324):
   "power-up" (appear only ability-line-initial in the corpus).
 
 Acceptance: every open question closed by explicit user ratification; the
-ruling recorded, including the scope statement (keyword actions/abilities/
-subtype spellings are macro-sourced; deal/gain/draw stay core; the slice's
-`Destroy`/`Connive` are scaffolding until the frame seam); three follow-up
-tickets minted for the committed keyword-action, keyword-ability, and
-creature-type inventories; the catalog-integrity relationship stated in the
+ruling recorded, including the scope statement (declaration-backed semantic
+vocabularies are macro-sourced; deal/gain/draw stay core; the slice's
+`Destroy`/`Connive` are scaffolding until the frame seam); follow-up tickets
+minted for every current declaration-backed registry family plus a separate
+read-only coverage gate; the catalog-integrity relationship stated in the
 ruling; no stubs, generator, validator, loader wiring, grammar change, or
 english_v2 edit landed here; the stage-5 relay (no per-keyword core
 constructions in the buildout plans) handed to the user. Standard constraints
