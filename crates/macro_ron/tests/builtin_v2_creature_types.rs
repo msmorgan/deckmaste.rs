@@ -152,6 +152,14 @@ fn builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology() {
         surfaces(creature_type(&declarations, "Ctan")),
         [(SurfaceFeature::Singular, "C'tan")]
     );
+    assert_eq!(
+        surfaces(creature_type(&declarations, "Child")),
+        [(SurfaceFeature::Singular, "Child")]
+    );
+    assert_eq!(
+        surfaces(creature_type(&declarations, "Leech")),
+        [(SurfaceFeature::Singular, "Leech")]
+    );
 }
 
 #[test]
