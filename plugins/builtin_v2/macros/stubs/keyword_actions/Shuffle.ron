@@ -3,6 +3,12 @@ KeywordAction(
     spelling: "shuffle",
     grammar: Verb(
         bare: "shuffle",
-        valence: Transitive,
+        valence: Custom(
+            shapes: [
+                [],
+                [ObjectNounPhrase],
+                [ObjectNounPhrase, Literal("into"), ObjectNounPhrase],
+            ],
+        ),
     ),
 )

@@ -246,3 +246,76 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         [(SurfaceFeature::Fixed, "the Ring tempts you")]
     );
 }
+
+#[test]
+fn roll_to_visit_your_attractions_has_its_attested_agreeing_surface() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 declarations must load");
+
+    assert_eq!(
+        surfaces(action(&declarations, "RollToVisitYourAttractions")),
+        [
+            (SurfaceFeature::Bare, "roll to visit your Attractions"),
+            (
+                SurfaceFeature::ThirdPersonSingular,
+                "rolls to visit their Attractions",
+            ),
+        ]
+    );
+}
+
+#[test]
+fn exchange_has_every_attested_representable_tail_shape() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 declarations must load");
+
+    assert_eq!(
+        action(&declarations, "Exchange")
+            .grammar()
+            .unwrap()
+            .recipe(),
+        &GrammarRecipe::Verb {
+            valence: VerbValence::Custom {
+                shapes: vec![
+                    vec![CustomTailAtom::ObjectNounPhrase],
+                    vec![
+                        CustomTailAtom::ObjectNounPhrase,
+                        CustomTailAtom::Literal("with".to_owned()),
+                        CustomTailAtom::ObjectNounPhrase,
+                    ],
+                    vec![
+                        CustomTailAtom::ObjectNounPhrase,
+                        CustomTailAtom::Literal("for".to_owned()),
+                        CustomTailAtom::ObjectNounPhrase,
+                    ],
+                ],
+            },
+        }
+    );
+}
+
+#[test]
+fn shuffle_has_every_attested_representable_tail_shape() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 declarations must load");
+
+    assert_eq!(
+        action(&declarations, "Shuffle").grammar().unwrap().recipe(),
+        &GrammarRecipe::Verb {
+            valence: VerbValence::Custom {
+                shapes: vec![
+                    vec![],
+                    vec![CustomTailAtom::ObjectNounPhrase],
+                    vec![
+                        CustomTailAtom::ObjectNounPhrase,
+                        CustomTailAtom::Literal("into".to_owned()),
+                        CustomTailAtom::ObjectNounPhrase,
+                    ],
+                ],
+            },
+        }
+    );
+}

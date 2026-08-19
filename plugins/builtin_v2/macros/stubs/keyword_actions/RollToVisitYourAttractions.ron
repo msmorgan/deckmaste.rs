@@ -3,8 +3,7 @@ KeywordAction(
     spelling: "roll to visit your Attractions",
     grammar: Verb(
         bare: "roll to visit your Attractions",
-        // No Oracle or Comprehensive Rules occurrence of "rolls to visit your Attractions" was found in the 2026-08-18 morphology audit.
-        third_person: Unavailable,
+        third_person: "rolls to visit their Attractions",
         valence: Intransitive,
     ),
 )
