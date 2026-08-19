@@ -113,10 +113,7 @@ impl Parser {
     /// Parses one complete ability and retains its complete selection decision.
     #[must_use]
     pub fn analyze(&self, text: &str, context: &ParseContext<'_>) -> ParseAnalysis {
-        let grammar = SliceGrammar {
-            environment: &self.environment,
-            context,
-        };
+        let grammar = self.grammar(context);
         parse_forest(&grammar, text).map_or_else(
             |failure| ParseAnalysis::from_result(Err(chart_failure(text, failure)), None),
             |forest| analyze_materialized(materialize(&forest, context)),
@@ -159,10 +156,7 @@ impl Parser {
         context: &ParseContext<'_>,
         limits: TraceLimits,
     ) -> (ParseAnalysis, TraceParts) {
-        let grammar = SliceGrammar {
-            environment: &self.environment,
-            context,
-        };
+        let grammar = self.grammar(context);
         let (forest, structural) = parse_forest_observed(&grammar, text, limits);
         let (analysis, materialization) = match forest {
             Ok(forest) => {
@@ -181,6 +175,24 @@ impl Parser {
                 materialization,
             },
         )
+    }
+
+    fn grammar<'a>(&'a self, context: &'a ParseContext<'a>) -> SliceGrammar<'a> {
+        SliceGrammar {
+            environment: &self.environment,
+            context,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_scan_terminal<'a>(
+        &'a self,
+        text: &'a str,
+        context: &'a ParseContext<'a>,
+        terminal: crate::constructions::LexicalTerminal,
+        offset: usize,
+    ) -> Vec<LexicalMatch<crate::constructions::Leaf>> {
+        self.grammar(context).scan(terminal, text, offset)
     }
 }
 

@@ -130,6 +130,13 @@ struct EnvironmentData {
     declarations: BTreeMap<DeclarationKind, BTreeMap<Arc<str>, DeclarationRecord>>,
     readings: BTreeMap<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>,
     initial_readings: BTreeMap<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>,
+    running_surface_byte_limits: BTreeMap<GrammarPosition, usize>,
+    initial_surface_byte_limits: BTreeMap<GrammarPosition, usize>,
+}
+
+#[cfg(test)]
+thread_local! {
+    static READING_LOOKUP_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 /// One immutable vocabulary and grammar-row environment for a parser.
@@ -196,6 +203,8 @@ impl ParserEnvironment {
             BTreeMap::<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>::new();
         let mut initial_readings =
             BTreeMap::<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>::new();
+        let mut running_surface_byte_limits = BTreeMap::<GrammarPosition, usize>::new();
+        let mut initial_surface_byte_limits = BTreeMap::<GrammarPosition, usize>::new();
         for records_by_name in records.values() {
             for record in records_by_name.values() {
                 let Some(recipe) = &record.recipe else {
@@ -203,6 +212,7 @@ impl ParserEnvironment {
                 };
                 let position = recipe.position();
                 for (feature, surface) in &record.surfaces {
+                    let initial = initial_surface(surface);
                     let reading = DeclarationReading {
                         id: record.id.clone(),
                         position,
@@ -215,12 +225,20 @@ impl ParserEnvironment {
                         .entry(Arc::clone(surface))
                         .or_default()
                         .push(reading.clone());
+                    running_surface_byte_limits
+                        .entry(position)
+                        .and_modify(|limit| *limit = (*limit).max(surface.len()))
+                        .or_insert(surface.len());
                     initial_readings
                         .entry(position)
                         .or_default()
-                        .entry(Arc::from(initial_surface(surface)))
+                        .entry(Arc::from(initial.as_str()))
                         .or_default()
                         .push(reading);
+                    initial_surface_byte_limits
+                        .entry(position)
+                        .and_modify(|limit| *limit = (*limit).max(initial.len()))
+                        .or_insert(initial.len());
                 }
             }
         }
@@ -230,6 +248,8 @@ impl ParserEnvironment {
                 declarations: records,
                 readings,
                 initial_readings,
+                running_surface_byte_limits,
+                initial_surface_byte_limits,
             }),
             catalog_compatibility: None,
         })
@@ -248,6 +268,7 @@ impl ParserEnvironment {
     /// order.
     #[must_use]
     pub fn readings(&self, position: GrammarPosition, surface: &str) -> &[DeclarationReading] {
+        record_reading_lookup();
         self.data
             .readings
             .get(&position)
@@ -260,11 +281,28 @@ impl ParserEnvironment {
         position: GrammarPosition,
         surface: &str,
     ) -> &[DeclarationReading] {
+        record_reading_lookup();
         self.data
             .initial_readings
             .get(&position)
             .and_then(|by_surface| by_surface.get(surface))
             .map_or(&[], Vec::as_slice)
+    }
+
+    pub(crate) fn running_surface_byte_limit(&self, position: GrammarPosition) -> usize {
+        self.data
+            .running_surface_byte_limits
+            .get(&position)
+            .copied()
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn initial_surface_byte_limit(&self, position: GrammarPosition) -> usize {
+        self.data
+            .initial_surface_byte_limits
+            .get(&position)
+            .copied()
+            .unwrap_or_default()
     }
 
     /// Returns the exact surface for a declaration and realized feature.
@@ -313,6 +351,39 @@ impl ParserEnvironment {
                 (Some(_), None) | (None, Some(_)) => false,
             }
     }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_duplicate_initial_readings(
+        &mut self,
+        position: GrammarPosition,
+        surface: &str,
+    ) {
+        let data = Arc::get_mut(&mut self.data).expect("test environment storage is unique");
+        let readings = data
+            .initial_readings
+            .get_mut(&position)
+            .and_then(|by_surface| by_surface.get_mut(surface))
+            .expect("test surface is indexed");
+        readings.extend(readings.clone());
+    }
+}
+
+#[cfg(test)]
+fn record_reading_lookup() {
+    READING_LOOKUP_COUNT.set(READING_LOOKUP_COUNT.get() + 1);
+}
+
+#[cfg(not(test))]
+fn record_reading_lookup() {}
+
+#[cfg(test)]
+pub(crate) fn reset_reading_lookup_count() {
+    READING_LOOKUP_COUNT.set(0);
+}
+
+#[cfg(test)]
+pub(crate) fn reading_lookup_count() -> usize {
+    READING_LOOKUP_COUNT.get()
 }
 
 fn collect_surfaces<'a>(
@@ -400,9 +471,13 @@ mod tests {
             1,
             "the environment owns exactly one transitional compatibility field"
         );
+        let compatibility = include_str!("catalog_compatibility.rs")
+            .lines()
+            .map(|line| line.trim_start().trim_start_matches("///").trim())
+            .collect::<Vec<_>>()
+            .join(" ");
         assert!(
-            include_str!("catalog_compatibility.rs")
-                .contains("type and subtype declaration rows supply the noun inventory")
+            compatibility.contains("type and subtype declaration rows supply the noun inventory")
         );
     }
 }

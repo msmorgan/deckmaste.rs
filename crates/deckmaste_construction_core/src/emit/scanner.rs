@@ -30,6 +30,19 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         }
     });
     let bound_arms = bound_arms(plan);
+    let punctuation_literals = plan.runtime_punctuation_literals();
+    let punctuation_arm = (!punctuation_literals.is_empty()).then(|| {
+        quote! {
+            Lexical::Literal(literal @ (#(#punctuation_literals)|*)) => input
+                .punctuation_end(literal)
+                .map(|end| LexicalMatch {
+                    end,
+                    value: Leaf::Literal(literal),
+                })
+                .into_iter()
+                .collect(),
+        }
+    });
     let bound_arm = (!bound_arms.is_empty()).then(|| {
         quote! {
             #(#bound_arms)|* => scan_bound_terminal(input, terminal),
@@ -49,14 +62,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     })
                     .into_iter()
                     .collect(),
-                Lexical::Literal(literal @ ("." | ",")) => input
-                    .punctuation_end(literal)
-                    .map(|end| LexicalMatch {
-                        end,
-                        value: Leaf::Literal(literal),
-                    })
-                    .into_iter()
-                    .collect(),
+                #punctuation_arm
                 Lexical::Literal(literal) => input
                     .word_end(literal)
                     .map(|end| LexicalMatch {
@@ -85,7 +91,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             name: "scan_lexical".to_owned(),
         },
         tokens,
-        plan.declaration_keys().to_vec(),
+        plan.runtime_scanner_origins(),
     )]
 }
 

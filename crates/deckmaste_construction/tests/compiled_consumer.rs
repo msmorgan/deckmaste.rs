@@ -685,6 +685,36 @@ mod fixture {
         );
     }
 
+    fn assert_generated_punctuation_scan(rendered: &str, punctuation: &'static str) {
+        let start = rendered
+            .len()
+            .checked_sub(punctuation.len())
+            .expect("rendered text contains its punctuation");
+        assert_eq!(&rendered[start..], punctuation);
+        let input = ScanInput {
+            text: rendered,
+            position: ScanPosition {
+                byte_offset: start,
+                case: CasePosition::Continuation,
+            },
+        };
+        let terminal = LexicalTerminal {
+            matcher: Lexical::Literal(punctuation),
+            owner: LexicalOwnerTemplate::Static {
+                kind: LexicalProvenanceKind::FormLiteral,
+                stable_id: "compiled-consumer/punctuation",
+            },
+        };
+
+        assert_eq!(
+            scan_lexical(&input, terminal),
+            [LexicalMatch {
+                end: rendered.len(),
+                value: Leaf::Literal(punctuation),
+            }]
+        );
+    }
+
     #[allow(
         clippy::too_many_lines,
         reason = "one authentic compiled consumer executes the complete boundary matrix"
@@ -951,11 +981,12 @@ mod fixture {
             }),
             keyword,
         });
+        let rendered_hygiene_root = Render::render(&hygiene_root, &context);
         assert_eq!(
-            Render::render(&hygiene_root, &context),
-            "marker card marker act bare writer marker marker!",
+            rendered_hygiene_root, "marker card marker act bare writer marker marker!",
             "allocated render locals preserve ABI values and generated helper calls",
         );
+        assert_generated_punctuation_scan(&rendered_hygiene_root, "!");
         let context_free_nested_root = RenderChild::Wrapper(RenderChildNode {
             child: Child::Bare(BareChild),
         });
@@ -1012,7 +1043,9 @@ mod fixture {
         let BuildValue::RawCategory(raw_category) = raw_category else {
             panic!("raw nonkeyword root preserves its generated category value")
         };
-        assert_eq!(Render::render(&raw_category, &context), "raw?");
+        let rendered_raw_category = Render::render(&raw_category, &context);
+        assert_eq!(rendered_raw_category, "raw?");
+        assert_generated_punctuation_scan(&rendered_raw_category, "?");
         walk_raw_category(&mut recording, &raw_category);
     }
 }

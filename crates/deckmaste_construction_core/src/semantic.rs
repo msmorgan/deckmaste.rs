@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -151,10 +152,16 @@ struct RuntimeEmissionPlan {
     noun_binding_index: Option<usize>,
     direct_binding_indices: Vec<usize>,
     opaque_binding_indices: Vec<usize>,
+    punctuation_literals: Vec<String>,
+    scanner_origin_indices: Vec<usize>,
 }
 
 impl RuntimeEmissionPlan {
-    fn seal(terminals: &[TerminalPlan]) -> syn::Result<Self> {
+    fn seal(
+        terminals: &[TerminalPlan],
+        constructions: &[ConstructionPlan],
+        roots: &[RootPlan],
+    ) -> syn::Result<Self> {
         let mut plan = Self {
             vocab_indices: Vec::new(),
             noun_lexeme_index: None,
@@ -162,6 +169,8 @@ impl RuntimeEmissionPlan {
             noun_binding_index: None,
             direct_binding_indices: Vec::new(),
             opaque_binding_indices: Vec::new(),
+            punctuation_literals: Vec::new(),
+            scanner_origin_indices: Vec::new(),
         };
         for (index, terminal) in terminals.iter().enumerate() {
             match terminal {
@@ -205,8 +214,56 @@ impl RuntimeEmissionPlan {
                 TerminalPlan::Binding(_) => {}
             }
         }
+        plan.punctuation_literals = roots
+            .iter()
+            .map(|root| root.punctuation.clone())
+            .chain(constructions.iter().flat_map(|construction| {
+                construction.atoms.iter().filter_map(|atom| match atom {
+                    AtomPlan::Literal(literal) if is_punctuation_literal(literal) => {
+                        Some(literal.clone())
+                    }
+                    AtomPlan::Literal(_)
+                    | AtomPlan::Category { .. }
+                    | AtomPlan::Lex { .. }
+                    | AtomPlan::Identity { .. }
+                    | AtomPlan::Noun { .. }
+                    | AtomPlan::VerbFixed { .. } => None,
+                })
+            }))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        let mut scanner_origin_indices = plan
+            .vocab_indices
+            .iter()
+            .chain(plan.noun_lexeme_index.iter())
+            .chain(plan.verb_lexeme_index.iter())
+            .chain(plan.noun_binding_index.iter())
+            .chain(&plan.direct_binding_indices)
+            .chain(&plan.opaque_binding_indices)
+            .map(|&index| terminals[index].source_index())
+            .collect::<BTreeSet<_>>();
+        scanner_origin_indices.extend(roots.iter().map(RootPlan::source_index));
+        scanner_origin_indices.extend(
+            constructions
+                .iter()
+                .filter(|construction| {
+                    construction.atoms.iter().any(
+                        |atom| matches!(atom, AtomPlan::Literal(literal) if is_punctuation_literal(literal)),
+                    )
+                })
+                .map(ConstructionPlan::source_index),
+        );
+        plan.scanner_origin_indices = scanner_origin_indices.into_iter().collect();
         Ok(plan)
     }
+}
+
+fn is_punctuation_literal(literal: &str) -> bool {
+    literal.chars().count() == 1
+        && literal
+            .chars()
+            .all(|character| character.is_ascii_punctuation())
 }
 
 pub(crate) enum AtomTerminal<'a> {
@@ -455,9 +512,7 @@ impl SemanticPlan {
                 Declaration::Construction(_) | Declaration::Root(_) => None,
             })
             .collect::<syn::Result<Vec<_>>>()?;
-        let runtime = RuntimeEmissionPlan::seal(&terminals)?;
-
-        let roots = source
+        let roots: Vec<RootPlan> = source
             .declarations
             .iter()
             .enumerate()
@@ -476,6 +531,7 @@ impl SemanticPlan {
                 | Declaration::Identity(_) => None,
             })
             .collect();
+        let runtime = RuntimeEmissionPlan::seal(&terminals, &constructions, &roots)?;
 
         Ok(Self {
             declaration_keys,
@@ -529,6 +585,18 @@ impl SemanticPlan {
                     unreachable!("sealed runtime vocab index changed terminal kind")
                 }
             })
+    }
+
+    pub(crate) fn runtime_punctuation_literals(&self) -> &[String] {
+        &self.runtime.punctuation_literals
+    }
+
+    pub(crate) fn runtime_scanner_origins(&self) -> Vec<DeclarationKey> {
+        self.runtime
+            .scanner_origin_indices
+            .iter()
+            .map(|&index| self.declaration_keys[index].clone())
+            .collect()
     }
 
     pub(crate) fn runtime_noun_lexeme(&self) -> Option<&LexemePlan> {
@@ -1340,6 +1408,16 @@ fn sealed_error(fact: &str) -> syn::Error {
         proc_macro2::Span::call_site(),
         format!("sealed semantic plan has an inconsistent {fact}"),
     )
+}
+
+impl TerminalPlan {
+    fn source_index(&self) -> usize {
+        match self {
+            Self::Vocab(plan) => plan.source_index(),
+            Self::Lexeme(plan) => plan.source_index(),
+            Self::Binding(plan) => plan.source_index(),
+        }
+    }
 }
 
 #[cfg(test)]

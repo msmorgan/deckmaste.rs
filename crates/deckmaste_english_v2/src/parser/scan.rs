@@ -423,7 +423,7 @@ fn trace_label_counts() -> TraceLabelCounts {
 }
 
 impl SliceGrammar<'_> {
-    fn scan(
+    pub(super) fn scan(
         &self,
         terminal: LexicalTerminal,
         text: &str,
@@ -514,11 +514,19 @@ impl ScanInput<'_> {
         };
 
         let mut results = Vec::new();
+        let surface_byte_limit = if self.position.case == CasePosition::DocumentInitial {
+            self.environment
+                .initial_surface_byte_limit(matcher.position)
+        } else {
+            self.environment
+                .running_surface_byte_limit(matcher.position)
+        };
         let candidate_ends = surface_text
             .char_indices()
             .skip(1)
             .map(|(end, _)| end)
-            .chain(std::iter::once(surface_text.len()));
+            .chain(std::iter::once(surface_text.len()))
+            .take_while(|&end| end <= surface_byte_limit);
         for relative_end in candidate_ends {
             let end = offset + prefix + relative_end;
             if !has_lexical_boundary(self.text, end) {
@@ -782,6 +790,9 @@ mod tests {
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
     use crate::environment::ParserEnvironment;
+    use crate::environment::reading_lookup_count;
+    use crate::environment::reset_reading_lookup_count;
+    use crate::parser::Parser;
 
     fn slice_candidates(
         text: &str,
@@ -1013,6 +1024,23 @@ mod tests {
     }
 
     #[test]
+    fn parser_instances_route_declaration_scans_through_their_own_environment() {
+        let scry = Parser::new(declaration_environment("Scry", "scry", Some("scries")));
+        let connive = Parser::new(declaration_environment("Connive", "connive", None));
+        let context = context("Context Card");
+        let terminal = declaration_terminal("Scry");
+
+        let scry_matches = scry.test_only_scan_terminal("Scry", &context, terminal, 0);
+        assert_eq!(scry_matches.len(), 1);
+        assert_eq!(scry_matches[0].end, "Scry".len());
+        assert!(
+            connive
+                .test_only_scan_terminal("Scry", &context, terminal, 0)
+                .is_empty()
+        );
+    }
+
+    #[test]
     fn generated_declaration_scan_accepts_bounded_multiword_surfaces() {
         let declaration = read_str(
             "/synthetic/PartnerWith.ron",
@@ -1106,6 +1134,175 @@ mod tests {
         let matches = crate::constructions::scan_lexical(&input, terminal);
         assert_eq!(matches.len(), 1);
         assert_eq!(matches[0].end, "SSeta".len());
+    }
+
+    #[test]
+    fn generated_declaration_scan_bounds_prefix_lookups_by_the_environment_index() {
+        let declaration = read_str(
+            "/synthetic/ScryWord.ron",
+            r#"KeywordAbility(name:"ScryWord",spelling:"scry",grammar:FixedTerm(surface:"scry"))"#,
+        )
+        .expect("synthetic fixed term is valid");
+        let environment = ParserEnvironment::try_from_declarations([declaration])
+            .expect("synthetic environment freezes");
+        let context = context("Context Card");
+        let kind = DeclarationKind::KeywordAbility;
+        let terminal = LexicalTerminal {
+            matcher: Lexical::Declaration(DeclarationMatcher {
+                kind,
+                name: "ScryWord",
+                position: GrammarPosition::FixedTerm,
+                feature: FeatureConstraint::Exact(SurfaceFeature::Fixed),
+            }),
+            owner: LexicalOwnerTemplate::Declaration {
+                kind,
+                name: "ScryWord",
+            },
+        };
+        let text = format!("Scry{}.", " x".repeat(4_096));
+        let input = ScanInput {
+            text: &text,
+            position: ScanPosition {
+                byte_offset: 0,
+                case: CasePosition::DocumentInitial,
+            },
+            environment: &environment,
+            context: &context,
+        };
+
+        reset_reading_lookup_count();
+        let matches = crate::constructions::scan_lexical(&input, terminal);
+
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].end, "Scry".len());
+        assert_eq!(
+            reading_lookup_count(),
+            1,
+            "lookup work must be bounded by indexed surface length, not trailing input"
+        );
+    }
+
+    #[test]
+    fn generated_declaration_scan_filters_collisions_and_orders_features_exactly() {
+        let declarations = [
+            (
+                "/synthetic/Alpha.ron",
+                r#"KeywordAction(name:"Alpha",spelling:"echo",grammar:Verb(bare:"echo",third_person:"echo",valence:Intransitive))"#,
+            ),
+            (
+                "/synthetic/Zeta.ron",
+                r#"KeywordAction(name:"Zeta",spelling:"echo",grammar:Verb(bare:"echo",valence:Intransitive))"#,
+            ),
+        ]
+        .into_iter()
+        .map(|(path, source)| read_str(path, source).expect("collision fixture is valid"));
+        let mut environment = ParserEnvironment::try_from_declarations(declarations)
+            .expect("collision environment freezes");
+        environment.test_only_duplicate_initial_readings(GrammarPosition::Verb, "Echo");
+        let context = context("Context Card");
+        let input = ScanInput {
+            text: "Echo.",
+            position: ScanPosition {
+                byte_offset: 0,
+                case: CasePosition::DocumentInitial,
+            },
+            environment: &environment,
+            context: &context,
+        };
+        let terminal = |kind, name, feature| LexicalTerminal {
+            matcher: Lexical::Declaration(DeclarationMatcher {
+                kind,
+                name,
+                position: GrammarPosition::Verb,
+                feature,
+            }),
+            owner: LexicalOwnerTemplate::Declaration { kind, name },
+        };
+        let scan = |terminal| crate::constructions::scan_lexical(&input, terminal);
+        let project = |matches: &[super::LexicalMatch<Leaf>]| {
+            matches
+                .iter()
+                .map(|matched| match &matched.value {
+                    Leaf::Declaration(leaf) => (matched.end, leaf.id.clone(), leaf.feature),
+                    _ => panic!("declaration terminal returned a non-declaration leaf"),
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let alpha_any = scan(terminal(
+            DeclarationKind::KeywordAction,
+            "Alpha",
+            FeatureConstraint::Any,
+        ));
+        assert_eq!(
+            project(&alpha_any),
+            [
+                (
+                    "Echo".len(),
+                    DeclarationId::new(DeclarationKind::KeywordAction, "Alpha"),
+                    SurfaceFeature::Bare,
+                ),
+                (
+                    "Echo".len(),
+                    DeclarationId::new(DeclarationKind::KeywordAction, "Alpha"),
+                    SurfaceFeature::ThirdPersonSingular,
+                ),
+            ]
+        );
+        let alpha_third = scan(terminal(
+            DeclarationKind::KeywordAction,
+            "Alpha",
+            FeatureConstraint::Exact(SurfaceFeature::ThirdPersonSingular),
+        ));
+        assert_eq!(
+            project(&alpha_third),
+            [(
+                "Echo".len(),
+                DeclarationId::new(DeclarationKind::KeywordAction, "Alpha"),
+                SurfaceFeature::ThirdPersonSingular,
+            )]
+        );
+        assert!(
+            scan(terminal(
+                DeclarationKind::KeywordAction,
+                "Missing",
+                FeatureConstraint::Any,
+            ))
+            .is_empty()
+        );
+        assert!(
+            scan(terminal(
+                DeclarationKind::KeywordAbility,
+                "Alpha",
+                FeatureConstraint::Any,
+            ))
+            .is_empty()
+        );
+        let zeta = scan(terminal(
+            DeclarationKind::KeywordAction,
+            "Zeta",
+            FeatureConstraint::Exact(SurfaceFeature::Bare),
+        ));
+        assert!(matches!(
+            zeta.as_slice(),
+            [matched]
+                if matches!(
+                    &matched.value,
+                    Leaf::Declaration(leaf)
+                        if leaf.id
+                            == DeclarationId::new(DeclarationKind::KeywordAction, "Zeta")
+                            && leaf.feature == SurfaceFeature::Bare
+                )
+        ));
+        assert_eq!(
+            project(&alpha_any),
+            project(&scan(terminal(
+                DeclarationKind::KeywordAction,
+                "Alpha",
+                FeatureConstraint::Any,
+            ))),
+            "retries preserve exact stable order"
+        );
     }
 
     #[test]

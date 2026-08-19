@@ -390,11 +390,18 @@ mod tests {
                 )
             })
             .expect("the planned expansion includes the generated scanner");
-        assert!(
-            item.origins.iter().any(|origin| {
-                origin.kind() == DeclarationKind::Vocab && origin.name() == "Words"
-            }),
-            "the generated scanner retains its vocab authority"
+        assert_eq!(
+            item.origins
+                .iter()
+                .map(|origin| (origin.kind(), origin.name()))
+                .collect::<Vec<_>>(),
+            [
+                (DeclarationKind::Vocab, "Words"),
+                (DeclarationKind::Lexeme, "Nouns"),
+                (DeclarationKind::Lexeme, "Verbs"),
+                (DeclarationKind::Root, "Action"),
+            ],
+            "the generated scanner exposes exactly its sealed semantic authorities"
         );
     }
 

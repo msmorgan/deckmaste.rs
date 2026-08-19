@@ -240,7 +240,7 @@ pub(crate) fn scan_lexical(
                 .into_iter()
                 .collect()
         }
-        Lexical::Literal(literal @ ("." | ",")) => {
+        Lexical::Literal(literal @ (".")) => {
             input
                 .punctuation_end(literal)
                 .map(|end| LexicalMatch {
