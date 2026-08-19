@@ -566,6 +566,7 @@ dependencies = [
  "anyhow",
  "deckmaste_catalogs",
  "deckmaste_construction",
+ "macro_ron",
  "tempfile",
  "thiserror",
 ]
