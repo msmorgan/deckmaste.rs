@@ -1037,14 +1037,7 @@ mod tests {
         );
         assert_eq!(
             enum_variants(generated_item(&expansion, "LexicalProvenanceKind")),
-            [
-                "FormLiteral",
-                "Vocab",
-                "Lexeme",
-                "Codec",
-                "Identity",
-                "Declaration",
-            ]
+            ["FormLiteral", "Vocab", "Lexeme", "Codec", "Identity",]
         );
 
         let rules = expansion
@@ -1423,7 +1416,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 54);
+        assert_eq!(keys.len(), 57);
         assert!(keys.iter().any(|key| {
             matches!(
                 key,

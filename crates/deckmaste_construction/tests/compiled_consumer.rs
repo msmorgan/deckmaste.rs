@@ -88,16 +88,51 @@ mod declaration_noun_fixture {
         ) -> String;
     }
 
-    struct Writer {
-        output: String,
-        capitalize_next: bool,
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct RawRenderedClaim {
+        start: usize,
+        end: usize,
+        owner: LexicalOwner,
     }
 
-    impl Writer {
+    enum ClaimSink<'a> {
+        Noop,
+        Collect(&'a mut Vec<RawRenderedClaim>),
+    }
+
+    struct Writer<'a> {
+        output: String,
+        capitalize_next: bool,
+        claims: ClaimSink<'a>,
+    }
+
+    impl Writer<'_> {
         fn new() -> Self {
             Self {
                 output: String::new(),
                 capitalize_next: true,
+                claims: ClaimSink::Noop,
+            }
+        }
+
+        fn collecting(claims: &mut Vec<RawRenderedClaim>) -> Writer<'_> {
+            Writer {
+                output: String::new(),
+                capitalize_next: true,
+                claims: ClaimSink::Collect(claims),
+            }
+        }
+
+        fn claim(&mut self, owner: impl FnOnce() -> LexicalOwner, render: impl FnOnce(&mut Self)) {
+            let start = self.output.len();
+            render(self);
+            let end = self.output.len();
+            if let ClaimSink::Collect(claims) = &mut self.claims {
+                claims.push(RawRenderedClaim {
+                    start,
+                    end,
+                    owner: owner(),
+                });
             }
         }
 
@@ -134,9 +169,10 @@ mod declaration_noun_fixture {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    struct LexicalMatch<T> {
+    struct LexicalMatch<T, O = ()> {
         end: usize,
         value: T,
+        owner: Option<O>,
     }
 
     struct ScanInput<'a> {
@@ -221,7 +257,7 @@ mod declaration_noun_fixture {
     fn scan_bound_terminal(
         _input: &ScanInput<'_>,
         _terminal: LexicalTerminal,
-    ) -> Vec<LexicalMatch<Leaf>> {
+    ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
         Vec::new()
     }
 
@@ -283,8 +319,8 @@ mod declaration_noun_fixture {
     fn assert_build_render_and_visit(
         environment: &crate::environment::ParserEnvironment,
         context: &ParseContext<'_>,
-        singular: &LexicalMatch<Leaf>,
-        plural: &LexicalMatch<Leaf>,
+        singular: &LexicalMatch<Leaf, LexicalOwner>,
+        plural: &LexicalMatch<Leaf, LexicalOwner>,
     ) {
         let built = build(
             RuleId::PhraseSingular,
@@ -300,6 +336,18 @@ mod declaration_noun_fixture {
             panic!("singular declaration noun builds the declared root")
         };
         assert_eq!(Render::render(&phrase, context, environment), "Relic.");
+        let (rendered, claims) = render_phrase_with_claims(&phrase, context, environment);
+        assert_eq!(rendered, "Relic.");
+        assert_eq!(
+            claims
+                .iter()
+                .map(|claim| (claim.start, claim.end, claim.owner.stable_id()))
+                .collect::<Vec<_>>(),
+            [
+                (0, 5, "lexeme:type/Relic/singular"),
+                (5, 6, "root:Phrase/punctuation"),
+            ]
+        );
 
         let built = build(
             RuleId::PluralPhrasePlural,
@@ -317,6 +365,19 @@ mod declaration_noun_fixture {
         assert_eq!(
             Render::render(&plural_phrase, context, environment),
             "Elves."
+        );
+        let (rendered, claims) =
+            render_plural_phrase_with_claims(&plural_phrase, context, environment);
+        assert_eq!(rendered, "Elves.");
+        assert_eq!(
+            claims
+                .iter()
+                .map(|claim| (claim.start, claim.end, claim.owner.stable_id()))
+                .collect::<Vec<_>>(),
+            [
+                (0, 5, "lexeme:creature_subtype/Elf/plural"),
+                (5, 6, "root:PluralPhrase/punctuation"),
+            ]
         );
 
         let mut recorder = Recorder(Vec::new());
@@ -413,8 +474,8 @@ mod declaration_noun_fixture {
         let owner = LexicalOwnerTemplate::DeclarationNoun
             .instantiate(&singular[0].value)
             .expect("declaration noun has an exact owner");
-        assert_eq!(owner.kind(), LexicalProvenanceKind::Declaration);
-        assert_eq!(owner.stable_id(), "declaration:type/Relic");
+        assert_eq!(owner.kind(), LexicalProvenanceKind::Lexeme);
+        assert_eq!(owner.stable_id(), "lexeme:type/Relic/singular");
 
         let plural = scan(
             "prefix Elves.",
@@ -453,7 +514,8 @@ mod declaration_noun_fixture {
                 value: Leaf::Noun {
                     noun: Noun::Lexeme(NounLexeme::Player),
                     number: Number::Singular
-                }
+                },
+                owner: Some(_),
             }]
         ));
 
@@ -491,22 +553,60 @@ mod fixture {
         fn render(&self, context: &ParseContext<'_>) -> String;
     }
 
-    struct Writer(String);
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct RawRenderedClaim {
+        start: usize,
+        end: usize,
+        owner: LexicalOwner,
+    }
 
-    impl Writer {
+    enum ClaimSink<'a> {
+        Noop,
+        Collect(&'a mut Vec<RawRenderedClaim>),
+    }
+
+    struct Writer<'a> {
+        output: String,
+        claims: ClaimSink<'a>,
+    }
+
+    impl Writer<'_> {
         fn new() -> Self {
-            Self(String::new())
+            Self {
+                output: String::new(),
+                claims: ClaimSink::Noop,
+            }
+        }
+
+        fn collecting(claims: &mut Vec<RawRenderedClaim>) -> Writer<'_> {
+            Writer {
+                output: String::new(),
+                claims: ClaimSink::Collect(claims),
+            }
+        }
+
+        fn claim(&mut self, owner: impl FnOnce() -> LexicalOwner, render: impl FnOnce(&mut Self)) {
+            let start = self.output.len();
+            render(self);
+            let end = self.output.len();
+            if let ClaimSink::Collect(claims) = &mut self.claims {
+                claims.push(RawRenderedClaim {
+                    start,
+                    end,
+                    owner: owner(),
+                });
+            }
         }
 
         fn word(&mut self, word: &str) {
-            if !self.0.is_empty() {
-                self.0.push(' ');
+            if !self.output.is_empty() {
+                self.output.push(' ');
             }
-            self.0.push_str(word);
+            self.output.push_str(word);
         }
 
         fn punctuation(&mut self, punctuation: char) {
-            self.0.push(punctuation);
+            self.output.push(punctuation);
         }
 
         fn identity(&mut self, identity: &str) {
@@ -514,7 +614,7 @@ mod fixture {
         }
 
         fn finish(self) -> String {
-            self.0
+            self.output
         }
     }
 
@@ -629,9 +729,10 @@ mod fixture {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    struct LexicalMatch<T> {
+    struct LexicalMatch<T, O = ()> {
         end: usize,
         value: T,
+        owner: Option<O>,
     }
 
     struct ScanInput<'a> {
@@ -708,7 +809,7 @@ mod fixture {
     fn scan_bound_terminal(
         _input: &ScanInput<'_>,
         _terminal: LexicalTerminal,
-    ) -> Vec<LexicalMatch<Leaf>> {
+    ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
         Vec::new()
     }
 
@@ -1138,10 +1239,10 @@ mod fixture {
                 feature: macro_ron::v2::SurfaceFeature::Bare,
             }),
         );
-        assert_eq!(declaration.kind(), LexicalProvenanceKind::Declaration);
+        assert_eq!(declaration.kind(), LexicalProvenanceKind::Lexeme);
         assert_eq!(
             declaration.stable_id(),
-            "declaration:keyword action/Destroy"
+            "lexeme:keyword_action/Destroy/bare"
         );
 
         let terminal = LexicalTerminal {
@@ -1181,6 +1282,10 @@ mod fixture {
             [LexicalMatch {
                 end: 3,
                 value: Leaf::Mode(Mode::One),
+                owner: Some(LexicalOwner::static_owner(
+                    LexicalProvenanceKind::Vocab,
+                    "vocab:Mode/One",
+                )),
             }]
         );
     }
@@ -1225,6 +1330,10 @@ mod fixture {
                 [LexicalMatch {
                     end: start,
                     value: Leaf::Literal(literal),
+                    owner: Some(LexicalOwner::static_owner(
+                        LexicalProvenanceKind::FormLiteral,
+                        "compiled-consumer/pre-punctuation-literal",
+                    )),
                 }],
                 "the preceding generated word must recognize adjacent punctuation as its boundary"
             );
@@ -1250,6 +1359,10 @@ mod fixture {
             [LexicalMatch {
                 end: rendered.len(),
                 value: Leaf::Literal(punctuation),
+                owner: Some(LexicalOwner::static_owner(
+                    LexicalProvenanceKind::FormLiteral,
+                    "compiled-consumer/punctuation",
+                )),
             }]
         );
     }
@@ -1296,6 +1409,10 @@ mod fixture {
             [LexicalMatch {
                 end: 5,
                 value: Leaf::SelfRef(SelfRef::Abbreviated),
+                owner: Some(LexicalOwner::static_owner(
+                    LexicalProvenanceKind::Identity,
+                    "identity:SelfRef/Abbreviated",
+                )),
             }]
         );
         let source = build(

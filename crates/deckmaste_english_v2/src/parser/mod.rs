@@ -4,6 +4,7 @@ use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::SurfaceFeature;
 use materialize::materialize;
 use materialize::materialize_observed;
+use ownership::validate_ownership;
 use scan::SliceGrammar;
 use scan::parse_forest;
 use scan::parse_forest_observed;
@@ -22,6 +23,7 @@ mod engine;
 #[cfg(test)]
 mod homonym_pipeline;
 mod materialize;
+pub(crate) mod ownership;
 mod scan;
 mod selection;
 
@@ -88,10 +90,16 @@ pub use error::Expectation;
 pub use error::NonterminalCategory;
 pub use error::ParseError;
 pub use error::TextSpan;
+pub use ownership::InvalidSpanKind;
+pub use ownership::LexicalClaim;
+pub use ownership::OwnershipFailure;
+pub use ownership::OwnershipSummary;
+pub use ownership::SelectedOwnership;
 pub use selection::SelectionExceptionInfo;
 pub use selection::SelectionExceptionInventoryError;
 pub use selection::selection_exception_inventory;
 
+pub use crate::constructions::LexicalProvenanceKind;
 pub use crate::constructions::TerminalClass;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -114,6 +122,31 @@ pub enum ParserBuildError {
 }
 
 mod error;
+
+#[cfg(test)]
+#[derive(Clone, Copy)]
+enum PipelineStage {
+    Parse,
+    Materialize,
+    Specificity,
+    Ranking,
+}
+
+#[cfg(test)]
+thread_local! {
+    static PIPELINE_COUNTS: std::cell::Cell<[usize; 4]> = const {
+        std::cell::Cell::new([0; 4])
+    };
+}
+
+#[cfg(test)]
+fn count_pipeline_stage(stage: PipelineStage) {
+    PIPELINE_COUNTS.with(|counts| {
+        let mut next = counts.get();
+        next[stage as usize] += 1;
+        counts.set(next);
+    });
+}
 
 #[derive(Debug, Clone)]
 pub struct Parser {
@@ -152,9 +185,20 @@ impl Parser {
     #[must_use]
     pub fn analyze(&self, text: &str, context: &ParseContext<'_>) -> ParseAnalysis {
         let grammar = self.grammar(context);
+        #[cfg(test)]
+        count_pipeline_stage(PipelineStage::Parse);
         parse_forest(&grammar, text).map_or_else(
             |failure| ParseAnalysis::from_result(Err(chart_failure(text, failure)), None),
-            |forest| analyze_materialized(materialize(&forest, context, &self.environment)),
+            |forest| {
+                #[cfg(test)]
+                count_pipeline_stage(PipelineStage::Materialize);
+                analyze_materialized_with_ownership(
+                    text,
+                    materialize(&forest, context, &self.environment),
+                    context,
+                    &self.environment,
+                )
+            },
         )
     }
 
@@ -231,7 +275,7 @@ impl Parser {
         context: &'a ParseContext<'a>,
         terminal: crate::constructions::LexicalTerminal,
         offset: usize,
-    ) -> Vec<LexicalMatch<crate::constructions::Leaf>> {
+    ) -> Vec<LexicalMatch<crate::constructions::Leaf, crate::constructions::LexicalOwner>> {
         self.grammar(context).scan(terminal, text, offset)
     }
 }
@@ -282,20 +326,66 @@ struct TraceParts {
 }
 
 pub(crate) fn analyze_materialized(candidates: Vec<materialize::Candidate>) -> ParseAnalysis {
-    let result = analyze_selection(candidates).map(|selection| {
+    analyze_selected_candidate(candidates).map_or_else(
+        |error| ParseAnalysis::from_result(Err(error), None),
+        |(result, decision)| {
+            ParseAnalysis::from_result(result.map(|candidate| candidate.ability), decision)
+        },
+    )
+}
+
+fn analyze_selected_candidate(
+    candidates: Vec<materialize::Candidate>,
+) -> Result<
+    (
+        Result<materialize::Candidate, ParseError>,
+        Option<SelectionDecision>,
+    ),
+    ParseError,
+> {
+    #[cfg(test)]
+    count_pipeline_stage(PipelineStage::Ranking);
+    analyze_selection(candidates).map(|selection| {
         let (result, decision) = selection.into_result_and_decision();
         let result = result
             .and_then(|candidate| candidate.ok_or(ParseError::ValidatedRootDidNotMaterialize));
         (result, decision)
-    });
+    })
+}
+
+fn analyze_materialized_with_ownership(
+    text: &str,
+    candidates: Vec<materialize::Candidate>,
+    context: &ParseContext<'_>,
+    environment: &ParserEnvironment,
+) -> ParseAnalysis {
+    let (result, decision) = match analyze_selected_candidate(candidates) {
+        Ok(selected) => selected,
+        Err(error) => return ParseAnalysis::from_result(Err(error), None),
+    };
     match result {
-        Ok((result, decision)) => ParseAnalysis::from_result(result, decision),
-        Err(error) => ParseAnalysis::from_result(Err(error), None),
+        Ok(candidate) => {
+            let (rendered_text, rendered_claims) = crate::constructions::render_ability_with_claims(
+                &candidate.ability,
+                context,
+                environment,
+            );
+            let ownership = validate_ownership(
+                text,
+                &candidate.claims,
+                &candidate.synthetic_claims,
+                rendered_text,
+                &rendered_claims,
+            );
+            ParseAnalysis::from_result(Ok(candidate.ability), decision).with_ownership(ownership)
+        }
+        Err(error) => ParseAnalysis::from_result(Err(error), decision),
     }
 }
 
 #[cfg(test)]
 mod structural_trace_tests {
+    use super::PIPELINE_COUNTS;
     use super::Parser;
     use super::TraceLimits;
     use crate::context::ParseContext;
@@ -304,6 +394,36 @@ mod structural_trace_tests {
 
     fn environment() -> ParserEnvironment {
         canonical_test_environment()
+    }
+
+    #[test]
+    fn selected_ownership_pipeline_runs_each_semantic_pass_once() {
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+        PIPELINE_COUNTS.with(|counts| counts.set([0; 4]));
+
+        let analysis = parser.analyze("Destroy target creature.", &context);
+
+        assert!(analysis.ownership().is_some());
+        PIPELINE_COUNTS.with(|counts| {
+            assert_eq!(
+                counts.get(),
+                [1, 1, 1, 1],
+                "parse, materialize, specificity, and ranking each run once"
+            );
+        });
+    }
+
+    #[test]
+    fn cap_zero_trace_constructs_no_selected_owner_projection() {
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+        super::ownership::reset_projection_runs();
+
+        let trace = parser.trace("Destroy target creature.", &context, TraceLimits::new(0));
+
+        assert!(trace.into_parse_result().is_ok());
+        assert_eq!(super::ownership::projection_runs(), 0);
     }
 
     #[test]

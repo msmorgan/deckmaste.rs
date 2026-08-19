@@ -40,6 +40,7 @@ enum AmbiguityStatus {
 enum InternalKind {
     ValidatedRootDidNotMaterialize,
     SelectionConfiguration,
+    OwnershipInspection,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -283,6 +284,7 @@ fn internal_kind(kind: InternalFailureKind) -> InternalKind {
             InternalKind::ValidatedRootDidNotMaterialize
         }
         InternalFailureKind::SelectionConfiguration => InternalKind::SelectionConfiguration,
+        InternalFailureKind::OwnershipInspection => InternalKind::OwnershipInspection,
     }
 }
 
@@ -895,6 +897,7 @@ mod tests {
         let materialization =
             report.with_internal_kind(InternalKind::ValidatedRootDidNotMaterialize);
         let configuration = report.with_internal_kind(InternalKind::SelectionConfiguration);
+        let ownership = report.with_internal_kind(InternalKind::OwnershipInspection);
 
         assert_eq!(
             materialization.rows()[0].internal_kind(),
@@ -903,6 +906,10 @@ mod tests {
         assert_eq!(
             configuration.rows()[0].internal_kind(),
             Some(InternalKind::SelectionConfiguration)
+        );
+        assert_eq!(
+            ownership.rows()[0].internal_kind(),
+            Some(InternalKind::OwnershipInspection)
         );
     }
 }

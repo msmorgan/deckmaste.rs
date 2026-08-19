@@ -737,12 +737,17 @@ mod tests {
             | "impl TerminalClass for TerminalClass"
             | "impl std::fmt::Display for TerminalClass"
             | "impl DeclarationClass for DeclarationClass"
+            | "function declaration_lexeme_owner_id"
             | "impl LexicalOwner for LexicalOwner"
             | "impl LexicalOwnerTemplate for LexicalOwnerTemplate"
             | "constant REQUIRED_DECLARATIONS" => ALL_DECLARATION_ORIGINS,
             "function scan_lexical" => SCANNER_ORIGINS,
-            "impl Render for Ability" => &["root Ability"],
-            "impl Render for Sentence" => &["root Sentence"],
+            "impl Ability" | "impl Render for Ability" | "function render_ability_with_claims" => {
+                &["root Ability"]
+            }
+            "impl Sentence"
+            | "impl Render for Sentence"
+            | "function render_sentence_with_claims" => &["root Sentence"],
             "trait Visitor" => VISITOR_ORIGINS,
             "function walk_self_reference_spelling" => &["identity SelfReferenceSpelling"],
             "type Category" | "type Construction" | "type RuleId" | "impl RuleId" => {
@@ -834,12 +839,17 @@ mod tests {
         "impl TerminalClass for TerminalClass",
         "impl std::fmt::Display for TerminalClass",
         "impl DeclarationClass for DeclarationClass",
+        "function declaration_lexeme_owner_id",
         "impl LexicalOwner for LexicalOwner",
         "impl LexicalOwnerTemplate for LexicalOwnerTemplate",
         "constant REQUIRED_DECLARATIONS",
         "function scan_lexical",
+        "impl Ability",
         "impl Render for Ability",
+        "function render_ability_with_claims",
+        "impl Sentence",
         "impl Render for Sentence",
+        "function render_sentence_with_claims",
         "function render_sentence_body",
         "function render_clause",
         "function render_verb_phrase",
@@ -908,7 +918,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 122);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 127);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -955,7 +965,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 122);
+        assert_eq!(parsed.items.len(), 127);
     }
 
     #[test]

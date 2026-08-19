@@ -9,7 +9,6 @@ use super::SelectionResolution;
 use super::SpecificityTier;
 use super::engine::RulePosition;
 use super::materialize::Candidate;
-use crate::ast::Ability;
 use crate::constructions::Construction;
 use crate::constructions::Lexical;
 
@@ -180,7 +179,7 @@ impl<T> SelectionAnalysis<T> {
 
 pub(crate) fn analyze_selection(
     candidates: Vec<Candidate>,
-) -> Result<SelectionAnalysis<Ability>, ParseError> {
+) -> Result<SelectionAnalysis<Candidate>, ParseError> {
     selection_analysis_with_exceptions(
         candidates,
         |candidate| candidate.constructions.as_slice(),
@@ -189,11 +188,6 @@ pub(crate) fn analyze_selection(
         construction_name,
         SELECTION_EXCEPTIONS,
     )
-    .map(|analysis| SelectionAnalysis {
-        selected: analysis.selected.map(|candidate| candidate.ability),
-        decision: analysis.decision,
-        ambiguity: analysis.ambiguity,
-    })
 }
 
 fn selection_analysis_with_exceptions<T, C, Name>(
@@ -559,6 +553,7 @@ const fn construction_name(construction: Construction) -> &'static str {
 #[cfg(test)]
 mod tests {
     use std::cmp::Ordering;
+    use std::collections::BTreeSet;
 
     use super::super::Bounded;
     use super::super::diagnostic::BoundedParseOutcome;
@@ -568,12 +563,14 @@ mod tests {
     use super::super::diagnostic::SelectionLoserReason;
     use super::super::diagnostic::StructuralTrace;
     use super::super::diagnostic::TraceLimits;
+    use super::SelectionAnalysis;
     use super::SelectionDecision;
     use super::SelectionDecisive;
     use super::SelectionException;
     use super::SelectionExceptionInventoryError;
     use super::SelectionResolution;
     use super::SpecificityTier;
+    use super::analyze_selection;
     use super::construction_name_v1;
     use super::generated_constructions_v1;
     use super::select_ranked;
@@ -584,11 +581,15 @@ mod tests {
     use super::structural_specificity;
     use crate::constructions::Category;
     use crate::constructions::Construction;
+    use crate::constructions::Leaf;
     use crate::constructions::Lexical;
+    use crate::constructions::LexicalOwner;
+    use crate::constructions::LexicalProvenanceKind;
     use crate::context::ParseContext;
     use crate::environment::canonical_test_environment;
     use crate::parser::ParseAnalysis;
     use crate::parser::ParseError;
+    use crate::parser::TextSpan;
     use crate::parser::engine::Child;
     use crate::parser::engine::Forest;
     use crate::parser::engine::LexicalMatch;
@@ -596,7 +597,52 @@ mod tests {
     use crate::parser::engine::Rule;
     use crate::parser::engine::RulePosition;
     use crate::parser::engine::parse;
+    use crate::parser::materialize::Candidate;
     use crate::parser::materialize::materialize_with;
+    use crate::parser::ownership::RawLexicalClaim;
+
+    #[test]
+    fn selected_candidate_ownership_returns_the_exact_candidate() {
+        let environment = canonical_test_environment();
+        let context = ParseContext::new("Context Card").unwrap();
+        let ability = crate::parser::Parser::new(environment)
+            .unwrap()
+            .parse("Destroy target creature.", &context)
+            .unwrap();
+        let candidate = |specificity, owner_id: &'static str| Candidate {
+            ability: ability.clone(),
+            constructions: vec![Construction::AbilitySpell],
+            positions: Vec::new(),
+            specificity: vec![specificity],
+            claims: vec![RawLexicalClaim {
+                span: TextSpan { start: 0, end: 1 },
+                value: Leaf::Literal("x"),
+                owner: LexicalOwner::static_owner(LexicalProvenanceKind::FormLiteral, owner_id),
+            }],
+            synthetic_claims: Vec::new(),
+        };
+        let analysis: Result<SelectionAnalysis<Candidate>, ParseError> = analyze_selection(vec![
+            candidate(SpecificityTier::TypedLexical, "loser"),
+            candidate(SpecificityTier::Literal, "winner"),
+        ]);
+        let (selected, _) = analysis
+            .expect("ranked candidate analysis is valid")
+            .into_result_and_decision();
+        let selected = selected
+            .expect("selection result")
+            .expect("one candidate wins");
+        assert_eq!(selected.claims[0].owner.stable_id(), "winner");
+
+        let unresolved = crate::parser::analyze_materialized(vec![
+            candidate(SpecificityTier::Literal, "tie-a"),
+            candidate(SpecificityTier::Literal, "tie-b"),
+        ]);
+        assert!(unresolved.ownership().is_none());
+        assert!(matches!(
+            unresolved.into_parse_result(),
+            Err(ParseError::Ambiguous { .. })
+        ));
+    }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
     enum TestCategory {
@@ -787,12 +833,16 @@ mod tests {
         parse_and_select_toy(TIE_RULES, text)
     }
 
-    fn parse_and_materialize_shared_forms(
-        text: &str,
-    ) -> (
-        usize,
-        Vec<crate::parser::materialize::MaterializedCandidate<TestBuildValue, Construction>>,
-    ) {
+    type SharedFormCandidate = crate::parser::materialize::MaterializedCandidate<
+        TestBuildValue,
+        Construction,
+        Category,
+        Lexical,
+        Lexical,
+        &'static str,
+    >;
+
+    fn parse_and_materialize_shared_forms(text: &str) -> (usize, Vec<SharedFormCandidate>) {
         let forest = parse(
             SHARED_FORM_RULES,
             Category::Ability,
@@ -802,6 +852,11 @@ mod tests {
                     .then_some(LexicalMatch {
                         end: text.len(),
                         value: lexical,
+                        owner: Some(match lexical {
+                            Lexical::Literal(_) => "literal-owner",
+                            Lexical::Variable => "typed-owner",
+                            _ => unreachable!("shared-form fixture has two terminals"),
+                        }),
                     })
                     .into_iter()
                     .collect()
@@ -847,6 +902,7 @@ mod tests {
                     .then_some(LexicalMatch {
                         end: text.len(),
                         value: lexical,
+                        owner: None::<()>,
                     })
                     .into_iter()
                     .collect()
@@ -1000,6 +1056,13 @@ mod tests {
                 .iter()
                 .all(|candidate| candidate.constructions == [Construction::AmountNumber])
         );
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|candidate| candidate.claims[0].owner)
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([Some("literal-owner"), Some("typed-owner")])
+        );
 
         let selected = select_ranked(
             candidates,
@@ -1014,6 +1077,109 @@ mod tests {
         )
         .unwrap();
         assert_eq!(selected.value, TestBuildValue::Ability("literal form"));
+        assert_eq!(selected.claims[0].owner, Some("literal-owner"));
+    }
+
+    #[test]
+    fn equal_semantic_values_with_different_segmentations_retain_both_claim_sequences() {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+        enum SegCategory {
+            Start,
+        }
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+        enum SegLexical {
+            Whole,
+            Left,
+            Right,
+        }
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum SegRule {
+            Whole,
+            Parts,
+        }
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum SegValue {
+            Leaf,
+            Same,
+        }
+        const RULES: &[Rule<SegCategory, SegLexical, SegRule>] = &[
+            Rule {
+                id: SegRule::Whole,
+                lhs: SegCategory::Start,
+                rhs: &[RulePosition::Lexical(SegLexical::Whole)],
+            },
+            Rule {
+                id: SegRule::Parts,
+                lhs: SegCategory::Start,
+                rhs: &[
+                    RulePosition::Lexical(SegLexical::Left),
+                    RulePosition::Lexical(SegLexical::Right),
+                ],
+            },
+        ];
+        let forest = parse(
+            RULES,
+            SegCategory::Start,
+            2,
+            |terminal, start| match (terminal, start) {
+                (SegLexical::Whole, 0) => vec![LexicalMatch {
+                    end: 2,
+                    value: terminal,
+                    owner: Some("whole"),
+                }],
+                (SegLexical::Left, 0) => vec![LexicalMatch {
+                    end: 1,
+                    value: terminal,
+                    owner: Some("left"),
+                }],
+                (SegLexical::Right, 1) => vec![LexicalMatch {
+                    end: 2,
+                    value: terminal,
+                    owner: Some("right"),
+                }],
+                _ => Vec::new(),
+            },
+            |_, _, _| true,
+        )
+        .unwrap();
+        let candidates = materialize_with(
+            &forest,
+            RULES,
+            |rule| match rule {
+                SegRule::Whole => 0,
+                SegRule::Parts => 1,
+            },
+            |_| "same-construction",
+            std::convert::identity,
+            |_| SegValue::Leaf,
+            |_, _| Some(SegValue::Same),
+        );
+
+        assert_eq!(candidates.len(), 2);
+        assert!(
+            candidates
+                .iter()
+                .all(|candidate| candidate.value == SegValue::Same)
+        );
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|candidate| {
+                    candidate
+                        .claims
+                        .iter()
+                        .map(|claim| (claim.span, claim.owner))
+                        .collect::<Vec<_>>()
+                })
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                vec![(TextSpan { start: 0, end: 2 }, Some("whole"))],
+                vec![
+                    (TextSpan { start: 0, end: 1 }, Some("left")),
+                    (TextSpan { start: 1, end: 2 }, Some("right")),
+                ],
+            ])
+        );
     }
 
     #[test]

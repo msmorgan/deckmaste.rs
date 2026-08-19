@@ -22,6 +22,7 @@ use crate::identifier::path_key;
 use crate::identifier::snake_case;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
+use crate::plan::NamedKind;
 use crate::semantic::BindingPlan;
 use crate::semantic::ContextIdentityPlan;
 use crate::semantic::DeclarationNounPlan;
@@ -347,7 +348,6 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     Lexeme,
                     Codec,
                     Identity,
-                    Declaration,
                 }
             },
         ),
@@ -564,6 +564,10 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     ]
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the generated owner ABI and its exhaustive value instantiation remain co-located"
+)]
 fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let vocab_owner_arms = inventory.vocabs.iter().flat_map(|vocab| {
         let declaration_ident = vocab.name_ident();
@@ -639,22 +643,78 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     number: _,
                 },
             ) => Some(LexicalOwner {
-                kind: LexicalProvenanceKind::Declaration,
-                stable_id: format!(
-                    "declaration:{}/{}",
-                    declaration.id().kind(),
-                    declaration.id().name(),
+                kind: LexicalProvenanceKind::Lexeme,
+                stable_id: declaration_lexeme_owner_id(
+                    declaration.id(),
+                    declaration.feature(),
                 ),
             }),
         }
     });
 
     vec![
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: "declaration_lexeme_owner_id".to_owned(),
+            },
+            quote! {
+                pub(crate) fn declaration_lexeme_owner_id(
+                    id: &::macro_ron::v2::DeclarationIdentity,
+                    feature: ::macro_ron::v2::SurfaceFeature,
+                ) -> String {
+                    let kind = match id.kind() {
+                        ::macro_ron::v2::DeclarationKind::KeywordAction => "keyword_action",
+                        ::macro_ron::v2::DeclarationKind::KeywordAbility => "keyword_ability",
+                        ::macro_ron::v2::DeclarationKind::Subtype(category) => match category {
+                            ::macro_ron::v2::SubtypeCategory::Artifact => "artifact_subtype",
+                            ::macro_ron::v2::SubtypeCategory::Battle => "battle_subtype",
+                            ::macro_ron::v2::SubtypeCategory::Creature => "creature_subtype",
+                            ::macro_ron::v2::SubtypeCategory::Enchantment => "enchantment_subtype",
+                            ::macro_ron::v2::SubtypeCategory::Land => "land_subtype",
+                            ::macro_ron::v2::SubtypeCategory::Planeswalker => "planeswalker_subtype",
+                            ::macro_ron::v2::SubtypeCategory::Spell => "spell_subtype",
+                        },
+                        ::macro_ron::v2::DeclarationKind::Type => "type",
+                        ::macro_ron::v2::DeclarationKind::CounterKind => "counter_kind",
+                        ::macro_ron::v2::DeclarationKind::Designation => "designation",
+                    };
+                    let feature = match feature {
+                        ::macro_ron::v2::SurfaceFeature::Bare => "bare",
+                        ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                            "third_person_singular"
+                        }
+                        ::macro_ron::v2::SurfaceFeature::Singular => "singular",
+                        ::macro_ron::v2::SurfaceFeature::Plural => "plural",
+                        ::macro_ron::v2::SurfaceFeature::Fixed => "fixed",
+                    };
+                    format!("lexeme:{kind}/{}/{feature}", id.name())
+                }
+            },
+            Vec::new(),
+        ),
         impl_item(
             Some("LexicalOwner"),
             "LexicalOwner",
             quote! {
                 impl LexicalOwner {
+                    pub(crate) fn static_owner(
+                        kind: LexicalProvenanceKind,
+                        stable_id: &'static str,
+                    ) -> Self {
+                        Self {
+                            kind,
+                            stable_id: stable_id.to_owned(),
+                        }
+                    }
+
+                    pub(crate) fn owned(
+                        kind: LexicalProvenanceKind,
+                        stable_id: String,
+                    ) -> Self {
+                        Self { kind, stable_id }
+                    }
+
                     pub const fn kind(&self) -> LexicalProvenanceKind {
                         self.kind
                     }
@@ -694,11 +754,16 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             }),
                             (
                                 LexicalOwnerTemplate::Declaration { kind, name },
-                                Leaf::Declaration(_),
-                            ) => Some(LexicalOwner {
-                                kind: LexicalProvenanceKind::Declaration,
-                                stable_id: format!("declaration:{kind}/{name}"),
-                            }),
+                                Leaf::Declaration(declaration),
+                            ) if declaration.id.kind() == kind && declaration.id.name() == name => {
+                                Some(LexicalOwner {
+                                    kind: LexicalProvenanceKind::Lexeme,
+                                    stable_id: declaration_lexeme_owner_id(
+                                        &declaration.id,
+                                        declaration.feature,
+                                    ),
+                                })
+                            },
                             #declaration_noun_owner
                             _ => unreachable!("validated lexical owner template/value mismatch"),
                         }

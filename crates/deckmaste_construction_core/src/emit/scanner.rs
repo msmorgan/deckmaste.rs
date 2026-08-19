@@ -9,6 +9,10 @@ use crate::plan::NamedKind;
 use crate::semantic::BindingPlan;
 use crate::semantic::SemanticPlan;
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the one generated scanner keeps every terminal family in one exhaustive dispatch"
+)]
 pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let vocab_arms = plan.runtime_vocabs().map(|vocab| {
         let vocab_name = emitted_ident(vocab.name(), vocab.name_ident().span());
@@ -24,6 +28,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     input.word_end(running_text).map(|end| LexicalMatch {
                         end,
                         value: Leaf::#vocab_name(value),
+                        owner: None,
                     })
                 })
                 .collect()
@@ -68,6 +73,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     .map(|end| LexicalMatch {
                         end,
                         value: Leaf::#codec_name(#codec_name { sign, magnitude }),
+                        owner: None,
                     })
                     .into_iter()
                     .collect()
@@ -90,6 +96,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     input.identity_end(surface).map(|end| LexicalMatch {
                         end,
                         value: Leaf::#aggregate(value),
+                        owner: None,
                     })
                 })
                 .collect()
@@ -104,6 +111,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 .map(|end| LexicalMatch {
                     end,
                     value: Leaf::Literal(literal),
+                    owner: None,
                 })
                 .into_iter()
                 .collect(),
@@ -119,12 +127,13 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         pub(crate) fn scan_lexical(
             input: &ScanInput<'_>,
             terminal: LexicalTerminal,
-        ) -> Vec<LexicalMatch<Leaf>> {
-            match terminal.matcher {
+        ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
+            let mut matches: Vec<LexicalMatch<Leaf, LexicalOwner>> = match terminal.matcher {
                 Lexical::EndOfInput => (input.position.byte_offset == input.text.len())
                     .then_some(LexicalMatch {
                         end: input.position.byte_offset,
                         value: Leaf::EndOfInput,
+                        owner: None,
                     })
                     .into_iter()
                     .collect(),
@@ -134,6 +143,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     .map(|end| LexicalMatch {
                         end,
                         value: Leaf::Literal(literal),
+                        owner: None,
                     })
                     .into_iter()
                     .collect(),
@@ -148,9 +158,14 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     .map(|(end, id, feature)| LexicalMatch {
                         end,
                         value: Leaf::Declaration(DeclarationLeaf { id, feature }),
+                        owner: None,
                     })
                     .collect(),
+            };
+            for lexical_match in &mut matches {
+                lexical_match.owner = terminal.owner.instantiate(&lexical_match.value);
             }
+            matches
         }
     };
 
@@ -212,6 +227,7 @@ fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                                         noun: #noun::Lexeme(lexeme),
                                         number,
                                     },
+                                    owner: None,
                                 });
                             }
                         }
@@ -233,6 +249,7 @@ fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                                 noun: #noun::Declaration(declaration),
                                 number,
                             },
+                            owner: None,
                         });
                     }
                 }

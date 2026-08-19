@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 
 use super::Expectation;
 use super::ParseError;
+use super::SelectedOwnership;
 use super::selection::construction_name_v1;
 use crate::ast::Ability;
 use crate::constructions::Construction;
@@ -830,6 +831,7 @@ fn bounded_copy<T, U>(values: &[T], limit: usize, project: impl Fn(&T) -> U) -> 
 pub enum InternalFailureKind {
     ValidatedRootDidNotMaterialize,
     SelectionConfiguration,
+    OwnershipInspection,
 }
 
 /// The public outcome class for one parser analysis.
@@ -847,6 +849,7 @@ pub struct ParseAnalysis {
     result: Result<Ability, ParseError>,
     outcome: ParseAnalysisOutcome,
     decision: Option<SelectionDecision>,
+    ownership: Option<SelectedOwnership>,
 }
 
 impl ParseAnalysis {
@@ -871,7 +874,13 @@ impl ParseAnalysis {
             result,
             outcome,
             decision,
+            ownership: None,
         }
+    }
+
+    pub(crate) fn with_ownership(mut self, ownership: SelectedOwnership) -> Self {
+        self.ownership = Some(ownership);
+        self
     }
 
     #[must_use]
@@ -887,6 +896,11 @@ impl ParseAnalysis {
     #[must_use]
     pub fn selected(&self) -> Option<&Ability> {
         self.result.as_ref().ok()
+    }
+
+    #[must_use]
+    pub fn ownership(&self) -> Option<&SelectedOwnership> {
+        self.ownership.as_ref()
     }
 
     /// # Errors

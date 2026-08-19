@@ -725,6 +725,7 @@ struct InternalFailureOutcome {
 pub(super) enum InternalFailureKind {
     ValidatedRootDidNotMaterialize,
     SelectionConfiguration,
+    OwnershipInspection,
 }
 
 impl InternalFailureKind {
@@ -732,6 +733,7 @@ impl InternalFailureKind {
         match self {
             Self::ValidatedRootDidNotMaterialize => "validated_root_did_not_materialize",
             Self::SelectionConfiguration => "selection_configuration",
+            Self::OwnershipInspection => "ownership_inspection",
         }
     }
 }
@@ -1123,6 +1125,7 @@ fn internal_kind(value: RuntimeInternalFailureKind) -> InternalFailureKind {
         RuntimeInternalFailureKind::SelectionConfiguration => {
             InternalFailureKind::SelectionConfiguration
         }
+        RuntimeInternalFailureKind::OwnershipInspection => InternalFailureKind::OwnershipInspection,
     }
 }
 
@@ -2904,7 +2907,7 @@ mod tests {
     }
 
     #[test]
-    fn source_view_mapper_preserves_both_internal_kinds_and_exact_messages() {
+    fn source_view_mapper_preserves_all_internal_kinds_and_exact_messages() {
         for (runtime_kind, expected_kind, message) in [
             (
                 deckmaste_english_v2::parser::InternalFailureKind::ValidatedRootDidNotMaterialize,
@@ -2915,6 +2918,11 @@ mod tests {
                 deckmaste_english_v2::parser::InternalFailureKind::SelectionConfiguration,
                 InternalFailureKind::SelectionConfiguration,
                 "source selection\rconfiguration message",
+            ),
+            (
+                deckmaste_english_v2::parser::InternalFailureKind::OwnershipInspection,
+                InternalFailureKind::OwnershipInspection,
+                "source ownership inspection message",
             ),
         ] {
             let source = fixture_trace_source(FixtureTraceOutcome::Internal {

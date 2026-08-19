@@ -61,7 +61,7 @@ pub(crate) struct ScanInput<'a> {
 pub(crate) fn parse_forest(
     grammar: &SliceGrammar<'_>,
     text: &str,
-) -> Result<Forest<RuleId, Leaf>, ChartFailure<Category, Lexical>> {
+) -> Result<Forest<RuleId, Leaf, LexicalOwner>, ChartFailure<Category, Lexical>> {
     parse(
         RULES,
         Category::Ability,
@@ -72,7 +72,8 @@ pub(crate) fn parse_forest(
     .map_err(project_failure)
 }
 
-type ObservedForestResult = Result<Forest<RuleId, Leaf>, ChartFailure<Category, Lexical>>;
+type ObservedForestResult =
+    Result<Forest<RuleId, Leaf, LexicalOwner>, ChartFailure<Category, Lexical>>;
 
 pub(crate) fn parse_forest_observed(
     grammar: &SliceGrammar<'_>,
@@ -176,7 +177,7 @@ impl StructuralObservation {
     }
 }
 
-impl Observation<RuleId, Leaf, LexicalTerminal> for StructuralObservation {
+impl Observation<RuleId, Leaf, LexicalTerminal, LexicalOwner> for StructuralObservation {
     fn scanned(&mut self, start: usize, terminal: LexicalTerminal, end: usize, value: &Leaf) {
         self.record_scanned_token(start, end, terminal, value);
     }
@@ -186,7 +187,7 @@ impl Observation<RuleId, Leaf, LexicalTerminal> for StructuralObservation {
         rule: RuleId,
         start: usize,
         end: usize,
-        family: &Family<Leaf>,
+        family: &Family<Leaf, LexicalOwner>,
         accepted: bool,
     ) {
         let key = CheckedRejectionIdentity {
@@ -219,7 +220,7 @@ impl Observation<RuleId, Leaf, LexicalTerminal> for StructuralObservation {
         });
     }
 
-    fn final_forest(&mut self, forest: &Forest<RuleId, Leaf>) {
+    fn final_forest(&mut self, forest: &Forest<RuleId, Leaf, LexicalOwner>) {
         for root in forest.accepted_root_ids() {
             self.roots.push_with(|| root.0);
         }
@@ -235,9 +236,9 @@ impl Observation<RuleId, Leaf, LexicalTerminal> for StructuralObservation {
                                     node_id: Some(id.0),
                                     value_label_v1: None,
                                 },
-                                Child::Lexical(value) => ForestChild {
+                                Child::Lexical(lexical) => ForestChild {
                                     node_id: None,
-                                    value_label_v1: Some(value_label_v1(value)),
+                                    value_label_v1: Some(value_label_v1(&lexical.value)),
                                 },
                             });
                         }
@@ -283,14 +284,14 @@ fn value_label_v1(value: &Leaf) -> String {
     });
     format!("{value:?}")
 }
-fn raw_family_identity(family: &Family<Leaf>) -> RawFamilyIdentity {
+fn raw_family_identity(family: &Family<Leaf, LexicalOwner>) -> RawFamilyIdentity {
     RawFamilyIdentity(
         family
             .children
             .iter()
             .map(|child| match child {
                 Child::Node(id) => RawFamilyIdentityChild::Node(id.0),
-                Child::Lexical(value) => RawFamilyIdentityChild::Lexical(value.clone()),
+                Child::Lexical(lexical) => RawFamilyIdentityChild::Lexical(lexical.value.clone()),
             })
             .collect(),
     )
@@ -443,7 +444,7 @@ impl SliceGrammar<'_> {
         terminal: LexicalTerminal,
         text: &str,
         offset: usize,
-    ) -> Vec<LexicalMatch<Leaf>> {
+    ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
         let position = ScanPosition {
             byte_offset: offset,
             case: if offset == 0 {
@@ -588,7 +589,7 @@ impl ScanInput<'_> {
         results
     }
 
-    fn scan_verb(&self, lexeme: VerbLexeme) -> Vec<LexicalMatch<Leaf>> {
+    fn scan_verb(&self, lexeme: VerbLexeme) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
         [Agreement::Bare, Agreement::ThirdPersonSingular]
             .into_iter()
             .filter_map(|agreement| {
@@ -596,6 +597,7 @@ impl ScanInput<'_> {
                     .map(|end| LexicalMatch {
                         end,
                         value: Leaf::Verb { lexeme, agreement },
+                        owner: None,
                     })
             })
             .collect()
@@ -667,7 +669,7 @@ pub(super) fn lookup_declaration_readings(
 pub(crate) fn scan_bound_terminal(
     input: &ScanInput<'_>,
     terminal: LexicalTerminal,
-) -> Vec<LexicalMatch<Leaf>> {
+) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
     match terminal.matcher {
         Lexical::Verb(lexeme) => input.scan_verb(lexeme),
         Lexical::Literal(_)
@@ -732,6 +734,7 @@ mod tests {
     use super::super::engine::Family;
     use super::super::engine::NodeId;
     use super::super::engine::Observation;
+    use super::super::engine::SpannedLexical;
     use super::Category;
     use super::ChartFailure;
     use super::Forest;
@@ -780,10 +783,21 @@ mod tests {
     use crate::environment::reset_reading_lookup_count;
     use crate::parser::Parser;
 
+    fn lexical(value: Leaf) -> Child<Leaf, crate::constructions::LexicalOwner> {
+        Child::Lexical(SpannedLexical {
+            span: crate::parser::TextSpan { start: 0, end: 1 },
+            value,
+            owner: None,
+        })
+    }
+
     fn slice_candidates(
         text: &str,
         card_name: &str,
-    ) -> Result<Forest<RuleId, Leaf>, ChartFailure<Category, Lexical>> {
+    ) -> Result<
+        Forest<RuleId, Leaf, crate::constructions::LexicalOwner>,
+        ChartFailure<Category, Lexical>,
+    > {
         let environment = canonical_test_environment();
         let context = context(card_name);
         let grammar = SliceGrammar {
@@ -826,6 +840,72 @@ mod tests {
             }),
             owner: LexicalOwnerTemplate::Declaration { kind, name },
         }
+    }
+
+    #[test]
+    fn owned_declaration_owner_ids_outlive_the_source_and_include_feature() {
+        let source = String::from(
+            r#"KeywordAction(name:"Novel",spelling:"novel",grammar:Verb(bare:"novel",valence:Intransitive))"#,
+        );
+        let declaration = read_str("/synthetic/Novel.ron", &source).unwrap();
+        let environment = ParserEnvironment::try_from_declarations([declaration]).unwrap();
+        drop(source);
+        let context = context("Context Card");
+        let matches = super::scan_lexical(
+            &ScanInput {
+                text: "Novel.",
+                position: ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                },
+                environment: &environment,
+                context: &context,
+            },
+            declaration_terminal("Novel"),
+        );
+        let owner = matches[0].owner.as_ref().expect("non-EOI has owner");
+        assert_eq!(owner.kind(), LexicalProvenanceKind::Lexeme);
+        assert_eq!(owner.stable_id(), "lexeme:keyword_action/Novel/bare");
+    }
+
+    #[test]
+    fn declaration_owner_projection_is_deterministic_under_shuffled_input() {
+        let sources = [
+            (
+                "/synthetic/Novel.ron",
+                r#"KeywordAction(name:"Novel",spelling:"novel",grammar:Verb(bare:"novel",valence:Intransitive))"#,
+            ),
+            (
+                "/synthetic/Other.ron",
+                r#"KeywordAbility(name:"Other",spelling:"other",grammar:FixedTerm(surface:"other"))"#,
+            ),
+        ];
+        let project = |order: [usize; 2]| {
+            let declarations = order.map(|index| {
+                let (path, source) = sources[index];
+                read_str(path, source).unwrap()
+            });
+            let environment = ParserEnvironment::try_from_declarations(declarations).unwrap();
+            let context = context("Context Card");
+            super::scan_lexical(
+                &ScanInput {
+                    text: "Novel.",
+                    position: ScanPosition {
+                        byte_offset: 0,
+                        case: CasePosition::DocumentInitial,
+                    },
+                    environment: &environment,
+                    context: &context,
+                },
+                declaration_terminal("Novel"),
+            )
+            .into_iter()
+            .map(|matched| matched.owner.unwrap().stable_id().to_owned())
+            .collect::<Vec<_>>()
+        };
+
+        assert_eq!(project([0, 1]), project([1, 0]));
+        assert_eq!(project([0, 1]), ["lexeme:keyword_action/Novel/bare"]);
     }
 
     fn parser_declaration_environment(
@@ -1034,12 +1114,13 @@ mod tests {
         assert!(scan(&scry, "Connive").is_empty());
 
         // Repeated engine retries are pure and deterministic.
-        let project = |matches: Vec<super::LexicalMatch<Leaf>>| {
-            matches
-                .into_iter()
-                .map(|matched| (matched.end, matched.value))
-                .collect::<Vec<_>>()
-        };
+        let project =
+            |matches: Vec<super::LexicalMatch<Leaf, crate::constructions::LexicalOwner>>| {
+                matches
+                    .into_iter()
+                    .map(|matched| (matched.end, matched.value))
+                    .collect::<Vec<_>>()
+            };
         assert_eq!(project(scan(&scry, "Scry")), project(scan(&scry, "Scry")));
     }
 
@@ -1256,15 +1337,16 @@ mod tests {
             owner: LexicalOwnerTemplate::Declaration { kind, name },
         };
         let scan = |terminal| crate::constructions::scan_lexical(&input, terminal);
-        let project = |matches: &[super::LexicalMatch<Leaf>]| {
-            matches
-                .iter()
-                .map(|matched| match &matched.value {
-                    Leaf::Declaration(leaf) => (matched.end, leaf.id.clone(), leaf.feature),
-                    _ => panic!("declaration terminal returned a non-declaration leaf"),
-                })
-                .collect::<Vec<_>>()
-        };
+        let project =
+            |matches: &[super::LexicalMatch<Leaf, crate::constructions::LexicalOwner>]| {
+                matches
+                    .iter()
+                    .map(|matched| match &matched.value {
+                        Leaf::Declaration(leaf) => (matched.end, leaf.id.clone(), leaf.feature),
+                        _ => panic!("declaration terminal returned a non-declaration leaf"),
+                    })
+                    .collect::<Vec<_>>()
+            };
 
         let alpha_any = scan(terminal(
             DeclarationKind::KeywordAction,
@@ -1393,24 +1475,25 @@ mod tests {
                 },
             )
         };
-        let declarations = |matches: Vec<super::LexicalMatch<Leaf>>| {
-            matches
-                .into_iter()
-                .filter_map(|matched| match matched.value {
-                    Leaf::Noun {
-                        noun: Noun::Declaration(noun),
-                        number,
-                    } => Some((
-                        matched.end,
-                        noun.id().kind(),
-                        noun.id().name().to_owned(),
-                        noun.feature(),
-                        number,
-                    )),
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
-        };
+        let declarations =
+            |matches: Vec<super::LexicalMatch<Leaf, crate::constructions::LexicalOwner>>| {
+                matches
+                    .into_iter()
+                    .filter_map(|matched| match matched.value {
+                        Leaf::Noun {
+                            noun: Noun::Declaration(noun),
+                            number,
+                        } => Some((
+                            matched.end,
+                            noun.id().kind(),
+                            noun.id().name().to_owned(),
+                            noun.feature(),
+                            number,
+                        )),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+            };
 
         assert_eq!(
             declarations(scan(
@@ -1499,7 +1582,9 @@ mod tests {
         );
     }
 
-    fn assert_noun_collision_owners(player: &[super::LexicalMatch<Leaf>]) {
+    fn assert_noun_collision_owners(
+        player: &[super::LexicalMatch<Leaf, crate::constructions::LexicalOwner>],
+    ) {
         let owners = player
             .iter()
             .map(|matched| {
@@ -1513,8 +1598,8 @@ mod tests {
                 && owner.stable_id() == "lexeme:NounLexeme/Player"
         }));
         assert!(owners.iter().any(|owner| {
-            owner.kind() == LexicalProvenanceKind::Declaration
-                && owner.stable_id() == "declaration:type/Player"
+            owner.kind() == LexicalProvenanceKind::Lexeme
+                && owner.stable_id() == "lexeme:type/Player/singular"
         }));
         assert!(owners.iter().all(|owner| owner.stable_id() != "codec:Noun"));
     }
@@ -1577,10 +1662,7 @@ mod tests {
     #[test]
     fn structural_trace_transient_checked_rejection_disappears() {
         let family = Family {
-            children: vec![
-                Child::Node(NodeId(7)),
-                Child::Lexical(Leaf::Literal("where")),
-            ],
+            children: vec![Child::Node(NodeId(7)), lexical(Leaf::Literal("where"))],
         };
         let mut observed = StructuralObservation::new(TraceLimits::new(1));
         observed.checked_completion(RuleId::AmountNumber, 1, 4, &family, false);
@@ -1595,10 +1677,7 @@ mod tests {
     #[test]
     fn structural_trace_final_checked_rejection_is_structured_and_bounded() {
         let family = Family {
-            children: vec![
-                Child::Node(NodeId(7)),
-                Child::Lexical(Leaf::Literal("where")),
-            ],
+            children: vec![Child::Node(NodeId(7)), lexical(Leaf::Literal("where"))],
         };
         for (limit, shown) in [(0, 0), (1, 1)] {
             let mut observed = StructuralObservation::new(TraceLimits::new(limit));
@@ -1619,7 +1698,7 @@ mod tests {
     #[test]
     fn structural_trace_rejection_labels_are_built_only_for_retained_entries() {
         let family = Family {
-            children: vec![Child::Lexical(Leaf::Literal("family"))],
+            children: vec![lexical(Leaf::Literal("family"))],
         };
         for (limit, expected_labels) in [(0, 0), (1, 1)] {
             reset_trace_label_counts();

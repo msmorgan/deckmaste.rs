@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::VecDeque;
 
+use super::TextSpan;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum RulePosition<N, L> {
     Nonterminal(N),
@@ -14,46 +16,54 @@ pub(crate) struct Rule<N: 'static, L: 'static, R> {
     pub rhs: &'static [RulePosition<N, L>],
 }
 
-pub(crate) struct LexicalMatch<T> {
+pub(crate) struct LexicalMatch<T, O = ()> {
     pub end: usize,
     pub value: T,
+    pub owner: Option<O>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Child<T> {
+pub(crate) struct SpannedLexical<T, O = ()> {
+    pub(crate) span: TextSpan,
+    pub(crate) value: T,
+    pub(crate) owner: Option<O>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Child<T, O = ()> {
     Node(NodeId),
-    Lexical(T),
+    Lexical(SpannedLexical<T, O>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) struct NodeId(pub usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Family<T> {
-    pub children: Vec<Child<T>>,
+pub(crate) struct Family<T, O = ()> {
+    pub children: Vec<Child<T, O>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PackedNode<R, T> {
+pub(crate) struct PackedNode<R, T, O = ()> {
     pub rule: R,
     pub start: usize,
     pub end: usize,
-    pub families: Vec<Family<T>>,
+    pub families: Vec<Family<T, O>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Forest<R, T> {
-    nodes: Vec<PackedNode<R, T>>,
+pub(crate) struct Forest<R, T, O = ()> {
+    nodes: Vec<PackedNode<R, T, O>>,
     accepted_roots: Vec<NodeId>,
 }
 
-impl<R, T> Forest<R, T> {
-    pub(crate) fn node(&self, id: NodeId) -> &PackedNode<R, T> {
+impl<R, T, O> Forest<R, T, O> {
+    pub(crate) fn node(&self, id: NodeId) -> &PackedNode<R, T, O> {
         &self.nodes[id.0]
     }
 
     #[cfg(test)]
-    pub(crate) fn accepted_roots(&self) -> impl Iterator<Item = &PackedNode<R, T>> {
+    pub(crate) fn accepted_roots(&self) -> impl Iterator<Item = &PackedNode<R, T, O>> {
         self.accepted_roots
             .iter()
             .map(|&NodeId(index)| &self.nodes[index])
@@ -63,7 +73,7 @@ impl<R, T> Forest<R, T> {
         self.accepted_roots.iter().copied()
     }
 
-    pub(crate) fn nodes(&self) -> impl Iterator<Item = (NodeId, &PackedNode<R, T>)> {
+    pub(crate) fn nodes(&self) -> impl Iterator<Item = (NodeId, &PackedNode<R, T, O>)> {
         self.nodes
             .iter()
             .enumerate()
@@ -72,7 +82,7 @@ impl<R, T> Forest<R, T> {
 
     #[cfg(test)]
     pub(crate) fn from_test_parts(
-        nodes: Vec<PackedNode<R, T>>,
+        nodes: Vec<PackedNode<R, T, O>>,
         accepted_roots: Vec<NodeId>,
     ) -> Self {
         Self {
@@ -88,14 +98,14 @@ pub(crate) struct ChartFailure<N, L> {
     pub live: BTreeSet<RulePosition<N, L>>,
 }
 
-pub(crate) trait Observation<R, T, L> {
+pub(crate) trait Observation<R, T, L, O = ()> {
     fn scanned(&mut self, _start: usize, _terminal: L, _end: usize, _value: &T) {}
     fn checked_completion(
         &mut self,
         _rule: R,
         _start: usize,
         _end: usize,
-        _family: &Family<T>,
+        _family: &Family<T, O>,
         _accepted: bool,
     ) {
     }
@@ -108,25 +118,26 @@ pub(crate) trait Observation<R, T, L> {
         _family_count: usize,
     ) {
     }
-    fn final_forest(&mut self, _forest: &Forest<R, T>) {}
+    fn final_forest(&mut self, _forest: &Forest<R, T, O>) {}
 }
 
-impl<R, T, L> Observation<R, T, L> for () {}
+impl<R, T, L, O> Observation<R, T, L, O> for () {}
 
-pub(crate) fn parse<N, L, R, T, Scan, ValidateCompletion>(
+pub(crate) fn parse<N, L, R, T, O, Scan, ValidateCompletion>(
     rules: &'static [Rule<N, L, R>],
     start: N,
     input_length: usize,
     scan: Scan,
     validate_completion: ValidateCompletion,
-) -> Result<Forest<R, T>, ChartFailure<N, L>>
+) -> Result<Forest<R, T, O>, ChartFailure<N, L>>
 where
     N: Copy + Eq + Ord + 'static,
     L: Copy + Eq + Ord + std::fmt::Debug + 'static,
     R: Copy + Eq,
     T: Clone + Eq,
-    Scan: FnMut(L, usize) -> Vec<LexicalMatch<T>>,
-    ValidateCompletion: FnMut(R, &Family<T>, &Forest<R, T>) -> bool,
+    O: Clone + Eq,
+    Scan: FnMut(L, usize) -> Vec<LexicalMatch<T, O>>,
+    ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> bool,
 {
     parse_observed(
         rules,
@@ -138,22 +149,23 @@ where
     )
 }
 
-pub(crate) fn parse_observed<N, L, R, T, Scan, ValidateCompletion, O>(
+pub(crate) fn parse_observed<N, L, R, T, Owner, Scan, ValidateCompletion, Obs>(
     rules: &'static [Rule<N, L, R>],
     start: N,
     input_length: usize,
     mut scan: Scan,
     mut validate_completion: ValidateCompletion,
-    observation: &mut O,
-) -> Result<Forest<R, T>, ChartFailure<N, L>>
+    observation: &mut Obs,
+) -> Result<Forest<R, T, Owner>, ChartFailure<N, L>>
 where
     N: Copy + Eq + Ord + 'static,
     L: Copy + Eq + Ord + std::fmt::Debug + 'static,
     R: Copy + Eq,
     T: Clone + Eq,
-    Scan: FnMut(L, usize) -> Vec<LexicalMatch<T>>,
-    ValidateCompletion: FnMut(R, &Family<T>, &Forest<R, T>) -> bool,
-    O: Observation<R, T, L>,
+    Owner: Clone + Eq,
+    Scan: FnMut(L, usize) -> Vec<LexicalMatch<T, Owner>>,
+    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> bool,
+    Obs: Observation<R, T, L, Owner>,
 {
     let mut forest = Forest {
         nodes: Vec::new(),
@@ -161,7 +173,7 @@ where
     };
 
     let mut chart = (0..=input_length)
-        .map(|_| BTreeMap::<ItemKey, Vec<Family<T>>>::new())
+        .map(|_| BTreeMap::<ItemKey, Vec<Family<T, Owner>>>::new())
         .collect::<Vec<_>>();
     let mut agenda = VecDeque::new();
     let mut completed_by_start = (0..=input_length)
@@ -277,7 +289,14 @@ where
                     }
                     observation.scanned(column, lexical, lexical_match.end, &lexical_match.value);
                     let mut children = family.children.clone();
-                    children.push(Child::Lexical(lexical_match.value));
+                    children.push(Child::Lexical(SpannedLexical {
+                        span: TextSpan {
+                            start: column,
+                            end: lexical_match.end,
+                        },
+                        value: lexical_match.value,
+                        owner: lexical_match.owner,
+                    }));
                     insert_item(
                         &mut chart,
                         &mut agenda,
@@ -304,14 +323,15 @@ where
     }
 }
 
-fn seed_chart<N, L, R, T>(
+fn seed_chart<N, L, R, T, O>(
     rules: &[Rule<N, L, R>],
     start: N,
-    chart: &mut [BTreeMap<ItemKey, Vec<Family<T>>>],
-    agenda: &mut VecDeque<(usize, ItemKey, Family<T>)>,
+    chart: &mut [BTreeMap<ItemKey, Vec<Family<T, O>>>],
+    agenda: &mut VecDeque<(usize, ItemKey, Family<T, O>)>,
 ) where
     N: Copy + Eq,
     T: Clone + Eq,
+    O: Clone + Eq,
 {
     for (rule_index, rule) in rules.iter().enumerate() {
         if rule.lhs == start {
@@ -340,12 +360,12 @@ fn completed_rule_is_root<N: Eq>(
 
 type ItemKey = (usize, usize, usize);
 
-fn insert_item<T: Clone + Eq>(
-    chart: &mut [BTreeMap<ItemKey, Vec<Family<T>>>],
-    agenda: &mut VecDeque<(usize, ItemKey, Family<T>)>,
+fn insert_item<T: Clone + Eq, O: Clone + Eq>(
+    chart: &mut [BTreeMap<ItemKey, Vec<Family<T, O>>>],
+    agenda: &mut VecDeque<(usize, ItemKey, Family<T, O>)>,
     column: usize,
     item: ItemKey,
-    family: Family<T>,
+    family: Family<T, O>,
 ) {
     let families = chart[column].entry(item).or_default();
     if insert_family(families, family.clone()) {
@@ -353,7 +373,7 @@ fn insert_item<T: Clone + Eq>(
     }
 }
 
-fn insert_family<T: Eq>(families: &mut Vec<Family<T>>, family: Family<T>) -> bool {
+fn insert_family<T: Eq, O: Eq>(families: &mut Vec<Family<T, O>>, family: Family<T, O>) -> bool {
     if families.contains(&family) {
         false
     } else {
@@ -362,10 +382,10 @@ fn insert_family<T: Eq>(families: &mut Vec<Family<T>>, family: Family<T>) -> boo
     }
 }
 
-fn requeue_completed_items_after_forest_growth<N, L, R, T: Clone>(
-    chart: &[BTreeMap<ItemKey, Vec<Family<T>>>],
+fn requeue_completed_items_after_forest_growth<N, L, R, T: Clone, O: Clone>(
+    chart: &[BTreeMap<ItemKey, Vec<Family<T, O>>>],
     rules: &[Rule<N, L, R>],
-    agenda: &mut VecDeque<(usize, ItemKey, Family<T>)>,
+    agenda: &mut VecDeque<(usize, ItemKey, Family<T, O>)>,
 ) {
     for (column, items) in chart.iter().enumerate() {
         for (&item @ (rule_index, dot, _), families) in items {
@@ -379,8 +399,8 @@ fn requeue_completed_items_after_forest_growth<N, L, R, T: Clone>(
     }
 }
 
-fn chart_failure<N, L, R, T>(
-    chart: &[BTreeMap<ItemKey, Vec<Family<T>>>],
+fn chart_failure<N, L, R, T, O>(
+    chart: &[BTreeMap<ItemKey, Vec<Family<T, O>>>],
     rules: &[Rule<N, L, R>],
 ) -> ChartFailure<N, L>
 where
@@ -401,8 +421,8 @@ where
         })
 }
 
-fn live_expectations<N, L, R, T>(
-    column: &BTreeMap<ItemKey, Vec<Family<T>>>,
+fn live_expectations<N, L, R, T, O>(
+    column: &BTreeMap<ItemKey, Vec<Family<T, O>>>,
     rules: &[Rule<N, L, R>],
 ) -> BTreeSet<RulePosition<N, L>>
 where
@@ -425,6 +445,33 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
+
+    #[test]
+    fn selected_derivation_spans_retain_exact_owner_and_range() {
+        let forest = parse(
+            SCAN_RULES,
+            ToyCategory::Start,
+            10,
+            |_, start| {
+                (start == 0)
+                    .then_some(vec![LexicalMatch {
+                        end: 10,
+                        value: "alpha beta",
+                        owner: Some("toy:alpha-beta"),
+                    }])
+                    .unwrap_or_default()
+            },
+            |_, _, _| true,
+        )
+        .expect("owned lexical span accepts");
+        let root = forest.accepted_roots().next().expect("one root");
+        let Child::Lexical(lexical) = &root.families[0].children[0] else {
+            panic!("root child is lexical");
+        };
+        assert_eq!(lexical.span, TextSpan { start: 0, end: 10 });
+        assert_eq!(lexical.value, "alpha beta");
+        assert_eq!(lexical.owner, Some("toy:alpha-beta"));
+    }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
     enum ToyCategory {
@@ -547,6 +594,7 @@ mod tests {
             vec![LexicalMatch {
                 end: start + literal.len(),
                 value: literal,
+                owner: None,
             }]
         } else {
             Vec::new()
@@ -565,6 +613,7 @@ mod tests {
                     .then_some(vec![LexicalMatch {
                         end: start + literal.len(),
                         value: literal,
+                        owner: None,
                     }])
                     .unwrap_or_default()
             },
@@ -594,14 +643,17 @@ mod tests {
                 ("alpha", 0) => vec![LexicalMatch {
                     end: 5,
                     value: literal,
+                    owner: None,
                 }],
                 ("backward", 5) => vec![LexicalMatch {
                     end: 4,
                     value: literal,
+                    owner: None,
                 }],
                 ("finish", 4) => vec![LexicalMatch {
                     end: 10,
                     value: literal,
+                    owner: None,
                 }],
                 _ => Vec::new(),
             },
@@ -617,10 +669,11 @@ mod tests {
         let root = roots[0];
         assert_eq!((root.start, root.end), (0, 10));
         assert_eq!(root.families.len(), 1);
-        assert_eq!(
-            root.families[0].children,
-            vec![Child::Lexical("alpha beta")]
-        );
+        let Child::Lexical(lexical) = &root.families[0].children[0] else {
+            panic!("scan result is lexical");
+        };
+        assert_eq!(lexical.value, "alpha beta");
+        assert_eq!(lexical.span, TextSpan { start: 0, end: 10 });
     }
 
     #[test]
@@ -651,6 +704,7 @@ mod tests {
                     .then_some(vec![LexicalMatch {
                         end: 1,
                         value: literal,
+                        owner: None,
                     }])
                     .unwrap_or_default()
             },
@@ -722,6 +776,7 @@ mod tests {
                     .then_some(vec![LexicalMatch {
                         end: 1,
                         value: literal,
+                        owner: None,
                     }])
                     .unwrap_or_default()
             },
@@ -801,11 +856,13 @@ mod tests {
                     .then_some(vec![
                         LexicalMatch {
                             end: 1,
-                            value: "same"
+                            value: "same",
+                            owner: None,
                         },
                         LexicalMatch {
                             end: 2,
-                            value: "overlap"
+                            value: "overlap",
+                            owner: None,
                         }
                     ])
                     .unwrap_or_default(),

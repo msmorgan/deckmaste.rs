@@ -59,6 +59,8 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     let takes_environment = validated.needs_parser_environment();
     for root in &roots {
         let category = root.category().to_owned();
+        let write_function = ident(&format!("write_{}_render", snake_case(&category)));
+        let collecting_function = ident(&format!("render_{}_with_claims", snake_case(&category)));
         let members = categories
             .iter()
             .find(|(name, _)| name == &category)
@@ -81,7 +83,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             let context = capability.requires_context().then(|| quote! { context });
             let environment = takes_environment.then(|| quote! { environment });
             let tail = signature_tail(&[None, context, environment]);
-            quote! { #helper(&mut writer, self #tail); }
+            quote! { #helper(writer, self #tail); }
         } else {
             let allocator = render_allocator(validated, members, true, &root_names, false, true)?;
             let arms = render_arms(
@@ -96,23 +98,69 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         };
         let environment = takes_environment
             .then(|| quote! { , environment: &crate::environment::ParserEnvironment });
-        let tokens = quote! {
-            impl Render for #ty {
-                fn render(&self, context: &ParseContext<'_> #environment) -> String {
-                    let mut writer = Writer::new();
+        let environment_argument = takes_environment.then(|| quote! { , environment });
+        let stable_id =
+            syn::LitStr::new(&format!("root:{category}/punctuation"), Span::call_site());
+        let origin = DeclarationKey::new(DeclarationKind::Root, category.clone());
+        items.push(GeneratedItem::new(
+            ItemKey::Impl {
+                trait_name: None,
+                self_ty: category.clone(),
+            },
+            quote! {
+            impl #ty {
+                fn #write_function(
+                    &self,
+                    writer: &mut Writer,
+                    context: &ParseContext<'_> #environment,
+                ) {
                     #render_body
-                    writer.punctuation(#punctuation);
-                    writer.finish()
+                    writer.claim(
+                        || LexicalOwner::static_owner(
+                            LexicalProvenanceKind::FormLiteral,
+                            #stable_id,
+                        ),
+                        |writer| writer.punctuation(#punctuation),
+                    );
                 }
             }
-        };
+            },
+            vec![origin.clone()],
+        ));
         items.push(GeneratedItem::new(
             ItemKey::Impl {
                 trait_name: Some("Render".to_owned()),
                 self_ty: category.clone(),
             },
-            tokens,
-            vec![DeclarationKey::new(DeclarationKind::Root, category)],
+            quote! {
+            impl Render for #ty {
+                fn render(&self, context: &ParseContext<'_> #environment) -> String {
+                    let mut writer = Writer::new();
+                    self.#write_function(&mut writer, context #environment_argument);
+                    writer.finish()
+                }
+            }
+            },
+            vec![origin.clone()],
+        ));
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: collecting_function.to_string(),
+            },
+            quote! {
+            pub(crate) fn #collecting_function(
+                value: &#ty,
+                context: &ParseContext<'_> #environment,
+            ) -> (String, Vec<RawRenderedClaim>) {
+                let mut claims = Vec::new();
+                let mut writer = Writer::collecting(&mut claims);
+                value.#write_function(&mut writer, context #environment_argument);
+                let rendered = writer.finish();
+                (rendered, claims)
+            }
+            },
+            vec![origin],
         ));
     }
 
@@ -508,7 +556,7 @@ fn render_arms(
                 fields: field_locals,
                 category: category_value.clone(),
             };
-            let statements = render_atoms(validated, construction, &locals, root_names, root_impl)?;
+            let statements = render_atoms(validated, construction, &locals, root_names)?;
             let category_role_block =
                 !root_impl && matches!(construction.atoms(), [AtomPlan::Category { .. }]);
             if statements.len() == 1 && !category_role_block {
@@ -536,13 +584,8 @@ fn render_atoms(
     construction: &ConstructionPlan,
     locals: &RenderLocals,
     root_names: &HashSet<String>,
-    root_impl: bool,
 ) -> syn::Result<Vec<TokenStream>> {
-    let call_writer = if root_impl {
-        quote! { &mut writer }
-    } else {
-        quote! { writer }
-    };
+    let call_writer = quote! { writer };
     let method_writer = quote! { writer };
     let fields = construction
         .fields()
@@ -552,134 +595,316 @@ fn render_atoms(
     construction
         .atoms()
         .iter()
-        .map(|atom| match atom {
-            AtomPlan::Literal(value) => {
-                if value.chars().count() == 1
-                    && value
-                        .chars()
-                        .all(|character| character.is_ascii_punctuation())
-                {
-                    let mark = value
-                        .chars()
-                        .next()
-                        .ok_or_else(|| internal("one punctuation character is absent"))?;
-                    Ok(quote! { #method_writer.punctuation(#mark); })
-                } else {
-                    let literal = syn::LitStr::new(value, Span::call_site());
-                    Ok(quote! { #method_writer.word(#literal); })
+        .enumerate()
+        .map(|(atom_index, atom)| {
+            let statement = match atom {
+                AtomPlan::Literal(value) => {
+                    if value.chars().count() == 1
+                        && value
+                            .chars()
+                            .all(|character| character.is_ascii_punctuation())
+                    {
+                        let mark = value
+                            .chars()
+                            .next()
+                            .ok_or_else(|| internal("one punctuation character is absent"))?;
+                        Ok(quote! { #method_writer.punctuation(#mark); })
+                    } else {
+                        let literal = syn::LitStr::new(value, Span::call_site());
+                        Ok(quote! { #method_writer.word(#literal); })
+                    }
                 }
-            }
-            AtomPlan::Category { role, .. } => {
-                let field = fields
-                    .get(role)
-                    .ok_or_else(|| internal("resolved role is absent"))?;
-                if field.kind() != ConstructionFieldKind::Category {
-                    return Err(internal("bare role is not a category"));
-                }
-                let category = field.terminal();
-                let helper = render_category_name(category, root_names.contains(category));
-                let value = field_value(construction, role, locals)?;
-                let capability = validated.category_render_capability(category);
-                let agreement = if capability.requires_external_agreement() {
-                    role_agreement(validated, construction, role, locals)?
-                } else {
-                    None
-                };
-                let context = capability.requires_context().then(|| quote! { context });
-                let environment = validated
-                    .needs_parser_environment()
-                    .then(|| quote! { environment });
-                let tail = signature_tail(&[agreement, context, environment]);
-                Ok(quote! { #helper(#call_writer, #value #tail); })
-            }
-            AtomPlan::Lex { role, .. } => {
-                let field = fields
-                    .get(role)
-                    .ok_or_else(|| internal("resolved lexical role is absent"))?;
-                let terminal = field.terminal();
-                let value = field_value(construction, role, locals)?;
-                if let Some(vocab) = find_vocab(validated, terminal) {
-                    let function = ident(&format!("render_{}", snake_case(vocab.name())));
-                    let value = copy_value(construction, role, value);
-                    Ok(quote! { #function(#call_writer, #value); })
-                } else if let Some(codec) = find_signed_decimal(validated, terminal) {
-                    let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
-                    Ok(quote! { #function(#call_writer, #value); })
-                } else {
-                    let binding = find_binding(validated, terminal)?;
-                    let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
-                        return Err(internal("lex terminal lacks runtime render binding"));
+                AtomPlan::Category { role, .. } => {
+                    let field = fields
+                        .get(role)
+                        .ok_or_else(|| internal("resolved role is absent"))?;
+                    if field.kind() != ConstructionFieldKind::Category {
+                        return Err(internal("bare role is not a category"));
+                    }
+                    let category = field.terminal();
+                    let helper = render_category_name(category, root_names.contains(category));
+                    let value = field_value(construction, role, locals)?;
+                    let capability = validated.category_render_capability(category);
+                    let agreement = if capability.requires_external_agreement() {
+                        role_agreement(validated, construction, role, locals)?
+                    } else {
+                        None
                     };
-                    let value = match binding.traversal().mode() {
-                        VisitMode::Copy => copy_value(construction, role, value),
-                        VisitMode::Borrowed => value,
-                    };
-                    Ok(quote! { #function(#call_writer, #value); })
+                    let context = capability.requires_context().then(|| quote! { context });
+                    let environment = validated
+                        .needs_parser_environment()
+                        .then(|| quote! { environment });
+                    let tail = signature_tail(&[agreement, context, environment]);
+                    return Ok(quote! { #helper(#call_writer, #value #tail); });
                 }
-            }
-            AtomPlan::Identity { role, .. } => {
-                let field = fields
-                    .get(role)
-                    .ok_or_else(|| internal("resolved identity role is absent"))?;
-                let value = field_value(construction, role, locals)?;
-                if find_context_identity(validated, field.terminal()).is_some() {
-                    let value = copy_value(construction, role, value);
-                    return Ok(quote! { #method_writer.identity((#value).surface(context)); });
-                }
-                let binding = find_binding(validated, field.terminal())?;
-                match binding
-                    .render()
-                    .ok_or_else(|| internal("identity lacks render metadata"))?
-                {
-                    BindingRenderPlan::Runtime(function) => {
+                AtomPlan::Lex { role, .. } => {
+                    let field = fields
+                        .get(role)
+                        .ok_or_else(|| internal("resolved lexical role is absent"))?;
+                    let terminal = field.terminal();
+                    let value = field_value(construction, role, locals)?;
+                    if let Some(vocab) = find_vocab(validated, terminal) {
+                        let function = ident(&format!("render_{}", snake_case(vocab.name())));
+                        let value = copy_value(construction, role, value);
+                        Ok(quote! { #function(#call_writer, #value); })
+                    } else if let Some(codec) = find_signed_decimal(validated, terminal) {
+                        let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
+                        Ok(quote! { #function(#call_writer, #value); })
+                    } else {
+                        let binding = find_binding(validated, terminal)?;
+                        let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
+                            return Err(internal("lex terminal lacks runtime render binding"));
+                        };
                         let value = match binding.traversal().mode() {
                             VisitMode::Copy => copy_value(construction, role, value),
                             VisitMode::Borrowed => value,
                         };
-                        Ok(quote! { #function(#call_writer, #value, context); })
-                    }
-                    BindingRenderPlan::ContextIdentity(arms) => {
-                        let ty = binding.value_type_name();
-                        let match_arms = arms.iter().map(|arm| {
-                            let variant = arm.variant();
-                            let accessor = arm.accessor();
-                            crate::emit::call_match_arm(
-                                &quote! { #ty::#variant },
-                                &quote! { #method_writer.identity(context.#accessor()) },
-                                12,
-                            )
-                        });
-                        let value = match binding.traversal().mode() {
-                            VisitMode::Copy => copy_value(construction, role, value),
-                            VisitMode::Borrowed => value,
-                        };
-                        Ok(quote! { match #value { #(#match_arms),* } })
+                        Ok(quote! { #function(#call_writer, #value); })
                     }
                 }
-            }
-            AtomPlan::VerbFixed { path: variant, .. } => {
-                let agreement = verb_agreement(validated, construction, locals)?;
-                Ok(quote! { #method_writer.word(inflect(#variant, #agreement)); })
-            }
-            AtomPlan::OpenDeclaration(open) => {
-                render_open_declaration(validated, construction, open, locals, &method_writer)
-            }
-            AtomPlan::Noun { role, .. } => {
-                let field = fields
-                    .get(role)
-                    .ok_or_else(|| internal("resolved noun role is absent"))?;
-                render_noun_atom(
-                    validated,
-                    construction,
-                    field,
-                    role,
-                    locals,
-                    &method_writer,
-                    &call_writer,
-                )
-            }
+                AtomPlan::Identity { role, .. } => {
+                    let field = fields
+                        .get(role)
+                        .ok_or_else(|| internal("resolved identity role is absent"))?;
+                    let value = field_value(construction, role, locals)?;
+                    if find_context_identity(validated, field.terminal()).is_some() {
+                        let value = copy_value(construction, role, value);
+                        Ok(quote! { #method_writer.identity((#value).surface(context)); })
+                    } else {
+                        let binding = find_binding(validated, field.terminal())?;
+                        match binding
+                            .render()
+                            .ok_or_else(|| internal("identity lacks render metadata"))?
+                        {
+                            BindingRenderPlan::Runtime(function) => {
+                                let value = match binding.traversal().mode() {
+                                    VisitMode::Copy => copy_value(construction, role, value),
+                                    VisitMode::Borrowed => value,
+                                };
+                                Ok(quote! { #function(#call_writer, #value, context); })
+                            }
+                            BindingRenderPlan::ContextIdentity(arms) => {
+                                let ty = binding.value_type_name();
+                                let match_arms = arms.iter().map(|arm| {
+                                    let variant = arm.variant();
+                                    let accessor = arm.accessor();
+                                    crate::emit::call_match_arm(
+                                        &quote! { #ty::#variant },
+                                        &quote! { #method_writer.identity(context.#accessor()) },
+                                        12,
+                                    )
+                                });
+                                let value = match binding.traversal().mode() {
+                                    VisitMode::Copy => copy_value(construction, role, value),
+                                    VisitMode::Borrowed => value,
+                                };
+                                Ok(quote! { match #value { #(#match_arms),* } })
+                            }
+                        }
+                    }
+                }
+                AtomPlan::VerbFixed { path: variant, .. } => {
+                    let agreement = verb_agreement(validated, construction, locals)?;
+                    Ok(quote! { #method_writer.word(inflect(#variant, #agreement)); })
+                }
+                AtomPlan::OpenDeclaration(open) => {
+                    render_open_declaration(validated, construction, open, locals, &method_writer)
+                }
+                AtomPlan::Noun { role, .. } => {
+                    let field = fields
+                        .get(role)
+                        .ok_or_else(|| internal("resolved noun role is absent"))?;
+                    render_noun_atom(
+                        validated,
+                        construction,
+                        field,
+                        role,
+                        locals,
+                        &method_writer,
+                        &call_writer,
+                    )
+                }
+            }?;
+            let owner = render_owner(validated, construction, atom_index, atom, locals)?;
+            Ok(quote! {
+                #method_writer.claim(
+                    || #owner,
+                    |writer| { #statement },
+                );
+            })
         })
         .collect()
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "the exhaustive generated owner lowering keeps every atom family visibly aligned"
+)]
+fn render_owner(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    atom_index: usize,
+    atom: &AtomPlan,
+    locals: &RenderLocals,
+) -> syn::Result<TokenStream> {
+    match atom {
+        AtomPlan::Literal(_) => {
+            let stable_id = syn::LitStr::new(
+                &format!(
+                    "form:{}/{}/{}",
+                    construction.construction_id(),
+                    construction.form(),
+                    atom_index,
+                ),
+                Span::call_site(),
+            );
+            Ok(quote! {
+                LexicalOwner::static_owner(
+                    LexicalProvenanceKind::FormLiteral,
+                    #stable_id,
+                )
+            })
+        }
+        AtomPlan::Category { .. } => Err(internal("category atoms do not own lexical spans")),
+        AtomPlan::Lex { role, .. } => {
+            let field = construction.field(role)?;
+            let terminal = field.terminal();
+            let value = field_value(construction, role, locals)?;
+            if let Some(vocab) = find_vocab(validated, terminal) {
+                let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
+                let value = copy_value(construction, role, value);
+                let arms = vocab.variants().iter().map(|variant| {
+                    let member =
+                        emitted_ident(&identifier_key(variant.name()), variant.name().span());
+                    let stable_id = syn::LitStr::new(
+                        &format!("vocab:{}/{}", vocab.name(), member),
+                        Span::call_site(),
+                    );
+                    quote! {
+                        #ty::#member => LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Vocab,
+                            #stable_id,
+                        )
+                    }
+                });
+                return Ok(quote! { match #value { #(#arms,)* } });
+            }
+            let (kind, prefix) = if find_signed_decimal(validated, terminal).is_some() {
+                (quote! { LexicalProvenanceKind::Codec }, "codec")
+            } else {
+                let binding = find_binding(validated, terminal)?;
+                match binding.kind() {
+                    crate::model::TerminalBindingKind::Codec => {
+                        (quote! { LexicalProvenanceKind::Codec }, "codec")
+                    }
+                    crate::model::TerminalBindingKind::Identity => {
+                        (quote! { LexicalProvenanceKind::Identity }, "identity")
+                    }
+                }
+            };
+            let stable_id = syn::LitStr::new(&format!("{prefix}:{terminal}"), Span::call_site());
+            Ok(quote! { LexicalOwner::static_owner(#kind, #stable_id) })
+        }
+        AtomPlan::Identity { role, .. } => {
+            let field = construction.field(role)?;
+            let terminal = field.terminal();
+            let value = field_value(construction, role, locals)?;
+            if let Some(identity) = find_context_identity(validated, terminal) {
+                let ty = identity.ident();
+                let value = copy_value(construction, role, value);
+                let arms = identity.arms().iter().map(|arm| {
+                    let member = arm.variant();
+                    let stable_id = syn::LitStr::new(
+                        &format!("identity:{terminal}/{member}"),
+                        Span::call_site(),
+                    );
+                    quote! {
+                        #ty::#member => LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Identity,
+                            #stable_id,
+                        )
+                    }
+                });
+                return Ok(quote! { match #value { #(#arms,)* } });
+            }
+            let stable_id = syn::LitStr::new(&format!("identity:{terminal}"), Span::call_site());
+            Ok(quote! {
+                LexicalOwner::static_owner(LexicalProvenanceKind::Identity, #stable_id)
+            })
+        }
+        AtomPlan::VerbFixed {
+            terminal, variant, ..
+        } => {
+            let stable_id =
+                syn::LitStr::new(&format!("lexeme:{terminal}/{variant}"), Span::call_site());
+            Ok(quote! {
+                LexicalOwner::static_owner(LexicalProvenanceKind::Lexeme, #stable_id)
+            })
+        }
+        AtomPlan::OpenDeclaration(open) => {
+            let agreement = verb_agreement(validated, construction, locals)?;
+            let feature = quote! {
+                match #agreement {
+                    Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                    Agreement::ThirdPersonSingular => {
+                        ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                    }
+                }
+            };
+            let kind = crate::emit::declaration_kind(open.kind());
+            let name = syn::LitStr::new(open.name(), Span::call_site());
+            Ok(quote! {{
+                let id = ::macro_ron::v2::DeclarationIdentity::new(#kind, #name);
+                LexicalOwner::owned(
+                    LexicalProvenanceKind::Lexeme,
+                    declaration_lexeme_owner_id(&id, #feature),
+                )
+            }})
+        }
+        AtomPlan::Noun { role, .. } => {
+            let field = construction.field(role)?;
+            let value = field_value(construction, role, locals)?;
+            let Some(codec) = validated
+                .runtime_declaration_noun()
+                .filter(|codec| codec.codec_name() == field.terminal())
+            else {
+                let stable_id =
+                    syn::LitStr::new(&format!("codec:{}", field.terminal()), Span::call_site());
+                return Ok(quote! {
+                    LexicalOwner::static_owner(LexicalProvenanceKind::Codec, #stable_id)
+                });
+            };
+            let noun = codec.codec_ident();
+            let closed = codec.closed_lexeme();
+            let closed_arms = validated
+                .runtime_noun_lexeme()
+                .expect("validated declaration noun has a closed lexeme")
+                .variants()
+                .iter()
+                .map(|member| {
+                    let stable_id =
+                        syn::LitStr::new(&format!("lexeme:{closed}/{member}"), Span::call_site());
+                    quote! {
+                        #noun::Lexeme(#closed::#member) => LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Lexeme,
+                            #stable_id,
+                        )
+                    }
+                });
+            Ok(quote! {
+                match #value {
+                    #(#closed_arms,)*
+                    #noun::Declaration(declaration) => LexicalOwner::owned(
+                        LexicalProvenanceKind::Lexeme,
+                        declaration_lexeme_owner_id(
+                            declaration.id(),
+                            declaration.feature(),
+                        ),
+                    ),
+                }
+            })
+        }
+    }
 }
 
 fn render_noun_atom(
@@ -1540,7 +1765,9 @@ mod tests {
             .items()
             .iter()
             .filter(|item| match &item.key {
-                crate::ItemKey::Impl { trait_name, .. } => trait_name.as_deref() == Some("Render"),
+                crate::ItemKey::Impl { trait_name, .. } => {
+                    trait_name.is_none() || trait_name.as_deref() == Some("Render")
+                }
                 crate::ItemKey::Named {
                     kind: crate::NamedKind::Function,
                     name,
@@ -1559,7 +1786,7 @@ mod tests {
             "render_marker (writer , * agreement_2)",
             "inflect (Verbs :: Act , agreement)",
             "RootNode { writer : writer_2 , context : context_2",
-            "render_marker (& mut writer , * writer_2)",
+            "render_marker (writer , * writer_2)",
             "writer . identity (context . card_name ())",
             "match * context_2",
             "fn render_writer_word (writer : & mut Writer , writer_2 : WriterWord)",
@@ -1609,7 +1836,7 @@ mod tests {
             "the derived feature helper must read the declared source role: {source}"
         );
         assert!(
-            source.contains("render_head (& mut writer , head , number_for_phrase (self))"),
+            source.contains("render_head (writer , head , number_for_phrase (self))"),
             "noun rendering must consume the construction feature helper: {source}"
         );
     }
@@ -1655,8 +1882,8 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         for fragment in [
-            "render_head (& mut writer , left , number_for_phrase (self))",
-            "render_head (& mut writer , right , number_for_phrase (self))",
+            "render_head (writer , left , number_for_phrase (self))",
+            "render_head (writer , right , number_for_phrase (self))",
         ] {
             assert!(source.contains(fragment), "missing `{fragment}`: {source}");
         }
@@ -1684,8 +1911,8 @@ mod tests {
         let implementation = expansion
             .items()
             .iter()
-            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.as_deref() == Some("Render")))
-            .expect("root Render impl");
+            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.is_none()))
+            .expect("root write impl");
         let source = implementation.tokens.to_string();
         assert!(
             source.contains("agreement_for_person (* person)"),
@@ -1743,8 +1970,8 @@ mod tests {
         let implementation = expansion
             .items()
             .iter()
-            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.as_deref() == Some("Render")))
-            .expect("root Render impl");
+            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.is_none()))
+            .expect("root write impl");
         let syn::Item::Impl(item) = parse(implementation) else {
             panic!("root render is an impl");
         };
@@ -1753,7 +1980,7 @@ mod tests {
         };
         let body = method.block.to_token_stream().to_string();
         assert!(body.contains("mixed . hidden ()"));
-        assert!(body.contains("render_child (\u{26} mut writer , \u{26} mixed . child)"));
+        assert!(body.contains("render_child (writer , \u{26} mixed . child)"));
     }
 
     #[test]
@@ -1786,8 +2013,8 @@ mod tests {
         let implementation = expansion
             .items()
             .iter()
-            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.as_deref() == Some("Render")))
-            .expect("root Render impl");
+            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.is_none()))
+            .expect("root write impl");
         let source = implementation.tokens.to_string();
         assert!(
             !source.contains("agreement_for_subject (subject)"),
@@ -1798,7 +2025,7 @@ mod tests {
             "a category without an agreement parameter must not receive a stray argument: {source}",
         );
         assert!(
-            source.contains("render_predicate (& mut writer , & checked_root . predicate)"),
+            source.contains("render_predicate (writer , & checked_root . predicate)"),
             "checked role rendering must still use its declared field access: {source}",
         );
     }
@@ -1823,8 +2050,13 @@ mod tests {
             &render_impls[0].key,
             crate::ItemKey::Impl { self_ty, .. } if self_ty == "Action"
         ));
-        let syn::Item::Impl(item) = parse(render_impls[0]) else {
-            panic!("root render item is an impl");
+        let write_impl = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Action" && trait_name.is_none()))
+            .expect("root write impl");
+        let syn::Item::Impl(item) = parse(write_impl) else {
+            panic!("root write item is an impl");
         };
         let syn::ImplItem::Fn(method) = &item.items[0] else {
             panic!("root render impl contains a method");
@@ -1845,7 +2077,13 @@ mod tests {
             .items()
             .iter()
             .filter(|item| match &item.key {
-                crate::ItemKey::Impl { trait_name, .. } => trait_name.as_deref() == Some("Render"),
+                crate::ItemKey::Impl {
+                    self_ty,
+                    trait_name,
+                } => {
+                    self_ty == "Document"
+                        && (trait_name.is_none() || trait_name.as_deref() == Some("Render"))
+                }
                 crate::ItemKey::Named {
                     kind: crate::NamedKind::Function,
                     name,
@@ -1861,12 +2099,21 @@ mod tests {
             render
                 .iter()
                 .map(|item| match &item.key {
-                    crate::ItemKey::Impl { self_ty, .. } => format!("impl Render for {self_ty}"),
+                    crate::ItemKey::Impl {
+                        self_ty,
+                        trait_name: Some(_),
+                    } => format!("impl Render for {self_ty}"),
+                    crate::ItemKey::Impl {
+                        self_ty,
+                        trait_name: None,
+                    } => format!("impl {self_ty}"),
                     crate::ItemKey::Named { name, .. } => name.clone(),
                 })
                 .collect::<Vec<_>>(),
             [
+                "impl Document",
                 "impl Render for Document",
+                "render_document_with_claims",
                 "render_expr",
                 "render_predicate",
                 "render_tag",
@@ -1887,6 +2134,8 @@ mod tests {
                 .collect::<Vec<_>>(),
             [
                 vec!["Document"],
+                vec!["Document"],
+                vec!["Document"],
                 vec!["leaf", "nested"],
                 vec!["action", "idle"],
                 vec!["solo"],
@@ -1899,17 +2148,17 @@ mod tests {
         let root = parse(render[0]).to_token_stream().to_string();
         for fragment in [
             "Self :: Document (document)",
-            "render_expr (& mut writer , & document . subject)",
-            "render_predicate (& mut writer , & document . predicate , agreement_for_expr (& document . subject))",
+            "render_expr (writer , & document . subject)",
+            "render_predicate (writer , & document . predicate , agreement_for_expr (& document . subject))",
             "Handle :: Primary => writer . identity (context . primary_name ())",
             "Handle :: Alias => writer . identity (context . alias_name ())",
-            "render_pair (& mut writer , document . pair ())",
+            "render_pair (writer , document . pair ())",
             "writer . punctuation ('!')",
         ] {
             assert!(root.contains(fragment), "root render lacks `{fragment}`");
         }
 
-        let agreement = parse(render[5]).to_token_stream().to_string();
+        let agreement = parse(render[7]).to_token_stream().to_string();
         assert!(agreement.contains("Expr :: Leaf"));
         assert!(
             agreement.contains(
@@ -1920,7 +2169,7 @@ mod tests {
         assert!(agreement.contains("Expr :: Nested"));
         assert!(agreement.contains("agreement_for_expr (nested . next ())"));
 
-        let number = parse(render[6]).to_token_stream().to_string();
+        let number = parse(render[8]).to_token_stream().to_string();
         assert!(number.contains("mode : Mode :: Solo , resource : _ }) => Number :: Singular"));
         assert!(number.contains("mode : Mode :: Group , resource : _ }) => Number :: Plural"));
         assert!(number.contains("number_for_expr (nested . next ())"));

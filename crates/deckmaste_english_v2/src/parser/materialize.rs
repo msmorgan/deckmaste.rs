@@ -11,6 +11,8 @@ use super::engine::Forest;
 use super::engine::NodeId;
 use super::engine::Rule;
 use super::engine::RulePosition;
+use super::engine::SpannedLexical;
+use super::ownership::RawLexicalClaim;
 use super::selection::specificity_tiers;
 use crate::ast::Ability;
 use crate::ast::Amount;
@@ -23,6 +25,7 @@ use crate::constructions::Category;
 use crate::constructions::Construction;
 use crate::constructions::Leaf;
 use crate::constructions::Lexical;
+use crate::constructions::LexicalOwner;
 use crate::constructions::LexicalTerminal;
 use crate::constructions::RULES;
 use crate::constructions::RuleId;
@@ -42,11 +45,15 @@ pub(crate) enum BuildValue {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct MaterializedCandidate<V, C, K = Category, M = Lexical> {
+pub(super) struct MaterializedCandidate<V, C, K = Category, M = Lexical, T = (), O = ()> {
     pub(super) value: V,
     pub(super) constructions: Vec<C>,
     pub(super) positions: Vec<RulePosition<K, M>>,
+    pub(super) claims: Vec<SpannedLexical<T, O>>,
 }
+
+type MaterializedMemo<V, C, K, M, T, O> =
+    BTreeMap<NodeId, Vec<MaterializedCandidate<V, C, K, M, T, O>>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Candidate {
@@ -54,6 +61,8 @@ pub(crate) struct Candidate {
     pub constructions: Vec<Construction>,
     pub positions: Vec<RulePosition<Category, Lexical>>,
     pub specificity: Vec<super::SpecificityTier>,
+    pub claims: Vec<RawLexicalClaim>,
+    pub synthetic_claims: Vec<crate::parser::TextSpan>,
 }
 
 trait MaterializationObservation<C> {
@@ -73,12 +82,12 @@ impl MaterializationObservation<Construction> for MaterializationTraceBuilder {
     }
 }
 
-struct MaterializationStateFor<V, C, K = Category, M = Lexical> {
-    memo: BTreeMap<NodeId, Vec<MaterializedCandidate<V, C, K, M>>>,
+struct MaterializationStateFor<V, C, K = Category, M = Lexical, T = (), O = ()> {
+    memo: MaterializedMemo<V, C, K, M, T, O>,
     in_progress: BTreeSet<NodeId>,
 }
 
-impl<V, C, K, M> Default for MaterializationStateFor<V, C, K, M> {
+impl<V, C, K, M, T, O> Default for MaterializationStateFor<V, C, K, M, T, O> {
     fn default() -> Self {
         Self {
             memo: BTreeMap::new(),
@@ -87,14 +96,17 @@ impl<V, C, K, M> Default for MaterializationStateFor<V, C, K, M> {
     }
 }
 
-struct MaterializationOutcomeFor<V, C, K = Category, M = Lexical> {
-    values: Vec<MaterializedCandidate<V, C, K, M>>,
+struct MaterializationOutcomeFor<V, C, K = Category, M = Lexical, T = (), O = ()> {
+    values: Vec<MaterializedCandidate<V, C, K, M, T, O>>,
     cycle_pruned: bool,
 }
 
-type MaterializationState = MaterializationStateFor<BuildValue, Construction>;
 #[cfg(test)]
-type MaterializationOutcome = MaterializationOutcomeFor<BuildValue, Construction>;
+type MaterializationState =
+    MaterializationStateFor<BuildValue, Construction, Category, Lexical, Leaf>;
+#[cfg(test)]
+type MaterializationOutcome =
+    MaterializationOutcomeFor<BuildValue, Construction, Category, Lexical, Leaf>;
 
 struct MaterializationKernel<'a, R, T, V, C, K: 'static, L: 'static, M, Build> {
     rules: &'a [Rule<K, L, R>],
@@ -113,15 +125,17 @@ where
     K: Copy + PartialEq + 'static,
     L: Copy + 'static,
     M: Clone + PartialEq,
+    T: Clone + PartialEq,
     Build: Fn(R, &[V]) -> Option<V>,
 {
-    fn materialize<O>(
+    fn materialize<Owner, O>(
         &self,
-        forest: &Forest<R, T>,
+        forest: &Forest<R, T, Owner>,
         observation: &mut O,
-    ) -> Vec<MaterializedCandidate<V, C, K, M>>
+    ) -> Vec<MaterializedCandidate<V, C, K, M, T, Owner>>
     where
         O: MaterializationObservation<C>,
+        Owner: Clone + PartialEq,
     {
         let mut candidates = Vec::new();
         let mut state = MaterializationStateFor::default();
@@ -143,16 +157,17 @@ where
         candidates
     }
 
-    fn materialize_node<O>(
+    fn materialize_node<Owner, O>(
         &self,
-        forest: &Forest<R, T>,
+        forest: &Forest<R, T, Owner>,
         node_id: NodeId,
-        state: &mut MaterializationStateFor<V, C, K, M>,
+        state: &mut MaterializationStateFor<V, C, K, M, T, Owner>,
         construction_path: &mut Vec<C>,
         observation: &mut O,
-    ) -> MaterializationOutcomeFor<V, C, K, M>
+    ) -> MaterializationOutcomeFor<V, C, K, M, T, Owner>
     where
         O: MaterializationObservation<C>,
+        Owner: Clone + PartialEq,
     {
         if let Some(values) = state.memo.get(&node_id) {
             return MaterializationOutcomeFor {
@@ -195,17 +210,18 @@ where
         }
     }
 
-    fn materialize_family<O>(
+    fn materialize_family<Owner, O>(
         &self,
-        forest: &Forest<R, T>,
+        forest: &Forest<R, T, Owner>,
         rule_id: R,
-        family: &Family<T>,
-        state: &mut MaterializationStateFor<V, C, K, M>,
+        family: &Family<T, Owner>,
+        state: &mut MaterializationStateFor<V, C, K, M, T, Owner>,
         construction_path: &mut Vec<C>,
         observation: &mut O,
-    ) -> MaterializationOutcomeFor<V, C, K, M>
+    ) -> MaterializationOutcomeFor<V, C, K, M, T, Owner>
     where
         O: MaterializationObservation<C>,
+        Owner: Clone + PartialEq,
     {
         let rule = &self.rules[(self.rule_index)(rule_id)];
         let construction = (self.construction)(rule_id);
@@ -222,10 +238,11 @@ where
                     cycle_pruned |= outcome.cycle_pruned;
                     outcome.values
                 }
-                Child::Lexical(leaf) => vec![MaterializedCandidate {
-                    value: (self.build_leaf)(leaf),
+                Child::Lexical(lexical) => vec![MaterializedCandidate {
+                    value: (self.build_leaf)(&lexical.value),
                     constructions: Vec::new(),
                     positions: Vec::new(),
+                    claims: vec![lexical.clone()],
                 }],
             };
             let mut next = Vec::new();
@@ -256,16 +273,20 @@ where
                         }
                     })
                     .collect::<Vec<_>>();
+                let mut claims = Vec::new();
                 for child in children {
                     constructions.extend(child.constructions);
                     positions.extend(child.positions);
+                    claims.extend(child.claims);
                 }
+                claims.sort_by_key(|claim| (claim.span.start, claim.span.end));
                 push_unique(
                     &mut values,
                     MaterializedCandidate {
                         value,
                         constructions,
                         positions,
+                        claims,
                     },
                 );
             }
@@ -281,15 +302,15 @@ where
 }
 
 #[cfg(test)]
-pub(super) fn materialize_with<R, T, V, C, K, L, M, Build>(
-    forest: &Forest<R, T>,
+pub(super) fn materialize_with<R, T, O, V, C, K, L, M, Build>(
+    forest: &Forest<R, T, O>,
     rules: &[Rule<K, L, R>],
     rule_index: fn(R) -> usize,
     construction: fn(R) -> C,
     lexical_matcher: fn(L) -> M,
     build_leaf: fn(&T) -> V,
     build: Build,
-) -> Vec<MaterializedCandidate<V, C, K, M>>
+) -> Vec<MaterializedCandidate<V, C, K, M, T, O>>
 where
     R: Copy,
     V: Clone + PartialEq,
@@ -297,6 +318,8 @@ where
     K: Copy + PartialEq + 'static,
     L: Copy + 'static,
     M: Clone + PartialEq,
+    T: Clone + PartialEq,
+    O: Clone + PartialEq,
     Build: Fn(R, &[V]) -> Option<V>,
 {
     MaterializationKernel {
@@ -311,7 +334,7 @@ where
 }
 
 pub(crate) fn materialize(
-    forest: &Forest<RuleId, Leaf>,
+    forest: &Forest<RuleId, Leaf, LexicalOwner>,
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
 ) -> Vec<Candidate> {
@@ -328,7 +351,7 @@ pub(crate) fn materialize(
 }
 
 pub(crate) fn materialize_observed(
-    forest: &Forest<RuleId, Leaf>,
+    forest: &Forest<RuleId, Leaf, LexicalOwner>,
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
     limits: TraceLimits,
@@ -353,7 +376,9 @@ pub(crate) fn materialize_observed(
 }
 
 fn finalize_candidates(
-    built_values: Vec<MaterializedCandidate<BuildValue, Construction>>,
+    built_values: Vec<
+        MaterializedCandidate<BuildValue, Construction, Category, Lexical, Leaf, LexicalOwner>,
+    >,
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
     mut observation: Option<(&mut MaterializationTraceBuilder, TraceLimits)>,
@@ -361,11 +386,30 @@ fn finalize_candidates(
     let mut candidates = Vec::new();
     for built in built_values {
         if let BuildValue::Ability(ability) = built.value {
+            let mut claims = Vec::new();
+            let mut synthetic_claims = Vec::new();
+            for claim in built.claims {
+                match claim.owner {
+                    Some(owner) => claims.push(RawLexicalClaim {
+                        span: claim.span,
+                        value: claim.value,
+                        owner,
+                    }),
+                    None if !matches!(claim.value, Leaf::EndOfInput) => {
+                        synthetic_claims.push(claim.span);
+                    }
+                    None => {}
+                }
+            }
+            #[cfg(test)]
+            super::count_pipeline_stage(super::PipelineStage::Specificity);
             let candidate = Candidate {
                 ability,
                 constructions: built.constructions,
                 specificity: specificity_tiers(&built.positions),
                 positions: built.positions,
+                claims,
+                synthetic_claims,
             };
             let ordinal = candidates.len();
             if push_unique(&mut candidates, candidate)
@@ -418,8 +462,8 @@ fn materialize_node(
 
 pub(super) fn completion_has_checked_build(
     rule: RuleId,
-    family: &Family<Leaf>,
-    forest: &Forest<RuleId, Leaf>,
+    family: &Family<Leaf, LexicalOwner>,
+    forest: &Forest<RuleId, Leaf, LexicalOwner>,
     context: &ParseContext<'_>,
 ) -> bool {
     let kernel: MaterializationKernel<
@@ -445,7 +489,14 @@ pub(super) fn completion_has_checked_build(
             forest,
             rule,
             family,
-            &mut MaterializationState::default(),
+            &mut MaterializationStateFor::<
+                BuildValue,
+                Construction,
+                Category,
+                Lexical,
+                Leaf,
+                LexicalOwner,
+            >::default(),
             &mut Vec::new(),
             &mut (),
         )
@@ -512,14 +563,26 @@ mod tests {
     use crate::parser::engine::NodeId;
     use crate::parser::engine::PackedNode;
     use crate::parser::engine::RulePosition;
+    use crate::parser::engine::SpannedLexical;
     use crate::parser::scan::SliceGrammar;
     use crate::parser::scan::parse_forest;
     use crate::render::Render;
 
+    fn lexical(value: Leaf) -> Child<Leaf> {
+        Child::Lexical(SpannedLexical {
+            span: crate::parser::TextSpan { start: 0, end: 1 },
+            value,
+            owner: None,
+        })
+    }
+
     fn slice_candidates(
         text: &str,
         card_name: &str,
-    ) -> Result<Forest<RuleId, Leaf>, ChartFailure<Category, Lexical>> {
+    ) -> Result<
+        Forest<RuleId, Leaf, crate::constructions::LexicalOwner>,
+        ChartFailure<Category, Lexical>,
+    > {
         let environment = canonical_test_environment();
         let context = context(card_name);
         let grammar = SliceGrammar {
@@ -554,7 +617,7 @@ mod tests {
         Family {
             children: vec![
                 Child::Node(body),
-                Child::Lexical(Leaf::Literal(",")),
+                lexical(Leaf::Literal(",")),
                 Child::Node(NodeId(4)),
             ],
         }
@@ -571,7 +634,7 @@ mod tests {
                         children: vec![Child::Node(NodeId(0))],
                     },
                     Family {
-                        children: vec![Child::Lexical(Leaf::SignedNumber(SignedNumber {
+                        children: vec![lexical(Leaf::SignedNumber(SignedNumber {
                             sign: Sign::Positive,
                             magnitude: 3,
                         }))],
@@ -597,7 +660,7 @@ mod tests {
                             children: vec![Child::Node(NodeId(1))],
                         },
                         Family {
-                            children: vec![Child::Lexical(Leaf::SignedNumber(SignedNumber {
+                            children: vec![lexical(Leaf::SignedNumber(SignedNumber {
                                 sign: Sign::Positive,
                                 magnitude: 3,
                             }))],
@@ -648,7 +711,7 @@ mod tests {
                     start: 0,
                     end: 0,
                     families: vec![Family {
-                        children: vec![Child::Lexical(Leaf::Declaration(DeclarationLeaf {
+                        children: vec![lexical(Leaf::Declaration(DeclarationLeaf {
                             id: DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
                             feature: SurfaceFeature::Bare,
                         }))],
@@ -660,15 +723,15 @@ mod tests {
                     end: 0,
                     families: vec![Family {
                         children: vec![
-                            Child::Lexical(Leaf::Literal("where")),
-                            Child::Lexical(Leaf::Variable(Variable::X)),
-                            Child::Lexical(Leaf::Verb {
+                            lexical(Leaf::Literal("where")),
+                            lexical(Leaf::Variable(Variable::X)),
+                            lexical(Leaf::Verb {
                                 lexeme: VerbLexeme::Be,
                                 agreement: Agreement::ThirdPersonSingular,
                             }),
-                            Child::Lexical(Leaf::Literal("the")),
-                            Child::Lexical(Leaf::Literal("number")),
-                            Child::Lexical(Leaf::Literal("of")),
+                            lexical(Leaf::Literal("the")),
+                            lexical(Leaf::Literal("number")),
+                            lexical(Leaf::Literal("of")),
                             Child::Node(NodeId(5)),
                         ],
                     }],
@@ -678,7 +741,7 @@ mod tests {
                     start: 0,
                     end: 0,
                     families: vec![Family {
-                        children: vec![Child::Lexical(Leaf::Pronoun(Pronoun::You))],
+                        children: vec![lexical(Leaf::Pronoun(Pronoun::You))],
                     }],
                 },
             ],
@@ -831,7 +894,41 @@ mod tests {
         );
     }
 
-    fn ability_forest_with_duplicate_root_cycles() -> Forest<RuleId, Leaf> {
+    #[test]
+    fn materialize_selected_provenance_is_surface_ordered() {
+        let forest = slice_candidates("Destroy target creature.", "Context Card").unwrap();
+        let environment = canonical_test_environment();
+        let candidates = materialize(&forest, &context("Context Card"), &environment);
+
+        let claims = &candidates[0].claims;
+        assert_eq!(
+            claims
+                .iter()
+                .map(|claim| (claim.span, claim.owner.stable_id()))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    crate::parser::TextSpan { start: 0, end: 7 },
+                    "lexeme:keyword_action/Destroy/bare",
+                ),
+                (
+                    crate::parser::TextSpan { start: 7, end: 14 },
+                    "form:target/target/0",
+                ),
+                (
+                    crate::parser::TextSpan { start: 14, end: 23 },
+                    "lexeme:type/Creature/singular",
+                ),
+                (
+                    crate::parser::TextSpan { start: 23, end: 24 },
+                    "root:Ability/punctuation",
+                ),
+            ]
+        );
+    }
+
+    fn ability_forest_with_duplicate_root_cycles()
+    -> Forest<RuleId, Leaf, crate::constructions::LexicalOwner> {
         let forest = slice_candidates("Destroy target creature.", "Context Card")
             .expect("ordinary slice forest");
         let root = forest

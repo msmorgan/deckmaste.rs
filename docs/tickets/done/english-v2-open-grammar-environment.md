@@ -56,3 +56,33 @@ round-trips, collision preservation, category isolation, deterministic
 diagnostics, no `ParserCatalogs` access below the provider boundary, no
 per-member generated construction or enum variant, and no public static
 lifetime in a registry owner ID. Standard constraints apply.
+
+## Completion evidence
+
+Completed by Stage 5 Plan 03 Tasks 4–10. Integrated declaration prerequisites:
+
+- schema: `pzqtovourwwrwqkykkprklosrrtvwkor`;
+- keyword actions: `tuuqyzvnswxmwmovkzzpynxlnsulwolr`,
+  `zmmzoyvpmtlwwzqllnluyzzqukokwovz`, and
+  `wqqxollnqlyqqmmxwumwktrlwvzttuko`;
+- creature subtypes: `zzuqpzsnkkvnlwmrsnnunnnrpzonowyy`, fixed by
+  `xkwpmqvunvupmxxkvuqomkovmksopqtk`;
+- noncreature subtypes: `uzvtlxvnqskrlxlwtznqxrplltqpozmz`;
+- card types: `zrzqtxtmxryruvnuouomyuzooyzqkxrz`, assurance fixed by
+  `mrtnuvopvlsxwzoqzwpytnmxluunrluw`.
+
+Synthetic fixtures prove novel open identities, category-safe homonyms,
+collision preservation, scan/render symmetry, shuffled-input determinism, and
+owned owner IDs. Final source scans find no catalog authority below the
+provider, no per-member open-family enum, and no public static-lifetime owner
+identity.
+
+Final corpus evidence: 32,285 total / 48 accepted / 32,237 ordinary failures,
+0 ambiguities and 0 internal failures; all 48 accepted units round-trip exactly
+and select uniquely. The prior 47 accepted IDs remain unchanged, with only the
+separately reviewed Rend Spirit ID
+`5a0bd9563d2e05ca394ee7bedc5e55f386f82ee16f4227c410565066c6585660`
+added. Probe and inspect JSON for Rend Spirit are byte-deterministic.
+
+Completion change: `xpomwntnkutrrrlsokukxxmmzlnvykxt`
+(`english v2: finish open grammar environment`).

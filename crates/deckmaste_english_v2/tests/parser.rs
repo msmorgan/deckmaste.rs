@@ -7,6 +7,7 @@ use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::BoundedParseOutcome;
 use deckmaste_english_v2::parser::Expectation;
+use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::ParseError;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::SelectionLoserReason;
@@ -314,12 +315,88 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
 }
 
 #[test]
+fn parser_analysis_retains_complete_lexical_ownership() {
+    let parser = parser();
+    let context = context("Context Card");
+    let analysis = parser.analyze("Destroy target creature.", &context);
+    let ownership = analysis.ownership().expect("selected parse owns terminals");
+    assert!(ownership.failures().is_empty());
+    assert!(ownership.summary().covered());
+    assert_eq!(ownership.parsed_claims().len(), 4);
+    assert_eq!(ownership.rendered_claims().len(), 4);
+    assert_eq!(ownership.rendered_text(), "Destroy target creature.");
+    let summary = ownership.summary();
+    assert_eq!((summary.claims(), summary.claimed_bytes()), (4, 24));
+    assert_eq!(
+        (summary.form_literal_claims(), summary.form_literal_bytes()),
+        (2, 8)
+    );
+    assert_eq!((summary.lexeme_claims(), summary.lexeme_bytes()), (2, 16));
+    assert_eq!(summary.vocab_claims(), 0);
+    assert_eq!(summary.codec_claims(), 0);
+    assert_eq!(summary.identity_claims(), 0);
+    assert_eq!(summary.gap_spans(), 0);
+    assert_eq!(summary.overlap_spans(), 0);
+    assert_eq!(summary.synthetic_claims(), 0);
+    assert_eq!(summary.provenance_plan_mismatches(), 0);
+}
+
+#[test]
+fn parser_analysis_ownership_covers_every_kind_unicode_and_multitoken_identity() {
+    let parser = parser();
+    let cases = [
+        (
+            "Whenever a player connives, that creature deals X damage to it.",
+            "Context Card",
+        ),
+        (
+            "Context Card deals 3 damage to target creature.",
+            "Context Card",
+        ),
+        ("Élan deals 3 damage to target creature.", "Élan"),
+    ];
+    let mut kinds = BTreeSet::new();
+    for (text, card_name) in cases {
+        let context = context(card_name);
+        let analysis = parser.analyze(text, &context);
+        let ownership = analysis.ownership().expect("selected parse owns terminals");
+        assert!(
+            ownership.failures().is_empty(),
+            "{text:?}: {:?}",
+            ownership.failures()
+        );
+        assert!(ownership.summary().covered(), "{text:?}");
+        assert_eq!(ownership.rendered_text(), text);
+        let mut cursor = 0;
+        for claim in ownership.parsed_claims() {
+            assert_eq!(claim.span().start, cursor, "{text:?}");
+            assert!(claim.span().end > claim.span().start, "{text:?}");
+            assert!(text.is_char_boundary(claim.span().start), "{text:?}");
+            assert!(text.is_char_boundary(claim.span().end), "{text:?}");
+            kinds.insert(claim.kind());
+            cursor = claim.span().end;
+        }
+        assert_eq!(cursor, text.len(), "{text:?}");
+    }
+    assert_eq!(
+        kinds,
+        BTreeSet::from([
+            LexicalProvenanceKind::FormLiteral,
+            LexicalProvenanceKind::Vocab,
+            LexicalProvenanceKind::Lexeme,
+            LexicalProvenanceKind::Codec,
+            LexicalProvenanceKind::Identity,
+        ])
+    );
+}
+
+#[test]
 fn parser_analysis_projects_representative_parse_failures_without_changing_them() {
     let parser = parser();
     for text in [
         "Destroy target creature",
         "You gains X life.",
-        "Destroy target Forest.",
+        "Destroy target flying.",
     ] {
         let context = context("Context Card");
         assert_eq!(
@@ -327,6 +404,7 @@ fn parser_analysis_projects_representative_parse_failures_without_changing_them(
             parser.analyze(text, &context).into_parse_result(),
             "{text:?}",
         );
+        assert!(parser.analyze(text, &context).ownership().is_none());
         for limit in [0, 1, usize::MAX] {
             assert_eq!(
                 parser.parse(text, &context),
