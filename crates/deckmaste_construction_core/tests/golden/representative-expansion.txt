@@ -1,6 +1,6 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
-    Leaf(Leaf),
+    Leaf(WordLeaf),
     Chain(Chain),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -8,7 +8,7 @@ pub enum Action {
     Action(ActionElement),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Leaf {
+pub struct WordLeaf {
     pub word: Words,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,6 +33,199 @@ pub enum Nouns {
 pub enum Verbs {
     Act,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum Agreement {
+    Bare,
+    ThirdPersonSingular,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum Number {
+    Singular,
+    Plural,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum FeatureConstraint<F> {
+    Exact(F),
+    Any,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum CasePosition {
+    DocumentInitial,
+    Continuation,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) struct ScanPosition {
+    pub(crate) byte_offset: usize,
+    pub(crate) case: CasePosition,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub struct DeclarationClass {
+    kind: ::macro_ron::v2::DeclarationKind,
+    position: ::macro_ron::v2::GrammarPosition,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) struct DeclarationMatcher {
+    pub(crate) kind: ::macro_ron::v2::DeclarationKind,
+    pub(crate) name: &'static str,
+    pub(crate) position: ::macro_ron::v2::GrammarPosition,
+    pub(crate) feature: FeatureConstraint<::macro_ron::v2::SurfaceFeature>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DeclarationLeaf {
+    pub(crate) id: ::macro_ron::v2::DeclarationIdentity,
+    pub(crate) feature: ::macro_ron::v2::SurfaceFeature,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum Lexical {
+    Literal(&'static str),
+    EndOfInput,
+    Words,
+    Noun(FeatureConstraint<Number>),
+    Verb(Verbs),
+    Declaration(DeclarationMatcher),
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Leaf {
+    Literal(&'static str),
+    EndOfInput,
+    Words(Words),
+    Noun { noun: Nouns, number: Number },
+    Verb { lexeme: Verbs, agreement: Agreement },
+    Declaration(DeclarationLeaf),
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub enum TerminalClass {
+    EndOfInput,
+    Words,
+    Noun,
+    VerbLexeme,
+    Declaration(DeclarationClass),
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) struct LexicalTerminal {
+    pub(crate) matcher: Lexical,
+    pub(crate) owner: LexicalOwnerTemplate,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub enum LexicalProvenanceKind {
+    FormLiteral,
+    Vocab,
+    Lexeme,
+    Codec,
+    Identity,
+    Declaration,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum LexicalOwnerTemplate {
+    None,
+    Static { kind: LexicalProvenanceKind, stable_id: &'static str },
+    Vocab { declaration: &'static str },
+    Lexeme { declaration: &'static str, member: &'static str },
+    Declaration { kind: ::macro_ron::v2::DeclarationKind, name: &'static str },
+}
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+pub struct LexicalOwner {
+    kind: LexicalProvenanceKind,
+    stable_id: String,
+}
+impl Lexical {
+    pub(crate) const fn class(self) -> TerminalClass {
+        match self {
+            Lexical::Literal(_) => unreachable!(),
+            Lexical::EndOfInput => TerminalClass::EndOfInput,
+            Lexical::Words => TerminalClass::Words,
+            Lexical::Noun(_) => TerminalClass::Noun,
+            Lexical::Verb(_) => TerminalClass::VerbLexeme,
+            Lexical::Declaration(matcher) => {
+                TerminalClass::Declaration(DeclarationClass {
+                    kind: matcher.kind,
+                    position: matcher.position,
+                })
+            }
+        }
+    }
+}
+impl LexicalTerminal {
+    pub(crate) const fn class(self) -> TerminalClass {
+        self.matcher.class()
+    }
+}
+impl TerminalClass {
+    pub const fn label(self) -> &'static str {
+        match self {
+            TerminalClass::EndOfInput => "end of input",
+            TerminalClass::Words => "words",
+            TerminalClass::Noun => "noun",
+            TerminalClass::VerbLexeme => "verb lexeme",
+            TerminalClass::Declaration(_) => "open declaration",
+        }
+    }
+}
+impl std::fmt::Display for TerminalClass {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.label())
+    }
+}
+impl DeclarationClass {
+    pub const fn kind(self) -> ::macro_ron::v2::DeclarationKind {
+        self.kind
+    }
+    pub const fn position(self) -> ::macro_ron::v2::GrammarPosition {
+        self.position
+    }
+}
+impl LexicalOwner {
+    pub const fn kind(&self) -> LexicalProvenanceKind {
+        self.kind
+    }
+    pub fn stable_id(&self) -> &str {
+        &self.stable_id
+    }
+}
+impl LexicalOwnerTemplate {
+    pub(crate) fn instantiate(self, value: &Leaf) -> Option<LexicalOwner> {
+        match (self, value) {
+            (LexicalOwnerTemplate::None, Leaf::EndOfInput) => None,
+            (LexicalOwnerTemplate::Static { kind, stable_id }, _) => {
+                Some(LexicalOwner {
+                    kind,
+                    stable_id: stable_id.to_owned(),
+                })
+            }
+            (
+                LexicalOwnerTemplate::Vocab { declaration: "Words" },
+                Leaf::Words(Words::First),
+            ) => {
+                Some(LexicalOwner {
+                    kind: LexicalProvenanceKind::Vocab,
+                    stable_id: "vocab:Words/First".to_owned(),
+                })
+            }
+            (
+                LexicalOwnerTemplate::Vocab { declaration: "Words" },
+                Leaf::Words(Words::Second),
+            ) => {
+                Some(LexicalOwner {
+                    kind: LexicalProvenanceKind::Vocab,
+                    stable_id: "vocab:Words/Second".to_owned(),
+                })
+            }
+            (LexicalOwnerTemplate::Lexeme { declaration, member }, _) => {
+                Some(LexicalOwner {
+                    kind: LexicalProvenanceKind::Lexeme,
+                    stable_id: format!("lexeme:{declaration}/{member}"),
+                })
+            }
+            (LexicalOwnerTemplate::Declaration { kind, name }, Leaf::Declaration(_)) => {
+                Some(LexicalOwner {
+                    kind: LexicalProvenanceKind::Declaration,
+                    stable_id: format!("declaration:{kind}/{name}"),
+                })
+            }
+            _ => unreachable!("validated lexical owner template/value mismatch"),
+        }
+    }
+}
 impl Render for Action {
     fn render(&self, context: &ParseContext<'_>) -> String {
         let mut writer = Writer::new();
@@ -48,7 +241,7 @@ impl Render for Action {
 }
 fn render_node(writer: &mut Writer, node: &Node) {
     match node {
-        Node::Leaf(Leaf { word }) => render_words(writer, *word),
+        Node::Leaf(WordLeaf { word }) => render_words(writer, *word),
         Node::Chain(chain) => {
             render_node(writer, chain.next());
             render_words(writer, *&chain.word);
@@ -68,8 +261,8 @@ pub trait Visitor {
     fn visit_action(&mut self, action: &Action) {
         walk_action(self, action);
     }
-    fn visit_leaf(&mut self, leaf: &Leaf) {
-        walk_leaf(self, leaf);
+    fn visit_word_leaf(&mut self, word_leaf: &WordLeaf) {
+        walk_word_leaf(self, word_leaf);
     }
     fn visit_chain(&mut self, chain: &Chain) {
         walk_chain(self, chain);
@@ -83,7 +276,7 @@ pub trait Visitor {
 }
 pub fn walk_node<V: Visitor + ?Sized>(visitor: &mut V, node: &Node) {
     match node {
-        Node::Leaf(leaf) => visitor.visit_leaf(leaf),
+        Node::Leaf(word_leaf) => visitor.visit_word_leaf(word_leaf),
         Node::Chain(chain) => visitor.visit_chain(chain),
     }
 }
@@ -92,8 +285,8 @@ pub fn walk_action<V: Visitor + ?Sized>(visitor: &mut V, action: &Action) {
         Action::Action(action_element) => visitor.visit_action_element(action_element),
     }
 }
-pub fn walk_leaf<V: Visitor + ?Sized>(visitor: &mut V, leaf: &Leaf) {
-    let Leaf { word } = leaf;
+pub fn walk_word_leaf<V: Visitor + ?Sized>(visitor: &mut V, word_leaf: &WordLeaf) {
+    let WordLeaf { word } = word_leaf;
     walk_words(visitor, *word);
 }
 pub fn walk_chain<V: Visitor + ?Sized>(visitor: &mut V, chain: &Chain) {
@@ -156,25 +349,55 @@ impl RuleId {
         self as usize
     }
 }
-pub(crate) const RULES: &[Rule<Category, Lexical, RuleId>] = &[
+pub(crate) const RULES: &[Rule<Category, LexicalTerminal, RuleId>] = &[
     Rule {
         id: RuleId::NodeLeaf,
         lhs: Category::Node,
-        rhs: &[L(Lexical::Words)],
+        rhs: &[
+            L(LexicalTerminal {
+                matcher: Lexical::Words,
+                owner: LexicalOwnerTemplate::Vocab {
+                    declaration: "Words",
+                },
+            }),
+        ],
     },
     Rule {
         id: RuleId::NodeChain,
         lhs: Category::Node,
-        rhs: &[N(Category::Node), L(Lexical::Words)],
+        rhs: &[
+            N(Category::Node),
+            L(LexicalTerminal {
+                matcher: Lexical::Words,
+                owner: LexicalOwnerTemplate::Vocab {
+                    declaration: "Words",
+                },
+            }),
+        ],
     },
     Rule {
         id: RuleId::ActionAction,
         lhs: Category::Action,
         rhs: &[
-            L(Lexical::Verb(Verbs::Act)),
+            L(LexicalTerminal {
+                matcher: Lexical::Verb(Verbs::Act),
+                owner: LexicalOwnerTemplate::Lexeme {
+                    declaration: "Verbs",
+                    member: "Act",
+                },
+            }),
             N(Category::Node),
-            L(Lexical::Literal(".")),
-            L(Lexical::EndOfInput),
+            L(LexicalTerminal {
+                matcher: Lexical::Literal("."),
+                owner: LexicalOwnerTemplate::Static {
+                    kind: LexicalProvenanceKind::FormLiteral,
+                    stable_id: "root:Action/punctuation",
+                },
+            }),
+            L(LexicalTerminal {
+                matcher: Lexical::EndOfInput,
+                owner: LexicalOwnerTemplate::None,
+            }),
         ],
     },
 ];
@@ -191,7 +414,7 @@ pub(super) fn build(
         RuleId::NodeLeaf => {
             match children {
                 [BuildValue::Leaf(Leaf::Words(words))] => {
-                    Some(BuildValue::Node(Node::Leaf(Leaf { word: *words })))
+                    Some(BuildValue::Node(Node::Leaf(WordLeaf { word: *words })))
                 }
                 _ => None,
             }

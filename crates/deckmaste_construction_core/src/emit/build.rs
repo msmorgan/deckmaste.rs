@@ -399,16 +399,16 @@ fn lower_terminal_role(
         } else {
             quote! { number: #number }
         };
-        let pattern_fields = names.iter().zip(&pattern_names).map(|(declared, emitted)| {
-            if declared == emitted {
-                quote! { #declared }
-            } else {
-                quote! { #declared: #emitted }
-            }
-        });
-        quote! { Leaf::#variant { #(#pattern_fields),*, #number_field } }
-    } else {
+        let [noun_value] = pattern_names.as_slice() else {
+            return Err(internal(
+                "noun terminal binding must expose exactly one build slot",
+            ));
+        };
+        quote! { Leaf::Noun { noun: #noun_value, #number_field } }
+    } else if build.construct_is_direct_slot() {
         quote! { Leaf::#variant(#(#pattern_names),*) }
+    } else {
+        quote! { Leaf::#variant(BoundLeaf::#variant(#(#pattern_names),*)) }
     };
     lowering.patterns.push(quote! { BuildValue::Leaf(#inner) });
     let construct = lower_build_recipe(build.recipe(), &substitutions)?;
@@ -1017,8 +1017,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
     match value {
         FeatureValue::Bare => quote! { Agreement::Bare },
         FeatureValue::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
-        FeatureValue::Singular => quote! { NounNumber::Singular },
-        FeatureValue::Plural => quote! { NounNumber::Plural },
+        FeatureValue::Singular => quote! { Number::Singular },
+        FeatureValue::Plural => quote! { Number::Plural },
     }
 }
 fn vocab_argument(name: &str) -> String {
@@ -1056,7 +1056,7 @@ mod tests {
         let items = super::emit(validated.semantic()).expect("role-derived noun build lowers");
         let source = items[0].tokens.to_string();
         assert!(
-            source.contains("Leaf :: Head { head , number }"),
+            source.contains("Leaf :: Noun { noun : head , number }"),
             "{source}"
         );
         assert!(
@@ -1117,8 +1117,8 @@ mod tests {
             .to_string();
         assert!(source.contains("number , right_number"), "{source}");
         assert!(
-            source.contains("Count :: One , NounNumber :: Singular , NounNumber :: Singular")
-                && source.contains("Count :: Many , NounNumber :: Plural , NounNumber :: Plural"),
+            source.contains("Count :: One , Number :: Singular , Number :: Singular")
+                && source.contains("Count :: Many , Number :: Plural , Number :: Plural"),
             "every noun scanner number must match the vocab-selected number: {source}"
         );
         assert!(source.contains("_ => None"), "{source}");
@@ -1157,7 +1157,7 @@ mod tests {
             .tokens
             .to_string();
         assert!(
-            source.contains("Leaf :: Head { head , number : NounNumber :: Singular }")
+            source.contains("Leaf :: Noun { noun : head , number : Number :: Singular }")
                 && source.contains("match count")
                 && source.contains("Count :: One => Some")
                 && source.contains("Agreement :: ThirdPersonSingular")
@@ -1204,8 +1204,8 @@ mod tests {
         for fragment in [
             "* source_number == * number",
             "* source_number == * right_number",
-            "Leaf :: Head { head : left , number }",
-            "Leaf :: Head { head : right , number : right_number }",
+            "Leaf :: Noun { noun : left , number }",
+            "Leaf :: Noun { noun : right , number : right_number }",
             "_ => None",
         ] {
             assert!(source.contains(fragment), "missing `{fragment}`: {source}");
@@ -1364,7 +1364,7 @@ mod tests {
         let expected: syn::Arm = syn::parse_quote! {
             RuleId::RootWrapped => match children {
                 [
-                    BuildValue::Leaf(Leaf::Pair(left, right)),
+                    BuildValue::Leaf(Leaf::Pair(BoundLeaf::Pair(left, right))),
                     BuildValue::Leaf(Leaf::Literal("!")),
                     BuildValue::Leaf(Leaf::EndOfInput)
                 ] => Some(BuildValue::Root(Root::Wrapped(Wrapped {

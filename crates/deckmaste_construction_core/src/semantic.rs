@@ -28,6 +28,7 @@ pub(crate) struct SemanticPlan {
     declaration_keys: Vec<DeclarationKey>,
     constructions: Vec<ConstructionPlan>,
     terminals: Vec<TerminalPlan>,
+    runtime: RuntimeEmissionPlan,
     roots: Vec<RootPlan>,
     features: FeaturePlan,
 }
@@ -139,6 +140,73 @@ pub(crate) enum TerminalPlan {
     Vocab(VocabPlan),
     Lexeme(LexemePlan),
     Binding(BindingPlan),
+}
+
+/// The sealed terminal-capability projection consumed by runtime emission.
+#[derive(Debug)]
+struct RuntimeEmissionPlan {
+    vocab_indices: Vec<usize>,
+    noun_lexeme_index: Option<usize>,
+    verb_lexeme_index: Option<usize>,
+    noun_binding_index: Option<usize>,
+    direct_binding_indices: Vec<usize>,
+    opaque_binding_indices: Vec<usize>,
+}
+
+impl RuntimeEmissionPlan {
+    fn seal(terminals: &[TerminalPlan]) -> syn::Result<Self> {
+        let mut plan = Self {
+            vocab_indices: Vec::new(),
+            noun_lexeme_index: None,
+            verb_lexeme_index: None,
+            noun_binding_index: None,
+            direct_binding_indices: Vec::new(),
+            opaque_binding_indices: Vec::new(),
+        };
+        for (index, terminal) in terminals.iter().enumerate() {
+            match terminal {
+                TerminalPlan::Vocab(_) => plan.vocab_indices.push(index),
+                TerminalPlan::Lexeme(lexeme) if lexeme.is_verb_provider() => {
+                    if plan.verb_lexeme_index.replace(index).is_some() {
+                        return Err(syn::Error::new(
+                            lexeme.name_ident().span(),
+                            "sealed runtime inventory has multiple verb lexeme providers",
+                        ));
+                    }
+                }
+                TerminalPlan::Lexeme(lexeme) => {
+                    if plan.noun_lexeme_index.replace(index).is_some() {
+                        return Err(syn::Error::new(
+                            lexeme.name_ident().span(),
+                            "sealed runtime inventory has multiple noun lexeme providers",
+                        ));
+                    }
+                }
+                TerminalPlan::Binding(binding)
+                    if binding.codec_atom() == Some(crate::model::CodecAtomClass::Noun)
+                        && binding.lexical_variant().is_some() =>
+                {
+                    if plan.noun_binding_index.replace(index).is_some() {
+                        return Err(syn::Error::new(
+                            binding.origin_span(),
+                            "sealed runtime inventory has multiple noun terminal bindings",
+                        ));
+                    }
+                }
+                TerminalPlan::Binding(binding) if binding.lexical_variant().is_some() => {
+                    if binding.build().is_some_and(|build| {
+                        build.slots().len() == 1 && build.construct_is_direct_slot()
+                    }) {
+                        plan.direct_binding_indices.push(index);
+                    } else {
+                        plan.opaque_binding_indices.push(index);
+                    }
+                }
+                TerminalPlan::Binding(_) => {}
+            }
+        }
+        Ok(plan)
+    }
 }
 
 pub(crate) enum AtomTerminal<'a> {
@@ -387,6 +455,7 @@ impl SemanticPlan {
                 Declaration::Construction(_) | Declaration::Root(_) => None,
             })
             .collect::<syn::Result<Vec<_>>>()?;
+        let runtime = RuntimeEmissionPlan::seal(&terminals)?;
 
         let roots = source
             .declarations
@@ -412,6 +481,7 @@ impl SemanticPlan {
             declaration_keys,
             constructions,
             terminals,
+            runtime,
             roots,
             features: FeaturePlan {
                 boxed_fields,
@@ -429,7 +499,6 @@ impl SemanticPlan {
         self.declaration_keys.len()
     }
 
-    #[cfg(test)]
     pub(crate) fn declaration_keys(&self) -> &[DeclarationKey] {
         &self.declaration_keys
     }
@@ -448,6 +517,64 @@ impl SemanticPlan {
     )]
     pub(crate) fn terminals(&self) -> &[TerminalPlan] {
         &self.terminals
+    }
+
+    pub(crate) fn runtime_vocabs(&self) -> impl Iterator<Item = &VocabPlan> {
+        self.runtime
+            .vocab_indices
+            .iter()
+            .map(|&index| match &self.terminals[index] {
+                TerminalPlan::Vocab(vocab) => vocab,
+                TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => {
+                    unreachable!("sealed runtime vocab index changed terminal kind")
+                }
+            })
+    }
+
+    pub(crate) fn runtime_noun_lexeme(&self) -> Option<&LexemePlan> {
+        self.runtime_lexeme(self.runtime.noun_lexeme_index)
+    }
+
+    pub(crate) fn runtime_verb_lexeme(&self) -> Option<&LexemePlan> {
+        self.runtime_lexeme(self.runtime.verb_lexeme_index)
+    }
+
+    pub(crate) fn runtime_noun_binding(&self) -> Option<&BindingPlan> {
+        self.runtime.noun_binding_index.map(|index| {
+            let TerminalPlan::Binding(binding) = &self.terminals[index] else {
+                unreachable!("sealed runtime noun-binding index changed terminal kind")
+            };
+            binding
+        })
+    }
+
+    pub(crate) fn runtime_direct_bindings(&self) -> impl Iterator<Item = &BindingPlan> {
+        self.runtime_bindings(&self.runtime.direct_binding_indices)
+    }
+
+    pub(crate) fn runtime_opaque_bindings(&self) -> impl Iterator<Item = &BindingPlan> {
+        self.runtime_bindings(&self.runtime.opaque_binding_indices)
+    }
+
+    fn runtime_lexeme(&self, index: Option<usize>) -> Option<&LexemePlan> {
+        index.map(|index| {
+            let TerminalPlan::Lexeme(lexeme) = &self.terminals[index] else {
+                unreachable!("sealed runtime lexeme index changed terminal kind")
+            };
+            lexeme
+        })
+    }
+
+    fn runtime_bindings<'a>(
+        &'a self,
+        indices: &'a [usize],
+    ) -> impl Iterator<Item = &'a BindingPlan> + 'a {
+        indices.iter().map(|&index| {
+            let TerminalPlan::Binding(binding) = &self.terminals[index] else {
+                unreachable!("sealed runtime binding index changed terminal kind")
+            };
+            binding
+        })
     }
 
     #[allow(
@@ -622,6 +749,20 @@ impl SemanticPlan {
             })
             .expect("test binding is present");
         binding.origin = DeclarationKey::new(DeclarationKind::Identity, binding.name());
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_remove_runtime_vocab(&mut self, name: &str) {
+        let index = self
+            .terminals
+            .iter()
+            .position(
+                |terminal| matches!(terminal, TerminalPlan::Vocab(vocab) if vocab.name() == name),
+            )
+            .expect("test runtime vocabulary is present");
+        self.runtime
+            .vocab_indices
+            .retain(|candidate| *candidate != index);
     }
 
     #[cfg(test)]
@@ -905,7 +1046,6 @@ impl ConstructionPlan {
         &self.construction_id
     }
 
-    #[cfg(test)]
     pub(crate) fn form(&self) -> &str {
         &self.form
     }
@@ -1468,7 +1608,6 @@ impl BindingPlan {
         self.kind
     }
 
-    #[cfg(test)]
     pub(crate) fn codec_atom(&self) -> Option<crate::model::CodecAtomClass> {
         self.codec_atom
     }

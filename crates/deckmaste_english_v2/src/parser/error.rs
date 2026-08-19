@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use super::SelectionExceptionInventoryError;
+use crate::constructions::TerminalClass;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub struct TextSpan {
@@ -17,20 +18,6 @@ pub enum NonterminalCategory {
     NounPhrase,
     VerbPhrase,
     Amount,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-pub enum TerminalClass {
-    Article,
-    Demonstrative,
-    EndOfInput,
-    Noun,
-    Pronoun,
-    SelfReference,
-    SignedNumber,
-    TriggerWord,
-    Variable,
-    VerbLexeme,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -49,24 +36,6 @@ impl fmt::Display for NonterminalCategory {
             Self::NounPhrase => "noun phrase",
             Self::VerbPhrase => "verb phrase",
             Self::Amount => "amount",
-        };
-        formatter.write_str(label)
-    }
-}
-
-impl fmt::Display for TerminalClass {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let label = match self {
-            Self::Article => "article",
-            Self::Demonstrative => "demonstrative",
-            Self::EndOfInput => "end of input",
-            Self::Noun => "noun",
-            Self::Pronoun => "pronoun",
-            Self::SelfReference => "self-reference",
-            Self::SignedNumber => "signed number",
-            Self::TriggerWord => "trigger word",
-            Self::Variable => "variable",
-            Self::VerbLexeme => "verb lexeme",
         };
         formatter.write_str(label)
     }

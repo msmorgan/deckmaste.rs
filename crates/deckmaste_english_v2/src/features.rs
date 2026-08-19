@@ -1,11 +1,6 @@
 use crate::ast::Pronoun;
 use crate::ast::VerbLexeme;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Agreement {
-    Bare,
-    ThirdPersonSingular,
-}
+use crate::constructions::Agreement;
 
 pub(crate) fn inflect(lexeme: VerbLexeme, agreement: Agreement) -> &'static str {
     match (lexeme, agreement) {

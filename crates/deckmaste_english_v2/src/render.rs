@@ -5,16 +5,11 @@ use crate::ast::Noun;
 use crate::ast::NounLexeme;
 use crate::ast::Sign;
 use crate::ast::SignedNumber;
+use crate::constructions::Number;
 use crate::context::ParseContext;
 
 pub trait Render {
     fn render(&self, context: &ParseContext<'_>) -> String;
-}
-
-#[derive(Clone, Copy)]
-pub(crate) enum Number {
-    Singular,
-    Plural,
 }
 
 #[derive(Clone, Copy)]

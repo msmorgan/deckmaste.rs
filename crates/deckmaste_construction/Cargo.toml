@@ -12,3 +12,6 @@ workspace = true
 
 [dependencies]
 deckmaste_construction_core = { path = "../deckmaste_construction_core" }
+
+[dev-dependencies]
+macro_ron = { path = "../macro_ron" }

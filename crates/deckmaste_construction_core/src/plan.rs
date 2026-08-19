@@ -224,6 +224,7 @@ pub(crate) fn plan_emission(plan: &SemanticPlan) -> syn::Result<EmissionPlan> {
     let mut items = crate::emit::ast::emit(plan)?;
     let (terminal_items, terminal_contributions) = crate::emit::terminal::emit(plan)?;
     items.extend(terminal_items);
+    items.extend(crate::emit::runtime::emit(plan));
     items.extend(crate::emit::render::emit(plan)?);
     items.extend(crate::emit::visit::emit(plan)?);
     items.extend(crate::emit::rules::emit(plan)?);
@@ -374,6 +375,143 @@ mod tests {
         assert_eq!(
             actual,
             include_str!("../tests/golden/representative-expansion.txt")
+        );
+    }
+
+    #[test]
+    fn generated_terminal_abi_is_derived_from_the_semantic_inventory() {
+        let expansion = representative_expansion();
+
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "Agreement")),
+            ["Bare", "ThirdPersonSingular"]
+        );
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "Number")),
+            ["Singular", "Plural"]
+        );
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "CasePosition")),
+            ["DocumentInitial", "Continuation"]
+        );
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "Lexical")),
+            [
+                "Literal",
+                "EndOfInput",
+                "Words",
+                "Noun",
+                "Verb",
+                "Declaration",
+            ]
+        );
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "Leaf")),
+            [
+                "Literal",
+                "EndOfInput",
+                "Words",
+                "Noun",
+                "Verb",
+                "Declaration",
+            ]
+        );
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "TerminalClass")),
+            ["EndOfInput", "Words", "Noun", "VerbLexeme", "Declaration",]
+        );
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "LexicalProvenanceKind")),
+            [
+                "FormLiteral",
+                "Vocab",
+                "Lexeme",
+                "Codec",
+                "Identity",
+                "Declaration",
+            ]
+        );
+
+        let rules = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named {
+                        kind: NamedKind::Constant,
+                        name,
+                    } if name == "RULES"
+                )
+            })
+            .expect("generated rules constant")
+            .tokens
+            .to_string();
+        assert!(
+            rules.contains("Rule < Category , LexicalTerminal , RuleId >"),
+            "generated rules carry owner-bearing terminals: {rules}"
+        );
+        for owner in [
+            "Vocab { declaration : \"Words\" }",
+            "Lexeme { declaration : \"Verbs\"",
+            "member : \"Act\"",
+            "stable_id : \"root:Action/punctuation\"",
+            "owner : LexicalOwnerTemplate :: None",
+        ] {
+            assert!(rules.contains(owner), "missing owner `{owner}`: {rules}");
+        }
+
+        for name in [
+            "FeatureConstraint",
+            "ScanPosition",
+            "DeclarationMatcher",
+            "DeclarationLeaf",
+            "DeclarationClass",
+            "LexicalTerminal",
+            "LexicalOwnerTemplate",
+            "LexicalOwner",
+            "LexicalProvenanceKind",
+        ] {
+            generated_item(&expansion, name);
+        }
+
+        assert_eq!(
+            generated_item(&expansion, "Lexical")
+                .origins
+                .iter()
+                .map(|origin| (origin.kind(), origin.name()))
+                .collect::<Vec<_>>(),
+            [
+                (DeclarationKind::Vocab, "Words"),
+                (DeclarationKind::Lexeme, "Nouns"),
+                (DeclarationKind::Lexeme, "Verbs"),
+                (DeclarationKind::Construction, "leaf"),
+                (DeclarationKind::Construction, "chain"),
+                (DeclarationKind::Construction, "action"),
+                (DeclarationKind::Root, "Action"),
+            ]
+        );
+    }
+
+    #[test]
+    fn runtime_emitter_consumes_the_sealed_runtime_projection() {
+        let input = crate::test_support::representative_tokens().to_string();
+        let mut plan = crate::test_support::representative_semantic_plan();
+
+        plan.test_only_remove_runtime_vocab("Words");
+        let runtime = crate::emit::runtime::emit(&plan);
+        assert_eq!(
+            enum_variants(
+                runtime
+                    .iter()
+                    .find(|item| item.key == ItemKey::named_type("Lexical"))
+                    .expect("runtime lexical aggregate"),
+            ),
+            ["Literal", "EndOfInput", "Declaration"]
+        );
+        assert_eq!(
+            crate::test_support::representative_tokens().to_string(),
+            input
         );
     }
 
@@ -591,6 +729,33 @@ mod tests {
             .collect()
     }
 
+    fn generated_item<'a>(expansion: &'a crate::Expansion, name: &str) -> &'a GeneratedItem {
+        expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named {
+                        kind: NamedKind::Type,
+                        name: candidate,
+                    } if candidate == name
+                )
+            })
+            .unwrap_or_else(|| panic!("generated type `{name}` exists"))
+    }
+
+    fn enum_variants(item: &GeneratedItem) -> Vec<String> {
+        let file = syn::parse2::<syn::File>(item.tokens.clone()).expect("generated item parses");
+        let syn::Item::Enum(item) = &file.items[0] else {
+            panic!("generated item is an enum")
+        };
+        item.variants
+            .iter()
+            .map(|variant| variant.ident.to_string())
+            .collect()
+    }
+
     fn expected_category_and_product_types() -> Vec<String> {
         ["Node", "First"].into_iter().map(str::to_owned).collect()
     }
@@ -618,7 +783,7 @@ mod tests {
                 },
                 &ItemKey::Named {
                     kind: NamedKind::Type,
-                    name: "Leaf".into()
+                    name: "WordLeaf".into()
                 },
                 &ItemKey::Named {
                     kind: NamedKind::Type,
@@ -642,7 +807,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 26);
+        assert_eq!(keys.len(), 48);
         assert_eq!(
             keys.len(),
             keys.iter().copied().collect::<HashSet<_>>().len()

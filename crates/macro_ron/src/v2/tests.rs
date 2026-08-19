@@ -77,6 +77,19 @@ fn texts(declaration: &NormalizedDeclaration) -> Vec<&str> {
 }
 
 #[test]
+fn normalized_runtime_carrier_exposes_identity_and_position() {
+    let identity = DeclarationIdentity::new(DeclarationKind::KeywordAction, "Scry");
+    assert_eq!(identity.kind(), DeclarationKind::KeywordAction);
+    assert_eq!(identity.name(), "Scry");
+
+    let declaration = read_str(source_path("Scry.ron"), SCRY).unwrap();
+    assert_eq!(
+        declaration.grammar().unwrap().recipe().position(),
+        GrammarPosition::Verb
+    );
+}
+
+#[test]
 fn source_schema_rejects_legacy_and_unknown_fields() {
     for extra in [
         r#"template: "scry <Param(0)>","#,

@@ -465,6 +465,7 @@ name = "deckmaste_construction"
 version = "0.1.0"
 dependencies = [
  "deckmaste_construction_core",
+ "macro_ron",
 ]
 
 [[package]]

@@ -6425,7 +6425,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 45);
+        assert_eq!(expansion.plan().items().len(), 67);
         assert!(
             validated
                 .boxed_fields()
@@ -6511,7 +6511,7 @@ pub(crate) mod tests {
             constructions: vec![
                 (
                     "leaf".to_owned(),
-                    "Leaf".to_owned(),
+                    "WordLeaf".to_owned(),
                     "leaf".to_owned(),
                     vec!["lex(word)".to_owned()],
                 ),
@@ -6726,7 +6726,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 45);
+        assert_eq!(expansion.plan().items().len(), 67);
     }
 
     #[test]
@@ -6843,6 +6843,6 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 45);
+        assert_eq!(emission.items().len(), 67);
     }
 }

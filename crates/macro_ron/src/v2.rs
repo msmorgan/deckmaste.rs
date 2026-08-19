@@ -308,6 +308,15 @@ pub struct DeclarationIdentity {
 }
 
 impl DeclarationIdentity {
+    /// Constructs one owned identity in its declaration-kind namespace.
+    #[must_use]
+    pub fn new(kind: DeclarationKind, name: impl Into<String>) -> Self {
+        Self {
+            kind,
+            name: name.into(),
+        }
+    }
+
     #[must_use]
     pub fn kind(&self) -> DeclarationKind {
         self.kind
@@ -424,8 +433,32 @@ pub enum GrammarRecipe {
     FixedKeyword,
 }
 
+impl GrammarRecipe {
+    /// Returns the closed parser position occupied by this recipe.
+    #[must_use]
+    pub const fn position(&self) -> GrammarPosition {
+        match self {
+            Self::Verb { .. } => GrammarPosition::Verb,
+            Self::Noun => GrammarPosition::Noun,
+            Self::FixedTerm => GrammarPosition::FixedTerm,
+            Self::FixedClause => GrammarPosition::FixedClause,
+            Self::FixedKeyword => GrammarPosition::FixedKeyword,
+        }
+    }
+}
+
+/// The closed grammatical position in which a declaration surface can scan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum GrammarPosition {
+    Verb,
+    Noun,
+    FixedTerm,
+    FixedClause,
+    FixedKeyword,
+}
+
 /// The grammatical feature attached to a realized surface.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum SurfaceFeature {
     Bare,
     ThirdPersonSingular,

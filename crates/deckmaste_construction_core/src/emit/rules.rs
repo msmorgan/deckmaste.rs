@@ -14,6 +14,7 @@ use crate::identifier::RULE_ID_INDEX;
 use crate::identifier::RULE_ID_TYPE;
 use crate::identifier::RULES_CONSTANT;
 use crate::identifier::emitted_ident;
+use crate::model::TerminalBindingKind;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
@@ -104,7 +105,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
                 kind: NamedKind::Constant,
                 name: RULES_CONSTANT.to_owned(),
             },
-            quote! { pub(crate) const #rules_constant: &[Rule<Category, Lexical, RuleId>] = &[#(#rows),*]; },
+            quote! { pub(crate) const #rules_constant: &[Rule<Category, LexicalTerminal, RuleId>] = &[#(#rows),*]; },
             rule_origins,
         ),
     ])
@@ -119,12 +120,28 @@ fn emit_rule(
     let mut rhs = construction
         .atoms()
         .iter()
-        .map(|atom| emit_position(plan, construction, atom))
+        .enumerate()
+        .map(|(index, atom)| emit_position(plan, construction, index, atom))
         .collect::<syn::Result<Vec<_>>>()?;
     if let Some(root) = plan.parse_root(construction.category()) {
         let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
-        rhs.push(quote! { L(Lexical::Literal(#punctuation)) });
-        rhs.push(quote! { L(Lexical::EndOfInput) });
+        let stable_id = syn::LitStr::new(
+            &format!("root:{}/punctuation", root.category()),
+            Span::call_site(),
+        );
+        rhs.push(lexical_terminal(
+            &quote! { Lexical::Literal(#punctuation) },
+            &quote! {
+                LexicalOwnerTemplate::Static {
+                    kind: LexicalProvenanceKind::FormLiteral,
+                    stable_id: #stable_id,
+                }
+            },
+        ));
+        rhs.push(lexical_terminal(
+            &quote! { Lexical::EndOfInput },
+            &quote! { LexicalOwnerTemplate::None },
+        ));
     }
     Ok(quote! { Rule { id: RuleId::#rule_id, lhs: Category::#lhs, rhs: &[#(#rhs),*] } })
 }
@@ -132,12 +149,30 @@ fn emit_rule(
 fn emit_position(
     plan: &SemanticPlan,
     construction: &ConstructionPlan,
+    atom_index: usize,
     atom: &AtomPlan,
 ) -> syn::Result<TokenStream> {
     match atom {
         AtomPlan::Literal(literal) => {
             let literal = syn::LitStr::new(literal, Span::call_site());
-            Ok(quote! { L(Lexical::Literal(#literal)) })
+            let stable_id = syn::LitStr::new(
+                &format!(
+                    "form:{}/{}/{}",
+                    construction.construction_id(),
+                    construction.form(),
+                    atom_index
+                ),
+                Span::call_site(),
+            );
+            Ok(lexical_terminal(
+                &quote! { Lexical::Literal(#literal) },
+                &quote! {
+                    LexicalOwnerTemplate::Static {
+                        kind: LexicalProvenanceKind::FormLiteral,
+                        stable_id: #stable_id,
+                    }
+                },
+            ))
         }
         AtomPlan::Category { category, .. } => {
             let category = ident(category);
@@ -145,19 +180,58 @@ fn emit_position(
         }
         AtomPlan::Lex { terminal, .. } | AtomPlan::Identity { terminal, .. } => {
             let lexical = lexical_variant(plan, terminal)?;
-            Ok(quote! { L(#lexical) })
+            let owner = owner_template(plan, terminal)?;
+            Ok(lexical_terminal(&lexical, &owner))
         }
         AtomPlan::Noun { terminal, .. } => {
             let lexical = lexical_variant(plan, terminal)?;
             let number = noun_number(plan, construction)?;
-            Ok(quote! { L(#lexical(NounNumber::#number)) })
+            let owner = owner_template(plan, terminal)?;
+            Ok(lexical_terminal(&quote! { #lexical(#number) }, &owner))
         }
         AtomPlan::VerbFixed {
             terminal, variant, ..
         } => {
             let terminal = ident(terminal);
             let variant = ident(variant);
-            Ok(quote! { L(Lexical::Verb(#terminal::#variant)) })
+            let declaration = syn::LitStr::new(&terminal.to_string(), Span::call_site());
+            let member = syn::LitStr::new(&variant.to_string(), Span::call_site());
+            Ok(lexical_terminal(
+                &quote! { Lexical::Verb(#terminal::#variant) },
+                &quote! {
+                    LexicalOwnerTemplate::Lexeme {
+                        declaration: #declaration,
+                        member: #member,
+                    }
+                },
+            ))
+        }
+    }
+}
+
+fn lexical_terminal(matcher: &TokenStream, owner: &TokenStream) -> TokenStream {
+    quote! {
+        L(LexicalTerminal { matcher: #matcher, owner: #owner })
+    }
+}
+
+fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStream> {
+    let declaration = syn::LitStr::new(terminal, Span::call_site());
+    match plan.atom_terminal(terminal)? {
+        AtomTerminal::Vocab(_) => Ok(quote! {
+            LexicalOwnerTemplate::Vocab { declaration: #declaration }
+        }),
+        AtomTerminal::Binding(binding) => {
+            let (kind, prefix) = match binding.kind() {
+                TerminalBindingKind::Codec => (quote! { LexicalProvenanceKind::Codec }, "codec"),
+                TerminalBindingKind::Identity => {
+                    (quote! { LexicalProvenanceKind::Identity }, "identity")
+                }
+            };
+            let stable_id = syn::LitStr::new(&format!("{prefix}:{terminal}"), Span::call_site());
+            Ok(quote! {
+                LexicalOwnerTemplate::Static { kind: #kind, stable_id: #stable_id }
+            })
         }
     }
 }
@@ -169,6 +243,9 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
             Ok(quote! { Lexical::#name })
         }
         AtomTerminal::Binding(binding) => {
+            if binding.codec_atom() == Some(crate::model::CodecAtomClass::Noun) {
+                return Ok(quote! { Lexical::Noun });
+            }
             let path = binding
                 .lexical_variant()
                 .ok_or_else(|| internal("atom-capable terminal binding has no lexical variant"))?;
@@ -177,23 +254,24 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
     }
 }
 
-fn noun_number(plan: &SemanticPlan, construction: &ConstructionPlan) -> syn::Result<syn::Ident> {
+fn noun_number(plan: &SemanticPlan, construction: &ConstructionPlan) -> syn::Result<TokenStream> {
     let equation = plan
         .feature_equations(construction.construction_id())
         .iter()
         .find(|equation| equation.target() == &FeaturePlace::Construction(Feature::Number))
         .ok_or_else(|| internal("noun atom has no validated construction number"))?;
-    let name = match equation.value() {
+    match equation.value() {
         FeatureExpr::Constant(value) => match value.value() {
-            FeatureValue::Singular => "Singular",
-            FeatureValue::Plural => "Plural",
+            FeatureValue::Singular => Ok(quote! { FeatureConstraint::Exact(Number::Singular) }),
+            FeatureValue::Plural => Ok(quote! { FeatureConstraint::Exact(Number::Plural) }),
             FeatureValue::Bare | FeatureValue::ThirdPersonSingular => {
-                return Err(internal("noun number has an agreement value"));
+                Err(internal("noun number has an agreement value"))
             }
         },
-        FeatureExpr::MatchVocab { .. } | FeatureExpr::FromRole { .. } => "Either",
-    };
-    Ok(ident(name))
+        FeatureExpr::MatchVocab { .. } | FeatureExpr::FromRole { .. } => {
+            Ok(quote! { FeatureConstraint::Any })
+        }
+    }
 }
 
 fn construction_origins(constructions: &[ConstructionPlan]) -> Vec<DeclarationKey> {
@@ -239,7 +317,7 @@ mod tests {
         let generated = super::emit(validated.semantic()).expect("role-derived noun rules lower");
         let rules = generated.last().expect("rules item").tokens.to_string();
         assert!(
-            rules.contains("Lexical :: Head (NounNumber :: Either)"),
+            rules.contains("Lexical :: Noun (FeatureConstraint :: Any)"),
             "role-derived noun must let the scanner return either number: {rules}"
         );
     }
@@ -258,11 +336,119 @@ mod tests {
         let rules = generated.last().expect("rules item").tokens.to_string();
         assert_eq!(
             rules
-                .matches("Lexical :: Head (NounNumber :: Either)")
+                .matches("Lexical :: Noun (FeatureConstraint :: Any)")
                 .count(),
             2,
             "each noun scanner is independently unconstrained until build: {rules}"
         );
+    }
+
+    fn expected_synthetic_projection_rules() -> syn::Item {
+        syn::parse_quote! {
+            pub(crate) const RULES: &[Rule<Category, LexicalTerminal, RuleId>] = &[
+                Rule {
+                    id: RuleId::ExprLeaf,
+                    lhs: Category::Expr,
+                    rhs: &[
+                        L(LexicalTerminal {
+                            matcher: Lexical::Mode,
+                            owner: LexicalOwnerTemplate::Vocab { declaration: "Mode" },
+                        }),
+                        L(LexicalTerminal {
+                            matcher: Lexical::Noun(FeatureConstraint::Any),
+                            owner: LexicalOwnerTemplate::Static {
+                                kind: LexicalProvenanceKind::Codec,
+                                stable_id: "codec:Resource",
+                            },
+                        }),
+                    ],
+                },
+                Rule {
+                    id: RuleId::ExprNested,
+                    lhs: Category::Expr,
+                    rhs: &[
+                        L(LexicalTerminal {
+                            matcher: Lexical::Literal("nest"),
+                            owner: LexicalOwnerTemplate::Static {
+                                kind: LexicalProvenanceKind::FormLiteral,
+                                stable_id: "form:nested/nested/0",
+                            },
+                        }),
+                        N(Category::Expr),
+                        L(LexicalTerminal {
+                            matcher: Lexical::Marker,
+                            owner: LexicalOwnerTemplate::Static {
+                                kind: LexicalProvenanceKind::Codec,
+                                stable_id: "codec:Marker",
+                            },
+                        }),
+                    ],
+                },
+                Rule {
+                    id: RuleId::PredicateAction,
+                    lhs: Category::Predicate,
+                    rhs: &[L(LexicalTerminal {
+                        matcher: Lexical::Verb(ActionStem::Activate),
+                        owner: LexicalOwnerTemplate::Lexeme {
+                            declaration: "ActionStem",
+                            member: "Activate",
+                        },
+                    })],
+                },
+                Rule {
+                    id: RuleId::PredicateIdle,
+                    lhs: Category::Predicate,
+                    rhs: &[L(LexicalTerminal {
+                        matcher: Lexical::Literal("idle"),
+                        owner: LexicalOwnerTemplate::Static {
+                            kind: LexicalProvenanceKind::FormLiteral,
+                            stable_id: "form:idle/idle/0",
+                        },
+                    })],
+                },
+                Rule {
+                    id: RuleId::TagSolo,
+                    lhs: Category::Tag,
+                    rhs: &[L(LexicalTerminal {
+                        matcher: Lexical::Mode,
+                        owner: LexicalOwnerTemplate::Vocab { declaration: "Mode" },
+                    })],
+                },
+                Rule {
+                    id: RuleId::DocumentDocument,
+                    lhs: Category::Document,
+                    rhs: &[
+                        N(Category::Expr),
+                        N(Category::Predicate),
+                        L(LexicalTerminal {
+                            matcher: Lexical::Handle,
+                            owner: LexicalOwnerTemplate::Static {
+                                kind: LexicalProvenanceKind::Identity,
+                                stable_id: "identity:Handle",
+                            },
+                        }),
+                        L(LexicalTerminal {
+                            matcher: Lexical::Pair,
+                            owner: LexicalOwnerTemplate::Static {
+                                kind: LexicalProvenanceKind::Codec,
+                                stable_id: "codec:Pair",
+                            },
+                        }),
+                        L(LexicalTerminal {
+                            matcher: Lexical::Literal("!"),
+                            owner: LexicalOwnerTemplate::Static {
+                                kind: LexicalProvenanceKind::FormLiteral,
+                                stable_id: "root:Document/punctuation",
+                            },
+                        }),
+                        L(LexicalTerminal {
+                            matcher: Lexical::EndOfInput,
+                            owner: LexicalOwnerTemplate::None,
+                        }),
+                    ],
+                },
+            ];
+        }
     }
 
     #[test]
@@ -302,54 +488,6 @@ mod tests {
         assert_eq!(enum_variants(&actual[1]), ids);
         assert_eq!(enum_variants(&actual[2]), ids);
 
-        let expected_rules: syn::Item = syn::parse_quote! {
-            pub(crate) const RULES: &[Rule<Category, Lexical, RuleId>] = &[
-                Rule {
-                    id: RuleId::ExprLeaf,
-                    lhs: Category::Expr,
-                    rhs: &[
-                        L(Lexical::Mode),
-                        L(Lexical::Resource(NounNumber::Either)),
-                    ],
-                },
-                Rule {
-                    id: RuleId::ExprNested,
-                    lhs: Category::Expr,
-                    rhs: &[
-                        L(Lexical::Literal("nest")),
-                        N(Category::Expr),
-                        L(Lexical::Marker),
-                    ],
-                },
-                Rule {
-                    id: RuleId::PredicateAction,
-                    lhs: Category::Predicate,
-                    rhs: &[L(Lexical::Verb(ActionStem::Activate))],
-                },
-                Rule {
-                    id: RuleId::PredicateIdle,
-                    lhs: Category::Predicate,
-                    rhs: &[L(Lexical::Literal("idle"))],
-                },
-                Rule {
-                    id: RuleId::TagSolo,
-                    lhs: Category::Tag,
-                    rhs: &[L(Lexical::Mode)],
-                },
-                Rule {
-                    id: RuleId::DocumentDocument,
-                    lhs: Category::Document,
-                    rhs: &[
-                        N(Category::Expr),
-                        N(Category::Predicate),
-                        L(Lexical::Handle),
-                        L(Lexical::Pair),
-                        L(Lexical::Literal("!")),
-                        L(Lexical::EndOfInput),
-                    ],
-                },
-            ];
-        };
         let normalize = |item: syn::Item| {
             prettyplease::unparse(&syn::File {
                 shebang: None,
@@ -357,7 +495,10 @@ mod tests {
                 items: vec![item],
             })
         };
-        assert_eq!(normalize(actual[4].clone()), normalize(expected_rules));
+        assert_eq!(
+            normalize(actual[4].clone()),
+            normalize(expected_synthetic_projection_rules())
+        );
 
         let construction_origins = ["leaf", "nested", "action", "idle", "solo", "document"]
             .map(|name| (crate::DeclarationKind::Construction, name));
@@ -426,7 +567,7 @@ mod tests {
         ).unwrap();
         let items = super::emit(validated.semantic()).unwrap();
         let rules = items.last().unwrap().tokens.to_string();
-        assert!(rules.contains("NounNumber :: Singular"));
+        assert!(rules.contains("FeatureConstraint :: Exact (Number :: Singular)"));
         assert!(rules.contains("Lexical :: Literal (\"!\")"));
         assert!(rules.contains("Lexical :: EndOfInput"));
     }

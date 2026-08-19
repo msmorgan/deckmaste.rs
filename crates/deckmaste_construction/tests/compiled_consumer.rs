@@ -12,25 +12,6 @@ mod fixture {
     use super::constructions;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum Agreement {
-        Bare,
-        ThirdPersonSingular,
-    }
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum Number {
-        Singular,
-        Plural,
-    }
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum NounNumber {
-        Singular,
-        Plural,
-        Either,
-    }
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum RulePosition<Category, Lexical> {
         Nonterminal(Category),
         Lexical(Lexical),
@@ -113,12 +94,12 @@ mod fixture {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum SelfRef {
+    pub(crate) enum SelfRef {
         Full,
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    struct Token(u8);
+    pub(crate) struct Token(u8);
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum RawBranchToken {
@@ -162,36 +143,13 @@ mod fixture {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    enum Leaf {
-        Literal(&'static str),
-        EndOfInput,
-        Mode(Mode),
-        Marker(Marker),
+    enum BoundLeaf {
         Pair(u8, u8, u8),
-        SelfRef(SelfRef),
-        Token(Token),
-        WriterWord(WriterWord),
-        Verb { lexeme: Verbs, agreement: Agreement },
-        Head { head: Head, number: NounNumber },
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    enum Lexical {
-        Literal(&'static str),
-        EndOfInput,
-        Mode,
-        Marker,
-        Pair,
-        SelfRef,
-        Token,
-        WriterWord,
-        Verb(Verbs),
-        Head(NounNumber),
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     enum BuildValue {
-        Source(Source, NounNumber),
+        Source(Source, Number),
         Phrase(Phrase),
         PairPhrase(PairPhrase),
         Child(Child, Agreement),
@@ -538,11 +496,116 @@ mod fixture {
         }
     }
 
+    fn assert_generated_runtime_abi() {
+        let owner = |template: LexicalOwnerTemplate, leaf: &Leaf| {
+            template
+                .instantiate(leaf)
+                .expect("every non-EOI terminal has an owner")
+        };
+
+        let vocab = owner(
+            LexicalOwnerTemplate::Vocab {
+                declaration: "Mode",
+            },
+            &Leaf::Mode(Mode::One),
+        );
+        assert_eq!(vocab.kind(), LexicalProvenanceKind::Vocab);
+        assert_eq!(vocab.stable_id(), "vocab:Mode/One");
+
+        for (template, leaf, kind, stable_id) in [
+            (
+                LexicalOwnerTemplate::Static {
+                    kind: LexicalProvenanceKind::FormLiteral,
+                    stable_id: "form:fixture",
+                },
+                Leaf::Literal("fixture"),
+                LexicalProvenanceKind::FormLiteral,
+                "form:fixture",
+            ),
+            (
+                LexicalOwnerTemplate::Lexeme {
+                    declaration: "Verbs",
+                    member: "Act",
+                },
+                Leaf::Verb {
+                    lexeme: Verbs::Act,
+                    agreement: Agreement::Bare,
+                },
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:Verbs/Act",
+            ),
+            (
+                LexicalOwnerTemplate::Static {
+                    kind: LexicalProvenanceKind::Codec,
+                    stable_id: "codec:Token",
+                },
+                Leaf::Token(Token(1)),
+                LexicalProvenanceKind::Codec,
+                "codec:Token",
+            ),
+            (
+                LexicalOwnerTemplate::Static {
+                    kind: LexicalProvenanceKind::Identity,
+                    stable_id: "identity:SelfRef",
+                },
+                Leaf::SelfRef(SelfRef::Full),
+                LexicalProvenanceKind::Identity,
+                "identity:SelfRef",
+            ),
+        ] {
+            let owner = owner(template, &leaf);
+            assert_eq!(owner.kind(), kind);
+            assert_eq!(owner.stable_id(), stable_id);
+        }
+
+        assert_eq!(
+            LexicalOwnerTemplate::None.instantiate(&Leaf::EndOfInput),
+            None
+        );
+
+        let kind = macro_ron::v2::DeclarationKind::KeywordAction;
+        let position = macro_ron::v2::GrammarPosition::Verb;
+        let declaration = owner(
+            LexicalOwnerTemplate::Declaration {
+                kind,
+                name: "Destroy",
+            },
+            &Leaf::Declaration(DeclarationLeaf {
+                id: macro_ron::v2::DeclarationIdentity::new(kind, "Destroy"),
+                feature: macro_ron::v2::SurfaceFeature::Bare,
+            }),
+        );
+        assert_eq!(declaration.kind(), LexicalProvenanceKind::Declaration);
+        assert_eq!(
+            declaration.stable_id(),
+            "declaration:keyword action/Destroy"
+        );
+
+        let terminal = LexicalTerminal {
+            matcher: Lexical::Declaration(DeclarationMatcher {
+                kind,
+                name: "Destroy",
+                position,
+                feature: FeatureConstraint::Exact(macro_ron::v2::SurfaceFeature::Bare),
+            }),
+            owner: LexicalOwnerTemplate::Declaration {
+                kind,
+                name: "Destroy",
+            },
+        };
+        let TerminalClass::Declaration(class) = terminal.class() else {
+            panic!("open declaration matcher retains its category-safe class")
+        };
+        assert_eq!(class.kind(), kind);
+        assert_eq!(class.position(), position);
+    }
+
     #[allow(
         clippy::too_many_lines,
         reason = "one authentic compiled consumer executes the complete boundary matrix"
     )]
     pub(super) fn run() {
+        assert_generated_runtime_abi();
         let context = ParseContext {
             sentinel: 99,
             ..ParseContext::default()
@@ -555,46 +618,32 @@ mod fixture {
         .expect("source builds with its parser-domain number payload");
         assert!(matches!(
             source,
-            BuildValue::Source(Source::Source(SourceNode), NounNumber::Singular)
+            BuildValue::Source(Source::Source(SourceNode), Number::Singular)
         ));
 
         let one_children = |number| {
             vec![
                 source.clone(),
-                BuildValue::Leaf(Leaf::Head {
-                    head: Head(1),
+                BuildValue::Leaf(Leaf::Noun {
+                    noun: Head(1),
                     number,
                 }),
                 BuildValue::Leaf(Leaf::Literal(".")),
                 BuildValue::Leaf(Leaf::EndOfInput),
             ]
         };
-        assert!(
-            build(
-                RuleId::PhraseOne,
-                &one_children(NounNumber::Singular),
-                &context
-            )
-            .is_some()
-        );
-        assert!(
-            build(
-                RuleId::PhraseOne,
-                &one_children(NounNumber::Plural),
-                &context
-            )
-            .is_none()
-        );
+        assert!(build(RuleId::PhraseOne, &one_children(Number::Singular), &context).is_some());
+        assert!(build(RuleId::PhraseOne, &one_children(Number::Plural), &context).is_none());
 
         let two_children = |left, right| {
             vec![
                 source.clone(),
-                BuildValue::Leaf(Leaf::Head {
-                    head: Head(2),
+                BuildValue::Leaf(Leaf::Noun {
+                    noun: Head(2),
                     number: left,
                 }),
-                BuildValue::Leaf(Leaf::Head {
-                    head: Head(3),
+                BuildValue::Leaf(Leaf::Noun {
+                    noun: Head(3),
                     number: right,
                 }),
             ]
@@ -602,14 +651,14 @@ mod fixture {
         assert!(
             build(
                 RuleId::PairPhraseTwo,
-                &two_children(NounNumber::Singular, NounNumber::Singular),
+                &two_children(Number::Singular, Number::Singular),
                 &context,
             )
             .is_some()
         );
         for children in [
-            two_children(NounNumber::Plural, NounNumber::Singular),
-            two_children(NounNumber::Singular, NounNumber::Plural),
+            two_children(Number::Plural, Number::Singular),
+            two_children(Number::Singular, Number::Plural),
         ] {
             assert!(build(RuleId::PairPhraseTwo, &children, &context).is_none());
         }
@@ -735,7 +784,7 @@ mod fixture {
 
         let checked_context = build(
             RuleId::CheckedContextCheckedContext,
-            &[BuildValue::Leaf(Leaf::Pair(1, 2, 3))],
+            &[BuildValue::Leaf(Leaf::Pair(BoundLeaf::Pair(1, 2, 3)))],
             &context,
         )
         .expect("terminal slots cannot shadow the parser context ABI local");
@@ -770,13 +819,13 @@ mod fixture {
         let collision = build(
             RuleId::CollisionCollision,
             &[
-                BuildValue::Leaf(Leaf::Head {
-                    head: Head(4),
-                    number: NounNumber::Singular,
+                BuildValue::Leaf(Leaf::Noun {
+                    noun: Head(4),
+                    number: Number::Singular,
                 }),
-                BuildValue::Leaf(Leaf::Head {
-                    head: Head(5),
-                    number: NounNumber::Singular,
+                BuildValue::Leaf(Leaf::Noun {
+                    noun: Head(5),
+                    number: Number::Singular,
                 }),
                 BuildValue::Leaf(Leaf::Mode(Mode::One)),
             ],

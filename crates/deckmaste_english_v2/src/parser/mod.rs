@@ -13,37 +13,20 @@ use crate::context::ParseContext;
 
 mod diagnostic;
 mod engine;
-mod lexical;
 mod materialize;
 mod scan;
 mod selection;
 
 pub(crate) use engine::Rule;
 pub(crate) use engine::RulePosition;
-pub(crate) use lexical::Lexical;
-pub(crate) use lexical::NounNumber;
 pub(crate) use materialize::BuildValue;
-pub(crate) use scan::Leaf;
+
+pub(crate) use crate::constructions::Lexical;
 
 #[cfg(test)]
-mod build {
-    pub(crate) use crate::features::Agreement;
-}
-
-#[cfg(test)]
-#[rustfmt::skip]
-mod rules {
-pub(crate) use super::lexical::Lexical;
-pub(crate) use super::lexical::NounNumber;
-pub(crate) use crate::constructions::Category;
-pub(crate) use crate::constructions::Construction;
-use crate::constructions::RULES;
-use crate::constructions::RuleId;
-
-#[cfg(test)]
-mod tests {
-    use super::RULES;
-    use super::RuleId;
+mod rules_tests {
+    use crate::constructions::RULES;
+    use crate::constructions::RuleId;
 
     #[test]
     fn slice_table_has_exactly_one_row_and_build_arm_per_rule_id() {
@@ -55,7 +38,6 @@ mod tests {
                 .all(|(index, rule)| rule.id.index() == index)
         );
     }
-}
 }
 
 pub use diagnostic::Bounded;
@@ -94,11 +76,12 @@ pub use diagnostic::UnselectedCandidate;
 pub use error::Expectation;
 pub use error::NonterminalCategory;
 pub use error::ParseError;
-pub use error::TerminalClass;
 pub use error::TextSpan;
 pub use selection::SelectionExceptionInfo;
 pub use selection::SelectionExceptionInventoryError;
 pub use selection::selection_exception_inventory;
+
+pub use crate::constructions::TerminalClass;
 
 mod error;
 
@@ -410,17 +393,5 @@ const fn nonterminal_category(category: Category) -> NonterminalCategory {
 }
 
 const fn terminal_class(lexical: Lexical) -> TerminalClass {
-    match lexical {
-        Lexical::Literal(_) => unreachable!(),
-        Lexical::EndOfInput => TerminalClass::EndOfInput,
-        Lexical::TriggerWord => TerminalClass::TriggerWord,
-        Lexical::Article => TerminalClass::Article,
-        Lexical::Demonstrative => TerminalClass::Demonstrative,
-        Lexical::Pronoun => TerminalClass::Pronoun,
-        Lexical::Variable => TerminalClass::Variable,
-        Lexical::Noun(_) => TerminalClass::Noun,
-        Lexical::Verb(_) => TerminalClass::VerbLexeme,
-        Lexical::SignedNumber => TerminalClass::SignedNumber,
-        Lexical::SelfReference => TerminalClass::SelfReference,
-    }
+    lexical.class()
 }

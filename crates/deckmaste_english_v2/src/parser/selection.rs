@@ -8,10 +8,10 @@ use super::SelectionDecisive;
 use super::SelectionResolution;
 use super::SpecificityTier;
 use super::engine::RulePosition;
-use super::lexical::Lexical;
 use super::materialize::Candidate;
 use crate::ast::Ability;
 use crate::constructions::Construction;
+use crate::constructions::Lexical;
 
 const SELECTION_EXCEPTIONS: &[SelectionException<Construction>] = &[];
 
@@ -582,6 +582,9 @@ mod tests {
     use super::selection_exception_inventory;
     use super::selection_exception_inventory_for;
     use super::structural_specificity;
+    use crate::constructions::Category;
+    use crate::constructions::Construction;
+    use crate::constructions::Lexical;
     use crate::context::ParseContext;
     use crate::parser::ParseAnalysis;
     use crate::parser::ParseError;
@@ -593,9 +596,6 @@ mod tests {
     use crate::parser::engine::RulePosition;
     use crate::parser::engine::parse;
     use crate::parser::materialize::materialize_with;
-    use crate::parser::rules::Category;
-    use crate::parser::rules::Construction;
-    use crate::parser::rules::Lexical;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
     enum TestCategory {

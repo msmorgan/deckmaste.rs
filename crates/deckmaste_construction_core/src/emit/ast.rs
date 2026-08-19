@@ -175,7 +175,7 @@ mod tests {
                 })
                 .collect::<Vec<_>>(),
             [
-                ("Leaf".into(), "Leaf".into()),
+                ("Leaf".into(), "WordLeaf".into()),
                 ("Chain".into(), "Chain".into())
             ]
         );
@@ -212,12 +212,12 @@ mod tests {
         assert!(restricted.path.is_ident("crate"));
         assert_eq!(type_name(&fields[1].ty), "Words");
 
-        let leaf = parse_named(items, "Leaf");
+        let leaf = parse_named(items, "WordLeaf");
         let Item::Struct(leaf) = leaf else {
-            panic!("Leaf is a struct");
+            panic!("WordLeaf is a struct");
         };
         let Fields::Named(fields) = leaf.fields else {
-            panic!("Leaf has named fields");
+            panic!("WordLeaf has named fields");
         };
         assert!(matches!(fields.named[0].vis, Visibility::Public(_)));
         assert_eq!(type_name(&fields.named[0].ty), "Words");
@@ -365,6 +365,21 @@ mod tests {
                 "Mode",
                 "ObjectStem",
                 "ActionStem",
+                "Agreement",
+                "Number",
+                "FeatureConstraint",
+                "CasePosition",
+                "ScanPosition",
+                "DeclarationClass",
+                "DeclarationMatcher",
+                "DeclarationLeaf",
+                "Lexical",
+                "Leaf",
+                "TerminalClass",
+                "LexicalTerminal",
+                "LexicalProvenanceKind",
+                "LexicalOwnerTemplate",
+                "LexicalOwner",
                 "Category",
                 "Construction",
                 "RuleId",

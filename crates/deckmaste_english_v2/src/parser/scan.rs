@@ -22,8 +22,6 @@ use super::engine::LexicalMatch;
 use super::engine::Observation;
 use super::engine::parse;
 use super::engine::parse_observed;
-use super::lexical::Lexical;
-use super::lexical::NounNumber;
 use super::materialize::completion_has_checked_build;
 use crate::ast::Article;
 use crate::ast::CatalogIdentity;
@@ -38,37 +36,23 @@ use crate::ast::TriggerWord;
 use crate::ast::Variable;
 use crate::ast::VerbLexeme;
 use crate::catalogs::ParserCatalogs;
+use crate::constructions::Agreement;
+use crate::constructions::CasePosition;
 use crate::constructions::Category;
+use crate::constructions::FeatureConstraint;
+use crate::constructions::Leaf;
+use crate::constructions::Lexical;
+use crate::constructions::LexicalTerminal;
+use crate::constructions::Number;
 use crate::constructions::RULES;
 use crate::constructions::RuleId;
+use crate::constructions::ScanPosition;
 use crate::context::ParseContext;
-use crate::features::Agreement;
 use crate::features::inflect;
 
 pub(crate) struct SliceGrammar<'a> {
     pub(crate) catalogs: &'a ParserCatalogs,
     pub(crate) context: &'a ParseContext<'a>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Leaf {
-    Literal(&'static str),
-    EndOfInput,
-    TriggerWord(TriggerWord),
-    Article(Article),
-    Demonstrative(Demonstrative),
-    Pronoun(Pronoun),
-    Variable(Variable),
-    Noun {
-        noun: Noun,
-        number: NounNumber,
-    },
-    Verb {
-        lexeme: VerbLexeme,
-        agreement: Agreement,
-    },
-    SignedNumber(SignedNumber),
-    SelfReference(SelfReferenceSpelling),
 }
 
 pub(crate) fn parse_forest(
@@ -82,6 +66,7 @@ pub(crate) fn parse_forest(
         |lexical, offset| grammar.scan(lexical, text, offset),
         |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),
     )
+    .map_err(project_failure)
 }
 
 type ObservedForestResult = Result<Forest<RuleId, Leaf>, ChartFailure<Category, Lexical>>;
@@ -99,7 +84,8 @@ pub(crate) fn parse_forest_observed(
         |lexical, offset| grammar.scan(lexical, text, offset),
         |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),
         &mut observation,
-    );
+    )
+    .map_err(project_failure);
     let trace = observation.finish();
     (result, trace)
 }
@@ -168,9 +154,9 @@ impl StructuralObservation {
     }
 }
 
-impl Observation<RuleId, Leaf, Lexical> for StructuralObservation {
-    fn scanned(&mut self, start: usize, terminal: Lexical, end: usize, value: &Leaf) {
-        self.record_token(start, end, terminal, value);
+impl Observation<RuleId, Leaf, LexicalTerminal> for StructuralObservation {
+    fn scanned(&mut self, start: usize, terminal: LexicalTerminal, end: usize, value: &Leaf) {
+        self.record_token(start, end, terminal.matcher, value);
     }
 
     fn checked_completion(
@@ -430,7 +416,38 @@ fn trace_label_counts() -> TraceLabelCounts {
 }
 
 impl SliceGrammar<'_> {
-    fn scan(&self, lexical: Lexical, text: &str, offset: usize) -> Vec<LexicalMatch<Leaf>> {
+    fn scan(
+        &self,
+        terminal: LexicalTerminal,
+        text: &str,
+        offset: usize,
+    ) -> Vec<LexicalMatch<Leaf>> {
+        let position = ScanPosition {
+            byte_offset: offset,
+            case: if offset == 0 {
+                CasePosition::DocumentInitial
+            } else {
+                CasePosition::Continuation
+            },
+        };
+        self.scan_lexical(terminal.matcher, text, position)
+    }
+
+    fn scan_lexical(
+        &self,
+        lexical: Lexical,
+        text: &str,
+        position: ScanPosition,
+    ) -> Vec<LexicalMatch<Leaf>> {
+        let offset = position.byte_offset;
+        debug_assert_eq!(
+            position.case,
+            if offset == 0 {
+                CasePosition::DocumentInitial
+            } else {
+                CasePosition::Continuation
+            }
+        );
         match lexical {
             Lexical::EndOfInput => (offset == text.len())
                 .then_some(LexicalMatch {
@@ -505,6 +522,7 @@ impl SliceGrammar<'_> {
                 Self::identity(text, offset, word).map(|end| LexicalMatch { end, value })
             })
             .collect(),
+            Lexical::Declaration(_) => Vec::new(),
         }
     }
 
@@ -540,7 +558,12 @@ impl SliceGrammar<'_> {
         .then_some(end)
     }
 
-    fn scan_noun(&self, text: &str, offset: usize, wanted: NounNumber) -> Vec<LexicalMatch<Leaf>> {
+    fn scan_noun(
+        &self,
+        text: &str,
+        offset: usize,
+        wanted: FeatureConstraint<Number>,
+    ) -> Vec<LexicalMatch<Leaf>> {
         let mut matches = Vec::new();
         for (noun, singular) in std::iter::once((
             Noun::Lexeme(NounLexeme::Player),
@@ -621,6 +644,26 @@ impl SliceGrammar<'_> {
     }
 }
 
+fn project_failure(
+    failure: ChartFailure<Category, LexicalTerminal>,
+) -> ChartFailure<Category, Lexical> {
+    ChartFailure {
+        offset: failure.offset,
+        live: failure
+            .live
+            .into_iter()
+            .map(|position| match position {
+                super::engine::RulePosition::Nonterminal(category) => {
+                    super::engine::RulePosition::Nonterminal(category)
+                }
+                super::engine::RulePosition::Lexical(terminal) => {
+                    super::engine::RulePosition::Lexical(terminal.matcher)
+                }
+            })
+            .collect(),
+    }
+}
+
 fn has_lexical_boundary(text: &str, end: usize) -> bool {
     matches!(text.as_bytes().get(end), None | Some(b' ' | b',' | b'.'))
 }
@@ -650,13 +693,13 @@ fn rendered_catalog(kind: CatalogKind, spelling: &str) -> String {
     }
 }
 
-fn noun_forms(singular: &str, wanted: NounNumber) -> Vec<(NounNumber, String)> {
+fn noun_forms(singular: &str, wanted: FeatureConstraint<Number>) -> Vec<(Number, String)> {
     match wanted {
-        NounNumber::Singular => vec![(NounNumber::Singular, singular.to_owned())],
-        NounNumber::Plural => vec![(NounNumber::Plural, format!("{singular}s"))],
-        NounNumber::Either => vec![
-            (NounNumber::Singular, singular.to_owned()),
-            (NounNumber::Plural, format!("{singular}s")),
+        FeatureConstraint::Exact(Number::Singular) => vec![(Number::Singular, singular.to_owned())],
+        FeatureConstraint::Exact(Number::Plural) => vec![(Number::Plural, format!("{singular}s"))],
+        FeatureConstraint::Any => vec![
+            (Number::Singular, singular.to_owned()),
+            (Number::Plural, format!("{singular}s")),
         ],
     }
 }
@@ -699,9 +742,9 @@ mod tests {
     use crate::ast::Variable;
     use crate::ast::VerbLexeme;
     use crate::catalogs::ParserCatalogs;
+    use crate::constructions::Agreement;
     use crate::constructions::RULES;
     use crate::context::ParseContext;
-    use crate::features::Agreement;
 
     fn slice_candidates(
         text: &str,
@@ -895,8 +938,8 @@ mod tests {
             .flat_map(|rule| rule.rhs)
             .filter_map(|position| match position {
                 super::super::engine::RulePosition::Lexical(lexical) => seen_lexical
-                    .insert(*lexical)
-                    .then_some(terminal_name_v1(*lexical)),
+                    .insert(lexical.matcher)
+                    .then_some(terminal_name_v1(lexical.matcher)),
                 super::super::engine::RulePosition::Nonterminal(_) => None,
             })
             .collect::<Vec<_>>();
@@ -915,12 +958,12 @@ mod tests {
                 "Literal(\"of\")",
                 "Pronoun",
                 "Article",
-                "Noun(Singular)",
+                "Noun(Exact(Singular))",
                 "Demonstrative",
-                "Noun(Either)",
+                "Noun(Any)",
                 "Literal(\"target\")",
                 "SelfReference",
-                "Noun(Plural)",
+                "Noun(Exact(Plural))",
                 "Verb(Control)",
                 "Literal(\"with\")",
                 "Literal(\"power\")",
@@ -963,14 +1006,14 @@ mod tests {
             (
                 Leaf::Noun {
                     noun: Noun::Lexeme(NounLexeme::Player),
-                    number: super::NounNumber::Singular,
+                    number: super::Number::Singular,
                 },
                 "Noun { noun: Lexeme(Player), number: Singular }",
             ),
             (
                 Leaf::Noun {
                     noun: Noun::Lexeme(NounLexeme::Player),
-                    number: super::NounNumber::Plural,
+                    number: super::Number::Plural,
                 },
                 "Noun { noun: Lexeme(Player), number: Plural }",
             ),
@@ -1027,7 +1070,7 @@ mod tests {
                 .expect("canonical Creature catalog identity");
         let value = Leaf::Noun {
             noun: Noun::Catalog(identity),
-            number: super::NounNumber::Plural,
+            number: super::Number::Plural,
         };
         assert_eq!(
             value_label_v1(&value),

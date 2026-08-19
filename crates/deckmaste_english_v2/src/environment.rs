@@ -1,78 +1,17 @@
 //! Immutable, data-defined grammar vocabulary for the English v2 parser.
 
 use std::collections::BTreeMap;
-use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+pub use macro_ron::v2::DeclarationIdentity as DeclarationId;
 use macro_ron::v2::DeclarationKind;
+pub use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::GrammarRecipe;
 use macro_ron::v2::NormalizedDeclaration;
 use macro_ron::v2::SurfaceFeature;
 use macro_ron::v2::VerbValence;
-
-/// An owned, category-safe declaration identity.
-///
-/// Names are runtime data. Adding a declaration never adds a Rust enum
-/// variant, and equal local names in different declaration kinds remain
-/// distinct identities.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub struct DeclarationId {
-    kind: DeclarationKind,
-    name: Arc<str>,
-}
-
-impl DeclarationId {
-    /// Constructs an owned declaration identity.
-    #[must_use]
-    pub fn new(kind: DeclarationKind, name: impl AsRef<str>) -> Self {
-        Self {
-            kind,
-            name: Arc::from(name.as_ref()),
-        }
-    }
-
-    /// Returns the open registry family containing this identity.
-    #[must_use]
-    pub fn kind(&self) -> DeclarationKind {
-        self.kind
-    }
-
-    /// Returns the declaration's local name.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-}
-
-impl fmt::Display for DeclarationId {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{} `{}`", self.kind, self.name)
-    }
-}
-
-/// The closed grammatical position in which a declaration surface can scan.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub enum GrammarPosition {
-    Verb,
-    Noun,
-    FixedTerm,
-    FixedClause,
-    FixedKeyword,
-}
-
-impl GrammarPosition {
-    fn from_recipe(recipe: &GrammarRecipe) -> Self {
-        match recipe {
-            GrammarRecipe::Verb { .. } => Self::Verb,
-            GrammarRecipe::Noun => Self::Noun,
-            GrammarRecipe::FixedTerm => Self::FixedTerm,
-            GrammarRecipe::FixedClause => Self::FixedClause,
-            GrammarRecipe::FixedKeyword => Self::FixedKeyword,
-        }
-    }
-}
 
 /// One declaration and its validated grammar metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -213,7 +152,7 @@ impl ParserEnvironment {
             let id =
                 DeclarationId::new(declaration.identity().kind(), declaration.identity().name());
             let provenance = declaration.provenance().path().to_owned();
-            let records_by_name = records.entry(id.kind).or_default();
+            let records_by_name = records.entry(id.kind()).or_default();
             if let Some(first) = records_by_name.get(id.name()) {
                 return Err(ParserEnvironmentError::DuplicateIdentity {
                     identity: id,
@@ -223,26 +162,20 @@ impl ParserEnvironment {
             }
 
             let (recipe, surfaces) = match declaration.grammar() {
-                Some(grammar) => {
-                    let mut surfaces = Vec::with_capacity(grammar.surfaces().len());
-                    for realized in grammar.surfaces() {
-                        if surfaces
+                Some(grammar) => (
+                    Some(grammar.recipe().clone()),
+                    collect_surfaces(
+                        &id,
+                        grammar
+                            .surfaces()
                             .iter()
-                            .any(|(feature, _)| *feature == realized.feature())
-                        {
-                            return Err(ParserEnvironmentError::DuplicateSurfaceFeature {
-                                identity: id,
-                                feature: realized.feature(),
-                            });
-                        }
-                        surfaces.push((realized.feature(), Arc::from(realized.text())));
-                    }
-                    (Some(grammar.recipe().clone()), surfaces)
-                }
+                            .map(|surface| (surface.feature(), surface.text())),
+                    )?,
+                ),
                 None => (None, Vec::new()),
             };
             records_by_name.insert(
-                Arc::clone(&id.name),
+                Arc::from(id.name()),
                 DeclarationRecord {
                     id,
                     recipe,
@@ -259,7 +192,7 @@ impl ParserEnvironment {
                 let Some(recipe) = &record.recipe else {
                     continue;
                 };
-                let position = GrammarPosition::from_recipe(recipe);
+                let position = recipe.position();
                 for (feature, surface) in &record.surfaces {
                     readings
                         .entry(position)
@@ -309,8 +242,50 @@ impl ParserEnvironment {
     pub fn surface(&self, id: &DeclarationId, feature: SurfaceFeature) -> Option<&str> {
         self.data
             .declarations
-            .get(&id.kind)
+            .get(&id.kind())
             .and_then(|records| records.get(id.name()))
             .and_then(|record| record.surface(feature))
+    }
+}
+
+fn collect_surfaces<'a>(
+    identity: &DeclarationId,
+    surfaces: impl IntoIterator<Item = (SurfaceFeature, &'a str)>,
+) -> Result<Vec<(SurfaceFeature, Arc<str>)>, ParserEnvironmentError> {
+    let mut collected = Vec::new();
+    for (feature, surface) in surfaces {
+        if collected.iter().any(|(candidate, _)| *candidate == feature) {
+            return Err(ParserEnvironmentError::DuplicateSurfaceFeature {
+                identity: identity.clone(),
+                feature,
+            });
+        }
+        collected.push((feature, Arc::from(surface)));
+    }
+    Ok(collected)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parser_environment_rejects_duplicate_realized_features() {
+        let identity = DeclarationId::new(DeclarationKind::KeywordAction, "Scry");
+        let error = collect_surfaces(
+            &identity,
+            [
+                (SurfaceFeature::Bare, "scry"),
+                (SurfaceFeature::Bare, "scry again"),
+            ],
+        )
+        .expect_err("a repeated realized feature fails closed");
+        assert_eq!(
+            error,
+            ParserEnvironmentError::DuplicateSurfaceFeature {
+                identity,
+                feature: SurfaceFeature::Bare,
+            }
+        );
     }
 }

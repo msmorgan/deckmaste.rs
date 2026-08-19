@@ -11,8 +11,6 @@ use super::engine::Forest;
 use super::engine::NodeId;
 use super::engine::Rule;
 use super::engine::RulePosition;
-use super::lexical::Lexical;
-use super::scan::Leaf;
 use super::selection::specificity_tiers;
 use crate::ast::Ability;
 use crate::ast::Amount;
@@ -20,13 +18,16 @@ use crate::ast::Clause;
 use crate::ast::NounPhrase;
 use crate::ast::Sentence;
 use crate::ast::VerbPhrase;
+use crate::constructions::Agreement;
 use crate::constructions::Category;
 use crate::constructions::Construction;
+use crate::constructions::Leaf;
+use crate::constructions::Lexical;
+use crate::constructions::LexicalTerminal;
 use crate::constructions::RULES;
 use crate::constructions::RuleId;
 use crate::constructions::build;
 use crate::context::ParseContext;
-use crate::features::Agreement;
 use crate::render::Render;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,19 +96,21 @@ type MaterializationState = MaterializationStateFor<BuildValue, Construction>;
 #[cfg(test)]
 type MaterializationOutcome = MaterializationOutcomeFor<BuildValue, Construction>;
 
-struct MaterializationKernel<'a, R, T, V, C, Build> {
-    rules: &'a [Rule<Category, Lexical, R>],
+struct MaterializationKernel<'a, R, T, V, C, L: 'static, Build> {
+    rules: &'a [Rule<Category, L, R>],
     rule_index: fn(R) -> usize,
     construction: fn(R) -> C,
+    lexical_matcher: fn(L) -> Lexical,
     build_leaf: fn(&T) -> V,
     build: Build,
 }
 
-impl<R, T, V, C, Build> MaterializationKernel<'_, R, T, V, C, Build>
+impl<R, T, V, C, L, Build> MaterializationKernel<'_, R, T, V, C, L, Build>
 where
     R: Copy,
     V: Clone + PartialEq,
     C: Copy + PartialEq,
+    L: Copy + 'static,
     Build: Fn(R, &[V]) -> Option<V>,
 {
     fn materialize<O>(
@@ -241,7 +244,16 @@ where
                 .collect::<Vec<_>>();
             if let Some(value) = (self.build)(rule_id, &child_values) {
                 let mut constructions = vec![construction];
-                let mut positions = rule.rhs.to_vec();
+                let mut positions = rule
+                    .rhs
+                    .iter()
+                    .map(|position| match *position {
+                        RulePosition::Nonterminal(category) => RulePosition::Nonterminal(category),
+                        RulePosition::Lexical(lexical) => {
+                            RulePosition::Lexical((self.lexical_matcher)(lexical))
+                        }
+                    })
+                    .collect::<Vec<_>>();
                 for child in children {
                     constructions.extend(child.constructions);
                     positions.extend(child.positions);
@@ -285,6 +297,7 @@ where
         rules,
         rule_index,
         construction,
+        lexical_matcher: std::convert::identity,
         build_leaf,
         build,
     }
@@ -299,6 +312,7 @@ pub(crate) fn materialize(
         rules: RULES,
         rule_index: RuleId::index,
         construction: RuleId::construction,
+        lexical_matcher: |terminal: LexicalTerminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
         build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
     }
@@ -316,6 +330,7 @@ pub(crate) fn materialize_observed(
         rules: RULES,
         rule_index: RuleId::index,
         construction: RuleId::construction,
+        lexical_matcher: |terminal: LexicalTerminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
         build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
     }
@@ -366,14 +381,22 @@ fn materialize_node(
     context: &ParseContext<'_>,
     state: &mut MaterializationState,
 ) -> MaterializationOutcome {
-    let kernel: MaterializationKernel<'_, RuleId, Leaf, BuildValue, Construction, _> =
-        MaterializationKernel {
-            rules: RULES,
-            rule_index: RuleId::index,
-            construction: RuleId::construction,
-            build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-            build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
-        };
+    let kernel: MaterializationKernel<
+        '_,
+        RuleId,
+        Leaf,
+        BuildValue,
+        Construction,
+        LexicalTerminal,
+        _,
+    > = MaterializationKernel {
+        rules: RULES,
+        rule_index: RuleId::index,
+        construction: RuleId::construction,
+        lexical_matcher: |terminal| terminal.matcher,
+        build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
+        build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
+    };
     kernel.materialize_node(forest, node_id, state, &mut Vec::new(), &mut ())
 }
 
@@ -383,14 +406,22 @@ pub(super) fn completion_has_checked_build(
     forest: &Forest<RuleId, Leaf>,
     context: &ParseContext<'_>,
 ) -> bool {
-    let kernel: MaterializationKernel<'_, RuleId, Leaf, BuildValue, Construction, _> =
-        MaterializationKernel {
-            rules: RULES,
-            rule_index: RuleId::index,
-            construction: RuleId::construction,
-            build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-            build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
-        };
+    let kernel: MaterializationKernel<
+        '_,
+        RuleId,
+        Leaf,
+        BuildValue,
+        Construction,
+        LexicalTerminal,
+        _,
+    > = MaterializationKernel {
+        rules: RULES,
+        rule_index: RuleId::index,
+        construction: RuleId::construction,
+        lexical_matcher: |terminal| terminal.matcher,
+        build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
+        build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
+    };
     !kernel
         .materialize_family(
             forest,
@@ -443,8 +474,10 @@ mod tests {
     use crate::ast::WhereClause;
     use crate::ast::WithWhere;
     use crate::catalogs::ParserCatalogs;
+    use crate::constructions::Agreement;
+    use crate::constructions::FeatureConstraint;
+    use crate::constructions::Number;
     use crate::context::ParseContext;
-    use crate::parser::build::Agreement;
     use crate::parser::diagnostic::BoundedParseOutcome;
     use crate::parser::diagnostic::ParserTrace;
     use crate::parser::diagnostic::StructuralTrace;
@@ -455,7 +488,6 @@ mod tests {
     use crate::parser::engine::NodeId;
     use crate::parser::engine::PackedNode;
     use crate::parser::engine::RulePosition;
-    use crate::parser::rules::NounNumber;
     use crate::parser::scan::SliceGrammar;
     use crate::parser::scan::parse_forest;
     use crate::render::Render;
@@ -760,7 +792,7 @@ mod tests {
                 RulePosition::Lexical(Lexical::Verb(VerbLexeme::Destroy)),
                 RulePosition::Nonterminal(Category::NounPhrase),
                 RulePosition::Lexical(Lexical::Literal("target")),
-                RulePosition::Lexical(Lexical::Noun(NounNumber::Singular)),
+                RulePosition::Lexical(Lexical::Noun(FeatureConstraint::Exact(Number::Singular))),
             ]
         );
     }
