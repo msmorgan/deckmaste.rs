@@ -571,6 +571,7 @@ dependencies = [
  "deckmaste_construction",
  "deckmaste_construction_core",
  "macro_ron",
+ "proc-macro2",
  "syn 2.0.117",
  "tempfile",
  "thiserror",

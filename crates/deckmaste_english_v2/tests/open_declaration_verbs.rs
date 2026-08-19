@@ -349,6 +349,22 @@ fn expression_attributes(expression: &syn::Expr) -> &[syn::Attribute] {
 #[derive(Default)]
 struct StringLiteralCensus(Vec<String>);
 
+fn visit_macro_string_literals(tokens: proc_macro2::TokenStream, literals: &mut Vec<String>) {
+    for token in tokens {
+        match token {
+            proc_macro2::TokenTree::Group(group) => {
+                visit_macro_string_literals(group.stream(), literals);
+            }
+            proc_macro2::TokenTree::Literal(literal) => {
+                if let Ok(literal) = syn::parse_str::<syn::LitStr>(&literal.to_string()) {
+                    literals.push(literal.value());
+                }
+            }
+            proc_macro2::TokenTree::Ident(_) | proc_macro2::TokenTree::Punct(_) => {}
+        }
+    }
+}
+
 impl<'ast> Visit<'ast> for StringLiteralCensus {
     fn visit_item(&mut self, item: &'ast syn::Item) {
         if !item_attributes(item).iter().any(is_cfg_test) {
@@ -451,6 +467,10 @@ impl<'ast> Visit<'ast> for StringLiteralCensus {
         }
     }
 
+    fn visit_macro(&mut self, macro_: &'ast syn::Macro) {
+        visit_macro_string_literals(macro_.tokens.clone(), &mut self.0);
+    }
+
     fn visit_lit_str(&mut self, literal: &'ast syn::LitStr) {
         self.0.push(literal.value());
     }
@@ -494,6 +514,23 @@ fn source_census_excludes_nested_cfg_test_and_keeps_later_production() {
     assert_eq!(
         production_string_literals(source),
         ["deal", "control", "destroys", "gain", "be"]
+    );
+}
+
+#[test]
+fn source_census_visits_production_macro_token_groups() {
+    let source = r##"
+        fn macro_literals(candidate: &str) {
+            matches!(candidate, "destroy" | nested!("destroys", [r#"connive"#, 7, 'x']));
+            #[cfg(test)]
+            matches!(candidate, "connives");
+            #[cfg(not(test))]
+            production_macro!({ "control" }, ["gain"]);
+        }
+    "##;
+    assert_eq!(
+        production_string_literals(source),
+        ["destroy", "destroys", "connive", "control", "gain"]
     );
 }
 
