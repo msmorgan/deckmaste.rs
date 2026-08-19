@@ -1,6 +1,7 @@
 use std::fmt::Write as _;
 use std::fs;
 use std::io::Write;
+use std::path::Path;
 
 use anyhow::Context;
 use anyhow::bail;
@@ -15,6 +16,7 @@ use super::production_declaration_path;
 #[derive(Debug, Serialize)]
 struct CountedReport {
     schema_version: u32,
+    noun_morphology: NounMorphologyCensus,
     mapping_layers: Vec<CountedEntry>,
     handwritten_codecs: Vec<CountedEntry>,
     stored_form_tags: Vec<CountedEntry>,
@@ -23,6 +25,14 @@ struct CountedReport {
     terminal_bindings: Vec<CountedEntry>,
     checked_constructor_bindings: Vec<CountedEntry>,
     roots: Vec<CountedEntry>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+struct NounMorphologyCensus {
+    total: usize,
+    derived_plural: usize,
+    explicit_plural: usize,
+    unavailable_plural: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -48,16 +58,20 @@ fn build_report_from_source(source: &str) -> anyhow::Result<CountedReport> {
     let selection_exceptions = deckmaste_english_v2::parser::selection_exception_inventory()
         .map_err(anyhow::Error::new)
         .context("validating English-v2 selection exception inventory")?;
-    build_report(&expansion, &selection_exceptions)
+    let builtin_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
+    let noun_morphology = builtin_noun_morphology_census(&builtin_root)?;
+    build_report(&expansion, &selection_exceptions, noun_morphology)
 }
 
 fn build_report(
     expansion: &Expansion,
     selection_exceptions: &[SelectionExceptionInfo],
+    noun_morphology: NounMorphologyCensus,
 ) -> anyhow::Result<CountedReport> {
     let escape_hatches = expansion.escape_hatches();
     let mut report = CountedReport {
         schema_version: 1,
+        noun_morphology,
         mapping_layers: plain_entries(escape_hatches.mapping_layers(), None, None),
         handwritten_codecs: plain_entries(
             escape_hatches.handwritten_codecs(),
@@ -100,6 +114,69 @@ fn build_report(
     };
     validate_and_sort(&mut report)?;
     Ok(report)
+}
+
+fn builtin_noun_morphology_census(root: &Path) -> anyhow::Result<NounMorphologyCensus> {
+    use macro_ron::v2::Declaration;
+    use macro_ron::v2::DerivedSurface;
+    use macro_ron::v2::Grammar;
+    use macro_ron::v2::GrammarRecipe;
+
+    let declarations = macro_ron::v2::read_builtin_v2(root)
+        .map_err(anyhow::Error::new)
+        .with_context(|| format!("authenticating builtin-v2 sources below {}", root.display()))?;
+    let mut census = NounMorphologyCensus {
+        total: 0,
+        derived_plural: 0,
+        explicit_plural: 0,
+        unavailable_plural: 0,
+    };
+
+    for normalized in declarations {
+        let path = normalized.provenance().path();
+        let source = fs::read_to_string(path)
+            .with_context(|| format!("reading authenticated noun source {}", path.display()))?;
+        let raw = macro_ron::v2::ron_options()
+            .from_str::<Declaration>(&source)
+            .map_err(anyhow::Error::new)
+            .with_context(|| format!("reparsing authenticated noun source {}", path.display()))?;
+        let (name, grammar) = match &raw {
+            Declaration::Type(fields) => (&fields.name, fields.grammar.as_ref()),
+            Declaration::Subtype(fields) => (&fields.name, fields.grammar.as_ref()),
+            Declaration::KeywordAction(_)
+            | Declaration::KeywordAbility(_)
+            | Declaration::CounterKind(_)
+            | Declaration::Designation(_) => continue,
+        };
+        let Some(Grammar::Noun { plural, .. }) = grammar else {
+            continue;
+        };
+
+        if normalized.identity().kind() != raw.kind() || normalized.identity().name() != name {
+            bail!(
+                "raw noun identity in {} diverged from authenticated normalized identity {}",
+                path.display(),
+                normalized.identity(),
+            );
+        }
+        if !matches!(
+            normalized.grammar().map(macro_ron::v2::GrammarRow::recipe),
+            Some(GrammarRecipe::Noun)
+        ) {
+            bail!(
+                "raw noun grammar in {} disappeared during production normalization",
+                path.display(),
+            );
+        }
+
+        census.total += 1;
+        match plural {
+            DerivedSurface::Derived => census.derived_plural += 1,
+            DerivedSurface::Override(_) => census.explicit_plural += 1,
+            DerivedSurface::Unavailable => census.unavailable_plural += 1,
+        }
+    }
+    Ok(census)
 }
 
 fn plain_entries(
@@ -154,6 +231,15 @@ fn render_json(report: &CountedReport) -> anyhow::Result<String> {
 
 fn render_human(report: &CountedReport) -> String {
     let mut output = String::from("English v2 counted escape hatches\n");
+    writeln!(
+        &mut output,
+        "noun morphology (total={}, derived +s={}, explicit={}, unavailable={})",
+        report.noun_morphology.total,
+        report.noun_morphology.derived_plural,
+        report.noun_morphology.explicit_plural,
+        report.noun_morphology.unavailable_plural,
+    )
+    .expect("writing to String cannot fail");
     for (category, entries) in categories(report) {
         writeln!(&mut output, "{category} ({})", entries.len())
             .expect("writing to String cannot fail");
@@ -208,6 +294,12 @@ mod tests {
     fn report() -> CountedReport {
         CountedReport {
             schema_version: 1,
+            noun_morphology: NounMorphologyCensus {
+                total: 0,
+                derived_plural: 0,
+                explicit_plural: 0,
+                unavailable_plural: 0,
+            },
             mapping_layers: vec![entry("zeta"), entry("alpha")],
             handwritten_codecs: vec![],
             stored_form_tags: vec![],
@@ -265,6 +357,7 @@ mod tests {
             render_human(&report),
             concat!(
                 "English v2 counted escape hatches\n",
+                "noun morphology (total=0, derived +s=0, explicit=0, unavailable=0)\n",
                 "mapping layers (1)\n",
                 "  - identity=\"first\\nsecond\" rationale=\"why\\tstill\" removal_target=\"target\\rnext\"\n",
                 "handwritten codecs (0)\n",
@@ -309,6 +402,23 @@ mod tests {
             ["SelfReferenceNp", "Triggered"]
         );
         assert_eq!(identities(&report.roots), ["Ability", "Sentence"]);
+    }
+
+    #[test]
+    fn production_builtin_noun_morphology_census_is_exact() {
+        let root =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
+        let census = builtin_noun_morphology_census(&root)
+            .expect("authenticated builtin-v2 noun sources census cleanly");
+
+        assert_eq!(census.total, 472);
+        assert_eq!(census.derived_plural, 146);
+        assert_eq!(census.explicit_plural, 26);
+        assert_eq!(census.unavailable_plural, 300);
+        assert_eq!(
+            census.total,
+            census.derived_plural + census.explicit_plural + census.unavailable_plural
+        );
     }
 
     fn identities(entries: &[CountedEntry]) -> Vec<&str> {

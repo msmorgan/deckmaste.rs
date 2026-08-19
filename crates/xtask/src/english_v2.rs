@@ -345,6 +345,16 @@ mod tests {
         found: bool,
     }
 
+    fn macro_tokens_contain_identifier(tokens: proc_macro2::TokenStream, target: &str) -> bool {
+        tokens.into_iter().any(|token| match token {
+            proc_macro2::TokenTree::Ident(ident) => ident == target,
+            proc_macro2::TokenTree::Group(group) => {
+                macro_tokens_contain_identifier(group.stream(), target)
+            }
+            proc_macro2::TokenTree::Punct(_) | proc_macro2::TokenTree::Literal(_) => false,
+        })
+    }
+
     impl<'ast> syn::visit::Visit<'ast> for ProductionMethodCallFinder<'_> {
         fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
             if call.method == self.target {
@@ -380,14 +390,7 @@ mod tests {
         }
 
         fn visit_macro(&mut self, mac: &'ast syn::Macro) {
-            fn contains(tokens: proc_macro2::TokenStream, target: &str) -> bool {
-                tokens.into_iter().any(|token| match token {
-                    proc_macro2::TokenTree::Ident(ident) => ident == target,
-                    proc_macro2::TokenTree::Group(group) => contains(group.stream(), target),
-                    proc_macro2::TokenTree::Punct(_) | proc_macro2::TokenTree::Literal(_) => false,
-                })
-            }
-            if contains(mac.tokens.clone(), self.target) {
+            if macro_tokens_contain_identifier(mac.tokens.clone(), self.target) {
                 self.found = true;
             }
         }
@@ -424,6 +427,20 @@ mod tests {
     }
 
     impl<'ast> syn::visit::Visit<'ast> for ProductionAuthorityFinder<'_> {
+        fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+            if self.kind == ProductionAuthorityKind::Function
+                && macro_tokens_contain_identifier(mac.tokens.clone(), self.target)
+            {
+                self.found = true;
+            }
+        }
+
+        fn visit_item_macro(&mut self, item: &'ast syn::ItemMacro) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_macro(self, item);
+            }
+        }
+
         fn visit_item_enum(&mut self, item: &'ast syn::ItemEnum) {
             if !is_test_only(&item.attrs)
                 && self.kind == ProductionAuthorityKind::Enum
@@ -1119,6 +1136,20 @@ mod tests {
         .expect("test-only sentinel reparses");
         assert!(!contains_production_identifier(&test_only, "Noun"));
         assert!(!contains_production_identifier(&test_only, "scan_noun"));
+    }
+
+    #[test]
+    fn production_authority_predicate_detects_macro_token_function_shadows() {
+        let sentinel = syn::parse_file(
+            "fn authorities() { helper!((scan_noun), { render_noun }, [walk_declaration_noun], \"pluralize\"); }\n\
+             #[cfg(test)] fn tests() { helper!(pluralize); }",
+        )
+        .expect("macro authority sentinel reparses");
+
+        for function in ["scan_noun", "render_noun", "walk_declaration_noun"] {
+            assert!(contains_production_function(&sentinel, function));
+        }
+        assert!(!contains_production_function(&sentinel, "pluralize"));
     }
 
     #[test]

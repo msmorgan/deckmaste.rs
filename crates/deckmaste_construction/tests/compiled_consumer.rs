@@ -5,6 +5,462 @@
 
 use deckmaste_construction::constructions;
 
+mod environment {
+    use macro_ron::v2::DeclarationIdentity;
+    use macro_ron::v2::GrammarRecipe;
+    use macro_ron::v2::NormalizedDeclaration;
+    use macro_ron::v2::SurfaceFeature;
+
+    pub(crate) struct ParserEnvironment {
+        declarations: Vec<NormalizedDeclaration>,
+    }
+
+    impl ParserEnvironment {
+        pub(crate) fn new(declarations: Vec<NormalizedDeclaration>) -> Self {
+            Self { declarations }
+        }
+
+        pub(crate) fn surface<'a>(
+            &'a self,
+            id: &DeclarationIdentity,
+            feature: SurfaceFeature,
+        ) -> Option<&'a str> {
+            self.declarations
+                .iter()
+                .find(|declaration| declaration.identity() == id)
+                .and_then(NormalizedDeclaration::grammar)
+                .and_then(|grammar| {
+                    grammar
+                        .surfaces()
+                        .iter()
+                        .find(|surface| surface.feature() == feature)
+                })
+                .map(macro_ron::v2::RealizedSurface::text)
+        }
+
+        pub(crate) fn noun_rows(&self) -> Vec<(DeclarationIdentity, SurfaceFeature, &str)> {
+            self.declarations
+                .iter()
+                .filter_map(|declaration| {
+                    let grammar = declaration.grammar()?;
+                    matches!(grammar.recipe(), GrammarRecipe::Noun)
+                        .then_some((declaration.identity(), grammar))
+                })
+                .flat_map(|(id, grammar)| {
+                    grammar
+                        .surfaces()
+                        .iter()
+                        .map(move |surface| (id.clone(), surface.feature(), surface.text()))
+                })
+                .collect()
+        }
+    }
+}
+
+mod declaration_noun_fixture {
+    use RulePosition::Lexical as L;
+
+    use super::constructions;
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum RulePosition<Category, Lexical> {
+        Nonterminal(Category),
+        Lexical(Lexical),
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct Rule<Category: 'static, Lexical: 'static, RuleId> {
+        id: RuleId,
+        lhs: Category,
+        rhs: &'static [RulePosition<Category, Lexical>],
+    }
+
+    #[derive(Default)]
+    struct ParseContext<'a> {
+        marker: std::marker::PhantomData<&'a ()>,
+    }
+
+    trait Render {
+        fn render(
+            &self,
+            context: &ParseContext<'_>,
+            environment: &crate::environment::ParserEnvironment,
+        ) -> String;
+    }
+
+    struct Writer {
+        output: String,
+        capitalize_next: bool,
+    }
+
+    impl Writer {
+        fn new() -> Self {
+            Self {
+                output: String::new(),
+                capitalize_next: true,
+            }
+        }
+
+        fn word(&mut self, word: &str) {
+            if !self.output.is_empty() {
+                self.output.push(' ');
+            }
+            if self.capitalize_next {
+                let mut characters = word.chars();
+                if let Some(first) = characters.next() {
+                    self.output.extend(first.to_uppercase());
+                    self.output.push_str(characters.as_str());
+                }
+                self.capitalize_next = false;
+            } else {
+                self.output.push_str(word);
+            }
+        }
+
+        fn punctuation(&mut self, punctuation: char) {
+            self.output.push(punctuation);
+        }
+
+        fn finish(self) -> String {
+            self.output
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum BuildValue {
+        Phrase(Phrase),
+        PluralPhrase(PluralPhrase),
+        Leaf(Leaf),
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct LexicalMatch<T> {
+        end: usize,
+        value: T,
+    }
+
+    struct ScanInput<'a> {
+        text: &'a str,
+        position: ScanPosition,
+        environment: &'a crate::environment::ParserEnvironment,
+        context: &'a ParseContext<'a>,
+    }
+
+    impl ScanInput<'_> {
+        fn word_end(&self, running_text: &str) -> Option<usize> {
+            let prefix = usize::from(self.position.case == CasePosition::Continuation);
+            let remainder = self.text.get(self.position.byte_offset..)?;
+            let remainder = (prefix == 0)
+                .then_some(remainder)
+                .or_else(|| remainder.strip_prefix(' '))?;
+            let rendered = if self.position.case == CasePosition::DocumentInitial {
+                let mut characters = running_text.chars();
+                characters
+                    .next()
+                    .into_iter()
+                    .flat_map(char::to_uppercase)
+                    .chain(characters)
+                    .collect::<String>()
+            } else {
+                running_text.to_owned()
+            };
+            let end = self.position.byte_offset + prefix + rendered.len();
+            let has_boundary = matches!(
+                self.text.as_bytes().get(end),
+                None | Some(b' ' | b',' | b'.')
+            );
+            (remainder.starts_with(&rendered) && has_boundary).then_some(end)
+        }
+
+        fn punctuation_end(&self, punctuation: &str) -> Option<usize> {
+            self.text[self.position.byte_offset..]
+                .starts_with(punctuation)
+                .then_some(self.position.byte_offset + punctuation.len())
+        }
+
+        fn declaration_noun_readings(
+            &self,
+            position: macro_ron::v2::GrammarPosition,
+            wanted: FeatureConstraint<Number>,
+        ) -> Vec<(
+            usize,
+            macro_ron::v2::DeclarationIdentity,
+            macro_ron::v2::SurfaceFeature,
+        )> {
+            assert_eq!(position, macro_ron::v2::GrammarPosition::Noun);
+            self.environment
+                .noun_rows()
+                .into_iter()
+                .filter_map(|(id, feature, surface)| {
+                    let number = match feature {
+                        macro_ron::v2::SurfaceFeature::Singular => Number::Singular,
+                        macro_ron::v2::SurfaceFeature::Plural => Number::Plural,
+                        _ => return None,
+                    };
+                    (matches!(wanted, FeatureConstraint::Any)
+                        || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number))
+                    .then(|| self.word_end(surface).map(|end| (end, id, feature)))
+                    .flatten()
+                })
+                .collect()
+        }
+
+        fn declaration_readings(
+            &self,
+            _matcher: DeclarationMatcher,
+        ) -> Vec<(
+            usize,
+            macro_ron::v2::DeclarationIdentity,
+            macro_ron::v2::SurfaceFeature,
+        )> {
+            debug_assert_eq!(self.context.marker, std::marker::PhantomData);
+            Vec::new()
+        }
+    }
+
+    fn scan_bound_terminal(
+        _input: &ScanInput<'_>,
+        _terminal: LexicalTerminal,
+    ) -> Vec<LexicalMatch<Leaf>> {
+        Vec::new()
+    }
+
+    constructions! {
+        lexeme NounLexeme { Player, }
+        codec Noun {
+            generate declaration_noun {
+                closed = NounLexeme;
+                position = Noun;
+                kinds = [Type, Subtype];
+                feature = Number;
+            }
+        }
+        construction singular: Phrase {
+            element SingularPhrase { head: lex Noun, }
+            derive number = Values::Singular;
+            form singular = noun(head);
+        }
+        construction plural: PluralPhrase {
+            element PluralPhraseNode { head: lex Noun, }
+            derive number = Values::Plural;
+            form plural = noun(head);
+        }
+        root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root PluralPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+    }
+
+    fn declaration(path: &str, source: &str) -> macro_ron::v2::DeclarationSource {
+        macro_ron::v2::DeclarationSource::new(path, source)
+    }
+
+    fn environment() -> crate::environment::ParserEnvironment {
+        let declarations = macro_ron::v2::read_sources(vec![
+            declaration(
+                "/synthetic/types/Relic.ron",
+                r#"Type(name:"Relic",spelling:"relic",grammar:Noun(singular:"relic"))"#,
+            ),
+            declaration(
+                "/synthetic/subtypes/creature/Elf.ron",
+                r#"Subtype(category:Creature,name:"Elf",spelling:"Elf",grammar:Noun(singular:"Elf",plural:"Elves"))"#,
+            ),
+            declaration(
+                "/synthetic/abilities/Fraud.ron",
+                r#"KeywordAbility(name:"Fraud",spelling:"Fraud",grammar:Noun(singular:"Fraud"))"#,
+            ),
+        ])
+        .expect("synthetic declaration sources normalize");
+        crate::environment::ParserEnvironment::new(declarations)
+    }
+
+    struct Recorder(Vec<String>);
+
+    impl Visitor for Recorder {
+        fn visit_declaration(&mut self, declaration: &macro_ron::v2::DeclarationIdentity) {
+            self.0.push(declaration.to_string());
+        }
+    }
+
+    fn assert_build_render_and_visit(
+        environment: &crate::environment::ParserEnvironment,
+        context: &ParseContext<'_>,
+        singular: &LexicalMatch<Leaf>,
+        plural: &LexicalMatch<Leaf>,
+    ) {
+        let built = build(
+            RuleId::PhraseSingular,
+            &[
+                BuildValue::Leaf(singular.value.clone()),
+                BuildValue::Leaf(Leaf::Literal(".")),
+                BuildValue::Leaf(Leaf::EndOfInput),
+            ],
+            context,
+        )
+        .expect("generated declaration noun builds through its construction");
+        let BuildValue::Phrase(phrase) = built else {
+            panic!("singular declaration noun builds the declared root")
+        };
+        assert_eq!(Render::render(&phrase, context, environment), "Relic.");
+
+        let built = build(
+            RuleId::PluralPhrasePlural,
+            &[
+                BuildValue::Leaf(plural.value.clone()),
+                BuildValue::Leaf(Leaf::Literal(".")),
+                BuildValue::Leaf(Leaf::EndOfInput),
+            ],
+            context,
+        )
+        .expect("generated plural declaration noun builds through its construction");
+        let BuildValue::PluralPhrase(plural_phrase) = built else {
+            panic!("plural declaration noun builds the declared plural root")
+        };
+        assert_eq!(
+            Render::render(&plural_phrase, context, environment),
+            "Elves."
+        );
+
+        let mut recorder = Recorder(Vec::new());
+        walk_noun(
+            &mut recorder,
+            match &singular.value {
+                Leaf::Noun { noun, .. } => noun,
+                _ => unreachable!(),
+            },
+        );
+        walk_plural_phrase(&mut recorder, &plural_phrase);
+        assert_eq!(recorder.0, ["type `Relic`", "creature subtype `Elf`"]);
+    }
+
+    pub(crate) fn run() {
+        let environment = environment();
+        let context = ParseContext::default();
+        let relic =
+            macro_ron::v2::DeclarationIdentity::new(macro_ron::v2::DeclarationKind::Type, "Relic");
+        let elf = macro_ron::v2::DeclarationIdentity::new(
+            macro_ron::v2::DeclarationKind::Subtype(macro_ron::v2::SubtypeCategory::Creature),
+            "Elf",
+        );
+
+        let relic_singular = DeclarationNoun::new(
+            &environment,
+            relic.clone(),
+            macro_ron::v2::SurfaceFeature::Singular,
+        )
+        .expect("Type singular membership constructs");
+        assert_eq!(relic_singular.id(), &relic);
+        assert_eq!(
+            relic_singular.feature(),
+            macro_ron::v2::SurfaceFeature::Singular
+        );
+        assert!(
+            DeclarationNoun::new(
+                &environment,
+                elf.clone(),
+                macro_ron::v2::SurfaceFeature::Plural,
+            )
+            .is_some()
+        );
+        assert!(
+            DeclarationNoun::new(
+                &environment,
+                macro_ron::v2::DeclarationIdentity::new(
+                    macro_ron::v2::DeclarationKind::Type,
+                    "Missing",
+                ),
+                macro_ron::v2::SurfaceFeature::Singular,
+            )
+            .is_none()
+        );
+        assert!(
+            DeclarationNoun::new(
+                &environment,
+                macro_ron::v2::DeclarationIdentity::new(
+                    macro_ron::v2::DeclarationKind::KeywordAbility,
+                    "Fraud",
+                ),
+                macro_ron::v2::SurfaceFeature::Singular,
+            )
+            .is_none()
+        );
+
+        let scan = |text, byte_offset, case, wanted| {
+            scan_lexical(
+                &ScanInput {
+                    text,
+                    position: ScanPosition { byte_offset, case },
+                    environment: &environment,
+                    context: &context,
+                },
+                LexicalTerminal {
+                    matcher: Lexical::Noun(wanted),
+                    owner: LexicalOwnerTemplate::DeclarationNoun,
+                },
+            )
+        };
+        let singular = scan(
+            "Relic.",
+            0,
+            CasePosition::DocumentInitial,
+            FeatureConstraint::Exact(Number::Singular),
+        );
+        assert_eq!(singular.len(), 1);
+        assert_eq!(singular[0].end, 5);
+        assert!(matches!(
+            &singular[0].value,
+            Leaf::Noun { noun: Noun::Declaration(noun), number: Number::Singular }
+                if noun.id() == &relic
+        ));
+        let owner = LexicalOwnerTemplate::DeclarationNoun
+            .instantiate(&singular[0].value)
+            .expect("declaration noun has an exact owner");
+        assert_eq!(owner.kind(), LexicalProvenanceKind::Declaration);
+        assert_eq!(owner.stable_id(), "declaration:type/Relic");
+
+        let plural = scan(
+            "prefix Elves.",
+            6,
+            CasePosition::Continuation,
+            FeatureConstraint::Exact(Number::Plural),
+        );
+        assert_eq!(plural.len(), 1);
+        assert_eq!(plural[0].end, 12);
+        assert!(matches!(
+            &plural[0].value,
+            Leaf::Noun { noun: Noun::Declaration(noun), number: Number::Plural }
+                if noun.id() == &elf
+                    && noun.feature() == macro_ron::v2::SurfaceFeature::Plural
+        ));
+        assert!(
+            scan(
+                "Fraud.",
+                0,
+                CasePosition::DocumentInitial,
+                FeatureConstraint::Any,
+            )
+            .is_empty()
+        );
+
+        let closed = scan(
+            "Player.",
+            0,
+            CasePosition::DocumentInitial,
+            FeatureConstraint::Exact(Number::Singular),
+        );
+        assert!(matches!(
+            closed.as_slice(),
+            [LexicalMatch {
+                end: 6,
+                value: Leaf::Noun {
+                    noun: Noun::Lexeme(NounLexeme::Player),
+                    number: Number::Singular
+                }
+            }]
+        ));
+
+        assert_build_render_and_visit(&environment, &context, &singular[0], &plural[0]);
+    }
+}
+
 mod fixture {
     use RulePosition::Lexical as L;
     use RulePosition::Nonterminal as N;
@@ -293,6 +749,7 @@ mod fixture {
                 };
             }
         }
+
 
         codec RawBranchToken {
             value_type = RawBranchToken;
@@ -1210,5 +1667,6 @@ mod fixture {
 
 #[test]
 fn generated_output_is_type_correct_and_executes_every_boundary_case() {
+    declaration_noun_fixture::run();
     fixture::run();
 }
