@@ -1,0 +1,13 @@
+Type(
+    name: "Instant",
+    spelling: "instant",
+    grammar: Noun(singular: "instant"),
+    params: [],
+    body: TypeDef(
+        name: "Instant",
+        permanent: false,
+        confers: [
+            Ability(Static(May(Cast(what: Ref(This), window: InstantSpeed)))),
+        ],
+    ),
+)

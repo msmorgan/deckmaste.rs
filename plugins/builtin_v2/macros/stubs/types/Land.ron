@@ -1,0 +1,13 @@
+Type(
+    name: "Land",
+    spelling: "land",
+    grammar: Noun(singular: "land"),
+    params: [],
+    body: TypeDef(
+        name: "Land",
+        permanent: true,
+        confers: [
+            Ability(Static(May(Play(what: Ref(This))))),
+        ],
+    ),
+)

@@ -1,0 +1,28 @@
+Type(
+    name: "Creature",
+    spelling: "creature",
+    grammar: Noun(singular: "creature"),
+    params: [],
+    body: TypeDef(
+        name: "Creature",
+        permanent: true,
+        confers: [
+            Ability(Static(May(Attack(by: Ref(This))))),
+            Ability(Static(May(Block(by: Ref(This))))),
+            Ability(Static(Conditionally(
+                And([
+                    Matches(This, SummoningSick),
+                    Not(Matches(This, Has(Haste))),
+                ]),
+                Cant(Attack(by: Ref(This))),
+            ))),
+            Ability(Static(Conditionally(
+                And([
+                    Matches(This, SummoningSick),
+                    Not(Matches(This, Has(Haste))),
+                ]),
+                Cant(Activate(what: Ref(This), cost: IncludesTapSymbol)),
+            ))),
+        ],
+    ),
+)

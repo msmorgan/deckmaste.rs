@@ -1,0 +1,267 @@
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use std::path::Path;
+
+use macro_ron::v2::DeclarationKind;
+use macro_ron::v2::GrammarRecipe;
+use macro_ron::v2::NormalizedDeclaration;
+use macro_ron::v2::SpellingPart;
+use macro_ron::v2::SurfaceFeature;
+use macro_ron::v2::ValidationError;
+use macro_ron::v2::read_builtin_v2;
+use macro_ron::v2::read_str;
+
+struct ExpectedType {
+    name: &'static str,
+    singular: &'static str,
+    plural: Option<&'static str>,
+    permanent: bool,
+    body: &'static str,
+}
+
+const EXPECTED_TYPES: [ExpectedType; 10] = [
+    ExpectedType {
+        name: "Artifact",
+        singular: "artifact",
+        plural: Some("artifacts"),
+        permanent: true,
+        body: r#"TypeDef(name:"Artifact",permanent:true)"#,
+    },
+    ExpectedType {
+        name: "Battle",
+        singular: "battle",
+        plural: Some("battles"),
+        permanent: true,
+        body: r#"TypeDef(name:"Battle",permanent:true)"#,
+    },
+    ExpectedType {
+        name: "Creature",
+        singular: "creature",
+        plural: Some("creatures"),
+        permanent: true,
+        body: r#"TypeDef(
+            name:"Creature",
+            permanent:true,
+            confers:[
+                Ability(Static(May(Attack(by:Ref(This))))),
+                Ability(Static(May(Block(by:Ref(This))))),
+                Ability(Static(Conditionally(
+                    And([Matches(This,SummoningSick),Not(Matches(This,Has(Haste)))]),
+                    Cant(Attack(by:Ref(This)))
+                ))),
+                Ability(Static(Conditionally(
+                    And([Matches(This,SummoningSick),Not(Matches(This,Has(Haste)))]),
+                    Cant(Activate(what:Ref(This),cost:IncludesTapSymbol))
+                )))
+            ]
+        )"#,
+    },
+    ExpectedType {
+        name: "Dungeon",
+        singular: "dungeon",
+        plural: Some("dungeons"),
+        permanent: false,
+        body: r#"TypeDef(name:"Dungeon",permanent:false)"#,
+    },
+    ExpectedType {
+        name: "Enchantment",
+        singular: "enchantment",
+        plural: Some("enchantments"),
+        permanent: true,
+        body: r#"TypeDef(name:"Enchantment",permanent:true)"#,
+    },
+    ExpectedType {
+        name: "Instant",
+        singular: "instant",
+        plural: Some("instants"),
+        permanent: false,
+        body: r#"TypeDef(
+            name:"Instant",
+            permanent:false,
+            confers:[Ability(Static(May(Cast(what:Ref(This),window:InstantSpeed))))]
+        )"#,
+    },
+    ExpectedType {
+        name: "Kindred",
+        singular: "kindred",
+        plural: None,
+        permanent: false,
+        body: r#"TypeDef(name:"Kindred",permanent:false)"#,
+    },
+    ExpectedType {
+        name: "Land",
+        singular: "land",
+        plural: Some("lands"),
+        permanent: true,
+        body: r#"TypeDef(
+            name:"Land",
+            permanent:true,
+            confers:[Ability(Static(May(Play(what:Ref(This)))))]
+        )"#,
+    },
+    ExpectedType {
+        name: "Planeswalker",
+        singular: "planeswalker",
+        plural: Some("planeswalkers"),
+        permanent: true,
+        body: r#"TypeDef(name:"Planeswalker",permanent:true)"#,
+    },
+    ExpectedType {
+        name: "Sorcery",
+        singular: "sorcery",
+        plural: Some("sorceries"),
+        permanent: false,
+        body: r#"TypeDef(name:"Sorcery",permanent:false)"#,
+    },
+];
+
+const CR_TYPES_OUTSIDE_MODELED_TYPE_LINE: [&str; 5] =
+    ["Conspiracy", "Phenomenon", "Plane", "Scheme", "Vanguard"];
+
+fn compact_ron(source: &str) -> String {
+    let mut compact = source
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>();
+    loop {
+        let normalized = compact.replace(",]", "]").replace(",)", ")");
+        if normalized == compact {
+            return compact;
+        }
+        compact = normalized;
+    }
+}
+
+fn type_rows(declarations: &[NormalizedDeclaration]) -> BTreeMap<&str, &NormalizedDeclaration> {
+    declarations
+        .iter()
+        .filter(|declaration| declaration.identity().kind() == DeclarationKind::Type)
+        .map(|declaration| (declaration.identity().name(), declaration))
+        .collect()
+}
+
+#[test]
+fn builtin_v2_types_load_with_exact_semantics_and_noun_surfaces() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 type declarations must load through the production reader");
+    let types = type_rows(&declarations);
+
+    assert_eq!(
+        types.keys().copied().collect::<BTreeSet<_>>(),
+        EXPECTED_TYPES
+            .iter()
+            .map(|expected| expected.name)
+            .collect(),
+        "the modeled type registry is deliberately smaller than the CR card-type catalog"
+    );
+
+    for expected in &EXPECTED_TYPES {
+        let declaration = types
+            .get(expected.name)
+            .unwrap_or_else(|| panic!("missing modeled type {}", expected.name));
+        assert_eq!(
+            declaration.spelling(),
+            [SpellingPart::Literal(expected.singular.to_owned())],
+            "{} spelling",
+            expected.name
+        );
+        let grammar = declaration
+            .grammar()
+            .unwrap_or_else(|| panic!("{} must contribute noun grammar", expected.name));
+        assert_eq!(grammar.recipe(), &GrammarRecipe::Noun);
+        let mut expected_surfaces = vec![(SurfaceFeature::Singular, expected.singular)];
+        if let Some(plural) = expected.plural {
+            expected_surfaces.push((SurfaceFeature::Plural, plural));
+        }
+        assert_eq!(
+            grammar
+                .surfaces()
+                .iter()
+                .map(|surface| (surface.feature(), surface.text()))
+                .collect::<Vec<_>>(),
+            expected_surfaces,
+            "{} nominal/plural surfaces; the noun recipe also licenses attributive use",
+            expected.name
+        );
+        assert_eq!(declaration.params(), Some([].as_slice()));
+        assert!(declaration.is_graduated());
+        assert_eq!(
+            compact_ron(
+                declaration
+                    .body()
+                    .unwrap_or_else(|| panic!("{} must retain its TypeDef body", expected.name))
+                    .get_ron()
+            ),
+            compact_ron(expected.body),
+            "{} permanent={} and conferrals",
+            expected.name,
+            expected.permanent
+        );
+        assert_eq!(
+            declaration.provenance().path(),
+            workspace_root
+                .join("plugins/builtin_v2/macros/stubs/types")
+                .join(format!("{}.ron", expected.name))
+        );
+    }
+
+    for outside in CR_TYPES_OUTSIDE_MODELED_TYPE_LINE {
+        assert!(
+            !types.contains_key(outside),
+            "{outside} is a CR card type, but not a modeled semantic type-line member"
+        );
+    }
+}
+
+#[test]
+fn an_open_type_noun_normalizes_without_closed_membership() {
+    let declaration = read_str(
+        "Chronicle.ron",
+        r#"Type(
+            name: "Chronicle",
+            spelling: "chronicle",
+            grammar: Noun(singular: "chronicle", plural: Unavailable),
+        )"#,
+    )
+    .unwrap();
+
+    assert_eq!(declaration.identity().kind(), DeclarationKind::Type);
+    assert_eq!(declaration.identity().name(), "Chronicle");
+    assert_eq!(
+        declaration.grammar().unwrap().recipe(),
+        &GrammarRecipe::Noun
+    );
+    assert_eq!(
+        declaration
+            .grammar()
+            .unwrap()
+            .surfaces()
+            .iter()
+            .map(|surface| (surface.feature(), surface.text()))
+            .collect::<Vec<_>>(),
+        [(SurfaceFeature::Singular, "chronicle")]
+    );
+    assert!(!declaration.is_graduated());
+}
+
+#[test]
+fn type_nouns_reject_redundant_default_plural_overrides() {
+    let error = read_str(
+        "Artifact.ron",
+        r#"Type(
+            name: "Artifact",
+            spelling: "artifact",
+            grammar: Noun(singular: "artifact", plural: "artifacts"),
+        )"#,
+    )
+    .unwrap_err();
+
+    assert_eq!(
+        error.validation(),
+        Some(&ValidationError::RedundantOverride {
+            field: "plural",
+            surface: "artifacts".to_owned(),
+        })
+    );
+}

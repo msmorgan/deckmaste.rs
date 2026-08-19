@@ -345,4 +345,42 @@ mod tests {
             assert!(!t.permanent(), "{t:?} is not a permanent type");
         }
     }
+
+    #[test]
+    fn type_line_remains_closed_to_the_ten_modeled_types() {
+        let modeled = [
+            Type::Artifact,
+            Type::Battle,
+            Type::Creature,
+            Type::Dungeon,
+            Type::Enchantment,
+            Type::Instant,
+            Type::Kindred,
+            Type::Land,
+            Type::Planeswalker,
+            Type::Sorcery,
+        ];
+        assert_eq!(
+            modeled.map(Type::name).map(|name| name.as_str()),
+            [
+                "Artifact",
+                "Battle",
+                "Creature",
+                "Dungeon",
+                "Enchantment",
+                "Instant",
+                "Kindred",
+                "Land",
+                "Planeswalker",
+                "Sorcery",
+            ]
+        );
+
+        for unsupported in ["Conspiracy", "Phenomenon", "Plane", "Scheme", "Vanguard"] {
+            assert!(
+                crate::ron::options().from_str::<Type>(unsupported).is_err(),
+                "{unsupported} is a CR card type, but not a supported semantic type-line member"
+            );
+        }
+    }
 }
