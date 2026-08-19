@@ -210,7 +210,29 @@ pub struct TerminalBinding {
 #[derive(Debug)]
 pub enum GeneratedCodecRecipe {
     SignedDecimal(SignedDecimalSource),
+    DeclarationNoun(DeclarationNounSource),
     Unsupported { name: Ident },
+}
+
+#[derive(Debug)]
+pub struct DeclarationNounSource {
+    pub recipe: Ident,
+    pub closed_slots: Vec<GeneratedIdentSlot>,
+    pub position_slots: Vec<GeneratedIdentSlot>,
+    pub kind_slots: Vec<DeclarationNounKindsSource>,
+    pub feature_slots: Vec<GeneratedIdentSlot>,
+}
+
+#[derive(Debug)]
+pub struct GeneratedIdentSlot {
+    pub slot: Ident,
+    pub value: Ident,
+}
+
+#[derive(Debug)]
+pub struct DeclarationNounKindsSource {
+    pub slot: Ident,
+    pub kinds: Vec<Ident>,
 }
 
 #[derive(Debug)]

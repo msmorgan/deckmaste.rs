@@ -56,7 +56,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         .map(|root| root.category().to_owned())
         .collect::<HashSet<_>>();
     let mut items = Vec::new();
-    let takes_environment = validated.has_open_declarations();
+    let takes_environment = validated.needs_parser_environment();
     for root in &roots {
         let category = root.category().to_owned();
         let members = categories
@@ -265,7 +265,7 @@ fn render_allocator(
     if takes_context {
         allocator.reserve("context");
     }
-    if validated.has_open_declarations() {
+    if validated.needs_parser_environment() {
         allocator.reserve("environment");
     }
     for construction in members {
@@ -365,11 +365,16 @@ fn render_allocator(
                     let field = fields
                         .get(role)
                         .ok_or_else(|| internal("resolved noun role is absent"))?;
-                    let binding = find_binding(validated, field.terminal())?;
-                    let Some(BindingRenderPlan::Runtime(path)) = binding.render() else {
-                        return Err(internal("noun terminal lacks runtime render binding"));
-                    };
-                    reserve_bare_path(&mut allocator, path);
+                    if validated
+                        .runtime_declaration_noun()
+                        .is_none_or(|codec| codec.codec_name() != field.terminal())
+                    {
+                        let binding = find_binding(validated, field.terminal())?;
+                        let Some(BindingRenderPlan::Runtime(path)) = binding.render() else {
+                            return Err(internal("noun terminal lacks runtime render binding"));
+                        };
+                        reserve_bare_path(&mut allocator, path);
+                    }
                     allocator.reserve(feature_helper("number", construction.category()));
                 }
             }
@@ -582,7 +587,7 @@ fn render_atoms(
                 };
                 let context = capability.requires_context().then(|| quote! { context });
                 let environment = validated
-                    .has_open_declarations()
+                    .needs_parser_environment()
                     .then(|| quote! { environment });
                 let tail = signature_tail(&[agreement, context, environment]);
                 Ok(quote! { #helper(#call_writer, #value #tail); })
@@ -663,17 +668,76 @@ fn render_atoms(
                 let field = fields
                     .get(role)
                     .ok_or_else(|| internal("resolved noun role is absent"))?;
-                let binding = find_binding(validated, field.terminal())?;
-                let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
-                    return Err(internal("noun terminal lacks runtime render binding"));
-                };
-                let number = ident(&feature_helper("number", construction.category()));
-                let category_value = &locals.category;
-                let value = field_value(construction, role, locals)?;
-                Ok(quote! { #function(#call_writer, #value, #number(#category_value)); })
+                render_noun_atom(
+                    validated,
+                    construction,
+                    field,
+                    role,
+                    locals,
+                    &method_writer,
+                    &call_writer,
+                )
             }
         })
         .collect()
+}
+
+fn render_noun_atom(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    field: &ConstructionFieldPlan,
+    role: &str,
+    locals: &RenderLocals,
+    method_writer: &TokenStream,
+    call_writer: &TokenStream,
+) -> syn::Result<TokenStream> {
+    let number = ident(&feature_helper("number", construction.category()));
+    let category_value = &locals.category;
+    let value = field_value(construction, role, locals)?;
+    let Some(codec) = validated
+        .runtime_declaration_noun()
+        .filter(|codec| codec.codec_name() == field.terminal())
+    else {
+        let binding = find_binding(validated, field.terminal())?;
+        let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
+            return Err(internal("noun terminal lacks runtime render binding"));
+        };
+        return Ok(quote! { #function(#call_writer, #value, #number(#category_value)); });
+    };
+
+    let noun = codec.codec_ident();
+    let closed = codec.closed_lexeme();
+    let closed_arms = validated
+        .runtime_noun_lexeme()
+        .expect("validated declaration_noun has a closed lexeme")
+        .variants()
+        .iter()
+        .map(|variant| {
+            let surface = syn::LitStr::new(
+                &crate::identifier::snake_case(&variant.to_string()),
+                variant.span(),
+            );
+            quote! {
+                #noun::Lexeme(#closed::#variant) => {
+                    let surface = match #number(#category_value) {
+                        Number::Singular => #surface.to_owned(),
+                        Number::Plural => format!("{}s", #surface),
+                    };
+                    #method_writer.word(&surface);
+                }
+            }
+        });
+    Ok(quote! {
+        match #value {
+            #(#closed_arms,)*
+            #noun::Declaration(declaration) => {
+                let surface = environment
+                    .surface(declaration.id(), declaration.feature())
+                    .expect("stored declaration noun remains in its parser environment");
+                #method_writer.word(surface);
+            }
+        }
+    })
 }
 
 fn render_open_declaration(

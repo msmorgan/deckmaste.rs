@@ -629,9 +629,195 @@ fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
                     }
                 }
             }
+            crate::model::GeneratedCodecRecipe::DeclarationNoun(source) => {
+                validate_declaration_noun_source(raw, source, &mut errors);
+            }
         }
     }
     finish(errors)
+}
+
+fn validate_declaration_noun_source(
+    raw: &Declarations,
+    source: &crate::model::DeclarationNounSource,
+    errors: &mut Option<syn::Error>,
+) {
+    let closed = validate_single_ident_slot(
+        &source.closed_slots,
+        &source.recipe,
+        "closed",
+        "declaration_noun",
+        errors,
+    );
+    let position = validate_single_ident_slot(
+        &source.position_slots,
+        &source.recipe,
+        "position",
+        "declaration_noun",
+        errors,
+    );
+    let feature = validate_single_ident_slot(
+        &source.feature_slots,
+        &source.recipe,
+        "feature",
+        "declaration_noun",
+        errors,
+    );
+    let kinds = match source.kind_slots.as_slice() {
+        [] => {
+            combine(
+                errors,
+                syn::Error::new(
+                    source.recipe.span(),
+                    "declaration_noun requires one `kinds` field",
+                ),
+            );
+            None
+        }
+        [slot, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        "duplicate declaration_noun field `kinds`",
+                    ),
+                );
+            }
+            Some(slot)
+        }
+    };
+
+    if let Some(position) = position
+        && position != "Noun"
+    {
+        combine(
+            errors,
+            syn::Error::new(position.span(), "declaration_noun position must be `Noun`"),
+        );
+    }
+    if let Some(feature) = feature
+        && feature != "Number"
+    {
+        combine(
+            errors,
+            syn::Error::new(feature.span(), "declaration_noun feature must be `Number`"),
+        );
+    }
+    if let Some(closed) = closed {
+        let closed_name = identifier_key(closed);
+        let matching = raw
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                Declaration::Lexeme(lexeme) if identifier_key(&lexeme.name) == closed_name => {
+                    Some(lexeme)
+                }
+                Declaration::Construction(_)
+                | Declaration::Vocab(_)
+                | Declaration::Lexeme(_)
+                | Declaration::Codec(_)
+                | Declaration::Identity(_)
+                | Declaration::Root(_) => None,
+            });
+        match matching {
+            Some(lexeme) if !lexeme.variants.is_empty() => {}
+            Some(_) => combine(
+                errors,
+                syn::Error::new(
+                    closed.span(),
+                    "declaration_noun closed branch must have at least one lexeme member",
+                ),
+            ),
+            None => combine(
+                errors,
+                syn::Error::new(
+                    closed.span(),
+                    "declaration_noun closed branch must name a lexeme declaration",
+                ),
+            ),
+        }
+    }
+    if let Some(kinds) = kinds {
+        if kinds.kinds.is_empty() {
+            combine(
+                errors,
+                syn::Error::new(
+                    kinds.slot.span(),
+                    "declaration_noun kind set cannot be empty",
+                ),
+            );
+        }
+        let mut seen = HashSet::new();
+        let mut valid_kinds = !kinds.kinds.is_empty();
+        for kind in &kinds.kinds {
+            let name = identifier_key(kind);
+            if !matches!(name.as_str(), "Type" | "Subtype") {
+                valid_kinds = false;
+                combine(
+                    errors,
+                    syn::Error::new(
+                        kind.span(),
+                        "declaration_noun kinds must be `Type` or `Subtype`",
+                    ),
+                );
+            } else if !seen.insert(name.clone()) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        kind.span(),
+                        format!("duplicate declaration_noun kind `{name}`"),
+                    ),
+                );
+            }
+        }
+        if valid_kinds {
+            for required in ["Type", "Subtype"] {
+                if !seen.contains(required) {
+                    combine(
+                        errors,
+                        syn::Error::new(
+                            kinds.slot.span(),
+                            format!("declaration_noun requires `{required}` kind"),
+                        ),
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn validate_single_ident_slot<'a>(
+    slots: &'a [crate::model::GeneratedIdentSlot],
+    recipe: &syn::Ident,
+    field: &str,
+    recipe_name: &str,
+    errors: &mut Option<syn::Error>,
+) -> Option<&'a syn::Ident> {
+    match slots {
+        [] => {
+            combine(
+                errors,
+                syn::Error::new(
+                    recipe.span(),
+                    format!("{recipe_name} requires one `{field}` field"),
+                ),
+            );
+            None
+        }
+        [slot, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        format!("duplicate {recipe_name} field `{field}`"),
+                    ),
+                );
+            }
+            Some(&slot.value)
+        }
+    }
 }
 
 fn valid_negative_sign_spelling(spelling: &crate::model::SignedDecimalSignSpelling) -> bool {
@@ -1477,6 +1663,20 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                         &identifier_key(&sign.name),
                         "signed_decimal sign",
                         sign.name.span(),
+                        false,
+                        errors,
+                    );
+                }
+                if matches!(
+                    binding.generated,
+                    Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(_))
+                ) {
+                    let open_value = format!("Declaration{}", identifier_key(&binding.name));
+                    register_terminal_names(
+                        &mut names,
+                        &open_value,
+                        "declaration_noun open value",
+                        binding.name.span(),
                         false,
                         errors,
                     );
@@ -4567,6 +4767,125 @@ pub(crate) mod tests {
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         })
+    }
+
+    fn declaration_noun_error(body: &proc_macro2::TokenStream) -> String {
+        error(quote! {
+            lexeme NounLexeme { Player, }
+            codec Noun {
+                generate declaration_noun { #body }
+            }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+    }
+
+    #[test]
+    fn declaration_noun_recipe_validation_is_closed_and_structural() {
+        validate(quote! {
+            lexeme NounLexeme { Player, }
+            codec Noun {
+                generate declaration_noun {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type, Subtype];
+                    feature = Number;
+                }
+            }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("the exact declaration noun recipe validates");
+
+        for (body, expected) in [
+            (
+                quote! {
+                    position = Noun;
+                    kinds = [Type, Subtype];
+                    feature = Number;
+                },
+                "declaration_noun requires one `closed` field",
+            ),
+            (
+                quote! {
+                    closed = NounLexeme;
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type, Subtype];
+                    feature = Number;
+                },
+                "duplicate declaration_noun field `closed`",
+            ),
+            (
+                quote! {
+                    closed = MissingLexeme;
+                    position = Noun;
+                    kinds = [Type, Subtype];
+                    feature = Number;
+                },
+                "closed branch must name a lexeme declaration",
+            ),
+            (
+                quote! {
+                    closed = NounLexeme;
+                    position = Verb;
+                    kinds = [Type, Subtype];
+                    feature = Number;
+                },
+                "position must be `Noun`",
+            ),
+            (
+                quote! {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [];
+                    feature = Number;
+                },
+                "kind set cannot be empty",
+            ),
+            (
+                quote! {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type, Subtype, Type];
+                    feature = Number;
+                },
+                "duplicate declaration_noun kind `Type`",
+            ),
+            (
+                quote! {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type, KeywordAction];
+                    feature = Number;
+                },
+                "kinds must be `Type` or `Subtype`",
+            ),
+            (
+                quote! {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type];
+                    feature = Number;
+                },
+                "requires `Subtype` kind",
+            ),
+            (
+                quote! {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type, Subtype];
+                    feature = Agreement;
+                },
+                "feature must be `Number`",
+            ),
+        ] {
+            let message = declaration_noun_error(&body);
+            assert!(
+                message.contains(expected),
+                "expected {expected:?} in {message}"
+            );
+        }
     }
 
     #[test]
@@ -7699,6 +8018,8 @@ pub(crate) mod tests {
                     crate::semantic::TerminalPlan::ContextIdentity(value) =>
                         (value.source_index(), "identity", value.name().to_owned(),),
                     crate::semantic::TerminalPlan::SignedDecimal(value) =>
+                        (value.source_index(), "codec", value.codec_name().to_owned(),),
+                    crate::semantic::TerminalPlan::DeclarationNoun(value) =>
                         (value.source_index(), "codec", value.codec_name().to_owned(),),
                 })
                 .collect::<Vec<_>>(),

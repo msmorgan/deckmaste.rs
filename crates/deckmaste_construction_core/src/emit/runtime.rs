@@ -24,6 +24,7 @@ use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::semantic::BindingPlan;
 use crate::semantic::ContextIdentityPlan;
+use crate::semantic::DeclarationNounPlan;
 use crate::semantic::LexemePlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::SignedDecimalPlan;
@@ -38,6 +39,7 @@ struct RuntimeInventory<'a> {
     opaque_bindings: Vec<&'a BindingPlan>,
     context_identities: Vec<&'a ContextIdentityPlan>,
     signed_decimal: Option<&'a SignedDecimalPlan>,
+    declaration_noun: Option<&'a DeclarationNounPlan>,
 }
 
 impl<'a> RuntimeInventory<'a> {
@@ -51,13 +53,18 @@ impl<'a> RuntimeInventory<'a> {
             opaque_bindings: plan.runtime_opaque_bindings().collect(),
             context_identities: plan.runtime_context_identities().collect(),
             signed_decimal: plan.runtime_signed_decimal(),
+            declaration_noun: plan.runtime_declaration_noun(),
         }
     }
 
     fn noun_type(&self) -> Option<syn::Ident> {
-        self.noun_binding
-            .map(|binding| binding.value_type_name().clone())
-            .or_else(|| self.noun_lexeme.map(|lexeme| lexeme.name_ident().clone()))
+        self.declaration_noun
+            .map(|codec| codec.codec_ident().clone())
+            .or_else(|| {
+                self.noun_binding
+                    .map(|binding| binding.value_type_name().clone())
+                    .or_else(|| self.noun_lexeme.map(|lexeme| lexeme.name_ident().clone()))
+            })
     }
 }
 
@@ -137,7 +144,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     ];
 
     items.extend(emit_lexical_types(&inventory));
-    items.extend(emit_owner_types());
+    items.extend(emit_owner_types(&inventory));
     items.extend(emit_runtime_impls(&inventory));
     if plan.has_open_declarations() {
         items.push(emit_required_declarations(plan));
@@ -325,7 +332,10 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     ]
 }
 
-fn emit_owner_types() -> Vec<GeneratedItem> {
+fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
+    let declaration_noun = inventory
+        .declaration_noun
+        .map(|_| quote! { DeclarationNoun, });
     vec![
         named_type(
             LEXICAL_PROVENANCE_KIND_TYPE,
@@ -361,6 +371,7 @@ fn emit_owner_types() -> Vec<GeneratedItem> {
                     Identity {
                         declaration: &'static str,
                     },
+                    #declaration_noun
                     Declaration {
                         kind: ::macro_ron::v2::DeclarationKind,
                         name: &'static str,
@@ -595,6 +606,48 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             }
         })
     });
+    let declaration_noun_owner = inventory.declaration_noun.map(|codec| {
+        let noun = codec.codec_ident();
+        let closed = codec.closed_lexeme();
+        let closed_owner_arms = inventory
+            .noun_lexeme
+            .expect("validated declaration noun has its closed lexeme provider")
+            .variants()
+            .iter()
+            .map(|member| {
+                let stable_id =
+                    syn::LitStr::new(&format!("lexeme:{closed}/{member}"), Span::call_site());
+                quote! {
+                    (
+                        LexicalOwnerTemplate::DeclarationNoun,
+                        Leaf::Noun {
+                            noun: #noun::Lexeme(#closed::#member),
+                            number: _,
+                        },
+                    ) => Some(LexicalOwner {
+                        kind: LexicalProvenanceKind::Lexeme,
+                        stable_id: #stable_id.to_owned(),
+                    }),
+                }
+            });
+        quote! {
+            #(#closed_owner_arms)*
+            (
+                LexicalOwnerTemplate::DeclarationNoun,
+                Leaf::Noun {
+                    noun: #noun::Declaration(declaration),
+                    number: _,
+                },
+            ) => Some(LexicalOwner {
+                kind: LexicalProvenanceKind::Declaration,
+                stable_id: format!(
+                    "declaration:{}/{}",
+                    declaration.id().kind(),
+                    declaration.id().name(),
+                ),
+            }),
+        }
+    });
 
     vec![
         impl_item(
@@ -646,6 +699,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 kind: LexicalProvenanceKind::Declaration,
                                 stable_id: format!("declaration:{kind}/{name}"),
                             }),
+                            #declaration_noun_owner
                             _ => unreachable!("validated lexical owner template/value mismatch"),
                         }
                     }

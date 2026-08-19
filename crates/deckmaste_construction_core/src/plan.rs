@@ -299,6 +299,64 @@ mod tests {
     }
 
     #[test]
+    fn declaration_noun_recipe_routes_sealed_facts_to_every_emitter() {
+        let source: proc_macro2::TokenStream = quote::quote! {
+            lexeme NounLexeme { Player, }
+            codec Noun {
+                generate declaration_noun {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type, Subtype];
+                    feature = Number;
+                }
+            }
+            construction common: Phrase {
+                element Common { head: lex Noun, }
+                derive number = Values::Singular;
+                form common = noun(head);
+            }
+            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        };
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(source).expect("declaration_noun syntax parses"),
+        )
+        .expect("the exact closed recipe validates")
+        .into_semantic();
+
+        let outputs = [
+            ("terminal", crate::emit::terminal::emit(&plan).unwrap().0),
+            ("runtime", crate::emit::runtime::emit(&plan)),
+            ("scanner", crate::emit::scanner::emit(&plan)),
+            ("rules", crate::emit::rules::emit(&plan).unwrap()),
+            ("build", crate::emit::build::emit(&plan).unwrap()),
+            ("render", crate::emit::render::emit(&plan).unwrap()),
+            ("visit", crate::emit::visit::emit(&plan).unwrap()),
+        ];
+        for (emitter, items) in outputs {
+            let emitted = items
+                .iter()
+                .map(|item| item.tokens.to_string())
+                .collect::<String>();
+            let expected: &[&str] = match emitter {
+                "terminal" => &["NounLexeme", "DeclarationNoun", "SurfaceFeature"],
+                "runtime" => &["DeclarationNoun", "Noun :: Declaration"],
+                "scanner" => &["NounLexeme", "GrammarPosition :: Noun", "SurfaceFeature"],
+                "rules" => &["Lexical :: Noun", "DeclarationNoun"],
+                "build" => &["Leaf :: Noun", ". clone"],
+                "render" => &["Noun :: Declaration", "environment . surface"],
+                "visit" => &["visit_declaration", "walk_declaration_noun"],
+                _ => unreachable!(),
+            };
+            for needle in expected {
+                assert!(
+                    emitted.contains(needle),
+                    "{emitter} did not consume `{needle}`: {emitted}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn sealed_open_identity_mutation_changes_emitters_without_changing_source() {
         let authored = crate::test_support::open_verb_tokens().to_string();
         let mut plan = crate::validate_declarations(
@@ -875,6 +933,54 @@ mod tests {
         assert_eq!(
             actual,
             include_str!("../tests/golden/context-identity-expansion.txt")
+        );
+    }
+
+    #[test]
+    fn declaration_noun_generated_body_is_pinned() {
+        let expansion = crate::generate(quote::quote! {
+            lexeme NounLexeme { Player, }
+            codec Noun {
+                generate declaration_noun {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type, Subtype];
+                    feature = Number;
+                }
+            }
+            construction common: Phrase {
+                element Common { head: lex Noun, }
+                derive number = Values::Singular;
+                form common = noun(head);
+            }
+            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("representative declaration noun generates");
+        let actual = expansion
+            .items()
+            .iter()
+            .filter(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named {
+                        kind: NamedKind::Type,
+                        name,
+                    } if matches!(name.as_str(), "DeclarationNoun" | "Noun")
+                ) || matches!(
+                    &item.key,
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty,
+                    } if self_ty == "DeclarationNoun"
+                )
+            })
+            .map(crate::format_generated_item)
+            .collect::<syn::Result<Vec<_>>>()
+            .expect("representative declaration noun items format")
+            .join("");
+        assert_eq!(
+            actual,
+            include_str!("../tests/golden/declaration-noun-expansion.txt")
         );
     }
 

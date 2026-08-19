@@ -1,9 +1,7 @@
 use std::io::Write;
-use std::path::Path;
 
 use anyhow::Context;
 use anyhow::ensure;
-use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::ParserTrace;
@@ -18,15 +16,15 @@ pub(super) fn run(args: &ProbeArgs, output: &mut dyn Write) -> anyhow::Result<()
 }
 
 trait ProbeSteps {
-    type Catalogs;
+    type Parser;
     type Context<'a>;
     type Trace;
 
-    fn load_catalogs(&mut self, path: &Path) -> anyhow::Result<Self::Catalogs>;
+    fn load_parser(&mut self) -> anyhow::Result<Self::Parser>;
     fn context<'a>(&mut self, name: &'a str) -> anyhow::Result<Self::Context<'a>>;
     fn trace(
         &mut self,
-        catalogs: &Self::Catalogs,
+        parser: &Self::Parser,
         text: &str,
         context: &Self::Context<'_>,
         limits: TraceLimits,
@@ -43,14 +41,12 @@ trait ProbeSteps {
 struct ProductionSteps;
 
 impl ProbeSteps for ProductionSteps {
-    type Catalogs = Parser;
+    type Parser = Parser;
     type Context<'a> = ParseContext<'a>;
     type Trace = ParserTrace;
 
-    fn load_catalogs(&mut self, path: &Path) -> anyhow::Result<Self::Catalogs> {
-        let catalogs = ParserCatalogs::load(path)
-            .with_context(|| format!("loading parser catalogs from {}", path.display()))?;
-        Ok(crate::english_v2::parser_from_catalogs(catalogs))
+    fn load_parser(&mut self) -> anyhow::Result<Self::Parser> {
+        Ok(crate::english_v2::parser_from_builtin_v2())
     }
 
     fn context<'a>(&mut self, name: &'a str) -> anyhow::Result<Self::Context<'a>> {
@@ -64,7 +60,7 @@ impl ProbeSteps for ProductionSteps {
 
     fn trace(
         &mut self,
-        parser: &Self::Catalogs,
+        parser: &Self::Parser,
         text: &str,
         context: &Self::Context<'_>,
         limits: TraceLimits,
@@ -96,14 +92,9 @@ fn orchestrate<S: ProbeSteps>(
         "invalid --text: value must be nonempty"
     );
 
-    let catalogs = steps.load_catalogs(&args.catalogs)?;
+    let parser = steps.load_parser()?;
     let context = steps.context(&args.context)?;
-    let trace = steps.trace(
-        &catalogs,
-        &args.text,
-        &context,
-        TraceLimits::new(args.limit),
-    );
+    let trace = steps.trace(&parser, &args.text, &context, TraceLimits::new(args.limit));
     let report = steps.map(&args.text, &args.context, &trace);
     steps.render(&report, args.json, output)?;
     output.flush().context("flush English-v2 probe output")?;
@@ -125,24 +116,17 @@ fn quoted(value: &str) -> String {
 mod tests {
     use std::io;
     use std::io::Write;
-    use std::path::PathBuf;
 
     use serde_json::Value;
-    use tempfile::tempdir;
 
     use super::*;
     use crate::english_v2::diagnostic::FixtureOutcome;
     use crate::english_v2::diagnostic::fixture_report;
 
-    fn catalogs() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs")
-    }
-
     fn args(text: &str, context: &str) -> ProbeArgs {
         ProbeArgs {
             text: text.to_owned(),
             context: context.to_owned(),
-            catalogs: catalogs(),
             limit: 1,
             json: true,
         }
@@ -162,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn validation_and_catalog_errors_are_context_rich_and_nonzero() {
+    fn validation_errors_are_context_rich_and_nonzero() {
         for (text, context, needle) in [
             ("", "Probe Card", "--text"),
             ("Destroy target creature.", "", "--context"),
@@ -171,26 +155,6 @@ mod tests {
             let error = run(&args(text, context), &mut Vec::new()).unwrap_err();
             assert!(error.to_string().contains(needle), "{error:#}");
         }
-
-        let missing = tempdir().unwrap().path().join("missing-catalogs");
-        let mut missing_args = args("Destroy target creature.", "Probe Card");
-        missing_args.catalogs = missing.clone();
-        let error = run(&missing_args, &mut Vec::new()).unwrap_err();
-        assert!(
-            error.to_string().contains(&missing.display().to_string()),
-            "{error:#}"
-        );
-
-        let malformed = tempdir().unwrap();
-        let mut malformed_args = args("Destroy target creature.", "Probe Card");
-        malformed_args.catalogs = malformed.path().to_path_buf();
-        let error = run(&malformed_args, &mut Vec::new()).unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains(&malformed.path().display().to_string()),
-            "{error:#}"
-        );
     }
 
     #[derive(Default)]
@@ -201,11 +165,11 @@ mod tests {
     }
 
     impl ProbeSteps for RecordingSteps {
-        type Catalogs = ();
+        type Parser = ();
         type Context<'a> = ();
         type Trace = ();
 
-        fn load_catalogs(&mut self, _path: &std::path::Path) -> anyhow::Result<Self::Catalogs> {
+        fn load_parser(&mut self) -> anyhow::Result<Self::Parser> {
             self.events.push("load");
             Ok(())
         }
@@ -217,7 +181,7 @@ mod tests {
 
         fn trace(
             &mut self,
-            _catalogs: &Self::Catalogs,
+            _parser: &Self::Parser,
             _text: &str,
             _context: &Self::Context<'_>,
             limits: deckmaste_english_v2::parser::TraceLimits,

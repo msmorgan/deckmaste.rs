@@ -25,19 +25,17 @@ use deckmaste_construction_core::Expansion;
 use deckmaste_construction_core::ItemKey;
 use deckmaste_construction_core::NamedKind;
 use deckmaste_construction_core::TerminalBindingDeclarationKind;
-use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 
-fn parser_from_catalogs(catalogs: ParserCatalogs) -> Parser {
+fn parser_from_builtin_v2() -> Parser {
     let declarations = macro_ron::v2::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
     let environment = ParserEnvironment::try_from_declarations(declarations)
         .expect("integrated builtin-v2 declarations freeze");
-    Parser::new(catalogs.attach_to(environment))
-        .expect("builtin-v2 supplies every generated static declaration")
+    Parser::new(environment).expect("builtin-v2 supplies every generated static declaration")
 }
 
 #[derive(Debug, Args)]
@@ -68,8 +66,6 @@ enum EnglishV2Command {
 struct CorpusArgs {
     #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
     data: PathBuf,
-    #[arg(long, default_value = "data/gen/catalogs")]
-    catalogs: PathBuf,
 }
 
 #[derive(Debug, clap::Args)]
@@ -118,8 +114,6 @@ struct ProbeArgs {
     text: String,
     #[arg(long)]
     context: String,
-    #[arg(long, default_value = "data/gen/catalogs")]
-    catalogs: PathBuf,
     #[arg(long, default_value_t = 256)]
     limit: usize,
     #[arg(long)]
@@ -132,8 +126,6 @@ struct InspectArgs {
     id: String,
     #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
     data: PathBuf,
-    #[arg(long, default_value = "data/gen/catalogs")]
-    catalogs: PathBuf,
     #[arg(long, default_value_t = 256)]
     limit: usize,
     #[arg(long)]
@@ -504,7 +496,6 @@ mod tests {
         "codec Noun",
         "identity SelfReferenceSpelling",
         "codec SignedNumber",
-        "identity CatalogIdentity",
         "construction spell",
         "construction triggered",
         "construction imperative",
@@ -587,8 +578,8 @@ mod tests {
         "construction gain_life",
         "construction number",
         "construction variable",
-        "codec Noun",
         "codec SignedNumber",
+        "codec Noun",
         "construction spell",
         "construction triggered",
         "construction imperative",
@@ -616,8 +607,6 @@ mod tests {
         "identity SelfReferenceSpelling",
         "lexeme NounLexeme",
         "lexeme VerbLexeme",
-        "identity CatalogIdentity",
-        "identity CatalogIdentity",
     ];
 
     #[allow(
@@ -698,6 +687,11 @@ mod tests {
             }
             "type NounLexeme" | "function walk_noun_lexeme" => &["lexeme NounLexeme"],
             "type VerbLexeme" | "function walk_verb_lexeme" => &["lexeme VerbLexeme"],
+            "type DeclarationNoun"
+            | "impl DeclarationNoun"
+            | "type Noun"
+            | "function walk_declaration_noun"
+            | "function walk_noun" => &["codec Noun"],
             "type Sign"
             | "type SignedNumber"
             | "function render_signed_number"
@@ -733,9 +727,7 @@ mod tests {
             "impl Render for Ability" => &["root Ability"],
             "impl Render for Sentence" => &["root Sentence"],
             "trait Visitor" => VISITOR_ORIGINS,
-            "function walk_noun" => &["codec Noun"],
             "function walk_self_reference_spelling" => &["identity SelfReferenceSpelling"],
-            "function walk_catalog_identity" => &["identity CatalogIdentity"],
             "type Category" | "type Construction" | "type RuleId" | "impl RuleId" => {
                 CONSTRUCTION_ORIGINS
             }
@@ -798,6 +790,9 @@ mod tests {
         "type Variable",
         "type NounLexeme",
         "type VerbLexeme",
+        "type DeclarationNoun",
+        "impl DeclarationNoun",
+        "type Noun",
         "type SelfReferenceSpelling",
         "impl SelfReferenceSpelling",
         "type Sign",
@@ -848,7 +843,6 @@ mod tests {
         "function walk_noun_phrase",
         "function walk_verb_phrase",
         "function walk_amount",
-        "function walk_noun",
         "function walk_spell",
         "function walk_triggered",
         "function walk_imperative",
@@ -876,9 +870,10 @@ mod tests {
         "function walk_self_reference_spelling",
         "function walk_noun_lexeme",
         "function walk_verb_lexeme",
-        "function walk_catalog_identity",
         "function walk_sign",
         "function walk_signed_number",
+        "function walk_declaration_noun",
+        "function walk_noun",
         "type Category",
         "type Construction",
         "type RuleId",
@@ -896,7 +891,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 119);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 122);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -926,9 +921,7 @@ mod tests {
             .1;
         assert_eq!(
             report,
-            "// terminal bindings (2)\n\
-             // - codec Noun\n\
-             // - identity CatalogIdentity\n\
+            "// terminal bindings (0)\n\
              // checked constructor bindings (2)\n\
              // - construction Triggered\n\
              // - construction SelfReferenceNp\n\
@@ -945,7 +938,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 119);
+        assert_eq!(parsed.items.len(), 122);
     }
 
     #[test]
@@ -1042,6 +1035,90 @@ mod tests {
         assert!(binding.build.is_none());
         assert!(binding.traversal.variants.is_empty());
         assert!(binding.traversal.calls.is_empty());
+    }
+
+    #[test]
+    fn handwritten_declaration_noun_authorities_are_absent_from_complete_sources() {
+        let ast = syn::parse_file(include_str!("../../deckmaste_english_v2/src/ast.rs"))
+            .expect("complete AST source reparses");
+        let scan = syn::parse_file(include_str!(
+            "../../deckmaste_english_v2/src/parser/scan.rs"
+        ))
+        .expect("complete scanner source reparses");
+        let render = syn::parse_file(include_str!("../../deckmaste_english_v2/src/render.rs"))
+            .expect("complete renderer source reparses");
+        let visit = syn::parse_file(include_str!("../../deckmaste_english_v2/src/visit.rs"))
+            .expect("complete visitor source reparses");
+
+        assert!(!contains_production_authority(
+            &ast,
+            ProductionAuthorityKind::Enum,
+            "Noun"
+        ));
+        assert!(!contains_production_authority(
+            &ast,
+            ProductionAuthorityKind::Struct,
+            "DeclarationNoun"
+        ));
+        for function in ["scan_noun", "noun_forms", "rendered_catalog"] {
+            assert!(!contains_production_function(&scan, function));
+        }
+        for function in ["render_noun", "pluralize"] {
+            assert!(!contains_production_function(&render, function));
+        }
+        assert!(!contains_production_function(
+            &visit,
+            "walk_declaration_noun"
+        ));
+
+        let invocation = deckmaste_construction_core::invocation_from_source(PRODUCTION_SOURCE)
+            .expect("production source has one direct macro invocation");
+        let declarations = deckmaste_construction_core::parse_declarations(invocation.tokens)
+            .expect("production declaration parses");
+        let binding = declarations
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                deckmaste_construction_core::Declaration::Codec(binding)
+                    if binding.name == "Noun" =>
+                {
+                    Some(binding)
+                }
+                _ => None,
+            })
+            .expect("production has the generated Noun codec");
+        assert!(binding.generated.is_some());
+        assert!(binding.render.is_none());
+        assert!(binding.build.is_none());
+        assert!(binding.traversal.variants.is_empty());
+        assert!(binding.traversal.calls.is_empty());
+    }
+
+    #[test]
+    fn source_census_detects_nested_and_macro_declaration_noun_shadows() {
+        let sentinel = syn::parse_file(
+            "mod nested { enum Noun { Handwritten } }\n\
+             fn scanner() { helper!(scan_noun); }\n\
+             #[cfg(test)] fn render_noun() {}",
+        )
+        .expect("sentinel source reparses");
+        assert!(contains_production_authority(
+            &sentinel,
+            ProductionAuthorityKind::Enum,
+            "Noun"
+        ));
+        assert!(contains_production_identifier(&sentinel, "scan_noun"));
+        assert!(!contains_production_function(&sentinel, "render_noun"));
+
+        let test_only = syn::parse_file(
+            "#[cfg(test)] mod tests {\n\
+                 enum Noun { Handwritten }\n\
+                 fn scanner() { helper!(scan_noun); }\n\
+             }",
+        )
+        .expect("test-only sentinel reparses");
+        assert!(!contains_production_identifier(&test_only, "Noun"));
+        assert!(!contains_production_identifier(&test_only, "scan_noun"));
     }
 
     #[test]

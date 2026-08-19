@@ -1,9 +1,3 @@
-use deckmaste_catalogs::CatalogKind;
-
-use crate::ast::CatalogIdentity;
-use crate::ast::Noun;
-use crate::ast::NounLexeme;
-use crate::constructions::Number;
 use crate::context::ParseContext;
 
 pub trait Render {
@@ -12,16 +6,6 @@ pub trait Render {
         context: &ParseContext<'_>,
         environment: &crate::environment::ParserEnvironment,
     ) -> String;
-}
-
-#[derive(Clone, Copy)]
-enum CatalogCasing {
-    Lowercase,
-    Preserve,
-}
-
-trait CatalogKindCasing {
-    fn casing(self) -> CatalogCasing;
 }
 
 pub(crate) struct Writer {
@@ -68,51 +52,5 @@ impl Writer {
 
     pub(crate) fn finish(self) -> String {
         self.output
-    }
-}
-
-pub(crate) fn render_noun(writer: &mut Writer, noun: &Noun, number: Number) {
-    let (singular, casing) = match noun {
-        Noun::Lexeme(NounLexeme::Player) => ("player", CatalogCasing::Lowercase),
-        Noun::Catalog(CatalogIdentity { kind, spelling }) => (spelling.as_str(), kind.casing()),
-    };
-    let cased = match casing {
-        CatalogCasing::Lowercase => singular.to_lowercase(),
-        CatalogCasing::Preserve => singular.to_owned(),
-    };
-    let rendered = match number {
-        Number::Singular => cased,
-        Number::Plural => pluralize(noun, &cased),
-    };
-    writer.word(&rendered);
-}
-
-fn pluralize(noun: &Noun, singular: &str) -> String {
-    match noun {
-        Noun::Lexeme(NounLexeme::Player)
-        | Noun::Catalog(CatalogIdentity {
-            kind: _,
-            spelling: _,
-        }) => format!("{singular}s"),
-    }
-}
-
-impl CatalogKindCasing for CatalogKind {
-    fn casing(self) -> CatalogCasing {
-        match self {
-            Self::CardTypes | Self::Supertypes => CatalogCasing::Lowercase,
-            Self::AbilityWords
-            | Self::ArtifactTypes
-            | Self::BattleTypes
-            | Self::CardNames
-            | Self::CounterKindPhrases
-            | Self::CreatureTypes
-            | Self::EnchantmentTypes
-            | Self::KeywordAbilities
-            | Self::KeywordActions
-            | Self::LandTypes
-            | Self::PlaneswalkerTypes
-            | Self::SpellTypes => CatalogCasing::Preserve,
-        }
     }
 }

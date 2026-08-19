@@ -3,7 +3,6 @@ use std::io::Write;
 
 use anyhow::Context;
 use anyhow::bail;
-use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::parser::InternalFailureKind;
 use deckmaste_english_v2::parser::ParseAnalysisOutcome;
@@ -21,13 +20,7 @@ use super::corpus::CorpusUnit;
 pub(super) fn run(args: &AmbiguityArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let corpus = Corpus::load(&args.corpus.data)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
-    let catalogs = ParserCatalogs::load(&args.corpus.catalogs).with_context(|| {
-        format!(
-            "loading parser catalogs from {}",
-            args.corpus.catalogs.display()
-        )
-    })?;
-    let parser = crate::english_v2::parser_from_catalogs(catalogs);
+    let parser = crate::english_v2::parser_from_builtin_v2();
     let report = AmbiguityReport::run(&corpus, &parser)?;
 
     render_then_apply(&report, args.json, args.require_resolved, output)

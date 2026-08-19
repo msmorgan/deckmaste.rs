@@ -1,0 +1,5 @@
+error: declaration_noun kinds must be `Type` or `Subtype`
+ --> tests/compile_fail/declaration_noun_unsupported_kind.rs:9:28
+  |
+9 |             kinds = [Type, KeywordAction];
+  |                            ^^^^^^^^^^^^^

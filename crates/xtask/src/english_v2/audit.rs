@@ -256,9 +256,6 @@ impl AuditSummary {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
-    use deckmaste_english_v2::catalogs::ParserCatalogs;
     use deckmaste_english_v2::parser::ParseError;
     use deckmaste_english_v2::parser::Parser;
     use deckmaste_english_v2::parser::SelectionExceptionInventoryError;
@@ -275,10 +272,7 @@ mod tests {
     }
 
     fn parser() -> Parser {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
-        crate::english_v2::parser_from_catalogs(
-            ParserCatalogs::load(&path).expect("canonical catalogs load"),
-        )
+        crate::english_v2::parser_from_builtin_v2()
     }
 
     #[test]

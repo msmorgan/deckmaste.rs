@@ -4,7 +4,6 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::bail;
-use deckmaste_english_v2::catalogs::ParserCatalogs;
 use serde::Serialize;
 
 use super::ParseArgs;
@@ -27,13 +26,7 @@ fn run_with_diagnostics(
 ) -> anyhow::Result<()> {
     let corpus = Corpus::load(&args.corpus.data)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
-    let catalogs = ParserCatalogs::load(&args.corpus.catalogs).with_context(|| {
-        format!(
-            "loading parser catalogs from {}",
-            args.corpus.catalogs.display()
-        )
-    })?;
-    let parser = crate::english_v2::parser_from_catalogs(catalogs);
+    let parser = crate::english_v2::parser_from_builtin_v2();
     let report = AuditReport::run(&corpus, &parser);
 
     render_report(&report, args.json, output)?;
@@ -287,7 +280,6 @@ mod tests {
         ParseArgs {
             corpus: CorpusArgs {
                 data: data.to_owned(),
-                catalogs: Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
             },
             json,
             require_complete,

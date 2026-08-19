@@ -1,0 +1,92 @@
+use std::path::Path;
+
+use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::parser::Parser;
+use deckmaste_english_v2::parser::TraceLimits;
+use deckmaste_english_v2::render::Render;
+use macro_ron::v2::NormalizedDeclaration;
+
+fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
+    macro_ron::v2::read_str(path, source).expect("synthetic declaration is valid")
+}
+
+fn parser_with(extra: impl IntoIterator<Item = NormalizedDeclaration>) -> Parser {
+    let mut declarations = macro_ron::v2::read_builtin_v2(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+    )
+    .expect("builtin-v2 declarations load");
+    declarations.extend(extra);
+    let environment = ParserEnvironment::try_from_declarations(declarations)
+        .expect("declarations compile into one environment");
+    Parser::new(environment).expect("required static declarations are present")
+}
+
+#[test]
+fn declaration_noun_admits_dynamic_type_and_subtype_rows_without_catalogs() {
+    let parser = parser_with([
+        declaration(
+            "/synthetic/types/Relic.ron",
+            r#"Type(name:"Relic",spelling:"relic",grammar:Noun(singular:"relic"))"#,
+        ),
+        declaration(
+            "/synthetic/subtypes/creature/Wug.ron",
+            r#"Subtype(category:Creature,name:"Wug",spelling:"Wug",grammar:Noun(singular:"Wug"))"#,
+        ),
+    ]);
+    let context = ParseContext::new("Context Card").expect("valid context");
+    for text in [
+        "Destroy target relic.",
+        "Destroy target Wug.",
+        "Those relics deal 3 damage to it.",
+        "Those Wugs deal 3 damage to it.",
+    ] {
+        let parsed = parser.parse(text, &context).unwrap_or_else(|error| {
+            panic!("dynamic declaration noun did not parse {text:?}: {error}")
+        });
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+    }
+
+    let trace = parser.trace(
+        "Destroy target relic.",
+        &context,
+        TraceLimits::new(usize::MAX),
+    );
+    assert!(
+        trace.tokens().items().iter().any(|token| {
+            token.start() == 14
+                && token.end() == 20
+                && token.value_label_v1().contains(
+                    "DeclarationIdentity { kind: Type, name: \"Relic\" }, feature: Singular",
+                )
+        }),
+        "{:#?}",
+        trace.tokens().items()
+    );
+}
+
+#[test]
+fn rend_spirit_is_the_reviewed_declaration_noun_corpus_delta() {
+    let parser = parser_with([]);
+    let context = ParseContext::new("Rend Spirit").expect("valid card context");
+    let text = "Destroy target Spirit.";
+
+    let parsed = parser.parse(text, &context).expect("Rend Spirit parses");
+    assert_eq!(parsed.render(&context, parser.environment()), text);
+
+    let trace = parser.trace(text, &context, TraceLimits::new(usize::MAX));
+    assert!(trace.tokens().items().iter().any(|token| {
+        token.start() == 0
+            && token.end() == 7
+            && token.value_label_v1().contains(
+                "DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }, feature: Bare",
+            )
+    }));
+    assert!(trace.tokens().items().iter().any(|token| {
+        token.start() == 14
+            && token.end() == 21
+            && token.value_label_v1().contains(
+                "DeclarationIdentity { kind: Subtype(Creature), name: \"Spirit\" }, feature: Singular",
+            )
+    }));
+}

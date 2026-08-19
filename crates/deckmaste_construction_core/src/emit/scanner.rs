@@ -95,6 +95,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 .collect()
         }
     });
+    let declaration_noun_arm = declaration_noun_arm(plan);
     let punctuation_literals = plan.runtime_punctuation_literals();
     let punctuation_arm = (!punctuation_literals.is_empty()).then(|| {
         quote! {
@@ -139,6 +140,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 #(#vocab_arms,)*
                 #(#context_identity_arms,)*
                 #signed_decimal_arm
+                #declaration_noun_arm
                 #bound_arm
                 Lexical::Declaration(matcher) => input
                     .declaration_readings(matcher)
@@ -162,9 +164,89 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     )]
 }
 
+fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
+    plan.runtime_declaration_noun().map(|codec| {
+        let noun = codec.codec_ident();
+        let declaration = codec.declaration_value_ident();
+        let closed = codec.closed_lexeme();
+        let closed_plan = plan
+            .runtime_noun_lexeme()
+            .expect("validated declaration_noun closed branch is the noun lexeme");
+        let closed_candidates = closed_plan.variants().iter().map(|variant| {
+            let surface = syn::LitStr::new(
+                &crate::identifier::snake_case(&variant.to_string()),
+                variant.span(),
+            );
+            quote! { (#closed::#variant, #surface) }
+        });
+        let allowed = codec.kinds().iter().map(|kind| match kind {
+            crate::semantic::DeclarationKindFamily::Type => {
+                quote! { ::macro_ron::v2::DeclarationKind::Type }
+            }
+            crate::semantic::DeclarationKindFamily::Subtype => {
+                quote! { ::macro_ron::v2::DeclarationKind::Subtype(_) }
+            }
+        });
+        let position = crate::emit::grammar_position(codec.position());
+        let number_feature = match codec.feature_axis() {
+            crate::feature::Feature::Number => quote! { wanted },
+            crate::feature::Feature::Agreement => {
+                unreachable!("validated declaration_noun has the Number feature axis")
+            }
+        };
+        quote! {
+            Lexical::Noun(wanted) => {
+                let mut matches = Vec::new();
+                for (lexeme, singular) in [#(#closed_candidates),*] {
+                    for (number, surface) in [
+                        (Number::Singular, singular.to_owned()),
+                        (Number::Plural, format!("{singular}s")),
+                    ] {
+                        if matches!(wanted, FeatureConstraint::Any)
+                            || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number)
+                        {
+                            if let Some(end) = input.word_end(&surface) {
+                                matches.push(LexicalMatch {
+                                    end,
+                                    value: Leaf::Noun {
+                                        noun: #noun::Lexeme(lexeme),
+                                        number,
+                                    },
+                                });
+                            }
+                        }
+                    }
+                }
+                for (end, id, feature) in input.declaration_noun_readings(#position, #number_feature) {
+                    if matches!(id.kind(), #(#allowed)|*) {
+                        let number = match feature {
+                            ::macro_ron::v2::SurfaceFeature::Singular => Number::Singular,
+                            ::macro_ron::v2::SurfaceFeature::Plural => Number::Plural,
+                            _ => continue,
+                        };
+                        let Some(declaration) = #declaration::from_reading(id, feature) else {
+                            continue;
+                        };
+                        matches.push(LexicalMatch {
+                            end,
+                            value: Leaf::Noun {
+                                noun: #noun::Declaration(declaration),
+                                number,
+                            },
+                        });
+                    }
+                }
+                matches
+            }
+        }
+    })
+}
+
 fn bound_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
     let mut arms = Vec::new();
-    if plan.runtime_noun_binding().is_some() || plan.runtime_noun_lexeme().is_some() {
+    if plan.runtime_declaration_noun().is_none()
+        && (plan.runtime_noun_binding().is_some() || plan.runtime_noun_lexeme().is_some())
+    {
         arms.push(quote! { Lexical::Noun(_) });
     }
     if plan.runtime_verb_lexeme().is_some() {

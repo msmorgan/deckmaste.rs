@@ -1629,9 +1629,7 @@ pub(super) fn fixture_report(outcome: FixtureOutcome) -> DiagnosticReport {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
-    use std::path::Path;
 
-    use deckmaste_english_v2::catalogs::ParserCatalogs;
     use deckmaste_english_v2::context::ParseContext;
     use deckmaste_english_v2::parser::Bounded;
     use deckmaste_english_v2::parser::BoundedParseOutcome;
@@ -2216,10 +2214,7 @@ mod tests {
     }
 
     fn parser() -> Parser {
-        let catalogs = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
-        crate::english_v2::parser_from_catalogs(
-            ParserCatalogs::load(&catalogs).expect("canonical catalogs load"),
-        )
+        crate::english_v2::parser_from_builtin_v2()
     }
 
     fn trace(text: &str, context: &str, limit: usize) -> ParserTrace {

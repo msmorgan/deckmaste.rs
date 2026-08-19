@@ -1330,8 +1330,8 @@ mod tests {
     use super::ParserTrace;
     use super::StructuralTrace;
     use super::TraceLimits;
-    use crate::catalogs::canonical_test_environment;
     use crate::context::ParseContext;
+    use crate::environment::canonical_test_environment;
     use crate::parser::Expectation;
     use crate::parser::ParseError;
     use crate::parser::SelectionExceptionInventoryError;

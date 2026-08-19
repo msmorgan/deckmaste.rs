@@ -1,9 +1,8 @@
 use std::path::Path;
 
-use deckmaste_catalogs::CatalogKind;
 use deckmaste_english_v2::ast::*;
-use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::TraceLimits;
@@ -11,11 +10,14 @@ use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
 use deckmaste_english_v2::visit::walk_amount;
 use deckmaste_english_v2::visit::walk_signed_number;
+use macro_ron::v2::DeclarationKind;
+use macro_ron::v2::SubtypeCategory;
+use macro_ron::v2::SurfaceFeature;
 
 #[derive(Default)]
 struct RecordingVisitor {
     amounts: Vec<Amount>,
-    catalog_identities: Vec<(CatalogKind, String)>,
+    declaration_nouns: Vec<(DeclarationKind, String, SurfaceFeature)>,
     variables: Vec<Variable>,
     signed_numbers: Vec<(Sign, u32)>,
     self_reference_spellings: Vec<SelfReferenceSpelling>,
@@ -23,7 +25,6 @@ struct RecordingVisitor {
     nouns: Vec<NounLexeme>,
     verbs: Vec<VerbLexeme>,
     declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
-    catalog_spellings: Vec<String>,
 }
 
 impl Visitor for RecordingVisitor {
@@ -32,9 +33,12 @@ impl Visitor for RecordingVisitor {
         walk_amount(self, amount);
     }
 
-    fn visit_catalog_identity(&mut self, identity: &CatalogIdentity) {
-        self.catalog_identities
-            .push((identity.kind(), identity.spelling().to_owned()));
+    fn visit_declaration_noun(&mut self, noun: &DeclarationNoun) {
+        self.declaration_nouns.push((
+            noun.id().kind(),
+            noun.id().name().to_owned(),
+            noun.feature(),
+        ));
     }
 
     fn visit_variable(&mut self, variable: Variable) {
@@ -62,18 +66,11 @@ impl Visitor for RecordingVisitor {
     }
 
     fn visit_declaration(&mut self, declaration: &macro_ron::v2::DeclarationIdentity) {
-        self.declarations
-            .push((declaration.kind(), declaration.name().to_owned()));
+        if matches!(declaration.kind(), DeclarationKind::KeywordAction) {
+            self.declarations
+                .push((declaration.kind(), declaration.name().to_owned()));
+        }
     }
-
-    fn visit_catalog_spelling(&mut self, spelling: &str) {
-        self.catalog_spellings.push(spelling.to_owned());
-    }
-}
-
-fn catalogs() -> ParserCatalogs {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
-    ParserCatalogs::load(&path).expect("canonical generated catalogs load")
 }
 
 fn environment() -> ParserEnvironment {
@@ -81,20 +78,19 @@ fn environment() -> ParserEnvironment {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
-    catalogs().attach_to(
-        ParserEnvironment::try_from_declarations(declarations)
-            .expect("builtin-v2 declaration environment freezes"),
-    )
+    ParserEnvironment::try_from_declarations(declarations)
+        .expect("builtin-v2 declaration environment freezes")
 }
 
 fn card_type(spelling: &str) -> Noun {
-    catalog_noun(CatalogKind::CardTypes, spelling)
+    declaration_noun(DeclarationKind::Type, spelling, SurfaceFeature::Singular)
 }
 
-fn catalog_noun(kind: CatalogKind, spelling: &str) -> Noun {
-    Noun::Catalog(
-        CatalogIdentity::new(&environment(), kind, spelling)
-            .expect("canonical catalog term is present"),
+fn declaration_noun(kind: DeclarationKind, name: &str, feature: SurfaceFeature) -> Noun {
+    let environment = environment();
+    Noun::Declaration(
+        DeclarationNoun::new(&environment, DeclarationId::new(kind, name), feature)
+            .expect("normalized noun declaration is present"),
     )
 }
 
@@ -102,12 +98,20 @@ fn creature() -> Noun {
     card_type("Creature")
 }
 
+fn creatures() -> Noun {
+    declaration_noun(DeclarationKind::Type, "Creature", SurfaceFeature::Plural)
+}
+
 fn artifact() -> Noun {
     card_type("Artifact")
 }
 
 fn equipment() -> Noun {
-    catalog_noun(CatalogKind::ArtifactTypes, "Equipment")
+    declaration_noun(
+        DeclarationKind::Subtype(SubtypeCategory::Artifact),
+        "Equipment",
+        SurfaceFeature::Singular,
+    )
 }
 
 fn context(card_name: &str) -> ParseContext<'_> {
@@ -247,7 +251,7 @@ fn gain_life_with_where() -> Sentence {
         clause: Clause::Where(WhereClause {
             variable: Variable::X,
             value: NounPhrase::Count(CountNp {
-                head: creature(),
+                head: creatures(),
                 controller: Pronoun::You,
                 threshold: SignedNumber {
                     sign: Sign::Positive,
@@ -259,16 +263,32 @@ fn gain_life_with_where() -> Sentence {
 }
 
 #[test]
-fn catalog_identity_rejects_a_spelling_absent_from_the_bound_catalog() {
+fn declaration_noun_construction_requires_allowed_environment_membership() {
     let environment = environment();
-    assert!(CatalogIdentity::new(&environment, CatalogKind::CardTypes, "Creature").is_some());
     assert!(
-        CatalogIdentity::new(
+        DeclarationNoun::new(
             &environment,
-            CatalogKind::CardTypes,
-            "Definitely Not A Type"
+            DeclarationId::new(DeclarationKind::Type, "Creature"),
+            SurfaceFeature::Singular,
+        )
+        .is_some()
+    );
+    assert!(
+        DeclarationNoun::new(
+            &environment,
+            DeclarationId::new(DeclarationKind::Type, "Definitely Not A Type"),
+            SurfaceFeature::Singular,
         )
         .is_none()
+    );
+    assert!(
+        DeclarationNoun::new(
+            &environment,
+            DeclarationId::new(DeclarationKind::KeywordAbility, "Flying"),
+            SurfaceFeature::Singular,
+        )
+        .is_none(),
+        "a present but disallowed declaration kind cannot become a noun"
     );
 }
 
@@ -322,7 +342,7 @@ fn renders_gain_life_with_a_where_binder_exactly() {
 fn renders_a_plural_count_subject_with_a_bare_verb() {
     let value = Sentence::Declarative(Declarative {
         subject: NounPhrase::Count(CountNp {
-            head: creature(),
+            head: creatures(),
             controller: Pronoun::You,
             threshold: SignedNumber {
                 sign: Sign::Positive,
@@ -343,7 +363,7 @@ fn renders_a_plural_count_subject_with_a_bare_verb() {
 }
 
 #[test]
-fn renders_real_abbreviated_self_reference_with_a_catalog_identity() {
+fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
     let subject = self_reference(
         SelfReferenceSpelling::Abbreviated,
         "Zacama, Primal Calamity",
@@ -397,7 +417,7 @@ fn renders_those_with_a_plural_noun_and_bare_verb() {
     let value = Sentence::Declarative(Declarative {
         subject: NounPhrase::Demonstrative(DemonstrativeNp {
             word: Demonstrative::Those,
-            head: creature(),
+            head: creatures(),
         }),
         predicate: damage(Amount::Number(NumberAmount {
             number: SignedNumber {
@@ -501,12 +521,28 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         ]
     );
     assert_eq!(
-        visitor.catalog_identities,
+        visitor.declaration_nouns,
         vec![
-            (CatalogKind::CardTypes, "Creature".to_owned()),
-            (CatalogKind::CardTypes, "Creature".to_owned()),
-            (CatalogKind::CardTypes, "Creature".to_owned()),
-            (CatalogKind::CardTypes, "Creature".to_owned()),
+            (
+                DeclarationKind::Type,
+                "Creature".to_owned(),
+                SurfaceFeature::Singular
+            ),
+            (
+                DeclarationKind::Type,
+                "Creature".to_owned(),
+                SurfaceFeature::Singular
+            ),
+            (
+                DeclarationKind::Type,
+                "Creature".to_owned(),
+                SurfaceFeature::Plural
+            ),
+            (
+                DeclarationKind::Type,
+                "Creature".to_owned(),
+                SurfaceFeature::Singular
+            ),
         ]
     );
     assert_eq!(
@@ -545,9 +581,5 @@ fn visitor_reaches_every_vertical_slice_leaf() {
             VerbLexeme::Control,
             VerbLexeme::Deal,
         ]
-    );
-    assert_eq!(
-        visitor.catalog_spellings,
-        vec!["Creature", "Creature", "Creature", "Creature"]
     );
 }

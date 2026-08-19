@@ -290,6 +290,10 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
                 }
             })
         }
+        AtomTerminal::DeclarationNoun(codec) => {
+            debug_assert_eq!(codec.position(), ::macro_ron::v2::GrammarPosition::Noun);
+            Ok(quote! { LexicalOwnerTemplate::DeclarationNoun })
+        }
     }
 }
 
@@ -316,6 +320,7 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
             let variant = codec.codec_ident();
             Ok(quote! { Lexical::#variant })
         }
+        AtomTerminal::DeclarationNoun(_) => Ok(quote! { Lexical::Noun }),
     }
 }
 

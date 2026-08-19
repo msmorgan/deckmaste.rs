@@ -1,0 +1,5 @@
+error: generated codec cannot mix `generate` with legacy binding fields
+ --> tests/compile_fail/declaration_noun_mixed_legacy.rs:7:9
+  |
+7 |         generate declaration_noun {
+  |         ^^^^^^^^

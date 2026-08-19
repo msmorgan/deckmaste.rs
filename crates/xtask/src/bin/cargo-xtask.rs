@@ -137,8 +137,6 @@ mod tests {
             "Destroy target creature.",
             "--context",
             "Probe Card",
-            "--catalogs",
-            "fixtures/catalogs",
             "--limit",
             "1",
             "--json",
@@ -188,6 +186,7 @@ mod tests {
 
         for (flag, takes_value) in [
             ("--data", true),
+            ("--catalogs", true),
             ("--lock", true),
             ("--id", true),
             ("--bless", false),
@@ -225,8 +224,6 @@ mod tests {
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
             "--data",
             "fixtures/atomic-cards.json",
-            "--catalogs",
-            "fixtures/catalogs",
             "--limit",
             "1",
             "--json",
@@ -270,6 +267,7 @@ mod tests {
         for (flag, takes_value) in [
             ("--text", true),
             ("--context", true),
+            ("--catalogs", true),
             ("--lock", true),
             ("--bless", false),
             ("--require", false),
@@ -324,13 +322,21 @@ mod tests {
             "ambiguity",
             "--data",
             "fixtures/atomic-cards.json",
-            "--catalogs",
-            "fixtures/catalogs",
             "--json",
             "--require-resolved",
         ])
         .expect("ambiguity accepts its corpus and resolution flags");
         assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+        assert!(
+            Cli::try_parse_from([
+                "cargo xtask",
+                "english_v2",
+                "ambiguity",
+                "--catalogs",
+                "fixtures/catalogs",
+            ])
+            .is_err()
+        );
 
         for flag in [
             "--lock",
@@ -355,8 +361,6 @@ mod tests {
             "parse",
             "--data",
             "fixtures/atomic-cards.json",
-            "--catalogs",
-            "fixtures/catalogs",
             "--json",
             "--require-complete",
             "--lock",
@@ -365,6 +369,16 @@ mod tests {
         ])
         .unwrap();
         assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+        assert!(
+            Cli::try_parse_from([
+                "cargo xtask",
+                "english_v2",
+                "parse",
+                "--catalogs",
+                "fixtures/catalogs",
+            ])
+            .is_err()
+        );
 
         for flag in [
             "--data",
@@ -391,13 +405,21 @@ mod tests {
             "roundtrip",
             "--data",
             "fixtures/atomic-cards.json",
-            "--catalogs",
-            "fixtures/catalogs",
             "--json",
             "--require-clean",
         ])
         .unwrap();
         assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+        assert!(
+            Cli::try_parse_from([
+                "cargo xtask",
+                "english_v2",
+                "roundtrip",
+                "--catalogs",
+                "fixtures/catalogs",
+            ])
+            .is_err()
+        );
 
         assert!(
             Cli::try_parse_from([

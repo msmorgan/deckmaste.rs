@@ -185,6 +185,82 @@ pub(crate) fn emit(
                     vec![origin],
                 ));
             }
+            TerminalPlan::DeclarationNoun(row) => {
+                let origin = row.origin().clone();
+                let noun = row.codec_ident();
+                let declaration = row.declaration_value_ident();
+                let closed = row.closed_lexeme();
+                let allowed = row.kinds().iter().map(|kind| match kind {
+                    crate::semantic::DeclarationKindFamily::Type => {
+                        quote! { ::macro_ron::v2::DeclarationKind::Type }
+                    }
+                    crate::semantic::DeclarationKindFamily::Subtype => {
+                        quote! { ::macro_ron::v2::DeclarationKind::Subtype(_) }
+                    }
+                });
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(row.declaration_value_ident().to_string()),
+                    quote! {
+                        #[derive(Debug, Clone, PartialEq, Eq)]
+                        pub struct #declaration {
+                            id: ::macro_ron::v2::DeclarationIdentity,
+                            feature: ::macro_ron::v2::SurfaceFeature,
+                        }
+                    },
+                    vec![origin.clone()],
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty: row.declaration_value_ident().to_string(),
+                    },
+                    quote! {
+                        impl #declaration {
+                            pub fn new(
+                                environment: &crate::environment::ParserEnvironment,
+                                id: ::macro_ron::v2::DeclarationIdentity,
+                                feature: ::macro_ron::v2::SurfaceFeature,
+                            ) -> Option<Self> {
+                                environment.surface(&id, feature)?;
+                                Self::from_reading(id, feature)
+                            }
+
+                            pub(crate) fn from_reading(
+                                id: ::macro_ron::v2::DeclarationIdentity,
+                                feature: ::macro_ron::v2::SurfaceFeature,
+                            ) -> Option<Self> {
+                                (matches!(id.kind(), #(#allowed)|*)
+                                    && matches!(
+                                        feature,
+                                        ::macro_ron::v2::SurfaceFeature::Singular
+                                            | ::macro_ron::v2::SurfaceFeature::Plural
+                                    ))
+                                .then_some(Self { id, feature })
+                            }
+
+                            pub fn id(&self) -> &::macro_ron::v2::DeclarationIdentity {
+                                &self.id
+                            }
+
+                            pub const fn feature(&self) -> ::macro_ron::v2::SurfaceFeature {
+                                self.feature
+                            }
+                        }
+                    },
+                    vec![origin.clone()],
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(row.codec_name()),
+                    quote! {
+                        #[derive(Debug, Clone, PartialEq, Eq)]
+                        pub enum #noun {
+                            Lexeme(#closed),
+                            Declaration(#declaration),
+                        }
+                    },
+                    vec![origin],
+                ));
+            }
         }
     }
     Ok((items, contributions))

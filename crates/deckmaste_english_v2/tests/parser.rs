@@ -1,10 +1,9 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use deckmaste_catalogs::CatalogKind;
 use deckmaste_english_v2::ast::*;
-use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::BoundedParseOutcome;
 use deckmaste_english_v2::parser::Expectation;
@@ -15,21 +14,16 @@ use deckmaste_english_v2::parser::TerminalClass;
 use deckmaste_english_v2::parser::TextSpan;
 use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
-
-fn catalogs() -> ParserCatalogs {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
-    ParserCatalogs::load(&path).expect("canonical generated catalogs load")
-}
+use macro_ron::v2::DeclarationKind;
+use macro_ron::v2::SurfaceFeature;
 
 fn environment() -> ParserEnvironment {
     let declarations = macro_ron::v2::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
-    catalogs().attach_to(
-        ParserEnvironment::try_from_declarations(declarations)
-            .expect("builtin-v2 declaration environment freezes"),
-    )
+    ParserEnvironment::try_from_declarations(declarations)
+        .expect("builtin-v2 declaration environment freezes")
 }
 
 fn parser() -> Parser {
@@ -110,9 +104,26 @@ fn parse_error_is_a_standard_error_and_converts_to_anyhow() {
 }
 
 fn creature() -> Noun {
-    Noun::Catalog(
-        CatalogIdentity::new(&environment(), CatalogKind::CardTypes, "Creature")
-            .expect("Creature is a canonical card type"),
+    let environment = environment();
+    Noun::Declaration(
+        DeclarationNoun::new(
+            &environment,
+            DeclarationId::new(DeclarationKind::Type, "Creature"),
+            SurfaceFeature::Singular,
+        )
+        .expect("Creature is a normalized noun declaration"),
+    )
+}
+
+fn creatures() -> Noun {
+    let environment = environment();
+    Noun::Declaration(
+        DeclarationNoun::new(
+            &environment,
+            DeclarationId::new(DeclarationKind::Type, "Creature"),
+            SurfaceFeature::Plural,
+        )
+        .expect("Creature has a normalized plural noun reading"),
     )
 }
 
@@ -182,7 +193,7 @@ fn gain_life_with_where() -> Ability {
             clause: Clause::Where(WhereClause {
                 variable: Variable::X,
                 value: NounPhrase::Count(CountNp {
-                    head: creature(),
+                    head: creatures(),
                     controller: Pronoun::You,
                     threshold: SignedNumber {
                         sign: Sign::Positive,
@@ -520,8 +531,8 @@ fn self_reference_identity_preserves_its_inherent_case() {
 }
 
 #[test]
-fn unrelated_catalog_collision_is_a_parse_failure() {
-    let text = "Destroy target Forest.";
+fn disallowed_declaration_kind_is_a_parse_failure() {
+    let text = "Destroy target flying.";
     assert_eq!(
         parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {

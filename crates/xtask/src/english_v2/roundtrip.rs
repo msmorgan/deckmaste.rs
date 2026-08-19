@@ -2,7 +2,6 @@ use std::io::Write;
 
 use anyhow::Context;
 use anyhow::bail;
-use deckmaste_english_v2::catalogs::ParserCatalogs;
 use serde::Serialize;
 
 use super::RoundtripArgs;
@@ -14,13 +13,7 @@ use super::corpus::Corpus;
 pub(super) fn run(args: &RoundtripArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let corpus = Corpus::load(&args.corpus.data)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
-    let catalogs = ParserCatalogs::load(&args.corpus.catalogs).with_context(|| {
-        format!(
-            "loading parser catalogs from {}",
-            args.corpus.catalogs.display()
-        )
-    })?;
-    let parser = crate::english_v2::parser_from_catalogs(catalogs);
+    let parser = crate::english_v2::parser_from_builtin_v2();
     let report = AuditReport::run(&corpus, &parser);
 
     render_report(&report, args.json, output)?;

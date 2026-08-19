@@ -567,7 +567,6 @@ name = "deckmaste_english_v2"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "deckmaste_catalogs",
  "deckmaste_construction",
  "deckmaste_construction_core",
  "macro_ron",

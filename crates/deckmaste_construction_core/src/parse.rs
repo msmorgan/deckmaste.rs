@@ -12,6 +12,7 @@ use syn::ext::IdentExt;
 use syn::parenthesized;
 use syn::parse::Parse;
 use syn::parse::ParseStream;
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 
 use crate::model::BuildLeaf;
@@ -741,6 +742,11 @@ fn generated_terminal_binding(
 ) -> TerminalBinding {
     let value_type: syn::Type = syn::parse_quote_spanned!(name.span()=> #name);
     let lexical_variant: syn::Path = syn::parse_quote_spanned!(name.span()=> Lexical::#name);
+    let codec_atom = match generated.as_ref() {
+        Some(GeneratedCodecRecipe::DeclarationNoun(_)) => Some(CodecAtomClass::Noun),
+        Some(GeneratedCodecRecipe::SignedDecimal(_) | GeneratedCodecRecipe::Unsupported { .. })
+        | None => (kind == BindingKind::Codec).then_some(CodecAtomClass::Lex),
+    };
     TerminalBinding {
         name,
         kind: match kind {
@@ -749,7 +755,7 @@ fn generated_terminal_binding(
         },
         generated,
         generated_identity,
-        codec_atom: (kind == BindingKind::Codec).then_some(CodecAtomClass::Lex),
+        codec_atom,
         value_type,
         lexical_variant: (kind == BindingKind::Codec).then_some(lexical_variant),
         render: None,
@@ -817,6 +823,52 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
     let recipe = input.call(Ident::parse_any)?;
     let content;
     braced!(content in input);
+    if recipe == "declaration_noun" {
+        let mut closed_slots = Vec::new();
+        let mut position_slots = Vec::new();
+        let mut kind_slots = Vec::new();
+        let mut feature_slots = Vec::new();
+        while !content.is_empty() {
+            reject_doc_comment(&content)?;
+            let slot = content.call(Ident::parse_any)?;
+            content.parse::<Token![=]>()?;
+            if slot == "kinds" {
+                let kinds_content;
+                bracketed!(kinds_content in content);
+                let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(
+                    &kinds_content,
+                    Ident::parse_any,
+                )?
+                .into_iter()
+                .collect();
+                kind_slots.push(crate::model::DeclarationNounKindsSource { slot, kinds });
+            } else {
+                let value = content.call(Ident::parse_any)?;
+                let row = crate::model::GeneratedIdentSlot { slot, value };
+                match row.slot.to_string().as_str() {
+                    "closed" => closed_slots.push(row),
+                    "position" => position_slots.push(row),
+                    "feature" => feature_slots.push(row),
+                    _ => {
+                        return Err(syn::Error::new(
+                            row.slot.span(),
+                            "declaration_noun recipe accepts only `closed`, `position`, `kinds`, and `feature` fields",
+                        ));
+                    }
+                }
+            }
+            content.parse::<Token![;]>()?;
+        }
+        return Ok(GeneratedCodecRecipe::DeclarationNoun(
+            crate::model::DeclarationNounSource {
+                recipe,
+                closed_slots,
+                position_slots,
+                kind_slots,
+                feature_slots,
+            },
+        ));
+    }
     if recipe != "signed_decimal" {
         let _: TokenStream = content.parse()?;
         return Ok(GeneratedCodecRecipe::Unsupported { name: recipe });
@@ -1817,6 +1869,30 @@ mod tests {
         assert_eq!(declarations.declarations.len(), 1);
         assert!(matches!(
             declarations.declarations[0],
+            Declaration::Codec(_)
+        ));
+    }
+
+    #[test]
+    fn parses_declaration_noun_generated_codec_source() {
+        let declarations = parse(
+            r"
+                lexeme NounLexeme { Player, }
+                codec Noun {
+                    generate declaration_noun {
+                        closed = NounLexeme;
+                        position = Noun;
+                        kinds = [Type, Subtype];
+                        feature = Number;
+                    }
+                }
+            ",
+        )
+        .expect("the closed declaration_noun recipe parses");
+
+        assert_eq!(declarations.declarations.len(), 2);
+        assert!(matches!(
+            declarations.declarations[1],
             Declaration::Codec(_)
         ));
     }

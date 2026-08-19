@@ -2,7 +2,6 @@ use std::io::Write;
 use std::path::Path;
 
 use anyhow::Context;
-use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::ParserTrace;
@@ -23,7 +22,7 @@ trait InspectSteps {
     type Corpus;
     type Id;
     type Unit;
-    type Catalogs;
+    type Parser;
     type Context<'a>
     where
         Self: 'a;
@@ -32,11 +31,11 @@ trait InspectSteps {
     fn load_corpus(&mut self, path: &Path) -> anyhow::Result<Self::Corpus>;
     fn validate_id(&mut self, id: &str) -> anyhow::Result<Self::Id>;
     fn resolve(&mut self, corpus: &Self::Corpus, id: &Self::Id) -> anyhow::Result<Self::Unit>;
-    fn load_catalogs(&mut self, path: &Path) -> anyhow::Result<Self::Catalogs>;
+    fn load_parser(&mut self) -> anyhow::Result<Self::Parser>;
     fn context<'a>(&mut self, unit: &'a Self::Unit) -> anyhow::Result<Self::Context<'a>>;
     fn trace(
         &mut self,
-        catalogs: &Self::Catalogs,
+        parser: &Self::Parser,
         unit: &Self::Unit,
         context: &Self::Context<'_>,
         limits: TraceLimits,
@@ -57,7 +56,7 @@ impl InspectSteps for ProductionSteps {
     type Corpus = Corpus;
     type Id = ValidatedCorpusId;
     type Unit = CorpusUnit;
-    type Catalogs = Parser;
+    type Parser = Parser;
     type Context<'a> = ParseContext<'a>;
     type Trace = ParserTrace;
 
@@ -73,10 +72,8 @@ impl InspectSteps for ProductionSteps {
         corpus.resolve_exact(id).cloned()
     }
 
-    fn load_catalogs(&mut self, path: &Path) -> anyhow::Result<Self::Catalogs> {
-        let catalogs = ParserCatalogs::load(path)
-            .with_context(|| format!("loading parser catalogs from {}", path.display()))?;
-        Ok(crate::english_v2::parser_from_catalogs(catalogs))
+    fn load_parser(&mut self) -> anyhow::Result<Self::Parser> {
+        Ok(crate::english_v2::parser_from_builtin_v2())
     }
 
     fn context<'a>(&mut self, unit: &'a Self::Unit) -> anyhow::Result<Self::Context<'a>> {
@@ -91,7 +88,7 @@ impl InspectSteps for ProductionSteps {
 
     fn trace(
         &mut self,
-        parser: &Self::Catalogs,
+        parser: &Self::Parser,
         unit: &Self::Unit,
         context: &Self::Context<'_>,
         limits: TraceLimits,
@@ -125,14 +122,14 @@ fn orchestrate<S: InspectSteps>(
     let corpus = steps.load_corpus(&args.data)?;
     let id = steps.validate_id(&args.id)?;
     let unit = steps.resolve(&corpus, &id)?;
-    let catalogs = steps.load_catalogs(&args.catalogs)?;
+    let parser = steps.load_parser()?;
     let context = steps.context(&unit).with_context(|| {
         format!(
             "constructing stored corpus context from {}",
             args.data.display()
         )
     })?;
-    let trace = steps.trace(&catalogs, &unit, &context, TraceLimits::new(args.limit));
+    let trace = steps.trace(&parser, &unit, &context, TraceLimits::new(args.limit));
     let report = steps.map(&unit, &trace);
     steps.render(&report, args.json, output)?;
     steps.flush(output)?;
@@ -159,7 +156,6 @@ mod tests {
 
     use anyhow::Context;
     use anyhow::ensure;
-    use deckmaste_english_v2::catalogs::ParserCatalogs;
     use deckmaste_english_v2::context::ParseContext;
     use deckmaste_english_v2::parser::TraceLimits;
     use serde_json::Value;
@@ -181,15 +177,10 @@ mod tests {
     const SYNTHETIC_COVERAGE_LOCK_MEMBER: &str =
         "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
-    fn catalogs() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs")
-    }
-
     fn args(id: &str) -> InspectArgs {
         InspectArgs {
             id: id.to_owned(),
             data: PathBuf::from("fixture-atomic-cards.json"),
-            catalogs: catalogs(),
             limit: 1,
             json: true,
         }
@@ -251,8 +242,7 @@ mod tests {
 
     #[test]
     fn probe_and_inspect_share_the_exact_trace_payload_for_complete_documents_and_limits() {
-        let parser =
-            crate::english_v2::parser_from_catalogs(ParserCatalogs::load(&catalogs()).unwrap());
+        let parser = crate::english_v2::parser_from_builtin_v2();
         for (text, context) in [
             ("Destroy target creature.", "Accepted Card"),
             (
@@ -321,7 +311,7 @@ mod tests {
         type Corpus = ();
         type Id = String;
         type Unit = CorpusUnit;
-        type Catalogs = ();
+        type Parser = ();
         type Context<'a> = ();
         type Trace = ();
 
@@ -346,9 +336,9 @@ mod tests {
             Ok(self.unit.clone())
         }
 
-        fn load_catalogs(&mut self, _path: &Path) -> anyhow::Result<Self::Catalogs> {
-            self.events.push("catalogs");
-            self.fail("catalogs")
+        fn load_parser(&mut self) -> anyhow::Result<Self::Parser> {
+            self.events.push("parser");
+            self.fail("parser")
         }
 
         fn context<'a>(&mut self, _unit: &'a Self::Unit) -> anyhow::Result<Self::Context<'a>> {
@@ -358,7 +348,7 @@ mod tests {
 
         fn trace(
             &mut self,
-            _catalogs: &Self::Catalogs,
+            _parser: &Self::Parser,
             unit: &Self::Unit,
             _context: &Self::Context<'_>,
             limits: TraceLimits,
@@ -402,7 +392,7 @@ mod tests {
         assert_eq!(
             steps.events,
             [
-                "corpus", "validate", "resolve", "catalogs", "context", "trace", "map", "render",
+                "corpus", "validate", "resolve", "parser", "context", "trace", "map", "render",
                 "flush",
             ]
         );
@@ -413,7 +403,7 @@ mod tests {
 
     #[test]
     fn every_pretrace_failure_stops_at_its_exact_precedence_point() {
-        let ordered = ["corpus", "validate", "resolve", "catalogs", "context"];
+        let ordered = ["corpus", "validate", "resolve", "parser", "context"];
         for (index, point) in ordered.iter().enumerate() {
             let mut steps = RecordingSteps::new(FixtureOutcome::Selected);
             steps.fail_at = Some(point);
@@ -532,7 +522,6 @@ mod tests {
         let probe_args = ProbeArgs {
             text: unit.text().to_owned(),
             context: unit.context_name().to_owned(),
-            catalogs: catalogs(),
             limit: 0,
             json: true,
         };
@@ -562,45 +551,5 @@ mod tests {
         }
         assert!(!header.contains('\r'));
         assert_eq!(std::fs::read(&inspect_args.data).unwrap(), ONE_ROW);
-    }
-
-    #[test]
-    fn corpus_and_identity_errors_precede_unrelated_catalog_errors() {
-        let temp = tempdir().unwrap();
-        let data = temp.path().join("AtomicCards.json");
-        std::fs::write(&data, ONE_ROW).unwrap();
-        let missing_catalogs = temp.path().join("missing-catalogs");
-
-        let missing_data = temp.path().join("missing-data.json");
-        let mut inspect_args = args("malformed");
-        inspect_args.data = missing_data.clone();
-        inspect_args.catalogs = missing_catalogs.clone();
-        let error = run(&inspect_args, &mut Vec::new()).unwrap_err().to_string();
-        assert!(error.contains(&missing_data.display().to_string()));
-        assert!(!error.contains(&missing_catalogs.display().to_string()));
-
-        inspect_args.data = data.clone();
-        let error = run(&inspect_args, &mut Vec::new()).unwrap_err().to_string();
-        assert!(error.contains("exactly 64 lowercase hexadecimal bytes"));
-        assert!(!error.contains(&missing_catalogs.display().to_string()));
-
-        inspect_args.id = "f".repeat(64);
-        let error = run(&inspect_args, &mut Vec::new()).unwrap_err().to_string();
-        assert!(error.contains("no corpus unit has exact ID"));
-        assert!(!error.contains(&missing_catalogs.display().to_string()));
-
-        let duplicate_data = temp.path().join("duplicate.json");
-        let mut duplicate_value: Value = serde_json::from_slice(ONE_ROW).unwrap();
-        let rows = duplicate_value["data"]["Fixture"].as_array_mut().unwrap();
-        let duplicate = rows[0].clone();
-        rows.push(duplicate);
-        let duplicate_bytes = serde_json::to_vec(&duplicate_value).unwrap();
-        std::fs::write(&duplicate_data, duplicate_bytes).unwrap();
-        let duplicate_corpus = Corpus::load(&duplicate_data).unwrap();
-        inspect_args.data = duplicate_data;
-        inspect_args.id = duplicate_corpus.units()[0].id().to_owned();
-        let error = run(&inspect_args, &mut Vec::new()).unwrap_err().to_string();
-        assert!(error.contains("multiple corpus units have exact ID"));
-        assert!(!error.contains(&missing_catalogs.display().to_string()));
     }
 }

@@ -1,0 +1,5 @@
+error: declaration_noun kind set cannot be empty
+ --> tests/compile_fail/declaration_noun_empty_kinds.rs:9:13
+  |
+9 |             kinds = [];
+  |             ^^^^^

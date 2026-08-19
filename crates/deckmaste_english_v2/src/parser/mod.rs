@@ -298,9 +298,9 @@ pub(crate) fn analyze_materialized(candidates: Vec<materialize::Candidate>) -> P
 mod structural_trace_tests {
     use super::Parser;
     use super::TraceLimits;
-    use crate::catalogs::canonical_test_environment;
     use crate::context::ParseContext;
     use crate::environment::ParserEnvironment;
+    use crate::environment::canonical_test_environment;
 
     fn environment() -> ParserEnvironment {
         canonical_test_environment()

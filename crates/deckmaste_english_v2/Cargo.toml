@@ -9,7 +9,6 @@ workspace = true
 
 [dependencies]
 anyhow = "1.0.102"
-deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
 deckmaste_construction = { version = "0.1.0", path = "../deckmaste_construction" }
 macro_ron = { version = "0.1.0", path = "../macro_ron" }
 thiserror = { workspace = true }

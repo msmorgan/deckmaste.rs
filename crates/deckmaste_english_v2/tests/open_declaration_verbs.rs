@@ -2,7 +2,6 @@ use std::fs;
 use std::path::Path;
 
 use deckmaste_english_v2::ast::NounLexeme;
-use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
@@ -30,11 +29,8 @@ fn builtin_rows() -> Vec<NormalizedDeclaration> {
 }
 
 fn production_environment() -> ParserEnvironment {
-    let environment = ParserEnvironment::try_from_declarations(builtin_rows())
-        .expect("builtin-v2 declarations freeze");
-    ParserCatalogs::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"))
-        .expect("canonical catalogs load")
-        .attach_to(environment)
+    ParserEnvironment::try_from_declarations(builtin_rows())
+        .expect("builtin-v2 declarations freeze")
 }
 
 fn parser() -> Parser {
@@ -132,11 +128,6 @@ fn category_homonym_does_not_replace_the_requested_action_identity() {
         2,
         "the environment must retain both category-safe identities"
     );
-    let environment = ParserCatalogs::load(
-        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
-    )
-    .unwrap()
-    .attach_to(environment);
     let parser = Parser::new(environment).unwrap();
     let trace = parser.trace(
         "Destroy target creature.",

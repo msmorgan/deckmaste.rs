@@ -494,7 +494,6 @@ mod tests {
     use crate::ast::VerbPhrase;
     use crate::ast::WhereClause;
     use crate::ast::WithWhere;
-    use crate::catalogs::canonical_test_environment;
     use crate::constructions::Agreement;
     use crate::constructions::DeclarationLeaf;
     use crate::constructions::DeclarationMatcher;
@@ -502,6 +501,7 @@ mod tests {
     use crate::constructions::Number;
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
+    use crate::environment::canonical_test_environment;
     use crate::parser::diagnostic::BoundedParseOutcome;
     use crate::parser::diagnostic::ParserTrace;
     use crate::parser::diagnostic::StructuralTrace;

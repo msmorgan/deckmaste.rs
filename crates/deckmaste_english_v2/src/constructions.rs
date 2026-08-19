@@ -2,8 +2,6 @@ use RulePosition::Lexical as L;
 use RulePosition::Nonterminal as N;
 use deckmaste_construction::constructions;
 
-use crate::ast::CatalogIdentity;
-use crate::ast::Noun;
 use crate::context::ParseContext;
 use crate::features::agreement_for_pronoun;
 use crate::features::inflect;
@@ -15,7 +13,6 @@ use crate::parser::ScanInput;
 use crate::parser::scan_bound_terminal;
 use crate::render::Render;
 use crate::render::Writer;
-use crate::render::render_noun;
 
 constructions! {
     vocab TriggerWord { Whenever = "whenever", }
@@ -28,20 +25,11 @@ constructions! {
     lexeme VerbLexeme { Deal, Gain, Control, Be, }
 
     codec Noun {
-        atom = noun;
-        value_type = crate::ast::Noun;
-        lexical = Lexical::Noun;
-        render = render_noun;
-        build { pattern = BuildValue::Noun(noun); construct = noun; }
-        traversal {
-            callback = borrowed;
-            argument = noun;
-            variant Lexeme;
-            variant Catalog;
-            match noun {
-                Noun::Lexeme(noun_lexeme: NounLexeme) => walk_noun_lexeme(copy(noun_lexeme)),
-                Noun::Catalog(catalog_identity: CatalogIdentity) => walk_catalog_identity(borrowed(catalog_identity)),
-            }
+        generate declaration_noun {
+            closed = NounLexeme;
+            position = Noun;
+            kinds = [Type, Subtype];
+            feature = Number;
         }
     }
     identity SelfReferenceSpelling {
@@ -60,19 +48,6 @@ constructions! {
             };
         }
     }
-    identity CatalogIdentity {
-        value_type = crate::ast::CatalogIdentity;
-        traversal {
-            callback = borrowed;
-            argument = identity;
-            leaf visit_catalog_spelling: str = borrowed;
-            field kind: CatalogKind;
-            field spelling: str;
-            call visitor::visit_catalog_identity(borrowed(identity));
-            call visitor::visit_catalog_spelling(borrowed(spelling));
-        }
-    }
-
     construction spell: Ability {
         element Spell { effect: Sentence, }
         form spell = effect;

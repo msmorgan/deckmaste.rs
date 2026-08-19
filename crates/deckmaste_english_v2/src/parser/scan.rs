@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 
-use deckmaste_catalogs::CatalogKind;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::SurfaceFeature;
@@ -26,9 +25,6 @@ use super::engine::Observation;
 use super::engine::parse;
 use super::engine::parse_observed;
 use super::materialize::completion_has_checked_build;
-use crate::ast::CatalogIdentity;
-use crate::ast::Noun;
-use crate::ast::NounLexeme;
 use crate::ast::VerbLexeme;
 use crate::constructions::Agreement;
 use crate::constructions::CasePosition;
@@ -532,40 +528,64 @@ impl ScanInput<'_> {
         )
     }
 
-    fn scan_noun(&self, wanted: FeatureConstraint<Number>) -> Vec<LexicalMatch<Leaf>> {
-        let mut matches = Vec::new();
-        for (noun, singular) in
-            std::iter::once((Noun::Lexeme(NounLexeme::Player), "player".to_owned())).chain(
-                self.environment
-                    .catalog_spellings(CatalogKind::CardTypes)
-                    .filter_map(|spelling| {
-                        CatalogIdentity::new(
-                            self.environment,
-                            CatalogKind::CardTypes,
-                            spelling.to_owned(),
-                        )
-                        .map(|identity| {
-                            (
-                                Noun::Catalog(identity),
-                                rendered_catalog(CatalogKind::CardTypes, spelling),
-                            )
-                        })
-                    }),
-            )
+    pub(crate) fn declaration_noun_readings(
+        &self,
+        position: GrammarPosition,
+        wanted: FeatureConstraint<Number>,
+    ) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
+        let offset = self.position.byte_offset;
+        let document_initial = self.position.case == CasePosition::DocumentInitial;
+        let prefix = usize::from(!document_initial);
+        let Some(remainder) = self.text.get(offset..) else {
+            return Vec::new();
+        };
+        let Some(surface_text) = (prefix == 0)
+            .then_some(remainder)
+            .or_else(|| remainder.strip_prefix(' '))
+        else {
+            return Vec::new();
+        };
+        let surface_byte_limit = if document_initial {
+            self.environment.initial_surface_byte_limit(position)
+        } else {
+            self.environment.running_surface_byte_limit(position)
+        };
+        let mut results = Vec::new();
+        for relative_end in surface_text
+            .char_indices()
+            .skip(1)
+            .map(|(end, _)| end)
+            .chain(std::iter::once(surface_text.len()))
+            .take_while(|&end| end <= surface_byte_limit)
         {
-            for (number, word) in noun_forms(&singular, wanted) {
-                if let Some(end) = self.word_end(&word) {
-                    matches.push(LexicalMatch {
-                        end,
-                        value: Leaf::Noun {
-                            noun: noun.clone(),
-                            number,
-                        },
-                    });
+            let end = offset + prefix + relative_end;
+            if !has_lexical_boundary(self.text, end) {
+                continue;
+            }
+            let candidate = &surface_text[..relative_end];
+            let readings = if document_initial {
+                self.environment.initial_readings(position, candidate)
+            } else {
+                self.environment.readings(position, candidate)
+            };
+            for reading in readings {
+                let number = match reading.feature() {
+                    SurfaceFeature::Singular => Number::Singular,
+                    SurfaceFeature::Plural => Number::Plural,
+                    SurfaceFeature::Bare
+                    | SurfaceFeature::ThirdPersonSingular
+                    | SurfaceFeature::Fixed => continue,
+                };
+                if matches!(wanted, FeatureConstraint::Any)
+                    || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number)
+                {
+                    results.push((end, reading.id().clone(), reading.feature()));
                 }
             }
         }
-        matches
+        results.sort();
+        results.dedup();
+        results
     }
 
     fn scan_verb(&self, lexeme: VerbLexeme) -> Vec<LexicalMatch<Leaf>> {
@@ -649,7 +669,6 @@ pub(crate) fn scan_bound_terminal(
     terminal: LexicalTerminal,
 ) -> Vec<LexicalMatch<Leaf>> {
     match terminal.matcher {
-        Lexical::Noun(number) => input.scan_noun(number),
         Lexical::Verb(lexeme) => input.scan_verb(lexeme),
         Lexical::Literal(_)
         | Lexical::EndOfInput
@@ -660,7 +679,8 @@ pub(crate) fn scan_bound_terminal(
         | Lexical::Variable
         | Lexical::SelfReference
         | Lexical::SignedNumber
-        | Lexical::Declaration(_) => {
+        | Lexical::Declaration(_)
+        | Lexical::Noun(_) => {
             unreachable!("generated scanner delegated a terminal it owns")
         }
     }
@@ -697,41 +717,13 @@ fn matches_feature(constraint: FeatureConstraint<SurfaceFeature>, feature: Surfa
     }
 }
 
-fn rendered_catalog(kind: CatalogKind, spelling: &str) -> String {
-    match kind {
-        CatalogKind::CardTypes | CatalogKind::Supertypes => spelling.to_lowercase(),
-        CatalogKind::AbilityWords
-        | CatalogKind::ArtifactTypes
-        | CatalogKind::BattleTypes
-        | CatalogKind::CardNames
-        | CatalogKind::CounterKindPhrases
-        | CatalogKind::CreatureTypes
-        | CatalogKind::EnchantmentTypes
-        | CatalogKind::KeywordAbilities
-        | CatalogKind::KeywordActions
-        | CatalogKind::LandTypes
-        | CatalogKind::PlaneswalkerTypes
-        | CatalogKind::SpellTypes => spelling.to_owned(),
-    }
-}
-
-fn noun_forms(singular: &str, wanted: FeatureConstraint<Number>) -> Vec<(Number, String)> {
-    match wanted {
-        FeatureConstraint::Exact(Number::Singular) => vec![(Number::Singular, singular.to_owned())],
-        FeatureConstraint::Exact(Number::Plural) => vec![(Number::Plural, format!("{singular}s"))],
-        FeatureConstraint::Any => vec![
-            (Number::Singular, singular.to_owned()),
-            (Number::Plural, format!("{singular}s")),
-        ],
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
 
     use macro_ron::v2::DeclarationKind;
     use macro_ron::v2::GrammarPosition;
+    use macro_ron::v2::SubtypeCategory;
     use macro_ron::v2::SurfaceFeature;
     use macro_ron::v2::read_builtin_v2;
     use macro_ron::v2::read_str;
@@ -740,8 +732,6 @@ mod tests {
     use super::super::engine::Family;
     use super::super::engine::NodeId;
     use super::super::engine::Observation;
-    use super::CatalogIdentity;
-    use super::CatalogKind;
     use super::Category;
     use super::ChartFailure;
     use super::Forest;
@@ -760,6 +750,7 @@ mod tests {
     use super::trace_label_counts;
     use super::value_label_v1;
     use crate::ast::Article;
+    use crate::ast::DeclarationNoun;
     use crate::ast::Demonstrative;
     use crate::ast::Noun;
     use crate::ast::NounLexeme;
@@ -770,7 +761,6 @@ mod tests {
     use crate::ast::TriggerWord;
     use crate::ast::Variable;
     use crate::ast::VerbLexeme;
-    use crate::catalogs::canonical_test_environment;
     use crate::constructions::Agreement;
     use crate::constructions::CasePosition;
     use crate::constructions::DeclarationLeaf;
@@ -779,11 +769,13 @@ mod tests {
     use crate::constructions::LexicalOwnerTemplate;
     use crate::constructions::LexicalProvenanceKind;
     use crate::constructions::LexicalTerminal;
+    use crate::constructions::Number;
     use crate::constructions::RULES;
     use crate::constructions::ScanPosition;
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
     use crate::environment::ParserEnvironment;
+    use crate::environment::canonical_test_environment;
     use crate::environment::reading_lookup_count;
     use crate::environment::reset_reading_lookup_count;
     use crate::parser::Parser;
@@ -1351,7 +1343,7 @@ mod tests {
     }
 
     #[test]
-    fn scanner_accepts_multi_token_context_identity_and_catalog_nouns() {
+    fn scanner_accepts_multi_token_context_identity_and_declaration_nouns() {
         assert!(
             slice_candidates(
                 "Zacama deals 3 damage to target creature.",
@@ -1359,6 +1351,172 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn declaration_noun_scanner_retains_collisions_features_and_exact_offsets() {
+        let declarations = [
+            read_str(
+                "/synthetic/types/Elf.ron",
+                r#"Type(name:"Elf",spelling:"elf",grammar:Noun(singular:"elf",plural:"elves"))"#,
+            )
+            .unwrap(),
+            read_str(
+                "/synthetic/subtypes/creature/Elf.ron",
+                r#"Subtype(category:Creature,name:"Elf",spelling:"elf",grammar:Noun(singular:"elf",plural:"elves"))"#,
+            )
+            .unwrap(),
+            read_str(
+                "/synthetic/types/Player.ron",
+                r#"Type(name:"Player",spelling:"player",grammar:Noun(singular:"player"))"#,
+            )
+            .unwrap(),
+            read_str(
+                "/synthetic/abilities/Flying.ron",
+                r#"KeywordAbility(name:"Flying",spelling:"flying",grammar:Noun(singular:"flying"))"#,
+            )
+            .unwrap(),
+        ];
+        let environment = ParserEnvironment::try_from_declarations(declarations).unwrap();
+        let context = context("Context Card");
+        let scan = |text, byte_offset, case, wanted| {
+            super::scan_lexical(
+                &ScanInput {
+                    text,
+                    position: ScanPosition { byte_offset, case },
+                    environment: &environment,
+                    context: &context,
+                },
+                LexicalTerminal {
+                    matcher: Lexical::Noun(wanted),
+                    owner: LexicalOwnerTemplate::DeclarationNoun,
+                },
+            )
+        };
+        let declarations = |matches: Vec<super::LexicalMatch<Leaf>>| {
+            matches
+                .into_iter()
+                .filter_map(|matched| match matched.value {
+                    Leaf::Noun {
+                        noun: Noun::Declaration(noun),
+                        number,
+                    } => Some((
+                        matched.end,
+                        noun.id().kind(),
+                        noun.id().name().to_owned(),
+                        noun.feature(),
+                        number,
+                    )),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            declarations(scan(
+                "Elves.",
+                0,
+                CasePosition::DocumentInitial,
+                FeatureConstraint::Exact(Number::Plural),
+            )),
+            [
+                (
+                    5,
+                    DeclarationKind::Subtype(SubtypeCategory::Creature),
+                    "Elf".to_owned(),
+                    SurfaceFeature::Plural,
+                    Number::Plural,
+                ),
+                (
+                    5,
+                    DeclarationKind::Type,
+                    "Elf".to_owned(),
+                    SurfaceFeature::Plural,
+                    Number::Plural,
+                ),
+            ],
+            "same-spelling Type/Subtype readings remain distinct in identity order",
+        );
+        assert_eq!(
+            declarations(scan(
+                "prefix elf.",
+                6,
+                CasePosition::Continuation,
+                FeatureConstraint::Exact(Number::Singular),
+            )),
+            [
+                (
+                    10,
+                    DeclarationKind::Subtype(SubtypeCategory::Creature),
+                    "Elf".to_owned(),
+                    SurfaceFeature::Singular,
+                    Number::Singular,
+                ),
+                (
+                    10,
+                    DeclarationKind::Type,
+                    "Elf".to_owned(),
+                    SurfaceFeature::Singular,
+                    Number::Singular,
+                ),
+            ],
+        );
+
+        let player = scan(
+            "Player.",
+            0,
+            CasePosition::DocumentInitial,
+            FeatureConstraint::Exact(Number::Singular),
+        );
+        assert_eq!(
+            player.len(),
+            2,
+            "core/declaration collision retains both branches"
+        );
+        assert!(player.iter().all(|matched| matched.end == 6));
+        assert!(player.iter().any(|matched| matches!(
+            matched.value,
+            Leaf::Noun {
+                noun: Noun::Lexeme(NounLexeme::Player),
+                number: Number::Singular
+            }
+        )));
+        assert!(player.iter().any(|matched| matches!(
+            &matched.value,
+            Leaf::Noun { noun: Noun::Declaration(noun), number: Number::Singular }
+                if noun.id() == &DeclarationId::new(DeclarationKind::Type, "Player")
+        )));
+        assert_noun_collision_owners(&player);
+        assert!(
+            scan(
+                "Flying.",
+                0,
+                CasePosition::DocumentInitial,
+                FeatureConstraint::Any,
+            )
+            .is_empty(),
+            "a noun-position reading of a disallowed declaration kind is rejected",
+        );
+    }
+
+    fn assert_noun_collision_owners(player: &[super::LexicalMatch<Leaf>]) {
+        let owners = player
+            .iter()
+            .map(|matched| {
+                LexicalOwnerTemplate::DeclarationNoun
+                    .instantiate(&matched.value)
+                    .expect("each noun branch has an exact owner")
+            })
+            .collect::<Vec<_>>();
+        assert!(owners.iter().any(|owner| {
+            owner.kind() == LexicalProvenanceKind::Lexeme
+                && owner.stable_id() == "lexeme:NounLexeme/Player"
+        }));
+        assert!(owners.iter().any(|owner| {
+            owner.kind() == LexicalProvenanceKind::Declaration
+                && owner.stable_id() == "declaration:type/Player"
+        }));
+        assert!(owners.iter().all(|owner| owner.stable_id() != "codec:Noun"));
     }
 
     #[test]
@@ -1566,7 +1724,7 @@ mod tests {
     }
 
     #[test]
-    fn structural_trace_non_catalog_value_labels_are_pinned() {
+    fn structural_trace_other_value_labels_are_pinned() {
         let values = [
             (Leaf::Literal("where"), "Literal(\"where\")"),
             (Leaf::EndOfInput, "EndOfInput"),
@@ -1888,18 +2046,22 @@ mod tests {
     }
 
     #[test]
-    fn structural_trace_catalog_value_label_is_pinned() {
+    fn structural_trace_declaration_noun_value_label_is_pinned() {
         let environment = canonical_test_environment();
-        let identity =
-            CatalogIdentity::new(&environment, CatalogKind::CardTypes, "Creature".to_owned())
-                .expect("canonical Creature catalog identity");
+        let id = DeclarationId::new(DeclarationKind::Type, "Creature");
+        assert_eq!(
+            environment.surface(&id, SurfaceFeature::Plural),
+            Some("creatures")
+        );
+        let identity = DeclarationNoun::from_reading(id, SurfaceFeature::Plural)
+            .expect("Type is an allowed declaration noun kind");
         let value = Leaf::Noun {
-            noun: Noun::Catalog(identity),
+            noun: Noun::Declaration(identity),
             number: super::Number::Plural,
         };
         assert_eq!(
             value_label_v1(&value),
-            "Noun { noun: Catalog(CatalogIdentity { kind: CardTypes, spelling: \"Creature\" }), number: Plural }"
+            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" }, feature: Plural }), number: Plural }"
         );
     }
 

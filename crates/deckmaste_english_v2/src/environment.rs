@@ -13,7 +13,6 @@ use macro_ron::v2::NormalizedDeclaration;
 use macro_ron::v2::SurfaceFeature;
 use macro_ron::v2::VerbValence;
 
-use crate::catalog_compatibility::CatalogCompatibility;
 use crate::orthography::initial_surface;
 
 /// One declaration and its validated grammar metadata.
@@ -146,9 +145,6 @@ thread_local! {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserEnvironment {
     data: Arc<EnvironmentData>,
-    // Deleted with the catalog compatibility module once type/subtype
-    // declaration rows supply the noun inventory.
-    catalog_compatibility: Option<CatalogCompatibility>,
 }
 
 impl ParserEnvironment {
@@ -251,7 +247,6 @@ impl ParserEnvironment {
                 running_surface_byte_limits,
                 initial_surface_byte_limits,
             }),
-            catalog_compatibility: None,
         })
     }
 
@@ -315,41 +310,9 @@ impl ParserEnvironment {
             .and_then(|record| record.surface(feature))
     }
 
-    pub(crate) fn with_catalog_compatibility(
-        mut self,
-        compatibility: CatalogCompatibility,
-    ) -> Self {
-        self.catalog_compatibility = Some(compatibility);
-        self
-    }
-
-    pub(crate) fn catalog_spellings(
-        &self,
-        kind: deckmaste_catalogs::CatalogKind,
-    ) -> impl Iterator<Item = &str> {
-        self.catalog_compatibility
-            .iter()
-            .flat_map(move |compatibility| compatibility.spellings(kind))
-    }
-
-    pub(crate) fn contains_catalog_spelling(
-        &self,
-        kind: deckmaste_catalogs::CatalogKind,
-        spelling: &str,
-    ) -> bool {
-        self.catalog_compatibility
-            .as_ref()
-            .is_some_and(|compatibility| compatibility.contains(kind, spelling))
-    }
-
     #[cfg(test)]
     pub(crate) fn test_only_shares_storage_with(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.data, &other.data)
-            && match (&self.catalog_compatibility, &other.catalog_compatibility) {
-                (Some(left), Some(right)) => left.shares_storage_with(right),
-                (None, None) => true,
-                (Some(_), None) | (None, Some(_)) => false,
-            }
     }
 
     #[cfg(test)]
@@ -379,6 +342,16 @@ fn record_reading_lookup() {}
 #[cfg(test)]
 pub(crate) fn reset_reading_lookup_count() {
     READING_LOOKUP_COUNT.set(0);
+}
+
+#[cfg(test)]
+pub(crate) fn canonical_test_environment() -> ParserEnvironment {
+    let declarations = macro_ron::v2::read_builtin_v2(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+    )
+    .expect("integrated builtin-v2 declarations load");
+    ParserEnvironment::try_from_declarations(declarations)
+        .expect("builtin-v2 declaration environment freezes")
 }
 
 #[cfg(test)]
@@ -430,7 +403,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_catalogs_are_fenced_to_the_named_provider_compatibility_boundary() {
+    fn production_sources_have_no_legacy_catalog_authority() {
         fn rust_sources(path: &Path, found: &mut Vec<PathBuf>) {
             for entry in fs::read_dir(path).expect("source directory is readable") {
                 let path = entry.expect("source entry is readable").path();
@@ -446,74 +419,24 @@ mod tests {
         let mut sources = Vec::new();
         rust_sources(&source_root, &mut sources);
         sources.sort();
-        let legacy_type = concat!("Parser", "Catalogs");
-        let legacy_storage = concat!("Catalog", "Set");
-        let legacy_crate = concat!("deckmaste_", "catalogs");
+        let forbidden = [
+            concat!("Parser", "Catalogs"),
+            concat!("Catalog", "Set"),
+            concat!("Catalog", "Kind"),
+            concat!("deckmaste_", "catalogs"),
+        ];
         for path in sources {
             let relative = path
                 .strip_prefix(&source_root)
                 .expect("source is below root");
             let source = fs::read_to_string(&path).expect("Rust source is readable");
-            if relative == Path::new("catalogs.rs") {
-                assert!(source.contains(&format!("pub struct {legacy_type}")));
-            } else {
+            for denied in forbidden {
                 assert!(
-                    !source.contains(legacy_type),
-                    "legacy parser catalogs escaped the provider boundary into {}",
-                    relative.display()
-                );
-            }
-            if source.contains(legacy_storage) {
-                assert!(
-                    relative == Path::new("catalogs.rs")
-                        || relative == Path::new("catalog_compatibility.rs"),
-                    "legacy catalog storage escaped the provider boundary into {}",
-                    relative.display()
-                );
-            }
-            if relative != Path::new("catalogs.rs")
-                && relative != Path::new("catalog_compatibility.rs")
-            {
-                let references = source
-                    .lines()
-                    .filter(|line| line.contains(legacy_crate))
-                    .map(|line| line.trim().to_owned())
-                    .collect::<Vec<_>>();
-                let catalog_kind_use = format!("use {legacy_crate}::CatalogKind;");
-                let catalog_kind_argument = format!("kind: {legacy_crate}::CatalogKind,");
-                let expected = match relative.to_str() {
-                    Some("ast.rs" | "render.rs" | "parser/scan.rs") => {
-                        vec![catalog_kind_use]
-                    }
-                    Some("environment.rs") => {
-                        vec![catalog_kind_argument.clone(), catalog_kind_argument]
-                    }
-                    _ => Vec::new(),
-                };
-                assert_eq!(
-                    references,
-                    expected,
-                    "legacy catalog crate references escaped the exact compatibility allowlist in {}",
+                    !source.contains(denied),
+                    "legacy catalog authority {denied:?} remains in {}",
                     relative.display()
                 );
             }
         }
-
-        let environment = include_str!("environment.rs");
-        let compatibility_field =
-            concat!("catalog_compatibility: Option<", "CatalogCompatibility>");
-        assert_eq!(
-            environment.matches(compatibility_field).count(),
-            1,
-            "the environment owns exactly one transitional compatibility field"
-        );
-        let compatibility = include_str!("catalog_compatibility.rs")
-            .lines()
-            .map(|line| line.trim_start().trim_start_matches("///").trim())
-            .collect::<Vec<_>>()
-            .join(" ");
-        assert!(
-            compatibility.contains("type and subtype declaration rows supply the noun inventory")
-        );
     }
 }

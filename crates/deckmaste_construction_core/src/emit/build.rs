@@ -413,6 +413,22 @@ fn lower_terminal_role(
                 .insert(identifier_key(&role), quote! { #value.clone() });
             return Ok(());
         }
+        AtomTerminal::DeclarationNoun(_) => {
+            let value = lowering.binders.allocate(&identifier_key(&role));
+            let number = noun_number_pattern(validated, row, &role, lowering)?;
+            let number_field = if number.to_string() == "number" {
+                quote! { number }
+            } else {
+                quote! { number: #number }
+            };
+            lowering.patterns.push(quote! {
+                BuildValue::Leaf(Leaf::Noun { noun: #value, #number_field })
+            });
+            lowering
+                .field_values
+                .insert(identifier_key(&role), quote! { #value.clone() });
+            return Ok(());
+        }
     };
     let build = binding
         .build()

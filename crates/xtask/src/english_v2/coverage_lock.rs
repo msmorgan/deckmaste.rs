@@ -133,7 +133,12 @@ fn validate_identity(value: &str, kind: &str, path: &Path) -> anyhow::Result<()>
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
+    use std::fmt::Write as _;
     use std::fs;
+    use std::path::Path;
+
+    use sha2::Digest;
+    use sha2::Sha256;
 
     use super::CoverageLock;
     use super::SCHEMA_VERSION;
@@ -251,5 +256,33 @@ mod tests {
 
         assert!(error.contains("accepted corpus identity must be lowercase 64-hex"));
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn production_lock_adds_only_the_reviewed_rend_spirit_identity() {
+        const REND_SPIRIT: &str =
+            "5a0bd9563d2e05ca394ee7bedc5e55f386f82ee16f4227c410565066c6585660";
+        const PRIOR_ACCEPTED_SHA256: &str =
+            "042ca946aff58bad02ba7c2daf6df3fce41493939c59caeab4022bb790669409";
+
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../english-v2-coverage.lock");
+        let lock = CoverageLock::read(&path).expect("production coverage lock is valid");
+        let mut prior = lock.accepted().clone();
+
+        assert_eq!(lock.accepted().len(), 48);
+        assert!(prior.remove(REND_SPIRIT));
+        assert_eq!(prior.len(), 47);
+
+        let mut hasher = Sha256::new();
+        for identity in prior {
+            hasher.update(identity.as_bytes());
+            hasher.update(b"\n");
+        }
+        let digest = hasher.finalize();
+        let mut hexadecimal = String::with_capacity(digest.len() * 2);
+        for byte in digest {
+            write!(&mut hexadecimal, "{byte:02x}").expect("writing to String cannot fail");
+        }
+        assert_eq!(hexadecimal, PRIOR_ACCEPTED_SHA256);
     }
 }

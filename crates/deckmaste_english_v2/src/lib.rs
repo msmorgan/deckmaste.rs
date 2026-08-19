@@ -1,6 +1,4 @@
 pub mod ast;
-mod catalog_compatibility;
-pub mod catalogs;
 mod constructions;
 pub mod context;
 pub mod environment;

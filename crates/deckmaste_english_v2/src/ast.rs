@@ -1,5 +1,3 @@
-use deckmaste_catalogs::CatalogKind;
-
 pub use crate::constructions::Ability;
 pub use crate::constructions::Amount;
 pub use crate::constructions::Article;
@@ -8,6 +6,7 @@ pub use crate::constructions::Common;
 pub use crate::constructions::Connive;
 pub use crate::constructions::CountNp;
 pub use crate::constructions::DealDamage;
+pub use crate::constructions::DeclarationNoun;
 pub use crate::constructions::Declarative;
 pub use crate::constructions::Demonstrative;
 pub use crate::constructions::DemonstrativeNp;
@@ -15,6 +14,7 @@ pub use crate::constructions::Destroy;
 pub use crate::constructions::EventClause;
 pub use crate::constructions::GainLife;
 pub use crate::constructions::Imperative;
+pub use crate::constructions::Noun;
 pub use crate::constructions::NounLexeme;
 pub use crate::constructions::NounPhrase;
 pub use crate::constructions::NumberAmount;
@@ -35,40 +35,3 @@ pub use crate::constructions::VerbLexeme;
 pub use crate::constructions::VerbPhrase;
 pub use crate::constructions::WhereClause;
 pub use crate::constructions::WithWhere;
-use crate::environment::ParserEnvironment;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Noun {
-    Lexeme(NounLexeme),
-    Catalog(CatalogIdentity),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CatalogIdentity {
-    pub(crate) kind: CatalogKind,
-    pub(crate) spelling: String,
-}
-
-impl CatalogIdentity {
-    #[must_use]
-    pub fn new(
-        environment: &ParserEnvironment,
-        kind: CatalogKind,
-        spelling: impl Into<String>,
-    ) -> Option<Self> {
-        let spelling = spelling.into();
-        environment
-            .contains_catalog_spelling(kind, &spelling)
-            .then_some(Self { kind, spelling })
-    }
-
-    #[must_use]
-    pub const fn kind(&self) -> CatalogKind {
-        self.kind
-    }
-
-    #[must_use]
-    pub fn spelling(&self) -> &str {
-        &self.spelling
-    }
-}

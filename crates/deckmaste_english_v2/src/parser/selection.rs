@@ -582,11 +582,11 @@ mod tests {
     use super::selection_exception_inventory;
     use super::selection_exception_inventory_for;
     use super::structural_specificity;
-    use crate::catalogs::canonical_test_environment;
     use crate::constructions::Category;
     use crate::constructions::Construction;
     use crate::constructions::Lexical;
     use crate::context::ParseContext;
+    use crate::environment::canonical_test_environment;
     use crate::parser::ParseAnalysis;
     use crate::parser::ParseError;
     use crate::parser::engine::Child;
