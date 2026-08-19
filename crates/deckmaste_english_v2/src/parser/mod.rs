@@ -19,6 +19,8 @@ use crate::environment::ParserEnvironment;
 
 mod diagnostic;
 mod engine;
+#[cfg(test)]
+mod homonym_pipeline;
 mod materialize;
 mod scan;
 mod selection;

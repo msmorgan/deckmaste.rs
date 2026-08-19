@@ -466,6 +466,7 @@ version = "0.1.0"
 dependencies = [
  "deckmaste_construction_core",
  "macro_ron",
+ "trybuild",
 ]
 
 [[package]]
@@ -568,7 +569,9 @@ dependencies = [
  "anyhow",
  "deckmaste_catalogs",
  "deckmaste_construction",
+ "deckmaste_construction_core",
  "macro_ron",
+ "syn 2.0.117",
  "tempfile",
  "thiserror",
 ]

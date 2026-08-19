@@ -18,6 +18,7 @@ use macro_ron::v2::NormalizedDeclaration;
 use macro_ron::v2::SurfaceFeature;
 use macro_ron::v2::read_builtin_v2;
 use macro_ron::v2::read_str;
+use syn::visit::Visit;
 
 fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
     read_str(path, source).expect("synthetic normalized declaration is valid")
@@ -208,34 +209,109 @@ fn visitor_observes_owned_declaration_identity_in_form_order() {
     assert_eq!(explicit.events, visitor.events);
 }
 
+fn item_attributes(item: &syn::Item) -> &[syn::Attribute] {
+    match item {
+        syn::Item::Const(item) => &item.attrs,
+        syn::Item::Enum(item) => &item.attrs,
+        syn::Item::ExternCrate(item) => &item.attrs,
+        syn::Item::Fn(item) => &item.attrs,
+        syn::Item::ForeignMod(item) => &item.attrs,
+        syn::Item::Impl(item) => &item.attrs,
+        syn::Item::Macro(item) => &item.attrs,
+        syn::Item::Mod(item) => &item.attrs,
+        syn::Item::Static(item) => &item.attrs,
+        syn::Item::Struct(item) => &item.attrs,
+        syn::Item::Trait(item) => &item.attrs,
+        syn::Item::TraitAlias(item) => &item.attrs,
+        syn::Item::Type(item) => &item.attrs,
+        syn::Item::Union(item) => &item.attrs,
+        syn::Item::Use(item) => &item.attrs,
+        syn::Item::Verbatim(_) => &[],
+        _ => panic!("unrecognized Rust item in production source census"),
+    }
+}
+
+fn is_cfg_test(attribute: &syn::Attribute) -> bool {
+    if !attribute.path().is_ident("cfg") {
+        return false;
+    }
+    let mut test = false;
+    attribute
+        .parse_nested_meta(|meta| {
+            test |= meta.path.is_ident("test");
+            Ok(())
+        })
+        .expect("production cfg attributes parse");
+    test
+}
+
+#[derive(Default)]
+struct StringLiteralCensus(Vec<String>);
+
+impl<'ast> Visit<'ast> for StringLiteralCensus {
+    fn visit_lit_str(&mut self, literal: &'ast syn::LitStr) {
+        self.0.push(literal.value());
+    }
+}
+
+fn production_string_literals(source: &str) -> Vec<String> {
+    let file = syn::parse_file(source).expect("production Rust source parses");
+    let mut census = StringLiteralCensus::default();
+    for item in &file.items {
+        if item_attributes(item).iter().any(is_cfg_test) {
+            continue;
+        }
+        census.visit_item(item);
+    }
+    census.0
+}
+
+#[test]
+fn source_census_keeps_production_items_after_cfg_test_items() {
+    let source = r#"
+        fn before() { consume("deal"); }
+        #[cfg(test)]
+        fn test_helper() { consume("ignored"); }
+        fn after() { consume("destroys"); }
+    "#;
+    assert_eq!(production_string_literals(source), ["deal", "destroys"]);
+}
+
 #[test]
 fn destroy_and_connive_have_no_closed_member_or_handwritten_spelling_authority() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let constructions = fs::read_to_string(root.join("constructions.rs")).unwrap();
     let features = fs::read_to_string(root.join("features.rs")).unwrap();
     let scanner = fs::read_to_string(root.join("parser/scan.rs")).unwrap();
-    let scanner = scanner
-        .split_once("#[cfg(test)]")
-        .map_or(scanner.as_str(), |(production, _)| production);
 
-    let enum_body = constructions
-        .split_once("lexeme VerbLexeme {")
-        .and_then(|(_, tail)| tail.split_once('}'))
-        .map(|(body, _)| body)
-        .expect("closed verb enum declaration exists");
-    for forbidden in ["Destroy", "Connive"] {
+    let invocation = deckmaste_construction_core::invocation_from_source(&constructions)
+        .expect("production construction invocation is authentic");
+    let expansion = deckmaste_construction_core::generate(invocation.tokens)
+        .expect("production construction inventory compiles");
+    let verb_lexeme = expansion
+        .terminal_contributions()
+        .iter()
+        .find(|terminal| terminal.name() == "VerbLexeme")
+        .expect("closed verb lexeme provider exists");
+    assert!(verb_lexeme.is_verb_provider());
+    assert_eq!(
+        verb_lexeme
+            .variants()
+            .iter()
+            .map(deckmaste_construction_core::TerminalVariantContribution::name)
+            .collect::<Vec<_>>(),
+        ["Deal", "Gain", "Control", "Be"]
+    );
+
+    let feature_literals = production_string_literals(&features);
+    let scanner_literals = production_string_literals(&scanner);
+    for forbidden in ["destroy", "destroys", "connive", "connives"] {
         assert!(
-            !enum_body.contains(forbidden),
-            "closed member remains: {enum_body}"
-        );
-    }
-    for forbidden in ["\"destroy\"", "\"destroys\"", "\"connive\"", "\"connives\""] {
-        assert!(
-            !features.contains(forbidden),
+            !feature_literals.iter().any(|literal| literal == forbidden),
             "handwritten inflection remains: {forbidden}"
         );
         assert!(
-            !scanner.contains(forbidden),
+            !scanner_literals.iter().any(|literal| literal == forbidden),
             "handwritten scanner spelling remains: {forbidden}"
         );
     }

@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
 
 use deckmaste_catalogs::CatalogKind;
+use macro_ron::v2::DeclarationKind;
+use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::SurfaceFeature;
 
 use super::diagnostic::Bounded;
@@ -501,57 +503,16 @@ impl ScanInput<'_> {
         &self,
         matcher: DeclarationMatcher,
     ) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
-        let offset = self.position.byte_offset;
-        let prefix = usize::from(self.position.case == CasePosition::Continuation);
-        let Some(remainder) = self.text.get(offset..) else {
-            return Vec::new();
-        };
-        let Some(surface_text) = (prefix == 0)
-            .then_some(remainder)
-            .or_else(|| remainder.strip_prefix(' '))
-        else {
-            return Vec::new();
-        };
-
-        let mut results = Vec::new();
-        let surface_byte_limit = if self.position.case == CasePosition::DocumentInitial {
-            self.environment
-                .initial_surface_byte_limit(matcher.position)
-        } else {
-            self.environment
-                .running_surface_byte_limit(matcher.position)
-        };
-        let candidate_ends = surface_text
-            .char_indices()
-            .skip(1)
-            .map(|(end, _)| end)
-            .chain(std::iter::once(surface_text.len()))
-            .take_while(|&end| end <= surface_byte_limit);
-        for relative_end in candidate_ends {
-            let end = offset + prefix + relative_end;
-            if !has_lexical_boundary(self.text, end) {
-                continue;
-            }
-            let candidate = &surface_text[..relative_end];
-            let readings = if self.position.case == CasePosition::DocumentInitial {
-                self.environment
-                    .initial_readings(matcher.position, candidate)
-            } else {
-                self.environment.readings(matcher.position, candidate)
-            };
-            for reading in readings {
-                if reading.id().kind() != matcher.kind
-                    || reading.id().name() != matcher.name
-                    || !matches_feature(matcher.feature, reading.feature())
-                {
-                    continue;
-                }
-                results.push((end, reading.id().clone(), reading.feature()));
-            }
-        }
-        results.sort();
-        results.dedup();
-        results
+        lookup_declaration_readings(
+            self.text,
+            self.position.byte_offset,
+            self.position.case == CasePosition::DocumentInitial,
+            self.environment,
+            matcher.kind,
+            matcher.name,
+            matcher.position,
+            |feature| matches_feature(matcher.feature, feature),
+        )
     }
 
     fn scan_noun(&self, wanted: FeatureConstraint<Number>) -> Vec<LexicalMatch<Leaf>> {
@@ -635,6 +596,68 @@ impl ScanInput<'_> {
             .into_iter()
             .collect()
     }
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the shared lookup seam keeps synthetic generated grammars on the production scanner algorithm"
+)]
+pub(super) fn lookup_declaration_readings(
+    text: &str,
+    offset: usize,
+    document_initial: bool,
+    environment: &ParserEnvironment,
+    kind: DeclarationKind,
+    name: &str,
+    position: GrammarPosition,
+    matches_feature: impl Fn(SurfaceFeature) -> bool,
+) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
+    let prefix = usize::from(!document_initial);
+    let Some(remainder) = text.get(offset..) else {
+        return Vec::new();
+    };
+    let Some(surface_text) = (prefix == 0)
+        .then_some(remainder)
+        .or_else(|| remainder.strip_prefix(' '))
+    else {
+        return Vec::new();
+    };
+
+    let mut results = Vec::new();
+    let surface_byte_limit = if document_initial {
+        environment.initial_surface_byte_limit(position)
+    } else {
+        environment.running_surface_byte_limit(position)
+    };
+    let candidate_ends = surface_text
+        .char_indices()
+        .skip(1)
+        .map(|(end, _)| end)
+        .chain(std::iter::once(surface_text.len()))
+        .take_while(|&end| end <= surface_byte_limit);
+    for relative_end in candidate_ends {
+        let end = offset + prefix + relative_end;
+        if !has_lexical_boundary(text, end) {
+            continue;
+        }
+        let candidate = &surface_text[..relative_end];
+        let readings = if document_initial {
+            environment.initial_readings(position, candidate)
+        } else {
+            environment.readings(position, candidate)
+        };
+        for reading in readings {
+            if reading.id().kind() == kind
+                && reading.id().name() == name
+                && matches_feature(reading.feature())
+            {
+                results.push((end, reading.id().clone(), reading.feature()));
+            }
+        }
+    }
+    results.sort();
+    results.dedup();
+    results
 }
 
 pub(crate) fn scan_bound_terminal(

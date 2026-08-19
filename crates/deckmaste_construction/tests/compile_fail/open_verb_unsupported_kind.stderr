@@ -1,0 +1,5 @@
+error: unsupported open declaration kind `Subtype`
+ --> tests/compile_fail/open_verb_unsupported_kind.rs:6:38
+  |
+6 |         form unsupported = open_verb(Subtype, "Elf");
+  |                                      ^^^^^^^

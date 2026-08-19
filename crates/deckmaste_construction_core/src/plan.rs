@@ -310,12 +310,16 @@ mod tests {
 
         plan.test_only_replace_open_declaration_name("destroy", 0, "Connive");
         let rules = formatted(&crate::emit::rules::emit(&plan).expect("mutated rule emits"));
+        let runtime = formatted(&crate::emit::runtime::emit(&plan));
         let render = formatted(&crate::emit::render::emit(&plan).expect("mutated render emits"));
         let visitor = formatted(&crate::emit::visit::emit(&plan).expect("mutated visitor emits"));
         assert!(rules.contains("name : \"Connive\""));
+        assert!(runtime.contains("REQUIRED_DECLARATIONS"));
+        assert!(runtime.contains("name : \"Connive\""));
         assert!(render.contains("\"Connive\""));
         assert!(visitor.contains("\"Connive\""));
         assert!(!rules.contains("name : \"Destroy\""));
+        assert!(!runtime.contains("name : \"Destroy\""));
         assert_eq!(
             crate::test_support::open_verb_tokens().to_string(),
             authored

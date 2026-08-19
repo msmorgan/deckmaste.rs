@@ -1,0 +1,5 @@
+error: open declaration name is empty
+ --> tests/compile_fail/open_verb_empty_name.rs:6:49
+  |
+6 |         form unnamed = open_verb(KeywordAction, "");
+  |                                                 ^^
