@@ -8,6 +8,7 @@ use crate::identifier::snake_case;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::semantic::BindingPlan;
+use crate::semantic::ContextIdentityPlan;
 use crate::semantic::LexemePlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::SignedDecimalPlan;
@@ -20,6 +21,7 @@ struct RuntimeInventory<'a> {
     noun_binding: Option<&'a BindingPlan>,
     direct_bindings: Vec<&'a BindingPlan>,
     opaque_bindings: Vec<&'a BindingPlan>,
+    context_identities: Vec<&'a ContextIdentityPlan>,
     signed_decimal: Option<&'a SignedDecimalPlan>,
 }
 
@@ -32,6 +34,7 @@ impl<'a> RuntimeInventory<'a> {
             noun_binding: plan.runtime_noun_binding(),
             direct_bindings: plan.runtime_direct_bindings().collect(),
             opaque_bindings: plan.runtime_opaque_bindings().collect(),
+            context_identities: plan.runtime_context_identities().collect(),
             signed_decimal: plan.runtime_signed_decimal(),
         }
     }
@@ -218,6 +221,19 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         let variant = codec.codec_ident();
         quote! { #variant, }
     });
+    let context_lexical_variants = inventory.context_identities.iter().map(|identity| {
+        let variant = identity.aggregate_ident();
+        quote! { #variant, }
+    });
+    let context_leaf_variants = inventory.context_identities.iter().map(|identity| {
+        let variant = identity.aggregate_ident();
+        let ty = identity.ident();
+        quote! { #variant(#ty), }
+    });
+    let context_class_variants = inventory
+        .context_identities
+        .iter()
+        .map(|identity| identity.aggregate_ident());
     let signed_leaf = inventory.signed_decimal.map(|codec| {
         let variant = codec.codec_ident();
         quote! { #variant(#variant), }
@@ -240,6 +256,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #verb_lexical
                     #(#direct_lexical_variants)*
                     #(#opaque_lexical_variants)*
+                    #(#context_lexical_variants)*
                     #signed_lexical
                     Declaration(DeclarationMatcher),
                 }
@@ -257,6 +274,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #verb_leaf
                     #(#direct_leaf_variants)*
                     #(#opaque_leaf_variants)*
+                    #(#context_leaf_variants)*
                     #signed_leaf
                     Declaration(DeclarationLeaf),
                 }
@@ -273,6 +291,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #verb_class
                     #(#direct_class_variants,)*
                     #(#opaque_class_variants,)*
+                    #(#context_class_variants,)*
                     #signed_class
                     Declaration(DeclarationClass),
                 }
@@ -324,6 +343,9 @@ fn emit_owner_types() -> Vec<GeneratedItem> {
                         declaration: &'static str,
                         member: &'static str,
                     },
+                    Identity {
+                        declaration: &'static str,
+                    },
                     Declaration {
                         kind: ::macro_ron::v2::DeclarationKind,
                         name: &'static str,
@@ -350,6 +372,10 @@ fn emit_runtime_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     items
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the generated exhaustive class and label projections stay visibly paired"
+)]
 fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let vocab_class_arms = inventory.vocabs.iter().map(|vocab| {
         let variant = vocab.name_ident();
@@ -371,6 +397,10 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     });
     let signed_class_arm = inventory.signed_decimal.map(|codec| {
         let variant = codec.codec_ident();
+        quote! { Lexical::#variant => TerminalClass::#variant, }
+    });
+    let context_class_arms = inventory.context_identities.iter().map(|identity| {
+        let variant = identity.aggregate_ident();
         quote! { Lexical::#variant => TerminalClass::#variant, }
     });
     let vocab_labels = inventory.vocabs.iter().map(|vocab| {
@@ -411,6 +441,14 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         );
         quote! { TerminalClass::#variant => #label, }
     });
+    let context_labels = inventory.context_identities.iter().map(|identity| {
+        let variant = identity.aggregate_ident();
+        let label = syn::LitStr::new(
+            &snake_case(&variant.to_string()).replace('_', " "),
+            identity.origin_span(),
+        );
+        quote! { TerminalClass::#variant => #label, }
+    });
     vec![
         impl_item(
             Some("Lexical"),
@@ -426,6 +464,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #verb_class_arm
                             #(#direct_class_arms)*
                             #(#opaque_class_arms)*
+                            #(#context_class_arms)*
                             #signed_class_arm
                             Lexical::Declaration(matcher) => TerminalClass::Declaration(
                                 DeclarationClass {
@@ -462,6 +501,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #verb_label
                             #(#direct_labels)*
                             #(#opaque_labels)*
+                            #(#context_labels)*
                             #signed_label
                             TerminalClass::Declaration(_) => "open declaration",
                         }
@@ -519,6 +559,27 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             }
         })
     });
+    let context_owner_arms = inventory.context_identities.iter().flat_map(|identity| {
+        let declaration_ident = identity.ident();
+        let aggregate_ident = identity.aggregate_ident();
+        let declaration = syn::LitStr::new(identity.name(), identity.origin_span());
+        identity.arms().iter().map(move |arm| {
+            let member = arm.variant();
+            let stable_id = syn::LitStr::new(
+                &format!("identity:{}/{}", identity.name(), member),
+                Span::call_site(),
+            );
+            quote! {
+                (
+                    LexicalOwnerTemplate::Identity { declaration: #declaration },
+                    Leaf::#aggregate_ident(#declaration_ident::#member),
+                ) => Some(LexicalOwner {
+                    kind: LexicalProvenanceKind::Identity,
+                    stable_id: #stable_id.to_owned(),
+                }),
+            }
+        })
+    });
 
     vec![
         impl_item(
@@ -552,6 +613,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 stable_id: stable_id.to_owned(),
                             }),
                             #(#vocab_owner_arms)*
+                            #(#context_owner_arms)*
                             (
                                 LexicalOwnerTemplate::Lexeme {
                                     declaration,

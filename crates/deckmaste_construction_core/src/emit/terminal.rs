@@ -14,8 +14,9 @@ use crate::semantic::SemanticPlan;
 use crate::semantic::TerminalPlan;
 
 #[allow(
+    clippy::too_many_lines,
     clippy::unnecessary_wraps,
-    reason = "emitter phases share one fallible interface"
+    reason = "terminal kinds stay together in one source-ordered emission pass"
 )]
 pub(crate) fn emit(
     validated: &SemanticPlan,
@@ -111,6 +112,50 @@ pub(crate) fn emit(
                 ));
             }
             TerminalPlan::Binding(_) => {}
+            TerminalPlan::ContextIdentity(row) => {
+                let origin = row.origin().clone();
+                let ty = row.ident();
+                let variants = row
+                    .arms()
+                    .iter()
+                    .map(crate::semantic::ContextIdentityArmPlan::variant);
+                let surface_arms = row.arms().iter().map(|arm| {
+                    let variant = arm.variant();
+                    let accessor = arm.accessor();
+                    quote! { Self::#variant => context.#accessor() }
+                });
+                let canonical = row.canonical();
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(row.name()),
+                    quote! {
+                        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+                        pub enum #ty { #(#variants),* }
+                    },
+                    vec![origin.clone()],
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty: row.name().to_owned(),
+                    },
+                    quote! {
+                        impl #ty {
+                            pub(crate) fn valid_in(self, context: &ParseContext<'_>) -> bool {
+                                self == Self::#canonical
+                                    || self.surface(context) != Self::#canonical.surface(context)
+                            }
+
+                            pub(crate) fn surface<'a>(
+                                self,
+                                context: &'a ParseContext<'a>,
+                            ) -> &'a str {
+                                match self { #(#surface_arms,)* }
+                            }
+                        }
+                    },
+                    vec![origin],
+                ));
+            }
             TerminalPlan::SignedDecimal(row) => {
                 let origin = row.origin().clone();
                 let sign = row.sign_type();

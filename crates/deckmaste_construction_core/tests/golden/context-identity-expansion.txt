@@ -1,0 +1,16 @@
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelfReferenceSpelling {
+    Full,
+    Abbreviated,
+}
+impl SelfReferenceSpelling {
+    pub(crate) fn valid_in(self, context: &ParseContext<'_>) -> bool {
+        self == Self::Full || self.surface(context) != Self::Full.surface(context)
+    }
+    pub(crate) fn surface<'a>(self, context: &'a ParseContext<'a>) -> &'a str {
+        match self {
+            Self::Full => context.card_name(),
+            Self::Abbreviated => context.abbreviated_card_name(),
+        }
+    }
+}

@@ -23,6 +23,9 @@ use crate::model::Construction;
 use crate::model::ConstructorArgument;
 use crate::model::ConstructorBinding;
 use crate::model::ContextIdentityArm;
+use crate::model::ContextIdentityCanonicalSource;
+use crate::model::ContextIdentitySource;
+use crate::model::ContextIdentitySourceArm;
 use crate::model::Declaration;
 use crate::model::Declarations;
 use crate::model::Element;
@@ -37,6 +40,7 @@ use crate::model::FieldKind;
 use crate::model::Form;
 use crate::model::FormAtom;
 use crate::model::GeneratedCodecRecipe;
+use crate::model::GeneratedIdentityRecipe;
 use crate::model::LeafCallback;
 use crate::model::Lexeme;
 use crate::model::NonPublicVisibility;
@@ -555,6 +559,10 @@ impl BindingKind {
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the closed legacy and generated terminal grammars share one declaration boundary"
+)]
 fn parse_terminal_binding(
     input: ParseStream<'_>,
     kind: BindingKind,
@@ -564,16 +572,22 @@ fn parse_terminal_binding(
     let content;
     braced!(content in input);
     if content.peek(keyword::generate) {
-        if kind == BindingKind::Identity {
-            return Err(deferred(content.span(), "generative identity"));
-        }
-        let generated = parse_generated_codec(&content)?;
+        let (generated, generated_identity) = match kind {
+            BindingKind::Codec => (Some(parse_generated_codec(&content)?), None),
+            BindingKind::Identity => (None, Some(parse_generated_identity(&content)?)),
+        };
         if !content.is_empty() {
-            return Err(
-                content.error("generated codec cannot mix `generate` with legacy binding fields")
-            );
+            return Err(content.error(format!(
+                "generated {} cannot mix `generate` with legacy binding fields",
+                kind.name()
+            )));
         }
-        return Ok(generated_terminal_binding(name, generated));
+        return Ok(generated_terminal_binding(
+            name,
+            kind,
+            generated,
+            generated_identity,
+        ));
     }
     let mut value_type = None;
     let mut codec_atom = None;
@@ -584,9 +598,10 @@ fn parse_terminal_binding(
 
     while !content.is_empty() {
         if content.peek(keyword::generate) {
-            return Err(
-                content.error("generated codec cannot mix `generate` with legacy binding fields")
-            );
+            return Err(content.error(format!(
+                "generated {} cannot mix `generate` with legacy binding fields",
+                kind.name()
+            )));
         }
         if content.peek(Token![#]) {
             return Err(deferred(content.span(), "doc comments"));
@@ -701,6 +716,7 @@ fn parse_terminal_binding(
             BindingKind::Identity => TerminalBindingKind::Identity,
         },
         generated: None,
+        generated_identity: None,
         codec_atom,
         value_type: required(value_type, &name, "value_type")?,
         lexical_variant,
@@ -717,16 +733,25 @@ fn parse_binding_keyword(input: ParseStream<'_>, kind: BindingKind) -> syn::Resu
     }
 }
 
-fn generated_terminal_binding(name: Ident, generated: GeneratedCodecRecipe) -> TerminalBinding {
+fn generated_terminal_binding(
+    name: Ident,
+    kind: BindingKind,
+    generated: Option<GeneratedCodecRecipe>,
+    generated_identity: Option<GeneratedIdentityRecipe>,
+) -> TerminalBinding {
     let value_type: syn::Type = syn::parse_quote_spanned!(name.span()=> #name);
     let lexical_variant: syn::Path = syn::parse_quote_spanned!(name.span()=> Lexical::#name);
     TerminalBinding {
         name,
-        kind: TerminalBindingKind::Codec,
-        generated: Some(generated),
-        codec_atom: Some(CodecAtomClass::Lex),
+        kind: match kind {
+            BindingKind::Codec => TerminalBindingKind::Codec,
+            BindingKind::Identity => TerminalBindingKind::Identity,
+        },
+        generated,
+        generated_identity,
+        codec_atom: (kind == BindingKind::Codec).then_some(CodecAtomClass::Lex),
         value_type,
-        lexical_variant: Some(lexical_variant),
+        lexical_variant: (kind == BindingKind::Codec).then_some(lexical_variant),
         render: None,
         build: None,
         traversal: Traversal {
@@ -741,6 +766,50 @@ fn generated_terminal_binding(name: Ident, generated: GeneratedCodecRecipe) -> T
             leaf_callbacks: Vec::new(),
         },
     }
+}
+
+fn parse_generated_identity(input: ParseStream<'_>) -> syn::Result<GeneratedIdentityRecipe> {
+    input.parse::<keyword::generate>()?;
+    let recipe = input.call(Ident::parse_any)?;
+    let content;
+    braced!(content in input);
+    if recipe != "context" {
+        let _: TokenStream = content.parse()?;
+        return Ok(GeneratedIdentityRecipe::Unsupported { name: recipe });
+    }
+
+    let mut arms = Vec::new();
+    let mut canonical_slots = Vec::new();
+    while !content.is_empty() {
+        reject_doc_comment(&content)?;
+        if content.peek(Token![_]) {
+            let empty = content.parse::<Token![_]>()?;
+            return Err(syn::Error::new(
+                empty.span(),
+                "context identity arm name cannot be empty",
+            ));
+        }
+        let name = content.call(Ident::parse_any)?;
+        if name == "canonical_on_collision" {
+            content.parse::<Token![=]>()?;
+            let arm = content.call(Ident::parse_any)?;
+            content.parse::<Token![;]>()?;
+            canonical_slots.push(ContextIdentityCanonicalSource { slot: name, arm });
+        } else {
+            content.parse::<Token![=>]>()?;
+            let accessor = content.call(Ident::parse_any)?;
+            content.parse::<Token![,]>()?;
+            arms.push(ContextIdentitySourceArm {
+                variant: name,
+                accessor,
+            });
+        }
+    }
+    Ok(GeneratedIdentityRecipe::Context(ContextIdentitySource {
+        recipe,
+        arms,
+        canonical_slots,
+    }))
 }
 
 fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRecipe> {
@@ -1704,10 +1773,6 @@ mod tests {
                 "construction x: X { element XNode { value: X, } form x otherwise = value; }",
                 "otherwise",
             ),
-            (
-                "identity X { generate { anything } }",
-                "generative identity",
-            ),
             ("morphology English { anything }", "morphology"),
             ("scanner Words { anything }", "scanner"),
             (
@@ -1754,6 +1819,44 @@ mod tests {
             declarations.declarations[0],
             Declaration::Codec(_)
         ));
+    }
+
+    #[test]
+    fn parses_context_identity_generated_source_into_typed_rows() {
+        let declarations = parse(
+            r"
+                identity SelfReferenceSpelling {
+                    generate context {
+                        Full => card_name,
+                        Abbreviated => abbreviated_card_name,
+                        canonical_on_collision = Full;
+                    }
+                }
+            ",
+        )
+        .expect("the closed context identity recipe parses");
+
+        let Declaration::Identity(binding) = &declarations.declarations[0] else {
+            panic!("the declaration remains an identity")
+        };
+        let Some(crate::GeneratedIdentityRecipe::Context(source)) = &binding.generated_identity
+        else {
+            panic!("the identity retains a typed context recipe")
+        };
+        assert_eq!(source.recipe, "context");
+        assert_eq!(
+            source
+                .arms
+                .iter()
+                .map(|arm| (arm.variant.to_string(), arm.accessor.to_string()))
+                .collect::<Vec<_>>(),
+            [
+                ("Full".to_owned(), "card_name".to_owned()),
+                ("Abbreviated".to_owned(), "abbreviated_card_name".to_owned()),
+            ]
+        );
+        assert_eq!(source.canonical_slots.len(), 1);
+        assert_eq!(source.canonical_slots[0].arm, "Full");
     }
 
     #[test]

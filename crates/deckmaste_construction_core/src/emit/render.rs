@@ -325,10 +325,11 @@ fn render_allocator(
                     let field = fields
                         .get(role)
                         .ok_or_else(|| internal("resolved identity role is absent"))?;
-                    if let BindingRenderPlan::Runtime(path) =
-                        find_binding(validated, field.terminal())?
-                            .render()
-                            .ok_or_else(|| internal("identity lacks render metadata"))?
+                    if find_context_identity(validated, field.terminal()).is_none()
+                        && let BindingRenderPlan::Runtime(path) =
+                            find_binding(validated, field.terminal())?
+                                .render()
+                                .ok_or_else(|| internal("identity lacks render metadata"))?
                     {
                         reserve_bare_path(&mut allocator, path);
                     }
@@ -615,8 +616,12 @@ fn render_atoms(
                 let field = fields
                     .get(role)
                     .ok_or_else(|| internal("resolved identity role is absent"))?;
-                let binding = find_binding(validated, field.terminal())?;
                 let value = field_value(construction, role, locals)?;
+                if find_context_identity(validated, field.terminal()).is_some() {
+                    let value = copy_value(construction, role, value);
+                    return Ok(quote! { #method_writer.identity((#value).surface(context)); });
+                }
+                let binding = find_binding(validated, field.terminal())?;
                 match binding
                     .render()
                     .ok_or_else(|| internal("identity lacks render metadata"))?
@@ -1241,6 +1246,15 @@ fn find_binding<'a>(validated: &'a SemanticPlan, name: &str) -> syn::Result<&'a 
         }
     }
     Err(internal("resolved terminal binding is absent"))
+}
+
+fn find_context_identity<'a>(
+    validated: &'a SemanticPlan,
+    name: &str,
+) -> Option<&'a crate::semantic::ContextIdentityPlan> {
+    validated
+        .runtime_context_identities()
+        .find(|identity| identity.name() == name)
 }
 
 fn find_signed_decimal<'a>(

@@ -39,12 +39,14 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     let mut vocabs = Vec::new();
     let mut lexemes = Vec::new();
     let mut bindings = Vec::new();
+    let mut context_identities = Vec::new();
     let mut signed_decimal = None;
     for terminal in validated.terminals() {
         match terminal {
             TerminalPlan::Vocab(row) => vocabs.push(row),
             TerminalPlan::Lexeme(row) => lexemes.push(row),
             TerminalPlan::Binding(row) => bindings.push(row),
+            TerminalPlan::ContextIdentity(row) => context_identities.push(row),
             TerminalPlan::SignedDecimal(row) => signed_decimal = Some(row),
         }
     }
@@ -79,6 +81,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         containers: &containers,
         vocabs: &vocabs,
         copy_bindings: &copy_bindings,
+        context_identities: &context_identities,
         lexemes: &lexemes,
         borrowed_bindings: &borrowed_bindings,
         signed_decimal,
@@ -104,6 +107,16 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     for binding in &copy_bindings {
         items.push(emit_binding_walker(binding)?);
     }
+    for identity in &context_identities {
+        items.push(emit_enum_walker(
+            identity.ident(),
+            identity
+                .arms()
+                .iter()
+                .map(crate::semantic::ContextIdentityArmPlan::variant),
+            DeclarationKind::Identity,
+        ));
+    }
     for lexeme in &lexemes {
         items.push(emit_enum_walker(
             lexeme.name_ident(),
@@ -125,6 +138,7 @@ struct TerminalVisitors<'a> {
     containers: &'a [&'a BindingPlan],
     vocabs: &'a [&'a VocabPlan],
     copy_bindings: &'a [&'a BindingPlan],
+    context_identities: &'a [&'a crate::semantic::ContextIdentityPlan],
     lexemes: &'a [&'a LexemePlan],
     borrowed_bindings: &'a [&'a BindingPlan],
     signed_decimal: Option<&'a SignedDecimalPlan>,
@@ -158,6 +172,9 @@ fn emit_trait(
     }
     for binding in terminals.copy_bindings {
         methods.push(noop_method(binding.name(), VisitMode::Copy));
+    }
+    for identity in terminals.context_identities {
+        methods.push(noop_method(identity.name(), VisitMode::Copy));
     }
     for lexeme in terminals.lexemes {
         methods.push(noop_method(lexeme.name(), VisitMode::Copy));
@@ -246,6 +263,12 @@ fn emit_trait(
             .copy_bindings
             .iter()
             .map(|binding| binding_origin(binding, constructions)),
+    );
+    origins.extend(
+        terminals
+            .context_identities
+            .iter()
+            .map(|identity| identity.origin().clone()),
     );
     origins.extend(
         terminals
@@ -756,12 +779,16 @@ fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitM
             TerminalPlan::Binding(row) if row.name() == terminal => {
                 return Ok(row.traversal().mode());
             }
+            TerminalPlan::ContextIdentity(row) if row.name() == terminal => {
+                return Ok(VisitMode::Copy);
+            }
             TerminalPlan::SignedDecimal(row) if row.codec_name() == terminal => {
                 return Ok(VisitMode::Borrowed);
             }
             TerminalPlan::Vocab(_)
             | TerminalPlan::Lexeme(_)
             | TerminalPlan::Binding(_)
+            | TerminalPlan::ContextIdentity(_)
             | TerminalPlan::SignedDecimal(_) => {}
         }
     }

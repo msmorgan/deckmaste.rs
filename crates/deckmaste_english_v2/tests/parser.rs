@@ -73,6 +73,28 @@ fn self_reference_spelling_is_checked_against_its_context() {
 }
 
 #[test]
+fn context_identity_stores_only_the_reusable_arm() {
+    assert_eq!(
+        std::mem::size_of::<SelfReferenceSpelling>(),
+        1,
+        "the generated value must not retain either context spelling"
+    );
+    let spelling = SelfReferenceSpelling::Abbreviated;
+    assert_eq!(
+        SelfReferenceNp::new(spelling, &context("Zacama, Primal Calamity"))
+            .expect("the stored arm is valid for one comma abbreviation")
+            .spelling(),
+        spelling
+    );
+    assert_eq!(
+        SelfReferenceNp::new(spelling, &context("Zoraline, Cosmos Caller"))
+            .expect("the same stored arm is valid for another comma abbreviation")
+            .spelling(),
+        spelling
+    );
+}
+
+#[test]
 fn parse_error_is_a_standard_error_and_converts_to_anyhow() {
     fn require_standard_error(error: &(impl std::error::Error + ?Sized)) {
         let _ = error;

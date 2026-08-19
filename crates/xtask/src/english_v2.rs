@@ -308,6 +308,28 @@ mod tests {
         finder.found
     }
 
+    fn contains_production_identifier(file: &syn::File, name: &str) -> bool {
+        use syn::visit::Visit as _;
+
+        let mut finder = ProductionIdentifierFinder {
+            target: name,
+            found: false,
+        };
+        finder.visit_file(file);
+        finder.found
+    }
+
+    fn contains_production_method_call(file: &syn::File, name: &str) -> bool {
+        use syn::visit::Visit as _;
+
+        let mut finder = ProductionMethodCallFinder {
+            target: name,
+            found: false,
+        };
+        finder.visit_file(file);
+        finder.found
+    }
+
     #[derive(Clone, Copy, PartialEq, Eq)]
     enum ProductionAuthorityKind {
         Enum,
@@ -319,6 +341,94 @@ mod tests {
         kind: ProductionAuthorityKind,
         target: &'a str,
         found: bool,
+    }
+
+    struct ProductionIdentifierFinder<'a> {
+        target: &'a str,
+        found: bool,
+    }
+
+    struct ProductionMethodCallFinder<'a> {
+        target: &'a str,
+        found: bool,
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for ProductionMethodCallFinder<'_> {
+        fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+            if call.method == self.target {
+                self.found = true;
+            }
+            syn::visit::visit_expr_method_call(self, call);
+        }
+
+        fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_fn(self, item);
+            }
+        }
+
+        fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_impl(self, item);
+            }
+        }
+
+        fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_mod(self, item);
+            }
+        }
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for ProductionIdentifierFinder<'_> {
+        fn visit_ident(&mut self, ident: &'ast syn::Ident) {
+            if ident == self.target {
+                self.found = true;
+            }
+        }
+
+        fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+            fn contains(tokens: proc_macro2::TokenStream, target: &str) -> bool {
+                tokens.into_iter().any(|token| match token {
+                    proc_macro2::TokenTree::Ident(ident) => ident == target,
+                    proc_macro2::TokenTree::Group(group) => contains(group.stream(), target),
+                    proc_macro2::TokenTree::Punct(_) | proc_macro2::TokenTree::Literal(_) => false,
+                })
+            }
+            if contains(mac.tokens.clone(), self.target) {
+                self.found = true;
+            }
+        }
+
+        fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_fn(self, item);
+            }
+        }
+
+        fn visit_item_enum(&mut self, item: &'ast syn::ItemEnum) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_enum(self, item);
+            }
+        }
+
+        fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_struct(self, item);
+            }
+        }
+
+        fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_impl(self, item);
+            }
+        }
+
+        fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_mod(self, item);
+            }
+        }
     }
 
     impl<'ast> syn::visit::Visit<'ast> for ProductionAuthorityFinder<'_> {
@@ -593,6 +703,9 @@ mod tests {
             | "function render_signed_number"
             | "function walk_sign"
             | "function walk_signed_number" => &["codec SignedNumber"],
+            "type SelfReferenceSpelling" | "impl SelfReferenceSpelling" => {
+                &["identity SelfReferenceSpelling"]
+            }
             "type Agreement"
             | "type Number"
             | "type FeatureConstraint"
@@ -685,6 +798,8 @@ mod tests {
         "type Variable",
         "type NounLexeme",
         "type VerbLexeme",
+        "type SelfReferenceSpelling",
+        "impl SelfReferenceSpelling",
         "type Sign",
         "type SignedNumber",
         "type Agreement",
@@ -781,7 +896,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 117);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 119);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -811,9 +926,8 @@ mod tests {
             .1;
         assert_eq!(
             report,
-            "// terminal bindings (3)\n\
+            "// terminal bindings (2)\n\
              // - codec Noun\n\
-             // - identity SelfReferenceSpelling\n\
              // - identity CatalogIdentity\n\
              // checked constructor bindings (2)\n\
              // - construction Triggered\n\
@@ -831,7 +945,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 117);
+        assert_eq!(parsed.items.len(), 119);
     }
 
     #[test]
@@ -859,6 +973,129 @@ mod tests {
         assert!(!contains_production_function(
             &render,
             "render_signed_number"
+        ));
+    }
+
+    #[test]
+    fn handwritten_context_identity_authorities_are_absent_from_complete_sources() {
+        let ast = syn::parse_file(include_str!("../../deckmaste_english_v2/src/ast.rs"))
+            .expect("complete AST source reparses");
+        let scan = syn::parse_file(include_str!(
+            "../../deckmaste_english_v2/src/parser/scan.rs"
+        ))
+        .expect("complete scanner source reparses");
+        let render = syn::parse_file(include_str!("../../deckmaste_english_v2/src/render.rs"))
+            .expect("complete renderer source reparses");
+        let visit = syn::parse_file(include_str!("../../deckmaste_english_v2/src/visit.rs"))
+            .expect("complete visitor source reparses");
+
+        assert!(!contains_production_authority(
+            &ast,
+            ProductionAuthorityKind::Enum,
+            "SelfReferenceSpelling"
+        ));
+        for source in [&scan, &render] {
+            for forbidden in [
+                "SelfReferenceSpelling",
+                "card_name",
+                "abbreviated_card_name",
+                "surface",
+                "valid_in",
+            ] {
+                assert!(!contains_production_identifier(source, forbidden));
+            }
+            assert!(!contains_production_method_call(source, "spelling"));
+        }
+        assert!(!contains_production_identifier(
+            &visit,
+            "SelfReferenceSpelling"
+        ));
+        assert!(!contains_production_function(
+            &visit,
+            "walk_self_reference_spelling"
+        ));
+        assert!(!contains_production_function(
+            &visit,
+            "visit_self_reference_spelling"
+        ));
+
+        let invocation = deckmaste_construction_core::invocation_from_source(PRODUCTION_SOURCE)
+            .expect("production source has one direct macro invocation");
+        let declarations = deckmaste_construction_core::parse_declarations(invocation.tokens)
+            .expect("production declaration parses");
+        let binding = declarations
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                deckmaste_construction_core::Declaration::Identity(binding)
+                    if binding.name == "SelfReferenceSpelling" =>
+                {
+                    Some(binding)
+                }
+                _ => None,
+            })
+            .expect("production has SelfReferenceSpelling identity");
+        assert!(binding.generated_identity.is_some());
+        assert!(binding.generated.is_none());
+        assert!(binding.lexical_variant.is_none());
+        assert!(binding.render.is_none());
+        assert!(binding.build.is_none());
+        assert!(binding.traversal.variants.is_empty());
+        assert!(binding.traversal.calls.is_empty());
+    }
+
+    #[test]
+    fn source_census_detects_nested_and_macro_context_identity_shadows() {
+        let sentinel = syn::parse_file(
+            "mod nested { struct Holder(SelfReferenceSpelling); }\n\
+             fn scanner() { helper!(SelfReferenceSpelling); }\n\
+             #[cfg(test)] mod tests { enum SelfReferenceSpelling { Full } }",
+        )
+        .expect("sentinel source reparses");
+        assert!(contains_production_identifier(
+            &sentinel,
+            "SelfReferenceSpelling"
+        ));
+
+        let test_only = syn::parse_file(
+            "#[cfg(test)] mod tests {\n\
+                 fn scanner() { helper!(SelfReferenceSpelling); }\n\
+             }\n\
+             #[cfg(test)] enum SelfReferenceSpelling { Full }",
+        )
+        .expect("test-only sentinel reparses");
+        assert!(!contains_production_identifier(
+            &test_only,
+            "SelfReferenceSpelling"
+        ));
+
+        let identifier_free_shadow = syn::parse_file(
+            "fn render_shadow(value: Value, context: Context) {
+                 value.spelling().surface(context);
+                 context.card_name();
+             }
+             fn walk_self_reference_spelling() {}",
+        )
+        .expect("identifier-free authority sentinel reparses");
+        assert!(!contains_production_identifier(
+            &identifier_free_shadow,
+            "SelfReferenceSpelling"
+        ));
+        assert!(contains_production_method_call(
+            &identifier_free_shadow,
+            "spelling"
+        ));
+        assert!(contains_production_identifier(
+            &identifier_free_shadow,
+            "surface"
+        ));
+        assert!(contains_production_identifier(
+            &identifier_free_shadow,
+            "card_name"
+        ));
+        assert!(contains_production_function(
+            &identifier_free_shadow,
+            "walk_self_reference_spelling"
         ));
     }
 

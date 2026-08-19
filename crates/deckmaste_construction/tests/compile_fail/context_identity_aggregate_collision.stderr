@@ -1,0 +1,5 @@
+error: generated Rust Lexical/Leaf/TerminalClass variant `Literal` collides: semantic identity `Literal` is shared by fixed literal terminal variant and generated context identity terminal variant for `LiteralSpelling`
+ --> tests/compile_fail/context_identity_aggregate_collision.rs:4:14
+  |
+4 |     identity LiteralSpelling {
+  |              ^^^^^^^^^^^^^^^

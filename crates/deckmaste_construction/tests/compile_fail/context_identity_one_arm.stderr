@@ -1,0 +1,11 @@
+error: context identity requires exactly two arms
+ --> tests/compile_fail/context_identity_one_arm.rs:5:18
+  |
+5 |         generate context {
+  |                  ^^^^^^^
+
+error: context identity requires `Abbreviated` arm
+ --> tests/compile_fail/context_identity_one_arm.rs:5:18
+  |
+5 |         generate context {
+  |                  ^^^^^^^

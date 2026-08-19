@@ -1,0 +1,5 @@
+error: context identity requires `canonical_on_collision`
+ --> tests/compile_fail/context_identity_missing_canonical.rs:5:18
+  |
+5 |         generate context {
+  |                  ^^^^^^^

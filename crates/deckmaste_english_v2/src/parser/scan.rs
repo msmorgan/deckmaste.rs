@@ -29,7 +29,6 @@ use super::materialize::completion_has_checked_build;
 use crate::ast::CatalogIdentity;
 use crate::ast::Noun;
 use crate::ast::NounLexeme;
-use crate::ast::SelfReferenceSpelling;
 use crate::ast::VerbLexeme;
 use crate::constructions::Agreement;
 use crate::constructions::CasePosition;
@@ -652,22 +651,6 @@ pub(crate) fn scan_bound_terminal(
     match terminal.matcher {
         Lexical::Noun(number) => input.scan_noun(number),
         Lexical::Verb(lexeme) => input.scan_verb(lexeme),
-        Lexical::SelfReference => std::iter::once((
-            input.context.card_name(),
-            Leaf::SelfReference(SelfReferenceSpelling::Full),
-        ))
-        .chain(
-            (input.context.abbreviated_card_name() != input.context.card_name()).then_some((
-                input.context.abbreviated_card_name(),
-                Leaf::SelfReference(SelfReferenceSpelling::Abbreviated),
-            )),
-        )
-        .filter_map(|(word, value)| {
-            input
-                .identity_end(word)
-                .map(|end| LexicalMatch { end, value })
-        })
-        .collect(),
         Lexical::Literal(_)
         | Lexical::EndOfInput
         | Lexical::TriggerWord
@@ -675,6 +658,7 @@ pub(crate) fn scan_bound_terminal(
         | Lexical::Demonstrative
         | Lexical::Pronoun
         | Lexical::Variable
+        | Lexical::SelfReference
         | Lexical::SignedNumber
         | Lexical::Declaration(_) => {
             unreachable!("generated scanner delegated a terminal it owns")
@@ -793,6 +777,7 @@ mod tests {
     use crate::constructions::DeclarationMatcher;
     use crate::constructions::FeatureConstraint;
     use crate::constructions::LexicalOwnerTemplate;
+    use crate::constructions::LexicalProvenanceKind;
     use crate::constructions::LexicalTerminal;
     use crate::constructions::RULES;
     use crate::constructions::ScanPosition;
@@ -1768,6 +1753,137 @@ mod tests {
                 terminal,
             );
             assert_eq!(matches.len(), 1, "punctuation is a lexical boundary");
+        }
+    }
+
+    #[test]
+    fn context_identity_scanner_is_canonical_at_both_scan_positions_and_owner_typed() {
+        let environment = canonical_test_environment();
+        let terminal = LexicalTerminal {
+            matcher: Lexical::SelfReference,
+            owner: LexicalOwnerTemplate::Identity {
+                declaration: "SelfReferenceSpelling",
+            },
+        };
+        let cases = [
+            (
+                "Context Card",
+                vec![(
+                    "Context Card",
+                    SelfReferenceSpelling::Full,
+                    "identity:SelfReferenceSpelling/Full",
+                )],
+            ),
+            (
+                "Zacama, Primal Calamity",
+                vec![
+                    (
+                        "Zacama, Primal Calamity",
+                        SelfReferenceSpelling::Full,
+                        "identity:SelfReferenceSpelling/Full",
+                    ),
+                    (
+                        "Zacama",
+                        SelfReferenceSpelling::Abbreviated,
+                        "identity:SelfReferenceSpelling/Abbreviated",
+                    ),
+                ],
+            ),
+        ];
+
+        for (card_name, spellings) in cases {
+            let context = context(card_name);
+            for (surface, spelling, stable_id) in spellings {
+                for (text, byte_offset, case, expected_end) in [
+                    (
+                        surface.to_owned(),
+                        0,
+                        CasePosition::DocumentInitial,
+                        surface.len(),
+                    ),
+                    (
+                        format!("x {surface}"),
+                        1,
+                        CasePosition::Continuation,
+                        surface.len() + 2,
+                    ),
+                ] {
+                    let matches = super::scan_lexical(
+                        &ScanInput {
+                            text: &text,
+                            position: ScanPosition { byte_offset, case },
+                            environment: &environment,
+                            context: &context,
+                        },
+                        terminal,
+                    );
+                    let expected_count = 1 + usize::from(
+                        card_name.contains(',') && spelling == SelfReferenceSpelling::Full,
+                    );
+                    assert_eq!(matches.len(), expected_count, "{text:?} at {case:?}");
+                    let selected_match = matches
+                        .iter()
+                        .find(|matched| matched.value == Leaf::SelfReference(spelling))
+                        .expect("the requested context-identity arm is among all valid matches");
+                    assert_eq!(selected_match.end, expected_end, "{text:?} at {case:?}");
+                    assert_eq!(
+                        selected_match.value,
+                        Leaf::SelfReference(spelling),
+                        "{text:?} at {case:?}"
+                    );
+                    let owner = terminal
+                        .owner
+                        .instantiate(&selected_match.value)
+                        .expect("context identities own their bytes");
+                    assert_eq!(owner.kind(), LexicalProvenanceKind::Identity);
+                    assert_eq!(owner.stable_id(), stable_id);
+                }
+            }
+        }
+
+        let equal = context("Context Card");
+        let matches = super::scan_lexical(
+            &ScanInput {
+                text: "Context Card.",
+                position: ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                },
+                environment: &environment,
+                context: &equal,
+            },
+            terminal,
+        );
+        assert_eq!(matches.len(), 1, "equal spellings emit one token");
+        assert_eq!(matches[0].end, "Context Card".len());
+        assert_eq!(
+            matches[0].value,
+            Leaf::SelfReference(SelfReferenceSpelling::Full),
+            "equal spellings emit only the declared canonical arm"
+        );
+
+        for text in [
+            "Context Cardx",
+            "Context Card_",
+            "Context Card!",
+            "Context Card‽",
+        ] {
+            assert!(
+                super::scan_lexical(
+                    &ScanInput {
+                        text,
+                        position: ScanPosition {
+                            byte_offset: 0,
+                            case: CasePosition::DocumentInitial,
+                        },
+                        environment: &environment,
+                        context: &equal,
+                    },
+                    terminal,
+                )
+                .is_empty(),
+                "identity accepted a non-boundary suffix in {text:?}"
+            );
         }
     }
 

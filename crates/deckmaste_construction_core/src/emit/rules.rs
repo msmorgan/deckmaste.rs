@@ -278,6 +278,9 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
                 LexicalOwnerTemplate::Static { kind: #kind, stable_id: #stable_id }
             })
         }
+        AtomTerminal::ContextIdentity(_) => Ok(quote! {
+            LexicalOwnerTemplate::Identity { declaration: #declaration }
+        }),
         AtomTerminal::SignedDecimal(_) => {
             let stable_id = syn::LitStr::new(&format!("codec:{terminal}"), Span::call_site());
             Ok(quote! {
@@ -304,6 +307,10 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
                 .lexical_variant()
                 .ok_or_else(|| internal("atom-capable terminal binding has no lexical variant"))?;
             Ok(quote! { #path })
+        }
+        AtomTerminal::ContextIdentity(identity) => {
+            let variant = identity.aggregate_ident();
+            Ok(quote! { Lexical::#variant })
         }
         AtomTerminal::SignedDecimal(codec) => {
             let variant = codec.codec_ident();

@@ -304,6 +304,7 @@ struct ResolvedGrammar {
 )]
 pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarations> {
     validate_generated_codecs(&raw)?;
+    validate_generated_identities(&raw)?;
     let (symbols, _) = validate_namespaces(&raw)?;
     validate_generated_owned_paths(&raw)?;
     let resolved = validate_resolution(&raw, &symbols)?;
@@ -335,6 +336,150 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             verb_lexeme_provider.as_deref(),
         )?,
     })
+}
+
+fn validate_generated_identities(raw: &Declarations) -> syn::Result<()> {
+    let mut errors = None;
+    for declaration in &raw.declarations {
+        let Declaration::Identity(binding) = declaration else {
+            continue;
+        };
+        let Some(recipe) = &binding.generated_identity else {
+            continue;
+        };
+        match recipe {
+            crate::model::GeneratedIdentityRecipe::Unsupported { name } => combine(
+                &mut errors,
+                syn::Error::new(
+                    name.span(),
+                    format!("unknown generated identity recipe `{name}`"),
+                ),
+            ),
+            crate::model::GeneratedIdentityRecipe::Context(source) => {
+                if source.arms.len() != 2 {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            source.recipe.span(),
+                            "context identity requires exactly two arms",
+                        ),
+                    );
+                }
+                let mut variants = HashSet::new();
+                let mut accessors = HashSet::new();
+                for arm in &source.arms {
+                    let variant = identifier_key(&arm.variant);
+                    let accessor = identifier_key(&arm.accessor);
+                    if !variants.insert(variant.clone()) {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                arm.variant.span(),
+                                format!("duplicate context identity arm `{}`", arm.variant),
+                            ),
+                        );
+                    }
+                    if !accessors.insert(accessor.clone()) {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                arm.accessor.span(),
+                                format!("duplicate context identity accessor `{}`", arm.accessor),
+                            ),
+                        );
+                    }
+                    let expected_accessor = match variant.as_str() {
+                        "Full" => Some("card_name"),
+                        "Abbreviated" => Some("abbreviated_card_name"),
+                        _ => {
+                            combine(
+                                &mut errors,
+                                syn::Error::new(
+                                    arm.variant.span(),
+                                    "context identity arms must be `Full` and `Abbreviated`",
+                                ),
+                            );
+                            None
+                        }
+                    };
+                    if !matches!(accessor.as_str(), "card_name" | "abbreviated_card_name") {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                arm.accessor.span(),
+                                format!("unknown ParseContext accessor `{}`", arm.accessor),
+                            ),
+                        );
+                    } else if let Some(expected) = expected_accessor
+                        && accessor != expected
+                    {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                arm.accessor.span(),
+                                format!(
+                                    "context identity arm `{variant}` requires ParseContext accessor `{expected}`"
+                                ),
+                            ),
+                        );
+                    }
+                }
+                for required in ["Full", "Abbreviated"] {
+                    if !variants.contains(required) {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                source.recipe.span(),
+                                format!("context identity requires `{required}` arm"),
+                            ),
+                        );
+                    }
+                }
+                match source.canonical_slots.as_slice() {
+                    [] => combine(
+                        &mut errors,
+                        syn::Error::new(
+                            source.recipe.span(),
+                            "context identity requires `canonical_on_collision`",
+                        ),
+                    ),
+                    [canonical, rest @ ..] => {
+                        for duplicate in rest {
+                            combine(
+                                &mut errors,
+                                syn::Error::new(
+                                    duplicate.slot.span(),
+                                    "duplicate context identity `canonical_on_collision`",
+                                ),
+                            );
+                        }
+                        let canonical_name = identifier_key(&canonical.arm);
+                        if !variants.contains(&canonical_name) {
+                            combine(
+                                &mut errors,
+                                syn::Error::new(
+                                    canonical.arm.span(),
+                                    format!(
+                                        "unknown canonical context identity arm `{}`",
+                                        canonical.arm
+                                    ),
+                                ),
+                            );
+                        } else if canonical_name != "Full" {
+                            combine(
+                                &mut errors,
+                                syn::Error::new(
+                                    canonical.arm.span(),
+                                    "context identity canonical arm must be `Full`",
+                                ),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+    finish(errors)
 }
 
 fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
@@ -881,6 +1026,7 @@ struct GeneratedNameInventory {
     type_names: HashMap<String, String>,
     value_names: HashMap<String, String>,
     visitor_items: HashMap<String, String>,
+    terminal_variants: HashMap<String, String>,
     category_variants: HashMap<String, String>,
     rule_variants: HashMap<String, String>,
     rule_id_items: HashMap<String, String>,
@@ -953,6 +1099,24 @@ impl GeneratedNameInventory {
             &mut self.category_variants,
             "category variant",
             &semantic_identity,
+            role,
+            span,
+            errors,
+        );
+    }
+
+    fn register_terminal_variant(
+        &mut self,
+        generated: &str,
+        role: &str,
+        span: proc_macro2::Span,
+        errors: &mut Option<syn::Error>,
+    ) {
+        validate_generated_rust_ident(generated, role, span, errors);
+        register_associated_name(
+            &mut self.terminal_variants,
+            "Lexical/Leaf/TerminalClass variant",
+            &spelling_key(generated),
             role,
             span,
             errors,
@@ -1079,6 +1243,70 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
             errors,
         );
     }
+    for (name, role) in [
+        ("Literal", "fixed literal terminal variant"),
+        ("EndOfInput", "fixed end-of-input terminal variant"),
+        ("Declaration", "fixed open-declaration terminal variant"),
+    ] {
+        names.register_terminal_variant(name, role, fixed_span, errors);
+    }
+
+    let verb_lexeme_provider = raw.declarations.iter().find_map(|declaration| {
+        let Declaration::Construction(construction) = declaration else { return None };
+        construction.form.atoms.iter().find_map(|atom| {
+            let FormAtom::Verb(VerbOperand::Fixed(path)) = atom else { return None };
+            path.segments
+                .iter()
+                .rev()
+                .nth(1)
+                .map(|segment| identifier_key(&segment.ident))
+        })
+    });
+    if let Some(provider) = &verb_lexeme_provider {
+        let span = raw
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                Declaration::Lexeme(lexeme) if identifier_key(&lexeme.name) == *provider => {
+                    Some(lexeme.name.span())
+                }
+                _ => None,
+            })
+            .unwrap_or(fixed_span);
+        names.register_terminal_variant(
+            "Verb",
+            "generated verb lexical/leaf variant",
+            span,
+            errors,
+        );
+        names.register_terminal_variant(
+            "VerbLexeme",
+            "generated verb terminal-class variant",
+            span,
+            errors,
+        );
+    }
+    let has_noun_terminal = raw
+        .declarations
+        .iter()
+        .any(|declaration| match declaration {
+            Declaration::Lexeme(lexeme) => {
+                verb_lexeme_provider.as_deref() != Some(identifier_key(&lexeme.name).as_str())
+            }
+            Declaration::Codec(binding) => {
+                binding.codec_atom == Some(CodecAtomClass::Noun)
+                    && binding.lexical_variant.is_some()
+            }
+            _ => false,
+        });
+    if has_noun_terminal {
+        names.register_terminal_variant(
+            "Noun",
+            "generated noun terminal variant",
+            fixed_span,
+            errors,
+        );
+    }
 
     let nested_categories = raw
         .declarations
@@ -1198,12 +1426,19 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                 );
             }
             Declaration::Vocab(vocab) => {
+                let name = identifier_key(&vocab.name);
                 register_terminal_names(
                     &mut names,
-                    &identifier_key(&vocab.name),
+                    &name,
                     "vocab",
                     vocab.name.span(),
                     true,
+                    errors,
+                );
+                names.register_terminal_variant(
+                    &name,
+                    &format!("generated vocab terminal variant for `{name}`"),
+                    vocab.name.span(),
                     errors,
                 );
             }
@@ -1241,6 +1476,40 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                         false,
                         errors,
                     );
+                }
+                match (&binding.generated, &binding.generated_identity) {
+                    (Some(crate::model::GeneratedCodecRecipe::SignedDecimal(_)), None) => {
+                        names.register_terminal_variant(
+                            &name,
+                            &format!("generated signed_decimal terminal variant for `{name}`"),
+                            binding.name.span(),
+                            errors,
+                        );
+                    }
+                    (None, Some(crate::model::GeneratedIdentityRecipe::Context(_))) => {
+                        let aggregate = name.strip_suffix("Spelling").unwrap_or(&name);
+                        names.register_terminal_variant(
+                            aggregate,
+                            &format!("generated context identity terminal variant for `{name}`"),
+                            binding.name.span(),
+                            errors,
+                        );
+                    }
+                    (None, None) if binding.codec_atom != Some(CodecAtomClass::Noun) => {
+                        if let Some(variant) = binding.lexical_variant.as_ref().and_then(|path| {
+                            path.segments
+                                .last()
+                                .map(|segment| identifier_key(&segment.ident))
+                        }) {
+                            names.register_terminal_variant(
+                                &variant,
+                                &format!("generated {kind} terminal variant for `{name}`"),
+                                binding.name.span(),
+                                errors,
+                            );
+                        }
+                    }
+                    _ => {}
                 }
                 for leaf in &binding.traversal.leaf_callbacks {
                     names.register_visitor_item(
@@ -2168,7 +2437,7 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                 }
             }
             Declaration::Codec(binding) | Declaration::Identity(binding)
-                if binding.generated.is_none() =>
+                if binding.generated.is_none() && binding.generated_identity.is_none() =>
             {
                 validate_binding(binding, &callbacks, &mut errors);
             }
@@ -2266,6 +2535,14 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
                         &binding.name,
                         VisitMode::Borrowed,
                         format!("signed_decimal codec `{}`", binding.name),
+                        errors,
+                    );
+                } else if binding.generated_identity.is_some() {
+                    register_terminal_callbacks(
+                        &mut callbacks,
+                        &binding.name,
+                        VisitMode::Copy,
+                        format!("context identity `{}`", binding.name),
                         errors,
                     );
                 } else if let Some(mode) = binding.traversal.callback_mode {
@@ -3898,15 +4175,16 @@ fn validate_backend_completeness(
                 traversal: binding.generated.is_some() || closed_traversal_is_lowerable(binding),
             }),
             Declaration::Identity(binding) => {
+                let generated = binding.generated_identity.is_some();
                 terminals.push(TerminalCapabilities {
                     name: identifier_key(&binding.name),
                     lex_atom: false,
                     identity_atom: true,
                     noun_atom: false,
                     verb_atom: false,
-                    direct_render: binding.render.is_some(),
-                    direct_build: binding.build.is_some(),
-                    traversal: closed_traversal_is_lowerable(binding),
+                    direct_render: generated || binding.render.is_some(),
+                    direct_build: generated || binding.build.is_some(),
+                    traversal: generated || closed_traversal_is_lowerable(binding),
                 });
             }
         }
@@ -3982,6 +4260,7 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
             }
             Declaration::Codec(binding) | Declaration::Identity(binding) => {
                 if binding.generated.is_none()
+                    && binding.generated_identity.is_none()
                     && (!binding_value_type_is_lowerable(binding)
                         || !closed_traversal_is_lowerable(binding))
                 {
@@ -4271,6 +4550,94 @@ pub(crate) mod tests {
             construction only: Cat { element Only {} form only = "only"; }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         })
+    }
+
+    fn context_identity_error(body: &proc_macro2::TokenStream) -> String {
+        error(quote! {
+            identity SelfReferenceSpelling {
+                generate context { #body }
+            }
+            construction only: Cat {
+                element Only { spelling: identity SelfReferenceSpelling, }
+                form only = identity(spelling);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+    }
+
+    #[test]
+    fn context_identity_recipe_validation_is_closed_and_structural() {
+        validate(quote! {
+            identity SelfReferenceSpelling {
+                generate context {
+                    Full => card_name,
+                    Abbreviated => abbreviated_card_name,
+                    canonical_on_collision = Full;
+                }
+            }
+            construction only: Cat {
+                element Only { spelling: identity SelfReferenceSpelling, }
+                form only = identity(spelling);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("the exact context identity recipe validates");
+
+        for (body, expected) in [
+            (
+                quote! { canonical_on_collision = Full; },
+                "context identity requires exactly two arms",
+            ),
+            (
+                quote! {
+                    Full => card_name,
+                    Full => abbreviated_card_name,
+                    canonical_on_collision = Full;
+                },
+                "duplicate context identity arm `Full`",
+            ),
+            (
+                quote! {
+                    Full => card_name,
+                    Abbreviated => card_name,
+                    canonical_on_collision = Full;
+                },
+                "duplicate context identity accessor `card_name`",
+            ),
+            (
+                quote! {
+                    Full => card_name,
+                    Abbreviated => display_name,
+                    canonical_on_collision = Full;
+                },
+                "unknown ParseContext accessor `display_name`",
+            ),
+            (
+                quote! {
+                    Full => card_name,
+                    Abbreviated => abbreviated_card_name,
+                },
+                "context identity requires `canonical_on_collision`",
+            ),
+            (
+                quote! {
+                    Full => card_name,
+                    Abbreviated => abbreviated_card_name,
+                    canonical_on_collision = Short;
+                },
+                "unknown canonical context identity arm `Short`",
+            ),
+            (
+                quote! {
+                    Full => card_name,
+                    canonical_on_collision = Full;
+                },
+                "context identity requires exactly two arms",
+            ),
+        ] {
+            let message = context_identity_error(&body);
+            assert!(message.contains(expected), "{expected}: {message}");
+        }
     }
 
     #[test]
@@ -7268,6 +7635,8 @@ pub(crate) mod tests {
                         },
                         value.name().to_owned(),
                     ),
+                    crate::semantic::TerminalPlan::ContextIdentity(value) =>
+                        (value.source_index(), "identity", value.name().to_owned(),),
                     crate::semantic::TerminalPlan::SignedDecimal(value) =>
                         (value.source_index(), "codec", value.codec_name().to_owned(),),
                 })

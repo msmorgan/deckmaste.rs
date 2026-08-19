@@ -466,7 +466,6 @@ mod tests {
             ("scanner", &scanner),
             ("rules", &rules),
             ("build", &build),
-            ("render", &render),
             ("visitor", &visitor),
         ] {
             assert!(output.contains("GeneratedNumber"), "{phase}: {output}");
@@ -477,6 +476,98 @@ mod tests {
             "{rules}"
         );
         assert!(!rules.contains("codec:SignedNumber"), "{rules}");
+        assert_eq!(source.to_string(), authored);
+    }
+
+    #[test]
+    fn context_identity_plan_is_typed_and_shared_by_every_identity_emitter() {
+        let source: proc_macro2::TokenStream = r#"
+            identity SelfReferenceSpelling {
+                generate context {
+                    Full => card_name,
+                    Abbreviated => abbreviated_card_name,
+                    canonical_on_collision = Full;
+                }
+            }
+            construction self_reference: NounPhrase {
+                element SelfReferenceNp { spelling: identity SelfReferenceSpelling, }
+                checked {
+                    visibility spelling = private;
+                    access spelling = spelling;
+                    constructor = SelfReferenceNp::new(spelling, context);
+                }
+                form self_reference = identity(spelling);
+            }
+            root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        "#
+        .parse()
+        .expect("context-identity fixture tokenizes");
+        let authored = source.to_string();
+        let mut plan = crate::validate_declarations(
+            crate::parse_declarations(source.clone()).expect("context-identity fixture parses"),
+        )
+        .expect("context-identity fixture validates")
+        .into_semantic();
+
+        assert_eq!(
+            plan.context_identity_snapshot(),
+            [(
+                "SelfReferenceSpelling".to_owned(),
+                vec![
+                    "Full=>card_name".to_owned(),
+                    "Abbreviated=>abbreviated_card_name".to_owned(),
+                ],
+                "Full".to_owned(),
+            )]
+        );
+
+        plan.test_only_replace_context_identity_shape(
+            "SelfReferenceSpelling",
+            "ReferenceMode",
+            "Canonical",
+            "Short",
+        );
+        let terminal = formatted(&crate::emit::terminal::emit(&plan).unwrap().0);
+        let runtime = formatted(&crate::emit::runtime::emit(&plan));
+        let scanner = formatted(&crate::emit::scanner::emit(&plan));
+        let rules = formatted(&crate::emit::rules::emit(&plan).unwrap());
+        let build = formatted(&crate::emit::build::emit(&plan).unwrap());
+        let render = formatted(&crate::emit::render::emit(&plan).unwrap());
+        let visitor = formatted(&crate::emit::visit::emit(&plan).unwrap());
+        for (phase, output) in [
+            ("terminal", &terminal),
+            ("runtime", &runtime),
+            ("scanner", &scanner),
+            ("rules", &rules),
+            ("build", &build),
+            ("visitor", &visitor),
+        ] {
+            assert!(output.contains("ReferenceMode"), "{phase}: {output}");
+            assert!(
+                !output.contains("SelfReferenceSpelling"),
+                "{phase}: {output}"
+            );
+        }
+        for output in [&terminal, &scanner, &visitor] {
+            assert!(output.contains("Canonical"), "{output}");
+            assert!(output.contains("Short"), "{output}");
+        }
+        assert!(scanner.contains("card_name"), "{scanner}");
+        assert!(scanner.contains("abbreviated_card_name"), "{scanner}");
+        assert!(render.contains(". surface (context)"), "{render}");
+        assert!(!render.contains("SelfReferenceSpelling ::"), "{render}");
+        assert!(
+            rules.contains("Identity { declaration : \"ReferenceMode\" }"),
+            "{rules}"
+        );
+        assert!(
+            runtime.contains("identity:ReferenceMode/Canonical"),
+            "{runtime}"
+        );
+        assert!(
+            runtime.contains("identity:ReferenceMode/Short"),
+            "{runtime}"
+        );
         assert_eq!(source.to_string(), authored);
     }
 
@@ -704,6 +795,51 @@ mod tests {
         assert_eq!(
             actual,
             include_str!("../tests/golden/representative-expansion.txt")
+        );
+    }
+
+    #[test]
+    fn context_identity_generated_body_is_pinned() {
+        let expansion = crate::generate(quote::quote! {
+            identity SelfReferenceSpelling {
+                generate context {
+                    Full => card_name,
+                    Abbreviated => abbreviated_card_name,
+                    canonical_on_collision = Full;
+                }
+            }
+            construction self_reference: NounPhrase {
+                element SelfReferenceNp { spelling: identity SelfReferenceSpelling, }
+                form self_reference = identity(spelling);
+            }
+            root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("representative context identity generates");
+        let actual = expansion
+            .items()
+            .iter()
+            .filter(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named {
+                        kind: NamedKind::Type,
+                        name,
+                    } if name == "SelfReferenceSpelling"
+                ) || matches!(
+                    &item.key,
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty,
+                    } if self_ty == "SelfReferenceSpelling"
+                )
+            })
+            .map(crate::format_generated_item)
+            .collect::<syn::Result<Vec<_>>>()
+            .expect("representative context identity items format")
+            .join("");
+        assert_eq!(
+            actual,
+            include_str!("../tests/golden/context-identity-expansion.txt")
         );
     }
 

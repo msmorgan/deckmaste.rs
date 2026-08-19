@@ -134,6 +134,7 @@ pub(crate) enum LexicalOwnerTemplate {
     Static { kind: LexicalProvenanceKind, stable_id: &'static str },
     Vocab { declaration: &'static str },
     Lexeme { declaration: &'static str, member: &'static str },
+    Identity { declaration: &'static str },
     Declaration { kind: ::macro_ron::v2::DeclarationKind, name: &'static str },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]

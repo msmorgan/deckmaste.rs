@@ -1,0 +1,5 @@
+error: generated Rust identifier `` for generated context identity terminal variant for `Spelling` is invalid
+ --> tests/compile_fail/context_identity_empty_aggregate.rs:4:14
+  |
+4 |     identity Spelling {
+  |              ^^^^^^^^

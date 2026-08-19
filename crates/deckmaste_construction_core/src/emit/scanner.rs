@@ -74,6 +74,27 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             }
         }
     });
+    let context_identity_arms = plan.runtime_context_identities().map(|identity| {
+        let ty = identity.ident();
+        let aggregate = identity.aggregate_ident();
+        let candidates = identity.arms().iter().map(|arm| {
+            let variant = arm.variant();
+            let accessor = arm.accessor();
+            quote! { (#ty::#variant, input.context.#accessor()) }
+        });
+        quote! {
+            Lexical::#aggregate => [#(#candidates),*]
+                .into_iter()
+                .filter(|(value, _)| value.valid_in(input.context))
+                .filter_map(|(value, surface)| {
+                    input.identity_end(surface).map(|end| LexicalMatch {
+                        end,
+                        value: Leaf::#aggregate(value),
+                    })
+                })
+                .collect()
+        }
+    });
     let punctuation_literals = plan.runtime_punctuation_literals();
     let punctuation_arm = (!punctuation_literals.is_empty()).then(|| {
         quote! {
@@ -116,6 +137,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     .into_iter()
                     .collect(),
                 #(#vocab_arms,)*
+                #(#context_identity_arms,)*
                 #signed_decimal_arm
                 #bound_arm
                 Lexical::Declaration(matcher) => input

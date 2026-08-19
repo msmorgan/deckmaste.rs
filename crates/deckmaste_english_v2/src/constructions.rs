@@ -4,7 +4,6 @@ use deckmaste_construction::constructions;
 
 use crate::ast::CatalogIdentity;
 use crate::ast::Noun;
-use crate::ast::SelfReferenceSpelling;
 use crate::context::ParseContext;
 use crate::features::agreement_for_pronoun;
 use crate::features::inflect;
@@ -46,18 +45,10 @@ constructions! {
         }
     }
     identity SelfReferenceSpelling {
-        value_type = crate::ast::SelfReferenceSpelling;
-        lexical = Lexical::SelfReference;
-        render context_identity {
+        generate context {
             Full => card_name,
             Abbreviated => abbreviated_card_name,
-        }
-        build { pattern = BuildValue::SelfReference(spelling); construct = spelling; }
-        traversal {
-            callback = copy;
-            argument = spelling;
-            variant Full;
-            variant Abbreviated;
+            canonical_on_collision = Full;
         }
     }
     codec SignedNumber {
@@ -225,9 +216,7 @@ constructions! {
 impl SelfReferenceNp {
     #[must_use]
     pub fn new(spelling: SelfReferenceSpelling, context: &ParseContext<'_>) -> Option<Self> {
-        (spelling != SelfReferenceSpelling::Abbreviated
-            || context.abbreviated_card_name() != context.card_name())
-        .then_some(Self { spelling })
+        spelling.valid_in(context).then_some(Self { spelling })
     }
 
     #[must_use]

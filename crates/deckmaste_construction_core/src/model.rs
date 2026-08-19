@@ -198,6 +198,7 @@ pub struct TerminalBinding {
     pub name: Ident,
     pub kind: TerminalBindingKind,
     pub generated: Option<GeneratedCodecRecipe>,
+    pub generated_identity: Option<GeneratedIdentityRecipe>,
     pub codec_atom: Option<CodecAtomClass>,
     pub value_type: syn::Type,
     pub lexical_variant: Option<Path>,
@@ -210,6 +211,31 @@ pub struct TerminalBinding {
 pub enum GeneratedCodecRecipe {
     SignedDecimal(SignedDecimalSource),
     Unsupported { name: Ident },
+}
+
+#[derive(Debug)]
+pub enum GeneratedIdentityRecipe {
+    Context(ContextIdentitySource),
+    Unsupported { name: Ident },
+}
+
+#[derive(Debug)]
+pub struct ContextIdentitySource {
+    pub recipe: Ident,
+    pub arms: Vec<ContextIdentitySourceArm>,
+    pub canonical_slots: Vec<ContextIdentityCanonicalSource>,
+}
+
+#[derive(Debug)]
+pub struct ContextIdentitySourceArm {
+    pub variant: Ident,
+    pub accessor: Ident,
+}
+
+#[derive(Debug)]
+pub struct ContextIdentityCanonicalSource {
+    pub slot: Ident,
+    pub arm: Ident,
 }
 
 #[derive(Debug)]

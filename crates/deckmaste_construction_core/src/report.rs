@@ -79,8 +79,7 @@ impl EscapeHatchReport {
     }
 
     #[must_use]
-    /// Returns identities with a context-identity render binding of two or
-    /// more arms, in source order.
+    /// Returns identities that store a selected spelling arm, in source order.
     pub fn stored_spelling_codecs(&self) -> &[String] {
         &self.stored_spelling_codecs
     }
@@ -111,6 +110,21 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
     let mut roots = Vec::new();
 
     for terminal in plan.terminals() {
+        if let TerminalPlan::ContextIdentity(identity) = terminal {
+            if identity.origin().kind() != crate::DeclarationKind::Identity
+                || identity.origin().name() != identity.name()
+            {
+                return Err(syn::Error::new(
+                    identity.origin_span(),
+                    format!(
+                        "sealed context identity `{}` has mismatched declaration provenance",
+                        identity.name()
+                    ),
+                ));
+            }
+            stored_spelling_codecs.push(identity.name().to_owned());
+            continue;
+        }
         let TerminalPlan::Binding(binding) = terminal else {
             continue;
         };
@@ -216,5 +230,29 @@ mod tests {
             ["NestedNode", "DocumentNode"]
         );
         assert_eq!(report.roots(), ["Document"]);
+    }
+
+    #[test]
+    fn generated_context_identity_remains_a_stored_spelling_but_not_a_terminal_binding() {
+        let expansion = crate::generate(quote::quote! {
+            identity SelfReferenceSpelling {
+                generate context {
+                    Full => card_name,
+                    Abbreviated => abbreviated_card_name,
+                    canonical_on_collision = Full;
+                }
+            }
+            construction self_reference: NounPhrase {
+                element SelfReferenceNp { spelling: identity SelfReferenceSpelling, }
+                form self_reference = identity(spelling);
+            }
+            root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("generated context identity fixture validates");
+        assert_eq!(
+            expansion.escape_hatches().stored_spelling_codecs(),
+            ["SelfReferenceSpelling"]
+        );
+        assert!(expansion.escape_hatches().terminal_bindings().is_empty());
     }
 }

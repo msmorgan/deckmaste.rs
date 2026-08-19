@@ -149,6 +149,7 @@ pub(crate) enum TerminalPlan {
     Vocab(VocabPlan),
     Lexeme(LexemePlan),
     Binding(BindingPlan),
+    ContextIdentity(ContextIdentityPlan),
     SignedDecimal(SignedDecimalPlan),
 }
 
@@ -170,6 +171,18 @@ pub(crate) struct SignedDecimalPlan {
     magnitude: UnsignedPrimitive,
 }
 
+#[derive(Debug)]
+pub(crate) struct ContextIdentityPlan {
+    source_index: usize,
+    origin: DeclarationKey,
+    origin_span: Span,
+    name: String,
+    ident: syn::Ident,
+    aggregate_ident: syn::Ident,
+    arms: Vec<ContextIdentityArmPlan>,
+    canonical: syn::Ident,
+}
+
 /// The sealed terminal-capability projection consumed by runtime emission.
 #[derive(Debug)]
 struct RuntimeEmissionPlan {
@@ -179,6 +192,7 @@ struct RuntimeEmissionPlan {
     noun_binding_index: Option<usize>,
     direct_binding_indices: Vec<usize>,
     opaque_binding_indices: Vec<usize>,
+    context_identity_indices: Vec<usize>,
     signed_decimal_index: Option<usize>,
     punctuation_literals: Vec<String>,
     scanner_origin_indices: Vec<usize>,
@@ -197,6 +211,7 @@ impl RuntimeEmissionPlan {
             noun_binding_index: None,
             direct_binding_indices: Vec::new(),
             opaque_binding_indices: Vec::new(),
+            context_identity_indices: Vec::new(),
             signed_decimal_index: None,
             punctuation_literals: Vec::new(),
             scanner_origin_indices: Vec::new(),
@@ -241,6 +256,9 @@ impl RuntimeEmissionPlan {
                     }
                 }
                 TerminalPlan::Binding(_) => {}
+                TerminalPlan::ContextIdentity(_) => {
+                    plan.context_identity_indices.push(index);
+                }
                 TerminalPlan::SignedDecimal(codec) => {
                     if plan.signed_decimal_index.replace(index).is_some() {
                         return Err(syn::Error::new(
@@ -279,6 +297,7 @@ impl RuntimeEmissionPlan {
             .chain(plan.noun_binding_index.iter())
             .chain(&plan.direct_binding_indices)
             .chain(&plan.opaque_binding_indices)
+            .chain(&plan.context_identity_indices)
             .chain(plan.signed_decimal_index.iter())
             .map(|&index| terminals[index].source_index())
             .collect::<BTreeSet<_>>();
@@ -308,6 +327,7 @@ fn is_punctuation_literal(literal: &str) -> bool {
 pub(crate) enum AtomTerminal<'a> {
     Vocab(&'a VocabPlan),
     Binding(&'a BindingPlan),
+    ContextIdentity(&'a ContextIdentityPlan),
     SignedDecimal(&'a SignedDecimalPlan),
 }
 
@@ -366,11 +386,11 @@ pub(crate) struct BindingPlan {
 #[derive(Debug)]
 pub(crate) enum BindingRenderPlan {
     Runtime(syn::Path),
-    ContextIdentity(Vec<ContextIdentityPlan>),
+    ContextIdentity(Vec<ContextIdentityArmPlan>),
 }
 
 #[derive(Debug)]
-pub(crate) struct ContextIdentityPlan {
+pub(crate) struct ContextIdentityArmPlan {
     variant: syn::Ident,
     accessor: syn::Ident,
 }
@@ -551,6 +571,11 @@ impl SemanticPlan {
                         SignedDecimalPlan::from_source(source_index, binding),
                     )))
                 }
+                Declaration::Identity(binding) if binding.generated_identity.is_some() => {
+                    Some(Ok(TerminalPlan::ContextIdentity(
+                        ContextIdentityPlan::from_source(source_index, binding),
+                    )))
+                }
                 Declaration::Codec(binding) | Declaration::Identity(binding) => {
                     Some(BindingPlan::from_source(source_index, binding).map(TerminalPlan::Binding))
                 }
@@ -646,6 +671,7 @@ impl SemanticPlan {
                 TerminalPlan::Vocab(vocab) => vocab,
                 TerminalPlan::Lexeme(_)
                 | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::SignedDecimal(_) => {
                     unreachable!("sealed runtime vocab index changed terminal kind")
                 }
@@ -687,6 +713,15 @@ impl SemanticPlan {
 
     pub(crate) fn runtime_opaque_bindings(&self) -> impl Iterator<Item = &BindingPlan> {
         self.runtime_bindings(&self.runtime.opaque_binding_indices)
+    }
+
+    pub(crate) fn runtime_context_identities(&self) -> impl Iterator<Item = &ContextIdentityPlan> {
+        self.runtime.context_identity_indices.iter().map(|&index| {
+            let TerminalPlan::ContextIdentity(identity) = &self.terminals[index] else {
+                unreachable!("sealed runtime context-identity index changed terminal kind")
+            };
+            identity
+        })
     }
 
     pub(crate) fn runtime_signed_decimal(&self) -> Option<&SignedDecimalPlan> {
@@ -831,6 +866,7 @@ impl SemanticPlan {
                 TerminalPlan::Vocab(_)
                 | TerminalPlan::Lexeme(_)
                 | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test vocabulary is present");
@@ -852,6 +888,7 @@ impl SemanticPlan {
                 TerminalPlan::Vocab(_)
                 | TerminalPlan::Lexeme(_)
                 | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test vocabulary is present");
@@ -869,6 +906,7 @@ impl SemanticPlan {
                 TerminalPlan::Vocab(_)
                 | TerminalPlan::Lexeme(_)
                 | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test binding is present");
@@ -889,7 +927,10 @@ impl SemanticPlan {
             .iter_mut()
             .find_map(|terminal| match terminal {
                 TerminalPlan::SignedDecimal(codec) => Some(codec),
-                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_) => None,
             })
             .expect("test signed_decimal codec is present");
         codec.sign_type = syn::Ident::new(sign_type, codec.sign_type.span());
@@ -904,7 +945,10 @@ impl SemanticPlan {
             .iter_mut()
             .find_map(|terminal| match terminal {
                 TerminalPlan::SignedDecimal(codec) => Some(codec),
-                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_) => None,
             })
             .expect("test signed_decimal codec is present");
         let old = codec.codec_name.clone();
@@ -935,6 +979,78 @@ impl SemanticPlan {
     }
 
     #[cfg(test)]
+    pub(crate) fn context_identity_snapshot(&self) -> Vec<(String, Vec<String>, String)> {
+        self.terminals
+            .iter()
+            .filter_map(|terminal| match terminal {
+                TerminalPlan::ContextIdentity(identity) => Some((
+                    identity.name.clone(),
+                    identity
+                        .arms
+                        .iter()
+                        .map(|arm| format!("{}=>{}", arm.variant, arm.accessor))
+                        .collect(),
+                    identity.canonical.to_string(),
+                )),
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::SignedDecimal(_) => None,
+            })
+            .collect()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_replace_context_identity_shape(
+        &mut self,
+        old: &str,
+        new: &str,
+        canonical: &str,
+        alternate: &str,
+    ) {
+        let identity = self
+            .terminals
+            .iter_mut()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::ContextIdentity(identity) if identity.name() == old => Some(identity),
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_)
+                | TerminalPlan::SignedDecimal(_) => None,
+            })
+            .expect("test context identity is present");
+        identity.name = new.to_owned();
+        identity.ident = syn::Ident::new(new, identity.ident.span());
+        identity.aggregate_ident = syn::Ident::new(new, identity.aggregate_ident.span());
+        identity.origin = DeclarationKey::new(DeclarationKind::Identity, new);
+        identity.arms[0].variant = syn::Ident::new(canonical, identity.arms[0].variant.span());
+        identity.arms[1].variant = syn::Ident::new(alternate, identity.arms[1].variant.span());
+        identity.canonical = syn::Ident::new(canonical, identity.canonical.span());
+
+        for construction in &mut self.constructions {
+            for field in &mut construction.fields {
+                if field.terminal == old {
+                    field.terminal = new.to_owned();
+                    field
+                        .value_type
+                        .segments
+                        .last_mut()
+                        .expect("validated test field type has a segment")
+                        .ident = syn::Ident::new(new, field.value_type.span());
+                }
+            }
+            for atom in &mut construction.atoms {
+                if let AtomPlan::Identity { terminal, .. } = atom
+                    && *terminal == old
+                {
+                    *terminal = new.to_owned();
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
     pub(crate) fn test_only_replace_binding_build_variant(&mut self, name: &str, variant: &str) {
         let binding = self
             .terminals
@@ -944,6 +1060,7 @@ impl SemanticPlan {
                 TerminalPlan::Vocab(_)
                 | TerminalPlan::Lexeme(_)
                 | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test binding is present");
@@ -964,6 +1081,7 @@ impl SemanticPlan {
                 TerminalPlan::Vocab(_)
                 | TerminalPlan::Lexeme(_)
                 | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test binding is present");
@@ -980,6 +1098,7 @@ impl SemanticPlan {
                 TerminalPlan::Vocab(_)
                 | TerminalPlan::Lexeme(_)
                 | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test binding is present");
@@ -1023,12 +1142,16 @@ impl SemanticPlan {
                 TerminalPlan::Binding(row) if row.name() == name => {
                     return Ok(AtomTerminal::Binding(row));
                 }
+                TerminalPlan::ContextIdentity(row) if row.name() == name => {
+                    return Ok(AtomTerminal::ContextIdentity(row));
+                }
                 TerminalPlan::SignedDecimal(row) if row.codec_name() == name => {
                     return Ok(AtomTerminal::SignedDecimal(row));
                 }
                 TerminalPlan::Vocab(_)
                 | TerminalPlan::Lexeme(_)
                 | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::SignedDecimal(_) => {}
             }
         }
@@ -1622,6 +1745,7 @@ impl TerminalPlan {
             Self::Vocab(plan) => plan.source_index(),
             Self::Lexeme(plan) => plan.source_index(),
             Self::Binding(plan) => plan.source_index(),
+            Self::ContextIdentity(plan) => plan.source_index(),
             Self::SignedDecimal(plan) => plan.source_index(),
         }
     }
@@ -1634,6 +1758,7 @@ impl TerminalPlan {
             Self::Vocab(plan) => plan.name(),
             Self::Lexeme(plan) => plan.name(),
             Self::Binding(plan) => plan.name(),
+            Self::ContextIdentity(plan) => plan.name(),
             Self::SignedDecimal(plan) => plan.codec_name(),
         }
     }
@@ -1648,6 +1773,7 @@ impl TerminalPlan {
             {
                 "identity"
             }
+            Self::ContextIdentity(_) => "identity",
             Self::Binding(_) | Self::SignedDecimal(_) => "codec",
         };
         let mut capabilities = Vec::new();
@@ -1679,7 +1805,8 @@ impl TerminalPlan {
     }
 
     pub(crate) fn supports_identity_atom(&self) -> bool {
-        matches!(self, Self::Binding(binding) if binding.kind() == crate::model::TerminalBindingKind::Identity)
+        matches!(self, Self::ContextIdentity(_))
+            || matches!(self, Self::Binding(binding) if binding.kind() == crate::model::TerminalBindingKind::Identity)
     }
 
     pub(crate) fn supports_noun_atom(&self) -> bool {
@@ -1691,13 +1818,17 @@ impl TerminalPlan {
     }
 
     pub(crate) fn has_direct_render(&self) -> bool {
-        matches!(self, Self::Vocab(_) | Self::SignedDecimal(_))
-            || matches!(self, Self::Binding(binding) if binding.render().is_some())
+        matches!(
+            self,
+            Self::Vocab(_) | Self::ContextIdentity(_) | Self::SignedDecimal(_)
+        ) || matches!(self, Self::Binding(binding) if binding.render().is_some())
     }
 
     pub(crate) fn has_direct_build(&self) -> bool {
-        matches!(self, Self::Vocab(_) | Self::SignedDecimal(_))
-            || matches!(self, Self::Binding(binding) if binding.build().is_some())
+        matches!(
+            self,
+            Self::Vocab(_) | Self::ContextIdentity(_) | Self::SignedDecimal(_)
+        ) || matches!(self, Self::Binding(binding) if binding.build().is_some())
     }
 
     #[allow(
@@ -1787,6 +1918,73 @@ impl LexemePlan {
     }
 }
 
+impl ContextIdentityPlan {
+    fn from_source(source_index: usize, source: &crate::TerminalBinding) -> Self {
+        let Some(crate::model::GeneratedIdentityRecipe::Context(recipe)) =
+            &source.generated_identity
+        else {
+            unreachable!("validated generated identity has the context recipe")
+        };
+        let canonical = recipe
+            .canonical_slots
+            .first()
+            .expect("validated context identity has one canonical arm")
+            .arm
+            .clone();
+        let name = identifier_key(&source.name);
+        let aggregate_name = name.strip_suffix("Spelling").unwrap_or(&name).to_owned();
+        Self {
+            source_index,
+            origin: DeclarationKey::new(DeclarationKind::Identity, &name),
+            origin_span: source.name.span(),
+            name,
+            ident: source.name.clone(),
+            aggregate_ident: syn::Ident::new(&aggregate_name, source.name.span()),
+            arms: recipe
+                .arms
+                .iter()
+                .map(|arm| ContextIdentityArmPlan {
+                    variant: arm.variant.clone(),
+                    accessor: arm.accessor.clone(),
+                })
+                .collect(),
+            canonical,
+        }
+    }
+
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
+    }
+
+    pub(crate) fn origin(&self) -> &DeclarationKey {
+        &self.origin
+    }
+
+    pub(crate) fn origin_span(&self) -> Span {
+        self.origin_span
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub(crate) fn ident(&self) -> &syn::Ident {
+        &self.ident
+    }
+
+    pub(crate) fn aggregate_ident(&self) -> &syn::Ident {
+        &self.aggregate_ident
+    }
+
+    pub(crate) fn arms(&self) -> &[ContextIdentityArmPlan] {
+        &self.arms
+    }
+
+    pub(crate) fn canonical(&self) -> &syn::Ident {
+        &self.canonical
+    }
+}
+
 impl SignedDecimalPlan {
     fn from_source(source_index: usize, source: &crate::TerminalBinding) -> Self {
         let Some(crate::model::GeneratedCodecRecipe::SignedDecimal(recipe)) = &source.generated
@@ -1868,7 +2066,7 @@ impl BindingPlan {
             crate::model::RenderBinding::ContextIdentity(arms) => {
                 BindingRenderPlan::ContextIdentity(
                     arms.iter()
-                        .map(|arm| ContextIdentityPlan {
+                        .map(|arm| ContextIdentityArmPlan {
                             variant: arm.variant.clone(),
                             accessor: arm.accessor.clone(),
                         })
@@ -2132,7 +2330,7 @@ impl BindingBuildExprPlan {
     }
 }
 
-impl ContextIdentityPlan {
+impl ContextIdentityArmPlan {
     pub(crate) fn variant(&self) -> &syn::Ident {
         &self.variant
     }

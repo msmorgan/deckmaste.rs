@@ -1,0 +1,11 @@
+error: duplicate context identity accessor `card_name`
+ --> tests/compile_fail/context_identity_duplicate_accessor.rs:7:28
+  |
+7 |             Abbreviated => card_name,
+  |                            ^^^^^^^^^
+
+error: context identity arm `Abbreviated` requires ParseContext accessor `abbreviated_card_name`
+ --> tests/compile_fail/context_identity_duplicate_accessor.rs:7:28
+  |
+7 |             Abbreviated => card_name,
+  |                            ^^^^^^^^^

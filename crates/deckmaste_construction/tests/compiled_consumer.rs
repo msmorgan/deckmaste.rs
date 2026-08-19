@@ -27,7 +27,8 @@ mod fixture {
     #[derive(Default)]
     struct ParseContext<'a> {
         sentinel: u8,
-        marker: std::marker::PhantomData<&'a ()>,
+        card_name: &'a str,
+        abbreviated_card_name: &'a str,
     }
 
     trait Render {
@@ -86,16 +87,16 @@ mod fixture {
         }
     }
 
-    impl ParseContext<'_> {
-        fn card_name(&self) -> &'static str {
+    impl<'a> ParseContext<'a> {
+        fn card_name(&self) -> &'a str {
             debug_assert_ne!(self.sentinel, 0);
-            "card"
+            self.card_name
         }
-    }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub(crate) enum SelfRef {
-        Full,
+        fn abbreviated_card_name(&self) -> &'a str {
+            debug_assert_ne!(self.sentinel, 0);
+            self.abbreviated_card_name
+        }
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,6 +181,7 @@ mod fixture {
     struct ScanInput<'a> {
         text: &'a str,
         position: ScanPosition,
+        context: &'a ParseContext<'a>,
     }
 
     impl ScanInput<'_> {
@@ -218,6 +220,22 @@ mod fixture {
                 .then_some(self.position.byte_offset + punctuation.len())
         }
 
+        fn identity_end(&self, exact_text: &str) -> Option<usize> {
+            let prefix = usize::from(self.position.case == CasePosition::Continuation);
+            let remainder = self.text.get(self.position.byte_offset..)?;
+            let remainder = (prefix == 0)
+                .then_some(remainder)
+                .or_else(|| remainder.strip_prefix(' '))?;
+            let end = self.position.byte_offset + prefix + exact_text.len();
+            (!exact_text.is_empty()
+                && remainder.starts_with(exact_text)
+                && matches!(
+                    self.text.as_bytes().get(end),
+                    None | Some(b' ' | b',' | b'.')
+                ))
+            .then_some(end)
+        }
+
         fn declaration_readings(
             &self,
             _matcher: DeclarationMatcher,
@@ -246,14 +264,10 @@ mod fixture {
         lexeme r#VisitorLexeme { Act, }
 
         identity r#SelfRef {
-            value_type = SelfRef;
-            lexical = Lexical::SelfRef;
-            render context_identity { Full => card_name, }
-            build { pattern = BuildValue::SelfRef(value); construct = value; }
-            traversal {
-                callback = copy;
-                argument = value;
-                variant Full;
+            generate context {
+                Full => card_name,
+                Abbreviated => abbreviated_card_name,
+                canonical_on_collision = Full;
             }
         }
 
@@ -556,6 +570,7 @@ mod fixture {
         Token(u8),
         Sign(Sign),
         SignedNumber(Sign, u32),
+        SelfRef(SelfRef),
     }
 
     #[derive(Default)]
@@ -582,9 +597,13 @@ mod fixture {
             self.0
                 .push(VisitEvent::SignedNumber(number.sign, number.magnitude));
         }
+
+        fn visit_self_ref(&mut self, spelling: SelfRef) {
+            self.0.push(VisitEvent::SelfRef(spelling));
+        }
     }
 
-    fn assert_generated_runtime_abi() {
+    fn assert_generated_runtime_abi(context: &ParseContext<'_>) {
         let owner = |template: LexicalOwnerTemplate, leaf: &Leaf| {
             template
                 .instantiate(leaf)
@@ -632,13 +651,12 @@ mod fixture {
                 "codec:Token",
             ),
             (
-                LexicalOwnerTemplate::Static {
-                    kind: LexicalProvenanceKind::Identity,
-                    stable_id: "identity:SelfRef",
+                LexicalOwnerTemplate::Identity {
+                    declaration: "SelfRef",
                 },
                 Leaf::SelfRef(SelfRef::Full),
                 LexicalProvenanceKind::Identity,
-                "identity:SelfRef",
+                "identity:SelfRef/Full",
             ),
         ] {
             let owner = owner(template, &leaf);
@@ -693,6 +711,7 @@ mod fixture {
                 byte_offset: 0,
                 case: CasePosition::DocumentInitial,
             },
+            context,
         };
         let terminal = LexicalTerminal {
             matcher: Lexical::Mode,
@@ -713,6 +732,7 @@ mod fixture {
         rendered: &str,
         preceding_literal: Option<&'static str>,
         punctuation: &'static str,
+        context: &ParseContext<'_>,
     ) {
         let start = rendered
             .len()
@@ -733,6 +753,7 @@ mod fixture {
             let input = ScanInput {
                 text: rendered,
                 position: ScanPosition { byte_offset, case },
+                context,
             };
             let terminal = LexicalTerminal {
                 matcher: Lexical::Literal(literal),
@@ -757,6 +778,7 @@ mod fixture {
                 byte_offset: start,
                 case: CasePosition::Continuation,
             },
+            context,
         };
         let terminal = LexicalTerminal {
             matcher: Lexical::Literal(punctuation),
@@ -780,11 +802,45 @@ mod fixture {
         reason = "one authentic compiled consumer executes the complete boundary matrix"
     )]
     pub(super) fn run() {
-        assert_generated_runtime_abi();
         let context = ParseContext {
             sentinel: 99,
-            ..ParseContext::default()
+            card_name: "card",
+            abbreviated_card_name: "card",
         };
+        assert_generated_runtime_abi(&context);
+        assert!(SelfRef::Full.valid_in(&context));
+        assert!(!SelfRef::Abbreviated.valid_in(&context));
+        assert_eq!(SelfRef::Full.surface(&context), "card");
+        let abbreviated_context = ParseContext {
+            sentinel: 99,
+            card_name: "full card",
+            abbreviated_card_name: "short",
+        };
+        assert!(SelfRef::Abbreviated.valid_in(&abbreviated_context));
+        assert_eq!(SelfRef::Abbreviated.surface(&abbreviated_context), "short");
+        let identity_matches = scan_lexical(
+            &ScanInput {
+                text: "short",
+                position: ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                },
+                context: &abbreviated_context,
+            },
+            LexicalTerminal {
+                matcher: Lexical::SelfRef,
+                owner: LexicalOwnerTemplate::Identity {
+                    declaration: "SelfRef",
+                },
+            },
+        );
+        assert_eq!(
+            identity_matches,
+            [LexicalMatch {
+                end: 5,
+                value: Leaf::SelfRef(SelfRef::Abbreviated),
+            }]
+        );
         let source = build(
             RuleId::SourceSource,
             &[BuildValue::Leaf(Leaf::Literal("source"))],
@@ -1046,7 +1102,7 @@ mod fixture {
             rendered_hygiene_root, "marker card marker act bare writer marker marker!",
             "allocated render locals preserve ABI values and generated helper calls",
         );
-        assert_generated_punctuation_scan(&rendered_hygiene_root, Some("marker"), "!");
+        assert_generated_punctuation_scan(&rendered_hygiene_root, Some("marker"), "!", &context);
         let context_free_nested_root = RenderChild::Wrapper(RenderChildNode {
             child: Child::Bare(BareChild),
         });
@@ -1101,6 +1157,7 @@ mod fixture {
                     byte_offset: 0,
                     case: CasePosition::DocumentInitial,
                 },
+                context: &context,
             },
             LexicalTerminal {
                 matcher: Lexical::SignedNumber,
@@ -1124,6 +1181,12 @@ mod fixture {
                 VisitEvent::SignedNumber(Sign::Negative, 0)
             ],
         );
+        walk_self_ref(&mut recording, SelfRef::Abbreviated);
+        assert_eq!(
+            recording.0.last(),
+            Some(&VisitEvent::SelfRef(SelfRef::Abbreviated)),
+            "the generated identity walker calls its leaf callback"
+        );
 
         let raw_category = build(
             RuleId::RawCategoryRawLeaf,
@@ -1140,7 +1203,7 @@ mod fixture {
         };
         let rendered_raw_category = Render::render(&raw_category, &context);
         assert_eq!(rendered_raw_category, "raw?");
-        assert_generated_punctuation_scan(&rendered_raw_category, None, "?");
+        assert_generated_punctuation_scan(&rendered_raw_category, None, "?", &context);
         walk_raw_category(&mut recording, &raw_category);
     }
 }

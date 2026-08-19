@@ -21,6 +21,7 @@ pub use crate::constructions::NumberAmount;
 pub use crate::constructions::Pronoun;
 pub use crate::constructions::PronounNp;
 pub use crate::constructions::SelfReferenceNp;
+pub use crate::constructions::SelfReferenceSpelling;
 pub use crate::constructions::Sentence;
 pub use crate::constructions::Sign;
 pub use crate::constructions::SignedNumber;
@@ -35,12 +36,6 @@ pub use crate::constructions::VerbPhrase;
 pub use crate::constructions::WhereClause;
 pub use crate::constructions::WithWhere;
 use crate::environment::ParserEnvironment;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SelfReferenceSpelling {
-    Full,
-    Abbreviated,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Noun {
