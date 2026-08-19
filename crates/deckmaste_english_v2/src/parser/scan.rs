@@ -30,8 +30,6 @@ use crate::ast::CatalogIdentity;
 use crate::ast::Noun;
 use crate::ast::NounLexeme;
 use crate::ast::SelfReferenceSpelling;
-use crate::ast::Sign;
-use crate::ast::SignedNumber;
 use crate::ast::VerbLexeme;
 use crate::constructions::Agreement;
 use crate::constructions::CasePosition;
@@ -583,39 +581,6 @@ impl ScanInput<'_> {
             })
             .collect()
     }
-
-    fn scan_signed_number(&self) -> Vec<LexicalMatch<Leaf>> {
-        let offset = self.position.byte_offset;
-        let prefix = usize::from(self.position.case == CasePosition::Continuation);
-        let Some(remainder) = self.text.get(offset..) else {
-            return Vec::new();
-        };
-        let Some(number) = (prefix == 0)
-            .then_some(remainder)
-            .or_else(|| remainder.strip_prefix(' '))
-        else {
-            return Vec::new();
-        };
-        let (sign, digits) = number
-            .strip_prefix('-')
-            .map_or((Sign::Positive, number), |digits| (Sign::Negative, digits));
-        let digit_length = digits.bytes().take_while(u8::is_ascii_digit).count();
-        let digits = &digits[..digit_length];
-        let Some(magnitude) = (!digits.is_empty())
-            .then(|| digits.parse::<u32>().ok())
-            .flatten()
-        else {
-            return Vec::new();
-        };
-        let end = offset + prefix + usize::from(sign == Sign::Negative) + digit_length;
-        (magnitude.to_string() == digits && has_lexical_boundary(self.text, end))
-            .then_some(LexicalMatch {
-                end,
-                value: Leaf::SignedNumber(SignedNumber { sign, magnitude }),
-            })
-            .into_iter()
-            .collect()
-    }
 }
 
 #[allow(
@@ -687,7 +652,6 @@ pub(crate) fn scan_bound_terminal(
     match terminal.matcher {
         Lexical::Noun(number) => input.scan_noun(number),
         Lexical::Verb(lexeme) => input.scan_verb(lexeme),
-        Lexical::SignedNumber => input.scan_signed_number(),
         Lexical::SelfReference => std::iter::once((
             input.context.card_name(),
             Leaf::SelfReference(SelfReferenceSpelling::Full),
@@ -711,6 +675,7 @@ pub(crate) fn scan_bound_terminal(
         | Lexical::Demonstrative
         | Lexical::Pronoun
         | Lexical::Variable
+        | Lexical::SignedNumber
         | Lexical::Declaration(_) => {
             unreachable!("generated scanner delegated a terminal it owns")
         }
@@ -1696,6 +1661,110 @@ mod tests {
         ];
         for (value, expected) in values {
             assert_eq!(value_label_v1(&value), expected);
+        }
+    }
+
+    #[test]
+    fn signed_decimal_scanner_is_canonical_at_both_scan_positions() {
+        let environment = canonical_test_environment();
+        let context = context("Test Card");
+        let terminal = LexicalTerminal {
+            matcher: Lexical::SignedNumber,
+            owner: LexicalOwnerTemplate::Static {
+                kind: crate::constructions::LexicalProvenanceKind::Codec,
+                stable_id: "codec:SignedNumber",
+            },
+        };
+        let accepted = [
+            ("0", Sign::Positive, 0),
+            ("-0", Sign::Negative, 0),
+            ("1", Sign::Positive, 1),
+            ("-1", Sign::Negative, 1),
+            ("4294967295", Sign::Positive, u32::MAX),
+            ("-4294967295", Sign::Negative, u32::MAX),
+        ];
+
+        for (number, sign, magnitude) in accepted {
+            for (text, byte_offset, case, expected_end) in [
+                (
+                    number.to_owned(),
+                    0,
+                    CasePosition::DocumentInitial,
+                    number.len(),
+                ),
+                (
+                    format!("x {number}"),
+                    1,
+                    CasePosition::Continuation,
+                    number.len() + 2,
+                ),
+            ] {
+                let matches = super::scan_lexical(
+                    &ScanInput {
+                        text: &text,
+                        position: ScanPosition { byte_offset, case },
+                        environment: &environment,
+                        context: &context,
+                    },
+                    terminal,
+                );
+                assert_eq!(matches.len(), 1, "{text:?} at {case:?}");
+                assert_eq!(matches[0].end, expected_end, "{text:?} at {case:?}");
+                assert_eq!(
+                    matches[0].value,
+                    Leaf::SignedNumber(SignedNumber { sign, magnitude }),
+                    "{text:?} at {case:?}"
+                );
+                let owner = terminal
+                    .owner
+                    .instantiate(&matches[0].value)
+                    .expect("signed decimals own their bytes");
+                assert_eq!(owner.stable_id(), "codec:SignedNumber");
+            }
+        }
+
+        for text in [
+            "",
+            "-",
+            "00",
+            "01",
+            "-00",
+            "4294967296",
+            "-4294967296",
+            "١",
+            ".",
+            ",",
+            "1x",
+        ] {
+            let matches = super::scan_lexical(
+                &ScanInput {
+                    text,
+                    position: ScanPosition {
+                        byte_offset: 0,
+                        case: CasePosition::DocumentInitial,
+                    },
+                    environment: &environment,
+                    context: &context,
+                },
+                terminal,
+            );
+            assert!(matches.is_empty(), "accepted noncanonical decimal {text:?}");
+        }
+
+        for text in ["1.", "-1,"] {
+            let matches = super::scan_lexical(
+                &ScanInput {
+                    text,
+                    position: ScanPosition {
+                        byte_offset: 0,
+                        case: CasePosition::DocumentInitial,
+                    },
+                    environment: &environment,
+                    context: &context,
+                },
+                terminal,
+            );
+            assert_eq!(matches.len(), 1, "punctuation is a lexical boundary");
         }
     }
 

@@ -295,13 +295,10 @@ mod tests {
         ];
         assert_eq!(
             categories.map(Vec::len),
-            [0, 3, 0, 1, 0, 5, 2, 2],
+            [0, 1, 0, 1, 0, 3, 2, 2],
             "categories intentionally overlap and have no unique total"
         );
-        assert_eq!(
-            identities(&report.handwritten_codecs),
-            ["Noun", "Sign", "SignedNumber"]
-        );
+        assert_eq!(identities(&report.handwritten_codecs), ["Noun"]);
         assert_eq!(
             identities(&report.stored_spelling_codecs),
             ["SelfReferenceSpelling"]
@@ -310,8 +307,6 @@ mod tests {
             identities(&report.terminal_bindings),
             [
                 "codec:Noun",
-                "codec:Sign",
-                "codec:SignedNumber",
                 "identity:CatalogIdentity",
                 "identity:SelfReferenceSpelling",
             ]

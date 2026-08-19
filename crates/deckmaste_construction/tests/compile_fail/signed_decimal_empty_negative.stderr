@@ -1,0 +1,5 @@
+error: signed_decimal negative sign must be one ASCII byte `-`
+ --> tests/compile_fail/signed_decimal_empty_negative.rs:7:49
+  |
+7 |             sign_type = Sign { Positive = none, Negative = "", };
+  |                                                 ^^^^^^^^

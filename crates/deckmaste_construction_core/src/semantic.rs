@@ -149,6 +149,25 @@ pub(crate) enum TerminalPlan {
     Vocab(VocabPlan),
     Lexeme(LexemePlan),
     Binding(BindingPlan),
+    SignedDecimal(SignedDecimalPlan),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UnsignedPrimitive {
+    U32,
+}
+
+#[derive(Debug)]
+pub(crate) struct SignedDecimalPlan {
+    source_index: usize,
+    origin: DeclarationKey,
+    origin_span: Span,
+    codec_name: String,
+    codec_ident: syn::Ident,
+    sign_type: syn::Ident,
+    positive_variant: syn::Ident,
+    negative_variant: syn::Ident,
+    magnitude: UnsignedPrimitive,
 }
 
 /// The sealed terminal-capability projection consumed by runtime emission.
@@ -160,6 +179,7 @@ struct RuntimeEmissionPlan {
     noun_binding_index: Option<usize>,
     direct_binding_indices: Vec<usize>,
     opaque_binding_indices: Vec<usize>,
+    signed_decimal_index: Option<usize>,
     punctuation_literals: Vec<String>,
     scanner_origin_indices: Vec<usize>,
 }
@@ -177,6 +197,7 @@ impl RuntimeEmissionPlan {
             noun_binding_index: None,
             direct_binding_indices: Vec::new(),
             opaque_binding_indices: Vec::new(),
+            signed_decimal_index: None,
             punctuation_literals: Vec::new(),
             scanner_origin_indices: Vec::new(),
         };
@@ -220,6 +241,14 @@ impl RuntimeEmissionPlan {
                     }
                 }
                 TerminalPlan::Binding(_) => {}
+                TerminalPlan::SignedDecimal(codec) => {
+                    if plan.signed_decimal_index.replace(index).is_some() {
+                        return Err(syn::Error::new(
+                            codec.origin_span(),
+                            "sealed runtime inventory has multiple signed_decimal codecs",
+                        ));
+                    }
+                }
             }
         }
         plan.punctuation_literals = roots
@@ -250,6 +279,7 @@ impl RuntimeEmissionPlan {
             .chain(plan.noun_binding_index.iter())
             .chain(&plan.direct_binding_indices)
             .chain(&plan.opaque_binding_indices)
+            .chain(plan.signed_decimal_index.iter())
             .map(|&index| terminals[index].source_index())
             .collect::<BTreeSet<_>>();
         scanner_origin_indices.extend(roots.iter().map(RootPlan::source_index));
@@ -278,6 +308,7 @@ fn is_punctuation_literal(literal: &str) -> bool {
 pub(crate) enum AtomTerminal<'a> {
     Vocab(&'a VocabPlan),
     Binding(&'a BindingPlan),
+    SignedDecimal(&'a SignedDecimalPlan),
 }
 
 #[derive(Debug)]
@@ -515,6 +546,11 @@ impl SemanticPlan {
                 Declaration::Lexeme(lexeme) => Some(Ok(TerminalPlan::Lexeme(
                     LexemePlan::from_source(source_index, lexeme, verb_lexeme_provider),
                 ))),
+                Declaration::Codec(binding) if binding.generated.is_some() => {
+                    Some(Ok(TerminalPlan::SignedDecimal(
+                        SignedDecimalPlan::from_source(source_index, binding),
+                    )))
+                }
                 Declaration::Codec(binding) | Declaration::Identity(binding) => {
                     Some(BindingPlan::from_source(source_index, binding).map(TerminalPlan::Binding))
                 }
@@ -608,7 +644,9 @@ impl SemanticPlan {
             .iter()
             .map(|&index| match &self.terminals[index] {
                 TerminalPlan::Vocab(vocab) => vocab,
-                TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => {
+                TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::SignedDecimal(_) => {
                     unreachable!("sealed runtime vocab index changed terminal kind")
                 }
             })
@@ -649,6 +687,15 @@ impl SemanticPlan {
 
     pub(crate) fn runtime_opaque_bindings(&self) -> impl Iterator<Item = &BindingPlan> {
         self.runtime_bindings(&self.runtime.opaque_binding_indices)
+    }
+
+    pub(crate) fn runtime_signed_decimal(&self) -> Option<&SignedDecimalPlan> {
+        self.runtime.signed_decimal_index.map(|index| {
+            let TerminalPlan::SignedDecimal(codec) = &self.terminals[index] else {
+                unreachable!("sealed runtime signed-decimal index changed terminal kind")
+            };
+            codec
+        })
     }
 
     fn runtime_lexeme(&self, index: Option<usize>) -> Option<&LexemePlan> {
@@ -781,7 +828,10 @@ impl SemanticPlan {
             .iter_mut()
             .find_map(|terminal| match terminal {
                 TerminalPlan::Vocab(vocab) if vocab.name() == vocabulary => Some(vocab),
-                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test vocabulary is present");
         let word = vocab
@@ -799,7 +849,10 @@ impl SemanticPlan {
             .iter_mut()
             .find_map(|terminal| match terminal {
                 TerminalPlan::Vocab(vocab) if vocab.name() == old => Some(vocab),
-                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test vocabulary is present");
         vocab.name = syn::Ident::new(new, vocab.name.span());
@@ -813,12 +866,35 @@ impl SemanticPlan {
             .iter_mut()
             .find_map(|terminal| match terminal {
                 TerminalPlan::Binding(binding) if binding.name() == old => Some(binding),
-                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test binding is present");
         binding.name = syn::Ident::new(new, binding.name.span());
         binding.name_key = new.to_owned();
         binding.origin = DeclarationKey::new(binding.origin.kind(), new);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_replace_signed_decimal_sign_shape(
+        &mut self,
+        sign_type: &str,
+        positive: &str,
+        negative: &str,
+    ) {
+        let codec = self
+            .terminals
+            .iter_mut()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::SignedDecimal(codec) => Some(codec),
+                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+            })
+            .expect("test signed_decimal codec is present");
+        codec.sign_type = syn::Ident::new(sign_type, codec.sign_type.span());
+        codec.positive_variant = syn::Ident::new(positive, codec.positive_variant.span());
+        codec.negative_variant = syn::Ident::new(negative, codec.negative_variant.span());
     }
 
     #[cfg(test)]
@@ -828,7 +904,10 @@ impl SemanticPlan {
             .iter_mut()
             .find_map(|terminal| match terminal {
                 TerminalPlan::Binding(binding) if binding.name() == name => Some(binding),
-                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test binding is present");
         let build = binding
@@ -845,7 +924,10 @@ impl SemanticPlan {
             .iter_mut()
             .find_map(|terminal| match terminal {
                 TerminalPlan::Binding(binding) if binding.name() == name => Some(binding),
-                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test binding is present");
         binding.value_type_name = syn::Ident::new(value, binding.value_type_name.span());
@@ -858,7 +940,10 @@ impl SemanticPlan {
             .iter_mut()
             .find_map(|terminal| match terminal {
                 TerminalPlan::Binding(binding) if binding.name() == name => Some(binding),
-                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::SignedDecimal(_) => None,
             })
             .expect("test binding is present");
         binding.origin = DeclarationKey::new(DeclarationKind::Identity, binding.name());
@@ -901,7 +986,13 @@ impl SemanticPlan {
                 TerminalPlan::Binding(row) if row.name() == name => {
                     return Ok(AtomTerminal::Binding(row));
                 }
-                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => {}
+                TerminalPlan::SignedDecimal(row) if row.codec_name() == name => {
+                    return Ok(AtomTerminal::SignedDecimal(row));
+                }
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::SignedDecimal(_) => {}
             }
         }
         Err(sealed_error("resolved atom terminal"))
@@ -1494,6 +1585,7 @@ impl TerminalPlan {
             Self::Vocab(plan) => plan.source_index(),
             Self::Lexeme(plan) => plan.source_index(),
             Self::Binding(plan) => plan.source_index(),
+            Self::SignedDecimal(plan) => plan.source_index(),
         }
     }
 }
@@ -1505,6 +1597,7 @@ impl TerminalPlan {
             Self::Vocab(plan) => plan.name(),
             Self::Lexeme(plan) => plan.name(),
             Self::Binding(plan) => plan.name(),
+            Self::SignedDecimal(plan) => plan.codec_name(),
         }
     }
 
@@ -1518,7 +1611,7 @@ impl TerminalPlan {
             {
                 "identity"
             }
-            Self::Binding(_) => "codec",
+            Self::Binding(_) | Self::SignedDecimal(_) => "codec",
         };
         let mut capabilities = Vec::new();
         if self.supports_lex_atom() {
@@ -1544,7 +1637,7 @@ impl TerminalPlan {
     }
 
     pub(crate) fn supports_lex_atom(&self) -> bool {
-        matches!(self, Self::Vocab(_))
+        matches!(self, Self::Vocab(_) | Self::SignedDecimal(_))
             || matches!(self, Self::Binding(binding) if binding.codec_atom() == Some(crate::model::CodecAtomClass::Lex))
     }
 
@@ -1561,12 +1654,12 @@ impl TerminalPlan {
     }
 
     pub(crate) fn has_direct_render(&self) -> bool {
-        matches!(self, Self::Vocab(_))
+        matches!(self, Self::Vocab(_) | Self::SignedDecimal(_))
             || matches!(self, Self::Binding(binding) if binding.render().is_some())
     }
 
     pub(crate) fn has_direct_build(&self) -> bool {
-        matches!(self, Self::Vocab(_))
+        matches!(self, Self::Vocab(_) | Self::SignedDecimal(_))
             || matches!(self, Self::Binding(binding) if binding.build().is_some())
     }
 
@@ -1654,6 +1747,80 @@ impl LexemePlan {
     )]
     pub(crate) fn source_index(&self) -> usize {
         self.source_index
+    }
+}
+
+impl SignedDecimalPlan {
+    fn from_source(source_index: usize, source: &crate::TerminalBinding) -> Self {
+        let Some(crate::model::GeneratedCodecRecipe::SignedDecimal(recipe)) = &source.generated
+        else {
+            unreachable!("validated generated codec has the signed_decimal recipe")
+        };
+        let sign = recipe
+            .sign_type_slots
+            .first()
+            .expect("validated signed_decimal has one sign_type");
+        let positive_variant = sign
+            .roles
+            .iter()
+            .find(|role| identifier_key(&role.variant) == "Positive")
+            .expect("validated signed_decimal has a positive role")
+            .variant
+            .clone();
+        let negative_variant = sign
+            .roles
+            .iter()
+            .find(|role| identifier_key(&role.variant) == "Negative")
+            .expect("validated signed_decimal has a negative role")
+            .variant
+            .clone();
+        Self {
+            source_index,
+            origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
+            origin_span: source.name.span(),
+            codec_name: identifier_key(&source.name),
+            codec_ident: source.name.clone(),
+            sign_type: sign.name.clone(),
+            positive_variant,
+            negative_variant,
+            magnitude: UnsignedPrimitive::U32,
+        }
+    }
+
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
+    }
+
+    pub(crate) fn origin(&self) -> &DeclarationKey {
+        &self.origin
+    }
+
+    pub(crate) fn origin_span(&self) -> Span {
+        self.origin_span
+    }
+
+    pub(crate) fn codec_name(&self) -> &str {
+        &self.codec_name
+    }
+
+    pub(crate) fn codec_ident(&self) -> &syn::Ident {
+        &self.codec_ident
+    }
+
+    pub(crate) fn sign_type(&self) -> &syn::Ident {
+        &self.sign_type
+    }
+
+    pub(crate) fn positive_variant(&self) -> &syn::Ident {
+        &self.positive_variant
+    }
+
+    pub(crate) fn negative_variant(&self) -> &syn::Ident {
+        &self.negative_variant
+    }
+
+    pub(crate) fn magnitude(&self) -> UnsignedPrimitive {
+        self.magnitude
     }
 }
 

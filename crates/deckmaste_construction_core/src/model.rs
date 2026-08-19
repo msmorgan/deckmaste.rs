@@ -197,12 +197,51 @@ pub struct Lexeme {
 pub struct TerminalBinding {
     pub name: Ident,
     pub kind: TerminalBindingKind,
+    pub generated: Option<GeneratedCodecRecipe>,
     pub codec_atom: Option<CodecAtomClass>,
     pub value_type: syn::Type,
     pub lexical_variant: Option<Path>,
     pub render: Option<RenderBinding>,
     pub build: Option<BuildLeaf>,
     pub traversal: Traversal,
+}
+
+#[derive(Debug)]
+pub enum GeneratedCodecRecipe {
+    SignedDecimal(SignedDecimalSource),
+    Unsupported { name: Ident },
+}
+
+#[derive(Debug)]
+pub struct SignedDecimalSource {
+    pub recipe: Ident,
+    pub magnitude_slots: Vec<UnsignedPrimitiveSource>,
+    pub sign_type_slots: Vec<SignedDecimalSignTypeSource>,
+}
+
+#[derive(Debug)]
+pub struct UnsignedPrimitiveSource {
+    pub slot: Ident,
+    pub primitive: Ident,
+}
+
+#[derive(Debug)]
+pub struct SignedDecimalSignTypeSource {
+    pub slot: Ident,
+    pub name: Ident,
+    pub roles: Vec<SignedDecimalSignRoleSource>,
+}
+
+#[derive(Debug)]
+pub struct SignedDecimalSignRoleSource {
+    pub variant: Ident,
+    pub spelling: SignedDecimalSignSpelling,
+}
+
+#[derive(Debug)]
+pub enum SignedDecimalSignSpelling {
+    None(Span),
+    Literal(LitStr),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

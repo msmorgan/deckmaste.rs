@@ -5,6 +5,12 @@ pub(crate) fn representative_tokens() -> proc_macro2::TokenStream {
         vocab Words { First = "first", Second = "second", }
         lexeme Nouns { Person, }
         lexeme Verbs { Act, }
+        codec SignedNumber {
+            generate signed_decimal {
+                magnitude = u32;
+                sign_type = Sign { Positive = none, Negative = "-", };
+            }
+        }
 
         construction leaf: Node {
             element WordLeaf { word: lex Words, }

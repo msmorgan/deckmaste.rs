@@ -321,6 +321,8 @@ mod tests {
         "type Variable",
         "type NounLexeme",
         "type VerbLexeme",
+        "type Sign",
+        "type SignedNumber",
         "type Agreement",
         "type Number",
         "type FeatureConstraint",
@@ -357,6 +359,7 @@ mod tests {
         "function render_demonstrative",
         "function render_pronoun",
         "function render_variable",
+        "function render_signed_number",
         "function agreement_for_noun_phrase",
         "function number_for_noun_phrase",
         "trait Visitor",
@@ -391,12 +394,12 @@ mod tests {
         "function walk_demonstrative",
         "function walk_pronoun",
         "function walk_variable",
-        "function walk_sign",
         "function walk_self_reference_spelling",
         "function walk_noun_lexeme",
         "function walk_verb_lexeme",
-        "function walk_signed_number",
         "function walk_catalog_identity",
+        "function walk_sign",
+        "function walk_signed_number",
         "type Category",
         "type Construction",
         "type RuleId",
@@ -416,7 +419,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 114);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 117);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for (item, expected_key) in expansion.items().iter().zip(EXPECTED_ITEM_KEYS) {
             let header = format!("// === {expected_key} ===");
@@ -450,11 +453,9 @@ mod tests {
             .1;
         assert_eq!(
             report,
-            "// terminal bindings (5)\n\
+            "// terminal bindings (3)\n\
              // - codec Noun\n\
-             // - codec Sign\n\
              // - identity SelfReferenceSpelling\n\
-             // - codec SignedNumber\n\
              // - identity CatalogIdentity\n\
              // checked constructor bindings (2)\n\
              // - construction Triggered\n\
@@ -472,7 +473,36 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 114);
+        assert_eq!(parsed.items.len(), 117);
+    }
+
+    #[test]
+    fn handwritten_signed_decimal_authorities_are_absent_from_complete_sources() {
+        let ast = syn::parse_file(include_str!("../../deckmaste_english_v2/src/ast.rs"))
+            .expect("complete AST source reparses");
+        let scan = syn::parse_file(include_str!(
+            "../../deckmaste_english_v2/src/parser/scan.rs"
+        ))
+        .expect("complete scanner source reparses");
+        let render = syn::parse_file(include_str!("../../deckmaste_english_v2/src/render.rs"))
+            .expect("complete renderer source reparses");
+
+        assert!(!ast.items.iter().any(|item| matches!(
+            item,
+            syn::Item::Enum(item) if item.ident == "Sign"
+        )));
+        assert!(!ast.items.iter().any(|item| matches!(
+            item,
+            syn::Item::Struct(item) if item.ident == "SignedNumber"
+        )));
+        assert!(!scan.items.iter().any(|item| matches!(
+            item,
+            syn::Item::Fn(item) if item.sig.ident == "scan_signed_number"
+        )));
+        assert!(!render.items.iter().any(|item| matches!(
+            item,
+            syn::Item::Fn(item) if item.sig.ident == "render_signed_number"
+        )));
     }
 
     #[test]

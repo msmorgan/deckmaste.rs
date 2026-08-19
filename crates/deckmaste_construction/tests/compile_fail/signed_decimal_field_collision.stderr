@@ -1,0 +1,5 @@
+error: duplicate signed_decimal field `magnitude`
+ --> tests/compile_fail/signed_decimal_field_collision.rs:7:13
+  |
+7 |             magnitude = u32;
+  |             ^^^^^^^^^

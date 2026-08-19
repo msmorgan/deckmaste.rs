@@ -3,8 +3,6 @@ use deckmaste_catalogs::CatalogKind;
 use crate::ast::CatalogIdentity;
 use crate::ast::Noun;
 use crate::ast::NounLexeme;
-use crate::ast::Sign;
-use crate::ast::SignedNumber;
 use crate::constructions::Number;
 use crate::context::ParseContext;
 
@@ -96,15 +94,6 @@ fn pluralize(noun: &Noun, singular: &str) -> String {
             kind: _,
             spelling: _,
         }) => format!("{singular}s"),
-    }
-}
-
-pub(crate) fn render_signed_number(writer: &mut Writer, number: &SignedNumber) {
-    let SignedNumber { sign, magnitude } = number;
-    let magnitude = magnitude.to_string();
-    match sign {
-        Sign::Positive => writer.word(&magnitude),
-        Sign::Negative => writer.word(&format!("-{magnitude}")),
     }
 }
 

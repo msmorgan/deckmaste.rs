@@ -5,8 +5,6 @@ use deckmaste_construction::constructions;
 use crate::ast::CatalogIdentity;
 use crate::ast::Noun;
 use crate::ast::SelfReferenceSpelling;
-use crate::ast::Sign;
-use crate::ast::SignedNumber;
 use crate::context::ParseContext;
 use crate::features::agreement_for_pronoun;
 use crate::features::inflect;
@@ -19,7 +17,6 @@ use crate::parser::scan_bound_terminal;
 use crate::render::Render;
 use crate::render::Writer;
 use crate::render::render_noun;
-use crate::render::render_signed_number;
 
 constructions! {
     vocab TriggerWord { Whenever = "whenever", }
@@ -48,15 +45,6 @@ constructions! {
             }
         }
     }
-    codec Sign {
-        value_type = crate::ast::Sign;
-        traversal {
-            callback = copy;
-            argument = sign;
-            variant Positive;
-            variant Negative;
-        }
-    }
     identity SelfReferenceSpelling {
         value_type = crate::ast::SelfReferenceSpelling;
         lexical = Lexical::SelfReference;
@@ -73,18 +61,12 @@ constructions! {
         }
     }
     codec SignedNumber {
-        atom = lex;
-        value_type = crate::ast::SignedNumber;
-        lexical = Lexical::SignedNumber;
-        render = render_signed_number;
-        build { pattern = BuildValue::SignedNumber(number); construct = number; }
-        traversal {
-            callback = borrowed;
-            argument = number;
-            field sign: Sign;
-            field magnitude: u32;
-            call walk_sign(copy(sign));
-            call visitor::visit_signed_number(borrowed(number));
+        generate signed_decimal {
+            magnitude = u32;
+            sign_type = Sign {
+                Positive = none,
+                Negative = "-",
+            };
         }
     }
     identity CatalogIdentity {

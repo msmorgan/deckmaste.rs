@@ -30,6 +30,50 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         }
     });
     let bound_arms = bound_arms(plan);
+    let signed_decimal_arm = plan.runtime_signed_decimal().map(|codec| {
+        let codec_name = codec.codec_ident();
+        let sign_type = codec.sign_type();
+        let positive = codec.positive_variant();
+        let negative = codec.negative_variant();
+        quote! {
+            Lexical::#codec_name => {
+                let offset = input.position.byte_offset;
+                let prefix = usize::from(input.position.case == CasePosition::Continuation);
+                let Some(remainder) = input.text.get(offset..) else {
+                    return Vec::new();
+                };
+                let Some(number) = (prefix == 0)
+                    .then_some(remainder)
+                    .or_else(|| remainder.strip_prefix(' '))
+                else {
+                    return Vec::new();
+                };
+                let (sign, digits) = number.strip_prefix('-').map_or(
+                    (#sign_type::#positive, number),
+                    |digits| (#sign_type::#negative, digits),
+                );
+                let digit_length = digits.bytes().take_while(u8::is_ascii_digit).count();
+                let digits = &digits[..digit_length];
+                let Some(magnitude) = (!digits.is_empty())
+                    .then(|| digits.parse::<u32>().ok())
+                    .flatten()
+                else {
+                    return Vec::new();
+                };
+                let candidate_length = usize::from(sign == #sign_type::#negative) + digit_length;
+                let candidate = &number[..candidate_length];
+                (magnitude.to_string() == digits)
+                    .then(|| input.word_end(candidate))
+                    .flatten()
+                    .map(|end| LexicalMatch {
+                        end,
+                        value: Leaf::#codec_name(#codec_name { sign, magnitude }),
+                    })
+                    .into_iter()
+                    .collect()
+            }
+        }
+    });
     let punctuation_literals = plan.runtime_punctuation_literals();
     let punctuation_arm = (!punctuation_literals.is_empty()).then(|| {
         quote! {
@@ -72,6 +116,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     .into_iter()
                     .collect(),
                 #(#vocab_arms,)*
+                #signed_decimal_arm
                 #bound_arm
                 Lexical::Declaration(matcher) => input
                     .declaration_readings(matcher)

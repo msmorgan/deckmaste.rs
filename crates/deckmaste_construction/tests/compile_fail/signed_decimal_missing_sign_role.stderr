@@ -1,0 +1,5 @@
+error: signed_decimal sign_type requires `Positive` and `Negative` roles
+ --> tests/compile_fail/signed_decimal_missing_sign_role.rs:7:25
+  |
+7 |             sign_type = Sign { Negative = "-", };
+  |                         ^^^^

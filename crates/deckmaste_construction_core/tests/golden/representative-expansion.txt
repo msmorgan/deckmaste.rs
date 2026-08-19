@@ -33,6 +33,16 @@ pub enum Nouns {
 pub enum Verbs {
     Act,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sign {
+    Positive,
+    Negative,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignedNumber {
+    pub sign: Sign,
+    pub magnitude: u32,
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum Agreement {
     Bare,
@@ -82,6 +92,7 @@ pub(crate) enum Lexical {
     Words,
     Noun(FeatureConstraint<Number>),
     Verb(Verbs),
+    SignedNumber,
     Declaration(DeclarationMatcher),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,6 +102,7 @@ pub(crate) enum Leaf {
     Words(Words),
     Noun { noun: Nouns, number: Number },
     Verb { lexeme: Verbs, agreement: Agreement },
+    SignedNumber(SignedNumber),
     Declaration(DeclarationLeaf),
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -99,6 +111,7 @@ pub enum TerminalClass {
     Words,
     Noun,
     VerbLexeme,
+    SignedNumber,
     Declaration(DeclarationClass),
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -136,6 +149,7 @@ impl Lexical {
             Lexical::Words => TerminalClass::Words,
             Lexical::Noun(_) => TerminalClass::Noun,
             Lexical::Verb(_) => TerminalClass::VerbLexeme,
+            Lexical::SignedNumber => TerminalClass::SignedNumber,
             Lexical::Declaration(matcher) => {
                 TerminalClass::Declaration(DeclarationClass {
                     kind: matcher.kind,
@@ -157,6 +171,7 @@ impl TerminalClass {
             TerminalClass::Words => "words",
             TerminalClass::Noun => "noun",
             TerminalClass::VerbLexeme => "verb lexeme",
+            TerminalClass::SignedNumber => "signed number",
             TerminalClass::Declaration(_) => "open declaration",
         }
     }
@@ -273,6 +288,39 @@ pub(crate) fn scan_lexical(
                 })
                 .collect()
         }
+        Lexical::SignedNumber => {
+            let offset = input.position.byte_offset;
+            let prefix = usize::from(input.position.case == CasePosition::Continuation);
+            let Some(remainder) = input.text.get(offset..) else {
+                return Vec::new();
+            };
+            let Some(number) = (prefix == 0)
+                .then_some(remainder)
+                .or_else(|| remainder.strip_prefix(' ')) else {
+                return Vec::new();
+            };
+            let (sign, digits) = number
+                .strip_prefix('-')
+                .map_or((Sign::Positive, number), |digits| (Sign::Negative, digits));
+            let digit_length = digits.bytes().take_while(u8::is_ascii_digit).count();
+            let digits = &digits[..digit_length];
+            let Some(magnitude) = (!digits.is_empty())
+                .then(|| digits.parse::<u32>().ok())
+                .flatten() else {
+                return Vec::new();
+            };
+            let candidate_length = usize::from(sign == Sign::Negative) + digit_length;
+            let candidate = &number[..candidate_length];
+            (magnitude.to_string() == digits)
+                .then(|| input.word_end(candidate))
+                .flatten()
+                .map(|end| LexicalMatch {
+                    end,
+                    value: Leaf::SignedNumber(SignedNumber { sign, magnitude }),
+                })
+                .into_iter()
+                .collect()
+        }
         Lexical::Noun(_) | Lexical::Verb(_) => scan_bound_terminal(input, terminal),
         Lexical::Declaration(matcher) => {
             input
@@ -314,6 +362,13 @@ fn render_words(writer: &mut Writer, words: Words) {
         Words::Second => writer.word("second"),
     }
 }
+fn render_signed_number(writer: &mut Writer, number: &SignedNumber) {
+    let magnitude = number.magnitude.to_string();
+    match number.sign {
+        Sign::Positive => writer.word(&magnitude),
+        Sign::Negative => writer.word(&format!("-{magnitude}")),
+    }
+}
 pub trait Visitor {
     fn visit_node(&mut self, node: &Node) {
         walk_node(self, node);
@@ -333,6 +388,8 @@ pub trait Visitor {
     fn visit_words(&mut self, _words: Words) {}
     fn visit_nouns(&mut self, _nouns: Nouns) {}
     fn visit_verbs(&mut self, _verbs: Verbs) {}
+    fn visit_sign(&mut self, _sign: Sign) {}
+    fn visit_signed_number(&mut self, _number: &SignedNumber) {}
 }
 pub fn walk_node<V: Visitor + ?Sized>(visitor: &mut V, node: &Node) {
     match node {
@@ -376,6 +433,13 @@ pub fn walk_verbs<V: Visitor + ?Sized>(visitor: &mut V, verbs: Verbs) {
     match verbs {
         Verbs::Act => visitor.visit_verbs(Verbs::Act),
     }
+}
+pub fn walk_sign<V: Visitor + ?Sized>(visitor: &mut V, sign: Sign) {
+    visitor.visit_sign(sign);
+}
+pub fn walk_signed_number<V: Visitor + ?Sized>(visitor: &mut V, number: &SignedNumber) {
+    visitor.visit_sign(number.sign);
+    visitor.visit_signed_number(number);
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum Category {

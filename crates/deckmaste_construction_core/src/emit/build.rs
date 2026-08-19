@@ -391,6 +391,17 @@ fn lower_terminal_role(
             return Ok(());
         }
         AtomTerminal::Binding(binding) => binding,
+        AtomTerminal::SignedDecimal(codec) => {
+            let variant = codec.codec_ident();
+            let value = lowering.binders.allocate(&identifier_key(&role));
+            lowering
+                .patterns
+                .push(quote! { BuildValue::Leaf(Leaf::#variant(#value)) });
+            lowering
+                .field_values
+                .insert(identifier_key(&role), quote! { #value.clone() });
+            return Ok(());
+        }
     };
     let build = binding
         .build()

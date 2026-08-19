@@ -22,6 +22,8 @@ pub use crate::constructions::Pronoun;
 pub use crate::constructions::PronounNp;
 pub use crate::constructions::SelfReferenceNp;
 pub use crate::constructions::Sentence;
+pub use crate::constructions::Sign;
+pub use crate::constructions::SignedNumber;
 pub use crate::constructions::Spell;
 pub use crate::constructions::TargetNp;
 pub use crate::constructions::TriggerWord;
@@ -35,12 +37,6 @@ pub use crate::constructions::WithWhere;
 use crate::environment::ParserEnvironment;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Sign {
-    Positive,
-    Negative,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SelfReferenceSpelling {
     Full,
     Abbreviated,
@@ -50,12 +46,6 @@ pub enum SelfReferenceSpelling {
 pub enum Noun {
     Lexeme(NounLexeme),
     Catalog(CatalogIdentity),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SignedNumber {
-    pub sign: Sign,
-    pub magnitude: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

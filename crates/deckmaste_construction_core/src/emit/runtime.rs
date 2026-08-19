@@ -10,6 +10,7 @@ use crate::plan::ItemKey;
 use crate::semantic::BindingPlan;
 use crate::semantic::LexemePlan;
 use crate::semantic::SemanticPlan;
+use crate::semantic::SignedDecimalPlan;
 use crate::semantic::VocabPlan;
 
 struct RuntimeInventory<'a> {
@@ -19,6 +20,7 @@ struct RuntimeInventory<'a> {
     noun_binding: Option<&'a BindingPlan>,
     direct_bindings: Vec<&'a BindingPlan>,
     opaque_bindings: Vec<&'a BindingPlan>,
+    signed_decimal: Option<&'a SignedDecimalPlan>,
 }
 
 impl<'a> RuntimeInventory<'a> {
@@ -30,6 +32,7 @@ impl<'a> RuntimeInventory<'a> {
             noun_binding: plan.runtime_noun_binding(),
             direct_bindings: plan.runtime_direct_bindings().collect(),
             opaque_bindings: plan.runtime_opaque_bindings().collect(),
+            signed_decimal: plan.runtime_signed_decimal(),
         }
     }
 
@@ -211,6 +214,18 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .opaque_bindings
         .iter()
         .map(|binding| binding_variant(binding));
+    let signed_lexical = inventory.signed_decimal.map(|codec| {
+        let variant = codec.codec_ident();
+        quote! { #variant, }
+    });
+    let signed_leaf = inventory.signed_decimal.map(|codec| {
+        let variant = codec.codec_ident();
+        quote! { #variant(#variant), }
+    });
+    let signed_class = inventory.signed_decimal.map(|codec| {
+        let variant = codec.codec_ident();
+        quote! { #variant, }
+    });
 
     vec![
         named_type(
@@ -225,6 +240,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #verb_lexical
                     #(#direct_lexical_variants)*
                     #(#opaque_lexical_variants)*
+                    #signed_lexical
                     Declaration(DeclarationMatcher),
                 }
             },
@@ -241,6 +257,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #verb_leaf
                     #(#direct_leaf_variants)*
                     #(#opaque_leaf_variants)*
+                    #signed_leaf
                     Declaration(DeclarationLeaf),
                 }
             },
@@ -256,6 +273,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #verb_class
                     #(#direct_class_variants,)*
                     #(#opaque_class_variants,)*
+                    #signed_class
                     Declaration(DeclarationClass),
                 }
             },
@@ -351,6 +369,10 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         let variant = binding_variant(binding);
         quote! { Lexical::#variant => TerminalClass::#variant, }
     });
+    let signed_class_arm = inventory.signed_decimal.map(|codec| {
+        let variant = codec.codec_ident();
+        quote! { Lexical::#variant => TerminalClass::#variant, }
+    });
     let vocab_labels = inventory.vocabs.iter().map(|vocab| {
         let variant = vocab.name_ident();
         let label = syn::LitStr::new(
@@ -381,6 +403,14 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         );
         quote! { TerminalClass::#variant => #label, }
     });
+    let signed_label = inventory.signed_decimal.map(|codec| {
+        let variant = codec.codec_ident();
+        let label = syn::LitStr::new(
+            &snake_case(codec.codec_name()).replace('_', " "),
+            Span::call_site(),
+        );
+        quote! { TerminalClass::#variant => #label, }
+    });
     vec![
         impl_item(
             Some("Lexical"),
@@ -396,6 +426,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #verb_class_arm
                             #(#direct_class_arms)*
                             #(#opaque_class_arms)*
+                            #signed_class_arm
                             Lexical::Declaration(matcher) => TerminalClass::Declaration(
                                 DeclarationClass {
                                     kind: matcher.kind,
@@ -431,6 +462,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #verb_label
                             #(#direct_labels)*
                             #(#opaque_labels)*
+                            #signed_label
                             TerminalClass::Declaration(_) => "open declaration",
                         }
                     }

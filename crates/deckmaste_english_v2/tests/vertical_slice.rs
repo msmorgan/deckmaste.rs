@@ -10,6 +10,7 @@ use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
 use deckmaste_english_v2::visit::walk_amount;
+use deckmaste_english_v2::visit::walk_signed_number;
 
 #[derive(Default)]
 struct RecordingVisitor {
@@ -171,6 +172,66 @@ fn parser_analysis_preserves_the_vertical_slice_triggered_ability() {
                 .into_parse_result(),
         );
     }
+}
+
+#[test]
+fn signed_decimal_zero_signs_construct_render_scan_and_visit_distinctly() {
+    #[derive(Debug, PartialEq, Eq)]
+    enum Event {
+        Sign(Sign),
+        Number(Sign, u32),
+    }
+    #[derive(Default)]
+    struct OrderedVisitor(Vec<Event>);
+    impl Visitor for OrderedVisitor {
+        fn visit_sign(&mut self, sign: Sign) {
+            self.0.push(Event::Sign(sign));
+        }
+
+        fn visit_signed_number(&mut self, number: &SignedNumber) {
+            self.0.push(Event::Number(number.sign, number.magnitude));
+        }
+    }
+
+    let environment = environment();
+    let parser = Parser::new(environment.clone()).expect("required declarations are present");
+    let context = context("Context Card");
+
+    for (sign, expected) in [
+        (Sign::Positive, "Gain 0 life."),
+        (Sign::Negative, "Gain -0 life."),
+    ] {
+        let number = SignedNumber { sign, magnitude: 0 };
+        assert_eq!(number.sign, sign);
+        assert_eq!(number.magnitude, 0);
+        let ability = Ability::Spell(Spell {
+            effect: Sentence::Imperative(Imperative {
+                predicate: VerbPhrase::GainLife(GainLife {
+                    amount: Amount::Number(NumberAmount {
+                        number: number.clone(),
+                    }),
+                }),
+            }),
+        });
+        assert_eq!(ability.render(&context, &environment), expected);
+        assert_eq!(parser.parse(expected, &context), Ok(ability));
+    }
+
+    let mut visitor = OrderedVisitor::default();
+    walk_signed_number(
+        &mut visitor,
+        &SignedNumber {
+            sign: Sign::Negative,
+            magnitude: 0,
+        },
+    );
+    assert_eq!(
+        visitor.0,
+        [
+            Event::Sign(Sign::Negative),
+            Event::Number(Sign::Negative, 0)
+        ]
+    );
 }
 
 fn gain_life_with_where() -> Sentence {

@@ -29,6 +29,7 @@ use crate::semantic::ConstructionFieldPlan;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::RootPlan;
 use crate::semantic::SemanticPlan;
+use crate::semantic::SignedDecimalPlan;
 use crate::semantic::TerminalPlan;
 use crate::semantic::VocabPlan;
 
@@ -205,6 +206,30 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         ));
     }
 
+    if let Some(codec) = validated.runtime_signed_decimal() {
+        let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
+        let ty = codec.codec_ident();
+        let sign = codec.sign_type();
+        let positive = codec.positive_variant();
+        let negative = codec.negative_variant();
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: function.to_string(),
+            },
+            quote! {
+                fn #function(writer: &mut Writer, number: &#ty) {
+                    let magnitude = number.magnitude.to_string();
+                    match number.sign {
+                        #sign::#positive => writer.word(&magnitude),
+                        #sign::#negative => writer.word(&format!("-{magnitude}")),
+                    }
+                }
+            },
+            vec![codec.origin().clone()],
+        ));
+    }
+
     for feature in [Feature::Agreement, Feature::Number] {
         for (category, members) in &categories {
             if !validated.category_reads_feature(category, feature) {
@@ -286,6 +311,8 @@ fn render_allocator(
                     let terminal = field.terminal();
                     if let Some(vocab) = find_vocab(validated, terminal) {
                         allocator.reserve(format!("render_{}", snake_case(vocab.name())));
+                    } else if let Some(codec) = find_signed_decimal(validated, terminal) {
+                        allocator.reserve(format!("render_{}", snake_case(codec.codec_name())));
                     } else if let BindingRenderPlan::Runtime(path) =
                         find_binding(validated, terminal)?
                             .render()
@@ -568,6 +595,9 @@ fn render_atoms(
                 if let Some(vocab) = find_vocab(validated, terminal) {
                     let function = ident(&format!("render_{}", snake_case(vocab.name())));
                     let value = copy_value(construction, role, value);
+                    Ok(quote! { #function(#call_writer, #value); })
+                } else if let Some(codec) = find_signed_decimal(validated, terminal) {
+                    let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
                     Ok(quote! { #function(#call_writer, #value); })
                 } else {
                     let binding = find_binding(validated, terminal)?;
@@ -1211,6 +1241,15 @@ fn find_binding<'a>(validated: &'a SemanticPlan, name: &str) -> syn::Result<&'a 
         }
     }
     Err(internal("resolved terminal binding is absent"))
+}
+
+fn find_signed_decimal<'a>(
+    validated: &'a SemanticPlan,
+    name: &str,
+) -> Option<&'a SignedDecimalPlan> {
+    validated
+        .runtime_signed_decimal()
+        .filter(|codec| codec.codec_name() == name)
 }
 
 fn field_value(

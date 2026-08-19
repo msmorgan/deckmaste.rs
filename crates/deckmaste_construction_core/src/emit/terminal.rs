@@ -111,6 +111,35 @@ pub(crate) fn emit(
                 ));
             }
             TerminalPlan::Binding(_) => {}
+            TerminalPlan::SignedDecimal(row) => {
+                let origin = row.origin().clone();
+                let sign = row.sign_type();
+                let positive = row.positive_variant();
+                let negative = row.negative_variant();
+                let codec = row.codec_ident();
+                let magnitude = match row.magnitude() {
+                    crate::semantic::UnsignedPrimitive::U32 => quote! { u32 },
+                };
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(sign.to_string()),
+                    quote! {
+                        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+                        pub enum #sign { #positive, #negative }
+                    },
+                    vec![origin.clone()],
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(row.codec_name()),
+                    quote! {
+                        #[derive(Debug, Clone, PartialEq, Eq)]
+                        pub struct #codec {
+                            pub sign: #sign,
+                            pub magnitude: #magnitude,
+                        }
+                    },
+                    vec![origin],
+                ));
+            }
         }
     }
     Ok((items, contributions))

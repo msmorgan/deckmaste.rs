@@ -36,6 +36,7 @@ use crate::model::Field;
 use crate::model::FieldKind;
 use crate::model::Form;
 use crate::model::FormAtom;
+use crate::model::GeneratedCodecRecipe;
 use crate::model::LeafCallback;
 use crate::model::Lexeme;
 use crate::model::NonPublicVisibility;
@@ -43,6 +44,10 @@ use crate::model::OpenDeclarationAtom;
 use crate::model::RenderBinding;
 use crate::model::RoleRefinement;
 use crate::model::Root;
+use crate::model::SignedDecimalSignRoleSource;
+use crate::model::SignedDecimalSignSpelling;
+use crate::model::SignedDecimalSignTypeSource;
+use crate::model::SignedDecimalSource;
 use crate::model::TerminalBinding;
 use crate::model::TerminalBindingKind;
 use crate::model::Traversal;
@@ -52,6 +57,7 @@ use crate::model::TraversalCall;
 use crate::model::TraversalField;
 use crate::model::TraversalKind;
 use crate::model::TraversalPart;
+use crate::model::UnsignedPrimitiveSource;
 use crate::model::VerbOperand;
 use crate::model::VisitMode;
 use crate::model::Vocab;
@@ -553,17 +559,22 @@ fn parse_terminal_binding(
     input: ParseStream<'_>,
     kind: BindingKind,
 ) -> syn::Result<TerminalBinding> {
-    match kind {
-        BindingKind::Codec => {
-            input.parse::<keyword::codec>()?;
-        }
-        BindingKind::Identity => {
-            input.parse::<keyword::identity>()?;
-        }
-    }
+    parse_binding_keyword(input, kind)?;
     let name: Ident = input.parse()?;
     let content;
     braced!(content in input);
+    if content.peek(keyword::generate) {
+        if kind == BindingKind::Identity {
+            return Err(deferred(content.span(), "generative identity"));
+        }
+        let generated = parse_generated_codec(&content)?;
+        if !content.is_empty() {
+            return Err(
+                content.error("generated codec cannot mix `generate` with legacy binding fields")
+            );
+        }
+        return Ok(generated_terminal_binding(name, generated));
+    }
     let mut value_type = None;
     let mut codec_atom = None;
     let mut lexical_variant = None;
@@ -573,10 +584,9 @@ fn parse_terminal_binding(
 
     while !content.is_empty() {
         if content.peek(keyword::generate) {
-            return Err(deferred(
-                content.span(),
-                &format!("generative {}", kind.name()),
-            ));
+            return Err(
+                content.error("generated codec cannot mix `generate` with legacy binding fields")
+            );
         }
         if content.peek(Token![#]) {
             return Err(deferred(content.span(), "doc comments"));
@@ -690,6 +700,7 @@ fn parse_terminal_binding(
             BindingKind::Codec => TerminalBindingKind::Codec,
             BindingKind::Identity => TerminalBindingKind::Identity,
         },
+        generated: None,
         codec_atom,
         value_type: required(value_type, &name, "value_type")?,
         lexical_variant,
@@ -697,6 +708,102 @@ fn parse_terminal_binding(
         build,
         traversal: required(traversal, &name, "traversal")?,
     })
+}
+
+fn parse_binding_keyword(input: ParseStream<'_>, kind: BindingKind) -> syn::Result<()> {
+    match kind {
+        BindingKind::Codec => input.parse::<keyword::codec>().map(|_| ()),
+        BindingKind::Identity => input.parse::<keyword::identity>().map(|_| ()),
+    }
+}
+
+fn generated_terminal_binding(name: Ident, generated: GeneratedCodecRecipe) -> TerminalBinding {
+    let value_type: syn::Type = syn::parse_quote_spanned!(name.span()=> #name);
+    let lexical_variant: syn::Path = syn::parse_quote_spanned!(name.span()=> Lexical::#name);
+    TerminalBinding {
+        name,
+        kind: TerminalBindingKind::Codec,
+        generated: Some(generated),
+        codec_atom: Some(CodecAtomClass::Lex),
+        value_type,
+        lexical_variant: Some(lexical_variant),
+        render: None,
+        build: None,
+        traversal: Traversal {
+            parts: Vec::new(),
+            visit_order: Vec::new(),
+            callback_mode: None,
+            argument: None,
+            variants: Vec::new(),
+            fields: Vec::new(),
+            calls: Vec::new(),
+            branches: Vec::new(),
+            leaf_callbacks: Vec::new(),
+        },
+    }
+}
+
+fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRecipe> {
+    input.parse::<keyword::generate>()?;
+    let recipe = input.call(Ident::parse_any)?;
+    let content;
+    braced!(content in input);
+    if recipe != "signed_decimal" {
+        let _: TokenStream = content.parse()?;
+        return Ok(GeneratedCodecRecipe::Unsupported { name: recipe });
+    }
+
+    let mut magnitude_slots = Vec::new();
+    let mut sign_type_slots = Vec::new();
+    while !content.is_empty() {
+        reject_doc_comment(&content)?;
+        let slot = content.call(Ident::parse_any)?;
+        content.parse::<Token![=]>()?;
+        match slot.to_string().as_str() {
+            "magnitude" => {
+                let primitive = content.call(Ident::parse_any)?;
+                content.parse::<Token![;]>()?;
+                magnitude_slots.push(UnsignedPrimitiveSource { slot, primitive });
+            }
+            "sign_type" => {
+                let name = content.call(Ident::parse_any)?;
+                let roles_content;
+                braced!(roles_content in content);
+                let mut roles = Vec::new();
+                while !roles_content.is_empty() {
+                    let variant = roles_content.call(Ident::parse_any)?;
+                    roles_content.parse::<Token![=]>()?;
+                    let spelling = if roles_content.peek(LitStr) {
+                        SignedDecimalSignSpelling::Literal(roles_content.parse()?)
+                    } else {
+                        let none = roles_content.call(Ident::parse_any)?;
+                        if none != "none" {
+                            return Err(syn::Error::new(
+                                none.span(),
+                                "signed_decimal sign spelling must be `none` or a string literal",
+                            ));
+                        }
+                        SignedDecimalSignSpelling::None(none.span())
+                    };
+                    roles.push(SignedDecimalSignRoleSource { variant, spelling });
+                    roles_content.parse::<Token![,]>()?;
+                }
+                content.parse::<Token![;]>()?;
+                sign_type_slots.push(SignedDecimalSignTypeSource { slot, name, roles });
+            }
+            _ => {
+                return Err(syn::Error::new(
+                    slot.span(),
+                    "signed_decimal recipe accepts only `magnitude` and `sign_type` fields",
+                ));
+            }
+        }
+    }
+    Ok(GeneratedCodecRecipe::SignedDecimal(SignedDecimalSource {
+        recipe,
+        magnitude_slots,
+        sign_type_slots,
+    }))
 }
 
 fn parse_build_leaf(input: ParseStream<'_>) -> syn::Result<BuildLeaf> {
@@ -1597,7 +1704,6 @@ mod tests {
                 "construction x: X { element XNode { value: X, } form x otherwise = value; }",
                 "otherwise",
             ),
-            ("codec X { generate { anything } }", "generative codec"),
             (
                 "identity X { generate { anything } }",
                 "generative identity",
@@ -1624,6 +1730,30 @@ mod tests {
                 "{construct}: {error}"
             );
         }
+    }
+
+    #[test]
+    fn parses_signed_decimal_generated_codec_source() {
+        let declarations = parse(
+            r#"
+                codec SignedNumber {
+                    generate signed_decimal {
+                        magnitude = u32;
+                        sign_type = Sign {
+                            Positive = none,
+                            Negative = "-",
+                        };
+                    }
+                }
+            "#,
+        )
+        .expect("the closed signed_decimal recipe parses");
+
+        assert_eq!(declarations.declarations.len(), 1);
+        assert!(matches!(
+            declarations.declarations[0],
+            Declaration::Codec(_)
+        ));
     }
 
     #[test]

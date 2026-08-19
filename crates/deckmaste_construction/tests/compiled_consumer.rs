@@ -270,6 +270,16 @@ mod fixture {
             }
         }
 
+        codec SignedNumber {
+            generate signed_decimal {
+                magnitude = u32;
+                sign_type = Sign {
+                    Positive = none,
+                    Negative = "-",
+                };
+            }
+        }
+
         codec RawBranchToken {
             value_type = RawBranchToken;
             traversal {
@@ -544,6 +554,8 @@ mod fixture {
         Marker(Marker),
         VisitorLexeme(VisitorLexeme),
         Token(u8),
+        Sign(Sign),
+        SignedNumber(Sign, u32),
     }
 
     #[derive(Default)]
@@ -560,6 +572,15 @@ mod fixture {
 
         fn visit_token(&mut self, token: &Token) {
             self.0.push(VisitEvent::Token(token.0));
+        }
+
+        fn visit_sign(&mut self, sign: Sign) {
+            self.0.push(VisitEvent::Sign(sign));
+        }
+
+        fn visit_signed_number(&mut self, number: &SignedNumber) {
+            self.0
+                .push(VisitEvent::SignedNumber(number.sign, number.magnitude));
         }
     }
 
@@ -1067,6 +1088,41 @@ mod fixture {
                 VisitEvent::Marker(Marker::One),
             ],
             "generated walkers retain callback order and the allocated operand values",
+        );
+
+        let signed = SignedNumber {
+            sign: Sign::Negative,
+            magnitude: 0,
+        };
+        let signed_matches = scan_lexical(
+            &ScanInput {
+                text: "-0",
+                position: ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                },
+            },
+            LexicalTerminal {
+                matcher: Lexical::SignedNumber,
+                owner: LexicalOwnerTemplate::Static {
+                    kind: LexicalProvenanceKind::Codec,
+                    stable_id: "codec:SignedNumber",
+                },
+            },
+        );
+        assert_eq!(signed_matches.len(), 1);
+        assert_eq!(signed_matches[0].end, 2);
+        assert_eq!(signed_matches[0].value, Leaf::SignedNumber(signed.clone()));
+        let mut signed_writer = Writer::new();
+        render_signed_number(&mut signed_writer, &signed);
+        assert_eq!(signed_writer.finish(), "-0");
+        walk_signed_number(&mut recording, &signed);
+        assert_eq!(
+            &recording.0[recording.0.len() - 2..],
+            [
+                VisitEvent::Sign(Sign::Negative),
+                VisitEvent::SignedNumber(Sign::Negative, 0)
+            ],
         );
 
         let raw_category = build(

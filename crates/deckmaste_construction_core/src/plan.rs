@@ -407,6 +407,63 @@ mod tests {
     }
 
     #[test]
+    fn signed_decimal_plan_is_typed_and_shared_by_every_codec_emitter() {
+        let source: proc_macro2::TokenStream = r#"
+            codec SignedNumber {
+                generate signed_decimal {
+                    magnitude = u32;
+                    sign_type = Sign { Positive = none, Negative = "-", };
+                }
+            }
+            construction number: Amount {
+                element NumberAmount { number: lex SignedNumber, }
+                form number = lex(number);
+            }
+            root Amount { punctuation = "."; eoi = true; standalone_render = true; }
+        "#
+        .parse()
+        .expect("signed-decimal fixture tokenizes");
+        let authored = source.to_string();
+        let mut plan = crate::validate_declarations(
+            crate::parse_declarations(source.clone()).expect("signed-decimal fixture parses"),
+        )
+        .expect("signed-decimal fixture validates")
+        .into_semantic();
+        let codec = plan
+            .terminals()
+            .iter()
+            .find_map(|terminal| match terminal {
+                crate::semantic::TerminalPlan::SignedDecimal(codec) => Some(codec),
+                _ => None,
+            })
+            .expect("typed signed-decimal plan exists");
+        assert_eq!(codec.codec_name(), "SignedNumber");
+        assert_eq!(codec.sign_type(), "Sign");
+        assert_eq!(codec.positive_variant(), "Positive");
+        assert_eq!(codec.negative_variant(), "Negative");
+        assert_eq!(codec.magnitude(), crate::semantic::UnsignedPrimitive::U32);
+
+        plan.test_only_replace_signed_decimal_sign_shape("Polarity", "Plus", "Minus");
+        let terminal = formatted(&crate::emit::terminal::emit(&plan).unwrap().0);
+        let scanner = formatted(&crate::emit::scanner::emit(&plan));
+        let render = formatted(&crate::emit::render::emit(&plan).unwrap());
+        let visitor = formatted(&crate::emit::visit::emit(&plan).unwrap());
+        let rules = formatted(&crate::emit::rules::emit(&plan).unwrap());
+        let build = formatted(&crate::emit::build::emit(&plan).unwrap());
+        for output in [&terminal, &scanner, &render] {
+            assert!(output.contains("Polarity"), "{output}");
+            assert!(output.contains("Plus"), "{output}");
+            assert!(output.contains("Minus"), "{output}");
+            assert!(!output.contains("Sign :: Positive"), "{output}");
+        }
+        assert!(visitor.contains("Polarity"), "{visitor}");
+        assert!(!visitor.contains("fn visit_sign ("), "{visitor}");
+        assert!(rules.contains("codec:SignedNumber"));
+        assert!(build.contains("Leaf :: SignedNumber"));
+        assert_eq!(source.to_string(), authored);
+    }
+
+    #[test]
     fn generated_vocab_scanner_is_exhaustive_and_owner_typed() {
         let mut plan = crate::validate_declarations(
             crate::parse_declarations(crate::test_support::representative_tokens())
@@ -461,6 +518,7 @@ mod tests {
                 (DeclarationKind::Vocab, "Words"),
                 (DeclarationKind::Lexeme, "Nouns"),
                 (DeclarationKind::Lexeme, "Verbs"),
+                (DeclarationKind::Codec, "SignedNumber"),
                 (DeclarationKind::Root, "Action"),
             ],
             "the generated scanner exposes exactly its sealed semantic authorities"
@@ -504,6 +562,7 @@ mod tests {
                 (DeclarationKind::Vocab, "Words"),
                 (DeclarationKind::Lexeme, "Nouns"),
                 (DeclarationKind::Lexeme, "Verbs"),
+                (DeclarationKind::Codec, "SignedNumber"),
                 (DeclarationKind::Root, "Action"),
                 (DeclarationKind::Construction, "separator"),
             ]
@@ -655,6 +714,7 @@ mod tests {
                 "Words",
                 "Noun",
                 "Verb",
+                "SignedNumber",
                 "Declaration",
             ]
         );
@@ -666,12 +726,20 @@ mod tests {
                 "Words",
                 "Noun",
                 "Verb",
+                "SignedNumber",
                 "Declaration",
             ]
         );
         assert_eq!(
             enum_variants(generated_item(&expansion, "TerminalClass")),
-            ["EndOfInput", "Words", "Noun", "VerbLexeme", "Declaration",]
+            [
+                "EndOfInput",
+                "Words",
+                "Noun",
+                "VerbLexeme",
+                "SignedNumber",
+                "Declaration",
+            ]
         );
         assert_eq!(
             enum_variants(generated_item(&expansion, "LexicalProvenanceKind")),
@@ -738,6 +806,7 @@ mod tests {
                 (DeclarationKind::Vocab, "Words"),
                 (DeclarationKind::Lexeme, "Nouns"),
                 (DeclarationKind::Lexeme, "Verbs"),
+                (DeclarationKind::Codec, "SignedNumber"),
                 (DeclarationKind::Construction, "leaf"),
                 (DeclarationKind::Construction, "chain"),
                 (DeclarationKind::Construction, "action"),
@@ -1060,7 +1129,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 49);
+        assert_eq!(keys.len(), 54);
         assert!(keys.iter().any(|key| {
             matches!(
                 key,

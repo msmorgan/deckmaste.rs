@@ -1,0 +1,5 @@
+error: unknown generated codec recipe `hexadecimal`
+ --> tests/compile_fail/signed_decimal_unknown_recipe.rs:4:35
+  |
+4 |     codec SignedNumber { generate hexadecimal {} }
+  |                                   ^^^^^^^^^^^

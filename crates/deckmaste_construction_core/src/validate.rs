@@ -303,6 +303,7 @@ struct ResolvedGrammar {
     reason = "the validation boundary consumes the unsealed declaration graph"
 )]
 pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarations> {
+    validate_generated_codecs(&raw)?;
     let (symbols, _) = validate_namespaces(&raw)?;
     validate_generated_owned_paths(&raw)?;
     let resolved = validate_resolution(&raw, &symbols)?;
@@ -334,6 +335,165 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             verb_lexeme_provider.as_deref(),
         )?,
     })
+}
+
+fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
+    let mut errors = None;
+    for declaration in &raw.declarations {
+        let Declaration::Codec(binding) = declaration else {
+            continue;
+        };
+        let Some(recipe) = &binding.generated else {
+            continue;
+        };
+        match recipe {
+            crate::model::GeneratedCodecRecipe::Unsupported { name } => combine(
+                &mut errors,
+                syn::Error::new(
+                    name.span(),
+                    format!("unknown generated codec recipe `{name}`"),
+                ),
+            ),
+            crate::model::GeneratedCodecRecipe::SignedDecimal(source) => {
+                match source.magnitude_slots.as_slice() {
+                    [] => combine(
+                        &mut errors,
+                        syn::Error::new(
+                            source.recipe.span(),
+                            "signed_decimal requires one `magnitude` field",
+                        ),
+                    ),
+                    [slot, rest @ ..] => {
+                        if slot.primitive != "u32" {
+                            combine(
+                                &mut errors,
+                                syn::Error::new(
+                                    slot.primitive.span(),
+                                    "signed_decimal magnitude must be `u32`",
+                                ),
+                            );
+                        }
+                        for duplicate in rest {
+                            combine(
+                                &mut errors,
+                                syn::Error::new(
+                                    duplicate.slot.span(),
+                                    "duplicate signed_decimal field `magnitude`",
+                                ),
+                            );
+                        }
+                    }
+                }
+
+                match source.sign_type_slots.as_slice() {
+                    [] => combine(
+                        &mut errors,
+                        syn::Error::new(
+                            source.recipe.span(),
+                            "signed_decimal requires one `sign_type` field",
+                        ),
+                    ),
+                    [sign, rest @ ..] => {
+                        for duplicate in rest {
+                            combine(
+                                &mut errors,
+                                syn::Error::new(
+                                    duplicate.slot.span(),
+                                    "duplicate signed_decimal field `sign_type`",
+                                ),
+                            );
+                        }
+                        if identifier_key(&sign.name) == identifier_key(&binding.name) {
+                            combine(
+                                &mut errors,
+                                syn::Error::new(
+                                    sign.name.span(),
+                                    format!(
+                                        "generated signed_decimal type `{}` collides with codec type `{}`",
+                                        sign.name, binding.name
+                                    ),
+                                ),
+                            );
+                        }
+                        let mut seen = HashSet::new();
+                        let mut positive = None;
+                        let mut negative = None;
+                        for role in &sign.roles {
+                            let variant = identifier_key(&role.variant);
+                            if !seen.insert(variant.clone()) {
+                                combine(
+                                    &mut errors,
+                                    syn::Error::new(
+                                        role.variant.span(),
+                                        format!(
+                                            "duplicate signed_decimal sign role `{}`",
+                                            role.variant
+                                        ),
+                                    ),
+                                );
+                                continue;
+                            }
+                            match variant.as_str() {
+                                "Positive" => positive = Some(role),
+                                "Negative" => negative = Some(role),
+                                _ => combine(
+                                    &mut errors,
+                                    syn::Error::new(
+                                        role.variant.span(),
+                                        "signed_decimal sign roles must be `Positive` and `Negative`",
+                                    ),
+                                ),
+                            }
+                        }
+                        if positive.is_none() || negative.is_none() {
+                            combine(
+                                &mut errors,
+                                syn::Error::new(
+                                    sign.name.span(),
+                                    "signed_decimal sign_type requires `Positive` and `Negative` roles",
+                                ),
+                            );
+                        }
+                        if let Some(positive) = positive
+                            && !matches!(
+                                positive.spelling,
+                                crate::model::SignedDecimalSignSpelling::None(_)
+                            )
+                        {
+                            combine(
+                                &mut errors,
+                                syn::Error::new(
+                                    positive.variant.span(),
+                                    "signed_decimal positive sign must be `none`",
+                                ),
+                            );
+                        }
+                        if let Some(negative) = negative {
+                            let valid = valid_negative_sign_spelling(&negative.spelling);
+                            if !valid {
+                                combine(
+                                    &mut errors,
+                                    syn::Error::new(
+                                        negative.variant.span(),
+                                        "signed_decimal negative sign must be one ASCII byte `-`",
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    finish(errors)
+}
+
+fn valid_negative_sign_spelling(spelling: &crate::model::SignedDecimalSignSpelling) -> bool {
+    matches!(
+        spelling,
+        crate::model::SignedDecimalSignSpelling::Literal(literal)
+            if literal.value() == "-" && literal.value().len() == 1
+    )
 }
 
 fn seal_category_feature_reads(raw: &Declarations) -> HashMap<String, HashSet<Feature>> {
@@ -1069,6 +1229,19 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                     false,
                     errors,
                 );
+                if let Some(crate::model::GeneratedCodecRecipe::SignedDecimal(source)) =
+                    &binding.generated
+                    && let Some(sign) = source.sign_type_slots.first()
+                {
+                    register_terminal_names(
+                        &mut names,
+                        &identifier_key(&sign.name),
+                        "signed_decimal sign",
+                        sign.name.span(),
+                        false,
+                        errors,
+                    );
+                }
                 for leaf in &binding.traversal.leaf_callbacks {
                     names.register_visitor_item(
                         &identifier_key(&leaf.name),
@@ -1994,7 +2167,9 @@ fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()>
                     }
                 }
             }
-            Declaration::Codec(binding) | Declaration::Identity(binding) => {
+            Declaration::Codec(binding) | Declaration::Identity(binding)
+                if binding.generated.is_none() =>
+            {
                 validate_binding(binding, &callbacks, &mut errors);
             }
             _ => {}
@@ -2074,7 +2249,26 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
                 errors,
             ),
             Declaration::Codec(binding) | Declaration::Identity(binding) => {
-                if let Some(mode) = binding.traversal.callback_mode {
+                if let Some(crate::model::GeneratedCodecRecipe::SignedDecimal(source)) =
+                    &binding.generated
+                {
+                    if let Some(sign) = source.sign_type_slots.first() {
+                        register_terminal_callbacks(
+                            &mut callbacks,
+                            &sign.name,
+                            VisitMode::Copy,
+                            format!("signed_decimal sign `{}`", sign.name),
+                            errors,
+                        );
+                    }
+                    register_terminal_callbacks(
+                        &mut callbacks,
+                        &binding.name,
+                        VisitMode::Borrowed,
+                        format!("signed_decimal codec `{}`", binding.name),
+                        errors,
+                    );
+                } else if let Some(mode) = binding.traversal.callback_mode {
                     register_terminal_callbacks_as(
                         &mut callbacks,
                         &identifier_key(&binding.name),
@@ -3699,9 +3893,9 @@ fn validate_backend_completeness(
                 identity_atom: false,
                 noun_atom: binding.codec_atom == Some(CodecAtomClass::Noun),
                 verb_atom: false,
-                direct_render: binding.render.is_some(),
-                direct_build: binding.build.is_some(),
-                traversal: closed_traversal_is_lowerable(binding),
+                direct_render: binding.generated.is_some() || binding.render.is_some(),
+                direct_build: binding.generated.is_some() || binding.build.is_some(),
+                traversal: binding.generated.is_some() || closed_traversal_is_lowerable(binding),
             }),
             Declaration::Identity(binding) => {
                 terminals.push(TerminalCapabilities {
@@ -3787,8 +3981,9 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
                 validate_lowerable_feature_compositions(construction, &mut errors);
             }
             Declaration::Codec(binding) | Declaration::Identity(binding) => {
-                if !binding_value_type_is_lowerable(binding)
-                    || !closed_traversal_is_lowerable(binding)
+                if binding.generated.is_none()
+                    && (!binding_value_type_is_lowerable(binding)
+                        || !closed_traversal_is_lowerable(binding))
                 {
                     combine(
                         &mut errors,
@@ -4066,6 +4261,110 @@ pub(crate) mod tests {
 
     fn assert_same_span(actual: proc_macro2::Span, expected: proc_macro2::Span) {
         assert_eq!(format!("{actual:?}"), format!("{expected:?}"));
+    }
+
+    fn signed_decimal_error(body: &proc_macro2::TokenStream) -> String {
+        error(quote! {
+            codec SignedNumber {
+                generate signed_decimal { #body }
+            }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+    }
+
+    #[test]
+    fn signed_decimal_recipe_validation_is_closed_and_structural() {
+        let valid = validate(quote! {
+            codec SignedNumber {
+                generate signed_decimal {
+                    magnitude = u32;
+                    sign_type = Sign {
+                        Positive = none,
+                        Negative = "-",
+                    };
+                }
+            }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        valid.expect("the exact signed-decimal recipe validates");
+
+        let unsupported = signed_decimal_error(&quote! {
+            magnitude = u64;
+            sign_type = Sign { Positive = none, Negative = "-", };
+        });
+        assert!(
+            unsupported.contains("signed_decimal magnitude must be `u32`"),
+            "{unsupported}"
+        );
+
+        let missing = signed_decimal_error(&quote! {
+            magnitude = u32;
+            sign_type = Sign { Negative = "-", };
+        });
+        assert!(
+            missing.contains("signed_decimal sign_type requires `Positive` and `Negative` roles"),
+            "{missing}"
+        );
+
+        let duplicate = signed_decimal_error(&quote! {
+            magnitude = u32;
+            sign_type = Sign { Positive = none, Positive = none, Negative = "-", };
+        });
+        assert!(
+            duplicate.contains("duplicate signed_decimal sign role `Positive`"),
+            "{duplicate}"
+        );
+
+        let positive = signed_decimal_error(&quote! {
+            magnitude = u32;
+            sign_type = Sign { Positive = "+", Negative = "-", };
+        });
+        assert!(
+            positive.contains("signed_decimal positive sign must be `none`"),
+            "{positive}"
+        );
+
+        for negative in [quote! { "" }, quote! { "--" }, quote! { "−" }] {
+            let message = signed_decimal_error(&quote! {
+                magnitude = u32;
+                sign_type = Sign { Positive = none, Negative = #negative, };
+            });
+            assert!(
+                message.contains("signed_decimal negative sign must be one ASCII byte"),
+                "{message}"
+            );
+        }
+    }
+
+    #[test]
+    fn signed_decimal_rejects_unknown_recipes_and_mixed_binding_metadata() {
+        let unknown = error(quote! {
+            codec SignedNumber { generate hexadecimal {} }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            unknown.contains("unknown generated codec recipe `hexadecimal`"),
+            "{unknown}"
+        );
+
+        let mixed = error(quote! {
+            codec SignedNumber {
+                value_type = SignedNumber;
+                generate signed_decimal {
+                    magnitude = u32;
+                    sign_type = Sign { Positive = none, Negative = "-", };
+                }
+            }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            mixed.contains("generated codec cannot mix `generate` with legacy binding fields"),
+            "{mixed}"
+        );
     }
 
     #[test]
@@ -6677,6 +6976,7 @@ pub(crate) mod tests {
                 (crate::DeclarationKind::Vocab, "Words".to_owned()),
                 (crate::DeclarationKind::Lexeme, "Nouns".to_owned()),
                 (crate::DeclarationKind::Lexeme, "Verbs".to_owned()),
+                (crate::DeclarationKind::Codec, "SignedNumber".to_owned()),
                 (crate::DeclarationKind::Construction, "leaf".to_owned()),
                 (crate::DeclarationKind::Construction, "chain".to_owned()),
                 (crate::DeclarationKind::Construction, "action".to_owned()),
@@ -6725,6 +7025,16 @@ pub(crate) mod tests {
                     "Verbs".to_owned(),
                     "lexeme".to_owned(),
                     vec!["verb".to_owned(), "traversal".to_owned()],
+                ),
+                (
+                    "SignedNumber".to_owned(),
+                    "codec".to_owned(),
+                    vec![
+                        "lex".to_owned(),
+                        "render".to_owned(),
+                        "build".to_owned(),
+                        "traversal".to_owned(),
+                    ],
                 ),
             ],
             roots: vec![("Action".to_owned(), true, true)],
@@ -6958,6 +7268,8 @@ pub(crate) mod tests {
                         },
                         value.name().to_owned(),
                     ),
+                    crate::semantic::TerminalPlan::SignedDecimal(value) =>
+                        (value.source_index(), "codec", value.codec_name().to_owned(),),
                 })
                 .collect::<Vec<_>>(),
             [

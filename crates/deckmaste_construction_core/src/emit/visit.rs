@@ -24,6 +24,7 @@ use crate::semantic::ConstructionFieldPlan;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::LexemePlan;
 use crate::semantic::SemanticPlan;
+use crate::semantic::SignedDecimalPlan;
 use crate::semantic::TerminalPlan;
 use crate::semantic::TraversalBranchArmPlan;
 use crate::semantic::TraversalCallPlan;
@@ -38,11 +39,13 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     let mut vocabs = Vec::new();
     let mut lexemes = Vec::new();
     let mut bindings = Vec::new();
+    let mut signed_decimal = None;
     for terminal in validated.terminals() {
         match terminal {
             TerminalPlan::Vocab(row) => vocabs.push(row),
             TerminalPlan::Lexeme(row) => lexemes.push(row),
             TerminalPlan::Binding(row) => bindings.push(row),
+            TerminalPlan::SignedDecimal(row) => signed_decimal = Some(row),
         }
     }
     let containers = bindings
@@ -72,15 +75,15 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         })
         .collect::<Vec<_>>();
 
-    let trait_item = emit_trait(
-        &categories,
-        &containers,
-        constructions,
-        &vocabs,
-        &copy_bindings,
-        &lexemes,
-        &borrowed_bindings,
-    )?;
+    let terminal_visitors = TerminalVisitors {
+        containers: &containers,
+        vocabs: &vocabs,
+        copy_bindings: &copy_bindings,
+        lexemes: &lexemes,
+        borrowed_bindings: &borrowed_bindings,
+        signed_decimal,
+    };
+    let trait_item = emit_trait(&categories, constructions, &terminal_visitors)?;
     let mut items = vec![trait_item];
     for (category, members) in &categories {
         items.push(emit_category_walker(category, members));
@@ -111,7 +114,20 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     for binding in &borrowed_bindings {
         items.push(emit_binding_walker(binding)?);
     }
+    if let Some(codec) = signed_decimal {
+        items.push(emit_signed_decimal_sign_walker(codec));
+        items.push(emit_signed_decimal_walker(codec));
+    }
     Ok(items)
+}
+
+struct TerminalVisitors<'a> {
+    containers: &'a [&'a BindingPlan],
+    vocabs: &'a [&'a VocabPlan],
+    copy_bindings: &'a [&'a BindingPlan],
+    lexemes: &'a [&'a LexemePlan],
+    borrowed_bindings: &'a [&'a BindingPlan],
+    signed_decimal: Option<&'a SignedDecimalPlan>,
 }
 
 #[allow(
@@ -120,19 +136,15 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
 )]
 fn emit_trait(
     categories: &[(String, Vec<&ConstructionPlan>)],
-    containers: &[&BindingPlan],
     constructions: &[ConstructionPlan],
-    vocabs: &[&VocabPlan],
-    copy_bindings: &[&BindingPlan],
-    lexemes: &[&LexemePlan],
-    borrowed_bindings: &[&BindingPlan],
+    terminals: &TerminalVisitors<'_>,
 ) -> syn::Result<GeneratedItem> {
     let visitor = ident(VISITOR_TRAIT);
     let mut methods = Vec::new();
     for (category, _) in categories {
         methods.push(default_method(category, &category_argument(category)));
     }
-    for binding in containers {
+    for binding in terminals.containers {
         methods.push(default_method(binding.name(), &binding_argument(binding)));
     }
     for construction in constructions {
@@ -141,17 +153,21 @@ fn emit_trait(
             &snake_case(construction.element_type()),
         ));
     }
-    for vocab in vocabs {
+    for vocab in terminals.vocabs {
         methods.push(noop_method(vocab.name(), VisitMode::Copy));
     }
-    for binding in copy_bindings {
+    for binding in terminals.copy_bindings {
         methods.push(noop_method(binding.name(), VisitMode::Copy));
     }
-    for lexeme in lexemes {
+    for lexeme in terminals.lexemes {
         methods.push(noop_method(lexeme.name(), VisitMode::Copy));
     }
-    for binding in borrowed_bindings {
+    for binding in terminals.borrowed_bindings {
         methods.push(noop_method(binding.name(), VisitMode::Borrowed));
+    }
+    if let Some(codec) = terminals.signed_decimal {
+        methods.push(noop_method(&codec.sign_type().to_string(), VisitMode::Copy));
+        methods.push(noop_method(codec.codec_name(), VisitMode::Borrowed));
     }
     if constructions.iter().any(|construction| {
         construction
@@ -169,10 +185,11 @@ fn emit_trait(
 
     let mut leaf_origins = Vec::new();
     let mut seen = HashSet::new();
-    for binding in containers
+    for binding in terminals
+        .containers
         .iter()
-        .chain(copy_bindings)
-        .chain(borrowed_bindings)
+        .chain(terminals.copy_bindings)
+        .chain(terminals.borrowed_bindings)
     {
         for leaf in binding.traversal().leaf_callbacks() {
             if seen.insert(identifier_key(leaf.name())) {
@@ -204,10 +221,14 @@ fn emit_trait(
         })
         .collect::<Vec<_>>();
     origins.extend(
-        containers
+        terminals
+            .containers
             .iter()
             .map(|binding| binding_origin(binding, constructions)),
     );
+    if let Some(codec) = terminals.signed_decimal {
+        origins.push(codec.origin().clone());
+    }
     origins.extend(constructions.iter().map(|construction| {
         DeclarationKey::new(
             DeclarationKind::Construction,
@@ -215,22 +236,26 @@ fn emit_trait(
         )
     }));
     origins.extend(
-        vocabs
+        terminals
+            .vocabs
             .iter()
             .map(|vocab| DeclarationKey::new(DeclarationKind::Vocab, vocab.name())),
     );
     origins.extend(
-        copy_bindings
+        terminals
+            .copy_bindings
             .iter()
             .map(|binding| binding_origin(binding, constructions)),
     );
     origins.extend(
-        lexemes
+        terminals
+            .lexemes
             .iter()
             .map(|lexeme| DeclarationKey::new(DeclarationKind::Lexeme, lexeme.name())),
     );
     origins.extend(
-        borrowed_bindings
+        terminals
+            .borrowed_bindings
             .iter()
             .map(|binding| binding_origin(binding, constructions)),
     );
@@ -243,6 +268,47 @@ fn emit_trait(
         quote! { pub trait #visitor { #(#methods)* } },
         origins,
     ))
+}
+
+fn emit_signed_decimal_sign_walker(codec: &SignedDecimalPlan) -> GeneratedItem {
+    let sign = codec.sign_type();
+    let function = ident(&format!("walk_{}", snake_case(&sign.to_string())));
+    let callback = ident(&format!("visit_{}", snake_case(&sign.to_string())));
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function.to_string(),
+        },
+        quote! {
+            pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, sign: #sign) {
+                visitor.#callback(sign);
+            }
+        },
+        vec![codec.origin().clone()],
+    )
+}
+
+fn emit_signed_decimal_walker(codec: &SignedDecimalPlan) -> GeneratedItem {
+    let ty = codec.codec_ident();
+    let function = ident(&format!("walk_{}", snake_case(codec.codec_name())));
+    let sign_callback = ident(&format!(
+        "visit_{}",
+        snake_case(&codec.sign_type().to_string())
+    ));
+    let callback = ident(&format!("visit_{}", snake_case(codec.codec_name())));
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function.to_string(),
+        },
+        quote! {
+            pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, number: &#ty) {
+                visitor.#sign_callback(number.sign);
+                visitor.#callback(number);
+            }
+        },
+        vec![codec.origin().clone()],
+    )
 }
 
 fn default_method(type_name: &str, argument: &str) -> TokenStream {
@@ -690,7 +756,13 @@ fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitM
             TerminalPlan::Binding(row) if row.name() == terminal => {
                 return Ok(row.traversal().mode());
             }
-            TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => {}
+            TerminalPlan::SignedDecimal(row) if row.codec_name() == terminal => {
+                return Ok(VisitMode::Borrowed);
+            }
+            TerminalPlan::Vocab(_)
+            | TerminalPlan::Lexeme(_)
+            | TerminalPlan::Binding(_)
+            | TerminalPlan::SignedDecimal(_) => {}
         }
     }
     Err(internal("terminal traversal mode is absent"))

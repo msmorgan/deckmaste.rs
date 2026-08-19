@@ -1,0 +1,5 @@
+error: generated signed_decimal type `SignedNumber` collides with codec type `SignedNumber`
+ --> tests/compile_fail/signed_decimal_type_collision.rs:7:25
+  |
+7 |             sign_type = SignedNumber { Positive = none, Negative = "-", };
+  |                         ^^^^^^^^^^^^
