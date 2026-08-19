@@ -447,6 +447,8 @@ mod tests {
         rust_sources(&source_root, &mut sources);
         sources.sort();
         let legacy_type = concat!("Parser", "Catalogs");
+        let legacy_storage = concat!("Catalog", "Set");
+        let legacy_wildcard = concat!("deckmaste_catalogs::", "*");
         for path in sources {
             let relative = path
                 .strip_prefix(&source_root)
@@ -461,6 +463,19 @@ mod tests {
                     relative.display()
                 );
             }
+            if source.contains(legacy_storage) {
+                assert!(
+                    relative == Path::new("catalogs.rs")
+                        || relative == Path::new("catalog_compatibility.rs"),
+                    "legacy catalog storage escaped the provider boundary into {}",
+                    relative.display()
+                );
+            }
+            assert!(
+                !source.contains(legacy_wildcard),
+                "a wildcard import could conceal legacy catalog storage in {}",
+                relative.display()
+            );
         }
 
         let environment = include_str!("environment.rs");

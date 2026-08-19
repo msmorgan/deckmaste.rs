@@ -695,7 +695,14 @@ fn project_failure(
 }
 
 fn has_lexical_boundary(text: &str, end: usize) -> bool {
-    matches!(text.as_bytes().get(end), None | Some(b' ' | b',' | b'.'))
+    match text.get(end..) {
+        Some("") => true,
+        Some(trailing) => trailing
+            .chars()
+            .next()
+            .is_some_and(|character| !character.is_alphanumeric()),
+        None => false,
+    }
 }
 
 fn matches_feature(constraint: FeatureConstraint<SurfaceFeature>, feature: SurfaceFeature) -> bool {
@@ -1038,6 +1045,16 @@ mod tests {
                 .test_only_scan_terminal("Scry", &context, terminal, 0)
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn lexical_boundaries_admit_punctuation_scalars_without_splitting_words() {
+        assert!(super::has_lexical_boundary("word?", "word".len()));
+        assert!(super::has_lexical_boundary("word‽", "word".len()));
+        assert!(super::has_lexical_boundary("word", "word".len()));
+        assert!(!super::has_lexical_boundary("wordx", "word".len()));
+        assert!(!super::has_lexical_boundary("wordé", "word".len()));
+        assert!(!super::has_lexical_boundary("é", 1));
     }
 
     #[test]

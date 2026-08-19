@@ -201,12 +201,15 @@ mod fixture {
                 running_text.to_owned()
             };
             let end = self.position.byte_offset + prefix + rendered.len();
-            (remainder.starts_with(&rendered)
-                && matches!(
-                    self.text.as_bytes().get(end),
-                    None | Some(b' ' | b',' | b'.')
-                ))
-            .then_some(end)
+            let has_boundary = match self.text.get(end..) {
+                Some("") => true,
+                Some(trailing) => trailing
+                    .chars()
+                    .next()
+                    .is_some_and(|character| !character.is_alphanumeric()),
+                None => false,
+            };
+            (remainder.starts_with(&rendered) && has_boundary).then_some(end)
         }
 
         fn punctuation_end(&self, punctuation: &str) -> Option<usize> {
@@ -685,12 +688,48 @@ mod fixture {
         );
     }
 
-    fn assert_generated_punctuation_scan(rendered: &str, punctuation: &'static str) {
+    fn assert_generated_punctuation_scan(
+        rendered: &str,
+        preceding_literal: Option<&'static str>,
+        punctuation: &'static str,
+    ) {
         let start = rendered
             .len()
             .checked_sub(punctuation.len())
             .expect("rendered text contains its punctuation");
         assert_eq!(&rendered[start..], punctuation);
+        if let Some(literal) = preceding_literal {
+            let literal_start = start
+                .checked_sub(literal.len())
+                .expect("rendered text contains the preceding literal");
+            assert_eq!(&rendered[literal_start..start], literal);
+            let (byte_offset, case) = if literal_start == 0 {
+                (0, CasePosition::DocumentInitial)
+            } else {
+                assert_eq!(&rendered[literal_start - 1..literal_start], " ");
+                (literal_start - 1, CasePosition::Continuation)
+            };
+            let input = ScanInput {
+                text: rendered,
+                position: ScanPosition { byte_offset, case },
+            };
+            let terminal = LexicalTerminal {
+                matcher: Lexical::Literal(literal),
+                owner: LexicalOwnerTemplate::Static {
+                    kind: LexicalProvenanceKind::FormLiteral,
+                    stable_id: "compiled-consumer/pre-punctuation-literal",
+                },
+            };
+
+            assert_eq!(
+                scan_lexical(&input, terminal),
+                [LexicalMatch {
+                    end: start,
+                    value: Leaf::Literal(literal),
+                }],
+                "the preceding generated word must recognize adjacent punctuation as its boundary"
+            );
+        }
         let input = ScanInput {
             text: rendered,
             position: ScanPosition {
@@ -986,7 +1025,7 @@ mod fixture {
             rendered_hygiene_root, "marker card marker act bare writer marker marker!",
             "allocated render locals preserve ABI values and generated helper calls",
         );
-        assert_generated_punctuation_scan(&rendered_hygiene_root, "!");
+        assert_generated_punctuation_scan(&rendered_hygiene_root, Some("marker"), "!");
         let context_free_nested_root = RenderChild::Wrapper(RenderChildNode {
             child: Child::Bare(BareChild),
         });
@@ -1045,7 +1084,7 @@ mod fixture {
         };
         let rendered_raw_category = Render::render(&raw_category, &context);
         assert_eq!(rendered_raw_category, "raw?");
-        assert_generated_punctuation_scan(&rendered_raw_category, "?");
+        assert_generated_punctuation_scan(&rendered_raw_category, None, "?");
         walk_raw_category(&mut recording, &raw_category);
     }
 }

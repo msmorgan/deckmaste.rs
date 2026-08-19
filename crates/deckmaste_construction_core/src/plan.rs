@@ -406,6 +406,65 @@ mod tests {
     }
 
     #[test]
+    fn generated_scanner_origins_cover_punctuation_constructions_and_runtime_bindings() {
+        let representative = crate::test_support::representative_tokens();
+        let expansion = crate::generate(quote::quote! {
+            #representative
+            construction separator: Node {
+                element Separator {}
+                form separator = "?";
+            }
+        })
+        .expect("punctuation-bearing construction generates");
+        let scanner_origins = |expansion: &crate::Expansion| {
+            expansion
+                .items()
+                .iter()
+                .find(|item| {
+                    matches!(
+                        &item.key,
+                        ItemKey::Named {
+                            kind: NamedKind::Function,
+                            name,
+                        } if name == "scan_lexical"
+                    )
+                })
+                .expect("the expansion includes the generated scanner")
+                .origins
+                .iter()
+                .map(|origin| (origin.kind(), origin.name().to_owned()))
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            scanner_origins(&expansion),
+            [
+                (DeclarationKind::Vocab, "Words"),
+                (DeclarationKind::Lexeme, "Nouns"),
+                (DeclarationKind::Lexeme, "Verbs"),
+                (DeclarationKind::Root, "Action"),
+                (DeclarationKind::Construction, "separator"),
+            ]
+            .map(|(kind, name)| (kind, name.to_owned()))
+        );
+        assert_eq!(
+            scanner_origins(&crate::test_support::synthetic_projection_expansion()),
+            [
+                (DeclarationKind::Vocab, "Mode"),
+                (DeclarationKind::Lexeme, "ObjectStem"),
+                (DeclarationKind::Lexeme, "ActionStem"),
+                (DeclarationKind::Codec, "Resource"),
+                (DeclarationKind::Codec, "Marker"),
+                (DeclarationKind::Identity, "Handle"),
+                (DeclarationKind::Codec, "Pair"),
+                (DeclarationKind::Root, "Document"),
+            ]
+            .map(|(kind, name)| (kind, name.to_owned())),
+            "every scanner-owned binding contributes its source authority, while nonlexical Record does not"
+        );
+    }
+
+    #[test]
     fn generated_vocab_scanner_rejects_empty_spelling_at_the_literal() {
         let error = crate::generate(quote::quote! {
             vocab Words { Empty = "", }
