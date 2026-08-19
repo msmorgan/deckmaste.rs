@@ -40,6 +40,7 @@ use crate::constructions::DeclarationMatcher;
 use crate::constructions::FeatureConstraint;
 use crate::constructions::Leaf;
 use crate::constructions::Lexical;
+use crate::constructions::LexicalOwner;
 use crate::constructions::LexicalTerminal;
 use crate::constructions::Number;
 use crate::constructions::RULES;
@@ -101,7 +102,7 @@ pub(crate) fn parse_forest_observed(
 
 struct StructuralObservation {
     limit: usize,
-    tokens: SemanticTokenInventory<Lexical, Leaf>,
+    tokens: SemanticTokenInventory<Lexical, (Leaf, Option<LexicalOwner>)>,
     chart: Bounded<ChartItem>,
     forest: Bounded<ForestNode>,
     roots: Bounded<usize>,
@@ -143,7 +144,7 @@ impl StructuralObservation {
             stable_debug_cmp,
             stable_debug_cmp,
             terminal_name_v1,
-            value_label_v1,
+            |(value, _owner)| value_label_v1(value),
         );
         order_bounded_prefix(&mut self.rejections, self.limit, rejection_identity_cmp);
         let mut rejections = Bounded::new(self.limit);
@@ -158,14 +159,33 @@ impl StructuralObservation {
         StructuralTrace::new(tokens, self.chart, self.forest, self.roots, rejections)
     }
 
+    #[cfg(test)]
     fn record_token(&mut self, start: usize, end: usize, terminal: Lexical, value: &Leaf) {
-        self.tokens.record(start, end, terminal, value.clone());
+        self.tokens
+            .record(start, end, terminal, (value.clone(), None));
+    }
+
+    fn record_scanned_token(
+        &mut self,
+        start: usize,
+        end: usize,
+        terminal: LexicalTerminal,
+        value: &Leaf,
+    ) {
+        self.tokens.record_projected(
+            start,
+            end,
+            terminal,
+            value,
+            |terminal| terminal.matcher,
+            |terminal, value| (value.clone(), terminal.owner.instantiate(value)),
+        );
     }
 }
 
 impl Observation<RuleId, Leaf, LexicalTerminal> for StructuralObservation {
     fn scanned(&mut self, start: usize, terminal: LexicalTerminal, end: usize, value: &Leaf) {
-        self.record_token(start, end, terminal.matcher, value);
+        self.record_scanned_token(start, end, terminal, value);
     }
 
     fn checked_completion(

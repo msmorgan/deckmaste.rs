@@ -231,24 +231,226 @@ fn item_attributes(item: &syn::Item) -> &[syn::Attribute] {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ProductionCfg {
+    Enabled,
+    Disabled,
+    Unknown,
+}
+
+fn production_cfg(meta: &syn::Meta) -> ProductionCfg {
+    match meta {
+        syn::Meta::Path(path) if path.is_ident("test") => ProductionCfg::Disabled,
+        syn::Meta::Path(_) | syn::Meta::NameValue(_) => ProductionCfg::Unknown,
+        syn::Meta::List(list) => {
+            let parser = syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated;
+            let predicates = syn::parse::Parser::parse2(parser, list.tokens.clone())
+                .expect("production cfg predicate parses");
+            if list.path.is_ident("not") {
+                assert_eq!(predicates.len(), 1, "cfg(not(...)) has one predicate");
+                match production_cfg(&predicates[0]) {
+                    ProductionCfg::Enabled => ProductionCfg::Disabled,
+                    ProductionCfg::Disabled => ProductionCfg::Enabled,
+                    ProductionCfg::Unknown => ProductionCfg::Unknown,
+                }
+            } else if list.path.is_ident("all") {
+                if predicates
+                    .iter()
+                    .any(|predicate| production_cfg(predicate) == ProductionCfg::Disabled)
+                {
+                    ProductionCfg::Disabled
+                } else if predicates
+                    .iter()
+                    .all(|predicate| production_cfg(predicate) == ProductionCfg::Enabled)
+                {
+                    ProductionCfg::Enabled
+                } else {
+                    ProductionCfg::Unknown
+                }
+            } else if list.path.is_ident("any") {
+                if predicates
+                    .iter()
+                    .any(|predicate| production_cfg(predicate) == ProductionCfg::Enabled)
+                {
+                    ProductionCfg::Enabled
+                } else if predicates
+                    .iter()
+                    .all(|predicate| production_cfg(predicate) == ProductionCfg::Disabled)
+                {
+                    ProductionCfg::Disabled
+                } else {
+                    ProductionCfg::Unknown
+                }
+            } else {
+                ProductionCfg::Unknown
+            }
+        }
+    }
+}
+
 fn is_cfg_test(attribute: &syn::Attribute) -> bool {
     if !attribute.path().is_ident("cfg") {
         return false;
     }
-    let mut test = false;
-    attribute
-        .parse_nested_meta(|meta| {
-            test |= meta.path.is_ident("test");
-            Ok(())
-        })
-        .expect("production cfg attributes parse");
-    test
+    let syn::Meta::List(list) = &attribute.meta else {
+        panic!("cfg attribute has a predicate")
+    };
+    let predicate =
+        syn::parse2::<syn::Meta>(list.tokens.clone()).expect("production cfg attribute parses");
+    production_cfg(&predicate) == ProductionCfg::Disabled
+}
+
+fn expression_attributes(expression: &syn::Expr) -> &[syn::Attribute] {
+    match expression {
+        syn::Expr::Array(expression) => &expression.attrs,
+        syn::Expr::Assign(expression) => &expression.attrs,
+        syn::Expr::Async(expression) => &expression.attrs,
+        syn::Expr::Await(expression) => &expression.attrs,
+        syn::Expr::Binary(expression) => &expression.attrs,
+        syn::Expr::Block(expression) => &expression.attrs,
+        syn::Expr::Break(expression) => &expression.attrs,
+        syn::Expr::Call(expression) => &expression.attrs,
+        syn::Expr::Cast(expression) => &expression.attrs,
+        syn::Expr::Closure(expression) => &expression.attrs,
+        syn::Expr::Const(expression) => &expression.attrs,
+        syn::Expr::Continue(expression) => &expression.attrs,
+        syn::Expr::Field(expression) => &expression.attrs,
+        syn::Expr::ForLoop(expression) => &expression.attrs,
+        syn::Expr::Group(expression) => &expression.attrs,
+        syn::Expr::If(expression) => &expression.attrs,
+        syn::Expr::Index(expression) => &expression.attrs,
+        syn::Expr::Infer(expression) => &expression.attrs,
+        syn::Expr::Let(expression) => &expression.attrs,
+        syn::Expr::Lit(expression) => &expression.attrs,
+        syn::Expr::Loop(expression) => &expression.attrs,
+        syn::Expr::Macro(expression) => &expression.attrs,
+        syn::Expr::Match(expression) => &expression.attrs,
+        syn::Expr::MethodCall(expression) => &expression.attrs,
+        syn::Expr::Paren(expression) => &expression.attrs,
+        syn::Expr::Path(expression) => &expression.attrs,
+        syn::Expr::Range(expression) => &expression.attrs,
+        syn::Expr::RawAddr(expression) => &expression.attrs,
+        syn::Expr::Reference(expression) => &expression.attrs,
+        syn::Expr::Repeat(expression) => &expression.attrs,
+        syn::Expr::Return(expression) => &expression.attrs,
+        syn::Expr::Struct(expression) => &expression.attrs,
+        syn::Expr::Try(expression) => &expression.attrs,
+        syn::Expr::TryBlock(expression) => &expression.attrs,
+        syn::Expr::Tuple(expression) => &expression.attrs,
+        syn::Expr::Unary(expression) => &expression.attrs,
+        syn::Expr::Unsafe(expression) => &expression.attrs,
+        syn::Expr::While(expression) => &expression.attrs,
+        syn::Expr::Yield(expression) => &expression.attrs,
+        syn::Expr::Verbatim(_) => &[],
+        _ => panic!("unrecognized Rust expression in production source census"),
+    }
 }
 
 #[derive(Default)]
 struct StringLiteralCensus(Vec<String>);
 
 impl<'ast> Visit<'ast> for StringLiteralCensus {
+    fn visit_item(&mut self, item: &'ast syn::Item) {
+        if !item_attributes(item).iter().any(is_cfg_test) {
+            syn::visit::visit_item(self, item);
+        }
+    }
+
+    fn visit_expr(&mut self, expression: &'ast syn::Expr) {
+        if !expression_attributes(expression).iter().any(is_cfg_test) {
+            syn::visit::visit_expr(self, expression);
+        }
+    }
+
+    fn visit_arm(&mut self, arm: &'ast syn::Arm) {
+        if !arm.attrs.iter().any(is_cfg_test) {
+            syn::visit::visit_arm(self, arm);
+        }
+    }
+
+    fn visit_field_value(&mut self, field: &'ast syn::FieldValue) {
+        if !field.attrs.iter().any(is_cfg_test) {
+            syn::visit::visit_field_value(self, field);
+        }
+    }
+
+    fn visit_impl_item(&mut self, item: &'ast syn::ImplItem) {
+        let attributes: &[syn::Attribute] = match item {
+            syn::ImplItem::Const(item) => &item.attrs,
+            syn::ImplItem::Fn(item) => &item.attrs,
+            syn::ImplItem::Type(item) => &item.attrs,
+            syn::ImplItem::Macro(item) => &item.attrs,
+            syn::ImplItem::Verbatim(_) => &[],
+            _ => panic!("unrecognized impl item in production source census"),
+        };
+        if !attributes.iter().any(is_cfg_test) {
+            syn::visit::visit_impl_item(self, item);
+        }
+    }
+
+    fn visit_trait_item(&mut self, item: &'ast syn::TraitItem) {
+        let attributes: &[syn::Attribute] = match item {
+            syn::TraitItem::Const(item) => &item.attrs,
+            syn::TraitItem::Fn(item) => &item.attrs,
+            syn::TraitItem::Type(item) => &item.attrs,
+            syn::TraitItem::Macro(item) => &item.attrs,
+            syn::TraitItem::Verbatim(_) => &[],
+            _ => panic!("unrecognized trait item in production source census"),
+        };
+        if !attributes.iter().any(is_cfg_test) {
+            syn::visit::visit_trait_item(self, item);
+        }
+    }
+
+    fn visit_foreign_item(&mut self, item: &'ast syn::ForeignItem) {
+        let attributes: &[syn::Attribute] = match item {
+            syn::ForeignItem::Fn(item) => &item.attrs,
+            syn::ForeignItem::Static(item) => &item.attrs,
+            syn::ForeignItem::Type(item) => &item.attrs,
+            syn::ForeignItem::Macro(item) => &item.attrs,
+            syn::ForeignItem::Verbatim(_) => &[],
+            _ => panic!("unrecognized foreign item in production source census"),
+        };
+        if !attributes.iter().any(is_cfg_test) {
+            syn::visit::visit_foreign_item(self, item);
+        }
+    }
+
+    fn visit_variant(&mut self, variant: &'ast syn::Variant) {
+        if !variant.attrs.iter().any(is_cfg_test) {
+            syn::visit::visit_variant(self, variant);
+        }
+    }
+
+    fn visit_field(&mut self, field: &'ast syn::Field) {
+        if !field.attrs.iter().any(is_cfg_test) {
+            syn::visit::visit_field(self, field);
+        }
+    }
+
+    fn visit_generic_param(&mut self, parameter: &'ast syn::GenericParam) {
+        let attributes = match parameter {
+            syn::GenericParam::Lifetime(parameter) => &parameter.attrs,
+            syn::GenericParam::Type(parameter) => &parameter.attrs,
+            syn::GenericParam::Const(parameter) => &parameter.attrs,
+        };
+        if !attributes.iter().any(is_cfg_test) {
+            syn::visit::visit_generic_param(self, parameter);
+        }
+    }
+
+    fn visit_local(&mut self, local: &'ast syn::Local) {
+        if !local.attrs.iter().any(is_cfg_test) {
+            syn::visit::visit_local(self, local);
+        }
+    }
+
+    fn visit_stmt_macro(&mut self, statement: &'ast syn::StmtMacro) {
+        if !statement.attrs.iter().any(is_cfg_test) {
+            syn::visit::visit_stmt_macro(self, statement);
+        }
+    }
+
     fn visit_lit_str(&mut self, literal: &'ast syn::LitStr) {
         self.0.push(literal.value());
     }
@@ -257,24 +459,42 @@ impl<'ast> Visit<'ast> for StringLiteralCensus {
 fn production_string_literals(source: &str) -> Vec<String> {
     let file = syn::parse_file(source).expect("production Rust source parses");
     let mut census = StringLiteralCensus::default();
-    for item in &file.items {
-        if item_attributes(item).iter().any(is_cfg_test) {
-            continue;
-        }
-        census.visit_item(item);
-    }
+    census.visit_file(&file);
     census.0
 }
 
 #[test]
-fn source_census_keeps_production_items_after_cfg_test_items() {
+fn source_census_excludes_nested_cfg_test_and_keeps_later_production() {
     let source = r#"
         fn before() { consume("deal"); }
         #[cfg(test)]
         fn test_helper() { consume("ignored"); }
-        fn after() { consume("destroys"); }
+        fn after() {
+            #[cfg(test)]
+            { consume("connive"); }
+            #[cfg(not(test))]
+            { consume("control"); }
+            consume("destroys");
+        }
+        struct Fixture;
+        impl Fixture {
+            #[cfg(test)]
+            fn test_only() { consume("destroy"); }
+            #[cfg(not(test))]
+            fn production() { consume("gain"); }
+        }
+        fn arms(value: bool) {
+            match value {
+                #[cfg(test)]
+                true => consume("connives"),
+                false => consume("be"),
+            }
+        }
     "#;
-    assert_eq!(production_string_literals(source), ["deal", "destroys"]);
+    assert_eq!(
+        production_string_literals(source),
+        ["deal", "control", "destroys", "gain", "be"]
+    );
 }
 
 #[test]

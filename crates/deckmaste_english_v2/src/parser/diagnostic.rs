@@ -128,6 +128,23 @@ impl<Terminal: PartialEq, Value: PartialEq> SemanticTokenInventory<Terminal, Val
         }
     }
 
+    pub(crate) fn record_projected<SourceTerminal: Copy, SourceValue>(
+        &mut self,
+        start: usize,
+        end: usize,
+        terminal: SourceTerminal,
+        value: &SourceValue,
+        project_terminal: impl FnOnce(SourceTerminal) -> Terminal,
+        project_value: impl FnOnce(SourceTerminal, &SourceValue) -> Value,
+    ) {
+        self.record(
+            start,
+            end,
+            project_terminal(terminal),
+            project_value(terminal, value),
+        );
+    }
+
     pub(crate) fn into_bounded_by(
         mut self,
         limit: usize,

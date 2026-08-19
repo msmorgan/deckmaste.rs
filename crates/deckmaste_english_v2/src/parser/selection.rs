@@ -815,6 +815,7 @@ mod tests {
             SHARED_FORM_RULES,
             TestRuleId::index,
             |_| Construction::AmountNumber,
+            std::convert::identity,
             |leaf| TestBuildValue::Leaf(*leaf),
             |rule, children| match (rule, children) {
                 (TestRuleId::SharedLiteral, [TestBuildValue::Leaf(Lexical::Literal("alpha"))]) => {

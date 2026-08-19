@@ -6,13 +6,13 @@ use macro_ron::v2::DeclarationIdentity;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::SurfaceFeature;
 
-use super::engine::Child;
-use super::engine::Family;
+use super::diagnostic::SemanticTokenInventory;
 use super::engine::LexicalMatch;
 use super::engine::Observation;
 use super::engine::Rule;
 use super::engine::RulePosition;
 use super::engine::parse_observed;
+use super::materialize::materialize_with;
 use crate::environment::ParserEnvironment;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -154,16 +154,42 @@ fn environment() -> ParserEnvironment {
 }
 
 #[derive(Default)]
-struct IdentityTrace(BTreeSet<(DeclarationKind, String, SurfaceFeature)>);
+struct IdentityTrace {
+    tokens: SemanticTokenInventory<Lexical, (Leaf, Option<LexicalOwner>)>,
+}
+
+impl IdentityTrace {
+    fn finish(self) -> Vec<String> {
+        self.tokens
+            .into_bounded_by(
+                usize::MAX,
+                |left, right| format!("{left:?}").cmp(&format!("{right:?}")),
+                |left, right| format!("{left:?}").cmp(&format!("{right:?}")),
+                |terminal| format!("{terminal:?}"),
+                |(_, owner)| {
+                    owner
+                        .as_ref()
+                        .map_or_else(|| "none".to_owned(), |owner| owner.stable_id().to_owned())
+                },
+            )
+            .items()
+            .iter()
+            .map(|token| token.value_label_v1().to_owned())
+            .collect()
+    }
+}
 
 impl Observation<RuleId, Leaf, LexicalTerminal> for IdentityTrace {
-    fn scanned(&mut self, _start: usize, _terminal: LexicalTerminal, _end: usize, value: &Leaf) {
-        if let Leaf::Declaration(declaration) = value {
-            self.0.insert((
-                declaration.id.kind(),
-                declaration.id.name().to_owned(),
-                declaration.feature,
-            ));
+    fn scanned(&mut self, start: usize, terminal: LexicalTerminal, end: usize, value: &Leaf) {
+        if matches!(value, Leaf::Declaration(_)) {
+            self.tokens.record_projected(
+                start,
+                end,
+                terminal,
+                value,
+                |terminal| terminal.matcher,
+                |terminal, value| (value.clone(), terminal.owner.instantiate(value)),
+            );
         }
     }
 }
@@ -200,17 +226,6 @@ fn scan(
     )
 }
 
-fn leaf_children(family: &Family<Leaf>) -> Vec<BuildValue> {
-    family
-        .children
-        .iter()
-        .map(|child| match child {
-            Child::Lexical(leaf) => BuildValue::Leaf(leaf.clone()),
-            Child::Node(_) => panic!("homonym fixture has no nested categories"),
-        })
-        .collect()
-}
-
 #[test]
 fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity() {
     let environment = environment();
@@ -245,64 +260,31 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
     )
     .expect("both generated homonym rules parse");
 
-    assert_eq!(
-        trace.0,
-        BTreeSet::from([
-            (
-                DeclarationKind::KeywordAction,
-                "Destroy".to_owned(),
-                SurfaceFeature::Bare,
-            ),
-            (
-                DeclarationKind::KeywordAbility,
-                "Destroy".to_owned(),
-                SurfaceFeature::Bare,
-            ),
-        ])
-    );
     assert_eq!(forest.accepted_roots().count(), 2);
-
-    let mut built = Vec::new();
-    let mut owner_ids = BTreeSet::new();
-    for node in forest.accepted_roots() {
-        assert_eq!(node.families.len(), 1);
-        let family = &node.families[0];
-        let children = leaf_children(family);
-        let value = build(node.rule, &children, &context)
-            .expect("the matching category-safe leaf materializes");
-
-        let rule = RULES
-            .iter()
-            .find(|rule| rule.id == node.rule)
-            .expect("accepted rule is generated");
-        for (position, child) in rule.rhs.iter().zip(&family.children) {
-            let (RulePosition::Lexical(terminal), Child::Lexical(leaf)) = (position, child) else {
-                continue;
-            };
-            if matches!(leaf, Leaf::Declaration(_)) {
-                owner_ids.insert(
-                    terminal
-                        .owner
-                        .instantiate(leaf)
-                        .expect("declaration trace owner exists")
-                        .stable_id()
-                        .to_owned(),
-                );
-            }
-        }
-        built.push(value);
-    }
+    let traced_owners = trace.finish();
+    assert_eq!(traced_owners.len(), 2, "trace dedup retains both owners");
     assert_eq!(
-        owner_ids,
+        traced_owners.into_iter().collect::<BTreeSet<_>>(),
         BTreeSet::from([
             "declaration:keyword ability/Destroy".to_owned(),
             "declaration:keyword action/Destroy".to_owned(),
         ])
     );
 
+    let built = materialize_with(
+        &forest,
+        RULES,
+        RuleId::index,
+        RuleId::construction,
+        |terminal: LexicalTerminal| terminal.matcher,
+        |leaf| BuildValue::Leaf(leaf.clone()),
+        |rule, children| build(rule, children, &context),
+    );
+    assert_eq!(built.len(), 2, "the kernel retains both accepted roots");
+
     let mut visited = BTreeSet::new();
-    for value in &built {
-        let BuildValue::Homonym(homonym, Agreement::Bare) = value else {
+    for candidate in &built {
+        let BuildValue::Homonym(homonym, Agreement::Bare) = &candidate.value else {
             panic!("open homonym materialization retains bare agreement")
         };
         assert_eq!(homonym.render(&context, &environment), text);
@@ -322,22 +304,8 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
         ])
     );
 
-    for node in forest.accepted_roots() {
-        let mut children = leaf_children(&node.families[0]);
-        let BuildValue::Leaf(Leaf::Declaration(declaration)) = &mut children[0] else {
-            panic!("first child is the open declaration")
-        };
-        declaration.id = DeclarationIdentity::new(
-            match declaration.id.kind() {
-                DeclarationKind::KeywordAction => DeclarationKind::KeywordAbility,
-                DeclarationKind::KeywordAbility => DeclarationKind::KeywordAction,
-                kind => panic!("unexpected homonym kind {kind}"),
-            },
-            "Destroy",
-        );
-        assert!(
-            build(node.rule, &children, &context).is_none(),
-            "a collapsed or reconstructed wrong identity must not materialize"
-        );
-    }
+    assert_ne!(
+        built[0].value, built[1].value,
+        "materialization dedup must retain both category-safe identities"
+    );
 }

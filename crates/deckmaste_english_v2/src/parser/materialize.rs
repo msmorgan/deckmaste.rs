@@ -42,10 +42,10 @@ pub(crate) enum BuildValue {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct MaterializedCandidate<V, C> {
+pub(super) struct MaterializedCandidate<V, C, K = Category, M = Lexical> {
     pub(super) value: V,
     pub(super) constructions: Vec<C>,
-    pub(super) positions: Vec<RulePosition<Category, Lexical>>,
+    pub(super) positions: Vec<RulePosition<K, M>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,12 +73,12 @@ impl MaterializationObservation<Construction> for MaterializationTraceBuilder {
     }
 }
 
-struct MaterializationStateFor<V, C> {
-    memo: BTreeMap<NodeId, Vec<MaterializedCandidate<V, C>>>,
+struct MaterializationStateFor<V, C, K = Category, M = Lexical> {
+    memo: BTreeMap<NodeId, Vec<MaterializedCandidate<V, C, K, M>>>,
     in_progress: BTreeSet<NodeId>,
 }
 
-impl<V, C> Default for MaterializationStateFor<V, C> {
+impl<V, C, K, M> Default for MaterializationStateFor<V, C, K, M> {
     fn default() -> Self {
         Self {
             memo: BTreeMap::new(),
@@ -87,8 +87,8 @@ impl<V, C> Default for MaterializationStateFor<V, C> {
     }
 }
 
-struct MaterializationOutcomeFor<V, C> {
-    values: Vec<MaterializedCandidate<V, C>>,
+struct MaterializationOutcomeFor<V, C, K = Category, M = Lexical> {
+    values: Vec<MaterializedCandidate<V, C, K, M>>,
     cycle_pruned: bool,
 }
 
@@ -96,28 +96,30 @@ type MaterializationState = MaterializationStateFor<BuildValue, Construction>;
 #[cfg(test)]
 type MaterializationOutcome = MaterializationOutcomeFor<BuildValue, Construction>;
 
-struct MaterializationKernel<'a, R, T, V, C, L: 'static, Build> {
-    rules: &'a [Rule<Category, L, R>],
+struct MaterializationKernel<'a, R, T, V, C, K: 'static, L: 'static, M, Build> {
+    rules: &'a [Rule<K, L, R>],
     rule_index: fn(R) -> usize,
     construction: fn(R) -> C,
-    lexical_matcher: fn(L) -> Lexical,
+    lexical_matcher: fn(L) -> M,
     build_leaf: fn(&T) -> V,
     build: Build,
 }
 
-impl<R, T, V, C, L, Build> MaterializationKernel<'_, R, T, V, C, L, Build>
+impl<R, T, V, C, K, L, M, Build> MaterializationKernel<'_, R, T, V, C, K, L, M, Build>
 where
     R: Copy,
     V: Clone + PartialEq,
     C: Copy + PartialEq,
+    K: Copy + PartialEq + 'static,
     L: Copy + 'static,
+    M: Clone + PartialEq,
     Build: Fn(R, &[V]) -> Option<V>,
 {
     fn materialize<O>(
         &self,
         forest: &Forest<R, T>,
         observation: &mut O,
-    ) -> Vec<MaterializedCandidate<V, C>>
+    ) -> Vec<MaterializedCandidate<V, C, K, M>>
     where
         O: MaterializationObservation<C>,
     {
@@ -145,10 +147,10 @@ where
         &self,
         forest: &Forest<R, T>,
         node_id: NodeId,
-        state: &mut MaterializationStateFor<V, C>,
+        state: &mut MaterializationStateFor<V, C, K, M>,
         construction_path: &mut Vec<C>,
         observation: &mut O,
-    ) -> MaterializationOutcomeFor<V, C>
+    ) -> MaterializationOutcomeFor<V, C, K, M>
     where
         O: MaterializationObservation<C>,
     {
@@ -198,10 +200,10 @@ where
         forest: &Forest<R, T>,
         rule_id: R,
         family: &Family<T>,
-        state: &mut MaterializationStateFor<V, C>,
+        state: &mut MaterializationStateFor<V, C, K, M>,
         construction_path: &mut Vec<C>,
         observation: &mut O,
-    ) -> MaterializationOutcomeFor<V, C>
+    ) -> MaterializationOutcomeFor<V, C, K, M>
     where
         O: MaterializationObservation<C>,
     {
@@ -279,25 +281,29 @@ where
 }
 
 #[cfg(test)]
-pub(super) fn materialize_with<R, T, V, C, Build>(
+pub(super) fn materialize_with<R, T, V, C, K, L, M, Build>(
     forest: &Forest<R, T>,
-    rules: &[Rule<Category, Lexical, R>],
+    rules: &[Rule<K, L, R>],
     rule_index: fn(R) -> usize,
     construction: fn(R) -> C,
+    lexical_matcher: fn(L) -> M,
     build_leaf: fn(&T) -> V,
     build: Build,
-) -> Vec<MaterializedCandidate<V, C>>
+) -> Vec<MaterializedCandidate<V, C, K, M>>
 where
     R: Copy,
     V: Clone + PartialEq,
     C: Copy + PartialEq,
+    K: Copy + PartialEq + 'static,
+    L: Copy + 'static,
+    M: Clone + PartialEq,
     Build: Fn(R, &[V]) -> Option<V>,
 {
     MaterializationKernel {
         rules,
         rule_index,
         construction,
-        lexical_matcher: std::convert::identity,
+        lexical_matcher,
         build_leaf,
         build,
     }
@@ -395,7 +401,9 @@ fn materialize_node(
         Leaf,
         BuildValue,
         Construction,
+        Category,
         LexicalTerminal,
+        Lexical,
         _,
     > = MaterializationKernel {
         rules: RULES,
@@ -420,7 +428,9 @@ pub(super) fn completion_has_checked_build(
         Leaf,
         BuildValue,
         Construction,
+        Category,
         LexicalTerminal,
+        Lexical,
         _,
     > = MaterializationKernel {
         rules: RULES,
