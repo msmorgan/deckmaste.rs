@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Demigod",
+    spelling: "Demigod",
+    grammar: Noun(singular: "Demigod", plural: Unavailable),
+)
+

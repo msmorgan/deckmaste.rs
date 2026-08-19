@@ -1,0 +1,6 @@
+Subtype(
+    category: Creature,
+    name: "TimeLord",
+    spelling: "Time Lord",
+    grammar: Noun(singular: "Time Lord"),
+)

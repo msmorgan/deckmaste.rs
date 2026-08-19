@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Leech",
+    spelling: "Leech",
+    grammar: Noun(singular: "Leech", plural: "Leeches"),
+)
+

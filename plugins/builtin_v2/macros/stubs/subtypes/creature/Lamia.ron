@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Lamia",
+    spelling: "Lamia",
+    grammar: Noun(singular: "Lamia", plural: Unavailable),
+)
+

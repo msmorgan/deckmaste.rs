@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Weird",
+    spelling: "Weird",
+    grammar: Noun(singular: "Weird", plural: Unavailable),
+)
+

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Wombat",
+    spelling: "Wombat",
+    grammar: Noun(singular: "Wombat", plural: Unavailable),
+)
+

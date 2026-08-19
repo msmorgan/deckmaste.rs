@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Caribou",
+    spelling: "Caribou",
+    grammar: Noun(singular: "Caribou", plural: Unavailable),
+)
+

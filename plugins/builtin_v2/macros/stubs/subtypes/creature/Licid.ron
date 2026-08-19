@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Licid",
+    spelling: "Licid",
+    grammar: Noun(singular: "Licid", plural: Unavailable),
+)
+

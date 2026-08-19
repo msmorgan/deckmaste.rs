@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Fractal",
+    spelling: "Fractal",
+    grammar: Noun(singular: "Fractal", plural: Unavailable),
+)
+

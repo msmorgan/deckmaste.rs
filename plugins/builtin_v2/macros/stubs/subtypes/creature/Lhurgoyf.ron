@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Lhurgoyf",
+    spelling: "Lhurgoyf",
+    grammar: Noun(singular: "Lhurgoyf", plural: Unavailable),
+)
+

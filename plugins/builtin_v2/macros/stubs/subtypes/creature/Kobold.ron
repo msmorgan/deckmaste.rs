@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Kobold",
+    spelling: "Kobold",
+    grammar: Noun(singular: "Kobold"),
+)
+

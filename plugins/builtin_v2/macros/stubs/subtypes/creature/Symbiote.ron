@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Symbiote",
+    spelling: "Symbiote",
+    grammar: Noun(singular: "Symbiote", plural: Unavailable),
+)
+

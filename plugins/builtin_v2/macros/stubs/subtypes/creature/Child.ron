@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Child",
+    spelling: "Child",
+    grammar: Noun(singular: "Child", plural: "Children"),
+)
+

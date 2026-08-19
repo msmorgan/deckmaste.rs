@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "Construct",
+    spelling: "Construct",
+    grammar: Noun(singular: "Construct"),
+)
+
