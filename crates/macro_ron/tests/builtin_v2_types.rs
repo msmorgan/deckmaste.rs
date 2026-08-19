@@ -119,17 +119,44 @@ const CR_TYPES_OUTSIDE_MODELED_TYPE_LINE: [&str; 5] =
     ["Conspiracy", "Phenomenon", "Plane", "Scheme", "Vanguard"];
 
 fn compact_ron(source: &str) -> String {
-    let mut compact = source
-        .chars()
-        .filter(|character| !character.is_whitespace())
-        .collect::<String>();
-    loop {
-        let normalized = compact.replace(",]", "]").replace(",)", ")");
-        if normalized == compact {
-            return compact;
+    let source = ron::value::RawValue::from_ron(source)
+        .expect("expected semantic body must be valid RON")
+        .trim()
+        .get_ron();
+    let mut compact = String::with_capacity(source.len());
+    let mut quote = None;
+    let mut escaped = false;
+
+    for character in source.chars() {
+        if let Some(delimiter) = quote {
+            compact.push(character);
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == delimiter {
+                quote = None;
+            }
+            continue;
         }
-        compact = normalized;
+
+        match character {
+            '"' | '\'' => {
+                quote = Some(character);
+                compact.push(character);
+            }
+            ')' | ']' => {
+                if compact.ends_with(',') {
+                    compact.pop();
+                }
+                compact.push(character);
+            }
+            character if character.is_whitespace() => {}
+            character => compact.push(character),
+        }
     }
+
+    compact
 }
 
 fn type_rows(declarations: &[NormalizedDeclaration]) -> BTreeMap<&str, &NormalizedDeclaration> {
@@ -138,6 +165,14 @@ fn type_rows(declarations: &[NormalizedDeclaration]) -> BTreeMap<&str, &Normaliz
         .filter(|declaration| declaration.identity().kind() == DeclarationKind::Type)
         .map(|declaration| (declaration.identity().name(), declaration))
         .collect()
+}
+
+#[test]
+fn semantic_body_comparison_preserves_whitespace_inside_strings() {
+    assert_ne!(
+        compact_ron(r#"TypeDef(name: "Arti fact", permanent: true)"#),
+        compact_ron(r#"TypeDef(name: "Artifact", permanent: true)"#),
+    );
 }
 
 #[test]

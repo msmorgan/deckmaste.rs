@@ -346,6 +346,21 @@ mod tests {
         }
     }
 
+    fn closed_type_name(card_type: Type) -> &'static str {
+        match card_type {
+            Type::Artifact => "Artifact",
+            Type::Battle => "Battle",
+            Type::Creature => "Creature",
+            Type::Dungeon => "Dungeon",
+            Type::Enchantment => "Enchantment",
+            Type::Instant => "Instant",
+            Type::Kindred => "Kindred",
+            Type::Land => "Land",
+            Type::Planeswalker => "Planeswalker",
+            Type::Sorcery => "Sorcery",
+        }
+    }
+
     #[test]
     fn type_line_remains_closed_to_the_ten_modeled_types() {
         let modeled = [
@@ -361,7 +376,7 @@ mod tests {
             Type::Sorcery,
         ];
         assert_eq!(
-            modeled.map(Type::name).map(|name| name.as_str()),
+            modeled.map(closed_type_name),
             [
                 "Artifact",
                 "Battle",
@@ -374,6 +389,23 @@ mod tests {
                 "Planeswalker",
                 "Sorcery",
             ]
+        );
+
+        let open = macro_ron::v2::read_str(
+            "Chronicle.ron",
+            r#"Type(
+                name: "Chronicle",
+                spelling: "chronicle",
+                grammar: Noun(singular: "chronicle", plural: Unavailable),
+            )"#,
+        )
+        .unwrap();
+        assert_eq!(open.identity().name(), "Chronicle");
+        assert!(
+            crate::ron::options()
+                .from_str::<Type>(open.identity().name())
+                .is_err(),
+            "an open parser-facing Type declaration must not extend the closed type-line enum"
         );
 
         for unsupported in ["Conspiracy", "Phenomenon", "Plane", "Scheme", "Vanguard"] {
