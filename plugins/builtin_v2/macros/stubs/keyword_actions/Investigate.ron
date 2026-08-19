@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Investigate",
+    spelling: "investigate",
+    grammar: Verb(
+        bare: "investigate",
+        valence: Intransitive,
+    ),
+)

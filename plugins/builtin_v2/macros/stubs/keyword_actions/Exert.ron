@@ -1,0 +1,10 @@
+KeywordAction(
+    name: "Exert",
+    spelling: "exert",
+    grammar: Verb(
+        bare: "exert",
+        // No Oracle or Comprehensive Rules occurrence of "exerts" was found in the 2026-08-18 morphology audit.
+        third_person: Unavailable,
+        valence: Transitive,
+    ),
+)

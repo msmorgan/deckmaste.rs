@@ -1,0 +1,9 @@
+KeywordAction(
+    name: "Amass",
+    spelling: "amass",
+    grammar: Verb(
+        bare: "amass",
+        third_person: "amasses",
+        valence: Custom(shapes: [[ObjectNounPhrase, Amount]]),
+    ),
+)

@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Sacrifice",
+    spelling: "sacrifice",
+    grammar: Verb(
+        bare: "sacrifice",
+        valence: Transitive,
+    ),
+)

@@ -1,0 +1,10 @@
+KeywordAction(
+    name: "Suspect",
+    spelling: "suspect",
+    grammar: Verb(
+        bare: "suspect",
+        // No Oracle or Comprehensive Rules occurrence of "suspects" was found in the 2026-08-18 morphology audit.
+        third_person: Unavailable,
+        valence: Transitive,
+    ),
+)

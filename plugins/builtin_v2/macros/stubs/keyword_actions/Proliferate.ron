@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Proliferate",
+    spelling: "proliferate",
+    grammar: Verb(
+        bare: "proliferate",
+        valence: Intransitive,
+    ),
+)

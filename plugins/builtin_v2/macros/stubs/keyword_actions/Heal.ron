@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Heal",
+    spelling: "heal",
+    grammar: Verb(
+        bare: "heal",
+        valence: Transitive,
+    ),
+)

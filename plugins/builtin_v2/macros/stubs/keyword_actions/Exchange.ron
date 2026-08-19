@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Exchange",
+    spelling: "exchange",
+    grammar: Verb(
+        bare: "exchange",
+        valence: Transitive,
+    ),
+)

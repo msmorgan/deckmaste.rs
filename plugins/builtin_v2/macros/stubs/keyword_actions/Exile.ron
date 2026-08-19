@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Exile",
+    spelling: "exile",
+    grammar: Verb(
+        bare: "exile",
+        valence: Transitive,
+    ),
+)

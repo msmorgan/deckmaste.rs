@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Untap",
+    spelling: "untap",
+    grammar: Verb(
+        bare: "untap",
+        valence: Transitive,
+    ),
+)

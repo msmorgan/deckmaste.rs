@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Play",
+    spelling: "play",
+    grammar: Verb(
+        bare: "play",
+        valence: Transitive,
+    ),
+)

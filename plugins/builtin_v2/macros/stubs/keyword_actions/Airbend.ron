@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Airbend",
+    spelling: "airbend",
+    grammar: Verb(
+        bare: "airbend",
+        valence: Transitive,
+    ),
+)

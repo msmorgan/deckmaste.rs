@@ -1,0 +1,10 @@
+KeywordAction(
+    name: "Behold",
+    spelling: "behold",
+    grammar: Verb(
+        bare: "behold",
+        // No Oracle or Comprehensive Rules occurrence of "beholds" was found in the 2026-08-18 morphology audit.
+        third_person: Unavailable,
+        valence: Transitive,
+    ),
+)

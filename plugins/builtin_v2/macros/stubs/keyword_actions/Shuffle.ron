@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Shuffle",
+    spelling: "shuffle",
+    grammar: Verb(
+        bare: "shuffle",
+        valence: Transitive,
+    ),
+)

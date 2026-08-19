@@ -1,0 +1,9 @@
+KeywordAction(
+    name: "FaceAVillainousChoice",
+    spelling: "face a villainous choice",
+    grammar: Verb(
+        bare: "face a villainous choice",
+        third_person: "faces a villainous choice",
+        valence: Intransitive,
+    ),
+)

@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Discover",
+    spelling: "discover",
+    grammar: Verb(
+        bare: "discover",
+        valence: Numerative,
+    ),
+)

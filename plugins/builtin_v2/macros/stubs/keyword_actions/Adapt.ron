@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Adapt",
+    spelling: "adapt",
+    grammar: Verb(
+        bare: "adapt",
+        valence: Numerative,
+    ),
+)

@@ -1,0 +1,15 @@
+KeywordAction(
+    name: "Search",
+    spelling: "search",
+    grammar: Verb(
+        bare: "search",
+        third_person: "searches",
+        valence: Custom(
+            shapes: [
+                [ObjectNounPhrase],
+                [Literal("for"), ObjectNounPhrase],
+                [ObjectNounPhrase, Literal("for"), ObjectNounPhrase],
+            ],
+        ),
+    ),
+)

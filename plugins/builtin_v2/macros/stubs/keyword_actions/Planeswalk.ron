@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Planeswalk",
+    spelling: "planeswalk",
+    grammar: Verb(
+        bare: "planeswalk",
+        valence: Intransitive,
+    ),
+)

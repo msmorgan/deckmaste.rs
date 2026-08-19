@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Mill",
+    spelling: "mill",
+    grammar: Verb(
+        bare: "mill",
+        valence: Transitive,
+    ),
+)

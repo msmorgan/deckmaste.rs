@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Destroy",
+    spelling: "destroy",
+    grammar: Verb(
+        bare: "destroy",
+        valence: Transitive,
+    ),
+)

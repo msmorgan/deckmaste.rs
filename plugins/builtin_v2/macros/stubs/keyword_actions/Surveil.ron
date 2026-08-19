@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Surveil",
+    spelling: "surveil",
+    grammar: Verb(
+        bare: "surveil",
+        valence: Numerative,
+    ),
+)

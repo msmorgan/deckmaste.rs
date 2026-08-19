@@ -1,0 +1,232 @@
+use std::path::Path;
+
+use macro_ron::v2::{
+    CustomTailAtom, DeclarationKind, GrammarRecipe, NormalizedDeclaration, SpellingPart,
+    SurfaceFeature, VerbValence, read_builtin_v2,
+};
+
+const EXPECTED_NAMES: &[&str] = &[
+    "Abandon",
+    "Activate",
+    "Adapt",
+    "Airbend",
+    "Amass",
+    "Assemble",
+    "Attach",
+    "Behold",
+    "Blight",
+    "Bolster",
+    "Cast",
+    "Clash",
+    "Cloak",
+    "CollectEvidence",
+    "Connive",
+    "Convert",
+    "Counter",
+    "Create",
+    "Destroy",
+    "Detain",
+    "Discard",
+    "Discover",
+    "Double",
+    "Earthbend",
+    "Endure",
+    "Exchange",
+    "Exert",
+    "Exile",
+    "Explore",
+    "FaceAVillainousChoice",
+    "Fateseal",
+    "Fight",
+    "Forage",
+    "Goad",
+    "Harness",
+    "Heal",
+    "Incubate",
+    "Investigate",
+    "Learn",
+    "Manifest",
+    "ManifestDread",
+    "Meld",
+    "Mill",
+    "Monstrosity",
+    "OpenAnAttraction",
+    "Planeswalk",
+    "Play",
+    "Populate",
+    "Proliferate",
+    "Recruit",
+    "Regenerate",
+    "Reveal",
+    "RollToVisitYourAttractions",
+    "Sacrifice",
+    "Scry",
+    "Search",
+    "SetInMotion",
+    "Shuffle",
+    "Support",
+    "Surveil",
+    "Suspect",
+    "Tap",
+    "TheRingTemptsYou",
+    "TimeTravel",
+    "Transform",
+    "Triple",
+    "Untap",
+    "VentureIntoTheDungeon",
+    "Vote",
+    "Waterbend",
+];
+
+fn action<'a>(declarations: &'a [NormalizedDeclaration], name: &str) -> &'a NormalizedDeclaration {
+    declarations
+        .iter()
+        .find(|declaration| {
+            declaration.identity().kind() == DeclarationKind::KeywordAction
+                && declaration.identity().name() == name
+        })
+        .unwrap_or_else(|| panic!("missing keyword action {name}"))
+}
+
+fn surfaces(declaration: &NormalizedDeclaration) -> Vec<(SurfaceFeature, &str)> {
+    declaration
+        .grammar()
+        .expect("keyword action must contribute grammar")
+        .surfaces()
+        .iter()
+        .map(|surface| (surface.feature(), surface.text()))
+        .collect()
+}
+
+#[test]
+fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 declarations must load");
+    let actions = declarations
+        .iter()
+        .filter(|declaration| declaration.identity().kind() == DeclarationKind::KeywordAction)
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        actions
+            .iter()
+            .map(|declaration| declaration.identity().name())
+            .collect::<Vec<_>>(),
+        EXPECTED_NAMES
+    );
+    for declaration in &actions {
+        assert!(
+            !declaration.is_graduated(),
+            "{} must remain a nursery declaration",
+            declaration.identity()
+        );
+        assert!(
+            matches!(declaration.spelling(), [SpellingPart::Literal(_)]),
+            "{} must have one literal spelling part",
+            declaration.identity()
+        );
+        assert!(
+            declaration.grammar().is_some(),
+            "{} must contribute grammar",
+            declaration.identity()
+        );
+    }
+
+    let destroy = action(&declarations, "Destroy");
+    assert_eq!(
+        destroy.spelling(),
+        [SpellingPart::Literal("destroy".to_owned())]
+    );
+    assert_eq!(
+        destroy.grammar().unwrap().recipe(),
+        &GrammarRecipe::Verb {
+            valence: VerbValence::Transitive,
+        }
+    );
+    assert_eq!(
+        surfaces(destroy),
+        [
+            (SurfaceFeature::Bare, "destroy"),
+            (SurfaceFeature::ThirdPersonSingular, "destroys"),
+        ]
+    );
+
+    assert_eq!(
+        action(&declarations, "Explore").grammar().unwrap().recipe(),
+        &GrammarRecipe::Verb {
+            valence: VerbValence::Intransitive,
+        }
+    );
+
+    let scry = action(&declarations, "Scry");
+    assert_eq!(
+        scry.grammar().unwrap().recipe(),
+        &GrammarRecipe::Verb {
+            valence: VerbValence::Numerative,
+        }
+    );
+    assert_eq!(
+        surfaces(scry),
+        [
+            (SurfaceFeature::Bare, "scry"),
+            (SurfaceFeature::ThirdPersonSingular, "scries"),
+        ]
+    );
+    assert!(
+        scry.grammar()
+            .unwrap()
+            .surfaces()
+            .iter()
+            .all(|surface| surface.text() != "scrys")
+    );
+
+    assert_eq!(
+        action(&declarations, "Connive").grammar().unwrap().recipe(),
+        &GrammarRecipe::Verb {
+            valence: VerbValence::Custom {
+                shapes: vec![vec![], vec![CustomTailAtom::Amount]],
+            },
+        }
+    );
+
+    let manifest_dread = action(&declarations, "ManifestDread");
+    assert_eq!(
+        surfaces(manifest_dread),
+        [
+            (SurfaceFeature::Bare, "manifest dread"),
+            (SurfaceFeature::ThirdPersonSingular, "manifests dread"),
+        ]
+    );
+
+    let set_in_motion = action(&declarations, "SetInMotion");
+    assert_eq!(
+        set_in_motion.grammar().unwrap().recipe(),
+        &GrammarRecipe::FixedTerm
+    );
+    assert_eq!(
+        surfaces(set_in_motion),
+        [(SurfaceFeature::Fixed, "set in motion")]
+    );
+
+    let waterbend = action(&declarations, "Waterbend");
+    assert_eq!(
+        waterbend.grammar().unwrap().recipe(),
+        &GrammarRecipe::FixedTerm
+    );
+    assert_eq!(surfaces(waterbend), [(SurfaceFeature::Fixed, "waterbend")]);
+
+    let ring = action(&declarations, "TheRingTemptsYou");
+    assert_eq!(
+        ring.spelling(),
+        [SpellingPart::Literal("the Ring tempts you".to_owned())]
+    );
+    assert_eq!(
+        ring.grammar().unwrap().recipe(),
+        &GrammarRecipe::FixedClause
+    );
+    assert_eq!(
+        surfaces(ring),
+        [(SurfaceFeature::Fixed, "the Ring tempts you")]
+    );
+}

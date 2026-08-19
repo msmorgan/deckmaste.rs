@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Counter",
+    spelling: "counter",
+    grammar: Verb(
+        bare: "counter",
+        valence: Transitive,
+    ),
+)

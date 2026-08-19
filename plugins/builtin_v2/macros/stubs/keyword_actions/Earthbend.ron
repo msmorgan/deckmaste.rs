@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Earthbend",
+    spelling: "earthbend",
+    grammar: Verb(
+        bare: "earthbend",
+        valence: Numerative,
+    ),
+)

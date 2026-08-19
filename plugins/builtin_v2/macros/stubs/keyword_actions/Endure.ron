@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Endure",
+    spelling: "endure",
+    grammar: Verb(
+        bare: "endure",
+        valence: Numerative,
+    ),
+)

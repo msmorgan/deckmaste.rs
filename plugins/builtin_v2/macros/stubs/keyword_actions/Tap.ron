@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Tap",
+    spelling: "tap",
+    grammar: Verb(
+        bare: "tap",
+        valence: Transitive,
+    ),
+)

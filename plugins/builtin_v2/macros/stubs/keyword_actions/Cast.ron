@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Cast",
+    spelling: "cast",
+    grammar: Verb(
+        bare: "cast",
+        valence: Transitive,
+    ),
+)

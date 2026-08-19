@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Connive",
+    spelling: "connive",
+    grammar: Verb(
+        bare: "connive",
+        valence: Custom(shapes: [[], [Amount]]),
+    ),
+)

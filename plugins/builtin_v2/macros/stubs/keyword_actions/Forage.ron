@@ -1,0 +1,10 @@
+KeywordAction(
+    name: "Forage",
+    spelling: "forage",
+    grammar: Verb(
+        bare: "forage",
+        // No Oracle or Comprehensive Rules occurrence of "forages" was found in the 2026-08-18 morphology audit.
+        third_person: Unavailable,
+        valence: Intransitive,
+    ),
+)

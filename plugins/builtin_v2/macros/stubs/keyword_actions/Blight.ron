@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Blight",
+    spelling: "blight",
+    grammar: Verb(
+        bare: "blight",
+        valence: Numerative,
+    ),
+)

@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Manifest",
+    spelling: "manifest",
+    grammar: Verb(
+        bare: "manifest",
+        valence: Transitive,
+    ),
+)

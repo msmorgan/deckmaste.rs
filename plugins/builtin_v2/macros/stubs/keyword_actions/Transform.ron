@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Transform",
+    spelling: "transform",
+    grammar: Verb(
+        bare: "transform",
+        valence: Transitive,
+    ),
+)

@@ -1,0 +1,11 @@
+KeywordAction(
+    name: "Attach",
+    spelling: "attach",
+    grammar: Verb(
+        bare: "attach",
+        third_person: "attaches",
+        valence: Custom(
+            shapes: [[ObjectNounPhrase, Literal("to"), ObjectNounPhrase]],
+        ),
+    ),
+)

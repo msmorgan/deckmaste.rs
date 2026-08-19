@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "Regenerate",
+    spelling: "regenerate",
+    grammar: Verb(
+        bare: "regenerate",
+        valence: Transitive,
+    ),
+)

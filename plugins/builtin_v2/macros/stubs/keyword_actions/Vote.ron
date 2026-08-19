@@ -1,0 +1,10 @@
+KeywordAction(
+    name: "Vote",
+    spelling: "vote",
+    grammar: Verb(
+        bare: "vote",
+        valence: Custom(
+            shapes: [[Literal("for"), ObjectNounPhrase]],
+        ),
+    ),
+)
