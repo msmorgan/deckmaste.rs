@@ -703,14 +703,7 @@ fn project_failure(
 }
 
 fn has_lexical_boundary(text: &str, end: usize) -> bool {
-    match text.get(end..) {
-        Some("") => true,
-        Some(trailing) => trailing
-            .chars()
-            .next()
-            .is_some_and(|character| !character.is_alphanumeric()),
-        None => false,
-    }
+    matches!(text.as_bytes().get(end), None | Some(b' ' | b',' | b'.'))
 }
 
 fn matches_feature(constraint: FeatureConstraint<SurfaceFeature>, feature: SurfaceFeature) -> bool {
@@ -1097,12 +1090,13 @@ mod tests {
     }
 
     #[test]
-    fn lexical_boundaries_admit_punctuation_scalars_without_splitting_words() {
-        assert!(super::has_lexical_boundary("word?", "word".len()));
-        assert!(super::has_lexical_boundary("word‽", "word".len()));
-        assert!(super::has_lexical_boundary("word", "word".len()));
-        assert!(!super::has_lexical_boundary("wordx", "word".len()));
-        assert!(!super::has_lexical_boundary("wordé", "word".len()));
+    fn lexical_boundary_is_exactly_eoi_ascii_space_comma_or_period() {
+        for text in ["word", "word ", "word,", "word."] {
+            assert!(super::has_lexical_boundary(text, "word".len()), "{text:?}");
+        }
+        for text in ["word?", "word‽", "word_", "word!", "wordx", "wordé"] {
+            assert!(!super::has_lexical_boundary(text, "word".len()), "{text:?}");
+        }
         assert!(!super::has_lexical_boundary("é", 1));
     }
 
@@ -1723,7 +1717,7 @@ mod tests {
             }
         }
 
-        for text in [
+        for number in [
             "",
             "-",
             "00",
@@ -1735,20 +1729,29 @@ mod tests {
             ".",
             ",",
             "1x",
+            "1_",
+            "1!",
+            "-1_",
+            "-1!",
         ] {
-            let matches = super::scan_lexical(
-                &ScanInput {
-                    text,
-                    position: ScanPosition {
-                        byte_offset: 0,
-                        case: CasePosition::DocumentInitial,
+            for (text, byte_offset, case) in [
+                (number.to_owned(), 0, CasePosition::DocumentInitial),
+                (format!("x {number}"), 1, CasePosition::Continuation),
+            ] {
+                let matches = super::scan_lexical(
+                    &ScanInput {
+                        text: &text,
+                        position: ScanPosition { byte_offset, case },
+                        environment: &environment,
+                        context: &context,
                     },
-                    environment: &environment,
-                    context: &context,
-                },
-                terminal,
-            );
-            assert!(matches.is_empty(), "accepted noncanonical decimal {text:?}");
+                    terminal,
+                );
+                assert!(
+                    matches.is_empty(),
+                    "accepted noncanonical decimal {number:?} at {case:?}"
+                );
+            }
         }
 
         for text in ["1.", "-1,"] {

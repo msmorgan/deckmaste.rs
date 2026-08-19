@@ -444,7 +444,9 @@ mod tests {
         assert_eq!(codec.magnitude(), crate::semantic::UnsignedPrimitive::U32);
 
         plan.test_only_replace_signed_decimal_sign_shape("Polarity", "Plus", "Minus");
+        plan.test_only_replace_signed_decimal_codec_name("GeneratedNumber");
         let terminal = formatted(&crate::emit::terminal::emit(&plan).unwrap().0);
+        let runtime = formatted(&crate::emit::runtime::emit(&plan));
         let scanner = formatted(&crate::emit::scanner::emit(&plan));
         let render = formatted(&crate::emit::render::emit(&plan).unwrap());
         let visitor = formatted(&crate::emit::visit::emit(&plan).unwrap());
@@ -458,8 +460,23 @@ mod tests {
         }
         assert!(visitor.contains("Polarity"), "{visitor}");
         assert!(!visitor.contains("fn visit_sign ("), "{visitor}");
-        assert!(rules.contains("codec:SignedNumber"));
-        assert!(build.contains("Leaf :: SignedNumber"));
+        for (phase, output) in [
+            ("terminal", &terminal),
+            ("runtime", &runtime),
+            ("scanner", &scanner),
+            ("rules", &rules),
+            ("build", &build),
+            ("render", &render),
+            ("visitor", &visitor),
+        ] {
+            assert!(output.contains("GeneratedNumber"), "{phase}: {output}");
+            assert!(!output.contains("SignedNumber"), "{phase}: {output}");
+        }
+        assert!(
+            rules.contains("stable_id : \"codec:GeneratedNumber\""),
+            "{rules}"
+        );
+        assert!(!rules.contains("codec:SignedNumber"), "{rules}");
         assert_eq!(source.to_string(), authored);
     }
 

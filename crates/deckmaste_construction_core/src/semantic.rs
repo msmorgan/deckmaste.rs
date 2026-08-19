@@ -898,6 +898,43 @@ impl SemanticPlan {
     }
 
     #[cfg(test)]
+    pub(crate) fn test_only_replace_signed_decimal_codec_name(&mut self, new: &str) {
+        let codec = self
+            .terminals
+            .iter_mut()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::SignedDecimal(codec) => Some(codec),
+                TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => None,
+            })
+            .expect("test signed_decimal codec is present");
+        let old = codec.codec_name.clone();
+        codec.codec_name = new.to_owned();
+        codec.codec_ident = syn::Ident::new(new, codec.codec_ident.span());
+        codec.origin = DeclarationKey::new(DeclarationKind::Codec, new);
+
+        for construction in &mut self.constructions {
+            for field in &mut construction.fields {
+                if field.terminal == old {
+                    field.terminal = new.to_owned();
+                    field
+                        .value_type
+                        .segments
+                        .last_mut()
+                        .expect("validated test field type has a segment")
+                        .ident = syn::Ident::new(new, field.value_type.span());
+                }
+            }
+            for atom in &mut construction.atoms {
+                if let AtomPlan::Lex { terminal, .. } = atom
+                    && *terminal == old
+                {
+                    *terminal = new.to_owned();
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
     pub(crate) fn test_only_replace_binding_build_variant(&mut self, name: &str, variant: &str) {
         let binding = self
             .terminals

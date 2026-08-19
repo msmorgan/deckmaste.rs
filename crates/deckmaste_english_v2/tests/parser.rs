@@ -587,6 +587,19 @@ fn lexical_matches_reject_prefixes_of_longer_lexemes() {
 }
 
 #[test]
+fn decimal_punctuation_cannot_split_a_signed_number_in_a_complete_document() {
+    let text = "Gain 1.0 life.";
+    let Err(ParseError::Failure { span, expectations }) =
+        parser().parse(text, &context("Context Card"))
+    else {
+        panic!("a decimal fraction is outside the signed-decimal grammar");
+    };
+
+    assert_eq!(span, TextSpan { start: 6, end: 7 });
+    assert!(!expectations.is_empty());
+}
+
+#[test]
 fn doubled_period_reports_the_first_trailing_byte() {
     let text = "Destroy target creature..";
     let trailing = text.len() - 1;
