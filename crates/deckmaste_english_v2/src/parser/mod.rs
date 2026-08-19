@@ -247,6 +247,30 @@ impl Parser {
         )
     }
 
+    /// Exercises a selected trace with typed ownership-failure evidence for
+    /// cross-crate diagnostic authentication.
+    #[doc(hidden)]
+    #[cfg(any(test, feature = "test-support"))]
+    #[must_use]
+    pub fn trace_with_ownership_failure_for_test(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+        limits: TraceLimits,
+    ) -> ParserTrace {
+        ownership::force_synthetic_failure(true);
+        let (analysis, trace) = self.analyze_with_trace(text, context, limits);
+        ownership::force_synthetic_failure(false);
+        ParserTrace::from_parts(
+            analysis,
+            trace.structural,
+            trace.materialization,
+            limits,
+            context,
+            &self.environment,
+        )
+    }
+
     #[cfg(test)]
     pub(crate) fn observe_structural(
         &self,
@@ -515,6 +539,60 @@ mod structural_trace_tests {
             if let Some(scanner_match) = trace.scanner_matches().items().first() {
                 scanner_match_type_is_public(scanner_match);
             }
+        }
+    }
+
+    #[test]
+    fn parser_trace_lexical_ownership_failures_are_complete_and_cap_invariant() {
+        fn assert_complete_summary(summary: &super::OwnershipSummary) {
+            assert!(!summary.covered());
+            assert_eq!(summary.claims(), 4);
+            assert_eq!(summary.claimed_bytes(), 22);
+            assert_eq!(summary.form_literal_claims(), 2);
+            assert_eq!(summary.form_literal_bytes(), 8);
+            assert_eq!(summary.vocab_claims(), 0);
+            assert_eq!(summary.vocab_bytes(), 0);
+            assert_eq!(summary.lexeme_claims(), 2);
+            assert_eq!(summary.lexeme_bytes(), 14);
+            assert_eq!(summary.codec_claims(), 0);
+            assert_eq!(summary.codec_bytes(), 0);
+            assert_eq!(summary.identity_claims(), 0);
+            assert_eq!(summary.identity_bytes(), 0);
+            assert_eq!(summary.gap_spans(), 0);
+            assert_eq!(summary.gap_bytes(), 0);
+            assert_eq!(summary.overlap_spans(), 0);
+            assert_eq!(summary.overlap_bytes(), 0);
+            assert_eq!(summary.synthetic_claims(), 1);
+            assert_eq!(summary.provenance_plan_mismatches(), 0);
+        }
+
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+        let text = "Destroy target Spirit.";
+        let expected_failures = vec![super::OwnershipFailure::Synthetic {
+            span: super::TextSpan {
+                start: text.len(),
+                end: text.len(),
+            },
+        }];
+        let complete = parser.trace_with_ownership_failure_for_test(
+            text,
+            &context,
+            TraceLimits::new(usize::MAX),
+        );
+        let expected_summary = complete.ownership().expect("selected ownership").clone();
+        assert_complete_summary(&expected_summary);
+
+        for limit in [0, 1, 4, 5] {
+            let trace = parser.trace_with_ownership_failure_for_test(
+                text,
+                &context,
+                TraceLimits::new(limit),
+            );
+            assert_eq!(trace.ownership(), Some(&expected_summary));
+            assert_complete_summary(trace.ownership().expect("selected ownership"));
+            assert_eq!(trace.ownership_failures(), expected_failures);
+            assert!(!trace.ownership_failures().is_empty());
         }
     }
 

@@ -2868,9 +2868,14 @@ mod tests {
         source.ownership = Some(FixtureOwnershipSummary {
             covered,
             values: if covered {
-                [5, 20, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 0, 0, 0, 0, 0, 0]
+                [
+                    31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 0, 0, 0, 0, 0, 0,
+                ]
             } else {
-                [5, 20, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 2, 1, 1, 1, 1]
+                [
+                    101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
+                    117, 118,
+                ]
             },
         });
         source.ownership_failures = if covered {
@@ -2917,6 +2922,71 @@ mod tests {
             ]
         };
         source
+    }
+
+    fn expected_fixture_diagnostic_ownership(covered: bool) -> DiagnosticOwnership {
+        DiagnosticOwnership {
+            covered,
+            claims: if covered { 31 } else { 101 },
+            claimed_bytes: if covered { 32 } else { 102 },
+            form_literal_claims: if covered { 33 } else { 103 },
+            form_literal_bytes: if covered { 34 } else { 104 },
+            vocab_claims: if covered { 35 } else { 105 },
+            vocab_bytes: if covered { 36 } else { 106 },
+            lexeme_claims: if covered { 37 } else { 107 },
+            lexeme_bytes: if covered { 38 } else { 108 },
+            codec_claims: if covered { 39 } else { 109 },
+            codec_bytes: if covered { 40 } else { 110 },
+            identity_claims: if covered { 41 } else { 111 },
+            identity_bytes: if covered { 42 } else { 112 },
+            gap_spans: if covered { 0 } else { 113 },
+            gap_bytes: if covered { 0 } else { 114 },
+            overlap_spans: if covered { 0 } else { 115 },
+            overlap_bytes: if covered { 0 } else { 116 },
+            synthetic_claims: if covered { 0 } else { 117 },
+            provenance_plan_mismatches: if covered { 0 } else { 118 },
+            failures: if covered {
+                Vec::new()
+            } else {
+                vec![
+                    DiagnosticOwnershipFailure::Gap { start: 20, end: 22 },
+                    DiagnosticOwnershipFailure::Overlap {
+                        left_start: 0,
+                        left_end: 4,
+                        right_start: 3,
+                        right_end: 7,
+                        overlap_start: 3,
+                        overlap_end: 4,
+                    },
+                    DiagnosticOwnershipFailure::InvalidSpan {
+                        start: 99,
+                        end: 100,
+                        span_kind: DiagnosticInvalidSpanKind::OutOfBounds,
+                    },
+                    DiagnosticOwnershipFailure::InvalidSpan {
+                        start: 1,
+                        end: 2,
+                        span_kind: DiagnosticInvalidSpanKind::NonUtf8Boundary,
+                    },
+                    DiagnosticOwnershipFailure::Synthetic { start: 8, end: 8 },
+                    DiagnosticOwnershipFailure::ProvenancePlanMismatch {
+                        index: 2,
+                        parsed: "parsed\n\t\"\\é".to_owned(),
+                        rendered: "rendered\rvalue".to_owned(),
+                    },
+                    DiagnosticOwnershipFailure::ByteMismatch {
+                        scope: DiagnosticByteMismatchScope::WholeRender,
+                        expected: "expected\nwhole".to_owned(),
+                        actual: "actual\twhole".to_owned(),
+                    },
+                    DiagnosticOwnershipFailure::ByteMismatch {
+                        scope: DiagnosticByteMismatchScope::ClaimSlice { index: 4 },
+                        expected: "expected slice".to_owned(),
+                        actual: "actual \\ slice".to_owned(),
+                    },
+                ]
+            },
+        }
     }
 
     fn parser() -> Parser {
@@ -3266,10 +3336,10 @@ mod tests {
                         .collect::<Vec<_>>(),
                     expected_kinds[..limit.min(5)],
                 );
-                let ownership = report.trace.ownership.as_ref().expect("selected ownership");
-                assert_eq!(ownership.covered, covered);
-                assert_eq!((ownership.claims, ownership.claimed_bytes), (5, 20));
-                assert_eq!(ownership.failures.len(), if covered { 0 } else { 8 });
+                assert_eq!(
+                    report.trace.ownership,
+                    Some(expected_fixture_diagnostic_ownership(covered)),
+                );
 
                 let first = render_to_vec(&report, true).unwrap();
                 let second = render_to_vec(&report, true).unwrap();
@@ -3838,7 +3908,19 @@ mod tests {
             assert!(std::ptr::eq(delegated.items, actual.items()));
         }
 
-        let runtime = trace("Destroy target Spirit.", "Probe Card", 1);
+        let context = ParseContext::new("Probe Card").expect("fixture context is valid");
+        let runtime = parser().trace_with_ownership_failure_for_test(
+            "Destroy target Spirit.",
+            &context,
+            TraceLimits::new(1),
+        );
+        assert_eq!(
+            runtime.ownership_failures(),
+            [deckmaste_english_v2::parser::OwnershipFailure::Synthetic {
+                span: deckmaste_english_v2::parser::TextSpan { start: 22, end: 22 },
+            }],
+        );
+        assert!(!runtime.ownership_failures().is_empty());
         let source = &runtime
             as &dyn TraceSourceView<
                 ScannerMatch = deckmaste_english_v2::parser::ScannerMatch,
@@ -3860,6 +3942,8 @@ mod tests {
             runtime.ownership().expect("runtime ownership"),
             source.ownership().expect("delegated ownership"),
         ));
+        assert_eq!(source.ownership_failures(), runtime.ownership_failures());
+        assert!(!source.ownership_failures().is_empty());
         assert!(std::ptr::eq(
             runtime.ownership_failures(),
             source.ownership_failures(),

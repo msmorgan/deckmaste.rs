@@ -6,11 +6,17 @@ use crate::constructions::LexicalProvenanceKind;
 #[cfg(any(test, feature = "test-support"))]
 thread_local! {
     static FORCE_INSPECTION_CORRUPTION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static FORCE_SYNTHETIC_FAILURE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 #[cfg(any(test, feature = "test-support"))]
 pub(super) fn force_inspection_corruption(value: bool) {
     FORCE_INSPECTION_CORRUPTION.with(|forced| forced.set(value));
+}
+
+#[cfg(any(test, feature = "test-support"))]
+pub(super) fn force_synthetic_failure(value: bool) {
+    FORCE_SYNTHETIC_FAILURE.with(|forced| forced.set(value));
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -279,6 +285,15 @@ pub(crate) fn validate_ownership(
                 actual: actual.to_owned(),
             });
         }
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    if FORCE_SYNTHETIC_FAILURE.with(std::cell::Cell::get) {
+        failures.push(OwnershipFailure::Synthetic {
+            span: TextSpan {
+                start: text.len(),
+                end: text.len(),
+            },
+        });
     }
     let summary = summarize(&parsed_claims, &failures);
     Ok(SelectedOwnership {
