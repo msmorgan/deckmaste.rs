@@ -134,14 +134,26 @@ mod tests {
 
     #[test]
     fn real_runner_emits_one_json_document_for_selected_and_parse_failure() {
-        for text in ["Destroy target creature.", "Destroy target Forest."] {
+        for text in ["Destroy target creature.", "Destroy target Forest"] {
             let mut output = Vec::new();
             run(&args(text, "Probe Card"), &mut output).unwrap();
             let report: Value = serde_json::from_slice(&output).unwrap();
-            assert_eq!(report["schema_version"], 1);
+            assert_eq!(report["schema_version"], 2);
             assert_eq!(report["source"]["kind"], "probe");
             assert_eq!(report["source"]["text"], text);
             assert_eq!(report["source"]["context"], "Probe Card");
+            assert!(report["trace"].get("tokens").is_none());
+            assert!(report["trace"].get("scanner_matches").is_some());
+            assert!(report["trace"].get("selected_lexical_claims").is_some());
+            if text == "Destroy target creature." {
+                assert_eq!(report["trace"]["ownership"]["covered"], true);
+                assert_eq!(
+                    report["trace"]["ownership"]["failures"],
+                    serde_json::json!([]),
+                );
+            } else {
+                assert!(report["trace"]["ownership"].is_null());
+            }
         }
     }
 
@@ -227,6 +239,7 @@ mod tests {
         for outcome in [
             FixtureOutcome::ValidatedRootDidNotMaterialize,
             FixtureOutcome::SelectionConfiguration,
+            FixtureOutcome::OwnershipInspection,
         ] {
             let mut steps = RecordingSteps {
                 outcome,

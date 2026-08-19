@@ -74,7 +74,7 @@ pub use diagnostic::ParseAnalysis;
 pub use diagnostic::ParseAnalysisOutcome;
 pub use diagnostic::ParseFailureOutcome;
 pub use diagnostic::ParserTrace;
-pub use diagnostic::ScannedToken;
+pub use diagnostic::ScannerMatch;
 pub use diagnostic::SelectedParseOutcome;
 pub use diagnostic::SelectionCandidate;
 pub use diagnostic::SelectionComparison;
@@ -234,9 +234,8 @@ impl Parser {
         context: &ParseContext<'_>,
         limits: TraceLimits,
     ) -> ParserTrace {
-        let (_, trace) = self.analyze_with_trace(text, context, limits);
         ownership::force_inspection_corruption(true);
-        let analysis = self.analyze(text, context);
+        let (analysis, trace) = self.analyze_with_trace(text, context, limits);
         ownership::force_inspection_corruption(false);
         ParserTrace::from_parts(
             analysis,
@@ -271,7 +270,15 @@ impl Parser {
             Ok(forest) => {
                 let (candidates, materialization) =
                     materialize_observed(&forest, context, &self.environment, limits);
-                (analyze_materialized(candidates), materialization)
+                (
+                    analyze_materialized_with_ownership(
+                        text,
+                        candidates,
+                        context,
+                        &self.environment,
+                    ),
+                    materialization,
+                )
             }
             Err(failure) => (
                 ParseAnalysis::from_result(Err(chart_failure(text, failure)), None),
@@ -351,6 +358,7 @@ struct TraceParts {
     materialization: diagnostic::MaterializationTrace,
 }
 
+#[cfg(test)]
 pub(crate) fn analyze_materialized(candidates: Vec<materialize::Candidate>) -> ParseAnalysis {
     analyze_selected_candidate(candidates).map_or_else(
         |error| ParseAnalysis::from_result(Err(error), None),
@@ -455,17 +463,77 @@ mod structural_trace_tests {
     }
 
     #[test]
-    fn cap_zero_trace_constructs_no_selected_owner_projection() {
+    fn parser_trace_lexical_ownership_projection_is_lazy_at_zero_and_one() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Context Card").unwrap();
-        super::ownership::reset_projection_runs();
-        crate::constructions::LexicalOwner::reset_label_constructions();
+        for (limit, expected_constructions) in [(0, 0), (1, 1)] {
+            super::diagnostic::reset_selected_claim_projection_constructions();
 
-        let trace = parser.trace("Destroy target creature.", &context, TraceLimits::new(0));
+            let trace = parser.trace("Destroy target Spirit.", &context, TraceLimits::new(limit));
 
-        assert!(trace.into_parse_result().is_ok());
-        assert_eq!(super::ownership::projection_runs(), 0);
-        assert_eq!(crate::constructions::LexicalOwner::label_constructions(), 0);
+            assert!(trace.ownership().is_some());
+            assert!(trace.selected_lexical_claims().total() > 1);
+            assert_eq!(
+                super::diagnostic::selected_claim_projection_constructions(),
+                expected_constructions,
+                "limit {limit}",
+            );
+        }
+    }
+
+    #[test]
+    fn parser_trace_lexical_ownership_limits_keep_complete_selected_facts() {
+        fn bounded<T>(value: &super::Bounded<T>, limit: usize) {
+            assert_eq!(value.total(), value.shown() + value.omitted());
+            assert_eq!(value.shown(), value.items().len());
+            assert!(value.shown() <= limit);
+        }
+
+        fn scanner_match_type_is_public(_: &super::ScannerMatch) {}
+
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+        let text = "Destroy target Spirit.";
+        let complete = parser.analyze(text, &context);
+        let complete = complete.ownership().expect("selected ownership");
+        let expected_claims = complete.parsed_claims().to_vec();
+        let expected_summary = complete.summary().clone();
+        let expected_failures = complete.failures().to_vec();
+        let total = expected_claims.len();
+
+        for limit in [0, 1, total, total + 1] {
+            let trace = parser.trace(text, &context, TraceLimits::new(limit));
+            bounded(trace.scanner_matches(), limit);
+            bounded(trace.selected_lexical_claims(), limit);
+            assert_eq!(trace.selected_lexical_claims().total(), total);
+            assert_eq!(
+                trace.selected_lexical_claims().items(),
+                &expected_claims[..limit.min(total)],
+            );
+            assert_eq!(trace.ownership(), Some(&expected_summary));
+            assert_eq!(trace.ownership_failures(), expected_failures);
+            if let Some(scanner_match) = trace.scanner_matches().items().first() {
+                scanner_match_type_is_public(scanner_match);
+            }
+        }
+    }
+
+    #[test]
+    fn parser_trace_lexical_ownership_keeps_matches_from_losing_derivations() {
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+
+        let trace = parser.trace(
+            "Destroy target Spirit",
+            &context,
+            TraceLimits::new(usize::MAX),
+        );
+
+        assert!(trace.clone().into_parse_result().is_err());
+        assert_eq!(trace.scanner_matches().total(), 3);
+        assert_eq!(trace.selected_lexical_claims().total(), 0);
+        assert_eq!(trace.ownership(), None);
+        assert!(trace.ownership_failures().is_empty());
     }
 
     #[test]
@@ -527,8 +595,8 @@ mod structural_trace_tests {
         let (_, second) = parser.observe_structural(text, &context, TraceLimits::new(1));
         assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
         assert_eq!(first, second);
-        assert_eq!(first.tokens().total(), 11);
-        assert_eq!(first.tokens().shown(), 1);
+        assert_eq!(first.scanner_matches().total(), 11);
+        assert_eq!(first.scanner_matches().shown(), 1);
     }
 
     #[test]
@@ -543,7 +611,7 @@ mod structural_trace_tests {
         let text = "Whenever a player connives, you gain X life.";
         for limit in [0, 1, usize::MAX] {
             let (_, trace) = parser.observe_structural(text, &context, TraceLimits::new(limit));
-            bounded(trace.tokens(), limit);
+            bounded(trace.scanner_matches(), limit);
             bounded(trace.chart(), limit);
             bounded(trace.forest(), limit);
             bounded(trace.accepted_roots(), limit);
@@ -582,7 +650,7 @@ mod structural_trace_tests {
             let (analysis, trace) =
                 parser.observe_structural(text, &context, TraceLimits::new(limit));
             assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
-            bounded(trace.tokens(), limit);
+            bounded(trace.scanner_matches(), limit);
             bounded(trace.chart(), limit);
             bounded(trace.forest(), limit);
             bounded(trace.accepted_roots(), limit);

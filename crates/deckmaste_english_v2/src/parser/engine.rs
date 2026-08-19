@@ -828,7 +828,8 @@ mod tests {
             },
         ];
         struct TokenRecording {
-            inventory: super::super::diagnostic::SemanticTokenInventory<&'static str, &'static str>,
+            inventory:
+                super::super::diagnostic::SemanticScannerMatchInventory<&'static str, &'static str>,
             callbacks: usize,
         }
         impl Observation<ToyRuleId, &'static str, &'static str> for TokenRecording {
@@ -844,7 +845,7 @@ mod tests {
             }
         }
         let mut recording = TokenRecording {
-            inventory: super::super::diagnostic::SemanticTokenInventory::default(),
+            inventory: super::super::diagnostic::SemanticScannerMatchInventory::default(),
             callbacks: 0,
         };
         assert!(

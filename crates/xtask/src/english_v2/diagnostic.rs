@@ -7,6 +7,7 @@ use deckmaste_english_v2::parser::BoundedParseOutcome;
 use deckmaste_english_v2::parser::BoundedSelectionCandidate as RuntimeSelectionCandidate;
 use deckmaste_english_v2::parser::BoundedSelectionComparison as RuntimeSelectionComparison;
 use deckmaste_english_v2::parser::BoundedSelectionDecision as RuntimeSelectionDecision;
+use deckmaste_english_v2::parser::ByteMismatchScope as RuntimeByteMismatchScope;
 use deckmaste_english_v2::parser::ChartItem as RuntimeChartItem;
 use deckmaste_english_v2::parser::CheckedCompletionRejection as RuntimeCheckedRejection;
 use deckmaste_english_v2::parser::ExpectationInfo as RuntimeExpectation;
@@ -15,11 +16,16 @@ use deckmaste_english_v2::parser::ForestChild as RuntimeForestChild;
 use deckmaste_english_v2::parser::ForestFamily as RuntimeForestFamily;
 use deckmaste_english_v2::parser::ForestNode as RuntimeForestNode;
 use deckmaste_english_v2::parser::InternalFailureKind as RuntimeInternalFailureKind;
+use deckmaste_english_v2::parser::InvalidSpanKind as RuntimeInvalidSpanKind;
+use deckmaste_english_v2::parser::LexicalClaim as RuntimeLexicalClaim;
+use deckmaste_english_v2::parser::LexicalProvenanceKind as RuntimeProvenanceKind;
 use deckmaste_english_v2::parser::MaterializationCycle as RuntimeMaterializationCycle;
 use deckmaste_english_v2::parser::MaterializedCandidateInfo as RuntimeMaterializedCandidate;
 use deckmaste_english_v2::parser::NonterminalCategory;
+use deckmaste_english_v2::parser::OwnershipFailure as RuntimeOwnershipFailure;
+use deckmaste_english_v2::parser::OwnershipSummary as RuntimeOwnershipSummary;
 use deckmaste_english_v2::parser::ParserTrace;
-use deckmaste_english_v2::parser::ScannedToken as RuntimeScannedToken;
+use deckmaste_english_v2::parser::ScannerMatch as RuntimeScannerMatch;
 use deckmaste_english_v2::parser::SelectionDecisive as RuntimeSelectionDecisive;
 use deckmaste_english_v2::parser::SelectionResolution as RuntimeSelectionResolution;
 use deckmaste_english_v2::parser::SpecificityTier as RuntimeSpecificityTier;
@@ -83,7 +89,9 @@ impl DiagnosticSource {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub(super) struct DiagnosticTrace {
-    tokens: Counted<ScannedToken>,
+    scanner_matches: Counted<ScannerMatch>,
+    selected_lexical_claims: Counted<DiagnosticLexicalClaim>,
+    ownership: Option<DiagnosticOwnership>,
     final_chart: Counted<ChartItem>,
     forest_nodes: Counted<ForestNode>,
     forest_roots: Counted<usize>,
@@ -126,11 +134,41 @@ fn runtime_bounded<T>(bounded: &Bounded<T>) -> BoundedSource<'_, T> {
     }
 }
 
-trait TokenSource {
+trait ScannerMatchSource {
     fn start(&self) -> usize;
     fn end(&self) -> usize;
     fn terminal_name_v1(&self) -> &str;
     fn value_label_v1(&self) -> &str;
+}
+
+trait LexicalClaimSource {
+    fn start(&self) -> usize;
+    fn end(&self) -> usize;
+    fn kind(&self) -> RuntimeProvenanceKind;
+    fn stable_owner_id(&self) -> &str;
+    fn semantic_summary(&self) -> &str;
+}
+
+trait OwnershipSummarySource {
+    fn covered(&self) -> bool;
+    fn claims(&self) -> usize;
+    fn claimed_bytes(&self) -> usize;
+    fn form_literal_claims(&self) -> usize;
+    fn form_literal_bytes(&self) -> usize;
+    fn vocab_claims(&self) -> usize;
+    fn vocab_bytes(&self) -> usize;
+    fn lexeme_claims(&self) -> usize;
+    fn lexeme_bytes(&self) -> usize;
+    fn codec_claims(&self) -> usize;
+    fn codec_bytes(&self) -> usize;
+    fn identity_claims(&self) -> usize;
+    fn identity_bytes(&self) -> usize;
+    fn gap_spans(&self) -> usize;
+    fn gap_bytes(&self) -> usize;
+    fn overlap_spans(&self) -> usize;
+    fn overlap_bytes(&self) -> usize;
+    fn synthetic_claims(&self) -> usize;
+    fn provenance_plan_mismatches(&self) -> usize;
 }
 
 trait ChartItemSource {
@@ -247,7 +285,9 @@ impl<Selection> Clone for TraceOutcomeSource<'_, Selection> {
 impl<Selection> Copy for TraceOutcomeSource<'_, Selection> {}
 
 trait TraceSourceView {
-    type Token: TokenSource;
+    type ScannerMatch: ScannerMatchSource;
+    type LexicalClaim: LexicalClaimSource;
+    type OwnershipSummary: OwnershipSummarySource;
     type ChartItem: ChartItemSource;
     type ForestNode: ForestNodeSource;
     type CheckedRejection: CheckedRejectionSource;
@@ -255,7 +295,10 @@ trait TraceSourceView {
     type MaterializationCycle: MaterializationCycleSource;
     type Selection: SelectionDecisionSource;
 
-    fn tokens(&self) -> BoundedSource<'_, Self::Token>;
+    fn scanner_matches(&self) -> BoundedSource<'_, Self::ScannerMatch>;
+    fn selected_lexical_claims(&self) -> BoundedSource<'_, Self::LexicalClaim>;
+    fn ownership(&self) -> Option<&Self::OwnershipSummary>;
+    fn ownership_failures(&self) -> &[RuntimeOwnershipFailure];
     fn chart(&self) -> BoundedSource<'_, Self::ChartItem>;
     fn forest(&self) -> BoundedSource<'_, Self::ForestNode>;
     fn accepted_roots(&self) -> BoundedSource<'_, usize>;
@@ -287,22 +330,81 @@ impl<T> Counted<T> {
     }
 }
 
-impl TokenSource for RuntimeScannedToken {
+impl ScannerMatchSource for RuntimeScannerMatch {
     fn start(&self) -> usize {
-        RuntimeScannedToken::start(self)
+        RuntimeScannerMatch::start(self)
     }
 
     fn end(&self) -> usize {
-        RuntimeScannedToken::end(self)
+        RuntimeScannerMatch::end(self)
     }
 
     fn terminal_name_v1(&self) -> &str {
-        RuntimeScannedToken::terminal_name_v1(self)
+        RuntimeScannerMatch::terminal_name_v1(self)
     }
 
     fn value_label_v1(&self) -> &str {
-        RuntimeScannedToken::value_label_v1(self)
+        RuntimeScannerMatch::value_label_v1(self)
     }
+}
+
+impl LexicalClaimSource for RuntimeLexicalClaim {
+    fn start(&self) -> usize {
+        RuntimeLexicalClaim::span(self).start
+    }
+
+    fn end(&self) -> usize {
+        RuntimeLexicalClaim::span(self).end
+    }
+
+    fn kind(&self) -> RuntimeProvenanceKind {
+        RuntimeLexicalClaim::kind(self)
+    }
+
+    fn stable_owner_id(&self) -> &str {
+        RuntimeLexicalClaim::stable_owner_id(self)
+    }
+
+    fn semantic_summary(&self) -> &str {
+        RuntimeLexicalClaim::semantic_summary(self)
+    }
+}
+
+macro_rules! ownership_summary_source_accessors {
+    ($($name:ident),* $(,)?) => {
+        $(
+            fn $name(&self) -> usize {
+                RuntimeOwnershipSummary::$name(self)
+            }
+        )*
+    };
+}
+
+impl OwnershipSummarySource for RuntimeOwnershipSummary {
+    fn covered(&self) -> bool {
+        RuntimeOwnershipSummary::covered(self)
+    }
+
+    ownership_summary_source_accessors!(
+        claims,
+        claimed_bytes,
+        form_literal_claims,
+        form_literal_bytes,
+        vocab_claims,
+        vocab_bytes,
+        lexeme_claims,
+        lexeme_bytes,
+        codec_claims,
+        codec_bytes,
+        identity_claims,
+        identity_bytes,
+        gap_spans,
+        gap_bytes,
+        overlap_spans,
+        overlap_bytes,
+        synthetic_claims,
+        provenance_plan_mismatches,
+    );
 }
 
 impl ChartItemSource for RuntimeChartItem {
@@ -507,7 +609,9 @@ impl SelectionDecisionSource for RuntimeSelectionDecision {
 }
 
 impl TraceSourceView for ParserTrace {
-    type Token = RuntimeScannedToken;
+    type ScannerMatch = RuntimeScannerMatch;
+    type LexicalClaim = RuntimeLexicalClaim;
+    type OwnershipSummary = RuntimeOwnershipSummary;
     type ChartItem = RuntimeChartItem;
     type ForestNode = RuntimeForestNode;
     type CheckedRejection = RuntimeCheckedRejection;
@@ -515,8 +619,20 @@ impl TraceSourceView for ParserTrace {
     type MaterializationCycle = RuntimeMaterializationCycle;
     type Selection = RuntimeSelectionDecision;
 
-    fn tokens(&self) -> BoundedSource<'_, Self::Token> {
-        runtime_bounded(ParserTrace::tokens(self))
+    fn scanner_matches(&self) -> BoundedSource<'_, Self::ScannerMatch> {
+        runtime_bounded(ParserTrace::scanner_matches(self))
+    }
+
+    fn selected_lexical_claims(&self) -> BoundedSource<'_, Self::LexicalClaim> {
+        runtime_bounded(ParserTrace::selected_lexical_claims(self))
+    }
+
+    fn ownership(&self) -> Option<&Self::OwnershipSummary> {
+        ParserTrace::ownership(self)
+    }
+
+    fn ownership_failures(&self) -> &[RuntimeOwnershipFailure] {
+        ParserTrace::ownership_failures(self)
     }
 
     fn chart(&self) -> BoundedSource<'_, Self::ChartItem> {
@@ -568,11 +684,104 @@ impl TraceSourceView for ParserTrace {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-struct ScannedToken {
+struct ScannerMatch {
     start: usize,
     end: usize,
     terminal_name_v1: String,
     value_label_v1: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+struct DiagnosticLexicalClaim {
+    start: usize,
+    end: usize,
+    kind: DiagnosticProvenanceKind,
+    stable_owner_id: String,
+    semantic_summary: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum DiagnosticProvenanceKind {
+    FormLiteral,
+    Vocab,
+    Lexeme,
+    Codec,
+    Identity,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+struct DiagnosticOwnership {
+    covered: bool,
+    claims: usize,
+    claimed_bytes: usize,
+    form_literal_claims: usize,
+    form_literal_bytes: usize,
+    vocab_claims: usize,
+    vocab_bytes: usize,
+    lexeme_claims: usize,
+    lexeme_bytes: usize,
+    codec_claims: usize,
+    codec_bytes: usize,
+    identity_claims: usize,
+    identity_bytes: usize,
+    gap_spans: usize,
+    gap_bytes: usize,
+    overlap_spans: usize,
+    overlap_bytes: usize,
+    synthetic_claims: usize,
+    provenance_plan_mismatches: usize,
+    failures: Vec<DiagnosticOwnershipFailure>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum DiagnosticOwnershipFailure {
+    Gap {
+        start: usize,
+        end: usize,
+    },
+    Overlap {
+        left_start: usize,
+        left_end: usize,
+        right_start: usize,
+        right_end: usize,
+        overlap_start: usize,
+        overlap_end: usize,
+    },
+    InvalidSpan {
+        start: usize,
+        end: usize,
+        span_kind: DiagnosticInvalidSpanKind,
+    },
+    Synthetic {
+        start: usize,
+        end: usize,
+    },
+    ProvenancePlanMismatch {
+        index: usize,
+        parsed: String,
+        rendered: String,
+    },
+    ByteMismatch {
+        scope: DiagnosticByteMismatchScope,
+        expected: String,
+        actual: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum DiagnosticInvalidSpanKind {
+    OutOfBounds,
+    NonUtf8Boundary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum DiagnosticByteMismatchScope {
+    WholeRender,
+    ClaimSlice { index: usize },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -827,7 +1036,7 @@ impl DiagnosticReport {
         trace: &Source,
     ) -> Self {
         Self {
-            schema_version: 1,
+            schema_version: 2,
             source: DiagnosticSource::Probe {
                 text: text.to_owned(),
                 context: context.to_owned(),
@@ -838,7 +1047,7 @@ impl DiagnosticReport {
 
     pub(super) fn from_corpus(unit: &super::corpus::CorpusUnit, trace: &ParserTrace) -> Self {
         Self {
-            schema_version: 1,
+            schema_version: 2,
             source: corpus_source(unit),
             trace: DiagnosticTrace::from_source(trace),
         }
@@ -881,12 +1090,27 @@ fn corpus_source(unit: &super::corpus::CorpusUnit) -> DiagnosticSource {
 impl DiagnosticTrace {
     fn from_source<Source: TraceSourceView>(trace: &Source) -> Self {
         Self {
-            tokens: Counted::from_source(trace.tokens(), |token| ScannedToken {
-                start: token.start(),
-                end: token.end(),
-                terminal_name_v1: token.terminal_name_v1().to_owned(),
-                value_label_v1: token.value_label_v1().to_owned(),
+            scanner_matches: Counted::from_source(trace.scanner_matches(), |scanner_match| {
+                ScannerMatch {
+                    start: scanner_match.start(),
+                    end: scanner_match.end(),
+                    terminal_name_v1: scanner_match.terminal_name_v1().to_owned(),
+                    value_label_v1: scanner_match.value_label_v1().to_owned(),
+                }
             }),
+            selected_lexical_claims: Counted::from_source(
+                trace.selected_lexical_claims(),
+                |claim| DiagnosticLexicalClaim {
+                    start: claim.start(),
+                    end: claim.end(),
+                    kind: provenance_kind(claim.kind()),
+                    stable_owner_id: claim.stable_owner_id().to_owned(),
+                    semantic_summary: claim.semantic_summary().to_owned(),
+                },
+            ),
+            ownership: trace
+                .ownership()
+                .map(|summary| diagnostic_ownership(summary, trace.ownership_failures())),
             final_chart: Counted::from_source(trace.chart(), |item| ChartItem {
                 column: item.column(),
                 rule_name_v1: item.rule_name_v1().to_owned(),
@@ -942,6 +1166,104 @@ impl DiagnosticTrace {
             }),
             outcome: outcome(trace.outcome()),
         }
+    }
+}
+
+fn provenance_kind(kind: RuntimeProvenanceKind) -> DiagnosticProvenanceKind {
+    match kind {
+        RuntimeProvenanceKind::FormLiteral => DiagnosticProvenanceKind::FormLiteral,
+        RuntimeProvenanceKind::Vocab => DiagnosticProvenanceKind::Vocab,
+        RuntimeProvenanceKind::Lexeme => DiagnosticProvenanceKind::Lexeme,
+        RuntimeProvenanceKind::Codec => DiagnosticProvenanceKind::Codec,
+        RuntimeProvenanceKind::Identity => DiagnosticProvenanceKind::Identity,
+    }
+}
+
+fn diagnostic_ownership<Source: OwnershipSummarySource>(
+    summary: &Source,
+    failures: &[RuntimeOwnershipFailure],
+) -> DiagnosticOwnership {
+    DiagnosticOwnership {
+        covered: summary.covered(),
+        claims: summary.claims(),
+        claimed_bytes: summary.claimed_bytes(),
+        form_literal_claims: summary.form_literal_claims(),
+        form_literal_bytes: summary.form_literal_bytes(),
+        vocab_claims: summary.vocab_claims(),
+        vocab_bytes: summary.vocab_bytes(),
+        lexeme_claims: summary.lexeme_claims(),
+        lexeme_bytes: summary.lexeme_bytes(),
+        codec_claims: summary.codec_claims(),
+        codec_bytes: summary.codec_bytes(),
+        identity_claims: summary.identity_claims(),
+        identity_bytes: summary.identity_bytes(),
+        gap_spans: summary.gap_spans(),
+        gap_bytes: summary.gap_bytes(),
+        overlap_spans: summary.overlap_spans(),
+        overlap_bytes: summary.overlap_bytes(),
+        synthetic_claims: summary.synthetic_claims(),
+        provenance_plan_mismatches: summary.provenance_plan_mismatches(),
+        failures: failures.iter().map(ownership_failure).collect(),
+    }
+}
+
+fn ownership_failure(failure: &RuntimeOwnershipFailure) -> DiagnosticOwnershipFailure {
+    match failure {
+        RuntimeOwnershipFailure::Gap { span } => DiagnosticOwnershipFailure::Gap {
+            start: span.start,
+            end: span.end,
+        },
+        RuntimeOwnershipFailure::Overlap {
+            left,
+            right,
+            overlap,
+        } => DiagnosticOwnershipFailure::Overlap {
+            left_start: left.start,
+            left_end: left.end,
+            right_start: right.start,
+            right_end: right.end,
+            overlap_start: overlap.start,
+            overlap_end: overlap.end,
+        },
+        RuntimeOwnershipFailure::InvalidSpan { span, kind } => {
+            DiagnosticOwnershipFailure::InvalidSpan {
+                start: span.start,
+                end: span.end,
+                span_kind: match kind {
+                    RuntimeInvalidSpanKind::OutOfBounds => DiagnosticInvalidSpanKind::OutOfBounds,
+                    RuntimeInvalidSpanKind::NonUtf8Boundary => {
+                        DiagnosticInvalidSpanKind::NonUtf8Boundary
+                    }
+                },
+            }
+        }
+        RuntimeOwnershipFailure::Synthetic { span } => DiagnosticOwnershipFailure::Synthetic {
+            start: span.start,
+            end: span.end,
+        },
+        RuntimeOwnershipFailure::ProvenancePlanMismatch {
+            index,
+            parsed,
+            rendered,
+        } => DiagnosticOwnershipFailure::ProvenancePlanMismatch {
+            index: *index,
+            parsed: parsed.clone(),
+            rendered: rendered.clone(),
+        },
+        RuntimeOwnershipFailure::ByteMismatch {
+            scope,
+            expected,
+            actual,
+        } => DiagnosticOwnershipFailure::ByteMismatch {
+            scope: match scope {
+                RuntimeByteMismatchScope::WholeRender => DiagnosticByteMismatchScope::WholeRender,
+                RuntimeByteMismatchScope::ClaimSlice { index } => {
+                    DiagnosticByteMismatchScope::ClaimSlice { index: *index }
+                }
+            },
+            expected: expected.clone(),
+            actual: actual.clone(),
+        },
     }
 }
 
@@ -1174,8 +1496,19 @@ fn render_human(report: &DiagnosticReport, output: &mut dyn Write) -> anyhow::Re
     }
     .context("writing English-v2 diagnostic human header")?;
     let trace = &report.trace;
-    write_counted("tokens", &trace.tokens, output)?;
-    write_items("token", &trace.tokens.items, output)?;
+    write_counted("scanner_matches", &trace.scanner_matches, output)?;
+    write_items("scanner_match", &trace.scanner_matches.items, output)?;
+    write_counted(
+        "selected_lexical_claims",
+        &trace.selected_lexical_claims,
+        output,
+    )?;
+    write_items(
+        "selected_lexical_claim",
+        &trace.selected_lexical_claims.items,
+        output,
+    )?;
+    render_ownership(trace.ownership.as_ref(), output)?;
     write_counted("final_chart", &trace.final_chart, output)?;
     write_items("chart_item", &trace.final_chart.items, output)?;
     write_counted("forest_nodes", &trace.forest_nodes, output)?;
@@ -1249,6 +1582,41 @@ fn render_human(report: &DiagnosticReport, output: &mut dyn Write) -> anyhow::Re
         )?;
     }
     render_outcome(&trace.outcome, output)
+}
+
+fn render_ownership(
+    ownership: Option<&DiagnosticOwnership>,
+    output: &mut dyn Write,
+) -> anyhow::Result<()> {
+    let Some(ownership) = ownership else {
+        return writeln!(output, "ownership none")
+            .context("writing English-v2 diagnostic absent ownership");
+    };
+    writeln!(
+        output,
+        "ownership covered={} claims={} claimed_bytes={} form_literal_claims={} form_literal_bytes={} vocab_claims={} vocab_bytes={} lexeme_claims={} lexeme_bytes={} codec_claims={} codec_bytes={} identity_claims={} identity_bytes={} gap_spans={} gap_bytes={} overlap_spans={} overlap_bytes={} synthetic_claims={} provenance_plan_mismatches={}",
+        ownership.covered,
+        ownership.claims,
+        ownership.claimed_bytes,
+        ownership.form_literal_claims,
+        ownership.form_literal_bytes,
+        ownership.vocab_claims,
+        ownership.vocab_bytes,
+        ownership.lexeme_claims,
+        ownership.lexeme_bytes,
+        ownership.codec_claims,
+        ownership.codec_bytes,
+        ownership.identity_claims,
+        ownership.identity_bytes,
+        ownership.gap_spans,
+        ownership.gap_bytes,
+        ownership.overlap_spans,
+        ownership.overlap_bytes,
+        ownership.synthetic_claims,
+        ownership.provenance_plan_mismatches,
+    )
+    .context("writing English-v2 diagnostic ownership summary")?;
+    write_items("ownership.failure", &ownership.failures, output)
 }
 
 fn render_candidate_nested(
@@ -1442,6 +1810,7 @@ pub(super) enum FixtureOutcome {
     UnresolvedAmbiguity,
     ValidatedRootDidNotMaterialize,
     SelectionConfiguration,
+    OwnershipInspection,
 }
 
 #[cfg(test)]
@@ -1450,6 +1819,67 @@ pub(super) enum FixtureOutcome {
     reason = "one complete schema fixture keeps every nested bounded section visible"
 )]
 pub(super) fn fixture_report(outcome: FixtureOutcome) -> DiagnosticReport {
+    fn fixture_diagnostic_ownership() -> DiagnosticOwnership {
+        DiagnosticOwnership {
+            covered: false,
+            claims: 5,
+            claimed_bytes: 20,
+            form_literal_claims: 1,
+            form_literal_bytes: 4,
+            vocab_claims: 1,
+            vocab_bytes: 4,
+            lexeme_claims: 1,
+            lexeme_bytes: 4,
+            codec_claims: 1,
+            codec_bytes: 4,
+            identity_claims: 1,
+            identity_bytes: 4,
+            gap_spans: 1,
+            gap_bytes: 2,
+            overlap_spans: 1,
+            overlap_bytes: 1,
+            synthetic_claims: 1,
+            provenance_plan_mismatches: 1,
+            failures: vec![
+                DiagnosticOwnershipFailure::Gap { start: 20, end: 22 },
+                DiagnosticOwnershipFailure::Overlap {
+                    left_start: 0,
+                    left_end: 4,
+                    right_start: 3,
+                    right_end: 7,
+                    overlap_start: 3,
+                    overlap_end: 4,
+                },
+                DiagnosticOwnershipFailure::InvalidSpan {
+                    start: 99,
+                    end: 100,
+                    span_kind: DiagnosticInvalidSpanKind::OutOfBounds,
+                },
+                DiagnosticOwnershipFailure::InvalidSpan {
+                    start: 1,
+                    end: 2,
+                    span_kind: DiagnosticInvalidSpanKind::NonUtf8Boundary,
+                },
+                DiagnosticOwnershipFailure::Synthetic { start: 8, end: 8 },
+                DiagnosticOwnershipFailure::ProvenancePlanMismatch {
+                    index: 2,
+                    parsed: "parsed\n\t\"\\é".to_owned(),
+                    rendered: "rendered\rvalue".to_owned(),
+                },
+                DiagnosticOwnershipFailure::ByteMismatch {
+                    scope: DiagnosticByteMismatchScope::WholeRender,
+                    expected: "expected\nwhole".to_owned(),
+                    actual: "actual\twhole".to_owned(),
+                },
+                DiagnosticOwnershipFailure::ByteMismatch {
+                    scope: DiagnosticByteMismatchScope::ClaimSlice { index: 4 },
+                    expected: "expected slice".to_owned(),
+                    actual: "actual \\ slice".to_owned(),
+                },
+            ],
+        }
+    }
+
     fn candidate(ordinal: usize) -> SelectionCandidate {
         SelectionCandidate {
             ordinal,
@@ -1544,23 +1974,75 @@ pub(super) fn fixture_report(outcome: FixtureOutcome) -> DiagnosticReport {
                 message: "selection\nconfiguration failure".to_owned(),
             })
         }
+        FixtureOutcome::OwnershipInspection => {
+            DiagnosticOutcome::InternalFailure(InternalFailureOutcome {
+                kind: InternalFailureKind::OwnershipInspection,
+                message: "ownership\tinspection failure".to_owned(),
+            })
+        }
     };
+    let selected = matches!(&outcome, DiagnosticOutcome::Selected(_));
     DiagnosticReport {
-        schema_version: 1,
+        schema_version: 2,
         source: DiagnosticSource::Probe {
             text: "line\nbreak".to_owned(),
             context: "context\rbreak".to_owned(),
         },
         trace: DiagnosticTrace {
-            tokens: Counted::fixture(
+            scanner_matches: Counted::fixture(
                 2,
-                vec![ScannedToken {
+                vec![ScannerMatch {
                     start: 0,
                     end: 4,
                     terminal_name_v1: "terminal\nname".to_owned(),
                     value_label_v1: "value\rlabel".to_owned(),
                 }],
             ),
+            selected_lexical_claims: if selected {
+                Counted::fixture(
+                    5,
+                    vec![
+                        DiagnosticLexicalClaim {
+                            start: 0,
+                            end: 4,
+                            kind: DiagnosticProvenanceKind::FormLiteral,
+                            stable_owner_id: "form:\"hostile\"\\owner".to_owned(),
+                            semantic_summary: "form\nsummary".to_owned(),
+                        },
+                        DiagnosticLexicalClaim {
+                            start: 4,
+                            end: 8,
+                            kind: DiagnosticProvenanceKind::Vocab,
+                            stable_owner_id: "vocab:tab\towner".to_owned(),
+                            semantic_summary: "vocab summary".to_owned(),
+                        },
+                        DiagnosticLexicalClaim {
+                            start: 8,
+                            end: 12,
+                            kind: DiagnosticProvenanceKind::Lexeme,
+                            stable_owner_id: "lexeme:creature_subtype/Spírit/singular".to_owned(),
+                            semantic_summary: "lexeme summary".to_owned(),
+                        },
+                        DiagnosticLexicalClaim {
+                            start: 12,
+                            end: 16,
+                            kind: DiagnosticProvenanceKind::Codec,
+                            stable_owner_id: "codec:SignedNumber".to_owned(),
+                            semantic_summary: "codec summary".to_owned(),
+                        },
+                        DiagnosticLexicalClaim {
+                            start: 16,
+                            end: 20,
+                            kind: DiagnosticProvenanceKind::Identity,
+                            stable_owner_id: "identity:SelfReference".to_owned(),
+                            semantic_summary: "identity summary".to_owned(),
+                        },
+                    ],
+                )
+            } else {
+                Counted::fixture(0, Vec::new())
+            },
+            ownership: selected.then(fixture_diagnostic_ownership),
             final_chart: Counted::fixture(
                 1,
                 vec![ChartItem {
@@ -1673,14 +2155,14 @@ mod tests {
     }
 
     #[derive(Debug, Clone)]
-    struct FixtureToken {
+    struct FixtureScannerMatch {
         start: usize,
         end: usize,
         terminal: String,
         value: String,
     }
 
-    impl TokenSource for FixtureToken {
+    impl ScannerMatchSource for FixtureScannerMatch {
         fn start(&self) -> usize {
             self.start
         }
@@ -1695,6 +2177,103 @@ mod tests {
 
         fn value_label_v1(&self) -> &str {
             &self.value
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct FixtureLexicalClaim {
+        start: usize,
+        end: usize,
+        kind: deckmaste_english_v2::parser::LexicalProvenanceKind,
+        stable_owner_id: String,
+        semantic_summary: String,
+    }
+
+    impl LexicalClaimSource for FixtureLexicalClaim {
+        fn start(&self) -> usize {
+            self.start
+        }
+
+        fn end(&self) -> usize {
+            self.end
+        }
+
+        fn kind(&self) -> deckmaste_english_v2::parser::LexicalProvenanceKind {
+            self.kind
+        }
+
+        fn stable_owner_id(&self) -> &str {
+            &self.stable_owner_id
+        }
+
+        fn semantic_summary(&self) -> &str {
+            &self.semantic_summary
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct FixtureOwnershipSummary {
+        covered: bool,
+        values: [usize; 18],
+    }
+
+    impl OwnershipSummarySource for FixtureOwnershipSummary {
+        fn covered(&self) -> bool {
+            self.covered
+        }
+        fn claims(&self) -> usize {
+            self.values[0]
+        }
+        fn claimed_bytes(&self) -> usize {
+            self.values[1]
+        }
+        fn form_literal_claims(&self) -> usize {
+            self.values[2]
+        }
+        fn form_literal_bytes(&self) -> usize {
+            self.values[3]
+        }
+        fn vocab_claims(&self) -> usize {
+            self.values[4]
+        }
+        fn vocab_bytes(&self) -> usize {
+            self.values[5]
+        }
+        fn lexeme_claims(&self) -> usize {
+            self.values[6]
+        }
+        fn lexeme_bytes(&self) -> usize {
+            self.values[7]
+        }
+        fn codec_claims(&self) -> usize {
+            self.values[8]
+        }
+        fn codec_bytes(&self) -> usize {
+            self.values[9]
+        }
+        fn identity_claims(&self) -> usize {
+            self.values[10]
+        }
+        fn identity_bytes(&self) -> usize {
+            self.values[11]
+        }
+        fn gap_spans(&self) -> usize {
+            self.values[12]
+        }
+        fn gap_bytes(&self) -> usize {
+            self.values[13]
+        }
+        fn overlap_spans(&self) -> usize {
+            self.values[14]
+        }
+        fn overlap_bytes(&self) -> usize {
+            self.values[15]
+        }
+        fn synthetic_claims(&self) -> usize {
+            self.values[16]
+        }
+        fn provenance_plan_mismatches(&self) -> usize {
+            self.values[17]
         }
     }
 
@@ -1987,6 +2566,10 @@ mod tests {
 
     #[derive(Debug, Clone)]
     enum FixtureTraceOutcome {
+        Selected {
+            rendered: String,
+            selection: FixtureSelection,
+        },
         ParseFailure {
             start: usize,
             end: usize,
@@ -2001,7 +2584,10 @@ mod tests {
 
     #[derive(Debug, Clone)]
     struct FixtureTraceSource {
-        tokens: FixtureBounded<FixtureToken>,
+        scanner_matches: FixtureBounded<FixtureScannerMatch>,
+        selected_lexical_claims: FixtureBounded<FixtureLexicalClaim>,
+        ownership: Option<FixtureOwnershipSummary>,
+        ownership_failures: Vec<deckmaste_english_v2::parser::OwnershipFailure>,
         chart: FixtureBounded<FixtureChartItem>,
         forest: FixtureBounded<FixtureForestNode>,
         roots: FixtureBounded<usize>,
@@ -2012,7 +2598,9 @@ mod tests {
     }
 
     impl TraceSourceView for FixtureTraceSource {
-        type Token = FixtureToken;
+        type ScannerMatch = FixtureScannerMatch;
+        type LexicalClaim = FixtureLexicalClaim;
+        type OwnershipSummary = FixtureOwnershipSummary;
         type ChartItem = FixtureChartItem;
         type ForestNode = FixtureForestNode;
         type CheckedRejection = FixtureRejection;
@@ -2020,8 +2608,20 @@ mod tests {
         type MaterializationCycle = FixtureCycle;
         type Selection = FixtureSelection;
 
-        fn tokens(&self) -> BoundedSource<'_, Self::Token> {
-            self.tokens.view()
+        fn scanner_matches(&self) -> BoundedSource<'_, Self::ScannerMatch> {
+            self.scanner_matches.view()
+        }
+
+        fn selected_lexical_claims(&self) -> BoundedSource<'_, Self::LexicalClaim> {
+            self.selected_lexical_claims.view()
+        }
+
+        fn ownership(&self) -> Option<&Self::OwnershipSummary> {
+            self.ownership.as_ref()
+        }
+
+        fn ownership_failures(&self) -> &[deckmaste_english_v2::parser::OwnershipFailure] {
+            &self.ownership_failures
         }
 
         fn chart(&self) -> BoundedSource<'_, Self::ChartItem> {
@@ -2050,6 +2650,13 @@ mod tests {
 
         fn outcome(&self) -> TraceOutcomeSource<'_, Self::Selection> {
             match &self.outcome {
+                FixtureTraceOutcome::Selected {
+                    rendered,
+                    selection,
+                } => TraceOutcomeSource::Selected {
+                    rendered,
+                    selection,
+                },
                 FixtureTraceOutcome::ParseFailure {
                     start,
                     end,
@@ -2123,15 +2730,18 @@ mod tests {
 
     fn fixture_trace_source(outcome: FixtureTraceOutcome) -> FixtureTraceSource {
         FixtureTraceSource {
-            tokens: FixtureBounded::new(
+            scanner_matches: FixtureBounded::new(
                 2,
-                vec![FixtureToken {
+                vec![FixtureScannerMatch {
                     start: 2,
                     end: 8,
                     terminal: "source terminal\nname".to_owned(),
                     value: "source value".to_owned(),
                 }],
             ),
+            selected_lexical_claims: FixtureBounded::new(0, Vec::new()),
+            ownership: None,
+            ownership_failures: Vec::new(),
             chart: FixtureBounded::new(
                 2,
                 vec![FixtureChartItem {
@@ -2216,6 +2826,99 @@ mod tests {
         }
     }
 
+    fn fixture_selected_ownership_source(limit: usize, covered: bool) -> FixtureTraceSource {
+        use deckmaste_english_v2::parser::ByteMismatchScope;
+        use deckmaste_english_v2::parser::InvalidSpanKind;
+        use deckmaste_english_v2::parser::LexicalProvenanceKind;
+        use deckmaste_english_v2::parser::OwnershipFailure;
+        use deckmaste_english_v2::parser::TextSpan;
+
+        let mut selection = fixture_selection_source();
+        selection.selected = selection.candidates.items.first().cloned();
+        selection.resolution = deckmaste_english_v2::parser::SelectionResolution::Specificity;
+        let mut source = fixture_trace_source(FixtureTraceOutcome::Selected {
+            rendered: "source selected\nrender".to_owned(),
+            selection,
+        });
+        let claims = [
+            (LexicalProvenanceKind::FormLiteral, "form:one"),
+            (LexicalProvenanceKind::Vocab, "vocab:two"),
+            (
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:creature_subtype/Spírit/singular",
+            ),
+            (LexicalProvenanceKind::Codec, "codec:four"),
+            (LexicalProvenanceKind::Identity, "identity:five"),
+        ];
+        source.selected_lexical_claims = FixtureBounded::new(
+            claims.len(),
+            claims
+                .into_iter()
+                .enumerate()
+                .take(limit.min(claims.len()))
+                .map(|(index, (kind, owner))| FixtureLexicalClaim {
+                    start: index * 4,
+                    end: index * 4 + 4,
+                    kind,
+                    stable_owner_id: owner.to_owned(),
+                    semantic_summary: format!("summary {index}\n\t\"\\"),
+                })
+                .collect(),
+        );
+        source.ownership = Some(FixtureOwnershipSummary {
+            covered,
+            values: if covered {
+                [5, 20, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 0, 0, 0, 0, 0, 0]
+            } else {
+                [5, 20, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 2, 1, 1, 1, 1]
+            },
+        });
+        source.ownership_failures = if covered {
+            Vec::new()
+        } else {
+            vec![
+                OwnershipFailure::Gap {
+                    span: TextSpan { start: 20, end: 22 },
+                },
+                OwnershipFailure::Overlap {
+                    left: TextSpan { start: 0, end: 4 },
+                    right: TextSpan { start: 3, end: 7 },
+                    overlap: TextSpan { start: 3, end: 4 },
+                },
+                OwnershipFailure::InvalidSpan {
+                    span: TextSpan {
+                        start: 99,
+                        end: 100,
+                    },
+                    kind: InvalidSpanKind::OutOfBounds,
+                },
+                OwnershipFailure::InvalidSpan {
+                    span: TextSpan { start: 1, end: 2 },
+                    kind: InvalidSpanKind::NonUtf8Boundary,
+                },
+                OwnershipFailure::Synthetic {
+                    span: TextSpan { start: 8, end: 8 },
+                },
+                OwnershipFailure::ProvenancePlanMismatch {
+                    index: 2,
+                    parsed: "parsed\n\t\"\\é".to_owned(),
+                    rendered: "rendered\rvalue".to_owned(),
+                },
+                OwnershipFailure::ByteMismatch {
+                    scope: ByteMismatchScope::WholeRender,
+                    expected: "expected\nwhole".to_owned(),
+                    actual: "actual\twhole".to_owned(),
+                },
+                OwnershipFailure::ByteMismatch {
+                    scope: ByteMismatchScope::ClaimSlice { index: 4 },
+                    expected: "expected slice".to_owned(),
+                    actual: "actual \\ slice".to_owned(),
+                },
+            ]
+        };
+        source
+    }
+
     fn parser() -> Parser {
         crate::english_v2::parser_from_builtin_v2()
     }
@@ -2230,6 +2933,14 @@ mod tests {
         assert_eq!(projected.shown, runtime.shown());
         assert_eq!(projected.omitted, runtime.omitted());
         assert_eq!(projected.items.len(), runtime.items().len());
+    }
+
+    fn assert_no_selected_ownership(report: &DiagnosticReport) {
+        assert_eq!(report.trace.selected_lexical_claims.total, 0);
+        assert_eq!(report.trace.selected_lexical_claims.shown, 0);
+        assert_eq!(report.trace.selected_lexical_claims.omitted, 0);
+        assert!(report.trace.selected_lexical_claims.items.is_empty());
+        assert!(report.trace.ownership.is_none());
     }
 
     fn assert_selection_candidate(
@@ -2351,11 +3062,19 @@ mod tests {
         for limit in [0, 1, usize::MAX] {
             let runtime = trace(text, context, limit);
             let projected = DiagnosticReport::from_probe(text, context, &runtime);
-            assert_eq!(projected.schema_version, 1);
+            assert_eq!(projected.schema_version, 2);
             assert_eq!(projected.source.kind(), SourceKind::Probe);
             assert_eq!(projected.source.text(), text);
             assert_eq!(projected.source.context(), context);
-            assert_counts(runtime.tokens(), &projected.trace.tokens);
+            assert_counts(runtime.scanner_matches(), &projected.trace.scanner_matches);
+            assert_counts(
+                runtime.selected_lexical_claims(),
+                &projected.trace.selected_lexical_claims,
+            );
+            let expected_ownership = runtime
+                .ownership()
+                .map(|summary| diagnostic_ownership(summary, runtime.ownership_failures()));
+            assert_eq!(projected.trace.ownership, expected_ownership);
             assert_counts(runtime.chart(), &projected.trace.final_chart);
             assert_counts(runtime.forest(), &projected.trace.forest_nodes);
             assert_counts(runtime.accepted_roots(), &projected.trace.forest_roots);
@@ -2373,15 +3092,27 @@ mod tests {
             );
 
             for (actual, dto) in runtime
-                .tokens()
+                .scanner_matches()
                 .items()
                 .iter()
-                .zip(&projected.trace.tokens.items)
+                .zip(&projected.trace.scanner_matches.items)
             {
                 assert_eq!(dto.start, actual.start());
                 assert_eq!(dto.end, actual.end());
                 assert_eq!(dto.terminal_name_v1, actual.terminal_name_v1());
                 assert_eq!(dto.value_label_v1, actual.value_label_v1());
+            }
+            for (actual, dto) in runtime
+                .selected_lexical_claims()
+                .items()
+                .iter()
+                .zip(&projected.trace.selected_lexical_claims.items)
+            {
+                assert_eq!(dto.start, actual.span().start);
+                assert_eq!(dto.end, actual.span().end);
+                assert_eq!(dto.kind, provenance_kind(actual.kind()));
+                assert_eq!(dto.stable_owner_id, actual.stable_owner_id());
+                assert_eq!(dto.semantic_summary, actual.semantic_summary());
             }
             for (actual, dto) in runtime
                 .chart()
@@ -2502,21 +3233,111 @@ mod tests {
     }
 
     #[test]
+    fn schema_v2_shared_mapper_preserves_bounded_claims_complete_ownership_and_every_failure() {
+        let expected_kinds = [
+            DiagnosticProvenanceKind::FormLiteral,
+            DiagnosticProvenanceKind::Vocab,
+            DiagnosticProvenanceKind::Lexeme,
+            DiagnosticProvenanceKind::Codec,
+            DiagnosticProvenanceKind::Identity,
+        ];
+        for covered in [true, false] {
+            for limit in [0, 1, 5, 6] {
+                let source = fixture_selected_ownership_source(limit, covered);
+                let report = DiagnosticReport::from_probe_source(
+                    "hostile\ntext\t\"\\é",
+                    "hostile\rcontext",
+                    &source,
+                );
+                assert_eq!(report.schema_version, 2);
+                assert_eq!(report.trace.selected_lexical_claims.total, 5);
+                assert_eq!(report.trace.selected_lexical_claims.shown, limit.min(5),);
+                assert_eq!(
+                    report.trace.selected_lexical_claims.omitted,
+                    5 - limit.min(5),
+                );
+                assert_eq!(
+                    report
+                        .trace
+                        .selected_lexical_claims
+                        .items
+                        .iter()
+                        .map(|claim| claim.kind)
+                        .collect::<Vec<_>>(),
+                    expected_kinds[..limit.min(5)],
+                );
+                let ownership = report.trace.ownership.as_ref().expect("selected ownership");
+                assert_eq!(ownership.covered, covered);
+                assert_eq!((ownership.claims, ownership.claimed_bytes), (5, 20));
+                assert_eq!(ownership.failures.len(), if covered { 0 } else { 8 });
+
+                let first = render_to_vec(&report, true).unwrap();
+                let second = render_to_vec(&report, true).unwrap();
+                assert_eq!(first, second);
+                assert_eq!(first.last(), Some(&b'\n'));
+                let value: Value = serde_json::from_slice(&first).unwrap();
+                assert!(value["trace"].get("tokens").is_none());
+                assert!(value["trace"].get("scanner_matches").is_some());
+                assert!(value["trace"].get("selected_lexical_claims").is_some());
+                let round_trip: DiagnosticReport = serde_json::from_slice(&first).unwrap();
+                assert_eq!(round_trip, report);
+                if !covered {
+                    let failures = value["trace"]["ownership"]["failures"]
+                        .as_array()
+                        .expect("failure array");
+                    assert_eq!(
+                        failures
+                            .iter()
+                            .map(|failure| failure["kind"].as_str().unwrap())
+                            .collect::<Vec<_>>(),
+                        [
+                            "gap",
+                            "overlap",
+                            "invalid_span",
+                            "invalid_span",
+                            "synthetic",
+                            "provenance_plan_mismatch",
+                            "byte_mismatch",
+                            "byte_mismatch",
+                        ],
+                    );
+                    assert_eq!(failures[2]["span_kind"], "out_of_bounds");
+                    assert_eq!(failures[3]["span_kind"], "non_utf8_boundary");
+                    assert_eq!(failures[6]["scope"]["kind"], "whole_render");
+                    assert_eq!(failures[7]["scope"]["kind"], "claim_slice");
+                    assert_eq!(failures[7]["scope"]["index"], 4);
+                }
+
+                let human = String::from_utf8(render_to_vec(&report, false).unwrap()).unwrap();
+                for exact_prefix in [
+                    "scanner_matches shown=",
+                    "selected_lexical_claims shown=",
+                    "ownership covered=",
+                ] {
+                    assert!(human.lines().any(|line| line.starts_with(exact_prefix)));
+                }
+                assert!(!human.lines().any(|line| line.starts_with("tokens ")));
+                assert!(!human.contains("hostile\ntext"));
+            }
+        }
+    }
+
+    #[test]
     fn projection_keeps_overlapping_spans_nested_omissions_rejections_and_failure_expectations() {
         let overlap = trace("You gain X life.", "You", usize::MAX);
         let overlap = DiagnosticReport::from_probe("You gain X life.", "You", &overlap);
         let spans: Vec<_> = overlap
             .trace
-            .tokens
+            .scanner_matches
             .items
             .iter()
-            .map(|token| (token.start, token.end))
+            .map(|scanner_match| (scanner_match.start, scanner_match.end))
             .collect();
         assert!(
             spans
                 .iter()
                 .any(|span| spans.iter().filter(|other| *other == span).count() > 1),
-            "scanner tokens must retain overlapping successful spans: {spans:?}"
+            "scanner matches must retain overlapping successful spans: {spans:?}"
         );
 
         let bounded = trace(
@@ -2554,7 +3375,7 @@ mod tests {
     }
 
     #[test]
-    fn schema_v1_json_and_human_render_every_outcome_and_nested_bounded_section_deterministically()
+    fn schema_v2_json_and_human_render_every_outcome_and_nested_bounded_section_deterministically()
     {
         for outcome in [
             FixtureOutcome::Selected,
@@ -2562,13 +3383,15 @@ mod tests {
             FixtureOutcome::UnresolvedAmbiguity,
             FixtureOutcome::ValidatedRootDidNotMaterialize,
             FixtureOutcome::SelectionConfiguration,
+            FixtureOutcome::OwnershipInspection,
         ] {
             let report = fixture_report(outcome);
             let first = render_to_vec(&report, true).unwrap();
             let second = render_to_vec(&report, true).unwrap();
             assert_eq!(first, second);
             let value: Value = serde_json::from_slice(&first).unwrap();
-            assert_eq!(value["schema_version"], 1);
+            assert_eq!(value["schema_version"], 2);
+            assert!(value["trace"].get("tokens").is_none());
             let round_trip: DiagnosticReport = serde_json::from_slice(&first).unwrap();
             assert_eq!(round_trip, report);
 
@@ -2576,7 +3399,8 @@ mod tests {
             assert!(!human.contains("..."));
             assert!(!human.contains("line\nbreak"));
             for section in [
-                "tokens",
+                "scanner_matches",
+                "selected_lexical_claims",
                 "final_chart",
                 "forest_nodes",
                 "forest_roots",
@@ -2596,7 +3420,7 @@ mod tests {
     }
 
     #[test]
-    fn schema_v1_pins_status_reason_and_internal_kind_spellings() {
+    fn schema_v2_pins_status_reason_provenance_and_internal_kind_spellings() {
         let selected: Value = serde_json::from_slice(
             &render_to_vec(&fixture_report(FixtureOutcome::Selected), true).unwrap(),
         )
@@ -2622,6 +3446,7 @@ mod tests {
                 FixtureOutcome::SelectionConfiguration,
                 "selection_configuration",
             ),
+            (FixtureOutcome::OwnershipInspection, "ownership_inspection"),
         ] {
             let value: Value =
                 serde_json::from_slice(&render_to_vec(&fixture_report(fixture), true).unwrap())
@@ -2638,6 +3463,8 @@ mod tests {
         )
         .unwrap();
         for exact_line in [
+            "scanner_matches shown=1 total=2 omitted=1",
+            "selected_lexical_claims shown=5 total=5 omitted=0",
             "forest_nodes[0].families shown=1 total=2 omitted=1",
             "forest_nodes[0].families[0].children shown=1 total=2 omitted=1",
             "forest_roots shown=0 total=0 omitted=0",
@@ -2655,6 +3482,45 @@ mod tests {
             assert!(
                 selected.lines().any(|line| line == exact_line),
                 "missing nested count row {exact_line:?}\n{selected}"
+            );
+        }
+        let scanner_rows = selected
+            .lines()
+            .filter(|line| line.starts_with("scanner_match index="))
+            .collect::<Vec<_>>();
+        assert_eq!(scanner_rows.len(), 1);
+        assert!(scanner_rows[0].starts_with("scanner_match index=0 item={"));
+        let claim_rows = selected
+            .lines()
+            .filter(|line| line.starts_with("selected_lexical_claim index="))
+            .collect::<Vec<_>>();
+        assert_eq!(claim_rows.len(), 5);
+        for (index, row) in claim_rows.iter().enumerate() {
+            assert!(row.starts_with(&format!("selected_lexical_claim index={index} item={{")));
+        }
+        let ownership_line = "ownership covered=false claims=5 claimed_bytes=20 form_literal_claims=1 form_literal_bytes=4 vocab_claims=1 vocab_bytes=4 lexeme_claims=1 lexeme_bytes=4 codec_claims=1 codec_bytes=4 identity_claims=1 identity_bytes=4 gap_spans=1 gap_bytes=2 overlap_spans=1 overlap_bytes=1 synthetic_claims=1 provenance_plan_mismatches=1";
+        assert!(selected.lines().any(|line| line == ownership_line));
+        let failure_lines = selected
+            .lines()
+            .filter(|line| line.starts_with("ownership.failure index="))
+            .collect::<Vec<_>>();
+        assert_eq!(failure_lines.len(), 8);
+        for required_field in [
+            "\"start\":20",
+            "\"left_start\":0",
+            "\"span_kind\":\"out_of_bounds\"",
+            "\"span_kind\":\"non_utf8_boundary\"",
+            "\"index\":2",
+            "\"kind\":\"whole_render\"",
+            "\"kind\":\"claim_slice\"",
+            "\"expected\"",
+            "\"actual\"",
+        ] {
+            assert!(
+                failure_lines
+                    .iter()
+                    .any(|line| line.contains(required_field)),
+                "missing ownership failure field {required_field:?}\n{selected}",
             );
         }
         for index in 0..4 {
@@ -2727,6 +3593,7 @@ mod tests {
             ),
         });
         let report = DiagnosticReport::from_probe_source("source text", "source context", &source);
+        assert_no_selected_ownership(&report);
 
         assert_eq!(
             report.trace.materialization_cycles,
@@ -2821,6 +3688,7 @@ mod tests {
         let source =
             fixture_trace_source(FixtureTraceOutcome::Unresolved(fixture_selection_source()));
         let report = DiagnosticReport::from_probe_source("source text", "source context", &source);
+        assert_no_selected_ownership(&report);
         let DiagnosticOutcome::UnresolvedAmbiguity(unresolved) = report.trace.outcome else {
             panic!("source fixture outcome was remapped");
         };
@@ -2931,6 +3799,7 @@ mod tests {
             });
             let report =
                 DiagnosticReport::from_probe_source("source text", "source context", &source);
+            assert_no_selected_ownership(&report);
             let DiagnosticOutcome::InternalFailure(failure) = report.trace.outcome else {
                 panic!("source fixture outcome was remapped");
             };
@@ -2969,10 +3838,12 @@ mod tests {
             assert!(std::ptr::eq(delegated.items, actual.items()));
         }
 
-        let runtime = trace("You gains X life.", "Probe Card", 1);
+        let runtime = trace("Destroy target Spirit.", "Probe Card", 1);
         let source = &runtime
             as &dyn TraceSourceView<
-                Token = deckmaste_english_v2::parser::ScannedToken,
+                ScannerMatch = deckmaste_english_v2::parser::ScannerMatch,
+                LexicalClaim = deckmaste_english_v2::parser::LexicalClaim,
+                OwnershipSummary = deckmaste_english_v2::parser::OwnershipSummary,
                 ChartItem = deckmaste_english_v2::parser::ChartItem,
                 ForestNode = deckmaste_english_v2::parser::ForestNode,
                 CheckedRejection = deckmaste_english_v2::parser::CheckedCompletionRejection,
@@ -2980,7 +3851,19 @@ mod tests {
                 MaterializationCycle = deckmaste_english_v2::parser::MaterializationCycle,
                 Selection = deckmaste_english_v2::parser::BoundedSelectionDecision,
             >;
-        assert_delegated(runtime.tokens(), source.tokens());
+        assert_delegated(runtime.scanner_matches(), source.scanner_matches());
+        assert_delegated(
+            runtime.selected_lexical_claims(),
+            source.selected_lexical_claims(),
+        );
+        assert!(std::ptr::eq(
+            runtime.ownership().expect("runtime ownership"),
+            source.ownership().expect("delegated ownership"),
+        ));
+        assert!(std::ptr::eq(
+            runtime.ownership_failures(),
+            source.ownership_failures(),
+        ));
         assert_delegated(runtime.chart(), source.chart());
         assert_delegated(runtime.forest(), source.forest());
         assert_delegated(runtime.accepted_roots(), source.accepted_roots());
@@ -2996,21 +3879,17 @@ mod tests {
             runtime.materialization_cycles(),
             source.materialization_cycles(),
         );
-        let TraceOutcomeSource::ParseFailure {
-            start,
-            end,
-            expectations,
+        let TraceOutcomeSource::Selected {
+            rendered,
+            selection,
         } = source.outcome()
         else {
             panic!("real outcome accessor was not delegated");
         };
-        let BoundedParseOutcome::ParseFailure(actual) = runtime.outcome() else {
-            panic!("fixture must remain a parse failure");
+        let BoundedParseOutcome::Selected(actual) = runtime.outcome() else {
+            panic!("fixture must remain selected");
         };
-        assert_eq!((start, end), (actual.span().start, actual.span().end));
-        assert_eq!(expectations.total, actual.expectations().total());
-        assert_eq!(expectations.shown, actual.expectations().shown());
-        assert_eq!(expectations.omitted, actual.expectations().omitted());
-        assert_eq!(expectations.items, actual.expectations().items());
+        assert_eq!(rendered, actual.rendered());
+        assert!(std::ptr::eq(selection, actual.selection()));
     }
 }

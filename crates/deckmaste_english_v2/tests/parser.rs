@@ -434,7 +434,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
         let trace = parser.trace(text, &context, limits);
         let repeated = parser.trace(text, &context, limits);
         assert_eq!(trace, repeated);
-        assert_bounded(trace.tokens(), limit);
+        assert_bounded(trace.scanner_matches(), limit);
         assert_bounded(trace.chart(), limit);
         assert_bounded(trace.forest(), limit);
         assert_bounded(trace.accepted_roots(), limit);

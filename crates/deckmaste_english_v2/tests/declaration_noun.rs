@@ -53,15 +53,15 @@ fn declaration_noun_admits_dynamic_type_and_subtype_rows_without_catalogs() {
         TraceLimits::new(usize::MAX),
     );
     assert!(
-        trace.tokens().items().iter().any(|token| {
-            token.start() == 14
-                && token.end() == 20
-                && token.value_label_v1().contains(
+        trace.scanner_matches().items().iter().any(|scanner_match| {
+            scanner_match.start() == 14
+                && scanner_match.end() == 20
+                && scanner_match.value_label_v1().contains(
                     "DeclarationIdentity { kind: Type, name: \"Relic\" }, feature: Singular",
                 )
         }),
         "{:#?}",
-        trace.tokens().items()
+        trace.scanner_matches().items()
     );
 }
 
@@ -75,17 +75,17 @@ fn rend_spirit_is_the_reviewed_declaration_noun_corpus_delta() {
     assert_eq!(parsed.render(&context, parser.environment()), text);
 
     let trace = parser.trace(text, &context, TraceLimits::new(usize::MAX));
-    assert!(trace.tokens().items().iter().any(|token| {
-        token.start() == 0
-            && token.end() == 7
-            && token.value_label_v1().contains(
+    assert!(trace.scanner_matches().items().iter().any(|scanner_match| {
+        scanner_match.start() == 0
+            && scanner_match.end() == 7
+            && scanner_match.value_label_v1().contains(
                 "DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }, feature: Bare",
             )
     }));
-    assert!(trace.tokens().items().iter().any(|token| {
-        token.start() == 14
-            && token.end() == 21
-            && token.value_label_v1().contains(
+    assert!(trace.scanner_matches().items().iter().any(|scanner_match| {
+        scanner_match.start() == 14
+            && scanner_match.end() == 21
+            && scanner_match.value_label_v1().contains(
                 "DeclarationIdentity { kind: Subtype(Creature), name: \"Spirit\" }, feature: Singular",
             )
     }));

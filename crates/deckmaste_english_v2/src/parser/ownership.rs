@@ -5,18 +5,7 @@ use crate::constructions::LexicalProvenanceKind;
 
 #[cfg(any(test, feature = "test-support"))]
 thread_local! {
-    static PROJECTION_RUNS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static FORCE_INSPECTION_CORRUPTION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
-#[cfg(test)]
-pub(super) fn reset_projection_runs() {
-    PROJECTION_RUNS.with(|runs| runs.set(0));
-}
-
-#[cfg(test)]
-pub(super) fn projection_runs() -> usize {
-    PROJECTION_RUNS.with(std::cell::Cell::get)
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -226,8 +215,6 @@ pub(crate) fn validate_ownership(
     if FORCE_INSPECTION_CORRUPTION.with(std::cell::Cell::get) {
         return Err(OwnershipInspectionError);
     }
-    #[cfg(test)]
-    PROJECTION_RUNS.with(|runs| runs.set(runs.get() + 1));
     let parsed_claims = parsed
         .iter()
         .map(|claim| LexicalClaim {

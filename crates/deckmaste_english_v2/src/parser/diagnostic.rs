@@ -1,6 +1,9 @@
 use std::cmp::Ordering;
 
 use super::Expectation;
+use super::LexicalClaim;
+use super::OwnershipFailure;
+use super::OwnershipSummary;
 use super::ParseError;
 use super::SelectedOwnership;
 use super::selection::construction_name_v1;
@@ -82,14 +85,14 @@ impl<T> Bounded<T> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ScannedToken {
+pub struct ScannerMatch {
     pub(crate) start: usize,
     pub(crate) end: usize,
     pub(crate) terminal_name_v1: String,
     pub(crate) value_label_v1: String,
 }
 
-impl ScannedToken {
+impl ScannerMatch {
     #[must_use]
     pub const fn start(&self) -> usize {
         self.start
@@ -109,11 +112,11 @@ impl ScannedToken {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct SemanticTokenInventory<Terminal, Value> {
+pub(crate) struct SemanticScannerMatchInventory<Terminal, Value> {
     entries: Vec<(usize, usize, Terminal, Value)>,
 }
 
-impl<Terminal, Value> Default for SemanticTokenInventory<Terminal, Value> {
+impl<Terminal, Value> Default for SemanticScannerMatchInventory<Terminal, Value> {
     fn default() -> Self {
         Self {
             entries: Vec::new(),
@@ -121,7 +124,7 @@ impl<Terminal, Value> Default for SemanticTokenInventory<Terminal, Value> {
     }
 }
 
-impl<Terminal: PartialEq, Value: PartialEq> SemanticTokenInventory<Terminal, Value> {
+impl<Terminal: PartialEq, Value: PartialEq> SemanticScannerMatchInventory<Terminal, Value> {
     pub(crate) fn record(&mut self, start: usize, end: usize, terminal: Terminal, value: Value) {
         let entry = (start, end, terminal, value);
         if !self.entries.contains(&entry) {
@@ -153,7 +156,7 @@ impl<Terminal: PartialEq, Value: PartialEq> SemanticTokenInventory<Terminal, Val
         mut value_cmp: impl FnMut(&Value, &Value) -> Ordering,
         mut terminal_name_v1: impl FnMut(Terminal) -> String,
         mut value_label_v1: impl FnMut(&Value) -> String,
-    ) -> Bounded<ScannedToken> {
+    ) -> Bounded<ScannerMatch> {
         order_bounded_prefix(&mut self.entries, limit, |left, right| {
             left.0
                 .cmp(&right.0)
@@ -161,16 +164,16 @@ impl<Terminal: PartialEq, Value: PartialEq> SemanticTokenInventory<Terminal, Val
                 .then_with(|| terminal_cmp(&left.2, &right.2))
                 .then_with(|| value_cmp(&left.3, &right.3))
         });
-        let mut tokens = Bounded::new(limit);
+        let mut scanner_matches = Bounded::new(limit);
         for (start, end, terminal, value) in self.entries {
-            tokens.push_with(|| ScannedToken {
+            scanner_matches.push_with(|| ScannerMatch {
                 start,
                 end,
                 terminal_name_v1: terminal_name_v1(terminal),
                 value_label_v1: value_label_v1(&value),
             });
         }
-        tokens
+        scanner_matches
     }
 }
 
@@ -191,7 +194,7 @@ pub(crate) fn order_bounded_prefix<T>(
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct StructuralTrace {
-    tokens: Bounded<ScannedToken>,
+    scanner_matches: Bounded<ScannerMatch>,
     chart: Bounded<ChartItem>,
     forest: Bounded<ForestNode>,
     accepted_roots: Bounded<usize>,
@@ -202,7 +205,7 @@ impl StructuralTrace {
     #[cfg(test)]
     pub(crate) fn empty() -> Self {
         Self {
-            tokens: Bounded::new(0),
+            scanner_matches: Bounded::new(0),
             chart: Bounded::new(0),
             forest: Bounded::new(0),
             accepted_roots: Bounded::new(0),
@@ -210,22 +213,22 @@ impl StructuralTrace {
         }
     }
     pub(crate) fn new(
-        tokens: Bounded<ScannedToken>,
+        scanner_matches: Bounded<ScannerMatch>,
         chart: Bounded<ChartItem>,
         forest: Bounded<ForestNode>,
         accepted_roots: Bounded<usize>,
         checked_completion_rejections: Bounded<CheckedCompletionRejection>,
     ) -> Self {
         Self {
-            tokens,
+            scanner_matches,
             chart,
             forest,
             accepted_roots,
             checked_completion_rejections,
         }
     }
-    pub(crate) const fn tokens(&self) -> &Bounded<ScannedToken> {
-        &self.tokens
+    pub(crate) const fn scanner_matches(&self) -> &Bounded<ScannerMatch> {
+        &self.scanner_matches
     }
     pub(crate) const fn chart(&self) -> &Bounded<ChartItem> {
         &self.chart
@@ -826,6 +829,29 @@ fn bounded_copy<T, U>(values: &[T], limit: usize, project: impl Fn(&T) -> U) -> 
     bounded
 }
 
+#[cfg(test)]
+thread_local! {
+    static SELECTED_CLAIM_PROJECTION_CONSTRUCTIONS: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(super) fn reset_selected_claim_projection_constructions() {
+    SELECTED_CLAIM_PROJECTION_CONSTRUCTIONS.with(|constructions| constructions.set(0));
+}
+
+#[cfg(test)]
+pub(super) fn selected_claim_projection_constructions() -> usize {
+    SELECTED_CLAIM_PROJECTION_CONSTRUCTIONS.with(std::cell::Cell::get)
+}
+
+fn clone_selected_claim(claim: &LexicalClaim) -> LexicalClaim {
+    #[cfg(test)]
+    SELECTED_CLAIM_PROJECTION_CONSTRUCTIONS
+        .with(|constructions| constructions.set(constructions.get() + 1));
+    claim.clone()
+}
+
 /// A typed internal parser failure suitable for diagnostics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InternalFailureKind {
@@ -1184,18 +1210,24 @@ pub struct ParserTrace {
     outcome: BoundedParseOutcome,
     structural: StructuralTrace,
     materialization: MaterializationTrace,
+    selected_lexical_claims: Bounded<LexicalClaim>,
+    ownership: Option<OwnershipSummary>,
+    ownership_failures: Vec<OwnershipFailure>,
 }
 
 impl PartialEq for ParserTrace {
     fn eq(&self, other: &Self) -> bool {
         self.outcome() == other.outcome()
-            && self.tokens() == other.tokens()
+            && self.scanner_matches() == other.scanner_matches()
             && self.chart() == other.chart()
             && self.forest() == other.forest()
             && self.accepted_roots() == other.accepted_roots()
             && self.checked_completion_rejections() == other.checked_completion_rejections()
             && self.materialized_candidates() == other.materialized_candidates()
             && self.materialization_cycles() == other.materialization_cycles()
+            && self.selected_lexical_claims() == other.selected_lexical_claims()
+            && self.ownership() == other.ownership()
+            && self.ownership_failures() == other.ownership_failures()
     }
 }
 
@@ -1206,7 +1238,7 @@ impl std::fmt::Debug for ParserTrace {
         formatter
             .debug_struct("ParserTrace")
             .field("outcome", self.outcome())
-            .field("tokens", self.tokens())
+            .field("scanner_matches", self.scanner_matches())
             .field("chart", self.chart())
             .field("forest", self.forest())
             .field("accepted_roots", self.accepted_roots())
@@ -1216,6 +1248,9 @@ impl std::fmt::Debug for ParserTrace {
             )
             .field("materialized_candidates", self.materialized_candidates())
             .field("materialization_cycles", self.materialization_cycles())
+            .field("selected_lexical_claims", self.selected_lexical_claims())
+            .field("ownership", &self.ownership())
+            .field("ownership_failures", &self.ownership_failures())
             .finish()
     }
 }
@@ -1230,6 +1265,15 @@ impl ParserTrace {
         environment: &crate::environment::ParserEnvironment,
     ) -> Self {
         let limit = limits.per_collection();
+        let selected_ownership = analysis.ownership();
+        let selected_lexical_claims = selected_ownership.map_or_else(
+            || Bounded::new(limit),
+            |ownership| bounded_copy(ownership.parsed_claims(), limit, clone_selected_claim),
+        );
+        let ownership = selected_ownership.map(|ownership| ownership.summary().clone());
+        let ownership_failures = selected_ownership
+            .map(|ownership| ownership.failures().to_vec())
+            .unwrap_or_default();
         let outcome = match &analysis.result {
             Ok(ability) => {
                 let decision = analysis
@@ -1294,6 +1338,9 @@ impl ParserTrace {
             outcome,
             structural,
             materialization,
+            selected_lexical_claims,
+            ownership,
+            ownership_failures,
         }
     }
 
@@ -1302,8 +1349,8 @@ impl ParserTrace {
         &self.outcome
     }
     #[must_use]
-    pub const fn tokens(&self) -> &Bounded<ScannedToken> {
-        self.structural.tokens()
+    pub const fn scanner_matches(&self) -> &Bounded<ScannerMatch> {
+        self.structural.scanner_matches()
     }
     #[must_use]
     pub const fn chart(&self) -> &Bounded<ChartItem> {
@@ -1328,6 +1375,18 @@ impl ParserTrace {
     #[must_use]
     pub const fn materialization_cycles(&self) -> &Bounded<MaterializationCycle> {
         self.materialization.cycles()
+    }
+    #[must_use]
+    pub const fn selected_lexical_claims(&self) -> &Bounded<LexicalClaim> {
+        &self.selected_lexical_claims
+    }
+    #[must_use]
+    pub const fn ownership(&self) -> Option<&OwnershipSummary> {
+        self.ownership.as_ref()
+    }
+    #[must_use]
+    pub fn ownership_failures(&self) -> &[OwnershipFailure] {
+        &self.ownership_failures
     }
 
     /// # Errors
@@ -1357,7 +1416,10 @@ mod tests {
     use crate::environment::canonical_test_environment;
     use crate::parser::Expectation;
     use crate::parser::ParseError;
+    use crate::parser::Parser;
+    use crate::parser::SelectionDecision;
     use crate::parser::SelectionExceptionInventoryError;
+    use crate::parser::SelectionResolution;
     use crate::parser::TextSpan;
 
     #[test]
@@ -1447,39 +1509,103 @@ mod tests {
     }
 
     #[test]
-    fn parser_trace_internal_failure_projection_keeps_both_kinds_typed_and_messages_stable() {
+    fn parser_trace_lexical_ownership_nonselected_outcomes_are_empty() {
         let context = ParseContext::new("Trace Card").expect("context");
         let environment = canonical_test_environment();
-        for (error, expected_kind, expected_message) in [
+        let unresolved = SelectionDecision::new(
+            Vec::new(),
+            Vec::new(),
+            vec![0, 1],
+            None,
+            SelectionResolution::UnresolvedTie,
+            Vec::new(),
+        );
+        let cases = [
+            (
+                ParseError::Failure {
+                    span: TextSpan { start: 0, end: 0 },
+                    expectations: BTreeSet::new(),
+                },
+                None,
+                None,
+            ),
+            (
+                ParseError::Ambiguous {
+                    first: "first",
+                    second: "second",
+                },
+                Some(unresolved),
+                None,
+            ),
             (
                 ParseError::ValidatedRootDidNotMaterialize,
-                InternalFailureKind::ValidatedRootDidNotMaterialize,
-                "validated chart root did not materialize",
+                None,
+                Some(InternalFailureKind::ValidatedRootDidNotMaterialize),
             ),
             (
                 ParseError::InvalidSelectionExceptionConfiguration(
                     SelectionExceptionInventoryError::BlankId,
                 ),
-                InternalFailureKind::SelectionConfiguration,
-                "invalid selection exception configuration: entry id is empty or whitespace-only",
+                None,
+                Some(InternalFailureKind::SelectionConfiguration),
             ),
-        ] {
-            let expected_error = error.clone();
+            (
+                ParseError::OwnershipInspection,
+                None,
+                Some(InternalFailureKind::OwnershipInspection),
+            ),
+        ];
+        for (error, decision, expected_internal_kind) in cases {
             let trace = ParserTrace::from_parts(
-                ParseAnalysis::from_result(Err(error), None),
+                ParseAnalysis::from_result(Err(error), decision),
                 StructuralTrace::empty(),
                 MaterializationTrace::empty(0),
                 TraceLimits::new(0),
                 &context,
                 &environment,
             );
-            let BoundedParseOutcome::InternalFailure(failure) = trace.outcome() else {
-                panic!("typed internal outcome");
-            };
-            assert_eq!(failure.kind(), expected_kind);
-            assert_eq!(failure.message(), expected_message);
-            assert_eq!(trace.into_parse_result(), Err(expected_error));
+            assert_eq!(trace.selected_lexical_claims().total(), 0);
+            assert!(trace.selected_lexical_claims().items().is_empty());
+            assert_eq!(trace.ownership(), None);
+            assert!(trace.ownership_failures().is_empty());
+            if let Some(expected_kind) = expected_internal_kind {
+                let BoundedParseOutcome::InternalFailure(failure) = trace.outcome() else {
+                    panic!("typed internal outcome");
+                };
+                assert_eq!(failure.kind(), expected_kind);
+            }
         }
+    }
+
+    #[test]
+    fn parser_trace_lexical_ownership_debug_and_equality_ignore_private_omissions() {
+        let environment = canonical_test_environment();
+        let parser = Parser::new(environment).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Trace Card").expect("context");
+        let left = parser.trace("Destroy target creature.", &context, TraceLimits::new(1));
+        let mut right = left.clone();
+        right.analysis = parser.analyze("Destroy target Spirit.", &context);
+
+        let left_private = left.analysis.ownership().expect("left ownership");
+        let right_private = right.analysis.ownership().expect("right ownership");
+        assert_ne!(
+            &left_private.parsed_claims()[1..],
+            &right_private.parsed_claims()[1..],
+            "the omitted private claim payloads differ",
+        );
+        assert_eq!(left.selected_lexical_claims().shown(), 1);
+        assert_eq!(
+            left.selected_lexical_claims(),
+            right.selected_lexical_claims()
+        );
+        assert_eq!(left.ownership(), right.ownership());
+        assert_eq!(left.ownership_failures(), right.ownership_failures());
+        assert_eq!(left, right);
+
+        let debug = format!("{right:?}");
+        assert!(!debug.contains("lexeme:creature_subtype/Spirit/singular"));
+        assert!(!debug.contains("analysis:"));
+        assert!(debug.contains("selected_lexical_claims"));
     }
 
     #[test]
@@ -1541,7 +1667,7 @@ mod tests {
         let right = make_trace(RIGHT_SENTINEL);
 
         assert_eq!(left.outcome(), right.outcome());
-        assert_eq!(left.tokens(), right.tokens());
+        assert_eq!(left.scanner_matches(), right.scanner_matches());
         assert_eq!(left.chart(), right.chart());
         assert_eq!(left.forest(), right.forest());
         assert_eq!(left.accepted_roots(), right.accepted_roots());

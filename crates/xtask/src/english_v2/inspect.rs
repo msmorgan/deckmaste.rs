@@ -426,6 +426,7 @@ mod tests {
         for outcome in [
             FixtureOutcome::ValidatedRootDidNotMaterialize,
             FixtureOutcome::SelectionConfiguration,
+            FixtureOutcome::OwnershipInspection,
         ] {
             let mut steps = RecordingSteps::new(outcome);
             let mut output = Vec::new();

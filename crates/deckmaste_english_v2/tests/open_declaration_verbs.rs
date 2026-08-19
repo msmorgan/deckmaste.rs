@@ -134,20 +134,20 @@ fn category_homonym_does_not_replace_the_requested_action_identity() {
         &context(),
         TraceLimits::new(usize::MAX),
     );
-    let declaration_tokens = trace
-        .tokens()
+    let declaration_matches = trace
+        .scanner_matches()
         .items()
         .iter()
-        .filter(|token| token.terminal_name_v1().contains("Declaration"))
+        .filter(|scanner_match| scanner_match.terminal_name_v1().contains("Declaration"))
         .collect::<Vec<_>>();
-    assert_eq!(declaration_tokens.len(), 1);
+    assert_eq!(declaration_matches.len(), 1);
     assert!(
-        declaration_tokens[0]
+        declaration_matches[0]
             .value_label_v1()
             .contains("KeywordAction")
     );
     assert!(
-        !declaration_tokens[0]
+        !declaration_matches[0]
             .value_label_v1()
             .contains("KeywordAbility")
     );

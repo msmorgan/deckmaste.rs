@@ -1103,7 +1103,12 @@ mod tests {
             assert_eq!(candidates, repeated_candidates);
             assert_eq!(materialization, repeated_materialization);
             let expected_debug = format!("{:?}", candidates[0].ability);
-            let analysis = crate::parser::analyze_materialized(candidates);
+            let analysis = crate::parser::analyze_materialized_with_ownership(
+                "Destroy target creature.",
+                candidates,
+                &context,
+                &environment,
+            );
             let trace = ParserTrace::from_parts(
                 analysis,
                 StructuralTrace::empty(),

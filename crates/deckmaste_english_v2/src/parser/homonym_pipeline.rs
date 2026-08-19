@@ -6,7 +6,7 @@ use macro_ron::v2::DeclarationIdentity;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::SurfaceFeature;
 
-use super::diagnostic::SemanticTokenInventory;
+use super::diagnostic::SemanticScannerMatchInventory;
 use super::engine::LexicalMatch;
 use super::engine::Observation;
 use super::engine::Rule;
@@ -189,12 +189,12 @@ fn environment() -> ParserEnvironment {
 
 #[derive(Default)]
 struct IdentityTrace {
-    tokens: SemanticTokenInventory<Lexical, (Leaf, Option<LexicalOwner>)>,
+    scanner_matches: SemanticScannerMatchInventory<Lexical, (Leaf, Option<LexicalOwner>)>,
 }
 
 impl IdentityTrace {
     fn finish(self) -> Vec<String> {
-        self.tokens
+        self.scanner_matches
             .into_bounded_by(
                 usize::MAX,
                 |left, right| format!("{left:?}").cmp(&format!("{right:?}")),
@@ -216,7 +216,7 @@ impl IdentityTrace {
 impl Observation<RuleId, Leaf, LexicalTerminal, LexicalOwner> for IdentityTrace {
     fn scanned(&mut self, start: usize, terminal: LexicalTerminal, end: usize, value: &Leaf) {
         if matches!(value, Leaf::Declaration(_)) {
-            self.tokens.record_projected(
+            self.scanner_matches.record_projected(
                 start,
                 end,
                 terminal,

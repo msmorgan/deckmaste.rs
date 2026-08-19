@@ -12,7 +12,7 @@ use super::diagnostic::FamilyIdentityChild;
 use super::diagnostic::ForestChild;
 use super::diagnostic::ForestFamily;
 use super::diagnostic::ForestNode;
-use super::diagnostic::SemanticTokenInventory;
+use super::diagnostic::SemanticScannerMatchInventory;
 use super::diagnostic::StructuralTrace;
 use super::diagnostic::TraceLimits;
 use super::diagnostic::order_bounded_prefix;
@@ -96,7 +96,7 @@ pub(crate) fn parse_forest_observed(
 
 struct StructuralObservation {
     limit: usize,
-    tokens: SemanticTokenInventory<Lexical, (Leaf, Option<LexicalOwner>)>,
+    scanner_matches: SemanticScannerMatchInventory<Lexical, (Leaf, Option<LexicalOwner>)>,
     chart: Bounded<ChartItem>,
     forest: Bounded<ForestNode>,
     roots: Bounded<usize>,
@@ -124,7 +124,7 @@ impl StructuralObservation {
     fn new(limits: TraceLimits) -> Self {
         Self {
             limit: limits.per_collection(),
-            tokens: SemanticTokenInventory::default(),
+            scanner_matches: SemanticScannerMatchInventory::default(),
             chart: Bounded::new(limits.per_collection()),
             forest: Bounded::new(limits.per_collection()),
             roots: Bounded::new(limits.per_collection()),
@@ -133,7 +133,7 @@ impl StructuralObservation {
     }
 
     fn finish(mut self) -> StructuralTrace {
-        let tokens = self.tokens.into_bounded_by(
+        let scanner_matches = self.scanner_matches.into_bounded_by(
             self.limit,
             stable_debug_cmp,
             stable_debug_cmp,
@@ -150,12 +150,18 @@ impl StructuralObservation {
                 family_identity_v1: family_identity_v1(&rejection.family),
             });
         }
-        StructuralTrace::new(tokens, self.chart, self.forest, self.roots, rejections)
+        StructuralTrace::new(
+            scanner_matches,
+            self.chart,
+            self.forest,
+            self.roots,
+            rejections,
+        )
     }
 
     #[cfg(test)]
     fn record_token(&mut self, start: usize, end: usize, terminal: Lexical, value: &Leaf) {
-        self.tokens
+        self.scanner_matches
             .record(start, end, terminal, (value.clone(), None));
     }
 
@@ -166,7 +172,7 @@ impl StructuralObservation {
         terminal: LexicalTerminal,
         value: &Leaf,
     ) {
-        self.tokens.record_projected(
+        self.scanner_matches.record_projected(
             start,
             end,
             terminal,
@@ -1605,23 +1611,27 @@ mod tests {
     }
 
     #[test]
-    fn structural_trace_scanner_inventory_dedupes_retries_sorts_and_keeps_overlaps() {
+    fn parser_trace_lexical_ownership_scanner_matches_dedupe_retries_and_keep_overlaps() {
         for (limit, shown) in [(0, 0), (1, 1), (8, 3)] {
             let mut observed = StructuralObservation::new(TraceLimits::new(limit));
             observed.record_token(4, 9, Lexical::Literal("z"), &Leaf::Literal("z"));
             observed.record_token(0, 5, Lexical::Literal("a"), &Leaf::Literal("a"));
             observed.record_token(0, 5, Lexical::Literal("a"), &Leaf::Literal("a"));
             observed.record_token(0, 7, Lexical::Literal("b"), &Leaf::Literal("b"));
-            let tokens = observed.finish().tokens().clone();
+            let scanner_matches = observed.finish().scanner_matches().clone();
             assert_eq!(
-                (tokens.total(), tokens.shown(), tokens.omitted()),
+                (
+                    scanner_matches.total(),
+                    scanner_matches.shown(),
+                    scanner_matches.omitted(),
+                ),
                 (3, shown, 3 - shown)
             );
             assert_eq!(
-                tokens
+                scanner_matches
                     .items()
                     .iter()
-                    .map(|token| (token.start, token.end))
+                    .map(|scanner_match| (scanner_match.start, scanner_match.end))
                     .collect::<Vec<_>>(),
                 [(0, 5), (0, 7), (4, 9)][..shown]
             );
@@ -1629,20 +1639,24 @@ mod tests {
     }
 
     #[test]
-    fn structural_trace_token_labels_are_built_only_for_retained_entries() {
+    fn parser_trace_lexical_ownership_scanner_labels_are_built_only_for_retained_matches() {
         for (limit, expected_labels) in [(0, 0), (1, 1)] {
             reset_trace_label_counts();
             let mut observed = StructuralObservation::new(TraceLimits::new(limit));
             observed.record_token(0, 1, Lexical::Literal("z"), &Leaf::Literal("z"));
             observed.record_token(0, 1, Lexical::Literal("a"), &Leaf::Literal("a"));
 
-            let tokens = observed.finish().tokens().clone();
+            let scanner_matches = observed.finish().scanner_matches().clone();
             assert_eq!(
-                (tokens.total(), tokens.shown(), tokens.omitted()),
+                (
+                    scanner_matches.total(),
+                    scanner_matches.shown(),
+                    scanner_matches.omitted(),
+                ),
                 (2, expected_labels, 2 - expected_labels)
             );
-            if let Some(token) = tokens.items().first() {
-                assert_eq!(token.value_label_v1(), "Literal(\"a\")");
+            if let Some(scanner_match) = scanner_matches.items().first() {
+                assert_eq!(scanner_match.value_label_v1(), "Literal(\"a\")");
             }
             let counts = trace_label_counts();
             assert_eq!(counts.terminals, expected_labels, "limit {limit}");
