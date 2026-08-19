@@ -7,6 +7,7 @@ use syn::spanned::Spanned;
 use crate::feature;
 use crate::feature::Feature;
 use crate::identifier::BUILD_FUNCTION;
+use crate::identifier::FIXED_RUNTIME_TYPE_NAMES;
 use crate::identifier::RULE_CATEGORY_TYPE;
 use crate::identifier::RULE_CONSTRUCTION_TYPE;
 use crate::identifier::RULE_ID_CONSTRUCTION;
@@ -1219,6 +1220,9 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
         (RULE_ID_TYPE, "fixed generated rules rule-id type"),
     ] {
         names.register_type(name, role, fixed_span, errors);
+    }
+    for name in FIXED_RUNTIME_TYPE_NAMES {
+        names.register_type(name, "fixed generated runtime type", fixed_span, errors);
     }
     for (name, role) in [
         (RULES_CONSTANT, "fixed generated rules table constant"),
@@ -5184,6 +5188,63 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn rejects_authored_identities_colliding_with_every_fixed_runtime_type() {
+        for fixed in [
+            "Agreement",
+            "Number",
+            "FeatureConstraint",
+            "CasePosition",
+            "ScanPosition",
+            "DeclarationClass",
+            "DeclarationMatcher",
+            "DeclarationLeaf",
+            "Lexical",
+            "Leaf",
+            "TerminalClass",
+            "LexicalTerminal",
+            "LexicalProvenanceKind",
+            "LexicalOwnerTemplate",
+            "LexicalOwner",
+        ] {
+            let source: proc_macro2::TokenStream = format!(
+                r#"
+                identity {fixed} {{
+                    generate context {{
+                        Full => card_name,
+                        Abbreviated => abbreviated_card_name,
+                        canonical_on_collision = Full;
+                    }}
+                }}
+                construction only: Cat {{
+                    element FixedRuntimeCollisionNode {{ spelling: identity {fixed}, }}
+                    form only = identity(spelling);
+                }}
+                root Cat {{ punctuation = "."; eoi = true; standalone_render = true; }}
+                "#
+            )
+            .parse()
+            .expect("fixed-runtime collision declaration syntax");
+            let parsed =
+                crate::parse_declarations(source.clone()).expect("collision syntax parses");
+            let Declaration::Identity(identity) = &parsed.declarations[0] else {
+                panic!("first declaration is the colliding identity")
+            };
+            let expected_span = identity.name.span();
+            let error = crate::generate(source)
+                .expect_err("an identity cannot escape into a fixed generated runtime type");
+            assert_same_span(error.span(), expected_span);
+            let message = error.to_string();
+            assert!(
+                message.contains(&format!("semantic identity `{fixed}`"))
+                    && message.contains("fixed generated runtime type")
+                    && message.contains("generated identity type"),
+                "{fixed}: {message}"
+            );
+            assert!(!message.contains("internal"), "{message}");
+        }
+    }
+
+    #[test]
     fn rejects_authored_unit_constructors_colliding_with_fixed_generated_values() {
         for (element, fixed_role) in [
             ("RULES", "fixed generated rules table constant"),
@@ -5317,8 +5378,8 @@ pub(crate) mod tests {
         );
 
         let category_as_lex = error(quote! {
-            construction leaf_node: Leaf { element LeafNode {} form leaf = "leaf"; }
-            construction only: Cat { element Only { leaf: Leaf, } form only = lex(leaf); }
+            construction leaf_node: Branch { element LeafNode {} form leaf = "leaf"; }
+            construction only: Cat { element Only { leaf: Branch, } form only = lex(leaf); }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
@@ -5368,12 +5429,12 @@ pub(crate) mod tests {
 
         let wrong_domain = error(quote! {
             lexeme Verbs { Be, }
-            construction leaf_node: Leaf { element LeafNode {} derive agreement = Anything::Bare; form leaf = verb(Verbs::Be); }
-            construction only: Cat { element Only { leaf: Leaf, } require leaf is Be; form only = leaf; }
+            construction leaf_node: Branch { element LeafNode {} derive agreement = Anything::Bare; form leaf = verb(Verbs::Be); }
+            construction only: Cat { element Only { leaf: Branch, } require leaf is Be; form only = leaf; }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            wrong_domain.contains("is not a variant of category `Leaf`"),
+            wrong_domain.contains("is not a variant of category `Branch`"),
             "{wrong_domain}"
         );
     }
@@ -5572,13 +5633,13 @@ pub(crate) mod tests {
         );
 
         let binding = error(quote! {
-            codec Number {
+            codec ScalarNumber {
                 atom = lex;
-                value_type = Number;
-                lexical = Lexical::Number;
+                value_type = ScalarNumber;
+                lexical = Lexical::ScalarNumber;
                 render = render_number;
                 build {
-                    pattern = BuildValue::Number(value, _);
+                    pattern = BuildValue::ScalarNumber(value, _);
                     construct = arbitrary + rust;
                 }
                 traversal {
@@ -5586,7 +5647,7 @@ pub(crate) mod tests {
                     visit missing;
                 }
             }
-            construction only: Cat { element Only { number: lex Number, } form only = lex(number); }
+            construction only: Cat { element Only { number: lex ScalarNumber, } form only = lex(number); }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(binding.contains("binding pattern"), "{binding}");
@@ -5924,9 +5985,9 @@ pub(crate) mod tests {
     #[test]
     fn rejects_unbound_reads_cycles_and_missing_atom_features() {
         let unbound = error(quote! {
-            construction leaf_node: Leaf { element LeafNode {} form leaf = "leaf"; }
+            construction leaf_node: Branch { element LeafNode {} form leaf = "leaf"; }
             construction parent_node: Parent {
-                element ParentNode { leaf: Leaf, }
+                element ParentNode { leaf: Branch, }
                 derive agreement = leaf.agreement;
                 form parent = leaf;
             }
@@ -5935,9 +5996,9 @@ pub(crate) mod tests {
         assert!(unbound.contains("does not provide agreement"), "{unbound}");
 
         let cycle = error(quote! {
-            construction leaf_node: Leaf { element LeafNode {} derive agreement = Anything::Bare; form leaf = "leaf"; }
+            construction leaf_node: Branch { element LeafNode {} derive agreement = Anything::Bare; form leaf = "leaf"; }
             construction parent_node: Parent {
-                element ParentNode { left: Leaf, right: Leaf, }
+                element ParentNode { left: Branch, right: Branch, }
                 derive left.agreement = right.agreement;
                 derive right.agreement = left.agreement;
                 form parent = left right;

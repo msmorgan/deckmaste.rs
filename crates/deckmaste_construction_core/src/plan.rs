@@ -480,7 +480,7 @@ mod tests {
     }
 
     #[test]
-    fn context_identity_plan_is_typed_and_shared_by_every_identity_emitter() {
+    fn context_identity_plan_routes_each_typed_fact_to_its_consuming_emitters() {
         let source: proc_macro2::TokenStream = r#"
             identity SelfReferenceSpelling {
                 generate context {
@@ -527,6 +527,18 @@ mod tests {
             "Canonical",
             "Short",
         );
+        let terminal_before_accessors = formatted(&crate::emit::terminal::emit(&plan).unwrap().0);
+        let runtime_before_accessors = formatted(&crate::emit::runtime::emit(&plan));
+        let scanner_before_accessors = formatted(&crate::emit::scanner::emit(&plan));
+        let rules_before_accessors = formatted(&crate::emit::rules::emit(&plan).unwrap());
+        let build_before_accessors = formatted(&crate::emit::build::emit(&plan).unwrap());
+        let render_before_accessors = formatted(&crate::emit::render::emit(&plan).unwrap());
+        let visitor_before_accessors = formatted(&crate::emit::visit::emit(&plan).unwrap());
+        plan.test_only_replace_context_identity_accessors(
+            "ReferenceMode",
+            "abbreviated_card_name",
+            "card_name",
+        );
         let terminal = formatted(&crate::emit::terminal::emit(&plan).unwrap().0);
         let runtime = formatted(&crate::emit::runtime::emit(&plan));
         let scanner = formatted(&crate::emit::scanner::emit(&plan));
@@ -534,6 +546,13 @@ mod tests {
         let build = formatted(&crate::emit::build::emit(&plan).unwrap());
         let render = formatted(&crate::emit::render::emit(&plan).unwrap());
         let visitor = formatted(&crate::emit::visit::emit(&plan).unwrap());
+        assert_ne!(terminal, terminal_before_accessors);
+        assert_ne!(scanner, scanner_before_accessors);
+        assert_eq!(runtime, runtime_before_accessors);
+        assert_eq!(rules, rules_before_accessors);
+        assert_eq!(build, build_before_accessors);
+        assert_eq!(render, render_before_accessors);
+        assert_eq!(visitor, visitor_before_accessors);
         for (phase, output) in [
             ("terminal", &terminal),
             ("runtime", &runtime),
@@ -552,8 +571,24 @@ mod tests {
             assert!(output.contains("Canonical"), "{output}");
             assert!(output.contains("Short"), "{output}");
         }
-        assert!(scanner.contains("card_name"), "{scanner}");
-        assert!(scanner.contains("abbreviated_card_name"), "{scanner}");
+        assert!(
+            terminal.contains("Self :: Canonical => context . abbreviated_card_name ()"),
+            "{terminal}"
+        );
+        assert!(
+            terminal.contains("Self :: Short => context . card_name ()"),
+            "{terminal}"
+        );
+        assert!(
+            scanner.contains(
+                "(ReferenceMode :: Canonical , input . context . abbreviated_card_name ())"
+            ),
+            "{scanner}"
+        );
+        assert!(
+            scanner.contains("(ReferenceMode :: Short , input . context . card_name ())"),
+            "{scanner}"
+        );
         assert!(render.contains(". surface (context)"), "{render}");
         assert!(!render.contains("SelfReferenceSpelling ::"), "{render}");
         assert!(

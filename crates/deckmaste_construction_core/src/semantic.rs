@@ -1051,6 +1051,33 @@ impl SemanticPlan {
     }
 
     #[cfg(test)]
+    pub(crate) fn test_only_replace_context_identity_accessors(
+        &mut self,
+        name: &str,
+        canonical_accessor: &str,
+        alternate_accessor: &str,
+    ) {
+        let identity = self
+            .terminals
+            .iter_mut()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::ContextIdentity(identity) if identity.name() == name => {
+                    Some(identity)
+                }
+                TerminalPlan::Vocab(_)
+                | TerminalPlan::Lexeme(_)
+                | TerminalPlan::Binding(_)
+                | TerminalPlan::ContextIdentity(_)
+                | TerminalPlan::SignedDecimal(_) => None,
+            })
+            .expect("test context identity is present");
+        identity.arms[0].accessor =
+            syn::Ident::new(canonical_accessor, identity.arms[0].accessor.span());
+        identity.arms[1].accessor =
+            syn::Ident::new(alternate_accessor, identity.arms[1].accessor.span());
+    }
+
+    #[cfg(test)]
     pub(crate) fn test_only_replace_binding_build_variant(&mut self, name: &str, variant: &str) {
         let binding = self
             .terminals

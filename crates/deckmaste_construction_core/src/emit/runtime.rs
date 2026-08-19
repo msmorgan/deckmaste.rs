@@ -2,6 +2,21 @@ use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
 
+use crate::identifier::AGREEMENT_TYPE;
+use crate::identifier::CASE_POSITION_TYPE;
+use crate::identifier::DECLARATION_CLASS_TYPE;
+use crate::identifier::DECLARATION_LEAF_TYPE;
+use crate::identifier::DECLARATION_MATCHER_TYPE;
+use crate::identifier::FEATURE_CONSTRAINT_TYPE;
+use crate::identifier::LEAF_TYPE;
+use crate::identifier::LEXICAL_OWNER_TEMPLATE_TYPE;
+use crate::identifier::LEXICAL_OWNER_TYPE;
+use crate::identifier::LEXICAL_PROVENANCE_KIND_TYPE;
+use crate::identifier::LEXICAL_TERMINAL_TYPE;
+use crate::identifier::LEXICAL_TYPE;
+use crate::identifier::NUMBER_TYPE;
+use crate::identifier::SCAN_POSITION_TYPE;
+use crate::identifier::TERMINAL_CLASS_TYPE;
 use crate::identifier::emitted_ident;
 use crate::identifier::path_key;
 use crate::identifier::snake_case;
@@ -50,35 +65,35 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let inventory = RuntimeInventory::from_plan(plan);
     let mut items = vec![
         named_type(
-            "Agreement",
+            AGREEMENT_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum Agreement { Bare, ThirdPersonSingular }
             },
         ),
         named_type(
-            "Number",
+            NUMBER_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum Number { Singular, Plural }
             },
         ),
         named_type(
-            "FeatureConstraint",
+            FEATURE_CONSTRAINT_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum FeatureConstraint<F> { Exact(F), Any }
             },
         ),
         named_type(
-            "CasePosition",
+            CASE_POSITION_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum CasePosition { DocumentInitial, Continuation }
             },
         ),
         named_type(
-            "ScanPosition",
+            SCAN_POSITION_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) struct ScanPosition {
@@ -88,7 +103,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
-            "DeclarationClass",
+            DECLARATION_CLASS_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub struct DeclarationClass {
@@ -98,7 +113,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
-            "DeclarationMatcher",
+            DECLARATION_MATCHER_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) struct DeclarationMatcher {
@@ -110,7 +125,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
-            "DeclarationLeaf",
+            DECLARATION_LEAF_TYPE,
             quote! {
                 #[derive(Debug, Clone, PartialEq, Eq)]
                 pub(crate) struct DeclarationLeaf {
@@ -245,7 +260,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
 
     vec![
         named_type(
-            "Lexical",
+            LEXICAL_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum Lexical {
@@ -263,7 +278,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
-            "Leaf",
+            LEAF_TYPE,
             quote! {
                 #[derive(Debug, Clone, PartialEq, Eq)]
                 pub(crate) enum Leaf {
@@ -281,7 +296,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
-            "TerminalClass",
+            TERMINAL_CLASS_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub enum TerminalClass {
@@ -298,7 +313,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
-            "LexicalTerminal",
+            LEXICAL_TERMINAL_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) struct LexicalTerminal {
@@ -313,7 +328,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
 fn emit_owner_types() -> Vec<GeneratedItem> {
     vec![
         named_type(
-            "LexicalProvenanceKind",
+            LEXICAL_PROVENANCE_KIND_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub enum LexicalProvenanceKind {
@@ -327,7 +342,7 @@ fn emit_owner_types() -> Vec<GeneratedItem> {
             },
         ),
         named_type(
-            "LexicalOwnerTemplate",
+            LEXICAL_OWNER_TEMPLATE_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum LexicalOwnerTemplate {
@@ -354,7 +369,7 @@ fn emit_owner_types() -> Vec<GeneratedItem> {
             },
         ),
         named_type(
-            "LexicalOwner",
+            LEXICAL_OWNER_TYPE,
             quote! {
                 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
                 pub struct LexicalOwner {

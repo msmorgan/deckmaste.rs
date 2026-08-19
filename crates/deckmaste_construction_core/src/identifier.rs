@@ -9,6 +9,38 @@ pub(crate) const RULE_ID_CONSTRUCTION: &str = "construction";
 pub(crate) const RULE_ID_INDEX: &str = "index";
 pub(crate) const RULES_CONSTANT: &str = "RULES";
 pub(crate) const BUILD_FUNCTION: &str = "build";
+pub(crate) const AGREEMENT_TYPE: &str = "Agreement";
+pub(crate) const NUMBER_TYPE: &str = "Number";
+pub(crate) const FEATURE_CONSTRAINT_TYPE: &str = "FeatureConstraint";
+pub(crate) const CASE_POSITION_TYPE: &str = "CasePosition";
+pub(crate) const SCAN_POSITION_TYPE: &str = "ScanPosition";
+pub(crate) const DECLARATION_CLASS_TYPE: &str = "DeclarationClass";
+pub(crate) const DECLARATION_MATCHER_TYPE: &str = "DeclarationMatcher";
+pub(crate) const DECLARATION_LEAF_TYPE: &str = "DeclarationLeaf";
+pub(crate) const LEXICAL_TYPE: &str = "Lexical";
+pub(crate) const LEAF_TYPE: &str = "Leaf";
+pub(crate) const TERMINAL_CLASS_TYPE: &str = "TerminalClass";
+pub(crate) const LEXICAL_TERMINAL_TYPE: &str = "LexicalTerminal";
+pub(crate) const LEXICAL_PROVENANCE_KIND_TYPE: &str = "LexicalProvenanceKind";
+pub(crate) const LEXICAL_OWNER_TEMPLATE_TYPE: &str = "LexicalOwnerTemplate";
+pub(crate) const LEXICAL_OWNER_TYPE: &str = "LexicalOwner";
+pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
+    AGREEMENT_TYPE,
+    NUMBER_TYPE,
+    FEATURE_CONSTRAINT_TYPE,
+    CASE_POSITION_TYPE,
+    SCAN_POSITION_TYPE,
+    DECLARATION_CLASS_TYPE,
+    DECLARATION_MATCHER_TYPE,
+    DECLARATION_LEAF_TYPE,
+    LEXICAL_TYPE,
+    LEAF_TYPE,
+    TERMINAL_CLASS_TYPE,
+    LEXICAL_TERMINAL_TYPE,
+    LEXICAL_PROVENANCE_KIND_TYPE,
+    LEXICAL_OWNER_TEMPLATE_TYPE,
+    LEXICAL_OWNER_TYPE,
+];
 
 /// Returns the semantic Rust name of an authored identifier.
 ///
