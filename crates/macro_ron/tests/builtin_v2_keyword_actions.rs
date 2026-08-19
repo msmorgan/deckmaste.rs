@@ -190,6 +190,22 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         }
     );
 
+    assert_eq!(
+        action(&declarations, "Vote").grammar().unwrap().recipe(),
+        &GrammarRecipe::Verb {
+            valence: VerbValence::Custom {
+                shapes: vec![
+                    vec![],
+                    vec![CustomTailAtom::ObjectNounPhrase],
+                    vec![
+                        CustomTailAtom::Literal("for".to_owned()),
+                        CustomTailAtom::ObjectNounPhrase,
+                    ],
+                ],
+            },
+        }
+    );
+
     let manifest_dread = action(&declarations, "ManifestDread");
     assert_eq!(
         surfaces(manifest_dread),

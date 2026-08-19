@@ -4,7 +4,11 @@ KeywordAction(
     grammar: Verb(
         bare: "vote",
         valence: Custom(
-            shapes: [[Literal("for"), ObjectNounPhrase]],
+            shapes: [
+                [],
+                [ObjectNounPhrase],
+                [Literal("for"), ObjectNounPhrase],
+            ],
         ),
     ),
 )
