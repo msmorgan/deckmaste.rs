@@ -1,0 +1,22 @@
+Subtype(
+    category: Enchantment,
+    name: "Saga",
+    spelling: "Saga",
+    grammar: Noun(singular: "Saga"),
+    params: [],
+    body: Subtype(
+        name: "Saga",
+        types: [Enchantment],
+        confers: [
+            Ability(Innate(Static(Replacement(Also(
+                would: ThisEnters,
+                also: PutCounters(This, LoreCounter, 1),
+            ))))),
+            TurnBased(
+                at: PrecombatMain,
+                effect: PutCounters(This, LoreCounter, 1),
+            ),
+        ],
+    ),
+)
+

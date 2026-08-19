@@ -1,0 +1,18 @@
+Subtype(
+    category: Enchantment,
+    name: "Aura",
+    spelling: "Aura",
+    grammar: Noun(singular: "Aura"),
+    params: [],
+    body: Subtype(
+        name: "Aura",
+        types: [Enchantment],
+        confers: [
+            Ability(Innate(Static(Sba(
+                when: Not(LegallyAttached(This)),
+                then: Move(This, Graveyard),
+            )))),
+        ],
+    ),
+)
+

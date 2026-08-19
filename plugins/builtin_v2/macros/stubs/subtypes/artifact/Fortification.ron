@@ -1,0 +1,15 @@
+Subtype(
+    category: Artifact,
+    name: "Fortification",
+    spelling: "Fortification",
+    grammar: Noun(singular: "Fortification"),
+    params: [],
+    body: Subtype(
+        name: "Fortification",
+        types: [Artifact],
+        confers: [
+            Ability(Innate(Static(May(Attach(what: Ref(This), to: Type(Land)))))),
+        ],
+    ),
+)
+

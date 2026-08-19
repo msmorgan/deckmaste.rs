@@ -1,0 +1,15 @@
+Subtype(
+    category: Artifact,
+    name: "Equipment",
+    spelling: "Equipment",
+    grammar: Noun(singular: "Equipment", plural: "Equipment"),
+    params: [],
+    body: Subtype(
+        name: "Equipment",
+        types: [Artifact],
+        confers: [
+            Ability(Innate(Static(May(Attach(what: Ref(This), to: Type(Creature)))))),
+        ],
+    ),
+)
+
