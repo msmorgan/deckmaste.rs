@@ -3721,14 +3721,24 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
                 }
             }
             Declaration::Root(root) => {
-                if root.punctuation.value().chars().count() != 1 {
-                    combine(
+                let punctuation = root.punctuation.value();
+                let mut characters = punctuation.chars();
+                match (characters.next(), characters.next()) {
+                    (Some(character), None) if character.is_alphanumeric() => combine(
+                        &mut errors,
+                        syn::Error::new(
+                            root.punctuation.span(),
+                            "root punctuation must not be alphanumeric",
+                        ),
+                    ),
+                    (Some(_), None) => {}
+                    _ => combine(
                         &mut errors,
                         syn::Error::new(
                             root.punctuation.span(),
                             "root punctuation must be exactly one Unicode scalar",
                         ),
-                    );
+                    ),
                 }
             }
             Declaration::Vocab(_) | Declaration::Lexeme(_) => {}
@@ -5504,6 +5514,17 @@ pub(crate) mod tests {
             root Root { punctuation = "❤"; eoi = true; standalone_render = true; }
         })
         .expect("one non-ASCII Unicode scalar is valid punctuation metadata");
+
+        let message = crate::generate(quote! {
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "A"; eoi = true; standalone_render = true; }
+        })
+        .expect_err("alphanumeric root punctuation cannot delimit a preceding lexical surface")
+        .to_string();
+        assert!(
+            message.contains("root punctuation must not be alphanumeric"),
+            "{message}"
+        );
     }
 
     #[test]

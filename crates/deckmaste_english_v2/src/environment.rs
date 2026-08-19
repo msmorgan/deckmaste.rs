@@ -448,7 +448,7 @@ mod tests {
         sources.sort();
         let legacy_type = concat!("Parser", "Catalogs");
         let legacy_storage = concat!("Catalog", "Set");
-        let legacy_wildcard = concat!("deckmaste_catalogs::", "*");
+        let legacy_crate = concat!("deckmaste_", "catalogs");
         for path in sources {
             let relative = path
                 .strip_prefix(&source_root)
@@ -471,11 +471,32 @@ mod tests {
                     relative.display()
                 );
             }
-            assert!(
-                !source.contains(legacy_wildcard),
-                "a wildcard import could conceal legacy catalog storage in {}",
-                relative.display()
-            );
+            if relative != Path::new("catalogs.rs")
+                && relative != Path::new("catalog_compatibility.rs")
+            {
+                let references = source
+                    .lines()
+                    .filter(|line| line.contains(legacy_crate))
+                    .map(|line| line.trim().to_owned())
+                    .collect::<Vec<_>>();
+                let catalog_kind_use = format!("use {legacy_crate}::CatalogKind;");
+                let catalog_kind_argument = format!("kind: {legacy_crate}::CatalogKind,");
+                let expected = match relative.to_str() {
+                    Some("ast.rs" | "render.rs" | "parser/scan.rs") => {
+                        vec![catalog_kind_use]
+                    }
+                    Some("environment.rs") => {
+                        vec![catalog_kind_argument.clone(), catalog_kind_argument]
+                    }
+                    _ => Vec::new(),
+                };
+                assert_eq!(
+                    references,
+                    expected,
+                    "legacy catalog crate references escaped the exact compatibility allowlist in {}",
+                    relative.display()
+                );
+            }
         }
 
         let environment = include_str!("environment.rs");
