@@ -118,11 +118,45 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     items.extend(emit_lexical_types(&inventory));
     items.extend(emit_owner_types());
     items.extend(emit_runtime_impls(&inventory));
+    if plan.has_open_declarations() {
+        items.push(emit_required_declarations(plan));
+    }
     let origins = plan.declaration_keys().to_vec();
     for item in &mut items {
         item.origins.clone_from(&origins);
     }
     items
+}
+
+fn emit_required_declarations(plan: &SemanticPlan) -> GeneratedItem {
+    let requirements = plan
+        .required_open_declarations()
+        .map(|(construction, open)| {
+            let kind = crate::emit::declaration_kind(open.kind());
+            let name = syn::LitStr::new(open.name(), Span::call_site());
+            let position = crate::emit::grammar_position(open.position());
+            let feature = crate::emit::rules::open_verb_feature(plan, construction)?;
+            Ok(quote! {
+                DeclarationMatcher {
+                    kind: #kind,
+                    name: #name,
+                    position: #position,
+                    feature: #feature,
+                }
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()
+        .expect("validated open declarations have sealed agreement constraints");
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: crate::plan::NamedKind::Constant,
+            name: "REQUIRED_DECLARATIONS".to_owned(),
+        },
+        quote! {
+            pub(crate) const REQUIRED_DECLARATIONS: &[DeclarationMatcher] = &[#(#requirements),*];
+        },
+        plan.declaration_keys().to_vec(),
+    )
 }
 
 fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {

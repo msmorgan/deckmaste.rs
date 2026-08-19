@@ -29,7 +29,7 @@ constructions! {
     vocab Variable { X = "X", }
 
     lexeme NounLexeme { Player, }
-    lexeme VerbLexeme { Destroy, Connive, Deal, Gain, Control, Be, }
+    lexeme VerbLexeme { Deal, Gain, Control, Be, }
 
     codec Noun {
         atom = noun;
@@ -210,12 +210,12 @@ constructions! {
     construction destroy: VerbPhrase {
         element Destroy { object: NounPhrase, }
         derive agreement = verb.agreement;
-        form destroy = verb(VerbLexeme::Destroy) object;
+        form destroy = open_verb(KeywordAction, "Destroy") object;
     }
     construction connive: VerbPhrase {
         element Connive {}
         derive agreement = verb.agreement;
-        form connive = verb(VerbLexeme::Connive);
+        form connive = open_verb(KeywordAction, "Connive");
     }
     construction deal_damage: VerbPhrase {
         element DealDamage { amount: Amount, to: NounPhrase, }

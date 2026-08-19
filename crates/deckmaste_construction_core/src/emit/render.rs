@@ -55,6 +55,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         .map(|root| root.category().to_owned())
         .collect::<HashSet<_>>();
     let mut items = Vec::new();
+    let takes_environment = validated.has_open_declarations();
     for root in &roots {
         let category = root.category().to_owned();
         let members = categories
@@ -77,7 +78,8 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                 ));
             }
             let context = capability.requires_context().then(|| quote! { context });
-            let tail = signature_tail(&[None, context]);
+            let environment = takes_environment.then(|| quote! { environment });
+            let tail = signature_tail(&[None, context, environment]);
             quote! { #helper(&mut writer, self #tail); }
         } else {
             let allocator = render_allocator(validated, members, true, &root_names, false, true)?;
@@ -91,9 +93,11 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             )?;
             quote! { match self { #(#arms)* } }
         };
+        let environment = takes_environment
+            .then(|| quote! { , environment: &crate::environment::ParserEnvironment });
         let tokens = quote! {
             impl Render for #ty {
-                fn render(&self, context: &ParseContext<'_>) -> String {
+                fn render(&self, context: &ParseContext<'_> #environment) -> String {
                     let mut writer = Writer::new();
                     #render_body
                     writer.punctuation(#punctuation);
@@ -138,7 +142,9 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         let argument = signature_allocator.allocate(&category_argument(&category));
         let agreement = takes_agreement.then(|| quote! { agreement: Agreement });
         let context = takes_context.then(|| quote! { context: &ParseContext<'_> });
-        let separators = signature_tail(&[agreement, context]);
+        let environment = takes_environment
+            .then(|| quote! { environment: &crate::environment::ParserEnvironment });
+        let separators = signature_tail(&[agreement, context, environment]);
         let arms = render_arms(
             validated,
             members,
@@ -234,6 +240,9 @@ fn render_allocator(
     if takes_context {
         allocator.reserve("context");
     }
+    if validated.has_open_declarations() {
+        allocator.reserve("environment");
+    }
     for construction in members {
         let fields = construction
             .fields()
@@ -299,6 +308,19 @@ fn render_allocator(
                 }
                 AtomPlan::VerbFixed { .. } => {
                     allocator.reserve("inflect");
+                    let equations = validated.feature_equations(construction.construction_id());
+                    if let Some(equation) = equations.iter().find(|equation| {
+                        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == "verb")
+                    }) {
+                        reserve_feature_callees(
+                            validated,
+                            construction,
+                            equation.value(),
+                            &mut allocator,
+                        )?;
+                    }
+                }
+                AtomPlan::OpenDeclaration(_) => {
                     let equations = validated.feature_equations(construction.construction_id());
                     if let Some(equation) = equations.iter().find(|equation| {
                         matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == "verb")
@@ -531,7 +553,10 @@ fn render_atoms(
                     None
                 };
                 let context = capability.requires_context().then(|| quote! { context });
-                let tail = signature_tail(&[agreement, context]);
+                let environment = validated
+                    .has_open_declarations()
+                    .then(|| quote! { environment });
+                let tail = signature_tail(&[agreement, context, environment]);
                 Ok(quote! { #helper(#call_writer, #value #tail); })
             }
             AtomPlan::Lex { role, .. } => {
@@ -596,6 +621,9 @@ fn render_atoms(
                 let agreement = verb_agreement(validated, construction, locals)?;
                 Ok(quote! { #method_writer.word(inflect(#variant, #agreement)); })
             }
+            AtomPlan::OpenDeclaration(open) => {
+                render_open_declaration(validated, construction, open, locals, &method_writer)
+            }
             AtomPlan::Noun { role, .. } => {
                 let field = fields
                     .get(role)
@@ -611,6 +639,36 @@ fn render_atoms(
             }
         })
         .collect()
+}
+
+fn render_open_declaration(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    open: &crate::semantic::OpenDeclarationAtomPlan,
+    locals: &RenderLocals,
+    method_writer: &TokenStream,
+) -> syn::Result<TokenStream> {
+    let agreement = verb_agreement(validated, construction, locals)?;
+    let feature = quote! {
+        match #agreement {
+            Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+            Agreement::ThirdPersonSingular => {
+                ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+            }
+        }
+    };
+    let kind = crate::emit::declaration_kind(open.kind());
+    let name = syn::LitStr::new(open.name(), Span::call_site());
+    Ok(quote! {
+        #method_writer.word(
+            environment
+                .surface(
+                    &::macro_ron::v2::DeclarationIdentity::new(#kind, #name),
+                    #feature,
+                )
+                .expect("parser validated the required declaration surface"),
+        );
+    })
 }
 
 fn role_agreement(

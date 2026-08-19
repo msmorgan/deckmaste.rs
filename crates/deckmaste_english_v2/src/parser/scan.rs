@@ -748,6 +748,7 @@ mod tests {
     use macro_ron::v2::DeclarationKind;
     use macro_ron::v2::GrammarPosition;
     use macro_ron::v2::SurfaceFeature;
+    use macro_ron::v2::read_builtin_v2;
     use macro_ron::v2::read_str;
 
     use super::super::engine::Child;
@@ -847,6 +848,40 @@ mod tests {
             }),
             owner: LexicalOwnerTemplate::Declaration { kind, name },
         }
+    }
+
+    fn parser_declaration_environment(
+        name: &str,
+        bare: &str,
+        third_person: Option<&str>,
+    ) -> ParserEnvironment {
+        let mut declarations = read_builtin_v2(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+        )
+        .expect("integrated builtin-v2 rows load")
+        .into_iter()
+        .filter(|declaration| {
+            declaration.identity().kind() == DeclarationKind::KeywordAction
+                && matches!(declaration.identity().name(), "Destroy" | "Connive")
+        })
+        .collect::<Vec<_>>();
+        if !declarations.iter().any(|declaration| {
+            declaration.identity().kind() == DeclarationKind::KeywordAction
+                && declaration.identity().name() == name
+        }) {
+            let override_field = third_person
+                .map(|surface| format!(r#",third_person:"{surface}""#))
+                .unwrap_or_default();
+            let source = format!(
+                r#"KeywordAction(name:"{name}",spelling:"{bare}",grammar:Verb(bare:"{bare}"{override_field},valence:Numerative))"#
+            );
+            declarations.push(
+                read_str(format!("/synthetic/{name}.ron"), &source)
+                    .expect("synthetic keyword action is valid"),
+            );
+        }
+        ParserEnvironment::try_from_declarations(declarations)
+            .expect("parser declaration environment freezes")
     }
 
     #[test]
@@ -1032,8 +1067,14 @@ mod tests {
 
     #[test]
     fn parser_instances_route_declaration_scans_through_their_own_environment() {
-        let scry = Parser::new(declaration_environment("Scry", "scry", Some("scries")));
-        let connive = Parser::new(declaration_environment("Connive", "connive", None));
+        let scry = Parser::new(parser_declaration_environment(
+            "Scry",
+            "scry",
+            Some("scries"),
+        ))
+        .expect("required declarations are present");
+        let connive = Parser::new(parser_declaration_environment("Connive", "connive", None))
+            .expect("required declarations are present");
         let context = context("Context Card");
         let terminal = declaration_terminal("Scry");
 
@@ -1526,8 +1567,8 @@ mod tests {
                 "SignedNumber",
                 "Literal(\"or\")",
                 "Literal(\"less\")",
-                "Verb(Destroy)",
-                "Verb(Connive)",
+                "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Destroy\", position: Verb, feature: Any })",
+                "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Connive\", position: Verb, feature: Any })",
                 "Verb(Deal)",
                 "Literal(\"damage\")",
                 "Literal(\"to\")",
@@ -1574,11 +1615,11 @@ mod tests {
                 "Noun { noun: Lexeme(Player), number: Plural }",
             ),
             (
-                Leaf::Verb {
-                    lexeme: VerbLexeme::Destroy,
-                    agreement: Agreement::Bare,
-                },
-                "Verb { lexeme: Destroy, agreement: Bare }",
+                Leaf::Declaration(DeclarationLeaf {
+                    id: DeclarationId::new(DeclarationKind::KeywordAction, "Destroy"),
+                    feature: SurfaceFeature::Bare,
+                }),
+                "Declaration(DeclarationLeaf { id: DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }, feature: Bare })",
             ),
             (
                 Leaf::Verb {

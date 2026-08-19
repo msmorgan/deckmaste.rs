@@ -39,6 +39,7 @@ use crate::model::FormAtom;
 use crate::model::LeafCallback;
 use crate::model::Lexeme;
 use crate::model::NonPublicVisibility;
+use crate::model::OpenDeclarationAtom;
 use crate::model::RenderBinding;
 use crate::model::RoleRefinement;
 use crate::model::Root;
@@ -458,6 +459,16 @@ fn parse_form(input: ParseStream<'_>) -> syn::Result<Form> {
                         return Err(content.error("verb atoms accept exactly one operand"));
                     }
                     FormAtom::Verb(classify_verb_operand(path))
+                }
+                "open_verb" => {
+                    let kind = content.call(Ident::parse_any)?;
+                    content.parse::<Token![,]>()?;
+                    let name = content.parse()?;
+                    if !content.is_empty() {
+                        return Err(content
+                            .error("open_verb atoms accept exactly a declaration kind and name"));
+                    }
+                    FormAtom::OpenVerb(OpenDeclarationAtom { kind, name })
                 }
                 "lex" | "identity" | "noun" => {
                     let role = content.parse()?;

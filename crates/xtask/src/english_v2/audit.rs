@@ -145,7 +145,7 @@ fn audit_unit(unit: &CorpusUnit, parser: &Parser) -> AuditRow {
 
     match parser.parse(unit.text(), &context) {
         Ok(ability) => {
-            let rendered = ability.render(&context);
+            let rendered = ability.render(&context, parser.environment());
             row.status =
                 if rendered == unit.text() { AuditStatus::Clean } else { AuditStatus::Mismatch };
             row.message =

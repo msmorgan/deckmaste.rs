@@ -1193,6 +1193,7 @@ impl ParserTrace {
         materialization: MaterializationTrace,
         limits: TraceLimits,
         context: &ParseContext<'_>,
+        environment: &crate::environment::ParserEnvironment,
     ) -> Self {
         let limit = limits.per_collection();
         let outcome = match &analysis.result {
@@ -1209,7 +1210,7 @@ impl ParserTrace {
                     .iter()
                     .find(|candidate| candidate.ordinal() == selected_ordinal)
                     .map_or_else(
-                        || ability.render(context),
+                        || ability.render(context, environment),
                         |candidate| candidate.rendered.clone(),
                     );
                 BoundedParseOutcome::Selected(SelectedParseOutcome {
@@ -1312,6 +1313,7 @@ mod tests {
     use super::ParserTrace;
     use super::StructuralTrace;
     use super::TraceLimits;
+    use crate::catalogs::canonical_test_environment;
     use crate::context::ParseContext;
     use crate::parser::Expectation;
     use crate::parser::ParseError;
@@ -1407,6 +1409,7 @@ mod tests {
     #[test]
     fn parser_trace_internal_failure_projection_keeps_both_kinds_typed_and_messages_stable() {
         let context = ParseContext::new("Trace Card").expect("context");
+        let environment = canonical_test_environment();
         for (error, expected_kind, expected_message) in [
             (
                 ParseError::ValidatedRootDidNotMaterialize,
@@ -1428,6 +1431,7 @@ mod tests {
                 MaterializationTrace::empty(0),
                 TraceLimits::new(0),
                 &context,
+                &environment,
             );
             let BoundedParseOutcome::InternalFailure(failure) = trace.outcome() else {
                 panic!("typed internal outcome");
@@ -1443,6 +1447,7 @@ mod tests {
         const PRIVATE_SENTINEL: &str = "PRIVATE_TRACE_DEBUG_SENTINEL";
 
         let context = ParseContext::new("Trace Card").expect("context");
+        let environment = canonical_test_environment();
         let trace = ParserTrace::from_parts(
             ParseAnalysis::from_result(
                 Err(ParseError::Failure {
@@ -1455,6 +1460,7 @@ mod tests {
             MaterializationTrace::empty(0),
             TraceLimits::new(0),
             &context,
+            &environment,
         );
         let BoundedParseOutcome::ParseFailure(failure) = trace.outcome() else {
             panic!("parse-failure outcome");
@@ -1474,6 +1480,7 @@ mod tests {
         const RIGHT_SENTINEL: &str = "PRIVATE_TRACE_EQUALITY_SENTINEL_RIGHT";
 
         let context = ParseContext::new("Trace Card").expect("context");
+        let environment = canonical_test_environment();
         let make_trace = |sentinel| {
             ParserTrace::from_parts(
                 ParseAnalysis::from_result(
@@ -1487,6 +1494,7 @@ mod tests {
                 MaterializationTrace::empty(0),
                 TraceLimits::new(0),
                 &context,
+                &environment,
             )
         };
         let left = make_trace(LEFT_SENTINEL);

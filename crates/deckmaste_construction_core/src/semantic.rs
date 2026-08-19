@@ -129,6 +129,14 @@ pub(crate) enum AtomPlan {
         variant: String,
         path: syn::Path,
     },
+    OpenDeclaration(OpenDeclarationAtomPlan),
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct OpenDeclarationAtomPlan {
+    kind: macro_ron::v2::DeclarationKind,
+    name: String,
+    position: macro_ron::v2::GrammarPosition,
 }
 
 #[derive(Debug)]
@@ -227,7 +235,8 @@ impl RuntimeEmissionPlan {
                     | AtomPlan::Lex { .. }
                     | AtomPlan::Identity { .. }
                     | AtomPlan::Noun { .. }
-                    | AtomPlan::VerbFixed { .. } => None,
+                    | AtomPlan::VerbFixed { .. }
+                    | AtomPlan::OpenDeclaration(_) => None,
                 })
             }))
             .collect::<BTreeSet<_>>()
@@ -567,6 +576,24 @@ impl SemanticPlan {
         &self.constructions
     }
 
+    pub(crate) fn required_open_declarations(
+        &self,
+    ) -> impl Iterator<Item = (&ConstructionPlan, &OpenDeclarationAtomPlan)> {
+        self.constructions.iter().flat_map(|construction| {
+            construction
+                .atoms
+                .iter()
+                .filter_map(move |atom| match atom {
+                    AtomPlan::OpenDeclaration(open) => Some((construction, open)),
+                    _ => None,
+                })
+        })
+    }
+
+    pub(crate) fn has_open_declarations(&self) -> bool {
+        self.required_open_declarations().next().is_some()
+    }
+
     #[allow(
         dead_code,
         reason = "sealed rows are the next generation phase's semantic input"
@@ -722,6 +749,24 @@ impl SemanticPlan {
             .find(|row| row.construction_id == construction_id)
             .expect("test construction is present");
         construction.atoms[atom_index] = AtomPlan::Literal(literal.to_owned());
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_replace_open_declaration_name(
+        &mut self,
+        construction_id: &str,
+        atom_index: usize,
+        name: &str,
+    ) {
+        let construction = self
+            .constructions
+            .iter_mut()
+            .find(|row| row.construction_id == construction_id)
+            .expect("test construction is present");
+        let AtomPlan::OpenDeclaration(open) = &mut construction.atoms[atom_index] else {
+            panic!("test atom is an open declaration")
+        };
+        open.name = name.to_owned();
     }
 
     #[cfg(test)]
@@ -1295,6 +1340,19 @@ impl AtomPlan {
                     path: path.clone(),
                 })
             }
+            (FormAtom::OpenVerb(authored), AtomContribution::OpenDeclaration { kind, name }) => {
+                if authored.name.value() != *name {
+                    return Err(syn::Error::new(
+                        authored.name.span(),
+                        "sealed open declaration name is inconsistent",
+                    ));
+                }
+                Ok(Self::OpenDeclaration(OpenDeclarationAtomPlan {
+                    kind: *kind,
+                    name: name.clone(),
+                    position: macro_ron::v2::GrammarPosition::Verb,
+                }))
+            }
             _ => Err(syn::Error::new(
                 form_atom_span(source),
                 "sealed construction atom kind is inconsistent",
@@ -1313,7 +1371,25 @@ impl AtomPlan {
             Self::VerbFixed {
                 terminal, variant, ..
             } => format!("verb({terminal}::{variant})"),
+            Self::OpenDeclaration(open) => format!(
+                "open_verb({:?}, {}, {:?})",
+                open.kind, open.name, open.position
+            ),
         }
+    }
+}
+
+impl OpenDeclarationAtomPlan {
+    pub(crate) fn kind(&self) -> macro_ron::v2::DeclarationKind {
+        self.kind
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub(crate) fn position(&self) -> macro_ron::v2::GrammarPosition {
+        self.position
     }
 }
 
@@ -1351,6 +1427,7 @@ fn form_atom_span(atom: &FormAtom) -> Span {
         | FormAtom::Noun(role)
         | FormAtom::Verb(VerbOperand::Projected(role)) => role.span(),
         FormAtom::Verb(VerbOperand::Fixed(path)) => path.span(),
+        FormAtom::OpenVerb(open) => open.name.span(),
     }
 }
 
@@ -1392,7 +1469,8 @@ fn number_carry_categories(
                 | AtomPlan::Lex { .. }
                 | AtomPlan::Identity { .. }
                 | AtomPlan::Noun { .. }
-                | AtomPlan::VerbFixed { .. } => None,
+                | AtomPlan::VerbFixed { .. }
+                | AtomPlan::OpenDeclaration(_) => None,
             }) {
                 carried.insert(category);
             }

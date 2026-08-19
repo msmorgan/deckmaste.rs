@@ -22,14 +22,18 @@ fn catalogs() -> ParserCatalogs {
 }
 
 fn environment() -> ParserEnvironment {
+    let declarations = macro_ron::v2::read_builtin_v2(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+    )
+    .expect("integrated builtin-v2 declarations load");
     catalogs().attach_to(
-        ParserEnvironment::try_from_declarations([])
-            .expect("empty declaration environment freezes"),
+        ParserEnvironment::try_from_declarations(declarations)
+            .expect("builtin-v2 declaration environment freezes"),
     )
 }
 
 fn parser() -> Parser {
-    Parser::new(environment())
+    Parser::new(environment()).expect("required declarations are present")
 }
 
 fn context(card_name: &str) -> ParseContext<'_> {
@@ -244,9 +248,9 @@ fn parses_and_round_trips_the_five_slice_abilities() {
                 "{text:?} at cap {limit}",
             );
         }
-        assert_eq!(expected.render(&context), text);
+        assert_eq!(expected.render(&context, &environment()), text);
 
-        let rendered = expected.render(&context);
+        let rendered = expected.render(&context, &environment());
         assert_eq!(parser.parse(&rendered, &context), Ok(expected));
     }
 }
@@ -260,7 +264,10 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
     let second = parser.analyze(text, &context);
 
     assert_eq!(first, second);
-    assert_eq!(first.selected().unwrap().render(&context), text);
+    assert_eq!(
+        first.selected().unwrap().render(&context, &environment()),
+        text
+    );
     assert_eq!(
         first.decision().unwrap().candidates()[0].construction_path(),
         [
@@ -464,7 +471,7 @@ fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
     });
 
     assert_eq!(parser().parse(text, &context), Ok(expected.clone()));
-    assert_eq!(expected.render(&context), text);
+    assert_eq!(expected.render(&context, &environment()), text);
 }
 
 #[test]
@@ -487,7 +494,7 @@ fn self_reference_identity_preserves_its_inherent_case() {
     });
 
     assert_eq!(parser().parse(text, &context), Ok(expected.clone()));
-    assert_eq!(expected.render(&context), text);
+    assert_eq!(expected.render(&context, &environment()), text);
 }
 
 #[test]

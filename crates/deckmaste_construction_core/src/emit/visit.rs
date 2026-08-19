@@ -153,6 +153,19 @@ fn emit_trait(
     for binding in borrowed_bindings {
         methods.push(noop_method(binding.name(), VisitMode::Borrowed));
     }
+    if constructions.iter().any(|construction| {
+        construction
+            .atoms()
+            .iter()
+            .any(|atom| matches!(atom, AtomPlan::OpenDeclaration(_)))
+    }) {
+        methods.push(quote! {
+            fn visit_declaration(
+                &mut self,
+                _declaration: &::macro_ron::v2::DeclarationIdentity,
+            ) {}
+        });
+    }
 
     let mut leaf_origins = Vec::new();
     let mut seen = HashSet::new();
@@ -313,7 +326,10 @@ fn emit_construction_walker(
             AtomPlan::Lex { terminal, .. }
             | AtomPlan::Identity { terminal, .. }
             | AtomPlan::VerbFixed { terminal, .. } => Some(terminal.clone()),
-            AtomPlan::Literal(_) | AtomPlan::Category { .. } | AtomPlan::Noun { .. } => None,
+            AtomPlan::Literal(_)
+            | AtomPlan::Category { .. }
+            | AtomPlan::Noun { .. }
+            | AtomPlan::OpenDeclaration(_) => None,
         };
         if let Some(terminal) = terminal {
             allocator.reserve(format!("walk_{}", snake_case(&terminal)));
@@ -408,6 +424,15 @@ fn emit_construction_walker(
             AtomPlan::VerbFixed { terminal, path, .. } => {
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));
                 Some(quote! { #walker(visitor, #path); })
+            }
+            AtomPlan::OpenDeclaration(open) => {
+                let kind = crate::emit::declaration_kind(open.kind());
+                let name = syn::LitStr::new(open.name(), Span::call_site());
+                Some(quote! {
+                    visitor.visit_declaration(
+                        &::macro_ron::v2::DeclarationIdentity::new(#kind, #name),
+                    );
+                })
             }
         };
         if let Some(call) = call {

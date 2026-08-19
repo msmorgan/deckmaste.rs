@@ -1,4 +1,7 @@
 use engine::ChartFailure;
+use macro_ron::v2::DeclarationKind;
+use macro_ron::v2::GrammarPosition;
+use macro_ron::v2::SurfaceFeature;
 use materialize::materialize;
 use materialize::materialize_observed;
 use scan::SliceGrammar;
@@ -8,7 +11,10 @@ use selection::analyze_selection;
 
 use crate::ast::Ability;
 use crate::constructions::Category;
+use crate::constructions::FeatureConstraint;
+use crate::constructions::REQUIRED_DECLARATIONS;
 use crate::context::ParseContext;
+use crate::environment::DeclarationId;
 use crate::environment::ParserEnvironment;
 
 mod diagnostic;
@@ -86,6 +92,25 @@ pub use selection::selection_exception_inventory;
 
 pub use crate::constructions::TerminalClass;
 
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ParserBuildError {
+    #[error("required declaration {kind} `{name}` is missing from the parser environment")]
+    MissingDeclaration { kind: DeclarationKind, name: String },
+    #[error(
+        "required declaration {identity} has grammar position {actual:?}, expected {expected:?}"
+    )]
+    WrongGrammarPosition {
+        identity: DeclarationId,
+        expected: GrammarPosition,
+        actual: Option<GrammarPosition>,
+    },
+    #[error("required declaration {identity} has no {feature:?} surface")]
+    MissingSurfaceFeature {
+        identity: DeclarationId,
+        feature: SurfaceFeature,
+    },
+}
+
 mod error;
 
 #[derive(Debug, Clone)]
@@ -94,9 +119,20 @@ pub struct Parser {
 }
 
 impl Parser {
+    /// Builds a parser after validating every declaration requested by the
+    /// generated grammar.
+    ///
+    /// # Errors
+    /// Returns a typed error when a required identity, grammar recipe, or
+    /// realized feature is absent from the supplied environment.
+    pub fn new(environment: ParserEnvironment) -> Result<Self, ParserBuildError> {
+        validate_required_declarations(&environment)?;
+        Ok(Self { environment })
+    }
+
     #[must_use]
-    pub fn new(environment: ParserEnvironment) -> Self {
-        Self { environment }
+    pub fn environment(&self) -> &ParserEnvironment {
+        &self.environment
     }
 
     /// Parses one complete ability from exact rendered text.
@@ -116,7 +152,7 @@ impl Parser {
         let grammar = self.grammar(context);
         parse_forest(&grammar, text).map_or_else(
             |failure| ParseAnalysis::from_result(Err(chart_failure(text, failure)), None),
-            |forest| analyze_materialized(materialize(&forest, context)),
+            |forest| analyze_materialized(materialize(&forest, context, &self.environment)),
         )
     }
 
@@ -136,6 +172,7 @@ impl Parser {
             trace.materialization,
             limits,
             context,
+            &self.environment,
         )
     }
 
@@ -160,7 +197,8 @@ impl Parser {
         let (forest, structural) = parse_forest_observed(&grammar, text, limits);
         let (analysis, materialization) = match forest {
             Ok(forest) => {
-                let (candidates, materialization) = materialize_observed(&forest, context, limits);
+                let (candidates, materialization) =
+                    materialize_observed(&forest, context, &self.environment, limits);
                 (analyze_materialized(candidates), materialization)
             }
             Err(failure) => (
@@ -196,6 +234,46 @@ impl Parser {
     }
 }
 
+fn validate_required_declarations(environment: &ParserEnvironment) -> Result<(), ParserBuildError> {
+    for matcher in REQUIRED_DECLARATIONS {
+        let record = environment
+            .declaration(matcher.kind, matcher.name)
+            .ok_or_else(|| ParserBuildError::MissingDeclaration {
+                kind: matcher.kind,
+                name: matcher.name.to_owned(),
+            })?;
+        let actual = record.recipe().map(macro_ron::v2::GrammarRecipe::position);
+        if actual != Some(matcher.position) {
+            return Err(ParserBuildError::WrongGrammarPosition {
+                identity: record.id().clone(),
+                expected: matcher.position,
+                actual,
+            });
+        }
+        let features: &[SurfaceFeature] = match matcher.feature {
+            FeatureConstraint::Exact(ref feature) => std::slice::from_ref(feature),
+            FeatureConstraint::Any => match matcher.position {
+                GrammarPosition::Verb => {
+                    &[SurfaceFeature::Bare, SurfaceFeature::ThirdPersonSingular]
+                }
+                GrammarPosition::Noun => &[SurfaceFeature::Singular, SurfaceFeature::Plural],
+                GrammarPosition::FixedTerm
+                | GrammarPosition::FixedClause
+                | GrammarPosition::FixedKeyword => &[SurfaceFeature::Fixed],
+            },
+        };
+        for &feature in features {
+            if environment.surface(record.id(), feature).is_none() {
+                return Err(ParserBuildError::MissingSurfaceFeature {
+                    identity: record.id().clone(),
+                    feature,
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
 struct TraceParts {
     structural: diagnostic::StructuralTrace,
     materialization: diagnostic::MaterializationTrace,
@@ -228,7 +306,7 @@ mod structural_trace_tests {
 
     #[test]
     fn cloned_parser_shares_frozen_environment_storage() {
-        let parser = Parser::new(environment());
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let cloned = parser.clone();
 
         assert!(
@@ -240,7 +318,7 @@ mod structural_trace_tests {
 
     #[test]
     fn structural_trace_observation_is_repeatable_and_inert() {
-        let parser = Parser::new(environment());
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Trace Card").expect("valid context");
         let text = "Whenever a player connives, you gain X life.";
         let (analysis, first) = parser.observe_structural(text, &context, TraceLimits::new(1));
@@ -258,7 +336,7 @@ mod structural_trace_tests {
             assert_eq!(value.shown(), value.items().len());
             assert!(value.shown() <= limit);
         }
-        let parser = Parser::new(environment());
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Trace Card").expect("valid context");
         let text = "Whenever a player connives, you gain X life.";
         for limit in [0, 1, usize::MAX] {
@@ -295,7 +373,7 @@ mod structural_trace_tests {
             assert_eq!(value.shown(), value.items().len());
             assert!(value.shown() <= limit);
         }
-        let parser = Parser::new(environment());
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Trace Card").expect("context");
         let text = "Whenever a player connives, you gain X life";
         for limit in [0, 1, usize::MAX] {
@@ -323,7 +401,8 @@ mod structural_trace_tests {
     #[test]
     fn structural_trace_observed_engine_matches_noop_success_and_failure() {
         let environment = environment();
-        let parser = Parser::new(environment.clone());
+        let parser =
+            Parser::new(environment.clone()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Trace Card").expect("context");
         for text in [
             "Whenever a player connives, you gain X life.",

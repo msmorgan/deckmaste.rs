@@ -51,6 +51,26 @@ pub(crate) fn representative_semantic_plan() -> crate::semantic::SemanticPlan {
     .into_semantic()
 }
 
+pub(crate) fn open_verb_tokens() -> proc_macro2::TokenStream {
+    quote! {
+        construction destroy: VerbPhrase {
+            element Destroy { object: NounPhrase, }
+            derive agreement = verb.agreement;
+            form destroy = open_verb(KeywordAction, "Destroy") object;
+        }
+        construction object: NounPhrase {
+            element Object {}
+            form object = "object";
+        }
+        construction imperative: Ability {
+            element Imperative { predicate: VerbPhrase, }
+            derive predicate.agreement = Values::Bare;
+            form imperative = predicate;
+        }
+        root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+    }
+}
+
 pub(crate) fn access_modes_expansion() -> crate::Expansion {
     crate::generate(quote! {
         identity Flag {

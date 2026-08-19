@@ -4,10 +4,6 @@ use crate::constructions::Agreement;
 
 pub(crate) fn inflect(lexeme: VerbLexeme, agreement: Agreement) -> &'static str {
     match (lexeme, agreement) {
-        (VerbLexeme::Destroy, Agreement::Bare) => "destroy",
-        (VerbLexeme::Destroy, Agreement::ThirdPersonSingular) => "destroys",
-        (VerbLexeme::Connive, Agreement::Bare) => "connive",
-        (VerbLexeme::Connive, Agreement::ThirdPersonSingular) => "connives",
         (VerbLexeme::Deal, Agreement::Bare) => "deal",
         (VerbLexeme::Deal, Agreement::ThirdPersonSingular) => "deals",
         (VerbLexeme::Gain, Agreement::Bare) => "gain",

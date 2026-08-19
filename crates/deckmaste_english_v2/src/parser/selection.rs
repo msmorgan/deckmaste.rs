@@ -582,6 +582,7 @@ mod tests {
     use super::selection_exception_inventory;
     use super::selection_exception_inventory_for;
     use super::structural_specificity;
+    use crate::catalogs::canonical_test_environment;
     use crate::constructions::Category;
     use crate::constructions::Construction;
     use crate::constructions::Lexical;
@@ -1620,6 +1621,7 @@ mod tests {
             &[],
         );
         let context = ParseContext::new("Trace Card").expect("context");
+        let environment = canonical_test_environment();
         let trace = ParserTrace::from_parts(
             ParseAnalysis::from_result(
                 Err(ParseError::Ambiguous {
@@ -1632,6 +1634,7 @@ mod tests {
             MaterializationTrace::empty(1),
             TraceLimits::new(1),
             &context,
+            &environment,
         );
 
         let BoundedParseOutcome::UnresolvedAmbiguity(unresolved) = trace.outcome() else {

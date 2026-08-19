@@ -265,6 +265,64 @@ mod tests {
     use crate::test_support::representative_expansion;
 
     #[test]
+    fn open_verb_atom_seals_a_typed_plan_and_generated_matcher() {
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::open_verb_tokens())
+                .expect("open_verb syntax parses"),
+        )
+        .expect("open_verb declaration validates")
+        .into_semantic();
+
+        assert!(plan.snapshot().constructions.iter().any(|row| {
+            row.0 == "destroy"
+                && row.3
+                    == [
+                        "open_verb(KeywordAction, Destroy, Verb)".to_owned(),
+                        "category(object: NounPhrase)".to_owned(),
+                    ]
+        }));
+
+        let rules = formatted(&crate::emit::rules::emit(&plan).expect("open matcher emits"));
+        for expected in [
+            "Lexical :: Declaration (DeclarationMatcher",
+            "DeclarationKind :: KeywordAction",
+            "name : \"Destroy\"",
+            "GrammarPosition :: Verb",
+            "FeatureConstraint :: Any",
+            "LexicalOwnerTemplate :: Declaration",
+        ] {
+            assert!(rules.contains(expected), "missing `{expected}`: {rules}");
+        }
+        let requirements = formatted(&crate::emit::runtime::emit(&plan));
+        assert!(requirements.contains("REQUIRED_DECLARATIONS"));
+        assert!(requirements.contains("name : \"Destroy\""));
+    }
+
+    #[test]
+    fn sealed_open_identity_mutation_changes_emitters_without_changing_source() {
+        let authored = crate::test_support::open_verb_tokens().to_string();
+        let mut plan = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::open_verb_tokens())
+                .expect("open_verb syntax parses"),
+        )
+        .expect("open_verb declaration validates")
+        .into_semantic();
+
+        plan.test_only_replace_open_declaration_name("destroy", 0, "Connive");
+        let rules = formatted(&crate::emit::rules::emit(&plan).expect("mutated rule emits"));
+        let render = formatted(&crate::emit::render::emit(&plan).expect("mutated render emits"));
+        let visitor = formatted(&crate::emit::visit::emit(&plan).expect("mutated visitor emits"));
+        assert!(rules.contains("name : \"Connive\""));
+        assert!(render.contains("\"Connive\""));
+        assert!(visitor.contains("\"Connive\""));
+        assert!(!rules.contains("name : \"Destroy\""));
+        assert_eq!(
+            crate::test_support::open_verb_tokens().to_string(),
+            authored
+        );
+    }
+
+    #[test]
     fn semantic_plan_construction_emitters_share_one_mutated_fact() {
         let input = crate::test_support::representative_tokens().to_string();
         let mut plan = crate::test_support::representative_semantic_plan();

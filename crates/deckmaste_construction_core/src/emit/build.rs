@@ -107,6 +107,7 @@ impl Default for Lowering {
 enum LocalFeatureValue {
     Known(FeatureValue),
     Bound(syn::Ident),
+    Computed(TokenStream),
 }
 
 #[derive(Clone)]
@@ -192,6 +193,40 @@ fn lower_atom(
             lowering.patterns.push(quote! {
                 BuildValue::Leaf(Leaf::Verb { lexeme: #terminal::#variant, #agreement_field })
             });
+        }
+        AtomPlan::OpenDeclaration(open) => {
+            let declaration = lowering.binders.allocate("declaration");
+            let surface_feature = lowering.binders.allocate("surface_feature");
+            lowering.patterns.push(quote! {
+                BuildValue::Leaf(Leaf::Declaration(DeclarationLeaf {
+                    id: #declaration,
+                    feature: #surface_feature,
+                }))
+            });
+            let kind = crate::emit::declaration_kind(open.kind());
+            let name = syn::LitStr::new(open.name(), Span::call_site());
+            lowering.guards.push(quote! {
+                #declaration.kind() == #kind && #declaration.name() == #name
+            });
+            lowering.guards.push(quote! {
+                matches!(
+                    #surface_feature,
+                    ::macro_ron::v2::SurfaceFeature::Bare
+                        | ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                )
+            });
+            lowering.role_features.insert(
+                ("verb".to_owned(), Feature::Agreement),
+                LocalFeatureValue::Computed(quote! {
+                    match #surface_feature {
+                        ::macro_ron::v2::SurfaceFeature::Bare => Agreement::Bare,
+                        ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                            Agreement::ThirdPersonSingular
+                        }
+                        _ => unreachable!("open verb matcher admitted a non-verb feature"),
+                    }
+                }),
+            );
         }
     }
     Ok(())
@@ -897,6 +932,7 @@ fn local_feature_value(value: &LocalFeatureValue) -> ResolvedFeatureValue {
     match value {
         LocalFeatureValue::Known(value) => ResolvedFeatureValue::Known(*value),
         LocalFeatureValue::Bound(binding) => ResolvedFeatureValue::Bound(binding.clone()),
+        LocalFeatureValue::Computed(tokens) => ResolvedFeatureValue::Computed(tokens.clone()),
     }
 }
 
@@ -1007,6 +1043,7 @@ fn terminal_for_role<'a>(row: &'a ConstructionPlan, role: &syn::Ident) -> syn::R
             AtomPlan::Literal(_)
             | AtomPlan::Category { .. }
             | AtomPlan::VerbFixed { .. }
+            | AtomPlan::OpenDeclaration(_)
             | AtomPlan::Lex { .. }
             | AtomPlan::Identity { .. }
             | AtomPlan::Noun { .. } => None,

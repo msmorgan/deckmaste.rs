@@ -30,9 +30,14 @@ use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 
 fn parser_from_catalogs(catalogs: ParserCatalogs) -> Parser {
-    let environment = ParserEnvironment::try_from_declarations([])
-        .expect("an empty normalized declaration set always freezes");
+    let declarations = macro_ron::v2::read_builtin_v2(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+    )
+    .expect("integrated builtin-v2 declarations load");
+    let environment = ParserEnvironment::try_from_declarations(declarations)
+        .expect("integrated builtin-v2 declarations freeze");
     Parser::new(catalogs.attach_to(environment))
+        .expect("builtin-v2 supplies every generated static declaration")
 }
 
 #[derive(Debug, Args)]
@@ -338,6 +343,7 @@ mod tests {
         "impl DeclarationClass for DeclarationClass",
         "impl LexicalOwner for LexicalOwner",
         "impl LexicalOwnerTemplate for LexicalOwnerTemplate",
+        "constant REQUIRED_DECLARATIONS",
         "function scan_lexical",
         "impl Render for Ability",
         "impl Render for Sentence",
@@ -410,7 +416,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 113);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 114);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for (item, expected_key) in expansion.items().iter().zip(EXPECTED_ITEM_KEYS) {
             let header = format!("// === {expected_key} ===");
@@ -466,7 +472,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 113);
+        assert_eq!(parsed.items.len(), 114);
     }
 
     #[test]

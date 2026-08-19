@@ -159,7 +159,14 @@ pub enum FormAtom {
     Lex(Ident),
     Identity(Ident),
     Verb(VerbOperand),
+    OpenVerb(OpenDeclarationAtom),
     Noun(Ident),
+}
+
+#[derive(Debug)]
+pub struct OpenDeclarationAtom {
+    pub kind: Ident,
+    pub name: LitStr,
 }
 
 #[derive(Debug)]

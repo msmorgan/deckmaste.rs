@@ -206,6 +206,51 @@ fn emit_position(
                 },
             ))
         }
+        AtomPlan::OpenDeclaration(open) => {
+            let kind = crate::emit::declaration_kind(open.kind());
+            let name = syn::LitStr::new(open.name(), Span::call_site());
+            let position = crate::emit::grammar_position(open.position());
+            let feature = open_verb_feature(plan, construction)?;
+            Ok(lexical_terminal(
+                &quote! {
+                    Lexical::Declaration(DeclarationMatcher {
+                        kind: #kind,
+                        name: #name,
+                        position: #position,
+                        feature: #feature,
+                    })
+                },
+                &quote! { LexicalOwnerTemplate::Declaration { kind: #kind, name: #name } },
+            ))
+        }
+    }
+}
+
+pub(crate) fn open_verb_feature(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+) -> syn::Result<TokenStream> {
+    let target = FeaturePlace::Role {
+        field: syn::Ident::new("verb", construction.origin_span()),
+        feature: Feature::Agreement,
+    };
+    match plan.feature_resolution(construction.construction_id(), &target) {
+        Some(crate::feature::FeatureResolution::Known(value)) => match value {
+            FeatureValue::Bare => Ok(quote! {
+                FeatureConstraint::Exact(::macro_ron::v2::SurfaceFeature::Bare)
+            }),
+            FeatureValue::ThirdPersonSingular => Ok(quote! {
+                FeatureConstraint::Exact(::macro_ron::v2::SurfaceFeature::ThirdPersonSingular)
+            }),
+            FeatureValue::Singular | FeatureValue::Plural => {
+                Err(internal("open verb agreement has a number value"))
+            }
+        },
+        Some(
+            crate::feature::FeatureResolution::External
+            | crate::feature::FeatureResolution::Runtime,
+        ) => Ok(quote! { FeatureConstraint::Any }),
+        None => Err(internal("open verb has no sealed agreement resolution")),
     }
 }
 

@@ -43,8 +43,12 @@ impl ParserCatalogs {
 
 #[cfg(test)]
 pub(crate) fn canonical_test_environment() -> ParserEnvironment {
-    let environment = ParserEnvironment::try_from_declarations([])
-        .expect("empty declaration environment freezes");
+    let declarations = macro_ron::v2::read_builtin_v2(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+    )
+    .expect("integrated builtin-v2 declarations load");
+    let environment = ParserEnvironment::try_from_declarations(declarations)
+        .expect("builtin-v2 declaration environment freezes");
     ParserCatalogs::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"))
         .expect("canonical generated catalogs load")
         .attach_to(environment)

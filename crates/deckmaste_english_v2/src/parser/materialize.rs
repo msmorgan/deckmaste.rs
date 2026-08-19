@@ -307,6 +307,7 @@ where
 pub(crate) fn materialize(
     forest: &Forest<RuleId, Leaf>,
     context: &ParseContext<'_>,
+    environment: &crate::environment::ParserEnvironment,
 ) -> Vec<Candidate> {
     let built = MaterializationKernel {
         rules: RULES,
@@ -317,12 +318,13 @@ pub(crate) fn materialize(
         build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
     }
     .materialize(forest, &mut ());
-    finalize_candidates(built, context, None)
+    finalize_candidates(built, context, environment, None)
 }
 
 pub(crate) fn materialize_observed(
     forest: &Forest<RuleId, Leaf>,
     context: &ParseContext<'_>,
+    environment: &crate::environment::ParserEnvironment,
     limits: TraceLimits,
 ) -> (Vec<Candidate>, MaterializationTrace) {
     let mut observation = MaterializationTraceBuilder::new(limits);
@@ -335,13 +337,19 @@ pub(crate) fn materialize_observed(
         build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
     }
     .materialize(forest, &mut observation);
-    let candidates = finalize_candidates(built, context, Some((&mut observation, limits)));
+    let candidates = finalize_candidates(
+        built,
+        context,
+        environment,
+        Some((&mut observation, limits)),
+    );
     (candidates, observation.finish())
 }
 
 fn finalize_candidates(
     built_values: Vec<MaterializedCandidate<BuildValue, Construction>>,
     context: &ParseContext<'_>,
+    environment: &crate::environment::ParserEnvironment,
     mut observation: Option<(&mut MaterializationTraceBuilder, TraceLimits)>,
 ) -> Vec<Candidate> {
     let mut candidates = Vec::new();
@@ -361,7 +369,7 @@ fn finalize_candidates(
                 trace.record_candidate_with(|| {
                     MaterializedCandidateInfo::new(
                         ordinal,
-                        candidate.ability.render(context),
+                        candidate.ability.render(context, environment),
                         format!("{:?}", candidate.ability),
                         &candidate.constructions,
                         &candidate.specificity,
@@ -447,6 +455,10 @@ fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) -> bool {
 #[cfg(test)]
 mod tests {
 
+    use macro_ron::v2::DeclarationKind;
+    use macro_ron::v2::GrammarPosition;
+    use macro_ron::v2::SurfaceFeature;
+
     use super::BuildValue;
     use super::Category;
     use super::Construction;
@@ -474,9 +486,12 @@ mod tests {
     use crate::ast::WithWhere;
     use crate::catalogs::canonical_test_environment;
     use crate::constructions::Agreement;
+    use crate::constructions::DeclarationLeaf;
+    use crate::constructions::DeclarationMatcher;
     use crate::constructions::FeatureConstraint;
     use crate::constructions::Number;
     use crate::context::ParseContext;
+    use crate::environment::DeclarationId;
     use crate::parser::diagnostic::BoundedParseOutcome;
     use crate::parser::diagnostic::ParserTrace;
     use crate::parser::diagnostic::StructuralTrace;
@@ -623,10 +638,10 @@ mod tests {
                     start: 0,
                     end: 0,
                     families: vec![Family {
-                        children: vec![Child::Lexical(Leaf::Verb {
-                            lexeme: VerbLexeme::Connive,
-                            agreement: Agreement::Bare,
-                        })],
+                        children: vec![Child::Lexical(Leaf::Declaration(DeclarationLeaf {
+                            id: DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+                            feature: SurfaceFeature::Bare,
+                        }))],
                     }],
                 },
                 PackedNode {
@@ -709,7 +724,12 @@ mod tests {
                 RulePosition::Lexical(Lexical::Literal(",")),
                 RulePosition::Nonterminal(Category::Clause),
                 RulePosition::Nonterminal(Category::VerbPhrase),
-                RulePosition::Lexical(Lexical::Verb(VerbLexeme::Connive)),
+                RulePosition::Lexical(Lexical::Declaration(DeclarationMatcher {
+                    kind: DeclarationKind::KeywordAction,
+                    name: "Connive",
+                    position: GrammarPosition::Verb,
+                    feature: FeatureConstraint::Any,
+                })),
                 RulePosition::Lexical(Lexical::Literal("where")),
                 RulePosition::Lexical(Lexical::Variable),
                 RulePosition::Lexical(Lexical::Verb(VerbLexeme::Be)),
@@ -748,9 +768,10 @@ mod tests {
         ] {
             let forest = slice_candidates(text, card_name).expect("scanner accepts rendered input");
             let context = context(card_name);
-            let candidates = materialize(&forest, &context);
+            let environment = canonical_test_environment();
+            let candidates = materialize(&forest, &context, &environment);
             assert_eq!(candidates.len(), 1, "unexpected candidates for {text:?}");
-            assert_eq!(candidates[0].ability.render(&context), text);
+            assert_eq!(candidates[0].ability.render(&context, &environment), text);
         }
     }
     #[test]
@@ -758,15 +779,17 @@ mod tests {
         let text = "Creatures you control with power 2 or less gain X life.";
         let forest = slice_candidates(text, "Context Card").expect("scanner accepts words");
         let context = context("Context Card");
-        let candidates = materialize(&forest, &context);
+        let environment = canonical_test_environment();
+        let candidates = materialize(&forest, &context, &environment);
         assert_eq!(candidates.len(), 1);
-        assert_eq!(candidates[0].ability.render(&context), text);
+        assert_eq!(candidates[0].ability.render(&context, &environment), text);
     }
 
     #[test]
     fn materialize_preserves_preorder_constructions_and_declared_positions() {
         let forest = slice_candidates("Destroy target creature.", "Context Card").unwrap();
-        let candidates = materialize(&forest, &context("Context Card"));
+        let environment = canonical_test_environment();
+        let candidates = materialize(&forest, &context("Context Card"), &environment);
 
         assert_eq!(candidates.len(), 1);
         assert_eq!(
@@ -785,7 +808,12 @@ mod tests {
                 RulePosition::Lexical(Lexical::Literal(".")),
                 RulePosition::Lexical(Lexical::EndOfInput),
                 RulePosition::Nonterminal(Category::VerbPhrase),
-                RulePosition::Lexical(Lexical::Verb(VerbLexeme::Destroy)),
+                RulePosition::Lexical(Lexical::Declaration(DeclarationMatcher {
+                    kind: DeclarationKind::KeywordAction,
+                    name: "Destroy",
+                    position: GrammarPosition::Verb,
+                    feature: FeatureConstraint::Any,
+                })),
                 RulePosition::Nonterminal(Category::NounPhrase),
                 RulePosition::Lexical(Lexical::Literal("target")),
                 RulePosition::Lexical(Lexical::Noun(FeatureConstraint::Exact(Number::Singular))),
@@ -831,13 +859,14 @@ mod tests {
     #[test]
     fn parser_trace_cycle_pruning_is_deduplicated_bounded_and_semantically_inert() {
         let context = context("Context Card");
+        let environment = canonical_test_environment();
         for limit in [0, 1, 8] {
             let forest = ability_forest_with_duplicate_root_cycles();
-            let ordinary_candidates = materialize(&forest, &context);
+            let ordinary_candidates = materialize(&forest, &context, &environment);
             let (candidates, materialization) =
-                materialize_observed(&forest, &context, TraceLimits::new(limit));
+                materialize_observed(&forest, &context, &environment, TraceLimits::new(limit));
             let (repeated_candidates, repeated_materialization) =
-                materialize_observed(&forest, &context, TraceLimits::new(limit));
+                materialize_observed(&forest, &context, &environment, TraceLimits::new(limit));
             assert_eq!(ordinary_candidates, candidates);
             assert_eq!(candidates, repeated_candidates);
             assert_eq!(materialization, repeated_materialization);
@@ -849,6 +878,7 @@ mod tests {
                 materialization,
                 TraceLimits::new(limit),
                 &context,
+                &environment,
             );
 
             let BoundedParseOutcome::Selected(selected) = trace.outcome() else {
@@ -897,14 +927,16 @@ mod tests {
             vec![NodeId(0)],
         );
         let context = context("Context Card");
+        let environment = canonical_test_environment();
         let (candidates, materialization) =
-            materialize_observed(&forest, &context, TraceLimits::new(8));
+            materialize_observed(&forest, &context, &environment, TraceLimits::new(8));
         let trace = ParserTrace::from_parts(
             crate::parser::analyze_materialized(candidates),
             StructuralTrace::empty(),
             materialization,
             TraceLimits::new(8),
             &context,
+            &environment,
         );
 
         let BoundedParseOutcome::InternalFailure(failure) = trace.outcome() else {

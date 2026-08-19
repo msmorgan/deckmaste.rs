@@ -85,6 +85,35 @@ fn compact_rust_width(tokens: &TokenStream) -> usize {
         .count()
 }
 
+pub(super) fn declaration_kind(kind: macro_ron::v2::DeclarationKind) -> TokenStream {
+    use macro_ron::v2::DeclarationKind;
+
+    match kind {
+        DeclarationKind::KeywordAction => {
+            quote! { ::macro_ron::v2::DeclarationKind::KeywordAction }
+        }
+        DeclarationKind::KeywordAbility => {
+            quote! { ::macro_ron::v2::DeclarationKind::KeywordAbility }
+        }
+        DeclarationKind::Type => quote! { ::macro_ron::v2::DeclarationKind::Type },
+        DeclarationKind::CounterKind => quote! { ::macro_ron::v2::DeclarationKind::CounterKind },
+        DeclarationKind::Designation => quote! { ::macro_ron::v2::DeclarationKind::Designation },
+        DeclarationKind::Subtype(_) => unreachable!("open_verb validation excludes subtype kinds"),
+    }
+}
+
+pub(super) fn grammar_position(position: macro_ron::v2::GrammarPosition) -> TokenStream {
+    use macro_ron::v2::GrammarPosition;
+
+    match position {
+        GrammarPosition::Verb => quote! { ::macro_ron::v2::GrammarPosition::Verb },
+        GrammarPosition::Noun => quote! { ::macro_ron::v2::GrammarPosition::Noun },
+        GrammarPosition::FixedTerm => quote! { ::macro_ron::v2::GrammarPosition::FixedTerm },
+        GrammarPosition::FixedClause => quote! { ::macro_ron::v2::GrammarPosition::FixedClause },
+        GrammarPosition::FixedKeyword => quote! { ::macro_ron::v2::GrammarPosition::FixedKeyword },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

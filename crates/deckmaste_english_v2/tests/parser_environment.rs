@@ -224,9 +224,13 @@ fn parser_environment_rejects_duplicate_category_safe_identity() {
 
 #[test]
 fn parser_constructor_owns_and_clones_one_immutable_environment() {
-    let environment = ParserEnvironment::try_from_declarations(synthetic_declarations())
-        .expect("synthetic declarations compile");
-    let parser = Parser::new(environment);
+    let declarations = macro_ron::v2::read_builtin_v2(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+    )
+    .expect("integrated builtin-v2 declarations load");
+    let environment = ParserEnvironment::try_from_declarations(declarations)
+        .expect("builtin-v2 declarations compile");
+    let parser = Parser::new(environment).expect("required declarations are present");
     let cloned = parser.clone();
     let context = ParseContext::new("Context Card").expect("nonempty context");
 

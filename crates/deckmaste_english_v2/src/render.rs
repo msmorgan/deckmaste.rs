@@ -9,7 +9,11 @@ use crate::constructions::Number;
 use crate::context::ParseContext;
 
 pub trait Render {
-    fn render(&self, context: &ParseContext<'_>) -> String;
+    fn render(
+        &self,
+        context: &ParseContext<'_>,
+        environment: &crate::environment::ParserEnvironment,
+    ) -> String;
 }
 
 #[derive(Clone, Copy)]

@@ -69,11 +69,30 @@ impl CategoryRenderCapability {
 #[derive(Debug, Clone)]
 pub(crate) enum AtomContribution {
     Literal,
-    Category { role: String, category: String },
-    Lex { role: String, terminal: String },
-    Identity { role: String, terminal: String },
-    Noun { role: String, terminal: String },
-    VerbFixed { terminal: String, variant: String },
+    Category {
+        role: String,
+        category: String,
+    },
+    Lex {
+        role: String,
+        terminal: String,
+    },
+    Identity {
+        role: String,
+        terminal: String,
+    },
+    Noun {
+        role: String,
+        terminal: String,
+    },
+    VerbFixed {
+        terminal: String,
+        variant: String,
+    },
+    OpenDeclaration {
+        kind: macro_ron::v2::DeclarationKind,
+        name: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -103,7 +122,7 @@ impl AtomContribution {
             | Self::Identity { terminal, .. }
             | Self::Noun { terminal, .. }
             | Self::VerbFixed { terminal, .. } => Some(terminal),
-            Self::Literal | Self::Category { .. } => None,
+            Self::Literal | Self::Category { .. } | Self::OpenDeclaration { .. } => None,
         }
     }
 
@@ -115,12 +134,13 @@ impl AtomContribution {
             | Self::Identity { role, terminal }
             | Self::Noun { role, terminal } => !role.is_empty() && !terminal.is_empty(),
             Self::VerbFixed { terminal, variant } => !terminal.is_empty() && !variant.is_empty(),
+            Self::OpenDeclaration { name, .. } => !name.is_empty(),
         }
     }
 
     fn is_supported_by(&self, terminals: &HashMap<&str, &TerminalCapabilities>) -> bool {
         match self {
-            Self::Literal | Self::Category { .. } => true,
+            Self::Literal | Self::Category { .. } | Self::OpenDeclaration { .. } => true,
             Self::Lex { terminal, .. } => terminals.get(terminal.as_str()).is_some_and(|info| {
                 info.supports_lex_atom() && info.has_direct_render_build_traversal()
             }),
@@ -147,6 +167,9 @@ impl AtomContribution {
             Self::Identity { role, .. } => format!("identity({role})"),
             Self::Noun { role, .. } => format!("noun({role})"),
             Self::VerbFixed { terminal, variant } => format!("verb({terminal}::{variant})"),
+            Self::OpenDeclaration { kind, name } => {
+                format!("open_verb({kind:?}, {name}, Verb)")
+            }
         }
     }
 }
@@ -1145,20 +1168,13 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
             .iter()
             .map(|field| (identifier_key(&field.name), &field.kind))
             .collect();
-        let verb_operands: Vec<_> = construction
-            .form
-            .atoms
-            .iter()
-            .filter_map(|atom| match atom {
-                FormAtom::Verb(operand) => Some(operand),
-                _ => None,
-            })
-            .collect();
+        let (verb_operands, open_verb_count) = form_verbs(construction);
         let has_fixed_verb = verb_operands
             .iter()
-            .any(|operand| matches!(operand, VerbOperand::Fixed(_)));
+            .any(|operand| matches!(operand, VerbOperand::Fixed(_)))
+            || open_verb_count != 0;
         let local_vocab_providers = local_vocab_feature_providers(construction, &fields, symbols);
-        if verb_operands.len() > 1 {
+        if verb_operands.len() + open_verb_count > 1 {
             combine(
                 &mut errors,
                 syn::Error::new(
@@ -1247,6 +1263,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 FormAtom::Verb(VerbOperand::Fixed(path)) => {
                     check_terminal_variant(path, TerminalKind::Lexeme, symbols, &mut errors);
                 }
+                FormAtom::OpenVerb(open) => validate_open_declaration(open, &mut errors),
                 FormAtom::Literal(_) => {}
             }
         }
@@ -1287,6 +1304,46 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
     resolve_grammar_uses(raw)
 }
 
+fn validate_open_declaration(
+    open: &crate::model::OpenDeclarationAtom,
+    errors: &mut Option<syn::Error>,
+) {
+    if open_declaration_kind(&open.kind).is_none() {
+        combine(
+            errors,
+            syn::Error::new(
+                open.kind.span(),
+                format!("unsupported open declaration kind `{}`", open.kind),
+            ),
+        );
+    }
+    if open.name.value().is_empty() {
+        combine(
+            errors,
+            syn::Error::new(open.name.span(), "open declaration name is empty"),
+        );
+    }
+}
+
+fn form_verbs(construction: &crate::model::Construction) -> (Vec<&VerbOperand>, usize) {
+    let verb_operands = construction
+        .form
+        .atoms
+        .iter()
+        .filter_map(|atom| match atom {
+            FormAtom::Verb(operand) => Some(operand),
+            _ => None,
+        })
+        .collect();
+    let open_verb_count = construction
+        .form
+        .atoms
+        .iter()
+        .filter(|atom| matches!(atom, FormAtom::OpenVerb(_)))
+        .count();
+    (verb_operands, open_verb_count)
+}
+
 fn reject_projected_verb_role(role: &syn::Ident, errors: &mut Option<syn::Error>) {
     combine(
         errors,
@@ -1295,6 +1352,19 @@ fn reject_projected_verb_role(role: &syn::Ident, errors: &mut Option<syn::Error>
             "unimplemented in MVP: `projected verb role`; use a fixed verb path",
         ),
     );
+}
+
+fn open_declaration_kind(kind: &syn::Ident) -> Option<macro_ron::v2::DeclarationKind> {
+    use macro_ron::v2::DeclarationKind;
+
+    match kind.to_string().as_str() {
+        "KeywordAction" => Some(DeclarationKind::KeywordAction),
+        "KeywordAbility" => Some(DeclarationKind::KeywordAbility),
+        "Type" => Some(DeclarationKind::Type),
+        "CounterKind" => Some(DeclarationKind::CounterKind),
+        "Designation" => Some(DeclarationKind::Designation),
+        _ => None,
+    }
 }
 
 fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
@@ -1357,6 +1427,12 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                     );
                     Some(AtomContribution::VerbFixed { terminal, variant })
                 }
+                FormAtom::OpenVerb(open) => open_declaration_kind(&open.kind).map(|kind| {
+                    AtomContribution::OpenDeclaration {
+                        kind,
+                        name: open.name.value(),
+                    }
+                }),
                 FormAtom::Verb(VerbOperand::Projected(_)) => None,
             };
             if let Some(resolved) = resolved {
@@ -1747,7 +1823,9 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
                 | FormAtom::Identity(role)
                 | FormAtom::Noun(role)
                 | FormAtom::Verb(VerbOperand::Projected(role)) => Some(role),
-                FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::Literal(_) => None,
+                FormAtom::Verb(VerbOperand::Fixed(_))
+                | FormAtom::OpenVerb(_)
+                | FormAtom::Literal(_) => None,
             };
             if let Some(role) = role
                 && let Some(count) = counts.get_mut(&identifier_key(role))
@@ -3059,7 +3137,9 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
         }
         for atom in &construction.form.atoms {
             let slot = match atom {
-                FormAtom::Verb(VerbOperand::Fixed(_)) => Some("verb".to_owned()),
+                FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_) => {
+                    Some("verb".to_owned())
+                }
                 FormAtom::Verb(VerbOperand::Projected(role)) => Some(identifier_key(role)),
                 _ => None,
             };
@@ -3104,12 +3184,12 @@ fn seal_feature_resolutions(
             .iter()
             .map(|equation| equation.target().clone())
             .collect::<Vec<_>>();
-        if construction
-            .form
-            .atoms
-            .iter()
-            .any(|atom| matches!(atom, FormAtom::Verb(VerbOperand::Fixed(_))))
-        {
+        if construction.form.atoms.iter().any(|atom| {
+            matches!(
+                atom,
+                FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_)
+            )
+        }) {
             places.push(feature::FeaturePlace::Role {
                 field: syn::Ident::new("verb", construction.form.name.span()),
                 feature: feature::Feature::Agreement,
@@ -3142,11 +3222,12 @@ fn seal_category_render_capabilities(
     let mut agreement_contextual = HashSet::new();
 
     for construction in &constructions {
-        let has_fixed_verb = construction
-            .form
-            .atoms
-            .iter()
-            .any(|atom| matches!(atom, FormAtom::Verb(VerbOperand::Fixed(_))));
+        let has_fixed_verb = construction.form.atoms.iter().any(|atom| {
+            matches!(
+                atom,
+                FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_)
+            )
+        });
         let verb_place = feature::FeaturePlace::Role {
             field: syn::Ident::new("verb", construction.form.name.span()),
             feature: feature::Feature::Agreement,
@@ -3221,6 +3302,7 @@ fn seal_category_render_capabilities(
                 FormAtom::Literal(_)
                 | FormAtom::Lex(_)
                 | FormAtom::Verb(_)
+                | FormAtom::OpenVerb(_)
                 | FormAtom::Noun(_) => false,
             });
             if reads_context {
@@ -3969,6 +4051,7 @@ pub(crate) mod tests {
     use syn::spanned::Spanned;
 
     use crate::Declaration;
+    use crate::FormAtom;
 
     fn validate(tokens: proc_macro2::TokenStream) -> syn::Result<super::ValidatedDeclarations> {
         super::validate_declarations(crate::parse_declarations(tokens)?)
@@ -3983,6 +4066,58 @@ pub(crate) mod tests {
 
     fn assert_same_span(actual: proc_macro2::Span, expected: proc_macro2::Span) {
         assert_eq!(format!("{actual:?}"), format!("{expected:?}"));
+    }
+
+    #[test]
+    fn open_verb_validation_errors_point_at_the_authored_kind_and_name() {
+        let unsupported_source: proc_macro2::TokenStream = r#"
+            construction unsupported: VerbPhrase {
+                element Unsupported {}
+                form unsupported = open_verb(Subtype, "Elf");
+            }
+            root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        "#
+        .parse()
+        .expect("unsupported-kind fixture tokenizes");
+        let unsupported = crate::parse_declarations(unsupported_source)
+            .expect("the open_verb syntax parses before kind validation");
+        let Declaration::Construction(construction) = &unsupported.declarations[0] else {
+            panic!("first declaration is a construction")
+        };
+        let FormAtom::OpenVerb(open) = &construction.form.atoms[0] else {
+            panic!("form contains an open declaration atom")
+        };
+        let expected_kind_span = open.kind.span();
+        let error = super::validate_declarations(unsupported)
+            .expect_err("subtype requires an authored supertype and is not a simple kind");
+        assert_eq!(
+            error.to_string(),
+            "unsupported open declaration kind `Subtype`"
+        );
+        assert_same_span(error.span(), expected_kind_span);
+
+        let empty_name_source: proc_macro2::TokenStream = r#"
+            construction unnamed: VerbPhrase {
+                element Unnamed {}
+                form unnamed = open_verb(KeywordAction, "");
+            }
+            root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        "#
+        .parse()
+        .expect("empty-name fixture tokenizes");
+        let unnamed = crate::parse_declarations(empty_name_source)
+            .expect("the open_verb syntax parses before name validation");
+        let Declaration::Construction(construction) = &unnamed.declarations[0] else {
+            panic!("first declaration is a construction")
+        };
+        let FormAtom::OpenVerb(open) = &construction.form.atoms[0] else {
+            panic!("form contains an open declaration atom")
+        };
+        let expected_name_span = open.name.span();
+        let error = super::validate_declarations(unnamed)
+            .expect_err("an open declaration name cannot be empty");
+        assert_eq!(error.to_string(), "open declaration name is empty");
+        assert_same_span(error.span(), expected_name_span);
     }
 
     #[test]

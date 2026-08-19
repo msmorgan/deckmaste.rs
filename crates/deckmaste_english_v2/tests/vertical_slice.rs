@@ -21,6 +21,7 @@ struct RecordingVisitor {
     trigger_words: Vec<TriggerWord>,
     nouns: Vec<NounLexeme>,
     verbs: Vec<VerbLexeme>,
+    declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
     catalog_spellings: Vec<String>,
 }
 
@@ -59,6 +60,11 @@ impl Visitor for RecordingVisitor {
         self.verbs.push(verb);
     }
 
+    fn visit_declaration(&mut self, declaration: &macro_ron::v2::DeclarationIdentity) {
+        self.declarations
+            .push((declaration.kind(), declaration.name().to_owned()));
+    }
+
     fn visit_catalog_spelling(&mut self, spelling: &str) {
         self.catalog_spellings.push(spelling.to_owned());
     }
@@ -70,9 +76,13 @@ fn catalogs() -> ParserCatalogs {
 }
 
 fn environment() -> ParserEnvironment {
+    let declarations = macro_ron::v2::read_builtin_v2(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+    )
+    .expect("integrated builtin-v2 declarations load");
     catalogs().attach_to(
-        ParserEnvironment::try_from_declarations([])
-            .expect("empty declaration environment freezes"),
+        ParserEnvironment::try_from_declarations(declarations)
+            .expect("builtin-v2 declaration environment freezes"),
     )
 }
 
@@ -142,10 +152,11 @@ fn triggered_damage() -> Ability {
 
 #[test]
 fn parser_analysis_preserves_the_vertical_slice_triggered_ability() {
-    let parser = Parser::new(environment());
+    let environment = environment();
+    let parser = Parser::new(environment.clone()).expect("required declarations are present");
     let context = context("Context Card");
     let expected = triggered_damage();
-    let text = expected.render(&context);
+    let text = expected.render(&context, &environment);
 
     assert_eq!(parser.parse(&text, &context), Ok(expected));
     assert_eq!(
@@ -223,7 +234,7 @@ fn renders_destroy_target_creature_exactly() {
         }),
     });
     assert_eq!(
-        value.render(&context("Context Card")),
+        value.render(&context("Context Card"), &environment()),
         "Destroy target creature."
     );
 }
@@ -232,7 +243,7 @@ fn renders_destroy_target_creature_exactly() {
 fn renders_triggered_damage_exactly_without_capitalizing_after_the_comma() {
     let value = triggered_damage();
     assert_eq!(
-        value.render(&context("Context Card")),
+        value.render(&context("Context Card"), &environment()),
         "Whenever a player connives, that creature deals X damage to it."
     );
 }
@@ -241,7 +252,7 @@ fn renders_triggered_damage_exactly_without_capitalizing_after_the_comma() {
 fn renders_gain_life_with_a_where_binder_exactly() {
     let value = gain_life_with_where();
     assert_eq!(
-        value.render(&context("Context Card")),
+        value.render(&context("Context Card"), &environment()),
         "You gain X life, where X is the number of creatures you control with power 2 or less."
     );
 }
@@ -265,7 +276,7 @@ fn renders_a_plural_count_subject_with_a_bare_verb() {
     });
 
     assert_eq!(
-        value.render(&context("Context Card")),
+        value.render(&context("Context Card"), &environment()),
         "Creatures you control with power 2 or less gain X life."
     );
 }
@@ -289,7 +300,7 @@ fn renders_real_abbreviated_self_reference_with_a_catalog_identity() {
         }),
     });
     assert_eq!(
-        value.render(&context("Zacama, Primal Calamity")),
+        value.render(&context("Zacama, Primal Calamity"), &environment()),
         "Zacama deals 3 damage to target creature."
     );
 }
@@ -312,8 +323,8 @@ fn the_same_self_reference_value_renders_from_two_card_contexts() {
         }),
     });
 
-    let zacama = value.render(&context("Zacama, Primal Calamity"));
-    let zoraline = value.render(&context("Zoraline, Cosmos Caller"));
+    let zacama = value.render(&context("Zacama, Primal Calamity"), &environment());
+    let zoraline = value.render(&context("Zoraline, Cosmos Caller"), &environment());
 
     assert_eq!(zacama, "Zacama deals 3 damage to target creature.");
     assert_eq!(zoraline, "Zoraline deals 3 damage to target creature.");
@@ -335,7 +346,7 @@ fn renders_those_with_a_plural_noun_and_bare_verb() {
         })),
     });
     assert_eq!(
-        value.render(&context("Context Card")),
+        value.render(&context("Context Card"), &environment()),
         "Those creatures deal 3 damage to it."
     );
 }
@@ -355,7 +366,7 @@ fn renders_an_with_a_singular_noun_and_third_person_verb() {
         })),
     });
     assert_eq!(
-        value.render(&context("Context Card")),
+        value.render(&context("Context Card"), &environment()),
         "An artifact deals 3 damage to it."
     );
 }
@@ -375,7 +386,7 @@ fn renders_a_subtype_with_its_printed_case() {
         })),
     });
     assert_eq!(
-        value.render(&context("Context Card")),
+        value.render(&context("Context Card"), &environment()),
         "An Equipment deals 3 damage to it."
     );
 }
@@ -452,10 +463,21 @@ fn visitor_reaches_every_vertical_slice_leaf() {
     assert_eq!(visitor.trigger_words, vec![TriggerWord::Whenever]);
     assert_eq!(visitor.nouns, vec![NounLexeme::Player]);
     assert_eq!(
+        visitor.declarations,
+        vec![
+            (
+                macro_ron::v2::DeclarationKind::KeywordAction,
+                "Destroy".to_owned()
+            ),
+            (
+                macro_ron::v2::DeclarationKind::KeywordAction,
+                "Connive".to_owned()
+            ),
+        ]
+    );
+    assert_eq!(
         visitor.verbs,
         vec![
-            VerbLexeme::Destroy,
-            VerbLexeme::Connive,
             VerbLexeme::Deal,
             VerbLexeme::Gain,
             VerbLexeme::Be,
