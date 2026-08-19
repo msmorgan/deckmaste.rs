@@ -13,6 +13,9 @@ use macro_ron::v2::NormalizedDeclaration;
 use macro_ron::v2::SurfaceFeature;
 use macro_ron::v2::VerbValence;
 
+use crate::catalog_compatibility::CatalogCompatibility;
+use crate::orthography::initial_surface;
+
 /// One declaration and its validated grammar metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclarationRecord {
@@ -126,6 +129,7 @@ pub enum ParserEnvironmentError {
 struct EnvironmentData {
     declarations: BTreeMap<DeclarationKind, BTreeMap<Arc<str>, DeclarationRecord>>,
     readings: BTreeMap<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>,
+    initial_readings: BTreeMap<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>,
 }
 
 /// One immutable vocabulary and grammar-row environment for a parser.
@@ -135,6 +139,9 @@ struct EnvironmentData {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserEnvironment {
     data: Arc<EnvironmentData>,
+    // Deleted with the catalog compatibility module once type/subtype
+    // declaration rows supply the noun inventory.
+    catalog_compatibility: Option<CatalogCompatibility>,
 }
 
 impl ParserEnvironment {
@@ -187,6 +194,8 @@ impl ParserEnvironment {
 
         let mut readings =
             BTreeMap::<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>::new();
+        let mut initial_readings =
+            BTreeMap::<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>::new();
         for records_by_name in records.values() {
             for record in records_by_name.values() {
                 let Some(recipe) = &record.recipe else {
@@ -194,17 +203,24 @@ impl ParserEnvironment {
                 };
                 let position = recipe.position();
                 for (feature, surface) in &record.surfaces {
+                    let reading = DeclarationReading {
+                        id: record.id.clone(),
+                        position,
+                        feature: *feature,
+                        surface: Arc::clone(surface),
+                    };
                     readings
                         .entry(position)
                         .or_default()
                         .entry(Arc::clone(surface))
                         .or_default()
-                        .push(DeclarationReading {
-                            id: record.id.clone(),
-                            position,
-                            feature: *feature,
-                            surface: Arc::clone(surface),
-                        });
+                        .push(reading.clone());
+                    initial_readings
+                        .entry(position)
+                        .or_default()
+                        .entry(Arc::from(initial_surface(surface)))
+                        .or_default()
+                        .push(reading);
                 }
             }
         }
@@ -213,7 +229,9 @@ impl ParserEnvironment {
             data: Arc::new(EnvironmentData {
                 declarations: records,
                 readings,
+                initial_readings,
             }),
+            catalog_compatibility: None,
         })
     }
 
@@ -237,6 +255,18 @@ impl ParserEnvironment {
             .map_or(&[], Vec::as_slice)
     }
 
+    pub(crate) fn initial_readings(
+        &self,
+        position: GrammarPosition,
+        surface: &str,
+    ) -> &[DeclarationReading] {
+        self.data
+            .initial_readings
+            .get(&position)
+            .and_then(|by_surface| by_surface.get(surface))
+            .map_or(&[], Vec::as_slice)
+    }
+
     /// Returns the exact surface for a declaration and realized feature.
     #[must_use]
     pub fn surface(&self, id: &DeclarationId, feature: SurfaceFeature) -> Option<&str> {
@@ -245,6 +275,43 @@ impl ParserEnvironment {
             .get(&id.kind())
             .and_then(|records| records.get(id.name()))
             .and_then(|record| record.surface(feature))
+    }
+
+    pub(crate) fn with_catalog_compatibility(
+        mut self,
+        compatibility: CatalogCompatibility,
+    ) -> Self {
+        self.catalog_compatibility = Some(compatibility);
+        self
+    }
+
+    pub(crate) fn catalog_spellings(
+        &self,
+        kind: deckmaste_catalogs::CatalogKind,
+    ) -> impl Iterator<Item = &str> {
+        self.catalog_compatibility
+            .iter()
+            .flat_map(move |compatibility| compatibility.spellings(kind))
+    }
+
+    pub(crate) fn contains_catalog_spelling(
+        &self,
+        kind: deckmaste_catalogs::CatalogKind,
+        spelling: &str,
+    ) -> bool {
+        self.catalog_compatibility
+            .as_ref()
+            .is_some_and(|compatibility| compatibility.contains(kind, spelling))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_shares_storage_with(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.data, &other.data)
+            && match (&self.catalog_compatibility, &other.catalog_compatibility) {
+                (Some(left), Some(right)) => left.shares_storage_with(right),
+                (None, None) => true,
+                (Some(_), None) | (None, Some(_)) => false,
+            }
     }
 }
 
@@ -267,6 +334,8 @@ fn collect_surfaces<'a>(
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use super::*;
 
     #[test]
@@ -286,6 +355,54 @@ mod tests {
                 identity,
                 feature: SurfaceFeature::Bare,
             }
+        );
+    }
+
+    #[test]
+    fn legacy_catalogs_are_fenced_to_the_named_provider_compatibility_boundary() {
+        fn rust_sources(path: &Path, found: &mut Vec<PathBuf>) {
+            for entry in fs::read_dir(path).expect("source directory is readable") {
+                let path = entry.expect("source entry is readable").path();
+                if path.is_dir() {
+                    rust_sources(&path, found);
+                } else if path.extension().is_some_and(|extension| extension == "rs") {
+                    found.push(path);
+                }
+            }
+        }
+
+        let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut sources = Vec::new();
+        rust_sources(&source_root, &mut sources);
+        sources.sort();
+        let legacy_type = concat!("Parser", "Catalogs");
+        for path in sources {
+            let relative = path
+                .strip_prefix(&source_root)
+                .expect("source is below root");
+            let source = fs::read_to_string(&path).expect("Rust source is readable");
+            if relative == Path::new("catalogs.rs") {
+                assert!(source.contains(&format!("pub struct {legacy_type}")));
+            } else {
+                assert!(
+                    !source.contains(legacy_type),
+                    "legacy parser catalogs escaped the provider boundary into {}",
+                    relative.display()
+                );
+            }
+        }
+
+        let environment = include_str!("environment.rs");
+        let compatibility_field =
+            concat!("catalog_compatibility: Option<", "CatalogCompatibility>");
+        assert_eq!(
+            environment.matches(compatibility_field).count(),
+            1,
+            "the environment owns exactly one transitional compatibility field"
+        );
+        assert!(
+            include_str!("catalog_compatibility.rs")
+                .contains("type and subtype declaration rows supply the noun inventory")
         );
     }
 }

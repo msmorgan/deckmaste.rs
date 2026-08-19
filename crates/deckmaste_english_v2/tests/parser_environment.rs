@@ -1,9 +1,11 @@
 use std::path::Path;
 
+use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::GrammarPosition;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::environment::ParserEnvironmentError;
+use deckmaste_english_v2::parser::Parser;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::GrammarRecipe;
 use macro_ron::v2::NormalizedDeclaration;
@@ -218,4 +220,18 @@ fn parser_environment_rejects_duplicate_category_safe_identity() {
             && first_path == Path::new("/synthetic/first/Scry.ron")
             && duplicate_path == Path::new("/synthetic/duplicate/Scry.ron")
     ));
+}
+
+#[test]
+fn parser_constructor_owns_and_clones_one_immutable_environment() {
+    let environment = ParserEnvironment::try_from_declarations(synthetic_declarations())
+        .expect("synthetic declarations compile");
+    let parser = Parser::new(environment);
+    let cloned = parser.clone();
+    let context = ParseContext::new("Context Card").expect("nonempty context");
+
+    assert_eq!(
+        parser.parse("You gain 3 life.", &context),
+        cloned.parse("You gain 3 life.", &context)
+    );
 }

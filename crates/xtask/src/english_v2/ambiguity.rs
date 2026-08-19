@@ -27,7 +27,7 @@ pub(super) fn run(args: &AmbiguityArgs, output: &mut dyn Write) -> anyhow::Resul
             args.corpus.catalogs.display()
         )
     })?;
-    let parser = Parser::new(catalogs);
+    let parser = crate::english_v2::parser_from_catalogs(catalogs);
     let report = AmbiguityReport::run(&corpus, &parser)?;
 
     render_then_apply(&report, args.json, args.require_resolved, output)

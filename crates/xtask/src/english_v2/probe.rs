@@ -50,7 +50,7 @@ impl ProbeSteps for ProductionSteps {
     fn load_catalogs(&mut self, path: &Path) -> anyhow::Result<Self::Catalogs> {
         let catalogs = ParserCatalogs::load(path)
             .with_context(|| format!("loading parser catalogs from {}", path.display()))?;
-        Ok(Parser::new(catalogs))
+        Ok(crate::english_v2::parser_from_catalogs(catalogs))
     }
 
     fn context<'a>(&mut self, name: &'a str) -> anyhow::Result<Self::Context<'a>> {

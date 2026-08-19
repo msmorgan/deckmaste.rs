@@ -225,6 +225,7 @@ pub(crate) fn plan_emission(plan: &SemanticPlan) -> syn::Result<EmissionPlan> {
     let (terminal_items, terminal_contributions) = crate::emit::terminal::emit(plan)?;
     items.extend(terminal_items);
     items.extend(crate::emit::runtime::emit(plan));
+    items.extend(crate::emit::scanner::emit(plan));
     items.extend(crate::emit::render::emit(plan)?);
     items.extend(crate::emit::visit::emit(plan)?);
     items.extend(crate::emit::rules::emit(plan)?);
@@ -341,6 +342,130 @@ mod tests {
                 .to_string(),
             "sealed terminal binding `Resource` has a mismatched declaration kind"
         );
+    }
+
+    #[test]
+    fn generated_vocab_scanner_is_exhaustive_and_owner_typed() {
+        let mut plan = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::representative_tokens())
+                .expect("representative fixture parses"),
+        )
+        .expect("representative fixture validates")
+        .into_semantic();
+        plan.test_only_replace_vocab_spelling("Words", "First", "changed");
+
+        let scanner = formatted(&crate::emit::scanner::emit(&plan));
+        for expected in [
+            "pub (crate) fn scan_lexical",
+            "Lexical :: EndOfInput",
+            "Lexical :: Literal",
+            "Lexical :: Words",
+            "(\"changed\" , Words :: First)",
+            "Leaf :: Words (value)",
+            "Lexical :: Declaration (matcher)",
+            "input . declaration_readings (matcher)",
+            "scan_bound_terminal (input , terminal)",
+        ] {
+            assert!(
+                scanner.contains(expected),
+                "generated scanner is missing `{expected}`: {scanner}"
+            );
+        }
+        assert!(
+            !scanner.contains("\"first\""),
+            "scanner reread authored source instead of the mutated semantic row: {scanner}"
+        );
+
+        let expansion = representative_expansion();
+        let item = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name,
+                    } if name == "scan_lexical"
+                )
+            })
+            .expect("the planned expansion includes the generated scanner");
+        assert!(
+            item.origins.iter().any(|origin| {
+                origin.kind() == DeclarationKind::Vocab && origin.name() == "Words"
+            }),
+            "the generated scanner retains its vocab authority"
+        );
+    }
+
+    #[test]
+    fn generated_vocab_scanner_rejects_empty_spelling_at_the_literal() {
+        let error = crate::generate(quote::quote! {
+            vocab Words { Empty = "", }
+            construction leaf: Node {
+                element WordLeaf { word: lex Words, }
+                form leaf = lex(word);
+            }
+            root Node { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("an empty vocab spelling cannot produce a bounded scanner match");
+
+        assert_eq!(error.to_string(), "vocab spelling must not be empty");
+    }
+
+    #[test]
+    fn generated_vocab_scanner_preserves_unicode_raw_names_and_initial_collisions() {
+        let source = quote::quote! {
+            vocab Terms {
+                Unicode = "élan",
+                r#RawMember = "raw",
+                Running = "word",
+                AlreadyInitial = "Word",
+            }
+            construction leaf: Node {
+                element TermLeaf { term: lex Terms, }
+                form leaf = lex(term);
+            }
+            root Node { punctuation = "."; eoi = true; standalone_render = true; }
+        };
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(source).expect("fixture parses"),
+        )
+        .expect("distinct running spellings remain valid when initial forms collide");
+        let scanner_item = crate::emit::scanner::emit(validated.semantic())
+            .into_iter()
+            .next()
+            .expect("scanner item");
+        syn::parse2::<syn::ItemFn>(scanner_item.tokens.clone()).unwrap_or_else(|error| {
+            panic!(
+                "scanner with a raw member must reparse: {error}; tokens: {}",
+                scanner_item.tokens
+            )
+        });
+        let scanner = scanner_item.tokens.to_string();
+
+        for expected in [
+            "(\"élan\" , Terms :: Unicode)",
+            "(\"raw\" , Terms :: RawMember)",
+            "(\"word\" , Terms :: Running)",
+            "(\"Word\" , Terms :: AlreadyInitial)",
+        ] {
+            assert!(
+                scanner.contains(expected),
+                "missing `{expected}`: {scanner}"
+            );
+        }
+
+        let duplicate = crate::generate(quote::quote! {
+            vocab Terms { First = "same", Second = "same", }
+            construction leaf: Node {
+                element TermLeaf { term: lex Terms, }
+                form leaf = lex(term);
+            }
+            root Node { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("duplicate running spellings remain invalid");
+        assert!(duplicate.to_string().contains("duplicate word `same`"));
     }
 
     #[test]
@@ -807,7 +932,16 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 48);
+        assert_eq!(keys.len(), 49);
+        assert!(keys.iter().any(|key| {
+            matches!(
+                key,
+                ItemKey::Named {
+                    kind: NamedKind::Function,
+                    name,
+                } if name == "scan_lexical"
+            )
+        }));
         assert_eq!(
             keys.len(),
             keys.iter().copied().collect::<HashSet<_>>().len()

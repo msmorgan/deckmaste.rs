@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use deckmaste_catalogs::CatalogKind;
+use macro_ron::v2::SurfaceFeature;
 
 use super::diagnostic::Bounded;
 use super::diagnostic::ChartItem;
@@ -23,22 +24,17 @@ use super::engine::Observation;
 use super::engine::parse;
 use super::engine::parse_observed;
 use super::materialize::completion_has_checked_build;
-use crate::ast::Article;
 use crate::ast::CatalogIdentity;
-use crate::ast::Demonstrative;
 use crate::ast::Noun;
 use crate::ast::NounLexeme;
-use crate::ast::Pronoun;
 use crate::ast::SelfReferenceSpelling;
 use crate::ast::Sign;
 use crate::ast::SignedNumber;
-use crate::ast::TriggerWord;
-use crate::ast::Variable;
 use crate::ast::VerbLexeme;
-use crate::catalogs::ParserCatalogs;
 use crate::constructions::Agreement;
 use crate::constructions::CasePosition;
 use crate::constructions::Category;
+use crate::constructions::DeclarationMatcher;
 use crate::constructions::FeatureConstraint;
 use crate::constructions::Leaf;
 use crate::constructions::Lexical;
@@ -47,11 +43,22 @@ use crate::constructions::Number;
 use crate::constructions::RULES;
 use crate::constructions::RuleId;
 use crate::constructions::ScanPosition;
+use crate::constructions::scan_lexical;
 use crate::context::ParseContext;
+use crate::environment::DeclarationId;
+use crate::environment::ParserEnvironment;
 use crate::features::inflect;
+use crate::orthography::initial_surface;
 
 pub(crate) struct SliceGrammar<'a> {
-    pub(crate) catalogs: &'a ParserCatalogs,
+    pub(crate) environment: &'a ParserEnvironment,
+    pub(crate) context: &'a ParseContext<'a>,
+}
+
+pub(crate) struct ScanInput<'a> {
+    pub(crate) text: &'a str,
+    pub(crate) position: ScanPosition,
+    pub(crate) environment: &'a ParserEnvironment,
     pub(crate) context: &'a ParseContext<'a>,
 }
 
@@ -430,162 +437,138 @@ impl SliceGrammar<'_> {
                 CasePosition::Continuation
             },
         };
-        self.scan_lexical(terminal.matcher, text, position)
+        scan_lexical(
+            &ScanInput {
+                text,
+                position,
+                environment: self.environment,
+                context: self.context,
+            },
+            terminal,
+        )
     }
+}
 
-    fn scan_lexical(
-        &self,
-        lexical: Lexical,
-        text: &str,
-        position: ScanPosition,
-    ) -> Vec<LexicalMatch<Leaf>> {
-        let offset = position.byte_offset;
+impl ScanInput<'_> {
+    pub(crate) fn word_end(&self, running_text: &str) -> Option<usize> {
+        let offset = self.position.byte_offset;
         debug_assert_eq!(
-            position.case,
+            self.position.case,
             if offset == 0 {
                 CasePosition::DocumentInitial
             } else {
                 CasePosition::Continuation
             }
         );
-        match lexical {
-            Lexical::EndOfInput => (offset == text.len())
-                .then_some(LexicalMatch {
-                    end: offset,
-                    value: Leaf::EndOfInput,
-                })
-                .into_iter()
-                .collect(),
-            Lexical::Literal(literal @ ("." | ",")) => text[offset..]
-                .starts_with(literal)
-                .then_some(LexicalMatch {
-                    end: offset + literal.len(),
-                    value: Leaf::Literal(literal),
-                })
-                .into_iter()
-                .collect(),
-            Lexical::Literal(literal) => Self::word(text, offset, literal)
-                .map(|end| LexicalMatch {
-                    end,
-                    value: Leaf::Literal(literal),
-                })
-                .into_iter()
-                .collect(),
-            Lexical::TriggerWord => Self::closed_word(
-                text,
-                offset,
-                "whenever",
-                Leaf::TriggerWord(TriggerWord::Whenever),
-            ),
-            Lexical::Article => [
-                ("a", Leaf::Article(Article::A)),
-                ("an", Leaf::Article(Article::An)),
-            ]
-            .into_iter()
-            .filter_map(|(word, value)| {
-                Self::word(text, offset, word).map(|end| LexicalMatch { end, value })
-            })
-            .collect(),
-            Lexical::Demonstrative => [
-                ("that", Leaf::Demonstrative(Demonstrative::That)),
-                ("those", Leaf::Demonstrative(Demonstrative::Those)),
-            ]
-            .into_iter()
-            .filter_map(|(word, value)| {
-                Self::word(text, offset, word).map(|end| LexicalMatch { end, value })
-            })
-            .collect(),
-            Lexical::Pronoun => [
-                ("it", Leaf::Pronoun(Pronoun::It)),
-                ("you", Leaf::Pronoun(Pronoun::You)),
-            ]
-            .into_iter()
-            .filter_map(|(word, value)| {
-                Self::word(text, offset, word).map(|end| LexicalMatch { end, value })
-            })
-            .collect(),
-            Lexical::Variable => Self::closed_word(text, offset, "X", Leaf::Variable(Variable::X)),
-            Lexical::Noun(number) => self.scan_noun(text, offset, number),
-            Lexical::Verb(lexeme) => Self::scan_verb(text, offset, lexeme),
-            Lexical::SignedNumber => Self::scan_signed_number(text, offset),
-            Lexical::SelfReference => std::iter::once((
-                self.context.card_name(),
-                Leaf::SelfReference(SelfReferenceSpelling::Full),
-            ))
-            .chain(
-                (self.context.abbreviated_card_name() != self.context.card_name()).then_some((
-                    self.context.abbreviated_card_name(),
-                    Leaf::SelfReference(SelfReferenceSpelling::Abbreviated),
-                )),
-            )
-            .filter_map(|(word, value)| {
-                Self::identity(text, offset, word).map(|end| LexicalMatch { end, value })
-            })
-            .collect(),
-            Lexical::Declaration(_) => Vec::new(),
-        }
-    }
-
-    fn closed_word(text: &str, offset: usize, word: &str, value: Leaf) -> Vec<LexicalMatch<Leaf>> {
-        Self::word(text, offset, word)
-            .map(|end| LexicalMatch { end, value })
-            .into_iter()
-            .collect()
-    }
-
-    fn word(text: &str, offset: usize, word: &str) -> Option<usize> {
-        let prefix = usize::from(offset != 0);
-        let remainder = text.get(offset..)?;
+        let prefix = usize::from(self.position.case == CasePosition::Continuation);
+        let remainder = self.text.get(offset..)?;
         let remainder = (prefix == 0)
             .then_some(remainder)
             .or_else(|| remainder.strip_prefix(' '))?;
-        let word = if offset == 0 { capitalize(word) } else { word.to_owned() };
+        let word = if self.position.case == CasePosition::DocumentInitial {
+            initial_surface(running_text)
+        } else {
+            running_text.to_owned()
+        };
         let end = offset + prefix + word.len();
-        (remainder.starts_with(&word) && has_lexical_boundary(text, end)).then_some(end)
+        (remainder.starts_with(&word) && has_lexical_boundary(self.text, end)).then_some(end)
     }
 
-    fn identity(text: &str, offset: usize, identity: &str) -> Option<usize> {
-        let prefix = usize::from(offset != 0);
-        let remainder = text.get(offset..)?;
+    pub(crate) fn identity_end(&self, exact_text: &str) -> Option<usize> {
+        let offset = self.position.byte_offset;
+        let prefix = usize::from(self.position.case == CasePosition::Continuation);
+        let remainder = self.text.get(offset..)?;
         let remainder = (prefix == 0)
             .then_some(remainder)
             .or_else(|| remainder.strip_prefix(' '))?;
-        let end = offset + prefix + identity.len();
-        (!identity.is_empty()
+        let end = offset + prefix + exact_text.len();
+        (!exact_text.is_empty()
             && end > offset
-            && remainder.starts_with(identity)
-            && has_lexical_boundary(text, end))
+            && remainder.starts_with(exact_text)
+            && has_lexical_boundary(self.text, end))
         .then_some(end)
     }
 
-    fn scan_noun(
+    pub(crate) fn punctuation_end(&self, punctuation: &str) -> Option<usize> {
+        let offset = self.position.byte_offset;
+        self.text
+            .get(offset..)?
+            .starts_with(punctuation)
+            .then_some(offset + punctuation.len())
+    }
+
+    pub(crate) fn declaration_readings(
         &self,
-        text: &str,
-        offset: usize,
-        wanted: FeatureConstraint<Number>,
-    ) -> Vec<LexicalMatch<Leaf>> {
+        matcher: DeclarationMatcher,
+    ) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
+        let offset = self.position.byte_offset;
+        let prefix = usize::from(self.position.case == CasePosition::Continuation);
+        let Some(remainder) = self.text.get(offset..) else {
+            return Vec::new();
+        };
+        let Some(surface_text) = (prefix == 0)
+            .then_some(remainder)
+            .or_else(|| remainder.strip_prefix(' '))
+        else {
+            return Vec::new();
+        };
+
+        let mut results = Vec::new();
+        let candidate_ends = surface_text
+            .char_indices()
+            .skip(1)
+            .map(|(end, _)| end)
+            .chain(std::iter::once(surface_text.len()));
+        for relative_end in candidate_ends {
+            let end = offset + prefix + relative_end;
+            if !has_lexical_boundary(self.text, end) {
+                continue;
+            }
+            let candidate = &surface_text[..relative_end];
+            let readings = if self.position.case == CasePosition::DocumentInitial {
+                self.environment
+                    .initial_readings(matcher.position, candidate)
+            } else {
+                self.environment.readings(matcher.position, candidate)
+            };
+            for reading in readings {
+                if reading.id().kind() != matcher.kind
+                    || reading.id().name() != matcher.name
+                    || !matches_feature(matcher.feature, reading.feature())
+                {
+                    continue;
+                }
+                results.push((end, reading.id().clone(), reading.feature()));
+            }
+        }
+        results.sort();
+        results.dedup();
+        results
+    }
+
+    fn scan_noun(&self, wanted: FeatureConstraint<Number>) -> Vec<LexicalMatch<Leaf>> {
         let mut matches = Vec::new();
-        for (noun, singular) in std::iter::once((
-            Noun::Lexeme(NounLexeme::Player),
-            "player".to_owned(),
-        ))
-        .chain(
-            self.catalogs
-                .set()
-                .get(CatalogKind::CardTypes)
-                .iter()
-                .filter_map(|spelling| {
-                    CatalogIdentity::new(self.catalogs, CatalogKind::CardTypes, spelling.clone())
+        for (noun, singular) in
+            std::iter::once((Noun::Lexeme(NounLexeme::Player), "player".to_owned())).chain(
+                self.environment
+                    .catalog_spellings(CatalogKind::CardTypes)
+                    .filter_map(|spelling| {
+                        CatalogIdentity::new(
+                            self.environment,
+                            CatalogKind::CardTypes,
+                            spelling.to_owned(),
+                        )
                         .map(|identity| {
                             (
                                 Noun::Catalog(identity),
                                 rendered_catalog(CatalogKind::CardTypes, spelling),
                             )
                         })
-                }),
-        ) {
+                    }),
+            )
+        {
             for (number, word) in noun_forms(&singular, wanted) {
-                if let Some(end) = Self::word(text, offset, &word) {
+                if let Some(end) = self.word_end(&word) {
                     matches.push(LexicalMatch {
                         end,
                         value: Leaf::Noun {
@@ -599,21 +582,23 @@ impl SliceGrammar<'_> {
         matches
     }
 
-    fn scan_verb(text: &str, offset: usize, lexeme: VerbLexeme) -> Vec<LexicalMatch<Leaf>> {
+    fn scan_verb(&self, lexeme: VerbLexeme) -> Vec<LexicalMatch<Leaf>> {
         [Agreement::Bare, Agreement::ThirdPersonSingular]
             .into_iter()
             .filter_map(|agreement| {
-                Self::word(text, offset, inflect(lexeme, agreement)).map(|end| LexicalMatch {
-                    end,
-                    value: Leaf::Verb { lexeme, agreement },
-                })
+                self.word_end(inflect(lexeme, agreement))
+                    .map(|end| LexicalMatch {
+                        end,
+                        value: Leaf::Verb { lexeme, agreement },
+                    })
             })
             .collect()
     }
 
-    fn scan_signed_number(text: &str, offset: usize) -> Vec<LexicalMatch<Leaf>> {
-        let prefix = usize::from(offset != 0);
-        let Some(remainder) = text.get(offset..) else {
+    fn scan_signed_number(&self) -> Vec<LexicalMatch<Leaf>> {
+        let offset = self.position.byte_offset;
+        let prefix = usize::from(self.position.case == CasePosition::Continuation);
+        let Some(remainder) = self.text.get(offset..) else {
             return Vec::new();
         };
         let Some(number) = (prefix == 0)
@@ -634,13 +619,50 @@ impl SliceGrammar<'_> {
             return Vec::new();
         };
         let end = offset + prefix + usize::from(sign == Sign::Negative) + digit_length;
-        (magnitude.to_string() == digits && has_lexical_boundary(text, end))
+        (magnitude.to_string() == digits && has_lexical_boundary(self.text, end))
             .then_some(LexicalMatch {
                 end,
                 value: Leaf::SignedNumber(SignedNumber { sign, magnitude }),
             })
             .into_iter()
             .collect()
+    }
+}
+
+pub(crate) fn scan_bound_terminal(
+    input: &ScanInput<'_>,
+    terminal: LexicalTerminal,
+) -> Vec<LexicalMatch<Leaf>> {
+    match terminal.matcher {
+        Lexical::Noun(number) => input.scan_noun(number),
+        Lexical::Verb(lexeme) => input.scan_verb(lexeme),
+        Lexical::SignedNumber => input.scan_signed_number(),
+        Lexical::SelfReference => std::iter::once((
+            input.context.card_name(),
+            Leaf::SelfReference(SelfReferenceSpelling::Full),
+        ))
+        .chain(
+            (input.context.abbreviated_card_name() != input.context.card_name()).then_some((
+                input.context.abbreviated_card_name(),
+                Leaf::SelfReference(SelfReferenceSpelling::Abbreviated),
+            )),
+        )
+        .filter_map(|(word, value)| {
+            input
+                .identity_end(word)
+                .map(|end| LexicalMatch { end, value })
+        })
+        .collect(),
+        Lexical::Literal(_)
+        | Lexical::EndOfInput
+        | Lexical::TriggerWord
+        | Lexical::Article
+        | Lexical::Demonstrative
+        | Lexical::Pronoun
+        | Lexical::Variable
+        | Lexical::Declaration(_) => {
+            unreachable!("generated scanner delegated a terminal it owns")
+        }
     }
 }
 
@@ -668,11 +690,11 @@ fn has_lexical_boundary(text: &str, end: usize) -> bool {
     matches!(text.as_bytes().get(end), None | Some(b' ' | b',' | b'.'))
 }
 
-fn capitalize(word: &str) -> String {
-    let Some(first) = word.chars().next() else {
-        return String::new();
-    };
-    first.to_uppercase().chain(word.chars().skip(1)).collect()
+fn matches_feature(constraint: FeatureConstraint<SurfaceFeature>, feature: SurfaceFeature) -> bool {
+    match constraint {
+        FeatureConstraint::Exact(expected) => expected == feature,
+        FeatureConstraint::Any => true,
+    }
 }
 
 fn rendered_catalog(kind: CatalogKind, spelling: &str) -> String {
@@ -707,7 +729,11 @@ fn noun_forms(singular: &str, wanted: FeatureConstraint<Number>) -> Vec<(Number,
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
-    use std::path::Path;
+
+    use macro_ron::v2::DeclarationKind;
+    use macro_ron::v2::GrammarPosition;
+    use macro_ron::v2::SurfaceFeature;
+    use macro_ron::v2::read_str;
 
     use super::super::engine::Child;
     use super::super::engine::Family;
@@ -721,9 +747,11 @@ mod tests {
     use super::Leaf;
     use super::Lexical;
     use super::RuleId;
+    use super::ScanInput;
     use super::SliceGrammar;
     use super::StructuralObservation;
     use super::TraceLimits;
+    use super::initial_surface;
     use super::parse_forest;
     use super::reset_trace_label_counts;
     use super::rule_name_v1;
@@ -741,22 +769,28 @@ mod tests {
     use crate::ast::TriggerWord;
     use crate::ast::Variable;
     use crate::ast::VerbLexeme;
-    use crate::catalogs::ParserCatalogs;
+    use crate::catalogs::canonical_test_environment;
     use crate::constructions::Agreement;
+    use crate::constructions::CasePosition;
+    use crate::constructions::DeclarationLeaf;
+    use crate::constructions::DeclarationMatcher;
+    use crate::constructions::FeatureConstraint;
+    use crate::constructions::LexicalOwnerTemplate;
+    use crate::constructions::LexicalTerminal;
     use crate::constructions::RULES;
+    use crate::constructions::ScanPosition;
     use crate::context::ParseContext;
+    use crate::environment::DeclarationId;
+    use crate::environment::ParserEnvironment;
 
     fn slice_candidates(
         text: &str,
         card_name: &str,
     ) -> Result<Forest<RuleId, Leaf>, ChartFailure<Category, Lexical>> {
-        let catalogs = ParserCatalogs::load(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
-        )
-        .expect("canonical generated catalogs load");
+        let environment = canonical_test_environment();
         let context = context(card_name);
         let grammar = SliceGrammar {
-            catalogs: &catalogs,
+            environment: &environment,
             context: &context,
         };
 
@@ -766,6 +800,314 @@ mod tests {
     fn context(card_name: &str) -> ParseContext<'_> {
         ParseContext::new(card_name).expect("test card names are valid parse contexts")
     }
+
+    fn declaration_environment(
+        name: &str,
+        bare: &str,
+        third_person: Option<&str>,
+    ) -> ParserEnvironment {
+        let override_field = third_person
+            .map(|surface| format!(r#",third_person:"{surface}""#))
+            .unwrap_or_default();
+        let source = format!(
+            r#"KeywordAction(name:"{name}",spelling:"{bare}",grammar:Verb(bare:"{bare}"{override_field},valence:Numerative))"#
+        );
+        let declaration = read_str(format!("/synthetic/{name}.ron"), &source)
+            .expect("synthetic keyword action is valid");
+        ParserEnvironment::try_from_declarations([declaration])
+            .expect("synthetic parser environment freezes")
+    }
+
+    fn declaration_terminal(name: &'static str) -> LexicalTerminal {
+        let kind = DeclarationKind::KeywordAction;
+        LexicalTerminal {
+            matcher: Lexical::Declaration(DeclarationMatcher {
+                kind,
+                name,
+                position: GrammarPosition::Verb,
+                feature: FeatureConstraint::Any,
+            }),
+            owner: LexicalOwnerTemplate::Declaration { kind, name },
+        }
+    }
+
+    #[test]
+    fn generated_vocab_scan_uses_exact_tables_boundaries_and_owners() {
+        let environment = ParserEnvironment::try_from_declarations([])
+            .expect("an empty declaration environment is valid");
+        let context = context("Context Card");
+        let cases = [
+            (
+                Lexical::TriggerWord,
+                Leaf::TriggerWord(TriggerWord::Whenever),
+                "whenever",
+                "vocab:TriggerWord/Whenever",
+            ),
+            (
+                Lexical::Article,
+                Leaf::Article(Article::An),
+                "an",
+                "vocab:Article/An",
+            ),
+            (
+                Lexical::Demonstrative,
+                Leaf::Demonstrative(Demonstrative::Those),
+                "those",
+                "vocab:Demonstrative/Those",
+            ),
+            (
+                Lexical::Pronoun,
+                Leaf::Pronoun(Pronoun::You),
+                "you",
+                "vocab:Pronoun/You",
+            ),
+            (
+                Lexical::Variable,
+                Leaf::Variable(Variable::X),
+                "X",
+                "vocab:Variable/X",
+            ),
+        ];
+
+        for (matcher, expected_leaf, running, expected_owner) in cases {
+            let owner = match matcher {
+                Lexical::TriggerWord => LexicalOwnerTemplate::Vocab {
+                    declaration: "TriggerWord",
+                },
+                Lexical::Article => LexicalOwnerTemplate::Vocab {
+                    declaration: "Article",
+                },
+                Lexical::Demonstrative => LexicalOwnerTemplate::Vocab {
+                    declaration: "Demonstrative",
+                },
+                Lexical::Pronoun => LexicalOwnerTemplate::Vocab {
+                    declaration: "Pronoun",
+                },
+                Lexical::Variable => LexicalOwnerTemplate::Vocab {
+                    declaration: "Variable",
+                },
+                _ => unreachable!("the fixture contains only finite vocab terminals"),
+            };
+            let terminal = LexicalTerminal { matcher, owner };
+
+            let initial =
+                if running == "X" { running.to_owned() } else { initial_surface(running) };
+            let initial_input = ScanInput {
+                text: &initial,
+                position: ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                },
+                environment: &environment,
+                context: &context,
+            };
+            let initial_matches = crate::constructions::scan_lexical(&initial_input, terminal);
+            assert_eq!(initial_matches.len(), 1, "initial {running}");
+            assert_eq!(initial_matches[0].end, initial.len());
+            assert_eq!(initial_matches[0].value, expected_leaf);
+            assert_eq!(
+                terminal
+                    .owner
+                    .instantiate(&initial_matches[0].value)
+                    .expect("vocab match owns its declaration member")
+                    .stable_id(),
+                expected_owner
+            );
+
+            for suffix in ["", " ", ",", "."] {
+                let text = format!("Prefix {running}{suffix}");
+                let input = ScanInput {
+                    text: &text,
+                    position: ScanPosition {
+                        byte_offset: "Prefix".len(),
+                        case: CasePosition::Continuation,
+                    },
+                    environment: &environment,
+                    context: &context,
+                };
+                let matches = crate::constructions::scan_lexical(&input, terminal);
+                assert_eq!(matches.len(), 1, "continuation {running}{suffix}");
+                assert_eq!(matches[0].end, "Prefix ".len() + running.len());
+                assert_eq!(matches[0].value, expected_leaf);
+            }
+
+            for rejected in [format!("Prefix{running}"), format!("Prefix {running}x")] {
+                let input = ScanInput {
+                    text: &rejected,
+                    position: ScanPosition {
+                        byte_offset: "Prefix".len(),
+                        case: CasePosition::Continuation,
+                    },
+                    environment: &environment,
+                    context: &context,
+                };
+                assert!(
+                    crate::constructions::scan_lexical(&input, terminal).is_empty(),
+                    "accepted non-rendered boundary {rejected:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn generated_vocab_scan_capitalizes_only_the_first_unicode_scalar() {
+        let environment = ParserEnvironment::try_from_declarations([])
+            .expect("empty declaration environment freezes");
+        let context = context("Context Card");
+        let input = ScanInput {
+            text: "Élan vital",
+            position: ScanPosition {
+                byte_offset: 0,
+                case: CasePosition::DocumentInitial,
+            },
+            environment: &environment,
+            context: &context,
+        };
+
+        assert_eq!(input.word_end("élan"), Some("Élan".len()));
+        assert_eq!(input.word_end("élan vital"), Some("Élan vital".len()));
+        assert_eq!(input.word_end("éLan"), None);
+    }
+
+    #[test]
+    fn generated_declaration_scan_isolated_to_active_environment() {
+        let scry = declaration_environment("Scry", "scry", Some("scries"));
+        let connive = declaration_environment("Connive", "connive", None);
+        let context = context("Context Card");
+        let terminal = declaration_terminal("Scry");
+
+        let scan = |environment: &ParserEnvironment, text: &str| {
+            let input = ScanInput {
+                text,
+                position: ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                },
+                environment,
+                context: &context,
+            };
+            crate::constructions::scan_lexical(&input, terminal)
+        };
+
+        let scry_matches = scan(&scry, "Scry");
+        assert_eq!(scry_matches.len(), 1);
+        assert_eq!(scry_matches[0].end, 4);
+        assert_eq!(
+            scry_matches[0].value,
+            Leaf::Declaration(DeclarationLeaf {
+                id: DeclarationId::new(DeclarationKind::KeywordAction, "Scry"),
+                feature: SurfaceFeature::Bare,
+            })
+        );
+        assert!(scan(&connive, "Scry").is_empty());
+        assert!(scan(&scry, "Connive").is_empty());
+
+        // Repeated engine retries are pure and deterministic.
+        let project = |matches: Vec<super::LexicalMatch<Leaf>>| {
+            matches
+                .into_iter()
+                .map(|matched| (matched.end, matched.value))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(project(scan(&scry, "Scry")), project(scan(&scry, "Scry")));
+    }
+
+    #[test]
+    fn generated_declaration_scan_accepts_bounded_multiword_surfaces() {
+        let declaration = read_str(
+            "/synthetic/PartnerWith.ron",
+            r#"KeywordAbility(name:"PartnerWith",spelling:"partner with",grammar:FixedTerm(surface:"partner with"))"#,
+        )
+        .expect("synthetic fixed term is valid");
+        let environment = ParserEnvironment::try_from_declarations([declaration])
+            .expect("synthetic environment freezes");
+        let context = context("Context Card");
+        let kind = DeclarationKind::KeywordAbility;
+        let terminal = LexicalTerminal {
+            matcher: Lexical::Declaration(DeclarationMatcher {
+                kind,
+                name: "PartnerWith",
+                position: GrammarPosition::FixedTerm,
+                feature: FeatureConstraint::Exact(SurfaceFeature::Fixed),
+            }),
+            owner: LexicalOwnerTemplate::Declaration {
+                kind,
+                name: "PartnerWith",
+            },
+        };
+
+        for (text, offset, expected_end) in [
+            ("Partner with.", 0, "Partner with".len()),
+            (
+                "Prefix partner with, suffix",
+                "Prefix".len(),
+                "Prefix partner with".len(),
+            ),
+        ] {
+            let input = ScanInput {
+                text,
+                position: ScanPosition {
+                    byte_offset: offset,
+                    case: if offset == 0 {
+                        CasePosition::DocumentInitial
+                    } else {
+                        CasePosition::Continuation
+                    },
+                },
+                environment: &environment,
+                context: &context,
+            };
+            let matches = crate::constructions::scan_lexical(&input, terminal);
+            assert_eq!(matches.len(), 1, "{text:?}");
+            assert_eq!(matches[0].end, expected_end);
+            assert!(matches!(
+                &matches[0].value,
+                Leaf::Declaration(leaf)
+                    if leaf.id
+                        == DeclarationId::new(DeclarationKind::KeywordAbility, "PartnerWith")
+                        && leaf.feature == SurfaceFeature::Fixed
+            ));
+        }
+    }
+
+    #[test]
+    fn generated_declaration_scan_handles_expanding_unicode_initial_case() {
+        let declaration = read_str(
+            "/synthetic/SharpS.ron",
+            r#"CounterKind(name:"SharpS",spelling:"ßeta",grammar:FixedTerm(surface:"ßeta"))"#,
+        )
+        .expect("synthetic Unicode fixed term is valid");
+        let environment = ParserEnvironment::try_from_declarations([declaration])
+            .expect("synthetic environment freezes");
+        let context = context("Context Card");
+        let kind = DeclarationKind::CounterKind;
+        let terminal = LexicalTerminal {
+            matcher: Lexical::Declaration(DeclarationMatcher {
+                kind,
+                name: "SharpS",
+                position: GrammarPosition::FixedTerm,
+                feature: FeatureConstraint::Exact(SurfaceFeature::Fixed),
+            }),
+            owner: LexicalOwnerTemplate::Declaration {
+                kind,
+                name: "SharpS",
+            },
+        };
+        let input = ScanInput {
+            text: "SSeta.",
+            position: ScanPosition {
+                byte_offset: 0,
+                case: CasePosition::DocumentInitial,
+            },
+            environment: &environment,
+            context: &context,
+        };
+
+        let matches = crate::constructions::scan_lexical(&input, terminal);
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].end, "SSeta".len());
+    }
+
     #[test]
     fn scanner_accepts_multi_token_context_identity_and_catalog_nouns() {
         assert!(
@@ -1061,12 +1403,9 @@ mod tests {
 
     #[test]
     fn structural_trace_catalog_value_label_is_pinned() {
-        let catalogs = ParserCatalogs::load(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
-        )
-        .expect("canonical generated catalogs load");
+        let environment = canonical_test_environment();
         let identity =
-            CatalogIdentity::new(&catalogs, CatalogKind::CardTypes, "Creature".to_owned())
+            CatalogIdentity::new(&environment, CatalogKind::CardTypes, "Creature".to_owned())
                 .expect("canonical Creature catalog identity");
         let value = Leaf::Noun {
             noun: Noun::Catalog(identity),

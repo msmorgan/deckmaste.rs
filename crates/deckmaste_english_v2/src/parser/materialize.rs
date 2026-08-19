@@ -446,7 +446,6 @@ fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
 
     use super::BuildValue;
     use super::Category;
@@ -473,7 +472,7 @@ mod tests {
     use crate::ast::VerbPhrase;
     use crate::ast::WhereClause;
     use crate::ast::WithWhere;
-    use crate::catalogs::ParserCatalogs;
+    use crate::catalogs::canonical_test_environment;
     use crate::constructions::Agreement;
     use crate::constructions::FeatureConstraint;
     use crate::constructions::Number;
@@ -496,13 +495,10 @@ mod tests {
         text: &str,
         card_name: &str,
     ) -> Result<Forest<RuleId, Leaf>, ChartFailure<Category, Lexical>> {
-        let catalogs = ParserCatalogs::load(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
-        )
-        .expect("canonical generated catalogs load");
+        let environment = canonical_test_environment();
         let context = context(card_name);
         let grammar = SliceGrammar {
-            catalogs: &catalogs,
+            environment: &environment,
             context: &context,
         };
 

@@ -5,6 +5,7 @@ use deckmaste_catalogs::CatalogKind;
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::BoundedParseOutcome;
 use deckmaste_english_v2::parser::Expectation;
 use deckmaste_english_v2::parser::ParseError;
@@ -20,8 +21,15 @@ fn catalogs() -> ParserCatalogs {
     ParserCatalogs::load(&path).expect("canonical generated catalogs load")
 }
 
+fn environment() -> ParserEnvironment {
+    catalogs().attach_to(
+        ParserEnvironment::try_from_declarations([])
+            .expect("empty declaration environment freezes"),
+    )
+}
+
 fn parser() -> Parser {
-    Parser::new(catalogs())
+    Parser::new(environment())
 }
 
 fn context(card_name: &str) -> ParseContext<'_> {
@@ -77,7 +85,7 @@ fn parse_error_is_a_standard_error_and_converts_to_anyhow() {
 
 fn creature() -> Noun {
     Noun::Catalog(
-        CatalogIdentity::new(&catalogs(), CatalogKind::CardTypes, "Creature")
+        CatalogIdentity::new(&environment(), CatalogKind::CardTypes, "Creature")
             .expect("Creature is a canonical card type"),
     )
 }

@@ -3,7 +3,6 @@ use std::io::Write;
 use anyhow::Context;
 use anyhow::bail;
 use deckmaste_english_v2::catalogs::ParserCatalogs;
-use deckmaste_english_v2::parser::Parser;
 use serde::Serialize;
 
 use super::RoundtripArgs;
@@ -21,7 +20,7 @@ pub(super) fn run(args: &RoundtripArgs, output: &mut dyn Write) -> anyhow::Resul
             args.corpus.catalogs.display()
         )
     })?;
-    let parser = Parser::new(catalogs);
+    let parser = crate::english_v2::parser_from_catalogs(catalogs);
     let report = AuditReport::run(&corpus, &parser);
 
     render_report(&report, args.json, output)?;

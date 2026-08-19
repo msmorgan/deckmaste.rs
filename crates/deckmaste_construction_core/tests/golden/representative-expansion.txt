@@ -226,6 +226,66 @@ impl LexicalOwnerTemplate {
         }
     }
 }
+pub(crate) fn scan_lexical(
+    input: &ScanInput<'_>,
+    terminal: LexicalTerminal,
+) -> Vec<LexicalMatch<Leaf>> {
+    match terminal.matcher {
+        Lexical::EndOfInput => {
+            (input.position.byte_offset == input.text.len())
+                .then_some(LexicalMatch {
+                    end: input.position.byte_offset,
+                    value: Leaf::EndOfInput,
+                })
+                .into_iter()
+                .collect()
+        }
+        Lexical::Literal(literal @ ("." | ",")) => {
+            input
+                .punctuation_end(literal)
+                .map(|end| LexicalMatch {
+                    end,
+                    value: Leaf::Literal(literal),
+                })
+                .into_iter()
+                .collect()
+        }
+        Lexical::Literal(literal) => {
+            input
+                .word_end(literal)
+                .map(|end| LexicalMatch {
+                    end,
+                    value: Leaf::Literal(literal),
+                })
+                .into_iter()
+                .collect()
+        }
+        Lexical::Words => {
+            [("first", Words::First), ("second", Words::Second)]
+                .into_iter()
+                .filter_map(|(running_text, value)| {
+                    input
+                        .word_end(running_text)
+                        .map(|end| LexicalMatch {
+                            end,
+                            value: Leaf::Words(value),
+                        })
+                })
+                .collect()
+        }
+        Lexical::Noun(_) | Lexical::Verb(_) => scan_bound_terminal(input, terminal),
+        Lexical::Declaration(matcher) => {
+            input
+                .declaration_readings(matcher)
+                .into_iter()
+                .map(|(end, id, feature)| LexicalMatch {
+                    end,
+                    value: Leaf::Declaration(DeclarationLeaf { id, feature }),
+                })
+                .collect()
+        }
+    }
+}
 impl Render for Action {
     fn render(&self, context: &ParseContext<'_>) -> String {
         let mut writer = Writer::new();

@@ -7,9 +7,9 @@ use scan::parse_forest_observed;
 use selection::analyze_selection;
 
 use crate::ast::Ability;
-use crate::catalogs::ParserCatalogs;
 use crate::constructions::Category;
 use crate::context::ParseContext;
+use crate::environment::ParserEnvironment;
 
 mod diagnostic;
 mod engine;
@@ -17,9 +17,12 @@ mod materialize;
 mod scan;
 mod selection;
 
+pub(crate) use engine::LexicalMatch;
 pub(crate) use engine::Rule;
 pub(crate) use engine::RulePosition;
 pub(crate) use materialize::BuildValue;
+pub(crate) use scan::ScanInput;
+pub(crate) use scan::scan_bound_terminal;
 
 pub(crate) use crate::constructions::Lexical;
 
@@ -87,13 +90,13 @@ mod error;
 
 #[derive(Debug, Clone)]
 pub struct Parser {
-    catalogs: ParserCatalogs,
+    environment: ParserEnvironment,
 }
 
 impl Parser {
     #[must_use]
-    pub fn new(catalogs: ParserCatalogs) -> Self {
-        Self { catalogs }
+    pub fn new(environment: ParserEnvironment) -> Self {
+        Self { environment }
     }
 
     /// Parses one complete ability from exact rendered text.
@@ -111,7 +114,7 @@ impl Parser {
     #[must_use]
     pub fn analyze(&self, text: &str, context: &ParseContext<'_>) -> ParseAnalysis {
         let grammar = SliceGrammar {
-            catalogs: &self.catalogs,
+            environment: &self.environment,
             context,
         };
         parse_forest(&grammar, text).map_or_else(
@@ -157,7 +160,7 @@ impl Parser {
         limits: TraceLimits,
     ) -> (ParseAnalysis, TraceParts) {
         let grammar = SliceGrammar {
-            catalogs: &self.catalogs,
+            environment: &self.environment,
             context,
         };
         let (forest, structural) = parse_forest_observed(&grammar, text, limits);
@@ -201,20 +204,31 @@ pub(crate) fn analyze_materialized(candidates: Vec<materialize::Candidate>) -> P
 
 #[cfg(test)]
 mod structural_trace_tests {
-    use std::path::Path;
-
     use super::Parser;
     use super::TraceLimits;
-    use crate::catalogs::ParserCatalogs;
+    use crate::catalogs::canonical_test_environment;
     use crate::context::ParseContext;
+    use crate::environment::ParserEnvironment;
+
+    fn environment() -> ParserEnvironment {
+        canonical_test_environment()
+    }
+
+    #[test]
+    fn cloned_parser_shares_frozen_environment_storage() {
+        let parser = Parser::new(environment());
+        let cloned = parser.clone();
+
+        assert!(
+            parser
+                .environment
+                .test_only_shares_storage_with(&cloned.environment)
+        );
+    }
 
     #[test]
     fn structural_trace_observation_is_repeatable_and_inert() {
-        let catalogs = ParserCatalogs::load(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
-        )
-        .expect("canonical generated catalogs load");
-        let parser = Parser::new(catalogs);
+        let parser = Parser::new(environment());
         let context = ParseContext::new("Trace Card").expect("valid context");
         let text = "Whenever a player connives, you gain X life.";
         let (analysis, first) = parser.observe_structural(text, &context, TraceLimits::new(1));
@@ -232,11 +246,7 @@ mod structural_trace_tests {
             assert_eq!(value.shown(), value.items().len());
             assert!(value.shown() <= limit);
         }
-        let catalogs = ParserCatalogs::load(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
-        )
-        .expect("canonical generated catalogs load");
-        let parser = Parser::new(catalogs);
+        let parser = Parser::new(environment());
         let context = ParseContext::new("Trace Card").expect("valid context");
         let text = "Whenever a player connives, you gain X life.";
         for limit in [0, 1, usize::MAX] {
@@ -273,11 +283,7 @@ mod structural_trace_tests {
             assert_eq!(value.shown(), value.items().len());
             assert!(value.shown() <= limit);
         }
-        let catalogs = ParserCatalogs::load(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
-        )
-        .expect("catalogs");
-        let parser = Parser::new(catalogs);
+        let parser = Parser::new(environment());
         let context = ParseContext::new("Trace Card").expect("context");
         let text = "Whenever a player connives, you gain X life";
         for limit in [0, 1, usize::MAX] {
@@ -304,18 +310,15 @@ mod structural_trace_tests {
 
     #[test]
     fn structural_trace_observed_engine_matches_noop_success_and_failure() {
-        let catalogs = ParserCatalogs::load(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"),
-        )
-        .expect("catalogs");
-        let parser = Parser::new(catalogs.clone());
+        let environment = environment();
+        let parser = Parser::new(environment.clone());
         let context = ParseContext::new("Trace Card").expect("context");
         for text in [
             "Whenever a player connives, you gain X life.",
             "Whenever a player connives, you gain X life",
         ] {
             let grammar = super::SliceGrammar {
-                catalogs: &catalogs,
+                environment: &environment,
                 context: &context,
             };
             let ordinary = super::parse_forest(&grammar, text);

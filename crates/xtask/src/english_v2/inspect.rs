@@ -76,7 +76,7 @@ impl InspectSteps for ProductionSteps {
     fn load_catalogs(&mut self, path: &Path) -> anyhow::Result<Self::Catalogs> {
         let catalogs = ParserCatalogs::load(path)
             .with_context(|| format!("loading parser catalogs from {}", path.display()))?;
-        Ok(Parser::new(catalogs))
+        Ok(crate::english_v2::parser_from_catalogs(catalogs))
     }
 
     fn context<'a>(&mut self, unit: &'a Self::Unit) -> anyhow::Result<Self::Context<'a>> {
@@ -161,7 +161,6 @@ mod tests {
     use anyhow::ensure;
     use deckmaste_english_v2::catalogs::ParserCatalogs;
     use deckmaste_english_v2::context::ParseContext;
-    use deckmaste_english_v2::parser::Parser;
     use deckmaste_english_v2::parser::TraceLimits;
     use serde_json::Value;
     use tempfile::tempdir;
@@ -252,7 +251,8 @@ mod tests {
 
     #[test]
     fn probe_and_inspect_share_the_exact_trace_payload_for_complete_documents_and_limits() {
-        let parser = Parser::new(ParserCatalogs::load(&catalogs()).unwrap());
+        let parser =
+            crate::english_v2::parser_from_catalogs(ParserCatalogs::load(&catalogs()).unwrap());
         for (text, context) in [
             ("Destroy target creature.", "Accepted Card"),
             (

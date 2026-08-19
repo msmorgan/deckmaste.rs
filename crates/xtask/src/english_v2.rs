@@ -25,6 +25,15 @@ use deckmaste_construction_core::Expansion;
 use deckmaste_construction_core::ItemKey;
 use deckmaste_construction_core::NamedKind;
 use deckmaste_construction_core::TerminalBindingDeclarationKind;
+use deckmaste_english_v2::catalogs::ParserCatalogs;
+use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::parser::Parser;
+
+fn parser_from_catalogs(catalogs: ParserCatalogs) -> Parser {
+    let environment = ParserEnvironment::try_from_declarations([])
+        .expect("an empty normalized declaration set always freezes");
+    Parser::new(catalogs.attach_to(environment))
+}
 
 #[derive(Debug, Args)]
 pub struct EnglishV2Args {
@@ -307,6 +316,29 @@ mod tests {
         "type Variable",
         "type NounLexeme",
         "type VerbLexeme",
+        "type Agreement",
+        "type Number",
+        "type FeatureConstraint",
+        "type CasePosition",
+        "type ScanPosition",
+        "type DeclarationClass",
+        "type DeclarationMatcher",
+        "type DeclarationLeaf",
+        "type Lexical",
+        "type Leaf",
+        "type TerminalClass",
+        "type LexicalTerminal",
+        "type LexicalProvenanceKind",
+        "type LexicalOwnerTemplate",
+        "type LexicalOwner",
+        "impl Lexical for Lexical",
+        "impl LexicalTerminal for LexicalTerminal",
+        "impl TerminalClass for TerminalClass",
+        "impl std::fmt::Display for TerminalClass",
+        "impl DeclarationClass for DeclarationClass",
+        "impl LexicalOwner for LexicalOwner",
+        "impl LexicalOwnerTemplate for LexicalOwnerTemplate",
+        "function scan_lexical",
         "impl Render for Ability",
         "impl Render for Sentence",
         "function render_sentence_body",
@@ -378,7 +410,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 90);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 113);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for (item, expected_key) in expansion.items().iter().zip(EXPECTED_ITEM_KEYS) {
             let header = format!("// === {expected_key} ===");
@@ -434,7 +466,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 90);
+        assert_eq!(parsed.items.len(), 113);
     }
 
     #[test]

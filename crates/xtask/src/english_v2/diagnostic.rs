@@ -697,6 +697,7 @@ enum NonterminalKind {
 #[serde(rename_all = "snake_case")]
 enum TerminalKind {
     Article,
+    Declaration,
     Demonstrative,
     EndOfInput,
     Noun,
@@ -1011,6 +1012,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
 fn terminal(kind: TerminalClass) -> TerminalKind {
     match kind {
         TerminalClass::Article => TerminalKind::Article,
+        TerminalClass::Declaration(_) => TerminalKind::Declaration,
         TerminalClass::Demonstrative => TerminalKind::Demonstrative,
         TerminalClass::EndOfInput => TerminalKind::EndOfInput,
         TerminalClass::Noun => TerminalKind::Noun,
@@ -2215,7 +2217,9 @@ mod tests {
 
     fn parser() -> Parser {
         let catalogs = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
-        Parser::new(ParserCatalogs::load(&catalogs).expect("canonical catalogs load"))
+        crate::english_v2::parser_from_catalogs(
+            ParserCatalogs::load(&catalogs).expect("canonical catalogs load"),
+        )
     }
 
     fn trace(text: &str, context: &str, limit: usize) -> ParserTrace {

@@ -276,7 +276,9 @@ mod tests {
 
     fn parser() -> Parser {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
-        Parser::new(ParserCatalogs::load(&path).expect("canonical catalogs load"))
+        crate::english_v2::parser_from_catalogs(
+            ParserCatalogs::load(&path).expect("canonical catalogs load"),
+        )
     }
 
     #[test]

@@ -4,6 +4,7 @@ use deckmaste_catalogs::CatalogKind;
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::catalogs::ParserCatalogs;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
@@ -68,13 +69,20 @@ fn catalogs() -> ParserCatalogs {
     ParserCatalogs::load(&path).expect("canonical generated catalogs load")
 }
 
+fn environment() -> ParserEnvironment {
+    catalogs().attach_to(
+        ParserEnvironment::try_from_declarations([])
+            .expect("empty declaration environment freezes"),
+    )
+}
+
 fn card_type(spelling: &str) -> Noun {
     catalog_noun(CatalogKind::CardTypes, spelling)
 }
 
 fn catalog_noun(kind: CatalogKind, spelling: &str) -> Noun {
     Noun::Catalog(
-        CatalogIdentity::new(&catalogs(), kind, spelling)
+        CatalogIdentity::new(&environment(), kind, spelling)
             .expect("canonical catalog term is present"),
     )
 }
@@ -134,7 +142,7 @@ fn triggered_damage() -> Ability {
 
 #[test]
 fn parser_analysis_preserves_the_vertical_slice_triggered_ability() {
-    let parser = Parser::new(catalogs());
+    let parser = Parser::new(environment());
     let context = context("Context Card");
     let expected = triggered_damage();
     let text = expected.render(&context);
@@ -180,10 +188,15 @@ fn gain_life_with_where() -> Sentence {
 
 #[test]
 fn catalog_identity_rejects_a_spelling_absent_from_the_bound_catalog() {
-    let catalogs = catalogs();
-    assert!(CatalogIdentity::new(&catalogs, CatalogKind::CardTypes, "Creature").is_some());
+    let environment = environment();
+    assert!(CatalogIdentity::new(&environment, CatalogKind::CardTypes, "Creature").is_some());
     assert!(
-        CatalogIdentity::new(&catalogs, CatalogKind::CardTypes, "Definitely Not A Type").is_none()
+        CatalogIdentity::new(
+            &environment,
+            CatalogKind::CardTypes,
+            "Definitely Not A Type"
+        )
+        .is_none()
     );
 }
 

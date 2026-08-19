@@ -3,7 +3,10 @@ use std::sync::Arc;
 
 use deckmaste_catalogs::CatalogSet;
 
-#[derive(Debug, Clone)]
+use crate::catalog_compatibility::CatalogCompatibility;
+use crate::environment::ParserEnvironment;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserCatalogs(Arc<CatalogSet>);
 
 impl ParserCatalogs {
@@ -25,6 +28,26 @@ impl ParserCatalogs {
     pub fn set(&self) -> &CatalogSet {
         &self.0
     }
+
+    /// Attaches the temporary catalog-backed noun source at the provider
+    /// boundary.
+    ///
+    /// This adapter disappears when type and subtype declarations replace the
+    /// legacy catalogs. It deliberately requires an already-built environment
+    /// rather than acting as a second environment constructor.
+    #[must_use]
+    pub fn attach_to(self, environment: ParserEnvironment) -> ParserEnvironment {
+        environment.with_catalog_compatibility(CatalogCompatibility::new(self.0))
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn canonical_test_environment() -> ParserEnvironment {
+    let environment = ParserEnvironment::try_from_declarations([])
+        .expect("empty declaration environment freezes");
+    ParserCatalogs::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs"))
+        .expect("canonical generated catalogs load")
+        .attach_to(environment)
 }
 
 #[cfg(test)]

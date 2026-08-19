@@ -544,6 +544,15 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                         );
                     }
                     let word = variant.word.value();
+                    if word.is_empty() {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                variant.word.span(),
+                                "vocab spelling must not be empty",
+                            ),
+                        );
+                    }
                     if !words.insert(word.clone()) {
                         combine(
                             &mut errors,
@@ -6425,7 +6434,16 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 67);
+        assert_eq!(expansion.plan().items().len(), 68);
+        assert!(expansion.items().iter().any(|item| {
+            matches!(
+                &item.key,
+                crate::ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name,
+                } if name == "scan_lexical"
+            )
+        }));
         assert!(
             validated
                 .boxed_fields()
@@ -6726,7 +6744,16 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 67);
+        assert_eq!(expansion.plan().items().len(), 68);
+        assert!(expansion.items().iter().any(|item| {
+            matches!(
+                &item.key,
+                crate::ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name,
+                } if name == "scan_lexical"
+            )
+        }));
     }
 
     #[test]
@@ -6843,6 +6870,15 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 67);
+        assert_eq!(emission.items().len(), 68);
+        assert!(emission.items().iter().any(|item| {
+            matches!(
+                &item.key,
+                crate::ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name,
+                } if name == "scan_lexical"
+            )
+        }));
     }
 }

@@ -1,9 +1,11 @@
 pub mod ast;
+mod catalog_compatibility;
 pub mod catalogs;
 mod constructions;
 pub mod context;
 pub mod environment;
 mod features;
+mod orthography;
 pub mod parser;
 pub mod render;
 pub mod visit;

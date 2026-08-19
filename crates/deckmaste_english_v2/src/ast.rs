@@ -1,6 +1,5 @@
 use deckmaste_catalogs::CatalogKind;
 
-use crate::catalogs::ParserCatalogs;
 pub use crate::constructions::Ability;
 pub use crate::constructions::Amount;
 pub use crate::constructions::Article;
@@ -33,6 +32,7 @@ pub use crate::constructions::VerbLexeme;
 pub use crate::constructions::VerbPhrase;
 pub use crate::constructions::WhereClause;
 pub use crate::constructions::WithWhere;
+use crate::environment::ParserEnvironment;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sign {
@@ -67,15 +67,13 @@ pub struct CatalogIdentity {
 impl CatalogIdentity {
     #[must_use]
     pub fn new(
-        catalogs: &ParserCatalogs,
+        environment: &ParserEnvironment,
         kind: CatalogKind,
         spelling: impl Into<String>,
     ) -> Option<Self> {
         let spelling = spelling.into();
-        catalogs
-            .set()
-            .get(kind)
-            .contains(&spelling)
+        environment
+            .contains_catalog_spelling(kind, &spelling)
             .then_some(Self { kind, spelling })
     }
 

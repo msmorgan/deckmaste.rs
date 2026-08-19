@@ -330,7 +330,16 @@ pub(crate) fn vocab_matched_number_with_two_nouns_tokens() -> proc_macro2::Token
 #[test]
 fn synthetic_projection_fixture_generates() {
     let expansion = synthetic_projection_expansion();
-    assert_eq!(expansion.plan().items().len(), 67);
+    assert_eq!(expansion.plan().items().len(), 68);
+    assert!(expansion.items().iter().any(|item| {
+        matches!(
+            &item.key,
+            crate::ItemKey::Named {
+                kind: crate::NamedKind::Function,
+                name,
+            } if name == "scan_lexical"
+        )
+    }));
 }
 
 #[test]

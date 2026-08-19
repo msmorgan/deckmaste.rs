@@ -171,6 +171,70 @@ mod fixture {
         Leaf(Leaf),
     }
 
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct LexicalMatch<T> {
+        end: usize,
+        value: T,
+    }
+
+    struct ScanInput<'a> {
+        text: &'a str,
+        position: ScanPosition,
+    }
+
+    impl ScanInput<'_> {
+        fn word_end(&self, running_text: &str) -> Option<usize> {
+            let prefix = usize::from(self.position.case == CasePosition::Continuation);
+            let remainder = self.text.get(self.position.byte_offset..)?;
+            let remainder = (prefix == 0)
+                .then_some(remainder)
+                .or_else(|| remainder.strip_prefix(' '))?;
+            let rendered = if self.position.case == CasePosition::DocumentInitial {
+                let mut chars = running_text.chars();
+                chars
+                    .next()
+                    .into_iter()
+                    .flat_map(char::to_uppercase)
+                    .chain(chars)
+                    .collect::<String>()
+            } else {
+                running_text.to_owned()
+            };
+            let end = self.position.byte_offset + prefix + rendered.len();
+            (remainder.starts_with(&rendered)
+                && matches!(
+                    self.text.as_bytes().get(end),
+                    None | Some(b' ' | b',' | b'.')
+                ))
+            .then_some(end)
+        }
+
+        fn punctuation_end(&self, punctuation: &str) -> Option<usize> {
+            self.text[self.position.byte_offset..]
+                .starts_with(punctuation)
+                .then_some(self.position.byte_offset + punctuation.len())
+        }
+
+        fn declaration_readings(
+            &self,
+            _matcher: DeclarationMatcher,
+        ) -> Vec<(
+            usize,
+            macro_ron::v2::DeclarationIdentity,
+            macro_ron::v2::SurfaceFeature,
+        )> {
+            debug_assert!(self.position.byte_offset <= self.text.len());
+            Vec::new()
+        }
+    }
+
+    fn scan_bound_terminal(
+        _input: &ScanInput<'_>,
+        _terminal: LexicalTerminal,
+    ) -> Vec<LexicalMatch<Leaf>> {
+        Vec::new()
+    }
+
     constructions! {
         vocab Mode { One = "one", Many = "many", }
         vocab r#Marker { One = "marker", }
@@ -598,6 +662,27 @@ mod fixture {
         };
         assert_eq!(class.kind(), kind);
         assert_eq!(class.position(), position);
+
+        let input = ScanInput {
+            text: "One",
+            position: ScanPosition {
+                byte_offset: 0,
+                case: CasePosition::DocumentInitial,
+            },
+        };
+        let terminal = LexicalTerminal {
+            matcher: Lexical::Mode,
+            owner: LexicalOwnerTemplate::Vocab {
+                declaration: "Mode",
+            },
+        };
+        assert_eq!(
+            scan_lexical(&input, terminal),
+            [LexicalMatch {
+                end: 3,
+                value: Leaf::Mode(Mode::One),
+            }]
+        );
     }
 
     #[allow(
