@@ -869,6 +869,9 @@ impl ParseAnalysis {
             Err(ParseError::InvalidSelectionExceptionConfiguration(_)) => {
                 ParseAnalysisOutcome::InternalFailure(InternalFailureKind::SelectionConfiguration)
             }
+            Err(ParseError::OwnershipInspection) => {
+                ParseAnalysisOutcome::InternalFailure(InternalFailureKind::OwnershipInspection)
+            }
         };
         Self {
             result,
@@ -1276,6 +1279,12 @@ impl ParserTrace {
             Err(error @ ParseError::InvalidSelectionExceptionConfiguration(_)) => {
                 BoundedParseOutcome::InternalFailure(InternalFailureOutcome {
                     kind: InternalFailureKind::SelectionConfiguration,
+                    message: error.to_string(),
+                })
+            }
+            Err(error @ ParseError::OwnershipInspection) => {
+                BoundedParseOutcome::InternalFailure(InternalFailureOutcome {
+                    kind: InternalFailureKind::OwnershipInspection,
                     message: error.to_string(),
                 })
             }

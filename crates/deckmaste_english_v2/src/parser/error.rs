@@ -63,6 +63,7 @@ pub enum ParseError {
     },
     InvalidSelectionExceptionConfiguration(SelectionExceptionInventoryError),
     ValidatedRootDidNotMaterialize,
+    OwnershipInspection,
 }
 
 impl fmt::Display for ParseError {
@@ -89,6 +90,9 @@ impl fmt::Display for ParseError {
             Self::InvalidSelectionExceptionConfiguration(error) => error.fmt(formatter),
             Self::ValidatedRootDidNotMaterialize => {
                 formatter.write_str("validated chart root did not materialize")
+            }
+            Self::OwnershipInspection => {
+                formatter.write_str("selected lexical ownership could not be inspected")
             }
         }
     }

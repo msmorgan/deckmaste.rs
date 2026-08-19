@@ -55,6 +55,39 @@ pub(super) struct MaterializedCandidate<V, C, K = Category, M = Lexical, T = (),
 type MaterializedMemo<V, C, K, M, T, O> =
     BTreeMap<NodeId, Vec<MaterializedCandidate<V, C, K, M, T, O>>>;
 
+#[cfg(test)]
+thread_local! {
+    static MATERIALIZED_CANDIDATE_COPIES: std::cell::Cell<usize> = const { std::cell::Cell::new(1) };
+    static SPECIFICITY_CANDIDATE_EVALUATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static FINALIZED_CANDIDATE_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(super) fn set_materialized_candidate_copies(copies: usize) {
+    MATERIALIZED_CANDIDATE_COPIES.with(|value| value.set(copies));
+}
+
+#[cfg(test)]
+pub(super) fn reset_specificity_candidate_evaluations() {
+    SPECIFICITY_CANDIDATE_EVALUATIONS.with(|value| value.set(0));
+    FINALIZED_CANDIDATE_COUNT.with(|value| value.set(0));
+}
+
+#[cfg(test)]
+pub(super) fn specificity_candidate_evaluations() -> usize {
+    SPECIFICITY_CANDIDATE_EVALUATIONS.with(std::cell::Cell::get)
+}
+
+#[cfg(test)]
+pub(super) fn finalized_candidate_count() -> usize {
+    FINALIZED_CANDIDATE_COUNT.with(std::cell::Cell::get)
+}
+
+#[cfg(test)]
+fn count_specificity_candidate() {
+    SPECIFICITY_CANDIDATE_EVALUATIONS.with(|value| value.set(value.get() + 1));
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Candidate {
     pub ability: Ability,
@@ -383,6 +416,43 @@ fn finalize_candidates(
     environment: &crate::environment::ParserEnvironment,
     mut observation: Option<(&mut MaterializationTraceBuilder, TraceLimits)>,
 ) -> Vec<Candidate> {
+    #[cfg(test)]
+    let built_values = MATERIALIZED_CANDIDATE_COPIES.with(|copies| {
+        let copies = copies.get().max(1);
+        let Some(first) = built_values.first().cloned() else {
+            return built_values;
+        };
+        if copies == 1 {
+            return built_values;
+        }
+        let nonterminal = first
+            .positions
+            .iter()
+            .find(|position| matches!(position, RulePosition::Nonterminal(_)))
+            .copied()
+            .expect("a complete ability candidate traverses a nonterminal");
+        let literal_positions = first
+            .positions
+            .iter()
+            .enumerate()
+            .filter_map(|(index, position)| {
+                matches!(position, RulePosition::Lexical(Lexical::Literal(_))).then_some(index)
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            copies - 1 <= literal_positions.len(),
+            "test candidate copies require distinct specificity downgrades"
+        );
+        let mut varied = vec![first.clone()];
+        for position_index in literal_positions.into_iter().take(copies - 1) {
+            let mut candidate = first.clone();
+            candidate.positions[position_index] = nonterminal;
+            varied.push(candidate);
+        }
+        varied
+    });
+    #[cfg(test)]
+    super::count_pipeline_stage(super::PipelineStage::Specificity);
     let mut candidates = Vec::new();
     for built in built_values {
         if let BuildValue::Ability(ability) = built.value {
@@ -402,7 +472,7 @@ fn finalize_candidates(
                 }
             }
             #[cfg(test)]
-            super::count_pipeline_stage(super::PipelineStage::Specificity);
+            count_specificity_candidate();
             let candidate = Candidate {
                 ability,
                 constructions: built.constructions,
@@ -429,6 +499,8 @@ fn finalize_candidates(
             }
         }
     }
+    #[cfg(test)]
+    FINALIZED_CANDIDATE_COUNT.with(|count| count.set(candidates.len()));
     candidates
 }
 
@@ -924,6 +996,59 @@ mod tests {
                     "root:Ability/punctuation",
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn materialize_missing_non_eoi_owner_becomes_public_synthetic_failure() {
+        let forest = slice_candidates("Destroy target creature.", "Context Card").unwrap();
+        let roots = forest.accepted_root_ids().collect::<Vec<_>>();
+        let mut nodes = forest
+            .nodes()
+            .map(|(_, node)| node.clone())
+            .collect::<Vec<_>>();
+        let mut removed_span = None;
+        for node in &mut nodes {
+            for family in &mut node.families {
+                for child in &mut family.children {
+                    if let Child::Lexical(claim) = child
+                        && matches!(claim.value, Leaf::Declaration(_))
+                        && claim.span == (crate::parser::TextSpan { start: 0, end: 7 })
+                    {
+                        claim.owner = None;
+                        removed_span = Some(claim.span);
+                    }
+                }
+            }
+        }
+        let removed_span = removed_span.expect("real Destroy family child carried an owner");
+        let forest = Forest::from_test_parts(nodes, roots);
+        let context = context("Context Card");
+        let environment = canonical_test_environment();
+        let candidates = materialize(&forest, &context, &environment);
+        let analysis = super::super::analyze_materialized_with_ownership(
+            "Destroy target creature.",
+            candidates,
+            &context,
+            &environment,
+        );
+
+        assert_eq!(
+            analysis.outcome(),
+            crate::parser::ParseAnalysisOutcome::Selected
+        );
+        assert!(
+            analysis
+                .ownership()
+                .unwrap()
+                .failures()
+                .iter()
+                .any(|failure| {
+                    matches!(
+                        failure,
+                        crate::parser::OwnershipFailure::Synthetic { span } if *span == removed_span
+                    )
+                })
         );
     }
 

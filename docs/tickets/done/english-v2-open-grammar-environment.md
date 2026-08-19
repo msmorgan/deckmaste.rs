@@ -86,3 +86,12 @@ added. Probe and inspect JSON for Rend Spirit are byte-deterministic.
 
 Completion change: `xpomwntnkutrrrlsokukxxmmzlnvykxt`
 (`english v2: finish open grammar environment`).
+
+Independent-review Fix Round 1 is
+`pxskwqrnumurluykxmrwosupzuqmuxlm`: structured raw owner identities defer all
+stable-label construction past cap-zero projections; impossible inspection
+corruption travels through the real selected-analysis and xtask diagnostic
+path; corresponding-slice and missing-owner validation are pinned at their
+production boundaries; and the one-run gate distinguishes one stage invocation
+from three candidate evaluations. The full workspace, fmt, denied Clippy,
+source, and unchanged 32,285 / 48 / 32,237 corpus gates are GREEN.

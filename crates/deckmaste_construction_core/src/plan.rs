@@ -1416,7 +1416,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 57);
+        assert_eq!(keys.len(), 63);
         assert!(keys.iter().any(|key| {
             matches!(
                 key,

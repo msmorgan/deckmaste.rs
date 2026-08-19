@@ -44,3 +44,4 @@ tempfile = "3.27.0"
 
 
 [dev-dependencies]
+deckmaste_english_v2 = { path = "../deckmaste_english_v2", features = ["test-support"] }

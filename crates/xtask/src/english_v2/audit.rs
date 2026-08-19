@@ -171,7 +171,8 @@ fn audit_status_for_error(error: &ParseError) -> AuditStatus {
         ParseError::Failure { .. } => AuditStatus::ParseFailure,
         ParseError::Ambiguous { .. } => AuditStatus::Ambiguous,
         ParseError::InvalidSelectionExceptionConfiguration(_)
-        | ParseError::ValidatedRootDidNotMaterialize => AuditStatus::InternalFailure,
+        | ParseError::ValidatedRootDidNotMaterialize
+        | ParseError::OwnershipInspection => AuditStatus::InternalFailure,
     }
 }
 

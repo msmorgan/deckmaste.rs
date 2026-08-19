@@ -739,6 +739,12 @@ mod tests {
             | "impl DeclarationClass for DeclarationClass"
             | "function declaration_lexeme_owner_id"
             | "impl LexicalOwner for LexicalOwner"
+            | "impl Debug for LexicalOwner"
+            | "impl Clone for LexicalOwner"
+            | "impl PartialEq for LexicalOwner"
+            | "impl Eq for LexicalOwner"
+            | "impl Ord for LexicalOwner"
+            | "impl PartialOrd for LexicalOwner"
             | "impl LexicalOwnerTemplate for LexicalOwnerTemplate"
             | "constant REQUIRED_DECLARATIONS" => ALL_DECLARATION_ORIGINS,
             "function scan_lexical" => SCANNER_ORIGINS,
@@ -841,6 +847,12 @@ mod tests {
         "impl DeclarationClass for DeclarationClass",
         "function declaration_lexeme_owner_id",
         "impl LexicalOwner for LexicalOwner",
+        "impl Debug for LexicalOwner",
+        "impl Clone for LexicalOwner",
+        "impl PartialEq for LexicalOwner",
+        "impl Eq for LexicalOwner",
+        "impl Ord for LexicalOwner",
+        "impl PartialOrd for LexicalOwner",
         "impl LexicalOwnerTemplate for LexicalOwnerTemplate",
         "constant REQUIRED_DECLARATIONS",
         "function scan_lexical",
@@ -918,7 +930,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 127);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 133);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -965,7 +977,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 127);
+        assert_eq!(parsed.items.len(), 133);
     }
 
     #[test]

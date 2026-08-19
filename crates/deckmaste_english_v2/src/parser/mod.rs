@@ -222,6 +222,31 @@ impl Parser {
         )
     }
 
+    /// Exercises the production ownership-inspection failure path for
+    /// cross-crate diagnostic authentication.
+    #[doc(hidden)]
+    #[cfg(feature = "test-support")]
+    #[must_use]
+    pub fn trace_with_ownership_inspection_failure_for_test(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+        limits: TraceLimits,
+    ) -> ParserTrace {
+        let (_, trace) = self.analyze_with_trace(text, context, limits);
+        ownership::force_inspection_corruption(true);
+        let analysis = self.analyze(text, context);
+        ownership::force_inspection_corruption(false);
+        ParserTrace::from_parts(
+            analysis,
+            trace.structural,
+            trace.materialization,
+            limits,
+            context,
+            &self.environment,
+        )
+    }
+
     #[cfg(test)]
     pub(crate) fn observe_structural(
         &self,
@@ -377,7 +402,13 @@ fn analyze_materialized_with_ownership(
                 rendered_text,
                 &rendered_claims,
             );
-            ParseAnalysis::from_result(Ok(candidate.ability), decision).with_ownership(ownership)
+            match ownership {
+                Ok(ownership) => ParseAnalysis::from_result(Ok(candidate.ability), decision)
+                    .with_ownership(ownership),
+                Err(_) => {
+                    ParseAnalysis::from_result(Err(ParseError::OwnershipInspection), decision)
+                }
+            }
         }
         Err(error) => ParseAnalysis::from_result(Err(error), decision),
     }
@@ -401,8 +432,11 @@ mod structural_trace_tests {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Context Card").unwrap();
         PIPELINE_COUNTS.with(|counts| counts.set([0; 4]));
+        super::materialize::set_materialized_candidate_copies(3);
+        super::materialize::reset_specificity_candidate_evaluations();
 
         let analysis = parser.analyze("Destroy target creature.", &context);
+        super::materialize::set_materialized_candidate_copies(1);
 
         assert!(analysis.ownership().is_some());
         PIPELINE_COUNTS.with(|counts| {
@@ -412,6 +446,11 @@ mod structural_trace_tests {
                 "parse, materialize, specificity, and ranking each run once"
             );
         });
+        assert_eq!(super::materialize::finalized_candidate_count(), 3);
+        assert_eq!(
+            super::materialize::specificity_candidate_evaluations(),
+            super::materialize::finalized_candidate_count(),
+        );
     }
 
     #[test]
@@ -419,11 +458,31 @@ mod structural_trace_tests {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Context Card").unwrap();
         super::ownership::reset_projection_runs();
+        crate::constructions::LexicalOwner::reset_label_constructions();
 
         let trace = parser.trace("Destroy target creature.", &context, TraceLimits::new(0));
 
         assert!(trace.into_parse_result().is_ok());
         assert_eq!(super::ownership::projection_runs(), 0);
+        assert_eq!(crate::constructions::LexicalOwner::label_constructions(), 0);
+    }
+
+    #[test]
+    fn impossible_selected_ownership_corruption_maps_to_internal_failure() {
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+        super::ownership::force_inspection_corruption(true);
+
+        let analysis = parser.analyze("Destroy target creature.", &context);
+
+        super::ownership::force_inspection_corruption(false);
+        assert_eq!(
+            analysis.outcome(),
+            super::ParseAnalysisOutcome::InternalFailure(
+                super::InternalFailureKind::OwnershipInspection,
+            )
+        );
+        assert!(analysis.ownership().is_none());
     }
 
     #[test]

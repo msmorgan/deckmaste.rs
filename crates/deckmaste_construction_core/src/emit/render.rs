@@ -855,10 +855,7 @@ fn render_owner(
             let name = syn::LitStr::new(open.name(), Span::call_site());
             Ok(quote! {{
                 let id = ::macro_ron::v2::DeclarationIdentity::new(#kind, #name);
-                LexicalOwner::owned(
-                    LexicalProvenanceKind::Lexeme,
-                    declaration_lexeme_owner_id(&id, #feature),
-                )
+                LexicalOwner::declaration_owner(id, #feature)
             }})
         }
         AtomPlan::Noun { role, .. } => {
@@ -894,12 +891,9 @@ fn render_owner(
             Ok(quote! {
                 match #value {
                     #(#closed_arms,)*
-                    #noun::Declaration(declaration) => LexicalOwner::owned(
-                        LexicalProvenanceKind::Lexeme,
-                        declaration_lexeme_owner_id(
-                            declaration.id(),
-                            declaration.feature(),
-                        ),
+                    #noun::Declaration(declaration) => LexicalOwner::declaration_owner(
+                        declaration.id().clone(),
+                        declaration.feature(),
                     ),
                 }
             })

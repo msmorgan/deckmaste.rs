@@ -2940,6 +2940,27 @@ mod tests {
     }
 
     #[test]
+    fn source_view_maps_runtime_ownership_inspection_failure() {
+        let context = ParseContext::new("Probe Card").expect("fixture context is valid");
+        let runtime = parser().trace_with_ownership_inspection_failure_for_test(
+            "Destroy target creature.",
+            &context,
+            TraceLimits::new(1),
+        );
+
+        let report =
+            DiagnosticReport::from_probe("Destroy target creature.", "Probe Card", &runtime);
+        let DiagnosticOutcome::InternalFailure(failure) = report.trace.outcome else {
+            panic!("runtime ownership corruption was not mapped as an internal failure");
+        };
+        assert_eq!(failure.kind, InternalFailureKind::OwnershipInspection);
+        assert_eq!(
+            failure.message,
+            "selected lexical ownership could not be inspected"
+        );
+    }
+
+    #[test]
     fn real_parser_trace_source_view_delegates_every_public_section_and_outcome() {
         fn assert_delegated<T>(actual: &Bounded<T>, delegated: BoundedSource<'_, T>) {
             assert_eq!(delegated.total, actual.total());

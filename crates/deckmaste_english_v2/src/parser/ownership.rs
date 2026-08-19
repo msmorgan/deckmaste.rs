@@ -3,9 +3,10 @@ use crate::constructions::Leaf;
 use crate::constructions::LexicalOwner;
 use crate::constructions::LexicalProvenanceKind;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 thread_local! {
     static PROJECTION_RUNS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static FORCE_INSPECTION_CORRUPTION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 #[cfg(test)]
@@ -16,6 +17,11 @@ pub(super) fn reset_projection_runs() {
 #[cfg(test)]
 pub(super) fn projection_runs() -> usize {
     PROJECTION_RUNS.with(std::cell::Cell::get)
+}
+
+#[cfg(any(test, feature = "test-support"))]
+pub(super) fn force_inspection_corruption(value: bool) {
+    FORCE_INSPECTION_CORRUPTION.with(|forced| forced.set(value));
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -196,13 +202,20 @@ impl SelectedOwnership {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct OwnershipInspectionError;
+
 pub(crate) fn validate_ownership(
     text: &str,
     parsed: &[RawLexicalClaim],
     synthetic_spans: &[TextSpan],
     rendered_text: String,
     rendered: &[RawRenderedClaim],
-) -> SelectedOwnership {
+) -> Result<SelectedOwnership, OwnershipInspectionError> {
+    #[cfg(any(test, feature = "test-support"))]
+    if FORCE_INSPECTION_CORRUPTION.with(std::cell::Cell::get) {
+        return Err(OwnershipInspectionError);
+    }
     #[cfg(test)]
     PROJECTION_RUNS.with(|runs| runs.set(runs.get() + 1));
     let parsed_claims = parsed
@@ -210,7 +223,7 @@ pub(crate) fn validate_ownership(
         .map(|claim| LexicalClaim {
             span: claim.span,
             kind: claim.owner.kind(),
-            stable_owner_id: claim.owner.stable_id().to_owned(),
+            stable_owner_id: claim.owner.stable_id_owned(),
             semantic_summary: format!("{:?}", claim.value),
         })
         .collect::<Vec<_>>();
@@ -219,7 +232,7 @@ pub(crate) fn validate_ownership(
         .map(|claim| LexicalClaim {
             span: claim.span,
             kind: claim.owner.kind(),
-            stable_owner_id: claim.owner.stable_id().to_owned(),
+            stable_owner_id: claim.owner.stable_id_owned(),
             semantic_summary: rendered_text
                 .get(claim.span.start..claim.span.end)
                 .unwrap_or("<invalid span>")
@@ -269,13 +282,13 @@ pub(crate) fn validate_ownership(
         }
     }
     let summary = summarize(&parsed_claims, &failures);
-    SelectedOwnership {
+    Ok(SelectedOwnership {
         parsed_claims,
         rendered_claims,
         rendered_text,
         failures,
         summary,
-    }
+    })
 }
 
 fn plan_label(claim: Option<&LexicalClaim>) -> String {
@@ -424,11 +437,13 @@ mod tests {
         rendered_text: &str,
         rendered: &[RawRenderedClaim],
     ) -> Vec<OwnershipFailure> {
-        validate_ownership(text, parsed, synthetic, rendered_text.to_owned(), rendered).failures
+        validate_ownership(text, parsed, synthetic, rendered_text.to_owned(), rendered)
+            .expect("the fixture has inspectable ownership")
+            .failures
     }
 
     #[test]
-    fn lexical_ownership_authenticates_every_typed_failure() {
+    fn lexical_ownership_authenticates_partition_and_plan_failures() {
         assert!(matches!(
             failures(
                 "abc",
@@ -500,16 +515,45 @@ mod tests {
             .iter()
             .any(|failure| matches!(failure, OwnershipFailure::ProvenancePlanMismatch { .. }))
         );
-        assert!(
-            failures(
-                "abc",
-                &[parsed(0, 3, "a")],
-                &[],
-                "abd",
-                &[rendered(0, 3, "a")],
-            )
-            .iter()
-            .any(|failure| matches!(failure, OwnershipFailure::ByteMismatch { .. }))
+    }
+
+    #[test]
+    fn lexical_ownership_isolates_claimed_slice_mismatch_from_whole_render_bytes() {
+        let failures = failures(
+            "abcd",
+            &[parsed(0, 1, "a"), parsed(1, 4, "b")],
+            &[],
+            "abcd",
+            &[rendered(0, 2, "a"), rendered(2, 4, "b")],
         );
+        assert_eq!(
+            failures,
+            vec![
+                OwnershipFailure::ByteMismatch {
+                    expected: "a".to_owned(),
+                    actual: "ab".to_owned(),
+                },
+                OwnershipFailure::ByteMismatch {
+                    expected: "bcd".to_owned(),
+                    actual: "cd".to_owned(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn lexical_ownership_pins_whole_render_mismatch_separately() {
+        let failures = failures(
+            "abc",
+            &[parsed(0, 3, "a")],
+            &[],
+            "abd",
+            &[rendered(0, 3, "a")],
+        );
+        assert!(failures.iter().any(|failure| matches!(
+            failure,
+            OwnershipFailure::ByteMismatch { expected, actual }
+                if expected == "abc" && actual == "abd"
+        )));
     }
 }
