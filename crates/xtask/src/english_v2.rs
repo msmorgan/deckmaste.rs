@@ -731,6 +731,7 @@ mod tests {
             | "type LexicalTerminal"
             | "type LexicalProvenanceKind"
             | "type LexicalOwnerTemplate"
+            | "type LexicalOwnerIdentity"
             | "type LexicalOwner"
             | "impl Lexical for Lexical"
             | "impl LexicalTerminal for LexicalTerminal"
@@ -839,6 +840,7 @@ mod tests {
         "type LexicalTerminal",
         "type LexicalProvenanceKind",
         "type LexicalOwnerTemplate",
+        "type LexicalOwnerIdentity",
         "type LexicalOwner",
         "impl Lexical for Lexical",
         "impl LexicalTerminal for LexicalTerminal",
@@ -930,7 +932,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 133);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 134);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -977,7 +979,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 133);
+        assert_eq!(parsed.items.len(), 134);
     }
 
     #[test]

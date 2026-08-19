@@ -95,3 +95,16 @@ path; corresponding-slice and missing-owner validation are pinned at their
 production boundaries; and the one-run gate distinguishes one stage invocation
 from three candidate evaluations. The full workspace, fmt, denied Clippy,
 source, and unchanged 32,285 / 48 / 32,237 corpus gates are GREEN.
+
+Final-review Fix Round 2 is
+`vskmpuupswnqtwnxmpxuzmvknkuznxrn`: byte mismatches now distinguish the
+whole-render comparison from an indexed claim-slice comparison through the
+public typed failure model, and production tests independently authenticate
+both comparisons. The generated owner uses one private tagged identity:
+static owners remain inline and heap-free, while open declaration owners share
+owned identity and one lazy stable-label cache. `LexicalOwner` measures 24
+bytes and the real English leaf-plus-owner carrier 72 bytes, down from 128 and
+176 bytes respectively; cap-zero trace constructs no labels and cloned open
+owners construct one shared label. The schema remains version 1, the extra
+generated inventory item is private, and the full workspace, fmt, denied
+Clippy, source, and unchanged corpus gates are GREEN.

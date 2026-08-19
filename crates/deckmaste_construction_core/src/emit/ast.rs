@@ -379,6 +379,7 @@ mod tests {
                 "LexicalTerminal",
                 "LexicalProvenanceKind",
                 "LexicalOwnerTemplate",
+                "LexicalOwnerIdentity",
                 "LexicalOwner",
                 "Category",
                 "Construction",

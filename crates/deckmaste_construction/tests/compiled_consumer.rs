@@ -1161,7 +1161,7 @@ mod fixture {
         }
     }
 
-    fn assert_generated_runtime_abi(context: &ParseContext<'_>) {
+    fn assert_generated_lexical_owner_abi() {
         let owner = |template: LexicalOwnerTemplate, leaf: &Leaf| {
             template
                 .instantiate(leaf)
@@ -1189,8 +1189,7 @@ mod fixture {
             ),
             (
                 LexicalOwnerTemplate::Lexeme {
-                    declaration: "Verbs",
-                    member: "Act",
+                    stable_id: "lexeme:Verbs/Act",
                 },
                 Leaf::Verb {
                     lexeme: Verbs::Act,
@@ -1228,7 +1227,6 @@ mod fixture {
         );
 
         let kind = macro_ron::v2::DeclarationKind::KeywordAction;
-        let position = macro_ron::v2::GrammarPosition::Verb;
         let declaration = owner(
             LexicalOwnerTemplate::Declaration {
                 kind,
@@ -1244,6 +1242,76 @@ mod fixture {
             declaration.stable_id(),
             "lexeme:keyword_action/Destroy/bare"
         );
+        assert!(
+            std::mem::size_of::<(Leaf, Option<LexicalOwner>)>() <= 80,
+            "the scanner value/owner carrier is {} bytes, expected at most 80",
+            std::mem::size_of::<(Leaf, Option<LexicalOwner>)>()
+        );
+        assert!(
+            std::mem::size_of::<LexicalOwner>() <= 32,
+            "the hot owner carrier is {} bytes, expected at most 32",
+            std::mem::size_of::<LexicalOwner>()
+        );
+
+        let shared_declaration = owner(
+            LexicalOwnerTemplate::Declaration {
+                kind,
+                name: "Destroy",
+            },
+            &Leaf::Declaration(DeclarationLeaf {
+                id: macro_ron::v2::DeclarationIdentity::new(kind, "Destroy"),
+                feature: macro_ron::v2::SurfaceFeature::Bare,
+            }),
+        );
+        let shared_clone = shared_declaration.clone();
+        let second_shared_clone = shared_declaration.clone();
+        LexicalOwner::reset_label_constructions();
+        assert_eq!(
+            shared_declaration.stable_id(),
+            "lexeme:keyword_action/Destroy/bare"
+        );
+        assert_eq!(shared_clone.stable_id(), shared_declaration.stable_id());
+        assert_eq!(
+            second_shared_clone.stable_id(),
+            shared_declaration.stable_id()
+        );
+        assert_eq!(
+            LexicalOwner::label_constructions(),
+            1,
+            "declaration-owner clones share one lazy stable-label allocation"
+        );
+        let equivalent_declaration = owner(
+            LexicalOwnerTemplate::Declaration {
+                kind,
+                name: "Destroy",
+            },
+            &Leaf::Declaration(DeclarationLeaf {
+                id: macro_ron::v2::DeclarationIdentity::new(kind, "Destroy"),
+                feature: macro_ron::v2::SurfaceFeature::Bare,
+            }),
+        );
+        assert_eq!(shared_declaration, shared_clone);
+        assert_eq!(
+            shared_declaration.cmp(&shared_clone),
+            std::cmp::Ordering::Equal
+        );
+        assert_eq!(shared_declaration, equivalent_declaration);
+        assert_eq!(
+            shared_declaration.cmp(&equivalent_declaration),
+            std::cmp::Ordering::Equal,
+            "lazy cache state is not part of owner identity"
+        );
+        assert_eq!(
+            format!("{shared_declaration:?}"),
+            "LexicalOwner { kind: Lexeme, stable_id: \"lexeme:keyword_action/Destroy/bare\" }"
+        );
+    }
+
+    fn assert_generated_runtime_abi(context: &ParseContext<'_>) {
+        assert_generated_lexical_owner_abi();
+
+        let kind = macro_ron::v2::DeclarationKind::KeywordAction;
+        let position = macro_ron::v2::GrammarPosition::Verb;
 
         let terminal = LexicalTerminal {
             matcher: Lexical::Declaration(DeclarationMatcher {

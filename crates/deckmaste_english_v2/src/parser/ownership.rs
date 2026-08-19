@@ -74,6 +74,15 @@ pub enum InvalidSpanKind {
     NonUtf8Boundary,
 }
 
+/// Identifies which rendered-byte comparison produced an ownership mismatch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ByteMismatchScope {
+    /// The complete rendered document differs from the parsed source bytes.
+    WholeRender,
+    /// Corresponding ownership claims cover different byte slices.
+    ClaimSlice { index: usize },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OwnershipFailure {
     Gap {
@@ -97,6 +106,7 @@ pub enum OwnershipFailure {
         rendered: String,
     },
     ByteMismatch {
+        scope: ByteMismatchScope,
         expected: String,
         actual: String,
     },
@@ -250,6 +260,7 @@ pub(crate) fn validate_ownership(
     validate_partition(&rendered_text, &rendered_claims, &mut failures);
     if rendered_text != text {
         failures.push(OwnershipFailure::ByteMismatch {
+            scope: ByteMismatchScope::WholeRender,
             expected: text.to_owned(),
             actual: rendered_text.clone(),
         });
@@ -276,6 +287,7 @@ pub(crate) fn validate_ownership(
             && expected != actual
         {
             failures.push(OwnershipFailure::ByteMismatch {
+                scope: ByteMismatchScope::ClaimSlice { index },
                 expected: expected.to_owned(),
                 actual: actual.to_owned(),
             });
@@ -530,10 +542,12 @@ mod tests {
             failures,
             vec![
                 OwnershipFailure::ByteMismatch {
+                    scope: ByteMismatchScope::ClaimSlice { index: 0 },
                     expected: "a".to_owned(),
                     actual: "ab".to_owned(),
                 },
                 OwnershipFailure::ByteMismatch {
+                    scope: ByteMismatchScope::ClaimSlice { index: 1 },
                     expected: "bcd".to_owned(),
                     actual: "cd".to_owned(),
                 },
@@ -550,10 +564,20 @@ mod tests {
             "abd",
             &[rendered(0, 3, "a")],
         );
-        assert!(failures.iter().any(|failure| matches!(
-            failure,
-            OwnershipFailure::ByteMismatch { expected, actual }
-                if expected == "abc" && actual == "abd"
-        )));
+        assert_eq!(
+            failures,
+            vec![
+                OwnershipFailure::ByteMismatch {
+                    scope: ByteMismatchScope::WholeRender,
+                    expected: "abc".to_owned(),
+                    actual: "abd".to_owned(),
+                },
+                OwnershipFailure::ByteMismatch {
+                    scope: ByteMismatchScope::ClaimSlice { index: 0 },
+                    expected: "abc".to_owned(),
+                    actual: "abd".to_owned(),
+                },
+            ]
+        );
     }
 }

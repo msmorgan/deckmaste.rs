@@ -90,6 +90,7 @@ pub use error::Expectation;
 pub use error::NonterminalCategory;
 pub use error::ParseError;
 pub use error::TextSpan;
+pub use ownership::ByteMismatchScope;
 pub use ownership::InvalidSpanKind;
 pub use ownership::LexicalClaim;
 pub use ownership::OwnershipFailure;
@@ -465,6 +466,26 @@ mod structural_trace_tests {
         assert!(trace.into_parse_result().is_ok());
         assert_eq!(super::ownership::projection_runs(), 0);
         assert_eq!(crate::constructions::LexicalOwner::label_constructions(), 0);
+    }
+
+    #[test]
+    fn generated_owner_keeps_the_scanner_hot_carrier_compact() {
+        assert!(
+            std::mem::size_of::<crate::constructions::LexicalOwner>() <= 32,
+            "the generated owner is {} bytes, expected at most 32",
+            std::mem::size_of::<crate::constructions::LexicalOwner>()
+        );
+        assert!(
+            std::mem::size_of::<(
+                crate::constructions::Leaf,
+                Option<crate::constructions::LexicalOwner>,
+            )>() <= 80,
+            "the production scanner value/owner carrier is {} bytes, expected at most 80",
+            std::mem::size_of::<(
+                crate::constructions::Leaf,
+                Option<crate::constructions::LexicalOwner>,
+            )>()
+        );
     }
 
     #[test]

@@ -1061,8 +1061,7 @@ mod tests {
         );
         for owner in [
             "Vocab { declaration : \"Words\" }",
-            "Lexeme { declaration : \"Verbs\"",
-            "member : \"Act\"",
+            "Lexeme { stable_id : \"lexeme:Verbs/Act\" }",
             "stable_id : \"root:Action/punctuation\"",
             "owner : LexicalOwnerTemplate :: None",
         ] {
@@ -1077,6 +1076,7 @@ mod tests {
             "DeclarationClass",
             "LexicalTerminal",
             "LexicalOwnerTemplate",
+            "LexicalOwnerIdentity",
             "LexicalOwner",
             "LexicalProvenanceKind",
         ] {
@@ -1416,7 +1416,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 63);
+        assert_eq!(keys.len(), 64);
         assert!(keys.iter().any(|key| {
             matches!(
                 key,

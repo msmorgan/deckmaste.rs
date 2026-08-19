@@ -24,6 +24,7 @@ pub(crate) const LEXICAL_TERMINAL_TYPE: &str = "LexicalTerminal";
 pub(crate) const LEXICAL_PROVENANCE_KIND_TYPE: &str = "LexicalProvenanceKind";
 pub(crate) const LEXICAL_OWNER_TEMPLATE_TYPE: &str = "LexicalOwnerTemplate";
 pub(crate) const LEXICAL_OWNER_TYPE: &str = "LexicalOwner";
+pub(crate) const LEXICAL_OWNER_IDENTITY_TYPE: &str = "LexicalOwnerIdentity";
 pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     AGREEMENT_TYPE,
     NUMBER_TYPE,
@@ -40,6 +41,7 @@ pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     LEXICAL_PROVENANCE_KIND_TYPE,
     LEXICAL_OWNER_TEMPLATE_TYPE,
     LEXICAL_OWNER_TYPE,
+    LEXICAL_OWNER_IDENTITY_TYPE,
 ];
 
 /// Returns the semantic Rust name of an authored identifier.

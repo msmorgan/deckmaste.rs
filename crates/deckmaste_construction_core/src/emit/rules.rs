@@ -194,15 +194,12 @@ fn emit_position(
         } => {
             let terminal = ident(terminal);
             let variant = ident(variant);
-            let declaration = syn::LitStr::new(&terminal.to_string(), Span::call_site());
-            let member = syn::LitStr::new(&variant.to_string(), Span::call_site());
+            let stable_id =
+                syn::LitStr::new(&format!("lexeme:{terminal}/{variant}"), Span::call_site());
             Ok(lexical_terminal(
                 &quote! { Lexical::Verb(#terminal::#variant) },
                 &quote! {
-                    LexicalOwnerTemplate::Lexeme {
-                        declaration: #declaration,
-                        member: #member,
-                    }
+                    LexicalOwnerTemplate::Lexeme { stable_id: #stable_id }
                 },
             ))
         }
@@ -460,8 +457,7 @@ mod tests {
                     rhs: &[L(LexicalTerminal {
                         matcher: Lexical::Verb(ActionStem::Activate),
                         owner: LexicalOwnerTemplate::Lexeme {
-                            declaration: "ActionStem",
-                            member: "Activate",
+                            stable_id: "lexeme:ActionStem/Activate",
                         },
                     })],
                 },

@@ -356,7 +356,7 @@ pub(crate) fn vocab_matched_number_with_two_nouns_tokens() -> proc_macro2::Token
 #[test]
 fn synthetic_projection_fixture_generates() {
     let expansion = synthetic_projection_expansion();
-    assert_eq!(expansion.plan().items().len(), 77);
+    assert_eq!(expansion.plan().items().len(), 78);
     assert!(expansion.items().iter().any(|item| {
         matches!(
             &item.key,

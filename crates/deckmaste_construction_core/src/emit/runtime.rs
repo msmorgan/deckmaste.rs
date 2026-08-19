@@ -9,6 +9,7 @@ use crate::identifier::DECLARATION_LEAF_TYPE;
 use crate::identifier::DECLARATION_MATCHER_TYPE;
 use crate::identifier::FEATURE_CONSTRAINT_TYPE;
 use crate::identifier::LEAF_TYPE;
+use crate::identifier::LEXICAL_OWNER_IDENTITY_TYPE;
 use crate::identifier::LEXICAL_OWNER_TEMPLATE_TYPE;
 use crate::identifier::LEXICAL_OWNER_TYPE;
 use crate::identifier::LEXICAL_PROVENANCE_KIND_TYPE;
@@ -364,10 +365,7 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     Vocab {
                         declaration: &'static str,
                     },
-                    Lexeme {
-                        declaration: &'static str,
-                        member: &'static str,
-                    },
+                    Lexeme { stable_id: &'static str },
                     Identity {
                         declaration: &'static str,
                     },
@@ -380,17 +378,27 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
+            LEXICAL_OWNER_IDENTITY_TYPE,
+            quote! {
+                #[derive(Clone)]
+                pub(crate) enum LexicalOwnerIdentity {
+                    Static {
+                        kind: LexicalProvenanceKind,
+                        stable_id: &'static str,
+                    },
+                    Declaration(std::sync::Arc<(
+                        ::macro_ron::v2::DeclarationIdentity,
+                        ::macro_ron::v2::SurfaceFeature,
+                        std::sync::OnceLock<String>,
+                    )>),
+                }
+            },
+        ),
+        named_type(
             LEXICAL_OWNER_TYPE,
             quote! {
                 pub struct LexicalOwner {
-                    kind: LexicalProvenanceKind,
-                    static_id: Option<&'static str>,
-                    lexeme: Option<(&'static str, &'static str)>,
-                    declaration: Option<(
-                        ::macro_ron::v2::DeclarationIdentity,
-                        ::macro_ron::v2::SurfaceFeature,
-                    )>,
-                    stable_id: std::sync::OnceLock<String>,
+                    identity: LexicalOwnerIdentity,
                 }
             },
         ),
@@ -741,24 +749,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         stable_id: &'static str,
                     ) -> Self {
                         Self {
-                            kind,
-                            static_id: Some(stable_id),
-                            lexeme: None,
-                            declaration: None,
-                            stable_id: std::sync::OnceLock::new(),
-                        }
-                    }
-
-                    pub(crate) fn lexeme_owner(
-                        declaration: &'static str,
-                        member: &'static str,
-                    ) -> Self {
-                        Self {
-                            kind: LexicalProvenanceKind::Lexeme,
-                            static_id: None,
-                            lexeme: Some((declaration, member)),
-                            declaration: None,
-                            stable_id: std::sync::OnceLock::new(),
+                            identity: LexicalOwnerIdentity::Static { kind, stable_id },
                         }
                     }
 
@@ -767,50 +758,37 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         feature: ::macro_ron::v2::SurfaceFeature,
                     ) -> Self {
                         Self {
-                            kind: LexicalProvenanceKind::Lexeme,
-                            static_id: None,
-                            lexeme: None,
-                            declaration: Some((id, feature)),
-                            stable_id: std::sync::OnceLock::new(),
+                            identity: LexicalOwnerIdentity::Declaration(std::sync::Arc::new((
+                                id,
+                                feature,
+                                std::sync::OnceLock::new(),
+                            ))),
                         }
                     }
 
                     pub const fn kind(&self) -> LexicalProvenanceKind {
-                        self.kind
+                        match self.identity {
+                            LexicalOwnerIdentity::Static { kind, .. } => kind,
+                            LexicalOwnerIdentity::Declaration(_) => LexicalProvenanceKind::Lexeme,
+                        }
                     }
 
                     pub fn stable_id(&self) -> &str {
-                        if let Some(stable_id) = self.static_id {
-                            return stable_id;
+                        match &self.identity {
+                            LexicalOwnerIdentity::Static { stable_id, .. } => stable_id,
+                            LexicalOwnerIdentity::Declaration(declaration) => declaration
+                                .2
+                                .get_or_init(|| declaration_lexeme_owner_id(&declaration.0, declaration.1)),
                         }
-                        self.stable_id.get_or_init(|| {
-                            if let Some((declaration, member)) = self.lexeme {
-                                return Self::construct_label(|| {
-                                    format!("lexeme:{declaration}/{member}")
-                                });
-                            }
-                            let (id, feature) = self
-                                .declaration
-                                .as_ref()
-                                .expect("a non-static owner has structured identity");
-                            declaration_lexeme_owner_id(id, *feature)
-                        })
                     }
 
                     pub(crate) fn stable_id_owned(&self) -> String {
-                        if let Some(stable_id) = self.static_id {
-                            return Self::construct_label(|| stable_id.to_owned());
+                        match &self.identity {
+                            LexicalOwnerIdentity::Static { stable_id, .. } => {
+                                Self::construct_label(|| stable_id.to_string())
+                            }
+                            LexicalOwnerIdentity::Declaration(_) => self.stable_id().to_owned(),
                         }
-                        if let Some((declaration, member)) = self.lexeme {
-                            return Self::construct_label(|| {
-                                format!("lexeme:{declaration}/{member}")
-                            });
-                        }
-                        let (id, feature) = self
-                            .declaration
-                            .as_ref()
-                            .expect("a non-static owner has structured identity");
-                        declaration_lexeme_owner_id(id, *feature)
                     }
                 }
             },
@@ -823,7 +801,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                         formatter
                             .debug_struct("LexicalOwner")
-                            .field("kind", &self.kind)
+                            .field("kind", &self.kind())
                             .field("stable_id", &self.stable_id())
                             .finish()
                     }
@@ -837,11 +815,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 impl Clone for LexicalOwner {
                     fn clone(&self) -> Self {
                         Self {
-                            kind: self.kind,
-                            static_id: self.static_id,
-                            lexeme: self.lexeme,
-                            declaration: self.declaration.clone(),
-                            stable_id: std::sync::OnceLock::new(),
+                            identity: self.identity.clone(),
                         }
                     }
                 }
@@ -853,10 +827,23 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             quote! {
                 impl PartialEq for LexicalOwner {
                     fn eq(&self, other: &Self) -> bool {
-                        self.kind == other.kind
-                            && self.static_id == other.static_id
-                            && self.lexeme == other.lexeme
-                            && self.declaration == other.declaration
+                        match (&self.identity, &other.identity) {
+                            (
+                                LexicalOwnerIdentity::Static {
+                                    kind: left_kind,
+                                    stable_id: left_id,
+                                },
+                                LexicalOwnerIdentity::Static {
+                                    kind: right_kind,
+                                    stable_id: right_id,
+                                },
+                            ) => left_kind == right_kind && left_id == right_id,
+                            (
+                                LexicalOwnerIdentity::Declaration(left),
+                                LexicalOwnerIdentity::Declaration(right),
+                            ) => left.0 == right.0 && left.1 == right.1,
+                            _ => false,
+                        }
                     }
                 }
             },
@@ -872,11 +859,20 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             quote! {
                 impl Ord for LexicalOwner {
                     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-                        self.kind
-                            .cmp(&other.kind)
-                            .then_with(|| self.static_id.cmp(&other.static_id))
-                            .then_with(|| self.lexeme.cmp(&other.lexeme))
-                            .then_with(|| self.declaration.cmp(&other.declaration))
+                        self.kind().cmp(&other.kind()).then_with(|| {
+                            match (&self.identity, &other.identity) {
+                                (
+                                    LexicalOwnerIdentity::Static { stable_id: left, .. },
+                                    LexicalOwnerIdentity::Static { stable_id: right, .. },
+                                ) => left.cmp(right),
+                                (
+                                    LexicalOwnerIdentity::Declaration(left),
+                                    LexicalOwnerIdentity::Declaration(right),
+                                ) => left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)),
+                                (LexicalOwnerIdentity::Static { .. }, _) => std::cmp::Ordering::Less,
+                                (LexicalOwnerIdentity::Declaration(_), _) => std::cmp::Ordering::Greater,
+                            }
+                        })
                     }
                 }
             },
@@ -907,12 +903,12 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #(#vocab_owner_arms)*
                             #(#context_owner_arms)*
                             (
-                                LexicalOwnerTemplate::Lexeme {
-                                    declaration,
-                                    member,
-                                },
+                                LexicalOwnerTemplate::Lexeme { stable_id },
                                 _,
-                            ) => Some(LexicalOwner::lexeme_owner(declaration, member)),
+                            ) => Some(LexicalOwner::static_owner(
+                                LexicalProvenanceKind::Lexeme,
+                                stable_id,
+                            )),
                             (
                                 LexicalOwnerTemplate::Declaration { kind, name },
                                 Leaf::Declaration(declaration),
