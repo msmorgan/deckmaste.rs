@@ -25,15 +25,20 @@ pinned — if something cannot be completed as written, STOP and report.
    irregular surface is spelled in the declaration. Overrides replace the
    recipe-derived surface exactly; empty lemmas or surfaces, incomplete
    feature coverage, and duplicate entries are validation errors.
-2. **Recipe extension, evaluated first.** The override inventory has
-   crossed the recorded pause threshold twice: four `-y → -ies` members
-   (Allies, Armies, Mercenaries, sorceries) and four `-f/-fe → -ves`
-   members (Dwarves, Elves, Werewolves, Wolves). Evaluate the reviewed
-   `-ies`/`-ves` recipe rules; if adopted, demote the now-derivable stub
-   overrides to derived surfaces (an authored edit to the stub records,
-   never a regeneration). The ~300 open-declaration nouns with no declared
-   plural remain unavailable until attested — record that policy beside
-   the recipe.
+2. **Recipes are strictly regular (ruling, 2026-08-20).** Builtin
+   morphology recipes carry ONLY exceptionless mechanical
+   transformations: append-`s` today, append-`ed` when past forms arrive.
+   A transformation with even one attested exception is lexical, not
+   regular — the corpus itself proves `-f` does not imply `-ves`
+   (Lhurgoyfs, Serfs beside Dwarves, Wolves) and name-like nouns resist
+   `-ies` — so the four `-ies` members (Allies, Armies, Mercenaries,
+   sorceries) and four `-ves` members (Dwarves, Elves, Werewolves,
+   Wolves) REMAIN declared per-word overrides. The Plan 03 spec's
+   pause-trigger ("three overrides sharing a transformation pause for a
+   recipe extension") is superseded: a declared-override list growing
+   with the lexicon is normal, not a recipe-extension signal. The ~300
+   open-declaration nouns with no declared plural remain unavailable
+   until attested — record that policy beside the recipes.
 3. **Deletion.** Generated scanner and renderer surfaces replace the
    handwritten pair: `features::inflect` and the handwritten verb-scanning
    path are DELETED, and the generated renderer stops calling a
@@ -56,6 +61,6 @@ Acceptance: all suites green; the corpus gates unchanged (32,285 total /
 48 covered / 0 ties / 0 internal failures — this ticket must not change
 acceptance; a delta means STOP); the handwritten pair gone with the audit
 proving single authority; the counted report shows `morphology irregulars`
-containing `Be` plus only the post-recipe noun irregulars; both round-trip
+containing `Be` and every declared noun override; both round-trip
 laws still byte-exact on the covered set; `cargo clippy --workspace
 --all-targets -- -D warnings` clean. Standard constraints apply.
