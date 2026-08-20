@@ -467,7 +467,7 @@ mod tests {
     }
 
     #[test]
-    fn invariant_plan_mutations_drive_production_projection_and_field_policy() {
+    fn invariant_plan_drives_ast_build_render_and_visit_projection() {
         let source = quote::quote! {
             vocab Mode { One = "one", Two = "two", }
             identity SelfReferenceSpelling {
@@ -490,66 +490,53 @@ mod tests {
         .expect("mutation fixture validates")
         .into_semantic();
 
-        let emission = super::plan_emission(&semantic).expect("sealed invariant plan emits");
-        let build = emission
-            .items()
-            .iter()
-            .find(|item| {
-                matches!(
-                    &item.key,
-                    crate::ItemKey::Named {
-                        kind: crate::NamedKind::Function,
-                        name,
-                    } if name == "build"
-                )
-            })
-            .expect("emission plan contains build")
-            .tokens
-            .to_string();
+        let ast = formatted(&crate::emit::ast::emit(&semantic).expect("sealed AST emits"));
+        let build = formatted(&crate::emit::build::emit(&semantic).expect("sealed build emits"));
+        let render = formatted(&crate::emit::render::emit(&semantic).expect("sealed render emits"));
+        let visitor =
+            formatted(&crate::emit::visit::emit(&semantic).expect("sealed visitor emits"));
+        for fragment in [
+            "pub struct Only { mode : Mode , spelling : SelfReferenceSpelling }",
+            "pub const fn mode (& self) -> Mode",
+            "pub const fn spelling (& self) -> SelfReferenceSpelling",
+        ] {
+            assert!(ast.contains(fragment), "missing `{fragment}`: {ast}");
+        }
         assert!(build.contains("Leaf :: Mode (mode)"), "{build}");
         assert!(!build.contains("Leaf :: Mode (Mode :: One)"), "{build}");
         assert!(
             build.contains("Only :: new (* mode , * spelling , context)"),
             "{build}",
         );
-
-        assert_eq!(
-            semantic.constructions()[0]
-                .legacy_refinement("mode")
-                .map(ToString::to_string)
-                .as_deref(),
-            Some("One")
+        assert!(render.contains("Self :: Only (only)"), "{render}");
+        assert!(
+            render.contains("render_mode (writer , only . mode ())"),
+            "{render}"
         );
+        assert!(
+            render.contains("only . spelling ()") && !render.contains("Only { mode , spelling }"),
+            "{render}",
+        );
+        assert!(
+            visitor.contains("walk_mode (visitor , only . mode ())"),
+            "{visitor}"
+        );
+        assert!(
+            visitor.contains("walk_self_reference_spelling (visitor , only . spelling ())")
+                && !visitor.contains("let Only { mode , spelling }"),
+            "{visitor}",
+        );
+
         semantic.test_only_replace_invariant_member("only", "mode", "Two");
-        semantic.test_only_replace_invariant_context_field("only", "spelling", "mode");
-        let construction = &semantic.constructions()[0];
-
-        assert_eq!(
-            construction
-                .legacy_refinement("mode")
-                .map(ToString::to_string)
-                .as_deref(),
-            Some("Two")
+        let changed_ast =
+            formatted(&crate::emit::ast::emit(&semantic).expect("mutated sealed AST emits"));
+        assert!(
+            changed_ast.contains("matches ! (mode , Mode :: Two)"),
+            "{changed_ast}"
         );
-        assert_eq!(
-            construction
-                .invariant()
-                .context_identity_fields()
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>(),
-            ["mode"]
-        );
-        assert_eq!(
-            construction
-                .fields()
-                .iter()
-                .map(|field| (field.name_key(), field.accessor_mode()))
-                .collect::<Vec<_>>(),
-            [
-                ("mode".to_owned(), Some(crate::semantic::AccessorMode::Copy)),
-                ("spelling".to_owned(), None),
-            ]
+        assert!(
+            !changed_ast.contains("matches ! (mode , Mode :: One)"),
+            "{changed_ast}"
         );
     }
 

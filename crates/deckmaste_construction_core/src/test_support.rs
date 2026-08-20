@@ -167,6 +167,58 @@ pub(crate) fn access_modes_expansion() -> crate::Expansion {
     .expect("copy identity and mixed checked access declarations generate")
 }
 
+pub(crate) fn invariant_access_semantic_plan() -> crate::semantic::SemanticPlan {
+    crate::validate_declarations(
+        crate::parse_declarations(quote! {
+            vocab Plain { Open = "open", }
+            vocab Mode { One = "one", Two = "two", }
+            vocab Marker { Marked = "marked", }
+            identity SelfReferenceSpelling {
+                generate context {
+                    Full => card_name,
+                    Abbreviated => abbreviated_card_name,
+                    canonical_on_collision = Full;
+                }
+            }
+
+            construction leaf: Node {
+                element LeafNode {}
+                derive agreement = Values::Bare;
+                derive number = Values::Singular;
+                form leaf = "leaf";
+            }
+            construction writer: Node {
+                element WalkMode {
+                    plain: lex Plain,
+                    mode: lex Mode,
+                    child: Node,
+                    spelling: identity SelfReferenceSpelling,
+                    visitor: lex Marker,
+                }
+                require mode is One;
+                require child is Leaf;
+                derive mode.agreement = match mode {
+                    One => Values::Bare,
+                    Two => Values::ThirdPersonSingular,
+                };
+                derive agreement = mode.agreement;
+                derive number = child.number;
+                form writer = lex(plain) lex(mode) child identity(spelling) lex(visitor);
+            }
+            construction root: Root {
+                element RootNode { node: Node, }
+                derive agreement = node.agreement;
+                derive number = node.number;
+                form root = node;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("mixed invariant access fixture parses"),
+    )
+    .expect("mixed invariant access fixture validates")
+    .into_semantic()
+}
+
 pub(crate) fn synthetic_projection_tokens() -> proc_macro2::TokenStream {
     quote! {
         vocab Mode { Solo = "solo", Group = "group", }

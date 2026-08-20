@@ -61,7 +61,6 @@ pub(crate) struct ConstructionPlan {
     visitor_method: String,
     walker: String,
     checked_constructor: bool,
-    private_fields: bool,
     fields: Vec<ConstructionFieldPlan>,
     invariant: InvariantPlan,
     constructor: Option<CheckedConstructorPlan>,
@@ -1064,34 +1063,6 @@ impl SemanticPlan {
     }
 
     #[cfg(test)]
-    pub(crate) fn test_only_replace_invariant_context_field(
-        &mut self,
-        construction_id: &str,
-        old: &str,
-        new: &str,
-    ) {
-        let terminals = &self.terminals;
-        let construction = self
-            .constructions
-            .iter_mut()
-            .find(|construction| construction.construction_id == construction_id)
-            .expect("test construction is present");
-        let field = construction
-            .invariant
-            .context_identity_fields
-            .iter_mut()
-            .find(|field| identifier_key(field) == old)
-            .expect("test context-identity field is present");
-        *field = syn::Ident::new(new, field.span());
-        construction.invariant.requires_context =
-            !construction.invariant.context_identity_fields.is_empty();
-        construction
-            .invariant
-            .apply_field_policy(&mut construction.fields, terminals)
-            .expect("mutated test field policy remains sealable");
-    }
-
-    #[cfg(test)]
     pub(crate) fn test_only_replace_planned_literal(
         &mut self,
         construction_id: &str,
@@ -1793,14 +1764,6 @@ impl ConstructionPlan {
         let category_variant = pascal_case(&construction_id);
         let element_type = identifier_key(&source.element.name);
         let rule_id = format!("{}{category_variant}", pascal_case(&category));
-        let private_fields = source.checked.as_ref().is_some_and(|checked| {
-            checked.visibilities.iter().any(|visibility| {
-                matches!(
-                    visibility.visibility,
-                    crate::model::NonPublicVisibility::Private(_)
-                )
-            })
-        });
         let fields = source
             .element
             .fields
@@ -1908,7 +1871,6 @@ impl ConstructionPlan {
             visitor_method: format!("visit_{}", snake_case(&element_type)),
             walker: format!("walk_{}", snake_case(&element_type)),
             checked_constructor: source.checked.is_some(),
-            private_fields,
             fields,
             invariant,
             constructor,
@@ -1984,18 +1946,6 @@ impl ConstructionPlan {
         &self.invariant
     }
 
-    pub(crate) fn validate_legacy_refinement_projection(&self) -> syn::Result<()> {
-        self.invariant.validate_legacy_refinement_projection()
-    }
-
-    pub(crate) fn legacy_refinement(&self, role: &str) -> Option<&syn::Ident> {
-        self.invariant.legacy_refinement(role)
-    }
-
-    pub(crate) fn has_private_fields(&self) -> bool {
-        self.private_fields
-    }
-
     pub(crate) fn constructor(&self) -> Option<&CheckedConstructorPlan> {
         self.constructor.as_ref()
     }
@@ -2020,10 +1970,6 @@ impl ConstructionFieldPlan {
 
     pub(crate) fn accessor(&self) -> Option<&syn::Ident> {
         self.accessor.as_ref()
-    }
-
-    pub(crate) fn has_accessor(&self) -> bool {
-        self.accessor.is_some()
     }
 
     pub(crate) fn value_type(&self) -> &syn::Path {
@@ -2161,42 +2107,6 @@ impl InvariantPlan {
         Ok(())
     }
 
-    fn validate_legacy_refinement_projection(&self) -> syn::Result<()> {
-        let [alternative] = self.alternatives.as_slice() else {
-            return Err(legacy_predicate_error());
-        };
-        for atom in &alternative.atoms {
-            if !matches!(
-                (&atom.subject, atom.allowed.as_slice()),
-                (
-                    PredicateSubjectPlan::CategoryRole { .. }
-                        | PredicateSubjectPlan::VocabRole { .. },
-                    [PredicateMemberPlan::Variant(_)]
-                )
-            ) {
-                return Err(legacy_predicate_error());
-            }
-        }
-        Ok(())
-    }
-
-    pub(crate) fn legacy_refinement(&self, role: &str) -> Option<&syn::Ident> {
-        let [alternative] = self.alternatives.as_slice() else {
-            return None;
-        };
-        alternative.atoms.iter().find_map(|atom| {
-            let PredicateMemberPlan::Variant(member) = atom.allowed.first()? else {
-                return None;
-            };
-            (atom.allowed.len() == 1
-                && atom
-                    .subject
-                    .role()
-                    .is_some_and(|candidate| identifier_key(candidate) == role))
-            .then_some(member)
-        })
-    }
-
     #[cfg(test)]
     pub(crate) fn snapshot(&self) -> String {
         if matches!(self.alternatives.as_slice(), [alternative] if alternative.atoms.is_empty()) {
@@ -2332,13 +2242,6 @@ fn accessor_mode(
             | TerminalPlan::DeclarationNoun(_) => AccessorMode::Borrow,
         })
         .ok_or_else(|| sealed_error("invariant field terminal"))
-}
-
-fn legacy_predicate_error() -> syn::Error {
-    syn::Error::new(
-        Span::call_site(),
-        "legacy predicate emitter supports only singleton role membership; compound and feature predicates require the generated invariant emitters",
-    )
 }
 
 impl CheckedConstructorPlan {
@@ -3813,32 +3716,6 @@ mod tests {
         .into_semantic();
 
         assert_eq!(semantic.constructions()[0].invariant().snapshot(), "TRUE");
-    }
-
-    #[test]
-    fn compatibility_projection_rejects_non_unary_predicates_at_the_emission_boundary() {
-        let semantic = crate::validate_declarations(
-            crate::parse_declarations(quote::quote! {
-                vocab Mode { One = "one", Two = "two", Three = "three", }
-                construction only: Root {
-                    element Only { mode: lex Mode, }
-                    require mode in [One, Two];
-                    form only = lex(mode);
-                }
-                root Root { punctuation = "."; eoi = true; standalone_render = true; }
-            })
-            .expect("compound membership parses"),
-        )
-        .expect("compound membership validates into the sealed plan")
-        .into_semantic();
-
-        let error = semantic.constructions()[0]
-            .validate_legacy_refinement_projection()
-            .expect_err("the legacy emitter view cannot flatten compound membership")
-            .to_string();
-
-        assert!(error.contains("legacy predicate emitter"), "{error}");
-        assert!(error.contains("singleton role membership"), "{error}");
     }
 }
 

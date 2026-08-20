@@ -16,6 +16,7 @@ use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::AccessorMode;
 use crate::semantic::AtomPlan;
 use crate::semantic::BindingPlan;
 use crate::semantic::BindingTraversalRecipe;
@@ -487,11 +488,11 @@ fn emit_construction_walker(
         }
     }
     let argument = allocator.allocate(&snake_case(&type_name));
-    let private = construction.has_private_fields();
+    let whole = needs_whole_value(construction);
     let mut field_locals = HashMap::new();
     let destructure = if construction.fields().is_empty() {
         quote! { let #ty = #argument; }
-    } else if private {
+    } else if whole {
         TokenStream::new()
     } else {
         let fields = construction
@@ -531,35 +532,29 @@ fn emit_construction_walker(
                 Some(quote! { visitor.#callback(#value); })
             }
             AtomPlan::Lex { role, terminal } => {
-                fields
+                let field = fields
                     .get(role)
                     .ok_or_else(|| internal("walker lex role absent"))?;
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));
                 let value = field_value(construction, role, &argument, &field_locals)?;
                 let copy = terminal_mode(validated, terminal)? == VisitMode::Copy;
                 Some(if copy {
-                    if has_accessor(construction, role) {
-                        quote! { #walker(visitor, #value); }
-                    } else {
-                        quote! { #walker(visitor, *#value); }
-                    }
+                    let value = copy_value(field, value);
+                    quote! { #walker(visitor, #value); }
                 } else {
                     quote! { #walker(visitor, #value); }
                 })
             }
             AtomPlan::Identity { role, terminal } => {
-                fields
+                let field = fields
                     .get(role)
                     .ok_or_else(|| internal("walker identity role absent"))?;
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));
                 let value = field_value(construction, role, &argument, &field_locals)?;
                 let copy = terminal_mode(validated, terminal)? == VisitMode::Copy;
                 Some(if copy {
-                    if has_accessor(construction, role) {
-                        quote! { #walker(visitor, #value); }
-                    } else {
-                        quote! { #walker(visitor, *#value); }
-                    }
+                    let value = copy_value(field, value);
+                    quote! { #walker(visitor, #value); }
                 } else {
                     quote! { #walker(visitor, #value); }
                 })
@@ -897,9 +892,10 @@ fn field_value(
     fields: &HashMap<String, syn::Ident>,
 ) -> syn::Result<TokenStream> {
     let field = construction.field(role)?;
-    if let Some(method) = field.accessor() {
+    if field.accessor_mode().is_some() {
+        let method = field.name();
         Ok(quote! { #whole.#method() })
-    } else if construction.has_private_fields() {
+    } else if needs_whole_value(construction) {
         let role = field.name();
         Ok(quote! { &#whole.#role })
     } else {
@@ -909,12 +905,20 @@ fn field_value(
         Ok(quote! { #local })
     }
 }
-fn has_accessor(construction: &ConstructionPlan, role: &str) -> bool {
+
+fn copy_value(field: &ConstructionFieldPlan, value: TokenStream) -> TokenStream {
+    if field.accessor_mode() == Some(AccessorMode::Copy) {
+        value
+    } else {
+        quote! { *#value }
+    }
+}
+
+fn needs_whole_value(construction: &ConstructionPlan) -> bool {
     construction
         .fields()
         .iter()
-        .find(|field| field.name_key() == role)
-        .is_some_and(ConstructionFieldPlan::has_accessor)
+        .any(|field| field.accessor_mode().is_some())
 }
 fn category_argument(category: &str) -> String {
     snake_case(category)
@@ -952,6 +956,72 @@ mod tests {
     )]
     use quote::ToTokens;
     use syn::visit::Visit;
+
+    #[test]
+    fn invariant_mixed_fields_visit_through_sealed_access_modes_in_form_order() {
+        let plan = crate::test_support::invariant_access_semantic_plan();
+        let items = super::emit(&plan).expect("mixed invariant visitors emit");
+        let visitor = items
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { kind: crate::NamedKind::Trait, name } if name == "Visitor"))
+            .expect("Visitor trait")
+            .tokens
+            .to_string();
+        assert!(
+            visitor.contains("fn visit_node (& mut self , node : & Node)"),
+            "borrowed category callback signature: {visitor}",
+        );
+        let walker = items
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "walk_walk_mode"
+                )
+            })
+            .expect("WalkMode walker");
+        let syn::Item::Fn(walker) = syn::parse2::<syn::File>(walker.tokens.clone())
+            .expect("WalkMode walker parses")
+            .items
+            .into_iter()
+            .next()
+            .expect("WalkMode walker item")
+        else {
+            panic!("WalkMode walker is a function");
+        };
+        let source = walker.to_token_stream().to_string();
+        let calls = walker
+            .block
+            .stmts
+            .iter()
+            .filter_map(|statement| match statement {
+                syn::Stmt::Expr(expression, _) => Some(expression.to_token_stream().to_string()),
+                syn::Stmt::Local(_) | syn::Stmt::Item(_) | syn::Stmt::Macro(_) => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            calls,
+            [
+                "walk_plain (visitor , * & walk_mode_2 . plain)",
+                "walk_mode (visitor , walk_mode_2 . mode ())",
+                "visitor . visit_node (walk_mode_2 . child ())",
+                "walk_self_reference_spelling (visitor , walk_mode_2 . spelling ())",
+                "walk_marker (visitor , * & walk_mode_2 . visitor)",
+            ],
+            "access levels and callbacks must follow declaration/form order",
+        );
+        assert!(source.contains("walk_mode_2 : & WalkMode"), "{source}");
+        assert!(!source.contains("let WalkMode {"), "{source}");
+        assert!(!source.contains("* walk_mode_2 . mode ()"), "{source}");
+        assert!(!source.contains("& walk_mode_2 . child ()"), "{source}");
+        assert!(!source.contains("walk_mode_2 . mode)"), "{source}");
+        assert!(!source.contains("walk_mode_2 . child)"), "{source}");
+        assert!(!source.contains("walk_mode_2 . spelling)"), "{source}");
+    }
 
     #[test]
     fn generated_walker_locals_are_hygienic_across_abi_and_helper_names() {
@@ -1041,7 +1111,8 @@ mod tests {
             "fn walk_token < V : Visitor + ? Sized > (visitor : & mut V , visitor_2 : & Token)",
             "visitor . visit_token (visitor_2)",
             "fn walk_walk_marker < V : Visitor + ? Sized > (visitor : & mut V , walk_marker_2 : & WalkMarker)",
-            "walk_marker (visitor , walk_marker_2 . marker ())",
+            "let WalkMarker { marker } = walk_marker_2",
+            "walk_marker (visitor , * marker)",
             "let FieldToken { visitor : visitor_2 } = field_token",
             "BranchToken :: Marker (walk_marker_2) => walk_marker (visitor , * walk_marker_2)",
             "fn walk_raw_branch_token < V : Visitor + ? Sized > (visitor : & mut V , payload : & RawBranchToken)",
@@ -1070,15 +1141,15 @@ mod tests {
     }
 
     #[test]
-    fn copy_identity_and_mixed_checked_fields_use_explicit_access_modes() {
+    fn temporary_checked_fields_follow_direct_walker_paths() {
         let expansion = crate::test_support::access_modes_expansion();
         let expected: &[(&str, &[&str])] = &[
             ("walk_public_identity", &["walk_flag (visitor , * flag)"]),
             (
                 "walk_mixed_access",
                 &[
-                    "walk_flag (visitor , mixed_access . hidden ())",
-                    "visitor . visit_child (\u{26} mixed_access . child)",
+                    "walk_flag (visitor , * hidden)",
+                    "visitor . visit_child (child)",
                 ],
             ),
         ];

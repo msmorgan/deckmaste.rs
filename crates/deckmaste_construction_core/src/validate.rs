@@ -4618,7 +4618,7 @@ fn resolve_local_feature(
                 visiting,
             ),
             feature::FeatureExpr::MatchVocab { role, arms } => {
-                let refined = invariant.legacy_refinement(&identifier_key(role)).and_then(
+                let refined = known_invariant_variant(invariant, &identifier_key(role)).and_then(
                     |refinement_variant| {
                         arms.iter()
                             .find(|(variant, _)| {
@@ -4640,6 +4640,21 @@ fn resolve_local_feature(
     );
     visiting.remove(place);
     resolved
+}
+
+fn known_invariant_variant<'a>(invariant: &'a InvariantPlan, role: &str) -> Option<&'a syn::Ident> {
+    let [alternative] = invariant.alternatives() else {
+        return None;
+    };
+    alternative.atoms().iter().find_map(|atom| {
+        let [PredicateMemberPlan::Variant(member)] = atom.allowed() else {
+            return None;
+        };
+        atom.subject()
+            .role()
+            .is_some_and(|candidate| identifier_key(candidate) == role)
+            .then_some(member)
+    })
 }
 
 fn equation_for_place<'a>(
@@ -8799,19 +8814,37 @@ pub(crate) mod tests {
         );
         assert!(validated.dynamic_number_constructions().contains("leaf"));
 
-        let refinements = validated
+        let invariant_access = validated
             .semantic()
             .constructions()
             .iter()
-            .filter_map(|construction| {
-                construction
-                    .fields()
-                    .iter()
-                    .find_map(|field| construction.legacy_refinement(&field.name_key()))
-                    .map(ToString::to_string)
+            .flat_map(|construction| {
+                construction.fields().iter().filter_map(|field| {
+                    field.accessor_mode().map(|mode| {
+                        (
+                            construction.construction_id().to_owned(),
+                            field.name_key(),
+                            mode,
+                        )
+                    })
+                })
             })
             .collect::<Vec<_>>();
-        assert_eq!(refinements, ["Solo", "Leaf"]);
+        assert_eq!(
+            invariant_access,
+            [
+                (
+                    "solo".to_owned(),
+                    "mode".to_owned(),
+                    crate::semantic::AccessorMode::Copy,
+                ),
+                (
+                    "document".to_owned(),
+                    "subject".to_owned(),
+                    crate::semantic::AccessorMode::Borrow,
+                ),
+            ],
+        );
 
         let terminal = |name| {
             validated

@@ -22,6 +22,7 @@ use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::AccessorMode;
 use crate::semantic::AtomPlan;
 use crate::semantic::BindingPlan;
 use crate::semantic::BindingRenderPlan;
@@ -41,9 +42,6 @@ use crate::semantic::VocabPlan;
 )]
 pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = validated.constructions();
-    for construction in constructions {
-        construction.validate_legacy_refinement_projection()?;
-    }
     let roots = validated
         .roots()
         .iter()
@@ -644,15 +642,12 @@ fn render_arms(
                 let category = ident(construction.category());
                 quote! { #category }
             };
-            let private = construction.has_private_fields();
-            let whole = private.then(|| allocator.allocate(construction.construction_id()));
+            let whole = needs_whole_value(construction)
+                .then(|| allocator.allocate(construction.construction_id()));
             let mut field_locals = HashMap::new();
             let pattern = if construction.fields().is_empty() {
                 quote! { #qualifier::#variant(#element) }
-            } else if private {
-                let whole = whole
-                    .as_ref()
-                    .ok_or_else(|| internal("private construction lacks a whole local"))?;
+            } else if let Some(whole) = &whole {
                 quote! { #qualifier::#variant(#whole) }
             } else {
                 let fields = construction
@@ -765,7 +760,7 @@ fn render_atoms(
                     let value = field_value(construction, role, locals)?;
                     if let Some(vocab) = find_vocab(validated, terminal) {
                         let function = ident(&format!("render_{}", snake_case(vocab.name())));
-                        let value = copy_value(construction, role, value);
+                        let value = copy_value(construction, role, value)?;
                         Ok(quote! { #function(#call_writer, #value); })
                     } else if let Some(codec) = find_signed_decimal(validated, terminal) {
                         let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
@@ -776,7 +771,7 @@ fn render_atoms(
                             return Err(internal("lex terminal lacks runtime render binding"));
                         };
                         let value = match binding.traversal().mode() {
-                            VisitMode::Copy => copy_value(construction, role, value),
+                            VisitMode::Copy => copy_value(construction, role, value)?,
                             VisitMode::Borrowed => value,
                         };
                         Ok(quote! { #function(#call_writer, #value); })
@@ -788,7 +783,7 @@ fn render_atoms(
                         .ok_or_else(|| internal("resolved identity role is absent"))?;
                     let value = field_value(construction, role, locals)?;
                     if find_context_identity(validated, field.terminal()).is_some() {
-                        let value = copy_value(construction, role, value);
+                        let value = copy_value(construction, role, value)?;
                         Ok(quote! { #method_writer.identity((#value).surface(context)); })
                     } else {
                         let binding = find_binding(validated, field.terminal())?;
@@ -798,7 +793,7 @@ fn render_atoms(
                         {
                             BindingRenderPlan::Runtime(function) => {
                                 let value = match binding.traversal().mode() {
-                                    VisitMode::Copy => copy_value(construction, role, value),
+                                    VisitMode::Copy => copy_value(construction, role, value)?,
                                     VisitMode::Borrowed => value,
                                 };
                                 Ok(quote! { #function(#call_writer, #value, context); })
@@ -815,7 +810,7 @@ fn render_atoms(
                                     )
                                 });
                                 let value = match binding.traversal().mode() {
-                                    VisitMode::Copy => copy_value(construction, role, value),
+                                    VisitMode::Copy => copy_value(construction, role, value)?,
                                     VisitMode::Borrowed => value,
                                 };
                                 Ok(quote! { match #value { #(#match_arms),* } })
@@ -908,7 +903,7 @@ fn render_owner(
             let value = field_value(construction, role, locals)?;
             if let Some(vocab) = find_vocab(validated, terminal) {
                 let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
-                let value = copy_value(construction, role, value);
+                let value = copy_value(construction, role, value)?;
                 let arms = vocab.variants().iter().map(|variant| {
                     let member =
                         emitted_ident(&identifier_key(variant.name()), variant.name().span());
@@ -947,7 +942,7 @@ fn render_owner(
             let value = field_value(construction, role, locals)?;
             if let Some(identity) = find_context_identity(validated, terminal) {
                 let ty = identity.ident();
-                let value = copy_value(construction, role, value);
+                let value = copy_value(construction, role, value)?;
                 let arms = identity.arms().iter().map(|arm| {
                     let member = arm.variant();
                     let stable_id = syn::LitStr::new(
@@ -1278,7 +1273,7 @@ fn feature_expr(
                         field_value(construction, &identifier_key(writer_role), locals)?;
                     (
                         vocabulary.to_owned(),
-                        copy_value(construction, &identifier_key(writer_role), writer_value),
+                        copy_value(construction, &identifier_key(writer_role), writer_value)?,
                     )
                 }
                 ConstructionFieldKind::Identity => {
@@ -1300,7 +1295,7 @@ fn feature_expr(
                 quote! { #ty::#variant => #value }
             });
             let role_value = field_value(construction, &role_key, locals)?;
-            let role_value = copy_value(construction, &role_key, role_value);
+            let role_value = copy_value(construction, &role_key, role_value)?;
             quote! { match #role_value { #(#match_arms),* } }
         }
     })
@@ -1387,7 +1382,9 @@ fn emit_feature_helper(
         }).ok_or_else(|| internal("feature helper construction lacks equation"))?;
         let variant = ident(construction.category_variant());
         let element = ident(construction.element_type());
-        if let FeatureExpr::MatchVocab { role, arms: values } = equation.value() {
+        if let FeatureExpr::MatchVocab { role, arms: values } = equation.value()
+            && !needs_whole_value(construction)
+        {
             let field = construction.field(&identifier_key(role))?;
             let field_type = ident(field.terminal());
             let other_fields = construction
@@ -1417,7 +1414,13 @@ fn emit_feature_helper(
                 &mut arm_allocator,
             );
             let value = feature_expr(validated, construction, equation.value(), feature, &locals)?;
-            entries.push((pattern, value.to_string(), value));
+            let value_key = value.to_string();
+            let group_key = if needs_whole_value(construction) || !roles.is_empty() {
+                format!("{}:{value_key}", construction.construction_id())
+            } else {
+                value_key
+            };
+            entries.push((pattern, group_key, value));
         }
     }
     let mut groups: Vec<(String, TokenStream, Vec<TokenStream>)> = Vec::new();
@@ -1543,16 +1546,13 @@ fn feature_constant_pattern(
             },
         );
     }
-    if construction.has_private_fields() {
-        let whole = (!roles.is_empty()).then(|| allocator.allocate(construction.construction_id()));
-        let pattern = whole.as_ref().map_or_else(
-            || quote! { #category::#variant(_) },
-            |whole| quote! { #category::#variant(#whole) },
-        );
+    if needs_whole_value(construction) {
+        let whole = allocator.allocate(construction.construction_id());
+        let pattern = quote! { #category::#variant(#whole) };
         return (
             pattern,
             RenderLocals {
-                whole,
+                whole: Some(whole),
                 fields: HashMap::new(),
                 category: TokenStream::new(),
             },
@@ -1572,12 +1572,7 @@ fn feature_constant_pattern(
             }
             continue;
         }
-        let refined = construction
-            .legacy_refinement(&identifier_key(name))
-            .is_some();
-        let pattern = if refined {
-            quote! { #name: _ }
-        } else if field.kind() == ConstructionFieldKind::Lex {
+        let pattern = if field.kind() == ConstructionFieldKind::Lex {
             if let Some(vocab) = find_vocab(validated, field.terminal()) {
                 let ty = ident(vocab.name());
                 let variants = vocab.variants().iter().map(|variant| {
@@ -1735,17 +1730,14 @@ fn field_value(
     locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
     let field = construction.field(role)?;
-    if let Some(method) = field.accessor() {
+    if field.accessor_mode().is_some() {
         let whole = locals
             .whole
             .as_ref()
-            .ok_or_else(|| internal("checked render accessor lacks its allocated whole local"))?;
+            .ok_or_else(|| internal("render accessor lacks its allocated whole local"))?;
+        let method = field.name();
         Ok(quote! { #whole.#method() })
-    } else if construction.has_private_fields() {
-        let whole = locals
-            .whole
-            .as_ref()
-            .ok_or_else(|| internal("private render field lacks its allocated whole local"))?;
+    } else if let Some(whole) = &locals.whole {
         let role = field.name();
         Ok(quote! { &#whole.#role })
     } else {
@@ -1757,20 +1749,24 @@ fn field_value(
     }
 }
 
-fn copy_value(construction: &ConstructionPlan, role: &str, value: TokenStream) -> TokenStream {
-    if has_accessor(construction, role) {
+fn copy_value(
+    construction: &ConstructionPlan,
+    role: &str,
+    value: TokenStream,
+) -> syn::Result<TokenStream> {
+    let field = construction.field(role)?;
+    Ok(if field.accessor_mode() == Some(AccessorMode::Copy) {
         value
     } else {
         quote! { *#value }
-    }
+    })
 }
 
-fn has_accessor(construction: &ConstructionPlan, role: &str) -> bool {
+fn needs_whole_value(construction: &ConstructionPlan) -> bool {
     construction
         .fields()
         .iter()
-        .find(|field| field.name_key() == role)
-        .is_some_and(ConstructionFieldPlan::has_accessor)
+        .any(|field| field.accessor_mode().is_some())
 }
 
 fn render_category_name(category: &str, root: bool) -> syn::Ident {
@@ -1808,6 +1804,142 @@ mod tests {
         reason = "literal full-surface structural oracles retain detailed mismatch output"
     )]
     use quote::ToTokens;
+
+    #[test]
+    fn invariant_mixed_fields_render_through_sealed_access_modes() {
+        let plan = crate::test_support::invariant_access_semantic_plan();
+        assert!(
+            plan.boxed_fields()
+                .contains(&("writer".to_owned(), "child".to_owned()))
+        );
+        let ast = crate::emit::ast::emit(&plan)
+            .expect("mixed invariant AST emits")
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for fragment in [
+            "pub struct WalkMode { pub plain : Plain , mode : Mode , child : Box < Node > , spelling : SelfReferenceSpelling , pub visitor : Marker }",
+            "pub const fn mode (& self) -> Mode",
+            "pub const fn child (& self) -> & Node",
+            "pub const fn spelling (& self) -> SelfReferenceSpelling",
+        ] {
+            assert!(
+                ast.contains(fragment),
+                "missing AST evidence `{fragment}`: {ast}"
+            );
+        }
+        let items = super::emit(&plan).expect("mixed invariant render emits");
+        let render = items
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "render_node"
+                )
+            })
+            .expect("Node render helper")
+            .tokens
+            .to_string();
+        let feature = items
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "agreement_for_node"
+                )
+            })
+            .expect("Node agreement helper")
+            .tokens
+            .to_string();
+        let number_feature = items
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "number_for_node"
+                )
+            })
+            .expect("Node number helper")
+            .tokens
+            .to_string();
+
+        for fragment in [
+            "Node :: Writer (writer_2)",
+            "render_plain (writer , * & writer_2 . plain)",
+            "render_mode (writer , writer_2 . mode ())",
+            "render_node (writer , writer_2 . child () , context)",
+            "writer . identity ((writer_2 . spelling ()) . surface (context))",
+            "render_marker (writer , * & writer_2 . visitor)",
+        ] {
+            assert!(render.contains(fragment), "missing `{fragment}`: {render}");
+        }
+        for forbidden in [
+            "WalkMode {",
+            "* writer_2 . mode ()",
+            "& writer_2 . child ()",
+            "writer_2 . mode)",
+            "writer_2 . child)",
+            "writer_2 . spelling)",
+        ] {
+            assert!(
+                !render.contains(forbidden),
+                "forbidden invariant projection `{forbidden}`: {render}",
+            );
+        }
+        assert!(
+            feature.contains("Node :: Writer (writer) => agreement_for_mode (writer . mode ())"),
+            "feature helper must use the Copy mode accessor: {feature}",
+        );
+        assert!(!feature.contains("WalkMode {"), "{feature}");
+        assert!(!feature.contains("* writer . mode ()"), "{feature}");
+        assert!(
+            number_feature
+                .contains("Node :: Writer (writer) => number_for_node (writer . child ())"),
+            "feature helper must use the borrowed child accessor: {number_feature}",
+        );
+        assert!(!number_feature.contains("WalkMode {"), "{number_feature}");
+        assert!(
+            !number_feature.contains("& writer . child ()"),
+            "{number_feature}"
+        );
+    }
+
+    #[test]
+    fn invariant_compound_membership_renders_without_a_legacy_projection_gate() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Mode { One = "one", Two = "two", Three = "three", }
+            construction only: Root {
+                element Only { mode: lex Mode, }
+                require mode in [One, Two];
+                form only = lex(mode);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("compound membership emits through the generated invariant AST");
+        let render = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.is_none()))
+            .expect("compound fixture root render")
+            .tokens
+            .to_string();
+        assert!(render.contains("Self :: Only (only)"), "{render}");
+        assert!(
+            render.contains("render_mode (writer , only . mode ())"),
+            "{render}"
+        );
+        assert!(!render.contains("Only { mode }"), "{render}");
+    }
 
     #[test]
     fn generated_morphology_render_owners_include_the_realized_feature() {
@@ -1889,8 +2021,8 @@ mod tests {
             "render_marker (writer , * payload)",
             "WriterFieldNode { r#writer : writer_2 }",
             "render_marker (writer , * writer_2)",
-            "Keyword :: Where (where_value)",
-            "render_marker (writer , where_value . marker ())",
+            "Keyword :: Where (KeywordNode { marker })",
+            "render_marker (writer , * marker)",
             "map (| where_value |",
         ] {
             assert!(source.contains(fragment), "missing `{fragment}`: {source}");
@@ -2002,9 +2134,9 @@ mod tests {
             "render_child (writer , child)",
             "fn agreement_for_agreement_for_child (agreement_for_child_2 : & AgreementForChild)",
             "match agreement_for_child_2",
-            "agreement_for_child (wrapped . child ())",
-            "CheckedRender :: Writer (writer_2)",
-            "render_marker (writer , writer_2 . marker ())",
+            "agreement_for_child (child)",
+            "CheckedRender :: Writer (CheckedRenderNode { marker })",
+            "render_marker (writer , * marker)",
         ] {
             assert!(
                 source.contains(fragment),
@@ -2017,7 +2149,6 @@ mod tests {
             "writer : & mut Writer , writer : WriterWord",
             "writer : & mut Writer , render_child : & RenderChild",
             "fn agreement_for_agreement_for_child (agreement_for_child : & AgreementForChild)",
-            "CheckedRender :: Writer (writer)",
         ] {
             assert!(
                 !source.contains(shadowed),
@@ -2199,7 +2330,7 @@ mod tests {
             .expect("root write impl");
         let source = implementation.tokens.to_string();
         assert!(
-            source.contains("agreement_for_person (* person)"),
+            source.contains("agreement_for_person (only . person ())"),
             "the consuming verb operand uses the canonical helper from the explicit writer: {source}",
         );
     }
@@ -2249,7 +2380,7 @@ mod tests {
     }
 
     #[test]
-    fn mixed_checked_render_accesses_each_field_explicitly() {
+    fn temporary_checked_render_fields_follow_the_direct_path() {
         let expansion = crate::test_support::access_modes_expansion();
         let implementation = expansion
             .items()
@@ -2263,12 +2394,14 @@ mod tests {
             panic!("root render method");
         };
         let body = method.block.to_token_stream().to_string();
-        assert!(body.contains("mixed . hidden ()"));
-        assert!(body.contains("render_child (writer , \u{26} mixed . child)"));
+        assert!(body.contains("MixedAccess { hidden , child }"));
+        assert!(body.contains("match * hidden"));
+        assert!(body.contains("render_child (writer , child)"));
+        assert!(!body.contains(". hidden ()"));
     }
 
     #[test]
-    fn checked_feature_reads_use_the_declared_field_accessor() {
+    fn temporary_checked_feature_fields_follow_the_direct_path() {
         let expansion = crate::generate(quote::quote! {
             construction subject: Subject {
                 element SubjectNode {}
@@ -2309,9 +2442,12 @@ mod tests {
             "a category without an agreement parameter must not receive a stray argument: {source}",
         );
         assert!(
-            source.contains("render_predicate (writer , & checked_root . predicate)"),
-            "checked role rendering must still use its declared field access: {source}",
+            source.contains("CheckedRoot { subject , predicate }")
+                && source.contains("render_subject (writer , subject)")
+                && source.contains("render_predicate (writer , predicate)"),
+            "temporary checked metadata must not control field projection: {source}",
         );
+        assert!(!source.contains(". subject ()"), "{source}");
     }
 
     #[test]
@@ -2432,11 +2568,11 @@ mod tests {
         let root = parse(render[0]).to_token_stream().to_string();
         for fragment in [
             "Self :: Document (document)",
-            "render_expr (writer , & document . subject)",
-            "render_predicate (writer , & document . predicate , agreement_for_expr (& document . subject))",
+            "render_expr (writer , document . subject ())",
+            "render_predicate (writer , & document . predicate , agreement_for_expr (document . subject ()))",
             "Handle :: Primary => writer . identity (context . primary_name ())",
             "Handle :: Alias => writer . identity (context . alias_name ())",
-            "render_pair (writer , document . pair ())",
+            "render_pair (writer , & document . pair)",
             "writer . punctuation ('!')",
         ] {
             assert!(root.contains(fragment), "root render lacks `{fragment}`");
@@ -2451,12 +2587,12 @@ mod tests {
         );
         assert!(agreement.contains("mode : Mode :: Group , resource : _ }) => Agreement :: Bare"));
         assert!(agreement.contains("Expr :: Nested"));
-        assert!(agreement.contains("agreement_for_expr (nested . next ())"));
+        assert!(agreement.contains("agreement_for_expr (next)"));
 
         let number = parse(render[8]).to_token_stream().to_string();
         assert!(number.contains("mode : Mode :: Solo , resource : _ }) => Number :: Singular"));
         assert!(number.contains("mode : Mode :: Group , resource : _ }) => Number :: Plural"));
-        assert!(number.contains("number_for_expr (nested . next ())"));
+        assert!(number.contains("number_for_expr (next)"));
     }
     fn parse(item: &crate::GeneratedItem) -> syn::Item {
         syn::parse2::<syn::File>(item.tokens.clone())
