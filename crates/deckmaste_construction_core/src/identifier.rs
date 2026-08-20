@@ -138,6 +138,10 @@ pub(crate) fn feature_helper(feature: &str, category: &str) -> String {
     format!("{feature}_for_{}", snake_case(category))
 }
 
+pub(crate) fn lexeme_surface_helper(lexeme: &str) -> String {
+    format!("surface_for_{}", snake_case(lexeme))
+}
+
 /// Returns the legal deterministic spelling used for a generated local.
 ///
 /// Local bindings may originate in authored raw fields, so keywords receive a

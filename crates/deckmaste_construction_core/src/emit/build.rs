@@ -1456,7 +1456,8 @@ mod tests {
         let validated = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
                 vocab Marker { One = "one", }
-                lexeme Verbs { Act, }
+                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                lexeme Verbs using EnglishVerb { Act = "act", }
                 codec Pair {
                     atom = lex;
                     value_type = Pair;

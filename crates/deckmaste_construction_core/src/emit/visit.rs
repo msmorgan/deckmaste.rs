@@ -957,7 +957,8 @@ mod tests {
     fn generated_walker_locals_are_hygienic_across_abi_and_helper_names() {
         let expansion = crate::generate(quote::quote! {
             vocab Marker { One = "marker", }
-            lexeme VisitorLexeme { Act, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VisitorLexeme using EnglishVerb { Act = "act", }
             codec Token {
                 atom = lex;
                 value_type = Token;
@@ -1209,6 +1210,48 @@ mod tests {
             calls.visit_block(&item.block);
             assert_eq!(calls.0, expected, "{name} declared-form preorder");
         }
+    }
+
+    #[test]
+    fn generated_morphology_keeps_lexeme_visitor_callbacks() {
+        let expansion = crate::test_support::generated_morphology_expansion();
+        let syn::Item::Trait(visitor) = named(&expansion, "Visitor") else {
+            panic!("Visitor is a trait")
+        };
+        let callbacks = visitor
+            .items
+            .iter()
+            .filter_map(|item| {
+                let syn::TraitItem::Fn(method) = item else {
+                    return None;
+                };
+                matches!(
+                    method.sig.ident.to_string().as_str(),
+                    "visit_verb_lexeme" | "visit_noun_lexeme"
+                )
+                .then(|| {
+                    (
+                        method.sig.ident.to_string(),
+                        method.sig.inputs[1].to_token_stream().to_string(),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            callbacks,
+            [
+                ("visit_verb_lexeme".into(), "_verb : VerbLexeme".into(),),
+                ("visit_noun_lexeme".into(), "_noun : NounLexeme".into(),),
+            ],
+        );
+        assert!(matches!(
+            named(&expansion, "walk_verb_lexeme"),
+            syn::Item::Fn(_)
+        ));
+        assert!(matches!(
+            named(&expansion, "walk_noun_lexeme"),
+            syn::Item::Fn(_)
+        ));
     }
 
     #[test]

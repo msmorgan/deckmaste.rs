@@ -20,6 +20,7 @@ use crate::identifier::category_renderer;
 use crate::identifier::feature_helper;
 use crate::identifier::is_raw_keyword;
 use crate::identifier::key as identifier_key;
+use crate::identifier::lexeme_surface_helper;
 use crate::identifier::pascal_case;
 use crate::identifier::path_key;
 use crate::identifier::prefixed;
@@ -1776,6 +1777,35 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                     construction.name.span(),
                     errors,
                 );
+                for equation in &construction.equations {
+                    let ParsedFeatureValue::Match { role, .. } = &equation.value else {
+                        continue;
+                    };
+                    let feature = match &equation.target {
+                        ParsedFeaturePlace::Construction(feature)
+                        | ParsedFeaturePlace::Role { feature, .. } => feature,
+                    };
+                    let Some(vocab) = construction.element.fields.iter().find_map(|field| {
+                        (identifier_key(&field.name) == identifier_key(role))
+                            .then_some(&field.kind)
+                            .and_then(|kind| match kind {
+                                FieldKind::Lex(path) => Some(path_name(path)),
+                                FieldKind::Category(_) | FieldKind::Identity(_) => None,
+                            })
+                    }) else {
+                        continue;
+                    };
+                    let (spelling, display) = match feature {
+                        ParsedFeature::Agreement => ("agreement", "Agreement"),
+                        ParsedFeature::Number => ("number", "Number"),
+                    };
+                    names.register_value(
+                        &feature_helper(spelling, &vocab),
+                        &format!("generated {display} helper for vocab `{vocab}`"),
+                        role.span(),
+                        errors,
+                    );
+                }
             }
             Declaration::Vocab(vocab) => {
                 let name = identifier_key(&vocab.name);
@@ -1795,12 +1825,19 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                 );
             }
             Declaration::Lexeme(lexeme) => {
+                let name = identifier_key(&lexeme.name);
                 register_terminal_names(
                     &mut names,
-                    &identifier_key(&lexeme.name),
+                    &name,
                     "lexeme",
                     lexeme.name.span(),
                     false,
+                    errors,
+                );
+                names.register_value(
+                    &lexeme_surface_helper(&name),
+                    &format!("generated lexeme surface helper for `{name}`"),
+                    lexeme.name.span(),
                     errors,
                 );
             }
@@ -8104,7 +8141,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 78);
+        assert_eq!(expansion.plan().items().len(), 82);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -8427,7 +8464,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 78);
+        assert_eq!(expansion.plan().items().len(), 82);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -8559,7 +8596,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 78);
+        assert_eq!(emission.items().len(), 82);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

@@ -1,12 +1,15 @@
+use proc_macro2::Span;
 use quote::quote;
 
 use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
+use crate::identifier::lexeme_surface_helper;
 use crate::identifier::snake_case;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
+use crate::plan::NamedKind;
 use crate::plan::TerminalContribution;
 use crate::plan::TerminalKind;
 use crate::plan::TerminalVariantContribution;
@@ -102,6 +105,7 @@ pub(crate) fn emit(
                     tokens,
                     vec![origin.clone()],
                 ));
+                items.push(emit_lexeme_surface_helper(row, origin.clone())?);
                 contributions.push(TerminalContribution::new(
                     origin,
                     TerminalKind::Lexeme,
@@ -266,6 +270,54 @@ pub(crate) fn emit(
     Ok((items, contributions))
 }
 
+fn emit_lexeme_surface_helper(
+    lexeme: &crate::semantic::LexemePlan,
+    origin: DeclarationKey,
+) -> syn::Result<GeneratedItem> {
+    let function_name = lexeme_surface_helper(lexeme.name());
+    let function = emitted_ident(&function_name, lexeme.name_ident().span());
+    let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
+    let (feature_ty, feature_argument) = match lexeme.morphology().feature() {
+        crate::Feature::Agreement => (quote! { Agreement }, quote! { agreement }),
+        crate::Feature::Number => (quote! { Number }, quote! { number }),
+    };
+    let arms = lexeme
+        .surfaces()
+        .iter()
+        .map(|row| {
+            let member = emitted_ident(row.member(), Span::call_site());
+            let feature = match row.feature() {
+                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                    quote! { Agreement::ThirdPersonSingular }
+                }
+                macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                macro_ron::v2::SurfaceFeature::Fixed => {
+                    return Err(syn::Error::new(
+                        Span::call_site(),
+                        "sealed lexeme surface has an unsupported fixed feature",
+                    ));
+                }
+            };
+            let surface = syn::LitStr::new(row.surface(), Span::call_site());
+            Ok(quote! { (#ty::#member, #feature) => #surface })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(lexeme: #ty, #feature_argument: #feature_ty,) -> &'static str {
+                match (lexeme, #feature_argument) { #(#arms,)* }
+            }
+        },
+        vec![origin],
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(
@@ -357,6 +409,122 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(emitted, ["Mode", "ObjectStem", "ActionStem"]);
+    }
+
+    #[test]
+    fn generated_morphology_emits_total_surface_helpers() {
+        let expansion = crate::test_support::generated_morphology_expansion();
+        let selected = expansion
+            .items()
+            .iter()
+            .filter(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named { name, .. }
+                        if matches!(
+                            name.as_str(),
+                            "VerbLexeme"
+                                | "surface_for_verb_lexeme"
+                                | "NounLexeme"
+                                | "surface_for_noun_lexeme"
+                        )
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            selected.iter().map(|item| &item.key).collect::<Vec<_>>(),
+            [
+                &ItemKey::named_type("VerbLexeme"),
+                &ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name: "surface_for_verb_lexeme".into(),
+                },
+                &ItemKey::named_type("NounLexeme"),
+                &ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name: "surface_for_noun_lexeme".into(),
+                },
+            ]
+        );
+        assert_eq!(
+            selected[1].origins,
+            [crate::DeclarationKey::new(
+                crate::DeclarationKind::Lexeme,
+                "VerbLexeme",
+            )]
+        );
+        assert_eq!(
+            selected[3].origins,
+            [crate::DeclarationKey::new(
+                crate::DeclarationKind::Lexeme,
+                "NounLexeme",
+            )]
+        );
+        assert_eq!(
+            parse_item(selected[1]),
+            syn::parse_quote! {
+                fn surface_for_verb_lexeme(
+                    lexeme: VerbLexeme,
+                    agreement: Agreement,
+                ) -> &'static str {
+                    match (lexeme, agreement) {
+                        (VerbLexeme::InventedLemma, Agreement::Bare) => "deal",
+                        (VerbLexeme::InventedLemma, Agreement::ThirdPersonSingular) => "deals",
+                        (VerbLexeme::Be, Agreement::Bare) => "are",
+                        (VerbLexeme::Be, Agreement::ThirdPersonSingular) => "is",
+                    }
+                }
+            }
+        );
+        assert_eq!(
+            parse_item(selected[3]),
+            syn::parse_quote! {
+                fn surface_for_noun_lexeme(
+                    lexeme: NounLexeme,
+                    number: Number,
+                ) -> &'static str {
+                    match (lexeme, number) {
+                        (NounLexeme::TwoWords, Number::Singular) => "object",
+                        (NounLexeme::TwoWords, Number::Plural) => "objects",
+                    }
+                }
+            }
+        );
+
+        let source = expansion
+            .items()
+            .iter()
+            .filter(|item| {
+                selected.iter().any(|selected| selected.key == item.key)
+                    || matches!(
+                        &item.key,
+                        ItemKey::Impl { self_ty, trait_name: None } if self_ty == "Sentence"
+                    )
+            })
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            !source.contains("inflect"),
+            "legacy inflection call survived: {source}"
+        );
+        assert!(
+            !source.contains("\"invented_lemma\""),
+            "member spelling became a lemma: {source}"
+        );
+        assert!(
+            !source.contains("\"two_words\""),
+            "member spelling became a lemma: {source}"
+        );
+    }
+
+    fn parse_item(item: &crate::GeneratedItem) -> syn::Item {
+        syn::parse2::<syn::File>(item.tokens.clone())
+            .expect("generated item reparses")
+            .items
+            .into_iter()
+            .next()
+            .expect("generated item contains one item")
     }
     fn assert_enum(expansion: &crate::Expansion, name: &str, variants: &[&str], ordered: bool) {
         let item = expansion

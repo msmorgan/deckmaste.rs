@@ -43,6 +43,53 @@ pub(crate) fn representative_expansion() -> crate::Expansion {
     crate::generate(representative_tokens()).expect("representative declarations generate")
 }
 
+pub(crate) fn generated_morphology_tokens() -> proc_macro2::TokenStream {
+    quote! {
+        vocab Pronoun { It = "it", You = "you", }
+        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        morphology EnglishNoun { feature = Number; recipe = english_noun; }
+        lexeme VerbLexeme using EnglishVerb {
+            InventedLemma = "deal",
+            Be = "be" { Bare = "are", ThirdPersonSingular = "is", },
+        }
+        lexeme NounLexeme using EnglishNoun { TwoWords = "object", }
+        codec Noun {
+            generate declaration_noun {
+                closed = NounLexeme;
+                position = Noun;
+                kinds = [Type, Subtype];
+                feature = Number;
+            }
+        }
+
+        construction statement: Sentence {
+            element Statement { pronoun: lex Pronoun, noun: lex Noun, }
+            derive pronoun.agreement = match pronoun {
+                It => Values::ThirdPersonSingular,
+                You => Values::Bare,
+            };
+            derive verb.agreement = pronoun.agreement;
+            derive number = Values::Plural;
+            form statement = lex(pronoun) verb(VerbLexeme::InventedLemma) noun(noun);
+        }
+        construction question: Sentence {
+            element Question { pronoun: lex Pronoun, }
+            derive pronoun.agreement = match pronoun {
+                It => Values::ThirdPersonSingular,
+                You => Values::Bare,
+            };
+            derive verb.agreement = pronoun.agreement;
+            derive number = Values::Singular;
+            form question = verb(VerbLexeme::Be) lex(pronoun);
+        }
+        root Sentence { punctuation = "."; eoi = true; standalone_render = true; }
+    }
+}
+
+pub(crate) fn generated_morphology_expansion() -> crate::Expansion {
+    crate::generate(generated_morphology_tokens()).expect("generated morphology fixture generates")
+}
+
 pub(crate) fn representative_semantic_plan() -> crate::semantic::SemanticPlan {
     crate::validate_declarations(
         crate::parse_declarations(quote! {
@@ -360,7 +407,7 @@ pub(crate) fn vocab_matched_number_with_two_nouns_tokens() -> proc_macro2::Token
 #[test]
 fn synthetic_projection_fixture_generates() {
     let expansion = synthetic_projection_expansion();
-    assert_eq!(expansion.plan().items().len(), 78);
+    assert_eq!(expansion.plan().items().len(), 82);
     assert!(expansion.items().iter().any(|item| {
         matches!(
             &item.key,

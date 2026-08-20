@@ -1937,7 +1937,13 @@ impl TerminalPlan {
     pub(crate) fn expected_terminal_item_keys(&self) -> Vec<crate::ItemKey> {
         match self {
             Self::Vocab(vocab) => vec![crate::ItemKey::named_type(vocab.name())],
-            Self::Lexeme(lexeme) => vec![crate::ItemKey::named_type(lexeme.name())],
+            Self::Lexeme(lexeme) => vec![
+                crate::ItemKey::named_type(lexeme.name()),
+                crate::ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name: crate::identifier::lexeme_surface_helper(lexeme.name()),
+                },
+            ],
             Self::Binding(_)
             | Self::ContextIdentity(_)
             | Self::SignedDecimal(_)

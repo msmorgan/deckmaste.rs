@@ -29,9 +29,21 @@ pub enum Words {
 pub enum Nouns {
     Person,
 }
+fn surface_for_nouns(lexeme: Nouns, number: Number) -> &'static str {
+    match (lexeme, number) {
+        (Nouns::Person, Number::Singular) => "person",
+        (Nouns::Person, Number::Plural) => "persons",
+    }
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Verbs {
     Act,
+}
+fn surface_for_verbs(lexeme: Verbs, agreement: Agreement) -> &'static str {
+    match (lexeme, agreement) {
+        (Verbs::Act, Agreement::Bare) => "act",
+        (Verbs::Act, Agreement::ThirdPersonSingular) => "acts",
+    }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sign {
@@ -533,7 +545,7 @@ impl Action {
                             "lexeme:Verbs/Act",
                         ),
                         |writer| {
-                            writer.word(inflect(Verbs::Act, Agreement::Bare));
+                            writer.word(surface_for_verbs(Verbs::Act, Agreement::Bare));
                         },
                     );
                 render_node(writer, node);

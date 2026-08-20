@@ -14,6 +14,7 @@ use crate::identifier::category_renderer;
 use crate::identifier::emitted_ident;
 use crate::identifier::feature_helper;
 use crate::identifier::key as identifier_key;
+use crate::identifier::lexeme_surface_helper;
 use crate::identifier::snake_case;
 use crate::model::VisitMode;
 use crate::plan::DeclarationKey;
@@ -27,6 +28,7 @@ use crate::semantic::BindingRenderPlan;
 use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionFieldPlan;
 use crate::semantic::ConstructionPlan;
+use crate::semantic::LexemePlan;
 use crate::semantic::RootPlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::SignedDecimalPlan;
@@ -254,6 +256,12 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         ));
     }
 
+    items.extend(
+        collect_vocab_feature_helpers(validated)?
+            .into_iter()
+            .map(emit_vocab_feature_helper),
+    );
+
     if let Some(codec) = validated.runtime_signed_decimal() {
         let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
         let ty = codec.codec_ident();
@@ -287,6 +295,108 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         }
     }
     Ok(items)
+}
+
+struct VocabFeatureHelper<'a> {
+    feature: Feature,
+    vocab: &'a VocabPlan,
+    values: Vec<FeatureValue>,
+    origins: Vec<DeclarationKey>,
+}
+
+fn collect_vocab_feature_helpers(
+    validated: &SemanticPlan,
+) -> syn::Result<Vec<VocabFeatureHelper<'_>>> {
+    let mut helpers: Vec<VocabFeatureHelper<'_>> = Vec::new();
+    for construction in validated.constructions() {
+        for equation in validated.feature_equations(construction.construction_id()) {
+            let FeatureExpr::MatchVocab { role, arms } = equation.value() else {
+                continue;
+            };
+            let feature = match equation.target() {
+                FeaturePlace::Construction(feature) | FeaturePlace::Role { feature, .. } => {
+                    *feature
+                }
+            };
+            let field = construction.field(&identifier_key(role))?;
+            let vocab = find_vocab(validated, field.terminal()).ok_or_else(|| {
+                internal("sealed vocabulary feature match is not rooted in a vocabulary")
+            })?;
+            let values = vocab
+                .variants()
+                .iter()
+                .map(|variant| {
+                    arms.iter()
+                        .find(|(member, _)| {
+                            identifier_key(member.value()) == identifier_key(variant.name())
+                        })
+                        .map(|(_, value)| *value)
+                        .ok_or_else(|| {
+                            internal("sealed vocabulary feature match is not exhaustive")
+                        })
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            let origin = DeclarationKey::new(
+                DeclarationKind::Construction,
+                construction.construction_id(),
+            );
+            if let Some(existing) = helpers
+                .iter_mut()
+                .find(|helper| helper.feature == feature && helper.vocab.name() == vocab.name())
+            {
+                if existing.values != values {
+                    return Err(internal(&format!(
+                        "sealed vocabulary feature mapping is inconsistent for `{}.{}`",
+                        vocab.name(),
+                        feature_name(feature),
+                    )));
+                }
+                if !existing.origins.contains(&origin) {
+                    existing.origins.push(origin);
+                }
+            } else {
+                helpers.push(VocabFeatureHelper {
+                    feature,
+                    vocab,
+                    values,
+                    origins: vec![origin],
+                });
+            }
+        }
+    }
+    Ok(helpers)
+}
+
+fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
+    let function_name = feature_helper(feature_name(helper.feature), helper.vocab.name());
+    let function = ident(&function_name);
+    let ty = emitted_ident(helper.vocab.name(), helper.vocab.name_ident().span());
+    let return_ty = match helper.feature {
+        Feature::Agreement => quote! { Agreement },
+        Feature::Number => quote! { Number },
+    };
+    let arms = helper
+        .vocab
+        .variants()
+        .iter()
+        .zip(helper.values)
+        .map(|(variant, value)| {
+            let variant = emitted_ident(&identifier_key(variant.name()), variant.name().span());
+            let value = feature_value(value);
+            quote! { #ty::#variant => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(value: #ty) -> #return_ty {
+                match value { #(#arms,)* }
+            }
+        },
+        helper.origins,
+    )
 }
 
 fn signature_tail(parts: &[Option<TokenStream>]) -> TokenStream {
@@ -382,8 +492,10 @@ fn render_allocator(
                         reserve_bare_path(&mut allocator, path);
                     }
                 }
-                AtomPlan::VerbFixed { .. } => {
-                    allocator.reserve("inflect");
+                AtomPlan::VerbFixed { terminal, .. } => {
+                    let lexeme = find_lexeme(validated, terminal)
+                        .ok_or_else(|| internal("fixed verb lacks its sealed lexeme plan"))?;
+                    allocator.reserve(lexeme_surface_helper(lexeme.name()));
                     let equations = validated.feature_equations(construction.construction_id());
                     if let Some(equation) = equations.iter().find(|equation| {
                         matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == "verb")
@@ -422,6 +534,11 @@ fn render_allocator(
                             return Err(internal("noun terminal lacks runtime render binding"));
                         };
                         reserve_bare_path(&mut allocator, path);
+                    } else {
+                        let lexeme = validated.runtime_noun_lexeme().ok_or_else(|| {
+                            internal("declaration noun lacks its sealed lexeme plan")
+                        })?;
+                        allocator.reserve(lexeme_surface_helper(lexeme.name()));
                     }
                     allocator.reserve(feature_helper("number", construction.category()));
                 }
@@ -703,9 +820,16 @@ fn render_atoms(
                         }
                     }
                 }
-                AtomPlan::VerbFixed { path: variant, .. } => {
+                AtomPlan::VerbFixed {
+                    terminal,
+                    path: variant,
+                    ..
+                } => {
                     let agreement = verb_agreement(validated, construction, locals)?;
-                    Ok(quote! { #method_writer.word(inflect(#variant, #agreement)); })
+                    let lexeme = find_lexeme(validated, terminal)
+                        .ok_or_else(|| internal("fixed verb terminal lacks its lexeme plan"))?;
+                    let surface = ident(&lexeme_surface_helper(lexeme.name()));
+                    Ok(quote! { #method_writer.word(#surface(#variant, #agreement)); })
                 }
                 AtomPlan::OpenDeclaration(open) => {
                     render_open_declaration(validated, construction, open, locals, &method_writer)
@@ -926,29 +1050,20 @@ fn render_noun_atom(
 
     let noun = codec.codec_ident();
     let closed = codec.closed_lexeme();
-    let closed_arms = validated
+    let lexeme = validated
         .runtime_noun_lexeme()
-        .expect("validated declaration_noun has a closed lexeme")
-        .variants()
-        .iter()
-        .map(|variant| {
-            let surface = syn::LitStr::new(
-                &crate::identifier::snake_case(&variant.to_string()),
-                variant.span(),
-            );
-            quote! {
-                #noun::Lexeme(#closed::#variant) => {
-                    let surface = match #number(#category_value) {
-                        Number::Singular => #surface.to_owned(),
-                        Number::Plural => format!("{}s", #surface),
-                    };
-                    #method_writer.word(&surface);
-                }
-            }
-        });
+        .ok_or_else(|| internal("validated declaration noun lacks a closed lexeme plan"))?;
+    if lexeme.name() != closed.to_string() {
+        return Err(internal(
+            "declaration noun closed lexeme plan is inconsistent",
+        ));
+    }
+    let surface = ident(&lexeme_surface_helper(lexeme.name()));
     Ok(quote! {
         match #value {
-            #(#closed_arms,)*
+            #noun::Lexeme(lexeme) => {
+                #method_writer.word(#surface(*lexeme, #number(#category_value)));
+            }
             #noun::Declaration(declaration) => {
                 let surface = environment
                     .surface(declaration.id(), declaration.feature())
@@ -1520,6 +1635,21 @@ fn find_vocab<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a VocabPl
     None
 }
 
+fn find_lexeme<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a LexemePlan> {
+    validated
+        .terminals()
+        .iter()
+        .find_map(|terminal| match terminal {
+            TerminalPlan::Lexeme(lexeme) if lexeme.name() == name => Some(lexeme),
+            TerminalPlan::Lexeme(_)
+            | TerminalPlan::Vocab(_)
+            | TerminalPlan::Binding(_)
+            | TerminalPlan::ContextIdentity(_)
+            | TerminalPlan::SignedDecimal(_)
+            | TerminalPlan::DeclarationNoun(_) => None,
+        })
+}
+
 fn find_binding<'a>(validated: &'a SemanticPlan, name: &str) -> syn::Result<&'a BindingPlan> {
     for terminal in validated.terminals() {
         if let TerminalPlan::Binding(row) = terminal
@@ -1633,7 +1763,8 @@ mod tests {
     fn raw_fields_and_keyword_checked_constructions_lower_to_valid_render_locals() {
         let expansion = crate::generate(quote::quote! {
             vocab Marker { One = "marker", }
-            lexeme Verbs { Act, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Act = "act", }
 
             construction payload: PayloadBox {
                 element PayloadNode { r#payload: lex Marker, }
@@ -1691,7 +1822,8 @@ mod tests {
         let expansion = crate::generate(quote::quote! {
             vocab Marker { One = "marker", }
             vocab WriterWord { One = "writer", }
-            lexeme Verbs { Act, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Act = "act", }
             identity SelfRef {
                 value_type = SelfRef;
                 lexical = Lexical::SelfRef;
@@ -1778,7 +1910,7 @@ mod tests {
         for fragment in [
             "ContextualAction { agreement : agreement_2 }",
             "render_marker (writer , * agreement_2)",
-            "inflect (Verbs :: Act , agreement)",
+            "surface_for_verbs (Verbs :: Act , agreement)",
             "RootNode { writer : writer_2 , context : context_2",
             "render_marker (writer , * writer_2)",
             "writer . identity (context . card_name ())",
@@ -1836,6 +1968,80 @@ mod tests {
     }
 
     #[test]
+    fn generated_vocab_feature_helpers_are_defined() {
+        let expansion = crate::test_support::generated_morphology_expansion();
+        let helper = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "agreement_for_pronoun"
+                )
+            })
+            .expect("the vocabulary feature helper is emitted");
+        assert_eq!(
+            helper
+                .origins
+                .iter()
+                .map(crate::DeclarationKey::name)
+                .collect::<Vec<_>>(),
+            ["statement", "question"],
+        );
+        assert_eq!(
+            parse(helper),
+            syn::parse_quote! {
+                fn agreement_for_pronoun(value: Pronoun) -> Agreement {
+                    match value {
+                        Pronoun::It => Agreement::ThirdPersonSingular,
+                        Pronoun::You => Agreement::Bare,
+                    }
+                }
+            }
+        );
+    }
+
+    #[test]
+    fn inconsistent_vocab_feature_helpers_are_rejected_as_sealed_plan_errors() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Pronoun { It = "it", You = "you", }
+                construction first: Root {
+                    element First { pronoun: lex Pronoun, }
+                    derive pronoun.agreement = match pronoun {
+                        It => Values::ThirdPersonSingular,
+                        You => Values::Bare,
+                    };
+                    derive agreement = pronoun.agreement;
+                    form first = lex(pronoun);
+                }
+                construction second: Root {
+                    element Second { pronoun: lex Pronoun, }
+                    derive pronoun.agreement = match pronoun {
+                        It => Values::Bare,
+                        You => Values::ThirdPersonSingular,
+                    };
+                    derive agreement = pronoun.agreement;
+                    form second = lex(pronoun);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("inconsistent sealed-helper fixture parses"),
+        )
+        .expect("each exhaustive equation validates independently");
+
+        let error = super::emit(validated.semantic())
+            .expect_err("one vocabulary helper cannot represent inconsistent sealed mappings");
+        assert_eq!(
+            error.to_string(),
+            "sealed vocabulary feature mapping is inconsistent for `Pronoun.agreement`",
+        );
+    }
+
+    #[test]
     fn zero_noun_vocab_match_emits_exact_category_feature_arms() {
         let validated = crate::validate_declarations(
             crate::parse_declarations(
@@ -1887,7 +2093,10 @@ mod tests {
     fn explicit_lexical_feature_dependencies_drive_render_lowering() {
         let expansion = crate::generate(quote::quote! {
             vocab Person { One = "one", Many = "many", }
-            lexeme Verbs { Be, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb {
+                Be = "be" { Bare = "are", ThirdPersonSingular = "is", },
+            }
             construction only: Root {
                 element Only { person: lex Person, }
                 require person is One;

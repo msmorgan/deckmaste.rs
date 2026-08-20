@@ -422,7 +422,52 @@ mod tests {
         );
         assert_eq!(
             contribution.expected_generated_item_keys(),
-            [crate::ItemKey::named_type("VerbLexeme")]
+            [
+                crate::ItemKey::named_type("VerbLexeme"),
+                crate::ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name: "surface_for_verb_lexeme".into(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn generated_morphology_lexeme_changes_semantic_expected_item_inventory() {
+        fn expected(tokens: proc_macro2::TokenStream) -> Vec<crate::ItemKey> {
+            crate::validate_declarations(
+                crate::parse_declarations(tokens).expect("inventory fixture parses"),
+            )
+            .expect("inventory fixture validates")
+            .semantic()
+            .terminals()
+            .iter()
+            .flat_map(crate::semantic::TerminalPlan::expected_terminal_item_keys)
+            .collect()
+        }
+
+        let without_lexeme = expected(quote::quote! {
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        let with_lexeme = expected(quote::quote! {
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme NounLexeme using EnglishNoun { Object = "object", }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+
+        assert_eq!(without_lexeme, []);
+        assert_eq!(
+            with_lexeme,
+            [
+                crate::ItemKey::named_type("NounLexeme"),
+                crate::ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name: "surface_for_noun_lexeme".into(),
+                },
+            ],
         );
     }
 
@@ -1586,7 +1631,7 @@ mod tests {
             .map(|item| &item.key)
             .collect::<Vec<_>>();
         assert_eq!(
-            &keys[..8],
+            &keys[..10],
             &[
                 &ItemKey::Named {
                     kind: NamedKind::Type,
@@ -1617,12 +1662,20 @@ mod tests {
                     name: "Nouns".into()
                 },
                 &ItemKey::Named {
+                    kind: NamedKind::Function,
+                    name: "surface_for_nouns".into()
+                },
+                &ItemKey::Named {
                     kind: NamedKind::Type,
                     name: "Verbs".into()
                 },
+                &ItemKey::Named {
+                    kind: NamedKind::Function,
+                    name: "surface_for_verbs".into()
+                },
             ]
         );
-        assert_eq!(keys.len(), 64);
+        assert_eq!(keys.len(), 66);
         assert!(keys.iter().any(|key| {
             matches!(
                 key,
@@ -1652,7 +1705,7 @@ mod tests {
             first
                 .items()
                 .iter()
-                .take(8)
+                .take(10)
                 .map(|item| item
                     .origins
                     .iter()
@@ -1667,6 +1720,8 @@ mod tests {
                 vec!["action"],
                 vec!["Words"],
                 vec!["Nouns"],
+                vec!["Nouns"],
+                vec!["Verbs"],
                 vec!["Verbs"],
             ]
         );
