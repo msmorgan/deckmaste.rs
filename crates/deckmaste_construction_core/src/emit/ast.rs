@@ -5,12 +5,17 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::identifier::emitted_ident;
+use crate::identifier::feature_helper;
+use crate::identifier::key as identifier_key;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
+use crate::semantic::AccessorMode;
+use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::FieldVisibilityPlan;
+use crate::semantic::PredicateSubjectPlan;
 use crate::semantic::SemanticPlan;
 
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
@@ -53,8 +58,23 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         items.push(GeneratedItem::new(
             ItemKey::named_type(construction.element_type()),
             tokens,
-            origins,
+            origins.clone(),
         ));
+        if !construction.fields().is_empty()
+            && construction
+                .fields()
+                .iter()
+                .any(|field| field.accessor_mode().is_some())
+        {
+            items.push(GeneratedItem::new(
+                ItemKey::Impl {
+                    trait_name: None,
+                    self_ty: construction.element_type().to_owned(),
+                },
+                emit_invariant_impl(plan, construction, &ident)?,
+                origins,
+            ));
+        }
     }
     Ok(items)
 }
@@ -102,7 +122,11 @@ fn emit_product(
         .iter()
         .map(|field| {
             let name = field.name();
-            let visibility = field_visibility(field.visibility());
+            let visibility = if field.accessor_mode().is_some() {
+                TokenStream::new()
+            } else {
+                field_visibility(field.visibility())
+            };
             let ty = field.value_type();
             let boxed = plan
                 .boxed_fields()
@@ -120,6 +144,306 @@ fn emit_product(
             #(#fields),*
         }
     })
+}
+
+fn emit_invariant_impl(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    ident: &syn::Ident,
+) -> syn::Result<TokenStream> {
+    let mut allocator = super::LocalAllocator::default();
+    if construction.invariant().requires_context() {
+        allocator.reserve("context");
+    }
+    let locals = construction
+        .fields()
+        .iter()
+        .map(|field| (field.name_key(), allocator.allocate_ident(field.name())))
+        .collect::<HashMap<_, _>>();
+    let mut parameters = construction
+        .fields()
+        .iter()
+        .map(|field| {
+            let name = field_local(&locals, field)?;
+            let ty = stored_field_type(plan, construction, field);
+            Ok(quote! { #name: #ty })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    if construction.invariant().requires_context() {
+        parameters.push(quote! { context: &ParseContext<'_> });
+    }
+
+    let mut subject_expressions = HashMap::new();
+    for alternative in construction.invariant().alternatives() {
+        for atom in alternative.atoms() {
+            let subject = atom.subject();
+            let key = subject.semantic_key();
+            if subject_expressions.contains_key(&key) {
+                continue;
+            }
+            subject_expressions.insert(
+                key,
+                constructor_subject_expression(plan, construction, subject, &locals)?,
+            );
+        }
+    }
+    let predicate =
+        super::emit_invariant_expression(construction.invariant(), &subject_expressions)?;
+    let context_guards = construction
+        .invariant()
+        .context_identity_fields()
+        .iter()
+        .map(|field| {
+            let local = locals
+                .get(&identifier_key(field))
+                .ok_or_else(|| internal("context identity field has no constructor local"))?;
+            Ok(quote! { #local.valid_in(context) })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let initializers = construction
+        .fields()
+        .iter()
+        .map(|field| {
+            let name = field.name();
+            let local = field_local(&locals, field)?;
+            Ok(if name == local {
+                quote! { #name }
+            } else {
+                quote! { #name: #local }
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let accessors = construction.fields().iter().filter_map(|field| {
+        let mode = field.accessor_mode()?;
+        let name = field.name();
+        let ty = field.value_type();
+        Some(match mode {
+            AccessorMode::Copy => quote! {
+                pub const fn #name(&self) -> #ty {
+                    self.#name
+                }
+            },
+            AccessorMode::Borrow => quote! {
+                pub const fn #name(&self) -> &#ty {
+                    &self.#name
+                }
+            },
+        })
+    });
+
+    Ok(quote! {
+        impl #ident {
+            pub fn new(
+                #(#parameters),*
+            ) -> Option<Self> {
+                if (#predicate) #(&& (#context_guards))* {
+                    Some(Self { #(#initializers),* })
+                } else {
+                    None
+                }
+            }
+
+            #(#accessors)*
+        }
+    })
+}
+
+fn constructor_subject_expression(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    subject: &PredicateSubjectPlan,
+    locals: &HashMap<String, syn::Ident>,
+) -> syn::Result<TokenStream> {
+    match subject {
+        PredicateSubjectPlan::CategoryRole { role, .. } => {
+            let field = construction.field(&identifier_key(role))?;
+            if field.kind() != ConstructionFieldKind::Category {
+                return Err(internal(
+                    "category predicate subject is not a category field",
+                ));
+            }
+            borrowed_field_expression(plan, construction, field, locals)
+        }
+        PredicateSubjectPlan::VocabRole { role, terminal } => {
+            let field = construction.field(&identifier_key(role))?;
+            if field.kind() != ConstructionFieldKind::Lex || field.terminal() != terminal {
+                return Err(internal(
+                    "vocabulary predicate subject is inconsistent with its field",
+                ));
+            }
+            let name = field_local(locals, field)?;
+            Ok(quote! { #name })
+        }
+        PredicateSubjectPlan::RoleFeature { role, feature } => resolve_constructor_feature(
+            plan,
+            construction,
+            &crate::feature::FeaturePlace::Role {
+                field: role.clone(),
+                feature: *feature,
+            },
+            &mut std::collections::HashSet::new(),
+            locals,
+        ),
+        PredicateSubjectPlan::ConstructionFeature(feature) => resolve_constructor_feature(
+            plan,
+            construction,
+            &crate::feature::FeaturePlace::Construction(*feature),
+            &mut std::collections::HashSet::new(),
+            locals,
+        ),
+    }
+}
+
+fn resolve_constructor_feature(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    place: &crate::feature::FeaturePlace,
+    visiting: &mut std::collections::HashSet<crate::feature::FeaturePlace>,
+    locals: &HashMap<String, syn::Ident>,
+) -> syn::Result<TokenStream> {
+    if let Some(crate::feature::FeatureResolution::Known(value)) =
+        plan.feature_resolution(construction.construction_id(), place)
+    {
+        return Ok(feature_value(value));
+    }
+    if !visiting.insert(place.clone()) {
+        return Err(internal(
+            "constructor feature expression contains a sealed cycle",
+        ));
+    }
+    let expression = if let Some(equation) = plan
+        .feature_equations(construction.construction_id())
+        .iter()
+        .find(|equation| equation.target() == place)
+    {
+        lower_constructor_feature_expression(
+            plan,
+            construction,
+            equation.value(),
+            visiting,
+            locals,
+        )?
+    } else if let crate::feature::FeaturePlace::Role { field, feature } = place {
+        let stored = construction.field(&identifier_key(field))?;
+        if stored.kind() != ConstructionFieldKind::Category {
+            return Err(internal(
+                "constructor feature subject lacks a sealed derivation",
+            ));
+        }
+        let function = emitted_ident(
+            &feature_helper(feature.key(), stored.terminal()),
+            proc_macro2::Span::call_site(),
+        );
+        let field = borrowed_field_expression(plan, construction, stored, locals)?;
+        quote! { #function(#field) }
+    } else {
+        return Err(internal(
+            "construction feature subject lacks a sealed derivation",
+        ));
+    };
+    visiting.remove(place);
+    Ok(expression)
+}
+
+fn lower_constructor_feature_expression(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    expression: &crate::feature::FeatureExpr,
+    visiting: &mut std::collections::HashSet<crate::feature::FeaturePlace>,
+    locals: &HashMap<String, syn::Ident>,
+) -> syn::Result<TokenStream> {
+    match expression {
+        crate::feature::FeatureExpr::Constant(value) => Ok(feature_value(*value.value())),
+        crate::feature::FeatureExpr::FromRole { role, feature } => resolve_constructor_feature(
+            plan,
+            construction,
+            &crate::feature::FeaturePlace::Role {
+                field: role.clone(),
+                feature: *feature,
+            },
+            visiting,
+            locals,
+        ),
+        crate::feature::FeatureExpr::MatchVocab { role, arms } => {
+            let field = construction.field(&identifier_key(role))?;
+            if field.kind() != ConstructionFieldKind::Lex {
+                return Err(internal(
+                    "constructor vocabulary feature source is not lexical",
+                ));
+            }
+            let source = field_local(locals, field)?;
+            let terminal = emitted_ident(field.terminal(), source.span());
+            let arms = arms.iter().map(|(variant, value)| {
+                let variant = variant.value();
+                let value = feature_value(*value);
+                quote! { #terminal::#variant => #value }
+            });
+            Ok(quote! { match #source { #(#arms),* } })
+        }
+    }
+}
+
+fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
+    match value {
+        crate::feature::FeatureValue::Bare => quote! { Agreement::Bare },
+        crate::feature::FeatureValue::ThirdPersonSingular => {
+            quote! { Agreement::ThirdPersonSingular }
+        }
+        crate::feature::FeatureValue::Singular => quote! { Number::Singular },
+        crate::feature::FeatureValue::Plural => quote! { Number::Plural },
+    }
+}
+
+fn borrowed_field_expression(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    field: &crate::semantic::ConstructionFieldPlan,
+    locals: &HashMap<String, syn::Ident>,
+) -> syn::Result<TokenStream> {
+    let name = field_local(locals, field)?;
+    if is_boxed(plan, construction, field) {
+        Ok(quote! { &*#name })
+    } else {
+        Ok(quote! { &#name })
+    }
+}
+
+fn field_local<'a>(
+    locals: &'a HashMap<String, syn::Ident>,
+    field: &crate::semantic::ConstructionFieldPlan,
+) -> syn::Result<&'a syn::Ident> {
+    locals
+        .get(&field.name_key())
+        .ok_or_else(|| internal("stored field has no constructor local"))
+}
+
+fn stored_field_type(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    field: &crate::semantic::ConstructionFieldPlan,
+) -> TokenStream {
+    let ty = field.value_type();
+    if is_boxed(plan, construction, field) {
+        quote! { Box<#ty> }
+    } else {
+        quote! { #ty }
+    }
+}
+
+fn is_boxed(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    field: &crate::semantic::ConstructionFieldPlan,
+) -> bool {
+    plan.boxed_fields()
+        .contains(&(construction.construction_id().to_owned(), field.name_key()))
+}
+
+fn internal(detail: &str) -> syn::Error {
+    syn::Error::new(
+        proc_macro2::Span::call_site(),
+        format!("internal invariant constructor emitter: {detail}"),
+    )
 }
 
 fn field_visibility(visibility: &FieldVisibilityPlan) -> TokenStream {
@@ -141,6 +465,7 @@ mod tests {
     )]
     use quote::ToTokens;
     use syn::Fields;
+    use syn::ImplItem;
     use syn::Item;
     use syn::Type;
     use syn::Visibility;
@@ -149,6 +474,193 @@ mod tests {
     use crate::DeclarationKind;
     use crate::ItemKey;
     use crate::test_support::representative_expansion;
+
+    #[test]
+    fn invariant_products_emit_exact_constructor_and_accessor_surface() {
+        let items = invariant_ast_items();
+
+        let Item::Struct(guarded) = parse_named(&items, "GuardedNode") else {
+            panic!("GuardedNode is a struct");
+        };
+        let Fields::Named(fields) = guarded.fields else {
+            panic!("GuardedNode has named fields");
+        };
+        assert_eq!(
+            fields
+                .named
+                .iter()
+                .map(|field| {
+                    (
+                        field.ident.as_ref().unwrap().to_string(),
+                        exact_simple_type(&field.ty),
+                        field_visibility(&field.vis),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "open".to_owned(),
+                    "OpenValue".to_owned(),
+                    FieldVisibility::Public
+                ),
+                (
+                    "mode".to_owned(),
+                    "Mode".to_owned(),
+                    FieldVisibility::Private
+                ),
+                (
+                    "child".to_owned(),
+                    "Child".to_owned(),
+                    FieldVisibility::Private
+                ),
+            ]
+        );
+
+        let implementation = inherent_impl(&items, "GuardedNode");
+        assert_eq!(
+            method_headers(&implementation),
+            [
+                quote::quote! {
+                    pub fn new(open: OpenValue, mode: Mode, child: Child) -> Option<Self>
+                }
+                .to_string(),
+                quote::quote! { pub const fn mode(&self) -> Mode }.to_string(),
+                quote::quote! { pub const fn child(&self) -> &Child }.to_string(),
+            ]
+        );
+        let constructor = method(&implementation, "new");
+        let body = constructor.block.to_token_stream().to_string();
+        for required in [
+            "matches ! (mode , Mode :: One)",
+            "matches ! (& child , Child :: First (_))",
+            "Agreement :: Bare",
+            "matches ! (mode , Mode :: Two)",
+            "matches ! (& child , Child :: Second (_))",
+            "Agreement :: ThirdPersonSingular",
+            "Some (Self { open , mode , child })",
+            "None",
+        ] {
+            assert!(
+                body.contains(required),
+                "constructor body lacks `{required}`: {body}"
+            );
+        }
+
+        let Item::Struct(recursive) = parse_named(&items, "RecursiveNode") else {
+            panic!("RecursiveNode is a struct");
+        };
+        let Fields::Named(fields) = recursive.fields else {
+            panic!("RecursiveNode has named fields");
+        };
+        assert_eq!(
+            exact_field_type(&fields.named[1].ty),
+            ("Child".to_owned(), true)
+        );
+        assert_eq!(
+            method_headers(&inherent_impl(&items, "RecursiveNode")),
+            [
+                quote::quote! {
+                    pub fn new(mode: Mode, child: Box<Child>) -> Option<Self>
+                }
+                .to_string(),
+                quote::quote! { pub const fn mode(&self) -> Mode }.to_string(),
+                quote::quote! { pub const fn child(&self) -> &Child }.to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn invariant_context_identity_is_guarded_and_unit_or_open_products_gain_no_impl() {
+        let items = invariant_ast_items();
+
+        let implementation = inherent_impl(&items, "ContextNode");
+        assert_eq!(
+            method_headers(&implementation),
+            [
+                quote::quote! {
+                    pub fn new(
+                        spelling: SelfReferenceSpelling,
+                        context: &ParseContext<'_>
+                    ) -> Option<Self>
+                }
+                .to_string(),
+                quote::quote! { pub const fn spelling(&self) -> SelfReferenceSpelling }.to_string(),
+            ]
+        );
+        let body = method(&implementation, "new")
+            .block
+            .to_token_stream()
+            .to_string();
+        assert!(
+            body.contains("spelling . valid_in (context)"),
+            "context identity guard: {body}"
+        );
+
+        for name in ["UnitNode", "OpenNode"] {
+            assert!(
+                items.iter().all(|item| {
+                    !matches!(
+                        &item.key,
+                        ItemKey::Impl {
+                            trait_name: None,
+                            self_ty,
+                        } if self_ty == name
+                    )
+                }),
+                "{name} has no invariant implementation"
+            );
+        }
+    }
+
+    #[test]
+    fn invariant_expression_rejects_a_missing_typed_subject() {
+        let plan = invariant_semantic_plan();
+        let guarded = plan
+            .constructions()
+            .iter()
+            .find(|construction| construction.element_type() == "GuardedNode")
+            .expect("guarded construction is sealed");
+        let error = super::super::emit_invariant_expression(
+            guarded.invariant(),
+            &std::collections::HashMap::new(),
+        )
+        .expect_err("missing subject expressions are named errors")
+        .to_string();
+
+        assert!(error.contains("invariant expression"), "{error}");
+        assert!(error.contains("subject"), "{error}");
+    }
+
+    #[test]
+    fn invariant_role_feature_seals_its_category_helper_and_dnf_grouping() {
+        let plan = invariant_semantic_plan();
+        assert!(
+            plan.category_reads_feature("FeatureChild", crate::feature::Feature::Agreement,),
+            "a role-feature predicate seals the category helper inventory used by its constructor",
+        );
+
+        let items = super::emit(&plan).expect("invariant AST fixture emits");
+        let guarded = inherent_impl(&items, "GuardedNode");
+        let constructor = method(&guarded, "new");
+        let Some(syn::Stmt::Expr(syn::Expr::If(condition), None)) = constructor.block.stmts.first()
+        else {
+            panic!("constructor starts with its invariant condition");
+        };
+        let syn::Expr::Paren(predicate) = condition.cond.as_ref() else {
+            panic!("constructor predicate is explicitly grouped");
+        };
+        let syn::Expr::Binary(disjunction) = predicate.expr.as_ref() else {
+            panic!("two DNF alternatives form a binary expression");
+        };
+        assert!(matches!(disjunction.op, syn::BinOp::Or(_)));
+        for conjunction in [&disjunction.left, &disjunction.right] {
+            assert!(
+                expression_contains_and(conjunction),
+                "each DNF alternative remains a conjunction: {}",
+                conjunction.to_token_stream(),
+            );
+        }
+    }
 
     #[test]
     fn emits_exact_category_variants_products_visibility_and_boxing() {
@@ -287,11 +799,11 @@ mod tests {
             ),
             ("ActionNode", None),
             ("IdleNode", None),
-            ("SoloTag", Some(&[("mode", "Mode", false, PUB)])),
+            ("SoloTag", Some(&[("mode", "Mode", false, PRIVATE)])),
             (
                 "DocumentNode",
                 Some(&[
-                    ("subject", "Expr", false, CRATE),
+                    ("subject", "Expr", false, PRIVATE),
                     ("predicate", "Predicate", false, CRATE),
                     ("handle", "Handle", false, PRIVATE),
                     ("pair", "Pair", false, PRIVATE),
@@ -392,6 +904,156 @@ mod tests {
             .iter()
             .find(|item| matches!(&item.key, ItemKey::Named { name: found, .. } if found == name))
             .unwrap_or_else(|| panic!("generated item `{name}` exists"))
+    }
+
+    fn inherent_impl(items: &[crate::GeneratedItem], name: &str) -> syn::ItemImpl {
+        let item = items
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty,
+                    } if self_ty == name
+                )
+            })
+            .unwrap_or_else(|| panic!("generated inherent impl `{name}` exists"));
+        let file = syn::parse2::<syn::File>(item.tokens.clone()).expect("impl item reparses");
+        assert_eq!(file.items.len(), 1);
+        let Item::Impl(implementation) = file.items.into_iter().next().expect("one impl item")
+        else {
+            panic!("{name} implementation is an impl item");
+        };
+        implementation
+    }
+
+    fn method_headers(implementation: &syn::ItemImpl) -> Vec<String> {
+        implementation
+            .items
+            .iter()
+            .map(|item| {
+                let ImplItem::Fn(method) = item else {
+                    panic!("invariant impl contains only methods");
+                };
+                let visibility = &method.vis;
+                let signature = &method.sig;
+                quote::quote! { #visibility #signature }.to_string()
+            })
+            .collect()
+    }
+
+    fn method<'a>(implementation: &'a syn::ItemImpl, name: &str) -> &'a syn::ImplItemFn {
+        implementation
+            .items
+            .iter()
+            .find_map(|item| match item {
+                ImplItem::Fn(method) if method.sig.ident == name => Some(method),
+                ImplItem::Fn(_) | ImplItem::Const(_) | ImplItem::Type(_) | ImplItem::Macro(_) => {
+                    None
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("method `{name}` exists"))
+    }
+
+    fn invariant_ast_items() -> Vec<crate::GeneratedItem> {
+        let plan = invariant_semantic_plan();
+        super::emit(&plan).expect("invariant AST fixture emits")
+    }
+
+    fn invariant_semantic_plan() -> crate::semantic::SemanticPlan {
+        crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab OpenValue { Open = "open", }
+                vocab Mode { One = "one", Two = "two", }
+                identity SelfReferenceSpelling {
+                    generate context {
+                        Full => card_name,
+                        Abbreviated => abbreviated_card_name,
+                        canonical_on_collision = Full;
+                    }
+                }
+                construction first: Child {
+                    element FirstChild {}
+                    form first = "first";
+                }
+                construction second: Child {
+                    element SecondChild {}
+                    form second = "second";
+                }
+                construction feature_bare: FeatureChild {
+                    element FeatureBare {}
+                    derive agreement = Values::Bare;
+                    form feature_bare = "feature bare";
+                }
+                construction feature_third: FeatureChild {
+                    element FeatureThird {}
+                    derive agreement = Values::ThirdPersonSingular;
+                    form feature_third = "feature third";
+                }
+                construction role_feature_guarded: FeatureRoot {
+                    element RoleFeatureGuarded { child: FeatureChild, }
+                    require child.agreement is Bare;
+                    form role_feature_guarded = child;
+                }
+                construction recursive: Child {
+                    element RecursiveNode { mode: lex Mode, child: Child, }
+                    require mode is One;
+                    require child is First;
+                    form recursive = lex(mode) child;
+                }
+                construction guarded: Root {
+                    element GuardedNode {
+                        open: lex OpenValue,
+                        mode: lex Mode,
+                        child: Child,
+                    }
+                    require any(
+                        all(mode is One, child is First, agreement is Bare),
+                        all(mode is Two, child is Second, agreement is ThirdPersonSingular)
+                    );
+                    derive agreement = mode.agreement;
+                    derive mode.agreement = match mode {
+                        One => Values::Bare,
+                        Two => Values::ThirdPersonSingular,
+                    };
+                    form guarded = lex(open) lex(mode) child;
+                }
+                construction contextual: Root {
+                    element ContextNode { spelling: identity SelfReferenceSpelling, }
+                    derive agreement = Values::Bare;
+                    form contextual = identity(spelling);
+                }
+                construction unit: Root {
+                    element UnitNode {}
+                    derive agreement = Values::Bare;
+                    form unit = "unit";
+                }
+                construction open: Root {
+                    element OpenNode { open: lex OpenValue, }
+                    derive agreement = Values::Bare;
+                    form open = lex(open);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("invariant AST fixture parses"),
+        )
+        .expect("invariant AST fixture validates")
+        .into_semantic()
+    }
+
+    fn expression_contains_and(expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Binary(binary) => {
+                matches!(binary.op, syn::BinOp::And(_))
+                    || expression_contains_and(&binary.left)
+                    || expression_contains_and(&binary.right)
+            }
+            syn::Expr::Group(group) => expression_contains_and(&group.expr),
+            syn::Expr::Paren(paren) => expression_contains_and(&paren.expr),
+            _ => false,
+        }
     }
 
     fn parse_named(items: &[crate::GeneratedItem], name: &str) -> Item {

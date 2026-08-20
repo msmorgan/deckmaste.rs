@@ -970,6 +970,14 @@ mod fixture {
             derive agreement = Values::ThirdPersonSingular;
             form third = "third";
         }
+        construction guarded: Child {
+            element GuardedChild { mode: lex Mode, child: Child, }
+            require mode is One;
+            require child is Bare;
+            derive agreement = Values::Bare;
+            derive child.agreement = Values::Bare;
+            form guarded = lex(mode) child;
+        }
         construction refined: Parent {
             element RefinedParent { mode: lex Mode, child: Child, }
             require mode is One;
@@ -1031,6 +1039,10 @@ mod fixture {
                 constructor = CheckedContextNode::new(pair, context);
             }
             form checked_context = lex(pair);
+        }
+        construction identity_guard: CheckedContext {
+            element IdentityGuard { spelling: identity SelfRef, }
+            form identity_guard = identity(spelling);
         }
 
         construction agreement: FeatureChecked {
@@ -1690,6 +1702,34 @@ mod fixture {
         );
     }
 
+    pub(super) fn assert_invariant_public_boundary() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+        };
+        let guarded = GuardedChild::new(Mode::One, Box::new(Child::Bare(BareChild)))
+            .expect("valid finite-domain values construct the recursive product");
+        assert_eq!(guarded.mode(), Mode::One);
+        assert!(matches!(guarded.child(), Child::Bare(BareChild)));
+        assert!(
+            GuardedChild::new(Mode::Many, Box::new(Child::Bare(BareChild))).is_none(),
+            "invalid vocabulary membership is rejected",
+        );
+        assert!(
+            GuardedChild::new(Mode::One, Box::new(Child::Third(ThirdChild))).is_none(),
+            "invalid category membership is rejected",
+        );
+
+        let identity = IdentityGuard::new(SelfRef::Full, &context)
+            .expect("the canonical context identity is always valid");
+        assert_eq!(identity.spelling(), SelfRef::Full);
+        assert!(
+            IdentityGuard::new(SelfRef::Abbreviated, &context).is_none(),
+            "a colliding noncanonical context identity is rejected",
+        );
+    }
+
     #[allow(
         clippy::too_many_lines,
         reason = "one authentic compiled consumer executes the complete boundary matrix"
@@ -2109,4 +2149,9 @@ mod fixture {
 fn generated_morphology_output_is_type_correct_and_executes_every_boundary_case() {
     declaration_noun_fixture::run();
     fixture::run();
+}
+
+#[test]
+fn invariant_constructors_enforce_the_compiled_public_boundary() {
+    fixture::assert_invariant_public_boundary();
 }

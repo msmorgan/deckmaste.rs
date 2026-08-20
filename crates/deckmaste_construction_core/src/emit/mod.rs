@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 use proc_macro2::TokenStream;
@@ -6,6 +7,9 @@ use quote::quote;
 use crate::identifier::key as identifier_key;
 use crate::identifier::local_name;
 use crate::identifier::spelling_key;
+use crate::semantic::InvariantPlan;
+use crate::semantic::PredicateMemberPlan;
+use crate::semantic::PredicateSubjectPlan;
 
 pub(crate) mod ast;
 pub(crate) mod build;
@@ -17,6 +21,114 @@ pub(crate) mod terminal;
 pub(crate) mod visit;
 
 const RUST_SOURCE_MARGIN: usize = 100;
+
+pub(super) fn emit_invariant_expression(
+    invariant: &InvariantPlan,
+    subjects: &HashMap<String, TokenStream>,
+) -> syn::Result<TokenStream> {
+    if invariant.alternatives().is_empty() {
+        return Err(internal_invariant_expression(
+            "sealed predicate has no alternatives",
+        ));
+    }
+    let alternatives = invariant
+        .alternatives()
+        .iter()
+        .map(|alternative| {
+            let atoms = alternative
+                .atoms()
+                .iter()
+                .map(|atom| {
+                    let subject = atom.subject();
+                    let key = subject.semantic_key();
+                    let expression = subjects.get(&key).ok_or_else(|| {
+                        internal_invariant_expression(&format!(
+                            "missing typed subject expression `{key}`"
+                        ))
+                    })?;
+                    emit_predicate_atom(subject, atom.allowed(), expression)
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            Ok(if atoms.is_empty() {
+                quote! { true }
+            } else {
+                quote! { #(#atoms)&&* }
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(quote! { #(#alternatives)||* })
+}
+
+fn emit_predicate_atom(
+    subject: &PredicateSubjectPlan,
+    allowed: &[PredicateMemberPlan],
+    expression: &TokenStream,
+) -> syn::Result<TokenStream> {
+    if allowed.is_empty() {
+        return Err(internal_invariant_expression(
+            "sealed predicate atom has no allowed members",
+        ));
+    }
+    match subject {
+        PredicateSubjectPlan::CategoryRole { category, .. } => {
+            let category = local_ident(category);
+            let variants = allowed
+                .iter()
+                .map(|member| match member {
+                    PredicateMemberPlan::Variant(variant) => Ok(variant),
+                    PredicateMemberPlan::Feature(_) => Err(internal_invariant_expression(
+                        "category subject has a feature member",
+                    )),
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            Ok(quote! { matches!(#expression, #(#category::#variants(_))|*) })
+        }
+        PredicateSubjectPlan::VocabRole { terminal, .. } => {
+            let terminal = local_ident(terminal);
+            let variants = allowed
+                .iter()
+                .map(|member| match member {
+                    PredicateMemberPlan::Variant(variant) => Ok(variant),
+                    PredicateMemberPlan::Feature(_) => Err(internal_invariant_expression(
+                        "vocabulary subject has a feature member",
+                    )),
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            Ok(quote! { matches!(#expression, #(#terminal::#variants)|*) })
+        }
+        PredicateSubjectPlan::RoleFeature { feature, .. }
+        | PredicateSubjectPlan::ConstructionFeature(feature) => {
+            let feature_type = match feature {
+                crate::feature::Feature::Agreement => local_ident("Agreement"),
+                crate::feature::Feature::Number => local_ident("Number"),
+            };
+            let members = allowed
+                .iter()
+                .map(|member| {
+                    let PredicateMemberPlan::Feature(member) = member else {
+                        return Err(internal_invariant_expression(
+                            "feature subject has a variant member",
+                        ));
+                    };
+                    if !feature.domain().contains(member.value()) {
+                        return Err(internal_invariant_expression(
+                            "feature subject member is outside its sealed domain",
+                        ));
+                    }
+                    Ok(local_ident(member.value().key()))
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            Ok(quote! { matches!(#expression, #(#feature_type::#members)|*) })
+        }
+    }
+}
+
+fn internal_invariant_expression(detail: &str) -> syn::Error {
+    syn::Error::new(
+        proc_macro2::Span::call_site(),
+        format!("internal invariant expression emitter: {detail}"),
+    )
+}
 
 #[derive(Clone, Default)]
 pub(super) struct LocalAllocator {

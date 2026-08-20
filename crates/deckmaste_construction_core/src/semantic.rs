@@ -685,7 +685,7 @@ impl SemanticPlan {
         source: &Declarations,
         boxed_fields: HashSet<(String, String)>,
         dynamic_numbers: HashSet<String>,
-        category_reads: HashMap<String, HashSet<Feature>>,
+        mut category_reads: HashMap<String, HashSet<Feature>>,
         equations: HashMap<String, Vec<feature::FeatureEquation>>,
         resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
         category_render: HashMap<String, CategoryRenderCapability>,
@@ -767,6 +767,7 @@ impl SemanticPlan {
                 format!("sealed semantic plan has surplus invariant '{name}'"),
             ));
         }
+        seal_invariant_category_feature_reads(&constructions, &equations, &mut category_reads)?;
         let number_carry_categories = number_carry_categories(&constructions, &equations);
 
         let terminals = field_policy_terminals;
@@ -1567,6 +1568,50 @@ impl SemanticPlan {
         capabilities.sort();
         capabilities
     }
+}
+
+fn seal_invariant_category_feature_reads(
+    constructions: &[ConstructionPlan],
+    equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+    category_reads: &mut HashMap<String, HashSet<Feature>>,
+) -> syn::Result<()> {
+    for construction in constructions {
+        for subject in construction
+            .invariant()
+            .alternatives()
+            .iter()
+            .flat_map(PredicateConjunctionPlan::atoms)
+            .map(PredicateAtomPlan::subject)
+        {
+            let PredicateSubjectPlan::RoleFeature { role, feature } = subject else {
+                continue;
+            };
+            let has_local_writer = equations
+                .get(construction.construction_id())
+                .into_iter()
+                .flatten()
+                .any(|equation| {
+                    matches!(
+                        equation.target(),
+                        feature::FeaturePlace::Role {
+                            field,
+                            feature: written,
+                        } if identifier_key(field) == identifier_key(role) && written == feature
+                    )
+                });
+            if has_local_writer {
+                continue;
+            }
+            let field = construction.field(&identifier_key(role))?;
+            if field.kind() == ConstructionFieldKind::Category {
+                category_reads
+                    .entry(field.terminal().to_owned())
+                    .or_default()
+                    .insert(*feature);
+            }
+        }
+    }
+    Ok(())
 }
 
 impl ConstructionPlan {
