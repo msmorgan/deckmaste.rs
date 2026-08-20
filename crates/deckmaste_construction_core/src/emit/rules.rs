@@ -541,7 +541,7 @@ mod tests {
                     rhs: &[L(LexicalTerminal {
                         matcher: Lexical::Verb(
                             ActionStem::Activate,
-                            FeatureConstraint::Exact(Agreement::Bare),
+                            FeatureConstraint::Any,
                         ),
                         owner: LexicalOwnerTemplate::Lexeme {
                             declaration: "ActionStem",
