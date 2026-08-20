@@ -584,6 +584,202 @@ mod tests {
             .collect()
     }
 
+    fn plan04_source_fixture_paths(workspace_root: &Path) -> Vec<PathBuf> {
+        fn visit(directory: &Path, found: &mut Vec<PathBuf>) {
+            let mut entries = fs::read_dir(directory)
+                .unwrap_or_else(|error| panic!("{}: {error}", directory.display()))
+                .map(|entry| {
+                    entry.unwrap_or_else(|error| panic!("{}: {error}", directory.display()))
+                })
+                .collect::<Vec<_>>();
+            entries.sort_by_key(std::fs::DirEntry::file_name);
+
+            for entry in entries {
+                let path = entry.path();
+                let file_type = entry
+                    .file_type()
+                    .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+                assert!(
+                    !file_type.is_symlink(),
+                    "{}: symlinked audit entry is forbidden",
+                    path.display()
+                );
+                if file_type.is_dir() {
+                    visit(&path, found);
+                } else if path.extension().is_some_and(|extension| {
+                    matches!(extension.to_str(), Some("rs" | "ron" | "stderr" | "txt"))
+                }) {
+                    found.push(path);
+                }
+            }
+        }
+
+        let mut found = Vec::new();
+        for root in [
+            "crates/deckmaste_construction_core/src",
+            "crates/deckmaste_construction_core/tests",
+            "crates/deckmaste_construction/src",
+            "crates/deckmaste_construction/tests",
+            "crates/deckmaste_english_v2/src",
+            "crates/deckmaste_english_v2/tests",
+        ] {
+            visit(&workspace_root.join(root), &mut found);
+        }
+        found.push(workspace_root.join("crates/xtask/src/english_v2/report.rs"));
+        found.sort();
+        found.dedup();
+        found
+    }
+
+    #[derive(Default)]
+    struct Plan04RetiredAuthorityFinder {
+        allow_report_schema_field: bool,
+        violations: Vec<&'static str>,
+    }
+
+    impl Plan04RetiredAuthorityFinder {
+        fn record(&mut self, authority: &'static str) {
+            if !self.violations.contains(&authority) {
+                self.violations.push(authority);
+            }
+        }
+    }
+
+    fn type_path_ends_with(ty: &syn::Type, target: &str) -> bool {
+        matches!(
+            ty,
+            syn::Type::Path(path)
+                if path.qself.is_none()
+                    && path.path.segments.last().is_some_and(|segment| segment.ident == target)
+        )
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for Plan04RetiredAuthorityFinder {
+        fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
+            match item.ident.to_string().as_str() {
+                "Checked" => self.record("struct Checked"),
+                "ConstructorBinding" => self.record("struct ConstructorBinding"),
+                _ => {}
+            }
+            syn::visit::visit_item_struct(self, item);
+        }
+
+        fn visit_item_enum(&mut self, item: &'ast syn::ItemEnum) {
+            if item.ident == "ConstructorArgument" {
+                self.record("enum ConstructorArgument");
+            }
+            syn::visit::visit_item_enum(self, item);
+        }
+
+        fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+            if item.trait_.is_none() {
+                if type_path_ends_with(&item.self_ty, "Triggered") {
+                    self.record("impl Triggered");
+                }
+                if type_path_ends_with(&item.self_ty, "SelfReferenceNp") {
+                    self.record("impl SelfReferenceNp");
+                }
+            }
+            syn::visit::visit_item_impl(self, item);
+        }
+
+        fn visit_ident(&mut self, ident: &'ast syn::Ident) {
+            if ident == "checked_constructor" {
+                self.record("checked_constructor");
+            }
+            if ident == "checked_constructor_bindings" && !self.allow_report_schema_field {
+                self.record("checked_constructor_bindings outside the schema-2 report");
+            }
+        }
+
+        fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+            if macro_tokens_contain_identifier(mac.tokens.clone(), "checked_constructor") {
+                self.record("checked_constructor");
+            }
+            for (kind, name, authority) in [
+                (ProductionAuthorityKind::Struct, "Checked", "struct Checked"),
+                (
+                    ProductionAuthorityKind::Struct,
+                    "ConstructorBinding",
+                    "struct ConstructorBinding",
+                ),
+                (
+                    ProductionAuthorityKind::Enum,
+                    "ConstructorArgument",
+                    "enum ConstructorArgument",
+                ),
+            ] {
+                if macro_tokens_contain_declaration(mac.tokens.clone(), kind, name) {
+                    self.record(authority);
+                }
+            }
+            syn::visit::visit_macro(self, mac);
+        }
+    }
+
+    #[derive(Default)]
+    struct CheckedBindingsProducerFinder {
+        violations: Vec<String>,
+    }
+
+    fn member_is_checked_bindings(member: &syn::Member) -> bool {
+        matches!(member, syn::Member::Named(name) if name == "checked_constructor_bindings")
+    }
+
+    fn expression_is_checked_bindings_field(expression: &syn::Expr) -> bool {
+        matches!(
+            expression,
+            syn::Expr::Field(field) if member_is_checked_bindings(&field.member)
+        )
+    }
+
+    fn expression_is_empty_vector(expression: &syn::Expr) -> bool {
+        matches!(
+            expression,
+            syn::Expr::Macro(expression)
+                if expression.mac.path.is_ident("vec") && expression.mac.tokens.is_empty()
+        )
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for CheckedBindingsProducerFinder {
+        fn visit_expr_struct(&mut self, expression: &'ast syn::ExprStruct) {
+            for field in &expression.fields {
+                if member_is_checked_bindings(&field.member)
+                    && !expression_is_empty_vector(&field.expr)
+                {
+                    self.violations.push(
+                        "checked_constructor_bindings has a nonempty or indirect producer"
+                            .to_owned(),
+                    );
+                }
+            }
+            syn::visit::visit_expr_struct(self, expression);
+        }
+
+        fn visit_expr_assign(&mut self, expression: &'ast syn::ExprAssign) {
+            if expression_is_checked_bindings_field(&expression.left) {
+                self.violations
+                    .push("checked_constructor_bindings is assigned after construction".to_owned());
+            }
+            syn::visit::visit_expr_assign(self, expression);
+        }
+
+        fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
+            if expression_is_checked_bindings_field(&expression.receiver)
+                && matches!(
+                    expression.method.to_string().as_str(),
+                    "append" | "extend" | "insert" | "push" | "push_within_capacity"
+                )
+            {
+                self.violations.push(format!(
+                    "checked_constructor_bindings is mutated through {}",
+                    expression.method
+                ));
+            }
+            syn::visit::visit_expr_method_call(self, expression);
+        }
+    }
+
     #[derive(Clone, Copy, PartialEq, Eq)]
     enum ProductionAuthorityKind {
         Enum,
@@ -1480,10 +1676,14 @@ mod tests {
                 &["construction number", "construction variable"]
             }
             "type Spell" | "function walk_spell" => &["construction spell"],
-            "type Triggered" | "function walk_triggered" => &["construction triggered"],
+            "type Triggered" | "impl Triggered" | "function walk_triggered" => {
+                &["construction triggered"]
+            }
             "type Imperative" | "function walk_imperative" => &["construction imperative"],
             "type Declarative" | "function walk_declarative" => &["construction declarative"],
-            "type WithWhere" | "function walk_with_where" => &["construction with_where"],
+            "type WithWhere" | "impl WithWhere" | "function walk_with_where" => {
+                &["construction with_where"]
+            }
             "type EventClause" | "function walk_event_clause" => &["construction event"],
             "type WhereClause" | "function walk_where_clause" => &["construction where"],
             "type PronounNp" | "function walk_pronoun_np" => &["construction pronoun"],
@@ -1493,10 +1693,10 @@ mod tests {
             | "function agreement_for_demonstrative"
             | "function number_for_demonstrative" => &["construction demonstrative"],
             "type TargetNp" | "function walk_target_np" => &["construction target"],
-            "type SelfReferenceNp" | "function walk_self_reference_np" => {
+            "type SelfReferenceNp" | "impl SelfReferenceNp" | "function walk_self_reference_np" => {
                 &["construction self_reference"]
             }
-            "type CountNp" | "function walk_count_np" => &["construction count"],
+            "type CountNp" | "impl CountNp" | "function walk_count_np" => &["construction count"],
             "type Destroy" | "function walk_destroy" => &["construction destroy"],
             "type Connive" | "function walk_connive" => &["construction connive"],
             "type DealDamage" | "function walk_deal_damage" => &["construction deal_damage"],
@@ -1702,9 +1902,11 @@ mod tests {
         "type Amount",
         "type Spell",
         "type Triggered",
+        "impl Triggered",
         "type Imperative",
         "type Declarative",
         "type WithWhere",
+        "impl WithWhere",
         "type EventClause",
         "type WhereClause",
         "type PronounNp",
@@ -1712,7 +1914,9 @@ mod tests {
         "type DemonstrativeNp",
         "type TargetNp",
         "type SelfReferenceNp",
+        "impl SelfReferenceNp",
         "type CountNp",
+        "impl CountNp",
         "type Destroy",
         "type Connive",
         "type DealDamage",
@@ -2110,6 +2314,144 @@ mod tests {
     }
 
     #[test]
+    fn plan04_generated_invariants_are_single_authority() {
+        use syn::visit::Visit as _;
+
+        let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let report_path = workspace_root.join("crates/xtask/src/english_v2/report.rs");
+        let parser_path = workspace_root.join("crates/deckmaste_construction_core/src/parse.rs");
+        let mut violations = Vec::new();
+        let checked_block =
+            regex::Regex::new(r"\bchecked\s*\{").expect("checked-block audit pattern is valid");
+        let empty_checked_block = regex::Regex::new(r"\bchecked\s*\{\s*\}")
+            .expect("empty checked-block audit pattern is valid");
+        let retired_text = [
+            (r"\bstruct\s+Checked\b", "struct Checked"),
+            (
+                r"\bstruct\s+ConstructorBinding\b",
+                "struct ConstructorBinding",
+            ),
+            (
+                r"\benum\s+ConstructorArgument\b",
+                "enum ConstructorArgument",
+            ),
+            (r"\bchecked_constructor\b", "checked_constructor"),
+            (r"\bimpl\s+Triggered\b", "impl Triggered"),
+            (r"\bimpl\s+SelfReferenceNp\b", "impl SelfReferenceNp"),
+        ]
+        .map(|(pattern, authority)| {
+            (
+                regex::Regex::new(pattern)
+                    .unwrap_or_else(|error| panic!("{authority} audit pattern: {error}")),
+                authority,
+            )
+        });
+        let mut checked_blocks = Vec::new();
+        let mut empty_checked_blocks = Vec::new();
+
+        for path in plan04_source_fixture_paths(&workspace_root) {
+            let relative = path
+                .strip_prefix(&workspace_root)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            let source = fs::read_to_string(&path)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            for block in checked_block.find_iter(&source) {
+                checked_blocks.push((relative.to_path_buf(), block.as_str().to_owned()));
+            }
+            for block in empty_checked_block.find_iter(&source) {
+                empty_checked_blocks.push((relative.to_path_buf(), block.as_str().to_owned()));
+            }
+            for (pattern, authority) in &retired_text {
+                if pattern.is_match(&source) {
+                    violations.push(format!("{} retains {authority}", relative.display()));
+                }
+            }
+            if path.extension().is_some_and(|extension| extension == "rs") {
+                let file = syn::parse_file(&source)
+                    .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+                let mut finder = Plan04RetiredAuthorityFinder {
+                    allow_report_schema_field: path == report_path,
+                    ..Plan04RetiredAuthorityFinder::default()
+                };
+                finder.visit_file(&file);
+                violations.extend(
+                    finder
+                        .violations
+                        .into_iter()
+                        .map(|authority| format!("{} retains {authority}", relative.display())),
+                );
+            }
+        }
+
+        assert_eq!(
+            checked_blocks,
+            [(
+                parser_path
+                    .strip_prefix(&workspace_root)
+                    .expect("parser source is inside the workspace")
+                    .to_path_buf(),
+                "checked {".to_owned()
+            )],
+            "only the parser's empty checked-metadata rejection fixture may remain"
+        );
+        assert_eq!(
+            empty_checked_blocks,
+            [(
+                parser_path
+                    .strip_prefix(&workspace_root)
+                    .expect("parser source is inside the workspace")
+                    .to_path_buf(),
+                "checked {}".to_owned()
+            )],
+            "the single allowed checked-metadata fixture must remain empty"
+        );
+        let parser_source = fs::read_to_string(&parser_path).expect("parser source is readable");
+        assert_eq!(
+            parser_source
+                .matches("`checked` metadata was retired after Stage 4; use generated invariants")
+                .count(),
+            2,
+            "the parser and its regression must pin the exact retirement diagnostic"
+        );
+
+        let report_source = fs::read_to_string(&report_path).expect("report source is readable");
+        let report = syn::parse_file(&report_source).expect("report source reparses");
+        let mut producer = CheckedBindingsProducerFinder::default();
+        producer.visit_file(&report);
+        violations.extend(
+            producer
+                .violations
+                .into_iter()
+                .map(|violation| format!("crates/xtask/src/english_v2/report.rs: {violation}")),
+        );
+
+        let build_path =
+            workspace_root.join("crates/deckmaste_construction_core/src/emit/build.rs");
+        let build_source = fs::read_to_string(&build_path).expect("build emitter is readable");
+        let build = syn::parse_file(&build_source).expect("build emitter reparses");
+        for authority in [
+            "legacy_refinement",
+            "validate_legacy_refinement_projection",
+            "as_role_refinement",
+            "RequireExprSource",
+            "RequireSubjectSource",
+            "PredicateAtomPlan",
+            "PredicateMemberPlan",
+            "PredicateSubjectPlan",
+        ] {
+            if contains_production_identifier(&build, authority) {
+                violations.push(format!(
+                    "crates/deckmaste_construction_core/src/emit/build.rs retains build-side require/refinement authority {authority}"
+                ));
+            }
+        }
+
+        violations.sort();
+        violations.dedup();
+        assert!(violations.is_empty(), "{}", violations.join("\n"));
+    }
+
+    #[test]
     #[allow(
         clippy::too_many_lines,
         reason = "the complete Plan 03 single-authority matrix is deliberately explicit"
@@ -2498,7 +2840,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 139);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 143);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -2548,7 +2890,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 139);
+        assert_eq!(parsed.items.len(), 143);
     }
 
     #[test]
