@@ -593,6 +593,43 @@ mod tests {
         })
     }
 
+    fn macro_tokens_contain_code_indirection(tokens: proc_macro2::TokenStream) -> bool {
+        use proc_macro2::Delimiter;
+        use proc_macro2::TokenTree;
+
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        for (index, token) in tokens.iter().enumerate() {
+            if let TokenTree::Group(group) = token
+                && macro_tokens_contain_code_indirection(group.stream())
+            {
+                return true;
+            }
+            if matches!(token, TokenTree::Ident(ident) if ident == "include")
+                && matches!(
+                    tokens.get(index + 1),
+                    Some(TokenTree::Punct(punct)) if punct.as_char() == '!'
+                )
+                && matches!(tokens.get(index + 2), Some(TokenTree::Group(_)))
+            {
+                return true;
+            }
+            if matches!(token, TokenTree::Punct(punct) if punct.as_char() == '#')
+                && let Some(TokenTree::Group(attribute)) = tokens.get(index + 1)
+                && attribute.delimiter() == Delimiter::Bracket
+                && syn::parse2::<syn::Meta>(attribute.stream()).is_ok_and(
+                    |meta| matches!(meta, syn::Meta::NameValue(meta) if meta.path.is_ident("path")),
+                )
+                && matches!(
+                    tokens.get(index + 2),
+                    Some(TokenTree::Ident(ident)) if ident == "mod"
+                )
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     fn macro_tokens_contain_declaration(
         tokens: proc_macro2::TokenStream,
         kind: ProductionAuthorityKind,
@@ -871,7 +908,9 @@ mod tests {
         }
 
         fn visit_macro(&mut self, mac: &'ast syn::Macro) {
-            if mac.path.is_ident("include") {
+            if mac.path.is_ident("include")
+                || macro_tokens_contain_code_indirection(mac.tokens.clone())
+            {
                 self.found = true;
             }
             syn::visit::visit_macro(self, mac);
@@ -1587,6 +1626,45 @@ mod tests {
             let file = syn::parse_file(source).expect("allowed fixture source reparses");
             assert!(!contains_production_code_indirection(&file));
         }
+    }
+
+    #[test]
+    fn production_indirection_predicate_rejects_nested_macro_tokens() {
+        for source in [
+            "passthrough! { include!(\"mirror.inc\"); }",
+            "passthrough! { nested! { include!(\"mirror.inc\"); } }",
+            "passthrough! { #[path = \"mirror.rs\"] mod mirror; }",
+        ] {
+            let file = syn::parse_file(source).expect("nested indirection source reparses");
+            assert!(
+                contains_production_code_indirection(&file),
+                "nested token-visible indirection escaped: {source}"
+            );
+        }
+
+        for source in [
+            "passthrough! { \"include!(mirror.inc)\" }",
+            "passthrough! { b\"#[path = mirror.rs] mod mirror;\" }",
+        ] {
+            let file = syn::parse_file(source).expect("nested literal decoy source reparses");
+            assert!(
+                !contains_production_code_indirection(&file),
+                "literal decoy was treated as code: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn production_indirection_predicate_rejects_macro_rules_body() {
+        let source = syn::parse_file(
+            "macro_rules! mirror { \
+             () => { include!(\"mirror.inc\"); }; \
+             ($name:ident) => { #[path = \"mirror.rs\"] mod $name; }; \
+             }",
+        )
+        .expect("macro_rules indirection source reparses");
+
+        assert!(contains_production_code_indirection(&source));
     }
 
     #[test]
