@@ -789,19 +789,32 @@ mod tests {
         }
     }
 
-    fn macro_tokens_contain_closed_surface_mirror(tokens: proc_macro2::TokenStream) -> bool {
+    fn macro_arguments_contain_closed_surface_mirror(tokens: proc_macro2::TokenStream) -> bool {
+        use syn::parse::Parser as _;
+        use syn::punctuated::Punctuated;
         use syn::visit::Visit as _;
 
-        if let Ok(expression) = syn::parse2::<syn::Expr>(tokens.clone()) {
-            let mut finder = ClosedLexemeSurfaceMirrorFinder::default();
-            finder.visit_expr(&expression);
-            if finder.found {
-                return true;
-            }
+        Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated
+            .parse2(tokens)
+            .is_ok_and(|arguments| {
+                arguments.into_iter().any(|expression| {
+                    let mut finder = ClosedLexemeSurfaceMirrorFinder::default();
+                    finder.visit_expr(&expression);
+                    finder.found
+                })
+            })
+    }
+
+    fn macro_tokens_contain_closed_surface_mirror(tokens: proc_macro2::TokenStream) -> bool {
+        if macro_arguments_contain_closed_surface_mirror(tokens.clone()) {
+            return true;
         }
         tokens.into_iter().any(|token| match token {
             proc_macro2::TokenTree::Group(group) => {
-                macro_tokens_contain_closed_surface_mirror(group.stream())
+                let delimited =
+                    proc_macro2::TokenStream::from(proc_macro2::TokenTree::Group(group.clone()));
+                macro_arguments_contain_closed_surface_mirror(delimited)
+                    || macro_tokens_contain_closed_surface_mirror(group.stream())
             }
             proc_macro2::TokenTree::Ident(_)
             | proc_macro2::TokenTree::Punct(_)
@@ -2242,6 +2255,11 @@ mod tests {
                 "fn surface() { \
                  generated!([(NounLexeme::Player, Number::Singular, \"player\")]); }",
             ),
+            (
+                "multi-argument macro",
+                "fn surface() { \
+                 generated!(mode, [(NounLexeme::Player, Number::Singular, \"player\")]); }",
+            ),
         ] {
             let sentinel = syn::parse_file(source)
                 .unwrap_or_else(|error| panic!("{shape} surface sentinel reparses: {error}"));
@@ -2278,6 +2296,7 @@ mod tests {
              fn scan_verb_count() -> usize { 0 }\n\
              const DESCRIPTION: &str = \"fn inflect and scan_bound_terminal\";\n\
              const FEATURED_OWNER: &str = \"lexeme:VerbLexeme/Deal/bare\";\n\
+             fn macro_decoy() { generated!(NounLexeme::Player, \"player\"); }\n\
              enum Term { Lexeme }\n\
              fn ordinary(value: Term) -> &'static str {\n\
                  match value { Term::Lexeme => \"ordinary\" }\n\
