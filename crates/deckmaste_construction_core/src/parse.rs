@@ -384,6 +384,9 @@ fn parse_require_expr(input: ParseStream<'_>) -> syn::Result<RequireExprSource> 
         input.parse::<keyword::any>()?;
         return parse_require_group(input, RequireExprSource::Any, "any");
     }
+    if input.peek(Token![!]) {
+        return Err(deferred(input.span(), "Plan 05 structural declarations"));
+    }
 
     let first = input.call(Ident::parse_any)?;
     let subject = if input.peek(Token![::]) || input.peek(syn::token::Paren) {
@@ -460,7 +463,14 @@ fn parse_require_members(input: ParseStream<'_>) -> syn::Result<Vec<Ident>> {
     }
     let mut members = Vec::new();
     while !content.is_empty() {
-        members.push(parse_require_member(&content)?);
+        let member = parse_require_member(&content)?;
+        if members.iter().any(|existing| existing == &member) {
+            return Err(syn::Error::new(
+                member.span(),
+                format!("duplicate require member `{member}`"),
+            ));
+        }
+        members.push(member);
         if content.is_empty() {
             break;
         }
@@ -1652,6 +1662,10 @@ mod tests {
         let cases = [
             ("require controller in [];", "at least one member"),
             ("require controller in [You,, Opponent];", "expected ident"),
+            (
+                "require controller in [You, You];",
+                "duplicate require member `You`",
+            ),
             ("require all(mode is One);", "at least two operands"),
             ("require any(mode is One);", "at least two operands"),
             (
@@ -1671,6 +1685,10 @@ mod tests {
                 "Plan 05 structural declarations",
             ),
             ("require mode == One;", "Plan 05 structural declarations"),
+            (
+                "require !controller is You;",
+                "Plan 05 structural declarations",
+            ),
             (
                 "require callback(subject);",
                 "Plan 05 structural declarations",

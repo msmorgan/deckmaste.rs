@@ -1522,7 +1522,9 @@ impl ConstructionPlan {
         let refinements = source
             .requirements
             .iter()
-            .filter_map(|requirement| requirement.as_role_refinement())
+            .map(|requirement| requirement.as_role_refinement_or_error())
+            .collect::<syn::Result<Vec<_>>>()?
+            .into_iter()
             .map(|(role, variant)| RefinementPlan {
                 role: role.clone(),
                 variant: variant.clone(),
@@ -3049,6 +3051,53 @@ impl RootPlan {
 
     pub(crate) fn punctuation(&self) -> &str {
         &self.punctuation
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::collections::HashSet;
+
+    use proc_macro2::Span;
+
+    #[test]
+    fn rejects_compound_require_predicates_during_semantic_lowering() {
+        let source = crate::parse_declarations(quote::quote! {
+            construction predicate: Predicate {
+                element PredicateNode { subject: Predicate, }
+                require all(subject in [Predicate, Other], number is Singular);
+                form predicate = subject;
+            }
+        })
+        .expect("compound predicate parses");
+
+        let mut atoms = HashMap::new();
+        atoms.insert(
+            "predicate".to_owned(),
+            (
+                Span::call_site(),
+                vec![crate::validate::AtomContribution::Category {
+                    role: "subject".to_owned(),
+                    category: "Predicate".to_owned(),
+                }],
+            ),
+        );
+
+        let error = super::SemanticPlan::new(
+            &source,
+            HashSet::new(),
+            HashSet::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            atoms,
+        )
+        .expect_err("compound predicate cannot be silently lowered")
+        .to_string();
+
+        assert!(error.contains("invariant predicate validation"), "{error}");
     }
 }
 

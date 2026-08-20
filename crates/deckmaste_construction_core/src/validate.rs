@@ -3758,8 +3758,12 @@ fn validate_refinements(raw: &Declarations, symbols: &Symbols) -> syn::Result<()
             .collect();
         let mut refined = HashSet::new();
         for requirement in &construction.requirements {
-            let Some((role_ident, variant_ident)) = requirement.as_role_refinement() else {
-                continue;
+            let (role_ident, variant_ident) = match requirement.as_role_refinement_or_error() {
+                Ok(refinement) => refinement,
+                Err(error) => {
+                    combine(&mut errors, error);
+                    continue;
+                }
             };
             let role = identifier_key(role_ident);
             if !refined.insert(role.clone()) {
@@ -6254,6 +6258,23 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn rejects_compound_require_predicates_until_their_validation_exists() {
+        let actual = error(quote! {
+            construction predicate: Predicate {
+                element PredicateNode { subject: Predicate, }
+                require all(subject in [Predicate, Other], number is Singular);
+                form predicate = subject;
+            }
+            root Predicate { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+
+        assert!(
+            actual.contains("invariant predicate validation"),
+            "{actual}"
+        );
+    }
+
+    #[test]
     fn rejects_identity_bindings_used_through_the_lex_atom() {
         let identity_as_lex = error(quote! {
             identity Existing {
@@ -7092,7 +7113,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn parser_fence_rejects_incomplete_bindings_and_general_require() {
+    fn parser_fence_rejects_incomplete_bindings_and_deferred_structural_require() {
         let incomplete = error(quote! {
             codec Number {
                 atom = lex;
@@ -7107,15 +7128,18 @@ pub(crate) mod tests {
             "{incomplete}"
         );
 
-        let general = error(quote! {
+        let structural = error(quote! {
             construction only: Cat {
                 element Only { value: Cat, }
                 require value != nothing;
                 form only = value;
             }
         });
-        assert!(general.contains("general require"), "{general}");
-        assert!(general.contains("unimplemented in MVP"), "{general}");
+        assert!(
+            structural.contains("Plan 05 structural declarations"),
+            "{structural}"
+        );
+        assert!(structural.contains("unimplemented in MVP"), "{structural}");
     }
 
     #[test]

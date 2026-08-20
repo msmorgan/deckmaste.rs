@@ -119,6 +119,29 @@ pub enum RequireExprSource {
 }
 
 impl RequireExprSource {
+    pub(crate) fn as_role_refinement_or_error(&self) -> syn::Result<(&Ident, &Ident)> {
+        self.as_role_refinement().ok_or_else(|| {
+            syn::Error::new(
+                self.requirement_span(),
+                "invariant predicate validation is not implemented",
+            )
+        })
+    }
+
+    fn requirement_span(&self) -> Span {
+        match self {
+            Self::In {
+                subject:
+                    RequireSubjectSource::Role(role) | RequireSubjectSource::RoleFeature { role, .. },
+                ..
+            } => role.span(),
+            Self::In { members, .. } => members.first().map_or_else(Span::call_site, Ident::span),
+            Self::All(operands) | Self::Any(operands) => operands
+                .first()
+                .map_or_else(Span::call_site, Self::requirement_span),
+        }
+    }
+
     pub(crate) fn as_role_refinement(&self) -> Option<(&Ident, &Ident)> {
         let Self::In {
             subject: RequireSubjectSource::Role(role),
