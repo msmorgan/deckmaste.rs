@@ -833,16 +833,25 @@ mod tests {
         parse_and_select_toy(TIE_RULES, text)
     }
 
-    type SharedFormCandidate = crate::parser::materialize::MaterializedCandidate<
-        TestBuildValue,
-        Construction,
-        Category,
-        Lexical,
-        Lexical,
-        &'static str,
-    >;
-
-    fn parse_and_materialize_shared_forms(text: &str) -> (usize, Vec<SharedFormCandidate>) {
+    #[allow(
+        clippy::type_complexity,
+        reason = "the explicit test type avoids recreating generated authority through an alias"
+    )]
+    fn parse_and_materialize_shared_forms(
+        text: &str,
+    ) -> (
+        usize,
+        Vec<
+            crate::parser::materialize::MaterializedCandidate<
+                TestBuildValue,
+                Construction,
+                Category,
+                Lexical,
+                Lexical,
+                &'static str,
+            >,
+        >,
+    ) {
         let forest = parse(
             SHARED_FORM_RULES,
             Category::Ability,

@@ -356,6 +356,14 @@ mod tests {
         finder.found
     }
 
+    fn contains_production_code_indirection(file: &syn::File) -> bool {
+        use syn::visit::Visit as _;
+
+        let mut finder = ProductionCodeIndirectionFinder::default();
+        finder.visit_file(file);
+        finder.found
+    }
+
     fn discover_rust_sources(root: &Path) -> Vec<PathBuf> {
         fn visit(directory: &Path, found: &mut Vec<PathBuf>) {
             let mut entries = fs::read_dir(directory)
@@ -371,6 +379,11 @@ mod tests {
                 let file_type = entry
                     .file_type()
                     .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+                assert!(
+                    !file_type.is_symlink(),
+                    "{}: symlinked audit entry is forbidden",
+                    path.display()
+                );
                 if file_type.is_dir() {
                     visit(&path, found);
                 } else if path.extension().is_some_and(|extension| extension == "rs") {
@@ -400,6 +413,11 @@ mod tests {
 
     fn english_runtime_authority_violations(path: &str, file: &syn::File) -> Vec<String> {
         let mut violations = Vec::new();
+        if contains_production_code_indirection(file) {
+            violations.push(format!(
+                "{path} uses production #[path] or code-including include! indirection"
+            ));
+        }
         for generated_type in ["Lexical", "Leaf", "TerminalClass", "NounNumber"] {
             for kind in [
                 ProductionAuthorityKind::Enum,
@@ -467,6 +485,33 @@ mod tests {
         violations
     }
 
+    fn uses_source_shaped_authority(file: &syn::File) -> bool {
+        [
+            "ValidatedDeclarations",
+            "Declarations",
+            "parse_declarations",
+            "invocation_from_source",
+        ]
+        .iter()
+        .any(|authority| contains_production_identifier(file, authority))
+            || contains_production_method_call(file, "raw")
+    }
+
+    fn source_authority_paths(root: &Path) -> Vec<String> {
+        let paths = discover_rust_sources(root);
+        parse_rust_sources(&paths)
+            .iter()
+            .filter(|(_, file)| uses_source_shaped_authority(file))
+            .map(|(path, _)| {
+                Path::new(path)
+                    .strip_prefix(root)
+                    .unwrap_or_else(|error| panic!("{path}: {error}"))
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect()
+    }
+
     #[derive(Clone, Copy, PartialEq, Eq)]
     enum ProductionAuthorityKind {
         Enum,
@@ -502,6 +547,42 @@ mod tests {
         found: bool,
     }
 
+    #[derive(Default)]
+    struct ProductionCodeIndirectionFinder {
+        found: bool,
+    }
+
+    fn item_attrs(item: &syn::Item) -> Option<&[syn::Attribute]> {
+        match item {
+            syn::Item::Const(item) => Some(&item.attrs),
+            syn::Item::Enum(item) => Some(&item.attrs),
+            syn::Item::ExternCrate(item) => Some(&item.attrs),
+            syn::Item::Fn(item) => Some(&item.attrs),
+            syn::Item::ForeignMod(item) => Some(&item.attrs),
+            syn::Item::Impl(item) => Some(&item.attrs),
+            syn::Item::Macro(item) => Some(&item.attrs),
+            syn::Item::Mod(item) => Some(&item.attrs),
+            syn::Item::Static(item) => Some(&item.attrs),
+            syn::Item::Struct(item) => Some(&item.attrs),
+            syn::Item::Trait(item) => Some(&item.attrs),
+            syn::Item::TraitAlias(item) => Some(&item.attrs),
+            syn::Item::Type(item) => Some(&item.attrs),
+            syn::Item::Union(item) => Some(&item.attrs),
+            syn::Item::Use(item) => Some(&item.attrs),
+            _ => None,
+        }
+    }
+
+    fn impl_item_attrs(item: &syn::ImplItem) -> Option<&[syn::Attribute]> {
+        match item {
+            syn::ImplItem::Const(item) => Some(&item.attrs),
+            syn::ImplItem::Fn(item) => Some(&item.attrs),
+            syn::ImplItem::Macro(item) => Some(&item.attrs),
+            syn::ImplItem::Type(item) => Some(&item.attrs),
+            _ => None,
+        }
+    }
+
     fn macro_tokens_contain_identifier(tokens: proc_macro2::TokenStream, target: &str) -> bool {
         tokens.into_iter().any(|token| match token {
             proc_macro2::TokenTree::Ident(ident) => ident == target,
@@ -512,12 +593,112 @@ mod tests {
         })
     }
 
+    fn macro_tokens_contain_declaration(
+        tokens: proc_macro2::TokenStream,
+        kind: ProductionAuthorityKind,
+        target: &str,
+    ) -> bool {
+        let keyword = match kind {
+            ProductionAuthorityKind::Enum => "enum",
+            ProductionAuthorityKind::Struct => "struct",
+            ProductionAuthorityKind::TypeAlias => "type",
+            ProductionAuthorityKind::Function => "fn",
+        };
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        for (index, token) in tokens.iter().enumerate() {
+            if let proc_macro2::TokenTree::Group(group) = token
+                && macro_tokens_contain_declaration(group.stream(), kind, target)
+            {
+                return true;
+            }
+            if matches!(token, proc_macro2::TokenTree::Ident(ident) if ident == keyword)
+                && matches!(
+                    tokens.get(index + 1),
+                    Some(proc_macro2::TokenTree::Ident(ident)) if ident == target
+                )
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn type_contains_generated_reference(ty: &syn::Type) -> bool {
+        use syn::visit::Visit as _;
+
+        [
+            "build",
+            "RULES",
+            "RuleId",
+            "Lexical",
+            "Leaf",
+            "TerminalClass",
+            "NounNumber",
+        ]
+        .iter()
+        .any(|target| {
+            let mut finder = ProductionIdentifierFinder {
+                target,
+                found: false,
+            };
+            finder.visit_type(ty);
+            finder.found
+        })
+    }
+
+    fn literal_constant_string(literal: &syn::Lit) -> Option<String> {
+        match literal {
+            syn::Lit::Str(literal) => Some(literal.value()),
+            syn::Lit::ByteStr(literal) => String::from_utf8(literal.value()).ok(),
+            _ => None,
+        }
+    }
+
+    fn constant_string_expression(expression: &syn::Expr) -> Option<String> {
+        match expression {
+            syn::Expr::Lit(expression) => literal_constant_string(&expression.lit),
+            syn::Expr::Macro(expression) if expression.mac.path.is_ident("concat") => {
+                constant_concat_tokens(expression.mac.tokens.clone())
+            }
+            syn::Expr::Group(expression) => constant_string_expression(&expression.expr),
+            syn::Expr::Paren(expression) => constant_string_expression(&expression.expr),
+            _ => None,
+        }
+    }
+
+    fn constant_concat_tokens(tokens: proc_macro2::TokenStream) -> Option<String> {
+        use syn::parse::Parser as _;
+        use syn::punctuated::Punctuated;
+
+        let expressions = Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated
+            .parse2(tokens)
+            .ok()?;
+        let mut result = String::new();
+        for expression in expressions {
+            result.push_str(&constant_string_expression(&expression)?);
+        }
+        Some(result)
+    }
+
     fn collect_macro_string_literals(tokens: proc_macro2::TokenStream, found: &mut Vec<String>) {
-        for token in tokens {
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        for (index, token) in tokens.iter().enumerate() {
+            if matches!(token, proc_macro2::TokenTree::Ident(ident) if ident == "concat")
+                && matches!(
+                    tokens.get(index + 1),
+                    Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '!'
+                )
+                && let Some(proc_macro2::TokenTree::Group(group)) = tokens.get(index + 2)
+                && let Some(spelling) = constant_concat_tokens(group.stream())
+            {
+                found.push(spelling);
+            }
             match token {
                 proc_macro2::TokenTree::Literal(literal) => {
-                    if let Ok(literal) = syn::parse_str::<syn::LitStr>(&literal.to_string()) {
-                        found.push(literal.value());
+                    if let Ok(literal) = syn::parse_str::<syn::Lit>(&literal.to_string())
+                        && let Some(spelling) = literal_constant_string(&literal)
+                    {
+                        found.push(spelling);
                     }
                 }
                 proc_macro2::TokenTree::Group(group) => {
@@ -579,11 +760,36 @@ mod tests {
     }
 
     impl<'ast> syn::visit::Visit<'ast> for ProductionStringLiteralFinder {
+        fn visit_item(&mut self, item: &'ast syn::Item) {
+            if item_attrs(item).is_some_and(is_test_only) {
+                return;
+            }
+            syn::visit::visit_item(self, item);
+        }
+
+        fn visit_impl_item(&mut self, item: &'ast syn::ImplItem) {
+            if impl_item_attrs(item).is_some_and(is_test_only) {
+                return;
+            }
+            syn::visit::visit_impl_item(self, item);
+        }
+
         fn visit_lit_str(&mut self, literal: &'ast syn::LitStr) {
             self.found.push(literal.value());
         }
 
+        fn visit_lit_byte_str(&mut self, literal: &'ast syn::LitByteStr) {
+            if let Ok(spelling) = String::from_utf8(literal.value()) {
+                self.found.push(spelling);
+            }
+        }
+
         fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+            if mac.path.is_ident("concat")
+                && let Some(spelling) = constant_concat_tokens(mac.tokens.clone())
+            {
+                self.found.push(spelling);
+            }
             collect_macro_string_literals(mac.tokens.clone(), &mut self.found);
         }
 
@@ -620,10 +826,10 @@ mod tests {
         fn visit_item_type(&mut self, item: &'ast syn::ItemType) {
             let test_only = self.in_test_only || is_test_only(&item.attrs);
             if test_only
-                && matches!(
+                && (matches!(
                     item.ident.to_string().as_str(),
                     "Lexical" | "Leaf" | "TerminalClass" | "NounNumber"
-                )
+                ) || type_contains_generated_reference(&item.ty))
             {
                 self.found = true;
             }
@@ -639,6 +845,36 @@ mod tests {
                 self.found = true;
             }
             syn::visit::visit_item_use(self, item);
+        }
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for ProductionCodeIndirectionFinder {
+        fn visit_item(&mut self, item: &'ast syn::Item) {
+            if item_attrs(item).is_some_and(is_test_only) {
+                return;
+            }
+            syn::visit::visit_item(self, item);
+        }
+
+        fn visit_impl_item(&mut self, item: &'ast syn::ImplItem) {
+            if impl_item_attrs(item).is_some_and(is_test_only) {
+                return;
+            }
+            syn::visit::visit_impl_item(self, item);
+        }
+
+        fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+            if item.attrs.iter().any(|attr| attr.path().is_ident("path")) {
+                self.found = true;
+            }
+            syn::visit::visit_item_mod(self, item);
+        }
+
+        fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+            if mac.path.is_ident("include") {
+                self.found = true;
+            }
+            syn::visit::visit_macro(self, mac);
         }
     }
 
@@ -694,8 +930,10 @@ mod tests {
 
     impl<'ast> syn::visit::Visit<'ast> for ProductionAuthorityFinder<'_> {
         fn visit_macro(&mut self, mac: &'ast syn::Macro) {
-            if self.kind == ProductionAuthorityKind::Function
-                && macro_tokens_contain_identifier(mac.tokens.clone(), self.target)
+            if (self.kind == ProductionAuthorityKind::Function
+                && macro_tokens_contain_identifier(mac.tokens.clone(), self.target))
+                || (self.kind != ProductionAuthorityKind::Function
+                    && macro_tokens_contain_declaration(mac.tokens.clone(), self.kind, self.target))
             {
                 self.found = true;
             }
@@ -1228,6 +1466,133 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn source_inventory_fails_closed_on_symlink_entries() {
+        use std::os::unix::fs::symlink;
+
+        let temporary = tempfile::tempdir().expect("temporary audit root is available");
+        let outside = tempfile::tempdir().expect("outside source root is available");
+        fs::write(outside.path().join("mirror.rs"), "fn scan_noun() {}")
+            .expect("outside Rust source is written");
+        symlink(outside.path(), temporary.path().join("linked"))
+            .expect("source-directory symlink is created");
+
+        let result = std::panic::catch_unwind(|| discover_rust_sources(temporary.path()));
+        assert!(result.is_err(), "symlinked audit entries must fail closed");
+    }
+
+    #[test]
+    fn production_indirection_predicate_rejects_path_and_code_include_only() {
+        for source in [
+            "#[path = \"outside.rs\"] mod mirror;",
+            "include!(\"outside.inc\");",
+        ] {
+            let file = syn::parse_file(source).expect("production indirection source reparses");
+            assert!(contains_production_code_indirection(&file));
+        }
+
+        for source in [
+            "const FIXTURE: &str = include_str!(\"fixture.rs\");",
+            "#[cfg(test)] mod fixture { include!(\"fixture.inc\"); }",
+        ] {
+            let file = syn::parse_file(source).expect("allowed fixture source reparses");
+            assert!(!contains_production_code_indirection(&file));
+        }
+    }
+
+    #[test]
+    fn complete_core_boundary_discovers_source_authority_in_nested_helper() {
+        let temporary = tempfile::tempdir().expect("temporary core root is available");
+        let helper = temporary.path().join("helper");
+        fs::create_dir(&helper).expect("nested helper directory is created");
+        fs::write(
+            temporary.path().join("parse.rs"),
+            "fn parse() { parse_declarations(tokens); }",
+        )
+        .expect("allowed compiler source is written");
+        fs::write(
+            helper.join("mirror.rs"),
+            "fn moved() { parse_declarations(tokens); }",
+        )
+        .expect("unexpected helper source is written");
+
+        assert_eq!(
+            source_authority_paths(temporary.path()),
+            ["helper/mirror.rs", "parse.rs"]
+        );
+    }
+
+    #[test]
+    fn authority_predicate_detects_macro_declarations() {
+        let macro_mirror = syn::parse_file(
+            "define_mirror! { enum Lexical { Mirror } struct Leaf; type NounNumber = (); }",
+        )
+        .expect("macro mirror source reparses");
+        for (kind, name) in [
+            (ProductionAuthorityKind::Enum, "Lexical"),
+            (ProductionAuthorityKind::Struct, "Leaf"),
+            (ProductionAuthorityKind::TypeAlias, "NounNumber"),
+        ] {
+            assert!(contains_production_authority(&macro_mirror, kind, name));
+        }
+
+        let dsl_mention = syn::parse_file("constructions! { terminal Noun { singular: noun } }")
+            .expect("DSL mention source reparses");
+        for kind in [
+            ProductionAuthorityKind::Enum,
+            ProductionAuthorityKind::Struct,
+            ProductionAuthorityKind::TypeAlias,
+        ] {
+            assert!(!contains_production_authority(&dsl_mention, kind, "Noun"));
+        }
+    }
+
+    #[test]
+    fn ghost_predicate_detects_renamed_test_alias_rhs() {
+        let renamed_alias =
+            syn::parse_file("#[cfg(test)] type LegacyLexical = crate::constructions::Lexical;")
+                .expect("renamed test alias source reparses");
+        assert!(contains_test_only_generated_ghost(&renamed_alias));
+    }
+
+    #[test]
+    fn production_spelling_census_evaluates_nested_concat() {
+        let source = syn::parse_file(
+            "fn spellings() { \
+             let _ = concat!(\"de\", concat!(\"stro\", \"ys\")); \
+             let _ = concat!(b\"con\", concat!(\"ni\", b\"ves\")); \
+             }",
+        )
+        .expect("constant spelling source reparses");
+        let spellings = production_string_literals(&source);
+
+        assert!(spellings.iter().any(|spelling| spelling == "destroys"));
+        assert!(spellings.iter().any(|spelling| spelling == "connives"));
+    }
+
+    #[test]
+    fn production_spelling_census_detects_byte_strings() {
+        let source = syn::parse_file("fn spellings() { let _ = b\"connives\"; }")
+            .expect("byte spelling source reparses");
+        let spellings = production_string_literals(&source);
+
+        assert!(spellings.iter().any(|spelling| spelling == "connives"));
+    }
+
+    #[test]
+    fn production_spelling_census_prunes_cfg_test_constants() {
+        let source = syn::parse_file(
+            "#[cfg(test)] const DECOY: &str = concat!(\"de\", \"stroys\"); \
+             const PRODUCTION: &str = \"ordinary\";",
+        )
+        .expect("cfg-test constant source reparses");
+        let spellings = production_string_literals(&source);
+
+        assert!(!spellings.iter().any(|spelling| spelling == "destroys"));
+        assert!(spellings.iter().any(|spelling| spelling == "ordinary"));
+    }
+
     #[test]
     #[allow(
         clippy::too_many_lines,
@@ -1258,7 +1623,25 @@ mod tests {
                     "{path} rereads source-shaped declarations through {source_reader}"
                 );
             }
+            assert!(
+                !contains_production_code_indirection(file),
+                "{path} uses production #[path] or code-including include! indirection"
+            );
         }
+
+        assert_eq!(
+            source_authority_paths(&construction_core_src),
+            [
+                "lib.rs",
+                "model.rs",
+                "parse.rs",
+                "semantic.rs",
+                "source.rs",
+                "test_support.rs",
+                "validate.rs",
+            ],
+            "construction-core source-shaped authority escaped its explicit compiler boundary"
+        );
 
         let english_src = workspace_root.join("crates/deckmaste_english_v2/src");
         let runtime_paths = discover_rust_sources(&english_src);
@@ -1288,6 +1671,12 @@ mod tests {
                     "{path} retains catalog authority {catalog_authority}"
                 );
             }
+        }
+        for (path, file) in &xtask_files {
+            assert!(
+                !contains_production_code_indirection(file),
+                "{path} uses production #[path] or code-including include! indirection"
+            );
         }
 
         let expansion = expansion_from_source(PRODUCTION_SOURCE)

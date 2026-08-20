@@ -134,13 +134,6 @@ struct MaterializationOutcomeFor<V, C, K = Category, M = Lexical, T = (), O = ()
     cycle_pruned: bool,
 }
 
-#[cfg(test)]
-type MaterializationState =
-    MaterializationStateFor<BuildValue, Construction, Category, Lexical, Leaf>;
-#[cfg(test)]
-type MaterializationOutcome =
-    MaterializationOutcomeFor<BuildValue, Construction, Category, Lexical, Leaf>;
-
 struct MaterializationKernel<'a, R, T, V, C, K: 'static, L: 'static, M, Build> {
     rules: &'a [Rule<K, L, R>],
     rule_index: fn(R) -> usize,
@@ -509,8 +502,8 @@ fn materialize_node(
     forest: &Forest<RuleId, Leaf>,
     node_id: NodeId,
     context: &ParseContext<'_>,
-    state: &mut MaterializationState,
-) -> MaterializationOutcome {
+    state: &mut MaterializationStateFor<BuildValue, Construction, Category, Lexical, Leaf>,
+) -> MaterializationOutcomeFor<BuildValue, Construction, Category, Lexical, Leaf> {
     let kernel: MaterializationKernel<
         '_,
         RuleId,
@@ -598,7 +591,7 @@ mod tests {
     use super::Forest;
     use super::Leaf;
     use super::Lexical;
-    use super::MaterializationState;
+    use super::MaterializationStateFor;
     use super::RuleId;
     use super::materialize;
     use super::materialize_node;
@@ -670,7 +663,8 @@ mod tests {
     }
 
     fn assert_acyclic_number_survives(forest: &Forest<RuleId, Leaf>) {
-        let mut state = MaterializationState::default();
+        let mut state =
+            MaterializationStateFor::<BuildValue, Construction, Category, Lexical, Leaf>::default();
         let outcome = materialize_node(forest, NodeId(0), &context("Context Card"), &mut state);
 
         assert_eq!(outcome.values.len(), 1);
@@ -820,7 +814,8 @@ mod tests {
             vec![NodeId(0), NodeId(1)],
         );
         let context = context("Context Card");
-        let mut state = MaterializationState::default();
+        let mut state =
+            MaterializationStateFor::<BuildValue, Construction, Category, Lexical, Leaf>::default();
         let clause = Clause::Where(WhereClause {
             variable: Variable::X,
             value: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),

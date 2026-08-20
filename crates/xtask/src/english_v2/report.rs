@@ -415,6 +415,61 @@ mod tests {
     }
 
     #[test]
+    fn production_json_has_exact_literal_wire_contract() {
+        let report = build_report_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration report builds");
+        let rendered = render_json(&report).expect("production report serializes");
+        let actual = serde_json::from_str::<serde_json::Value>(&rendered)
+            .expect("production report JSON reparses");
+        let expected = serde_json::json!({
+            "schema_version": 1,
+            "noun_morphology": {
+                "total": 472,
+                "derived_plural": 146,
+                "explicit_plural": 26,
+                "unavailable_plural": 300
+            },
+            "mapping_layers": [],
+            "handwritten_codecs": [],
+            "stored_form_tags": [],
+            "stored_spelling_codecs": [{
+                "identity": "SelfReferenceSpelling",
+                "rationale": "stores a non-derivable context spelling choice",
+                "removal_target": null
+            }],
+            "selection_exceptions": [],
+            "terminal_bindings": [],
+            "checked_constructor_bindings": [
+                {
+                    "identity": "SelfReferenceNp",
+                    "rationale": "stage 4 checked constructor binding",
+                    "removal_target": "generated_invariants"
+                },
+                {
+                    "identity": "Triggered",
+                    "rationale": "stage 4 checked constructor binding",
+                    "removal_target": "generated_invariants"
+                }
+            ],
+            "roots": [
+                {
+                    "identity": "Ability",
+                    "rationale": "declared parser entry point",
+                    "removal_target": null
+                },
+                {
+                    "identity": "Sentence",
+                    "rationale": "declared parser entry point",
+                    "removal_target": null
+                }
+            ]
+        });
+
+        assert_eq!(actual, expected);
+        assert!(rendered.ends_with('\n'));
+    }
+
+    #[test]
     fn production_builtin_noun_morphology_census_is_exact() {
         let root =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
