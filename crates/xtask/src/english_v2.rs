@@ -619,10 +619,6 @@ mod tests {
                 && syn::parse2::<syn::Meta>(attribute.stream()).is_ok_and(
                     |meta| matches!(meta, syn::Meta::NameValue(meta) if meta.path.is_ident("path")),
                 )
-                && matches!(
-                    tokens.get(index + 2),
-                    Some(TokenTree::Ident(ident)) if ident == "mod"
-                )
             {
                 return true;
             }
@@ -1663,6 +1659,26 @@ mod tests {
              }",
         )
         .expect("macro_rules indirection source reparses");
+
+        assert!(contains_production_code_indirection(&source));
+    }
+
+    #[test]
+    fn production_indirection_predicate_rejects_nested_path_before_visibility() {
+        let source = syn::parse_file("passthrough! { #[path = \"mirror.rs\"] pub mod mirror; }")
+            .expect("nested visible path source reparses");
+
+        assert!(contains_production_code_indirection(&source));
+    }
+
+    #[test]
+    fn production_indirection_predicate_rejects_nested_path_before_attribute() {
+        let source = syn::parse_file(
+            "macro_rules! mirror { \
+             () => { #[path = \"mirror.rs\"] #[allow(dead_code)] mod mirror; }; \
+             }",
+        )
+        .expect("nested attributed path source reparses");
 
         assert!(contains_production_code_indirection(&source));
     }
