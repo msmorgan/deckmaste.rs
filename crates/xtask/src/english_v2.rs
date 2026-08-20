@@ -3,6 +3,7 @@
 mod ambiguity;
 mod audit;
 mod corpus;
+mod coverage;
 mod coverage_lock;
 mod diagnostic;
 mod inspect;
@@ -56,6 +57,8 @@ enum EnglishV2Command {
     Report(ReportArgs),
     /// Census complete corpus selection decisions and unresolved ambiguities.
     Ambiguity(AmbiguityArgs),
+    /// Report and gate full-corpus lexical ownership coverage.
+    Coverage(CoverageArgs),
     /// Trace one explicit input through the bounded parser diagnostics.
     Probe(ProbeArgs),
     /// Trace one exact corpus unit through the bounded parser diagnostics.
@@ -76,10 +79,6 @@ struct ParseArgs {
     json: bool,
     #[arg(long)]
     require_complete: bool,
-    #[arg(long, default_value = "english-v2-coverage.lock")]
-    lock: PathBuf,
-    #[arg(long)]
-    bless: bool,
 }
 
 #[derive(Debug, clap::Args)]
@@ -106,6 +105,21 @@ struct AmbiguityArgs {
     json: bool,
     #[arg(long)]
     require_resolved: bool,
+}
+
+#[derive(Debug, clap::Args)]
+#[group(id = "coverage_gate", multiple = false)]
+struct CoverageArgs {
+    #[command(flatten)]
+    corpus: CorpusArgs,
+    #[arg(long, default_value = "english-v2-coverage.lock")]
+    lock: PathBuf,
+    #[arg(long)]
+    json: bool,
+    #[arg(long, group = "coverage_gate")]
+    check: bool,
+    #[arg(long, group = "coverage_gate")]
+    bless: bool,
 }
 
 #[derive(Debug, clap::Args)]
@@ -153,6 +167,10 @@ pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
         EnglishV2Command::Ambiguity(args) => {
             let mut stdout = std::io::stdout().lock();
             ambiguity::run(args, &mut stdout)
+        }
+        EnglishV2Command::Coverage(args) => {
+            let mut stdout = std::io::stdout().lock();
+            coverage::run(args, &mut stdout)
         }
         EnglishV2Command::Probe(args) => {
             let mut stdout = std::io::stdout().lock();

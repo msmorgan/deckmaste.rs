@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "source_fingerprint": "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
-  "accepted": [
+  "covered": [
     "00eac4b4bf9d2a8091e100a1df43561d68a79e873b8e581b04775e56dc0eb3ac",
     "0406e7b5822ce4e73c076565ec74b31b5fc0ab6b45bf25b1af795ebaf1fabe6a",
     "12489fb3ff20cbb18efbe92211864da3aed43f635f7e70de755bd00322dd1c38",

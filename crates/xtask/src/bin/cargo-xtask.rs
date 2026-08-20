@@ -120,11 +120,74 @@ mod tests {
 
     #[test]
     fn english_v2_commands_require_and_accept_a_subcommand() {
-        for command in ["expand", "parse", "roundtrip", "report", "ambiguity"] {
+        for command in [
+            "expand",
+            "parse",
+            "roundtrip",
+            "report",
+            "ambiguity",
+            "coverage",
+        ] {
             let cli = Cli::try_parse_from(["cargo xtask", "english_v2", command]).unwrap();
             assert!(matches!(cli.command, Cmd::EnglishV2(_)));
         }
         assert!(Cli::try_parse_from(["cargo xtask", "english_v2"]).is_err());
+    }
+
+    #[test]
+    fn english_v2_commands_coverage_accepts_only_its_exact_flags() {
+        for args in [
+            vec!["cargo xtask", "english_v2", "coverage"],
+            vec![
+                "cargo xtask",
+                "english_v2",
+                "coverage",
+                "--data",
+                "fixtures/atomic-cards.json",
+                "--lock",
+                "fixtures/coverage.lock",
+                "--json",
+                "--check",
+            ],
+            vec!["cargo xtask", "english_v2", "coverage", "--bless"],
+        ] {
+            let cli = Cli::try_parse_from(args).expect("coverage accepts its exact flags");
+            assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+        }
+
+        assert!(
+            Cli::try_parse_from([
+                "cargo xtask",
+                "english_v2",
+                "coverage",
+                "--check",
+                "--bless",
+            ])
+            .is_err()
+        );
+
+        for (flag, takes_value) in [
+            ("--catalogs", true),
+            ("--require-complete", false),
+            ("--require-clean", false),
+            ("--require-resolved", false),
+            ("--limit", true),
+            ("--text", true),
+            ("--context", true),
+            ("--id", true),
+            ("--probe", false),
+            ("--inspect", false),
+            ("--trace", false),
+        ] {
+            let mut args = vec!["cargo xtask", "english_v2", "coverage", flag];
+            if takes_value {
+                args.push("fixture");
+            }
+            assert!(
+                Cli::try_parse_from(args).is_err(),
+                "coverage accepted {flag}"
+            );
+        }
     }
 
     #[test]
@@ -354,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn english_v2_parse_accepts_its_flags_and_expand_rejects_them() {
+    fn english_v2_parse_accepts_only_census_flags_and_expand_rejects_them() {
         let cli = Cli::try_parse_from([
             "cargo xtask",
             "english_v2",
@@ -363,9 +426,6 @@ mod tests {
             "fixtures/atomic-cards.json",
             "--json",
             "--require-complete",
-            "--lock",
-            "fixtures/coverage.lock",
-            "--bless",
         ])
         .unwrap();
         assert!(matches!(cli.command, Cmd::EnglishV2(_)));
@@ -379,6 +439,17 @@ mod tests {
             ])
             .is_err()
         );
+
+        for (flag, takes_value) in [("--lock", true), ("--check", false), ("--bless", false)] {
+            let mut args = vec!["cargo xtask", "english_v2", "parse", flag];
+            if takes_value {
+                args.push("fixtures/coverage.lock");
+            }
+            assert!(
+                Cli::try_parse_from(args).is_err(),
+                "parse retained coverage authority flag {flag}"
+            );
+        }
 
         for flag in [
             "--data",

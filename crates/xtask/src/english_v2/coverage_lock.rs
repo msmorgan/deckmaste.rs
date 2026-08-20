@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -7,112 +6,156 @@ use anyhow::Context;
 use anyhow::bail;
 use tempfile::NamedTempFile;
 
-pub(super) const SCHEMA_VERSION: u32 = 1;
+use super::coverage::CoverageLockMode;
+use super::coverage::CoverageReport;
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub(super) struct CoverageLock {
+const SCHEMA_VERSION_V1: u32 = 1;
+const SCHEMA_VERSION_V2: u32 = 2;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct CoverageLockV1 {
     schema_version: u32,
     source_fingerprint: String,
-    accepted: BTreeSet<String>,
+    accepted: Vec<String>,
 }
 
-impl CoverageLock {
-    pub(super) fn read(path: &Path) -> anyhow::Result<Self> {
-        let bytes = fs::read(path)
-            .with_context(|| format!("reading English-v2 coverage lock {}", path.display()))?;
-        let lock = serde_json::from_slice::<Self>(&bytes)
-            .with_context(|| format!("parsing English-v2 coverage lock {}", path.display()))?;
-        lock.validate(path)?;
-        Ok(lock)
-    }
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub(super) struct CoverageLockV2 {
+    schema_version: u32,
+    source_fingerprint: String,
+    covered: Vec<String>,
+}
 
-    pub(super) fn check(&self, current: &BTreeSet<String>) -> anyhow::Result<()> {
-        let lost = self.accepted.difference(current).collect::<Vec<_>>();
-        if lost.is_empty() {
-            return Ok(());
-        }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum LoadedCoverageLock {
+    V1(CoverageLockV1),
+    V2(CoverageLockV2),
+}
 
-        bail!(
-            "lost {} previously accepted corpus identit{}:\n{}",
-            lost.len(),
-            if lost.len() == 1 { "y" } else { "ies" },
-            lost.into_iter()
-                .map(String::as_str)
-                .collect::<Vec<_>>()
-                .join("\n"),
-        );
-    }
+#[derive(Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawCoverageLock {
+    schema_version: u32,
+    source_fingerprint: String,
+    accepted: Option<Vec<String>>,
+    covered: Option<Vec<String>>,
+}
 
-    pub(super) fn bless(
-        &self,
-        current: &BTreeSet<String>,
-        source_fingerprint: &str,
-    ) -> anyhow::Result<Self> {
-        self.check(current)?;
-        Self::new(current.clone(), source_fingerprint.to_owned())
-    }
-
-    pub(super) fn new(
-        accepted: BTreeSet<String>,
-        source_fingerprint: String,
-    ) -> anyhow::Result<Self> {
+impl CoverageLockV2 {
+    fn new(source_fingerprint: String, covered: Vec<String>) -> anyhow::Result<Self> {
         let lock = Self {
-            schema_version: SCHEMA_VERSION,
+            schema_version: SCHEMA_VERSION_V2,
             source_fingerprint,
-            accepted,
+            covered,
         };
         lock.validate(Path::new("<new coverage lock>"))?;
         Ok(lock)
     }
 
-    pub(super) fn write(&self, path: &Path) -> anyhow::Result<()> {
-        self.validate(path)?;
-        let parent = path.parent().unwrap_or_else(|| Path::new("."));
-        let mut temporary = NamedTempFile::new_in(parent).with_context(|| {
-            format!(
-                "creating temporary English-v2 coverage lock beside {}",
-                path.display()
-            )
-        })?;
-        let mut serialized =
-            serde_json::to_vec_pretty(self).context("serializing English-v2 coverage lock")?;
-        serialized.push(b'\n');
-        temporary
-            .write_all(&serialized)
-            .context("writing temporary English-v2 coverage lock")?;
-        temporary
-            .flush()
-            .context("flushing temporary English-v2 coverage lock")?;
-        temporary
-            .persist(path)
-            .map_err(|error| error.error)
-            .with_context(|| format!("persisting English-v2 coverage lock {}", path.display()))?;
-        Ok(())
-    }
-
-    pub(super) fn accepted(&self) -> &BTreeSet<String> {
-        &self.accepted
-    }
-
-    pub(super) fn source_fingerprint(&self) -> &str {
-        &self.source_fingerprint
-    }
-
     fn validate(&self, path: &Path) -> anyhow::Result<()> {
-        if self.schema_version != SCHEMA_VERSION {
+        if self.schema_version != SCHEMA_VERSION_V2 {
             bail!(
-                "invalid English-v2 coverage lock {}: unsupported schema version {} (expected {})",
+                "invalid English-v2 coverage lock {}: unsupported schema version {}",
                 path.display(),
                 self.schema_version,
-                SCHEMA_VERSION,
             );
         }
         validate_identity(&self.source_fingerprint, "source fingerprint", path)?;
-        for accepted in &self.accepted {
-            validate_identity(accepted, "accepted corpus identity", path)?;
-        }
-        Ok(())
+        validate_vector(&self.covered, "covered corpus identity", path)
     }
+}
+
+#[cfg(test)]
+impl LoadedCoverageLock {
+    fn source_fingerprint(&self) -> &str {
+        match self {
+            Self::V1(lock) => &lock.source_fingerprint,
+            Self::V2(lock) => &lock.source_fingerprint,
+        }
+    }
+
+    fn covered(&self) -> &[String] {
+        match self {
+            Self::V1(lock) => &lock.accepted,
+            Self::V2(lock) => &lock.covered,
+        }
+    }
+}
+
+pub(super) fn read_lock(path: &Path) -> anyhow::Result<LoadedCoverageLock> {
+    let bytes = fs::read(path)
+        .with_context(|| format!("reading English-v2 coverage lock {}", path.display()))?;
+    let raw = serde_json::from_slice::<RawCoverageLock>(&bytes)
+        .with_context(|| format!("parsing English-v2 coverage lock {}", path.display()))?;
+    validate_identity(&raw.source_fingerprint, "source fingerprint", path)?;
+    match raw.schema_version {
+        SCHEMA_VERSION_V1 => {
+            if raw.covered.is_some() {
+                bail!(
+                    "invalid English-v2 coverage lock {}: schema 1 must not contain covered",
+                    path.display(),
+                );
+            }
+            let accepted = raw.accepted.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "invalid English-v2 coverage lock {}: schema 1 requires accepted",
+                    path.display(),
+                )
+            })?;
+            validate_vector(&accepted, "accepted corpus identity", path)?;
+            Ok(LoadedCoverageLock::V1(CoverageLockV1 {
+                schema_version: SCHEMA_VERSION_V1,
+                source_fingerprint: raw.source_fingerprint,
+                accepted,
+            }))
+        }
+        SCHEMA_VERSION_V2 => {
+            if raw.accepted.is_some() {
+                bail!(
+                    "invalid English-v2 coverage lock {}: schema 2 must not contain accepted",
+                    path.display(),
+                );
+            }
+            let covered = raw.covered.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "invalid English-v2 coverage lock {}: schema 2 requires covered",
+                    path.display(),
+                )
+            })?;
+            let lock = CoverageLockV2 {
+                schema_version: SCHEMA_VERSION_V2,
+                source_fingerprint: raw.source_fingerprint,
+                covered,
+            };
+            lock.validate(path)?;
+            Ok(LoadedCoverageLock::V2(lock))
+        }
+        version => bail!(
+            "invalid English-v2 coverage lock {}: unsupported schema version {version}",
+            path.display(),
+        ),
+    }
+}
+
+fn validate_vector(values: &[String], kind: &str, path: &Path) -> anyhow::Result<()> {
+    for value in values {
+        validate_identity(value, kind, path)?;
+    }
+    for pair in values.windows(2) {
+        match pair[0].cmp(&pair[1]) {
+            std::cmp::Ordering::Less => {}
+            std::cmp::Ordering::Equal => bail!(
+                "invalid English-v2 coverage lock {}: duplicate {kind} {}",
+                path.display(),
+                pair[0],
+            ),
+            std::cmp::Ordering::Greater => bail!(
+                "invalid English-v2 coverage lock {}: {kind} vector must be strictly sorted",
+                path.display(),
+            ),
+        }
+    }
+    Ok(())
 }
 
 fn validate_identity(value: &str, kind: &str, path: &Path) -> anyhow::Result<()> {
@@ -123,16 +166,273 @@ fn validate_identity(value: &str, kind: &str, path: &Path) -> anyhow::Result<()>
     {
         return Ok(());
     }
-
     bail!(
         "invalid English-v2 coverage lock {}: {kind} must be lowercase 64-hex",
         path.display(),
     );
 }
 
+trait LockWriter {
+    fn create(&mut self, parent: &Path) -> anyhow::Result<NamedTempFile>;
+    fn write_all(&mut self, temporary: &mut NamedTempFile, bytes: &[u8]) -> anyhow::Result<()>;
+    fn flush(&mut self, temporary: &mut NamedTempFile) -> anyhow::Result<()>;
+    fn persist(&mut self, temporary: NamedTempFile, path: &Path) -> anyhow::Result<()>;
+}
+
+pub(super) struct FilesystemLockWriter;
+
+impl LockWriter for FilesystemLockWriter {
+    fn create(&mut self, parent: &Path) -> anyhow::Result<NamedTempFile> {
+        NamedTempFile::new_in(parent).map_err(anyhow::Error::new)
+    }
+
+    fn write_all(&mut self, temporary: &mut NamedTempFile, bytes: &[u8]) -> anyhow::Result<()> {
+        temporary.write_all(bytes).map_err(anyhow::Error::new)
+    }
+
+    fn flush(&mut self, temporary: &mut NamedTempFile) -> anyhow::Result<()> {
+        temporary.flush().map_err(anyhow::Error::new)
+    }
+
+    fn persist(&mut self, temporary: NamedTempFile, path: &Path) -> anyhow::Result<()> {
+        temporary
+            .persist(path)
+            .map(|_| ())
+            .map_err(|error| anyhow::Error::new(error.error))
+    }
+}
+
+fn write_v2_with(
+    lock: &CoverageLockV2,
+    path: &Path,
+    writer: &mut impl LockWriter,
+) -> anyhow::Result<()> {
+    lock.validate(path)?;
+    let mut serialized =
+        serde_json::to_vec_pretty(lock).context("serializing English-v2 coverage lock")?;
+    serialized.push(b'\n');
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut temporary = writer.create(parent).with_context(|| {
+        format!(
+            "creating temporary English-v2 coverage lock beside {}",
+            path.display()
+        )
+    })?;
+    writer
+        .write_all(&mut temporary, &serialized)
+        .context("writing temporary English-v2 coverage lock")?;
+    writer
+        .flush(&mut temporary)
+        .context("flushing temporary English-v2 coverage lock")?;
+    writer
+        .persist(temporary, path)
+        .with_context(|| format!("persisting English-v2 coverage lock {}", path.display()))?;
+    Ok(())
+}
+
+pub(super) fn apply(
+    report: &CoverageReport,
+    path: &Path,
+    mode: CoverageLockMode,
+    diagnostics: &mut dyn Write,
+) -> anyhow::Result<()> {
+    apply_with_writer(report, path, mode, diagnostics, &mut FilesystemLockWriter)
+}
+
+fn apply_with_writer(
+    report: &CoverageReport,
+    path: &Path,
+    mode: CoverageLockMode,
+    diagnostics: &mut dyn Write,
+    writer: &mut impl LockWriter,
+) -> anyhow::Result<()> {
+    let (selected_uncovered, unresolved, internal) = report.gate_failure_counts();
+    if selected_uncovered != 0 {
+        bail!(
+            "coverage gate rejected {selected_uncovered} selected-uncovered unit{}",
+            if selected_uncovered == 1 { "" } else { "s" },
+        );
+    }
+    if unresolved != 0 {
+        bail!(
+            "coverage gate rejected {unresolved} unresolved ambiguit{}",
+            if unresolved == 1 { "y" } else { "ies" },
+        );
+    }
+    if internal != 0 {
+        bail!(
+            "coverage gate rejected {internal} internal failure{}",
+            if internal == 1 { "" } else { "s" },
+        );
+    }
+    let current = report.selected_covered_ids()?;
+    let baseline = if path.exists() { Some(read_lock(path)?) } else { None };
+    match (mode, baseline) {
+        (CoverageLockMode::None, _) => Ok(()),
+        (CoverageLockMode::Check, None) => bail!(
+            "English-v2 coverage lock {} is missing; review the coverage report and rerun with --bless",
+            path.display(),
+        ),
+        (CoverageLockMode::Bless, None) => {
+            let replacement = CoverageLockV2::new(report.source_fingerprint().to_owned(), current)?;
+            write_v2_with(&replacement, path, writer)
+        }
+        (CoverageLockMode::Check, Some(LoadedCoverageLock::V1(_))) => bail!(
+            "English-v2 coverage lock {} uses schema 1; migrate it with coverage --bless",
+            path.display(),
+        ),
+        (CoverageLockMode::Bless, Some(LoadedCoverageLock::V1(baseline))) => {
+            if current != baseline.accepted {
+                bail!(
+                    "coverage schema-1 migration requires the current covered vector to exactly equal all {} accepted identities",
+                    baseline.accepted.len(),
+                );
+            }
+            let replacement = CoverageLockV2::new(report.source_fingerprint().to_owned(), current)?;
+            write_v2_with(&replacement, path, writer)
+        }
+        (mode, Some(LoadedCoverageLock::V2(baseline))) => {
+            let lost = baseline
+                .covered
+                .iter()
+                .filter(|identity| current.binary_search(identity).is_err())
+                .collect::<Vec<_>>();
+            if !lost.is_empty() {
+                bail!(
+                    "lost {} previously covered corpus identit{}:\n{}",
+                    lost.len(),
+                    if lost.len() == 1 { "y" } else { "ies" },
+                    lost.into_iter()
+                        .map(String::as_str)
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                );
+            }
+            if mode == CoverageLockMode::Check {
+                if baseline.source_fingerprint != report.source_fingerprint() {
+                    writeln!(
+                        diagnostics,
+                        "coverage lock source fingerprint changed: old {} new {}",
+                        baseline.source_fingerprint,
+                        report.source_fingerprint(),
+                    )
+                    .context("writing English-v2 coverage lock diagnostic")?;
+                }
+                for identity in current
+                    .iter()
+                    .filter(|identity| baseline.covered.binary_search(identity).is_err())
+                {
+                    writeln!(diagnostics, "newly covered\t{identity}")
+                        .context("writing English-v2 coverage lock diagnostic")?;
+                }
+                return Ok(());
+            }
+            let replacement = CoverageLockV2::new(report.source_fingerprint().to_owned(), current)?;
+            write_v2_with(&replacement, path, writer)
+        }
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FailureStage {
+    Create,
+    Write,
+    Flush,
+    Persist,
+}
+
+#[cfg(test)]
+impl FailureStage {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Create => "creating",
+            Self::Write => "writing",
+            Self::Flush => "flushing",
+            Self::Persist => "persisting",
+        }
+    }
+
+    const fn expected_events(self) -> &'static [&'static str] {
+        match self {
+            Self::Create => &["create"],
+            Self::Write => &["create", "write"],
+            Self::Flush => &["create", "write", "flush"],
+            Self::Persist => &["create", "write", "flush", "persist"],
+        }
+    }
+}
+
+#[cfg(test)]
+struct FailingLockWriter {
+    failure: FailureStage,
+    events: Vec<&'static str>,
+}
+
+#[cfg(test)]
+impl FailingLockWriter {
+    fn new(failure: FailureStage) -> Self {
+        Self {
+            failure,
+            events: Vec::new(),
+        }
+    }
+    fn events(&self) -> &[&'static str] {
+        &self.events
+    }
+}
+
+#[cfg(test)]
+impl LockWriter for FailingLockWriter {
+    fn create(&mut self, parent: &Path) -> anyhow::Result<NamedTempFile> {
+        self.events.push("create");
+        if self.failure == FailureStage::Create {
+            bail!("injected create failure");
+        }
+        NamedTempFile::new_in(parent).map_err(anyhow::Error::new)
+    }
+
+    fn write_all(&mut self, temporary: &mut NamedTempFile, bytes: &[u8]) -> anyhow::Result<()> {
+        self.events.push("write");
+        if self.failure == FailureStage::Write {
+            bail!("injected write failure");
+        }
+        temporary.write_all(bytes).map_err(anyhow::Error::new)
+    }
+
+    fn flush(&mut self, temporary: &mut NamedTempFile) -> anyhow::Result<()> {
+        self.events.push("flush");
+        if self.failure == FailureStage::Flush {
+            bail!("injected flush failure");
+        }
+        temporary.flush().map_err(anyhow::Error::new)
+    }
+
+    fn persist(&mut self, _temporary: NamedTempFile, _path: &Path) -> anyhow::Result<()> {
+        self.events.push("persist");
+        bail!("injected persist failure")
+    }
+}
+
+#[cfg(test)]
+impl CoverageLockV2 {
+    fn new_for_test(source_fingerprint: String, covered: Vec<String>) -> Self {
+        Self::new(source_fingerprint, covered).unwrap()
+    }
+}
+
+#[cfg(test)]
+impl LoadedCoverageLock {
+    fn covered_for_test(&self) -> &[String] {
+        self.covered()
+    }
+    fn source_fingerprint_for_test(&self) -> &str {
+        self.source_fingerprint()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
     use std::fmt::Write as _;
     use std::fs;
     use std::path::Path;
@@ -140,149 +440,390 @@ mod tests {
     use sha2::Digest;
     use sha2::Sha256;
 
-    use super::CoverageLock;
-    use super::SCHEMA_VERSION;
+    use super::CoverageLockV2;
+    use super::FailureStage;
+    use super::LoadedCoverageLock;
+    use super::apply_with_writer;
+    use super::read_lock;
+    use super::write_v2_with;
+    use crate::english_v2::coverage::CoverageLockMode;
+    use crate::english_v2::coverage::CoverageReport;
 
     fn id(digit: char) -> String {
         digit.to_string().repeat(64)
     }
 
-    fn set(values: impl IntoIterator<Item = String>) -> BTreeSet<String> {
-        values.into_iter().collect()
+    fn json_v1(source: &str, accepted: &[String]) -> Vec<u8> {
+        let accepted = serde_json::to_string(accepted).unwrap();
+        format!(
+            "{{\n  \"schema_version\": 1,\n  \"source_fingerprint\": \"{source}\",\n  \"accepted\": {accepted}\n}}\n"
+        )
+        .into_bytes()
     }
 
-    fn lock(values: impl IntoIterator<Item = String>, source: String) -> CoverageLock {
-        CoverageLock {
-            schema_version: SCHEMA_VERSION,
-            source_fingerprint: source,
-            accepted: set(values),
+    fn json_v2(source: &str, covered: &[String]) -> Vec<u8> {
+        let covered = serde_json::to_string(covered).unwrap();
+        format!(
+            "{{\n  \"schema_version\": 2,\n  \"source_fingerprint\": \"{source}\",\n  \"covered\": {covered}\n}}\n"
+        )
+        .into_bytes()
+    }
+
+    fn report(
+        source: &str,
+        covered: Vec<String>,
+        selected_uncovered: usize,
+        parse_failures: usize,
+        unresolved: usize,
+        internal: usize,
+    ) -> CoverageReport {
+        CoverageReport::for_gate_test(
+            source.to_owned(),
+            covered,
+            selected_uncovered,
+            parse_failures,
+            unresolved,
+            internal,
+        )
+    }
+
+    #[test]
+    fn strict_reader_rejects_malformed_unknown_missing_mixed_and_extra_schemas() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        for (bytes, needle) in [
+            (b"not json".to_vec(), "parsing"),
+            (
+                format!(
+                    "{{\"schema_version\":3,\"source_fingerprint\":\"{}\",\"covered\":[]}}",
+                    id('1')
+                )
+                .into_bytes(),
+                "unsupported schema version 3",
+            ),
+            (
+                format!(
+                    "{{\"schema_version\":1,\"source_fingerprint\":\"{}\"}}",
+                    id('1')
+                )
+                .into_bytes(),
+                "requires accepted",
+            ),
+            (
+                format!(
+                    "{{\"schema_version\":2,\"source_fingerprint\":\"{}\"}}",
+                    id('1')
+                )
+                .into_bytes(),
+                "requires covered",
+            ),
+            (
+                format!(
+                    "{{\"schema_version\":1,\"source_fingerprint\":\"{}\",\"accepted\":[],\"covered\":[]}}",
+                    id('1')
+                )
+                .into_bytes(),
+                "must not contain covered",
+            ),
+            (
+                format!(
+                    "{{\"schema_version\":2,\"source_fingerprint\":\"{}\",\"covered\":[],\"accepted\":[]}}",
+                    id('1')
+                )
+                .into_bytes(),
+                "must not contain accepted",
+            ),
+            (
+                format!(
+                    "{{\"schema_version\":2,\"source_fingerprint\":\"{}\",\"covered\":[],\"extra\":true}}",
+                    id('1')
+                )
+                .into_bytes(),
+                "unknown field",
+            ),
+        ] {
+            fs::write(&path, bytes).unwrap();
+            let error = format!("{:#}", read_lock(&path).unwrap_err());
+            assert!(error.contains(needle), "expected {needle:?} in {error:?}");
+            assert!(error.contains(&path.display().to_string()));
         }
     }
 
     #[test]
-    fn check_and_bless_only_allow_accepted_identity_growth() {
-        let (a, b, c) = (id('a'), id('b'), id('c'));
-        let baseline = lock([a.clone(), b.clone()], id('1'));
-        assert!(
-            baseline
-                .check(&set([a.clone(), b.clone(), c.clone()]))
-                .is_ok()
-        );
-        let error = baseline
-            .check(&set([b.clone(), c.clone()]))
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("lost 1 previously accepted corpus identity"));
-        assert!(error.contains(&a));
-
-        let ordered_error = lock([a.clone(), c.clone()], id('1'))
-            .check(&set([b.clone()]))
-            .unwrap_err()
-            .to_string();
-        assert!(ordered_error.find(&a).unwrap() < ordered_error.find(&c).unwrap());
-
-        let blessed = baseline
-            .bless(&set([a.clone(), b.clone(), c.clone()]), &id('2'))
-            .unwrap();
-        assert_eq!(blessed.accepted, set([a.clone(), b.clone(), c.clone()]));
-        assert_eq!(blessed.source_fingerprint, id('2'));
-        assert!(baseline.bless(&set([b, c]), &id('2')).is_err());
+    fn strict_reader_rejects_bad_fingerprints_ids_duplicates_and_order() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        for (bytes, needle) in [
+            (json_v1(&"A".repeat(64), &[id('a')]), "source fingerprint"),
+            (
+                json_v2(&id('1'), &["a".repeat(63)]),
+                "covered corpus identity",
+            ),
+            (json_v1(&id('1'), &[id('a'), id('a')]), "duplicate"),
+            (json_v2(&id('1'), &[id('b'), id('a')]), "strictly sorted"),
+        ] {
+            fs::write(&path, bytes).unwrap();
+            let before = fs::read(&path).unwrap();
+            let error = format!("{:#}", read_lock(&path).unwrap_err());
+            assert!(error.contains(needle), "expected {needle:?} in {error:?}");
+            assert_eq!(fs::read(&path).unwrap(), before);
+        }
     }
 
     #[test]
-    fn disk_round_trip_is_canonical_sorted_and_newline_terminated() {
+    fn schema_one_check_is_rejected_and_exact_bless_alone_migrates_without_id_changes() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
-        let baseline = lock([id('b'), id('a')], id('1'));
+        let accepted = vec![id('a'), id('b')];
+        let baseline = json_v1(&id('1'), &accepted);
+        fs::write(&path, &baseline).unwrap();
+        let current = report(&id('1'), accepted.clone(), 0, 7, 0, 0);
+        let mut diagnostics = Vec::new();
 
-        baseline.write(&path).unwrap();
-        let first = fs::read(&path).unwrap();
-        let read_back = CoverageLock::read(&path).unwrap();
-        read_back.write(&path).unwrap();
-        let second = fs::read(&path).unwrap();
+        let error = apply_with_writer(
+            &current,
+            &path,
+            CoverageLockMode::Check,
+            &mut diagnostics,
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("schema 1"));
+        assert_eq!(fs::read(&path).unwrap(), baseline);
 
-        assert_eq!(first, second);
+        apply_with_writer(
+            &current,
+            &path,
+            CoverageLockMode::Bless,
+            &mut diagnostics,
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap();
+        let migrated = fs::read(&path).unwrap();
+        let loaded = read_lock(&path).unwrap();
         assert_eq!(
-            fs::read_dir(directory.path())
-                .unwrap()
-                .filter_map(Result::ok)
-                .count(),
-            1,
+            loaded,
+            LoadedCoverageLock::V2(CoverageLockV2::new_for_test(id('1'), accepted.clone()))
         );
-        assert!(first.ends_with(b"\n"));
-        assert!(!first.ends_with(b"\n\n"));
-        let serialized = String::from_utf8(first).unwrap();
-        assert!(serialized.find(&id('a')).unwrap() < serialized.find(&id('b')).unwrap());
+        assert_eq!(loaded.covered_for_test(), accepted.as_slice());
+        let value: serde_json::Value = serde_json::from_slice(&migrated).unwrap();
+        assert!(value.get("accepted").is_none());
+        assert_eq!(value["covered"], serde_json::json!(accepted));
+        assert!(migrated.ends_with(b"\n"));
+        assert!(!migrated.ends_with(b"\n\n"));
     }
 
     #[test]
-    fn read_rejects_invalid_schema_and_names_its_path() {
+    fn schema_one_migration_rejects_both_growth_and_loss_without_mutation() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
-        fs::write(
-            &path,
-            format!(
-                "{{\n  \"schema_version\": 0,\n  \"source_fingerprint\": \"{}\",\n  \"accepted\": [\"{}\"]\n}}\n",
-                id('1'),
-                id('a'),
-            ),
-        )
-        .unwrap();
-
-        let error = CoverageLock::read(&path).unwrap_err().to_string();
-        assert!(error.contains("unsupported schema version 0"));
-        assert!(error.contains(&path.display().to_string()));
-
-        fs::write(
-            &path,
-            format!(
-                "{{\n  \"schema_version\": 1,\n  \"source_fingerprint\": \"{}\",\n  \"accepted\": [\"{}\"]\n}}\n",
-                "A".repeat(64),
-                id('a'),
-            ),
-        )
-        .unwrap();
-        let error = CoverageLock::read(&path).unwrap_err().to_string();
-        assert!(error.contains("source fingerprint must be lowercase 64-hex"));
+        let baseline = json_v1(&id('1'), &[id('a'), id('b')]);
+        for current in [vec![id('a')], vec![id('a'), id('b'), id('c')]] {
+            fs::write(&path, &baseline).unwrap();
+            let error = apply_with_writer(
+                &report(&id('1'), current, 0, 0, 0, 0),
+                &path,
+                CoverageLockMode::Bless,
+                &mut Vec::new(),
+                &mut super::FilesystemLockWriter,
+            )
+            .unwrap_err()
+            .to_string();
+            assert!(error.contains("exact"), "{error}");
+            assert_eq!(fs::read(&path).unwrap(), baseline);
+        }
     }
 
     #[test]
-    fn write_rejects_noncanonical_identity_before_persisting() {
+    fn schema_two_check_allows_new_coverage_but_rejects_loss_and_bless_is_add_only() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
-        let invalid = lock(["A".repeat(64)], id('1'));
+        let baseline = json_v2(&id('1'), &[id('a'), id('b')]);
+        fs::write(&path, &baseline).unwrap();
+        let growth = report(&id('2'), vec![id('a'), id('b'), id('c')], 0, 3, 0, 0);
+        let mut diagnostics = Vec::new();
+        apply_with_writer(
+            &growth,
+            &path,
+            CoverageLockMode::Check,
+            &mut diagnostics,
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap();
+        let diagnostics = String::from_utf8(diagnostics).unwrap();
+        assert!(diagnostics.contains("source fingerprint changed"));
+        assert!(diagnostics.contains(&format!("newly covered\t{}", id('c'))));
+        assert_eq!(fs::read(&path).unwrap(), baseline);
 
-        let error = invalid.write(&path).unwrap_err().to_string();
+        let loss = report(&id('2'), vec![id('b'), id('c')], 0, 0, 0, 0);
+        let error = apply_with_writer(
+            &loss,
+            &path,
+            CoverageLockMode::Bless,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("lost 1 previously covered corpus identity"));
+        assert!(error.contains(&id('a')));
+        assert_eq!(fs::read(&path).unwrap(), baseline);
 
-        assert!(error.contains("accepted corpus identity must be lowercase 64-hex"));
+        apply_with_writer(
+            &growth,
+            &path,
+            CoverageLockMode::Bless,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap();
+        assert_eq!(
+            read_lock(&path).unwrap().covered_for_test(),
+            &[id('a'), id('b'), id('c')]
+        );
+        assert_eq!(
+            read_lock(&path).unwrap().source_fingerprint_for_test(),
+            id('2')
+        );
+    }
+
+    #[test]
+    fn missing_lock_is_check_error_but_bless_creates_schema_two() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let current = report(&id('1'), vec![id('a')], 0, 1, 0, 0);
+        assert!(
+            apply_with_writer(
+                &current,
+                &path,
+                CoverageLockMode::Check,
+                &mut Vec::new(),
+                &mut super::FilesystemLockWriter,
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("missing")
+        );
         assert!(!path.exists());
+
+        apply_with_writer(
+            &current,
+            &path,
+            CoverageLockMode::Bless,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap();
+        assert!(matches!(
+            read_lock(&path).unwrap(),
+            LoadedCoverageLock::V2(_)
+        ));
     }
 
     #[test]
-    fn production_lock_adds_only_the_reviewed_rend_spirit_identity() {
+    fn gate_rejects_uncovered_unresolved_and_internal_but_ignores_ordinary_parse_failures() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let baseline = json_v2(&id('1'), &[id('a')]);
+        fs::write(&path, &baseline).unwrap();
+
+        for (uncovered, unresolved, internal, needle) in [
+            (1, 0, 0, "selected-uncovered"),
+            (0, 1, 0, "unresolved"),
+            (0, 0, 1, "internal"),
+        ] {
+            let error = apply_with_writer(
+                &report(&id('1'), vec![id('a')], uncovered, 9, unresolved, internal),
+                &path,
+                CoverageLockMode::Check,
+                &mut Vec::new(),
+                &mut super::FilesystemLockWriter,
+            )
+            .unwrap_err()
+            .to_string();
+            assert!(error.contains(needle), "expected {needle:?} in {error:?}");
+            assert_eq!(fs::read(&path).unwrap(), baseline);
+        }
+
+        apply_with_writer(
+            &report(&id('1'), vec![id('a')], 0, 99, 0, 0),
+            &path,
+            CoverageLockMode::Check,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn every_atomic_write_failure_preserves_original_bytes_and_leaves_no_temporary() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let baseline = json_v2(&id('1'), &[id('a')]);
+        let replacement = CoverageLockV2::new_for_test(id('2'), vec![id('a'), id('b')]);
+
+        for stage in [
+            FailureStage::Create,
+            FailureStage::Write,
+            FailureStage::Flush,
+            FailureStage::Persist,
+        ] {
+            fs::write(&path, &baseline).unwrap();
+            let mut writer = super::FailingLockWriter::new(stage);
+            let error = write_v2_with(&replacement, &path, &mut writer)
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(stage.name()), "{error}");
+            assert_eq!(fs::read(&path).unwrap(), baseline);
+            assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+            assert_eq!(writer.events(), stage.expected_events());
+        }
+    }
+
+    #[test]
+    fn validation_and_gate_failures_never_create_or_mutate_the_lock() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let malformed = b"malformed baseline\n".to_vec();
+        fs::write(&path, &malformed).unwrap();
+        let error = apply_with_writer(
+            &report(&id('1'), vec![id('a')], 0, 0, 0, 0),
+            &path,
+            CoverageLockMode::Bless,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap_err();
+        assert!(format!("{error:#}").contains("parsing"));
+        assert_eq!(fs::read(&path).unwrap(), malformed);
+    }
+
+    #[test]
+    fn production_schema_two_lock_is_the_exact_reviewed_migration_result() {
         const REND_SPIRIT: &str =
             "5a0bd9563d2e05ca394ee7bedc5e55f386f82ee16f4227c410565066c6585660";
-        const PRIOR_ACCEPTED_SHA256: &str =
-            "042ca946aff58bad02ba7c2daf6df3fce41493939c59caeab4022bb790669409";
+        const EXPECTED_FILE_SHA256: &str =
+            "503df6f34bdad4741008ccb323d831f763b633deef2d021de5b0df93d0a20241";
+        const EXPECTED_SOURCE: &str =
+            "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd";
 
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../english-v2-coverage.lock");
-        let lock = CoverageLock::read(&path).expect("production coverage lock is valid");
-        let mut prior = lock.accepted().clone();
-
-        assert_eq!(lock.accepted().len(), 48);
-        assert!(prior.remove(REND_SPIRIT));
-        assert_eq!(prior.len(), 47);
-
-        let mut hasher = Sha256::new();
-        for identity in prior {
-            hasher.update(identity.as_bytes());
-            hasher.update(b"\n");
+        let bytes = fs::read(&path).unwrap();
+        let mut digest = String::new();
+        for byte in Sha256::digest(&bytes) {
+            write!(&mut digest, "{byte:02x}").unwrap();
         }
-        let digest = hasher.finalize();
-        let mut hexadecimal = String::with_capacity(digest.len() * 2);
-        for byte in digest {
-            write!(&mut hexadecimal, "{byte:02x}").expect("writing to String cannot fail");
-        }
-        assert_eq!(hexadecimal, PRIOR_ACCEPTED_SHA256);
+        assert_eq!(digest, EXPECTED_FILE_SHA256);
+        let loaded = read_lock(&path).expect("production coverage lock is strict schema 2");
+        assert!(matches!(loaded, LoadedCoverageLock::V2(_)));
+        assert_eq!(loaded.source_fingerprint_for_test(), EXPECTED_SOURCE);
+        assert_eq!(loaded.covered_for_test().len(), 48);
+        assert!(
+            loaded
+                .covered_for_test()
+                .iter()
+                .any(|candidate| candidate == REND_SPIRIT)
+        );
     }
 }
