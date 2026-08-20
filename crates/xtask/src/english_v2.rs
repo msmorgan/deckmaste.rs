@@ -285,6 +285,7 @@ fn declaration_kind_name(kind: DeclarationKind) -> &'static str {
     match kind {
         DeclarationKind::Construction => "construction",
         DeclarationKind::Vocab => "vocab",
+        DeclarationKind::Morphology => "morphology",
         DeclarationKind::Lexeme => "lexeme",
         DeclarationKind::Codec => "codec",
         DeclarationKind::Identity => "identity",
@@ -451,6 +452,9 @@ mod tests {
             }
         }
         for forbidden_function in [
+            "inflect",
+            "scan_verb",
+            "scan_bound_terminal",
             "scan_signed_number",
             "scan_noun",
             "noun_forms",
@@ -469,12 +473,25 @@ mod tests {
                 ));
             }
         }
+        if contains_closed_lexeme_surface_mirror(file) {
+            violations.push(format!(
+                "{path} retains a handwritten closed-lexeme surface mirror"
+            ));
+        }
         if contains_test_only_generated_ghost(file) {
             violations.push(format!(
                 "{path} recreates a generated build/rules authority under cfg(test)"
             ));
         }
         let literals = production_string_literals(file);
+        for owner in literals
+            .iter()
+            .filter(|literal| is_two_segment_closed_lexeme_owner(literal))
+        {
+            violations.push(format!(
+                "{path} retains two-segment closed lexeme owner literal {owner}"
+            ));
+        }
         for forbidden in ["destroy", "destroys", "connive", "connives"] {
             if literals.iter().any(|literal| literal == forbidden) {
                 violations.push(format!(
@@ -483,6 +500,26 @@ mod tests {
             }
         }
         violations
+    }
+
+    fn contains_closed_lexeme_surface_mirror(file: &syn::File) -> bool {
+        use syn::visit::Visit as _;
+
+        let mut finder = ClosedLexemeSurfaceMirrorFinder::default();
+        finder.visit_file(file);
+        finder.found
+    }
+
+    fn is_two_segment_closed_lexeme_owner(literal: &str) -> bool {
+        let Some(owner) = literal.strip_prefix("lexeme:") else {
+            return false;
+        };
+        let mut segments = owner.split('/');
+        matches!(
+            (segments.next(), segments.next(), segments.next()),
+            (Some(declaration), Some(member), None)
+                if declaration.ends_with("Lexeme") && !member.is_empty()
+        )
     }
 
     fn uses_source_shaped_authority(file: &syn::File) -> bool {
@@ -549,6 +586,16 @@ mod tests {
 
     #[derive(Default)]
     struct ProductionCodeIndirectionFinder {
+        found: bool,
+    }
+
+    #[derive(Default)]
+    struct ClosedLexemeSurfaceMirrorFinder {
+        found: bool,
+    }
+
+    #[derive(Default)]
+    struct ClosedLexemeIdentifierFinder {
         found: bool,
     }
 
@@ -742,6 +789,26 @@ mod tests {
         }
     }
 
+    fn macro_tokens_contain_closed_surface_mirror(tokens: proc_macro2::TokenStream) -> bool {
+        use syn::visit::Visit as _;
+
+        if let Ok(expression) = syn::parse2::<syn::Expr>(tokens.clone()) {
+            let mut finder = ClosedLexemeSurfaceMirrorFinder::default();
+            finder.visit_expr(&expression);
+            if finder.found {
+                return true;
+            }
+        }
+        tokens.into_iter().any(|token| match token {
+            proc_macro2::TokenTree::Group(group) => {
+                macro_tokens_contain_closed_surface_mirror(group.stream())
+            }
+            proc_macro2::TokenTree::Ident(_)
+            | proc_macro2::TokenTree::Punct(_)
+            | proc_macro2::TokenTree::Literal(_) => false,
+        })
+    }
+
     fn use_tree_reexports_generated_item(tree: &syn::UseTree) -> bool {
         const GENERATED_ITEMS: &[&str] = &[
             "build",
@@ -910,6 +977,57 @@ mod tests {
                 self.found = true;
             }
             syn::visit::visit_macro(self, mac);
+        }
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for ClosedLexemeSurfaceMirrorFinder {
+        fn visit_item(&mut self, item: &'ast syn::Item) {
+            if item_attrs(item).is_some_and(is_test_only) {
+                return;
+            }
+            syn::visit::visit_item(self, item);
+        }
+
+        fn visit_impl_item(&mut self, item: &'ast syn::ImplItem) {
+            if impl_item_attrs(item).is_some_and(is_test_only) {
+                return;
+            }
+            syn::visit::visit_impl_item(self, item);
+        }
+
+        fn visit_expr_array(&mut self, expression: &'ast syn::ExprArray) {
+            let mut lexeme = ClosedLexemeIdentifierFinder::default();
+            lexeme.visit_expr_array(expression);
+            let mut strings = ProductionStringLiteralFinder::default();
+            strings.visit_expr_array(expression);
+            if lexeme.found && !strings.found.is_empty() {
+                self.found = true;
+            }
+            syn::visit::visit_expr_array(self, expression);
+        }
+
+        fn visit_expr_match(&mut self, expression: &'ast syn::ExprMatch) {
+            let mut lexeme = ClosedLexemeIdentifierFinder::default();
+            lexeme.visit_expr_match(expression);
+            let mut strings = ProductionStringLiteralFinder::default();
+            strings.visit_expr_match(expression);
+            if lexeme.found && !strings.found.is_empty() {
+                self.found = true;
+            }
+            syn::visit::visit_expr_match(self, expression);
+        }
+
+        fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+            if macro_tokens_contain_closed_surface_mirror(mac.tokens.clone()) {
+                self.found = true;
+            }
+        }
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for ClosedLexemeIdentifierFinder {
+        fn visit_ident(&mut self, ident: &'ast syn::Ident) {
+            let ident = ident.to_string();
+            self.found |= ident != "Lexeme" && ident.ends_with("Lexeme");
         }
     }
 
@@ -1140,6 +1258,8 @@ mod tests {
         "vocab Demonstrative",
         "vocab Pronoun",
         "vocab Variable",
+        "morphology EnglishVerb",
+        "morphology EnglishNoun",
         "lexeme NounLexeme",
         "lexeme VerbLexeme",
         "codec Noun",
@@ -1262,8 +1382,8 @@ mod tests {
         clippy::too_many_lines,
         reason = "the complete production-origin oracle is deliberately explicit"
     )]
-    fn expected_production_origins(item_key: &str) -> &'static [&'static str] {
-        match item_key {
+    fn expected_production_origins(item_key: &str) -> Option<&'static [&'static str]> {
+        Some(match item_key {
             "type Ability" | "function walk_ability" => {
                 &["construction spell", "construction triggered"]
             }
@@ -1331,11 +1451,19 @@ mod tests {
             "type Pronoun" | "function render_pronoun" | "function walk_pronoun" => {
                 &["vocab Pronoun"]
             }
+            "function agreement_for_pronoun" => &["construction pronoun", "construction count"],
+            "function agreement_for_demonstrative" | "function number_for_demonstrative" => {
+                &["construction demonstrative"]
+            }
             "type Variable" | "function render_variable" | "function walk_variable" => {
                 &["vocab Variable"]
             }
-            "type NounLexeme" | "function walk_noun_lexeme" => &["lexeme NounLexeme"],
-            "type VerbLexeme" | "function walk_verb_lexeme" => &["lexeme VerbLexeme"],
+            "type NounLexeme"
+            | "function surface_for_noun_lexeme"
+            | "function walk_noun_lexeme" => &["lexeme NounLexeme"],
+            "type VerbLexeme"
+            | "function surface_for_verb_lexeme"
+            | "function walk_verb_lexeme" => &["lexeme VerbLexeme"],
             "type DeclarationNoun"
             | "impl DeclarationNoun"
             | "type Noun"
@@ -1414,8 +1542,89 @@ mod tests {
                 "construction variable",
                 "root Ability",
             ],
-            _ => panic!("missing explicit production origin oracle for {item_key}"),
+            _ => return None,
+        })
+    }
+
+    struct AuditedTerminalContribution {
+        origin: String,
+        expected_generated_item_keys: Vec<ItemKey>,
+    }
+
+    fn audit_expected_terminal_items(
+        expected: &[AuditedTerminalContribution],
+        actual: &[deckmaste_construction_core::GeneratedItem],
+        classify: impl Fn(&str) -> Option<Vec<String>>,
+    ) -> Vec<String> {
+        let mut failures = Vec::new();
+        for contribution in expected {
+            let origin = &contribution.origin;
+            for key in &contribution.expected_generated_item_keys {
+                let item_name = item_key_name(key);
+                let actual_item = actual.iter().find(|item| item.key == *key);
+                match actual_item {
+                    Some(item) if item.origins.iter().any(|candidate| {
+                        declaration_kind_name(candidate.kind()) == "lexeme"
+                            && candidate.name() == origin
+                    }) => {}
+                    Some(_) => failures.push(format!(
+                        "generated terminal item `{item_name}` does not carry declaration origin `lexeme {origin}`"
+                    )),
+                    None => failures.push(format!(
+                        "missing generated terminal item `{item_name}` for declaration origin `lexeme {origin}`"
+                    )),
+                }
+                match classify(&item_name) {
+                    Some(origins)
+                        if !origins
+                            .iter()
+                            .any(|candidate| candidate == &format!("lexeme {origin}")) =>
+                    {
+                        failures.push(format!(
+                            "explicit origin classification for generated terminal item `{item_name}` omits declaration origin `lexeme {origin}`"
+                        ));
+                    }
+                    Some(origins) => {
+                        if let Some(item) = actual_item {
+                            let actual_origins = item
+                                .origins
+                                .iter()
+                                .map(|origin| {
+                                    format!(
+                                        "{} {}",
+                                        declaration_kind_name(origin.kind()),
+                                        origin.name()
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            if actual_origins != origins {
+                                failures.push(format!(
+                                    "generated terminal item `{item_name}` origin classification differs: item has {actual_origins:?}, classification has {origins:?}"
+                                ));
+                            }
+                        }
+                    }
+                    None => failures.push(format!(
+                        "missing explicit origin classification for generated terminal item `{item_name}` from declaration origin `lexeme {origin}`"
+                    )),
+                }
+            }
         }
+        failures
+    }
+
+    fn expected_lexeme_terminal_items(expansion: &Expansion) -> Vec<AuditedTerminalContribution> {
+        expansion
+            .terminal_contributions()
+            .iter()
+            .filter(|contribution| {
+                contribution.kind() == deckmaste_construction_core::TerminalKind::Lexeme
+            })
+            .map(|contribution| AuditedTerminalContribution {
+                origin: contribution.origin().name().to_owned(),
+                expected_generated_item_keys: contribution.expected_generated_item_keys().to_vec(),
+            })
+            .collect()
     }
 
     const EXPECTED_ITEM_KEYS: &[&str] = &[
@@ -1450,7 +1659,9 @@ mod tests {
         "type Pronoun",
         "type Variable",
         "type NounLexeme",
+        "function surface_for_noun_lexeme",
         "type VerbLexeme",
+        "function surface_for_verb_lexeme",
         "type DeclarationNoun",
         "impl DeclarationNoun",
         "type Noun",
@@ -1506,6 +1717,9 @@ mod tests {
         "function render_demonstrative",
         "function render_pronoun",
         "function render_variable",
+        "function agreement_for_pronoun",
+        "function agreement_for_demonstrative",
+        "function number_for_demonstrative",
         "function render_signed_number",
         "function agreement_for_noun_phrase",
         "function number_for_noun_phrase",
@@ -1937,9 +2151,36 @@ mod tests {
             "mod nested { enum Noun { Mirror } }\n\
              struct Scanner;\n\
              impl Scanner { fn scan_signed_number(&self) {} }\n\
+             mod morphology_shadow {\n\
+                 fn inflect() {}\n\
+                 struct BoundScanner;\n\
+                 impl BoundScanner { fn scan_verb(&self) {} }\n\
+                 fn wrappers() { generated!({ fn scan_bound_terminal() {} }); }\n\
+                 const CLOSED_OWNER: &str = \"lexeme:VerbLexeme/Deal\";\n\
+                 static CLOSED_SURFACES: &[(VerbLexeme, Agreement, &str)] =\n\
+                     &[(VerbLexeme::Deal, Agreement::Bare, \"deal\")];\n\
+                 fn surface(lexeme: VerbLexeme, agreement: Agreement) -> &'static str {\n\
+                     match (lexeme, agreement) {\n\
+                         (VerbLexeme::Deal, Agreement::Bare) => \"deal\",\n\
+                         _ => \"deals\",\n\
+                     }\n\
+                 }\n\
+                 fn macro_surface() {\n\
+                     generated!([(NounLexeme::Player, Number::Singular, \"player\")]);\n\
+                 }\n\
+             }\n\
              fn macro_shadow() { helper!(({ scan_noun }), [walk_declaration_noun]); }\n\
              fn source_reader(tokens: Tokens) { crate::parse_declarations(tokens); }\n\
-             #[cfg(test)] mod decoy { enum Lexical { Mirror } fn scan_noun() {} }\n\
+             #[cfg(test)] mod decoy {\n\
+                 enum Lexical { Mirror }\n\
+                 fn scan_noun() {}\n\
+                 fn inflect() {}\n\
+                 fn scan_verb() {}\n\
+                 fn scan_bound_terminal() {}\n\
+                 const CLOSED_OWNER: &str = \"lexeme:NounLexeme/Player\";\n\
+                 static CLOSED_SURFACES: &[(NounLexeme, Number, &str)] =\n\
+                     &[(NounLexeme::Player, Number::Singular, \"player\")];\n\
+             }\n\
              fn later_production() { helper!({ render_noun }); }",
         )
         .expect("adversarial authority source reparses");
@@ -1964,6 +2205,54 @@ mod tests {
             ProductionAuthorityKind::Enum,
             "Lexical"
         ));
+        let violations = english_runtime_authority_violations("nested.rs", &adversarial);
+        for forbidden in ["inflect", "scan_verb", "scan_bound_terminal"] {
+            assert!(
+                violations
+                    .iter()
+                    .any(|violation| violation.contains(forbidden)),
+                "missing `{forbidden}` violation in {violations:#?}"
+            );
+        }
+        assert!(
+            violations
+                .iter()
+                .any(|violation| violation.contains("closed-lexeme surface mirror")),
+            "missing closed-surface violation in {violations:#?}"
+        );
+        assert!(
+            violations
+                .iter()
+                .any(|violation| violation.contains("two-segment closed lexeme owner")),
+            "missing owner violation in {violations:#?}"
+        );
+        for (shape, source) in [
+            (
+                "array",
+                "static SURFACES: &[(VerbLexeme, Agreement, &str)] = \
+                 &[(VerbLexeme::Deal, Agreement::Bare, \"deal\")];",
+            ),
+            (
+                "match",
+                "fn surface(value: VerbLexeme) -> &'static str { \
+                 match value { VerbLexeme::Deal => \"deal\" } }",
+            ),
+            (
+                "macro",
+                "fn surface() { \
+                 generated!([(NounLexeme::Player, Number::Singular, \"player\")]); }",
+            ),
+        ] {
+            let sentinel = syn::parse_file(source)
+                .unwrap_or_else(|error| panic!("{shape} surface sentinel reparses: {error}"));
+            let violations = english_runtime_authority_violations(shape, &sentinel);
+            assert!(
+                violations
+                    .iter()
+                    .any(|violation| violation.contains("closed-lexeme surface mirror")),
+                "missing isolated {shape} surface violation in {violations:#?}"
+            );
+        }
 
         let ghost =
             syn::parse_file("#[cfg(test)] mod build { pub use crate::constructions::build; }")
@@ -1976,6 +2265,105 @@ mod tests {
     }
 
     #[test]
+    fn lexeme_authority_detection_ignores_cfg_test_decoys_and_substring_lookalikes() {
+        let decoys = syn::parse_file(
+            "#[cfg(test)] mod tests {\n\
+                 fn inflect() {}\n\
+                 fn scan_verb() {}\n\
+                 fn scan_bound_terminal() {}\n\
+                 const OWNER: &str = \"lexeme:VerbLexeme/Deal\";\n\
+                 static SURFACES: &[(VerbLexeme, Agreement, &str)] =\n\
+                     &[(VerbLexeme::Deal, Agreement::Bare, \"deal\")];\n\
+             }\n\
+             fn scan_verb_count() -> usize { 0 }\n\
+             const DESCRIPTION: &str = \"fn inflect and scan_bound_terminal\";\n\
+             const FEATURED_OWNER: &str = \"lexeme:VerbLexeme/Deal/bare\";\n\
+             enum Term { Lexeme }\n\
+             fn ordinary(value: Term) -> &'static str {\n\
+                 match value { Term::Lexeme => \"ordinary\" }\n\
+             }",
+        )
+        .expect("authority decoys reparse");
+
+        let violations = english_runtime_authority_violations("decoys.rs", &decoys);
+        assert!(violations.is_empty(), "{violations:#?}");
+    }
+
+    #[test]
+    fn generated_terminal_items_are_all_classified_by_the_audit() {
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let expected = expected_lexeme_terminal_items(&expansion);
+        let failures = audit_expected_terminal_items(&expected, expansion.items(), |item_name| {
+            expected_production_origins(item_name)
+                .map(|origins| origins.iter().map(|origin| (*origin).to_owned()).collect())
+        });
+
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+
+    #[test]
+    fn generated_terminal_items_are_all_classified_only_after_emission_and_origin_classification() {
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let origin = expansion
+            .terminal_contributions()
+            .iter()
+            .find(|contribution| contribution.name() == "VerbLexeme")
+            .expect("synthetic mutation has a lexeme contribution")
+            .origin()
+            .clone();
+        let synthetic_key = ItemKey::Named {
+            kind: NamedKind::Function,
+            name: "synthetic_verb_lexeme_item".to_owned(),
+        };
+        let mut expected = expected_lexeme_terminal_items(&expansion);
+        expected
+            .iter_mut()
+            .find(|contribution| contribution.origin == origin.name())
+            .expect("synthetic mutation finds the projected contribution")
+            .expected_generated_item_keys
+            .push(synthetic_key.clone());
+        let production_classifier = |item_name: &str| {
+            expected_production_origins(item_name)
+                .map(|origins| origins.iter().map(|origin| (*origin).to_owned()).collect())
+        };
+
+        let failures =
+            audit_expected_terminal_items(&expected, expansion.items(), production_classifier);
+        assert_eq!(failures.len(), 2, "{failures:#?}");
+        assert!(failures.iter().any(|failure| {
+            failure.contains("function synthetic_verb_lexeme_item")
+                && failure.contains("lexeme VerbLexeme")
+                && failure.contains("missing generated terminal item")
+        }));
+        assert!(failures.iter().any(|failure| {
+            failure.contains("function synthetic_verb_lexeme_item")
+                && failure.contains("lexeme VerbLexeme")
+                && failure.contains("missing explicit origin classification")
+        }));
+
+        let mut actual = expansion.items().to_vec();
+        actual.push(deckmaste_construction_core::GeneratedItem {
+            key: synthetic_key,
+            tokens: proc_macro2::TokenStream::new(),
+            origins: vec![origin],
+        });
+        let failures = audit_expected_terminal_items(&expected, &actual, production_classifier);
+        assert_eq!(failures.len(), 1, "{failures:#?}");
+        assert!(failures[0].contains("missing explicit origin classification"));
+
+        let failures = audit_expected_terminal_items(&expected, &actual, |item_name| {
+            if item_name == "function synthetic_verb_lexeme_item" {
+                Some(vec!["lexeme VerbLexeme".to_owned()])
+            } else {
+                production_classifier(item_name)
+            }
+        });
+        assert!(failures.is_empty(), "{failures:#?}");
+    }
+
+    #[test]
     fn production_expansion_prints_each_literal_item_key_once_with_every_origin() {
         let output = expand_source(PRODUCTION_SOURCE).expect("production declaration expands");
         let headings = output
@@ -1984,7 +2372,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 134);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 139);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -2000,7 +2388,9 @@ mod tests {
                 .lines()
                 .filter_map(|line| line.strip_prefix("// origin: "))
                 .collect::<Vec<_>>();
-            let expected_origins = expected_production_origins(expected_key);
+            let expected_origins = expected_production_origins(expected_key).unwrap_or_else(|| {
+                panic!("missing explicit production origin oracle for {expected_key}")
+            });
             assert_eq!(actual_origins, expected_origins, "{expected_key}");
         }
     }
@@ -2031,7 +2421,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 134);
+        assert_eq!(parsed.items.len(), 139);
     }
 
     #[test]
