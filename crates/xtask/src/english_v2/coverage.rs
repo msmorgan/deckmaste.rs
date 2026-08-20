@@ -606,11 +606,6 @@ summary_getters!(
     ownership_failure_units,
     claims,
     claimed_bytes,
-    form_literal_claims,
-    vocab_claims,
-    lexeme_claims,
-    codec_claims,
-    identity_claims,
 );
 
 impl CoverageSummary {
@@ -1313,6 +1308,9 @@ mod tests {
     use deckmaste_english_v2::parser::OwnershipFailure;
     use deckmaste_english_v2::parser::ParseAnalysisOutcome;
     use deckmaste_english_v2::parser::TextSpan;
+    use deckmaste_english_v2::parser::reset_analyze_calls_for_test;
+    use deckmaste_english_v2::parser::take_analyze_calls_for_test;
+    use deckmaste_english_v2::parser::with_forced_ownership_inspection_failure_for_test;
 
     use super::CoverageByteMismatchScope;
     use super::CoverageInternalFailureKind;
@@ -1344,7 +1342,7 @@ mod tests {
     #[derive(Clone)]
     struct FixtureSummary {
         covered: bool,
-        values: [usize; 19],
+        values: [usize; 18],
     }
 
     impl OwnershipSummarySource for FixtureSummary {
@@ -1432,7 +1430,7 @@ mod tests {
         FixtureSummary {
             covered,
             values: [
-                15, 150, 1, 10, 2, 20, 3, 30, 4, 40, 5, 50, 6, 60, 7, 70, 8, 9, 0,
+                15, 150, 1, 10, 2, 20, 3, 30, 4, 40, 5, 50, 6, 60, 7, 70, 8, 9,
             ],
         }
     }
@@ -1621,7 +1619,119 @@ mod tests {
     }
 
     #[test]
-    fn summary_is_complete_allows_overlap_and_rejects_counterfeit_equations() {
+    fn json_wire_uses_literal_status_and_internal_kind_spellings() {
+        let selected_covered = CoverageRow::selected_for_test(
+            id('1'),
+            CoverageStatus::SelectedCovered,
+            &valid_summary(true),
+            false,
+            false,
+        );
+        let selected_uncovered = CoverageRow::selected_for_test(
+            id('2'),
+            CoverageStatus::SelectedUncovered,
+            &valid_summary(false),
+            true,
+            true,
+        );
+        let status_rows = [
+            (selected_covered, "selected_covered"),
+            (selected_uncovered, "selected_uncovered"),
+            (
+                CoverageRow::outcome_for_test(id('3'), CoverageStatus::ParseFailure),
+                "parse_failure",
+            ),
+            (
+                CoverageRow::outcome_for_test(id('4'), CoverageStatus::UnresolvedAmbiguity),
+                "unresolved_ambiguity",
+            ),
+            (
+                CoverageRow::outcome_for_test(id('5'), CoverageStatus::InternalFailure),
+                "internal_failure",
+            ),
+        ];
+        for (row, expected) in status_rows {
+            assert_eq!(serde_json::to_value(row).unwrap()["status"], expected);
+        }
+
+        for (outcome, expected) in [
+            (
+                ParseAnalysisOutcome::InternalFailure(
+                    InternalFailureKind::ValidatedRootDidNotMaterialize,
+                ),
+                "validated_root_did_not_materialize",
+            ),
+            (
+                ParseAnalysisOutcome::InternalFailure(InternalFailureKind::SelectionConfiguration),
+                "selection_configuration",
+            ),
+            (
+                ParseAnalysisOutcome::InternalFailure(InternalFailureKind::OwnershipInspection),
+                "ownership_inspection",
+            ),
+        ] {
+            let row = analysis_row::<FixtureOwnership>(
+                &unit("Internal", "text"),
+                outcome,
+                None,
+                Some("message"),
+            );
+            assert_eq!(
+                serde_json::to_value(row).unwrap()["internal_failure_kind"],
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn json_wire_uses_literal_ownership_failure_and_invalid_span_tags() {
+        let ownership = CoverageOwnership::from_source(&valid_summary(false), &all_failures());
+        let json = serde_json::to_value(ownership).unwrap();
+        let failures = json["failures"].as_array().unwrap();
+        assert_eq!(
+            failures
+                .iter()
+                .map(|failure| failure["kind"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            [
+                "gap",
+                "overlap",
+                "invalid_span",
+                "invalid_span",
+                "synthetic",
+                "provenance_plan_mismatch",
+                "byte_mismatch",
+                "byte_mismatch",
+            ]
+        );
+        assert_eq!(failures[2]["span_kind"], "out_of_bounds");
+        assert_eq!(failures[3]["span_kind"], "non_utf8_boundary");
+        assert_eq!(failures[5]["parsed"], "parsed\n\t\\\"é");
+        assert_eq!(failures[5]["rendered"], "rendered\r\\\"ß");
+    }
+
+    #[test]
+    fn json_wire_uses_literal_byte_mismatch_scope_tags_and_claim_index() {
+        let ownership = CoverageOwnership::from_source(&valid_summary(false), &all_failures());
+        let json = serde_json::to_value(ownership).unwrap();
+        let failures = json["failures"].as_array().unwrap();
+        assert_eq!(failures[6]["scope"]["kind"], "whole_render");
+        assert!(failures[6]["scope"].get("index").is_none());
+        assert_eq!(failures[6]["expected"], "expected\nwhole");
+        assert_eq!(failures[6]["actual"], "actual\rwhole");
+        assert_eq!(failures[7]["scope"]["kind"], "claim_slice");
+        assert_eq!(failures[7]["scope"]["index"], 7);
+        assert_eq!(failures[7]["expected"], "expected\tclaim");
+        assert_eq!(failures[7]["actual"], "actual\\claim");
+    }
+
+    fn independently_derived_report() -> CoverageReport {
+        let distinct_uncovered = FixtureSummary {
+            covered: false,
+            values: [
+                40, 400, 2, 20, 4, 40, 6, 60, 8, 80, 20, 200, 10, 100, 11, 110, 12, 13,
+            ],
+        };
         let rows = vec![
             CoverageRow::selected_for_test(
                 id('1'),
@@ -1633,7 +1743,7 @@ mod tests {
             CoverageRow::selected_for_test(
                 id('2'),
                 CoverageStatus::SelectedUncovered,
-                &valid_summary(false),
+                &distinct_uncovered,
                 true,
                 true,
             ),
@@ -1641,7 +1751,12 @@ mod tests {
             CoverageRow::outcome_for_test(id('4'), CoverageStatus::UnresolvedAmbiguity),
             CoverageRow::outcome_for_test(id('5'), CoverageStatus::InternalFailure),
         ];
-        let report = CoverageReport::try_new(id('a'), rows).unwrap();
+        CoverageReport::try_new(id('a'), rows).unwrap()
+    }
+
+    #[test]
+    fn summary_matches_all_twenty_seven_independently_derived_fields() {
+        let report = independently_derived_report();
         let summary = report.summary();
         assert_eq!(summary.total_units(), 5);
         assert_eq!(summary.selected_units(), 2);
@@ -1652,14 +1767,46 @@ mod tests {
         assert_eq!(summary.internal_failures(), 1);
         assert_eq!(summary.roundtrip_mismatch_units(), 1);
         assert_eq!(summary.ownership_failure_units(), 1);
-        assert_eq!(summary.claims(), 30);
-        assert_eq!(summary.claimed_bytes(), 300);
-        assert_eq!(summary.form_literal_claims(), 2);
-        assert_eq!(summary.vocab_claims(), 4);
-        assert_eq!(summary.lexeme_claims(), 6);
-        assert_eq!(summary.codec_claims(), 8);
-        assert_eq!(summary.identity_claims(), 10);
+        assert_eq!(summary.claims(), 55);
+        assert_eq!(summary.claimed_bytes(), 550);
 
+        assert_eq!(
+            serde_json::to_value(summary).unwrap(),
+            serde_json::json!({
+                "total_units": 5,
+                "selected_units": 2,
+                "covered_units": 1,
+                "selected_uncovered_units": 1,
+                "parse_failures": 1,
+                "unresolved_ties": 1,
+                "internal_failures": 1,
+                "roundtrip_mismatch_units": 1,
+                "ownership_failure_units": 1,
+                "claims": 55,
+                "claimed_bytes": 550,
+                "form_literal_claims": 3,
+                "form_literal_bytes": 30,
+                "vocab_claims": 6,
+                "vocab_bytes": 60,
+                "lexeme_claims": 9,
+                "lexeme_bytes": 90,
+                "codec_claims": 12,
+                "codec_bytes": 120,
+                "identity_claims": 25,
+                "identity_bytes": 250,
+                "gap_spans": 16,
+                "gap_bytes": 160,
+                "overlap_spans": 18,
+                "overlap_bytes": 180,
+                "synthetic_claims": 20,
+                "provenance_plan_mismatches": 22
+            })
+        );
+    }
+
+    #[test]
+    fn report_and_summary_json_have_the_exact_reviewed_fields() {
+        let report = independently_derived_report();
         let json = serde_json::to_value(&report).unwrap();
         let summary_keys = json["summary"]
             .as_object()
@@ -1711,7 +1858,11 @@ mod tests {
                 .into_iter()
                 .collect()
         );
+    }
 
+    #[test]
+    fn row_and_summary_equation_corruptions_return_typed_errors() {
+        let report = independently_derived_report();
         let mut bad_row = CoverageRow::selected_for_test(
             id('6'),
             CoverageStatus::SelectedCovered,
@@ -1777,6 +1928,18 @@ mod tests {
             counterfeit.validate_for_test(),
             Err(CoverageValidationError::SummarySelectedEquation { .. })
         ));
+        let mut counterfeit = CoverageSummary::from_rows_for_test(report.rows()).unwrap();
+        counterfeit.claims += 1;
+        assert!(matches!(
+            counterfeit.validate_for_test(),
+            Err(CoverageValidationError::SummaryClaimKindEquation { .. })
+        ));
+        let mut counterfeit = CoverageSummary::from_rows_for_test(report.rows()).unwrap();
+        counterfeit.claimed_bytes += 1;
+        assert!(matches!(
+            counterfeit.validate_for_test(),
+            Err(CoverageValidationError::SummaryByteKindEquation { .. })
+        ));
     }
 
     #[derive(Default)]
@@ -1830,7 +1993,7 @@ mod tests {
     }
 
     #[test]
-    fn runner_uses_one_analysis_per_unit_and_orders_flush_before_gate() {
+    fn runner_orders_orchestration_and_flush_before_gate() {
         let corpus = Corpus::from_units_for_test(vec![
             unit("Zulu", "You frobnitz a card."),
             unit("Alpha", "Whenever a player connives, you gain X life."),
@@ -1889,6 +2052,92 @@ mod tests {
         assert_eq!(json["rows"][1]["id"], ordered_ids[1]);
         assert!(output.bytes.ends_with(b"\n"));
         assert!(!output.bytes.ends_with(b"\n\n"));
+    }
+
+    #[test]
+    fn runner_calls_the_actual_parser_analyze_entry_once_per_ordered_unit() {
+        let corpus = Corpus::from_units_for_test(vec![
+            unit("Zulu", "Destroy target Spirit."),
+            unit("Alpha", "Whenever a player connives, you gain X life."),
+        ]);
+        let expected_calls = corpus
+            .units()
+            .iter()
+            .map(|unit| (unit.text().to_owned(), unit.context_name().to_owned()))
+            .collect::<Vec<_>>();
+        let expected_ids = corpus
+            .units()
+            .iter()
+            .map(|unit| unit.id().to_owned())
+            .collect::<Vec<_>>();
+        reset_analyze_calls_for_test();
+        let mut output = Vec::new();
+        let mut diagnostics = Vec::new();
+        let mut observer = NoopObserver;
+
+        run_with_components(
+            &args(true, CoverageLockMode::None),
+            &mut output,
+            &mut diagnostics,
+            &mut observer,
+            || Ok(corpus),
+            || Ok(crate::english_v2::parser_from_builtin_v2()),
+            |_, _, _, _| unreachable!("report-only coverage has no gate"),
+        )
+        .unwrap();
+
+        assert_eq!(take_analyze_calls_for_test(), expected_calls);
+        let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(
+            json["rows"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| row["id"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            expected_ids.iter().map(String::as_str).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn real_runner_preserves_every_stored_metadata_field_and_corpus_order() {
+        let metadata = CorpusUnit::for_test_with_metadata(
+            "Zulu Stored Card",
+            Some("Distinct Face"),
+            Some("b"),
+            "Distinct Parser Context",
+            "Destroy target Spirit.",
+        );
+        let metadata_id = metadata.id().to_owned();
+        let first = unit(
+            "Alpha Other Card",
+            "Whenever a player connives, you gain X life.",
+        );
+        let first_id = first.id().to_owned();
+        let corpus = Corpus::from_units_for_test(vec![metadata, first]);
+        let mut output = Vec::new();
+        let mut diagnostics = Vec::new();
+        let mut observer = NoopObserver;
+
+        run_with_components(
+            &args(true, CoverageLockMode::None),
+            &mut output,
+            &mut diagnostics,
+            &mut observer,
+            || Ok(corpus),
+            || Ok(crate::english_v2::parser_from_builtin_v2()),
+            |_, _, _, _| unreachable!("report-only coverage has no gate"),
+        )
+        .unwrap();
+
+        let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(json["rows"][0]["id"], first_id);
+        assert_eq!(json["rows"][1]["id"], metadata_id);
+        assert_eq!(json["rows"][1]["card_name"], "Zulu Stored Card");
+        assert_eq!(json["rows"][1]["face_name"], "Distinct Face");
+        assert_eq!(json["rows"][1]["side"], "b");
+        assert_eq!(json["rows"][1]["context_name"], "Distinct Parser Context");
+        assert_eq!(json["rows"][1]["text"], "Destroy target Spirit.");
     }
 
     #[test]
@@ -1994,23 +2243,47 @@ mod tests {
     }
 
     #[test]
-    fn selected_internal_status_is_reported_before_the_command_fails() {
-        let report = CoverageReport::try_new(
-            id('f'),
-            vec![CoverageRow::outcome_for_test(
-                id('1'),
-                CoverageStatus::InternalFailure,
-            )],
-        )
-        .unwrap();
-        let mut output = Vec::new();
-        render_report(&report, true, &mut output).unwrap();
-        output.flush().unwrap();
-        let error = super::reject_internal_failures(&report)
-            .unwrap_err()
-            .to_string();
+    fn real_internal_analysis_is_rendered_and_flushed_before_the_command_fails() {
+        let corpus = Corpus::from_units_for_test(vec![unit(
+            "Internal",
+            "Whenever a player connives, you gain X life.",
+        )]);
+        let shared = Rc::new(RefCell::new(Vec::new()));
+        let mut output = RecordingWriter {
+            events: Rc::clone(&shared),
+            ..RecordingWriter::default()
+        };
+        let mut diagnostics = Vec::new();
+        let mut observer = Recorder::default();
+        let error = with_forced_ownership_inspection_failure_for_test(|| {
+            run_with_components(
+                &args(true, CoverageLockMode::Check),
+                &mut output,
+                &mut diagnostics,
+                &mut observer,
+                || Ok(corpus),
+                || Ok(crate::english_v2::parser_from_builtin_v2()),
+                |_, _, _, _| unreachable!("internal coverage must not invoke the gate"),
+            )
+        })
+        .unwrap_err()
+        .to_string();
+
         assert!(error.contains("1 internal failure"));
-        assert!(serde_json::from_slice::<serde_json::Value>(&output).is_ok());
+        assert_eq!(observer.events.last().map(String::as_str), Some("flush"));
+        assert_eq!(
+            shared.borrow().last().map(String::as_str),
+            Some("writer.flush")
+        );
+        assert!(diagnostics.is_empty());
+        let json: serde_json::Value = serde_json::from_slice(&output.bytes).unwrap();
+        assert_eq!(json["rows"][0]["status"], "internal_failure");
+        assert_eq!(
+            json["rows"][0]["internal_failure_kind"],
+            "ownership_inspection"
+        );
+        assert_eq!(json["summary"]["internal_failures"], 1);
+        assert!(output.bytes.ends_with(b"\n"));
     }
 
     #[test]

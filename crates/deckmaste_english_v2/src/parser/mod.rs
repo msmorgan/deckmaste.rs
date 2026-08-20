@@ -140,6 +140,46 @@ thread_local! {
     };
 }
 
+#[cfg(feature = "test-support")]
+thread_local! {
+    static ANALYZE_CALLS: std::cell::RefCell<Vec<(String, String)>> = const {
+        std::cell::RefCell::new(Vec::new())
+    };
+}
+
+/// Clears the production-entry analysis log used by cross-crate tests.
+#[doc(hidden)]
+#[cfg(feature = "test-support")]
+pub fn reset_analyze_calls_for_test() {
+    ANALYZE_CALLS.with(|calls| calls.borrow_mut().clear());
+}
+
+/// Takes the exact `(text, context)` sequence observed at `Parser::analyze`.
+#[doc(hidden)]
+#[cfg(feature = "test-support")]
+#[must_use]
+pub fn take_analyze_calls_for_test() -> Vec<(String, String)> {
+    ANALYZE_CALLS.with(|calls| std::mem::take(&mut *calls.borrow_mut()))
+}
+
+/// Runs a cross-crate test with the production ownership-inspection failure
+/// path enabled for ordinary `Parser::analyze` calls.
+#[doc(hidden)]
+#[cfg(feature = "test-support")]
+pub fn with_forced_ownership_inspection_failure_for_test<T>(run: impl FnOnce() -> T) -> T {
+    struct ResetOwnershipInspectionFailure;
+
+    impl Drop for ResetOwnershipInspectionFailure {
+        fn drop(&mut self) {
+            ownership::force_inspection_corruption(false);
+        }
+    }
+
+    ownership::force_inspection_corruption(true);
+    let _reset = ResetOwnershipInspectionFailure;
+    run()
+}
+
 #[cfg(test)]
 fn count_pipeline_stage(stage: PipelineStage) {
     PIPELINE_COUNTS.with(|counts| {
@@ -185,6 +225,12 @@ impl Parser {
     /// Parses one complete ability and retains its complete selection decision.
     #[must_use]
     pub fn analyze(&self, text: &str, context: &ParseContext<'_>) -> ParseAnalysis {
+        #[cfg(feature = "test-support")]
+        ANALYZE_CALLS.with(|calls| {
+            calls
+                .borrow_mut()
+                .push((text.to_owned(), context.card_name().to_owned()));
+        });
         let grammar = self.grammar(context);
         #[cfg(test)]
         count_pipeline_stage(PipelineStage::Parse);

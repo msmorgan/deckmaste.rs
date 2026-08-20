@@ -187,7 +187,7 @@ mod tests {
     }
 
     fn unit(card: &str, face: Option<&str>, side: Option<&str>, text: &str) -> CorpusUnit {
-        CorpusUnit::for_test_with_metadata(card, face, side, text)
+        CorpusUnit::for_test_with_metadata(card, face, side, face.unwrap_or(card), text)
     }
 
     #[test]

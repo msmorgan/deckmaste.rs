@@ -257,9 +257,9 @@ impl CorpusUnit {
         card_name: &str,
         face_name: Option<&str>,
         side: Option<&str>,
+        context_name: &str,
         text: &str,
     ) -> Self {
-        let context_name = face_name.unwrap_or(card_name);
         corpus_unit(
             card_name,
             face_name,

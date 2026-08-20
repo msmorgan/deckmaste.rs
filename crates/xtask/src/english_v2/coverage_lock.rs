@@ -12,14 +12,16 @@ use super::coverage::CoverageReport;
 const SCHEMA_VERSION_V1: u32 = 1;
 const SCHEMA_VERSION_V2: u32 = 2;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct CoverageLockV1 {
     schema_version: u32,
     source_fingerprint: String,
     accepted: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct CoverageLockV2 {
     schema_version: u32,
     source_fingerprint: String,
@@ -33,12 +35,8 @@ pub(super) enum LoadedCoverageLock {
 }
 
 #[derive(Debug, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RawCoverageLock {
+struct CoverageLockSchema {
     schema_version: u32,
-    source_fingerprint: String,
-    accepted: Option<Vec<String>>,
-    covered: Option<Vec<String>>,
 }
 
 impl CoverageLockV2 {
@@ -85,48 +83,27 @@ impl LoadedCoverageLock {
 pub(super) fn read_lock(path: &Path) -> anyhow::Result<LoadedCoverageLock> {
     let bytes = fs::read(path)
         .with_context(|| format!("reading English-v2 coverage lock {}", path.display()))?;
-    let raw = serde_json::from_slice::<RawCoverageLock>(&bytes)
+    let schema = serde_json::from_slice::<CoverageLockSchema>(&bytes)
         .with_context(|| format!("parsing English-v2 coverage lock {}", path.display()))?;
-    validate_identity(&raw.source_fingerprint, "source fingerprint", path)?;
-    match raw.schema_version {
+    match schema.schema_version {
         SCHEMA_VERSION_V1 => {
-            if raw.covered.is_some() {
-                bail!(
-                    "invalid English-v2 coverage lock {}: schema 1 must not contain covered",
-                    path.display(),
-                );
-            }
-            let accepted = raw.accepted.ok_or_else(|| {
-                anyhow::anyhow!(
-                    "invalid English-v2 coverage lock {}: schema 1 requires accepted",
-                    path.display(),
+            let lock = serde_json::from_slice::<CoverageLockV1>(&bytes).with_context(|| {
+                format!(
+                    "parsing schema-1 English-v2 coverage lock {}",
+                    path.display()
                 )
             })?;
-            validate_vector(&accepted, "accepted corpus identity", path)?;
-            Ok(LoadedCoverageLock::V1(CoverageLockV1 {
-                schema_version: SCHEMA_VERSION_V1,
-                source_fingerprint: raw.source_fingerprint,
-                accepted,
-            }))
+            validate_identity(&lock.source_fingerprint, "source fingerprint", path)?;
+            validate_vector(&lock.accepted, "accepted corpus identity", path)?;
+            Ok(LoadedCoverageLock::V1(lock))
         }
         SCHEMA_VERSION_V2 => {
-            if raw.accepted.is_some() {
-                bail!(
-                    "invalid English-v2 coverage lock {}: schema 2 must not contain accepted",
-                    path.display(),
-                );
-            }
-            let covered = raw.covered.ok_or_else(|| {
-                anyhow::anyhow!(
-                    "invalid English-v2 coverage lock {}: schema 2 requires covered",
-                    path.display(),
+            let lock = serde_json::from_slice::<CoverageLockV2>(&bytes).with_context(|| {
+                format!(
+                    "parsing schema-2 English-v2 coverage lock {}",
+                    path.display()
                 )
             })?;
-            let lock = CoverageLockV2 {
-                schema_version: SCHEMA_VERSION_V2,
-                source_fingerprint: raw.source_fingerprint,
-                covered,
-            };
             lock.validate(path)?;
             Ok(LoadedCoverageLock::V2(lock))
         }
@@ -507,7 +484,7 @@ mod tests {
                     id('1')
                 )
                 .into_bytes(),
-                "requires accepted",
+                "missing field `accepted`",
             ),
             (
                 format!(
@@ -515,7 +492,7 @@ mod tests {
                     id('1')
                 )
                 .into_bytes(),
-                "requires covered",
+                "missing field `covered`",
             ),
             (
                 format!(
@@ -523,7 +500,7 @@ mod tests {
                     id('1')
                 )
                 .into_bytes(),
-                "must not contain covered",
+                "unknown field `covered`",
             ),
             (
                 format!(
@@ -531,7 +508,39 @@ mod tests {
                     id('1')
                 )
                 .into_bytes(),
-                "must not contain accepted",
+                "unknown field `accepted`",
+            ),
+            (
+                format!(
+                    "{{\"schema_version\":1,\"source_fingerprint\":\"{}\",\"accepted\":[],\"covered\":null}}",
+                    id('1')
+                )
+                .into_bytes(),
+                "unknown field",
+            ),
+            (
+                format!(
+                    "{{\"schema_version\":2,\"source_fingerprint\":\"{}\",\"covered\":[],\"accepted\":null}}",
+                    id('1')
+                )
+                .into_bytes(),
+                "unknown field",
+            ),
+            (
+                format!(
+                    "{{\"schema_version\":2,\"source_fingerprint\":\"{}\",\"covered\":[],\"covered\":[]}}",
+                    id('1')
+                )
+                .into_bytes(),
+                "duplicate field `covered`",
+            ),
+            (
+                format!(
+                    "{{\"schema_version\":2,\"schema_version\":2,\"source_fingerprint\":\"{}\",\"covered\":[]}}",
+                    id('1')
+                )
+                .into_bytes(),
+                "duplicate field `schema_version`",
             ),
             (
                 format!(
@@ -543,9 +552,11 @@ mod tests {
             ),
         ] {
             fs::write(&path, bytes).unwrap();
+            let before = fs::read(&path).unwrap();
             let error = format!("{:#}", read_lock(&path).unwrap_err());
             assert!(error.contains(needle), "expected {needle:?} in {error:?}");
             assert!(error.contains(&path.display().to_string()));
+            assert_eq!(fs::read(&path).unwrap(), before);
         }
     }
 
