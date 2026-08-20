@@ -20,28 +20,30 @@ type's own structure.
   in assembling it. Row counts and table diffs are structural reads of the
   source text, which is reading the recorded artifact rather than re-measuring
   the corpus.
-- **Mandate:** the census mandate in
-  `docs/memory/campaigns/binder-unification-probe/players-as-objects-ruling.md`
-  (2026-08-17 addendum) — the marked-union rows get a **lattice-translation**
-  reading, so that the v2 lattice-vs-marked decision is a read of a table. That
-  reading is section 9. The decision itself is the user's, at cutover.
+- **Mandate:** the census mandate from the user-settled layering ruling's
+  2026-08-17 addendum (campaign record, shared local memory) — the marked-union
+  rows get a **lattice-translation** reading, so that the v2 lattice-vs-marked
+  decision is a read of a table. That reading is section 9. The decision itself
+  is the user's, at cutover.
 
 ### Inputs
 
 The nine sweep fragments remain the working record and carry the full per-row
-prose; this file is the deliverable assembled from them.
+prose; this file is the deliverable assembled from them. They live in the
+campaign's shared local memory (gitignored, not shipped with the repo), under
+its `census/` directory:
 
 | fragment | range |
 |---|---|
-| `docs/memory/campaigns/binder-unification-probe/census/shard-1.md` | `Experimental/Words.idr` 1–2100 |
-| `docs/memory/campaigns/binder-unification-probe/census/shard-2.md` | `Experimental/Words.idr` ~1916–4145 |
-| `docs/memory/campaigns/binder-unification-probe/census/shard-3.md` | `Experimental/Words.idr` 3980–6460 |
-| `docs/memory/campaigns/binder-unification-probe/census/shard-4.md` | `Experimental/Events.idr` (whole file, 2881 lines) |
-| `docs/memory/campaigns/binder-unification-probe/census/shard-5a.md` | `Experimental.idr` 1–4040 |
-| `docs/memory/campaigns/binder-unification-probe/census/shard-5b.md` | `Experimental.idr` 4040–7770 |
-| `docs/memory/campaigns/binder-unification-probe/census/shard-6a.md` | `Experimental.idr` 7650–12500 |
-| `docs/memory/campaigns/binder-unification-probe/census/shard-6b.md` | `Experimental.idr` 11600–17081 |
-| `docs/memory/campaigns/binder-unification-probe/census/lens.md` | structure-vs-phrase verdicts + lattice translation |
+| `shard-1.md` | `Experimental/Words.idr` 1–2100 |
+| `shard-2.md` | `Experimental/Words.idr` ~1916–4145 |
+| `shard-3.md` | `Experimental/Words.idr` 3980–6460 |
+| `shard-4.md` | `Experimental/Events.idr` (whole file, 2881 lines) |
+| `shard-5a.md` | `Experimental.idr` 1–4040 |
+| `shard-5b.md` | `Experimental.idr` 4040–7770 |
+| `shard-6a.md` | `Experimental.idr` 7650–12500 |
+| `shard-6b.md` | `Experimental.idr` 11600–17081 |
+| `lens.md` | structure-vs-phrase verdicts + lattice translation |
 
 **Vocabulary.** Five kinds: `catalog` (a closed set of rows), `table` (a total
 function over a vocabulary, the cells being the measurements), `count` (a closed
@@ -1553,8 +1555,7 @@ makes the census question for most families "why did this family get posture one
 when the file's own better answer was posture two, three sections away?"
 
 Full arguments, the recorded inventories, the sketch code and the letter-binder
-redesign sketch are in
-`docs/memory/campaigns/binder-unification-probe/census/lens.md` (Part 1). The
+redesign sketch are in the `lens.md` fragment (Part 1; see §1 Inputs). The
 table below is a condensation.
 
 | # | family | verdict | one-line evidence |
@@ -1655,8 +1656,7 @@ the index* and evaporate under a lattice kind that CAN index a binding. And one
 posture: the marked constructors' **hand-written table answers ARE what the
 `Anything` row's cells would be**.
 
-Full per-site argument in
-`docs/memory/campaigns/binder-unification-probe/census/lens.md` (Part 2).
+Full per-site argument in the `lens.md` fragment (Part 2; see §1 Inputs).
 
 ### Site 1 — `AnyTarget` (Predicate, `Experimental.idr:203`)
 

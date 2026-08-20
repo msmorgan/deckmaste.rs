@@ -45,3 +45,6 @@ requires explicit review rather than an opportunistic refactor.
   needed to parse them.
 - [Semantics v2](semantics-v2.md) — Draft: semantics encodes surface English
   in situ; lowering owns all rearrangement.
+- [The kind index joins; union marking is spelling](kind-index-joins-union-marking-is-spelling.md) —
+  Semantics takes the join lattice; the marked union constructions are
+  spelling-boundary knowledge.
