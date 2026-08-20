@@ -46,7 +46,7 @@ pub struct Construction {
     pub category: Path,
     pub element: Element,
     pub checked: Option<Checked>,
-    pub requirements: Vec<RoleRefinement>,
+    pub requirements: Vec<RequireExprSource>,
     pub equations: Vec<FeatureEquation>,
     pub form: Form,
 }
@@ -109,9 +109,36 @@ pub enum ConstructorArgument {
 }
 
 #[derive(Debug)]
-pub struct RoleRefinement {
-    pub role: Ident,
-    pub variant: Ident,
+pub enum RequireExprSource {
+    In {
+        subject: RequireSubjectSource,
+        members: Vec<Ident>,
+    },
+    All(Vec<RequireExprSource>),
+    Any(Vec<RequireExprSource>),
+}
+
+impl RequireExprSource {
+    pub(crate) fn as_role_refinement(&self) -> Option<(&Ident, &Ident)> {
+        let Self::In {
+            subject: RequireSubjectSource::Role(role),
+            members,
+        } = self
+        else {
+            return None;
+        };
+        let [variant] = members.as_slice() else {
+            return None;
+        };
+        Some((role, variant))
+    }
+}
+
+#[derive(Debug)]
+pub enum RequireSubjectSource {
+    Role(Ident),
+    RoleFeature { role: Ident, feature: Feature },
+    ConstructionFeature(Feature),
 }
 
 #[derive(Debug)]

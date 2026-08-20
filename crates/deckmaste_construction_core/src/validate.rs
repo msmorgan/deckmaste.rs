@@ -3758,22 +3758,25 @@ fn validate_refinements(raw: &Declarations, symbols: &Symbols) -> syn::Result<()
             .collect();
         let mut refined = HashSet::new();
         for requirement in &construction.requirements {
-            let role = identifier_key(&requirement.role);
+            let Some((role_ident, variant_ident)) = requirement.as_role_refinement() else {
+                continue;
+            };
+            let role = identifier_key(role_ident);
             if !refined.insert(role.clone()) {
                 combine(
                     &mut errors,
                     syn::Error::new(
-                        requirement.role.span(),
+                        role_ident.span(),
                         format!("duplicate refinement for role `{role}`"),
                     ),
                 );
             }
-            let variant = identifier_key(&requirement.variant);
+            let variant = identifier_key(variant_ident);
             match fields.get(&role) {
                 None => combine(
                     &mut errors,
                     syn::Error::new(
-                        requirement.role.span(),
+                        role_ident.span(),
                         format!("unknown refinement role `{role}`"),
                     ),
                 ),
@@ -3787,7 +3790,7 @@ fn validate_refinements(raw: &Declarations, symbols: &Symbols) -> syn::Result<()
                         combine(
                             &mut errors,
                             syn::Error::new(
-                                requirement.variant.span(),
+                                variant_ident.span(),
                                 format!("`{variant}` is not a variant of category `{category}`"),
                             ),
                         );
@@ -3802,14 +3805,14 @@ fn validate_refinements(raw: &Declarations, symbols: &Symbols) -> syn::Result<()
                         Some(info) if info.kind == TerminalKind::Vocab => combine(
                             &mut errors,
                             syn::Error::new(
-                                requirement.variant.span(),
+                                variant_ident.span(),
                                 format!("unknown variant `{variant}` for vocab `{terminal}`"),
                             ),
                         ),
                         _ => combine(
                             &mut errors,
                             syn::Error::new(
-                                requirement.variant.span(),
+                                variant_ident.span(),
                                 format!(
                                     "role `{role}` is not a category or vocab refinement domain"
                                 ),
@@ -3820,7 +3823,7 @@ fn validate_refinements(raw: &Declarations, symbols: &Symbols) -> syn::Result<()
                 Some(FieldKind::Identity(_)) => combine(
                     &mut errors,
                     syn::Error::new(
-                        requirement.variant.span(),
+                        variant_ident.span(),
                         format!("role `{role}` is not a category or vocab refinement domain"),
                     ),
                 ),
@@ -4262,11 +4265,12 @@ fn resolve_local_feature(
                 let refined = construction
                     .requirements
                     .iter()
-                    .find(|requirement| same_identifier(&requirement.role, role))
-                    .and_then(|requirement| {
+                    .filter_map(|requirement| requirement.as_role_refinement())
+                    .find(|(refined_role, _)| same_identifier(refined_role, role))
+                    .and_then(|(_, refinement_variant)| {
                         arms.iter()
                             .find(|(variant, _)| {
-                                same_identifier(variant.value(), &requirement.variant)
+                                same_identifier(variant.value(), refinement_variant)
                             })
                             .map(|(_, value)| *value)
                     });

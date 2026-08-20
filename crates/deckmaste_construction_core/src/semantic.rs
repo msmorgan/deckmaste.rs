@@ -1522,9 +1522,10 @@ impl ConstructionPlan {
         let refinements = source
             .requirements
             .iter()
-            .map(|requirement| RefinementPlan {
-                role: requirement.role.clone(),
-                variant: requirement.variant.clone(),
+            .filter_map(|requirement| requirement.as_role_refinement())
+            .map(|(role, variant)| RefinementPlan {
+                role: role.clone(),
+                variant: variant.clone(),
             })
             .collect();
         let constructor = source

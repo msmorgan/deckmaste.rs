@@ -50,7 +50,8 @@ use crate::model::Morphology;
 use crate::model::NonPublicVisibility;
 use crate::model::OpenDeclarationAtom;
 use crate::model::RenderBinding;
-use crate::model::RoleRefinement;
+use crate::model::RequireExprSource;
+use crate::model::RequireSubjectSource;
 use crate::model::Root;
 use crate::model::SignedDecimalSignRoleSource;
 use crate::model::SignedDecimalSignSpelling;
@@ -76,6 +77,8 @@ mod keyword {
     syn::custom_keyword!(borrowed);
     syn::custom_keyword!(argument);
     syn::custom_keyword!(access);
+    syn::custom_keyword!(all);
+    syn::custom_keyword!(any);
     syn::custom_keyword!(callback);
     syn::custom_keyword!(call);
     syn::custom_keyword!(codec);
@@ -365,16 +368,116 @@ fn parse_constructor_argument(input: ParseStream<'_>) -> syn::Result<Constructor
     Ok(ConstructorArgument::Role(ident))
 }
 
-fn parse_requirement(input: ParseStream<'_>) -> syn::Result<RoleRefinement> {
-    let token = input.parse::<keyword::require>()?;
-    let role = input.parse()?;
-    if !input.peek(keyword::is) {
-        return Err(deferred(token.span(), "general require"));
-    }
-    input.parse::<keyword::is>()?;
-    let variant = input.parse()?;
+fn parse_requirement(input: ParseStream<'_>) -> syn::Result<RequireExprSource> {
+    input.parse::<keyword::require>()?;
+    let requirement = parse_require_expr(input)?;
     input.parse::<Token![;]>()?;
-    Ok(RoleRefinement { role, variant })
+    Ok(requirement)
+}
+
+fn parse_require_expr(input: ParseStream<'_>) -> syn::Result<RequireExprSource> {
+    if input.peek(keyword::all) {
+        input.parse::<keyword::all>()?;
+        return parse_require_group(input, RequireExprSource::All, "all");
+    }
+    if input.peek(keyword::any) {
+        input.parse::<keyword::any>()?;
+        return parse_require_group(input, RequireExprSource::Any, "any");
+    }
+
+    let first = input.call(Ident::parse_any)?;
+    let subject = if input.peek(Token![::]) || input.peek(syn::token::Paren) {
+        return Err(deferred(first.span(), "Plan 05 structural declarations"));
+    } else if input.peek(Token![.]) {
+        input.parse::<Token![.]>()?;
+        let feature_ident = input.call(Ident::parse_any)?;
+        if input.peek(syn::token::Paren) {
+            return Err(deferred(
+                feature_ident.span(),
+                "Plan 05 structural declarations",
+            ));
+        }
+        let Some(feature) = feature_from_ident(&feature_ident) else {
+            return Err(syn::Error::new(
+                feature_ident.span(),
+                format!("unknown require feature `{feature_ident}`"),
+            ));
+        };
+        RequireSubjectSource::RoleFeature {
+            role: first,
+            feature,
+        }
+    } else if let Some(feature) = feature_from_ident(&first) {
+        RequireSubjectSource::ConstructionFeature(feature)
+    } else {
+        RequireSubjectSource::Role(first)
+    };
+
+    let members = if input.peek(keyword::is) {
+        input.parse::<keyword::is>()?;
+        vec![parse_require_member(input)?]
+    } else if input.peek(Token![in]) {
+        input.parse::<Token![in]>()?;
+        parse_require_members(input)?
+    } else {
+        return Err(deferred(input.span(), "Plan 05 structural declarations"));
+    };
+    Ok(RequireExprSource::In { subject, members })
+}
+
+fn parse_require_group(
+    input: ParseStream<'_>,
+    group: impl FnOnce(Vec<RequireExprSource>) -> RequireExprSource,
+    name: &str,
+) -> syn::Result<RequireExprSource> {
+    let content;
+    parenthesized!(content in input);
+    let mut operands = Vec::new();
+    while !content.is_empty() {
+        operands.push(parse_require_expr(&content)?);
+        if content.is_empty() {
+            break;
+        }
+        content.parse::<Token![,]>()?;
+        if content.is_empty() {
+            return Err(content.error(format!("require {name} does not allow a trailing comma")));
+        }
+    }
+    if operands.len() < 2 {
+        return Err(syn::Error::new(
+            input.span(),
+            format!("require {name} requires at least two operands"),
+        ));
+    }
+    Ok(group(operands))
+}
+
+fn parse_require_members(input: ParseStream<'_>) -> syn::Result<Vec<Ident>> {
+    let content;
+    bracketed!(content in input);
+    if content.is_empty() {
+        return Err(content.error("require membership requires at least one member"));
+    }
+    let mut members = Vec::new();
+    while !content.is_empty() {
+        members.push(parse_require_member(&content)?);
+        if content.is_empty() {
+            break;
+        }
+        content.parse::<Token![,]>()?;
+        if content.is_empty() {
+            return Err(content.error("require membership does not allow a trailing comma"));
+        }
+    }
+    Ok(members)
+}
+
+fn parse_require_member(input: ParseStream<'_>) -> syn::Result<Ident> {
+    let member = input.call(Ident::parse_any)?;
+    if input.peek(Token![::]) || input.peek(Token![.]) || input.peek(syn::token::Paren) {
+        return Err(deferred(member.span(), "Plan 05 structural declarations"));
+    }
+    Ok(member)
 }
 
 fn parse_equation(input: ParseStream<'_>) -> syn::Result<FeatureEquation> {
@@ -1337,6 +1440,8 @@ mod tests {
     use crate::FeatureValue;
     use crate::FormAtom;
     use crate::NonPublicVisibility;
+    use crate::RequireExprSource;
+    use crate::RequireSubjectSource;
     use crate::TraversalKind;
     use crate::VerbOperand;
 
@@ -1461,6 +1566,123 @@ mod tests {
 
     fn path(path: &syn::Path) -> String {
         path.to_token_stream().to_string()
+    }
+
+    fn construction_with_requirement(requirement: &str) -> String {
+        format!(
+            "construction predicate: Predicate {{ element PredicateNode {{ subject: Subject, }} {requirement} form predicate = subject; }}"
+        )
+    }
+
+    #[test]
+    fn require_parses_the_closed_predicate_language() {
+        let cases = [
+            "require event is Event;",
+            "require controller in [You];",
+            "require all(mode in [One, Two], agreement is Bare);",
+            "require any(subject.number is Singular, subject.number is Plural);",
+        ];
+
+        for requirement in cases {
+            parse(&construction_with_requirement(requirement))
+                .unwrap_or_else(|error| panic!("{requirement}: {error}"));
+        }
+    }
+
+    #[test]
+    fn require_preserves_the_complete_predicate_tree_and_source_order() {
+        let declarations = parse(
+            r"
+                construction predicate: Predicate {
+                    element PredicateNode { subject: Subject, }
+                    require event is Event;
+                    require controller in [You];
+                    require all(mode in [One, Two], agreement is Bare);
+                    require any(subject.number is Singular, subject.number is Plural);
+                    form predicate = subject;
+                }
+            ",
+        )
+        .expect("closed predicates parse");
+        let Declaration::Construction(construction) = &declarations.declarations[0] else {
+            panic!("fixture contains one construction");
+        };
+
+        assert_eq!(construction.requirements.len(), 4);
+        assert!(matches!(
+            &construction.requirements[0],
+            RequireExprSource::In { subject: RequireSubjectSource::Role(role), members }
+                if role == "event" && members.len() == 1 && members[0] == "Event"
+        ));
+        assert!(matches!(
+            &construction.requirements[1],
+            RequireExprSource::In { subject: RequireSubjectSource::Role(role), members }
+                if role == "controller" && members.len() == 1 && members[0] == "You"
+        ));
+        assert!(matches!(
+            &construction.requirements[2],
+            RequireExprSource::All(operands)
+                if matches!(
+                    &operands[0],
+                    RequireExprSource::In {
+                        subject: RequireSubjectSource::Role(role), members,
+                    } if role == "mode" && members.iter().map(ToString::to_string).collect::<Vec<_>>() == ["One", "Two"]
+                ) && matches!(
+                    &operands[1],
+                    RequireExprSource::In {
+                        subject: RequireSubjectSource::ConstructionFeature(Feature::Agreement), members,
+                    } if members.len() == 1 && members[0] == "Bare"
+                )
+        ));
+        assert!(matches!(
+            &construction.requirements[3],
+            RequireExprSource::Any(operands)
+                if operands.iter().map(|operand| match operand {
+                    RequireExprSource::In {
+                        subject: RequireSubjectSource::RoleFeature { role, feature: Feature::Number },
+                        members,
+                    } if role == "subject" && members.len() == 1 => members[0].to_string(),
+                    _ => String::new(),
+                }).collect::<Vec<_>>() == ["Singular", "Plural"]
+        ));
+    }
+
+    #[test]
+    fn require_rejects_malformed_and_deferred_predicates() {
+        let cases = [
+            ("require controller in [];", "at least one member"),
+            ("require controller in [You,, Opponent];", "expected ident"),
+            ("require all(mode is One);", "at least two operands"),
+            ("require any(mode is One);", "at least two operands"),
+            (
+                "require controller::kind is You;",
+                "Plan 05 structural declarations",
+            ),
+            (
+                "require subject.gender is Masculine;",
+                "unknown require feature",
+            ),
+            (
+                "require members.len() is Three;",
+                "Plan 05 structural declarations",
+            ),
+            (
+                "require optional.is_some() is Present;",
+                "Plan 05 structural declarations",
+            ),
+            ("require mode == One;", "Plan 05 structural declarations"),
+            (
+                "require callback(subject);",
+                "Plan 05 structural declarations",
+            ),
+        ];
+
+        for (requirement, expected) in cases {
+            let error = parse(&construction_with_requirement(requirement))
+                .expect_err("malformed predicate must be rejected")
+                .to_string();
+            assert!(error.contains(expected), "{requirement}: {error}");
+        }
     }
 
     fn tokens(value: &impl ToTokens) -> String {
@@ -1657,11 +1879,11 @@ mod tests {
                     let Declaration::Construction(construction) = declaration else {
                         panic!("first declarations are constructions");
                     };
-                    let requirement = &construction.requirements[0];
-                    (
-                        requirement.role.to_string(),
-                        requirement.variant.to_string(),
-                    )
+                    let Some((role, variant)) = construction.requirements[0].as_role_refinement()
+                    else {
+                        panic!("golden requirements are role refinements");
+                    };
+                    (role.to_string(), variant.to_string())
                 })
                 .collect::<Vec<_>>(),
             [
@@ -2044,7 +2266,7 @@ mod tests {
             ),
             (
                 "construction x: X { element XNode { value: X, } require value != None; form x = value; }",
-                "general require",
+                "Plan 05 structural declarations",
             ),
             (
                 "construction x: X { element XNode { value: X, } form x when value = value; }",
