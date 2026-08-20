@@ -156,7 +156,7 @@ impl Parse for Declarations {
                 return Err(deferred(input.span(), "scanner"));
             } else {
                 return Err(input.error(
-                    "expected construction, vocab, lexeme, codec, identity, or root declaration",
+                    "expected construction, vocab, morphology, lexeme, codec, identity, or root declaration",
                 ));
             }
         }
@@ -1593,6 +1593,18 @@ mod tests {
                 .to_string();
             assert!(error.contains("empty"), "{error}");
         }
+    }
+
+    #[test]
+    fn top_level_fallback_lists_every_supported_declaration() {
+        let error = parse("unsupported")
+            .expect_err("an unknown top-level declaration is rejected")
+            .to_string();
+
+        assert_eq!(
+            error,
+            "expected construction, vocab, morphology, lexeme, codec, identity, or root declaration"
+        );
     }
 
     #[test]

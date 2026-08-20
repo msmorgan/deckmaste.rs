@@ -61,3 +61,71 @@ pub(crate) fn derive_surface(
     };
     Ok(surface)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strict_s_edge_regression() {
+        for (recipe, identity, derived, lemma, identity_surface, derived_surface) in [
+            (
+                MorphologyRecipe::EnglishNoun,
+                SurfaceFeature::Singular,
+                SurfaceFeature::Plural,
+                "class",
+                "class",
+                "classs",
+            ),
+            (
+                MorphologyRecipe::EnglishNoun,
+                SurfaceFeature::Singular,
+                SurfaceFeature::Plural,
+                "ally",
+                "ally",
+                "allys",
+            ),
+            (
+                MorphologyRecipe::EnglishNoun,
+                SurfaceFeature::Singular,
+                SurfaceFeature::Plural,
+                "dwarf",
+                "dwarf",
+                "dwarfs",
+            ),
+            (
+                MorphologyRecipe::EnglishVerb,
+                SurfaceFeature::Bare,
+                SurfaceFeature::ThirdPersonSingular,
+                "cross",
+                "cross",
+                "crosss",
+            ),
+            (
+                MorphologyRecipe::EnglishVerb,
+                SurfaceFeature::Bare,
+                SurfaceFeature::ThirdPersonSingular,
+                "try",
+                "try",
+                "trys",
+            ),
+            (
+                MorphologyRecipe::EnglishVerb,
+                SurfaceFeature::Bare,
+                SurfaceFeature::ThirdPersonSingular,
+                "scoff",
+                "scoff",
+                "scoffs",
+            ),
+        ] {
+            assert_eq!(
+                derive_surface(recipe, lemma, identity).expect("identity feature derives"),
+                identity_surface
+            );
+            assert_eq!(
+                derive_surface(recipe, lemma, derived).expect("derived feature derives"),
+                derived_surface
+            );
+        }
+    }
+}

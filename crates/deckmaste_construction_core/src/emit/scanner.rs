@@ -363,6 +363,9 @@ fn binding_arm(binding: &BindingPlan) -> TokenStream {
 
 #[cfg(test)]
 mod tests {
+    use quote::ToTokens as _;
+    use syn::visit::Visit as _;
+
     fn generated_scanner_source() -> String {
         crate::test_support::generated_morphology_expansion()
             .items()
@@ -438,14 +441,34 @@ mod tests {
     #[test]
     fn generated_morphology_scanner_does_not_delegate_lexemes_to_binding_seam() {
         let source = generated_scanner_source();
-        for delegated in [
-            "Lexical :: Verb (_) => scan_bound_terminal",
-            "Lexical :: Noun (_) => scan_bound_terminal",
-        ] {
-            assert!(
-                !source.contains(delegated),
-                "closed lexeme delegated through binding seam: {source}"
-            );
+        let function = syn::parse_str::<syn::ItemFn>(&source)
+            .expect("generated scanner remains a syntactically valid function");
+        let mut visitor = ClosedVerbArmVisitor::default();
+        visitor.visit_item_fn(&function);
+
+        assert_eq!(
+            visitor.bodies.len(),
+            1,
+            "generated scanner must have exactly one current-shape closed verb arm: {source}"
+        );
+        let body = visitor.bodies[0].to_token_stream().to_string();
+        assert!(
+            !body.contains("scan_bound_terminal"),
+            "closed two-field verb arm delegated through binding seam: {body}"
+        );
+    }
+
+    #[derive(Default)]
+    struct ClosedVerbArmVisitor<'ast> {
+        bodies: Vec<&'ast syn::Expr>,
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for ClosedVerbArmVisitor<'ast> {
+        fn visit_arm(&mut self, arm: &'ast syn::Arm) {
+            if arm.pat.to_token_stream().to_string() == "Lexical :: Verb (wanted , constraint)" {
+                self.bodies.push(&arm.body);
+            }
+            syn::visit::visit_arm(self, arm);
         }
     }
 }

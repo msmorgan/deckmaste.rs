@@ -379,6 +379,8 @@ fn categories(report: &CountedReport) -> [(&'static str, &[CountedEntry]); 8] {
 
 #[cfg(test)]
 mod tests {
+    use serde::Deserialize as _;
+
     use super::*;
 
     const PRODUCTION_SOURCE: &str =
@@ -714,6 +716,52 @@ mod tests {
     }
 
     #[test]
+    fn schema2_json_field_order() {
+        let report = build_report_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration report builds");
+        let rendered = render_json(&report).expect("production report serializes");
+
+        assert_eq!(
+            raw_top_level_keys(&rendered),
+            [
+                "schema_version",
+                "noun_morphology",
+                "mapping_layers",
+                "handwritten_codecs",
+                "stored_form_tags",
+                "stored_spelling_codecs",
+                "morphology_irregulars",
+                "selection_exceptions",
+                "terminal_bindings",
+                "checked_constructor_bindings",
+                "roots",
+            ]
+        );
+        assert!(has_schema2_morphology_field_order(&rendered));
+    }
+
+    #[test]
+    fn schema2_order_oracle_rejects_reordered_and_nested_decoys() {
+        let reordered = r#"{
+            "stored_spelling_codecs": [],
+            "decoy": { "morphology_irregulars": [] },
+            "selection_exceptions": [],
+            "morphology_irregulars": []
+        }"#;
+
+        assert_eq!(
+            raw_top_level_keys(reordered),
+            [
+                "stored_spelling_codecs",
+                "decoy",
+                "selection_exceptions",
+                "morphology_irregulars",
+            ]
+        );
+        assert!(!has_schema2_morphology_field_order(reordered));
+    }
+
+    #[test]
     fn production_builtin_noun_morphology_census_is_exact() {
         let root =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
@@ -735,6 +783,58 @@ mod tests {
             .iter()
             .map(|entry| entry.identity.as_str())
             .collect()
+    }
+
+    fn raw_top_level_keys(rendered: &str) -> Vec<String> {
+        struct Keys(Vec<String>);
+
+        impl<'de> serde::Deserialize<'de> for Keys {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct KeysVisitor;
+
+                impl<'de> serde::de::Visitor<'de> for KeysVisitor {
+                    type Value = Keys;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        formatter.write_str("a top-level JSON object")
+                    }
+
+                    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: serde::de::MapAccess<'de>,
+                    {
+                        let mut keys = Vec::new();
+                        while let Some(key) = map.next_key::<String>()? {
+                            keys.push(key);
+                            map.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                        Ok(Keys(keys))
+                    }
+                }
+
+                deserializer.deserialize_map(KeysVisitor)
+            }
+        }
+
+        Keys::deserialize(&mut serde_json::Deserializer::from_str(rendered))
+            .expect("rendered report is a top-level JSON object")
+            .0
+    }
+
+    fn has_schema2_morphology_field_order(rendered: &str) -> bool {
+        raw_top_level_keys(rendered).windows(3).any(|keys| {
+            keys == [
+                "stored_spelling_codecs",
+                "morphology_irregulars",
+                "selection_exceptions",
+            ]
+        })
     }
 
     fn morphology_irregular(identity: &str, overrides: &[(&str, &str)]) -> MorphologyIrregular {
