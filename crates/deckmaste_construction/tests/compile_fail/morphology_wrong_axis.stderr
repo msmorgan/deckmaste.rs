@@ -1,0 +1,5 @@
+error: morphology `EnglishVerb` feature axis does not match recipe
+ --> tests/compile_fail/morphology_wrong_axis.rs:4:16
+  |
+4 |     morphology EnglishVerb {
+  |                ^^^^^^^^^^^

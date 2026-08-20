@@ -3,15 +3,12 @@ use RulePosition::Nonterminal as N;
 use deckmaste_construction::constructions;
 
 use crate::context::ParseContext;
-use crate::features::agreement_for_pronoun;
-use crate::features::inflect;
 use crate::parser::BuildValue;
 use crate::parser::LexicalMatch;
 use crate::parser::Rule;
 use crate::parser::RulePosition;
 use crate::parser::ScanInput;
 use crate::parser::ownership::RawRenderedClaim;
-use crate::parser::scan_bound_terminal;
 use crate::render::Render;
 use crate::render::Writer;
 
@@ -22,8 +19,26 @@ constructions! {
     vocab Pronoun { It = "it", You = "you", }
     vocab Variable { X = "X", }
 
-    lexeme NounLexeme { Player, }
-    lexeme VerbLexeme { Deal, Gain, Control, Be, }
+    morphology EnglishVerb {
+        feature = Agreement;
+        recipe = english_verb;
+    }
+    morphology EnglishNoun {
+        feature = Number;
+        recipe = english_noun;
+    }
+    lexeme NounLexeme using EnglishNoun {
+        Player = "player",
+    }
+    lexeme VerbLexeme using EnglishVerb {
+        Deal = "deal",
+        Gain = "gain",
+        Control = "control",
+        Be = "be" {
+            Bare = "are",
+            ThirdPersonSingular = "is",
+        },
+    }
 
     codec Noun {
         generate declaration_noun {

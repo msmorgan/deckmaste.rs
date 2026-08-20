@@ -959,11 +959,35 @@ fn render_owner(
         AtomPlan::VerbFixed {
             terminal, variant, ..
         } => {
-            let stable_id =
-                syn::LitStr::new(&format!("lexeme:{terminal}/{variant}"), Span::call_site());
-            Ok(quote! {
-                LexicalOwner::static_owner(LexicalProvenanceKind::Lexeme, #stable_id)
-            })
+            let agreement = verb_agreement(validated, construction, locals)?;
+            let lexeme = find_lexeme(validated, terminal)
+                .ok_or_else(|| internal("fixed verb terminal lacks its lexeme plan"))?;
+            let arms = lexeme
+                .surfaces()
+                .iter()
+                .filter(|row| row.member() == variant)
+                .map(|row| {
+                    let feature = match row.feature() {
+                        macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                            quote! { Agreement::ThirdPersonSingular }
+                        }
+                        macro_ron::v2::SurfaceFeature::Singular
+                        | macro_ron::v2::SurfaceFeature::Plural
+                        | macro_ron::v2::SurfaceFeature::Fixed => {
+                            unreachable!("validated verb lexeme has the Agreement feature axis")
+                        }
+                    };
+                    let stable_id =
+                        crate::emit::closed_lexeme_owner_id(terminal, variant, row.feature());
+                    quote! {
+                        #feature => LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Lexeme,
+                            #stable_id,
+                        )
+                    }
+                });
+            Ok(quote! { match #agreement { #(#arms,)* } })
         }
         AtomPlan::OpenDeclaration(open) => {
             let agreement = verb_agreement(validated, construction, locals)?;
@@ -997,25 +1021,40 @@ fn render_owner(
             };
             let noun = codec.codec_ident();
             let closed = codec.closed_lexeme();
+            let number = ident(&feature_helper("number", construction.category()));
+            let category_value = &locals.category;
             let closed_arms = validated
                 .runtime_noun_lexeme()
                 .expect("validated declaration noun has a closed lexeme")
-                .variants()
+                .surfaces()
                 .iter()
-                .map(|member| {
-                    let stable_id =
-                        syn::LitStr::new(&format!("lexeme:{closed}/{member}"), Span::call_site());
+                .map(|row| {
+                    let member = emitted_ident(row.member(), Span::call_site());
+                    let feature = match row.feature() {
+                        macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                        macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                        macro_ron::v2::SurfaceFeature::Bare
+                        | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                        | macro_ron::v2::SurfaceFeature::Fixed => {
+                            unreachable!("validated noun lexeme has the Number feature axis")
+                        }
+                    };
+                    let stable_id = crate::emit::closed_lexeme_owner_id(
+                        &closed.to_string(),
+                        row.member(),
+                        row.feature(),
+                    );
                     quote! {
-                        #noun::Lexeme(#closed::#member) => LexicalOwner::static_owner(
+                        (#noun::Lexeme(#closed::#member), #feature) => LexicalOwner::static_owner(
                             LexicalProvenanceKind::Lexeme,
                             #stable_id,
                         )
                     }
                 });
             Ok(quote! {
-                match #value {
+                match (#value, #number(#category_value)) {
                     #(#closed_arms,)*
-                    #noun::Declaration(declaration) => LexicalOwner::declaration_owner(
+                    (#noun::Declaration(declaration), _) => LexicalOwner::declaration_owner(
                         declaration.id().clone(),
                         declaration.feature(),
                     ),
@@ -1758,6 +1797,30 @@ mod tests {
         reason = "literal full-surface structural oracles retain detailed mismatch output"
     )]
     use quote::ToTokens;
+
+    #[test]
+    fn generated_morphology_render_owners_include_the_realized_feature() {
+        let expansion = crate::test_support::generated_morphology_expansion();
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for owner in [
+            "lexeme:VerbLexeme/InventedLemma/bare",
+            "lexeme:VerbLexeme/InventedLemma/third_person_singular",
+            "lexeme:VerbLexeme/Be/bare",
+            "lexeme:VerbLexeme/Be/third_person_singular",
+            "lexeme:NounLexeme/TwoWords/singular",
+            "lexeme:NounLexeme/TwoWords/plural",
+        ] {
+            assert!(
+                source.contains(owner),
+                "missing render owner `{owner}`: {source}"
+            );
+        }
+    }
 
     #[test]
     fn raw_fields_and_keyword_checked_constructions_lower_to_valid_render_locals() {

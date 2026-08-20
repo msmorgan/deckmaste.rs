@@ -365,7 +365,10 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     Vocab {
                         declaration: &'static str,
                     },
-                    Lexeme { stable_id: &'static str },
+                    Lexeme {
+                        declaration: &'static str,
+                        member: &'static str,
+                    },
                     Identity {
                         declaration: &'static str,
                     },
@@ -623,23 +626,72 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             }
         })
     });
+    let verb_lexeme_owner_arms = inventory.verb_lexeme.into_iter().flat_map(|lexeme| {
+        let declaration_ident = lexeme.name_ident();
+        let declaration = syn::LitStr::new(lexeme.name(), lexeme.name_ident().span());
+        lexeme.surfaces().iter().map(move |row| {
+            let member_ident = emitted_ident(row.member(), Span::call_site());
+            let member = syn::LitStr::new(row.member(), Span::call_site());
+            let agreement = match row.feature() {
+                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                    quote! { Agreement::ThirdPersonSingular }
+                }
+                macro_ron::v2::SurfaceFeature::Singular
+                | macro_ron::v2::SurfaceFeature::Plural
+                | macro_ron::v2::SurfaceFeature::Fixed => {
+                    unreachable!("validated verb lexeme has the Agreement feature axis")
+                }
+            };
+            let stable_id =
+                crate::emit::closed_lexeme_owner_id(lexeme.name(), row.member(), row.feature());
+            quote! {
+                (
+                    LexicalOwnerTemplate::Lexeme {
+                        declaration: #declaration,
+                        member: #member,
+                    },
+                    Leaf::Verb {
+                        lexeme: #declaration_ident::#member_ident,
+                        agreement: #agreement,
+                    },
+                ) => Some(LexicalOwner::static_owner(
+                    LexicalProvenanceKind::Lexeme,
+                    #stable_id,
+                )),
+            }
+        })
+    });
     let declaration_noun_owner = inventory.declaration_noun.map(|codec| {
         let noun = codec.codec_ident();
         let closed = codec.closed_lexeme();
         let closed_owner_arms = inventory
             .noun_lexeme
             .expect("validated declaration noun has its closed lexeme provider")
-            .variants()
+            .surfaces()
             .iter()
-            .map(|member| {
-                let stable_id =
-                    syn::LitStr::new(&format!("lexeme:{closed}/{member}"), Span::call_site());
+            .map(|row| {
+                let member = emitted_ident(row.member(), Span::call_site());
+                let number = match row.feature() {
+                    macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                    macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                    macro_ron::v2::SurfaceFeature::Bare
+                    | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                    | macro_ron::v2::SurfaceFeature::Fixed => {
+                        unreachable!("validated noun lexeme has the Number feature axis")
+                    }
+                };
+                let stable_id = crate::emit::closed_lexeme_owner_id(
+                    &closed.to_string(),
+                    row.member(),
+                    row.feature(),
+                );
                 quote! {
                     (
                         LexicalOwnerTemplate::DeclarationNoun,
                         Leaf::Noun {
                             noun: #noun::Lexeme(#closed::#member),
-                            number: _,
+                            number: #number,
                         },
                     ) => Some(LexicalOwner::static_owner(
                         LexicalProvenanceKind::Lexeme,
@@ -902,13 +954,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             ) => Some(LexicalOwner::static_owner(kind, stable_id)),
                             #(#vocab_owner_arms)*
                             #(#context_owner_arms)*
-                            (
-                                LexicalOwnerTemplate::Lexeme { stable_id },
-                                _,
-                            ) => Some(LexicalOwner::static_owner(
-                                LexicalProvenanceKind::Lexeme,
-                                stable_id,
-                            )),
+                            #(#verb_lexeme_owner_arms)*
                             (
                                 LexicalOwnerTemplate::Declaration { kind, name },
                                 Leaf::Declaration(declaration),

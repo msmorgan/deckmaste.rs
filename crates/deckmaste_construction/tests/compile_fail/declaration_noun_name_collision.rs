@@ -1,8 +1,10 @@
 use deckmaste_construction::constructions;
 
 constructions! {
-    lexeme NounLexeme { Player, }
-    lexeme DeclarationNoun { Intruder, }
+    morphology EnglishNoun { feature = Number; recipe = english_noun; }
+    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+    lexeme NounLexeme using EnglishNoun { Player = "player", }
+    lexeme DeclarationNoun using EnglishVerb { Intruder = "intruder", }
     codec Noun {
         generate declaration_noun {
             closed = NounLexeme;

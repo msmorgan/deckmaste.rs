@@ -1,5 +1,5 @@
 error: declaration_noun feature must be `Number`
-  --> tests/compile_fail/declaration_noun_wrong_feature.rs:10:23
+  --> tests/compile_fail/declaration_noun_wrong_feature.rs:11:23
    |
-10 |             feature = Agreement;
+11 |             feature = Agreement;
    |                       ^^^^^^^^^

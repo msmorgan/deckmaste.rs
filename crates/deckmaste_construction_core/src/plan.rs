@@ -928,9 +928,10 @@ mod tests {
             "Lexical :: Words",
             "(\"changed\" , Words :: First)",
             "Leaf :: Words (value)",
+            "(Verbs :: Act , Agreement :: Bare , \"act\")",
+            "(Nouns :: Person , Number :: Singular , \"person\")",
             "Lexical :: Declaration (matcher)",
             "input . declaration_readings (matcher)",
-            "scan_bound_terminal (input , terminal)",
         ] {
             assert!(
                 scanner.contains(expected),
@@ -940,6 +941,10 @@ mod tests {
         assert!(
             !scanner.contains("\"first\""),
             "scanner reread authored source instead of the mutated semantic row: {scanner}"
+        );
+        assert!(
+            !scanner.contains("scan_bound_terminal"),
+            "closed lexemes must not use the binding seam: {scanner}"
         );
 
         let expansion = representative_expansion();
@@ -1308,7 +1313,7 @@ mod tests {
         );
         for owner in [
             "Vocab { declaration : \"Words\" }",
-            "Lexeme { stable_id : \"lexeme:Verbs/Act\" }",
+            "Lexeme { declaration : \"Verbs\" , member : \"Act\" }",
             "stable_id : \"root:Action/punctuation\"",
             "owner : LexicalOwnerTemplate :: None",
         ] {

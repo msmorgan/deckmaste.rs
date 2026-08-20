@@ -342,6 +342,55 @@ fn parser_analysis_retains_complete_lexical_ownership() {
 }
 
 #[test]
+fn generated_morphology_closed_owner_ids_match_scan_and_render_claims() {
+    let parser = parser();
+    let context = context("Context Card");
+    for (text, expected) in [
+        (
+            "Deal X damage to target creature.",
+            "lexeme:VerbLexeme/Deal/bare",
+        ),
+        (
+            "It deals X damage to target creature.",
+            "lexeme:VerbLexeme/Deal/third_person_singular",
+        ),
+        (
+            "Whenever a player connives, you gain X life.",
+            "lexeme:NounLexeme/Player/singular",
+        ),
+        (
+            "Those players deal X damage to it.",
+            "lexeme:NounLexeme/Player/plural",
+        ),
+        (
+            "You gain X life, where X is the number of creatures you control with power 2 or less.",
+            "lexeme:VerbLexeme/Be/third_person_singular",
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let ownership = analysis
+            .ownership()
+            .unwrap_or_else(|| panic!("no ownership for {text:?}"));
+        assert!(
+            ownership
+                .parsed_claims()
+                .iter()
+                .any(|claim| claim.stable_owner_id() == expected),
+            "scanner claims lack {expected:?} for {text:?}: {:?}",
+            ownership.parsed_claims(),
+        );
+        assert!(
+            ownership
+                .rendered_claims()
+                .iter()
+                .any(|claim| claim.stable_owner_id() == expected),
+            "render claims lack {expected:?} for {text:?}: {:?}",
+            ownership.rendered_claims(),
+        );
+    }
+}
+
+#[test]
 fn parser_analysis_ownership_covers_every_kind_unicode_and_multitoken_identity() {
     let parser = parser();
     let cases = [

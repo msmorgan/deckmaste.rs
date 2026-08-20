@@ -92,7 +92,7 @@ fn parser_build_rejects_missing_wrong_recipe_and_missing_agreement_surface() {
 }
 
 #[test]
-fn builtin_open_verbs_parse_and_render_both_agreements_exactly() {
+fn open_declaration_builtin_verbs_parse_and_render_both_agreements_exactly() {
     let parser = parser();
     let context = context();
     for text in [
@@ -526,11 +526,20 @@ fn source_census_visits_production_macro_token_groups() {
 }
 
 #[test]
-fn destroy_and_connive_have_no_closed_member_or_handwritten_spelling_authority() {
+fn generated_morphology_is_the_only_closed_spelling_authority() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let constructions = fs::read_to_string(root.join("constructions.rs")).unwrap();
-    let features = fs::read_to_string(root.join("features.rs")).unwrap();
     let scanner = fs::read_to_string(root.join("parser/scan.rs")).unwrap();
+    let library = fs::read_to_string(root.join("lib.rs")).unwrap();
+
+    assert!(
+        !root.join("features.rs").exists(),
+        "handwritten morphology module remains"
+    );
+    assert!(
+        !library.contains("mod features"),
+        "handwritten morphology module remains wired"
+    );
 
     let invocation = deckmaste_construction_core::invocation_from_source(&constructions)
         .expect("production construction invocation is authentic");
@@ -550,17 +559,67 @@ fn destroy_and_connive_have_no_closed_member_or_handwritten_spelling_authority()
             .collect::<Vec<_>>(),
         ["Deal", "Gain", "Control", "Be"]
     );
-
-    let feature_literals = production_string_literals(&features);
-    let scanner_literals = production_string_literals(&scanner);
-    for forbidden in ["destroy", "destroys", "connive", "connives"] {
+    assert_eq!(
+        verb_lexeme
+            .surfaces()
+            .iter()
+            .map(|row| (row.member(), row.feature(), row.surface()))
+            .collect::<Vec<_>>(),
+        [
+            ("Deal", SurfaceFeature::Bare, "deal"),
+            ("Deal", SurfaceFeature::ThirdPersonSingular, "deals"),
+            ("Gain", SurfaceFeature::Bare, "gain"),
+            ("Gain", SurfaceFeature::ThirdPersonSingular, "gains"),
+            ("Control", SurfaceFeature::Bare, "control"),
+            ("Control", SurfaceFeature::ThirdPersonSingular, "controls"),
+            ("Be", SurfaceFeature::Bare, "are"),
+            ("Be", SurfaceFeature::ThirdPersonSingular, "is"),
+        ]
+    );
+    let noun_lexeme = expansion
+        .terminal_contributions()
+        .iter()
+        .find(|terminal| terminal.name() == "NounLexeme")
+        .expect("closed noun lexeme provider exists");
+    assert_eq!(
+        noun_lexeme
+            .surfaces()
+            .iter()
+            .map(|row| (row.member(), row.feature(), row.surface()))
+            .collect::<Vec<_>>(),
+        [
+            ("Player", SurfaceFeature::Singular, "player"),
+            ("Player", SurfaceFeature::Plural, "players"),
+        ]
+    );
+    let generated = expansion.tokens().to_string();
+    for owner in [
+        "lexeme:VerbLexeme/Deal/bare",
+        "lexeme:VerbLexeme/Deal/third_person_singular",
+        "lexeme:VerbLexeme/Be/bare",
+        "lexeme:VerbLexeme/Be/third_person_singular",
+        "lexeme:NounLexeme/Player/singular",
+        "lexeme:NounLexeme/Player/plural",
+    ] {
         assert!(
-            !feature_literals.iter().any(|literal| literal == forbidden),
-            "handwritten inflection remains: {forbidden}"
+            generated.contains(owner),
+            "generated scan/render provenance lacks `{owner}`"
         );
+    }
+
+    let scanner_literals = production_string_literals(&scanner);
+    for forbidden in ["inflect", "scan_verb", "scan_bound_terminal"] {
+        assert!(
+            !scanner.contains(forbidden),
+            "handwritten scanner/morphology seam remains: {forbidden}"
+        );
+    }
+    for forbidden in [
+        "deal", "deals", "gain", "gains", "control", "controls", "are", "is",
+    ] {
         assert!(
             !scanner_literals.iter().any(|literal| literal == forbidden),
-            "handwritten scanner spelling remains: {forbidden}"
+            "source-string surface mirror remains: {forbidden}"
         );
     }
 }

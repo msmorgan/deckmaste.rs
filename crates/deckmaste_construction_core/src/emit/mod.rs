@@ -114,6 +114,26 @@ pub(super) fn grammar_position(position: macro_ron::v2::GrammarPosition) -> Toke
     }
 }
 
+pub(super) fn closed_lexeme_owner_id(
+    declaration: &str,
+    member: &str,
+    feature: macro_ron::v2::SurfaceFeature,
+) -> syn::LitStr {
+    let feature = match feature {
+        macro_ron::v2::SurfaceFeature::Bare => "bare",
+        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => "third_person_singular",
+        macro_ron::v2::SurfaceFeature::Singular => "singular",
+        macro_ron::v2::SurfaceFeature::Plural => "plural",
+        macro_ron::v2::SurfaceFeature::Fixed => {
+            unreachable!("closed lexemes use only Agreement or Number features")
+        }
+    };
+    syn::LitStr::new(
+        &format!("lexeme:{declaration}/{member}/{feature}"),
+        proc_macro2::Span::call_site(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

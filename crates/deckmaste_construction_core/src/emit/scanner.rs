@@ -1,3 +1,4 @@
+use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -102,7 +103,13 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 .collect()
         }
     });
+    let verb_lexeme_arm = verb_lexeme_arm(plan);
     let declaration_noun_arm = declaration_noun_arm(plan);
+    let noun_lexeme_arm = plan
+        .runtime_declaration_noun()
+        .is_none()
+        .then(|| noun_lexeme_arm(plan))
+        .flatten();
     let punctuation_literals = plan.runtime_punctuation_literals();
     let punctuation_arm = (!punctuation_literals.is_empty()).then(|| {
         quote! {
@@ -150,7 +157,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 #(#vocab_arms,)*
                 #(#context_identity_arms,)*
                 #signed_decimal_arm
+                #verb_lexeme_arm
                 #declaration_noun_arm
+                #noun_lexeme_arm
                 #bound_arm
                 Lexical::Declaration(matcher) => input
                     .declaration_readings(matcher)
@@ -179,21 +188,91 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     )]
 }
 
+fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
+    plan.runtime_verb_lexeme().map(|lexeme| {
+        let ty = lexeme.name_ident();
+        let candidates = lexeme.surfaces().iter().map(|row| {
+            let member = emitted_ident(row.member(), Span::call_site());
+            let agreement = match row.feature() {
+                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                    quote! { Agreement::ThirdPersonSingular }
+                }
+                macro_ron::v2::SurfaceFeature::Singular
+                | macro_ron::v2::SurfaceFeature::Plural
+                | macro_ron::v2::SurfaceFeature::Fixed => {
+                    unreachable!("validated verb lexeme has the Agreement feature axis")
+                }
+            };
+            let surface = syn::LitStr::new(row.surface(), Span::call_site());
+            quote! { (#ty::#member, #agreement, #surface) }
+        });
+        quote! {
+            Lexical::Verb(wanted) => [#(#candidates),*]
+                .into_iter()
+                .filter(|(lexeme, _, _)| *lexeme == wanted)
+                .filter_map(|(lexeme, agreement, surface)| {
+                    input.word_end(surface).map(|end| LexicalMatch {
+                        end,
+                        value: Leaf::Verb { lexeme, agreement },
+                        owner: None,
+                    })
+                })
+                .collect(),
+        }
+    })
+}
+
+fn noun_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
+    plan.runtime_noun_lexeme().map(|lexeme| {
+        let candidates = noun_surface_candidates(lexeme);
+        quote! {
+            Lexical::Noun(wanted) => [#(#candidates),*]
+                .into_iter()
+                .filter(|(_, number, _)| {
+                    matches!(wanted, FeatureConstraint::Any)
+                        || matches!(wanted, FeatureConstraint::Exact(expected) if expected == *number)
+                })
+                .filter_map(|(lexeme, number, surface)| {
+                    input.word_end(surface).map(|end| LexicalMatch {
+                        end,
+                        value: Leaf::Noun { noun: lexeme, number },
+                        owner: None,
+                    })
+                })
+                .collect(),
+        }
+    })
+}
+
+fn noun_surface_candidates(
+    lexeme: &crate::semantic::LexemePlan,
+) -> impl Iterator<Item = TokenStream> + '_ {
+    let ty = lexeme.name_ident();
+    lexeme.surfaces().iter().map(move |row| {
+        let member = emitted_ident(row.member(), Span::call_site());
+        let number = match row.feature() {
+            macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+            macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+            macro_ron::v2::SurfaceFeature::Bare
+            | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+            | macro_ron::v2::SurfaceFeature::Fixed => {
+                unreachable!("validated noun lexeme has the Number feature axis")
+            }
+        };
+        let surface = syn::LitStr::new(row.surface(), Span::call_site());
+        quote! { (#ty::#member, #number, #surface) }
+    })
+}
+
 fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
     plan.runtime_declaration_noun().map(|codec| {
         let noun = codec.codec_ident();
         let declaration = codec.declaration_value_ident();
-        let closed = codec.closed_lexeme();
         let closed_plan = plan
             .runtime_noun_lexeme()
             .expect("validated declaration_noun closed branch is the noun lexeme");
-        let closed_candidates = closed_plan.variants().iter().map(|variant| {
-            let surface = syn::LitStr::new(
-                &crate::identifier::snake_case(&variant.to_string()),
-                variant.span(),
-            );
-            quote! { (#closed::#variant, #surface) }
-        });
+        let closed_candidates = noun_surface_candidates(closed_plan);
         let allowed = codec.kinds().iter().map(|kind| match kind {
             crate::semantic::DeclarationKindFamily::Type => {
                 quote! { ::macro_ron::v2::DeclarationKind::Type }
@@ -212,24 +291,19 @@ fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
         quote! {
             Lexical::Noun(wanted) => {
                 let mut matches = Vec::new();
-                for (lexeme, singular) in [#(#closed_candidates),*] {
-                    for (number, surface) in [
-                        (Number::Singular, singular.to_owned()),
-                        (Number::Plural, format!("{singular}s")),
-                    ] {
-                        if matches!(wanted, FeatureConstraint::Any)
-                            || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number)
-                        {
-                            if let Some(end) = input.word_end(&surface) {
-                                matches.push(LexicalMatch {
-                                    end,
-                                    value: Leaf::Noun {
-                                        noun: #noun::Lexeme(lexeme),
-                                        number,
-                                    },
-                                    owner: None,
-                                });
-                            }
+                for (lexeme, number, surface) in [#(#closed_candidates),*] {
+                    if matches!(wanted, FeatureConstraint::Any)
+                        || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number)
+                    {
+                        if let Some(end) = input.word_end(surface) {
+                            matches.push(LexicalMatch {
+                                end,
+                                value: Leaf::Noun {
+                                    noun: #noun::Lexeme(lexeme),
+                                    number,
+                                },
+                                owner: None,
+                            });
                         }
                     }
                 }
@@ -261,13 +335,8 @@ fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
 
 fn bound_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
     let mut arms = Vec::new();
-    if plan.runtime_declaration_noun().is_none()
-        && (plan.runtime_noun_binding().is_some() || plan.runtime_noun_lexeme().is_some())
-    {
+    if plan.runtime_declaration_noun().is_none() && plan.runtime_noun_binding().is_some() {
         arms.push(quote! { Lexical::Noun(_) });
-    }
-    if plan.runtime_verb_lexeme().is_some() {
-        arms.push(quote! { Lexical::Verb(_) });
     }
     arms.extend(plan.runtime_direct_bindings().map(binding_arm));
     arms.extend(plan.runtime_opaque_bindings().map(binding_arm));
@@ -286,4 +355,82 @@ fn binding_arm(binding: &BindingPlan) -> TokenStream {
         },
     );
     quote! { Lexical::#variant }
+}
+
+#[cfg(test)]
+mod tests {
+    fn generated_scanner_source() -> String {
+        crate::test_support::generated_morphology_expansion()
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "scan_lexical"
+                )
+            })
+            .expect("generated morphology fixture emits its scanner")
+            .tokens
+            .to_string()
+    }
+
+    #[test]
+    fn generated_morphology_scanner_uses_every_sealed_surface_row() {
+        let source = generated_scanner_source();
+        for row in [
+            "(VerbLexeme :: InventedLemma , Agreement :: Bare , \"deal\")",
+            "(VerbLexeme :: InventedLemma , Agreement :: ThirdPersonSingular , \"deals\")",
+            "(VerbLexeme :: Be , Agreement :: Bare , \"are\")",
+            "(VerbLexeme :: Be , Agreement :: ThirdPersonSingular , \"is\")",
+            "(NounLexeme :: TwoWords , Number :: Singular , \"object\")",
+            "(NounLexeme :: TwoWords , Number :: Plural , \"objects\")",
+        ] {
+            assert!(
+                source.contains(row),
+                "missing sealed scanner row `{row}`: {source}"
+            );
+        }
+        assert!(
+            !source.contains("\"be\""),
+            "an overridden derived alias leaked: {source}"
+        );
+        assert!(
+            !source.contains("\"bes\""),
+            "an overridden derived alias leaked: {source}"
+        );
+    }
+
+    #[test]
+    fn generated_morphology_scanner_never_infers_lemma_from_member_identifier() {
+        let source = generated_scanner_source();
+        assert!(
+            source.contains("\"object\""),
+            "declared noun lemma is absent: {source}"
+        );
+        assert!(
+            !source.contains("\"two_words\""),
+            "member identifier became a surface: {source}"
+        );
+        assert!(
+            !source.contains("\"two_wordss\""),
+            "member identifier became a plural: {source}"
+        );
+    }
+
+    #[test]
+    fn generated_morphology_scanner_does_not_delegate_lexemes_to_binding_seam() {
+        let source = generated_scanner_source();
+        for delegated in [
+            "Lexical :: Verb (_) => scan_bound_terminal",
+            "Lexical :: Noun (_) => scan_bound_terminal",
+        ] {
+            assert!(
+                !source.contains(delegated),
+                "closed lexeme delegated through binding seam: {source}"
+            );
+        }
+    }
 }

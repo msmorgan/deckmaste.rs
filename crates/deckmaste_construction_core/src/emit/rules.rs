@@ -194,12 +194,12 @@ fn emit_position(
         } => {
             let terminal = ident(terminal);
             let variant = ident(variant);
-            let stable_id =
-                syn::LitStr::new(&format!("lexeme:{terminal}/{variant}"), Span::call_site());
+            let declaration = syn::LitStr::new(&terminal.to_string(), Span::call_site());
+            let member = syn::LitStr::new(&variant.to_string(), Span::call_site());
             Ok(lexical_terminal(
                 &quote! { Lexical::Verb(#terminal::#variant) },
                 &quote! {
-                    LexicalOwnerTemplate::Lexeme { stable_id: #stable_id }
+                    LexicalOwnerTemplate::Lexeme { declaration: #declaration, member: #member }
                 },
             ))
         }
@@ -376,6 +376,30 @@ mod tests {
     use quote::quote;
 
     #[test]
+    fn generated_morphology_rules_keep_lexeme_identity_for_feature_instantiation() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::generated_morphology_tokens()).unwrap(),
+        )
+        .unwrap();
+        let generated =
+            super::emit(validated.semantic()).expect("generated morphology rules lower");
+        let rules = generated.last().expect("rules item").tokens.to_string();
+        for owner in [
+            "LexicalOwnerTemplate :: Lexeme { declaration : \"VerbLexeme\" , member : \"InventedLemma\" }",
+            "LexicalOwnerTemplate :: Lexeme { declaration : \"VerbLexeme\" , member : \"Be\" }",
+        ] {
+            assert!(
+                rules.contains(owner),
+                "missing feature-bearing owner template `{owner}`: {rules}"
+            );
+        }
+        assert!(
+            !rules.contains("stable_id : \"lexeme:VerbLexeme/"),
+            "rule froze a featureless lexeme owner: {rules}"
+        );
+    }
+
+    #[test]
     fn role_derived_noun_requests_either_number() {
         let validated = crate::validate_declarations(
             crate::parse_declarations(crate::test_support::role_derived_noun_tokens()).unwrap(),
@@ -457,7 +481,8 @@ mod tests {
                     rhs: &[L(LexicalTerminal {
                         matcher: Lexical::Verb(ActionStem::Activate),
                         owner: LexicalOwnerTemplate::Lexeme {
-                            stable_id: "lexeme:ActionStem/Activate",
+                            declaration: "ActionStem",
+                            member: "Activate",
                         },
                     })],
                 },

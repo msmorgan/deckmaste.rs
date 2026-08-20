@@ -25,8 +25,6 @@ use super::engine::Observation;
 use super::engine::parse;
 use super::engine::parse_observed;
 use super::materialize::completion_has_checked_build;
-use crate::ast::VerbLexeme;
-use crate::constructions::Agreement;
 use crate::constructions::CasePosition;
 use crate::constructions::Category;
 use crate::constructions::DeclarationMatcher;
@@ -43,7 +41,6 @@ use crate::constructions::scan_lexical;
 use crate::context::ParseContext;
 use crate::environment::DeclarationId;
 use crate::environment::ParserEnvironment;
-use crate::features::inflect;
 use crate::orthography::initial_surface;
 
 pub(crate) struct SliceGrammar<'a> {
@@ -594,20 +591,6 @@ impl ScanInput<'_> {
         results.dedup();
         results
     }
-
-    fn scan_verb(&self, lexeme: VerbLexeme) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
-        [Agreement::Bare, Agreement::ThirdPersonSingular]
-            .into_iter()
-            .filter_map(|agreement| {
-                self.word_end(inflect(lexeme, agreement))
-                    .map(|end| LexicalMatch {
-                        end,
-                        value: Leaf::Verb { lexeme, agreement },
-                        owner: None,
-                    })
-            })
-            .collect()
-    }
 }
 
 #[allow(
@@ -672,28 +655,6 @@ pub(super) fn lookup_declaration_readings(
     results
 }
 
-pub(crate) fn scan_bound_terminal(
-    input: &ScanInput<'_>,
-    terminal: LexicalTerminal,
-) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
-    match terminal.matcher {
-        Lexical::Verb(lexeme) => input.scan_verb(lexeme),
-        Lexical::Literal(_)
-        | Lexical::EndOfInput
-        | Lexical::TriggerWord
-        | Lexical::Article
-        | Lexical::Demonstrative
-        | Lexical::Pronoun
-        | Lexical::Variable
-        | Lexical::SelfReference
-        | Lexical::SignedNumber
-        | Lexical::Declaration(_)
-        | Lexical::Noun(_) => {
-            unreachable!("generated scanner delegated a terminal it owns")
-        }
-    }
-}
-
 fn project_failure(
     failure: ChartFailure<Category, LexicalTerminal>,
 ) -> ChartFailure<Category, Lexical> {
@@ -746,6 +707,7 @@ mod tests {
     use super::Forest;
     use super::Leaf;
     use super::Lexical;
+    use super::LexicalMatch;
     use super::RuleId;
     use super::ScanInput;
     use super::SliceGrammar;
@@ -816,6 +778,134 @@ mod tests {
 
     fn context(card_name: &str) -> ParseContext<'_> {
         ParseContext::new(card_name).expect("test card names are valid parse contexts")
+    }
+
+    #[test]
+    fn generated_morphology_scans_exact_closed_surfaces_boundaries_and_owners() {
+        let environment = canonical_test_environment();
+        let context = context("Context Card");
+        let scan = |text, matcher, owner| {
+            super::scan_lexical(
+                &ScanInput {
+                    text,
+                    position: ScanPosition {
+                        byte_offset: 0,
+                        case: CasePosition::DocumentInitial,
+                    },
+                    environment: &environment,
+                    context: &context,
+                },
+                LexicalTerminal { matcher, owner },
+            )
+        };
+
+        for (text, lexeme, agreement, owner) in [
+            (
+                "Deal.",
+                VerbLexeme::Deal,
+                Agreement::Bare,
+                "lexeme:VerbLexeme/Deal/bare",
+            ),
+            (
+                "Deals.",
+                VerbLexeme::Deal,
+                Agreement::ThirdPersonSingular,
+                "lexeme:VerbLexeme/Deal/third_person_singular",
+            ),
+            (
+                "Are.",
+                VerbLexeme::Be,
+                Agreement::Bare,
+                "lexeme:VerbLexeme/Be/bare",
+            ),
+            (
+                "Is.",
+                VerbLexeme::Be,
+                Agreement::ThirdPersonSingular,
+                "lexeme:VerbLexeme/Be/third_person_singular",
+            ),
+        ] {
+            let matches = scan(
+                text,
+                Lexical::Verb(lexeme),
+                LexicalOwnerTemplate::Lexeme {
+                    declaration: "VerbLexeme",
+                    member: match lexeme {
+                        VerbLexeme::Deal => "Deal",
+                        VerbLexeme::Be => "Be",
+                        VerbLexeme::Gain | VerbLexeme::Control => unreachable!(),
+                    },
+                },
+            );
+            assert!(matches!(
+                matches.as_slice(),
+                [LexicalMatch {
+                    value: Leaf::Verb { lexeme: actual_lexeme, agreement: actual_agreement },
+                    owner: Some(_),
+                    ..
+                }] if *actual_lexeme == lexeme && *actual_agreement == agreement
+            ));
+            assert_eq!(matches[0].owner.as_ref().unwrap().stable_id(), owner);
+        }
+        for rejected in ["Be.", "Bes.", "Dealsx.", "Ares."] {
+            let lexeme = if rejected.starts_with('B') || rejected.starts_with('A') {
+                VerbLexeme::Be
+            } else {
+                VerbLexeme::Deal
+            };
+            assert!(
+                scan(
+                    rejected,
+                    Lexical::Verb(lexeme),
+                    LexicalOwnerTemplate::Lexeme {
+                        declaration: "VerbLexeme",
+                        member: if lexeme == VerbLexeme::Be { "Be" } else { "Deal" },
+                    },
+                )
+                .is_empty(),
+                "unexpected closed verb reading for {rejected:?}"
+            );
+        }
+
+        for (text, number, owner) in [
+            (
+                "Player.",
+                Number::Singular,
+                "lexeme:NounLexeme/Player/singular",
+            ),
+            (
+                "Players.",
+                Number::Plural,
+                "lexeme:NounLexeme/Player/plural",
+            ),
+        ] {
+            let matches = scan(
+                text,
+                Lexical::Noun(FeatureConstraint::Exact(number)),
+                LexicalOwnerTemplate::DeclarationNoun,
+            );
+            let closed = matches
+                .iter()
+                .find(|matched| {
+                    matches!(
+                        matched.value,
+                        Leaf::Noun {
+                            noun: Noun::Lexeme(NounLexeme::Player),
+                            number: actual,
+                        } if actual == number
+                    )
+                })
+                .expect("closed noun reading survives any open declaration collision");
+            assert_eq!(closed.owner.as_ref().unwrap().stable_id(), owner);
+        }
+        assert!(
+            scan(
+                "Playersx.",
+                Lexical::Noun(FeatureConstraint::Any),
+                LexicalOwnerTemplate::DeclarationNoun,
+            )
+            .is_empty()
+        );
     }
 
     fn declaration_environment(
@@ -1601,7 +1691,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(owners.iter().any(|owner| {
             owner.kind() == LexicalProvenanceKind::Lexeme
-                && owner.stable_id() == "lexeme:NounLexeme/Player"
+                && owner.stable_id() == "lexeme:NounLexeme/Player/singular"
         }));
         assert!(owners.iter().any(|owner| {
             owner.kind() == LexicalProvenanceKind::Lexeme

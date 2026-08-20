@@ -32,7 +32,6 @@ pub(crate) use engine::Rule;
 pub(crate) use engine::RulePosition;
 pub(crate) use materialize::BuildValue;
 pub(crate) use scan::ScanInput;
-pub(crate) use scan::scan_bound_terminal;
 
 pub(crate) use crate::constructions::Lexical;
 

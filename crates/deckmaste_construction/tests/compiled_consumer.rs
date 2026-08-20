@@ -254,15 +254,9 @@ mod declaration_noun_fixture {
         }
     }
 
-    fn scan_bound_terminal(
-        _input: &ScanInput<'_>,
-        _terminal: LexicalTerminal,
-    ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
-        Vec::new()
-    }
-
     constructions! {
-        lexeme NounLexeme { Player, }
+        morphology EnglishNoun { feature = Number; recipe = english_noun; }
+        lexeme NounLexeme using EnglishNoun { Player = "player", }
         codec Noun {
             generate declaration_noun {
                 closed = NounLexeme;
@@ -395,6 +389,10 @@ mod declaration_noun_fixture {
     pub(crate) fn run() {
         let environment = environment();
         let context = ParseContext::default();
+        assert_eq!(
+            surface_for_noun_lexeme(NounLexeme::Player, Number::Plural),
+            "players"
+        );
         let relic =
             macro_ron::v2::DeclarationIdentity::new(macro_ron::v2::DeclarationKind::Type, "Relic");
         let elf = macro_ron::v2::DeclarationIdentity::new(
@@ -518,6 +516,40 @@ mod declaration_noun_fixture {
                 owner: Some(_),
             }]
         ));
+        assert_eq!(
+            closed[0].owner.as_ref().unwrap().stable_id(),
+            "lexeme:NounLexeme/Player/singular"
+        );
+        let closed_plural = scan(
+            "prefix players.",
+            6,
+            CasePosition::Continuation,
+            FeatureConstraint::Exact(Number::Plural),
+        );
+        assert!(matches!(
+            closed_plural.as_slice(),
+            [LexicalMatch {
+                end: 14,
+                value: Leaf::Noun {
+                    noun: Noun::Lexeme(NounLexeme::Player),
+                    number: Number::Plural
+                },
+                owner: Some(_),
+            }]
+        ));
+        assert_eq!(
+            closed_plural[0].owner.as_ref().unwrap().stable_id(),
+            "lexeme:NounLexeme/Player/plural"
+        );
+        assert!(
+            scan(
+                "Playersx.",
+                0,
+                CasePosition::DocumentInitial,
+                FeatureConstraint::Any,
+            )
+            .is_empty()
+        );
 
         assert_build_render_and_visit(&environment, &context, &singular[0], &plural[0]);
     }
@@ -627,20 +659,6 @@ mod fixture {
             Number::Plural => "p",
         };
         writer.word(&format!("{}{}", head.0, suffix));
-    }
-
-    fn agreement_for_mode(mode: Mode) -> Agreement {
-        match mode {
-            Mode::One => Agreement::ThirdPersonSingular,
-            Mode::Many => Agreement::Bare,
-        }
-    }
-
-    fn inflect(lexeme: Verbs, agreement: Agreement) -> &'static str {
-        match (lexeme, agreement) {
-            (Verbs::Act, Agreement::Bare) => "act",
-            (Verbs::Act, Agreement::ThirdPersonSingular) => "acts",
-        }
     }
 
     impl<'a> ParseContext<'a> {
@@ -817,8 +835,13 @@ mod fixture {
         vocab Mode { One = "one", Many = "many", }
         vocab r#Marker { One = "marker", }
         vocab WriterWord { One = "writer", }
-        lexeme Verbs { Act, }
-        lexeme r#VisitorLexeme { Act, }
+        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        lexeme Verbs using EnglishVerb {
+            Act = "act",
+            Collide = "same" { ThirdPersonSingular = "same", },
+            Other = "same",
+        }
+        vocab r#VisitorLexeme { Act = "visit", }
 
         identity r#SelfRef {
             generate context {
@@ -1189,14 +1212,15 @@ mod fixture {
             ),
             (
                 LexicalOwnerTemplate::Lexeme {
-                    stable_id: "lexeme:Verbs/Act",
+                    declaration: "Verbs",
+                    member: "Act",
                 },
                 Leaf::Verb {
                     lexeme: Verbs::Act,
                     agreement: Agreement::Bare,
                 },
                 LexicalProvenanceKind::Lexeme,
-                "lexeme:Verbs/Act",
+                "lexeme:Verbs/Act/bare",
             ),
             (
                 LexicalOwnerTemplate::Static {
@@ -1309,6 +1333,11 @@ mod fixture {
 
     fn assert_generated_runtime_abi(context: &ParseContext<'_>) {
         assert_generated_lexical_owner_abi();
+        assert_eq!(surface_for_verbs(Verbs::Act, Agreement::Bare), "act");
+        assert_eq!(
+            agreement_for_mode(Mode::One),
+            Agreement::ThirdPersonSingular
+        );
 
         let kind = macro_ron::v2::DeclarationKind::KeywordAction;
         let position = macro_ron::v2::GrammarPosition::Verb;
@@ -1355,6 +1384,115 @@ mod fixture {
                     "vocab:Mode/One",
                 )),
             }]
+        );
+
+        let scan_verb = |text, case| {
+            scan_lexical(
+                &ScanInput {
+                    text,
+                    position: ScanPosition {
+                        byte_offset: 0,
+                        case,
+                    },
+                    context,
+                },
+                LexicalTerminal {
+                    matcher: Lexical::Verb(Verbs::Act),
+                    owner: LexicalOwnerTemplate::Lexeme {
+                        declaration: "Verbs",
+                        member: "Act",
+                    },
+                },
+            )
+        };
+        for (text, case, agreement, owner) in [
+            (
+                "Act",
+                CasePosition::DocumentInitial,
+                Agreement::Bare,
+                "lexeme:Verbs/Act/bare",
+            ),
+            (
+                "Acts",
+                CasePosition::DocumentInitial,
+                Agreement::ThirdPersonSingular,
+                "lexeme:Verbs/Act/third_person_singular",
+            ),
+            (
+                " act",
+                CasePosition::Continuation,
+                Agreement::Bare,
+                "lexeme:Verbs/Act/bare",
+            ),
+            (
+                " acts",
+                CasePosition::Continuation,
+                Agreement::ThirdPersonSingular,
+                "lexeme:Verbs/Act/third_person_singular",
+            ),
+        ] {
+            let matches = scan_verb(text, case);
+            assert!(matches!(
+                matches.as_slice(),
+                [LexicalMatch {
+                    value: Leaf::Verb {
+                        lexeme: Verbs::Act,
+                        agreement: actual,
+                    },
+                    owner: Some(_),
+                    ..
+                }] if *actual == agreement
+            ));
+            assert_eq!(matches[0].owner.as_ref().unwrap().stable_id(), owner);
+        }
+        assert!(scan_verb("Actuator", CasePosition::DocumentInitial).is_empty());
+
+        let collision_terminal = |lexeme, member| LexicalTerminal {
+            matcher: Lexical::Verb(lexeme),
+            owner: LexicalOwnerTemplate::Lexeme {
+                declaration: "Verbs",
+                member,
+            },
+        };
+        let collision_input = ScanInput {
+            text: "Same",
+            position: ScanPosition {
+                byte_offset: 0,
+                case: CasePosition::DocumentInitial,
+            },
+            context,
+        };
+        let same_feature_readings = scan_lexical(
+            &collision_input,
+            collision_terminal(Verbs::Collide, "Collide"),
+        );
+        assert_eq!(same_feature_readings.len(), 2);
+        assert_eq!(
+            same_feature_readings
+                .iter()
+                .map(|matched| matched.owner.as_ref().unwrap().stable_id())
+                .collect::<Vec<_>>(),
+            [
+                "lexeme:Verbs/Collide/bare",
+                "lexeme:Verbs/Collide/third_person_singular",
+            ]
+        );
+        let other_member_readings =
+            scan_lexical(&collision_input, collision_terminal(Verbs::Other, "Other"));
+        assert!(matches!(
+            other_member_readings.as_slice(),
+            [LexicalMatch {
+                value: Leaf::Verb {
+                    lexeme: Verbs::Other,
+                    agreement: Agreement::Bare
+                },
+                owner: Some(_),
+                ..
+            }]
+        ));
+        assert_eq!(
+            other_member_readings[0].owner.as_ref().unwrap().stable_id(),
+            "lexeme:Verbs/Other/bare"
         );
     }
 
@@ -1851,7 +1989,7 @@ mod fixture {
 }
 
 #[test]
-fn generated_output_is_type_correct_and_executes_every_boundary_case() {
+fn generated_morphology_output_is_type_correct_and_executes_every_boundary_case() {
     declaration_noun_fixture::run();
     fixture::run();
 }

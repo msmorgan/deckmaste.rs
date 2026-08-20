@@ -1,7 +1,8 @@
 use deckmaste_construction::constructions;
 
 constructions! {
-    lexeme NounLexeme { Player, }
+    morphology EnglishNoun { feature = Number; recipe = english_noun; }
+    lexeme NounLexeme using EnglishNoun { Player = "player", }
     codec Noun {
         generate declaration_noun {
             position = Noun;

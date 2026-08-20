@@ -144,7 +144,7 @@ pub(crate) enum LexicalOwnerTemplate {
     None,
     Static { kind: LexicalProvenanceKind, stable_id: &'static str },
     Vocab { declaration: &'static str },
-    Lexeme { stable_id: &'static str },
+    Lexeme { declaration: &'static str, member: &'static str },
     Identity { declaration: &'static str },
     Declaration { kind: ::macro_ron::v2::DeclarationKind, name: &'static str },
 }
@@ -411,9 +411,29 @@ impl LexicalOwnerTemplate {
                     ),
                 )
             }
-            (LexicalOwnerTemplate::Lexeme { stable_id }, _) => {
+            (
+                LexicalOwnerTemplate::Lexeme { declaration: "Verbs", member: "Act" },
+                Leaf::Verb { lexeme: Verbs::Act, agreement: Agreement::Bare },
+            ) => {
                 Some(
-                    LexicalOwner::static_owner(LexicalProvenanceKind::Lexeme, stable_id),
+                    LexicalOwner::static_owner(
+                        LexicalProvenanceKind::Lexeme,
+                        "lexeme:Verbs/Act/bare",
+                    ),
+                )
+            }
+            (
+                LexicalOwnerTemplate::Lexeme { declaration: "Verbs", member: "Act" },
+                Leaf::Verb {
+                    lexeme: Verbs::Act,
+                    agreement: Agreement::ThirdPersonSingular,
+                },
+            ) => {
+                Some(
+                    LexicalOwner::static_owner(
+                        LexicalProvenanceKind::Lexeme,
+                        "lexeme:Verbs/Act/third_person_singular",
+                    ),
                 )
             }
             (
@@ -516,7 +536,48 @@ pub(crate) fn scan_lexical(
                 .into_iter()
                 .collect()
         }
-        Lexical::Noun(_) | Lexical::Verb(_) => scan_bound_terminal(input, terminal),
+        Lexical::Verb(wanted) => {
+            [
+                (Verbs::Act, Agreement::Bare, "act"),
+                (Verbs::Act, Agreement::ThirdPersonSingular, "acts"),
+            ]
+                .into_iter()
+                .filter(|(lexeme, _, _)| *lexeme == wanted)
+                .filter_map(|(lexeme, agreement, surface)| {
+                    input
+                        .word_end(surface)
+                        .map(|end| LexicalMatch {
+                            end,
+                            value: Leaf::Verb { lexeme, agreement },
+                            owner: None,
+                        })
+                })
+                .collect()
+        }
+        Lexical::Noun(wanted) => {
+            [
+                (Nouns::Person, Number::Singular, "person"),
+                (Nouns::Person, Number::Plural, "persons"),
+            ]
+                .into_iter()
+                .filter(|(_, number, _)| {
+                    matches!(wanted, FeatureConstraint::Any)
+                        || matches!(
+                            wanted, FeatureConstraint::Exact(expected) if expected == *
+                            number
+                        )
+                })
+                .filter_map(|(lexeme, number, surface)| {
+                    input
+                        .word_end(surface)
+                        .map(|end| LexicalMatch {
+                            end,
+                            value: Leaf::Noun { noun: lexeme, number },
+                            owner: None,
+                        })
+                })
+                .collect()
+        }
         Lexical::Declaration(matcher) => {
             input
                 .declaration_readings(matcher)
@@ -540,10 +601,20 @@ impl Action {
             Self::Action(ActionElement { node }) => {
                 writer
                     .claim(
-                        || LexicalOwner::static_owner(
-                            LexicalProvenanceKind::Lexeme,
-                            "lexeme:Verbs/Act",
-                        ),
+                        || match Agreement::Bare {
+                            Agreement::Bare => {
+                                LexicalOwner::static_owner(
+                                    LexicalProvenanceKind::Lexeme,
+                                    "lexeme:Verbs/Act/bare",
+                                )
+                            }
+                            Agreement::ThirdPersonSingular => {
+                                LexicalOwner::static_owner(
+                                    LexicalProvenanceKind::Lexeme,
+                                    "lexeme:Verbs/Act/third_person_singular",
+                                )
+                            }
+                        },
                         |writer| {
                             writer.word(surface_for_verbs(Verbs::Act, Agreement::Bare));
                         },
@@ -777,7 +848,8 @@ pub(crate) const RULES: &[Rule<Category, LexicalTerminal, RuleId>] = &[
             L(LexicalTerminal {
                 matcher: Lexical::Verb(Verbs::Act),
                 owner: LexicalOwnerTemplate::Lexeme {
-                    stable_id: "lexeme:Verbs/Act",
+                    declaration: "Verbs",
+                    member: "Act",
                 },
             }),
             N(Category::Node),
