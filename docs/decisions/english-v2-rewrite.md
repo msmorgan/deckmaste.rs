@@ -278,7 +278,14 @@ filter (the same rule §Source-hierarchy sets for sentences, one level
 down). Spelled-out number words, when they arrive, are a generative recipe
 over English number grammar for this reason, never a word list.
 Representation bounds (a declared magnitude type) are declaration-side
-facts that fail loudly, not hidden limits.
+facts that fail loudly, not hidden limits. Applied 2026-08-20 (stage-5
+Plan 03): the noun terminal's structural domain is type-and-subtype
+membership — the noun recipe spans both declaration kinds (472
+declarations, not the 10 card types the slice began with) — and the
+corpus consequence, acceptance 47→48 ("Destroy target Spirit." now
+parses), is this ruling working as intended: the prior count was the
+artifact of an artificially narrowed terminal, and the corpus is
+conformance evidence, not an acceptance filter.
 
 **Lexical coverage gate:** every token of every accepted corpus sentence must
 be claimed by a form literal, vocab, lexeme, codec, or identity — an
