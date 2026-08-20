@@ -399,10 +399,6 @@ pub(crate) struct MorphologyPlan {
 }
 
 #[derive(Debug)]
-#[allow(
-    dead_code,
-    reason = "sealed rows are the next generation phase's semantic input"
-)]
 pub(crate) struct LexemePlan {
     source_index: usize,
     name: syn::Ident,

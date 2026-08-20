@@ -231,13 +231,9 @@ impl Parser {
                 .push((text.to_owned(), context.card_name().to_owned()));
         });
         let grammar = self.grammar(context);
-        #[cfg(test)]
-        count_pipeline_stage(PipelineStage::Parse);
         parse_forest(&grammar, text).map_or_else(
             |failure| ParseAnalysis::from_result(Err(chart_failure(text, failure)), None),
             |forest| {
-                #[cfg(test)]
-                count_pipeline_stage(PipelineStage::Materialize);
                 analyze_materialized_with_ownership(
                     text,
                     materialize(&forest, context, &self.environment),
@@ -661,21 +657,18 @@ mod structural_trace_tests {
 
     #[test]
     fn generated_owner_keeps_the_scanner_hot_carrier_compact() {
-        assert!(
-            std::mem::size_of::<crate::constructions::LexicalOwner>() <= 32,
-            "the generated owner is {} bytes, expected at most 32",
-            std::mem::size_of::<crate::constructions::LexicalOwner>()
+        assert_eq!(
+            std::mem::size_of::<crate::constructions::LexicalOwner>(),
+            24,
+            "the generated owner size is part of the scanner hot-path contract",
         );
-        assert!(
+        assert_eq!(
             std::mem::size_of::<(
                 crate::constructions::Leaf,
                 Option<crate::constructions::LexicalOwner>,
-            )>() <= 80,
-            "the production scanner value/owner carrier is {} bytes, expected at most 80",
-            std::mem::size_of::<(
-                crate::constructions::Leaf,
-                Option<crate::constructions::LexicalOwner>,
-            )>()
+            )>(),
+            72,
+            "the production scanner value/owner carrier size is part of the hot-path contract",
         );
     }
 

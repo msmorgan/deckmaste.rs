@@ -21,32 +21,32 @@ fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
 fn synthetic_declarations() -> Vec<NormalizedDeclaration> {
     vec![
         declaration(
-            "/synthetic/actions/Scry.ron",
-            r#"KeywordAction(name:"Scry",spelling:"scry",grammar:Verb(bare:"scry",third_person:"scries",valence:Numerative))"#,
+            "/synthetic/actions/Quuxify.ron",
+            r#"KeywordAction(name:"Quuxify",spelling:"quuxify",grammar:Verb(bare:"quuxify",third_person:"quuxifies",valence:Numerative))"#,
         ),
         declaration(
-            "/synthetic/abilities/Echo.ron",
-            r#"KeywordAbility(name:"Echo",spelling:"echo",grammar:FixedTerm(surface:"echo"))"#,
+            "/synthetic/abilities/Zorblance.ron",
+            r#"KeywordAbility(name:"Zorblance",spelling:"zorblance",grammar:FixedTerm(surface:"zorblance"))"#,
         ),
         declaration(
-            "/synthetic/designations/Echo.ron",
-            r#"Designation(name:"Echo",spelling:"echo",grammar:FixedTerm(surface:"echo"))"#,
+            "/synthetic/designations/Zorblance.ron",
+            r#"Designation(name:"Zorblance",spelling:"zorblance",grammar:FixedTerm(surface:"zorblance"))"#,
         ),
         declaration(
-            "/synthetic/types/Relic.ron",
-            r#"Type(name:"Relic",spelling:"relic",grammar:Noun(singular:"relic"))"#,
+            "/synthetic/types/Glimmerhedron.ron",
+            r#"Type(name:"Glimmerhedron",spelling:"glimmerhedron",grammar:Noun(singular:"glimmerhedron"))"#,
         ),
         declaration(
-            "/synthetic/subtypes/creature/Sprite.ron",
-            r#"Subtype(category:Creature,name:"Sprite",spelling:"sprite",grammar:Noun(singular:"sprite"))"#,
+            "/synthetic/subtypes/creature/Nivellin.ron",
+            r#"Subtype(category:Creature,name:"Nivellin",spelling:"nivellin",grammar:Noun(singular:"nivellin"))"#,
         ),
         declaration(
-            "/synthetic/counters/Charge.ron",
-            r#"CounterKind(name:"Charge",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+            "/synthetic/counters/Fluxion.ron",
+            r#"CounterKind(name:"Fluxion",spelling:"fluxion",grammar:FixedTerm(surface:"fluxion"))"#,
         ),
         declaration(
-            "/synthetic/abilities/Ward.ron",
-            r#"KeywordAbility(name:"Ward",spelling:"ward")"#,
+            "/synthetic/abilities/Quorbling.ron",
+            r#"KeywordAbility(name:"Quorbling",spelling:"quorbling")"#,
         ),
     ]
 }
@@ -75,41 +75,39 @@ fn parser_environment_indexes_open_categories_in_both_directions() {
     let environment = ParserEnvironment::try_from_declarations(synthetic_declarations())
         .expect("synthetic declarations compile");
 
-    let scry = environment
-        .declaration(DeclarationKind::KeywordAction, "Scry")
+    let quuxify = environment
+        .declaration(DeclarationKind::KeywordAction, "Quuxify")
         .expect("action identity is indexed");
-    assert_eq!(scry.id().kind(), DeclarationKind::KeywordAction);
-    assert_eq!(scry.id().name(), "Scry");
-    assert!(matches!(scry.recipe(), Some(GrammarRecipe::Verb { .. })));
-    assert_eq!(scry.valence(), Some(&VerbValence::Numerative));
-    assert_eq!(scry.provenance(), Path::new("/synthetic/actions/Scry.ron"));
+    assert_eq!(quuxify.id().kind(), DeclarationKind::KeywordAction);
+    assert_eq!(quuxify.id().name(), "Quuxify");
+    assert!(matches!(quuxify.recipe(), Some(GrammarRecipe::Verb { .. })));
+    assert_eq!(quuxify.valence(), Some(&VerbValence::Numerative));
     assert_eq!(
-        environment.surface(scry.id(), SurfaceFeature::Bare),
-        Some("scry")
+        quuxify.provenance(),
+        Path::new("/synthetic/actions/Quuxify.ron")
     );
     assert_eq!(
-        environment.surface(scry.id(), SurfaceFeature::ThirdPersonSingular),
-        Some("scries")
+        environment.surface(quuxify.id(), SurfaceFeature::Bare),
+        Some("quuxify")
     );
     assert_eq!(
-        reading_projection(&environment, GrammarPosition::Verb, "scries"),
+        environment.surface(quuxify.id(), SurfaceFeature::ThirdPersonSingular),
+        Some("quuxifies")
+    );
+    assert_eq!(
+        reading_projection(&environment, GrammarPosition::Verb, "quuxifies"),
         [(
             DeclarationKind::KeywordAction,
-            "Scry".to_owned(),
+            "Quuxify".to_owned(),
             SurfaceFeature::ThirdPersonSingular,
-            "scries".to_owned(),
+            "quuxifies".to_owned(),
         )]
     );
 
     for (kind, name) in [
-        (DeclarationKind::KeywordAbility, "Echo"),
-        (DeclarationKind::Designation, "Echo"),
-        (DeclarationKind::Type, "Relic"),
-        (
-            DeclarationKind::Subtype(SubtypeCategory::Creature),
-            "Sprite",
-        ),
-        (DeclarationKind::CounterKind, "Charge"),
+        (DeclarationKind::KeywordAbility, "Zorblance"),
+        (DeclarationKind::Designation, "Zorblance"),
+        (DeclarationKind::Type, "Glimmerhedron"),
     ] {
         assert!(
             environment.declaration(kind, name).is_some(),
@@ -117,13 +115,49 @@ fn parser_environment_indexes_open_categories_in_both_directions() {
         );
     }
 
-    let ward = environment
-        .declaration(DeclarationKind::KeywordAbility, "Ward")
+    for (kind, name, position, feature, surface) in [
+        (
+            DeclarationKind::Subtype(SubtypeCategory::Creature),
+            "Nivellin",
+            GrammarPosition::Noun,
+            SurfaceFeature::Singular,
+            "nivellin",
+        ),
+        (
+            DeclarationKind::Subtype(SubtypeCategory::Creature),
+            "Nivellin",
+            GrammarPosition::Noun,
+            SurfaceFeature::Plural,
+            "nivellins",
+        ),
+        (
+            DeclarationKind::CounterKind,
+            "Fluxion",
+            GrammarPosition::FixedTerm,
+            SurfaceFeature::Fixed,
+            "fluxion",
+        ),
+    ] {
+        let declaration = environment
+            .declaration(kind, name)
+            .expect("synthetic declaration is indexed");
+        assert_eq!(
+            environment.surface(declaration.id(), feature),
+            Some(surface)
+        );
+        assert_eq!(
+            reading_projection(&environment, position, surface),
+            [(kind, name.to_owned(), feature, surface.to_owned())],
+        );
+    }
+
+    let quorbling = environment
+        .declaration(DeclarationKind::KeywordAbility, "Quorbling")
         .expect("grammar-free declaration remains addressable");
-    assert_eq!(ward.recipe(), None);
+    assert_eq!(quorbling.recipe(), None);
     assert!(
         environment
-            .readings(GrammarPosition::FixedKeyword, "ward")
+            .readings(GrammarPosition::FixedKeyword, "quorbling")
             .is_empty()
     );
 }
@@ -134,27 +168,27 @@ fn parser_environment_preserves_collisions_and_category_isolation() {
         .expect("synthetic declarations compile");
 
     let ability = environment
-        .declaration(DeclarationKind::KeywordAbility, "Echo")
+        .declaration(DeclarationKind::KeywordAbility, "Zorblance")
         .expect("ability homonym");
     let designation = environment
-        .declaration(DeclarationKind::Designation, "Echo")
+        .declaration(DeclarationKind::Designation, "Zorblance")
         .expect("designation homonym");
     assert_ne!(ability.id(), designation.id());
 
     assert_eq!(
-        reading_projection(&environment, GrammarPosition::FixedTerm, "echo"),
+        reading_projection(&environment, GrammarPosition::FixedTerm, "zorblance"),
         [
             (
                 DeclarationKind::KeywordAbility,
-                "Echo".to_owned(),
+                "Zorblance".to_owned(),
                 SurfaceFeature::Fixed,
-                "echo".to_owned(),
+                "zorblance".to_owned(),
             ),
             (
                 DeclarationKind::Designation,
-                "Echo".to_owned(),
+                "Zorblance".to_owned(),
                 SurfaceFeature::Fixed,
-                "echo".to_owned(),
+                "zorblance".to_owned(),
             ),
         ]
     );
@@ -169,9 +203,9 @@ fn parser_environment_is_deterministic_and_owns_source_data() {
         .expect("reverse environment");
 
     for (position, surface) in [
-        (GrammarPosition::Verb, "scry"),
-        (GrammarPosition::Noun, "relics"),
-        (GrammarPosition::FixedTerm, "echo"),
+        (GrammarPosition::Verb, "quuxify"),
+        (GrammarPosition::Noun, "glimmerhedrons"),
+        (GrammarPosition::FixedTerm, "zorblance"),
     ] {
         assert_eq!(
             reading_projection(&forward, position, surface),
@@ -181,31 +215,31 @@ fn parser_environment_is_deterministic_and_owns_source_data() {
 
     let owned_name = {
         let source = String::from(
-            r#"CounterKind(name:"Momentum",spelling:"momentum",grammar:FixedTerm(surface:"momentum"))"#,
+            r#"CounterKind(name:"Motespan",spelling:"motespan",grammar:FixedTerm(surface:"motespan"))"#,
         );
         let environment = ParserEnvironment::try_from_declarations([declaration(
-            "/temporary/Momentum.ron",
+            "/temporary/Motespan.ron",
             &source,
         )])
         .expect("temporary declaration compiles");
         environment
-            .declaration(DeclarationKind::CounterKind, "Momentum")
+            .declaration(DeclarationKind::CounterKind, "Motespan")
             .expect("temporary identity")
             .id()
             .clone()
     };
-    assert_eq!(owned_name.name(), "Momentum");
+    assert_eq!(owned_name.name(), "Motespan");
 }
 
 #[test]
 fn parser_environment_rejects_duplicate_category_safe_identity() {
     let first = declaration(
-        "/synthetic/first/Scry.ron",
-        r#"KeywordAction(name:"Scry",spelling:"scry",grammar:Verb(bare:"scry",valence:Numerative))"#,
+        "/synthetic/first/Quuxify.ron",
+        r#"KeywordAction(name:"Quuxify",spelling:"quuxify",grammar:Verb(bare:"quuxify",valence:Numerative))"#,
     );
     let duplicate = declaration(
-        "/synthetic/duplicate/Scry.ron",
-        r#"KeywordAction(name:"Scry",spelling:"scry",grammar:Verb(bare:"scry",third_person:"scries",valence:Numerative))"#,
+        "/synthetic/duplicate/Quuxify.ron",
+        r#"KeywordAction(name:"Quuxify",spelling:"quuxify",grammar:Verb(bare:"quuxify",third_person:"quuxifies",valence:Numerative))"#,
     );
 
     let error = ParserEnvironment::try_from_declarations([first, duplicate])
@@ -216,9 +250,9 @@ fn parser_environment_rejects_duplicate_category_safe_identity() {
             identity,
             first_path,
             duplicate_path,
-        } if identity == DeclarationId::new(DeclarationKind::KeywordAction, "Scry")
-            && first_path == Path::new("/synthetic/first/Scry.ron")
-            && duplicate_path == Path::new("/synthetic/duplicate/Scry.ron")
+        } if identity == DeclarationId::new(DeclarationKind::KeywordAction, "Quuxify")
+            && first_path == Path::new("/synthetic/first/Quuxify.ron")
+            && duplicate_path == Path::new("/synthetic/duplicate/Quuxify.ron")
     ));
 }
 

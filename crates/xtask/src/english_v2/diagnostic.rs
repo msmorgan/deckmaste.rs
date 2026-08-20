@@ -902,21 +902,9 @@ enum NonterminalKind {
     Amount,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-enum TerminalKind {
-    Article,
-    Declaration,
-    Demonstrative,
-    EndOfInput,
-    Noun,
-    Pronoun,
-    SelfReference,
-    SignedNumber,
-    TriggerWord,
-    Variable,
-    VerbLexeme,
-}
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(transparent)]
+struct TerminalKind(String);
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct UnresolvedOutcome {
@@ -1334,19 +1322,8 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
 }
 
 fn terminal(kind: TerminalClass) -> TerminalKind {
-    match kind {
-        TerminalClass::Article => TerminalKind::Article,
-        TerminalClass::Declaration(_) => TerminalKind::Declaration,
-        TerminalClass::Demonstrative => TerminalKind::Demonstrative,
-        TerminalClass::EndOfInput => TerminalKind::EndOfInput,
-        TerminalClass::Noun => TerminalKind::Noun,
-        TerminalClass::Pronoun => TerminalKind::Pronoun,
-        TerminalClass::SelfReference => TerminalKind::SelfReference,
-        TerminalClass::SignedNumber => TerminalKind::SignedNumber,
-        TerminalClass::TriggerWord => TerminalKind::TriggerWord,
-        TerminalClass::Variable => TerminalKind::Variable,
-        TerminalClass::VerbLexeme => TerminalKind::VerbLexeme,
-    }
+    let name = kind.to_string().replace(' ', "_");
+    TerminalKind(name.strip_prefix("open_").unwrap_or(&name).to_owned())
 }
 
 fn selection<Source: SelectionDecisionSource>(decision: &Source) -> SelectionDecision {
@@ -1954,7 +1931,7 @@ pub(super) fn fixture_report(outcome: FixtureOutcome) -> DiagnosticReport {
                 3,
                 vec![
                     Expectation::Nonterminal(NonterminalKind::Ability),
-                    Expectation::Terminal(TerminalKind::Noun),
+                    Expectation::Terminal(terminal(TerminalClass::Noun)),
                     Expectation::Literal("literal\nvalue".to_owned()),
                 ],
             ),
@@ -3746,7 +3723,7 @@ mod tests {
                 omitted: 1,
                 items: vec![
                     Expectation::Literal("source literal".to_owned()),
-                    Expectation::Terminal(TerminalKind::Noun),
+                    Expectation::Terminal(terminal(TerminalClass::Noun)),
                     Expectation::Nonterminal(NonterminalKind::Clause),
                 ],
             }

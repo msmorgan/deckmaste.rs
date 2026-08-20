@@ -317,6 +317,7 @@ mod tests {
     use super::*;
 
     const PRODUCTION_SOURCE: &str = include_str!("../../deckmaste_english_v2/src/constructions.rs");
+    type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
     fn contains_production_function(file: &syn::File, name: &str) -> bool {
         contains_production_authority(file, ProductionAuthorityKind::Function, name)
@@ -431,7 +432,11 @@ mod tests {
             .collect()
     }
 
-    fn english_runtime_authority_violations(path: &str, file: &syn::File) -> Vec<String> {
+    fn english_runtime_authority_violations(
+        path: &str,
+        file: &syn::File,
+        closed_lexemes: &ClosedLexemeDeclarations,
+    ) -> Vec<String> {
         let mut violations = Vec::new();
         if contains_production_code_indirection(file) {
             violations.push(format!(
@@ -492,7 +497,7 @@ mod tests {
                 ));
             }
         }
-        if contains_closed_lexeme_surface_mirror(file) {
+        if contains_closed_lexeme_surface_mirror(file, closed_lexemes) {
             violations.push(format!(
                 "{path} retains a handwritten closed-lexeme surface mirror"
             ));
@@ -505,7 +510,7 @@ mod tests {
         let literals = production_string_literals(file);
         for owner in literals
             .iter()
-            .filter(|literal| is_two_segment_closed_lexeme_owner(literal))
+            .filter(|literal| is_two_segment_closed_lexeme_owner(literal, closed_lexemes))
         {
             violations.push(format!(
                 "{path} retains two-segment closed lexeme owner literal {owner}"
@@ -521,15 +526,24 @@ mod tests {
         violations
     }
 
-    fn contains_closed_lexeme_surface_mirror(file: &syn::File) -> bool {
+    fn contains_closed_lexeme_surface_mirror(
+        file: &syn::File,
+        closed_lexemes: &ClosedLexemeDeclarations,
+    ) -> bool {
         use syn::visit::Visit as _;
 
-        let mut finder = ClosedLexemeSurfaceMirrorFinder::default();
+        let mut finder = ClosedLexemeSurfaceMirrorFinder {
+            declarations: closed_lexemes,
+            found: false,
+        };
         finder.visit_file(file);
         finder.found
     }
 
-    fn is_two_segment_closed_lexeme_owner(literal: &str) -> bool {
+    fn is_two_segment_closed_lexeme_owner(
+        literal: &str,
+        closed_lexemes: &ClosedLexemeDeclarations,
+    ) -> bool {
         let Some(owner) = literal.strip_prefix("lexeme:") else {
             return false;
         };
@@ -537,8 +551,19 @@ mod tests {
         matches!(
             (segments.next(), segments.next(), segments.next()),
             (Some(declaration), Some(member), None)
-                if declaration.ends_with("Lexeme") && !member.is_empty()
+                if closed_lexemes.contains(declaration) && !member.is_empty()
         )
+    }
+
+    fn closed_lexeme_declarations(expansion: &Expansion) -> ClosedLexemeDeclarations {
+        expansion
+            .terminal_contributions()
+            .iter()
+            .filter(|contribution| {
+                contribution.kind() == deckmaste_construction_core::TerminalKind::Lexeme
+            })
+            .map(|contribution| contribution.name().to_owned())
+            .collect()
     }
 
     fn uses_source_shaped_authority(file: &syn::File) -> bool {
@@ -608,13 +633,13 @@ mod tests {
         found: bool,
     }
 
-    #[derive(Default)]
-    struct ClosedLexemeSurfaceMirrorFinder {
+    struct ClosedLexemeSurfaceMirrorFinder<'a> {
+        declarations: &'a ClosedLexemeDeclarations,
         found: bool,
     }
 
-    #[derive(Default)]
-    struct ClosedLexemeIdentifierFinder {
+    struct ClosedLexemeIdentifierFinder<'a> {
+        declarations: &'a ClosedLexemeDeclarations,
         found: bool,
     }
 
@@ -808,7 +833,10 @@ mod tests {
         }
     }
 
-    fn macro_arguments_contain_closed_surface_mirror(tokens: proc_macro2::TokenStream) -> bool {
+    fn macro_arguments_contain_closed_surface_mirror(
+        tokens: proc_macro2::TokenStream,
+        closed_lexemes: &ClosedLexemeDeclarations,
+    ) -> bool {
         use syn::parse::Parser as _;
         use syn::punctuated::Punctuated;
         use syn::visit::Visit as _;
@@ -817,23 +845,29 @@ mod tests {
             .parse2(tokens)
             .is_ok_and(|arguments| {
                 arguments.into_iter().any(|expression| {
-                    let mut finder = ClosedLexemeSurfaceMirrorFinder::default();
+                    let mut finder = ClosedLexemeSurfaceMirrorFinder {
+                        declarations: closed_lexemes,
+                        found: false,
+                    };
                     finder.visit_expr(&expression);
                     finder.found
                 })
             })
     }
 
-    fn macro_tokens_contain_closed_surface_mirror(tokens: proc_macro2::TokenStream) -> bool {
-        if macro_arguments_contain_closed_surface_mirror(tokens.clone()) {
+    fn macro_tokens_contain_closed_surface_mirror(
+        tokens: proc_macro2::TokenStream,
+        closed_lexemes: &ClosedLexemeDeclarations,
+    ) -> bool {
+        if macro_arguments_contain_closed_surface_mirror(tokens.clone(), closed_lexemes) {
             return true;
         }
         tokens.into_iter().any(|token| match token {
             proc_macro2::TokenTree::Group(group) => {
                 let delimited =
                     proc_macro2::TokenStream::from(proc_macro2::TokenTree::Group(group.clone()));
-                macro_arguments_contain_closed_surface_mirror(delimited)
-                    || macro_tokens_contain_closed_surface_mirror(group.stream())
+                macro_arguments_contain_closed_surface_mirror(delimited, closed_lexemes)
+                    || macro_tokens_contain_closed_surface_mirror(group.stream(), closed_lexemes)
             }
             proc_macro2::TokenTree::Ident(_)
             | proc_macro2::TokenTree::Punct(_)
@@ -1012,7 +1046,7 @@ mod tests {
         }
     }
 
-    impl<'ast> syn::visit::Visit<'ast> for ClosedLexemeSurfaceMirrorFinder {
+    impl<'ast> syn::visit::Visit<'ast> for ClosedLexemeSurfaceMirrorFinder<'_> {
         fn visit_item(&mut self, item: &'ast syn::Item) {
             if item_attrs(item).is_some_and(is_test_only) {
                 return;
@@ -1028,7 +1062,10 @@ mod tests {
         }
 
         fn visit_expr_array(&mut self, expression: &'ast syn::ExprArray) {
-            let mut lexeme = ClosedLexemeIdentifierFinder::default();
+            let mut lexeme = ClosedLexemeIdentifierFinder {
+                declarations: self.declarations,
+                found: false,
+            };
             lexeme.visit_expr_array(expression);
             let mut strings = ProductionStringLiteralFinder::default();
             strings.visit_expr_array(expression);
@@ -1039,7 +1076,10 @@ mod tests {
         }
 
         fn visit_expr_match(&mut self, expression: &'ast syn::ExprMatch) {
-            let mut lexeme = ClosedLexemeIdentifierFinder::default();
+            let mut lexeme = ClosedLexemeIdentifierFinder {
+                declarations: self.declarations,
+                found: false,
+            };
             lexeme.visit_expr_match(expression);
             let mut strings = ProductionStringLiteralFinder::default();
             strings.visit_expr_match(expression);
@@ -1050,16 +1090,16 @@ mod tests {
         }
 
         fn visit_macro(&mut self, mac: &'ast syn::Macro) {
-            if macro_tokens_contain_closed_surface_mirror(mac.tokens.clone()) {
+            if macro_tokens_contain_closed_surface_mirror(mac.tokens.clone(), self.declarations) {
                 self.found = true;
             }
         }
     }
 
-    impl<'ast> syn::visit::Visit<'ast> for ClosedLexemeIdentifierFinder {
+    impl<'ast> syn::visit::Visit<'ast> for ClosedLexemeIdentifierFinder<'_> {
         fn visit_ident(&mut self, ident: &'ast syn::Ident) {
             let ident = ident.to_string();
-            self.found |= ident != "Lexeme" && ident.ends_with("Lexeme");
+            self.found |= self.declarations.contains(&ident);
         }
     }
 
@@ -1593,25 +1633,29 @@ mod tests {
                 let item_name = item_key_name(key);
                 let actual_item = actual.iter().find(|item| item.key == *key);
                 match actual_item {
-                    Some(item) if item.origins.iter().any(|candidate| {
-                        declaration_kind_name(candidate.kind()) == "lexeme"
-                            && candidate.name() == origin
-                    }) => {}
+                    Some(item)
+                        if item.origins.iter().any(|candidate| {
+                            format!(
+                                "{} {}",
+                                declaration_kind_name(candidate.kind()),
+                                candidate.name(),
+                            ) == *origin
+                        }) => {}
                     Some(_) => failures.push(format!(
-                        "generated terminal item `{item_name}` does not carry declaration origin `lexeme {origin}`"
+                        "generated terminal item `{item_name}` does not carry declaration origin `{origin}`"
                     )),
                     None => failures.push(format!(
-                        "missing generated terminal item `{item_name}` for declaration origin `lexeme {origin}`"
+                        "missing generated terminal item `{item_name}` for declaration origin `{origin}`"
                     )),
                 }
                 match classify(&item_name) {
                     Some(origins)
                         if !origins
                             .iter()
-                            .any(|candidate| candidate == &format!("lexeme {origin}")) =>
+                            .any(|candidate| candidate == origin) =>
                     {
                         failures.push(format!(
-                            "explicit origin classification for generated terminal item `{item_name}` omits declaration origin `lexeme {origin}`"
+                            "explicit origin classification for generated terminal item `{item_name}` omits declaration origin `{origin}`"
                         ));
                     }
                     Some(origins) => {
@@ -1635,7 +1679,7 @@ mod tests {
                         }
                     }
                     None => failures.push(format!(
-                        "missing explicit origin classification for generated terminal item `{item_name}` from declaration origin `lexeme {origin}`"
+                        "missing explicit origin classification for generated terminal item `{item_name}` from declaration origin `{origin}`"
                     )),
                 }
             }
@@ -1643,15 +1687,16 @@ mod tests {
         failures
     }
 
-    fn expected_lexeme_terminal_items(expansion: &Expansion) -> Vec<AuditedTerminalContribution> {
+    fn expected_terminal_items(expansion: &Expansion) -> Vec<AuditedTerminalContribution> {
         expansion
             .terminal_contributions()
             .iter()
-            .filter(|contribution| {
-                contribution.kind() == deckmaste_construction_core::TerminalKind::Lexeme
-            })
             .map(|contribution| AuditedTerminalContribution {
-                origin: contribution.origin().name().to_owned(),
+                origin: format!(
+                    "{} {}",
+                    declaration_kind_name(contribution.origin().kind()),
+                    contribution.origin().name(),
+                ),
                 expected_generated_item_keys: contribution.expected_generated_item_keys().to_vec(),
             })
             .collect()
@@ -1816,7 +1861,11 @@ mod tests {
         assert_eq!(paths.len(), 1);
         assert!(paths[0].ends_with(Path::new("parser/mirror.rs")));
         let files = parse_rust_sources(&paths);
-        let violations = english_runtime_authority_violations(&files[0].0, &files[0].1);
+        let violations = english_runtime_authority_violations(
+            &files[0].0,
+            &files[0].1,
+            &ClosedLexemeDeclarations::new(),
+        );
         assert!(
             violations
                 .iter()
@@ -2076,6 +2125,9 @@ mod tests {
     )]
     fn plan03_terminal_generation_is_single_authority() {
         let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let closed_lexemes = closed_lexeme_declarations(&expansion);
         let construction_core_src = workspace_root.join("crates/deckmaste_construction_core/src");
         let construction_core_paths = discover_rust_sources(&construction_core_src);
         let construction_core_files = parse_rust_sources(&construction_core_paths);
@@ -2133,7 +2185,7 @@ mod tests {
         let runtime_files = parse_rust_sources(&runtime_paths);
 
         for (path, file) in &runtime_files {
-            let violations = english_runtime_authority_violations(path, file);
+            let violations = english_runtime_authority_violations(path, file, &closed_lexemes);
             assert!(violations.is_empty(), "{}", violations.join("\n"));
         }
 
@@ -2164,8 +2216,6 @@ mod tests {
             );
         }
 
-        let expansion = expansion_from_source(PRODUCTION_SOURCE)
-            .expect("production declaration expands from the sealed semantic plan");
         let verbs = expansion
             .terminal_contributions()
             .iter()
@@ -2235,7 +2285,8 @@ mod tests {
             ProductionAuthorityKind::Enum,
             "Lexical"
         ));
-        let violations = english_runtime_authority_violations("nested.rs", &adversarial);
+        let violations =
+            english_runtime_authority_violations("nested.rs", &adversarial, &closed_lexemes);
         for forbidden in ["inflect", "scan_verb", "scan_bound_terminal"] {
             assert!(
                 violations
@@ -2280,7 +2331,8 @@ mod tests {
         ] {
             let sentinel = syn::parse_file(source)
                 .unwrap_or_else(|error| panic!("{shape} surface sentinel reparses: {error}"));
-            let violations = english_runtime_authority_violations(shape, &sentinel);
+            let violations =
+                english_runtime_authority_violations(shape, &sentinel, &closed_lexemes);
             assert!(
                 violations
                     .iter()
@@ -2321,15 +2373,61 @@ mod tests {
         )
         .expect("authority decoys reparse");
 
-        let violations = english_runtime_authority_violations("decoys.rs", &decoys);
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let closed_lexemes = closed_lexeme_declarations(&expansion);
+        let violations =
+            english_runtime_authority_violations("decoys.rs", &decoys, &closed_lexemes);
         assert!(violations.is_empty(), "{violations:#?}");
+    }
+
+    #[test]
+    fn lexeme_authority_detection_uses_declared_names_without_a_name_suffix_convention() {
+        let renamed_source = PRODUCTION_SOURCE.replace("VerbLexeme", "VerbStem");
+        let expansion = expansion_from_source(&renamed_source)
+            .expect("a nonconventionally named lexeme declaration expands");
+        let closed_lexemes = closed_lexeme_declarations(&expansion);
+        assert!(closed_lexemes.contains("VerbStem"));
+
+        let mirror = syn::parse_file(
+            "static SURFACES: &[(VerbStem, Agreement, &str)] = \
+             &[(VerbStem::Deal, Agreement::Bare, \"deal\")]; \
+             const OWNER: &str = \"lexeme:VerbStem/Deal\";",
+        )
+        .expect("nonconventional lexeme mirror reparses");
+        let violations =
+            english_runtime_authority_violations("mirror.rs", &mirror, &closed_lexemes);
+        assert!(
+            violations
+                .iter()
+                .any(|violation| violation.contains("closed-lexeme surface mirror")),
+            "missing declared-name surface guard in {violations:#?}",
+        );
+        assert!(
+            violations
+                .iter()
+                .any(|violation| violation.contains("two-segment closed lexeme owner")),
+            "missing declared-name owner guard in {violations:#?}",
+        );
     }
 
     #[test]
     fn generated_terminal_items_are_all_classified_by_the_audit() {
         let expansion = expansion_from_source(PRODUCTION_SOURCE)
             .expect("production declaration expands from the sealed semantic plan");
-        let expected = expected_lexeme_terminal_items(&expansion);
+        let expected = expected_terminal_items(&expansion);
+        assert!(
+            expected
+                .iter()
+                .any(|contribution| contribution.origin == "vocab TriggerWord"),
+            "the plan-derived audit must include vocab terminals",
+        );
+        assert!(
+            expected
+                .iter()
+                .any(|contribution| contribution.origin == "lexeme VerbLexeme"),
+            "the plan-derived audit must include lexeme terminals",
+        );
         let failures = audit_expected_terminal_items(&expected, expansion.items(), |item_name| {
             expected_production_origins(item_name)
                 .map(|origins| origins.iter().map(|origin| (*origin).to_owned()).collect())
@@ -2349,14 +2447,15 @@ mod tests {
             .expect("synthetic mutation has a lexeme contribution")
             .origin()
             .clone();
+        let origin_label = format!("{} {}", declaration_kind_name(origin.kind()), origin.name());
         let synthetic_key = ItemKey::Named {
             kind: NamedKind::Function,
             name: "synthetic_verb_lexeme_item".to_owned(),
         };
-        let mut expected = expected_lexeme_terminal_items(&expansion);
+        let mut expected = expected_terminal_items(&expansion);
         expected
             .iter_mut()
-            .find(|contribution| contribution.origin == origin.name())
+            .find(|contribution| contribution.origin == origin_label)
             .expect("synthetic mutation finds the projected contribution")
             .expected_generated_item_keys
             .push(synthetic_key.clone());

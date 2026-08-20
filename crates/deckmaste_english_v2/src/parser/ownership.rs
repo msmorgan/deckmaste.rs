@@ -27,7 +27,6 @@ pub(crate) struct RawLexicalClaim {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[allow(dead_code, reason = "render claim collection lands in this task")]
 pub(crate) struct RawRenderedClaim {
     pub(crate) span: TextSpan,
     pub(crate) owner: LexicalOwner,

@@ -447,7 +447,7 @@ impl LexicalOwnerTemplate {
                     ),
                 )
             }
-            _ => unreachable!("validated lexical owner template/value mismatch"),
+            _ => None,
         }
     }
 }

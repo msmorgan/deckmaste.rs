@@ -321,7 +321,7 @@ fn render_human(report: &CountedReport) -> String {
         report.noun_morphology.unavailable_plural,
     )
     .expect("writing to String cannot fail");
-    for (index, (category, entries)) in categories(report).into_iter().enumerate() {
+    for (category, entries) in categories(report) {
         writeln!(&mut output, "{category} ({})", entries.len())
             .expect("writing to String cannot fail");
         for entry in entries {
@@ -337,7 +337,7 @@ fn render_human(report: &CountedReport) -> String {
             }
             output.push('\n');
         }
-        if index == 3 {
+        if category == "stored spelling codecs" {
             writeln!(
                 &mut output,
                 "morphology irregulars ({})",

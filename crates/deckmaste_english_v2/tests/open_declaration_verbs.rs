@@ -15,7 +15,6 @@ use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::NormalizedDeclaration;
 use macro_ron::v2::SurfaceFeature;
-use macro_ron::v2::read_builtin_v2;
 use macro_ron::v2::read_str;
 use syn::visit::Visit;
 
@@ -23,18 +22,26 @@ fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
     read_str(path, source).expect("synthetic normalized declaration is valid")
 }
 
-fn builtin_rows() -> Vec<NormalizedDeclaration> {
-    read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"))
-        .expect("integrated builtin-v2 declarations load")
+fn synthetic_verb_rows() -> Vec<NormalizedDeclaration> {
+    vec![
+        declaration(
+            "/synthetic/actions/Destroy.ron",
+            r#"KeywordAction(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",valence:Transitive))"#,
+        ),
+        declaration(
+            "/synthetic/actions/Connive.ron",
+            r#"KeywordAction(name:"Connive",spelling:"zorble",grammar:Verb(bare:"zorble",third_person:"zurbles",valence:Intransitive))"#,
+        ),
+    ]
 }
 
-fn production_environment() -> ParserEnvironment {
-    ParserEnvironment::try_from_declarations(builtin_rows())
-        .expect("builtin-v2 declarations freeze")
+fn synthetic_environment() -> ParserEnvironment {
+    ParserEnvironment::try_from_declarations(synthetic_verb_rows())
+        .expect("synthetic verb declarations freeze")
 }
 
 fn parser() -> Parser {
-    Parser::new(production_environment()).expect("required declarations are present")
+    Parser::new(synthetic_environment()).expect("required declarations are present")
 }
 
 fn context() -> ParseContext<'static> {
@@ -92,22 +99,22 @@ fn parser_build_rejects_missing_wrong_recipe_and_missing_agreement_surface() {
 }
 
 #[test]
-fn open_declaration_builtin_verbs_parse_and_render_both_agreements_exactly() {
+fn open_declaration_synthetic_verbs_parse_and_render_both_agreements_exactly() {
     let parser = parser();
     let context = context();
     for text in [
-        "Destroy target creature.",
-        "That creature destroys target creature.",
-        "Connive.",
-        "It connives.",
+        "Frindle target player.",
+        "That player frondles target player.",
+        "Zorble.",
+        "It zurbles.",
     ] {
         let ability = parser.parse(text, &context).unwrap_or_else(|error| {
-            panic!("builtin declaration surface must parse `{text}`: {error}")
+            panic!("synthetic declaration surface must parse `{text}`: {error}")
         });
         assert_eq!(ability.render(&context, parser.environment()), text);
     }
 
-    for text in ["It destroy target creature.", "That creature connive."] {
+    for text in ["It frindle target player.", "That player zorble."] {
         assert!(
             parser.parse(text, &context).is_err(),
             "wrong agreement parsed: {text}"
@@ -117,20 +124,20 @@ fn open_declaration_builtin_verbs_parse_and_render_both_agreements_exactly() {
 
 #[test]
 fn category_homonym_does_not_replace_the_requested_action_identity() {
-    let mut rows = builtin_rows();
+    let mut rows = synthetic_verb_rows();
     rows.push(declaration(
         "/synthetic/abilities/Destroy.ron",
-        r#"KeywordAbility(name:"Destroy",spelling:"destroy",grammar:Verb(bare:"destroy",valence:Transitive))"#,
+        r#"KeywordAbility(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",valence:Transitive))"#,
     ));
     let environment = ParserEnvironment::try_from_declarations(rows).unwrap();
     assert_eq!(
-        environment.readings(GrammarPosition::Verb, "destroy").len(),
+        environment.readings(GrammarPosition::Verb, "frindle").len(),
         2,
         "the environment must retain both category-safe identities"
     );
     let parser = Parser::new(environment).unwrap();
     let trace = parser.trace(
-        "Destroy target creature.",
+        "Frindle target player.",
         &context(),
         TraceLimits::new(usize::MAX),
     );
@@ -154,7 +161,7 @@ fn category_homonym_does_not_replace_the_requested_action_identity() {
 
     let ability_only = ParserEnvironment::try_from_declarations([declaration(
         "/synthetic/abilities/Destroy.ron",
-        r#"KeywordAbility(name:"Destroy",spelling:"destroy",grammar:Verb(bare:"destroy",valence:Transitive))"#,
+        r#"KeywordAbility(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",valence:Transitive))"#,
     )])
     .unwrap();
     assert!(matches!(
@@ -186,7 +193,7 @@ impl Visitor for IdentityVisitor {
 fn visitor_observes_owned_declaration_identity_in_form_order() {
     let parser = parser();
     let ability = parser
-        .parse("Destroy target player.", &context())
+        .parse("Frindle target player.", &context())
         .expect("open declaration form parses");
     let mut visitor = IdentityVisitor::default();
     visitor.visit_ability(&ability);

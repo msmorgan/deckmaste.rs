@@ -59,6 +59,8 @@ pub(crate) fn parse_forest(
     grammar: &SliceGrammar<'_>,
     text: &str,
 ) -> Result<Forest<RuleId, Leaf, LexicalOwner>, ChartFailure<Category, Lexical>> {
+    #[cfg(test)]
+    super::count_pipeline_stage(super::PipelineStage::Parse);
     parse(
         RULES,
         Category::Ability,

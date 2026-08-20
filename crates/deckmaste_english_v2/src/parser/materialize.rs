@@ -364,6 +364,8 @@ pub(crate) fn materialize(
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
 ) -> Vec<Candidate> {
+    #[cfg(test)]
+    super::count_pipeline_stage(super::PipelineStage::Materialize);
     let built = MaterializationKernel {
         rules: RULES,
         rule_index: RuleId::index,
@@ -614,6 +616,7 @@ mod tests {
     use crate::constructions::DeclarationLeaf;
     use crate::constructions::DeclarationMatcher;
     use crate::constructions::FeatureConstraint;
+    use crate::constructions::LexicalOwnerTemplate;
     use crate::constructions::Number;
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
@@ -1001,7 +1004,7 @@ mod tests {
     }
 
     #[test]
-    fn materialize_missing_non_eoi_owner_becomes_public_synthetic_failure() {
+    fn owner_template_mismatch_becomes_public_synthetic_failure() {
         let forest = slice_candidates("Destroy target creature.", "Context Card").unwrap();
         let roots = forest.accepted_root_ids().collect::<Vec<_>>();
         let mut nodes = forest
@@ -1016,7 +1019,10 @@ mod tests {
                         && matches!(claim.value, Leaf::Declaration(_))
                         && claim.span == (crate::parser::TextSpan { start: 0, end: 7 })
                     {
-                        claim.owner = None;
+                        claim.owner = LexicalOwnerTemplate::Vocab {
+                            declaration: "Article",
+                        }
+                        .instantiate(&claim.value);
                         removed_span = Some(claim.span);
                     }
                 }

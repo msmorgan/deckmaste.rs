@@ -965,7 +965,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 ))
                             },
                             #declaration_noun_owner
-                            _ => unreachable!("validated lexical owner template/value mismatch"),
+                            _ => None,
                         }
                     }
                 }

@@ -45,7 +45,7 @@ pub(crate) fn derive_surface(
     lemma: &str,
     feature: SurfaceFeature,
 ) -> syn::Result<String> {
-    // Open plural recipes stay unavailable until attested. Growing the lexical
+    // Open plurals stay unavailable until attested. Growing the lexical
     // override inventory does not authorize heuristic recipe expansion.
     let surface = match (recipe, feature) {
         (MorphologyRecipe::EnglishVerb, SurfaceFeature::Bare)
