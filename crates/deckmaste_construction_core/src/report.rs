@@ -14,6 +14,42 @@ pub struct TerminalBindingDeclaration {
     name: String,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct MorphologyIrregular {
+    identity: String,
+    overrides: Vec<MorphologyOverride>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct MorphologyOverride {
+    feature: String,
+    surface: String,
+}
+
+impl MorphologyIrregular {
+    #[must_use]
+    pub fn identity(&self) -> &str {
+        &self.identity
+    }
+
+    #[must_use]
+    pub fn overrides(&self) -> &[MorphologyOverride] {
+        &self.overrides
+    }
+}
+
+impl MorphologyOverride {
+    #[must_use]
+    pub fn feature(&self) -> &str {
+        &self.feature
+    }
+
+    #[must_use]
+    pub fn surface(&self) -> &str {
+        &self.surface
+    }
+}
+
 impl TerminalBindingDeclaration {
     #[must_use]
     pub fn kind(&self) -> TerminalBindingDeclarationKind {
@@ -48,6 +84,7 @@ pub struct EscapeHatchReport {
     handwritten_codecs: Vec<String>,
     stored_form_tags: Vec<String>,
     stored_spelling_codecs: Vec<String>,
+    morphology_irregulars: Vec<MorphologyIrregular>,
     terminal_bindings: Vec<TerminalBindingDeclaration>,
     checked_constructor_bindings: Vec<String>,
     roots: Vec<String>,
@@ -85,6 +122,13 @@ impl EscapeHatchReport {
     }
 
     #[must_use]
+    /// Returns closed lexeme members with explicit morphology overrides in
+    /// declaration order. Override evidence remains in authored order.
+    pub fn morphology_irregulars(&self) -> &[MorphologyIrregular] {
+        &self.morphology_irregulars
+    }
+
+    #[must_use]
     pub fn terminal_bindings(&self) -> &[TerminalBindingDeclaration] {
         &self.terminal_bindings
     }
@@ -105,11 +149,28 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
     let mut handwritten_codecs = Vec::new();
     let stored_form_tags = Vec::new();
     let mut stored_spelling_codecs = Vec::new();
+    let mut morphology_irregulars = Vec::new();
     let mut terminal_bindings = Vec::new();
     let mut checked_constructor_bindings = Vec::new();
     let mut roots = Vec::new();
 
     for terminal in plan.terminals() {
+        if let TerminalPlan::Lexeme(lexeme) = terminal {
+            morphology_irregulars.extend(lexeme.irregulars().iter().map(|irregular| {
+                MorphologyIrregular {
+                    identity: format!("lexeme:{}/{}", lexeme.name(), irregular.member()),
+                    overrides: irregular
+                        .overrides()
+                        .iter()
+                        .map(|row| MorphologyOverride {
+                            feature: surface_feature_key(row.feature()).to_owned(),
+                            surface: row.surface().to_owned(),
+                        })
+                        .collect(),
+                }
+            }));
+            continue;
+        }
         if let TerminalPlan::ContextIdentity(identity) = terminal {
             if identity.origin().kind() != crate::DeclarationKind::Identity
                 || identity.origin().name() != identity.name()
@@ -176,10 +237,21 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
         handwritten_codecs,
         stored_form_tags,
         stored_spelling_codecs,
+        morphology_irregulars,
         terminal_bindings,
         checked_constructor_bindings,
         roots,
     })
+}
+
+fn surface_feature_key(feature: macro_ron::v2::SurfaceFeature) -> &'static str {
+    match feature {
+        macro_ron::v2::SurfaceFeature::Bare => "bare",
+        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => "third_person_singular",
+        macro_ron::v2::SurfaceFeature::Singular => "singular",
+        macro_ron::v2::SurfaceFeature::Plural => "plural",
+        macro_ron::v2::SurfaceFeature::Fixed => "fixed",
+    }
 }
 
 #[cfg(test)]
@@ -254,5 +326,64 @@ mod tests {
             ["SelfReferenceSpelling"]
         );
         assert!(expansion.escape_hatches().terminal_bindings().is_empty());
+    }
+
+    #[test]
+    fn report_exposes_source_ordered_complete_morphology_irregulars() {
+        let expansion = crate::generate(quote::quote! {
+            morphology EnglishVerb {
+                feature = Agreement;
+                recipe = english_verb;
+            }
+            lexeme VerbLexeme using EnglishVerb {
+                FirstIrregular = "first" {
+                    Bare = "first bare",
+                    ThirdPersonSingular = "first singular",
+                },
+                Regular = "regular",
+                SecondIrregular = "second" {
+                    ThirdPersonSingular = "second singular",
+                },
+            }
+            construction action: Action {
+                element ActionElement {}
+                derive verb.agreement = Values::Bare;
+                form action = verb(VerbLexeme::FirstIrregular);
+            }
+            root Action { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("generated morphology report fixture validates");
+
+        let irregulars = expansion.escape_hatches().morphology_irregulars();
+        assert_eq!(irregulars.len(), 2);
+        assert_eq!(irregulars[0].identity(), "lexeme:VerbLexeme/FirstIrregular");
+        assert_eq!(
+            irregulars[0]
+                .overrides()
+                .iter()
+                .map(|row| (row.feature(), row.surface()))
+                .collect::<Vec<_>>(),
+            [
+                ("bare", "first bare"),
+                ("third_person_singular", "first singular"),
+            ]
+        );
+        assert_eq!(
+            irregulars[1].identity(),
+            "lexeme:VerbLexeme/SecondIrregular"
+        );
+        assert_eq!(
+            irregulars[1]
+                .overrides()
+                .iter()
+                .map(|row| (row.feature(), row.surface()))
+                .collect::<Vec<_>>(),
+            [("third_person_singular", "second singular")]
+        );
+        assert!(
+            irregulars
+                .iter()
+                .all(|row| row.identity() != "lexeme:VerbLexeme/Regular")
+        );
     }
 }

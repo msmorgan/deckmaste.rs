@@ -230,6 +230,25 @@ fn render_expansion(expansion: &Expansion) -> anyhow::Result<String> {
     let report = expansion.escape_hatches();
     writeln!(
         &mut output,
+        "// morphology irregulars ({})",
+        report.morphology_irregulars().len()
+    )
+    .expect("writing to String cannot fail");
+    for irregular in report.morphology_irregulars() {
+        writeln!(&mut output, "// - {}", irregular.identity())
+            .expect("writing to String cannot fail");
+        for row in irregular.overrides() {
+            writeln!(
+                &mut output,
+                "//   - {} = {:?}",
+                row.feature(),
+                row.surface()
+            )
+            .expect("writing to String cannot fail");
+        }
+    }
+    writeln!(
+        &mut output,
         "// terminal bindings ({})",
         report.terminal_bindings().len()
     )
@@ -2423,7 +2442,11 @@ mod tests {
             .1;
         assert_eq!(
             report,
-            "// terminal bindings (0)\n\
+            "// morphology irregulars (1)\n\
+             // - lexeme:VerbLexeme/Be\n\
+             //   - bare = \"are\"\n\
+             //   - third_person_singular = \"is\"\n\
+             // terminal bindings (0)\n\
              // checked constructor bindings (2)\n\
              // - construction Triggered\n\
              // - construction SelfReferenceNp\n\

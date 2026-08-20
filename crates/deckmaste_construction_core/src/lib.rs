@@ -26,6 +26,8 @@ pub use crate::plan::TerminalKind;
 pub use crate::plan::TerminalSurfaceContribution;
 pub use crate::plan::TerminalVariantContribution;
 pub use crate::report::EscapeHatchReport;
+pub use crate::report::MorphologyIrregular;
+pub use crate::report::MorphologyOverride;
 pub use crate::report::TerminalBindingDeclaration;
 pub use crate::report::TerminalBindingDeclarationKind;
 pub use crate::validate::ValidatedDeclarations;
