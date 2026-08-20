@@ -1003,16 +1003,100 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Copy)]
+    struct BooleanPossibility {
+        can_be_false: bool,
+        can_be_true: bool,
+    }
+
+    impl BooleanPossibility {
+        const FALSE: Self = Self {
+            can_be_false: true,
+            can_be_true: false,
+        };
+        const TRUE: Self = Self {
+            can_be_false: false,
+            can_be_true: true,
+        };
+        const UNKNOWN: Self = Self {
+            can_be_false: true,
+            can_be_true: true,
+        };
+
+        fn and(self, other: Self) -> Self {
+            Self {
+                can_be_false: self.can_be_false || other.can_be_false,
+                can_be_true: self.can_be_true && other.can_be_true,
+            }
+        }
+
+        fn or(self, other: Self) -> Self {
+            Self {
+                can_be_false: self.can_be_false && other.can_be_false,
+                can_be_true: self.can_be_true || other.can_be_true,
+            }
+        }
+
+        fn not(self) -> Self {
+            Self {
+                can_be_false: self.can_be_true,
+                can_be_true: self.can_be_false,
+            }
+        }
+    }
+
+    fn cfg_possibility_when_not_testing(meta: &syn::Meta) -> BooleanPossibility {
+        use syn::parse::Parser as _;
+        use syn::punctuated::Punctuated;
+
+        match meta {
+            syn::Meta::Path(path) if path.is_ident("test") => BooleanPossibility::FALSE,
+            syn::Meta::Path(_) | syn::Meta::NameValue(_) => BooleanPossibility::UNKNOWN,
+            syn::Meta::List(list) => {
+                let nested = Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated
+                    .parse2(list.tokens.clone());
+                let Ok(nested) = nested else {
+                    return BooleanPossibility::UNKNOWN;
+                };
+                if list.path.is_ident("all") {
+                    nested
+                        .iter()
+                        .fold(BooleanPossibility::TRUE, |result, meta| {
+                            result.and(cfg_possibility_when_not_testing(meta))
+                        })
+                } else if list.path.is_ident("any") {
+                    nested
+                        .iter()
+                        .fold(BooleanPossibility::FALSE, |result, meta| {
+                            result.or(cfg_possibility_when_not_testing(meta))
+                        })
+                } else if list.path.is_ident("not") && nested.len() == 1 {
+                    cfg_possibility_when_not_testing(&nested[0]).not()
+                } else {
+                    BooleanPossibility::UNKNOWN
+                }
+            }
+        }
+    }
+
     fn is_test_only(attrs: &[syn::Attribute]) -> bool {
-        attrs.iter().any(|attribute| {
+        let mut saw_cfg = false;
+        let mut combined = BooleanPossibility::TRUE;
+        for attribute in attrs {
             let syn::Meta::List(cfg) = &attribute.meta else {
-                return false;
+                continue;
             };
-            cfg.path.is_ident("cfg")
-                && syn::parse2::<syn::Meta>(cfg.tokens.clone()).is_ok_and(
-                    |meta| matches!(meta, syn::Meta::Path(path) if path.is_ident("test")),
-                )
-        })
+            if !cfg.path.is_ident("cfg") {
+                continue;
+            }
+            saw_cfg = true;
+            let possibility = syn::parse2::<syn::Meta>(cfg.tokens.clone())
+                .map_or(BooleanPossibility::UNKNOWN, |meta| {
+                    cfg_possibility_when_not_testing(&meta)
+                });
+            combined = combined.and(possibility);
+        }
+        saw_cfg && !combined.can_be_true
     }
 
     const ALL_DECLARATION_ORIGINS: &[&str] = &[
@@ -1487,6 +1571,8 @@ mod tests {
         for source in [
             "#[path = \"outside.rs\"] mod mirror;",
             "include!(\"outside.inc\");",
+            "#[cfg(any(test, unix))] mod fixture { include!(\"fixture.inc\"); }",
+            "#[cfg(not(test))] mod fixture { include!(\"fixture.inc\"); }",
         ] {
             let file = syn::parse_file(source).expect("production indirection source reparses");
             assert!(contains_production_code_indirection(&file));
@@ -1495,6 +1581,8 @@ mod tests {
         for source in [
             "const FIXTURE: &str = include_str!(\"fixture.rs\");",
             "#[cfg(test)] mod fixture { include!(\"fixture.inc\"); }",
+            "#[cfg(all(test, unix))] mod fixture { include!(\"fixture.inc\"); }",
+            "fn source_fence_message() { let _ = \"include!(path) is rejected\"; }",
         ] {
             let file = syn::parse_file(source).expect("allowed fixture source reparses");
             assert!(!contains_production_code_indirection(&file));
@@ -1557,6 +1645,56 @@ mod tests {
     }
 
     #[test]
+    fn strictly_test_only_cfg_classification_evaluates_nested_formulas() {
+        for source in [
+            "#[cfg(test)] fn candidate() {}",
+            "#[cfg(all(test, unix))] fn candidate() {}",
+            "#[cfg(not(not(test)))] fn candidate() {}",
+            "#[cfg(all(not(not(test)), any(unix, windows)))] fn candidate() {}",
+            "#[cfg(unix)] #[cfg(test)] fn candidate() {}",
+        ] {
+            let file = syn::parse_file(source).expect("strictly test-only source reparses");
+            assert!(
+                item_attrs(&file.items[0]).is_some_and(is_test_only),
+                "expected strictly test-only cfg: {source}"
+            );
+        }
+
+        for source in [
+            "fn candidate() {}",
+            "#[cfg(unix)] fn candidate() {}",
+            "#[cfg(any(test, unix))] fn candidate() {}",
+            "#[cfg(not(test))] fn candidate() {}",
+            "#[cfg(not(not(not(test))))] fn candidate() {}",
+            "#[cfg(all(unix, not(test)))] fn candidate() {}",
+        ] {
+            let file = syn::parse_file(source).expect("production-capable source reparses");
+            assert!(
+                !item_attrs(&file.items[0]).is_some_and(is_test_only),
+                "expected production-capable cfg: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn nested_strict_test_cfg_prunes_alias_but_not_production_capable_items() {
+        let renamed_alias = syn::parse_file(
+            "#[cfg(all(test, unix))] \
+             type LegacyLexical = crate::constructions::Lexical;",
+        )
+        .expect("nested-cfg renamed alias source reparses");
+        assert!(contains_test_only_generated_ghost(&renamed_alias));
+
+        for source in [
+            "#[cfg(any(test, unix))] fn scan_noun() {}",
+            "#[cfg(not(test))] fn scan_noun() {}",
+        ] {
+            let file = syn::parse_file(source).expect("production-capable source reparses");
+            assert!(contains_production_function(&file, "scan_noun"));
+        }
+    }
+
+    #[test]
     fn production_spelling_census_evaluates_nested_concat() {
         let source = syn::parse_file(
             "fn spellings() { \
@@ -1601,6 +1739,15 @@ mod tests {
     fn plan03_terminal_generation_is_single_authority() {
         let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let construction_core_src = workspace_root.join("crates/deckmaste_construction_core/src");
+        let construction_core_paths = discover_rust_sources(&construction_core_src);
+        let construction_core_files = parse_rust_sources(&construction_core_paths);
+        for (path, file) in &construction_core_files {
+            assert!(
+                !contains_production_code_indirection(file),
+                "{path} uses production #[path] or code-including include! indirection"
+            );
+        }
+
         let mut emitter_paths = discover_rust_sources(&construction_core_src.join("emit"));
         emitter_paths.push(construction_core_src.join("report.rs"));
         emitter_paths.sort();
