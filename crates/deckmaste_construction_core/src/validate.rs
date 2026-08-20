@@ -4231,7 +4231,17 @@ fn validate_invariant_generated_names(
             } else {
                 format!("declared checked accessor for `{role}`")
             };
-            associated.insert(method, owner);
+            if let Some(previous) = associated.get(&method) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        accessor.method.span(),
+                        format!("declared checked accessor `{method}` collides with {previous}"),
+                    ),
+                );
+            } else {
+                associated.insert(method, owner);
+            }
         }
     }
     for field in &construction.element.fields {
@@ -6817,6 +6827,29 @@ pub(crate) mod tests {
         assert!(
             new_collision.contains("generated invariant associated item `new` collides"),
             "{new_collision}"
+        );
+
+        let checked_new_collision = error(quote! {
+            vocab Mode { One = "one", Two = "two", }
+            construction only: Root {
+                element Only { mode: lex Mode, other: lex Mode, }
+                checked {
+                    visibility mode = private;
+                    access mode = mode_value;
+                    visibility other = private;
+                    access other = new;
+                    constructor = Only::checked(mode, other);
+                }
+                require mode is One;
+                form only = lex(mode) lex(other);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            checked_new_collision.contains(
+                "declared checked accessor `new` collides with generated invariant constructor"
+            ),
+            "{checked_new_collision}"
         );
 
         let accessor_collision = error(quote! {

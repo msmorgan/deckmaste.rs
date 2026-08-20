@@ -467,7 +467,7 @@ mod tests {
     }
 
     #[test]
-    fn invariant_plan_mutations_drive_later_emitter_views_without_source_reads() {
+    fn invariant_plan_mutations_drive_production_projection_and_field_policy() {
         let source = quote::quote! {
             vocab Mode { One = "one", Two = "two", }
             identity SelfReferenceSpelling {
@@ -484,22 +484,29 @@ mod tests {
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         };
-        let authored = source.to_string();
         let mut semantic = crate::validate_declarations(
             crate::parse_declarations(source).expect("mutation fixture parses"),
         )
         .expect("mutation fixture validates")
         .into_semantic();
 
+        assert_eq!(
+            semantic.constructions()[0]
+                .legacy_refinement("mode")
+                .map(ToString::to_string)
+                .as_deref(),
+            Some("One")
+        );
         semantic.test_only_replace_invariant_member("only", "mode", "Two");
         semantic.test_only_replace_invariant_context_field("only", "spelling", "mode");
         let construction = &semantic.constructions()[0];
 
-        assert!(
+        assert_eq!(
             construction
-                .invariant()
-                .snapshot()
-                .contains("mode in [Two]")
+                .legacy_refinement("mode")
+                .map(ToString::to_string)
+                .as_deref(),
+            Some("Two")
         );
         assert_eq!(
             construction
@@ -520,26 +527,6 @@ mod tests {
                 ("mode".to_owned(), Some(crate::semantic::AccessorMode::Copy)),
                 ("spelling".to_owned(), None),
             ]
-        );
-        assert_eq!(
-            authored,
-            quote::quote! {
-                vocab Mode { One = "one", Two = "two", }
-                identity SelfReferenceSpelling {
-                    generate context {
-                        Full => card_name,
-                        Abbreviated => abbreviated_card_name,
-                        canonical_on_collision = Full;
-                    }
-                }
-                construction only: Root {
-                    element Only { mode: lex Mode, spelling: identity SelfReferenceSpelling, }
-                    require mode is One;
-                    form only = lex(mode) identity(spelling);
-                }
-                root Root { punctuation = "."; eoi = true; standalone_render = true; }
-            }
-            .to_string()
         );
     }
 
