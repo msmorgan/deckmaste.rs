@@ -263,9 +263,14 @@ by a general scanner/renderer combinator language. Each recipe derives both
 halves of the codec and its round-trip tests from one surface table; the
 recipe set itself is closed — adding a recipe is a reviewed compiler
 change, not declaration-side vocabulary. Morphology is a named recipe over
-one feature axis with declared irregular overrides; the overrides are a
-counted list, and a rising irregular count is the signal to extend the
-recipe, not normal growth. This ruling graduates signed-decimal numerals
+one feature axis with declared irregular overrides, and recipes stay
+**strictly regular**: only exceptionless mechanical transformations
+(append-`s`; append-`ed` when past forms arrive). A pattern with even one
+attested exception — `-f` plurals read Dwarves but also Lhurgoyfs — is
+lexical and lives in declared per-word overrides, which are expected to
+grow with the lexicon; the counted list is their review surface, not a
+recipe-extension pressure gauge (ruling 2026-08-20, superseding the
+earlier extend-the-recipe reading of a rising count). This ruling graduates signed-decimal numerals
 out of tier 3's handwritten examples; mana symbols and P/T expressions
 remain handwritten codecs until each earns its own reviewed recipe. The
 stage-4 binding-only `codec`/`identity` forms are migration scaffolding
