@@ -44,6 +44,9 @@ use crate::model::GeneratedCodecRecipe;
 use crate::model::GeneratedIdentityRecipe;
 use crate::model::LeafCallback;
 use crate::model::Lexeme;
+use crate::model::LexemeMember;
+use crate::model::LexemeOverride;
+use crate::model::Morphology;
 use crate::model::NonPublicVisibility;
 use crate::model::OpenDeclarationAtom;
 use crate::model::RenderBinding;
@@ -86,6 +89,7 @@ mod keyword {
     syn::custom_keyword!(eoi);
     syn::custom_keyword!(element);
     syn::custom_keyword!(field);
+    syn::custom_keyword!(feature);
     syn::custom_keyword!(form);
     syn::custom_keyword!(generate);
     syn::custom_keyword!(identity);
@@ -101,11 +105,13 @@ mod keyword {
     syn::custom_keyword!(private);
     syn::custom_keyword!(punctuation);
     syn::custom_keyword!(render);
+    syn::custom_keyword!(recipe);
     syn::custom_keyword!(require);
     syn::custom_keyword!(root);
     syn::custom_keyword!(scanner);
     syn::custom_keyword!(standalone_render);
     syn::custom_keyword!(traversal);
+    syn::custom_keyword!(using);
     syn::custom_keyword!(value_type);
     syn::custom_keyword!(variant);
     syn::custom_keyword!(verb);
@@ -130,6 +136,8 @@ impl Parse for Declarations {
                 declarations.push(Declaration::Construction(parse_construction(input)?));
             } else if input.peek(keyword::vocab) {
                 declarations.push(Declaration::Vocab(parse_vocab(input)?));
+            } else if input.peek(keyword::morphology) {
+                declarations.push(Declaration::Morphology(parse_morphology(input)?));
             } else if input.peek(keyword::lexeme) {
                 declarations.push(Declaration::Lexeme(parse_lexeme(input)?));
             } else if input.peek(keyword::codec) {
@@ -144,8 +152,6 @@ impl Parse for Declarations {
                 )?));
             } else if input.peek(keyword::root) {
                 declarations.push(Declaration::Root(parse_root(input)?));
-            } else if input.peek(keyword::morphology) {
-                return Err(deferred(input.span(), "morphology"));
             } else if input.peek(keyword::scanner) {
                 return Err(deferred(input.span(), "scanner"));
             } else {
@@ -531,18 +537,101 @@ fn parse_vocab(input: ParseStream<'_>) -> syn::Result<Vocab> {
     Ok(Vocab { name, variants })
 }
 
-fn parse_lexeme(input: ParseStream<'_>) -> syn::Result<Lexeme> {
-    input.parse::<keyword::lexeme>()?;
+fn parse_morphology(input: ParseStream<'_>) -> syn::Result<Morphology> {
+    input.parse::<keyword::morphology>()?;
     let name = input.parse()?;
     let content;
     braced!(content in input);
-    let mut variants = Vec::new();
+    content.parse::<keyword::feature>()?;
+    content.parse::<Token![=]>()?;
+    let feature_ident: Ident = content.parse()?;
+    let feature = match feature_ident.to_string().as_str() {
+        "Agreement" => Feature::Agreement,
+        "Number" => Feature::Number,
+        _ => {
+            return Err(syn::Error::new(
+                feature_ident.span(),
+                "morphology feature must be Agreement or Number",
+            ));
+        }
+    };
+    content.parse::<Token![;]>()?;
+    content.parse::<keyword::recipe>()?;
+    content.parse::<Token![=]>()?;
+    let recipe = content.call(Ident::parse_any)?;
+    if content.peek(Token![::]) {
+        return Err(syn::Error::new(
+            recipe.span(),
+            "morphology recipe must be one identifier",
+        ));
+    }
+    content.parse::<Token![;]>()?;
+    if !content.is_empty() {
+        return Err(content.error("morphology contains unknown fields"));
+    }
+    Ok(Morphology {
+        name,
+        feature,
+        recipe,
+    })
+}
+
+fn parse_lexeme(input: ParseStream<'_>) -> syn::Result<Lexeme> {
+    input.parse::<keyword::lexeme>()?;
+    let name = input.parse()?;
+    if !input.peek(keyword::using) {
+        return Err(input.error("lexeme requires `using` morphology"));
+    }
+    input.parse::<keyword::using>()?;
+    let morphology = input.parse()?;
+    let content;
+    braced!(content in input);
+    let mut members = Vec::new();
     while !content.is_empty() {
         reject_doc_comment(&content)?;
-        variants.push(content.parse()?);
+        let member_name = content.parse()?;
+        if !content.peek(Token![=]) {
+            return Err(content.error("lexeme member requires an explicit lemma"));
+        }
+        content.parse::<Token![=]>()?;
+        let lemma: LitStr = content.parse()?;
+        if lemma.value().is_empty() {
+            return Err(syn::Error::new(
+                lemma.span(),
+                "lexeme lemma must not be empty",
+            ));
+        }
+        let mut overrides = Vec::new();
+        if content.peek(syn::token::Brace) {
+            let overrides_content;
+            braced!(overrides_content in content);
+            while !overrides_content.is_empty() {
+                reject_doc_comment(&overrides_content)?;
+                let feature = overrides_content.parse()?;
+                overrides_content.parse::<Token![=]>()?;
+                let surface: LitStr = overrides_content.parse()?;
+                if surface.value().is_empty() {
+                    return Err(syn::Error::new(
+                        surface.span(),
+                        "lexeme override surface must not be empty",
+                    ));
+                }
+                overrides.push(LexemeOverride { feature, surface });
+                overrides_content.parse::<Token![,]>()?;
+            }
+        }
+        members.push(LexemeMember {
+            name: member_name,
+            lemma,
+            overrides,
+        });
         content.parse::<Token![,]>()?;
     }
-    Ok(Lexeme { name, variants })
+    Ok(Lexeme {
+        name,
+        morphology,
+        members,
+    })
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -1376,6 +1465,134 @@ mod tests {
 
     fn tokens(value: &impl ToTokens) -> String {
         value.to_token_stream().to_string()
+    }
+
+    #[test]
+    fn generated_morphology_parses_spelled_lexemes() {
+        let declarations = parse(
+            r#"
+                morphology EnglishVerb {
+                    feature = Agreement;
+                    recipe = english_verb;
+                }
+                morphology EnglishNoun {
+                    feature = Number;
+                    recipe = english_noun;
+                }
+                lexeme VerbLexeme using EnglishVerb {
+                    Deal = "deal",
+                    Be = "be" {
+                        Bare = "are",
+                        ThirdPersonSingular = "is",
+                    },
+                }
+                lexeme NounLexeme using EnglishNoun {
+                    Player = "player",
+                }
+            "#,
+        )
+        .expect("sealed morphology and spelled lexemes parse");
+
+        assert_eq!(declarations.declarations.len(), 4);
+        let Declaration::Morphology(verb_morphology) = &declarations.declarations[0] else {
+            panic!("first declaration is the verb morphology")
+        };
+        assert_eq!(verb_morphology.name, "EnglishVerb");
+        assert_eq!(verb_morphology.feature, Feature::Agreement);
+        assert_eq!(verb_morphology.recipe, "english_verb");
+        let Declaration::Morphology(noun_morphology) = &declarations.declarations[1] else {
+            panic!("second declaration is the noun morphology")
+        };
+        assert_eq!(noun_morphology.name, "EnglishNoun");
+        assert_eq!(noun_morphology.feature, Feature::Number);
+        assert_eq!(noun_morphology.recipe, "english_noun");
+
+        let Declaration::Lexeme(verbs) = &declarations.declarations[2] else {
+            panic!("third declaration is the verb lexeme")
+        };
+        assert_eq!(verbs.name, "VerbLexeme");
+        assert_eq!(verbs.morphology, "EnglishVerb");
+        assert_eq!(
+            verbs
+                .members
+                .iter()
+                .map(|member| (
+                    member.name.to_string(),
+                    member.lemma.value(),
+                    member
+                        .overrides
+                        .iter()
+                        .map(|row| (row.feature.to_string(), row.surface.value()))
+                        .collect::<Vec<_>>(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                ("Deal".to_owned(), "deal".to_owned(), vec![]),
+                (
+                    "Be".to_owned(),
+                    "be".to_owned(),
+                    vec![
+                        ("Bare".to_owned(), "are".to_owned()),
+                        ("ThirdPersonSingular".to_owned(), "is".to_owned()),
+                    ],
+                ),
+            ]
+        );
+        let Declaration::Lexeme(nouns) = &declarations.declarations[3] else {
+            panic!("fourth declaration is the noun lexeme")
+        };
+        assert_eq!(nouns.name, "NounLexeme");
+        assert_eq!(nouns.morphology, "EnglishNoun");
+        assert_eq!(nouns.members[0].name, "Player");
+        assert_eq!(nouns.members[0].lemma.value(), "player");
+        assert!(nouns.members[0].overrides.is_empty());
+    }
+
+    #[test]
+    fn generated_morphology_parses_rejects_recipe_paths() {
+        let error = parse(
+            r#"
+                morphology EnglishVerb {
+                    feature = Agreement;
+                    recipe = crate::english_verb;
+                }
+            "#,
+        )
+        .expect_err("a morphology recipe must be one identifier")
+        .to_string();
+
+        assert!(error.contains("recipe"), "{error}");
+    }
+
+    #[test]
+    fn generated_morphology_parses_requires_using() {
+        let error = parse(r#"lexeme VerbLexeme { Deal = "deal", }"#)
+            .expect_err("a lexeme must select a morphology")
+            .to_string();
+
+        assert!(error.contains("using"), "{error}");
+    }
+
+    #[test]
+    fn generated_morphology_parses_requires_lemma() {
+        let error = parse("lexeme VerbLexeme using EnglishVerb { Deal, }")
+            .expect_err("a lexeme member must spell its lemma")
+            .to_string();
+
+        assert!(error.contains("lemma"), "{error}");
+    }
+
+    #[test]
+    fn generated_morphology_parses_rejects_empty_surfaces() {
+        for source in [
+            r#"lexeme VerbLexeme using EnglishVerb { Deal = "", }"#,
+            r#"lexeme VerbLexeme using EnglishVerb { Deal = "deal" { Bare = "", }, }"#,
+        ] {
+            let error = parse(source)
+                .expect_err("lexical surface literals must not be empty")
+                .to_string();
+            assert!(error.contains("empty"), "{error}");
+        }
     }
 
     #[test]

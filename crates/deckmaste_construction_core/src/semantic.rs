@@ -28,6 +28,11 @@ use crate::validate::CategoryRenderCapability;
 pub(crate) struct SemanticPlan {
     declaration_keys: Vec<DeclarationKey>,
     constructions: Vec<ConstructionPlan>,
+    #[allow(
+        dead_code,
+        reason = "sealed morphology rows are consumed by later generation phases"
+    )]
+    morphologies: Vec<MorphologyPlan>,
     terminals: Vec<TerminalPlan>,
     runtime: RuntimeEmissionPlan,
     roots: Vec<RootPlan>,
@@ -381,6 +386,18 @@ pub(crate) struct VocabVariantPlan {
     word: syn::LitStr,
 }
 
+#[derive(Debug, Clone)]
+#[allow(
+    dead_code,
+    reason = "sealed morphology rows are consumed by later generation phases"
+)]
+pub(crate) struct MorphologyPlan {
+    name: syn::Ident,
+    name_key: String,
+    feature: crate::Feature,
+    recipe: crate::morphology::MorphologyRecipe,
+}
+
 #[derive(Debug)]
 #[allow(
     dead_code,
@@ -391,7 +408,36 @@ pub(crate) struct LexemePlan {
     name: syn::Ident,
     name_key: String,
     variants: Vec<syn::Ident>,
-    verb_provider: bool,
+    morphology: MorphologyPlan,
+    surfaces: Vec<LexemeSurfacePlan>,
+    irregulars: Vec<LexemeIrregularPlan>,
+}
+
+#[derive(Debug)]
+pub(crate) struct LexemeSurfacePlan {
+    member: String,
+    feature: macro_ron::v2::SurfaceFeature,
+    surface: String,
+}
+
+#[derive(Debug)]
+#[allow(
+    dead_code,
+    reason = "sealed irregular rows are consumed by later generation phases"
+)]
+pub(crate) struct LexemeIrregularPlan {
+    member: String,
+    overrides: Vec<LexemeOverridePlan>,
+}
+
+#[derive(Debug)]
+#[allow(
+    dead_code,
+    reason = "sealed irregular rows are consumed by later generation phases"
+)]
+pub(crate) struct LexemeOverridePlan {
+    feature: macro_ron::v2::SurfaceFeature,
+    surface: String,
 }
 
 #[derive(Debug)]
@@ -545,13 +591,26 @@ impl SemanticPlan {
         resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
         category_render: HashMap<String, CategoryRenderCapability>,
         mut atoms_by_construction: HashMap<String, (Span, Vec<AtomContribution>)>,
-        verb_lexeme_provider: Option<&str>,
     ) -> syn::Result<Self> {
         let declaration_keys = source
             .declarations
             .iter()
             .map(DeclarationKey::from_source)
             .collect();
+        let morphologies = source
+            .declarations
+            .iter()
+            .filter_map(|declaration| {
+                let Declaration::Morphology(morphology) = declaration else {
+                    return None;
+                };
+                Some(MorphologyPlan::from_source(morphology))
+            })
+            .collect::<syn::Result<Vec<_>>>()?;
+        let morphology_by_name = morphologies
+            .iter()
+            .map(|morphology| (identifier_key(morphology.name_ident()), morphology.clone()))
+            .collect::<HashMap<_, _>>();
         let constructions =
             source
                 .declarations
@@ -560,6 +619,7 @@ impl SemanticPlan {
                 .filter_map(|(source_index, declaration)| match declaration {
                     Declaration::Construction(construction) => Some((source_index, construction)),
                     Declaration::Vocab(_)
+                    | Declaration::Morphology(_)
                     | Declaration::Lexeme(_)
                     | Declaration::Codec(_)
                     | Declaration::Identity(_)
@@ -595,9 +655,17 @@ impl SemanticPlan {
                     source_index,
                     vocab,
                 )))),
-                Declaration::Lexeme(lexeme) => Some(Ok(TerminalPlan::Lexeme(
-                    LexemePlan::from_source(source_index, lexeme, verb_lexeme_provider),
-                ))),
+                Declaration::Lexeme(lexeme) => Some(
+                    LexemePlan::from_source(
+                        source_index,
+                        lexeme,
+                        morphology_by_name
+                            .get(&identifier_key(&lexeme.morphology))
+                            .expect("validated lexeme morphology")
+                            .clone(),
+                    )
+                    .map(TerminalPlan::Lexeme),
+                ),
                 Declaration::Codec(binding) if binding.generated.is_some() => Some(Ok(
                     match binding.generated.as_ref().expect("generated recipe exists") {
                         crate::model::GeneratedCodecRecipe::SignedDecimal(_) => {
@@ -625,7 +693,9 @@ impl SemanticPlan {
                 Declaration::Codec(binding) | Declaration::Identity(binding) => {
                     Some(BindingPlan::from_source(source_index, binding).map(TerminalPlan::Binding))
                 }
-                Declaration::Construction(_) | Declaration::Root(_) => None,
+                Declaration::Construction(_)
+                | Declaration::Morphology(_)
+                | Declaration::Root(_) => None,
             })
             .collect::<syn::Result<Vec<_>>>()?;
         let roots: Vec<RootPlan> = source
@@ -642,6 +712,7 @@ impl SemanticPlan {
                 }),
                 Declaration::Construction(_)
                 | Declaration::Vocab(_)
+                | Declaration::Morphology(_)
                 | Declaration::Lexeme(_)
                 | Declaration::Codec(_)
                 | Declaration::Identity(_) => None,
@@ -652,6 +723,7 @@ impl SemanticPlan {
         Ok(Self {
             declaration_keys,
             constructions,
+            morphologies,
             terminals,
             runtime,
             roots,
@@ -711,6 +783,14 @@ impl SemanticPlan {
     )]
     pub(crate) fn terminals(&self) -> &[TerminalPlan] {
         &self.terminals
+    }
+
+    #[allow(
+        dead_code,
+        reason = "sealed morphology rows are consumed by later generation phases"
+    )]
+    pub(crate) fn morphologies(&self) -> &[MorphologyPlan] {
+        &self.morphologies
     }
 
     pub(crate) fn runtime_vocabs(&self) -> impl Iterator<Item = &VocabPlan> {
@@ -1852,6 +1932,17 @@ impl TerminalPlan {
             Self::DeclarationNoun(plan) => plan.source_index(),
         }
     }
+
+    pub(crate) fn expected_terminal_item_keys(&self) -> Vec<crate::ItemKey> {
+        match self {
+            Self::Vocab(vocab) => vec![crate::ItemKey::named_type(vocab.name())],
+            Self::Lexeme(lexeme) => vec![crate::ItemKey::named_type(lexeme.name())],
+            Self::Binding(_)
+            | Self::ContextIdentity(_)
+            | Self::SignedDecimal(_)
+            | Self::DeclarationNoun(_) => Vec::new(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1989,20 +2080,116 @@ impl VocabPlan {
     }
 }
 
+#[allow(
+    dead_code,
+    reason = "sealed morphology rows are consumed by later generation phases"
+)]
+impl MorphologyPlan {
+    fn from_source(source: &crate::Morphology) -> syn::Result<Self> {
+        let recipe =
+            crate::morphology::MorphologyRecipe::from_ident(&source.recipe).ok_or_else(|| {
+                syn::Error::new(
+                    source.recipe.span(),
+                    format!("unknown morphology recipe `{}`", source.recipe),
+                )
+            })?;
+        if recipe.feature() != source.feature {
+            return Err(syn::Error::new(
+                source.name.span(),
+                format!(
+                    "morphology `{}` feature axis does not match recipe",
+                    source.name
+                ),
+            ));
+        }
+        Ok(Self {
+            name: source.name.clone(),
+            name_key: identifier_key(&source.name),
+            feature: source.feature,
+            recipe,
+        })
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name_key
+    }
+
+    pub(crate) fn name_ident(&self) -> &syn::Ident {
+        &self.name
+    }
+
+    pub(crate) fn feature(&self) -> crate::Feature {
+        self.feature
+    }
+
+    pub(crate) fn recipe(&self) -> crate::morphology::MorphologyRecipe {
+        self.recipe
+    }
+}
+
 impl LexemePlan {
     fn from_source(
         source_index: usize,
         source: &crate::Lexeme,
-        verb_provider: Option<&str>,
-    ) -> Self {
-        Self {
+        morphology: MorphologyPlan,
+    ) -> syn::Result<Self> {
+        let mut surfaces = Vec::new();
+        let mut irregulars = Vec::new();
+        for member in &source.members {
+            for &feature in morphology.recipe().features() {
+                let surface = member
+                    .overrides
+                    .iter()
+                    .find_map(|row| {
+                        (morphology.recipe().feature_from_ident(&row.feature) == Some(feature))
+                            .then(|| row.surface.value())
+                    })
+                    .map_or_else(
+                        || {
+                            crate::morphology::derive_surface(
+                                morphology.recipe(),
+                                &member.lemma.value(),
+                                feature,
+                            )
+                        },
+                        Ok,
+                    )?;
+                surfaces.push(LexemeSurfacePlan {
+                    member: identifier_key(&member.name),
+                    feature,
+                    surface,
+                });
+            }
+            if !member.overrides.is_empty() {
+                irregulars.push(LexemeIrregularPlan {
+                    member: identifier_key(&member.name),
+                    overrides: member
+                        .overrides
+                        .iter()
+                        .map(|row| LexemeOverridePlan {
+                            feature: morphology
+                                .recipe()
+                                .feature_from_ident(&row.feature)
+                                .expect("validated override feature"),
+                            surface: row.surface.value(),
+                        })
+                        .collect(),
+                });
+            }
+        }
+        Ok(Self {
             source_index,
             name: source.name.clone(),
             name_key: identifier_key(&source.name),
-            variants: source.variants.clone(),
-            verb_provider: verb_provider
-                .is_some_and(|provider| provider == identifier_key(&source.name)),
-        }
+            variants: source
+                .members
+                .iter()
+                .map(|member| member.name.clone())
+                .collect(),
+            morphology,
+            surfaces,
+            irregulars,
+        })
     }
 
     pub(crate) fn name(&self) -> &str {
@@ -2018,7 +2205,27 @@ impl LexemePlan {
     }
 
     pub(crate) fn is_verb_provider(&self) -> bool {
-        self.verb_provider
+        self.morphology.recipe() == crate::morphology::MorphologyRecipe::EnglishVerb
+    }
+
+    #[allow(
+        dead_code,
+        reason = "sealed morphology rows are consumed by later generation phases"
+    )]
+    pub(crate) fn morphology(&self) -> &MorphologyPlan {
+        &self.morphology
+    }
+
+    pub(crate) fn surfaces(&self) -> &[LexemeSurfacePlan] {
+        &self.surfaces
+    }
+
+    #[allow(
+        dead_code,
+        reason = "sealed irregular rows are consumed by later generation phases"
+    )]
+    pub(crate) fn irregulars(&self) -> &[LexemeIrregularPlan] {
+        &self.irregulars
     }
     #[allow(
         dead_code,
@@ -2026,6 +2233,48 @@ impl LexemePlan {
     )]
     pub(crate) fn source_index(&self) -> usize {
         self.source_index
+    }
+}
+
+impl LexemeSurfacePlan {
+    pub(crate) fn member(&self) -> &str {
+        &self.member
+    }
+
+    pub(crate) fn feature(&self) -> macro_ron::v2::SurfaceFeature {
+        self.feature
+    }
+
+    pub(crate) fn surface(&self) -> &str {
+        &self.surface
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "sealed irregular rows are consumed by later generation phases"
+)]
+impl LexemeIrregularPlan {
+    pub(crate) fn member(&self) -> &str {
+        &self.member
+    }
+
+    pub(crate) fn overrides(&self) -> &[LexemeOverridePlan] {
+        &self.overrides
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "sealed irregular rows are consumed by later generation phases"
+)]
+impl LexemeOverridePlan {
+    pub(crate) fn feature(&self) -> macro_ron::v2::SurfaceFeature {
+        self.feature
+    }
+
+    pub(crate) fn surface(&self) -> &str {
+        &self.surface
     }
 }
 

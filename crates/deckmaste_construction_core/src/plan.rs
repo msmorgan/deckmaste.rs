@@ -38,6 +38,7 @@ impl ItemKey {
 pub enum DeclarationKind {
     Construction,
     Vocab,
+    Morphology,
     Lexeme,
     Codec,
     Identity,
@@ -74,6 +75,9 @@ impl DeclarationKey {
                 Self::new(DeclarationKind::Construction, value.name.to_string())
             }
             Declaration::Vocab(value) => Self::new(DeclarationKind::Vocab, value.name.to_string()),
+            Declaration::Morphology(value) => {
+                Self::new(DeclarationKind::Morphology, value.name.to_string())
+            }
             Declaration::Lexeme(value) => {
                 Self::new(DeclarationKind::Lexeme, value.name.to_string())
             }
@@ -118,6 +122,42 @@ pub struct TerminalVariantContribution {
     word: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TerminalSurfaceContribution {
+    member: String,
+    feature: macro_ron::v2::SurfaceFeature,
+    surface: String,
+}
+
+impl TerminalSurfaceContribution {
+    fn new(
+        member: impl Into<String>,
+        feature: macro_ron::v2::SurfaceFeature,
+        surface: impl Into<String>,
+    ) -> Self {
+        Self {
+            member: member.into(),
+            feature,
+            surface: surface.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn member(&self) -> &str {
+        &self.member
+    }
+
+    #[must_use]
+    pub fn feature(&self) -> macro_ron::v2::SurfaceFeature {
+        self.feature
+    }
+
+    #[must_use]
+    pub fn surface(&self) -> &str {
+        &self.surface
+    }
+}
+
 impl TerminalVariantContribution {
     pub(crate) fn new(name: impl Into<String>, word: Option<String>) -> Self {
         Self {
@@ -145,6 +185,8 @@ pub struct TerminalContribution {
     render_function: Option<String>,
     variants: Vec<TerminalVariantContribution>,
     verb_provider: bool,
+    surfaces: Vec<TerminalSurfaceContribution>,
+    expected_generated_item_keys: Vec<ItemKey>,
 }
 
 impl TerminalContribution {
@@ -163,6 +205,8 @@ impl TerminalContribution {
             render_function,
             variants,
             verb_provider,
+            surfaces: Vec::new(),
+            expected_generated_item_keys: Vec::new(),
         }
     }
 
@@ -195,6 +239,25 @@ impl TerminalContribution {
     pub fn is_verb_provider(&self) -> bool {
         self.verb_provider
     }
+
+    #[must_use]
+    pub fn surfaces(&self) -> &[TerminalSurfaceContribution] {
+        &self.surfaces
+    }
+
+    #[must_use]
+    pub fn expected_generated_item_keys(&self) -> &[ItemKey] {
+        &self.expected_generated_item_keys
+    }
+
+    fn seal_projection(
+        &mut self,
+        surfaces: Vec<TerminalSurfaceContribution>,
+        expected_generated_item_keys: Vec<ItemKey>,
+    ) {
+        self.surfaces = surfaces;
+        self.expected_generated_item_keys = expected_generated_item_keys;
+    }
 }
 
 #[derive(Debug)]
@@ -222,7 +285,40 @@ impl EmissionPlan {
 
 pub(crate) fn plan_emission(plan: &SemanticPlan) -> syn::Result<EmissionPlan> {
     let mut items = crate::emit::ast::emit(plan)?;
-    let (terminal_items, terminal_contributions) = crate::emit::terminal::emit(plan)?;
+    let (terminal_items, mut terminal_contributions) = crate::emit::terminal::emit(plan)?;
+    for contribution in &mut terminal_contributions {
+        let (surfaces, expected_generated_item_keys) = plan
+            .terminals()
+            .iter()
+            .find_map(|terminal| match terminal {
+                crate::semantic::TerminalPlan::Lexeme(lexeme)
+                    if lexeme.name() == contribution.name() =>
+                {
+                    Some((
+                        lexeme
+                            .surfaces()
+                            .iter()
+                            .map(|row| {
+                                TerminalSurfaceContribution::new(
+                                    row.member(),
+                                    row.feature(),
+                                    row.surface(),
+                                )
+                            })
+                            .collect(),
+                        terminal.expected_terminal_item_keys(),
+                    ))
+                }
+                crate::semantic::TerminalPlan::Vocab(vocab)
+                    if vocab.name() == contribution.name() =>
+                {
+                    Some((Vec::new(), terminal.expected_terminal_item_keys()))
+                }
+                _ => None,
+            })
+            .unwrap_or_default();
+        contribution.seal_projection(surfaces, expected_generated_item_keys);
+    }
     items.extend(terminal_items);
     items.extend(crate::emit::runtime::emit(plan));
     items.extend(crate::emit::scanner::emit(plan));
@@ -263,6 +359,56 @@ mod tests {
     use crate::NamedKind;
     use crate::semantic::SemanticPlan;
     use crate::test_support::representative_expansion;
+
+    #[test]
+    fn generated_morphology_terminal_contribution_retains_sealed_projection() {
+        let expansion = crate::generate(quote::quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb {
+                Deal = "deal",
+                Be = "be" { Bare = "are", ThirdPersonSingular = "is", },
+            }
+            construction action: Ability {
+                element Action {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form action = verb(VerbLexeme::Deal);
+            }
+            root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("the sealed morphology emits");
+        let contribution = expansion
+            .terminal_contributions()
+            .iter()
+            .find(|row| row.name() == "VerbLexeme")
+            .expect("the lexeme retains its terminal contribution");
+
+        assert_eq!(
+            contribution
+                .surfaces()
+                .iter()
+                .map(|row| (row.member(), row.feature(), row.surface()))
+                .collect::<Vec<_>>(),
+            [
+                ("Deal", macro_ron::v2::SurfaceFeature::Bare, "deal"),
+                (
+                    "Deal",
+                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                    "deals",
+                ),
+                ("Be", macro_ron::v2::SurfaceFeature::Bare, "are"),
+                (
+                    "Be",
+                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                    "is",
+                ),
+            ]
+        );
+        assert_eq!(
+            contribution.expected_generated_item_keys(),
+            [crate::ItemKey::named_type("VerbLexeme")]
+        );
+    }
 
     #[test]
     fn open_verb_atom_seals_a_typed_plan_and_generated_matcher() {
@@ -1134,6 +1280,7 @@ mod tests {
             .find_map(|declaration| match declaration {
                 crate::Declaration::Construction(construction) => Some(construction),
                 crate::Declaration::Vocab(_)
+                | crate::Declaration::Morphology(_)
                 | crate::Declaration::Lexeme(_)
                 | crate::Declaration::Codec(_)
                 | crate::Declaration::Identity(_)
@@ -1274,6 +1421,7 @@ mod tests {
             .find_map(|declaration| match declaration {
                 crate::Declaration::Construction(construction) => Some(construction.form),
                 crate::Declaration::Vocab(_)
+                | crate::Declaration::Morphology(_)
                 | crate::Declaration::Lexeme(_)
                 | crate::Declaration::Codec(_)
                 | crate::Declaration::Identity(_)

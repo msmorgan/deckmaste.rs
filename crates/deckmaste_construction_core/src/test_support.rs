@@ -3,14 +3,16 @@ use quote::quote;
 pub(crate) fn representative_tokens() -> proc_macro2::TokenStream {
     quote! {
         vocab Words { First = "first", Second = "second", }
-        lexeme Nouns { Person, }
-        lexeme Verbs { Act, }
+        lexeme Nouns using EnglishNoun { Person = "person", }
+        lexeme Verbs using EnglishVerb { Act = "act", }
         codec SignedNumber {
             generate signed_decimal {
                 magnitude = u32;
                 sign_type = Sign { Positive = none, Negative = "-", };
             }
         }
+        morphology EnglishNoun { feature = Number; recipe = english_noun; }
+        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
 
         construction leaf: Node {
             element WordLeaf { word: lex Words, }
@@ -121,8 +123,8 @@ pub(crate) fn access_modes_expansion() -> crate::Expansion {
 pub(crate) fn synthetic_projection_tokens() -> proc_macro2::TokenStream {
     quote! {
         vocab Mode { Solo = "solo", Group = "group", }
-        lexeme ObjectStem { Widget, }
-        lexeme ActionStem { Activate, }
+        lexeme ObjectStem using EnglishNoun { Widget = "widget", }
+        lexeme ActionStem using EnglishVerb { Activate = "activate", }
 
         codec Resource {
             atom = noun;
@@ -198,6 +200,8 @@ pub(crate) fn synthetic_projection_tokens() -> proc_macro2::TokenStream {
                 call visitor::visit_record_label(borrowed(label));
             }
         }
+        morphology EnglishNoun { feature = Number; recipe = english_noun; }
+        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
 
         construction leaf: Expr {
             element LeafNode { mode: lex Mode, resource: lex Resource, }

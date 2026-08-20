@@ -306,6 +306,7 @@ struct ResolvedGrammar {
 pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarations> {
     validate_generated_codecs(&raw)?;
     validate_generated_identities(&raw)?;
+    validate_morphology(&raw)?;
     let (symbols, _) = validate_namespaces(&raw)?;
     validate_generated_owned_paths(&raw)?;
     let resolved = validate_resolution(&raw, &symbols)?;
@@ -322,7 +323,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     validate_backend_completeness(&raw, &resolved)?;
     let ResolvedGrammar {
         atoms_by_construction,
-        verb_lexeme_provider,
+        ..
     } = resolved;
     Ok(ValidatedDeclarations {
         semantic: SemanticPlan::new(
@@ -334,9 +335,192 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             feature_resolutions,
             category_render,
             atoms_by_construction,
-            verb_lexeme_provider.as_deref(),
         )?,
     })
+}
+
+fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
+    use crate::morphology::MorphologyRecipe;
+
+    let mut independent_errors = None;
+    let mut morphology_names = HashSet::new();
+    for declaration in &raw.declarations {
+        match declaration {
+            Declaration::Morphology(morphology) => {
+                let name = identifier_key(&morphology.name);
+                if !morphology_names.insert(name.clone()) {
+                    combine(
+                        &mut independent_errors,
+                        syn::Error::new(
+                            morphology.name.span(),
+                            format!("duplicate morphology declaration `{name}`"),
+                        ),
+                    );
+                }
+                match MorphologyRecipe::from_ident(&morphology.recipe) {
+                    None => combine(
+                        &mut independent_errors,
+                        syn::Error::new(
+                            morphology.recipe.span(),
+                            format!("unknown morphology recipe `{}`", morphology.recipe),
+                        ),
+                    ),
+                    Some(recipe) if recipe.feature() != morphology.feature => combine(
+                        &mut independent_errors,
+                        syn::Error::new(
+                            morphology.name.span(),
+                            format!("morphology `{name}` feature axis does not match recipe"),
+                        ),
+                    ),
+                    Some(_) => {}
+                }
+            }
+            Declaration::Lexeme(lexeme) => {
+                let mut members = HashSet::new();
+                for member in &lexeme.members {
+                    let member_name = identifier_key(&member.name);
+                    if !members.insert(member_name.clone()) {
+                        combine(
+                            &mut independent_errors,
+                            syn::Error::new(
+                                member.name.span(),
+                                format!("duplicate lexeme member `{member_name}`"),
+                            ),
+                        );
+                    }
+                    if member.lemma.value().is_empty() {
+                        combine(
+                            &mut independent_errors,
+                            syn::Error::new(member.lemma.span(), "lexeme lemma must not be empty"),
+                        );
+                    }
+                    let mut overrides = HashSet::new();
+                    for row in &member.overrides {
+                        let feature = identifier_key(&row.feature);
+                        if !overrides.insert(feature.clone()) {
+                            combine(
+                                &mut independent_errors,
+                                syn::Error::new(
+                                    row.feature.span(),
+                                    format!("duplicate override `{feature}`"),
+                                ),
+                            );
+                        }
+                        if row.surface.value().is_empty() {
+                            combine(
+                                &mut independent_errors,
+                                syn::Error::new(
+                                    row.surface.span(),
+                                    "lexeme override surface must not be empty",
+                                ),
+                            );
+                        }
+                    }
+                }
+            }
+            Declaration::Construction(_)
+            | Declaration::Vocab(_)
+            | Declaration::Codec(_)
+            | Declaration::Identity(_)
+            | Declaration::Root(_) => {}
+        }
+    }
+    finish(independent_errors)?;
+
+    let morphologies = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| {
+            let Declaration::Morphology(morphology) = declaration else {
+                return None;
+            };
+            Some((
+                identifier_key(&morphology.name),
+                MorphologyRecipe::from_ident(&morphology.recipe)
+                    .expect("independently validated morphology recipe"),
+            ))
+        })
+        .collect::<HashMap<_, _>>();
+    let mut errors = None;
+    let mut verb_providers = Vec::new();
+    let mut noun_providers = Vec::new();
+    for declaration in &raw.declarations {
+        let Declaration::Lexeme(lexeme) = declaration else {
+            continue;
+        };
+        let morphology_name = identifier_key(&lexeme.morphology);
+        let Some(&recipe) = morphologies.get(&morphology_name) else {
+            combine(
+                &mut errors,
+                syn::Error::new(
+                    lexeme.morphology.span(),
+                    format!("unknown morphology `{morphology_name}`"),
+                ),
+            );
+            continue;
+        };
+        match recipe {
+            MorphologyRecipe::EnglishVerb => {
+                verb_providers.push((&lexeme.name, identifier_key(&lexeme.name)));
+            }
+            MorphologyRecipe::EnglishNoun => {
+                noun_providers.push((&lexeme.name, identifier_key(&lexeme.name)));
+            }
+        }
+        for member in &lexeme.members {
+            let mut realized = HashSet::new();
+            for &feature in recipe.features() {
+                let surface = member
+                    .overrides
+                    .iter()
+                    .find_map(|row| {
+                        (recipe.feature_from_ident(&row.feature) == Some(feature))
+                            .then(|| row.surface.value())
+                    })
+                    .unwrap_or_else(|| {
+                        crate::morphology::derive_surface(recipe, &member.lemma.value(), feature)
+                            .expect("validated recipe feature domain")
+                    });
+                if !realized.insert((identifier_key(&member.name), feature, surface.clone())) {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            member.name.span(),
+                            format!(
+                                "duplicate exact morphology row `({}, {feature:?}, {surface})`",
+                                member.name
+                            ),
+                        ),
+                    );
+                }
+            }
+            for row in &member.overrides {
+                if recipe.feature_from_ident(&row.feature).is_none() {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            row.feature.span(),
+                            format!("unknown override feature `{}`", row.feature),
+                        ),
+                    );
+                }
+            }
+        }
+    }
+    for (kind, providers) in [("verb", verb_providers), ("noun", noun_providers)] {
+        if let Some((_, first)) = providers.first() {
+            for (name, provider) in providers.iter().skip(1) {
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        name.span(),
+                        format!("multiple {kind} lexeme providers `{first}` and `{provider}`"),
+                    ),
+                );
+            }
+        }
+    }
+    finish(errors)
 }
 
 fn validate_generated_identities(raw: &Declarations) -> syn::Result<()> {
@@ -715,13 +899,14 @@ fn validate_declaration_noun_source(
                 }
                 Declaration::Construction(_)
                 | Declaration::Vocab(_)
+                | Declaration::Morphology(_)
                 | Declaration::Lexeme(_)
                 | Declaration::Codec(_)
                 | Declaration::Identity(_)
                 | Declaration::Root(_) => None,
             });
         match matching {
-            Some(lexeme) if !lexeme.variants.is_empty() => {}
+            Some(lexeme) if !lexeme.members.is_empty() => {}
             Some(_) => combine(
                 errors,
                 syn::Error::new(
@@ -835,6 +1020,7 @@ fn seal_category_feature_reads(raw: &Declarations) -> HashMap<String, HashSet<Fe
         .filter_map(|declaration| match declaration {
             Declaration::Construction(construction) => Some(path_name(&construction.category)),
             Declaration::Vocab(_)
+            | Declaration::Morphology(_)
             | Declaration::Lexeme(_)
             | Declaration::Codec(_)
             | Declaration::Identity(_)
@@ -906,7 +1092,7 @@ fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
                     }
                 }
             }
-            Declaration::Vocab(_) | Declaration::Lexeme(_) => {}
+            Declaration::Vocab(_) | Declaration::Morphology(_) | Declaration::Lexeme(_) => {}
         }
     }
     finish(errors)
@@ -1085,6 +1271,11 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     variant_order,
                 });
             }
+            Declaration::Morphology(morphology) => {
+                let name = identifier_key(&morphology.name);
+                declaration_names.push(name.clone());
+                duplicate_name(&mut source_names, &name, &morphology.name, &mut errors);
+            }
             Declaration::Lexeme(lexeme) => {
                 let name = identifier_key(&lexeme.name);
                 declaration_names.push(name.clone());
@@ -1092,7 +1283,8 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 duplicate_name(&mut source_names, &name, &lexeme.name, &mut errors);
                 let mut variants = HashSet::new();
                 let mut variant_order = Vec::new();
-                for variant in &lexeme.variants {
+                for member in &lexeme.members {
+                    let variant = &member.name;
                     let variant_key = identifier_key(variant);
                     reject_raw_keyword_identifier(variant, "generated lexeme variant", &mut errors);
                     validate_generated_rust_ident(
@@ -1442,15 +1634,11 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
     }
 
     let verb_lexeme_provider = raw.declarations.iter().find_map(|declaration| {
-        let Declaration::Construction(construction) = declaration else { return None };
-        construction.form.atoms.iter().find_map(|atom| {
-            let FormAtom::Verb(VerbOperand::Fixed(path)) = atom else { return None };
-            path.segments
-                .iter()
-                .rev()
-                .nth(1)
-                .map(|segment| identifier_key(&segment.ident))
-        })
+        let Declaration::Lexeme(lexeme) = declaration else {
+            return None;
+        };
+        (lexeme_recipe(raw, lexeme) == Some(crate::morphology::MorphologyRecipe::EnglishVerb))
+            .then(|| identifier_key(&lexeme.name))
     });
     if let Some(provider) = &verb_lexeme_provider {
         let span = raw
@@ -1481,7 +1669,7 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
         .iter()
         .any(|declaration| match declaration {
             Declaration::Lexeme(lexeme) => {
-                verb_lexeme_provider.as_deref() != Some(identifier_key(&lexeme.name).as_str())
+                lexeme_recipe(raw, lexeme) == Some(crate::morphology::MorphologyRecipe::EnglishNoun)
             }
             Declaration::Codec(binding) => {
                 binding.codec_atom == Some(CodecAtomClass::Noun)
@@ -1725,6 +1913,7 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                 }
             }
             Declaration::Root(_) => {}
+            Declaration::Morphology(_) => {}
         }
     }
 }
@@ -2016,8 +2205,17 @@ fn open_declaration_kind(kind: &syn::Ident) -> Option<macro_ron::v2::Declaration
 fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
     let mut errors = None;
     let mut atoms_by_construction = HashMap::new();
-    let mut verb_providers: Vec<(String, proc_macro2::Span)> = Vec::new();
-    let mut seen_verb_providers = HashSet::new();
+    let verb_providers = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| {
+            let Declaration::Lexeme(lexeme) = declaration else {
+                return None;
+            };
+            (lexeme_recipe(raw, lexeme) == Some(crate::morphology::MorphologyRecipe::EnglishVerb))
+                .then(|| (identifier_key(&lexeme.name), lexeme.name.span()))
+        })
+        .collect::<Vec<_>>();
 
     for declaration in &raw.declarations {
         let Declaration::Construction(construction) = declaration else { continue };
@@ -2065,12 +2263,6 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                     let Some(variant) = segments.last() else { continue };
                     let terminal = identifier_key(&terminal.ident);
                     let variant = identifier_key(&variant.ident);
-                    record_verb_provider(
-                        &terminal,
-                        path.span(),
-                        &mut seen_verb_providers,
-                        &mut verb_providers,
-                    );
                     Some(AtomContribution::VerbFixed { terminal, variant })
                 }
                 FormAtom::OpenVerb(open) => open_declaration_kind(&open.kind).map(|kind| {
@@ -2111,15 +2303,19 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
     })
 }
 
-fn record_verb_provider(
-    terminal: &str,
-    span: proc_macro2::Span,
-    seen: &mut HashSet<String>,
-    providers: &mut Vec<(String, proc_macro2::Span)>,
-) {
-    if seen.insert(terminal.to_owned()) {
-        providers.push((terminal.to_owned(), span));
-    }
+fn lexeme_recipe(
+    raw: &Declarations,
+    lexeme: &crate::Lexeme,
+) -> Option<crate::morphology::MorphologyRecipe> {
+    let morphology_name = identifier_key(&lexeme.morphology);
+    raw.declarations.iter().find_map(|declaration| {
+        let Declaration::Morphology(morphology) = declaration else {
+            return None;
+        };
+        (identifier_key(&morphology.name) == morphology_name)
+            .then(|| crate::morphology::MorphologyRecipe::from_ident(&morphology.recipe))
+            .flatten()
+    })
 }
 
 fn check_lex_role(
@@ -2762,6 +2958,7 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
                 }
             }
             Declaration::Root(_) => {}
+            Declaration::Morphology(_) => {}
         }
     }
     for declaration in &raw.declarations {
@@ -4344,7 +4541,7 @@ fn validate_backend_completeness(
 
     for declaration in &raw.declarations {
         match declaration {
-            Declaration::Construction(_) | Declaration::Root(_) => {}
+            Declaration::Construction(_) | Declaration::Morphology(_) | Declaration::Root(_) => {}
             Declaration::Vocab(vocab) => terminals.push(TerminalCapabilities {
                 name: identifier_key(&vocab.name),
                 lex_atom: true,
@@ -4501,7 +4698,7 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
                     ),
                 }
             }
-            Declaration::Vocab(_) | Declaration::Lexeme(_) => {}
+            Declaration::Vocab(_) | Declaration::Morphology(_) | Declaration::Lexeme(_) => {}
         }
     }
     validate_category_feature_uniformity(raw, &mut errors);
@@ -4725,6 +4922,8 @@ pub(crate) mod tests {
         clippy::too_many_lines,
         reason = "validation fixtures pin complete closed-schema diagnostics and golden input"
     )]
+    use std::collections::HashSet;
+
     use quote::quote;
     use syn::spanned::Spanned;
 
@@ -4744,6 +4943,274 @@ pub(crate) mod tests {
 
     fn assert_same_span(actual: proc_macro2::Span, expected: proc_macro2::Span) {
         assert_eq!(format!("{actual:?}"), format!("{expected:?}"));
+    }
+
+    #[test]
+    fn generated_morphology_rejects_unknown_morphology_name() {
+        let actual = error(quote! {
+            lexeme VerbLexeme using Missing { Deal = "deal", }
+            construction action: Ability {
+                element Action {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form action = verb(VerbLexeme::Deal);
+            }
+            root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+
+        assert!(actual.contains("unknown morphology `Missing`"), "{actual}");
+    }
+
+    #[test]
+    fn generated_morphology_rejects_unknown_recipe_and_axis_mismatch() {
+        let unknown = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = conjectural_verb; }
+            lexeme VerbLexeme using EnglishVerb { Deal = "deal", }
+            construction action: Ability {
+                element Action {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form action = verb(VerbLexeme::Deal);
+            }
+            root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            unknown.contains("unknown morphology recipe `conjectural_verb`"),
+            "{unknown}"
+        );
+
+        let mismatch = error(quote! {
+            morphology EnglishVerb { feature = Number; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb { Deal = "deal", }
+            construction action: Ability {
+                element Action {}
+                derive agreement = Values::Bare;
+                form action = verb(VerbLexeme::Deal);
+            }
+            root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            mismatch.contains("morphology `EnglishVerb` feature axis does not match recipe"),
+            "{mismatch}"
+        );
+    }
+
+    #[test]
+    fn generated_morphology_rejects_duplicate_declarations_members_and_overrides() {
+        let declarations = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        });
+        assert!(
+            declarations.contains("duplicate") && declarations.contains("EnglishVerb"),
+            "{declarations}"
+        );
+
+        let members = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb { Deal = "deal", Deal = "deal", }
+        });
+        assert!(
+            members.contains("duplicate lexeme member `Deal`"),
+            "{members}"
+        );
+
+        let overrides = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb {
+                Deal = "deal" { Bare = "deal", Bare = "deal", },
+            }
+        });
+        assert!(
+            overrides.contains("duplicate override `Bare`"),
+            "{overrides}"
+        );
+    }
+
+    #[test]
+    fn generated_morphology_rejects_unknown_override_feature() {
+        let actual = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb {
+                Deal = "deal" { Singular = "deal", },
+            }
+        });
+
+        assert!(
+            actual.contains("unknown override feature `Singular`"),
+            "{actual}"
+        );
+    }
+
+    #[test]
+    fn generated_morphology_rejects_empty_lemma_and_override_surface() {
+        for (source, expected) in [
+            (
+                quote! {
+                    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                    lexeme VerbLexeme using EnglishVerb { Deal = "", }
+                },
+                "lexeme lemma must not be empty",
+            ),
+            (
+                quote! {
+                    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                    lexeme VerbLexeme using EnglishVerb {
+                        Deal = "deal" { Bare = "", },
+                    }
+                },
+                "lexeme override surface must not be empty",
+            ),
+        ] {
+            let actual = error(source);
+            assert!(actual.contains(expected), "{actual}");
+        }
+    }
+
+    #[test]
+    fn generated_morphology_seals_complete_source_ordered_replacement_rows() {
+        let semantic = validate(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb {
+                Deal = "deal",
+                Be = "be" {
+                    Bare = "are",
+                    ThirdPersonSingular = "is",
+                },
+            }
+            construction action: Ability {
+                element Action {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form action = verb(VerbLexeme::Deal);
+            }
+            root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("the sealed morphology validates")
+        .into_semantic();
+        let lexeme = semantic
+            .terminals()
+            .iter()
+            .find_map(|terminal| match terminal {
+                crate::semantic::TerminalPlan::Lexeme(lexeme) => Some(lexeme),
+                _ => None,
+            })
+            .expect("the lexeme has a semantic row");
+
+        assert_eq!(
+            lexeme
+                .surfaces()
+                .iter()
+                .map(|row| (row.member(), row.feature(), row.surface()))
+                .collect::<Vec<_>>(),
+            [
+                ("Deal", macro_ron::v2::SurfaceFeature::Bare, "deal"),
+                (
+                    "Deal",
+                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                    "deals",
+                ),
+                ("Be", macro_ron::v2::SurfaceFeature::Bare, "are"),
+                (
+                    "Be",
+                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                    "is",
+                ),
+            ]
+        );
+        assert_eq!(
+            lexeme
+                .surfaces()
+                .iter()
+                .map(|row| (row.member(), row.feature(), row.surface()))
+                .collect::<HashSet<_>>()
+                .len(),
+            lexeme.surfaces().len(),
+            "the sealed plan cannot contain a duplicate exact row"
+        );
+        assert!(
+            !lexeme
+                .surfaces()
+                .iter()
+                .any(|row| { row.member() == "Be" && matches!(row.surface(), "be" | "bes") })
+        );
+    }
+
+    #[test]
+    fn generated_morphology_uses_lemmas_not_variant_name_heuristics() {
+        let semantic = validate(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb { TwoWords = "unrelated", }
+            construction action: Ability {
+                element Action {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form action = verb(VerbLexeme::TwoWords);
+            }
+            root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("an explicit lemma seals independently of its variant")
+        .into_semantic();
+        let crate::semantic::TerminalPlan::Lexeme(lexeme) = &semantic.terminals()[0] else {
+            panic!("the only terminal is the lexeme")
+        };
+
+        assert_eq!(
+            lexeme
+                .surfaces()
+                .iter()
+                .map(|row| row.surface())
+                .collect::<Vec<_>>(),
+            ["unrelated", "unrelateds"]
+        );
+    }
+
+    #[test]
+    fn generated_morphology_seals_resolved_morphology_and_ordered_irregulars() {
+        let semantic = validate(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb {
+                Deal = "deal",
+                Be = "be" {
+                    ThirdPersonSingular = "is",
+                    Bare = "are",
+                },
+            }
+            construction action: Ability {
+                element Action {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form action = verb(VerbLexeme::Deal);
+            }
+            root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("resolved morphology validates")
+        .into_semantic();
+
+        let morphology = &semantic.morphologies()[0];
+        assert_eq!(morphology.name(), "EnglishVerb");
+        assert_eq!(morphology.feature(), crate::Feature::Agreement);
+        assert_eq!(
+            morphology.recipe(),
+            crate::morphology::MorphologyRecipe::EnglishVerb
+        );
+        let crate::semantic::TerminalPlan::Lexeme(lexeme) = &semantic.terminals()[0] else {
+            panic!("the only terminal is the lexeme")
+        };
+        assert_eq!(lexeme.morphology().name(), "EnglishVerb");
+        assert_eq!(lexeme.irregulars().len(), 1);
+        assert_eq!(lexeme.irregulars()[0].member(), "Be");
+        assert_eq!(
+            lexeme.irregulars()[0]
+                .overrides()
+                .iter()
+                .map(|row| (row.feature(), row.surface()))
+                .collect::<Vec<_>>(),
+            [
+                (macro_ron::v2::SurfaceFeature::ThirdPersonSingular, "is",),
+                (macro_ron::v2::SurfaceFeature::Bare, "are"),
+            ]
+        );
     }
 
     fn signed_decimal_error(body: &proc_macro2::TokenStream) -> String {
@@ -7724,6 +8191,8 @@ pub(crate) mod tests {
                 (crate::DeclarationKind::Lexeme, "Nouns".to_owned()),
                 (crate::DeclarationKind::Lexeme, "Verbs".to_owned()),
                 (crate::DeclarationKind::Codec, "SignedNumber".to_owned()),
+                (crate::DeclarationKind::Morphology, "EnglishNoun".to_owned()),
+                (crate::DeclarationKind::Morphology, "EnglishVerb".to_owned()),
                 (crate::DeclarationKind::Construction, "leaf".to_owned()),
                 (crate::DeclarationKind::Construction, "chain".to_owned()),
                 (crate::DeclarationKind::Construction, "action".to_owned()),
@@ -7990,12 +8459,12 @@ pub(crate) mod tests {
                 .map(|row| (row.source_index(), row.construction_id().to_owned()))
                 .collect::<Vec<_>>(),
             [
-                (8, "leaf".to_owned()),
-                (9, "nested".to_owned()),
-                (10, "action".to_owned()),
-                (11, "idle".to_owned()),
-                (12, "solo".to_owned()),
-                (13, "document".to_owned()),
+                (10, "leaf".to_owned()),
+                (11, "nested".to_owned()),
+                (12, "action".to_owned()),
+                (13, "idle".to_owned()),
+                (14, "solo".to_owned()),
+                (15, "document".to_owned()),
             ]
         );
         assert_eq!(
@@ -8040,7 +8509,7 @@ pub(crate) mod tests {
                 .iter()
                 .map(|row| (row.source_index(), row.category().to_owned()))
                 .collect::<Vec<_>>(),
-            [(14, "Document".to_owned())]
+            [(16, "Document".to_owned())]
         );
         assert_eq!(
             semantic.feature_resolutions_snapshot(),

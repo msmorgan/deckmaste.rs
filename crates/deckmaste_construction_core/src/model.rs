@@ -26,10 +26,18 @@ impl Declarations {
 pub enum Declaration {
     Construction(Construction),
     Vocab(Vocab),
+    Morphology(Morphology),
     Lexeme(Lexeme),
     Codec(TerminalBinding),
     Identity(TerminalBinding),
     Root(Root),
+}
+
+#[derive(Debug)]
+pub struct Morphology {
+    pub name: Ident,
+    pub feature: Feature,
+    pub recipe: Ident,
 }
 
 #[derive(Debug)]
@@ -190,7 +198,21 @@ pub struct VocabVariant {
 #[derive(Debug)]
 pub struct Lexeme {
     pub name: Ident,
-    pub variants: Vec<Ident>,
+    pub morphology: Ident,
+    pub members: Vec<LexemeMember>,
+}
+
+#[derive(Debug)]
+pub struct LexemeMember {
+    pub name: Ident,
+    pub lemma: LitStr,
+    pub overrides: Vec<LexemeOverride>,
+}
+
+#[derive(Debug)]
+pub struct LexemeOverride {
+    pub feature: Ident,
+    pub surface: LitStr,
 }
 
 #[derive(Debug)]
