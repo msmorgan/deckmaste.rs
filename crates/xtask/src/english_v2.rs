@@ -356,6 +356,117 @@ mod tests {
         finder.found
     }
 
+    fn discover_rust_sources(root: &Path) -> Vec<PathBuf> {
+        fn visit(directory: &Path, found: &mut Vec<PathBuf>) {
+            let mut entries = fs::read_dir(directory)
+                .unwrap_or_else(|error| panic!("{}: {error}", directory.display()))
+                .map(|entry| {
+                    entry.unwrap_or_else(|error| panic!("{}: {error}", directory.display()))
+                })
+                .collect::<Vec<_>>();
+            entries.sort_by_key(std::fs::DirEntry::file_name);
+
+            for entry in entries {
+                let path = entry.path();
+                let file_type = entry
+                    .file_type()
+                    .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+                if file_type.is_dir() {
+                    visit(&path, found);
+                } else if path.extension().is_some_and(|extension| extension == "rs") {
+                    found.push(path);
+                }
+            }
+        }
+
+        let mut found = Vec::new();
+        visit(root, &mut found);
+        found.sort();
+        found
+    }
+
+    fn parse_rust_sources(paths: &[PathBuf]) -> Vec<(String, syn::File)> {
+        paths
+            .iter()
+            .map(|path| {
+                let source = fs::read_to_string(path)
+                    .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+                let file = syn::parse_file(&source)
+                    .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+                (path.display().to_string(), file)
+            })
+            .collect()
+    }
+
+    fn english_runtime_authority_violations(path: &str, file: &syn::File) -> Vec<String> {
+        let mut violations = Vec::new();
+        for generated_type in ["Lexical", "Leaf", "TerminalClass", "NounNumber"] {
+            for kind in [
+                ProductionAuthorityKind::Enum,
+                ProductionAuthorityKind::Struct,
+                ProductionAuthorityKind::TypeAlias,
+            ] {
+                if contains_production_authority(file, kind, generated_type) {
+                    violations.push(format!(
+                        "{path} defines handwritten generated aggregate {generated_type}"
+                    ));
+                }
+            }
+        }
+        for generated_authority in [
+            "Sign",
+            "SignedNumber",
+            "SelfReferenceSpelling",
+            "Noun",
+            concat!("Catalog", "Identity"),
+        ] {
+            for kind in [
+                ProductionAuthorityKind::Enum,
+                ProductionAuthorityKind::Struct,
+                ProductionAuthorityKind::TypeAlias,
+            ] {
+                if contains_production_authority(file, kind, generated_authority) {
+                    violations.push(format!(
+                        "{path} defines handwritten generated authority {generated_authority}"
+                    ));
+                }
+            }
+        }
+        for forbidden_function in [
+            "scan_signed_number",
+            "scan_noun",
+            "noun_forms",
+            "render_noun",
+            "pluralize",
+            "walk_declaration_noun",
+            "walk_noun",
+            "render_self_reference_spelling",
+            "scan_self_reference_spelling",
+            "walk_self_reference_spelling",
+            "visit_self_reference_spelling",
+        ] {
+            if contains_production_function(file, forbidden_function) {
+                violations.push(format!(
+                    "{path} defines handwritten terminal path {forbidden_function}"
+                ));
+            }
+        }
+        if contains_test_only_generated_ghost(file) {
+            violations.push(format!(
+                "{path} recreates a generated build/rules authority under cfg(test)"
+            ));
+        }
+        let literals = production_string_literals(file);
+        for forbidden in ["destroy", "destroys", "connive", "connives"] {
+            if literals.iter().any(|literal| literal == forbidden) {
+                violations.push(format!(
+                    "{path} retains handwritten open-verb spelling {forbidden}"
+                ));
+            }
+        }
+        violations
+    }
+
     #[derive(Clone, Copy, PartialEq, Eq)]
     enum ProductionAuthorityKind {
         Enum,
@@ -1088,224 +1199,83 @@ mod tests {
     ];
 
     #[test]
+    fn single_authority_inventory_audits_unexpected_nested_rust_source() {
+        let temporary = tempfile::tempdir().expect("temporary audit root is available");
+        let parser = temporary.path().join("parser");
+        fs::create_dir(&parser).expect("nested parser directory is created");
+        fs::write(
+            parser.join("mirror.rs"),
+            "fn scan_noun() { let _ = \"destroys\"; }",
+        )
+        .expect("unexpected Rust source is written");
+        fs::write(parser.join("notes.txt"), "fn scan_noun() {}")
+            .expect("non-Rust decoy is written");
+
+        let paths = discover_rust_sources(temporary.path());
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].ends_with(Path::new("parser/mirror.rs")));
+        let files = parse_rust_sources(&paths);
+        let violations = english_runtime_authority_violations(&files[0].0, &files[0].1);
+        assert!(
+            violations
+                .iter()
+                .any(|violation| violation.ends_with("handwritten terminal path scan_noun"))
+        );
+        assert!(
+            violations.iter().any(|violation| {
+                violation.ends_with("handwritten open-verb spelling destroys")
+            })
+        );
+    }
+
+    #[test]
     #[allow(
         clippy::too_many_lines,
         reason = "the complete Plan 03 single-authority matrix is deliberately explicit"
     )]
     fn plan03_terminal_generation_is_single_authority() {
-        let emitter_sources = [
-            (
-                "emit/ast.rs",
-                include_str!("../../deckmaste_construction_core/src/emit/ast.rs"),
-            ),
-            (
-                "emit/build.rs",
-                include_str!("../../deckmaste_construction_core/src/emit/build.rs"),
-            ),
-            (
-                "emit/render.rs",
-                include_str!("../../deckmaste_construction_core/src/emit/render.rs"),
-            ),
-            (
-                "emit/rules.rs",
-                include_str!("../../deckmaste_construction_core/src/emit/rules.rs"),
-            ),
-            (
-                "emit/runtime.rs",
-                include_str!("../../deckmaste_construction_core/src/emit/runtime.rs"),
-            ),
-            (
-                "emit/scanner.rs",
-                include_str!("../../deckmaste_construction_core/src/emit/scanner.rs"),
-            ),
-            (
-                "emit/terminal.rs",
-                include_str!("../../deckmaste_construction_core/src/emit/terminal.rs"),
-            ),
-            (
-                "emit/visit.rs",
-                include_str!("../../deckmaste_construction_core/src/emit/visit.rs"),
-            ),
-            (
-                "emit/mod.rs",
-                include_str!("../../deckmaste_construction_core/src/emit/mod.rs"),
-            ),
-            (
-                "report.rs",
-                include_str!("../../deckmaste_construction_core/src/report.rs"),
-            ),
-        ];
-        for (path, source) in emitter_sources {
-            let file = syn::parse_file(source).unwrap_or_else(|error| panic!("{path}: {error}"));
+        let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let construction_core_src = workspace_root.join("crates/deckmaste_construction_core/src");
+        let mut emitter_paths = discover_rust_sources(&construction_core_src.join("emit"));
+        emitter_paths.push(construction_core_src.join("report.rs"));
+        emitter_paths.sort();
+        emitter_paths.dedup();
+        let emitter_files = parse_rust_sources(&emitter_paths);
+        for (path, file) in &emitter_files {
             for source_authority in ["ValidatedDeclarations", "Declarations"] {
                 assert!(
-                    !contains_production_identifier(&file, source_authority),
+                    !contains_production_identifier(file, source_authority),
                     "{path} reads source-shaped authority {source_authority}"
                 );
             }
             assert!(
-                !contains_production_method_call(&file, "raw"),
+                !contains_production_method_call(file, "raw"),
                 "{path} calls ValidatedDeclarations::raw"
             );
             for source_reader in ["parse_declarations", "invocation_from_source"] {
                 assert!(
-                    !contains_production_identifier(&file, source_reader),
+                    !contains_production_identifier(file, source_reader),
                     "{path} rereads source-shaped declarations through {source_reader}"
                 );
             }
         }
 
-        let runtime_sources = [
-            (
-                "lib.rs",
-                include_str!("../../deckmaste_english_v2/src/lib.rs"),
-            ),
-            (
-                "ast.rs",
-                include_str!("../../deckmaste_english_v2/src/ast.rs"),
-            ),
-            ("constructions.rs", PRODUCTION_SOURCE),
-            (
-                "context.rs",
-                include_str!("../../deckmaste_english_v2/src/context.rs"),
-            ),
-            (
-                "environment.rs",
-                include_str!("../../deckmaste_english_v2/src/environment.rs"),
-            ),
-            (
-                "features.rs",
-                include_str!("../../deckmaste_english_v2/src/features.rs"),
-            ),
-            (
-                "orthography.rs",
-                include_str!("../../deckmaste_english_v2/src/orthography.rs"),
-            ),
-            (
-                "parser/diagnostic.rs",
-                include_str!("../../deckmaste_english_v2/src/parser/diagnostic.rs"),
-            ),
-            (
-                "parser/engine.rs",
-                include_str!("../../deckmaste_english_v2/src/parser/engine.rs"),
-            ),
-            (
-                "parser/error.rs",
-                include_str!("../../deckmaste_english_v2/src/parser/error.rs"),
-            ),
-            (
-                "parser/materialize.rs",
-                include_str!("../../deckmaste_english_v2/src/parser/materialize.rs"),
-            ),
-            (
-                "parser/mod.rs",
-                include_str!("../../deckmaste_english_v2/src/parser/mod.rs"),
-            ),
-            (
-                "parser/ownership.rs",
-                include_str!("../../deckmaste_english_v2/src/parser/ownership.rs"),
-            ),
-            (
-                "parser/scan.rs",
-                include_str!("../../deckmaste_english_v2/src/parser/scan.rs"),
-            ),
-            (
-                "parser/selection.rs",
-                include_str!("../../deckmaste_english_v2/src/parser/selection.rs"),
-            ),
-            (
-                "render.rs",
-                include_str!("../../deckmaste_english_v2/src/render.rs"),
-            ),
-            (
-                "visit.rs",
-                include_str!("../../deckmaste_english_v2/src/visit.rs"),
-            ),
-        ];
-        let runtime_files = runtime_sources
-            .iter()
-            .map(|(path, source)| {
-                (
-                    *path,
-                    syn::parse_file(source).unwrap_or_else(|error| panic!("{path}: {error}")),
-                )
-            })
-            .collect::<Vec<_>>();
+        let english_src = workspace_root.join("crates/deckmaste_english_v2/src");
+        let runtime_paths = discover_rust_sources(&english_src);
+        let runtime_files = parse_rust_sources(&runtime_paths);
 
         for (path, file) in &runtime_files {
-            for generated_type in ["Lexical", "Leaf", "TerminalClass", "NounNumber"] {
-                for kind in [
-                    ProductionAuthorityKind::Enum,
-                    ProductionAuthorityKind::Struct,
-                    ProductionAuthorityKind::TypeAlias,
-                ] {
-                    assert!(
-                        !contains_production_authority(file, kind, generated_type),
-                        "{path} defines handwritten generated aggregate {generated_type}"
-                    );
-                }
-            }
-            for generated_authority in [
-                "Sign",
-                "SignedNumber",
-                "SelfReferenceSpelling",
-                "Noun",
-                concat!("Catalog", "Identity"),
-            ] {
-                for kind in [
-                    ProductionAuthorityKind::Enum,
-                    ProductionAuthorityKind::Struct,
-                    ProductionAuthorityKind::TypeAlias,
-                ] {
-                    assert!(
-                        !contains_production_authority(file, kind, generated_authority),
-                        "{path} defines handwritten generated authority {generated_authority}"
-                    );
-                }
-            }
-            for forbidden_function in [
-                "scan_signed_number",
-                "scan_noun",
-                "noun_forms",
-                "render_noun",
-                "pluralize",
-                "walk_declaration_noun",
-                "walk_noun",
-                "render_self_reference_spelling",
-                "scan_self_reference_spelling",
-                "walk_self_reference_spelling",
-                "visit_self_reference_spelling",
-            ] {
-                assert!(
-                    !contains_production_function(file, forbidden_function),
-                    "{path} defines handwritten terminal path {forbidden_function}"
-                );
-            }
-            assert!(
-                !contains_test_only_generated_ghost(file),
-                "{path} recreates a generated build/rules authority under cfg(test)"
-            );
+            let violations = english_runtime_authority_violations(path, file);
+            assert!(violations.is_empty(), "{}", violations.join("\n"));
         }
 
-        let xtask_sources = [
-            ("english_v2.rs", include_str!("english_v2.rs")),
-            ("ambiguity.rs", include_str!("english_v2/ambiguity.rs")),
-            ("audit.rs", include_str!("english_v2/audit.rs")),
-            ("corpus.rs", include_str!("english_v2/corpus.rs")),
-            ("coverage.rs", include_str!("english_v2/coverage.rs")),
-            (
-                "coverage_lock.rs",
-                include_str!("english_v2/coverage_lock.rs"),
-            ),
-            ("diagnostic.rs", include_str!("english_v2/diagnostic.rs")),
-            ("inspect.rs", include_str!("english_v2/inspect.rs")),
-            ("parse.rs", include_str!("english_v2/parse.rs")),
-            ("probe.rs", include_str!("english_v2/probe.rs")),
-            ("report.rs", include_str!("english_v2/report.rs")),
-            ("roundtrip.rs", include_str!("english_v2/roundtrip.rs")),
-        ];
-        for (path, source) in runtime_sources.into_iter().chain(xtask_sources) {
-            let file = syn::parse_file(source).unwrap_or_else(|error| panic!("{path}: {error}"));
+        let xtask_src = workspace_root.join("crates/xtask/src");
+        let mut xtask_paths = discover_rust_sources(&xtask_src.join("english_v2"));
+        xtask_paths.push(xtask_src.join("english_v2.rs"));
+        xtask_paths.sort();
+        xtask_paths.dedup();
+        let xtask_files = parse_rust_sources(&xtask_paths);
+        for (path, file) in runtime_files.iter().chain(&xtask_files) {
             for catalog_authority in [
                 concat!("Parser", "Catalogs"),
                 concat!("Catalog", "Set"),
@@ -1314,7 +1284,7 @@ mod tests {
                 concat!("deckmaste_", "catalogs"),
             ] {
                 assert!(
-                    !contains_production_identifier(&file, catalog_authority),
+                    !contains_production_identifier(file, catalog_authority),
                     "{path} retains catalog authority {catalog_authority}"
                 );
             }
@@ -1332,25 +1302,6 @@ mod tests {
             .map(deckmaste_construction_core::TerminalVariantContribution::name)
             .collect::<Vec<_>>();
         assert_eq!(verbs, ["Deal", "Gain", "Control", "Be"]);
-        for (path, source) in [
-            (
-                "features.rs",
-                include_str!("../../deckmaste_english_v2/src/features.rs"),
-            ),
-            (
-                "parser/scan.rs",
-                include_str!("../../deckmaste_english_v2/src/parser/scan.rs"),
-            ),
-        ] {
-            let file = syn::parse_file(source).unwrap_or_else(|error| panic!("{path}: {error}"));
-            let literals = production_string_literals(&file);
-            for forbidden in ["destroy", "destroys", "connive", "connives"] {
-                assert!(
-                    !literals.iter().any(|literal| literal == forbidden),
-                    "{path} retains handwritten open-verb spelling {forbidden}"
-                );
-            }
-        }
 
         let adversarial = syn::parse_file(
             "mod nested { enum Noun { Mirror } }\n\
