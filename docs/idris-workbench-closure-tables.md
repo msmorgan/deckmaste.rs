@@ -1,80 +1,61 @@
-# The overfitting census
+# Idris workbench closure tables
 
-## 1. What this is
+Every closed catalog, measured-zero gate, closed-count table, single-value slot,
+canonicality gate and marked union construction in the Idris grammar workbench,
+each row tagged by **what closes it** — a rule, a rule read as a gate, a printing
+history, or the type's own structure.
 
-A full inventory of every **closed catalog**, **measured-zero
-gate**, **closed-count table**, **single-value slot**, **canonicality gate** and
-**marked union construction** in the Idris grammar workbench, each row tagged by
-**what closes it** — a rule, a rule read as a gate, a printing history, or the
-type's own structure.
+State recorded: chapter 139, bench 728 witnesses, 678 pins. Sources:
+`idris/src/Experimental.idr` (~17.1k lines), `idris/src/Experimental/Words.idr`
+(~6.5k), `idris/src/Experimental/Events.idr` (~2.9k);
+`idris/src/Experimental/Macros.idr` is not covered (it is the phrase-macro layer
+over these three). Recorded docstring evidence only — every corpus number here is
+quoted from a docstring in those sources, and nothing was re-measured against the
+corpus in assembling it.
 
-- **Date:** 2026-08-20.
-- **State censused:** chapter 139, bench 728 witnesses, 678 pins.
-- **Sources censused:** `idris/src/Experimental.idr` (~17.1k lines),
-  `idris/src/Experimental/Words.idr` (~6.5k), `idris/src/Experimental/Events.idr`
-  (~2.9k). `Experimental/Macros.idr` is not censused (it is the phrase-macro
-  layer over these three).
-- **Evidence discipline:** recorded docstring evidence only. Every corpus number
-  in this file is quoted from a docstring in the sources. Nothing was
-  re-measured against the corpus; no build, typechecker or corpus query was run
-  in assembling it. Row counts and table diffs are structural reads of the
-  source text, which is reading the recorded artifact rather than re-measuring
-  the corpus.
-- **Mandate:** the census mandate from the user-settled layering ruling's
-  2026-08-17 addendum (campaign record, shared local memory) — the marked-union
-  rows get a **lattice-translation** reading, so that the v2 lattice-vs-marked
-  decision is a read of a table. That reading is section 9. The decision itself
-  is the user's, at cutover.
+**This is a reference table, not a ticket database.** Nothing reads it
+mechanically. The tickets under `tickets/planned/` cite the rows they own; a row
+worth acting on gets its decision recorded in the owning ticket, and the outcome
+lands in the docstring at the site.
 
-### Inputs
+## Legend
 
-The nine sweep fragments remain the working record and carry the full per-row
-prose; this file is the deliverable assembled from them. They live in the
-campaign's shared local memory (gitignored, not shipped with the repo), under
-its `census/` directory:
+**Kinds.** `catalog` — a closed set of rows. `table` — a total function over a
+vocabulary, the cells being the measurements. `count` — a closed `Nat` table.
+`slot` — a parameter position, including one hard-fixed to a single value.
+`canon` — a canonicality/well-formedness gate. Rows at a marked union site
+additionally carry the tag `union`.
 
-| fragment | range |
-|---|---|
-| `shard-1.md` | `Experimental/Words.idr` 1–2100 |
-| `shard-2.md` | `Experimental/Words.idr` ~1916–4145 |
-| `shard-3.md` | `Experimental/Words.idr` 3980–6460 |
-| `shard-4.md` | `Experimental/Events.idr` (whole file, 2881 lines) |
-| `shard-5a.md` | `Experimental.idr` 1–4040 |
-| `shard-5b.md` | `Experimental.idr` 4040–7770 |
-| `shard-6a.md` | `Experimental.idr` 7650–12500 |
-| `shard-6b.md` | `Experimental.idr` 11600–17081 |
-| `lens.md` | structure-vs-phrase verdicts + lattice translation |
+**Closure bases.** **CR-closed** — a rule shuts the set, no printing can widen
+it. **CR-backed** — a rule warrants the shape and the corpus corroborates.
+**printing-backed** — the closure is a corpus count, and a future printing can
+flip it. **structural** — the type's own shape or a design ruling, with no corpus
+claim.
 
-**Vocabulary.** Five kinds: `catalog` (a closed set of rows), `table` (a total
-function over a vocabulary, the cells being the measurements), `count` (a closed
-`Nat` table), `slot` (a parameter position, including one hard-fixed to a single
-value), `canon` (a canonicality/well-formedness gate). Rows at a marked union
-site additionally carry the tag `union`. Four closure bases: **CR-closed** (a
-rule shuts the set, no printing can widen it), **CR-backed** (a rule warrants the
-shape and the corpus corroborates), **printing-backed** (the closure is a corpus
-count, and a future printing can flip it), **structural** (the type's own shape
-or a design ruling, with no corpus claim).
+**What the tag buys.** A CR-closed cell survives any printing, and a reader who
+knows the tag knows not to re-measure it. A printing-backed cell is one printing
+away from a flip — a maintenance fact, not a defect, since the workbench's
+discipline is that a row is bought by a witness; the tag says *which* cells a new
+set can move and what each move would cost, and every printing-backed row below
+carries its cost in the Widening column. The dangerous shape is neither of those
+but **printing-backed with a near-miss**: a closed vocabulary with a populated
+cell beside an empty one, or a slot whose single value survived by one line.
 
----
+## Totals
 
-## 2. Executive summary
-
-### Totals
-
-| module | census subjects | note |
+| module | rows | |
 |---|---|---|
-| `Experimental/Words.idr` | 166 | shards 1–3, six rows deduped across the 1916–2119 and 3980–4145 overlaps |
-| `Experimental/Events.idr` | 61 | shard 4, whole file |
-| `Experimental.idr` | 444 | shards 5a/5b/6a/6b, ~32 rows deduped across the 7650–7770 and 11600–12500 overlaps |
+| `Experimental/Words.idr` | 166 | |
+| `Experimental/Events.idr` | 61 | |
+| `Experimental.idr` | 444 | |
 | **total** | **671** | |
 
-(Row counts are merged-table rows in section 4; where a shard grouped a family of
-sibling definitions onto one row — `countOnes`/`countOutcomes`/… , the five
-mention-builders — the merged table keeps that grouping, so the subject count is
-conservative against a per-definition count.)
+Where a family of sibling definitions is grouped onto one row
+(`countOnes`/`countOutcomes`/…, the five mention-builders), the grouping is
+kept, so the subject count is conservative against a per-definition count.
 
-**By closure basis** (approximate — shards assigned compound rows a dominant
-label, so the bases sum slightly above the row count):
+By closure basis (approximate — compound rows carry a dominant label, so the
+bases sum slightly above the row count):
 
 | basis | Words | Events | Experimental | total |
 |---|---|---|---|---|
@@ -84,123 +65,18 @@ label, so the bases sum slightly above the row count):
 | structural | ~42 | ~12 | ~69 | **~120** |
 
 Printing-backed is the largest single class in every module and roughly half the
-census overall. **By kind**, only shard 5a reported a full tally (slot 46, table
-35, canon 17, catalog 5, union 3 of 106); across the whole census `slot` and
-`table` dominate, `catalog` and `canon` follow, `count` is the smallest class
-(the closed `Nat` tables number roughly two dozen), and **ten rows carry the
+rows overall. By kind, `slot` and `table` dominate, `catalog` and `canon` follow,
+and `count` is the smallest class (the closed `Nat` tables number roughly two
+dozen); the one region with a full per-kind tally is `Experimental.idr` 1–4040 —
+slot 46, table 35, canon 17, catalog 5, union 3 of 106. **Ten rows carry the
 `union` tag**: `Payload`/`UnionP`, `wordReaches JoinW`, `JoinedPlayer`,
 `JoinedClass` (Words.idr); `KindJoin`, `bindFor`, `YouAnd`, `nounIsKindJoin`,
 `nounIsMixedGroup`, `DamageRecipient` (Experimental.idr).
 
-### What the tags are for
-
-The point of the closure tag is a maintenance triage, not a defect list.
-
-- A **CR-closed** cell survives any printing. `Color`'s five rows, `permanentType`'s
-  six Trues, `halvesDistinct`, `Unflipped`'s double refusal under [CR#710.4] — no
-  card can move these, and a reader who knows the tag knows not to re-measure.
-- A **printing-backed** cell is **one printing away from a flip**. That is a
-  maintenance fact, not a defect: the workbench's whole discipline is that a row
-  is bought by a witness, so a printing-backed closure is exactly the design
-  working. What the tag buys is the ability to say *which* cells a new set can
-  move, and what each move would cost. Every such row in section 4 carries its
-  widening cost in the Widening column.
-- The dangerous shape is not "printing-backed" but **printing-backed with a
-  near-miss** — a closed vocabulary with a populated cell beside an empty one,
-  or a slot whose single value survived by one line. Those are section 3.
-
-### Top-15 risk ranking (summary)
-
-Ranked by how likely a future printing or round is to flip the cell, with
-single-value slots and closed-`Nat` tables carrying near-miss cells ranked above
-large attestation grids whose many zeros are independent. Full entries with
-widening costs in section 3.
-
-1. `LibOrdinal`'s missing **Sixth** (Words.idr:369)
-2. `PlayAsThough = HadFlash`, 87-vs-1 (Events.idr:736)
-3. `heldUntilOk`'s single True cell (Experimental.idr:3538)
-4. The five closed `{1,2}` count tables — `NextUntapCount`, `ExtraTurnCount`,
-   `SkipCount`, `PhaseCount`, `CapBound` (Words.idr:1093–2616)
-5. `LosesAllCounters`' always-all on four corpus lines (Experimental.idr:3472)
-6. `CardType`'s six absent CR types (Words.idr:9)
-7. `CreationVoice`'s fourth cell `CreatedByCauser` (Experimental.idr:2110)
-8. `YouAnd`'s player half fixed at `You`, 35/35 (Experimental.idr:1315)
-9. `Supertype`'s three of the rule's five (Words.idr:2049)
-10. `TagBody` `ScryB`/`SurveilB` possessor fixed at `You` (Experimental.idr:4137)
-11. `GainsDesignation`'s four not-pinnable designation cells (Experimental.idr:3393)
-12. `keywordCounterOk`'s printing-backed Falses inside a CR-closed frame (Words.idr:1978)
-13. `admitsSpan CostModification`'s deliberately unflipped Cheering Fanatic cell (Events.idr:910)
-14. `grantableAb`'s three quotation-vs-bare flipped cells (Experimental.idr:5042)
-15. `keywordCardOk`'s Flash printing-vs-regime cell (Experimental.idr:5389)
-
-### Contradictions and discrepancies (one line each)
-
-All are **REPORTED-NOT-RESOLVED**; the census made no edits. Full entries in
-section 7.
-
-1. `riderAct Regenerated` is 135 where `ObjectAct`'s own split two paragraphs
-   earlier gives 138 — a three-sentence gap unexplained (Words.idr:2311–5234).
-2. `attachHeadOk Equipped PermanentW = False` sits two cells below its own
-   docstring's citation of Luxior's printed "equipped permanent" (Words.idr:2232–4974).
-3. The `Keyword` docstring says "the two composite rows here" and then adds four
-   more and a seventh without correcting the claim (Words.idr:1247–2914).
-4. `PreventCut`'s family total is 88 event-shaped sentences but its two cells sum
-   to 60 + 21 = 81 (Experimental.idr:2990).
-5. `comparableBound` is relation-blind and admits a summed bound at every
-   comparator, where the correction that admitted it is 12/12 lines at equality
-   only (Experimental.idr:1740).
-6. `admitsSpan CostModification` declines to flip a True cell that one attested
-   line (Cheering Fanatic) fills, to preserve a `SpanUse` row's name (Events.idr:910).
-7. `annIntro`'s "on a FLAT clause the two agree exactly" has one exception in the
-   source — `ExtraTurn`, where `annIntro` prepends `turnRefB` and `preIntro`
-   does not (lens, family 6).
-
-### The lens verdicts, in five lines
-
-- Sixteen families were read against the structure-vs-phrase lens; **nine carry a
-  costume component**, **six are GENUINELY-N**, and one (the container mint
-  sites) is undecided leaning genuine.
-- The primary costume is the **letter machinery**: two rider rows quoting the
-  identical spelling string, plus a third letter binder already minted from a
-  cost with no constructor at all — and the read side (`DefinedLetter` over a
-  frame-blind `countLetter`) is already unified, which is the proof.
-- The house **names both postures itself**: the twin idiom at `OtherThan` ("one
-  namespace, two frames, and the argument in the name") and the utility idiom at
-  the four `eventUse` witnesses. The second posture is what the lens recommends,
-  three sections away from where the first was used.
-- The **positive control is the status family**, where the merge the lens would
-  recommend has already been performed; the **model citizen** is the
-  intercept/replace/hold/delay family; the **cheapest costume** is the nine
-  byte-identical `Not*` witnesses.
-- What resists is **Idris, not English**: `Effect` and `StaticEffect` are
-  distinct datatypes in one mutual block and the five telescopes exist for
-  list-sugar name resolution, so several verdicts name a documentary and
-  table-level defect rather than a constructor-count one.
-
-### The lattice assessment, in three lines
-
-- **The lattice wins the projection layer.** `headIsPlaceless` (two of its three
-  disjuncts), `nounSpansPlayers`, `bindFor`'s union branch and the three-row
-  `DamageRecipient` collapse all follow from `zone(Anything) = ⊥` and
-  `ty(Anything) = ⊥`, and the seven-verb battlefield refusal keeps holding
-  without a rule written for the purpose.
-- **It loses the discourse layer.** Flat `_ \/ _ = Anything` cannot spell the
-  33/33 demonstrative echo at all, and the `Binding`-is-`Kind`-indexed derivation
-  behind `YouAnd`'s no-binding and `ForEachOf`'s Join-cell refusal is deleted
-  outright, leaving measured silences that need explicit gates.
-- **Two items survive under neither naive option** — the shared demonstrative
-  surface of the class word and the union head (which needs a collapse table the
-  lattice does not supply) and `AnyTargetLone`'s modifier discipline (which has
-  no index to key on once the two share a kind) — and `KindJoin`'s widening to a
-  predicate cross-product is **not honestly coverable by tolerated
-  overgeneration**, because every tolerated case in the house is countable and
-  named.
-
 ---
 
-## 3. Risk ranking — the fifteen printing-backed closures most likely to flip
+## 1. Flip-risk ranking — the fifteen printing-backed closures most likely to flip
 
-Merged from the eight shards' own "top 3" nominations plus a read of the tables.
 Ranking rule: a **single-value slot** and a **closed-`Nat` table with a near-miss
 cell** rank above a large attestation grid, because the grid's many zeros are
 independent (one printing moves one cell and the closure survives) where the slot
@@ -243,14 +119,14 @@ top of *this* list rather than the bottom of the previous one.
 
 ---
 
-## 4. The merged table
+## 2. Closure rows by module region
 
-One section per module region, in file order, concatenating the shard tables.
-Rows duplicated across a shard-range overlap have been deduped (the more detailed
-row kept); `Kind` and `Closure` have been normalised to the five kinds and four
-bases where a shard drifted. The seven columns are unchanged.
+One section per module region, in file order. The seven columns are Site, Kind,
+Closure, CR anchor, Recorded evidence, Widening, Provenance; a Provenance cell
+names the chapter or finding that recorded the measurement, and `unstated` means
+the docstring gives none.
 
-### 4.1 `Experimental/Words.idr`
+### 2.1 `Experimental/Words.idr`
 
 | Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
 |---|---|---|---|---|---|---|
@@ -421,9 +297,7 @@ bases where a shard drifted. The seven columns are unchanged.
 | Words.idr:2787 `DurationEnd` | slot | CR-backed | — | StartOf/EndOf × TurnPart × Maybe Whose; "next" and its article are derived, not parameters (a possessed endpoint is always the next one) | — | unstated |
 | Words.idr:2794 `SpanUse` | catalog | printing-backed | — | the row NAME is the measured set of constructions writing that adverbial (naming convention stated explicitly); counts embedded in prose for several rows (type SETTING: "until end of turn" 257, "until your next turn" 5, "for as long as" 12, the sole non-grant user of "until your next upkeep" and "until end of combat"; ABILITY LOSS: 22/2/5; base-P/T SETTING: 63+3; SWITCH: 25, none other); the per-adverbial gate table itself lives at `spanUse` in Experimental.idr | a new construction writing a duration adverbial renames or splits a row | unstated (per row) |
 
----
-
-### 4.2 `Experimental/Events.idr`
+### 2.2 `Experimental/Events.idr`
 
 | Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
 |---|---|---|---|---|---|---|
@@ -436,7 +310,7 @@ bases where a shard drifted. The seven columns are unchanged.
 | Events.idr:140/499/514/529 `admitsIntercept` / `admitsHold` / `admitsTrigger` / `admitsDelay` | table | structural | — | full rows over `EventUse`'s 7 constructors each — pure projections, no independent corpus claim beyond `eventUse`'s own | a new `EventUse` value forces all four | — |
 | Events.idr:180 `eventSpan` | table | printing-backed | [CR#603.7,610.3,611.2a,611.2b] | 26 rows, EVERY ROW `Unattested` or `Unclaimed` — no event ever ends a duration; `Departure`=Unclaimed (three genuine [CR#611.2a] continuous durations exist but this grammar lacks the constructions); `PartBeginning`=Unclaimed (double-spelling refusal, `badUntilBeginningOfUpkeep`); the rest Unattested by exhaustive negative count | any attested "until [event]" line would flip a cell from silence to a real class | unstated |
 | Events.idr:208/659 `ReplUse` / `replUseOk` | table | printing-backed | [CR#614.3,614.8] | 26×2 grid; `SpellCast` both False (no would/instead writer exists — `Interceptable`'s refusal, not this table's); `Destruction` both True despite being unreachable through this vocabulary (`Interceptable` shuts the event at Unclaimed); `LifeGain`/`LifeLoss` both False pending a producer; the one-shot words `badNextTimeWouldDie`/`badNextTimeWouldEnter`/`badNextTimeWouldCreate` pinned zero across Death/Entry/TokenCreation | a producer landing on LifeGain/LifeLoss reopens those cells; a "the next time X would Y" line anywhere flips a pin | unstated |
-| Events.idr:265/811 `TriggerWord` / `triggerWordOk` | table | CR-backed (`At` only) / printing-backed (When/Whenever posture) | [CR#603.1,603.2b,113.3c,714.2b] | 26×3 grid; `At` assigned absolutely by [CR#603.2b] to `PartBeginning` only; the When/Whenever split is the campaign's named "tolerated over-generation" posture — the corpus splits (SpellCast 948 Whenever/121 When; GameLoss 5/2; LastCounterRemoval 100% When; CounterPlacement/TokenCreation/TimeShift 100% Whenever) but the grammar "declines to encode" most of them, leaving both cells open; `ChapterArrival` is the ONE row where the word is rule-conferred rather than measured ([CR#714.2b] supplies "When" verbatim), shutting Whenever/At (`badChapterWhenever`) | any split the corpus later demonstrates cleanly could tighten a tolerated-open cell; a second rule-conferred header would add a second closed row | finding 247, finding 172 |
+| Events.idr:265/811 `TriggerWord` / `triggerWordOk` | table | CR-backed (`At` only) / printing-backed (When/Whenever posture) | [CR#603.1,603.2b,113.3c,714.2b] | 26×3 grid; `At` assigned absolutely by [CR#603.2b] to `PartBeginning` only; the When/Whenever split is the workbench's named "tolerated over-generation" posture — the corpus splits (SpellCast 948 Whenever/121 When; GameLoss 5/2; LastCounterRemoval 100% When; CounterPlacement/TokenCreation/TimeShift 100% Whenever) but the grammar "declines to encode" most of them, leaving both cells open; `ChapterArrival` is the ONE row where the word is rule-conferred rather than measured ([CR#714.2b] supplies "When" verbatim), shutting Whenever/At (`badChapterWhenever`) | any split the corpus later demonstrates cleanly could tighten a tolerated-open cell; a second rule-conferred header would add a second closed row | finding 247, finding 172 |
 | Events.idr:346 `lookbackSubjectOk` | table | printing-backed | [CR#122.1,120.7] | 26×2 (Object/Player) grid; two cells refused for the SHARPER reason (the line is written but the query cannot finish it): `CombatDamage Player` (dealer-side damage has no name here — ledgered), `Placement`/`TokenCreation` both sorts (destination/patient not optional, ledgered); `GameLoss` both False and CLOSED (`badGameLossLookback` — the 2 lines that look back are player-counts, not window reads); `DamageTaken Player` and `TokenCreation Player` were re-measured cells that flipped True when a second reader (predicate position) landed — "a cell is a property of the QUERY… a later look can only add Trues"; `BlockedDeclaration Object` similarly flipped from a stated zero to True | a coordination construction would reopen the 4 "X or was X" blocked-family lines currently blocked on coordination, not this cell | ch42 (original measurement) |
 | Events.idr:410 `lookbackComplementOk` | table | printing-backed | [CR#614.16,120.7] | 3-axis (event × subject-Kind × complement-Kind) grid; counts: SpellCast 139/141 complemented, DamageTaken 48 (39 object-victim/9 player-victim), CombatDamage 3 (all Player recipient), AttackDeclaration 18 attackers-with/4 attacked-player over 3 live cells + 1 named zero (Object×Object refused — "not English"), TokenCreation 6, BlockDeclaration 1 (Joven's Ferrets), BlockedDeclaration 2 (Ride Down, Triton Tactics); measured zeroes grouped by REASON: intransitive events (Death/Departure/Entry), fixed-patient events (CardDrawn), magnitude-not-participant (LifeGain/LifeLoss, routed to the ledgered `EventSum`), second-complement-sort-not-this-slot (Placement/CounterPlacement/CounterRemoval — zone/kind is a different complement axis, ledger) | the Placement/Counter pair's true complement (zone, kind) is a named but unbuilt second table — landing it would not touch this table's cells | unstated |
 | Events.idr:441 `bareLookbackOk` | table | printing-backed | — | 26×2 grid; two OBLIGATORY-complement pins: `CombatDamage Object`=False (`badBareCombatDamageLookback`), `TokenCreation Player`=False (`badBareTokenCreationLookback`) — "a creation is a creation OF something"; all other reachable cells True by design (nothing to omit where no complement cell exists) | none stated | ch42 |
@@ -489,7 +363,7 @@ bases where a shard drifted. The seven columns are unchanged.
 | Events.idr:1069 `ChoiceMode` | catalog | printing-backed | [CR#608.2d,701.21a,109.5,609.7a] | 4 rows (Unmarked/TheirChoice/AtRandom/YourChoice); `YourChoice` is the newest, 187 sentences/184 cards "of your choice" vs 322 "of their choice" for `TheirChoice` — explicitly NOT one row with an inflection, since "their" needs an antecedent proof (`countChoosers bs = 1`) and "your" needs none ([CR#109.5]) | a nominal (non-pronoun) chooser slot is named as owed, waiting on a plural-player read | ch97 |
 | Events.idr:1079 `Possessable` | catalog | CR-closed | [CR#400.1] | 3 rows (Hand/Graveyard/Library IsOwned); battlefield and other zones excluded structurally — "a new shared zone declares its absence by having no row to write" | — | — |
 
-### 4.3 `Experimental.idr` — lines 1–4040 (zones, predicates, nouns)
+### 2.3 `Experimental.idr` — lines 1–4040 (zones, predicates, nouns)
 
 | Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
 |---|---|---|---|---|---|---|
@@ -600,7 +474,7 @@ bases where a shard drifted. The seven columns are unchanged.
 | Experimental.idr:1478 `elemIntro` | slot | printing-backed | — | the element-scoped binder fixes number at OneOf; determiner fixed at TheD (not SelfD/PartD) because 19 bodies write "it" and 14 write "that \<noun\>" (a measured split) | unstated | unstated |
 | Experimental.idr:1484 `predDelta` | table | structural | — | full-row mention-introduction table; Not and Or are binding HOLES (`badNegatedAntecedent`, `badDisjunctAntecedent`) — negation/disjunction never leak a possessor mention out | unstated | unstated |
 
-### 4.4 `Experimental.idr` — lines 4040–7770 (amounts, conditions, events, tokens)
+### 2.4 `Experimental.idr` — lines 4040–7770 (amounts, conditions, events, tokens)
 
 | Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
 |---|---|---|---|---|---|---|
@@ -736,7 +610,7 @@ bases where a shard drifted. The seven columns are unchanged.
 | Experimental.idr:2705 `pumpSignsOk` / `PumpSigns` | canon | printing-backed | — | CANONICALITY GATE (like TokenCanonical): the untouched (zero) slot takes its partner's sign — "-2/-0" 129, "-0/-X" 10, "+2/+0" 1,120, "+0/+3" 146, against the 4 disagreeing cells ("+0/-N", "-0/+N", "+N/-0", "-N/+0") at ZERO (`badDisagreeingZeroPump`); the both-zero pair "+0/+0"(1, reminder text)/"-0/-0"(0) explicitly left unregulated ("a rule separating them would be a rule about a cell that says nothing") | any disagreeing-zero cell going nonzero flips the gate | unstated |
 | Experimental.idr:2716 `CostShift` | slot | printing-backed | [CR#118.7a] (named but disclaimed as non-gating), [CR#702.41a] | magnitude is an Amount not a mana-cost symbol run — a deliberate divergence from the printed glyphs; the generic component measured 3 ways: {1}=377, {2}=145, {3}=41 lines; for-each = `Times n (CountOf p)` unchanged (affinity shape, 227 domains); X-reduction reads the definition-rider letter (38 lines); the COLORED/multi-symbol payload (~25 lines, e.g. Strive) explicitly NOT covered, recorded not admitted (ledger) | modelling the colored component would add a slot | ch59 |
 
-### 4.5 `Experimental.idr` — lines 7770–11600 (StaticEffect, Cost, the Effect head)
+### 2.5 `Experimental.idr` — lines 7770–11600 (StaticEffect, Cost, the Effect head)
 
 | Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
 |---|---|---|---|---|---|---|
@@ -833,7 +707,7 @@ bases where a shard drifted. The seven columns are unchanged.
 | Experimental.idr:3405 `Move` (DestOk/Placeable/riders) | slot | CR-backed | [CR#701.8a,400.3,110.4,110.4a,115.4,401.4] | the owned-destination positive has not yet landed (Unsummon's "its owner's hand" waits); riders defaulted, gated to the battlefield via RidersFit; the patient must be an Object not a damage-class span (`badExileAnyTarget`) | the owner-destination positive is still pending | unstated |
 | Experimental.idr:3412 `CounterSpell` | slot | CR-closed | [CR#701.6a,112.1] | a strict OnStack demand (not a silent zoneFits) — the one place this verb parts from the file's other zone gates | the ability half is ledgered — an ability on the stack has no noun term | unstated |
 
-### 4.6 `Experimental.idr` — lines 11600–17081 (Effect tail, projections, Card)
+### 2.6 `Experimental.idr` — lines 11600–17081 (Effect tail, projections, Card)
 
 | Site | Kind | Closure | CR anchor | Recorded evidence | Widening | Provenance |
 |---|---|---|---|---|---|---|
@@ -953,14 +827,15 @@ bases where a shard drifted. The seven columns are unchanged.
 | Experimental.idr:5496 `CardLine`/`CardText`/`CardChapters`/`CardPt`/`CardCost` | canon | structural | — | explicitly NOT gathered into one witness — pin discipline: a single gathering type would misreport which demand failed; threaded via the `card` macro instead | unstated | unstated |
 | Experimental.idr:5521 `Card` record | slot | structural | [CR#200.1,201.1,204.1,712.8] | [CR#200.1] lists 15 card parts, this record carries 5 (name/cost/typeline/text/pt); 3 named divergences from core's CardFace: a TypeLine record against 2 flat fields (shared with the clause readers), color_indicator/loyalty/defense NOT carried (a colour indicator is "a printed dot and not language" per [CR#204.1]; loyalty ledgered with the planeswalker type), and core's two-faced enum wrapper is the engine's concern not this record's ([CR#712.8]); the name field carries no grammar at all — modern templating writes "this creature" not the name, and "nothing here reads it back" | unstated | unstated |
 
-## 5. Single-value slots
+---
+
+## 3. Single-value slots
 
 Every place in the workbench where a parameter that *could* have varied is
 hard-fixed to one value, or where a slot that a neighbour construction has was
-deliberately not minted. Merged from all eight shards, in file order. This is
-the sharpest overfitting surface in the census: a catalog with one row records a
-measurement, but a slot with one value records a measurement *and* a bet that the
-axis will stay closed.
+deliberately not minted. In file order. This is the sharpest overfitting surface
+in the tables: a catalog with one row records a measurement, but a slot with one
+value records a measurement *and* a bet that the axis will stay closed.
 
 ### `Experimental/Words.idr`
 
@@ -1227,593 +1102,3 @@ axis will stay closed.
   AltCost has no subject slot to check at all because [CR#113.6d] makes it "about
   the card printing it and nothing else" — a structural asymmetry between the two
   admitted exceptions, not a gate left open.
-
-## 6. Unmeasured assertions
-
-Claims a docstring makes without a corpus count behind them, or with a count
-whose denominator is not stated. These are not errors — several are explicitly
-flagged as unmeasured by the source itself — but each is a place where the
-census could not check the claim against a number, and therefore a place a later
-round should re-measure before leaning on it.
-
-### `Experimental/Words.idr`
-
-- `comparedType` (:227): the Vehicle noncreature-printed-power exception under
-  [CR#208.3] is stated as "never written" with no corpus count.
-- `Kind`/`Ability` (:364): "PHRASAL… the corpus DESCRIBES this referent" cites
-  co-occurring modifiers (Bladehold War-Whip) as qualitative evidence, with no
-  line count for how many lines carry each modifier.
-- `OutcomeSort`/`DamagePrevented` (:606): "36 sentences" is given as the count of
-  prevention lines marked "this way"; flagged as a watch item because "this way"
-  marking recurs at `VerbedMarking` (Mill: 43 lines). The two are different
-  constructions and the docstrings do not conflate them — a note, not a
-  contradiction.
-- `modalHead` (:804): the attested-heads list is asserted as the corpus's full
-  attested set, with the REFUSED heads individually counted at zero, but no
-  positive per-head counts are given.
-- `Origin` (:1181): "the two rows do NOT interact… no reader tests both" is
-  stated with no corpus count backing the disjointness claim.
-- `VisibleThing` (:1658): the possessive-agreement claim covers "all 21 printed
-  reveal lines and all 44 printed look-at lines", but WholeHand's own reveal /
-  look-at split is not separately given (the 12+44 breakdown covers TopOfLibrary
-  only), though `visibilityOk`'s LookAt×WholeHand=False cell implies all 6
-  WholeHand lines are Reveal.
-- `verbedWordOk`'s TokenW/CopyW participial screen (:2117–2128): "no participial
-  token read is measured" and "0 supported lines" are asserted with no
-  total-occurrence denominator, unlike most other cells in the range.
-- `EntryCounterMark` (:2393): gives per-cluster counts over "all 578 supported
-  entry-counter occurrences" but no chapter/finding number for the underlying
-  recon pass.
-- `PlayerGroupWord`, `JoinedPlayer`, `JoinedClass`, `ScaleFactor`, `ShiftDir`,
-  `NextUntapCount`, `ExtraTurnCount`, `SkipCount`, `PhaseCount` (:2315–2519) —
-  all give specific counts but no chapter/finding citation, in contrast with
-  `EntryCounterMark` which cites finding 275.
-- `typeRank Battle/Instant/Sorcery` (:5709–5738): the docstring states outright
-  that these three ranks are **UNWITNESSED** — the total order among them and
-  their neighbours is a convention, not a measurement, despite living in the same
-  closed-count table as the witnessed ranks.
-- `keywordCounterOk` (:4441): the per-cell zero-counts for
-  Ward/Protection/Enchant/Equip/Ascend/Storied/Renown/Flash/CumulativeUpkeep/Skulk
-  are given as "zero supported lines" with no total corpus size to normalize
-  against.
-- `Owner.ThatTurns` (:6366): the "one part" claim is stated but its measurement
-  site (`partUse`) is in another file.
-- `SpanUse` (:6456): the per-adverbial cell table is referenced throughout the
-  docstring by count (e.g. "until end of turn" 257) but the assigning function
-  lives at `spanUse` in `Experimental.idr`, so those counts could not be
-  cross-checked against a cell from the declaration alone.
-
-### `Experimental/Events.idr`
-
-- `CondMarking` (:2029): "the corpus is lopsided: the bare 'as long as' is the
-  overwhelming majority and rarely negated" — no line counts for either word,
-  unlike almost every other catalog in the file.
-- `deonticPatientOk ForbidT Block Agent` (:1797): "fourteen lines [with a
-  patient] and the bare 'can't block' many more" — the 14 is counted, the
-  majority bare-form count is not.
-- `deonticPatientOk GateT Block Agent` (:1811): "Hipparion writes one… and the
-  plural-subject lines write none" — the plural-subject line count is not given.
-- `triggerWordOk LifeGain`/`LifeLoss` (:929–934): answered from quoted example
-  English with no line counts, unlike the sibling
-  `TimeShift`/`TokenCreation`/`CounterPlacement` rows measured a few lines away
-  in the same table.
-- `admitsSpan` for `PtDelta` and `KeywordGrant` (:2227, 2237): the surrounding
-  docstring gives corpus counts for several other rows in the same grid but not
-  for these two — their True/False pattern is asserted without an inline count.
-
-### `Experimental.idr`
-
-- `ZoneScope` OwnedBy (:33): "the plural RELATIONAL possessor ('their owners'
-  hands') is a different family and still ledgered" — no count for that family.
-- `OfLastChosenColor` (:503): "no card writes the marked read against a chooser
-  that can fire once" is stated as total across 12 carriers, but per-carrier
-  repeatability is not individually counted.
-- `HasCounters` (:1044): the player-scoped counter description names 6 cards but
-  gives no aggregate line count distinct from the 221 object-scope figure.
-- `AnyTargetLone` (:2604): the 17-occurrence split (4+13) is given, but the
-  underlying "any other target" total of 17 is asserted without a separate raw
-  (pre-support-filtering) count.
-- `negatable` at `Permanent` (:2925): "was not measured by this round's recon" —
-  an explicit admission of an unmeasured cell, flagged in-line by the docstring
-  itself.
-- `YouAnd` (:3532): "IT ANNOUNCES NOTHING OF ITS OWN… the corpus agrees — no
-  supported sentence reads the group back" — the "agrees" claim has no separate
-  count of how many sentences were checked for a readback attempt.
-- `TheRest` (:3600): "almost all of those subtract from a library slice a look or
-  a reveal or an exile-from-the-top assembled" — "almost all" with no
-  numerator/denominator.
-- `elemIntro` (:3939): "19 bodies write 'it', 14 write 'that \<noun\>'" is a
-  measured split, but the denominator (total element-scoped binder bodies) is not
-  stated, so the two counts cannot be checked as exhaustive.
-- `Amount.CountOf` (:4098): "every corpus for-each domain is noun-HEADED" is
-  asserted with no line count.
-- `EventSource.FromAnywhere` (:5969): rules-distinctness is argued from the CR
-  text alone; no corpus count of how many headers actually write "from anywhere"
-  is given, in contrast with the 19-header/4-header counts given nearby for the
-  elided-source and dies-coordination cases.
-- `anchorPhrase`'s False cells for
-  `CountedGroup`/`AllOf`/`EachOf`/`YouAnd`/`LibrarySlice`/`SomeOf`/`TheRest`
-  (:4767): each asserted refused ("a set, not a referent") with no line count,
-  unlike the neighbouring `TargetGroup`/`Definite` cells.
-- `GameEvent.BeginningOf` (:6253): asserted as "the ONLY event with no noun
-  phrase in it at all" with no count of how many BeginningOf triggers exist.
-- `GameEvent.Casts` (:6274): "the corpus writes both [caster and spell] and
-  divides on both" is asserted with no split count, in contrast with
-  `DealsCombatDamage`'s explicit 625/688.
-- `ChapterMark`'s threshold-tally logic (:6596): described as "an unchecked side
-  condition" by analogy to chapters 96/97/104, with no count of how many of the
-  581 supported chapter lines actually require the before/after tally as opposed
-  to a simpler reading.
-- `TokenSpec.TokenWritten` (:7591): the written-characteristics arm's own line
-  count is never stated (only its siblings `TokenAsThose`=43 and
-  `TokenCopyOf`=288 are counted); the population it accounts for is implied by
-  subtraction only.
-- `CostShift` (:7742): the colored/multi-symbol payload is described as "small
-  and measured" but only approximately counted ("about twenty-five lines").
-- `Gains` (:8126): the 26-supported-cards claim for two-level nested quotation
-  has no total-lines denominator for how many nested-ability lines exist overall.
-- `AddsChosenQuality` (:8793): "12 supported SUBTYPE lines" splits into named
-  groups (self 5, you-control 4, each 1) that sum to 10, with "and 2 more" left
-  unnamed and uncounted.
-- `Repeat` (:12429): the "44 supported lines over 44 cards" total is asserted,
-  but the sub-ledgers (42 backward + 2 forward = 44; 9 until-condition + 6
-  enumerated-domain + 2 exception = 17) are subsets whose overlap with each other
-  is not stated.
-- `Repeat`'s exception-on-process cells (:12419): "2 lines … (the two Lores)" —
-  named, but the "chooser machinery" they are blocked on is asserted, not further
-  quantified.
-- `ChangeLife` (:11708): "core basis (merged)" — no corpus count recorded for
-  this row at all.
-- `Expose` (:11801): no sentence count given for the look/reveal split.
-- `Continuously` (:11884): the span-adverbial table (SpanOk/CoordSpanOk) is
-  described as corpus-determined but no numbers are stated in this stretch of
-  docstring.
-- `If` (:12255) and `WhereLetter` (:12293): linearization availability (leading
-  vs trailing; which clause of the body the rider trails) is called "a
-  linearization side condition, unchecked here" — explicitly acknowledged as
-  unverified.
-- `moveIntro`'s AsType stamp conservatism (:14138): "waits on a corpus witness" —
-  explicitly states no witness exists yet for the at-verb frame; the conservative
-  False is asserted safe without a count.
-- `headerWindowOk`'s MainPhase gap (:15096+): 3 named cards (Dovin's Acuity,
-  Canyon Vaulter, Reckless Velocitaur) are stated to want a main-phase window
-  cell; the general MainPhase-Yours row opens later in the file while the
-  specific cell stays pinned, and the two comments are never reconciled in one
-  place.
-- `staticOnSpellCardOk`'s Conditionally-recursion claim (:16776–16781): "an
-  attested cell, so the recursion widens nothing" is asserted from exactly 2
-  named cards (Banefire, Dragonlord's Prerogative), both said to be "still
-  blocked on their own clauses" without detail on what those clauses are.
-- `Card` record's name field (:17058): "nothing here reads it back" is asserted
-  without a count of how many corpus lines were checked for a name-reading
-  construction.
-
-## 7. Contradictions and tensions
-
-Every item here is **REPORTED-NOT-RESOLVED**. The census made no edits to any
-source file and adjudicated none of these; each is recorded so a later round can
-pick it up with the evidence already assembled.
-
-### 7.1 Live discrepancies
-
-**1. `riderAct Regenerated` = 135 against `ObjectAct`'s own 138 —
-REPORTED-NOT-RESOLVED.**
-`Words.idr:2311–5208`, `Words.idr:2314` (restated at `Experimental.idr:3388`).
-`ObjectAct`'s comment gives the corpus split as "156 supported sentences… 138
-sentences attach to a destruction… 18 state 'this turn'", identifying the 138 as
-the `Effect.CantBe` one-shot-rider population. `riderAct`'s own comment two
-paragraphs later says "`Regenerated` is 135 sentences, which is what the round
-was for". The three-sentence gap is unexplained, and the `CantBe` row in
-`Experimental.idr` carries the 135 figure forward. Either the 138 includes three
-sentences that are not riderAct's, or one of the two counts is stale.
-
-**2. `attachHeadOk Equipped PermanentW = False` against its own cited Luxior
-evidence — REPORTED-NOT-RESOLVED.**
-`Words.idr:2232–4965` (comment) against `Words.idr:2240` (cell). The comment for
-the Planeswalker cell says [CR#702.6e]'s "equip planeswalker" attaches "as though
-that planeswalker were a creature", so **Luxior's line says "equipped permanent"**
-and not "equipped planeswalker" — zero occurrences of the latter. That reads as
-positive evidence for "equipped permanent" being real printed English, yet the
-`PermanentW` cell for `Equipped` is coded `False` two lines later with no comment
-explaining the refusal. Either the cited Luxior line does not license this
-table's cell (i.e. it is a different constructed phrase this table does not
-model), or the cell is a stale/missed True.
-
-**3. The `Keyword` docstring's composite-row count goes stale mid-docstring —
-REPORTED-NOT-RESOLVED.**
-`Words.idr:1247–2914`. The docstring states "`Haste` and `Flying` are the two
-composite rows here", then a few sentences later says "the GRANT round adds four
-more composite rows" (convoke/improvise/storm/lifelink, bringing the total to
-six), and later still describes `Reach` as "a composite the carrier spells,
-exactly as `Haste` and `Flying` are" (a seventh). The original claim is never
-corrected or restated. Read narrowly it is superseded by the docstring's own
-later sentences rather than being a hard logical contradiction — but a reader
-taking "the two composite rows" at face value would be wrong.
-
-**4. `PreventCut`'s arithmetic: 88 against 60 + 21 = 81 —
-REPORTED-NOT-RESOLVED.**
-`Experimental.idr:2990`. The docstring states the family is "88 event-shaped
-sentences", then sums "47 of the 49 one-shots and 13 of the 39 standing
-reducers" for CutAll (60) plus "21, and every one of them a standing reducer" for
-CutSome — 60 + 21 = 81, seven short of 88. The discrepancy is not reconciled in
-the text and may reflect an unlisted third cell or a stale total. (The three
-refused shapes counted alongside — "all but N" 5, "half…rounded" 2, the where-X
-rider 3 — sum to 10, which does not close the gap either.)
-
-**5. `comparableBound` is relation-blind where its evidence is equality-only —
-REPORTED-NOT-RESOLVED.**
-`Experimental.idr:1740`. `comparableBound a = writtenBound a || readAmount a` is
-RELATION-BLIND: once ch124's correction recognized the summed bound (`Aggregate`
-with `AggregateOp = Sum`) as passing via `readAmount`, the boolean gate admits a
-summed bound at *every* comparator, since `CompareAmt` places no relation
-restriction on the bound. But the corpus evidence supporting that correction is
-12/12 lines at the EQUALITY relation only ("mana value equal to 1 plus…"); the
-other four relations (greater / less / greater-or-equal / less-or-equal against a
-summed bound) are unattested and explicitly "queued with the count" for their own
-round. The type system therefore currently permits a construction class the
-corpus has never measured — a tension between the gate's shape and the evidence
-backing it, left standing rather than narrowed by the docstring's own account.
-
-**6. `admitsSpan CostModification` declines to flip a cell one attested line
-fills — REPORTED-NOT-RESOLVED.**
-`Events.idr:910`. Of 653 lines, exactly one (Cheering Fanatic) carries a
-duration, and its cell is **deliberately not flipped True** — the stated reason
-is that "flipping its cell would rename a `SpanUse` row". Because `SpanUse`'s row
-names *are* the measured construction sets, admitting the line would rename the
-row; the row's name is therefore doing work that a measurement normally does.
-This is a deliberate under-admission with an attested counterexample already
-printed, recorded as ledger rather than as a cell. Distinct in kind from the
-other items here: it is not an arithmetic or stale-text slip but a design tension
-between a naming convention and a measurement.
-
-**7. `annIntro`'s "flat clauses agree exactly" has one exception in the source —
-REPORTED-NOT-RESOLVED.**
-`Experimental.idr:4444` (`preIntro`) against `Experimental.idr:4502`
-(`annIntro`); found by the lens's row-by-row diff of the two 51-row tables. Ten
-rows differ; six differ only in which function name recurses; the four
-substantive differences are `May`, `Sequentially`, `Simultaneously` — and
-`ExtraTurn`. `annIntro`'s own docstring predicts and justifies the first three by
-name (`badSimultaneousReadsMayDeed`,
-`badInsteadReadsReplacedSequenceOutcome`) and then states the general claim: **"on
-a FLAT clause the two agree exactly."** `ExtraTurn w _` is a flat row where
-`annIntro` prepends `turnRefB` and `preIntro` does not. Either the "exactly" is a
-slight overstatement (the turn referent is a deed and `preIntro` is right to
-withhold it, in which case the sentence should read "…agree except where the
-clause MAKES a referent"), or one of the two rows is wrong. The lens flags it for
-a probe and does not adjudicate.
-
-### 7.2 Recorded self-corrections and citation drift (not live contradictions)
-
-Listed for visibility only; each is a place where the source visibly reverses or
-double-attributes itself, and a reader trusting a summary rather than the per-cell
-comments would get the pre-correction story.
-
-- **`Subtype.Shapeshifter`'s add/remove/re-add history** (`Words.idr:1528–3711`):
-  minted ch92 for Unstable Shapeshifter, removed when that card was "(wrongly)
-  refused" on the dead-public-witness rule, restored per finding 769's
-  correction. The one place a catalog's row history visibly reverses itself.
-- **`retainable`'s Planeswalker cell** (`Words.idr:2679`): already flipped once
-  (False→True) when `CardType` gained the row; documented as a self-correction.
-- **`partUse`'s two reclassifications** (`Events.idr:482, 1529–1530`): `Upkeep
-  Nothing` and `MainPhase {Nothing, Just Yours}` are both marked "RECLASSIFIED"
-  in-line. The table is internally consistent as written, but a reader trusting
-  only the head docstring's summary would get the pre-reclassification story.
-- **`StaticKind.LandAllowance`'s double chapter attribution** (`Events.idr:725–1996`
-  against `Events.idr:880–2345, 2677–2679`): the constructor comment attributes
-  the row to chapter 117 for its structural-vs-`Prevention` argument, while the
-  row's own `admitsSpan`/`staticAsAbility` cell comments attribute its corpus
-  measurement to chapter 116 alongside `VisibilityRider`. Both chapters may
-  legitimately have touched the row, but the two citations are never reconciled
-  in one place.
-- **`CastBy`'s fossil count** (`Experimental.idr:146–599`): the docstring corrects
-  itself in place — "this comment's own '24 lines' was that row's
-  cost-modification frame alone and the frame is 29 today, inside a family of
-  185" — leaving the superseded "24" visible in the same paragraph.
-- **`Amount.Minus`'s floor note** (`Experimental.idr:1575–4404`): the docstring
-  records that its own earlier text "claimed the floor unconditionally until the
-  layer-words round measured its own carve-out". Presented as already resolved
-  (the row is unchanged, only the reading corrected).
-- **`reflexEncloseUse`'s SetStatus count** (`Experimental.idr:3615`): Tapped is 5
-  "of an original 13 the prior comment overcounted" — an explicit self-correction
-  left in place.
-- **`headerWindowOk`'s MainPhase comment** (`Experimental.idr:4759`): the earlier
-  fully-False comment is superseded later in the file where MainPhase-Yours flips
-  True; the superseding is noted but the earlier comment is not amended.
-- **`statusEventOk` / `statusEffectOk` non-reproducing prior counts**
-  (`Words.idr:2597, 6018`): two comments record that a "prior comment's" figure
-  ("seven trigger headers each direction"; "42 imperative lines") "did not
-  reproduce" on re-measurement.
-- **`Prevents`' rider count** (`Experimental.idr:2826`): corrected from "140-odd"
-  to 111 shield sentences, the wider 125 count being non-shield damage clauses.
-- **`ObjectAct.Activated`'s split** (`Words.idr:2311`): corrected from an earlier
-  "wrong 15/50 split" to 19 class-subject / 43 possessor-anchored.
-- **`CounterKind`'s Lore and Age cells** (`Words.idr:2339`): both correct prior
-  wrong claims — a wrong cross-link on Lore (finding 481) and a wrong "all 85
-  reminder text" count on Age.
-
-## 8. Structure-vs-phrase verdicts
-
-The lens: not every top-level constructor must correspond to an English phrase.
-The house has two in-file precedents — `Sequentially`, whose spelling comment is
-explicitly "construction-owned … **not English words**", and `If`, which owns
-three linearizations chosen by a side condition the row does not check. So the
-question per family is never "must some construction own this job" but **"should
-this be ONE utility node with a linearization rule, exposed via macros, instead
-of N phrase-named rows?"** The costume signature is **per-container twins** — the
-same semantic job re-minted once per syntactic container, each wearing that
-container's phrase name; its sharpest form is two rows quoting the same spelling
-string.
-
-The file names **both** postures itself. The costume posture is named at
-`OtherThan` (`Experimental.idr:202`): *"the `Compare`/`CompareAmt` and
-`Not`/`NotCond` shape — one namespace, two frames, and the argument in the
-name."* The utility posture is named at the `GameEvent` gates
-(`Experimental.idr:2432–7112`): `Interceptable`/`Holdable`/`Triggerable`/`Awaitable`
-are four witness types over one `eventUse` table, existing only so a pin says
-which question refused. **The second posture is what the lens recommends**, which
-makes the census question for most families "why did this family get posture one
-when the file's own better answer was posture two, three sections away?"
-
-Full arguments, the recorded inventories, the sketch code and the letter-binder
-redesign sketch are in the `lens.md` fragment (Part 1; see §1 Inputs). The
-table below is a condensation.
-
-| # | family | verdict | one-line evidence |
-|---|---|---|---|
-| 1 | The LETTER machinery — `WhereLetter` (12293) / `WhereLetterStatic` (8085) / `costIntro (LoyaltySymbol LoyaltyDownX)` (10729) / `DefinedLetter` (4367) | **COSTUME on the bind side; the read side is already unified and is the proof** | The two rider rows quote the **same spelling string** verbatim and the second defers to the first for the nesting rule; a third letter binder already exists with **no constructor at all** (a `costIntro` row, 24 corpus lines reading it back); and `DefinedLetter`'s only demand, `countLetter w bs = 1`, is frame-blind by construction. What resists is Idris — `Effect` and `StaticEffect` are distinct datatypes — so the verdict names a documentary and table-level defect, becoming a code-level one the moment a third *frame* wants a rider. |
-| 2 | `Compare` (Predicate, 1086) / `CompareAmt` (Condition, 5516) | **COSTUME on the frame; one genuine slot difference a subject slot absorbs** | `Comparator` and `ComparableBound` are already shared whole; the register rule is keyed on the **subject** not the frame ("one relation, two registers"); the relation was re-measured as shared ("finding 309's test run again and answered unanimously"). What genuinely differs is subject saturation — `Compare`'s left operand is a *gap*, `CompareAmt`'s an explicit read — which one `CmpSubject` slot carries. |
-| 3 | `Not` (Predicate) / `NotCond` (Condition) + `negatable` / `condNegatable` / `predNegFree` | **COSTUME on the two rows; GENUINELY-3 on the three tables** | The spelling comments are the same sentence twice, `NotCond`'s saying "exactly as Predicate's Not does", and `OtherThan` files them as the house twin idiom. But the three tables are three questions: `negatable` is per-Predicate-row corpus-and-rule content, `condNegatable` is smaller and shaped differently, and `predNegFree` asks a **deep** scan the other two cannot ("the inner negation can hide inside a conjunction the predicate layer's own row never sees"). |
-| 4 | The ten `Not*` non-nesting witnesses (`NotSeq`, `NotSim`, `NotCoord`, `NotForEach`, `NotInstead`, `NotCompound`, `NotLoyalty`, `NotConditional`, `NotLetterRider`, `NotMixedGroup`) | **COSTUME — the sharpest and cheapest in the census** | Nine of the ten are literally the same three lines, and the docstrings admit it in a chain ("`NotSeq`'s twin", "`NotSeq`'s question at the binder", "`NotSeq`'s shape at a third site"). But the *reasons* fall into three groups (one-meaning-one-spelling; rule-backed; corpus-total) and **two of the ten are not self-nesting gates at all** — `NotLetterRider` and `NotConditional` gate another row's *body*, wearing the family prefix. Keep the aliases (pin legibility), unify the mechanism. |
-| 5 | The FIVE telescopes — `Effects`, `SimEffects`, `CostSeq`, `StaticParts`, `AbilitySeq` | **COSTUME on the body; UNDECIDED on the sugar** | Four of the five namespaces exist for **Idris list-sugar name resolution**, and the docstrings say so in a chain ("a third telescope would collide on the list sugar"… "a fourth"… "a fifth"). The one semantic contrast is real and small: `Effects` threads `effIntro`, `SimEffects` threads `annIntro` — a *parameter*, not a family. Whether aliases can restore `[a, b, c]` syntax at five element types is a typechecker question the census cannot answer. |
-| 6 | `effIntro` / `preIntro` / `annIntro` (+ `deedDelta`) | **`preIntro` vs `annIntro`: PARTIAL COSTUME (4 substantive rows in 51). `effIntro` vs `annIntro`: GENUINELY-2. `deedDelta`: a genuine fourth thing** | A row-by-row diff: 41 of 51 rows byte-identical modulo the function name, 6 more pure recursion renames, 4 substantive (`ExtraTurn`, `May`, `Sequentially`, `Simultaneously`). `preIntro`'s docstring says the duplication is deliberate ("written out rather than delegated so that a new clause has to declare its own pre-state") — a real totality motive bought with a hand-maintained 51-row copy. `effIntro` is **not** `deedDelta ++ annIntro`: it carries **retag** (`Move`) and **removal** (`Shuffle`) that no delta can express, which `deedDelta`'s own docstring confirms. See §7 item 7 for the `ExtraTurn` discrepancy this diff surfaced. |
-| 7 | `ObjectCant` (StaticEffect, 8325) / `CantBe` (Effect, 11406) | **COSTUME on the prohibition; the rider attachment is a genuine second thing — itself a near-twin of `Continuously`** | Same spelling string again (`"<Param(1)> <Param(0)>"` at both), both carrying `ActSubject` over the same `ObjectAct` catalog. What the second row adds is **attachment**, not prohibition content — and the file has already built that decomposition next door: `Continuously` is "a static statement used as a clause", so `CantBe` is "a static statement used as a trailing rider". `riderAct` becomes a `RiderOk` table and `Bindingless` moves onto the envelope where it belongs. |
-| 8 | `DoesntUntap`/`DoesntUntapNext`, `Skips`/`SkipsNext` | **GENUINELY-2 at each pair — the best-argued split in the census** | Two ability types with two rules ([CR#611.3b] vs [CR#611.2a]); the per-part admission **disagrees in opposite directions** over all 27 supported bare-skip sentences (`Turn` scheduled-only, `Upkeep` standing-only) — "a union table would have handed each family the other's silence"; each has a count slot the other cannot have; and targeting parts them (7/16 scheduled part-skips write "target player", a static line cannot). Note what they *correctly* share: **one** `skipUse` table read by two witnesses — the lens-recommended shape, already in place. |
-| 9 | `Prevents`/`PreventsFrom`, `Redirects`/`RedirectsFrom`, `Scales` | **COSTUME (partial): the argument-from-surface-shape fails the lens; a genuine amount-slot difference survives** | `DamageKind`, `DamageScope`, `ReplUse`, `DamageAgent`, the [CR#615.5] rider, `DamageRecipient` and `SingleRecipient` are shared whole. The docstrings' "relative-clause-modified damage noun vs event clause with a comma" **fails** — these very rows file their own two surfaces as linearizations (`RedirectsFrom`: the active and passive bodies "are ONE sentence"; `Scales`: the destination phrase "is A SPELLING AND NOT A SLOT"). What **holds** is [CR#615.8]'s "regardless of how much damage that is": `Shield` / `PreventCut` / `DamageScale` are genuinely different amount types, and `use : ReplUse` exists only on the event-shaped rows. Collapsing moves three measured facts (shield-shaped scale 0; riders 18/18 split; agentless scale 0/62) from "which row you picked" into three small tables. |
-| 10 | `Intercepts` / `InsteadOf` / `HeldUntil` / `Delayed` / `Reflexively` | **GENUINELY-5 — the census's model citizen** | Five rules with five different context threadings (`eventIntro`, `annIntro replaced`, `annIntro e`, `delayedCtx`, `reflexCtx`), and the file separates `InsteadOf` from `Intercepts` on a **corpus fact** not a frame ("the corpus divides on the word 'would'"). The admission layer is already unified on one `eventUse` table read by four witnesses. |
-| 11 | The counter-verb family (`PutCounters`, `RemoveCounters`, `GetsCounters`, `LosesAllCounters`, `CounterEvent`, `LastCounterRemoved`, `EntersWithCounters`, `CounterRider`, `DistributedCounters`, `CountersOn`) | **MIXED — GENUINELY-N across containers, COSTUME within the one-shot verbs** | No single node spans an event, a static line, a division and a read. But the four one-shot verbs are a 2×2 grid — {add, remove} × {object scope, player scope} — minted as four phrase-named rows, and `counterScope`'s own docstring says the grid is one thing ("the two verbs and the two scopes line up one to one across the whole family, which is why the scope can gate the verbs"). `CountersOn` demonstrates the payoff at the read side: **one** row indexed at `{k : Kind}` spelling both surfaces, "an agreement fact and not an axis". The read side took the lens's answer; the verb side did not. |
-| 12 | `HasStatus` / `StatusEvent` / `SetStatus` + `statusWordOk` / `statusEventOk` / `statusEffectOk` | **GENUINELY-3 — the census's positive control** | The merge the lens would recommend has **already been performed**: `SetStatus` "replaced `Tap`, `Untap`, `ToFace` and `Phases`. Four bespoke constructors over a catalog that already existed, which is exactly what the architectural ruling convicts." What remains is three *readers* of one value product disagreeing on real cells in both directions (the phase pair; `Flipped` 0 headers vs 16 instructions; `FaceDown` event-False/effect-True at 19), with `Unflipped` rules-backed at two of the three. Nothing to merge. |
-| 13 | The container mint sites `selfSubjIntro` / `condMint` / `staticIntro` | **UNDECIDED, leaning GENUINELY-N — recommend extracting the mint, keeping the three fallbacks** | The shared *lines* are three; the *fallbacks* are the content and they differ for a stated, surviving reason: "an event's subject is a NOUN, so a description announces itself through `nomIntro`… a condition announces NOTHING on any row (`condDelta`), so there is nothing to fall back to." What is duplicated is the ~8-line three-row minting body, and three sites already agree on both rows (508 host sentences, 10 self) — the threshold at which extracting `exophoricMint` is obviously right. |
-| 14 | The `anyTargetFree` scan family (`anyTargetFree`, `nounAnyTargetFree`, `zoneAnyTargetFree`, `amtAnyTargetFree`, `complementAnyTargetFree`, `nameSrcAnyTargetFree`) | **GENUINELY-N by Idris mechanics — but GENERATABLE, and that is the finding** | Not per-container twinning of a job: one predicate lifted over a mutually-recursive family of indexed datatypes, each function a total case analysis whose non-leaf rows delegate to the sibling at the argument's sort. Idris 2 has no generic-deriving facility for this, so the six definitions are mechanical necessity. The lens should not fire; the family is a **generation** candidate — and the file has ~4 more scans of the same shape (`predNegFree`, `predSays`, `predDelta`, `zoneFree`), so the multiplier is ~4 × ~6 and the fix is one generator. |
-| 15 | `Whose` (2 rows) / `Owner` (7 rows) | **COSTUME — and the docstring's own cited precedent is the counterexample** | `Whose` is a **literal sub-enum** of `Owner`, row name for row name, with the shared rows spelled identically. The docstring justifies the split by citing "`statusWordOk` and `statusEventOk`'s arrangement over [CR#110.5]'s values" — but that precedent is *three readers over ONE value product with three tables*, emphatically not three enums; it says one vocabulary, N admission tables, and this family did the opposite. The real cost the docstring names — ninety dead `Unattested` cells in `spanUse` — is a cost of `spanUse` being **indexed by the raw enum**, answerable by a `durationOwnerOk` witness at the `Duration` constructor, exactly as `windowOk`/`headerWindowOk` already handle disagreement over a shared index. The third argument (finding 254's derived possessor does not apply here) **does** survive and is orthogonal. |
-| 16 | The four (part × owner) grids — `windowOk`, `headerWindowOk`, `partUse`, `spanUse` | **GENUINELY-4 — and this family is what the lens's recommended output looks like** | These are **data, not constructions**; a per-reader admission table over a shared vocabulary is the shape the lens asks for, and the disagreements are measured and bidirectional ("a second table because the two disagree in both directions on six cells"). The one real defect is that the index sets are not the same — `windowOk`/`headerWindowOk` index `TurnPart -> Maybe Owner` while `partUse`/`spanUse` index over `Whose` — which is family 15's costume propagating. Unify the vocabulary and the four become four readers of one grid, presentable as a single matrix with four answer columns. |
-
-### Sweep — further twin candidates flagged, none investigated to verdict
-
-From a read of the full skeleton, one line each. None of these was worked to a
-verdict; they are the census's queue for a follow-up lens pass.
-
-- **`LetterDefinition` / `DefiningValue`** (4727, 4731) — two witness types over
-  one predicate `letterDefines`; deliberate (pin legibility) but a duplicate, and
-  should be recorded as one.
-- **`TokenTyped` / `TokenPt` / `SubtypesFit` / `TokenCanonical` /
-  `AdditionUnnamed`** (7493–7538) — five witnesses over `TokenChars`; the named
-  source of the "named apart so a pin says which refused" idiom. Check how many
-  share a body.
-- **`Interceptable` / `Holdable` / `Triggerable` / `Awaitable`** (7081–7109) —
-  four witnesses, all `admits<X> (eventUse (eventName ev))`. Already the good
-  shape; listed so it is not mistaken for a costume.
-- **`AddedPart` / `FollowerPart` / `AnchorPart`** (7143–7153) — three witnesses
-  over `AddUse`; the same shape as the skip pair, likely fine.
-- **`Compare` / `Superlative`** (1086 / 1093) — "`Compare`'s set-relative twin";
-  shares `Headed`, `AnyTargetFree`, `projScope ax = k` with `Aggregate`. Probably
-  genuine (threshold vs fold) but the slot overlap is large.
-- **`Timing` / `TriggerWindow`** (15165 / 15178) — two types over one grid, split
-  to avoid "a gate that would have had to refuse two of its own rows"; one type
-  with a gate is precisely the recommended shape, and every other table in the
-  file is made of measured `False`s.
-- **`AttackDefender` / `BlockPartner` / `EventAgent` / `CreationVoice` /
-  `CausedBy`** (5804–5915) — five `Maybe`-indexed optional-slot witnesses in one
-  block; check whether they share the "optional slot, gate rides the written
-  value" body (`CtrlSingular` and `CounterKindNamed` are explicitly said to).
-- **`ZoneCoherent` / `ContradictionFree` / `OtherAnchored` / `AnyTargetLone` /
-  `LoneComparison` / `TwoDisjuncts` / `ParallelDisjuncts` /
-  `CoordinableDisjuncts` / `DistinctDisjuncts`** (2061–2796) — nine list-scanning
-  witnesses over `List (Predicate bs k)`; likely a generation family of family
-  14's kind, not a costume.
-- **`TwoConjuncts` / `FlatConjuncts` (Condition) against `TwoDisjuncts` /
-  `DistinctDisjuncts` (Predicate)** — arity/flatness witnesses re-minted per
-  layer; `atLeastTwoCs`'s docstring says why (strict positivity forbids a shared
-  arity witness), a real Idris constraint that should be checked once rather than
-  assumed at each site.
-- **`CostSubject` / `CapSubject` / `LandSubject` / `ActSubject` /
-  `GrantSubject`** (5098–5155, 16160) — five per-construction subject admission
-  relations over `Noun`; worth a grid.
-- **`WrittenCount` / `ReadAmount` / `ComparableBound` / `ForEachAmount` /
-  `RepeatCount` / `DefiningValue`** — six `Amount`-shape witnesses; several are
-  one-line predicates and at least two share a test.
-- **`NextUntapCount` / `ExtraTurnCount` / `SkipCount` / `PhaseCount` /
-  `CapBound`** (`Words.idr:1093–2616`) — five closed `Nat` tables of one or two
-  rows each; a single `AttestedCount : (site) -> Nat -> Type` over one table
-  would carry all five measurements without losing a cell. (These are risk rank
-  4; the sweep item and the risk entry are the same five tables seen from the two
-  directions.)
-
-## 9. Lattice translation
-
-### The two designs
-
-**The marked design** (settled 2026-08-15, addendum 2026-08-17). The grammar
-keeps `Kind`'s Player/Object split and represents each union site as **the marked
-construction the cards write**. `KindJoin`'s docstring states the ruling in the
-open: *"The LAYERING RULING is why this is a construction rather than a repair:
-the surface MARKS every union site it has, so the grammar keeps the `Kind` split
-and writes each marked site down. Players-as-objects is core's business and not a
-grammar refactor."*
-
-**The join-semilattice design** (OLD-SEMANTICS). A join on the kind index,
-`AnObject \/ APlayer = Anything`, under which coordination is generic and no
-marked union constructor exists: "creature or player" is `Or` over a
-kind-`Object` alternative and a kind-`Player` alternative, at the joined kind.
-
-**The mandate** is not to decide (that is the user's, at cutover) but to state,
-per site, what the join-indexed equivalent **admits beyond the measured corpus**,
-tagged CR-backed vs printing-backed, with the widening cost. Two caveats are
-carried in from the campaign: flat `_ \/ _ = Anything` **loses WHICH union**
-(chapter 128 measured the demonstrative echo copying its antecedent's kind-pair
-exactly 33/33, derivable only under a pair-carrying join); and a `Binding` is
-`Kind`-indexed, so the union cells' "can't bind" arguments are arguments *about
-the index* and evaporate under a lattice kind that CAN index a binding. And one
-posture: the marked constructors' **hand-written table answers ARE what the
-`Anything` row's cells would be**.
-
-Full per-site argument in the `lens.md` fragment (Part 2; see §1 Inputs).
-
-### Site 1 — `AnyTarget` (Predicate, `Experimental.idr:203`)
-
-| | |
-|---|---|
-| **Recorded** | [CR#115.4]'s class word as ONE lexical item, `Predicate bs Object`, nullary. `negatable AnyTarget = False` ("the class word is never negated — the rule defines it positively"); `AnyTargetLone`, a modifier discipline forbidding anything else in the phrase; `headIsPlaceless` True; `bindFor` gives it `UnionP`; `nounIsAnyTarget` True only under `TargetGroup`; `DamageRecipient.AnyTargetTakes` its single admission. Its standing TODO is **retired with the answer NO** on three measurements: no cross-`Kind` head joins two classes to a player as this word (the 2 cards writing "creature, planeswalker, or player" are this word's own pre-battle spelling); the rules NAME it as one lexical item; and the two obey different modifier disciplines — "one row spelling both would have to refuse Zevlor to keep this word's discipline, or drop the discipline to keep Zevlor." |
-| **Lattice admits beyond corpus** | **The class word with a modifier** — `AnyTargetLone` has no index to key on once `AnyTarget` and `KindJoin` share a kind, so "any red target", "any target you control", "any target other than that creature" become spellable, all at zero corpus lines. The lattice **picks the second horn of the docstring's dilemma silently**. **The class word as a coordination member** ("any target or target player"). **A four-way join that is not the class word** — [CR#115.4]'s set is a rule's enumeration, and a lattice reaching the same kind from four predicates cannot know that "any target" is what English writes for it, so word and spelled-out list both become available with nothing to choose between them. |
-| **Pair-carrying dependency** | The **generic readback** survives under **neither** naive option: of the 48 supported anaphor readbacks, 10 have a class-word antecedent and **all 10 write the generic "permanent or player"**. Flat has no set to spell from; naive powerset would spell `{Creature, Player, Planeswalker, Battle}` faithfully as "that creature, player, planeswalker, or battle", **which no card writes**. It needs an explicit collapse rule (see site 4). |
-| **Gate re-homing** | The modifier discipline is **not honestly tolerable** as overgeneration: `AnyTargetLone` is a closed discipline with `badDestroyAnyTarget`-class pins behind it, and dropping it opens an unbounded modifier grid, not a handful of cells. A gate must move in, and it needs an index a flat lattice deletes; the honest home is a lexical marker (an `IsClassWord` witness) — **the marked construction re-created inside the lattice as a gate**. Gates that must survive: `AnyTargetLone`, `negatable AnyTarget = False`, `AnyTargetAtCount`, `anyTargetFree` and its five siblings (every one of which exists solely to find this word in a subterm). |
-
-### Site 2 — `KindJoin` (Predicate, `Experimental.idr:204`) — the 2×4 grid
-
-| | |
-|---|---|
-| **Recorded** | "the cross-Kind union head, one noun phrase describing one referent that may be an object or may be a player. **326 supported occurrences and the largest thing this grammar could not head.**" Two closed vocabularies, grid **full**: `JoinedPlayer` × `JoinedClass` is 2×4 and all eight cells are attested (player 279 / opponent 45 × planeswalker 205, permanent 100, battle 17, creature 4) — "which is what makes this one row with two parameters rather than a flat enum of the combinations somebody happened to write." Not `Or` (which coordinates alternatives describing the same sort of thing). **Placeless, and that is the whole gate**: `headIsPlaceless` True, so every battlefield-demanding verb refuses it through the ordinary zone gate — 0 supported sentences across destroy, exile, tap, untap, return, counter and sacrifice (`badDestroyKindJoin`). Not coordinable (`badKindJoinInOr` — nesting one in `Or` "would spell the same union twice over"). Not negatable ("a union of two classes is not a property a thing can lack"). Order is free variation and finding 275 **fails** (permanent 92 object-first/8 player-first; battle 16 player-first/1 object-first). Carries a modifier in only **11 of 326**. |
-| **Lattice admits beyond corpus** | **The widest widening in Part 2.** (a) **The whole predicate cross-product**: the marked row admits 2×4 head pairs from two one-word vocabularies; a generic join admits *any* kind-`Object` predicate joined to *any* kind-`Player` predicate ("target attacking Vampire that isn't a Demon or target opponent who controls no creatures"). The `Predicate` datatype has on the order of a hundred rows; the join's arity is their product, and zero of these are corpus lines. (b) **Three-way and n-way unions**, spellable several ways that all normalize to the same kind — a one-meaning-many-spellings failure of exactly the sort `NotSeq` and `badKindJoinInOr` exist to prevent. (c) **Negated unions** ("non-(permanent or player)"), whose refusal the docstring grounds semantically not just by count. (d) **Modified unions past the measured 11/326**, with no Zevlor-vs-AnyTarget distinction available to bound them. |
-| **Pair-carrying dependency** | The **8-cell grid itself**, and everything derived from it. `JoinedPlayer` × `JoinedClass` is not a by-product of the union — it is the *content* of the row, and the demonstrative echo reads it back (site 4). Under flat `_ \/ _ = Anything` the pair is destroyed at the join and neither the grid nor the echo can be stated. Under a powerset join it survives **as a subset restriction** — a gate saying which two-element sets are admissible, i.e. the marked row's two parameters wearing a different hat. |
-| **Gate re-homing** | 8-cell closed grid: the row's two closed parameters → a `JoinAdmissible` table over pairs (the same 8 cells, now written out). No nesting: `Or` being `Kind`-indexed → a `FlatJoin` witness (idempotence makes nesting silent). Not negatable: `negatable` full rows → a `negatable` row keyed on the joined kind. Modifier bound (11/326): `AnyTargetLone` at the neighbour → **no index to key on, OPEN**. Placelessness: `headIsPlaceless` table → **derivable ✅**. Order free variation: not recorded → unchanged ✅. **Tolerated overgeneration is not honest here** — the house tolerates it where the widening is bounded and named (`triggerWordOk`'s cells, `CantBe`'s four ledgered lines, `Repeat`'s discourse-position gap); a predicate cross-product is neither. |
-
-### Site 3 — `YouAnd` (Noun, `Experimental.idr:1315`) — the mixed group
-
-| | |
-|---|---|
-| **Recorded** | The player half is **fixed: `You`, 35/35** ([CR#109.5]'s exophoric word, which announces no mention and needs no slot). The object half is an ordinary object noun and the corpus uses the full range — bare plurals, the complement, the distributive, counted groups, the indefinite, the self (Glarecaster), a target mention (Volcano Hellion), the class word (Ian the Reckless): "nothing narrower would fit". It refuses itself (`NotMixedGroup`, [CR#109.5], `badNestedYouAnd`). `Kind` is `Object` and the split is untouched — "a MARKED union site, written down as the construction the cards write". Projects no zone and no type ("a set with a player in it stands nowhere"), so battlefield verbs refuse it through the ordinary gate and the damage clause takes it by `GroupTakes`. **It announces nothing of its own, and the argument is the index**: "a `Binding` is `Kind`-indexed and this mention has two kinds in it, so there is no binding to leave. The corpus agrees." "and" vs "and/or" is free variation (23 vs 12, exact crossing pair Channel Harm / Refraction Trap); order likewise. Finding 275 FAILS at both. |
-| **Lattice admits beyond corpus** | **The player half opens** — "target opponent and creatures they control", "each player and permanents they control", "that player and this creature"; the 35/35 `You` fixity is not a fact the lattice can state. **Nesting becomes free** — coordination is associative and the join idempotent, so `badNestedYouAnd` has nothing to refuse. **The group/union-head distinction disappears** — today "you and permanents you control" (a set with two members) and "permanent or player" (one referent of uncertain sort) are different constructions with different semantics; both become kind-`Anything` phrases, and the set/disjunction difference would have to ride on which coordinator is spelled — a distinction the corpus explicitly does *not* maintain here, since "and" and "and/or" are measured free variation. |
-| **Pair-carrying dependency** | The **no-binding fact** survives under **neither** flat nor powerset: today it is *derived* from the index; under **any** lattice kind, `Anything` is a kind, a `Binding` can be indexed at it, and the derivation is gone. What remains beside it is a *count* ("no supported sentence reads the group back"), not an argument. The same derivation is load-bearing one construction away — `ForEachOf`'s Join-cell ledger says that cell "CANNOT carry a binding at all: `YouAnd`'s own settled argument". Note also the asymmetry the lattice flattens: **`KindJoin` DOES bind and `YouAnd` does not** — today that falls out of *where* each lives (a `Predicate` head goes through `bindFor`; a `Noun` row writes its own delta); under a lattice both are kind-`Anything` phrases and the difference needs a gate of its own. |
-| **Gate re-homing** | The `You` fixity at 35/35 is a total measurement with no counterexample, and opening it multiplies the site by the whole player-noun vocabulary — **a gate must move in**: `MixedGroupPlayer` (admitting `You` alone until a card writes otherwise), plus a re-derived `NotMixedGroup` and an explicit `bindsNothing` witness. **Three gates replacing what the marked row got from its own shape.** |
-
-### Site 4 — the anaphor: `That JoinW` / `UnionP` / `wordReaches JoinW` (the 48 readbacks)
-
-The site where the flat/powerset distinction bites hardest, and whose recorded
-facts survive under **neither** naive option.
-
-| | |
-|---|---|
-| **Recorded** | `UnionP` is a payload that **carries nothing** (`Words.idr:449`): `bindingZone … = Nothing`, `bindingTy … = Nothing`, and it is a payload *rather than* an `ObjectP` with two `Nothing`s **on purpose** — "the ABSENCE is not what makes it a union: a source mention projects neither either… The mention is MARKED." `JoinW` is the only noun word that reaches it, and the reverse is measured: of the 48 supported readbacks not one is a bare "that player"/"that permanent" pointing at a union antecedent, and the 25 that do name a half spell it as a **coordination of two demonstratives** ("that player or that planeswalker's controller"), a noun disjunction this grammar does not have (ledger). **The surface is DERIVED, not carried** (`Words.idr:774`): of the 48, **the 33 whose antecedent is a union head echo that head's pair exactly, 33 of 33 with no crossing in either direction**; the other 15 have no pair to echo and **all 15 write the generic "permanent or player"**. "A `JoinedPlayer`/`JoinedClass` slot here would let the demonstrative spell a pair its antecedent never wrote, which is the one thing the corpus never does." And `bindFor` gives the class word and the union head **ONE payload**: "33 union-headed antecedents echo their own pair and 10 class-word antecedents write the generic one, **all 43 with the same demonstrative and no card distinguishing them.**" |
-| **Lattice admits beyond corpus** | Under flat `_ \/ _ = Anything` the binding records only that the referent is at the maximal kind, so the demonstrative has no pair to echo: either (i) every readback spells the generic pair, contradicting 33 measured echoes, or (ii) the pair is re-attached to the binding — which is a pair-carrying join wearing a lattice's name. **The flat lattice cannot spell this site at all** — chapter 128's finding restated at the census. |
-| **Pair-carrying dependency** | **Survives under powerset:** the 33/33 echo (carry `{Permanent, Player}` in the binding and read the two words off the set). **Survives under NEITHER — and this is the finding:** the **shared payload**. A powerset join gives `AnyTarget` the set `{Creature, Player, Planeswalker, Battle}` and `KindJoin JoinAnyPlayer JoinPermanent` the set `{Permanent, Player}`. **Two different sets ⇒ two different echoes**, yet all 10 class-word readbacks write "permanent or player" identically to the join-headed 33, and the corpus is explicit that no card distinguishes the two antecedents at the readback. So a powerset join must be accompanied by a **collapse rule** (set → demonstrative words) mapping a four-element set and several two-element sets onto one generic surface while preserving the 33 exact echoes. That rule is not part of the lattice; it is a spelling table — precisely the hand-written answer the marked design already has. **Also survives under neither without help:** the 15 no-pair readbacks whose antecedents are "a coordination of two whole noun phrases, or a three-way union" — under a lattice those are *ordinary* joined phrases with perfectly good sets, so the lattice would have them echo where the corpus has them go generic. |
-| **Gate re-homing** | Here overgeneration is not even the risk — **undergeneration and mis-generation are.** A flat join cannot produce 33 of the 48 readbacks; a powerset join produces the wrong words for at least 25 of them absent a collapse table. So what must move in is not a refusal but a **spelling table**, and it is the same table `JoinW` is today. `wordReaches JoinW` (the reach gate) becomes "the demonstrative's noun word must be the union word iff the antecedent's kind is joined" — **derivable ✅**; the derived-surface rule — **not derivable ✗**. |
-
-### Site 5 — the admission points
-
-**`DamageRecipient`** (`Experimental.idr:4110`) — five rows, three of them union
-rows: `PlayerTakes`, `AnyTargetTakes {nounIsAnyTarget n = True}`,
-`JoinTakes {nounIsKindJoin n = True}`, `GroupTakes {nounIsMixedGroup n = True}`,
-`ObjectTakes {OnBattlefield (nounZone n)} {DamageableTy (nounTy n)}`.
-
-- **Recorded:** the three union rows admit **without** the zone-and-damageable-type
-  check `ObjectTakes` makes, justified from the rules' own voice: "the union head
-  is a DESCRIPTION of what the replacement or shield watches, not a promise that
-  every member of it is damageable, and [CR#615.7] writes the same phrase in the
-  rules' own voice ('each 1 damage that would be dealt to the "shielded"
-  permanent or player is prevented')."
-- **Lattice admits beyond corpus:** nothing. **This is the lattice's cleanest win
-  in Part 2.** The three rows collapse to one `AnythingTakes` with `PlayerTakes`
-  and `ObjectTakes` at the two pure kinds; the three rows already admit exactly
-  "the phrase's kind is a union", and the joined kind *is* that predicate. What
-  widens is only the set of phrases that can reach the joined kind, which is
-  sites 1–3's widening, not this one's.
-- **Pair-carrying dependency:** none. The admission is kind-level.
-- **Gate re-homing:** none. The three-way scan becomes a kind test. **The same
-  for `nounSpansPlayers`** (`Experimental.idr:4041`), whose docstring already
-  frames itself as a kind question wearing a constructor scan: "MAY THIS PHRASE'S
-  REFERENT BE A PLAYER? **Three phrases in this grammar answer yes at `Kind`
-  `Object`, and they are the three the surface MARKS as union sites**" — under a
-  lattice that function is `k = Anything`. And `headIsPlaceless` loses two of its
-  three disjuncts, keeping only the **source role**, which is placeless for an
-  independent reason ([CR#120.7]: "a source is a ROLE, not a thing in a place")
-  and is therefore not a union site: **the lattice unifies two of
-  `headIsPlaceless`'s three disjuncts and leaves the third exactly where it is.**
-
-**`bindFor`'s `UnionP` branch** (`Experimental.idr:1266`) — "THE UNION MENTION IS
-MARKED HERE, and this is the one branch that chooses a payload rather than
-filling one in." Under a lattice the branch is not a choice: the payload follows
-from the kind. **Derivable ✅ — except** for site 4's collapse rule, which is what
-the shared payload is actually encoding.
-
-**`JoinTakes` against `badDestroyKindJoin`** — the pair that shows the marked
-design's economy. The *same* fact (`UnionP` projects no zone) simultaneously
-refuses seven battlefield verbs and permits the damage clause, because damage does
-not check a zone and the seven verbs do. Under a lattice the same economy holds
-(`zone(Anything) = ⊥`), so **both halves survive for free.** This is the strongest
-single argument in the lattice's favour that the census turned up.
-
-### Net assessment
-
-**What the lattice buys.**
-
-1. *Generic coordination.* `KindJoin` (326 occurrences) stops being a construction
-   and becomes an application of the coordination the grammar already has, at a
-   joined index.
-2. *Three tables become theorems.* `headIsPlaceless` (two of three disjuncts),
-   `nounSpansPlayers` (a three-row constructor scan) and `bindFor`'s union branch
-   all follow from `zone(Anything) = ⊥` and `ty(Anything) = ⊥` instead of being
-   written down. The seven-verb refusal (`badDestroyKindJoin`, 0 sentences across
-   destroy/exile/tap/untap/return/counter/sacrifice) keeps holding without a rule
-   written for the purpose.
-3. *One damage-recipient row instead of three.* `AnyTargetTakes` + `JoinTakes` +
-   `GroupTakes` → `AnythingTakes`, with **no widening at that site**.
-4. *Fewer marked rows overall* — three constructions (`AnyTarget`, `KindJoin`,
-   `YouAnd`) reduce to phrases at a kind.
-
-**What it costs.**
-
-1. *The 33/33 echo needs a pair-carrying join*, and even then it needs a
-   **collapse rule the lattice does not supply** — because a faithful powerset
-   echo gives the class word "that creature, player, planeswalker, or battle",
-   which no card writes, against the 10 that write the generic pair. The single
-   `UnionP` payload shared by both heads is a *measured identity* ("all 43 with
-   the same demonstrative and no card distinguishing them") that neither flat nor
-   naive powerset reproduces.
-2. *The binding index argument is deleted.* `YouAnd`'s no-binding and
-   `ForEachOf`'s Join-cell refusal are today **derived** from `Binding` being
-   `Kind`-indexed. A lattice kind can index a binding, so both become measured
-   silences needing explicit gates — and the `KindJoin`-binds / `YouAnd`-doesn't
-   asymmetry, which today falls out of `Predicate`-vs-`Noun` placement, needs a
-   gate too.
-3. *Gates re-homed, not removed.* At minimum: the 2×4 admissible-pair table;
-   `FlatJoin` (idempotence makes nesting silent); `negatable` at the joined kind;
-   `AnyTargetLone`'s modifier discipline (**the one gate the census could not find
-   a lattice home for**); `MixedGroupPlayer` for the 35/35 `You` fixity;
-   `NotMixedGroup` re-derived as a surface-uniqueness rule.
-4. *The widening is not bounded.* `KindJoin`'s 8 head pairs from two one-word
-   vocabularies become a predicate cross-product; that is a different order of
-   overgeneration from the house's tolerated cases (`triggerWordOk`'s cells,
-   `CantBe`'s four ledgered lines, `Repeat`'s missing discourse-position bit), all
-   of which are countable and named. **Tolerated overgeneration would not honestly
-   cover it.**
-
-**How to read the per-site tags.**
-
-- **"Derivable ✅"** — the marked design is paying to write down something the
-  lattice would prove. These are pure wins, and they are concentrated in the
-  **projection** layer (zone, type, placelessness, recipient admission), which is
-  exactly where the lattice's algebra has content.
-- **"Gate moves in"** — the admission does not vanish; it changes address, from a
-  constructor's shape to a table. Every such row is a **measurement that must be
-  preserved verbatim**, and the census's count is that the marked constructors'
-  hand-written table answers ARE what the `Anything` row's cells would be — so the
-  migration is a re-homing exercise, not a re-derivation. Cheap, but it must be
-  done exhaustively or a measured zero becomes a silent yes.
-- **"Survives only under a pair-carrying join"** — flat `_ \/ _ = Anything` is off
-  the table for this grammar; the census found no site where flatness helps. If
-  the lattice is taken, it is a powerset (or pair) join.
-- **"Survives under neither"** — the genuinely unresolved item, and there is
-  exactly one: **the shared demonstrative surface of the class word and the union
-  head** (site 4). Any lattice design must answer it explicitly before it can
-  claim to reproduce the 48 readbacks.
-- **"No index to key on"** — likewise exactly one: **`AnyTargetLone`'s modifier
-  discipline** (site 1). The class word and the union head differ in what may
-  modify them, and a shared kind erases the distinction the discipline is written
-  against. A lexical marker re-creates the marked construction inside the lattice.
-
-**The honest summary for the cutover discussion: the lattice is a clear win in
-the projection layer and a clear cost in the discourse layer.** Everything the
-join proves is about where a referent *is not* (no zone, no type, hence no
-battlefield verb); everything it deletes is about *which* union a mention was
-(the echo, the pair, the binding index).
-
-**The decision is the user's, at cutover. This table is its input.**

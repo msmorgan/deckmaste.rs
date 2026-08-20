@@ -37,8 +37,9 @@ language's functions over the joined-kind core. Neither role is a core
 constructor.
 
 This settles the direction only. Execution shapes are decided per round with
-the overfitting census (§§8–9) as specification input, never as re-litigations
-of the direction: whether the join is flat or pair-carrying (the demonstrative
+the campaign's measured inventory — the workbench closure tables and the
+workbench union-family tickets — as specification input, never as
+re-litigations of the direction: whether the join is flat or pair-carrying (the demonstrative
 echo copies its antecedent's kind pair 33 of 33 times), how a kind-indexed
 `Binding` is re-derived under a joined kind, and every per-site migration.
 
@@ -84,8 +85,9 @@ authoring-time error rather than model unsoundness.
 
 ## Tracked references
 
-- [Overfitting census](../../idris/src/overfitting-census.md) — §9 the per-site
-  lattice translation, §8 the structure-vs-phrase verdicts.
+- [Workbench closure tables](../idris-workbench-closure-tables.md) — the
+  campaign's measured closure and slot inventory; the per-site union
+  translation is carried by the workbench union-family tickets.
 - [Semantics v2](semantics-v2.md) — the workbench contract this shape lands in.
 - [Macros are declarative](macros-are-declarative.md) — the typed-template
   doctrine the card language's functions are headed for.
