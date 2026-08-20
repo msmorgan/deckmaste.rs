@@ -415,6 +415,7 @@ pub(crate) struct LexemePlan {
 
 #[derive(Debug)]
 pub(crate) struct LexemeSurfacePlan {
+    span: Span,
     member: String,
     feature: macro_ron::v2::SurfaceFeature,
     surface: String,
@@ -2155,6 +2156,7 @@ impl LexemePlan {
                         Ok,
                     )?;
                 surfaces.push(LexemeSurfacePlan {
+                    span: member.name.span(),
                     member: identifier_key(&member.name),
                     feature,
                     surface,
@@ -2177,6 +2179,26 @@ impl LexemePlan {
                 });
             }
         }
+        let expected_members = source
+            .members
+            .iter()
+            .map(|member| {
+                (
+                    identifier_key(&member.name),
+                    member.name.span(),
+                    morphology.recipe().features(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let expected_members = expected_members
+            .iter()
+            .map(|(member, span, features)| (member.as_str(), *span, *features))
+            .collect::<Vec<_>>();
+        let realized_rows = surfaces
+            .iter()
+            .map(|row| (row.span, row.member(), row.feature(), row.surface()))
+            .collect::<Vec<_>>();
+        validate_complete_surface_rows(&expected_members, &realized_rows)?;
         Ok(Self {
             source_index,
             name: source.name.clone(),
@@ -2234,6 +2256,45 @@ impl LexemePlan {
     pub(crate) fn source_index(&self) -> usize {
         self.source_index
     }
+}
+
+fn validate_complete_surface_rows(
+    expected_members: &[(&str, Span, &[macro_ron::v2::SurfaceFeature])],
+    rows: &[(Span, &str, macro_ron::v2::SurfaceFeature, &str)],
+) -> syn::Result<()> {
+    let mut errors: Option<syn::Error> = None;
+    let mut exact_rows = HashSet::new();
+    let mut covered_features = HashSet::new();
+    for &(span, member, feature, surface) in rows {
+        if !exact_rows.insert((member, feature, surface)) {
+            let error = syn::Error::new(
+                span,
+                format!("duplicate exact morphology row `({member}, {feature:?}, {surface})`"),
+            );
+            if let Some(errors) = &mut errors {
+                errors.combine(error);
+            } else {
+                errors = Some(error);
+            }
+        }
+        covered_features.insert((member, feature));
+    }
+    for &(member, span, features) in expected_members {
+        for &feature in features {
+            if !covered_features.contains(&(member, feature)) {
+                let error = syn::Error::new(
+                    span,
+                    format!("missing realized surface row for `{member}` feature `{feature:?}`"),
+                );
+                if let Some(errors) = &mut errors {
+                    errors.combine(error);
+                } else {
+                    errors = Some(error);
+                }
+            }
+        }
+    }
+    errors.map_or(Ok(()), Err)
 }
 
 impl LexemeSurfacePlan {
@@ -2985,6 +3046,66 @@ impl RootPlan {
 
     pub(crate) fn punctuation(&self) -> &str {
         &self.punctuation
+    }
+}
+
+#[cfg(test)]
+mod morphology_tests {
+    use macro_ron::v2::SurfaceFeature;
+    use proc_macro2::Span;
+
+    #[test]
+    fn generated_morphology_surface_boundary_rejects_missing_feature_coverage() {
+        let member_span = Span::mixed_site();
+        let expected = [(
+            "Deal",
+            member_span,
+            &[SurfaceFeature::Bare, SurfaceFeature::ThirdPersonSingular][..],
+        )];
+        let rows = [(member_span, "Deal", SurfaceFeature::Bare, "deal")];
+
+        let error = super::validate_complete_surface_rows(&expected, &rows)
+            .expect_err("a missing recipe feature must be rejected");
+
+        assert!(
+            error
+                .to_string()
+                .contains("missing realized surface row for `Deal` feature `ThirdPersonSingular`"),
+            "{error}"
+        );
+        assert_eq!(format!("{:?}", error.span()), format!("{member_span:?}"));
+    }
+
+    #[test]
+    fn generated_morphology_surface_boundary_rejects_duplicate_exact_row() {
+        let member_span = Span::call_site();
+        let duplicate_span = Span::mixed_site();
+        let expected = [(
+            "Deal",
+            member_span,
+            &[SurfaceFeature::Bare, SurfaceFeature::ThirdPersonSingular][..],
+        )];
+        let rows = [
+            (member_span, "Deal", SurfaceFeature::Bare, "deal"),
+            (duplicate_span, "Deal", SurfaceFeature::Bare, "deal"),
+            (
+                member_span,
+                "Deal",
+                SurfaceFeature::ThirdPersonSingular,
+                "deals",
+            ),
+        ];
+
+        let error = super::validate_complete_surface_rows(&expected, &rows)
+            .expect_err("an exact duplicate realized row must be rejected");
+
+        assert!(
+            error
+                .to_string()
+                .contains("duplicate exact morphology row `(Deal, Bare, deal)`"),
+            "{error}"
+        );
+        assert_eq!(format!("{:?}", error.span()), format!("{duplicate_span:?}"));
     }
 }
 

@@ -1410,9 +1410,9 @@ mod tests {
             It = "it",
         }
 
-        lexeme VerbLexeme {
-            Be,
-            Deal,
+        lexeme VerbLexeme using EnglishVerb {
+            Be = "be",
+            Deal = "deal",
         }
 
         codec SignedNumber {
@@ -1983,7 +1983,7 @@ mod tests {
     fn nested_doc_comments_receive_the_named_mvp_error() {
         let cases = [
             "vocab Word { /// docs\n One = \"one\", }",
-            "lexeme VerbLexeme { /// docs\n Be, }",
+            "lexeme VerbLexeme using EnglishVerb { /// docs\n Be = \"be\", }",
             r"codec Number {
                 value_type = Number;
                 lexical = Lexical::Number;
@@ -2042,7 +2042,6 @@ mod tests {
                 "construction x: X { element XNode { value: X, } form x otherwise = value; }",
                 "otherwise",
             ),
-            ("morphology English { anything }", "morphology"),
             ("scanner Words { anything }", "scanner"),
             (
                 "construction x: X { element XNode { value: X, } derive value.case = Case::Upper; form x = value; }",
@@ -2093,8 +2092,8 @@ mod tests {
     #[test]
     fn parses_declaration_noun_generated_codec_source() {
         let declarations = parse(
-            r"
-                lexeme NounLexeme { Player, }
+            r#"
+                lexeme NounLexeme using EnglishNoun { Player = "player", }
                 codec Noun {
                     generate declaration_noun {
                         closed = NounLexeme;
@@ -2103,7 +2102,7 @@ mod tests {
                         feature = Number;
                     }
                 }
-            ",
+            "#,
         )
         .expect("the closed declaration_noun recipe parses");
 

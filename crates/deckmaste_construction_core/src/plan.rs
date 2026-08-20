@@ -286,7 +286,42 @@ impl EmissionPlan {
 pub(crate) fn plan_emission(plan: &SemanticPlan) -> syn::Result<EmissionPlan> {
     let mut items = crate::emit::ast::emit(plan)?;
     let (terminal_items, mut terminal_contributions) = crate::emit::terminal::emit(plan)?;
-    for contribution in &mut terminal_contributions {
+    seal_terminal_contribution_projection(plan, &mut terminal_contributions)?;
+    items.extend(terminal_items);
+    items.extend(crate::emit::runtime::emit(plan));
+    items.extend(crate::emit::scanner::emit(plan));
+    items.extend(crate::emit::render::emit(plan)?);
+    items.extend(crate::emit::visit::emit(plan)?);
+    items.extend(crate::emit::rules::emit(plan)?);
+    items.extend(crate::emit::build::emit(plan)?);
+
+    let mut keys = HashSet::new();
+    for item in &items {
+        if !keys.insert(item.key.clone()) {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!("duplicate generated item key {:?}", item.key),
+            ));
+        }
+        crate::format::validate_item(item).map_err(|error| {
+            syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!("generated item {:?} is invalid: {error}", item.key),
+            )
+        })?;
+    }
+
+    Ok(EmissionPlan {
+        items,
+        terminal_contributions,
+    })
+}
+
+fn seal_terminal_contribution_projection(
+    plan: &SemanticPlan,
+    terminal_contributions: &mut [TerminalContribution],
+) -> syn::Result<()> {
+    for contribution in terminal_contributions {
         let (surfaces, expected_generated_item_keys) = plan
             .terminals()
             .iter()
@@ -316,37 +351,18 @@ pub(crate) fn plan_emission(plan: &SemanticPlan) -> syn::Result<EmissionPlan> {
                 }
                 _ => None,
             })
-            .unwrap_or_default();
+            .ok_or_else(|| {
+                syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    format!(
+                        "terminal contribution `{}` has no semantic projection",
+                        contribution.name()
+                    ),
+                )
+            })?;
         contribution.seal_projection(surfaces, expected_generated_item_keys);
     }
-    items.extend(terminal_items);
-    items.extend(crate::emit::runtime::emit(plan));
-    items.extend(crate::emit::scanner::emit(plan));
-    items.extend(crate::emit::render::emit(plan)?);
-    items.extend(crate::emit::visit::emit(plan)?);
-    items.extend(crate::emit::rules::emit(plan)?);
-    items.extend(crate::emit::build::emit(plan)?);
-
-    let mut keys = HashSet::new();
-    for item in &items {
-        if !keys.insert(item.key.clone()) {
-            return Err(syn::Error::new(
-                proc_macro2::Span::call_site(),
-                format!("duplicate generated item key {:?}", item.key),
-            ));
-        }
-        crate::format::validate_item(item).map_err(|error| {
-            syn::Error::new(
-                proc_macro2::Span::call_site(),
-                format!("generated item {:?} is invalid: {error}", item.key),
-            )
-        })?;
-    }
-
-    Ok(EmissionPlan {
-        items,
-        terminal_contributions,
-    })
+    Ok(())
 }
 
 #[cfg(test)]
@@ -411,6 +427,44 @@ mod tests {
     }
 
     #[test]
+    fn generated_morphology_terminal_projection_rejects_missing_semantic_match() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                lexeme VerbLexeme using EnglishVerb { Deal = "deal", }
+                construction action: Ability {
+                    element Action {}
+                    derive agreement = verb.agreement;
+                    derive verb.agreement = Values::Bare;
+                    form action = verb(VerbLexeme::Deal);
+                }
+                root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("mismatch fixture parses"),
+        )
+        .expect("mismatch fixture validates")
+        .into_semantic();
+        let mut contributions = vec![crate::TerminalContribution::new(
+            crate::DeclarationKey::new(crate::DeclarationKind::Lexeme, "MissingLexeme"),
+            crate::TerminalKind::Lexeme,
+            "MissingLexeme",
+            None,
+            Vec::new(),
+            true,
+        )];
+
+        let error = super::seal_terminal_contribution_projection(&semantic, &mut contributions)
+            .expect_err("a contribution without a semantic terminal must be rejected");
+
+        assert!(
+            error
+                .to_string()
+                .contains("terminal contribution `MissingLexeme` has no semantic projection"),
+            "{error}"
+        );
+    }
+
+    #[test]
     fn open_verb_atom_seals_a_typed_plan_and_generated_matcher() {
         let plan = crate::validate_declarations(
             crate::parse_declarations(crate::test_support::open_verb_tokens())
@@ -447,7 +501,8 @@ mod tests {
     #[test]
     fn declaration_noun_recipe_routes_sealed_facts_to_every_emitter() {
         let source: proc_macro2::TokenStream = quote::quote! {
-            lexeme NounLexeme { Player, }
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme NounLexeme using EnglishNoun { Player = "player", }
             codec Noun {
                 generate declaration_noun {
                     closed = NounLexeme;
@@ -1085,7 +1140,8 @@ mod tests {
     #[test]
     fn declaration_noun_generated_body_is_pinned() {
         let expansion = crate::generate(quote::quote! {
-            lexeme NounLexeme { Player, }
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme NounLexeme using EnglishNoun { Player = "player", }
             codec Noun {
                 generate declaration_noun {
                     closed = NounLexeme;
@@ -1240,6 +1296,8 @@ mod tests {
                 (DeclarationKind::Lexeme, "Nouns"),
                 (DeclarationKind::Lexeme, "Verbs"),
                 (DeclarationKind::Codec, "SignedNumber"),
+                (DeclarationKind::Morphology, "EnglishNoun"),
+                (DeclarationKind::Morphology, "EnglishVerb"),
                 (DeclarationKind::Construction, "leaf"),
                 (DeclarationKind::Construction, "chain"),
                 (DeclarationKind::Construction, "action"),

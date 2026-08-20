@@ -468,32 +468,6 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
             }
         }
         for member in &lexeme.members {
-            let mut realized = HashSet::new();
-            for &feature in recipe.features() {
-                let surface = member
-                    .overrides
-                    .iter()
-                    .find_map(|row| {
-                        (recipe.feature_from_ident(&row.feature) == Some(feature))
-                            .then(|| row.surface.value())
-                    })
-                    .unwrap_or_else(|| {
-                        crate::morphology::derive_surface(recipe, &member.lemma.value(), feature)
-                            .expect("validated recipe feature domain")
-                    });
-                if !realized.insert((identifier_key(&member.name), feature, surface.clone())) {
-                    combine(
-                        &mut errors,
-                        syn::Error::new(
-                            member.name.span(),
-                            format!(
-                                "duplicate exact morphology row `({}, {feature:?}, {surface})`",
-                                member.name
-                            ),
-                        ),
-                    );
-                }
-            }
             for row in &member.overrides {
                 if recipe.feature_from_ident(&row.feature).is_none() {
                     combine(
@@ -5238,7 +5212,8 @@ pub(crate) mod tests {
 
     fn declaration_noun_error(body: &proc_macro2::TokenStream) -> String {
         error(quote! {
-            lexeme NounLexeme { Player, }
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme NounLexeme using EnglishNoun { Player = "player", }
             codec Noun {
                 generate declaration_noun { #body }
             }
@@ -5250,7 +5225,8 @@ pub(crate) mod tests {
     #[test]
     fn declaration_noun_recipe_validation_is_closed_and_structural() {
         validate(quote! {
-            lexeme NounLexeme { Player, }
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme NounLexeme using EnglishNoun { Player = "player", }
             codec Noun {
                 generate declaration_noun {
                     closed = NounLexeme;
@@ -5739,7 +5715,8 @@ pub(crate) mod tests {
         );
         assert_raw_keyword_declaration_rejected(
             quote! {
-                lexeme Word { r#type, }
+                morphology EnglishNoun { feature = Number; recipe = english_noun; }
+                lexeme Word using EnglishNoun { r#type = "type", }
                 construction only: Root { element Only {} form only = "only"; }
                 root Root { punctuation = "."; eoi = true; standalone_render = true; }
             },
@@ -5777,7 +5754,8 @@ pub(crate) mod tests {
     fn rejects_raw_keyword_lexeme_names_at_the_authored_declaration() {
         assert_raw_keyword_declaration_rejected(
             quote! {
-                lexeme r#type { One, }
+                morphology EnglishNoun { feature = Number; recipe = english_noun; }
+                lexeme r#type using EnglishNoun { One = "one", }
                 construction only: Root { element Only {} form only = "only"; }
                 root Root { punctuation = "."; eoi = true; standalone_render = true; }
             },
@@ -5840,7 +5818,8 @@ pub(crate) mod tests {
     #[test]
     fn rejects_case_folded_walker_and_callback_collisions_before_emission() {
         let case_folded = crate::generate(quote! {
-            lexeme HttpServer { One, }
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme HttpServer using EnglishNoun { One = "one", }
             construction only: HTTPServer { element Only {} form only = "only"; }
             root HTTPServer { punctuation = "."; eoi = true; standalone_render = true; }
         })
@@ -6174,7 +6153,8 @@ pub(crate) mod tests {
         );
 
         let lexeme_as_plain_lex = error(quote! {
-            lexeme Verbs { Be, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Be = "be", }
             construction only: Cat { element Only { word: lex Verbs, } form only = lex(word); }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
@@ -6186,7 +6166,8 @@ pub(crate) mod tests {
 
         let variants = error(quote! {
             vocab Word { One = "one", }
-            lexeme Verbs { Be, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Be = "be", }
             construction only: Cat {
                 element Only { word: lex Word, }
                 derive agreement = Anything::Bare;
@@ -6214,7 +6195,8 @@ pub(crate) mod tests {
         );
 
         let wrong_domain = error(quote! {
-            lexeme Verbs { Be, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Be = "be", }
             construction leaf_node: Branch { element LeafNode {} derive agreement = Anything::Bare; form leaf = verb(Verbs::Be); }
             construction only: Cat { element Only { leaf: Branch, } require leaf is Be; form only = leaf; }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
@@ -6284,9 +6266,10 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn resolves_one_use_selected_verb_lexeme_provider_without_a_name_switch() {
+    fn resolves_recipe_selected_verb_lexeme_provider_without_a_name_switch() {
         let validated = validate(quote! {
-            lexeme Actions { Go, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Actions using EnglishVerb { Go = "go", }
             construction only: Cat {
                 element Only {}
                 derive agreement = verb.agreement;
@@ -6295,7 +6278,7 @@ pub(crate) mod tests {
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("a sole used lexeme is the verb provider regardless of its name");
+        .expect("the verb recipe selects capability regardless of the lexeme name");
         let actions = validated
             .semantic()
             .terminals()
@@ -6305,8 +6288,9 @@ pub(crate) mod tests {
         assert!(actions.supports_verb_atom());
 
         let inconsistent = error(quote! {
-            lexeme VerbLexeme { Destroy, }
-            lexeme NounLexeme { Player, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb { Destroy = "destroy", }
+            lexeme NounLexeme using EnglishVerb { Player = "player", }
             construction destroy: Cat {
                 element Destroy {}
                 derive agreement = verb.agreement;
@@ -6330,13 +6314,14 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn unused_name_only_lexemes_retain_traversal_without_direct_atom_capability() {
+    fn unused_noun_lexemes_retain_traversal_without_direct_atom_capability() {
         let validated = validate(quote! {
-            lexeme Objects { Thing, }
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme Objects using EnglishNoun { Thing = "thing", }
             construction only: Cat { element Only {} form only = "only"; }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("an unused name-only lexeme still contributes its visitor traversal");
+        .expect("an unused noun lexeme still contributes its visitor traversal");
         let terminal = validated
             .semantic()
             .terminals()
@@ -6451,7 +6436,8 @@ pub(crate) mod tests {
     fn rejects_feature_flow_errors_together_within_the_pass() {
         let message = error(quote! {
             vocab NumberWord { One = "one", Two = "two", }
-            lexeme Verbs { Be, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Be = "be", }
             codec Noun {
                 atom = noun;
                 value_type = Noun;
@@ -6794,7 +6780,8 @@ pub(crate) mod tests {
         assert!(cycle.contains("feature equation cycle"), "{cycle}");
 
         let atoms = error(quote! {
-            lexeme Verbs { Be, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Be = "be", }
             codec Nouns {
                 atom = noun;
                 value_type = Nouns;
@@ -6817,7 +6804,8 @@ pub(crate) mod tests {
     fn validates_metadata_without_type_name_switches_and_preserves_order() {
         let validated = validate(quote! {
             vocab Pointing { Near = "this", Far = "those", }
-            lexeme Actions { Exist, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Actions using EnglishVerb { Exist = "exist", }
             codec ObjectWord {
                 atom = noun;
                 value_type = crate::runtime::ObjectWord;
@@ -6844,11 +6832,12 @@ pub(crate) mod tests {
             root Thing { punctuation = "."; eoi = false; standalone_render = true; }
         })
         .expect("renamed metadata drives validation");
-        assert_eq!(validated.declaration_count(), 7);
+        assert_eq!(validated.declaration_count(), 8);
         assert_eq!(
             validated.declaration_names(),
             [
                 "Pointing",
+                "EnglishVerb",
                 "Actions",
                 "ObjectWord",
                 "nested",
@@ -6885,7 +6874,12 @@ pub(crate) mod tests {
                 build { pattern = BuildValue::Heads(value); construct = value; }
                 traversal { callback = borrowed; argument = value; call visitor::visit_heads(borrowed(value)); }
             }
-            lexeme Actions { Destroy, Be, Control, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Actions using EnglishVerb {
+                Destroy = "destroy",
+                Be = "be",
+                Control = "control",
+            }
 
             construction noun_node: NounPhrase {
                 element NounNode { head: lex Heads, }
@@ -6995,7 +6989,8 @@ pub(crate) mod tests {
     #[test]
     fn rejects_number_reads_from_fixed_and_projected_verb_slots() {
         let fixed = error(quote! {
-            lexeme Verbs { Be, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Be = "be", }
             construction broken: Cat {
                 element Broken {}
                 derive verb.agreement = Values::Bare;
@@ -7010,7 +7005,8 @@ pub(crate) mod tests {
         );
 
         let projected = error(quote! {
-            lexeme Verbs { Be, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Be = "be", }
             construction broken: Cat {
                 element Broken { word: lex Verbs, }
                 derive word.agreement = Values::Bare;
@@ -7079,7 +7075,8 @@ pub(crate) mod tests {
     #[test]
     fn projected_verb_is_rejected_before_backend_planning() {
         let generated = crate::generate(quote! {
-            lexeme Verbs { Be, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Be = "be", }
             construction projected: Cat {
                 element Projected { word: lex Verbs, }
                 derive word.agreement = Values::Bare;
@@ -7281,7 +7278,8 @@ pub(crate) mod tests {
             (
                 "generic generated verb variant",
                 quote! {
-                    lexeme Verbs { Act, }
+                    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                    lexeme Verbs using EnglishVerb { Act = "act", }
                     construction only: Root {
                         element Only {}
                         derive agreement = verb.agreement;
@@ -7923,7 +7921,8 @@ pub(crate) mod tests {
             (
                 "implicit verb constant to construction",
                 quote! {
-                    lexeme Verbs { Act, }
+                    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                    lexeme Verbs using EnglishVerb { Act = "act", }
                     construction action: Action {
                         element ActionNode {}
                         derive agreement = verb.agreement;
@@ -8000,7 +7999,8 @@ pub(crate) mod tests {
     #[test]
     fn task_11_contextual_category_requirements_fail_at_roles_and_roots() {
         let nested = crate::generate(quote! {
-            lexeme Verbs { Act, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Act = "act", }
             construction action: Child {
                 element ActionNode {}
                 derive agreement = verb.agreement;
@@ -8019,7 +8019,8 @@ pub(crate) mod tests {
         assert!(!nested.contains("internal"), "{nested}");
 
         let root = crate::generate(quote! {
-            lexeme Verbs { Act, }
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Act = "act", }
             construction action: Child {
                 element ActionNode {}
                 derive agreement = verb.agreement;
