@@ -8,7 +8,6 @@ use crate::feature;
 use crate::feature::Feature;
 use crate::identifier::BUILD_FUNCTION;
 use crate::identifier::FIXED_RUNTIME_TYPE_NAMES;
-use crate::identifier::INVARIANT_CONSTRUCTOR;
 use crate::identifier::RULE_CATEGORY_TYPE;
 use crate::identifier::RULE_CONSTRUCTION_TYPE;
 use crate::identifier::RULE_ID_CONSTRUCTION;
@@ -3796,7 +3795,6 @@ fn validate_invariants(
             );
         }
         let invariant = InvariantPlan::from_alternatives(alternatives);
-        validate_invariant_generated_names(raw, construction, &invariant, &mut errors);
         invariants.insert(
             identifier_key(&construction.name),
             (construction.name.span(), invariant),
@@ -4175,94 +4173,6 @@ fn feature_expression_is_constructible(
                                 && *feature == slot.feature
                     ) && !matches!(equation.value, ParsedFeatureValue::FromRole(_))
                 }))
-        }
-    }
-}
-
-fn validate_invariant_generated_names(
-    raw: &Declarations,
-    construction: &crate::Construction,
-    invariant: &InvariantPlan,
-    errors: &mut Option<syn::Error>,
-) {
-    let context_terminals = raw
-        .declarations
-        .iter()
-        .filter_map(|declaration| match declaration {
-            Declaration::Identity(binding) if binding.generated_identity.is_some() => {
-                Some(identifier_key(&binding.name))
-            }
-            _ => None,
-        })
-        .collect::<HashSet<_>>();
-    let mut bearing = invariant
-        .alternatives()
-        .iter()
-        .flat_map(PredicateConjunctionPlan::atoms)
-        .filter_map(|atom| atom.subject().role())
-        .map(identifier_key)
-        .collect::<HashSet<_>>();
-    bearing.extend(
-        construction
-            .element
-            .fields
-            .iter()
-            .filter_map(|field| match &field.kind {
-                FieldKind::Identity(path) if context_terminals.contains(&path_name(path)) => {
-                    Some(identifier_key(&field.name))
-                }
-                FieldKind::Category(_) | FieldKind::Lex(_) | FieldKind::Identity(_) => None,
-            }),
-    );
-    if bearing.is_empty() {
-        return;
-    }
-
-    let mut associated = HashMap::from([(
-        INVARIANT_CONSTRUCTOR.to_owned(),
-        "generated invariant constructor".to_owned(),
-    )]);
-    if let Some(checked) = &construction.checked {
-        for accessor in &checked.accessors {
-            let role = identifier_key(&accessor.role);
-            let method = identifier_key(&accessor.method);
-            let owner = if role == method {
-                format!("generated invariant accessor for `{role}`")
-            } else {
-                format!("declared checked accessor for `{role}`")
-            };
-            if let Some(previous) = associated.get(&method) {
-                combine(
-                    errors,
-                    syn::Error::new(
-                        accessor.method.span(),
-                        format!("declared checked accessor `{method}` collides with {previous}"),
-                    ),
-                );
-            } else {
-                associated.insert(method, owner);
-            }
-        }
-    }
-    for field in &construction.element.fields {
-        let name = identifier_key(&field.name);
-        if !bearing.contains(&name) {
-            continue;
-        }
-        let owner = format!("generated invariant accessor for `{name}`");
-        if let Some(previous) = associated.get(&name)
-            && previous != &owner
-        {
-            let kind = if name == INVARIANT_CONSTRUCTOR { "associated item" } else { "accessor" };
-            combine(
-                errors,
-                syn::Error::new(
-                    field.name.span(),
-                    format!("generated invariant {kind} `{name}` collides with {previous}"),
-                ),
-            );
-        } else {
-            associated.insert(name, owner);
         }
     }
 }
@@ -6815,6 +6725,24 @@ pub(crate) mod tests {
 
     #[test]
     fn require_rejects_generated_new_and_accessor_name_collisions() {
+        let transitive_new_collision = error(quote! {
+            vocab Mode { One = "one", Two = "two", }
+            construction only: Root {
+                element Only { r#new: lex Mode, }
+                require agreement is Bare;
+                derive agreement = match r#new {
+                    One => Values::Bare,
+                    Two => Values::ThirdPersonSingular,
+                };
+                form only = lex(r#new);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            transitive_new_collision.contains("generated invariant associated item `new` collides"),
+            "{transitive_new_collision}"
+        );
+
         let new_collision = error(quote! {
             vocab Mode { One = "one", Two = "two", }
             construction only: Root {
@@ -6878,6 +6806,79 @@ pub(crate) mod tests {
         assert!(
             accessor_collision.contains("generated invariant accessor `mode` collides"),
             "{accessor_collision}"
+        );
+
+        let aggregated_collisions = error(quote! {
+            vocab Mode { One = "one", Two = "two", }
+            identity Handle {
+                value_type = Handle;
+                lexical = Lexical::Handle;
+                render = render_handle;
+                build { pattern = BuildValue::Handle(value); construct = value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_handle(borrowed(value)); }
+            }
+            construction first: Root {
+                element First { r#new: lex Mode, }
+                require r#new is One;
+                form first = lex(r#new);
+            }
+            construction second: Root {
+                element Second { mode: lex Mode, handle: identity Handle, }
+                checked {
+                    visibility mode = private;
+                    access mode = mode_value;
+                    visibility handle = private;
+                    access handle = mode;
+                    constructor = Second::checked(mode, handle);
+                }
+                require mode is One;
+                form second = lex(mode) identity(handle);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            aggregated_collisions.contains("generated invariant associated item `new` collides"),
+            "{aggregated_collisions}"
+        );
+        assert!(
+            aggregated_collisions.contains("generated invariant accessor `mode` collides"),
+            "{aggregated_collisions}"
+        );
+
+        validate(quote! {
+            vocab Mode { One = "one", Two = "two", }
+            construction only: Root {
+                element Only { mode: lex Mode, }
+                checked {
+                    visibility mode = private;
+                    access mode = mode;
+                    constructor = Only::checked(mode);
+                }
+                require mode is One;
+                form only = lex(mode);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("an authored accessor and generated accessor with one owner are the same item");
+
+        let same_item_collision = error(quote! {
+            vocab Mode { One = "one", Two = "two", }
+            construction only: Root {
+                element Only { r#new: lex Mode, }
+                checked {
+                    visibility r#new = private;
+                    access r#new = r#new;
+                    constructor = Only::checked(r#new);
+                }
+                require r#new is One;
+                form only = lex(r#new);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert_eq!(
+            same_item_collision.matches("collides").count(),
+            1,
+            "the same generated accessor is not diagnosed twice: {same_item_collision}",
         );
     }
 

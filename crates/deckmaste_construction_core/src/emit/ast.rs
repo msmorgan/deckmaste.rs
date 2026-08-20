@@ -708,6 +708,36 @@ mod tests {
     }
 
     #[test]
+    fn invariant_constant_feature_emits_constructor_without_accessors() {
+        let plan = invariant_semantic_plan();
+        let construction = plan
+            .constructions()
+            .iter()
+            .find(|construction| construction.element_type() == "ConstantFeatureNode")
+            .expect("constant-feature construction is sealed");
+        assert!(construction.invariant().requires_constructor());
+        assert_eq!(construction.fields().len(), 1);
+        assert!(construction.fields()[0].accessor_mode().is_none());
+
+        let items = super::emit(&plan).expect("constant-feature fixture emits");
+        let Item::Struct(product) = parse_named(&items, "ConstantFeatureNode") else {
+            panic!("ConstantFeatureNode is a struct");
+        };
+        let Fields::Named(fields) = product.fields else {
+            panic!("ConstantFeatureNode has named fields");
+        };
+        assert!(matches!(fields.named[0].vis, Visibility::Public(_)));
+        assert_eq!(
+            method_headers(&inherent_impl(&items, "ConstantFeatureNode")),
+            [quote::quote! {
+                pub fn new(open: OpenValue) -> Option<Self>
+            }
+            .to_string()],
+            "the non-tautological product has new and no accessor methods",
+        );
+    }
+
+    #[test]
     fn invariant_category_feature_helper_is_reserved_before_constructor_locals() {
         let items = invariant_ast_items();
         let implementation = inherent_impl(&items, "FeatureHelperCollisionNode");
@@ -798,6 +828,10 @@ mod tests {
                     .expect("construction feature accepts its Bare source");
                 assert_eq!(constructed.mode(), Mode::One);
                 assert!(ConstructionFeatureNode::new(Mode::Two).is_none());
+
+                let constant = ConstantFeatureNode::new(OpenValue::Open)
+                    .expect("a known satisfying feature still emits a constructor");
+                assert_eq!(constant.open, OpenValue::Open);
 
                 let transitive = TransitiveRoleFeatureNode::new(
                     FeatureChild::FeatureBare(FeatureBare),
@@ -1231,6 +1265,12 @@ mod tests {
                     require child.agreement is Bare;
                     derive agreement = child.agreement;
                     form feature_helper_collision = child lex(agreement_for_feature_child);
+                }
+                construction constant_feature: FeatureRoot {
+                    element ConstantFeatureNode { open: lex OpenValue, }
+                    require agreement is Bare;
+                    derive agreement = Values::Bare;
+                    form constant_feature = lex(open);
                 }
                 construction recursive: Child {
                     element RecursiveNode { mode: lex Mode, child: Child, }

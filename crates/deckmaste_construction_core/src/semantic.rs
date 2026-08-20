@@ -9,6 +9,7 @@ use crate::feature;
 use crate::feature::Feature;
 use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
+use crate::identifier::INVARIANT_CONSTRUCTOR;
 use crate::identifier::key as identifier_key;
 use crate::identifier::pascal_case;
 use crate::identifier::path_key;
@@ -768,6 +769,7 @@ impl SemanticPlan {
             &resolutions,
             &field_policy_terminals,
         )?;
+        validate_invariant_generated_names(&constructions)?;
         seal_invariant_category_feature_reads(&constructions, &mut category_reads);
         let number_carry_categories = number_carry_categories(&constructions, &equations);
 
@@ -1589,6 +1591,74 @@ fn seal_invariant_category_feature_reads(
 struct InvariantFeatureDependencies {
     fields: HashSet<String>,
     category_reads: HashSet<(String, Feature)>,
+}
+
+fn validate_invariant_generated_names(constructions: &[ConstructionPlan]) -> syn::Result<()> {
+    let mut errors = None;
+    for construction in constructions {
+        if construction.fields().is_empty() || !construction.invariant().requires_constructor() {
+            continue;
+        }
+
+        let mut associated = HashMap::from([(
+            INVARIANT_CONSTRUCTOR.to_owned(),
+            "generated invariant constructor".to_owned(),
+        )]);
+        for field in construction.fields() {
+            let Some(accessor) = field.accessor() else {
+                continue;
+            };
+            let role = field.name_key();
+            let method = identifier_key(accessor);
+            if method == role && field.accessor_mode().is_some() {
+                continue;
+            }
+            let owner = format!("declared checked accessor for `{role}`");
+            if let Some(previous) = associated.get(&method) {
+                combine_errors(
+                    &mut errors,
+                    syn::Error::new(
+                        accessor.span(),
+                        format!("declared checked accessor `{method}` collides with {previous}"),
+                    ),
+                );
+            } else {
+                associated.insert(method, owner);
+            }
+        }
+        for field in construction
+            .fields()
+            .iter()
+            .filter(|field| field.accessor_mode().is_some())
+        {
+            let name = field.name_key();
+            let owner = format!("generated invariant accessor for `{name}`");
+            if let Some(previous) = associated.get(&name)
+                && previous != &owner
+            {
+                let kind =
+                    if name == INVARIANT_CONSTRUCTOR { "associated item" } else { "accessor" };
+                combine_errors(
+                    &mut errors,
+                    syn::Error::new(
+                        field.name().span(),
+                        format!("generated invariant {kind} `{name}` collides with {previous}"),
+                    ),
+                );
+            } else {
+                associated.insert(name, owner);
+            }
+        }
+    }
+    errors.map_or(Ok(()), Err)
+}
+
+fn combine_errors(errors: &mut Option<syn::Error>, error: syn::Error) {
+    if let Some(errors) = errors {
+        errors.combine(error);
+    } else {
+        *errors = Some(error);
+    }
 }
 
 fn seal_invariant_field_policy(
