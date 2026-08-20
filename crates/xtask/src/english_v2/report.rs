@@ -376,6 +376,16 @@ mod tests {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
 
+        assert_eq!(report.schema_version, 1);
+        assert_eq!(
+            report.noun_morphology,
+            NounMorphologyCensus {
+                total: 472,
+                derived_plural: 146,
+                explicit_plural: 26,
+                unavailable_plural: 300,
+            }
+        );
         let categories = [
             &report.mapping_layers,
             &report.handwritten_codecs,

@@ -340,10 +340,27 @@ mod tests {
         finder.found
     }
 
+    fn production_string_literals(file: &syn::File) -> Vec<String> {
+        use syn::visit::Visit as _;
+
+        let mut finder = ProductionStringLiteralFinder::default();
+        finder.visit_file(file);
+        finder.found
+    }
+
+    fn contains_test_only_generated_ghost(file: &syn::File) -> bool {
+        use syn::visit::Visit as _;
+
+        let mut finder = TestOnlyGeneratedGhostFinder::default();
+        finder.visit_file(file);
+        finder.found
+    }
+
     #[derive(Clone, Copy, PartialEq, Eq)]
     enum ProductionAuthorityKind {
         Enum,
         Struct,
+        TypeAlias,
         Function,
     }
 
@@ -363,6 +380,17 @@ mod tests {
         found: bool,
     }
 
+    #[derive(Default)]
+    struct ProductionStringLiteralFinder {
+        found: Vec<String>,
+    }
+
+    #[derive(Default)]
+    struct TestOnlyGeneratedGhostFinder {
+        in_test_only: bool,
+        found: bool,
+    }
+
     fn macro_tokens_contain_identifier(tokens: proc_macro2::TokenStream, target: &str) -> bool {
         tokens.into_iter().any(|token| match token {
             proc_macro2::TokenTree::Ident(ident) => ident == target,
@@ -371,6 +399,45 @@ mod tests {
             }
             proc_macro2::TokenTree::Punct(_) | proc_macro2::TokenTree::Literal(_) => false,
         })
+    }
+
+    fn collect_macro_string_literals(tokens: proc_macro2::TokenStream, found: &mut Vec<String>) {
+        for token in tokens {
+            match token {
+                proc_macro2::TokenTree::Literal(literal) => {
+                    if let Ok(literal) = syn::parse_str::<syn::LitStr>(&literal.to_string()) {
+                        found.push(literal.value());
+                    }
+                }
+                proc_macro2::TokenTree::Group(group) => {
+                    collect_macro_string_literals(group.stream(), found);
+                }
+                proc_macro2::TokenTree::Ident(_) | proc_macro2::TokenTree::Punct(_) => {}
+            }
+        }
+    }
+
+    fn use_tree_reexports_generated_item(tree: &syn::UseTree) -> bool {
+        const GENERATED_ITEMS: &[&str] = &[
+            "build",
+            "RULES",
+            "RuleId",
+            "Lexical",
+            "Leaf",
+            "TerminalClass",
+            "NounNumber",
+        ];
+
+        match tree {
+            syn::UseTree::Path(path) => use_tree_reexports_generated_item(&path.tree),
+            syn::UseTree::Name(name) => GENERATED_ITEMS.contains(&name.ident.to_string().as_str()),
+            syn::UseTree::Rename(rename) => {
+                GENERATED_ITEMS.contains(&rename.ident.to_string().as_str())
+                    || GENERATED_ITEMS.contains(&rename.rename.to_string().as_str())
+            }
+            syn::UseTree::Glob(_) => true,
+            syn::UseTree::Group(group) => group.items.iter().any(use_tree_reexports_generated_item),
+        }
     }
 
     impl<'ast> syn::visit::Visit<'ast> for ProductionMethodCallFinder<'_> {
@@ -397,6 +464,70 @@ mod tests {
             if !is_test_only(&item.attrs) {
                 syn::visit::visit_item_mod(self, item);
             }
+        }
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for ProductionStringLiteralFinder {
+        fn visit_lit_str(&mut self, literal: &'ast syn::LitStr) {
+            self.found.push(literal.value());
+        }
+
+        fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+            collect_macro_string_literals(mac.tokens.clone(), &mut self.found);
+        }
+
+        fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_fn(self, item);
+            }
+        }
+
+        fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_impl(self, item);
+            }
+        }
+
+        fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_mod(self, item);
+            }
+        }
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for TestOnlyGeneratedGhostFinder {
+        fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+            let previous = self.in_test_only;
+            self.in_test_only |= is_test_only(&item.attrs);
+            if self.in_test_only && matches!(item.ident.to_string().as_str(), "build" | "rules") {
+                self.found = true;
+            }
+            syn::visit::visit_item_mod(self, item);
+            self.in_test_only = previous;
+        }
+
+        fn visit_item_type(&mut self, item: &'ast syn::ItemType) {
+            let test_only = self.in_test_only || is_test_only(&item.attrs);
+            if test_only
+                && matches!(
+                    item.ident.to_string().as_str(),
+                    "Lexical" | "Leaf" | "TerminalClass" | "NounNumber"
+                )
+            {
+                self.found = true;
+            }
+            syn::visit::visit_item_type(self, item);
+        }
+
+        fn visit_item_use(&mut self, item: &'ast syn::ItemUse) {
+            let test_only = self.in_test_only || is_test_only(&item.attrs);
+            if test_only
+                && !matches!(item.vis, syn::Visibility::Inherited)
+                && use_tree_reexports_generated_item(&item.tree)
+            {
+                self.found = true;
+            }
+            syn::visit::visit_item_use(self, item);
         }
     }
 
@@ -428,6 +559,12 @@ mod tests {
         fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
             if !is_test_only(&item.attrs) {
                 syn::visit::visit_item_struct(self, item);
+            }
+        }
+
+        fn visit_item_type(&mut self, item: &'ast syn::ItemType) {
+            if !is_test_only(&item.attrs) {
+                syn::visit::visit_item_type(self, item);
             }
         }
 
@@ -471,6 +608,15 @@ mod tests {
         fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
             if !is_test_only(&item.attrs)
                 && self.kind == ProductionAuthorityKind::Struct
+                && item.ident == self.target
+            {
+                self.found = true;
+            }
+        }
+
+        fn visit_item_type(&mut self, item: &'ast syn::ItemType) {
+            if !is_test_only(&item.attrs)
+                && self.kind == ProductionAuthorityKind::TypeAlias
                 && item.ident == self.target
             {
                 self.found = true;
@@ -940,6 +1086,313 @@ mod tests {
         "constant RULES",
         "function build",
     ];
+
+    #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the complete Plan 03 single-authority matrix is deliberately explicit"
+    )]
+    fn plan03_terminal_generation_is_single_authority() {
+        let emitter_sources = [
+            (
+                "emit/ast.rs",
+                include_str!("../../deckmaste_construction_core/src/emit/ast.rs"),
+            ),
+            (
+                "emit/build.rs",
+                include_str!("../../deckmaste_construction_core/src/emit/build.rs"),
+            ),
+            (
+                "emit/render.rs",
+                include_str!("../../deckmaste_construction_core/src/emit/render.rs"),
+            ),
+            (
+                "emit/rules.rs",
+                include_str!("../../deckmaste_construction_core/src/emit/rules.rs"),
+            ),
+            (
+                "emit/runtime.rs",
+                include_str!("../../deckmaste_construction_core/src/emit/runtime.rs"),
+            ),
+            (
+                "emit/scanner.rs",
+                include_str!("../../deckmaste_construction_core/src/emit/scanner.rs"),
+            ),
+            (
+                "emit/terminal.rs",
+                include_str!("../../deckmaste_construction_core/src/emit/terminal.rs"),
+            ),
+            (
+                "emit/visit.rs",
+                include_str!("../../deckmaste_construction_core/src/emit/visit.rs"),
+            ),
+            (
+                "emit/mod.rs",
+                include_str!("../../deckmaste_construction_core/src/emit/mod.rs"),
+            ),
+            (
+                "report.rs",
+                include_str!("../../deckmaste_construction_core/src/report.rs"),
+            ),
+        ];
+        for (path, source) in emitter_sources {
+            let file = syn::parse_file(source).unwrap_or_else(|error| panic!("{path}: {error}"));
+            for source_authority in ["ValidatedDeclarations", "Declarations"] {
+                assert!(
+                    !contains_production_identifier(&file, source_authority),
+                    "{path} reads source-shaped authority {source_authority}"
+                );
+            }
+            assert!(
+                !contains_production_method_call(&file, "raw"),
+                "{path} calls ValidatedDeclarations::raw"
+            );
+            for source_reader in ["parse_declarations", "invocation_from_source"] {
+                assert!(
+                    !contains_production_identifier(&file, source_reader),
+                    "{path} rereads source-shaped declarations through {source_reader}"
+                );
+            }
+        }
+
+        let runtime_sources = [
+            (
+                "lib.rs",
+                include_str!("../../deckmaste_english_v2/src/lib.rs"),
+            ),
+            (
+                "ast.rs",
+                include_str!("../../deckmaste_english_v2/src/ast.rs"),
+            ),
+            ("constructions.rs", PRODUCTION_SOURCE),
+            (
+                "context.rs",
+                include_str!("../../deckmaste_english_v2/src/context.rs"),
+            ),
+            (
+                "environment.rs",
+                include_str!("../../deckmaste_english_v2/src/environment.rs"),
+            ),
+            (
+                "features.rs",
+                include_str!("../../deckmaste_english_v2/src/features.rs"),
+            ),
+            (
+                "orthography.rs",
+                include_str!("../../deckmaste_english_v2/src/orthography.rs"),
+            ),
+            (
+                "parser/diagnostic.rs",
+                include_str!("../../deckmaste_english_v2/src/parser/diagnostic.rs"),
+            ),
+            (
+                "parser/engine.rs",
+                include_str!("../../deckmaste_english_v2/src/parser/engine.rs"),
+            ),
+            (
+                "parser/error.rs",
+                include_str!("../../deckmaste_english_v2/src/parser/error.rs"),
+            ),
+            (
+                "parser/materialize.rs",
+                include_str!("../../deckmaste_english_v2/src/parser/materialize.rs"),
+            ),
+            (
+                "parser/mod.rs",
+                include_str!("../../deckmaste_english_v2/src/parser/mod.rs"),
+            ),
+            (
+                "parser/ownership.rs",
+                include_str!("../../deckmaste_english_v2/src/parser/ownership.rs"),
+            ),
+            (
+                "parser/scan.rs",
+                include_str!("../../deckmaste_english_v2/src/parser/scan.rs"),
+            ),
+            (
+                "parser/selection.rs",
+                include_str!("../../deckmaste_english_v2/src/parser/selection.rs"),
+            ),
+            (
+                "render.rs",
+                include_str!("../../deckmaste_english_v2/src/render.rs"),
+            ),
+            (
+                "visit.rs",
+                include_str!("../../deckmaste_english_v2/src/visit.rs"),
+            ),
+        ];
+        let runtime_files = runtime_sources
+            .iter()
+            .map(|(path, source)| {
+                (
+                    *path,
+                    syn::parse_file(source).unwrap_or_else(|error| panic!("{path}: {error}")),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        for (path, file) in &runtime_files {
+            for generated_type in ["Lexical", "Leaf", "TerminalClass", "NounNumber"] {
+                for kind in [
+                    ProductionAuthorityKind::Enum,
+                    ProductionAuthorityKind::Struct,
+                    ProductionAuthorityKind::TypeAlias,
+                ] {
+                    assert!(
+                        !contains_production_authority(file, kind, generated_type),
+                        "{path} defines handwritten generated aggregate {generated_type}"
+                    );
+                }
+            }
+            for generated_authority in [
+                "Sign",
+                "SignedNumber",
+                "SelfReferenceSpelling",
+                "Noun",
+                concat!("Catalog", "Identity"),
+            ] {
+                for kind in [
+                    ProductionAuthorityKind::Enum,
+                    ProductionAuthorityKind::Struct,
+                    ProductionAuthorityKind::TypeAlias,
+                ] {
+                    assert!(
+                        !contains_production_authority(file, kind, generated_authority),
+                        "{path} defines handwritten generated authority {generated_authority}"
+                    );
+                }
+            }
+            for forbidden_function in [
+                "scan_signed_number",
+                "scan_noun",
+                "noun_forms",
+                "render_noun",
+                "pluralize",
+                "walk_declaration_noun",
+                "walk_noun",
+                "render_self_reference_spelling",
+                "scan_self_reference_spelling",
+                "walk_self_reference_spelling",
+                "visit_self_reference_spelling",
+            ] {
+                assert!(
+                    !contains_production_function(file, forbidden_function),
+                    "{path} defines handwritten terminal path {forbidden_function}"
+                );
+            }
+            assert!(
+                !contains_test_only_generated_ghost(file),
+                "{path} recreates a generated build/rules authority under cfg(test)"
+            );
+        }
+
+        let xtask_sources = [
+            ("english_v2.rs", include_str!("english_v2.rs")),
+            ("ambiguity.rs", include_str!("english_v2/ambiguity.rs")),
+            ("audit.rs", include_str!("english_v2/audit.rs")),
+            ("corpus.rs", include_str!("english_v2/corpus.rs")),
+            ("coverage.rs", include_str!("english_v2/coverage.rs")),
+            (
+                "coverage_lock.rs",
+                include_str!("english_v2/coverage_lock.rs"),
+            ),
+            ("diagnostic.rs", include_str!("english_v2/diagnostic.rs")),
+            ("inspect.rs", include_str!("english_v2/inspect.rs")),
+            ("parse.rs", include_str!("english_v2/parse.rs")),
+            ("probe.rs", include_str!("english_v2/probe.rs")),
+            ("report.rs", include_str!("english_v2/report.rs")),
+            ("roundtrip.rs", include_str!("english_v2/roundtrip.rs")),
+        ];
+        for (path, source) in runtime_sources.into_iter().chain(xtask_sources) {
+            let file = syn::parse_file(source).unwrap_or_else(|error| panic!("{path}: {error}"));
+            for catalog_authority in [
+                concat!("Parser", "Catalogs"),
+                concat!("Catalog", "Set"),
+                concat!("Catalog", "Kind"),
+                concat!("Catalog", "Identity"),
+                concat!("deckmaste_", "catalogs"),
+            ] {
+                assert!(
+                    !contains_production_identifier(&file, catalog_authority),
+                    "{path} retains catalog authority {catalog_authority}"
+                );
+            }
+        }
+
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let verbs = expansion
+            .terminal_contributions()
+            .iter()
+            .find(|terminal| terminal.name() == "VerbLexeme")
+            .expect("closed VerbLexeme provider exists")
+            .variants()
+            .iter()
+            .map(deckmaste_construction_core::TerminalVariantContribution::name)
+            .collect::<Vec<_>>();
+        assert_eq!(verbs, ["Deal", "Gain", "Control", "Be"]);
+        for (path, source) in [
+            (
+                "features.rs",
+                include_str!("../../deckmaste_english_v2/src/features.rs"),
+            ),
+            (
+                "parser/scan.rs",
+                include_str!("../../deckmaste_english_v2/src/parser/scan.rs"),
+            ),
+        ] {
+            let file = syn::parse_file(source).unwrap_or_else(|error| panic!("{path}: {error}"));
+            let literals = production_string_literals(&file);
+            for forbidden in ["destroy", "destroys", "connive", "connives"] {
+                assert!(
+                    !literals.iter().any(|literal| literal == forbidden),
+                    "{path} retains handwritten open-verb spelling {forbidden}"
+                );
+            }
+        }
+
+        let adversarial = syn::parse_file(
+            "mod nested { enum Noun { Mirror } }\n\
+             struct Scanner;\n\
+             impl Scanner { fn scan_signed_number(&self) {} }\n\
+             fn macro_shadow() { helper!(({ scan_noun }), [walk_declaration_noun]); }\n\
+             fn source_reader(tokens: Tokens) { crate::parse_declarations(tokens); }\n\
+             #[cfg(test)] mod decoy { enum Lexical { Mirror } fn scan_noun() {} }\n\
+             fn later_production() { helper!({ render_noun }); }",
+        )
+        .expect("adversarial authority source reparses");
+        assert!(contains_production_authority(
+            &adversarial,
+            ProductionAuthorityKind::Enum,
+            "Noun"
+        ));
+        assert!(contains_production_function(
+            &adversarial,
+            "scan_signed_number"
+        ));
+        for function in ["scan_noun", "walk_declaration_noun", "render_noun"] {
+            assert!(contains_production_function(&adversarial, function));
+        }
+        assert!(contains_production_identifier(
+            &adversarial,
+            "parse_declarations"
+        ));
+        assert!(!contains_production_authority(
+            &adversarial,
+            ProductionAuthorityKind::Enum,
+            "Lexical"
+        ));
+
+        let ghost =
+            syn::parse_file("#[cfg(test)] mod build { pub use crate::constructions::build; }")
+                .expect("test-only ghost source reparses");
+        assert!(contains_test_only_generated_ghost(&ghost));
+        let ordinary_test =
+            syn::parse_file("#[cfg(test)] mod rules_tests { use crate::constructions::RULES; }")
+                .expect("ordinary test consumer source reparses");
+        assert!(!contains_test_only_generated_ghost(&ordinary_test));
+    }
 
     #[test]
     fn production_expansion_prints_each_literal_item_key_once_with_every_origin() {
