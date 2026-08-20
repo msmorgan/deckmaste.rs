@@ -310,6 +310,45 @@ mod tests {
     const PRODUCTION_SOURCE: &str = include_str!("../../deckmaste_english_v2/src/constructions.rs");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
+    #[allow(
+        dead_code,
+        unused_parens,
+        reason = "the audit regression compiles every otherwise-forbidden impl spelling"
+    )]
+    mod plan04_compile_checked_impl_spellings {
+        pub struct Triggered;
+
+        impl (Triggered) {
+            fn parenthesized() {}
+        }
+
+        type Alias = Triggered;
+        impl Alias {
+            fn direct_alias() {}
+        }
+
+        type TransitiveAlias = Alias;
+        impl TransitiveAlias {
+            fn transitive_alias() {}
+        }
+
+        use self::Triggered as UseAlias;
+        impl UseAlias {
+            fn use_alias() {}
+        }
+
+        macro_rules! inherent_template {
+            ($body:item) => {
+                impl Triggered {
+                    $body
+                }
+            };
+        }
+        inherent_template! {
+            fn macro_template() {}
+        }
+    }
+
     fn contains_production_function(file: &syn::File, name: &str) -> bool {
         contains_production_authority(file, ProductionAuthorityKind::Function, name)
     }
@@ -635,6 +674,7 @@ mod tests {
     struct Plan04RetiredAuthorityFinder {
         allow_report_schema_field: bool,
         skip_strict_test_only: bool,
+        alias_scopes: Vec<std::collections::BTreeMap<String, String>>,
         violations: Vec<&'static str>,
     }
 
@@ -643,6 +683,19 @@ mod tests {
             if !self.violations.contains(&authority) {
                 self.violations.push(authority);
             }
+        }
+
+        fn visible_aliases(&self) -> std::collections::BTreeMap<String, String> {
+            let mut aliases = std::collections::BTreeMap::new();
+            for scope in &self.alias_scopes {
+                aliases.extend(scope.clone());
+            }
+            aliases
+        }
+
+        fn type_resolves_to(&self, ty: &syn::Type, target: &str) -> bool {
+            type_last_name(ty)
+                .is_some_and(|name| name_resolves_to(&name, target, &self.visible_aliases()))
         }
     }
 
@@ -680,16 +733,170 @@ mod tests {
         .collect()
     }
 
-    fn type_path_ends_with(ty: &syn::Type, target: &str) -> bool {
-        matches!(
-            ty,
-            syn::Type::Path(path)
-                if path.qself.is_none()
-                    && path.path.segments.last().is_some_and(|segment| segment.ident == target)
-        )
+    fn type_last_name(ty: &syn::Type) -> Option<String> {
+        match ty {
+            syn::Type::Group(group) => type_last_name(&group.elem),
+            syn::Type::Paren(paren) => type_last_name(&paren.elem),
+            syn::Type::Path(path) if path.qself.is_none() => path
+                .path
+                .segments
+                .last()
+                .map(|segment| segment.ident.to_string()),
+            _ => None,
+        }
     }
 
-    fn macro_tokens_contain_inherent_impl(tokens: proc_macro2::TokenStream, target: &str) -> bool {
+    fn name_resolves_to(
+        name: &str,
+        target: &str,
+        aliases: &std::collections::BTreeMap<String, String>,
+    ) -> bool {
+        let mut candidate = name;
+        let mut seen = std::collections::BTreeSet::new();
+        while seen.insert(candidate.to_owned()) {
+            if candidate == target {
+                return true;
+            }
+            let Some(next) = aliases.get(candidate) else {
+                return false;
+            };
+            candidate = next;
+        }
+        false
+    }
+
+    fn collect_use_aliases(
+        tree: &syn::UseTree,
+        aliases: &mut std::collections::BTreeMap<String, String>,
+    ) {
+        match tree {
+            syn::UseTree::Path(path) => collect_use_aliases(&path.tree, aliases),
+            syn::UseTree::Name(name) => {
+                aliases.insert(name.ident.to_string(), name.ident.to_string());
+            }
+            syn::UseTree::Rename(rename) => {
+                aliases.insert(rename.rename.to_string(), rename.ident.to_string());
+            }
+            syn::UseTree::Group(group) => {
+                for item in &group.items {
+                    collect_use_aliases(item, aliases);
+                }
+            }
+            syn::UseTree::Glob(_) => {}
+        }
+    }
+
+    fn collect_item_aliases(
+        items: &[syn::Item],
+        skip_strict_test_only: bool,
+    ) -> std::collections::BTreeMap<String, String> {
+        let mut aliases = std::collections::BTreeMap::new();
+        for item in items {
+            if skip_strict_test_only && item_attrs(item).is_some_and(is_test_only) {
+                continue;
+            }
+            match item {
+                syn::Item::Enum(item) => {
+                    aliases.insert(item.ident.to_string(), item.ident.to_string());
+                }
+                syn::Item::Struct(item) => {
+                    aliases.insert(item.ident.to_string(), item.ident.to_string());
+                }
+                syn::Item::Type(item) => {
+                    if let Some(target) = type_last_name(&item.ty) {
+                        aliases.insert(item.ident.to_string(), target);
+                    }
+                }
+                syn::Item::Union(item) => {
+                    aliases.insert(item.ident.to_string(), item.ident.to_string());
+                }
+                syn::Item::Use(item) => collect_use_aliases(&item.tree, &mut aliases),
+                _ => {}
+            }
+        }
+        aliases
+    }
+
+    fn collect_macro_aliases(
+        tokens: proc_macro2::TokenStream,
+        aliases: &mut std::collections::BTreeMap<String, String>,
+    ) {
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        for (start, token) in tokens.iter().enumerate() {
+            let is_alias_item = matches!(token, proc_macro2::TokenTree::Ident(ident) if ident == "type" || ident == "use");
+            if is_alias_item {
+                for (end, candidate) in tokens.iter().enumerate().skip(start + 1) {
+                    if !matches!(candidate, proc_macro2::TokenTree::Punct(punct) if punct.as_char() == ';')
+                    {
+                        continue;
+                    }
+                    let candidate = tokens[start..=end]
+                        .iter()
+                        .cloned()
+                        .collect::<proc_macro2::TokenStream>();
+                    if let Ok(item) = syn::parse2::<syn::ItemType>(candidate.clone()) {
+                        if let Some(target) = type_last_name(&item.ty) {
+                            aliases.insert(item.ident.to_string(), target);
+                        }
+                        break;
+                    }
+                    if let Ok(item) = syn::parse2::<syn::ItemUse>(candidate) {
+                        collect_use_aliases(&item.tree, aliases);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    fn normalize_macro_metavariables(tokens: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        let mut normalized = proc_macro2::TokenStream::new();
+        let mut index = 0;
+        while index < tokens.len() {
+            if matches!(&tokens[index], proc_macro2::TokenTree::Punct(punct) if punct.as_char() == '$')
+                && let Some(proc_macro2::TokenTree::Ident(ident)) = tokens.get(index + 1)
+            {
+                let name = ident.to_string();
+                normalized.extend([proc_macro2::TokenTree::Ident(proc_macro2::Ident::new(
+                    &format!("__plan04_macro_{}", name.trim_start_matches("r#")),
+                    ident.span(),
+                ))]);
+                index += 2;
+                continue;
+            }
+            match &tokens[index] {
+                proc_macro2::TokenTree::Group(group) => {
+                    let mut replacement = proc_macro2::Group::new(
+                        group.delimiter(),
+                        normalize_macro_metavariables(group.stream()),
+                    );
+                    replacement.set_span(group.span());
+                    normalized.extend([proc_macro2::TokenTree::Group(replacement)]);
+                }
+                token => normalized.extend([token.clone()]),
+            }
+            index += 1;
+        }
+        normalized
+    }
+
+    fn macro_tokens_contain_inherent_impl(
+        tokens: proc_macro2::TokenStream,
+        target: &str,
+        outer_aliases: &std::collections::BTreeMap<String, String>,
+    ) -> bool {
+        let tokens = normalize_macro_metavariables(tokens);
+        macro_tokens_contain_inherent_impl_with_aliases(tokens, target, outer_aliases)
+    }
+
+    fn macro_tokens_contain_inherent_impl_with_aliases(
+        tokens: proc_macro2::TokenStream,
+        target: &str,
+        aliases: &std::collections::BTreeMap<String, String>,
+    ) -> bool {
+        let mut scoped_aliases = aliases.clone();
+        collect_macro_aliases(tokens.clone(), &mut scoped_aliases);
         let tokens = tokens.into_iter().collect::<Vec<_>>();
         for (start, token) in tokens.iter().enumerate() {
             if matches!(token, proc_macro2::TokenTree::Ident(ident) if ident == "impl") {
@@ -698,20 +905,29 @@ mod tests {
                     {
                         continue;
                     }
-                    let candidate = tokens[start..=end]
+                    let mut candidate = tokens[start..end]
                         .iter()
                         .cloned()
                         .collect::<proc_macro2::TokenStream>();
+                    candidate.extend([proc_macro2::TokenTree::Group(proc_macro2::Group::new(
+                        proc_macro2::Delimiter::Brace,
+                        proc_macro2::TokenStream::new(),
+                    ))]);
                     if let Ok(item) = syn::parse2::<syn::ItemImpl>(candidate)
                         && item.trait_.is_none()
-                        && type_path_ends_with(&item.self_ty, target)
+                        && type_last_name(&item.self_ty)
+                            .is_some_and(|name| name_resolves_to(&name, target, &scoped_aliases))
                     {
                         return true;
                     }
                 }
             }
             if let proc_macro2::TokenTree::Group(group) = token
-                && macro_tokens_contain_inherent_impl(group.stream(), target)
+                && macro_tokens_contain_inherent_impl_with_aliases(
+                    group.stream(),
+                    target,
+                    &scoped_aliases,
+                )
             {
                 return true;
             }
@@ -720,11 +936,33 @@ mod tests {
     }
 
     impl<'ast> syn::visit::Visit<'ast> for Plan04RetiredAuthorityFinder {
+        fn visit_file(&mut self, file: &'ast syn::File) {
+            self.alias_scopes.push(collect_item_aliases(
+                &file.items,
+                self.skip_strict_test_only,
+            ));
+            for item in &file.items {
+                self.visit_item(item);
+            }
+            self.alias_scopes.pop();
+        }
+
         fn visit_item(&mut self, item: &'ast syn::Item) {
             if self.skip_strict_test_only && item_attrs(item).is_some_and(is_test_only) {
                 return;
             }
             syn::visit::visit_item(self, item);
+        }
+
+        fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+            if let Some((_, items)) = &item.content {
+                self.alias_scopes
+                    .push(collect_item_aliases(items, self.skip_strict_test_only));
+                for item in items {
+                    self.visit_item(item);
+                }
+                self.alias_scopes.pop();
+            }
         }
 
         fn visit_impl_item(&mut self, item: &'ast syn::ImplItem) {
@@ -752,10 +990,10 @@ mod tests {
 
         fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
             if item.trait_.is_none() {
-                if type_path_ends_with(&item.self_ty, "Triggered") {
+                if self.type_resolves_to(&item.self_ty, "Triggered") {
                     self.record("impl Triggered");
                 }
-                if type_path_ends_with(&item.self_ty, "SelfReferenceNp") {
+                if self.type_resolves_to(&item.self_ty, "SelfReferenceNp") {
                     self.record("impl SelfReferenceNp");
                 }
             }
@@ -779,7 +1017,11 @@ mod tests {
                 ("Triggered", "impl Triggered"),
                 ("SelfReferenceNp", "impl SelfReferenceNp"),
             ] {
-                if macro_tokens_contain_inherent_impl(mac.tokens.clone(), target) {
+                if macro_tokens_contain_inherent_impl(
+                    mac.tokens.clone(),
+                    target,
+                    &self.visible_aliases(),
+                ) {
                     self.record(authority);
                 }
             }
@@ -808,6 +1050,26 @@ mod tests {
     struct CheckedBlockFinder {
         skip_strict_test_only: bool,
         empty_blocks: Vec<bool>,
+        string_blocks: usize,
+        exact_empty_string_blocks: usize,
+    }
+
+    struct CheckedBlockCensus {
+        structural: Vec<bool>,
+        strings: usize,
+        exact_empty_strings: usize,
+    }
+
+    fn checked_text_block_pattern() -> regex::Regex {
+        regex::Regex::new(r"(?s)\bchecked(?:\s|/\*.*?\*/|//[^\n]*(?:\n|$))*\{")
+            .expect("checked-block text-fixture audit pattern is valid")
+    }
+
+    impl CheckedBlockFinder {
+        fn record_string_fixture(&mut self, fixture: &str) {
+            self.string_blocks += checked_text_block_pattern().find_iter(fixture).count();
+            self.exact_empty_string_blocks += fixture.matches("checked {}").count();
+        }
     }
 
     fn collect_checked_blocks(tokens: proc_macro2::TokenStream, empty_blocks: &mut Vec<bool>) {
@@ -822,6 +1084,42 @@ mod tests {
             if let proc_macro2::TokenTree::Group(group) = token {
                 collect_checked_blocks(group.stream(), empty_blocks);
             }
+        }
+    }
+
+    fn collect_macro_fixture_strings(tokens: proc_macro2::TokenStream, fixtures: &mut Vec<String>) {
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        let mut index = 0;
+        while index < tokens.len() {
+            if matches!(&tokens[index], proc_macro2::TokenTree::Ident(ident) if ident == "concat")
+                && matches!(
+                    tokens.get(index + 1),
+                    Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '!'
+                )
+                && let Some(proc_macro2::TokenTree::Group(group)) = tokens.get(index + 2)
+            {
+                if let Some(fixture) = constant_concat_tokens(group.stream()) {
+                    fixtures.push(fixture);
+                } else {
+                    collect_macro_fixture_strings(group.stream(), fixtures);
+                }
+                index += 3;
+                continue;
+            }
+            match &tokens[index] {
+                proc_macro2::TokenTree::Literal(literal) => {
+                    if let Ok(literal) = syn::parse_str::<syn::Lit>(&literal.to_string())
+                        && let Some(fixture) = literal_constant_string(&literal)
+                    {
+                        fixtures.push(fixture);
+                    }
+                }
+                proc_macro2::TokenTree::Group(group) => {
+                    collect_macro_fixture_strings(group.stream(), fixtures);
+                }
+                proc_macro2::TokenTree::Ident(_) | proc_macro2::TokenTree::Punct(_) => {}
+            }
+            index += 1;
         }
     }
 
@@ -840,18 +1138,46 @@ mod tests {
             syn::visit::visit_impl_item(self, item);
         }
 
+        fn visit_lit_str(&mut self, literal: &'ast syn::LitStr) {
+            self.record_string_fixture(&literal.value());
+        }
+
+        fn visit_lit_byte_str(&mut self, literal: &'ast syn::LitByteStr) {
+            self.record_string_fixture(&String::from_utf8_lossy(&literal.value()));
+        }
+
         fn visit_macro(&mut self, mac: &'ast syn::Macro) {
             collect_checked_blocks(mac.tokens.clone(), &mut self.empty_blocks);
+            let mut fixtures = Vec::new();
+            collect_macro_fixture_strings(mac.tokens.clone(), &mut fixtures);
+            for fixture in fixtures {
+                self.record_string_fixture(&fixture);
+            }
         }
     }
 
-    fn checked_blocks_in_rust_source(source: &str) -> Vec<bool> {
+    fn checked_block_census(file: &syn::File, skip_strict_test_only: bool) -> CheckedBlockCensus {
         use syn::visit::Visit as _;
 
+        let mut finder = CheckedBlockFinder {
+            skip_strict_test_only,
+            ..CheckedBlockFinder::default()
+        };
+        finder.visit_file(file);
+        CheckedBlockCensus {
+            structural: finder.empty_blocks,
+            strings: finder.string_blocks,
+            exact_empty_strings: finder.exact_empty_string_blocks,
+        }
+    }
+
+    fn checked_block_census_in_rust_source(source: &str) -> CheckedBlockCensus {
         let file = syn::parse_file(source).expect("checked-block source reparses");
-        let mut finder = CheckedBlockFinder::default();
-        finder.visit_file(&file);
-        finder.empty_blocks
+        checked_block_census(&file, false)
+    }
+
+    fn checked_blocks_in_rust_source(source: &str) -> Vec<bool> {
+        checked_block_census_in_rust_source(source).structural
     }
 
     #[derive(Default)]
@@ -2530,6 +2856,32 @@ mod tests {
     }
 
     #[test]
+    fn plan04_checked_blocks_are_detected_in_every_rust_string_fixture() {
+        let fixtures = r##"
+            const ORDINARY: &str = "checked { constructor = old; }";
+            const RAW: &str = r#"checked /* legacy */ { constructor = old; }"#;
+            const BYTES: &[u8] = b"checked // legacy\n { constructor = old; }";
+            const NESTED: &str = "checked /* outer /* inner */ outer */ { constructor = old; }";
+            wrapped! { "checked /* nested */ { constructor = old; }" }
+        "##;
+        let fixture_census = checked_block_census_in_rust_source(fixtures);
+        assert!(fixture_census.structural.is_empty());
+        assert_eq!(fixture_census.strings, 5);
+        assert_eq!(fixture_census.exact_empty_strings, 0);
+
+        let parser_like = r##"
+            fn fixture() {
+                parse(r#"construction only: Root { checked {} }"#);
+                let _ = r#"checked /* legacy */ { constructor = old; }"#;
+            }
+        "##;
+        let parser_census = checked_block_census_in_rust_source(parser_like);
+        assert!(parser_census.structural.is_empty());
+        assert_eq!(parser_census.strings, 2);
+        assert_eq!(parser_census.exact_empty_strings, 1);
+    }
+
+    #[test]
     fn plan04_checked_bindings_producer_scan_rejects_every_mutable_escape() {
         use syn::visit::Visit as _;
 
@@ -2603,6 +2955,57 @@ mod tests {
     }
 
     #[test]
+    fn plan04_impl_authority_normalizes_aliases_wrappers_and_macro_headers() {
+        use syn::visit::Visit as _;
+
+        for source in [
+            "struct Triggered; impl (Triggered) {}",
+            "struct Triggered; type Alias = Triggered; impl Alias {}",
+            "struct Triggered; type Alias = Triggered; type Alias2 = Alias; impl Alias2 {}",
+            "mod generated { pub struct Triggered; } \
+             use generated::Triggered as Alias; impl Alias {}",
+            "struct Triggered<T>(T); impl<T> Triggered<T> {}",
+            "macro_rules! m { ($body:item) => { impl Triggered { $body } } }",
+            "macro_rules! m { ($body:item) => { impl (crate::Triggered) { $body } } }",
+            "macro_rules! m { ($body:item) => { \
+                 type Alias = Triggered; impl Alias { $body } \
+             } }",
+            "macro_rules! m { ($alias:ident, $body:item) => { \
+                 type $alias = Triggered; impl $alias { $body } \
+             } }",
+            "macro_rules! m { \
+                 () => { type Alias = Triggered; impl Alias {} }; \
+                 ($value:expr) => { type Alias = Unrelated; }; \
+             }",
+        ] {
+            let file = syn::parse_file(source).expect("alternate impl authority reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+
+        for source in [
+            "struct Triggered; trait Render {} impl Render for Triggered {}",
+            "macro_rules! m { ($body:item) => { impl Render for Triggered { $body } } }",
+            "struct Unrelated; type Alias = Unrelated; impl Alias {}",
+            "type Alias = Alias2; type Alias2 = Alias; impl Alias {}",
+            "mod one { struct Triggered; type Alias = Triggered; } \
+             mod two { struct Alias; impl Alias {} }",
+            "struct Triggered; type Alias = Triggered; \
+             mod inner { struct Alias; impl Alias {} }",
+            "macro_rules! m { \
+                 () => { type Alias = Unrelated; impl Alias {} }; \
+                 ($value:expr) => { type Alias = Triggered; }; \
+             }",
+        ] {
+            let file = syn::parse_file(source).expect("allowed impl authority reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(!finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+    }
+
+    #[test]
     fn plan04_generated_invariants_are_single_authority() {
         use syn::visit::Visit as _;
 
@@ -2611,10 +3014,8 @@ mod tests {
         let report_path = workspace_root.join("crates/xtask/src/english_v2/report.rs");
         let parser_path = workspace_root.join("crates/deckmaste_construction_core/src/parse.rs");
         let mut violations = Vec::new();
-        let checked_text_block =
-            regex::Regex::new(r"(?s)\bchecked(?:\s|/\*.*?\*/|//[^\n]*(?:\n|$))*\{")
-                .expect("checked-block text-fixture audit pattern is valid");
-        let mut parser_checked_blocks = Vec::new();
+        let checked_text_block = checked_text_block_pattern();
+        let mut parser_checked_census = None;
 
         for path in plan04_source_fixture_paths(&workspace_root) {
             let relative = path
@@ -2630,11 +3031,10 @@ mod tests {
             if path.extension().is_some_and(|extension| extension == "rs") {
                 let file = syn::parse_file(&source)
                     .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-                let mut checked_finder = CheckedBlockFinder::default();
-                checked_finder.visit_file(&file);
+                let checked_census = checked_block_census(&file, false);
                 if path == parser_path {
-                    parser_checked_blocks = checked_finder.empty_blocks;
-                } else if !checked_finder.empty_blocks.is_empty() {
+                    parser_checked_census = Some(checked_census);
+                } else if !checked_census.structural.is_empty() || checked_census.strings != 0 {
                     violations.push(format!(
                         "{} retains checked metadata block",
                         relative.display()
@@ -2666,19 +3066,25 @@ mod tests {
                 .into_iter()
                 .map(|authority| format!("crates/xtask/src/english_v2.rs retains {authority}")),
         );
-        let mut host_checked_finder = CheckedBlockFinder {
-            skip_strict_test_only: true,
-            ..CheckedBlockFinder::default()
-        };
-        host_checked_finder.visit_file(&host);
-        if !host_checked_finder.empty_blocks.is_empty() {
+        let host_checked_census = checked_block_census(&host, true);
+        if !host_checked_census.structural.is_empty() || host_checked_census.strings != 0 {
             violations
                 .push("crates/xtask/src/english_v2.rs retains checked metadata block".to_owned());
         }
 
+        let parser_checked_census = parser_checked_census
+            .expect("the complete source inventory includes the construction parser");
         assert!(
-            parser_checked_blocks.is_empty(),
+            parser_checked_census.structural.is_empty(),
             "the parser's checked-metadata rejection fixture must remain input text, not Rust or macro syntax"
+        );
+        assert_eq!(
+            parser_checked_census.strings, 1,
+            "the parser must retain exactly one checked-metadata string fixture"
+        );
+        assert_eq!(
+            parser_checked_census.exact_empty_strings, 1,
+            "the parser's sole checked-metadata string fixture must be precisely empty"
         );
         let parser_source = fs::read_to_string(&parser_path).expect("parser source is readable");
         assert_eq!(
