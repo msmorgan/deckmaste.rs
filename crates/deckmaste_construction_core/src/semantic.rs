@@ -104,6 +104,7 @@ pub(crate) struct InvariantPlan {
     alternatives: Vec<PredicateConjunctionPlan>,
     constrained_fields: Vec<syn::Ident>,
     context_identity_fields: Vec<syn::Ident>,
+    category_feature_reads: Vec<(String, Feature)>,
     requires_context: bool,
 }
 
@@ -712,7 +713,7 @@ impl SemanticPlan {
             .map(|morphology| (identifier_key(morphology.name_ident()), morphology.clone()))
             .collect::<HashMap<_, _>>();
         let field_policy_terminals = seal_terminals(source, &morphology_by_name)?;
-        let constructions =
+        let mut constructions =
             source
                 .declarations
                 .iter()
@@ -746,13 +747,7 @@ impl SemanticPlan {
                                 ),
                             )
                         })?;
-                    ConstructionPlan::from_source(
-                        source_index,
-                        construction,
-                        &atoms,
-                        invariant,
-                        &field_policy_terminals,
-                    )
+                    ConstructionPlan::from_source(source_index, construction, &atoms, invariant)
                 })
                 .collect::<syn::Result<Vec<_>>>()?;
         if let Some((name, (span, _))) = atoms_by_construction.into_iter().next() {
@@ -767,7 +762,13 @@ impl SemanticPlan {
                 format!("sealed semantic plan has surplus invariant '{name}'"),
             ));
         }
-        seal_invariant_category_feature_reads(&constructions, &equations, &mut category_reads)?;
+        seal_invariant_field_policy(
+            &mut constructions,
+            &equations,
+            &resolutions,
+            &field_policy_terminals,
+        )?;
+        seal_invariant_category_feature_reads(&constructions, &mut category_reads);
         let number_carry_categories = number_carry_categories(&constructions, &equations);
 
         let terminals = field_policy_terminals;
@@ -1572,45 +1573,141 @@ impl SemanticPlan {
 
 fn seal_invariant_category_feature_reads(
     constructions: &[ConstructionPlan],
-    equations: &HashMap<String, Vec<feature::FeatureEquation>>,
     category_reads: &mut HashMap<String, HashSet<Feature>>,
-) -> syn::Result<()> {
+) {
     for construction in constructions {
-        for subject in construction
-            .invariant()
-            .alternatives()
-            .iter()
-            .flat_map(PredicateConjunctionPlan::atoms)
-            .map(PredicateAtomPlan::subject)
-        {
-            let PredicateSubjectPlan::RoleFeature { role, feature } = subject else {
-                continue;
-            };
-            let has_local_writer = equations
-                .get(construction.construction_id())
-                .into_iter()
-                .flatten()
-                .any(|equation| {
-                    matches!(
-                        equation.target(),
-                        feature::FeaturePlace::Role {
-                            field,
-                            feature: written,
-                        } if identifier_key(field) == identifier_key(role) && written == feature
-                    )
-                });
-            if has_local_writer {
-                continue;
-            }
-            let field = construction.field(&identifier_key(role))?;
-            if field.kind() == ConstructionFieldKind::Category {
-                category_reads
-                    .entry(field.terminal().to_owned())
-                    .or_default()
-                    .insert(*feature);
-            }
+        for (category, feature) in construction.invariant().category_feature_reads() {
+            category_reads
+                .entry(category.clone())
+                .or_default()
+                .insert(*feature);
         }
     }
+}
+
+#[derive(Default)]
+struct InvariantFeatureDependencies {
+    fields: HashSet<String>,
+    category_reads: HashSet<(String, Feature)>,
+}
+
+fn seal_invariant_field_policy(
+    constructions: &mut [ConstructionPlan],
+    equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+    resolutions: &HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
+    terminals: &[TerminalPlan],
+) -> syn::Result<()> {
+    for construction in constructions {
+        let construction_equations = equations
+            .get(construction.construction_id())
+            .map_or(&[][..], Vec::as_slice);
+        let construction_resolutions = resolutions.get(construction.construction_id());
+        let dependencies = invariant_feature_dependencies(
+            construction,
+            construction_equations,
+            construction_resolutions,
+        )?;
+        construction.invariant.seal_field_policy(
+            &mut construction.fields,
+            terminals,
+            dependencies,
+        )?;
+    }
+    Ok(())
+}
+
+fn invariant_feature_dependencies(
+    construction: &ConstructionPlan,
+    equations: &[feature::FeatureEquation],
+    resolutions: Option<&HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
+) -> syn::Result<InvariantFeatureDependencies> {
+    let mut dependencies = InvariantFeatureDependencies::default();
+    for subject in construction
+        .invariant()
+        .alternatives()
+        .iter()
+        .flat_map(PredicateConjunctionPlan::atoms)
+        .map(PredicateAtomPlan::subject)
+    {
+        let place = match subject {
+            PredicateSubjectPlan::RoleFeature { role, feature } => feature::FeaturePlace::Role {
+                field: role.clone(),
+                feature: *feature,
+            },
+            PredicateSubjectPlan::ConstructionFeature(feature) => {
+                feature::FeaturePlace::Construction(*feature)
+            }
+            PredicateSubjectPlan::CategoryRole { .. } | PredicateSubjectPlan::VocabRole { .. } => {
+                continue;
+            }
+        };
+        collect_invariant_feature_dependencies(
+            construction,
+            equations,
+            resolutions,
+            &place,
+            &mut HashSet::new(),
+            &mut dependencies,
+        )?;
+    }
+    Ok(dependencies)
+}
+
+fn collect_invariant_feature_dependencies(
+    construction: &ConstructionPlan,
+    equations: &[feature::FeatureEquation],
+    resolutions: Option<&HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
+    place: &feature::FeaturePlace,
+    visiting: &mut HashSet<feature::FeaturePlace>,
+    dependencies: &mut InvariantFeatureDependencies,
+) -> syn::Result<()> {
+    if resolutions
+        .and_then(|rows| rows.get(place))
+        .is_some_and(|resolution| matches!(resolution, feature::FeatureResolution::Known(_)))
+    {
+        return Ok(());
+    }
+    if !visiting.insert(place.clone()) {
+        return Err(sealed_error("invariant feature dependency cycle"));
+    }
+    let equation = equations.iter().find(|equation| equation.target() == place);
+    match equation.map(feature::FeatureEquation::value) {
+        Some(FeatureExpr::Constant(_)) => {}
+        Some(FeatureExpr::MatchVocab { role, .. }) => {
+            let field = construction.field(&identifier_key(role))?;
+            if field.kind() != ConstructionFieldKind::Lex {
+                return Err(sealed_error("invariant MatchVocab dependency field kind"));
+            }
+            dependencies.fields.insert(field.name_key());
+        }
+        Some(FeatureExpr::FromRole { role, feature }) => {
+            collect_invariant_feature_dependencies(
+                construction,
+                equations,
+                resolutions,
+                &feature::FeaturePlace::Role {
+                    field: role.clone(),
+                    feature: *feature,
+                },
+                visiting,
+                dependencies,
+            )?;
+        }
+        None => {
+            let feature::FeaturePlace::Role { field, feature } = place else {
+                return Err(sealed_error("invariant construction feature dependency"));
+            };
+            let field = construction.field(&identifier_key(field))?;
+            if field.kind() != ConstructionFieldKind::Category {
+                return Err(sealed_error("invariant role feature dependency"));
+            }
+            dependencies.fields.insert(field.name_key());
+            dependencies
+                .category_reads
+                .insert((field.terminal().to_owned(), *feature));
+        }
+    }
+    visiting.remove(place);
     Ok(())
 }
 
@@ -1619,8 +1716,7 @@ impl ConstructionPlan {
         source_index: usize,
         source: &crate::Construction,
         resolved_atoms: &[AtomContribution],
-        mut invariant: InvariantPlan,
-        terminals: &[TerminalPlan],
+        invariant: InvariantPlan,
     ) -> syn::Result<Self> {
         let construction_id = identifier_key(&source.name);
         let category = path_key(&source.category);
@@ -1635,7 +1731,7 @@ impl ConstructionPlan {
                 )
             })
         });
-        let mut fields = source
+        let fields = source
             .element
             .fields
             .iter()
@@ -1700,7 +1796,6 @@ impl ConstructionPlan {
                 })
             })
             .collect::<syn::Result<Vec<_>>>()?;
-        invariant.seal_field_policy(&mut fields, terminals)?;
         let constructor = source
             .checked
             .as_ref()
@@ -1892,6 +1987,7 @@ impl InvariantPlan {
             alternatives,
             constrained_fields: Vec::new(),
             context_identity_fields: Vec::new(),
+            category_feature_reads: Vec::new(),
             requires_context: false,
         }
     }
@@ -1916,6 +2012,10 @@ impl InvariantPlan {
         &self.context_identity_fields
     }
 
+    pub(crate) fn category_feature_reads(&self) -> &[(String, Feature)] {
+        &self.category_feature_reads
+    }
+
     #[allow(
         dead_code,
         reason = "later invariant emitters consume the sealed field policy"
@@ -1924,24 +2024,40 @@ impl InvariantPlan {
         self.requires_context
     }
 
+    pub(crate) fn requires_constructor(&self) -> bool {
+        self.requires_context
+            || !matches!(
+                self.alternatives.as_slice(),
+                [alternative] if alternative.atoms.is_empty()
+            )
+    }
+
     fn seal_field_policy(
         &mut self,
         fields: &mut [ConstructionFieldPlan],
         terminals: &[TerminalPlan],
+        dependencies: InvariantFeatureDependencies,
     ) -> syn::Result<()> {
         self.constrained_fields = fields
             .iter()
             .filter(|field| {
-                self.alternatives.iter().any(|alternative| {
-                    alternative.atoms.iter().any(|atom| {
-                        atom.subject
-                            .role()
-                            .is_some_and(|role| crate::identifier::same(role, &field.name))
+                dependencies.fields.contains(&field.name_key())
+                    || self.alternatives.iter().any(|alternative| {
+                        alternative.atoms.iter().any(|atom| {
+                            atom.subject
+                                .role()
+                                .is_some_and(|role| crate::identifier::same(role, &field.name))
+                        })
                     })
-                })
             })
             .map(|field| field.name.clone())
             .collect();
+        self.category_feature_reads = dependencies.category_reads.into_iter().collect();
+        self.category_feature_reads.sort_by(|left, right| {
+            left.0
+                .cmp(&right.0)
+                .then_with(|| left.1.key().cmp(right.1.key()))
+        });
         self.context_identity_fields = fields
             .iter()
             .filter(|field| {

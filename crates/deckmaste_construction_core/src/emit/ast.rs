@@ -60,12 +60,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             tokens,
             origins.clone(),
         ));
-        if !construction.fields().is_empty()
-            && construction
-                .fields()
-                .iter()
-                .any(|field| field.accessor_mode().is_some())
-        {
+        if !construction.fields().is_empty() && construction.invariant().requires_constructor() {
             items.push(GeneratedItem::new(
                 ItemKey::Impl {
                     trait_name: None,
@@ -152,6 +147,9 @@ fn emit_invariant_impl(
     ident: &syn::Ident,
 ) -> syn::Result<TokenStream> {
     let mut allocator = super::LocalAllocator::default();
+    for (category, feature) in construction.invariant().category_feature_reads() {
+        allocator.reserve(feature_helper(feature.key(), category));
+    }
     if construction.invariant().requires_context() {
         allocator.reserve("context");
     }
@@ -255,11 +253,11 @@ fn constructor_subject_expression(
     locals: &HashMap<String, syn::Ident>,
 ) -> syn::Result<TokenStream> {
     match subject {
-        PredicateSubjectPlan::CategoryRole { role, .. } => {
+        PredicateSubjectPlan::CategoryRole { role, category } => {
             let field = construction.field(&identifier_key(role))?;
-            if field.kind() != ConstructionFieldKind::Category {
+            if field.kind() != ConstructionFieldKind::Category || field.terminal() != category {
                 return Err(internal(
-                    "category predicate subject is not a category field",
+                    "category predicate subject is inconsistent with its field",
                 ));
             }
             borrowed_field_expression(plan, construction, field, locals)
@@ -663,6 +661,209 @@ mod tests {
     }
 
     #[test]
+    fn invariant_feature_dependencies_drive_constructor_and_private_field_policy() {
+        let plan = invariant_semantic_plan();
+        let items = super::emit(&plan).expect("feature dependency fixture emits");
+
+        for (element, fields) in [
+            ("ConstructionFeatureNode", &["mode"][..]),
+            ("TransitiveRoleFeatureNode", &["child", "mode"][..]),
+        ] {
+            let Item::Struct(product) = parse_named(&items, element) else {
+                panic!("{element} is a struct");
+            };
+            let Fields::Named(named) = product.fields else {
+                panic!("{element} has named fields");
+            };
+            assert_eq!(
+                named
+                    .named
+                    .iter()
+                    .filter(|field| matches!(field.vis, Visibility::Inherited))
+                    .map(|field| field.ident.as_ref().unwrap().to_string())
+                    .collect::<Vec<_>>(),
+                fields,
+                "every direct or transitive invariant dependency is private",
+            );
+            assert_eq!(
+                method_headers(&inherent_impl(&items, element))
+                    .into_iter()
+                    .skip(1)
+                    .collect::<Vec<_>>(),
+                fields
+                    .iter()
+                    .map(|field| {
+                        let field = syn::Ident::new(field, proc_macro2::Span::call_site());
+                        if field == "child" {
+                            quote::quote! { pub const fn #field(&self) -> &FeatureChild }
+                                .to_string()
+                        } else {
+                            quote::quote! { pub const fn #field(&self) -> Mode }.to_string()
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+                "every private dependency has exactly one sealed accessor",
+            );
+        }
+    }
+
+    #[test]
+    fn invariant_category_feature_helper_is_reserved_before_constructor_locals() {
+        let items = invariant_ast_items();
+        let implementation = inherent_impl(&items, "FeatureHelperCollisionNode");
+        let constructor = method(&implementation, "new");
+        assert_eq!(
+            constructor.sig.to_token_stream().to_string(),
+            quote::quote! {
+                fn new(
+                    child: FeatureChild,
+                    agreement_for_feature_child_2: Mode
+                ) -> Option<Self>
+            }
+            .to_string(),
+            "the authored field local is suffixed while the generated helper keeps its ABI name",
+        );
+        let body = constructor.block.to_token_stream().to_string();
+        assert!(
+            body.contains("agreement_for_feature_child (& child)"),
+            "the category helper call remains unshadowed: {body}",
+        );
+        assert!(
+            body.contains("agreement_for_feature_child : agreement_for_feature_child_2"),
+            "the suffixed local initializes the unchanged authored field: {body}",
+        );
+    }
+
+    #[test]
+    fn invariant_category_subject_rejects_a_mismatched_sealed_domain() {
+        let plan = invariant_semantic_plan();
+        let recursive = plan
+            .constructions()
+            .iter()
+            .find(|construction| construction.element_type() == "RecursiveNode")
+            .expect("recursive construction is sealed");
+        let subject = crate::semantic::PredicateSubjectPlan::CategoryRole {
+            role: syn::parse_quote!(child),
+            category: "WrongCategory".to_owned(),
+        };
+        let locals =
+            std::collections::HashMap::from([("child".to_owned(), syn::parse_quote!(child))]);
+
+        let error = super::constructor_subject_expression(&plan, recursive, &subject, &locals)
+            .expect_err("a sealed category/field mismatch is diagnosed")
+            .to_string();
+
+        assert!(error.contains("invariant constructor emitter"), "{error}");
+        assert!(error.contains("category predicate subject"), "{error}");
+        assert!(error.contains("inconsistent"), "{error}");
+    }
+
+    #[test]
+    fn invariant_feature_constructors_compile_and_execute_from_actual_ast_items() {
+        let plan = invariant_semantic_plan();
+        let items = super::emit(&plan).expect("invariant AST fixture emits");
+        let generated = items.iter().map(|item| &item.tokens);
+        let source = quote::quote! {
+            #![allow(dead_code)]
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum Agreement { Bare, ThirdPersonSingular }
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum Number { Singular, Plural }
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum OpenValue { Open }
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum Mode { One, Two }
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum SelfReferenceSpelling { Full, Abbreviated }
+            struct ParseContext<'a> { canonical: SelfReferenceSpelling, marker: &'a str }
+
+            impl SelfReferenceSpelling {
+                fn valid_in(self, context: &ParseContext<'_>) -> bool {
+                    self == context.canonical
+                }
+            }
+
+            #(#generated)*
+
+            fn agreement_for_feature_child(child: &FeatureChild) -> Agreement {
+                match child {
+                    FeatureChild::FeatureBare(_) => Agreement::Bare,
+                    FeatureChild::FeatureThird(_) => Agreement::ThirdPersonSingular,
+                }
+            }
+
+            fn main() {
+                let constructed = ConstructionFeatureNode::new(Mode::One)
+                    .expect("construction feature accepts its Bare source");
+                assert_eq!(constructed.mode(), Mode::One);
+                assert!(ConstructionFeatureNode::new(Mode::Two).is_none());
+
+                let transitive = TransitiveRoleFeatureNode::new(
+                    FeatureChild::FeatureBare(FeatureBare),
+                    Mode::One,
+                )
+                .expect("transitive role feature accepts its Bare source");
+                assert!(matches!(transitive.child(), FeatureChild::FeatureBare(_)));
+                assert_eq!(transitive.mode(), Mode::One);
+                assert!(TransitiveRoleFeatureNode::new(
+                    FeatureChild::FeatureBare(FeatureBare),
+                    Mode::Two,
+                ).is_none());
+
+                assert!(RoleFeatureGuarded::new(
+                    FeatureChild::FeatureBare(FeatureBare),
+                ).is_some());
+                assert!(RoleFeatureGuarded::new(
+                    FeatureChild::FeatureThird(FeatureThird),
+                ).is_none());
+
+                let collision = FeatureHelperCollisionNode::new(
+                    FeatureChild::FeatureBare(FeatureBare),
+                    Mode::Two,
+                )
+                .expect("the generated helper remains callable beside its namesake field");
+                assert!(matches!(collision.child(), FeatureChild::FeatureBare(_)));
+                assert_eq!(collision.agreement_for_feature_child, Mode::Two);
+                assert!(FeatureHelperCollisionNode::new(
+                    FeatureChild::FeatureThird(FeatureThird),
+                    Mode::One,
+                ).is_none());
+            }
+        }
+        .to_string();
+
+        let directory = tempfile::tempdir().expect("temporary compiler harness directory");
+        let source_path = directory.path().join("invariant_ast_harness.rs");
+        let binary_path = directory.path().join("invariant_ast_harness");
+        std::fs::write(&source_path, &source).expect("write deterministic compiler harness");
+        let compiler = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+        let compilation = std::process::Command::new(compiler)
+            .arg("--edition=2024")
+            .arg(&source_path)
+            .arg("-o")
+            .arg(&binary_path)
+            .output()
+            .expect("run active Rust compiler");
+        assert!(
+            compilation.status.success(),
+            "AST harness compilation failed\nstdout:\n{}\nstderr:\n{}\nsource:\n{source}",
+            String::from_utf8_lossy(&compilation.stdout),
+            String::from_utf8_lossy(&compilation.stderr),
+        );
+
+        let execution = std::process::Command::new(&binary_path)
+            .output()
+            .expect("execute compiled invariant AST harness");
+        assert!(
+            execution.status.success(),
+            "AST harness execution failed\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&execution.stdout),
+            String::from_utf8_lossy(&execution.stderr),
+        );
+    }
+
+    #[test]
     fn emits_exact_category_variants_products_visibility_and_boxing() {
         let expansion = representative_expansion();
         let items = expansion.items();
@@ -995,7 +1196,41 @@ mod tests {
                 construction role_feature_guarded: FeatureRoot {
                     element RoleFeatureGuarded { child: FeatureChild, }
                     require child.agreement is Bare;
+                    derive agreement = child.agreement;
                     form role_feature_guarded = child;
+                }
+                construction construction_feature: FeatureRoot {
+                    element ConstructionFeatureNode { mode: lex Mode, }
+                    require agreement is Bare;
+                    derive agreement = mode.agreement;
+                    derive mode.agreement = match mode {
+                        One => Values::Bare,
+                        Two => Values::ThirdPersonSingular,
+                    };
+                    form construction_feature = lex(mode);
+                }
+                construction transitive_role_feature: FeatureRoot {
+                    element TransitiveRoleFeatureNode {
+                        child: FeatureChild,
+                        mode: lex Mode,
+                    }
+                    require child.agreement is Bare;
+                    derive agreement = child.agreement;
+                    derive child.agreement = mode.agreement;
+                    derive mode.agreement = match mode {
+                        One => Values::Bare,
+                        Two => Values::ThirdPersonSingular,
+                    };
+                    form transitive_role_feature = child lex(mode);
+                }
+                construction feature_helper_collision: FeatureRoot {
+                    element FeatureHelperCollisionNode {
+                        child: FeatureChild,
+                        agreement_for_feature_child: lex Mode,
+                    }
+                    require child.agreement is Bare;
+                    derive agreement = child.agreement;
+                    form feature_helper_collision = child lex(agreement_for_feature_child);
                 }
                 construction recursive: Child {
                     element RecursiveNode { mode: lex Mode, child: Child, }
