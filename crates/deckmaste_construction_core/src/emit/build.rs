@@ -31,9 +31,6 @@ use crate::semantic::SemanticPlan;
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let build_function = ident(BUILD_FUNCTION);
     let constructions = plan.constructions();
-    for construction in constructions {
-        construction.validate_legacy_refinement_projection()?;
-    }
     let arms = constructions
         .iter()
         .map(|construction| emit_arm(plan, construction))
@@ -83,7 +80,7 @@ struct Lowering {
     role_features: HashMap<(String, Feature), LocalFeatureValue>,
     guards: Vec<TokenStream>,
     dynamic_numbers: Vec<syn::Ident>,
-    checked_map_local: Option<syn::Ident>,
+    constructor_map_local: Option<syn::Ident>,
     binders: LocalAllocator,
 }
 
@@ -100,7 +97,7 @@ impl Default for Lowering {
             role_features: HashMap::new(),
             guards: Vec::new(),
             dynamic_numbers: Vec::new(),
-            checked_map_local: None,
+            constructor_map_local: None,
             binders,
         }
     }
@@ -245,21 +242,10 @@ fn lower_category_role(
     let role = ident(role);
     let role_name = identifier_key(&role);
     let role_binding = lowering.binders.allocate_ident(&role);
-    let refinement = row.legacy_refinement(&role_name);
     let category = ident(category_name);
-    let value_pattern = if let Some(requirement) = refinement {
-        let variant = ident(&identifier_key(requirement));
-        quote! { #category::#variant(#role_binding) }
-    } else {
-        quote! { #role_binding }
-    };
-    let stored = if let Some(requirement) = refinement {
-        let variant = ident(&identifier_key(requirement));
-        quote! { #category::#variant(#role_binding.clone()) }
-    } else {
-        quote! { #role_binding.clone() }
-    };
-    lowering.field_values.insert(role_name.clone(), stored);
+    lowering
+        .field_values
+        .insert(role_name.clone(), quote! { #role_binding.clone() });
 
     let carries_agreement = validated.category_carries_agreement(category_name);
     let carries_number = validated.category_carries_number(category_name);
@@ -270,18 +256,18 @@ fn lower_category_role(
     match (agreement, number) {
         (Some(agreement), Some(number)) => lowering
             .patterns
-            .push(quote! { BuildValue::#category(#value_pattern, #agreement, #number) }),
+            .push(quote! { BuildValue::#category(#role_binding, #agreement, #number) }),
         (Some(pattern), None) => {
             lowering
                 .patterns
-                .push(quote! { BuildValue::#category(#value_pattern, #pattern) });
+                .push(quote! { BuildValue::#category(#role_binding, #pattern) });
         }
         (None, Some(number)) => lowering
             .patterns
-            .push(quote! { BuildValue::#category(#value_pattern, #number) }),
+            .push(quote! { BuildValue::#category(#role_binding, #number) }),
         (None, None) => lowering
             .patterns
-            .push(quote! { BuildValue::#category(#value_pattern) }),
+            .push(quote! { BuildValue::#category(#role_binding) }),
     }
     Ok(())
 }
@@ -364,26 +350,16 @@ fn lower_terminal_role(
     let binding = match validated.atom_terminal(terminal_name)? {
         AtomTerminal::Vocab(vocab) => {
             let leaf = ident(vocab.name());
-            if let Some(requirement) = row.legacy_refinement(&identifier_key(&role)) {
-                let variant = ident(&identifier_key(requirement));
-                lowering
-                    .patterns
-                    .push(quote! { BuildValue::Leaf(Leaf::#leaf(#leaf::#variant)) });
-                lowering
-                    .field_values
-                    .insert(identifier_key(&role), quote! { #leaf::#variant });
-            } else {
-                let binding = lowering.binders.allocate(&vocab_argument(vocab.name()));
-                lowering
-                    .patterns
-                    .push(quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) });
-                lowering
-                    .field_values
-                    .insert(identifier_key(&role), quote! { *#binding });
-                lowering
-                    .vocab_values
-                    .insert(identifier_key(&role), binding.clone());
-            }
+            let binding = lowering.binders.allocate(&vocab_argument(vocab.name()));
+            lowering
+                .patterns
+                .push(quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) });
+            lowering
+                .field_values
+                .insert(identifier_key(&role), quote! { *#binding });
+            lowering
+                .vocab_values
+                .insert(identifier_key(&role), binding.clone());
             return Ok(());
         }
         AtomTerminal::Binding(binding) => binding,
@@ -669,6 +645,25 @@ fn emit_success(
     let element = ident(row.element_type());
     let category = ident(row.category());
     let variant = ident(row.category_variant());
+    if !row.fields().is_empty() && row.invariant().requires_constructor() {
+        let mut arguments = row
+            .fields()
+            .iter()
+            .map(|field| stored_value(validated, row, lowering, field.name(), overrides))
+            .collect::<syn::Result<Vec<_>>>()?;
+        if row.invariant().requires_context() {
+            arguments.push(quote! { context });
+        }
+        let result = quote! { #element::new(#(#arguments),*) };
+        return emit_fallible_element_success(
+            validated,
+            row,
+            lowering,
+            &result,
+            agreement_override,
+            number_override,
+        );
+    }
     let element_value = if let Some(checked) = row.constructor() {
         let path = checked.path();
         let arguments = checked
@@ -685,39 +680,15 @@ fn emit_success(
                 ConstructorArgumentPlan::Context => Ok(quote! { context }),
             })
             .collect::<syn::Result<Vec<_>>>()?;
-        let mapped = quote! { #category::#variant };
-        let carries_agreement = validated.category_carries_agreement(row.category());
-        let carries_number = validated.category_carries_number(row.category());
-        if carries_agreement || carries_number {
-            let agreement = carries_agreement
-                .then(|| construction_agreement(validated, row, lowering, agreement_override))
-                .transpose()?;
-            let number = carries_number
-                .then(|| construction_number(validated, row, lowering, number_override))
-                .transpose()?;
-            let argument = lowering.checked_map_local.clone().unwrap_or_else(|| {
-                let argument = lowering.binders.allocate(row.construction_id());
-                lowering.checked_map_local = Some(argument.clone());
-                argument
-            });
-            if let (Some(agreement), Some(number)) = (&agreement, &number) {
-                return Ok(quote! {
-                    #path(#(#arguments),*).map(|#argument| { BuildValue::#category(#category::#variant(#argument), #agreement, #number) })
-                });
-            }
-            if let Some(number) = number {
-                return Ok(quote! {
-                    #path(#(#arguments),*).map(|#argument| { BuildValue::#category(#category::#variant(#argument), #number) })
-                });
-            }
-            let output = agreement.ok_or_else(|| {
-                internal("checked construction is missing its carried feature output")
-            })?;
-            return Ok(quote! {
-                #path(#(#arguments),*).map(|#argument| { BuildValue::#category(#category::#variant(#argument), #output) })
-            });
-        }
-        return Ok(quote! { #path(#(#arguments),*).map(#mapped).map(BuildValue::#category) });
+        let result = quote! { #path(#(#arguments),*) };
+        return emit_fallible_element_success(
+            validated,
+            row,
+            lowering,
+            &result,
+            agreement_override,
+            number_override,
+        );
     } else if row.fields().is_empty() {
         quote! { #element }
     } else {
@@ -749,6 +720,51 @@ fn emit_success(
         quote! { BuildValue::#category(#category_value) }
     };
     Ok(quote! { Some(#wrapped) })
+}
+
+fn emit_fallible_element_success(
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    lowering: &mut Lowering,
+    result: &TokenStream,
+    agreement_override: Option<FeatureValue>,
+    number_override: Option<FeatureValue>,
+) -> syn::Result<TokenStream> {
+    let category = ident(row.category());
+    let variant = ident(row.category_variant());
+    let mapped = quote! { #category::#variant };
+    let carries_agreement = validated.category_carries_agreement(row.category());
+    let carries_number = validated.category_carries_number(row.category());
+    if !carries_agreement && !carries_number {
+        return Ok(quote! { #result.map(#mapped).map(BuildValue::#category) });
+    }
+
+    let agreement = carries_agreement
+        .then(|| construction_agreement(validated, row, lowering, agreement_override))
+        .transpose()?;
+    let number = carries_number
+        .then(|| construction_number(validated, row, lowering, number_override))
+        .transpose()?;
+    let argument = lowering.constructor_map_local.clone().unwrap_or_else(|| {
+        let argument = lowering.binders.allocate(row.construction_id());
+        lowering.constructor_map_local = Some(argument.clone());
+        argument
+    });
+    if let (Some(agreement), Some(number)) = (&agreement, &number) {
+        return Ok(quote! {
+            #result.map(|#argument| { BuildValue::#category(#category::#variant(#argument), #agreement, #number) })
+        });
+    }
+    if let Some(number) = number {
+        return Ok(quote! {
+            #result.map(|#argument| { BuildValue::#category(#category::#variant(#argument), #number) })
+        });
+    }
+    let output = agreement
+        .ok_or_else(|| internal("fallible construction is missing its carried feature output"))?;
+    Ok(quote! {
+        #result.map(|#argument| { BuildValue::#category(#category::#variant(#argument), #output) })
+    })
 }
 
 fn emit_dynamic_match(
@@ -1116,6 +1132,326 @@ mod tests {
             self.0.push(pattern.ident.to_string());
             syn::visit::visit_pat_ident(self, pattern);
         }
+    }
+
+    #[test]
+    fn invariant_arms_extract_broad_values_and_call_generated_constructors_exactly() {
+        let plan = invariant_build_plan();
+        let items = super::emit(&plan).expect("invariant build fixture emits");
+
+        for (rule, expected) in [
+            (
+                "ChildRecursive",
+                syn::parse_quote! {
+                    RuleId::ChildRecursive => match children {
+                        [
+                            BuildValue::Child(child),
+                            BuildValue::Leaf(Leaf::Mode(mode))
+                        ] => RecursiveNode::new(Box::new(child.clone()), *mode)
+                            .map(Child::Recursive)
+                            .map(BuildValue::Child),
+                        _ => None,
+                    }
+                },
+            ),
+            (
+                "RootCategoryGuarded",
+                syn::parse_quote! {
+                    RuleId::RootCategoryGuarded => match children {
+                        [
+                            BuildValue::Child(child),
+                            BuildValue::Leaf(Leaf::Literal(".")),
+                            BuildValue::Leaf(Leaf::EndOfInput)
+                        ] => CategoryGuarded::new(child.clone())
+                            .map(Root::CategoryGuarded)
+                            .map(BuildValue::Root),
+                        _ => None,
+                    }
+                },
+            ),
+            (
+                "RootVocabGuarded",
+                syn::parse_quote! {
+                    RuleId::RootVocabGuarded => match children {
+                        [
+                            BuildValue::Leaf(Leaf::Mode(mode)),
+                            BuildValue::Leaf(Leaf::Literal(".")),
+                            BuildValue::Leaf(Leaf::EndOfInput)
+                        ] => VocabGuarded::new(*mode)
+                            .map(Root::VocabGuarded)
+                            .map(BuildValue::Root),
+                        _ => None,
+                    }
+                },
+            ),
+            (
+                "RootDnfGuarded",
+                syn::parse_quote! {
+                    RuleId::RootDnfGuarded => match children {
+                        [
+                            BuildValue::Leaf(Leaf::Mode(mode)),
+                            BuildValue::Child(child),
+                            BuildValue::Leaf(Leaf::Literal(".")),
+                            BuildValue::Leaf(Leaf::EndOfInput)
+                        ] => DnfGuarded::new(*mode, child.clone())
+                            .map(Root::DnfGuarded)
+                            .map(BuildValue::Root),
+                        _ => None,
+                    }
+                },
+            ),
+            (
+                "RootContextGuarded",
+                syn::parse_quote! {
+                    RuleId::RootContextGuarded => match children {
+                        [
+                            BuildValue::Leaf(Leaf::SelfReference(context_2)),
+                            BuildValue::Leaf(Leaf::Literal(".")),
+                            BuildValue::Leaf(Leaf::EndOfInput)
+                        ] => ContextGuarded::new(*context_2, context)
+                            .map(Root::ContextGuarded)
+                            .map(BuildValue::Root),
+                        _ => None,
+                    }
+                },
+            ),
+        ] {
+            assert_eq!(build_arm(&items[0], rule), expected, "{rule} build arm");
+        }
+    }
+
+    #[test]
+    fn invariant_arms_contain_no_authored_predicate_members_or_duplicate_guards() {
+        let plan = invariant_build_plan();
+        let item = super::emit(&plan)
+            .expect("invariant build fixture emits")
+            .remove(0);
+
+        for rule in [
+            "ChildRecursive",
+            "RootCategoryGuarded",
+            "RootVocabGuarded",
+            "RootDnfGuarded",
+        ] {
+            let source = build_arm(&item, rule).to_token_stream().to_string();
+            for forbidden in [
+                "Child :: First",
+                "Child :: Second",
+                "Mode :: One",
+                "Mode :: Two",
+                "matches !",
+            ] {
+                assert!(
+                    !source.contains(forbidden),
+                    "{rule} duplicates invariant predicate `{forbidden}`: {source}",
+                );
+            }
+            assert!(
+                source.contains(":: new"),
+                "{rule} calls Element::new: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn invariant_materialization_executes_actual_ast_and_build_items() {
+        let plan = invariant_build_plan();
+        let ast = super::super::ast::emit(&plan).expect("invariant AST fixture emits");
+        let build = super::emit(&plan).expect("invariant build fixture emits");
+        let ast = ast.iter().map(|item| &item.tokens);
+        let build = build.iter().map(|item| &item.tokens);
+        let source = quote::quote! {
+            #![allow(dead_code)]
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum Mode { One, Two }
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum SelfReferenceSpelling { Full, Abbreviated }
+            struct ParseContext<'a> {
+                canonical: SelfReferenceSpelling,
+                marker: &'a str,
+            }
+
+            impl SelfReferenceSpelling {
+                fn valid_in(self, context: &ParseContext<'_>) -> bool {
+                    self == context.canonical
+                }
+            }
+
+            #[derive(Debug)]
+            enum Leaf {
+                Mode(Mode),
+                SelfReference(SelfReferenceSpelling),
+                Literal(&'static str),
+                EndOfInput,
+            }
+
+            #[derive(Debug)]
+            enum RuleId {
+                ChildFirst,
+                ChildSecond,
+                ChildRecursive,
+                RootCategoryGuarded,
+                RootVocabGuarded,
+                RootDnfGuarded,
+                RootContextGuarded,
+            }
+
+            mod generated {
+                use super::*;
+                #(#ast)*
+                #(#build)*
+            }
+
+            #[derive(Debug)]
+            enum BuildValue {
+                Child(generated::Child),
+                Root(generated::Root),
+                Leaf(Leaf),
+            }
+
+            fn main() {
+                let context = ParseContext {
+                    canonical: SelfReferenceSpelling::Full,
+                    marker: "materialization",
+                };
+                let valid = [
+                    BuildValue::Child(generated::Child::First(generated::FirstChild)),
+                    BuildValue::Leaf(Leaf::Literal(".")),
+                    BuildValue::Leaf(Leaf::EndOfInput),
+                ];
+                let invalid = [
+                    BuildValue::Child(generated::Child::Second(generated::SecondChild)),
+                    BuildValue::Leaf(Leaf::Literal(".")),
+                    BuildValue::Leaf(Leaf::EndOfInput),
+                ];
+
+                assert!(matches!(
+                    generated::build(RuleId::RootCategoryGuarded, &valid, &context),
+                    Some(BuildValue::Root(generated::Root::CategoryGuarded(_)))
+                ));
+                assert!(generated::build(
+                    RuleId::RootCategoryGuarded,
+                    &invalid,
+                    &context,
+                ).is_none());
+            }
+        }
+        .to_string();
+
+        let directory = tempfile::tempdir().expect("temporary build harness directory");
+        let source_path = directory.path().join("invariant_build_harness.rs");
+        let binary_path = directory.path().join("invariant_build_harness");
+        std::fs::write(&source_path, &source).expect("write deterministic build harness");
+        let compiler = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+        let compilation = std::process::Command::new(compiler)
+            .arg("--edition=2024")
+            .arg(&source_path)
+            .arg("-o")
+            .arg(&binary_path)
+            .output()
+            .expect("run active Rust compiler");
+        assert!(
+            compilation.status.success(),
+            "build harness compilation failed\nstdout:\n{}\nstderr:\n{}\nsource:\n{source}",
+            String::from_utf8_lossy(&compilation.stdout),
+            String::from_utf8_lossy(&compilation.stderr),
+        );
+
+        let execution = std::process::Command::new(&binary_path)
+            .output()
+            .expect("execute compiled invariant build harness");
+        assert!(
+            execution.status.success(),
+            "build harness execution failed\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&execution.stdout),
+            String::from_utf8_lossy(&execution.stderr),
+        );
+    }
+
+    fn invariant_build_plan() -> crate::semantic::SemanticPlan {
+        crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Mode { One = "one", Two = "two", }
+                identity SelfReferenceSpelling {
+                    generate context {
+                        Full => card_name,
+                        Abbreviated => abbreviated_card_name,
+                        canonical_on_collision = Full;
+                    }
+                }
+                construction first: Child {
+                    element FirstChild {}
+                    form first = "first";
+                }
+                construction second: Child {
+                    element SecondChild {}
+                    form second = "second";
+                }
+                construction recursive: Child {
+                    element RecursiveNode { child: Child, mode: lex Mode, }
+                    require any(
+                        all(child is First, mode is One),
+                        all(child is Second, mode is Two)
+                    );
+                    form recursive = child lex(mode);
+                }
+                construction category_guarded: Root {
+                    element CategoryGuarded { child: Child, }
+                    require child is First;
+                    form category_guarded = child;
+                }
+                construction vocab_guarded: Root {
+                    element VocabGuarded { mode: lex Mode, }
+                    checked {
+                        visibility mode = pub(crate);
+                        constructor = VocabGuarded::checked(mode);
+                    }
+                    require mode is One;
+                    form vocab_guarded = lex(mode);
+                }
+                construction dnf_guarded: Root {
+                    element DnfGuarded { mode: lex Mode, child: Child, }
+                    require any(
+                        all(mode is One, child is First),
+                        all(mode is Two, child is Second)
+                    );
+                    form dnf_guarded = lex(mode) child;
+                }
+                construction context_guarded: Root {
+                    element ContextGuarded {
+                        context: identity SelfReferenceSpelling,
+                    }
+                    form context_guarded = identity(context);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("invariant build fixture parses"),
+        )
+        .expect("invariant build fixture validates")
+        .into_semantic()
+    }
+
+    fn build_arm(item: &crate::GeneratedItem, rule: &str) -> syn::Arm {
+        let syn::Item::Fn(function) = syn::parse2(item.tokens.clone()).unwrap() else {
+            panic!("build is a function")
+        };
+        let syn::Stmt::Expr(syn::Expr::Match(dispatch), None) = &function.block.stmts[0] else {
+            panic!("flat match dispatch")
+        };
+        let mut arm = dispatch
+            .arms
+            .iter()
+            .find(|arm| {
+                arm.pat
+                    .to_token_stream()
+                    .to_string()
+                    .contains(&format!("RuleId :: {rule}"))
+            })
+            .unwrap_or_else(|| panic!("{rule} build arm exists"))
+            .clone();
+        arm.comma = None;
+        arm
     }
 
     #[test]
@@ -1614,10 +1950,9 @@ mod tests {
             "RuleId :: PredicateIdle",
             "RuleId :: TagSolo",
             "RuleId :: DocumentDocument",
-            "Expr :: Leaf",
+            "BuildValue :: Expr (subject",
             "RuntimePair :: new (left , Factory :: wrap (right))",
-            "DocumentNode :: checked",
-            "vec ! [RuntimePair :: new",
+            "DocumentNode :: new",
             r#"Leaf :: Literal ("!")"#,
             "Leaf :: EndOfInput",
         ] {
@@ -1626,5 +1961,7 @@ mod tests {
                 "build dispatch lacks `{fragment}`"
             );
         }
+        assert!(!joined.contains("DocumentNode :: checked"), "{joined}");
+        assert!(!joined.contains("vec !"), "{joined}");
     }
 }

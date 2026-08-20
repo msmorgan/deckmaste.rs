@@ -490,6 +490,29 @@ mod tests {
         .expect("mutation fixture validates")
         .into_semantic();
 
+        let emission = super::plan_emission(&semantic).expect("sealed invariant plan emits");
+        let build = emission
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "build"
+                )
+            })
+            .expect("emission plan contains build")
+            .tokens
+            .to_string();
+        assert!(build.contains("Leaf :: Mode (mode)"), "{build}");
+        assert!(!build.contains("Leaf :: Mode (Mode :: One)"), "{build}");
+        assert!(
+            build.contains("Only :: new (* mode , * spelling , context)"),
+            "{build}",
+        );
+
         assert_eq!(
             semantic.constructions()[0]
                 .legacy_refinement("mode")
