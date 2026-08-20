@@ -824,13 +824,7 @@ fn render_atoms(
                     terminal,
                     path: variant,
                     ..
-                } => {
-                    let agreement = verb_agreement(validated, construction, locals)?;
-                    let lexeme = find_lexeme(validated, terminal)
-                        .ok_or_else(|| internal("fixed verb terminal lacks its lexeme plan"))?;
-                    let surface = ident(&lexeme_surface_helper(lexeme.name()));
-                    Ok(quote! { #method_writer.word(#surface(#variant, #agreement)); })
-                }
+                } => render_fixed_verb_atom(validated, construction, locals, terminal, variant),
                 AtomPlan::OpenDeclaration(open) => {
                     render_open_declaration(validated, construction, open, locals, &method_writer)
                 }
@@ -858,6 +852,21 @@ fn render_atoms(
             })
         })
         .collect()
+}
+
+fn render_fixed_verb_atom(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    locals: &RenderLocals,
+    terminal: &str,
+    variant: &syn::Path,
+) -> syn::Result<TokenStream> {
+    let method_writer = quote! { writer };
+    let agreement = verb_agreement(validated, construction, locals)?;
+    let lexeme = find_lexeme(validated, terminal)
+        .ok_or_else(|| internal("fixed verb terminal lacks its lexeme plan"))?;
+    let surface = ident(&lexeme_surface_helper(lexeme.name()));
+    Ok(quote! { #method_writer.word(#surface(#variant, #agreement)); })
 }
 
 #[expect(
@@ -1092,7 +1101,7 @@ fn render_noun_atom(
     let lexeme = validated
         .runtime_noun_lexeme()
         .ok_or_else(|| internal("validated declaration noun lacks a closed lexeme plan"))?;
-    if lexeme.name() != closed.to_string() {
+    if closed != lexeme.name() {
         return Err(internal(
             "declaration noun closed lexeme plan is inconsistent",
         ));

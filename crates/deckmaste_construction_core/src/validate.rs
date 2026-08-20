@@ -377,47 +377,7 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
                 }
             }
             Declaration::Lexeme(lexeme) => {
-                let mut members = HashSet::new();
-                for member in &lexeme.members {
-                    let member_name = identifier_key(&member.name);
-                    if !members.insert(member_name.clone()) {
-                        combine(
-                            &mut independent_errors,
-                            syn::Error::new(
-                                member.name.span(),
-                                format!("duplicate lexeme member `{member_name}`"),
-                            ),
-                        );
-                    }
-                    if member.lemma.value().is_empty() {
-                        combine(
-                            &mut independent_errors,
-                            syn::Error::new(member.lemma.span(), "lexeme lemma must not be empty"),
-                        );
-                    }
-                    let mut overrides = HashSet::new();
-                    for row in &member.overrides {
-                        let feature = identifier_key(&row.feature);
-                        if !overrides.insert(feature.clone()) {
-                            combine(
-                                &mut independent_errors,
-                                syn::Error::new(
-                                    row.feature.span(),
-                                    format!("duplicate override `{feature}`"),
-                                ),
-                            );
-                        }
-                        if row.surface.value().is_empty() {
-                            combine(
-                                &mut independent_errors,
-                                syn::Error::new(
-                                    row.surface.span(),
-                                    "lexeme override surface must not be empty",
-                                ),
-                            );
-                        }
-                    }
-                }
+                validate_lexeme_declaration_shape(lexeme, &mut independent_errors);
             }
             Declaration::Construction(_)
             | Declaration::Vocab(_)
@@ -496,6 +456,53 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
         }
     }
     finish(errors)
+}
+
+fn validate_lexeme_declaration_shape(
+    lexeme: &crate::model::Lexeme,
+    errors: &mut Option<syn::Error>,
+) {
+    let mut members = HashSet::new();
+    for member in &lexeme.members {
+        let member_name = identifier_key(&member.name);
+        if !members.insert(member_name.clone()) {
+            combine(
+                errors,
+                syn::Error::new(
+                    member.name.span(),
+                    format!("duplicate lexeme member `{member_name}`"),
+                ),
+            );
+        }
+        if member.lemma.value().is_empty() {
+            combine(
+                errors,
+                syn::Error::new(member.lemma.span(), "lexeme lemma must not be empty"),
+            );
+        }
+        let mut overrides = HashSet::new();
+        for row in &member.overrides {
+            let feature = identifier_key(&row.feature);
+            if !overrides.insert(feature.clone()) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        row.feature.span(),
+                        format!("duplicate override `{feature}`"),
+                    ),
+                );
+            }
+            if row.surface.value().is_empty() {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        row.surface.span(),
+                        "lexeme override surface must not be empty",
+                    ),
+                );
+            }
+        }
+    }
 }
 
 fn validate_generated_identities(raw: &Declarations) -> syn::Result<()> {
@@ -1923,8 +1930,7 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                     );
                 }
             }
-            Declaration::Root(_) => {}
-            Declaration::Morphology(_) => {}
+            Declaration::Root(_) | Declaration::Morphology(_) => {}
         }
     }
 }
@@ -2968,8 +2974,7 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
                     );
                 }
             }
-            Declaration::Root(_) => {}
-            Declaration::Morphology(_) => {}
+            Declaration::Root(_) | Declaration::Morphology(_) => {}
         }
     }
     for declaration in &raw.declarations {
@@ -5170,7 +5175,7 @@ pub(crate) mod tests {
             lexeme
                 .surfaces()
                 .iter()
-                .map(|row| row.surface())
+                .map(crate::semantic::LexemeSurfacePlan::surface)
                 .collect::<Vec<_>>(),
             ["unrelated", "unrelateds"]
         );

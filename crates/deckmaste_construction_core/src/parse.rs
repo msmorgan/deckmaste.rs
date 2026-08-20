@@ -1551,12 +1551,12 @@ mod tests {
     #[test]
     fn generated_morphology_parses_rejects_recipe_paths() {
         let error = parse(
-            r#"
+            r"
                 morphology EnglishVerb {
                     feature = Agreement;
                     recipe = crate::english_verb;
                 }
-            "#,
+            ",
         )
         .expect_err("a morphology recipe must be one identifier")
         .to_string();
