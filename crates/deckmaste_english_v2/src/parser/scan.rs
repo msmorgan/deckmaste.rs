@@ -827,7 +827,7 @@ mod tests {
         ] {
             let matches = scan(
                 text,
-                Lexical::Verb(lexeme),
+                Lexical::Verb(lexeme, FeatureConstraint::Exact(agreement)),
                 LexicalOwnerTemplate::Lexeme {
                     declaration: "VerbLexeme",
                     member: match lexeme {
@@ -856,7 +856,7 @@ mod tests {
             assert!(
                 scan(
                     rejected,
-                    Lexical::Verb(lexeme),
+                    Lexical::Verb(lexeme, FeatureConstraint::Any),
                     LexicalOwnerTemplate::Lexeme {
                         declaration: "VerbLexeme",
                         member: if lexeme == VerbLexeme::Be { "Be" } else { "Deal" },
@@ -1877,7 +1877,7 @@ mod tests {
                 "Literal(\",\")",
                 "Literal(\"where\")",
                 "Variable",
-                "Verb(Be)",
+                "Verb(Be, Exact(ThirdPersonSingular))",
                 "Literal(\"the\")",
                 "Literal(\"number\")",
                 "Literal(\"of\")",
@@ -1889,7 +1889,7 @@ mod tests {
                 "Literal(\"target\")",
                 "SelfReference",
                 "Noun(Exact(Plural))",
-                "Verb(Control)",
+                "Verb(Control, Exact(Bare))",
                 "Literal(\"with\")",
                 "Literal(\"power\")",
                 "SignedNumber",
@@ -1897,10 +1897,10 @@ mod tests {
                 "Literal(\"less\")",
                 "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Destroy\", position: Verb, feature: Any })",
                 "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Connive\", position: Verb, feature: Any })",
-                "Verb(Deal)",
+                "Verb(Deal, Any)",
                 "Literal(\"damage\")",
                 "Literal(\"to\")",
-                "Verb(Gain)",
+                "Verb(Gain, Any)",
                 "Literal(\"life\")"
             ]
         );

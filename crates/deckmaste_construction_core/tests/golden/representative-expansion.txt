@@ -103,7 +103,7 @@ pub(crate) enum Lexical {
     EndOfInput,
     Words,
     Noun(FeatureConstraint<Number>),
-    Verb(Verbs),
+    Verb(Verbs, FeatureConstraint<Agreement>),
     SignedNumber,
     Declaration(DeclarationMatcher),
 }
@@ -171,7 +171,7 @@ impl Lexical {
             Lexical::EndOfInput => TerminalClass::EndOfInput,
             Lexical::Words => TerminalClass::Words,
             Lexical::Noun(_) => TerminalClass::Noun,
-            Lexical::Verb(_) => TerminalClass::VerbLexeme,
+            Lexical::Verb(_, _) => TerminalClass::VerbLexeme,
             Lexical::SignedNumber => TerminalClass::SignedNumber,
             Lexical::Declaration(matcher) => {
                 TerminalClass::Declaration(DeclarationClass {
@@ -536,13 +536,20 @@ pub(crate) fn scan_lexical(
                 .into_iter()
                 .collect()
         }
-        Lexical::Verb(wanted) => {
+        Lexical::Verb(wanted, constraint) => {
             [
                 (Verbs::Act, Agreement::Bare, "act"),
                 (Verbs::Act, Agreement::ThirdPersonSingular, "acts"),
             ]
                 .into_iter()
                 .filter(|(lexeme, _, _)| *lexeme == wanted)
+                .filter(|(_, agreement, _)| {
+                    matches!(constraint, FeatureConstraint::Any)
+                        || matches!(
+                            constraint, FeatureConstraint::Exact(expected) if expected ==
+                            * agreement
+                        )
+                })
                 .filter_map(|(lexeme, agreement, surface)| {
                     input
                         .word_end(surface)
@@ -846,7 +853,10 @@ pub(crate) const RULES: &[Rule<Category, LexicalTerminal, RuleId>] = &[
         lhs: Category::Action,
         rhs: &[
             L(LexicalTerminal {
-                matcher: Lexical::Verb(Verbs::Act),
+                matcher: Lexical::Verb(
+                    Verbs::Act,
+                    FeatureConstraint::Exact(Agreement::Bare),
+                ),
                 owner: LexicalOwnerTemplate::Lexeme {
                     declaration: "Verbs",
                     member: "Act",

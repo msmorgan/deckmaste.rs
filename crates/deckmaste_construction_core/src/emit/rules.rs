@@ -194,10 +194,11 @@ fn emit_position(
         } => {
             let terminal = ident(terminal);
             let variant = ident(variant);
+            let agreement = closed_verb_feature(plan, construction)?;
             let declaration = syn::LitStr::new(&terminal.to_string(), Span::call_site());
             let member = syn::LitStr::new(&variant.to_string(), Span::call_site());
             Ok(lexical_terminal(
-                &quote! { Lexical::Verb(#terminal::#variant) },
+                &quote! { Lexical::Verb(#terminal::#variant, #agreement) },
                 &quote! {
                     LexicalOwnerTemplate::Lexeme { declaration: #declaration, member: #member }
                 },
@@ -220,6 +221,34 @@ fn emit_position(
                 &quote! { LexicalOwnerTemplate::Declaration { kind: #kind, name: #name } },
             ))
         }
+    }
+}
+
+fn closed_verb_feature(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+) -> syn::Result<TokenStream> {
+    let target = FeaturePlace::Role {
+        field: syn::Ident::new("verb", construction.origin_span()),
+        feature: Feature::Agreement,
+    };
+    match plan.feature_resolution(construction.construction_id(), &target) {
+        Some(crate::feature::FeatureResolution::Known(value)) => match value {
+            FeatureValue::Bare => Ok(quote! {
+                FeatureConstraint::Exact(Agreement::Bare)
+            }),
+            FeatureValue::ThirdPersonSingular => Ok(quote! {
+                FeatureConstraint::Exact(Agreement::ThirdPersonSingular)
+            }),
+            FeatureValue::Singular | FeatureValue::Plural => {
+                Err(internal("closed verb agreement has a number value"))
+            }
+        },
+        Some(
+            crate::feature::FeatureResolution::External
+            | crate::feature::FeatureResolution::Runtime,
+        ) => Ok(quote! { FeatureConstraint::Any }),
+        None => Err(internal("closed verb has no sealed agreement resolution")),
     }
 }
 
@@ -400,6 +429,37 @@ mod tests {
     }
 
     #[test]
+    fn generated_morphology_rules_seal_exact_and_runtime_verb_constraints() {
+        let runtime = crate::test_support::generated_morphology_expansion()
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { name, .. } if name == "RULES"))
+            .expect("generated morphology rules")
+            .tokens
+            .to_string();
+        assert!(
+            runtime.contains(
+                "Lexical :: Verb (VerbLexeme :: InventedLemma , FeatureConstraint :: Any)"
+            ),
+            "runtime agreement did not lower to Any: {runtime}"
+        );
+
+        let exact = crate::test_support::representative_expansion()
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { name, .. } if name == "RULES"))
+            .expect("representative rules")
+            .tokens
+            .to_string();
+        assert!(
+            exact.contains(
+                "Lexical :: Verb (Verbs :: Act , FeatureConstraint :: Exact (Agreement :: Bare))"
+            ),
+            "known agreement did not lower to Exact: {exact}"
+        );
+    }
+
+    #[test]
     fn role_derived_noun_requests_either_number() {
         let validated = crate::validate_declarations(
             crate::parse_declarations(crate::test_support::role_derived_noun_tokens()).unwrap(),
@@ -479,7 +539,10 @@ mod tests {
                     id: RuleId::PredicateAction,
                     lhs: Category::Predicate,
                     rhs: &[L(LexicalTerminal {
-                        matcher: Lexical::Verb(ActionStem::Activate),
+                        matcher: Lexical::Verb(
+                            ActionStem::Activate,
+                            FeatureConstraint::Exact(Agreement::Bare),
+                        ),
                         owner: LexicalOwnerTemplate::Lexeme {
                             declaration: "ActionStem",
                             member: "Activate",

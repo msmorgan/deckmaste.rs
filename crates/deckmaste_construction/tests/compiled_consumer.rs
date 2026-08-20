@@ -730,6 +730,7 @@ mod fixture {
         Child(Child, Agreement),
         Parent(Parent, Agreement),
         Action(Action, Agreement),
+        BeSentence(BeSentence, Agreement),
         Predicate(Predicate, Agreement),
         Container(Container),
         CheckedContext(CheckedContext),
@@ -836,8 +837,9 @@ mod fixture {
         vocab r#Marker { One = "marker", }
         vocab WriterWord { One = "writer", }
         morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
-        lexeme Verbs using EnglishVerb {
+        lexeme VerbLexeme using EnglishVerb {
             Act = "act",
+            Be = "be" { Bare = "are", ThirdPersonSingular = "is", },
             Collide = "same" { ThirdPersonSingular = "same", },
             Other = "same",
         }
@@ -965,13 +967,20 @@ mod fixture {
             element ActionNode {}
             derive agreement = verb.agreement;
             derive verb.agreement = Values::Bare;
-            form action = verb(Verbs::Act);
+            form action = verb(VerbLexeme::Act);
+        }
+
+        construction bare_be: BeSentence {
+            element BareBe {}
+            derive agreement = verb.agreement;
+            derive verb.agreement = Values::Bare;
+            form bare_be = verb(VerbLexeme::Be);
         }
 
         construction contextual: Predicate {
             element ContextualPredicate {}
             derive agreement = verb.agreement;
-            form contextual = verb(Verbs::Act);
+            form contextual = verb(VerbLexeme::Act);
         }
         construction constant_container: Container {
             element ConstantContainer { predicate: Predicate, }
@@ -1006,7 +1015,7 @@ mod fixture {
                 constructor = AgreementNode::new(marker);
             }
             derive agreement = verb.agreement;
-            form agreement = lex(marker) verb(Verbs::Act);
+            form agreement = lex(marker) verb(VerbLexeme::Act);
         }
 
         construction collision: Collision {
@@ -1025,7 +1034,7 @@ mod fixture {
         construction contextual_named: Predicate {
             element ContextualNamed { agreement: lex Marker, }
             derive agreement = verb.agreement;
-            form contextual_named = lex(agreement) verb(Verbs::Act);
+            form contextual_named = lex(agreement) verb(VerbLexeme::Act);
         }
 
         construction wrapper: RenderChild {
@@ -1090,6 +1099,7 @@ mod fixture {
         }
 
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root BeSentence { punctuation = "."; eoi = true; standalone_render = true; }
         root RenderChild { punctuation = "."; eoi = false; standalone_render = true; }
         root HygieneRoot { punctuation = "!"; eoi = true; standalone_render = true; }
         root r#RawCategory { punctuation = "?"; eoi = true; standalone_render = true; }
@@ -1212,15 +1222,15 @@ mod fixture {
             ),
             (
                 LexicalOwnerTemplate::Lexeme {
-                    declaration: "Verbs",
+                    declaration: "VerbLexeme",
                     member: "Act",
                 },
                 Leaf::Verb {
-                    lexeme: Verbs::Act,
+                    lexeme: VerbLexeme::Act,
                     agreement: Agreement::Bare,
                 },
                 LexicalProvenanceKind::Lexeme,
-                "lexeme:Verbs/Act/bare",
+                "lexeme:VerbLexeme/Act/bare",
             ),
             (
                 LexicalOwnerTemplate::Static {
@@ -1333,7 +1343,10 @@ mod fixture {
 
     fn assert_generated_runtime_abi(context: &ParseContext<'_>) {
         assert_generated_lexical_owner_abi();
-        assert_eq!(surface_for_verbs(Verbs::Act, Agreement::Bare), "act");
+        assert_eq!(
+            surface_for_verb_lexeme(VerbLexeme::Act, Agreement::Bare),
+            "act"
+        );
         assert_eq!(
             agreement_for_mode(Mode::One),
             Agreement::ThirdPersonSingular
@@ -1386,7 +1399,7 @@ mod fixture {
             }]
         );
 
-        let scan_verb = |text, case| {
+        let scan_verb = |text, case, constraint| {
             scan_lexical(
                 &ScanInput {
                     text,
@@ -1397,9 +1410,9 @@ mod fixture {
                     context,
                 },
                 LexicalTerminal {
-                    matcher: Lexical::Verb(Verbs::Act),
+                    matcher: Lexical::Verb(VerbLexeme::Act, constraint),
                     owner: LexicalOwnerTemplate::Lexeme {
-                        declaration: "Verbs",
+                        declaration: "VerbLexeme",
                         member: "Act",
                     },
                 },
@@ -1410,33 +1423,33 @@ mod fixture {
                 "Act",
                 CasePosition::DocumentInitial,
                 Agreement::Bare,
-                "lexeme:Verbs/Act/bare",
+                "lexeme:VerbLexeme/Act/bare",
             ),
             (
                 "Acts",
                 CasePosition::DocumentInitial,
                 Agreement::ThirdPersonSingular,
-                "lexeme:Verbs/Act/third_person_singular",
+                "lexeme:VerbLexeme/Act/third_person_singular",
             ),
             (
                 " act",
                 CasePosition::Continuation,
                 Agreement::Bare,
-                "lexeme:Verbs/Act/bare",
+                "lexeme:VerbLexeme/Act/bare",
             ),
             (
                 " acts",
                 CasePosition::Continuation,
                 Agreement::ThirdPersonSingular,
-                "lexeme:Verbs/Act/third_person_singular",
+                "lexeme:VerbLexeme/Act/third_person_singular",
             ),
         ] {
-            let matches = scan_verb(text, case);
+            let matches = scan_verb(text, case, FeatureConstraint::Exact(agreement));
             assert!(matches!(
                 matches.as_slice(),
                 [LexicalMatch {
                     value: Leaf::Verb {
-                        lexeme: Verbs::Act,
+                        lexeme: VerbLexeme::Act,
                         agreement: actual,
                     },
                     owner: Some(_),
@@ -1445,12 +1458,19 @@ mod fixture {
             ));
             assert_eq!(matches[0].owner.as_ref().unwrap().stable_id(), owner);
         }
-        assert!(scan_verb("Actuator", CasePosition::DocumentInitial).is_empty());
+        assert!(
+            scan_verb(
+                "Actuator",
+                CasePosition::DocumentInitial,
+                FeatureConstraint::Any,
+            )
+            .is_empty()
+        );
 
-        let collision_terminal = |lexeme, member| LexicalTerminal {
-            matcher: Lexical::Verb(lexeme),
+        let collision_terminal = |lexeme, member, constraint| LexicalTerminal {
+            matcher: Lexical::Verb(lexeme, constraint),
             owner: LexicalOwnerTemplate::Lexeme {
-                declaration: "Verbs",
+                declaration: "VerbLexeme",
                 member,
             },
         };
@@ -1464,7 +1484,7 @@ mod fixture {
         };
         let same_feature_readings = scan_lexical(
             &collision_input,
-            collision_terminal(Verbs::Collide, "Collide"),
+            collision_terminal(VerbLexeme::Collide, "Collide", FeatureConstraint::Any),
         );
         assert_eq!(same_feature_readings.len(), 2);
         assert_eq!(
@@ -1473,17 +1493,36 @@ mod fixture {
                 .map(|matched| matched.owner.as_ref().unwrap().stable_id())
                 .collect::<Vec<_>>(),
             [
-                "lexeme:Verbs/Collide/bare",
-                "lexeme:Verbs/Collide/third_person_singular",
+                "lexeme:VerbLexeme/Collide/bare",
+                "lexeme:VerbLexeme/Collide/third_person_singular",
             ]
         );
-        let other_member_readings =
-            scan_lexical(&collision_input, collision_terminal(Verbs::Other, "Other"));
+        for (constraint, expected_owner) in [
+            (
+                FeatureConstraint::Exact(Agreement::Bare),
+                "lexeme:VerbLexeme/Collide/bare",
+            ),
+            (
+                FeatureConstraint::Exact(Agreement::ThirdPersonSingular),
+                "lexeme:VerbLexeme/Collide/third_person_singular",
+            ),
+        ] {
+            let exact = scan_lexical(
+                &collision_input,
+                collision_terminal(VerbLexeme::Collide, "Collide", constraint),
+            );
+            assert_eq!(exact.len(), 1, "Exact must retain one colliding feature");
+            assert_eq!(exact[0].owner.as_ref().unwrap().stable_id(), expected_owner);
+        }
+        let other_member_readings = scan_lexical(
+            &collision_input,
+            collision_terminal(VerbLexeme::Other, "Other", FeatureConstraint::Any),
+        );
         assert!(matches!(
             other_member_readings.as_slice(),
             [LexicalMatch {
                 value: Leaf::Verb {
-                    lexeme: Verbs::Other,
+                    lexeme: VerbLexeme::Other,
                     agreement: Agreement::Bare
                 },
                 owner: Some(_),
@@ -1492,8 +1531,50 @@ mod fixture {
         ));
         assert_eq!(
             other_member_readings[0].owner.as_ref().unwrap().stable_id(),
-            "lexeme:Verbs/Other/bare"
+            "lexeme:VerbLexeme/Other/bare"
         );
+
+        let bare_be = scan_lexical(
+            &ScanInput {
+                text: "Are.",
+                position: ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                },
+                context,
+            },
+            LexicalTerminal {
+                matcher: Lexical::Verb(VerbLexeme::Be, FeatureConstraint::Exact(Agreement::Bare)),
+                owner: LexicalOwnerTemplate::Lexeme {
+                    declaration: "VerbLexeme",
+                    member: "Be",
+                },
+            },
+        );
+        assert_eq!(bare_be.len(), 1);
+        assert_eq!(
+            bare_be[0].owner.as_ref().unwrap().stable_id(),
+            "lexeme:VerbLexeme/Be/bare"
+        );
+        let built = build(
+            RuleId::BeSentenceBareBe,
+            &[
+                BuildValue::Leaf(bare_be[0].value.clone()),
+                BuildValue::Leaf(Leaf::Literal(".")),
+                BuildValue::Leaf(Leaf::EndOfInput),
+            ],
+            context,
+        )
+        .expect("the exact Bare Be scanner reading builds its generated rule");
+        let BuildValue::BeSentence(be_sentence, Agreement::Bare) = built else {
+            panic!("Bare Be rule produced the wrong generated category value")
+        };
+        let (rendered, claims) = render_be_sentence_with_claims(&be_sentence, context);
+        assert_eq!(rendered, "are.");
+        assert!(claims.iter().any(|claim| {
+            claim.owner.stable_id() == "lexeme:VerbLexeme/Be/bare"
+                && &rendered[claim.start..claim.end] == "are"
+        }));
     }
 
     fn assert_generated_punctuation_scan(
@@ -1719,7 +1800,7 @@ mod fixture {
         let action = build(
             RuleId::ActionAction,
             &[BuildValue::Leaf(Leaf::Verb {
-                lexeme: Verbs::Act,
+                lexeme: VerbLexeme::Act,
                 agreement: Agreement::Bare,
             })],
             &context,
@@ -1730,7 +1811,7 @@ mod fixture {
             build(
                 RuleId::ActionAction,
                 &[BuildValue::Leaf(Leaf::Verb {
-                    lexeme: Verbs::Act,
+                    lexeme: VerbLexeme::Act,
                     agreement: Agreement::ThirdPersonSingular,
                 })],
                 &context,
@@ -1815,7 +1896,7 @@ mod fixture {
             &[
                 BuildValue::Leaf(Leaf::Marker(Marker::One)),
                 BuildValue::Leaf(Leaf::Verb {
-                    lexeme: Verbs::Act,
+                    lexeme: VerbLexeme::Act,
                     agreement: Agreement::ThirdPersonSingular,
                 }),
             ],

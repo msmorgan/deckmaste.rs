@@ -1804,9 +1804,16 @@ mod tests {
         let source = expansion
             .items()
             .iter()
-            .map(|item| item.tokens.to_string())
-            .collect::<Vec<_>>()
-            .join("\n");
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Impl { trait_name, self_ty }
+                        if trait_name.is_none() && self_ty == "Sentence"
+                )
+            })
+            .expect("generated morphology root write impl is render-owned")
+            .tokens
+            .to_string();
         for owner in [
             "lexeme:VerbLexeme/InventedLemma/bare",
             "lexeme:VerbLexeme/InventedLemma/third_person_singular",

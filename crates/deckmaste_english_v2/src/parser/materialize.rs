@@ -872,7 +872,10 @@ mod tests {
                 })),
                 RulePosition::Lexical(Lexical::Literal("where")),
                 RulePosition::Lexical(Lexical::Variable),
-                RulePosition::Lexical(Lexical::Verb(VerbLexeme::Be)),
+                RulePosition::Lexical(Lexical::Verb(
+                    VerbLexeme::Be,
+                    FeatureConstraint::Exact(Agreement::ThirdPersonSingular),
+                )),
                 RulePosition::Lexical(Lexical::Literal("the")),
                 RulePosition::Lexical(Lexical::Literal("number")),
                 RulePosition::Lexical(Lexical::Literal("of")),
@@ -880,7 +883,10 @@ mod tests {
                 RulePosition::Lexical(Lexical::Pronoun),
                 RulePosition::Lexical(Lexical::Literal("where")),
                 RulePosition::Lexical(Lexical::Variable),
-                RulePosition::Lexical(Lexical::Verb(VerbLexeme::Be)),
+                RulePosition::Lexical(Lexical::Verb(
+                    VerbLexeme::Be,
+                    FeatureConstraint::Exact(Agreement::ThirdPersonSingular),
+                )),
                 RulePosition::Lexical(Lexical::Literal("the")),
                 RulePosition::Lexical(Lexical::Literal("number")),
                 RulePosition::Lexical(Lexical::Literal("of")),

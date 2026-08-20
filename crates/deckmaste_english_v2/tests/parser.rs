@@ -705,8 +705,8 @@ fn count_controller_mismatch_reports_a_nonempty_chart_failure() {
     assert_eq!(
         parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {
-            span: TextSpan { start: 80, end: 84 },
-            expectations: BTreeSet::from([Expectation::Literal("less")]),
+            span: TextSpan { start: 55, end: 63 },
+            expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::VerbLexeme)]),
         })
     );
 }

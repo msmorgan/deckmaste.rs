@@ -208,9 +208,13 @@ fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
             quote! { (#ty::#member, #agreement, #surface) }
         });
         quote! {
-            Lexical::Verb(wanted) => [#(#candidates),*]
+            Lexical::Verb(wanted, constraint) => [#(#candidates),*]
                 .into_iter()
                 .filter(|(lexeme, _, _)| *lexeme == wanted)
+                .filter(|(_, agreement, _)| {
+                    matches!(constraint, FeatureConstraint::Any)
+                        || matches!(constraint, FeatureConstraint::Exact(expected) if expected == *agreement)
+                })
                 .filter_map(|(lexeme, agreement, surface)| {
                     input.word_end(surface).map(|end| LexicalMatch {
                         end,
@@ -400,6 +404,17 @@ mod tests {
         assert!(
             !source.contains("\"bes\""),
             "an overridden derived alias leaked: {source}"
+        );
+        assert!(
+            source.contains("Lexical :: Verb (wanted , constraint)"),
+            "closed verb matcher does not carry its sealed feature constraint: {source}"
+        );
+        assert!(
+            source.contains("matches ! (constraint , FeatureConstraint :: Any)")
+                && source.contains(
+                    "matches ! (constraint , FeatureConstraint :: Exact (expected) if expected == * agreement)"
+                ),
+            "closed verb candidates are not filtered by requested agreement: {source}"
         );
     }
 

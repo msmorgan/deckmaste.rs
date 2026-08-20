@@ -207,7 +207,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
 
     let verb_lexical = inventory.verb_lexeme.map(|lexeme| {
         let ident = lexeme.name_ident();
-        quote! { Verb(#ident), }
+        quote! { Verb(#ident, FeatureConstraint<Agreement>), }
     });
     let verb_leaf = inventory.verb_lexeme.map(|lexeme| {
         let ident = lexeme.name_ident();
@@ -428,7 +428,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .map(|_| quote! { Lexical::Noun(_) => TerminalClass::Noun, });
     let verb_class_arm = inventory
         .verb_lexeme
-        .map(|_| quote! { Lexical::Verb(_) => TerminalClass::VerbLexeme, });
+        .map(|_| quote! { Lexical::Verb(_, _) => TerminalClass::VerbLexeme, });
     let direct_class_arms = inventory.direct_bindings.iter().map(|binding| {
         let variant = binding_variant(binding);
         quote! { Lexical::#variant => TerminalClass::#variant, }
