@@ -1861,6 +1861,104 @@ mod tests {
     }
 
     #[test]
+    fn claim_totals_overflow_only_on_the_second_summary_accumulation() {
+        let summary = FixtureSummary {
+            covered: true,
+            values: [
+                usize::MAX,
+                1,
+                usize::MAX,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ],
+        };
+        let first = CoverageRow::selected_for_test(
+            id('6'),
+            CoverageStatus::SelectedCovered,
+            &summary,
+            false,
+            false,
+        );
+        let second = CoverageRow::selected_for_test(
+            id('7'),
+            CoverageStatus::SelectedCovered,
+            &summary,
+            false,
+            false,
+        );
+
+        assert!(CoverageReport::try_new(id('a'), vec![first.clone()]).is_ok());
+        assert!(CoverageReport::try_new(id('a'), vec![second.clone()]).is_ok());
+        assert_eq!(
+            CoverageReport::try_new(id('a'), vec![first, second]),
+            Err(CoverageValidationError::ArithmeticOverflow { field: "claims" })
+        );
+    }
+
+    #[test]
+    fn byte_totals_overflow_only_on_the_second_summary_accumulation() {
+        let summary = FixtureSummary {
+            covered: true,
+            values: [
+                1,
+                usize::MAX,
+                1,
+                usize::MAX,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ],
+        };
+        let first = CoverageRow::selected_for_test(
+            id('8'),
+            CoverageStatus::SelectedCovered,
+            &summary,
+            false,
+            false,
+        );
+        let second = CoverageRow::selected_for_test(
+            id('9'),
+            CoverageStatus::SelectedCovered,
+            &summary,
+            false,
+            false,
+        );
+
+        assert!(CoverageReport::try_new(id('a'), vec![first.clone()]).is_ok());
+        assert!(CoverageReport::try_new(id('a'), vec![second.clone()]).is_ok());
+        assert_eq!(
+            CoverageReport::try_new(id('a'), vec![first, second]),
+            Err(CoverageValidationError::ArithmeticOverflow {
+                field: "claimed_bytes"
+            })
+        );
+    }
+
+    #[test]
     fn row_and_summary_equation_corruptions_return_typed_errors() {
         let report = independently_derived_report();
         let mut bad_row = CoverageRow::selected_for_test(
