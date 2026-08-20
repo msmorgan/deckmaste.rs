@@ -25,7 +25,6 @@ use crate::semantic::AtomPlan;
 use crate::semantic::AtomTerminal;
 use crate::semantic::BindingBuildExprPlan;
 use crate::semantic::ConstructionPlan;
-use crate::semantic::ConstructorArgumentPlan;
 use crate::semantic::SemanticPlan;
 
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
@@ -664,32 +663,7 @@ fn emit_success(
             number_override,
         );
     }
-    let element_value = if let Some(checked) = row.constructor() {
-        let path = checked.path();
-        let arguments = checked
-            .arguments()
-            .iter()
-            .map(|argument| match argument {
-                ConstructorArgumentPlan::Role(role) => {
-                    stored_value(validated, row, lowering, role, overrides)
-                }
-                ConstructorArgumentPlan::VecRole(role) => {
-                    stored_value(validated, row, lowering, role, overrides)
-                        .map(|value| quote! { vec![#value] })
-                }
-                ConstructorArgumentPlan::Context => Ok(quote! { context }),
-            })
-            .collect::<syn::Result<Vec<_>>>()?;
-        let result = quote! { #path(#(#arguments),*) };
-        return emit_fallible_element_success(
-            validated,
-            row,
-            lowering,
-            &result,
-            agreement_override,
-            number_override,
-        );
-    } else if row.fields().is_empty() {
+    let element_value = if row.fields().is_empty() {
         quote! { #element }
     } else {
         let fields = row
@@ -1403,10 +1377,6 @@ mod tests {
                 }
                 construction vocab_guarded: Root {
                     element VocabGuarded { mode: lex Mode, }
-                    checked {
-                        visibility mode = pub(crate);
-                        constructor = VocabGuarded::checked(mode);
-                    }
                     require mode is One;
                     form vocab_guarded = lex(mode);
                 }
@@ -1784,7 +1754,7 @@ mod tests {
     }
 
     #[test]
-    fn task_11_allocator_reserves_abi_and_checked_feature_locals() {
+    fn allocator_reserves_abi_and_feature_locals() {
         let validated = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
                 vocab Marker { One = "one", }
@@ -1805,20 +1775,12 @@ mod tests {
                         call visitor::visit_pair(borrowed(pair));
                     }
                 }
-                construction checked_context: CheckedContext {
-                    element CheckedContextNode { pair: lex Pair, }
-                    checked {
-                        visibility pair = pub(crate);
-                        constructor = CheckedContextNode::new(pair, context);
-                    }
-                    form checked_context = lex(pair);
+                construction context_container: ContextContainer {
+                    element ContextContainerNode { pair: lex Pair, }
+                    form context_container = lex(pair);
                 }
-                construction agreement: FeatureChecked {
+                construction agreement: FeatureContainer {
                     element AgreementNode { marker: lex Marker, }
-                    checked {
-                        visibility marker = pub(crate);
-                        constructor = AgreementNode::new(marker);
-                    }
                     derive agreement = verb.agreement;
                     form agreement = lex(marker) verb(Verbs::Act);
                 }
@@ -1837,9 +1799,8 @@ mod tests {
         for fragment in [
             "Leaf :: Pair (context_2 , children_2 , rule_2)",
             "Pair :: new (context_2 , children_2 , rule_2)",
-            "CheckedContextNode :: new (Pair :: new (context_2 , children_2 , rule_2) , context)",
-            "map (| agreement_2 |",
-            "FeatureChecked :: Agreement (agreement_2) , * agreement",
+            "ContextContainer :: ContextContainer (ContextContainerNode { pair : Pair :: new (context_2 , children_2 , rule_2) })",
+            "FeatureContainer :: Agreement (AgreementNode { marker : * marker }) , * agreement",
         ] {
             assert!(source.contains(fragment), "missing `{fragment}`: {source}");
         }
@@ -1863,13 +1824,9 @@ mod tests {
                     call visitor::visit_pair(borrowed(pair));
                 }
             }
-            construction checked: Root {
+            construction container: Root {
                 element RootNode { pair: lex Pair, }
-                checked {
-                    visibility pair = pub(crate);
-                    constructor = RootNode::new(pair, context);
-                }
-                form checked = lex(pair);
+                form container = lex(pair);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
@@ -1883,7 +1840,7 @@ mod tests {
         for fragment in [
             "Leaf :: Pair (context_2 , children_2 , rule_2)",
             "Pair :: new (context_2 , children_2 , rule_2)",
-            "RootNode :: new (Pair :: new (context_2 , children_2 , rule_2) , context)",
+            "RootNode { pair : Pair :: new (context_2 , children_2 , rule_2) }",
         ] {
             assert!(source.contains(fragment), "missing `{fragment}`: {source}");
         }
@@ -1943,7 +1900,7 @@ mod tests {
             "Agreement :: Bare",
             "Number :: Plural",
             "RuleId :: ExprNested",
-            "NestedNode :: checked",
+            "NestedNode {",
             "Box :: new (next . clone ())",
             "RuleId :: PredicateAction",
             "ActionStem :: Activate",
@@ -1961,7 +1918,6 @@ mod tests {
                 "build dispatch lacks `{fragment}`"
             );
         }
-        assert!(!joined.contains("DocumentNode :: checked"), "{joined}");
         assert!(!joined.contains("vec !"), "{joined}");
     }
 }

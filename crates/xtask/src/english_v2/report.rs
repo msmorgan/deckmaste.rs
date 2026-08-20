@@ -137,11 +137,7 @@ fn build_report(
                 removal_target: Some("generated_terminal_tiers".to_owned()),
             })
             .collect(),
-        checked_constructor_bindings: plain_entries(
-            escape_hatches.checked_constructor_bindings(),
-            Some("stage 4 checked constructor binding"),
-            Some("generated_invariants"),
-        ),
+        checked_constructor_bindings: vec![],
         roots: plain_entries(
             escape_hatches.roots(),
             Some("declared parser entry point"),
@@ -549,7 +545,7 @@ mod tests {
                 report.checked_constructor_bindings.len(),
                 report.roots.len(),
             ],
-            [0, 0, 0, 1, 27, 0, 0, 2, 2],
+            [0, 0, 0, 1, 27, 0, 0, 0, 2],
             "categories intentionally overlap and have no unique total"
         );
         assert!(report.handwritten_codecs.is_empty());
@@ -558,10 +554,7 @@ mod tests {
             ["SelfReferenceSpelling"]
         );
         assert!(report.terminal_bindings.is_empty());
-        assert_eq!(
-            identities(&report.checked_constructor_bindings),
-            ["SelfReferenceNp", "Triggered"]
-        );
+        assert!(report.checked_constructor_bindings.is_empty());
         assert_eq!(identities(&report.roots), ["Ability", "Sentence"]);
         assert_eq!(
             morphology_rows(&report.morphology_irregulars),
@@ -685,18 +678,7 @@ mod tests {
             ],
             "selection_exceptions": [],
             "terminal_bindings": [],
-            "checked_constructor_bindings": [
-                {
-                    "identity": "SelfReferenceNp",
-                    "rationale": "stage 4 checked constructor binding",
-                    "removal_target": "generated_invariants"
-                },
-                {
-                    "identity": "Triggered",
-                    "rationale": "stage 4 checked constructor binding",
-                    "removal_target": "generated_invariants"
-                }
-            ],
+            "checked_constructor_bindings": [],
             "roots": [
                 {
                     "identity": "Ability",

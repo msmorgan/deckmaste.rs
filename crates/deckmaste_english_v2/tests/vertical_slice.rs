@@ -152,7 +152,7 @@ fn triggered_damage() -> Ability {
             variable: Variable::X,
         })),
     });
-    Ability::Triggered(Triggered::new(TriggerWord::Whenever, event, vec![effect]).unwrap())
+    Ability::Triggered(Triggered::new(TriggerWord::Whenever, event, effect).unwrap())
 }
 
 #[test]
@@ -239,27 +239,33 @@ fn signed_decimal_zero_signs_construct_render_scan_and_visit_distinctly() {
 }
 
 fn gain_life_with_where() -> Sentence {
-    Sentence::WithWhere(WithWhere {
-        body: Box::new(Sentence::Declarative(Declarative {
-            subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
-            predicate: VerbPhrase::GainLife(GainLife {
-                amount: Amount::Variable(VariableAmount {
-                    variable: Variable::X,
+    Sentence::WithWhere(
+        WithWhere::new(
+            Box::new(Sentence::Declarative(Declarative {
+                subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+                predicate: VerbPhrase::GainLife(GainLife {
+                    amount: Amount::Variable(VariableAmount {
+                        variable: Variable::X,
+                    }),
                 }),
+            })),
+            Clause::Where(WhereClause {
+                variable: Variable::X,
+                value: NounPhrase::Count(
+                    CountNp::new(
+                        creatures(),
+                        Pronoun::You,
+                        SignedNumber {
+                            sign: Sign::Positive,
+                            magnitude: 2,
+                        },
+                    )
+                    .expect("You is a valid count controller"),
+                ),
             }),
-        })),
-        clause: Clause::Where(WhereClause {
-            variable: Variable::X,
-            value: NounPhrase::Count(CountNp {
-                head: creatures(),
-                controller: Pronoun::You,
-                threshold: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 2,
-                },
-            }),
-        }),
-    })
+        )
+        .expect("Where is a valid trailing clause"),
+    )
 }
 
 #[test]
@@ -293,16 +299,19 @@ fn declaration_noun_construction_requires_allowed_environment_membership() {
 }
 
 #[test]
-fn triggered_ability_rejects_any_effect_count_other_than_one() {
+fn generated_invariant_triggered_compile_surface_stores_and_accepts_one_sentence() {
+    let constructor: fn(TriggerWord, Clause, Sentence) -> Option<Triggered> = Triggered::new;
     let event = Clause::Event(EventClause {
         subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
         predicate: VerbPhrase::Connive(Connive),
     });
-    assert!(Triggered::new(TriggerWord::Whenever, event.clone(), Vec::new()).is_none());
     let effect = Sentence::Imperative(Imperative {
         predicate: VerbPhrase::Connive(Connive),
     });
-    assert!(Triggered::new(TriggerWord::Whenever, event, vec![effect.clone(), effect],).is_none());
+    let value = constructor(TriggerWord::Whenever, event, effect.clone())
+        .expect("an Event clause and one Sentence construct Triggered");
+    let _: &Sentence = &value.effect;
+    assert_eq!(value.effect, effect);
 }
 
 #[test]
@@ -341,14 +350,17 @@ fn renders_gain_life_with_a_where_binder_exactly() {
 #[test]
 fn renders_a_plural_count_subject_with_a_bare_verb() {
     let value = Sentence::Declarative(Declarative {
-        subject: NounPhrase::Count(CountNp {
-            head: creatures(),
-            controller: Pronoun::You,
-            threshold: SignedNumber {
-                sign: Sign::Positive,
-                magnitude: 2,
-            },
-        }),
+        subject: NounPhrase::Count(
+            CountNp::new(
+                creatures(),
+                Pronoun::You,
+                SignedNumber {
+                    sign: Sign::Positive,
+                    magnitude: 2,
+                },
+            )
+            .expect("You is a valid count controller"),
+        ),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: Amount::Variable(VariableAmount {
                 variable: Variable::X,

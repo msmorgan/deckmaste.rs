@@ -74,12 +74,6 @@ constructions! {
             event: Clause,
             effect: Sentence,
         }
-        checked {
-            visibility trigger = pub(crate);
-            visibility event = pub(crate);
-            visibility effect = pub(crate);
-            constructor = Triggered::new(trigger, event, vec![effect]);
-        }
         require event is Event;
         form triggered = lex(trigger) event "," effect;
     }
@@ -145,11 +139,6 @@ constructions! {
     }
     construction self_reference: NounPhrase {
         element SelfReferenceNp { spelling: identity SelfReferenceSpelling, }
-        checked {
-            visibility spelling = private;
-            access spelling = spelling;
-            constructor = SelfReferenceNp::new(spelling, context);
-        }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         form self_reference = identity(spelling);
@@ -202,45 +191,4 @@ constructions! {
 
     root Ability { punctuation = "."; eoi = true; standalone_render = true; }
     root Sentence { punctuation = "."; eoi = false; standalone_render = true; }
-}
-
-impl SelfReferenceNp {
-    #[must_use]
-    pub fn new(spelling: SelfReferenceSpelling, context: &ParseContext<'_>) -> Option<Self> {
-        spelling.valid_in(context).then_some(Self { spelling })
-    }
-
-    #[must_use]
-    pub const fn spelling(&self) -> SelfReferenceSpelling {
-        let Self { spelling } = self;
-        *spelling
-    }
-}
-
-impl Triggered {
-    #[must_use]
-    pub fn new(trigger: TriggerWord, event: Clause, effects: Vec<Sentence>) -> Option<Self> {
-        // Multiple effects await grammar buildout.
-        let [effect] = effects.try_into().ok()?;
-        Some(Self {
-            trigger,
-            event,
-            effect,
-        })
-    }
-
-    #[must_use]
-    pub const fn trigger(&self) -> TriggerWord {
-        self.trigger
-    }
-
-    #[must_use]
-    pub const fn event(&self) -> &Clause {
-        &self.event
-    }
-
-    #[must_use]
-    pub const fn effect(&self) -> &Sentence {
-        &self.effect
-    }
 }

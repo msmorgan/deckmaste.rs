@@ -959,11 +959,6 @@ mod tests {
             }
             construction self_reference: NounPhrase {
                 element SelfReferenceNp { spelling: identity SelfReferenceSpelling, }
-                checked {
-                    visibility spelling = private;
-                    access spelling = spelling;
-                    constructor = SelfReferenceNp::new(spelling, context);
-                }
                 form self_reference = identity(spelling);
             }
             root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }

@@ -826,10 +826,9 @@ mod tests {
         let base = Sentence::Imperative(Imperative {
             predicate: VerbPhrase::Connive(Connive),
         });
-        let once = Sentence::WithWhere(WithWhere {
-            body: Box::new(base),
-            clause: clause.clone(),
-        });
+        let once = Sentence::WithWhere(
+            WithWhere::new(Box::new(base), clause.clone()).expect("Where clause is valid"),
+        );
 
         let first = materialize_node(&forest, NodeId(0), &context, &mut state);
         assert_eq!(first.values.len(), 1);
@@ -839,10 +838,9 @@ mod tests {
         assert_eq!(later.values.len(), 1);
         assert_eq!(
             later.values[0].value,
-            BuildValue::Sentence(Sentence::WithWhere(WithWhere {
-                body: Box::new(once),
-                clause,
-            }))
+            BuildValue::Sentence(Sentence::WithWhere(
+                WithWhere::new(Box::new(once), clause).expect("Where clause is valid"),
+            ))
         );
         assert_eq!(
             later.values[0].constructions,

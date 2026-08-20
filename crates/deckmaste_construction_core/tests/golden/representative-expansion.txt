@@ -13,8 +13,8 @@ pub struct WordLeaf {
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Chain {
-    next: Box<Node>,
-    pub(crate) word: Words,
+    pub next: Box<Node>,
+    pub word: Words,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActionElement {
@@ -899,9 +899,14 @@ pub(super) fn build(
         RuleId::NodeChain => {
             match children {
                 [BuildValue::Node(next), BuildValue::Leaf(Leaf::Words(words))] => {
-                    Chain::new(Box::new(next.clone()), *words)
-                        .map(Node::Chain)
-                        .map(BuildValue::Node)
+                    Some(
+                        BuildValue::Node(
+                            Node::Chain(Chain {
+                                next: Box::new(next.clone()),
+                                word: *words,
+                            }),
+                        ),
+                    )
                 }
                 _ => None,
             }

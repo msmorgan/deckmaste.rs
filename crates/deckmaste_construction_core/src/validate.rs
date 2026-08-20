@@ -28,7 +28,6 @@ use crate::identifier::same as same_identifier;
 use crate::identifier::snake_case;
 use crate::identifier::spelling_key;
 use crate::model::CodecAtomClass;
-use crate::model::ConstructorArgument;
 use crate::model::Declaration;
 use crate::model::Declarations;
 use crate::model::Feature as ParsedFeature;
@@ -317,7 +316,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     validate_generated_owned_paths(&raw)?;
     let resolved = validate_resolution(&raw, &symbols)?;
     validate_stored_fields(&raw)?;
-    validate_bindings_and_checked_metadata(&raw)?;
+    validate_bindings(&raw)?;
     let invariants = validate_invariants(&raw, &symbols)?;
     let (feature_equations, dynamic_numbers) = validate_features(&raw, &symbols)?;
     let feature_resolutions = seal_feature_resolutions(&raw, &feature_equations, &invariants);
@@ -1059,13 +1058,6 @@ fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
                         validate_generated_owned_path(path, &mut errors);
                     }
                 }
-                if let Some(checked) = &construction.checked {
-                    validate_checked_generated_owner(
-                        &checked.constructor.path,
-                        &construction.element.name,
-                        &mut errors,
-                    );
-                }
             }
             Declaration::Root(root) => {
                 validate_generated_owned_path(&root.category, &mut errors);
@@ -1099,30 +1091,6 @@ fn validate_generated_owned_path(path: &syn::Path, errors: &mut Option<syn::Erro
                 "compiler-generated identity requires a qself-free, non-generic identifier path",
             ),
         );
-    }
-}
-
-fn validate_checked_generated_owner(
-    constructor: &syn::Path,
-    element: &syn::Ident,
-    errors: &mut Option<syn::Error>,
-) {
-    for segment in constructor
-        .segments
-        .iter()
-        .take(constructor.segments.len().saturating_sub(1))
-    {
-        if same_identifier(&segment.ident, element)
-            && !matches!(segment.arguments, syn::PathArguments::None)
-        {
-            combine(
-                errors,
-                syn::Error::new_spanned(
-                    segment,
-                    "compiler-generated identity requires a qself-free, non-generic identifier path",
-                ),
-            );
-        }
     }
 }
 
@@ -2721,150 +2689,23 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
     finish(errors)
 }
 
-fn validate_bindings_and_checked_metadata(raw: &Declarations) -> syn::Result<()> {
+fn validate_bindings(raw: &Declarations) -> syn::Result<()> {
     let mut errors = None;
     let callbacks = traversal_callbacks(raw, &mut errors);
     for declaration in &raw.declarations {
         match declaration {
-            Declaration::Construction(construction) => {
-                let Some(checked) = &construction.checked else { continue };
-                let fields: HashSet<_> = construction
-                    .element
-                    .fields
-                    .iter()
-                    .map(|field| identifier_key(&field.name))
-                    .collect();
-                let mut visible = HashSet::new();
-                for visibility in &checked.visibilities {
-                    let name = identifier_key(&visibility.role);
-                    if !fields.contains(&name) {
-                        combine(
-                            &mut errors,
-                            syn::Error::new(
-                                visibility.role.span(),
-                                format!("unknown checked visibility field `{name}`"),
-                            ),
-                        );
-                    } else if !visible.insert(name.clone()) {
-                        combine(
-                            &mut errors,
-                            syn::Error::new(
-                                visibility.role.span(),
-                                format!("duplicate checked visibility for `{name}`"),
-                            ),
-                        );
-                    }
-                }
-                for field in &construction.element.fields {
-                    if !visible.contains(&identifier_key(&field.name)) {
-                        combine(
-                            &mut errors,
-                            syn::Error::new(
-                                field.name.span(),
-                                format!(
-                                    "checked construction requires explicit visibility for field `{}`",
-                                    field.name
-                                ),
-                            ),
-                        );
-                    }
-                }
-                let mut accessor_roles = HashSet::new();
-                for accessor in &checked.accessors {
-                    let name = identifier_key(&accessor.role);
-                    if !fields.contains(&name) {
-                        combine(
-                            &mut errors,
-                            syn::Error::new(
-                                accessor.role.span(),
-                                format!("unknown checked accessor field `{name}`"),
-                            ),
-                        );
-                    } else if !accessor_roles.insert(name.clone()) {
-                        combine(
-                            &mut errors,
-                            syn::Error::new(
-                                accessor.role.span(),
-                                format!("duplicate checked accessor for `{name}`"),
-                            ),
-                        );
-                    }
-                }
-                for visibility in &checked.visibilities {
-                    let name = identifier_key(&visibility.role);
-                    let is_private = matches!(
-                        visibility.visibility,
-                        crate::NonPublicVisibility::Private(_)
-                    );
-                    if is_private && !accessor_roles.contains(&name) {
-                        combine(
-                            &mut errors,
-                            syn::Error::new(
-                                visibility.role.span(),
-                                format!("private checked field `{name}` requires an accessor"),
-                            ),
-                        );
-                    } else if !is_private && accessor_roles.contains(&name) {
-                        combine(
-                            &mut errors,
-                            syn::Error::new(
-                                visibility.role.span(),
-                                format!(
-                                    "non-private checked field `{name}` cannot declare an accessor"
-                                ),
-                            ),
-                        );
-                    }
-                }
-                let mut arguments = HashSet::new();
-                for argument in &checked.constructor.arguments {
-                    let role = match argument {
-                        ConstructorArgument::Role(role)
-                        | ConstructorArgument::VecRole { role, .. } => Some(role),
-                        ConstructorArgument::Context(_) => None,
-                    };
-                    if let Some(role) = role {
-                        let name = identifier_key(role);
-                        if !fields.contains(&name) {
-                            combine(
-                                &mut errors,
-                                syn::Error::new(
-                                    role.span(),
-                                    format!("unknown constructor argument field `{name}`"),
-                                ),
-                            );
-                        } else if !arguments.insert(name.clone()) {
-                            combine(
-                                &mut errors,
-                                syn::Error::new(
-                                    role.span(),
-                                    format!("constructor argument `{name}` is repeated"),
-                                ),
-                            );
-                        }
-                    }
-                }
-                for field in &construction.element.fields {
-                    if !arguments.contains(&identifier_key(&field.name)) {
-                        combine(
-                            &mut errors,
-                            syn::Error::new(
-                                field.name.span(),
-                                format!(
-                                    "checked constructor does not receive field `{}`",
-                                    field.name
-                                ),
-                            ),
-                        );
-                    }
-                }
-            }
             Declaration::Codec(binding) | Declaration::Identity(binding)
                 if binding.generated.is_none() && binding.generated_identity.is_none() =>
             {
                 validate_binding(binding, &callbacks, &mut errors);
             }
-            _ => {}
+            Declaration::Construction(_)
+            | Declaration::Vocab(_)
+            | Declaration::Morphology(_)
+            | Declaration::Lexeme(_)
+            | Declaration::Codec(_)
+            | Declaration::Identity(_)
+            | Declaration::Root(_) => {}
         }
     }
     finish(errors)
@@ -6739,7 +6580,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn require_rejects_generated_new_and_accessor_name_collisions() {
+    fn require_rejects_generated_new_name_collisions() {
         let transitive_new_collision = error(quote! {
             vocab Mode { One = "one", Two = "two", }
             construction only: Root {
@@ -6772,119 +6613,10 @@ pub(crate) mod tests {
             "{new_collision}"
         );
 
-        let checked_new_collision = error(quote! {
-            vocab Mode { One = "one", Two = "two", }
-            construction only: Root {
-                element Only { mode: lex Mode, other: lex Mode, }
-                checked {
-                    visibility mode = private;
-                    access mode = mode_value;
-                    visibility other = private;
-                    access other = new;
-                    constructor = Only::checked(mode, other);
-                }
-                require mode is One;
-                form only = lex(mode) lex(other);
-            }
-            root Root { punctuation = "."; eoi = true; standalone_render = true; }
-        });
-        assert!(
-            checked_new_collision.contains(
-                "declared checked accessor `new` collides with generated invariant constructor"
-            ),
-            "{checked_new_collision}"
-        );
-
-        let accessor_collision = error(quote! {
-            vocab Mode { One = "one", Two = "two", }
-            identity Handle {
-                value_type = Handle;
-                lexical = Lexical::Handle;
-                render = render_handle;
-                build { pattern = BuildValue::Handle(value); construct = value; }
-                traversal { callback = borrowed; argument = value; call visitor::visit_handle(borrowed(value)); }
-            }
-            construction only: Root {
-                element Only { mode: lex Mode, handle: identity Handle, }
-                checked {
-                    visibility mode = private;
-                    access mode = mode_value;
-                    visibility handle = private;
-                    access handle = mode;
-                    constructor = Only::checked(mode, handle);
-                }
-                require mode is One;
-                form only = lex(mode) identity(handle);
-            }
-            root Root { punctuation = "."; eoi = true; standalone_render = true; }
-        });
-        assert!(
-            accessor_collision.contains("generated invariant accessor `mode` collides"),
-            "{accessor_collision}"
-        );
-
-        let aggregated_collisions = error(quote! {
-            vocab Mode { One = "one", Two = "two", }
-            identity Handle {
-                value_type = Handle;
-                lexical = Lexical::Handle;
-                render = render_handle;
-                build { pattern = BuildValue::Handle(value); construct = value; }
-                traversal { callback = borrowed; argument = value; call visitor::visit_handle(borrowed(value)); }
-            }
-            construction first: Root {
-                element First { r#new: lex Mode, }
-                require r#new is One;
-                form first = lex(r#new);
-            }
-            construction second: Root {
-                element Second { mode: lex Mode, handle: identity Handle, }
-                checked {
-                    visibility mode = private;
-                    access mode = mode_value;
-                    visibility handle = private;
-                    access handle = mode;
-                    constructor = Second::checked(mode, handle);
-                }
-                require mode is One;
-                form second = lex(mode) identity(handle);
-            }
-            root Root { punctuation = "."; eoi = true; standalone_render = true; }
-        });
-        assert!(
-            aggregated_collisions.contains("generated invariant associated item `new` collides"),
-            "{aggregated_collisions}"
-        );
-        assert!(
-            aggregated_collisions.contains("generated invariant accessor `mode` collides"),
-            "{aggregated_collisions}"
-        );
-
-        validate(quote! {
-            vocab Mode { One = "one", Two = "two", }
-            construction only: Root {
-                element Only { mode: lex Mode, }
-                checked {
-                    visibility mode = private;
-                    access mode = mode;
-                    constructor = Only::checked(mode);
-                }
-                require mode is One;
-                form only = lex(mode);
-            }
-            root Root { punctuation = "."; eoi = true; standalone_render = true; }
-        })
-        .expect("an authored accessor and generated accessor with one owner are the same item");
-
         let same_item_collision = error(quote! {
             vocab Mode { One = "one", Two = "two", }
             construction only: Root {
                 element Only { r#new: lex Mode, }
-                checked {
-                    visibility r#new = private;
-                    access r#new = r#new;
-                    constructor = Only::checked(r#new);
-                }
                 require r#new is One;
                 form only = lex(r#new);
             }
@@ -7071,28 +6803,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn rejects_incomplete_or_open_escape_hatch_metadata() {
-        let checked = error(quote! {
-            vocab Word { One = "one", }
-            construction only: Cat {
-                element Only { word: lex Word, }
-                checked {
-                    visibility missing = private;
-                    constructor = Only::new(word, word);
-                }
-                form only = lex(word);
-            }
-            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
-        });
-        assert!(
-            checked.contains("unknown checked visibility field `missing`"),
-            "{checked}"
-        );
-        assert!(
-            checked.contains("constructor argument `word` is repeated"),
-            "{checked}"
-        );
-
+    fn rejects_incomplete_or_open_terminal_binding_metadata() {
         let binding = error(quote! {
             codec ScalarNumber {
                 atom = lex;
@@ -7983,17 +7694,6 @@ pub(crate) mod tests {
                 },
             ),
             (
-                "generic generated checked owner",
-                quote! {
-                    construction only: Root {
-                        element Only {}
-                        checked { constructor = Only::<u8>::new(); }
-                        form only = "only";
-                    }
-                    root Root { punctuation = "."; eoi = true; standalone_render = true; }
-                },
-            ),
-            (
                 "associated arguments on a lowered feature value",
                 quote! {
                     construction only: Root {
@@ -8028,7 +7728,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn generic_external_runtime_callbacks_and_constructors_remain_supported() {
+    fn generic_external_runtime_callbacks_remain_supported() {
         let expansion = crate::generate(quote! {
             codec Thing {
                 atom = lex;
@@ -8044,21 +7744,13 @@ pub(crate) mod tests {
             }
             construction only: Root {
                 element Only { thing: lex Thing, }
-                checked {
-                    visibility thing = pub(crate);
-                    constructor = runtime::construct::<u8>(thing);
-                }
                 form only = lex(thing);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("external runtime callback and constructor paths may be generic");
+        .expect("external runtime callback paths may be generic");
         let output = expansion.tokens().to_string();
         assert!(output.contains("runtime :: render :: < u8 >"), "{output}");
-        assert!(
-            output.contains("runtime :: construct :: < u8 >"),
-            "{output}"
-        );
     }
 
     fn assert_generated_traversal_callback_rejected(tokens: proc_macro2::TokenStream) {
@@ -8314,10 +8006,6 @@ pub(crate) mod tests {
             vocab r#Marker { One = "one", }
             construction only: Root {
                 element Only { r#payload: lex Marker, }
-                checked {
-                    visibility payload = pub(crate);
-                    constructor = Only::new(payload);
-                }
                 form only = lex(payload);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }

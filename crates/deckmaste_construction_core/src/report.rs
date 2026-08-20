@@ -86,7 +86,6 @@ pub struct EscapeHatchReport {
     stored_spelling_codecs: Vec<String>,
     morphology_irregulars: Vec<MorphologyIrregular>,
     terminal_bindings: Vec<TerminalBindingDeclaration>,
-    checked_constructor_bindings: Vec<String>,
     roots: Vec<String>,
 }
 
@@ -134,11 +133,6 @@ impl EscapeHatchReport {
     }
 
     #[must_use]
-    pub fn checked_constructor_bindings(&self) -> &[String] {
-        &self.checked_constructor_bindings
-    }
-
-    #[must_use]
     pub fn roots(&self) -> &[String] {
         &self.roots
     }
@@ -151,7 +145,6 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
     let mut stored_spelling_codecs = Vec::new();
     let mut morphology_irregulars = Vec::new();
     let mut terminal_bindings = Vec::new();
-    let mut checked_constructor_bindings = Vec::new();
     let mut roots = Vec::new();
 
     for terminal in plan.terminals() {
@@ -225,11 +218,6 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
             }
         }
     }
-    for construction in plan.constructions() {
-        if construction.has_checked_constructor() {
-            checked_constructor_bindings.push(construction.element_type().to_owned());
-        }
-    }
     roots.extend(plan.roots().iter().map(|root| root.category().to_owned()));
 
     Ok(EscapeHatchReport {
@@ -239,7 +227,6 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
         stored_spelling_codecs,
         morphology_irregulars,
         terminal_bindings,
-        checked_constructor_bindings,
         roots,
     })
 }
@@ -296,10 +283,6 @@ mod tests {
                 "codec:Pair",
                 "identity:Record",
             ]
-        );
-        assert_eq!(
-            report.checked_constructor_bindings(),
-            ["NestedNode", "DocumentNode"]
         );
         assert_eq!(report.roots(), ["Document"]);
     }

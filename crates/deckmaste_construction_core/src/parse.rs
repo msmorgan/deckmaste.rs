@@ -5,7 +5,6 @@ use syn::LitStr;
 use syn::Pat;
 use syn::Path;
 use syn::Token;
-use syn::Visibility;
 use syn::braced;
 use syn::bracketed;
 use syn::ext::IdentExt;
@@ -16,13 +15,8 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 
 use crate::model::BuildLeaf;
-use crate::model::Checked;
-use crate::model::CheckedAccessor;
-use crate::model::CheckedVisibility;
 use crate::model::CodecAtomClass;
 use crate::model::Construction;
-use crate::model::ConstructorArgument;
-use crate::model::ConstructorBinding;
 use crate::model::ContextIdentityArm;
 use crate::model::ContextIdentityCanonicalSource;
 use crate::model::ContextIdentitySource;
@@ -47,7 +41,6 @@ use crate::model::Lexeme;
 use crate::model::LexemeMember;
 use crate::model::LexemeOverride;
 use crate::model::Morphology;
-use crate::model::NonPublicVisibility;
 use crate::model::OpenDeclarationAtom;
 use crate::model::RenderBinding;
 use crate::model::RequireExprSource;
@@ -76,7 +69,6 @@ mod keyword {
     syn::custom_keyword!(checked);
     syn::custom_keyword!(borrowed);
     syn::custom_keyword!(argument);
-    syn::custom_keyword!(access);
     syn::custom_keyword!(all);
     syn::custom_keyword!(any);
     syn::custom_keyword!(callback);
@@ -84,8 +76,6 @@ mod keyword {
     syn::custom_keyword!(codec);
     syn::custom_keyword!(construct);
     syn::custom_keyword!(construction);
-    syn::custom_keyword!(constructor);
-    syn::custom_keyword!(context);
     syn::custom_keyword!(context_identity);
     syn::custom_keyword!(copy);
     syn::custom_keyword!(derive);
@@ -105,7 +95,6 @@ mod keyword {
     syn::custom_keyword!(otherwise);
     syn::custom_keyword!(part);
     syn::custom_keyword!(pattern);
-    syn::custom_keyword!(private);
     syn::custom_keyword!(punctuation);
     syn::custom_keyword!(render);
     syn::custom_keyword!(recipe);
@@ -118,7 +107,6 @@ mod keyword {
     syn::custom_keyword!(value_type);
     syn::custom_keyword!(variant);
     syn::custom_keyword!(verb);
-    syn::custom_keyword!(visibility);
     syn::custom_keyword!(visit);
     syn::custom_keyword!(vocab);
     syn::custom_keyword!(when);
@@ -179,7 +167,6 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
         return Err(content.error("construction requires exactly one named element product"));
     }
     let element = parse_element(&content)?;
-    let mut checked = None;
     let mut requirements = Vec::new();
     let mut equations = Vec::new();
     let mut form = None;
@@ -189,10 +176,8 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
             return Err(deferred(content.span(), "doc comments"));
         }
         if content.peek(keyword::checked) {
-            if checked.is_some() {
-                return Err(content.error("duplicate checked metadata"));
-            }
-            checked = Some(parse_checked(&content)?);
+            return Err(content
+                .error("`checked` metadata was retired after Stage 4; use generated invariants"));
         } else if content.peek(keyword::require) {
             requirements.push(parse_requirement(&content)?);
         } else if content.peek(keyword::derive) {
@@ -209,7 +194,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
         } else if content.peek(keyword::element) {
             return Err(content.error("construction requires exactly one named element product"));
         } else {
-            return Err(content.error("expected checked, require, derive, or form after element"));
+            return Err(content.error("expected require, derive, or form after element"));
         }
     }
 
@@ -219,7 +204,6 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
         name,
         category,
         element,
-        checked,
         requirements,
         equations,
         form,
@@ -263,109 +247,6 @@ fn parse_field(input: ParseStream<'_>) -> syn::Result<Field> {
     };
     input.parse::<Token![,]>()?;
     Ok(Field { name, kind })
-}
-
-fn parse_checked(input: ParseStream<'_>) -> syn::Result<Checked> {
-    input.parse::<keyword::checked>()?;
-    let content;
-    braced!(content in input);
-    let mut visibilities = Vec::new();
-    let mut accessors = Vec::new();
-    let mut constructor = None;
-
-    while !content.is_empty() {
-        reject_doc_comment(&content)?;
-        if content.peek(keyword::visibility) {
-            content.parse::<keyword::visibility>()?;
-            let role = content.parse()?;
-            content.parse::<Token![=]>()?;
-            let visibility = if content.peek(keyword::private) {
-                let token = content.parse::<keyword::private>()?;
-                NonPublicVisibility::Private(token.span())
-            } else {
-                let visibility: Visibility = content.parse()?;
-                match visibility {
-                    restricted @ Visibility::Restricted(_) => {
-                        NonPublicVisibility::Restricted(restricted)
-                    }
-                    Visibility::Public(public) => {
-                        return Err(syn::Error::new(
-                            public.span(),
-                            "checked visibility must be nonpublic",
-                        ));
-                    }
-                    Visibility::Inherited => {
-                        return Err(content.error("expected private or restricted visibility"));
-                    }
-                }
-            };
-            content.parse::<Token![;]>()?;
-            visibilities.push(CheckedVisibility { role, visibility });
-        } else if content.peek(keyword::access) {
-            content.parse::<keyword::access>()?;
-            let role = content.parse()?;
-            content.parse::<Token![=]>()?;
-            let method = content.parse()?;
-            content.parse::<Token![;]>()?;
-            accessors.push(CheckedAccessor { role, method });
-        } else if content.peek(keyword::constructor) {
-            if constructor.is_some() {
-                return Err(content.error("duplicate checked constructor"));
-            }
-            content.parse::<keyword::constructor>()?;
-            content.parse::<Token![=]>()?;
-            let path = content.parse()?;
-            let arguments_content;
-            parenthesized!(arguments_content in content);
-            let arguments = arguments_content
-                .parse_terminated(parse_constructor_argument, Token![,])?
-                .into_iter()
-                .collect();
-            content.parse::<Token![;]>()?;
-            constructor = Some(ConstructorBinding { path, arguments });
-        } else {
-            return Err(
-                content.error("expected visibility, access, or constructor in checked metadata")
-            );
-        }
-    }
-
-    let constructor =
-        constructor.ok_or_else(|| input.error("checked metadata requires a constructor"))?;
-    Ok(Checked {
-        visibilities,
-        accessors,
-        constructor,
-    })
-}
-
-fn parse_constructor_argument(input: ParseStream<'_>) -> syn::Result<ConstructorArgument> {
-    if input.peek(keyword::context) {
-        let token = input.parse::<keyword::context>()?;
-        return Ok(ConstructorArgument::Context(token.span()));
-    }
-
-    let ident: Ident = input.parse()?;
-    if ident == "vec" && input.peek(Token![!]) {
-        input.parse::<Token![!]>()?;
-        let content;
-        bracketed!(content in input);
-        let role = content.parse()?;
-        if !content.is_empty() {
-            return Err(content.error("vec! constructor arguments accept exactly one role"));
-        }
-        return Ok(ConstructorArgument::VecRole {
-            span: ident.span(),
-            role,
-        });
-    }
-    if input.peek(Token![.]) || input.peek(Token![::]) || input.peek(syn::token::Paren) {
-        return Err(syn::Error::new(
-            ident.span(),
-            "checked constructor arguments must be roles, context, or vec![role]",
-        ));
-    }
-    Ok(ConstructorArgument::Role(ident))
 }
 
 fn parse_requirement(input: ParseStream<'_>) -> syn::Result<RequireExprSource> {
@@ -1443,13 +1324,11 @@ mod tests {
     )]
     use quote::ToTokens;
 
-    use crate::ConstructorArgument;
     use crate::Declaration;
     use crate::Feature;
     use crate::FeaturePlace;
     use crate::FeatureValue;
     use crate::FormAtom;
-    use crate::NonPublicVisibility;
     use crate::RequireExprSource;
     use crate::RequireSubjectSource;
     use crate::TraversalKind;
@@ -1461,12 +1340,6 @@ mod tests {
                 trigger: lex TriggerWord,
                 event: Clause,
                 effect: Sentence,
-            }
-            checked {
-                visibility trigger = pub(crate);
-                visibility event = pub(crate);
-                visibility effect = pub(crate);
-                constructor = Triggered::new(trigger, event, vec![effect]);
             }
             require event is Event;
             form triggered = lex(trigger) event "," effect;
@@ -1868,28 +1741,6 @@ mod tests {
             ["trigger", "event", "effect"]
         );
 
-        let checked = triggered
-            .checked
-            .as_ref()
-            .expect("checked metadata retained");
-        assert_eq!(checked.visibilities.len(), 3);
-        assert!(
-            checked.visibilities.iter().all(|visibility| matches!(
-                visibility.visibility,
-                NonPublicVisibility::Restricted(_)
-            ))
-        );
-        assert_eq!(path(&checked.constructor.path), "Triggered :: new");
-        assert!(
-            matches!(checked.constructor.arguments[0], ConstructorArgument::Role(ref role) if role == "trigger")
-        );
-        assert!(
-            matches!(checked.constructor.arguments[1], ConstructorArgument::Role(ref role) if role == "event")
-        );
-        assert!(
-            matches!(checked.constructor.arguments[2], ConstructorArgument::VecRole { ref role, .. } if role == "effect")
-        );
-
         assert_eq!(
             declarations.declarations[0..3]
                 .iter()
@@ -2075,6 +1926,26 @@ mod tests {
         assert_eq!(root.punctuation.value(), ".");
         assert!(root.eoi);
         assert!(root.standalone_render);
+    }
+
+    #[test]
+    fn checked_metadata_is_rejected_with_the_retirement_diagnostic() {
+        let error = parse(
+            r#"
+                construction only: Root {
+                    element Only {}
+                    checked {}
+                    form only = "only";
+                }
+            "#,
+        )
+        .expect_err("retired checked metadata is rejected")
+        .to_string();
+
+        assert_eq!(
+            error,
+            "`checked` metadata was retired after Stage 4; use generated invariants"
+        );
     }
 
     trait TypePath {

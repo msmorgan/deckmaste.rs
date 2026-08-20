@@ -14,7 +14,6 @@ use crate::plan::ItemKey;
 use crate::semantic::AccessorMode;
 use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionPlan;
-use crate::semantic::FieldVisibilityPlan;
 use crate::semantic::PredicateSubjectPlan;
 use crate::semantic::SemanticPlan;
 
@@ -117,11 +116,7 @@ fn emit_product(
         .iter()
         .map(|field| {
             let name = field.name();
-            let visibility = if field.accessor_mode().is_some() {
-                TokenStream::new()
-            } else {
-                field_visibility(field.visibility())
-            };
+            let visibility = field.accessor_mode().is_none().then(|| quote! { pub });
             let ty = field.value_type();
             let boxed = plan
                 .boxed_fields()
@@ -442,14 +437,6 @@ fn internal(detail: &str) -> syn::Error {
         proc_macro2::Span::call_site(),
         format!("internal invariant constructor emitter: {detail}"),
     )
-}
-
-fn field_visibility(visibility: &FieldVisibilityPlan) -> TokenStream {
-    match visibility {
-        FieldVisibilityPlan::Public => quote! { pub },
-        FieldVisibilityPlan::Private => TokenStream::new(),
-        FieldVisibilityPlan::Restricted(visibility) => quote! { #visibility },
-    }
 }
 
 #[cfg(test)]
@@ -951,12 +938,9 @@ mod tests {
         };
         let fields = fields.named.into_iter().collect::<Vec<_>>();
         assert_eq!(fields.len(), 2);
-        assert!(matches!(fields[0].vis, Visibility::Inherited));
+        assert!(matches!(fields[0].vis, Visibility::Public(_)));
         assert_eq!(boxed_inner_name(&fields[0].ty), Some("Node".to_owned()));
-        let Visibility::Restricted(restricted) = &fields[1].vis else {
-            panic!("checked word field is pub(crate)");
-        };
-        assert!(restricted.path.is_ident("crate"));
+        assert!(matches!(fields[1].vis, Visibility::Public(_)));
         assert_eq!(type_name(&fields[1].ty), "Words");
 
         let leaf = parse_named(items, "WordLeaf");
@@ -1016,7 +1000,6 @@ mod tests {
 
         const PUB: FieldVisibility = FieldVisibility::Public;
         const PRIVATE: FieldVisibility = FieldVisibility::Private;
-        const CRATE: FieldVisibility = FieldVisibility::Crate;
         const PRODUCTS: &[(&str, Option<&[(&str, &str, bool, FieldVisibility)]>)] = &[
             (
                 "LeafNode",
@@ -1028,8 +1011,8 @@ mod tests {
             (
                 "NestedNode",
                 Some(&[
-                    ("next", "Expr", true, PRIVATE),
-                    ("marker", "Marker", false, CRATE),
+                    ("next", "Expr", true, PUB),
+                    ("marker", "Marker", false, PUB),
                 ]),
             ),
             ("ActionNode", None),
@@ -1039,9 +1022,9 @@ mod tests {
                 "DocumentNode",
                 Some(&[
                     ("subject", "Expr", false, PRIVATE),
-                    ("predicate", "Predicate", false, CRATE),
-                    ("handle", "Handle", false, PRIVATE),
-                    ("pair", "Pair", false, PRIVATE),
+                    ("predicate", "Predicate", false, PUB),
+                    ("handle", "Handle", false, PUB),
+                    ("pair", "Pair", false, PUB),
                 ]),
             ),
         ];

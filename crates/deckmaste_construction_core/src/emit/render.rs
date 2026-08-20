@@ -1973,7 +1973,7 @@ mod tests {
     }
 
     #[test]
-    fn raw_fields_and_keyword_checked_constructions_lower_to_valid_render_locals() {
+    fn raw_fields_and_keyword_constructions_lower_to_valid_render_locals() {
         let expansion = crate::generate(quote::quote! {
             vocab Marker { One = "marker", }
             morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
@@ -1989,11 +1989,6 @@ mod tests {
             }
             construction where: Keyword {
                 element KeywordNode { marker: lex Marker, }
-                checked {
-                    visibility marker = private;
-                    access marker = marker;
-                    constructor = KeywordNode::new(marker);
-                }
                 derive agreement = Values::Bare;
                 form where = lex(marker);
             }
@@ -2008,7 +2003,7 @@ mod tests {
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("raw fields and a DSL-keyword checked construction generate without panic");
+        .expect("raw fields and a DSL-keyword construction generate without panic");
 
         let source = expansion
             .items()
@@ -2023,7 +2018,6 @@ mod tests {
             "render_marker (writer , * writer_2)",
             "Keyword :: Where (KeywordNode { marker })",
             "render_marker (writer , * marker)",
-            "map (| where_value |",
         ] {
             assert!(source.contains(fragment), "missing `{fragment}`: {source}");
         }
@@ -2065,21 +2059,11 @@ mod tests {
             }
             construction wrapped: AgreementForChild {
                 element Wrapped { child: Child, }
-                checked {
-                    visibility child = private;
-                    access child = child;
-                    constructor = Wrapped::new(child);
-                }
                 derive agreement = child.agreement;
                 form wrapped = child;
             }
-            construction writer: CheckedRender {
-                element CheckedRenderNode { marker: lex Marker, }
-                checked {
-                    visibility marker = private;
-                    access marker = marker;
-                    constructor = CheckedRenderNode::new(marker);
-                }
+            construction writer: WriterRender {
+                element WriterRenderNode { marker: lex Marker, }
                 form writer = lex(marker);
             }
             construction root: Root {
@@ -2135,7 +2119,7 @@ mod tests {
             "fn agreement_for_agreement_for_child (agreement_for_child_2 : & AgreementForChild)",
             "match agreement_for_child_2",
             "agreement_for_child (child)",
-            "CheckedRender :: Writer (CheckedRenderNode { marker })",
+            "WriterRender :: Writer (WriterRenderNode { marker })",
             "render_marker (writer , * marker)",
         ] {
             assert!(
@@ -2377,77 +2361,6 @@ mod tests {
             missing.to_string().contains("exact local number writer"),
             "{missing}"
         );
-    }
-
-    #[test]
-    fn temporary_checked_render_fields_follow_the_direct_path() {
-        let expansion = crate::test_support::access_modes_expansion();
-        let implementation = expansion
-            .items()
-            .iter()
-            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.is_none()))
-            .expect("root write impl");
-        let syn::Item::Impl(item) = parse(implementation) else {
-            panic!("root render is an impl");
-        };
-        let syn::ImplItem::Fn(method) = &item.items[0] else {
-            panic!("root render method");
-        };
-        let body = method.block.to_token_stream().to_string();
-        assert!(body.contains("MixedAccess { hidden , child }"));
-        assert!(body.contains("match * hidden"));
-        assert!(body.contains("render_child (writer , child)"));
-        assert!(!body.contains(". hidden ()"));
-    }
-
-    #[test]
-    fn temporary_checked_feature_fields_follow_the_direct_path() {
-        let expansion = crate::generate(quote::quote! {
-            construction subject: Subject {
-                element SubjectNode {}
-                derive agreement = Values::Bare;
-                form subject = "subject";
-            }
-            construction predicate: Predicate {
-                element PredicateNode {}
-                derive agreement = Values::Bare;
-                form predicate = "predicate";
-            }
-            construction checked_root: Root {
-                element CheckedRoot { subject: Subject, predicate: Predicate, }
-                checked {
-                    visibility subject = private;
-                    access subject = subject;
-                    visibility predicate = pub(crate);
-                    constructor = CheckedRoot::new(subject, predicate);
-                }
-                derive predicate.agreement = subject.agreement;
-                form checked_root = subject predicate;
-            }
-            root Root { punctuation = "."; eoi = true; standalone_render = true; }
-        })
-        .expect("a checked product may source a feature from a private category field");
-        let implementation = expansion
-            .items()
-            .iter()
-            .find(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name } if self_ty == "Root" && trait_name.is_none()))
-            .expect("root write impl");
-        let source = implementation.tokens.to_string();
-        assert!(
-            !source.contains("agreement_for_subject (subject)"),
-            "checked feature read lowered to an unbound bare role: {source}",
-        );
-        assert!(
-            !source.contains("agreement_for_subject"),
-            "a category without an agreement parameter must not receive a stray argument: {source}",
-        );
-        assert!(
-            source.contains("CheckedRoot { subject , predicate }")
-                && source.contains("render_subject (writer , subject)")
-                && source.contains("render_predicate (writer , predicate)"),
-            "temporary checked metadata must not control field projection: {source}",
-        );
-        assert!(!source.contains(". subject ()"), "{source}");
     }
 
     #[test]

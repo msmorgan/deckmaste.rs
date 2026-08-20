@@ -5,7 +5,6 @@ use syn::Ident;
 use syn::LitStr;
 use syn::Pat;
 use syn::Path;
-use syn::Visibility;
 
 #[derive(Debug)]
 pub struct Declarations {
@@ -45,7 +44,6 @@ pub struct Construction {
     pub name: Ident,
     pub category: Path,
     pub element: Element,
-    pub checked: Option<Checked>,
     pub requirements: Vec<RequireExprSource>,
     pub equations: Vec<FeatureEquation>,
     pub form: Form,
@@ -68,44 +66,6 @@ pub enum FieldKind {
     Category(Path),
     Lex(Path),
     Identity(Path),
-}
-
-#[derive(Debug)]
-pub struct Checked {
-    pub visibilities: Vec<CheckedVisibility>,
-    pub accessors: Vec<CheckedAccessor>,
-    pub constructor: ConstructorBinding,
-}
-
-#[derive(Debug)]
-pub struct CheckedAccessor {
-    pub role: Ident,
-    pub method: Ident,
-}
-
-#[derive(Debug)]
-pub struct CheckedVisibility {
-    pub role: Ident,
-    pub visibility: NonPublicVisibility,
-}
-
-#[derive(Debug)]
-pub enum NonPublicVisibility {
-    Private(Span),
-    Restricted(Visibility),
-}
-
-#[derive(Debug)]
-pub struct ConstructorBinding {
-    pub path: Path,
-    pub arguments: Vec<ConstructorArgument>,
-}
-
-#[derive(Debug)]
-pub enum ConstructorArgument {
-    Role(Ident),
-    Context(Span),
-    VecRole { span: Span, role: Ident },
 }
 
 #[derive(Debug)]

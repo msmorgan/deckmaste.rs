@@ -90,6 +90,233 @@ fn context_identity_stores_only_the_reusable_arm() {
 }
 
 #[test]
+fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
+    let environment = environment();
+    let parser = parser();
+    let plain_context = context("Context Card");
+
+    let event = connive_event();
+    let effect = gain_life_sentence();
+    let triggered = Triggered::new(TriggerWord::Whenever, event.clone(), effect.clone())
+        .expect("an Event clause is valid for Triggered");
+    let _: &TriggerWord = &triggered.trigger;
+    let _: &Sentence = &triggered.effect;
+    let _: &Clause = triggered.event();
+    assert_eq!(triggered.event(), &event);
+    assert!(
+        Triggered::new(
+            TriggerWord::Whenever,
+            Clause::Where(WhereClause {
+                variable: Variable::X,
+                value: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+            }),
+            effect,
+        )
+        .is_none(),
+        "a Where clause is not a valid Triggered event",
+    );
+    let triggered = Ability::Triggered(triggered);
+    let triggered_text = triggered.render(&plain_context, &environment);
+    assert_eq!(parser.parse(&triggered_text, &plain_context), Ok(triggered));
+    assert_eq!(
+        parser
+            .parse(&triggered_text, &plain_context)
+            .expect("rendered Triggered ability parses")
+            .render(&plain_context, &environment),
+        triggered_text,
+    );
+
+    let body = gain_life_sentence();
+    let clause = Clause::Where(WhereClause {
+        variable: Variable::X,
+        value: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+    });
+    let with_where = WithWhere::new(Box::new(body.clone()), clause.clone())
+        .expect("a Where clause is valid for WithWhere");
+    let _: &Sentence = &with_where.body;
+    let _: &Clause = with_where.clause();
+    assert_eq!(with_where.clause(), &clause);
+    assert!(
+        WithWhere::new(Box::new(body), connive_event()).is_none(),
+        "an Event clause is not a valid WithWhere clause",
+    );
+    let with_where = Ability::Spell(Spell {
+        effect: Sentence::WithWhere(with_where),
+    });
+    let with_where_text = with_where.render(&plain_context, &environment);
+    assert_eq!(
+        parser.parse(&with_where_text, &plain_context),
+        Ok(with_where)
+    );
+    assert_eq!(
+        parser
+            .parse(&with_where_text, &plain_context)
+            .expect("rendered WithWhere sentence parses")
+            .render(&plain_context, &environment),
+        with_where_text,
+    );
+
+    let threshold = SignedNumber {
+        sign: Sign::Positive,
+        magnitude: 2,
+    };
+    let count = CountNp::new(creatures(), Pronoun::You, threshold.clone())
+        .expect("You is the valid CountNp controller");
+    let _: &Noun = &count.head;
+    let _: &SignedNumber = &count.threshold;
+    let _: Pronoun = count.controller();
+    assert_eq!(count.controller(), Pronoun::You);
+    assert!(
+        CountNp::new(creatures(), Pronoun::It, threshold).is_none(),
+        "It is not a valid CountNp controller",
+    );
+    let count = Ability::Spell(Spell {
+        effect: Sentence::Declarative(Declarative {
+            subject: NounPhrase::Count(count),
+            predicate: VerbPhrase::GainLife(GainLife {
+                amount: variable_x(),
+            }),
+        }),
+    });
+    let count_text = count.render(&plain_context, &environment);
+    assert_eq!(parser.parse(&count_text, &plain_context), Ok(count));
+    assert_eq!(
+        parser
+            .parse(&count_text, &plain_context)
+            .expect("rendered CountNp sentence parses")
+            .render(&plain_context, &environment),
+        count_text,
+    );
+
+    assert!(
+        SelfReferenceNp::new(SelfReferenceSpelling::Abbreviated, &plain_context).is_none(),
+        "an unavailable abbreviation is rejected",
+    );
+    let abbreviated_context = context("Zacama, Primal Calamity");
+    let self_reference =
+        SelfReferenceNp::new(SelfReferenceSpelling::Abbreviated, &abbreviated_context)
+            .expect("a distinct abbreviated spelling is valid");
+    let _: SelfReferenceSpelling = self_reference.spelling();
+    assert_eq!(
+        self_reference.spelling(),
+        SelfReferenceSpelling::Abbreviated
+    );
+    let self_reference = Ability::Spell(Spell {
+        effect: Sentence::Declarative(Declarative {
+            subject: NounPhrase::SelfReference(self_reference),
+            predicate: VerbPhrase::GainLife(GainLife {
+                amount: variable_x(),
+            }),
+        }),
+    });
+    let self_reference_text = self_reference.render(&abbreviated_context, &environment);
+    assert_eq!(
+        parser.parse(&self_reference_text, &abbreviated_context),
+        Ok(self_reference)
+    );
+    assert_eq!(
+        parser
+            .parse(&self_reference_text, &abbreviated_context)
+            .expect("rendered SelfReferenceNp sentence parses")
+            .render(&abbreviated_context, &environment),
+        self_reference_text,
+    );
+}
+
+#[test]
+fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
+    use syn::Fields;
+    use syn::ImplItem;
+    use syn::Item;
+    use syn::Type;
+    use syn::Visibility;
+
+    let source =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/constructions.rs"))
+            .expect("production construction source is readable");
+    let invocation = deckmaste_construction_core::invocation_from_source(&source)
+        .expect("production construction invocation is authentic");
+    let expansion = deckmaste_construction_core::generate(invocation.tokens)
+        .expect("production construction inventory compiles");
+    let file = syn::parse2::<syn::File>(expansion.tokens()).expect("generated Rust parses");
+
+    for (product, expected_fields, expected_methods) in [
+        (
+            "Triggered",
+            &[("trigger", true), ("event", false), ("effect", true)][..],
+            &["new", "event"][..],
+        ),
+        (
+            "WithWhere",
+            &[("body", true), ("clause", false)][..],
+            &["new", "clause"][..],
+        ),
+        (
+            "CountNp",
+            &[("head", true), ("controller", false), ("threshold", true)][..],
+            &["new", "controller"][..],
+        ),
+        (
+            "SelfReferenceNp",
+            &[("spelling", false)][..],
+            &["new", "spelling"][..],
+        ),
+    ] {
+        let structure = file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Struct(structure) if structure.ident == product => Some(structure),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("generated {product} struct exists"));
+        let Fields::Named(fields) = &structure.fields else {
+            panic!("generated {product} fields are named");
+        };
+        assert_eq!(
+            fields
+                .named
+                .iter()
+                .map(|field| (
+                    field.ident.as_ref().unwrap().to_string(),
+                    matches!(field.vis, Visibility::Public(_)),
+                ))
+                .collect::<Vec<_>>(),
+            expected_fields
+                .iter()
+                .map(|(name, public)| ((*name).to_owned(), *public))
+                .collect::<Vec<_>>(),
+            "{product} has the exact sealed field privacy",
+        );
+
+        let implementation = file.items.iter().find_map(|item| match item {
+            Item::Impl(implementation)
+                if implementation.trait_.is_none()
+                    && matches!(
+                        implementation.self_ty.as_ref(),
+                        Type::Path(path) if path.path.is_ident(product)
+                    ) =>
+            {
+                Some(implementation)
+            }
+            _ => None,
+        });
+        let methods = implementation
+            .into_iter()
+            .flat_map(|implementation| &implementation.items)
+            .filter_map(|item| match item {
+                ImplItem::Fn(method) => Some(method.sig.ident.to_string()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            methods, expected_methods,
+            "{product} has no manufactured accessor or authored implementation",
+        );
+    }
+}
+
+#[test]
 fn parse_error_is_a_standard_error_and_converts_to_anyhow() {
     fn require_standard_error(error: &(impl std::error::Error + ?Sized)) {
         let _ = error;
@@ -163,7 +390,7 @@ fn triggered_damage() -> Ability {
         Triggered::new(
             TriggerWord::Whenever,
             connive_event(),
-            vec![Sentence::Declarative(Declarative {
+            Sentence::Declarative(Declarative {
                 subject: NounPhrase::Demonstrative(DemonstrativeNp {
                     word: Demonstrative::That,
                     head: creature(),
@@ -172,7 +399,7 @@ fn triggered_damage() -> Ability {
                     amount: variable_x(),
                     to: NounPhrase::Pronoun(PronounNp { word: Pronoun::It }),
                 }),
-            })],
+            }),
         )
         .expect("one effect is valid"),
     )
@@ -189,20 +416,26 @@ fn gain_life_sentence() -> Sentence {
 
 fn gain_life_with_where() -> Ability {
     Ability::Spell(Spell {
-        effect: Sentence::WithWhere(WithWhere {
-            body: Box::new(gain_life_sentence()),
-            clause: Clause::Where(WhereClause {
-                variable: Variable::X,
-                value: NounPhrase::Count(CountNp {
-                    head: creatures(),
-                    controller: Pronoun::You,
-                    threshold: SignedNumber {
-                        sign: Sign::Positive,
-                        magnitude: 2,
-                    },
+        effect: Sentence::WithWhere(
+            WithWhere::new(
+                Box::new(gain_life_sentence()),
+                Clause::Where(WhereClause {
+                    variable: Variable::X,
+                    value: NounPhrase::Count(
+                        CountNp::new(
+                            creatures(),
+                            Pronoun::You,
+                            SignedNumber {
+                                sign: Sign::Positive,
+                                magnitude: 2,
+                            },
+                        )
+                        .expect("You is a valid count controller"),
+                    ),
                 }),
-            }),
-        }),
+            )
+            .expect("Where is a valid trailing clause"),
+        ),
     })
 }
 
@@ -228,12 +461,8 @@ fn zacama_deals_damage() -> Ability {
 
 fn triggered_gain_life() -> Ability {
     Ability::Triggered(
-        Triggered::new(
-            TriggerWord::Whenever,
-            connive_event(),
-            vec![gain_life_sentence()],
-        )
-        .expect("one effect is valid"),
+        Triggered::new(TriggerWord::Whenever, connive_event(), gain_life_sentence())
+            .expect("one effect is valid"),
     )
 }
 

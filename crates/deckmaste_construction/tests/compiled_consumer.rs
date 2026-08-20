@@ -581,6 +581,11 @@ mod declaration_noun_fixture {
 }
 
 mod fixture {
+    #![allow(
+        clippy::too_many_arguments,
+        reason = "the dense hygiene fixture deliberately exercises seven stored fields plus one derived field"
+    )]
+
     use RulePosition::Lexical as L;
     use RulePosition::Nonterminal as N;
 
@@ -758,8 +763,8 @@ mod fixture {
         BeSentence(BeSentence, Agreement),
         Predicate(Predicate, Agreement),
         Container(Container),
-        CheckedContext(CheckedContext),
-        FeatureChecked(FeatureChecked, Agreement),
+        ContextBound(ContextBound),
+        FeatureBound(FeatureBound, Agreement),
         Collision(Collision),
         RenderChild(RenderChild),
         RawPayload(RawPayload),
@@ -767,7 +772,7 @@ mod fixture {
         HygieneRoot(HygieneRoot),
         ContextEnvelope(ContextEnvelope),
         VisitCategory(VisitCategory),
-        CheckedMarker(CheckedMarker),
+        MarkerCategory(MarkerCategory),
         RawCategory(RawCategory),
         Leaf(Leaf),
     }
@@ -1032,25 +1037,17 @@ mod fixture {
             form agreement_relay = first second;
         }
 
-        construction checked_context: CheckedContext {
-            element CheckedContextNode { pair: lex Pair, }
-            checked {
-                visibility pair = pub(crate);
-                constructor = CheckedContextNode::new(pair, context);
-            }
-            form checked_context = lex(pair);
+        construction context_bound: ContextBound {
+            element ContextBoundNode { pair: lex Pair, }
+            form context_bound = lex(pair);
         }
-        construction identity_guard: CheckedContext {
+        construction identity_guard: ContextBound {
             element IdentityGuard { spelling: identity SelfRef, }
             form identity_guard = identity(spelling);
         }
 
-        construction agreement: FeatureChecked {
+        construction agreement: FeatureBound {
             element AgreementNode { marker: lex Marker, }
-            checked {
-                visibility marker = pub(crate);
-                constructor = AgreementNode::new(marker);
-            }
             derive agreement = verb.agreement;
             form agreement = lex(marker) verb(VerbLexeme::Act);
         }
@@ -1086,11 +1083,6 @@ mod fixture {
 
         construction where: Keyword {
             element WhereNode { r#payload: lex Marker, }
-            checked {
-                visibility payload = private;
-                access payload = payload;
-                constructor = WhereNode::new(payload);
-            }
             derive agreement = Values::Bare;
             form where = lex(payload);
         }
@@ -1120,14 +1112,9 @@ mod fixture {
             form visit_node = lex(visitor);
         }
 
-        construction checked_marker: CheckedMarker {
+        construction marker: MarkerCategory {
             element WalkMarker { marker: lex Marker, }
-            checked {
-                visibility marker = private;
-                access marker = marker;
-                constructor = WalkMarker::new(marker);
-            }
-            form checked_marker = lex(marker);
+            form marker = lex(marker);
         }
 
         construction r#raw_leaf: r#RawCategory {
@@ -1140,55 +1127,6 @@ mod fixture {
         root RenderChild { punctuation = "."; eoi = false; standalone_render = true; }
         root HygieneRoot { punctuation = "!"; eoi = true; standalone_render = true; }
         root r#RawCategory { punctuation = "?"; eoi = true; standalone_render = true; }
-    }
-
-    impl CheckedContextNode {
-        #[allow(
-            clippy::unnecessary_wraps,
-            reason = "checked-construction callbacks deliberately expose the fallible ABI"
-        )]
-        fn new(mut pair: Pair, context: &ParseContext<'_>) -> Option<Self> {
-            pair.context_value = context.sentinel;
-            Some(Self { pair })
-        }
-    }
-
-    impl AgreementNode {
-        #[allow(
-            clippy::unnecessary_wraps,
-            reason = "checked-construction callbacks deliberately expose the fallible ABI"
-        )]
-        fn new(marker: Marker) -> Option<Self> {
-            Some(Self { marker })
-        }
-    }
-
-    impl WhereNode {
-        #[allow(
-            clippy::unnecessary_wraps,
-            reason = "checked-construction callbacks deliberately expose the fallible ABI"
-        )]
-        fn new(payload: Marker) -> Option<Self> {
-            Some(Self { payload })
-        }
-
-        fn payload(&self) -> Marker {
-            self.r#payload
-        }
-    }
-
-    impl WalkMarker {
-        #[allow(
-            clippy::unnecessary_wraps,
-            reason = "checked-construction callbacks deliberately expose the fallible ABI"
-        )]
-        fn new(marker: Marker) -> Option<Self> {
-            Some(Self { marker })
-        }
-
-        fn marker(&self) -> Marker {
-            self.marker
-        }
     }
 
     #[derive(Debug, PartialEq, Eq)]
@@ -1950,25 +1888,25 @@ mod fixture {
             .is_none()
         );
 
-        let checked_context = build(
-            RuleId::CheckedContextCheckedContext,
+        let context_bound = build(
+            RuleId::ContextBoundContextBound,
             &[BuildValue::Leaf(Leaf::Pair(BoundLeaf::Pair(1, 2, 3)))],
             &context,
         )
         .expect("terminal slots cannot shadow the parser context ABI local");
         assert!(matches!(
-            checked_context,
-            BuildValue::CheckedContext(CheckedContext::CheckedContext(CheckedContextNode {
+            context_bound,
+            BuildValue::ContextBound(ContextBound::ContextBound(ContextBoundNode {
                 pair: Pair {
-                    context_value: 99,
+                    context_value: 1,
                     child_slot: 2,
                     rule_code: 3,
                 },
             }))
         ));
 
-        let feature_checked = build(
-            RuleId::FeatureCheckedAgreement,
+        let feature_bound = build(
+            RuleId::FeatureBoundAgreement,
             &[
                 BuildValue::Leaf(Leaf::Marker(Marker::One)),
                 BuildValue::Leaf(Leaf::Verb {
@@ -1978,10 +1916,10 @@ mod fixture {
             ],
             &context,
         )
-        .expect("a checked map local cannot shadow its carried agreement");
+        .expect("a map local cannot shadow its carried agreement");
         assert!(matches!(
-            feature_checked,
-            BuildValue::FeatureChecked(_, Agreement::ThirdPersonSingular)
+            feature_bound,
+            BuildValue::FeatureBound(_, Agreement::ThirdPersonSingular)
         ));
 
         let collision = build(
@@ -2014,9 +1952,9 @@ mod fixture {
             &[BuildValue::Leaf(Leaf::Marker(Marker::One))],
             &context,
         )
-        .expect("a keyword-named checked construction builds with its carried feature");
+        .expect("a keyword-named construction builds with its carried feature");
         let BuildValue::Keyword(keyword, Agreement::Bare) = keyword else {
-            panic!("checked `where` preserves its category value and known feature")
+            panic!("`where` preserves its category value and known feature")
         };
 
         let hygiene_root = HygieneRoot::HygieneRoot(HygieneRootNode {
@@ -2069,7 +2007,9 @@ mod fixture {
             Some(&VisitEvent::Marker(Marker::One)),
             "an ordinary generated walker callback in a branch remains executable",
         );
-        let walk_marker = WalkMarker::new(Marker::One).expect("checked walker fixture");
+        let walk_marker = WalkMarker {
+            marker: Marker::One,
+        };
         walk_walk_marker(&mut recording, &walk_marker);
         assert_eq!(
             recording.0,

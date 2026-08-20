@@ -1083,14 +1083,9 @@ mod tests {
                 element VisitorNode {}
                 form visitor_category = "visitor";
             }
-            construction checked_marker: CheckedMarker {
+            construction marker: MarkerRoot {
                 element WalkMarker { marker: lex Marker, }
-                checked {
-                    visibility marker = private;
-                    access marker = marker;
-                    constructor = WalkMarker::new(marker);
-                }
-                form checked_marker = lex(marker);
+                form marker = lex(marker);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
@@ -1137,38 +1132,6 @@ mod tests {
                 !source.contains(shadowed),
                 "shadowed binding survived as `{shadowed}`: {source}",
             );
-        }
-    }
-
-    #[test]
-    fn temporary_checked_fields_follow_direct_walker_paths() {
-        let expansion = crate::test_support::access_modes_expansion();
-        let expected: &[(&str, &[&str])] = &[
-            ("walk_public_identity", &["walk_flag (visitor , * flag)"]),
-            (
-                "walk_mixed_access",
-                &[
-                    "walk_flag (visitor , * hidden)",
-                    "visitor . visit_child (child)",
-                ],
-            ),
-        ];
-        for &(name, expected_calls) in expected {
-            let syn::Item::Fn(item) = named(&expansion, name) else {
-                panic!("{name} is a function");
-            };
-            let calls = item
-                .block
-                .stmts
-                .iter()
-                .filter_map(|statement| match statement {
-                    syn::Stmt::Expr(expression, _) => {
-                        Some(expression.to_token_stream().to_string())
-                    }
-                    syn::Stmt::Local(_) | syn::Stmt::Item(_) | syn::Stmt::Macro(_) => None,
-                })
-                .collect::<Vec<_>>();
-            assert_eq!(calls, expected_calls, "{name} access/pass lowering");
         }
     }
 

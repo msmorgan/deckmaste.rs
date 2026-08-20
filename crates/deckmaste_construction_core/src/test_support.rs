@@ -20,12 +20,6 @@ pub(crate) fn representative_tokens() -> proc_macro2::TokenStream {
         }
         construction chain: Node {
             element Chain { next: Node, word: lex Words, }
-            checked {
-                visibility next = private;
-                access next = next;
-                visibility word = pub(crate);
-                constructor = Chain::new(next, word);
-            }
             form chain = next lex(word);
         }
         construction action: Action {
@@ -124,47 +118,6 @@ pub(crate) fn open_verb_tokens() -> proc_macro2::TokenStream {
         }
         root Ability { punctuation = "."; eoi = true; standalone_render = true; }
     }
-}
-
-pub(crate) fn access_modes_expansion() -> crate::Expansion {
-    crate::generate(quote! {
-        identity Flag {
-            value_type = Flag;
-            lexical = Lexical::Flag;
-            render context_identity {
-                Full => card_name,
-                Short => abbreviated_card_name,
-            }
-            build { pattern = BuildValue::Flag(flag); construct = flag; }
-            traversal {
-                callback = copy;
-                argument = flag;
-                variant Full;
-                variant Short;
-            }
-        }
-
-        construction child: Child {
-            element ChildElement {}
-            form child = "child";
-        }
-        construction public: Root {
-            element PublicIdentity { flag: identity Flag, }
-            form public = identity(flag);
-        }
-        construction mixed: Root {
-            element MixedAccess { hidden: identity Flag, child: Child, }
-            checked {
-                visibility hidden = private;
-                access hidden = hidden;
-                visibility child = pub(crate);
-                constructor = MixedAccess::new(hidden, child);
-            }
-            form mixed = identity(hidden) child;
-        }
-        root Root { punctuation = "."; eoi = true; standalone_render = true; }
-    })
-    .expect("copy identity and mixed checked access declarations generate")
 }
 
 pub(crate) fn invariant_access_semantic_plan() -> crate::semantic::SemanticPlan {
@@ -316,12 +269,6 @@ pub(crate) fn synthetic_projection_tokens() -> proc_macro2::TokenStream {
         }
         construction nested: Expr {
             element NestedNode { next: Expr, marker: lex Marker, }
-            checked {
-                visibility next = private;
-                access next = next;
-                visibility marker = pub(crate);
-                constructor = NestedNode::checked(next, marker);
-            }
             derive agreement = next.agreement;
             derive number = next.number;
             form nested = "nest" next lex(marker);
@@ -347,15 +294,6 @@ pub(crate) fn synthetic_projection_tokens() -> proc_macro2::TokenStream {
                 predicate: Predicate,
                 handle: identity Handle,
                 pair: lex Pair,
-            }
-            checked {
-                visibility subject = pub(crate);
-                visibility predicate = pub(crate);
-                visibility handle = private;
-                access handle = handle;
-                visibility pair = private;
-                access pair = pair;
-                constructor = DocumentNode::checked(subject, predicate, handle, vec![pair]);
             }
             require subject is Leaf;
             derive predicate.agreement = subject.agreement;

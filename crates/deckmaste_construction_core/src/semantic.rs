@@ -60,10 +60,8 @@ pub(crate) struct ConstructionPlan {
     render_arm: String,
     visitor_method: String,
     walker: String,
-    checked_constructor: bool,
     fields: Vec<ConstructionFieldPlan>,
     invariant: InvariantPlan,
-    constructor: Option<CheckedConstructorPlan>,
     atoms: Vec<AtomPlan>,
 }
 
@@ -73,8 +71,6 @@ pub(crate) struct ConstructionFieldPlan {
     kind: ConstructionFieldKind,
     terminal: String,
     value_type: syn::Path,
-    visibility: FieldVisibilityPlan,
-    accessor: Option<syn::Ident>,
     invariant_bearing: bool,
     accessor_mode: Option<AccessorMode>,
 }
@@ -84,13 +80,6 @@ pub(crate) enum ConstructionFieldKind {
     Category,
     Lex,
     Identity,
-}
-
-#[derive(Debug)]
-pub(crate) enum FieldVisibilityPlan {
-    Public,
-    Private,
-    Restricted(syn::Visibility),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -140,19 +129,6 @@ pub(crate) enum PredicateSubjectPlan {
 pub(crate) enum PredicateMemberPlan {
     Variant(syn::Ident),
     Feature(feature::Spanned<feature::FeatureValue>),
-}
-
-#[derive(Debug)]
-pub(crate) struct CheckedConstructorPlan {
-    path: syn::Path,
-    arguments: Vec<ConstructorArgumentPlan>,
-}
-
-#[derive(Debug)]
-pub(crate) enum ConstructorArgumentPlan {
-    Role(syn::Ident),
-    VecRole(syn::Ident),
-    Context,
 }
 
 #[derive(Debug, Clone)]
@@ -1575,28 +1551,6 @@ fn validate_invariant_generated_names(constructions: &[ConstructionPlan]) -> syn
             INVARIANT_CONSTRUCTOR.to_owned(),
             "generated invariant constructor".to_owned(),
         )]);
-        for field in construction.fields() {
-            let Some(accessor) = field.accessor() else {
-                continue;
-            };
-            let role = field.name_key();
-            let method = identifier_key(accessor);
-            if method == role && field.accessor_mode().is_some() {
-                continue;
-            }
-            let owner = format!("declared checked accessor for `{role}`");
-            if let Some(previous) = associated.get(&method) {
-                combine_errors(
-                    &mut errors,
-                    syn::Error::new(
-                        accessor.span(),
-                        format!("declared checked accessor `{method}` collides with {previous}"),
-                    ),
-                );
-            } else {
-                associated.insert(method, owner);
-            }
-        }
         for field in construction
             .fields()
             .iter()
@@ -1784,73 +1738,16 @@ impl ConstructionPlan {
                         path.clone(),
                     ),
                 };
-                let visibility = if let Some(checked) = &source.checked {
-                    let visibility = checked
-                        .visibilities
-                        .iter()
-                        .find(|visibility| {
-                            identifier_key(&visibility.role) == identifier_key(&field.name)
-                        })
-                        .ok_or_else(|| {
-                            syn::Error::new(
-                                field.name.span(),
-                                "sealed checked field visibility is absent",
-                            )
-                        })?;
-                    match &visibility.visibility {
-                        crate::model::NonPublicVisibility::Private(_) => {
-                            FieldVisibilityPlan::Private
-                        }
-                        crate::model::NonPublicVisibility::Restricted(visibility) => {
-                            FieldVisibilityPlan::Restricted(visibility.clone())
-                        }
-                    }
-                } else {
-                    FieldVisibilityPlan::Public
-                };
-                let accessor = source.checked.as_ref().and_then(|checked| {
-                    checked
-                        .accessors
-                        .iter()
-                        .find(|accessor| {
-                            identifier_key(&accessor.role) == identifier_key(&field.name)
-                        })
-                        .map(|accessor| accessor.method.clone())
-                });
                 Ok(ConstructionFieldPlan {
                     name: field.name.clone(),
                     kind,
                     terminal,
                     value_type,
-                    visibility,
-                    accessor,
                     invariant_bearing: false,
                     accessor_mode: None,
                 })
             })
             .collect::<syn::Result<Vec<_>>>()?;
-        let constructor = source
-            .checked
-            .as_ref()
-            .map(|checked| CheckedConstructorPlan {
-                path: checked.constructor.path.clone(),
-                arguments: checked
-                    .constructor
-                    .arguments
-                    .iter()
-                    .map(|argument| match argument {
-                        crate::model::ConstructorArgument::Role(role) => {
-                            ConstructorArgumentPlan::Role(role.clone())
-                        }
-                        crate::model::ConstructorArgument::VecRole { role, .. } => {
-                            ConstructorArgumentPlan::VecRole(role.clone())
-                        }
-                        crate::model::ConstructorArgument::Context(_) => {
-                            ConstructorArgumentPlan::Context
-                        }
-                    })
-                    .collect(),
-            });
         let atoms = seal_atoms(&source.form, resolved_atoms)?;
         Ok(Self {
             source_index,
@@ -1870,10 +1767,8 @@ impl ConstructionPlan {
             render_arm: element_type.clone(),
             visitor_method: format!("visit_{}", snake_case(&element_type)),
             walker: format!("walk_{}", snake_case(&element_type)),
-            checked_constructor: source.checked.is_some(),
             fields,
             invariant,
-            constructor,
             atoms,
         })
     }
@@ -1914,10 +1809,6 @@ impl ConstructionPlan {
         &self.build_arm
     }
 
-    pub(crate) fn has_checked_constructor(&self) -> bool {
-        self.checked_constructor
-    }
-
     pub(crate) fn atoms(&self) -> &[AtomPlan] {
         &self.atoms
     }
@@ -1945,10 +1836,6 @@ impl ConstructionPlan {
     pub(crate) fn invariant(&self) -> &InvariantPlan {
         &self.invariant
     }
-
-    pub(crate) fn constructor(&self) -> Option<&CheckedConstructorPlan> {
-        self.constructor.as_ref()
-    }
 }
 
 impl ConstructionFieldPlan {
@@ -1968,16 +1855,8 @@ impl ConstructionFieldPlan {
         &self.terminal
     }
 
-    pub(crate) fn accessor(&self) -> Option<&syn::Ident> {
-        self.accessor.as_ref()
-    }
-
     pub(crate) fn value_type(&self) -> &syn::Path {
         &self.value_type
-    }
-
-    pub(crate) fn visibility(&self) -> &FieldVisibilityPlan {
-        &self.visibility
     }
 
     #[allow(
@@ -2242,16 +2121,6 @@ fn accessor_mode(
             | TerminalPlan::DeclarationNoun(_) => AccessorMode::Borrow,
         })
         .ok_or_else(|| sealed_error("invariant field terminal"))
-}
-
-impl CheckedConstructorPlan {
-    pub(crate) fn path(&self) -> &syn::Path {
-        &self.path
-    }
-
-    pub(crate) fn arguments(&self) -> &[ConstructorArgumentPlan] {
-        &self.arguments
-    }
 }
 
 impl AtomPlan {

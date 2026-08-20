@@ -261,15 +261,6 @@ fn render_expansion(expansion: &Expansion) -> anyhow::Result<String> {
         writeln!(&mut output, "// - {kind} {}", binding.name())
             .expect("writing to String cannot fail");
     }
-    writeln!(
-        &mut output,
-        "// checked constructor bindings ({})",
-        report.checked_constructor_bindings().len()
-    )
-    .expect("writing to String cannot fail");
-    for name in report.checked_constructor_bindings() {
-        writeln!(&mut output, "// - construction {name}").expect("writing to String cannot fail");
-    }
     writeln!(&mut output, "// roots ({})", report.roots().len())
         .expect("writing to String cannot fail");
     for name in report.roots() {
@@ -2544,9 +2535,6 @@ mod tests {
              //   - bare = \"are\"\n\
              //   - third_person_singular = \"is\"\n\
              // terminal bindings (0)\n\
-             // checked constructor bindings (2)\n\
-             // - construction Triggered\n\
-             // - construction SelfReferenceNp\n\
              // roots (2)\n\
              // - root Ability\n\
              // - root Sentence\n"
