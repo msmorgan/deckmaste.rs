@@ -283,7 +283,7 @@ fn validate_and_sort(report: &mut CountedReport) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn categories_mut(report: &mut CountedReport) -> [(&'static str, &mut Vec<CountedEntry>); 8] {
+fn categories_mut(report: &mut CountedReport) -> [(&'static str, &mut Vec<CountedEntry>); 7] {
     [
         ("mapping layers", &mut report.mapping_layers),
         ("handwritten codecs", &mut report.handwritten_codecs),
@@ -291,10 +291,6 @@ fn categories_mut(report: &mut CountedReport) -> [(&'static str, &mut Vec<Counte
         ("stored spelling codecs", &mut report.stored_spelling_codecs),
         ("selection exceptions", &mut report.selection_exceptions),
         ("terminal bindings", &mut report.terminal_bindings),
-        (
-            "checked constructor bindings",
-            &mut report.checked_constructor_bindings,
-        ),
         ("roots", &mut report.roots),
     ]
 }

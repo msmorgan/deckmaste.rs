@@ -634,6 +634,7 @@ mod tests {
     #[derive(Default)]
     struct Plan04RetiredAuthorityFinder {
         allow_report_schema_field: bool,
+        skip_strict_test_only: bool,
         violations: Vec<&'static str>,
     }
 
@@ -645,6 +646,40 @@ mod tests {
         }
     }
 
+    fn plan04_host_authorities(file: &syn::File) -> Vec<&'static str> {
+        use syn::visit::Visit as _;
+
+        let mut finder = Plan04RetiredAuthorityFinder {
+            skip_strict_test_only: true,
+            ..Plan04RetiredAuthorityFinder::default()
+        };
+        finder.visit_file(file);
+        finder.violations
+    }
+
+    fn plan04_retired_text_authorities(source: &str) -> Vec<&'static str> {
+        [
+            (r"\bstruct\s+Checked\b", "struct Checked"),
+            (
+                r"\bstruct\s+ConstructorBinding\b",
+                "struct ConstructorBinding",
+            ),
+            (
+                r"\benum\s+ConstructorArgument\b",
+                "enum ConstructorArgument",
+            ),
+            (r"\bchecked_constructor\b", "checked_constructor"),
+        ]
+        .into_iter()
+        .filter_map(|(pattern, authority)| {
+            regex::Regex::new(pattern)
+                .unwrap_or_else(|error| panic!("{authority} audit pattern: {error}"))
+                .is_match(source)
+                .then_some(authority)
+        })
+        .collect()
+    }
+
     fn type_path_ends_with(ty: &syn::Type, target: &str) -> bool {
         matches!(
             ty,
@@ -654,7 +689,51 @@ mod tests {
         )
     }
 
+    fn macro_tokens_contain_inherent_impl(tokens: proc_macro2::TokenStream, target: &str) -> bool {
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        for (start, token) in tokens.iter().enumerate() {
+            if matches!(token, proc_macro2::TokenTree::Ident(ident) if ident == "impl") {
+                for (end, candidate) in tokens.iter().enumerate().skip(start + 1) {
+                    if !matches!(candidate, proc_macro2::TokenTree::Group(group) if group.delimiter() == proc_macro2::Delimiter::Brace)
+                    {
+                        continue;
+                    }
+                    let candidate = tokens[start..=end]
+                        .iter()
+                        .cloned()
+                        .collect::<proc_macro2::TokenStream>();
+                    if let Ok(item) = syn::parse2::<syn::ItemImpl>(candidate)
+                        && item.trait_.is_none()
+                        && type_path_ends_with(&item.self_ty, target)
+                    {
+                        return true;
+                    }
+                }
+            }
+            if let proc_macro2::TokenTree::Group(group) = token
+                && macro_tokens_contain_inherent_impl(group.stream(), target)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     impl<'ast> syn::visit::Visit<'ast> for Plan04RetiredAuthorityFinder {
+        fn visit_item(&mut self, item: &'ast syn::Item) {
+            if self.skip_strict_test_only && item_attrs(item).is_some_and(is_test_only) {
+                return;
+            }
+            syn::visit::visit_item(self, item);
+        }
+
+        fn visit_impl_item(&mut self, item: &'ast syn::ImplItem) {
+            if self.skip_strict_test_only && impl_item_attrs(item).is_some_and(is_test_only) {
+                return;
+            }
+            syn::visit::visit_impl_item(self, item);
+        }
+
         fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
             match item.ident.to_string().as_str() {
                 "Checked" => self.record("struct Checked"),
@@ -696,6 +775,14 @@ mod tests {
             if macro_tokens_contain_identifier(mac.tokens.clone(), "checked_constructor") {
                 self.record("checked_constructor");
             }
+            for (target, authority) in [
+                ("Triggered", "impl Triggered"),
+                ("SelfReferenceNp", "impl SelfReferenceNp"),
+            ] {
+                if macro_tokens_contain_inherent_impl(mac.tokens.clone(), target) {
+                    self.record(authority);
+                }
+            }
             for (kind, name, authority) in [
                 (ProductionAuthorityKind::Struct, "Checked", "struct Checked"),
                 (
@@ -715,6 +802,56 @@ mod tests {
             }
             syn::visit::visit_macro(self, mac);
         }
+    }
+
+    #[derive(Default)]
+    struct CheckedBlockFinder {
+        skip_strict_test_only: bool,
+        empty_blocks: Vec<bool>,
+    }
+
+    fn collect_checked_blocks(tokens: proc_macro2::TokenStream, empty_blocks: &mut Vec<bool>) {
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        for (index, token) in tokens.iter().enumerate() {
+            if matches!(token, proc_macro2::TokenTree::Ident(ident) if ident == "checked")
+                && let Some(proc_macro2::TokenTree::Group(group)) = tokens.get(index + 1)
+                && group.delimiter() == proc_macro2::Delimiter::Brace
+            {
+                empty_blocks.push(group.stream().is_empty());
+            }
+            if let proc_macro2::TokenTree::Group(group) = token {
+                collect_checked_blocks(group.stream(), empty_blocks);
+            }
+        }
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for CheckedBlockFinder {
+        fn visit_item(&mut self, item: &'ast syn::Item) {
+            if self.skip_strict_test_only && item_attrs(item).is_some_and(is_test_only) {
+                return;
+            }
+            syn::visit::visit_item(self, item);
+        }
+
+        fn visit_impl_item(&mut self, item: &'ast syn::ImplItem) {
+            if self.skip_strict_test_only && impl_item_attrs(item).is_some_and(is_test_only) {
+                return;
+            }
+            syn::visit::visit_impl_item(self, item);
+        }
+
+        fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+            collect_checked_blocks(mac.tokens.clone(), &mut self.empty_blocks);
+        }
+    }
+
+    fn checked_blocks_in_rust_source(source: &str) -> Vec<bool> {
+        use syn::visit::Visit as _;
+
+        let file = syn::parse_file(source).expect("checked-block source reparses");
+        let mut finder = CheckedBlockFinder::default();
+        finder.visit_file(&file);
+        finder.empty_blocks
     }
 
     #[derive(Default)]
@@ -756,27 +893,78 @@ mod tests {
             syn::visit::visit_expr_struct(self, expression);
         }
 
-        fn visit_expr_assign(&mut self, expression: &'ast syn::ExprAssign) {
-            if expression_is_checked_bindings_field(&expression.left) {
-                self.violations
-                    .push("checked_constructor_bindings is assigned after construction".to_owned());
+        fn visit_expr_reference(&mut self, expression: &'ast syn::ExprReference) {
+            if expression_is_checked_bindings_field(&expression.expr) {
+                if expression.mutability.is_some() {
+                    self.violations.push(
+                        "checked_constructor_bindings escapes through a mutable reference"
+                            .to_owned(),
+                    );
+                }
+                return;
             }
-            syn::visit::visit_expr_assign(self, expression);
+            syn::visit::visit_expr_reference(self, expression);
         }
 
         fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
-            if expression_is_checked_bindings_field(&expression.receiver)
-                && matches!(
+            if expression_is_checked_bindings_field(&expression.receiver) {
+                if !matches!(
                     expression.method.to_string().as_str(),
-                    "append" | "extend" | "insert" | "push" | "push_within_capacity"
-                )
-            {
-                self.violations.push(format!(
-                    "checked_constructor_bindings is mutated through {}",
-                    expression.method
-                ));
+                    "as_slice" | "is_empty" | "iter" | "len"
+                ) {
+                    self.violations.push(format!(
+                        "checked_constructor_bindings invokes unproved method {}",
+                        expression.method
+                    ));
+                }
+                for argument in &expression.args {
+                    self.visit_expr(argument);
+                }
+                return;
             }
             syn::visit::visit_expr_method_call(self, expression);
+        }
+
+        fn visit_expr_field(&mut self, expression: &'ast syn::ExprField) {
+            if member_is_checked_bindings(&expression.member) {
+                self.violations
+                    .push("checked_constructor_bindings is moved or otherwise exposed".to_owned());
+                return;
+            }
+            syn::visit::visit_expr_field(self, expression);
+        }
+
+        fn visit_pat_struct(&mut self, pattern: &'ast syn::PatStruct) {
+            if pattern
+                .fields
+                .iter()
+                .any(|field| member_is_checked_bindings(&field.member))
+            {
+                self.violations.push(
+                    "checked_constructor_bindings is exposed through destructuring".to_owned(),
+                );
+            }
+            syn::visit::visit_pat_struct(self, pattern);
+        }
+
+        fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+            use syn::parse::Parser as _;
+
+            let expressions =
+                syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated
+                    .parse2(mac.tokens.clone());
+            if let Ok(expressions) = expressions {
+                for expression in expressions {
+                    self.visit_expr(&expression);
+                }
+            } else if macro_tokens_contain_identifier(
+                mac.tokens.clone(),
+                "checked_constructor_bindings",
+            ) {
+                self.violations.push(
+                    "checked_constructor_bindings appears inside unproved macro syntax".to_owned(),
+                );
+            }
         }
     }
 
@@ -2314,40 +2502,119 @@ mod tests {
     }
 
     #[test]
+    fn plan04_host_scan_includes_production_without_matching_its_test_module() {
+        let host = syn::parse_file(
+            "fn checked_constructor() {}\n\
+             #[cfg(test)] mod tests { struct Checked; }",
+        )
+        .expect("synthetic audit host reparses");
+
+        assert_eq!(plan04_host_authorities(&host), ["checked_constructor"]);
+    }
+
+    #[test]
+    fn plan04_checked_blocks_are_detected_as_comment_insensitive_macro_tokens() {
+        for source in [
+            "fn fixture() { constructions! { checked /* legacy */ { constructor = old; } } }",
+            "fn fixture() { constructions! { checked // legacy\n { access value; } } }",
+            "fn fixture() { constructions! {\n\
+                 construction legacy: Root {\n\
+                     element Legacy {}\n\
+                     checked /* retired metadata */ { visibility field = private; }\n\
+                     form legacy = \"legacy\";\n\
+                 }\n\
+             } }",
+        ] {
+            assert_eq!(checked_blocks_in_rust_source(source), [false], "{source}");
+        }
+    }
+
+    #[test]
+    fn plan04_checked_bindings_producer_scan_rejects_every_mutable_escape() {
+        use syn::visit::Visit as _;
+
+        for source in [
+            "fn candidate(report: &mut Report, entry: Binding) { \
+                 report.checked_constructor_bindings = vec![entry]; \
+             }",
+            "fn candidate(report: &mut Report, entry: Binding) { \
+                 Vec::push(&mut report.checked_constructor_bindings, entry); \
+             }",
+            "fn candidate(report: &mut Report, entry: Binding) { \
+                 let bindings = &mut report.checked_constructor_bindings; \
+                 mutate(bindings, entry); \
+             }",
+            "fn candidate(report: &mut Report, entry: Binding) { \
+                 report.checked_constructor_bindings.resize_with(1, || entry); \
+             }",
+            "fn candidate(report: &mut Report, entries: Vec<Binding>) { \
+                 report.checked_constructor_bindings.splice(.., entries); \
+             }",
+            "fn candidate(report: &mut Report, entry: Binding) { \
+                 mutate(&mut report.checked_constructor_bindings, entry); \
+             }",
+            "fn candidate(report: &mut Report, entry: Binding) { \
+                 mutate!(&mut report.checked_constructor_bindings, entry); \
+             }",
+            "fn candidate(report: &mut Report) { \
+                 mutate! { binding => report.checked_constructor_bindings } \
+             }",
+        ] {
+            let file = syn::parse_file(source).expect("producer escape source reparses");
+            let mut finder = CheckedBindingsProducerFinder::default();
+            finder.visit_file(&file);
+            assert!(
+                !finder.violations.is_empty(),
+                "mutable escape passed: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn plan04_generated_output_text_does_not_count_as_impl_authority() {
+        let generated_output = "generated item: impl Triggered { ... }\n\
+            generated item: impl SelfReferenceNp { ... }";
+
+        assert!(plan04_retired_text_authorities(generated_output).is_empty());
+    }
+
+    #[test]
+    fn plan04_impl_authority_requires_actual_rust_or_macro_syntax() {
+        use syn::visit::Visit as _;
+
+        for (source, expected) in [
+            ("impl Triggered {}", "impl Triggered"),
+            (
+                "generated! { impl SelfReferenceNp {} }",
+                "impl SelfReferenceNp",
+            ),
+        ] {
+            let file = syn::parse_file(source).expect("impl authority source reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(finder.violations.contains(&expected), "{source}");
+        }
+
+        let trait_impl =
+            syn::parse_file("impl Render for Triggered {}").expect("trait impl source reparses");
+        let mut finder = Plan04RetiredAuthorityFinder::default();
+        finder.visit_file(&trait_impl);
+        assert!(!finder.violations.contains(&"impl Triggered"));
+    }
+
+    #[test]
     fn plan04_generated_invariants_are_single_authority() {
         use syn::visit::Visit as _;
 
         let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let host_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/english_v2.rs");
         let report_path = workspace_root.join("crates/xtask/src/english_v2/report.rs");
         let parser_path = workspace_root.join("crates/deckmaste_construction_core/src/parse.rs");
         let mut violations = Vec::new();
-        let checked_block =
-            regex::Regex::new(r"\bchecked\s*\{").expect("checked-block audit pattern is valid");
-        let empty_checked_block = regex::Regex::new(r"\bchecked\s*\{\s*\}")
-            .expect("empty checked-block audit pattern is valid");
-        let retired_text = [
-            (r"\bstruct\s+Checked\b", "struct Checked"),
-            (
-                r"\bstruct\s+ConstructorBinding\b",
-                "struct ConstructorBinding",
-            ),
-            (
-                r"\benum\s+ConstructorArgument\b",
-                "enum ConstructorArgument",
-            ),
-            (r"\bchecked_constructor\b", "checked_constructor"),
-            (r"\bimpl\s+Triggered\b", "impl Triggered"),
-            (r"\bimpl\s+SelfReferenceNp\b", "impl SelfReferenceNp"),
-        ]
-        .map(|(pattern, authority)| {
-            (
-                regex::Regex::new(pattern)
-                    .unwrap_or_else(|error| panic!("{authority} audit pattern: {error}")),
-                authority,
-            )
-        });
-        let mut checked_blocks = Vec::new();
-        let mut empty_checked_blocks = Vec::new();
+        let checked_text_block =
+            regex::Regex::new(r"(?s)\bchecked(?:\s|/\*.*?\*/|//[^\n]*(?:\n|$))*\{")
+                .expect("checked-block text-fixture audit pattern is valid");
+        let mut parser_checked_blocks = Vec::new();
 
         for path in plan04_source_fixture_paths(&workspace_root) {
             let relative = path
@@ -2355,20 +2622,24 @@ mod tests {
                 .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
             let source = fs::read_to_string(&path)
                 .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-            for block in checked_block.find_iter(&source) {
-                checked_blocks.push((relative.to_path_buf(), block.as_str().to_owned()));
-            }
-            for block in empty_checked_block.find_iter(&source) {
-                empty_checked_blocks.push((relative.to_path_buf(), block.as_str().to_owned()));
-            }
-            for (pattern, authority) in &retired_text {
-                if pattern.is_match(&source) {
-                    violations.push(format!("{} retains {authority}", relative.display()));
-                }
-            }
+            violations.extend(
+                plan04_retired_text_authorities(&source)
+                    .into_iter()
+                    .map(|authority| format!("{} retains {authority}", relative.display())),
+            );
             if path.extension().is_some_and(|extension| extension == "rs") {
                 let file = syn::parse_file(&source)
                     .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+                let mut checked_finder = CheckedBlockFinder::default();
+                checked_finder.visit_file(&file);
+                if path == parser_path {
+                    parser_checked_blocks = checked_finder.empty_blocks;
+                } else if !checked_finder.empty_blocks.is_empty() {
+                    violations.push(format!(
+                        "{} retains checked metadata block",
+                        relative.display()
+                    ));
+                }
                 let mut finder = Plan04RetiredAuthorityFinder {
                     allow_report_schema_field: path == report_path,
                     ..Plan04RetiredAuthorityFinder::default()
@@ -2380,32 +2651,41 @@ mod tests {
                         .into_iter()
                         .map(|authority| format!("{} retains {authority}", relative.display())),
                 );
+            } else if checked_text_block.is_match(&source) {
+                violations.push(format!(
+                    "{} retains checked metadata block",
+                    relative.display()
+                ));
             }
         }
 
-        assert_eq!(
-            checked_blocks,
-            [(
-                parser_path
-                    .strip_prefix(&workspace_root)
-                    .expect("parser source is inside the workspace")
-                    .to_path_buf(),
-                "checked {".to_owned()
-            )],
-            "only the parser's empty checked-metadata rejection fixture may remain"
+        let host_source = fs::read_to_string(&host_path).expect("audit host source is readable");
+        let host = syn::parse_file(&host_source).expect("audit host source reparses");
+        violations.extend(
+            plan04_host_authorities(&host)
+                .into_iter()
+                .map(|authority| format!("crates/xtask/src/english_v2.rs retains {authority}")),
         );
-        assert_eq!(
-            empty_checked_blocks,
-            [(
-                parser_path
-                    .strip_prefix(&workspace_root)
-                    .expect("parser source is inside the workspace")
-                    .to_path_buf(),
-                "checked {}".to_owned()
-            )],
-            "the single allowed checked-metadata fixture must remain empty"
+        let mut host_checked_finder = CheckedBlockFinder {
+            skip_strict_test_only: true,
+            ..CheckedBlockFinder::default()
+        };
+        host_checked_finder.visit_file(&host);
+        if !host_checked_finder.empty_blocks.is_empty() {
+            violations
+                .push("crates/xtask/src/english_v2.rs retains checked metadata block".to_owned());
+        }
+
+        assert!(
+            parser_checked_blocks.is_empty(),
+            "the parser's checked-metadata rejection fixture must remain input text, not Rust or macro syntax"
         );
         let parser_source = fs::read_to_string(&parser_path).expect("parser source is readable");
+        assert_eq!(
+            parser_source.matches("checked {}").count(),
+            1,
+            "the parser must retain exactly one precise empty checked-metadata fixture"
+        );
         assert_eq!(
             parser_source
                 .matches("`checked` metadata was retired after Stage 4; use generated invariants")
