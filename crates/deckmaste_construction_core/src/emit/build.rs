@@ -31,6 +31,9 @@ use crate::semantic::SemanticPlan;
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let build_function = ident(BUILD_FUNCTION);
     let constructions = plan.constructions();
+    for construction in constructions {
+        construction.validate_legacy_refinement_projection()?;
+    }
     let arms = constructions
         .iter()
         .map(|construction| emit_arm(plan, construction))
@@ -242,19 +245,16 @@ fn lower_category_role(
     let role = ident(role);
     let role_name = identifier_key(&role);
     let role_binding = lowering.binders.allocate_ident(&role);
-    let refinement = row
-        .refinements()
-        .iter()
-        .find(|requirement| identifier_key(requirement.role()) == role_name);
+    let refinement = row.legacy_refinement(&role_name);
     let category = ident(category_name);
     let value_pattern = if let Some(requirement) = refinement {
-        let variant = ident(&identifier_key(requirement.variant()));
+        let variant = ident(&identifier_key(requirement));
         quote! { #category::#variant(#role_binding) }
     } else {
         quote! { #role_binding }
     };
     let stored = if let Some(requirement) = refinement {
-        let variant = ident(&identifier_key(requirement.variant()));
+        let variant = ident(&identifier_key(requirement));
         quote! { #category::#variant(#role_binding.clone()) }
     } else {
         quote! { #role_binding.clone() }
@@ -364,12 +364,8 @@ fn lower_terminal_role(
     let binding = match validated.atom_terminal(terminal_name)? {
         AtomTerminal::Vocab(vocab) => {
             let leaf = ident(vocab.name());
-            if let Some(requirement) = row
-                .refinements()
-                .iter()
-                .find(|item| identifier_key(item.role()) == identifier_key(&role))
-            {
-                let variant = ident(&identifier_key(requirement.variant()));
+            if let Some(requirement) = row.legacy_refinement(&identifier_key(&role)) {
+                let variant = ident(&identifier_key(requirement));
                 lowering
                     .patterns
                     .push(quote! { BuildValue::Leaf(Leaf::#leaf(#leaf::#variant)) });

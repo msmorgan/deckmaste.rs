@@ -28,7 +28,7 @@ pub(crate) enum FeatureResolution {
     External,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(
     dead_code,
     reason = "sealed feature IR is consumed by Task 4 code generation"
@@ -53,6 +53,50 @@ impl<T> Spanned<T> {
 
     pub(crate) fn span(&self) -> Span {
         self.span
+    }
+}
+
+impl Feature {
+    pub(crate) fn domain(self) -> &'static [FeatureValue] {
+        match self {
+            Self::Agreement => &[FeatureValue::Bare, FeatureValue::ThirdPersonSingular],
+            Self::Number => &[FeatureValue::Singular, FeatureValue::Plural],
+        }
+    }
+
+    pub(crate) fn member(self, ident: &syn::Ident) -> syn::Result<FeatureValue> {
+        let name = identifier::key(ident);
+        self.domain()
+            .iter()
+            .copied()
+            .find(|value| value.key() == name)
+            .ok_or_else(|| {
+                syn::Error::new(
+                    ident.span(),
+                    format!(
+                        "unknown predicate member `{name}` for feature `{}`",
+                        self.key()
+                    ),
+                )
+            })
+    }
+
+    pub(crate) fn key(self) -> &'static str {
+        match self {
+            Self::Agreement => "agreement",
+            Self::Number => "number",
+        }
+    }
+}
+
+impl FeatureValue {
+    pub(crate) fn key(self) -> &'static str {
+        match self {
+            Self::Bare => "Bare",
+            Self::ThirdPersonSingular => "ThirdPersonSingular",
+            Self::Singular => "Singular",
+            Self::Plural => "Plural",
+        }
     }
 }
 

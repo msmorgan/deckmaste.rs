@@ -62,7 +62,7 @@ pub(crate) struct ConstructionPlan {
     checked_constructor: bool,
     private_fields: bool,
     fields: Vec<ConstructionFieldPlan>,
-    refinements: Vec<RefinementPlan>,
+    invariant: InvariantPlan,
     constructor: Option<CheckedConstructorPlan>,
     atoms: Vec<AtomPlan>,
 }
@@ -75,6 +75,8 @@ pub(crate) struct ConstructionFieldPlan {
     value_type: syn::Path,
     visibility: FieldVisibilityPlan,
     accessor: Option<syn::Ident>,
+    invariant_bearing: bool,
+    accessor_mode: Option<AccessorMode>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,10 +93,52 @@ pub(crate) enum FieldVisibilityPlan {
     Restricted(syn::Visibility),
 }
 
-#[derive(Debug)]
-pub(crate) struct RefinementPlan {
-    role: syn::Ident,
-    variant: syn::Ident,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AccessorMode {
+    Copy,
+    Borrow,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct InvariantPlan {
+    alternatives: Vec<PredicateConjunctionPlan>,
+    constrained_fields: Vec<syn::Ident>,
+    context_identity_fields: Vec<syn::Ident>,
+    requires_context: bool,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct PredicateConjunctionPlan {
+    atoms: Vec<PredicateAtomPlan>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct PredicateAtomPlan {
+    subject: PredicateSubjectPlan,
+    allowed: Vec<PredicateMemberPlan>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum PredicateSubjectPlan {
+    CategoryRole {
+        role: syn::Ident,
+        category: String,
+    },
+    VocabRole {
+        role: syn::Ident,
+        terminal: String,
+    },
+    RoleFeature {
+        role: syn::Ident,
+        feature: feature::Feature,
+    },
+    ConstructionFeature(feature::Feature),
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum PredicateMemberPlan {
+    Variant(syn::Ident),
+    Feature(feature::Spanned<feature::FeatureValue>),
 }
 
 #[derive(Debug)]
@@ -574,6 +618,64 @@ pub(crate) struct FeaturePlan {
     number_carry_categories: HashSet<String>,
 }
 
+fn seal_terminals(
+    source: &Declarations,
+    morphology_by_name: &HashMap<String, MorphologyPlan>,
+) -> syn::Result<Vec<TerminalPlan>> {
+    source
+        .declarations
+        .iter()
+        .enumerate()
+        .filter_map(|(source_index, declaration)| match declaration {
+            Declaration::Vocab(vocab) => Some(Ok(TerminalPlan::Vocab(VocabPlan::from_source(
+                source_index,
+                vocab,
+            )))),
+            Declaration::Lexeme(lexeme) => Some(
+                LexemePlan::from_source(
+                    source_index,
+                    lexeme,
+                    morphology_by_name
+                        .get(&identifier_key(&lexeme.morphology))
+                        .expect("validated lexeme morphology")
+                        .clone(),
+                )
+                .map(TerminalPlan::Lexeme),
+            ),
+            Declaration::Codec(binding) if binding.generated.is_some() => Some(Ok(
+                match binding.generated.as_ref().expect("generated recipe exists") {
+                    crate::model::GeneratedCodecRecipe::SignedDecimal(_) => {
+                        TerminalPlan::SignedDecimal(SignedDecimalPlan::from_source(
+                            source_index,
+                            binding,
+                        ))
+                    }
+                    crate::model::GeneratedCodecRecipe::DeclarationNoun(_) => {
+                        TerminalPlan::DeclarationNoun(DeclarationNounPlan::from_source(
+                            source_index,
+                            binding,
+                        ))
+                    }
+                    crate::model::GeneratedCodecRecipe::Unsupported { .. } => {
+                        unreachable!("validated generated codec recipe is supported")
+                    }
+                },
+            )),
+            Declaration::Identity(binding) if binding.generated_identity.is_some() => {
+                Some(Ok(TerminalPlan::ContextIdentity(
+                    ContextIdentityPlan::from_source(source_index, binding),
+                )))
+            }
+            Declaration::Codec(binding) | Declaration::Identity(binding) => {
+                Some(BindingPlan::from_source(source_index, binding).map(TerminalPlan::Binding))
+            }
+            Declaration::Construction(_) | Declaration::Morphology(_) | Declaration::Root(_) => {
+                None
+            }
+        })
+        .collect()
+}
+
 impl SemanticPlan {
     #[allow(
         clippy::too_many_arguments,
@@ -588,6 +690,7 @@ impl SemanticPlan {
         resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
         category_render: HashMap<String, CategoryRenderCapability>,
         mut atoms_by_construction: HashMap<String, (Span, Vec<AtomContribution>)>,
+        mut invariants_by_construction: HashMap<String, (Span, InvariantPlan)>,
     ) -> syn::Result<Self> {
         let declaration_keys = source
             .declarations
@@ -608,6 +711,7 @@ impl SemanticPlan {
             .iter()
             .map(|morphology| (identifier_key(morphology.name_ident()), morphology.clone()))
             .collect::<HashMap<_, _>>();
+        let field_policy_terminals = seal_terminals(source, &morphology_by_name)?;
         let constructions =
             source
                 .declarations
@@ -632,7 +736,23 @@ impl SemanticPlan {
                         ),
                     )
                 })?;
-                    ConstructionPlan::from_source(source_index, construction, &atoms)
+                    let (_, invariant) = invariants_by_construction
+                        .remove(&construction_id)
+                        .ok_or_else(|| {
+                            syn::Error::new(
+                                construction.name.span(),
+                                format!(
+                                    "sealed semantic plan is missing invariant '{construction_id}'"
+                                ),
+                            )
+                        })?;
+                    ConstructionPlan::from_source(
+                        source_index,
+                        construction,
+                        &atoms,
+                        invariant,
+                        &field_policy_terminals,
+                    )
                 })
                 .collect::<syn::Result<Vec<_>>>()?;
         if let Some((name, (span, _))) = atoms_by_construction.into_iter().next() {
@@ -641,60 +761,15 @@ impl SemanticPlan {
                 format!("sealed semantic plan has surplus construction `{name}`"),
             ));
         }
+        if let Some((name, (span, _))) = invariants_by_construction.into_iter().next() {
+            return Err(syn::Error::new(
+                span,
+                format!("sealed semantic plan has surplus invariant '{name}'"),
+            ));
+        }
         let number_carry_categories = number_carry_categories(&constructions, &equations);
 
-        let terminals = source
-            .declarations
-            .iter()
-            .enumerate()
-            .filter_map(|(source_index, declaration)| match declaration {
-                Declaration::Vocab(vocab) => Some(Ok(TerminalPlan::Vocab(VocabPlan::from_source(
-                    source_index,
-                    vocab,
-                )))),
-                Declaration::Lexeme(lexeme) => Some(
-                    LexemePlan::from_source(
-                        source_index,
-                        lexeme,
-                        morphology_by_name
-                            .get(&identifier_key(&lexeme.morphology))
-                            .expect("validated lexeme morphology")
-                            .clone(),
-                    )
-                    .map(TerminalPlan::Lexeme),
-                ),
-                Declaration::Codec(binding) if binding.generated.is_some() => Some(Ok(
-                    match binding.generated.as_ref().expect("generated recipe exists") {
-                        crate::model::GeneratedCodecRecipe::SignedDecimal(_) => {
-                            TerminalPlan::SignedDecimal(SignedDecimalPlan::from_source(
-                                source_index,
-                                binding,
-                            ))
-                        }
-                        crate::model::GeneratedCodecRecipe::DeclarationNoun(_) => {
-                            TerminalPlan::DeclarationNoun(DeclarationNounPlan::from_source(
-                                source_index,
-                                binding,
-                            ))
-                        }
-                        crate::model::GeneratedCodecRecipe::Unsupported { .. } => {
-                            unreachable!("validated generated codec recipe is supported")
-                        }
-                    },
-                )),
-                Declaration::Identity(binding) if binding.generated_identity.is_some() => {
-                    Some(Ok(TerminalPlan::ContextIdentity(
-                        ContextIdentityPlan::from_source(source_index, binding),
-                    )))
-                }
-                Declaration::Codec(binding) | Declaration::Identity(binding) => {
-                    Some(BindingPlan::from_source(source_index, binding).map(TerminalPlan::Binding))
-                }
-                Declaration::Construction(_)
-                | Declaration::Morphology(_)
-                | Declaration::Root(_) => None,
-            })
-            .collect::<syn::Result<Vec<_>>>()?;
+        let terminals = field_policy_terminals;
         let roots: Vec<RootPlan> = source
             .declarations
             .iter()
@@ -953,6 +1028,63 @@ impl SemanticPlan {
 
     pub(crate) fn category_carries_number(&self, category: &str) -> bool {
         self.features.number_carry_categories.contains(category)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_replace_invariant_member(
+        &mut self,
+        construction_id: &str,
+        role: &str,
+        member: &str,
+    ) {
+        let construction = self
+            .constructions
+            .iter_mut()
+            .find(|construction| construction.construction_id == construction_id)
+            .expect("test construction is present");
+        let atom = construction
+            .invariant
+            .alternatives
+            .iter_mut()
+            .flat_map(|alternative| &mut alternative.atoms)
+            .find(|atom| {
+                atom.subject
+                    .role()
+                    .is_some_and(|candidate| identifier_key(candidate) == role)
+            })
+            .expect("test invariant role is present");
+        let PredicateMemberPlan::Variant(existing) = &mut atom.allowed[0] else {
+            panic!("test invariant member is a variant");
+        };
+        *existing = syn::Ident::new(member, existing.span());
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_only_replace_invariant_context_field(
+        &mut self,
+        construction_id: &str,
+        old: &str,
+        new: &str,
+    ) {
+        let terminals = &self.terminals;
+        let construction = self
+            .constructions
+            .iter_mut()
+            .find(|construction| construction.construction_id == construction_id)
+            .expect("test construction is present");
+        let field = construction
+            .invariant
+            .context_identity_fields
+            .iter_mut()
+            .find(|field| identifier_key(field) == old)
+            .expect("test context-identity field is present");
+        *field = syn::Ident::new(new, field.span());
+        construction.invariant.requires_context =
+            !construction.invariant.context_identity_fields.is_empty();
+        construction
+            .invariant
+            .apply_field_policy(&mut construction.fields, terminals)
+            .expect("mutated test field policy remains sealable");
     }
 
     #[cfg(test)]
@@ -1442,6 +1574,8 @@ impl ConstructionPlan {
         source_index: usize,
         source: &crate::Construction,
         resolved_atoms: &[AtomContribution],
+        mut invariant: InvariantPlan,
+        terminals: &[TerminalPlan],
     ) -> syn::Result<Self> {
         let construction_id = identifier_key(&source.name);
         let category = path_key(&source.category);
@@ -1456,7 +1590,7 @@ impl ConstructionPlan {
                 )
             })
         });
-        let fields = source
+        let mut fields = source
             .element
             .fields
             .iter()
@@ -1516,20 +1650,12 @@ impl ConstructionPlan {
                     value_type,
                     visibility,
                     accessor,
+                    invariant_bearing: false,
+                    accessor_mode: None,
                 })
             })
             .collect::<syn::Result<Vec<_>>>()?;
-        let refinements = source
-            .requirements
-            .iter()
-            .map(|requirement| requirement.as_role_refinement_or_error())
-            .collect::<syn::Result<Vec<_>>>()?
-            .into_iter()
-            .map(|(role, variant)| RefinementPlan {
-                role: role.clone(),
-                variant: variant.clone(),
-            })
-            .collect();
+        invariant.seal_field_policy(&mut fields, terminals)?;
         let constructor = source
             .checked
             .as_ref()
@@ -1574,7 +1700,7 @@ impl ConstructionPlan {
             checked_constructor: source.checked.is_some(),
             private_fields,
             fields,
-            refinements,
+            invariant,
             constructor,
             atoms,
         })
@@ -1643,8 +1769,17 @@ impl ConstructionPlan {
             .ok_or_else(|| syn::Error::new(self.origin_span, "sealed construction field is absent"))
     }
 
-    pub(crate) fn refinements(&self) -> &[RefinementPlan] {
-        &self.refinements
+    #[allow(dead_code, reason = "later invariant emitters consume the sealed plan")]
+    pub(crate) fn invariant(&self) -> &InvariantPlan {
+        &self.invariant
+    }
+
+    pub(crate) fn validate_legacy_refinement_projection(&self) -> syn::Result<()> {
+        self.invariant.validate_legacy_refinement_projection()
+    }
+
+    pub(crate) fn legacy_refinement(&self, role: &str) -> Option<&syn::Ident> {
+        self.invariant.legacy_refinement(role)
     }
 
     pub(crate) fn has_private_fields(&self) -> bool {
@@ -1688,16 +1823,291 @@ impl ConstructionFieldPlan {
     pub(crate) fn visibility(&self) -> &FieldVisibilityPlan {
         &self.visibility
     }
+
+    #[allow(
+        dead_code,
+        reason = "later invariant emitters consume the sealed field policy"
+    )]
+    pub(crate) fn is_invariant_bearing(&self) -> bool {
+        self.invariant_bearing
+    }
+
+    #[allow(
+        dead_code,
+        reason = "later invariant emitters consume the sealed field policy"
+    )]
+    pub(crate) fn accessor_mode(&self) -> Option<AccessorMode> {
+        self.accessor_mode
+    }
 }
 
-impl RefinementPlan {
-    pub(crate) fn role(&self) -> &syn::Ident {
-        &self.role
+impl InvariantPlan {
+    pub(crate) fn from_alternatives(alternatives: Vec<PredicateConjunctionPlan>) -> Self {
+        Self {
+            alternatives,
+            constrained_fields: Vec::new(),
+            context_identity_fields: Vec::new(),
+            requires_context: false,
+        }
     }
 
-    pub(crate) fn variant(&self) -> &syn::Ident {
-        &self.variant
+    pub(crate) fn alternatives(&self) -> &[PredicateConjunctionPlan] {
+        &self.alternatives
     }
+
+    #[allow(
+        dead_code,
+        reason = "later invariant emitters consume the sealed field policy"
+    )]
+    pub(crate) fn constrained_fields(&self) -> &[syn::Ident] {
+        &self.constrained_fields
+    }
+
+    #[allow(
+        dead_code,
+        reason = "later invariant emitters consume the sealed field policy"
+    )]
+    pub(crate) fn context_identity_fields(&self) -> &[syn::Ident] {
+        &self.context_identity_fields
+    }
+
+    #[allow(
+        dead_code,
+        reason = "later invariant emitters consume the sealed field policy"
+    )]
+    pub(crate) fn requires_context(&self) -> bool {
+        self.requires_context
+    }
+
+    fn seal_field_policy(
+        &mut self,
+        fields: &mut [ConstructionFieldPlan],
+        terminals: &[TerminalPlan],
+    ) -> syn::Result<()> {
+        self.constrained_fields = fields
+            .iter()
+            .filter(|field| {
+                self.alternatives.iter().any(|alternative| {
+                    alternative.atoms.iter().any(|atom| {
+                        atom.subject
+                            .role()
+                            .is_some_and(|role| crate::identifier::same(role, &field.name))
+                    })
+                })
+            })
+            .map(|field| field.name.clone())
+            .collect();
+        self.context_identity_fields = fields
+            .iter()
+            .filter(|field| {
+                field.kind == ConstructionFieldKind::Identity
+                    && terminals.iter().any(|terminal| {
+                        matches!(terminal, TerminalPlan::ContextIdentity(identity) if identity.name() == field.terminal)
+                    })
+            })
+            .map(|field| field.name.clone())
+            .collect();
+        self.requires_context = !self.context_identity_fields.is_empty();
+        self.apply_field_policy(fields, terminals)
+    }
+
+    fn apply_field_policy(
+        &self,
+        fields: &mut [ConstructionFieldPlan],
+        terminals: &[TerminalPlan],
+    ) -> syn::Result<()> {
+        for field in fields {
+            let bearing = self
+                .constrained_fields
+                .iter()
+                .chain(&self.context_identity_fields)
+                .any(|name| crate::identifier::same(name, &field.name));
+            field.invariant_bearing = bearing;
+            field.accessor_mode = bearing
+                .then(|| accessor_mode(field, terminals))
+                .transpose()?;
+        }
+        Ok(())
+    }
+
+    fn validate_legacy_refinement_projection(&self) -> syn::Result<()> {
+        let [alternative] = self.alternatives.as_slice() else {
+            return Err(legacy_predicate_error());
+        };
+        for atom in &alternative.atoms {
+            if !matches!(
+                (&atom.subject, atom.allowed.as_slice()),
+                (
+                    PredicateSubjectPlan::CategoryRole { .. }
+                        | PredicateSubjectPlan::VocabRole { .. },
+                    [PredicateMemberPlan::Variant(_)]
+                )
+            ) {
+                return Err(legacy_predicate_error());
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn legacy_refinement(&self, role: &str) -> Option<&syn::Ident> {
+        let [alternative] = self.alternatives.as_slice() else {
+            return None;
+        };
+        alternative.atoms.iter().find_map(|atom| {
+            let PredicateMemberPlan::Variant(member) = atom.allowed.first()? else {
+                return None;
+            };
+            (atom.allowed.len() == 1
+                && atom
+                    .subject
+                    .role()
+                    .is_some_and(|candidate| identifier_key(candidate) == role))
+            .then_some(member)
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn snapshot(&self) -> String {
+        if matches!(self.alternatives.as_slice(), [alternative] if alternative.atoms.is_empty()) {
+            return "TRUE".to_owned();
+        }
+        self.alternatives
+            .iter()
+            .map(|alternative| {
+                format!(
+                    "({})",
+                    alternative
+                        .atoms
+                        .iter()
+                        .map(PredicateAtomPlan::snapshot)
+                        .collect::<Vec<_>>()
+                        .join(" AND ")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\nOR\n")
+    }
+}
+
+impl PredicateConjunctionPlan {
+    pub(crate) fn new(atoms: Vec<PredicateAtomPlan>) -> Self {
+        Self { atoms }
+    }
+
+    pub(crate) fn atoms(&self) -> &[PredicateAtomPlan] {
+        &self.atoms
+    }
+}
+
+impl PredicateAtomPlan {
+    pub(crate) fn new(subject: PredicateSubjectPlan, allowed: Vec<PredicateMemberPlan>) -> Self {
+        Self { subject, allowed }
+    }
+
+    pub(crate) fn subject(&self) -> &PredicateSubjectPlan {
+        &self.subject
+    }
+
+    pub(crate) fn allowed(&self) -> &[PredicateMemberPlan] {
+        &self.allowed
+    }
+
+    pub(crate) fn semantic_key(&self) -> String {
+        format!(
+            "{}={}",
+            self.subject.semantic_key(),
+            self.allowed
+                .iter()
+                .map(PredicateMemberPlan::semantic_key)
+                .collect::<Vec<_>>()
+                .join("|")
+        )
+    }
+
+    #[cfg(test)]
+    fn snapshot(&self) -> String {
+        format!(
+            "{} in [{}]",
+            self.subject.snapshot(),
+            self.allowed
+                .iter()
+                .map(PredicateMemberPlan::semantic_key)
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+
+impl PredicateSubjectPlan {
+    pub(crate) fn role(&self) -> Option<&syn::Ident> {
+        match self {
+            Self::CategoryRole { role, .. }
+            | Self::VocabRole { role, .. }
+            | Self::RoleFeature { role, .. } => Some(role),
+            Self::ConstructionFeature(_) => None,
+        }
+    }
+
+    pub(crate) fn semantic_key(&self) -> String {
+        match self {
+            Self::CategoryRole { role, category } => {
+                format!("category:{}:{category}", identifier_key(role))
+            }
+            Self::VocabRole { role, terminal } => {
+                format!("vocab:{}:{terminal}", identifier_key(role))
+            }
+            Self::RoleFeature { role, feature } => {
+                format!("feature:{}.{}", identifier_key(role), feature.key())
+            }
+            Self::ConstructionFeature(feature) => format!("feature:{}", feature.key()),
+        }
+    }
+
+    #[cfg(test)]
+    fn snapshot(&self) -> String {
+        match self {
+            Self::CategoryRole { role, .. } | Self::VocabRole { role, .. } => role.to_string(),
+            Self::RoleFeature { role, feature } => format!("{role}.{}", feature.key()),
+            Self::ConstructionFeature(feature) => feature.key().to_owned(),
+        }
+    }
+}
+
+impl PredicateMemberPlan {
+    pub(crate) fn semantic_key(&self) -> String {
+        match self {
+            Self::Variant(member) => identifier_key(member),
+            Self::Feature(member) => member.value().key().to_owned(),
+        }
+    }
+}
+
+fn accessor_mode(
+    field: &ConstructionFieldPlan,
+    terminals: &[TerminalPlan],
+) -> syn::Result<AccessorMode> {
+    if field.kind == ConstructionFieldKind::Category {
+        return Ok(AccessorMode::Borrow);
+    }
+    terminals
+        .iter()
+        .find(|terminal| terminal.plan_name() == field.terminal)
+        .map(|terminal| match terminal {
+            TerminalPlan::Vocab(_) | TerminalPlan::Lexeme(_) | TerminalPlan::ContextIdentity(_) => {
+                AccessorMode::Copy
+            }
+            TerminalPlan::Binding(_)
+            | TerminalPlan::SignedDecimal(_)
+            | TerminalPlan::DeclarationNoun(_) => AccessorMode::Borrow,
+        })
+        .ok_or_else(|| sealed_error("invariant field terminal"))
+}
+
+fn legacy_predicate_error() -> syn::Error {
+    syn::Error::new(
+        Span::call_site(),
+        "legacy predicate emitter supports only singleton role membership; compound and feature predicates require the generated invariant emitters",
+    )
 }
 
 impl CheckedConstructorPlan {
@@ -1930,6 +2340,17 @@ impl TerminalPlan {
             Self::ContextIdentity(plan) => plan.source_index(),
             Self::SignedDecimal(plan) => plan.source_index(),
             Self::DeclarationNoun(plan) => plan.source_index(),
+        }
+    }
+
+    fn plan_name(&self) -> &str {
+        match self {
+            Self::Vocab(plan) => plan.name(),
+            Self::Lexeme(plan) => plan.name(),
+            Self::Binding(plan) => plan.name(),
+            Self::ContextIdentity(plan) => plan.name(),
+            Self::SignedDecimal(plan) => plan.codec_name(),
+            Self::DeclarationNoun(plan) => plan.codec_name(),
         }
     }
 
@@ -3056,48 +3477,137 @@ impl RootPlan {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-    use std::collections::HashSet;
+    #[test]
+    fn invariant_normalization_has_stable_dnf_order_and_removes_duplicate_alternatives() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Mode { One = "one", Two = "two", Three = "three", }
+                construction predicate: Predicate {
+                    element PredicateNode { mode: lex Mode, }
+                    require any(
+                        all(mode is One, agreement is Bare),
+                        all(mode is Two, agreement is ThirdPersonSingular),
+                        all(agreement is Bare, mode is One)
+                    );
+                    derive agreement = mode.agreement;
+                    derive mode.agreement = match mode {
+                        One => Values::Bare,
+                        Two => Values::ThirdPersonSingular,
+                        Three => Values::Bare,
+                    };
+                    form predicate = lex(mode);
+                }
+                root Predicate { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("predicate fixture parses"),
+        )
+        .expect("predicate fixture validates")
+        .into_semantic();
+        let invariant = semantic.constructions()[0].invariant();
 
-    use proc_macro2::Span;
+        assert_eq!(
+            invariant.snapshot(),
+            "(mode in [One] AND agreement in [Bare])\nOR\n(mode in [Two] AND agreement in [ThirdPersonSingular])"
+        );
+    }
 
     #[test]
-    fn rejects_compound_require_predicates_during_semantic_lowering() {
-        let source = crate::parse_declarations(quote::quote! {
-            construction predicate: Predicate {
-                element PredicateNode { subject: Predicate, }
-                require all(subject in [Predicate, Other], number is Singular);
-                form predicate = subject;
-            }
-        })
-        .expect("compound predicate parses");
-
-        let mut atoms = HashMap::new();
-        atoms.insert(
-            "predicate".to_owned(),
-            (
-                Span::call_site(),
-                vec![crate::validate::AtomContribution::Category {
-                    role: "subject".to_owned(),
-                    category: "Predicate".to_owned(),
-                }],
-            ),
-        );
-
-        let error = super::SemanticPlan::new(
-            &source,
-            HashSet::new(),
-            HashSet::new(),
-            HashMap::new(),
-            HashMap::new(),
-            HashMap::new(),
-            HashMap::new(),
-            atoms,
+    fn invariant_resolution_covers_category_vocab_role_and_construction_features() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Mode { One = "one", Two = "two", Three = "three", }
+                construction first: Child {
+                    element FirstChild {}
+                    derive number = Values::Singular;
+                    form first = "first";
+                }
+                construction second: Child {
+                    element SecondChild {}
+                    derive number = Values::Plural;
+                    form second = "second";
+                }
+                construction parent: Parent {
+                    element ParentNode { subject: Child, mode: lex Mode, }
+                    require subject is First;
+                    require mode in [One, Two];
+                    require subject.number is Singular;
+                    require number is Singular;
+                    derive number = subject.number;
+                    form parent = subject lex(mode);
+                }
+                root Parent { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("finite-domain fixture parses"),
         )
-        .expect_err("compound predicate cannot be silently lowered")
-        .to_string();
+        .expect("finite-domain fixture validates")
+        .into_semantic();
+        let invariant = semantic
+            .constructions()
+            .iter()
+            .find(|construction| construction.construction_id() == "parent")
+            .expect("parent construction is sealed")
+            .invariant();
 
-        assert!(error.contains("invariant predicate validation"), "{error}");
+        assert_eq!(
+            invariant.snapshot(),
+            "(subject in [First] AND mode in [One, Two] AND subject.number in [Singular] AND number in [Singular])"
+        );
+        assert_eq!(
+            invariant
+                .constrained_fields()
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["subject", "mode"]
+        );
+    }
+
+    #[test]
+    fn multiple_require_clauses_are_an_implicit_all_and_tautologies_disappear() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Mode { One = "one", Two = "two", }
+                construction only: Root {
+                    element Only { mode: lex Mode, }
+                    require mode in [One, Two];
+                    require agreement in [Bare, ThirdPersonSingular];
+                    derive agreement = Values::Bare;
+                    form only = lex(mode);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("implicit-all fixture parses"),
+        )
+        .expect("implicit-all fixture validates")
+        .into_semantic();
+
+        assert_eq!(semantic.constructions()[0].invariant().snapshot(), "TRUE");
+    }
+
+    #[test]
+    fn compatibility_projection_rejects_non_unary_predicates_at_the_emission_boundary() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Mode { One = "one", Two = "two", Three = "three", }
+                construction only: Root {
+                    element Only { mode: lex Mode, }
+                    require mode in [One, Two];
+                    form only = lex(mode);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("compound membership parses"),
+        )
+        .expect("compound membership validates into the sealed plan")
+        .into_semantic();
+
+        let error = semantic.constructions()[0]
+            .validate_legacy_refinement_projection()
+            .expect_err("the legacy emitter view cannot flatten compound membership")
+            .to_string();
+
+        assert!(error.contains("legacy predicate emitter"), "{error}");
+        assert!(error.contains("singleton role membership"), "{error}");
     }
 }
 

@@ -9,6 +9,7 @@ pub(crate) const RULE_ID_CONSTRUCTION: &str = "construction";
 pub(crate) const RULE_ID_INDEX: &str = "index";
 pub(crate) const RULES_CONSTANT: &str = "RULES";
 pub(crate) const BUILD_FUNCTION: &str = "build";
+pub(crate) const INVARIANT_CONSTRUCTOR: &str = "new";
 pub(crate) const AGREEMENT_TYPE: &str = "Agreement";
 pub(crate) const NUMBER_TYPE: &str = "Number";
 pub(crate) const FEATURE_CONSTRAINT_TYPE: &str = "FeatureConstraint";

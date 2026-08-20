@@ -41,6 +41,9 @@ use crate::semantic::VocabPlan;
 )]
 pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = validated.constructions();
+    for construction in constructions {
+        construction.validate_legacy_refinement_projection()?;
+    }
     let roots = validated
         .roots()
         .iter()
@@ -1570,9 +1573,8 @@ fn feature_constant_pattern(
             continue;
         }
         let refined = construction
-            .refinements()
-            .iter()
-            .any(|requirement| identifier_key(requirement.role()) == identifier_key(name));
+            .legacy_refinement(&identifier_key(name))
+            .is_some();
         let pattern = if refined {
             quote! { #name: _ }
         } else if field.kind() == ConstructionFieldKind::Lex {

@@ -8,6 +8,7 @@ use crate::feature;
 use crate::feature::Feature;
 use crate::identifier::BUILD_FUNCTION;
 use crate::identifier::FIXED_RUNTIME_TYPE_NAMES;
+use crate::identifier::INVARIANT_CONSTRUCTOR;
 use crate::identifier::RULE_CATEGORY_TYPE;
 use crate::identifier::RULE_CONSTRUCTION_TYPE;
 use crate::identifier::RULE_ID_CONSTRUCTION;
@@ -40,6 +41,11 @@ use crate::model::TerminalBinding;
 use crate::model::TraversalKind;
 use crate::model::VerbOperand;
 use crate::model::VisitMode;
+use crate::semantic::InvariantPlan;
+use crate::semantic::PredicateAtomPlan;
+use crate::semantic::PredicateConjunctionPlan;
+use crate::semantic::PredicateMemberPlan;
+use crate::semantic::PredicateSubjectPlan;
 use crate::semantic::SemanticPlan;
 
 #[derive(Debug)]
@@ -290,7 +296,7 @@ struct TerminalInfo {
 #[derive(Debug)]
 struct Symbols {
     categories: HashSet<String>,
-    category_variants: HashMap<String, HashSet<String>>,
+    category_variant_order: HashMap<String, Vec<String>>,
     terminals: HashMap<String, TerminalInfo>,
 }
 
@@ -313,9 +319,9 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     let resolved = validate_resolution(&raw, &symbols)?;
     validate_stored_fields(&raw)?;
     validate_bindings_and_checked_metadata(&raw)?;
-    validate_refinements(&raw, &symbols)?;
+    let invariants = validate_invariants(&raw, &symbols)?;
     let (feature_equations, dynamic_numbers) = validate_features(&raw, &symbols)?;
-    let feature_resolutions = seal_feature_resolutions(&raw, &feature_equations);
+    let feature_resolutions = seal_feature_resolutions(&raw, &feature_equations, &invariants);
     let category_render = seal_category_render_capabilities(&raw, &feature_resolutions);
     let category_reads = seal_category_feature_reads(&raw);
     validate_contextual_agreement_uses(&raw, &category_render)?;
@@ -336,6 +342,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             feature_resolutions,
             category_render,
             atoms_by_construction,
+            invariants,
         )?,
     })
 }
@@ -1129,7 +1136,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
     let mut declaration_names = Vec::new();
     let mut source_names: HashMap<String, proc_macro2::Span> = HashMap::new();
     let mut categories = HashSet::new();
-    let mut category_variants: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut category_variant_order: HashMap<String, Vec<String>> = HashMap::new();
     let mut terminals = HashMap::new();
 
     for declaration in &raw.declarations {
@@ -1175,10 +1182,10 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     construction.form.name.span(),
                     &mut errors,
                 );
-                category_variants
-                    .entry(category.clone())
-                    .or_default()
-                    .insert(category_variant.clone());
+                let variants = category_variant_order.entry(category.clone()).or_default();
+                if !variants.contains(&category_variant) {
+                    variants.push(category_variant);
+                }
 
                 let mut fields = HashSet::new();
                 for field in &construction.element.fields {
@@ -1336,7 +1343,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
     Ok((
         Symbols {
             categories,
-            category_variants,
+            category_variant_order,
             terminals,
         },
         declaration_names,
@@ -3746,8 +3753,12 @@ fn closed_expr(expr: &syn::Expr, bound: &HashSet<String>, allow_calls: bool) -> 
     }
 }
 
-fn validate_refinements(raw: &Declarations, symbols: &Symbols) -> syn::Result<()> {
+fn validate_invariants(
+    raw: &Declarations,
+    symbols: &Symbols,
+) -> syn::Result<HashMap<String, (proc_macro2::Span, InvariantPlan)>> {
     let mut errors = None;
+    let mut invariants = HashMap::new();
     for declaration in &raw.declarations {
         let Declaration::Construction(construction) = declaration else { continue };
         let fields: HashMap<_, _> = construction
@@ -3756,85 +3767,494 @@ fn validate_refinements(raw: &Declarations, symbols: &Symbols) -> syn::Result<()
             .iter()
             .map(|field| (identifier_key(&field.name), &field.kind))
             .collect();
-        let mut refined = HashSet::new();
+        let mut alternatives = vec![PredicateConjunctionPlan::new(Vec::new())];
         for requirement in &construction.requirements {
-            let (role_ident, variant_ident) = match requirement.as_role_refinement_or_error() {
-                Ok(refinement) => refinement,
+            let normalized =
+                match normalize_predicate(raw, construction, requirement, &fields, symbols) {
+                    Ok(normalized) => normalized,
+                    Err(error) => {
+                        combine(&mut errors, error);
+                        continue;
+                    }
+                };
+            match predicate_all(alternatives, &normalized) {
+                Ok(combined) => alternatives = combined,
                 Err(error) => {
                     combine(&mut errors, error);
-                    continue;
+                    alternatives = Vec::new();
                 }
-            };
-            let role = identifier_key(role_ident);
-            if !refined.insert(role.clone()) {
-                combine(
-                    &mut errors,
-                    syn::Error::new(
-                        role_ident.span(),
-                        format!("duplicate refinement for role `{role}`"),
-                    ),
-                );
             }
-            let variant = identifier_key(variant_ident);
-            match fields.get(&role) {
-                None => combine(
-                    &mut errors,
-                    syn::Error::new(
-                        role_ident.span(),
-                        format!("unknown refinement role `{role}`"),
-                    ),
+        }
+        deduplicate_alternatives(&mut alternatives);
+        if alternatives.is_empty() {
+            combine(
+                &mut errors,
+                syn::Error::new(
+                    construction.name.span(),
+                    "invariant predicate has no satisfiable alternative",
                 ),
+            );
+        }
+        let invariant = InvariantPlan::from_alternatives(alternatives);
+        validate_invariant_generated_names(raw, construction, &invariant, &mut errors);
+        invariants.insert(
+            identifier_key(&construction.name),
+            (construction.name.span(), invariant),
+        );
+    }
+    finish(errors)?;
+    Ok(invariants)
+}
+
+fn normalize_predicate(
+    raw: &Declarations,
+    construction: &crate::Construction,
+    expression: &crate::RequireExprSource,
+    fields: &HashMap<String, &FieldKind>,
+    symbols: &Symbols,
+) -> syn::Result<Vec<PredicateConjunctionPlan>> {
+    match expression {
+        crate::RequireExprSource::In { subject, members } => {
+            let atom =
+                resolve_predicate_atom(raw, construction, subject, members, fields, symbols)?;
+            Ok(vec![PredicateConjunctionPlan::new(
+                atom.into_iter().collect(),
+            )])
+        }
+        crate::RequireExprSource::All(operands) => {
+            let mut errors = None;
+            let mut alternatives = vec![PredicateConjunctionPlan::new(Vec::new())];
+            for operand in operands {
+                match normalize_predicate(raw, construction, operand, fields, symbols) {
+                    Ok(operand) => match predicate_all(alternatives.clone(), &operand) {
+                        Ok(combined) => alternatives = combined,
+                        Err(error) => combine(&mut errors, error),
+                    },
+                    Err(error) => combine(&mut errors, error),
+                }
+            }
+            errors.map_or(Ok(alternatives), Err)
+        }
+        crate::RequireExprSource::Any(operands) => {
+            let mut errors = None;
+            let mut alternatives = Vec::new();
+            for operand in operands {
+                match normalize_predicate(raw, construction, operand, fields, symbols) {
+                    Ok(mut operand) => alternatives.append(&mut operand),
+                    Err(error) => combine(&mut errors, error),
+                }
+            }
+            deduplicate_alternatives(&mut alternatives);
+            errors.map_or(Ok(alternatives), Err)
+        }
+    }
+}
+
+fn resolve_predicate_atom(
+    raw: &Declarations,
+    construction: &crate::Construction,
+    subject: &crate::RequireSubjectSource,
+    members: &[syn::Ident],
+    fields: &HashMap<String, &FieldKind>,
+    symbols: &Symbols,
+) -> syn::Result<Option<PredicateAtomPlan>> {
+    let (subject, domain) = match subject {
+        crate::RequireSubjectSource::Role(role) => {
+            let role_name = identifier_key(role);
+            match fields.get(&role_name) {
                 Some(FieldKind::Category(path)) => {
                     let category = path_name(path);
-                    if !symbols
-                        .category_variants
+                    let domain = symbols
+                        .category_variant_order
                         .get(&category)
-                        .is_some_and(|variants| variants.contains(&variant))
-                    {
-                        combine(
-                            &mut errors,
-                            syn::Error::new(
-                                variant_ident.span(),
-                                format!("`{variant}` is not a variant of category `{category}`"),
-                            ),
-                        );
-                    }
+                        .cloned()
+                        .unwrap_or_default();
+                    (
+                        PredicateSubjectPlan::CategoryRole {
+                            role: role.clone(),
+                            category,
+                        },
+                        PredicateDomain::Variants(domain),
+                    )
                 }
                 Some(FieldKind::Lex(path)) => {
                     let terminal = path_name(path);
                     match symbols.terminals.get(&terminal) {
-                        Some(info)
-                            if info.kind == TerminalKind::Vocab
-                                && info.variants.contains(&variant) => {}
-                        Some(info) if info.kind == TerminalKind::Vocab => combine(
-                            &mut errors,
-                            syn::Error::new(
-                                variant_ident.span(),
-                                format!("unknown variant `{variant}` for vocab `{terminal}`"),
-                            ),
+                        Some(info) if info.kind == TerminalKind::Vocab => (
+                            PredicateSubjectPlan::VocabRole {
+                                role: role.clone(),
+                                terminal,
+                            },
+                            PredicateDomain::Variants(info.variant_order.clone()),
                         ),
-                        _ => combine(
-                            &mut errors,
-                            syn::Error::new(
-                                variant_ident.span(),
+                        _ => {
+                            return Err(syn::Error::new(
+                                role.span(),
                                 format!(
-                                    "role `{role}` is not a category or vocab refinement domain"
+                                    "predicate subject `{role_name}` is not a category or vocab predicate domain"
                                 ),
-                            ),
-                        ),
+                            ));
+                        }
                     }
                 }
-                Some(FieldKind::Identity(_)) => combine(
-                    &mut errors,
-                    syn::Error::new(
-                        variant_ident.span(),
-                        format!("role `{role}` is not a category or vocab refinement domain"),
+                Some(FieldKind::Identity(_)) => {
+                    return Err(syn::Error::new(
+                        role.span(),
+                        format!(
+                            "predicate subject `{role_name}` is not a category or vocab predicate domain"
+                        ),
+                    ));
+                }
+                None => {
+                    return Err(syn::Error::new(
+                        role.span(),
+                        format!("unknown predicate subject `{role_name}`"),
+                    ));
+                }
+            }
+        }
+        crate::RequireSubjectSource::RoleFeature { role, feature } => {
+            let internal = feature::Feature::from(*feature);
+            let role_name = identifier_key(role);
+            if !fields.contains_key(&role_name) {
+                let parse_only = role_name == "verb"
+                    && construction
+                        .form
+                        .atoms
+                        .iter()
+                        .any(|atom| matches!(atom, FormAtom::Verb(_) | FormAtom::OpenVerb(_)));
+                let message = if parse_only {
+                    format!(
+                        "predicate cannot constrain parse-only morphology feature state `{role_name}.{}`",
+                        internal.key()
+                    )
+                } else {
+                    format!("unknown predicate subject `{role_name}.{}`", internal.key())
+                };
+                return Err(syn::Error::new(role.span(), message));
+            }
+            if !role_feature_is_constructible(raw, construction, fields, role, *feature) {
+                return Err(syn::Error::new(
+                    role.span(),
+                    format!(
+                        "role predicate `{role_name}.{}` has no constructible feature expression",
+                        internal.key()
                     ),
-                ),
+                ));
+            }
+            (
+                PredicateSubjectPlan::RoleFeature {
+                    role: role.clone(),
+                    feature: internal,
+                },
+                PredicateDomain::Feature(internal),
+            )
+        }
+        crate::RequireSubjectSource::ConstructionFeature(feature) => {
+            let internal = feature::Feature::from(*feature);
+            if !construction_feature_is_constructible(raw, construction, fields, *feature) {
+                return Err(syn::Error::new(
+                    members
+                        .first()
+                        .map_or_else(proc_macro2::Span::call_site, syn::Ident::span),
+                    format!(
+                        "construction predicate `{}` has no constructible feature expression",
+                        internal.key()
+                    ),
+                ));
+            }
+            (
+                PredicateSubjectPlan::ConstructionFeature(internal),
+                PredicateDomain::Feature(internal),
+            )
+        }
+    };
+    let allowed = resolve_predicate_members(&domain, members)?;
+    if allowed.len() == domain.len() {
+        return Ok(None);
+    }
+    Ok(Some(PredicateAtomPlan::new(subject, allowed)))
+}
+
+enum PredicateDomain {
+    Variants(Vec<String>),
+    Feature(feature::Feature),
+}
+
+impl PredicateDomain {
+    fn len(&self) -> usize {
+        match self {
+            Self::Variants(variants) => variants.len(),
+            Self::Feature(feature) => feature.domain().len(),
+        }
+    }
+}
+
+fn resolve_predicate_members(
+    domain: &PredicateDomain,
+    members: &[syn::Ident],
+) -> syn::Result<Vec<PredicateMemberPlan>> {
+    let mut errors = None;
+    let mut authored = HashMap::new();
+    for member in members {
+        let key = identifier_key(member);
+        if authored.insert(key.clone(), member).is_some() {
+            combine(
+                &mut errors,
+                syn::Error::new(member.span(), format!("duplicate predicate member `{key}`")),
+            );
+        }
+    }
+    let mut allowed = Vec::new();
+    match domain {
+        PredicateDomain::Variants(domain) => {
+            for member in members {
+                let key = identifier_key(member);
+                if !domain.contains(&key) {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(member.span(), format!("unknown predicate member `{key}`")),
+                    );
+                }
+            }
+            for domain_member in domain {
+                if let Some(member) = authored.get(domain_member) {
+                    allowed.push(PredicateMemberPlan::Variant((*member).clone()));
+                }
+            }
+        }
+        PredicateDomain::Feature(feature) => {
+            let mut resolved = HashMap::new();
+            for member in members {
+                match feature.member(member) {
+                    Ok(value) => {
+                        resolved.insert(value.key(), (value, member.span()));
+                    }
+                    Err(error) => combine(&mut errors, error),
+                }
+            }
+            for value in feature.domain() {
+                if let Some((value, span)) = resolved.get(value.key()) {
+                    allowed.push(PredicateMemberPlan::Feature(feature::Spanned::new(
+                        *value, *span,
+                    )));
+                }
             }
         }
     }
-    finish(errors)
+    errors.map_or(Ok(allowed), Err)
+}
+
+fn predicate_all(
+    left: Vec<PredicateConjunctionPlan>,
+    right: &[PredicateConjunctionPlan],
+) -> syn::Result<Vec<PredicateConjunctionPlan>> {
+    let mut errors = None;
+    let mut combined = Vec::new();
+    for left in left {
+        for right in right {
+            match merge_predicate_conjunctions(&left, right) {
+                Ok(conjunction) => combined.push(conjunction),
+                Err(error) => combine(&mut errors, error),
+            }
+        }
+    }
+    deduplicate_alternatives(&mut combined);
+    errors.map_or(Ok(combined), Err)
+}
+
+fn merge_predicate_conjunctions(
+    left: &PredicateConjunctionPlan,
+    right: &PredicateConjunctionPlan,
+) -> syn::Result<PredicateConjunctionPlan> {
+    let mut atoms = left.atoms().to_vec();
+    for right_atom in right.atoms() {
+        let subject_key = right_atom.subject().semantic_key();
+        if let Some(left_atom) = atoms
+            .iter_mut()
+            .find(|atom| atom.subject().semantic_key() == subject_key)
+        {
+            let right_members = right_atom
+                .allowed()
+                .iter()
+                .map(PredicateMemberPlan::semantic_key)
+                .collect::<HashSet<_>>();
+            let allowed = left_atom
+                .allowed()
+                .iter()
+                .filter(|member| right_members.contains(&member.semantic_key()))
+                .cloned()
+                .collect::<Vec<_>>();
+            if allowed.is_empty() {
+                let subject = right_atom
+                    .subject()
+                    .role()
+                    .map_or_else(|| right_atom.subject().semantic_key(), ToString::to_string);
+                return Err(syn::Error::new(
+                    right_atom
+                        .subject()
+                        .role()
+                        .map_or_else(proc_macro2::Span::call_site, syn::Ident::span),
+                    format!("empty predicate intersection for `{subject}`"),
+                ));
+            }
+            *left_atom = PredicateAtomPlan::new(left_atom.subject().clone(), allowed);
+        } else {
+            atoms.push(right_atom.clone());
+        }
+    }
+    Ok(PredicateConjunctionPlan::new(atoms))
+}
+
+fn deduplicate_alternatives(alternatives: &mut Vec<PredicateConjunctionPlan>) {
+    let mut seen = HashSet::new();
+    alternatives.retain(|alternative| {
+        let mut atoms = alternative
+            .atoms()
+            .iter()
+            .map(PredicateAtomPlan::semantic_key)
+            .collect::<Vec<_>>();
+        atoms.sort();
+        seen.insert(atoms)
+    });
+}
+
+fn construction_feature_is_constructible(
+    raw: &Declarations,
+    construction: &crate::Construction,
+    fields: &HashMap<String, &FieldKind>,
+    feature: ParsedFeature,
+) -> bool {
+    construction.equations.iter().any(|equation| {
+        matches!(equation.target, ParsedFeaturePlace::Construction(candidate) if candidate == feature)
+            && feature_expression_is_constructible(raw, construction, fields, &equation.value)
+    })
+}
+
+fn role_feature_is_constructible(
+    raw: &Declarations,
+    construction: &crate::Construction,
+    fields: &HashMap<String, &FieldKind>,
+    role: &syn::Ident,
+    feature: ParsedFeature,
+) -> bool {
+    if let Some(FieldKind::Category(path)) = fields.get(&identifier_key(role))
+        && feature_providers(raw).contains(&(path_name(path), feature))
+    {
+        return true;
+    }
+    construction.equations.iter().any(|equation| {
+        matches!(
+            &equation.target,
+            ParsedFeaturePlace::Role { field, feature: candidate }
+                if identifier_key(field) == identifier_key(role) && *candidate == feature
+        ) && feature_expression_is_constructible(raw, construction, fields, &equation.value)
+    })
+}
+
+fn feature_expression_is_constructible(
+    raw: &Declarations,
+    construction: &crate::Construction,
+    fields: &HashMap<String, &FieldKind>,
+    value: &ParsedFeatureValue,
+) -> bool {
+    match value {
+        ParsedFeatureValue::Constant(_) => true,
+        ParsedFeatureValue::Match { role, .. } => fields.contains_key(&identifier_key(role)),
+        ParsedFeatureValue::FromRole(slot) => {
+            matches!(
+                fields.get(&identifier_key(&slot.role)),
+                Some(FieldKind::Category(path))
+                    if feature_providers(raw).contains(&(path_name(path), slot.feature))
+            ) || (fields.contains_key(&identifier_key(&slot.role))
+                && construction.equations.iter().any(|equation| {
+                    matches!(
+                        &equation.target,
+                        ParsedFeaturePlace::Role { field, feature }
+                            if identifier_key(field) == identifier_key(&slot.role)
+                                && *feature == slot.feature
+                    ) && !matches!(equation.value, ParsedFeatureValue::FromRole(_))
+                }))
+        }
+    }
+}
+
+fn validate_invariant_generated_names(
+    raw: &Declarations,
+    construction: &crate::Construction,
+    invariant: &InvariantPlan,
+    errors: &mut Option<syn::Error>,
+) {
+    let context_terminals = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Identity(binding) if binding.generated_identity.is_some() => {
+                Some(identifier_key(&binding.name))
+            }
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
+    let mut bearing = invariant
+        .alternatives()
+        .iter()
+        .flat_map(PredicateConjunctionPlan::atoms)
+        .filter_map(|atom| atom.subject().role())
+        .map(identifier_key)
+        .collect::<HashSet<_>>();
+    bearing.extend(
+        construction
+            .element
+            .fields
+            .iter()
+            .filter_map(|field| match &field.kind {
+                FieldKind::Identity(path) if context_terminals.contains(&path_name(path)) => {
+                    Some(identifier_key(&field.name))
+                }
+                FieldKind::Category(_) | FieldKind::Lex(_) | FieldKind::Identity(_) => None,
+            }),
+    );
+    if bearing.is_empty() {
+        return;
+    }
+
+    let mut associated = HashMap::from([(
+        INVARIANT_CONSTRUCTOR.to_owned(),
+        "generated invariant constructor".to_owned(),
+    )]);
+    if let Some(checked) = &construction.checked {
+        for accessor in &checked.accessors {
+            let role = identifier_key(&accessor.role);
+            let method = identifier_key(&accessor.method);
+            let owner = if role == method {
+                format!("generated invariant accessor for `{role}`")
+            } else {
+                format!("declared checked accessor for `{role}`")
+            };
+            associated.insert(method, owner);
+        }
+    }
+    for field in &construction.element.fields {
+        let name = identifier_key(&field.name);
+        if !bearing.contains(&name) {
+            continue;
+        }
+        let owner = format!("generated invariant accessor for `{name}`");
+        if let Some(previous) = associated.get(&name)
+            && previous != &owner
+        {
+            let kind = if name == INVARIANT_CONSTRUCTOR { "associated item" } else { "accessor" };
+            combine(
+                errors,
+                syn::Error::new(
+                    field.name.span(),
+                    format!("generated invariant {kind} `{name}` collides with {previous}"),
+                ),
+            );
+        } else {
+            associated.insert(name, owner);
+        }
+    }
 }
 
 type FeatureValidation = (
@@ -4068,6 +4488,7 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
 fn seal_feature_resolutions(
     raw: &Declarations,
     equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+    invariants: &HashMap<String, (proc_macro2::Span, InvariantPlan)>,
 ) -> HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>> {
     let mut sealed = HashMap::new();
     for declaration in &raw.declarations {
@@ -4075,6 +4496,10 @@ fn seal_feature_resolutions(
         let local_equations = equations
             .get(&identifier_key(&construction.name))
             .map_or(&[] as &[feature::FeatureEquation], Vec::as_slice);
+        let invariant = &invariants
+            .get(&identifier_key(&construction.name))
+            .expect("validated invariant is present")
+            .1;
         let mut places = local_equations
             .iter()
             .map(|equation| equation.target().clone())
@@ -4092,8 +4517,13 @@ fn seal_feature_resolutions(
         }
         let mut resolutions = HashMap::new();
         for place in places {
-            let resolution =
-                resolve_local_feature(construction, local_equations, &place, &mut HashSet::new());
+            let resolution = resolve_local_feature(
+                construction,
+                invariant,
+                local_equations,
+                &place,
+                &mut HashSet::new(),
+            );
             resolutions.insert(place, resolution);
         }
         sealed.insert(identifier_key(&construction.name), resolutions);
@@ -4227,6 +4657,7 @@ fn seal_category_render_capabilities(
 
 fn resolve_local_feature(
     construction: &crate::Construction,
+    invariant: &InvariantPlan,
     equations: &[feature::FeatureEquation],
     place: &feature::FeaturePlace,
     visiting: &mut HashSet<feature::FeaturePlace>,
@@ -4258,6 +4689,7 @@ fn resolve_local_feature(
             }
             feature::FeatureExpr::FromRole { role, feature } => resolve_local_feature(
                 construction,
+                invariant,
                 equations,
                 &feature::FeaturePlace::Role {
                     field: role.clone(),
@@ -4266,18 +4698,15 @@ fn resolve_local_feature(
                 visiting,
             ),
             feature::FeatureExpr::MatchVocab { role, arms } => {
-                let refined = construction
-                    .requirements
-                    .iter()
-                    .filter_map(|requirement| requirement.as_role_refinement())
-                    .find(|(refined_role, _)| same_identifier(refined_role, role))
-                    .and_then(|(_, refinement_variant)| {
+                let refined = invariant.legacy_refinement(&identifier_key(role)).and_then(
+                    |refinement_variant| {
                         arms.iter()
                             .find(|(variant, _)| {
                                 same_identifier(variant.value(), refinement_variant)
                             })
                             .map(|(_, value)| *value)
-                    });
+                    },
+                );
                 let uniform = arms
                     .first()
                     .map(|(_, first)| *first)
@@ -6240,7 +6669,7 @@ pub(crate) mod tests {
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            vocab_variant.contains("unknown variant `Missing` for vocab `Word`"),
+            vocab_variant.contains("unknown predicate member `Missing`"),
             "{vocab_variant}"
         );
 
@@ -6252,25 +6681,170 @@ pub(crate) mod tests {
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            wrong_domain.contains("is not a variant of category `Branch`"),
+            wrong_domain.contains("unknown predicate member `Be`"),
             "{wrong_domain}"
         );
     }
 
     #[test]
-    fn rejects_compound_require_predicates_until_their_validation_exists() {
-        let actual = error(quote! {
-            construction predicate: Predicate {
-                element PredicateNode { subject: Predicate, }
-                require all(subject in [Predicate, Other], number is Singular);
-                form predicate = subject;
+    fn require_rejects_unknown_subjects_kind_mismatches_and_unknown_members() {
+        let unknown_subject = error(quote! {
+            vocab Mode { One = "one", }
+            construction only: Root {
+                element Only { mode: lex Mode, }
+                require missing is One;
+                form only = lex(mode);
             }
-            root Predicate { punctuation = "."; eoi = true; standalone_render = true; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
-
         assert!(
-            actual.contains("invariant predicate validation"),
-            "{actual}"
+            unknown_subject.contains("unknown predicate subject `missing`"),
+            "{unknown_subject}"
+        );
+
+        let kind_mismatch = error(quote! {
+            identity Handle {
+                value_type = Handle;
+                lexical = Lexical::Handle;
+                render = render_handle;
+                build { pattern = BuildValue::Handle(value); construct = value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_handle(borrowed(value)); }
+            }
+            construction only: Root {
+                element Only { handle: identity Handle, }
+                require handle is One;
+                form only = identity(handle);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            kind_mismatch.contains("category or vocab predicate domain"),
+            "{kind_mismatch}"
+        );
+
+        let unknown_member = error(quote! {
+            vocab Mode { One = "one", }
+            construction only: Root {
+                element Only { mode: lex Mode, }
+                require mode is Missing;
+                form only = lex(mode);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            unknown_member.contains("unknown predicate member `Missing`"),
+            "{unknown_member}"
+        );
+    }
+
+    #[test]
+    fn require_rejects_semantic_duplicates_and_empty_intersections() {
+        let duplicates = error(quote! {
+            vocab Mode { One = "one", Two = "two", }
+            construction only: Root {
+                element Only { mode: lex Mode, }
+                require mode in [One, r#One];
+                form only = lex(mode);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            duplicates.contains("duplicate predicate member `One`"),
+            "{duplicates}"
+        );
+
+        let empty = error(quote! {
+            vocab Mode { One = "one", Two = "two", }
+            construction only: Root {
+                element Only { mode: lex Mode, }
+                require mode is One;
+                require mode is Two;
+                form only = lex(mode);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            empty.contains("empty predicate intersection for `mode`"),
+            "{empty}"
+        );
+    }
+
+    #[test]
+    fn require_rejects_unconstructible_and_parse_only_feature_state() {
+        let unconstructible = error(quote! {
+            construction only: Root {
+                element Only {}
+                require agreement is Bare;
+                form only = "only";
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            unconstructible.contains(
+                "construction predicate `agreement` has no constructible feature expression"
+            ),
+            "{unconstructible}"
+        );
+
+        let parse_only = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Act = "act", }
+            construction only: Root {
+                element Only {}
+                require verb.agreement is Bare;
+                derive agreement = verb.agreement;
+                form only = verb(Verbs::Act);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            parse_only.contains("parse-only morphology feature state `verb.agreement`"),
+            "{parse_only}"
+        );
+    }
+
+    #[test]
+    fn require_rejects_generated_new_and_accessor_name_collisions() {
+        let new_collision = error(quote! {
+            vocab Mode { One = "one", Two = "two", }
+            construction only: Root {
+                element Only { r#new: lex Mode, }
+                require r#new is One;
+                form only = lex(r#new);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            new_collision.contains("generated invariant associated item `new` collides"),
+            "{new_collision}"
+        );
+
+        let accessor_collision = error(quote! {
+            vocab Mode { One = "one", Two = "two", }
+            identity Handle {
+                value_type = Handle;
+                lexical = Lexical::Handle;
+                render = render_handle;
+                build { pattern = BuildValue::Handle(value); construct = value; }
+                traversal { callback = borrowed; argument = value; call visitor::visit_handle(borrowed(value)); }
+            }
+            construction only: Root {
+                element Only { mode: lex Mode, handle: identity Handle, }
+                checked {
+                    visibility mode = private;
+                    access mode = mode_value;
+                    visibility handle = private;
+                    access handle = mode;
+                    constructor = Only::checked(mode, handle);
+                }
+                require mode is One;
+                form only = lex(mode) identity(handle);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            accessor_collision.contains("generated invariant accessor `mode` collides"),
+            "{accessor_collision}"
         );
     }
 
@@ -8197,9 +8771,10 @@ pub(crate) mod tests {
             .iter()
             .filter_map(|construction| {
                 construction
-                    .refinements()
-                    .first()
-                    .map(|requirement| requirement.variant().to_string())
+                    .fields()
+                    .iter()
+                    .find_map(|field| construction.legacy_refinement(&field.name_key()))
+                    .map(ToString::to_string)
             })
             .collect::<Vec<_>>();
         assert_eq!(refinements, ["Solo", "Leaf"]);

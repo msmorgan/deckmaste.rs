@@ -377,6 +377,173 @@ mod tests {
     use crate::test_support::representative_expansion;
 
     #[test]
+    fn invariant_field_policy_discovers_context_and_seals_accessor_modes() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Mode { One = "one", Two = "two", }
+                identity SelfReferenceSpelling {
+                    generate context {
+                        Full => card_name,
+                        Abbreviated => abbreviated_card_name,
+                        canonical_on_collision = Full;
+                    }
+                }
+                construction first: Child {
+                    element FirstChild {}
+                    form first = "first";
+                }
+                construction second: Child {
+                    element SecondChild {}
+                    form second = "second";
+                }
+                construction only: Root {
+                    element Only {
+                        subject: Child,
+                        mode: lex Mode,
+                        spelling: identity SelfReferenceSpelling,
+                    }
+                    require subject is First;
+                    require mode is One;
+                    form only = subject lex(mode) identity(spelling);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("field-policy fixture parses"),
+        )
+        .expect("field-policy fixture validates")
+        .into_semantic();
+        let construction = semantic
+            .constructions()
+            .iter()
+            .find(|construction| construction.construction_id() == "only")
+            .expect("root construction is sealed");
+        let invariant = construction.invariant();
+
+        assert_eq!(
+            invariant
+                .constrained_fields()
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["subject", "mode"]
+        );
+        assert_eq!(
+            invariant
+                .context_identity_fields()
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["spelling"]
+        );
+        assert!(invariant.requires_context());
+        assert_eq!(
+            construction
+                .fields()
+                .iter()
+                .map(|field| (
+                    field.name_key(),
+                    field.is_invariant_bearing(),
+                    field.accessor_mode(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "subject".to_owned(),
+                    true,
+                    Some(crate::semantic::AccessorMode::Borrow)
+                ),
+                (
+                    "mode".to_owned(),
+                    true,
+                    Some(crate::semantic::AccessorMode::Copy)
+                ),
+                (
+                    "spelling".to_owned(),
+                    true,
+                    Some(crate::semantic::AccessorMode::Copy)
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn invariant_plan_mutations_drive_later_emitter_views_without_source_reads() {
+        let source = quote::quote! {
+            vocab Mode { One = "one", Two = "two", }
+            identity SelfReferenceSpelling {
+                generate context {
+                    Full => card_name,
+                    Abbreviated => abbreviated_card_name,
+                    canonical_on_collision = Full;
+                }
+            }
+            construction only: Root {
+                element Only { mode: lex Mode, spelling: identity SelfReferenceSpelling, }
+                require mode is One;
+                form only = lex(mode) identity(spelling);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        };
+        let authored = source.to_string();
+        let mut semantic = crate::validate_declarations(
+            crate::parse_declarations(source).expect("mutation fixture parses"),
+        )
+        .expect("mutation fixture validates")
+        .into_semantic();
+
+        semantic.test_only_replace_invariant_member("only", "mode", "Two");
+        semantic.test_only_replace_invariant_context_field("only", "spelling", "mode");
+        let construction = &semantic.constructions()[0];
+
+        assert!(
+            construction
+                .invariant()
+                .snapshot()
+                .contains("mode in [Two]")
+        );
+        assert_eq!(
+            construction
+                .invariant()
+                .context_identity_fields()
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["mode"]
+        );
+        assert_eq!(
+            construction
+                .fields()
+                .iter()
+                .map(|field| (field.name_key(), field.accessor_mode()))
+                .collect::<Vec<_>>(),
+            [
+                ("mode".to_owned(), Some(crate::semantic::AccessorMode::Copy)),
+                ("spelling".to_owned(), None),
+            ]
+        );
+        assert_eq!(
+            authored,
+            quote::quote! {
+                vocab Mode { One = "one", Two = "two", }
+                identity SelfReferenceSpelling {
+                    generate context {
+                        Full => card_name,
+                        Abbreviated => abbreviated_card_name,
+                        canonical_on_collision = Full;
+                    }
+                }
+                construction only: Root {
+                    element Only { mode: lex Mode, spelling: identity SelfReferenceSpelling, }
+                    require mode is One;
+                    form only = lex(mode) identity(spelling);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
     fn generated_morphology_terminal_contribution_retains_sealed_projection() {
         let expansion = crate::generate(quote::quote! {
             morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
