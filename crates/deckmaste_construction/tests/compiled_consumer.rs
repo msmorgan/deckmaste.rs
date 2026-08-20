@@ -386,13 +386,88 @@ mod declaration_noun_fixture {
         assert_eq!(recorder.0, ["type `Relic`", "creature subtype `Elf`"]);
     }
 
-    pub(crate) fn run() {
-        let environment = environment();
-        let context = ParseContext::default();
+    fn assert_generated_noun_surface_helper() {
         assert_eq!(
             surface_for_noun_lexeme(NounLexeme::Player, Number::Plural),
             "players"
         );
+    }
+
+    fn assert_closed_noun_morphology_scan(
+        environment: &crate::environment::ParserEnvironment,
+        context: &ParseContext<'_>,
+    ) {
+        let scan = |text, byte_offset, case, wanted| {
+            scan_lexical(
+                &ScanInput {
+                    text,
+                    position: ScanPosition { byte_offset, case },
+                    environment,
+                    context,
+                },
+                LexicalTerminal {
+                    matcher: Lexical::Noun(wanted),
+                    owner: LexicalOwnerTemplate::DeclarationNoun,
+                },
+            )
+        };
+        let closed = scan(
+            "Player.",
+            0,
+            CasePosition::DocumentInitial,
+            FeatureConstraint::Exact(Number::Singular),
+        );
+        assert!(matches!(
+            closed.as_slice(),
+            [LexicalMatch {
+                end: 6,
+                value: Leaf::Noun {
+                    noun: Noun::Lexeme(NounLexeme::Player),
+                    number: Number::Singular
+                },
+                owner: Some(_),
+            }]
+        ));
+        assert_eq!(
+            closed[0].owner.as_ref().unwrap().stable_id(),
+            "lexeme:NounLexeme/Player/singular"
+        );
+        let closed_plural = scan(
+            "prefix players.",
+            6,
+            CasePosition::Continuation,
+            FeatureConstraint::Exact(Number::Plural),
+        );
+        assert!(matches!(
+            closed_plural.as_slice(),
+            [LexicalMatch {
+                end: 14,
+                value: Leaf::Noun {
+                    noun: Noun::Lexeme(NounLexeme::Player),
+                    number: Number::Plural
+                },
+                owner: Some(_),
+            }]
+        ));
+        assert_eq!(
+            closed_plural[0].owner.as_ref().unwrap().stable_id(),
+            "lexeme:NounLexeme/Player/plural"
+        );
+        assert!(
+            scan(
+                "Playersx.",
+                0,
+                CasePosition::DocumentInitial,
+                FeatureConstraint::Any,
+            )
+            .is_empty()
+        );
+    }
+
+    pub(crate) fn run() {
+        let environment = environment();
+        let context = ParseContext::default();
+        assert_generated_noun_surface_helper();
         let relic =
             macro_ron::v2::DeclarationIdentity::new(macro_ron::v2::DeclarationKind::Type, "Relic");
         let elf = macro_ron::v2::DeclarationIdentity::new(
@@ -499,57 +574,7 @@ mod declaration_noun_fixture {
             .is_empty()
         );
 
-        let closed = scan(
-            "Player.",
-            0,
-            CasePosition::DocumentInitial,
-            FeatureConstraint::Exact(Number::Singular),
-        );
-        assert!(matches!(
-            closed.as_slice(),
-            [LexicalMatch {
-                end: 6,
-                value: Leaf::Noun {
-                    noun: Noun::Lexeme(NounLexeme::Player),
-                    number: Number::Singular
-                },
-                owner: Some(_),
-            }]
-        ));
-        assert_eq!(
-            closed[0].owner.as_ref().unwrap().stable_id(),
-            "lexeme:NounLexeme/Player/singular"
-        );
-        let closed_plural = scan(
-            "prefix players.",
-            6,
-            CasePosition::Continuation,
-            FeatureConstraint::Exact(Number::Plural),
-        );
-        assert!(matches!(
-            closed_plural.as_slice(),
-            [LexicalMatch {
-                end: 14,
-                value: Leaf::Noun {
-                    noun: Noun::Lexeme(NounLexeme::Player),
-                    number: Number::Plural
-                },
-                owner: Some(_),
-            }]
-        ));
-        assert_eq!(
-            closed_plural[0].owner.as_ref().unwrap().stable_id(),
-            "lexeme:NounLexeme/Player/plural"
-        );
-        assert!(
-            scan(
-                "Playersx.",
-                0,
-                CasePosition::DocumentInitial,
-                FeatureConstraint::Any,
-            )
-            .is_empty()
-        );
+        assert_closed_noun_morphology_scan(&environment, &context);
 
         assert_build_render_and_visit(&environment, &context, &singular[0], &plural[0]);
     }
@@ -1399,6 +1424,10 @@ mod fixture {
             }]
         );
 
+        assert_generated_verb_scanner_abi(context);
+    }
+
+    fn assert_generated_verb_scanner_abi(context: &ParseContext<'_>) {
         let scan_verb = |text, case, constraint| {
             scan_lexical(
                 &ScanInput {
@@ -1467,6 +1496,11 @@ mod fixture {
             .is_empty()
         );
 
+        assert_generated_verb_collision_abi(context);
+        assert_generated_irregular_verb_abi(context);
+    }
+
+    fn assert_generated_verb_collision_abi(context: &ParseContext<'_>) {
         let collision_terminal = |lexeme, member, constraint| LexicalTerminal {
             matcher: Lexical::Verb(lexeme, constraint),
             owner: LexicalOwnerTemplate::Lexeme {
@@ -1533,7 +1567,9 @@ mod fixture {
             other_member_readings[0].owner.as_ref().unwrap().stable_id(),
             "lexeme:VerbLexeme/Other/bare"
         );
+    }
 
+    fn assert_generated_irregular_verb_abi(context: &ParseContext<'_>) {
         let bare_be = scan_lexical(
             &ScanInput {
                 text: "Are.",
