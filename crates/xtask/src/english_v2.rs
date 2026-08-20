@@ -1457,9 +1457,10 @@ mod tests {
             "type WhereClause" | "function walk_where_clause" => &["construction where"],
             "type PronounNp" | "function walk_pronoun_np" => &["construction pronoun"],
             "type Common" | "function walk_common" => &["construction common"],
-            "type DemonstrativeNp" | "function walk_demonstrative_np" => {
-                &["construction demonstrative"]
-            }
+            "type DemonstrativeNp"
+            | "function walk_demonstrative_np"
+            | "function agreement_for_demonstrative"
+            | "function number_for_demonstrative" => &["construction demonstrative"],
             "type TargetNp" | "function walk_target_np" => &["construction target"],
             "type SelfReferenceNp" | "function walk_self_reference_np" => {
                 &["construction self_reference"]
@@ -1484,9 +1485,6 @@ mod tests {
                 &["vocab Pronoun"]
             }
             "function agreement_for_pronoun" => &["construction pronoun", "construction count"],
-            "function agreement_for_demonstrative" | "function number_for_demonstrative" => {
-                &["construction demonstrative"]
-            }
             "type Variable" | "function render_variable" | "function walk_variable" => {
                 &["vocab Variable"]
             }
