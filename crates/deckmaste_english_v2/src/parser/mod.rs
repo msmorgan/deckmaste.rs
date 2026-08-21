@@ -1070,6 +1070,58 @@ mod structural_trace_tests {
     }
 
     #[test]
+    fn terminal_projection_overrides_a_distinct_structural_comparator_winner() {
+        let environment = environment();
+        let parser =
+            Parser::new(environment.clone()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Trace Card").expect("valid context");
+        let text = "You gain X life, a player connives.";
+        let scan_first = crate::constructions::BuildRejection::new(
+            "BInjectedCompletion",
+            "injected",
+            crate::constructions::BuildViolation::Invariant {
+                identity: "injected completion is rejected",
+            },
+        );
+        let terminal_root = crate::constructions::BuildRejection::new(
+            "Sentence",
+            "with_where",
+            crate::constructions::BuildViolation::Invariant {
+                identity: "clause is Where",
+            },
+        );
+
+        super::scan::with_checked_completion_rejection_for_test(scan_first, || {
+            let grammar = super::SliceGrammar {
+                environment: &environment,
+                context: &context,
+            };
+            let (forest, raw_structural) = super::parse_forest_observed::<crate::ast::Sentence>(
+                &grammar,
+                text,
+                TraceLimits::new(usize::MAX),
+            );
+            assert!(forest.is_ok());
+            assert_eq!(raw_structural.first_build_rejection(), Some(&scan_first));
+
+            let (analysis, trace) = parser.analyze_root_with_trace::<crate::ast::Sentence>(
+                text,
+                &context,
+                TraceLimits::new(usize::MAX),
+            );
+            assert_eq!(analysis.build_rejection(), Some(&terminal_root));
+            assert_eq!(
+                trace.structural.first_build_rejection(),
+                Some(&terminal_root),
+            );
+            assert_eq!(
+                trace.materialization.first_build_rejection(),
+                Some(&terminal_root),
+            );
+        });
+    }
+
+    #[test]
     fn structural_trace_success_collections_and_nested_caps_are_exact() {
         fn bounded<T>(value: &super::Bounded<T>, limit: usize) {
             assert_eq!(value.total(), value.shown() + value.omitted());

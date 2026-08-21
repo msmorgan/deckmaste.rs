@@ -22,6 +22,8 @@ use super::engine::CompletionDisposition;
 use super::engine::Family;
 use super::engine::Forest;
 use super::engine::LexicalMatch;
+#[cfg(test)]
+use super::engine::NodeId;
 use super::engine::Observation;
 use super::engine::Rule;
 use super::engine::StatefulLexicalMatch;
@@ -152,8 +154,53 @@ pub(crate) fn parse_forest_observed<R: GeneratedParseRoot>(
     )
     .map(|forest| RootForest { forest })
     .map_err(project_failure);
+    #[cfg(test)]
+    inject_checked_completion_rejection_for_test(&mut observation);
     let trace = observation.finish();
     (result, trace)
+}
+
+#[cfg(test)]
+thread_local! {
+    static CHECKED_COMPLETION_REJECTION_FOR_TEST: std::cell::Cell<Option<BuildRejection>> =
+        const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(super) fn with_checked_completion_rejection_for_test<T>(
+    rejection: BuildRejection,
+    run: impl FnOnce() -> T,
+) -> T {
+    struct Restore(Option<BuildRejection>);
+
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            CHECKED_COMPLETION_REJECTION_FOR_TEST.with(|slot| slot.set(self.0));
+        }
+    }
+
+    let previous = CHECKED_COMPLETION_REJECTION_FOR_TEST.with(|slot| slot.replace(Some(rejection)));
+    let _restore = Restore(previous);
+    run()
+}
+
+#[cfg(test)]
+fn inject_checked_completion_rejection_for_test(observation: &mut StructuralObservation) {
+    CHECKED_COMPLETION_REJECTION_FOR_TEST.with(|slot| {
+        let Some(rejection) = slot.get() else {
+            return;
+        };
+        let family = Family {
+            children: vec![Child::Node(NodeId(usize::MAX))],
+        };
+        observation.checked_completion(
+            RootRuleId::Adapter,
+            0,
+            0,
+            &family,
+            &CompletionDisposition::DeferredBuildRejection(rejection),
+        );
+    });
 }
 
 pub(super) fn rules_for_root<R: GeneratedParseRoot>()
@@ -2172,7 +2219,7 @@ mod tests {
             children: vec![Child::Node(NodeId(7)), lexical(Leaf::Literal("where"))],
         };
         let unrelated_family = Family {
-            children: vec![Child::Node(NodeId(8)), lexical(Leaf::Literal("where"))],
+            children: vec![Child::Node(NodeId(6)), lexical(Leaf::Literal("where"))],
         };
         let stale_child = crate::constructions::BuildRejection::new(
             "AChild",
@@ -2229,10 +2276,7 @@ mod tests {
                 .iter()
                 .any(|(_, rejection)| rejection == &unrelated)
         );
-        assert_eq!(
-            observed.finish().first_build_rejection(),
-            Some(&current_parent),
-        );
+        assert_eq!(observed.finish().first_build_rejection(), Some(&unrelated));
     }
 
     #[test]
