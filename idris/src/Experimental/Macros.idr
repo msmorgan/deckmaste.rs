@@ -1202,13 +1202,12 @@ thoseVerbedThisWay v w = ThoseVerbed v w {marking = ThisWay} {ok} {mk}
 ||| "… followed by <part>": an added turn part with a successor.
 public export
 additionalPartThen : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
-                     (count : Nat) -> (next : TurnPart) ->
+                     (count : Amount bs) -> (next : TurnPart) ->
                      {auto 0 ad : AddedPart part} ->
                      {auto 0 an : AnchorPart anchor} ->
-                     {auto 0 fb : FollowerPart (Just next)} ->
-                     {auto 0 ct : PhaseCount count} -> Effect bs
+                     {auto 0 fb : FollowerPart (Just next)} -> Effect bs
 additionalPartThen part anchor count next =
-  AdditionalPart part anchor count {followedBy = Just next} {ad} {an} {fb} {ct}
+  AdditionalPart part anchor count {followedBy = Just next} {ad} {an} {fb}
 
 ||| "When <event> this turn, …": a delayed trigger with an explicit span.
 public export

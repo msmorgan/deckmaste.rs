@@ -332,71 +332,6 @@ badCantAnyTarget : Unspellable (Effect []) (\ok =>
 badCantAnyTarget Participant impossible
 
 
-||| "Target creature can't block until end of turn."
-||| The one-shot restriction's word is "this turn"; "until end of turn" belongs to the grants.
-public export
-badCantUntilEndOfTurn : Unspellable (Effect []) (\ok =>
-  Macros.cantBlock (Macros.target Macros.creature) (Just Macros.untilEndOfTurn) {sp = ok})
-badCantUntilEndOfTurn SpanStated impossible
-
-
-||| "Target creature gains flying this turn."
-||| The grant row's duration vocabulary excludes "this turn", which is the restriction's word.
-public export
-badGainsThisTurn : Unspellable (Effect []) (\ok =>
-  Macros.gains (Macros.target Macros.creature) (KeywordAbility Flying) (Just Macros.thisTurn) {sp = ok})
-badGainsThisTurn SpanStated impossible
-
-
-||| "Target creature gets +3/+3 this turn."
-||| The stat change writes the grant's adverbial too — "until end of turn", never "this turn".
-public export
-badGetsThisTurn : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.thisTurn) {sp = ok})
-badGetsThisTurn SpanStated impossible
-
-
-||| "Target creature can't block." with no duration
-||| A durationless "can't" is the static-ability construction; the restriction row may not omit the span.
-public export
-badStaticCant : Unspellable (Effect []) (\ok =>
-  Macros.cantBlock (Macros.target Macros.creature) Nothing {sp = ok})
-badStaticCant SpanUnstated impossible
-
-
-||| "Target creature gets +3/+3 until your next upkeep."
-||| The upkeep endpoint belongs to the KEYWORD grant alone; no stat change takes it.
-public export
-badGetsUntilYourNextUpkeep : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilYourNextUpkeep) {sp = ok})
-badGetsUntilYourNextUpkeep SpanStated impossible
-
-
-||| "Target creature gains flying until the end of your next turn."
-||| That endpoint belongs to the permission and control rows, not to the keyword grant.
-public export
-badGainsUntilEndOfYourNextTurn : Unspellable (Effect []) (\ok =>
-  Macros.gains (Macros.target Macros.creature) (KeywordAbility Flying) (Just (Until (EndOf Turn (Just Yours)))) {sp = ok})
-badGainsUntilEndOfYourNextTurn SpanStated impossible
-
-
-||| "Target creature can't block until end of combat."
-||| The combat endpoint belongs to the grants; the restriction's spans run in turns.
-public export
-badCantUntilEndOfCombat : Unspellable (Effect []) (\ok =>
-  Macros.cantBlock (Macros.target Macros.creature) (Just Macros.untilEndOfCombat) {sp = ok})
-badCantUntilEndOfCombat SpanStated impossible
-
-
-||| "Target creature gains flying until your next untap step."
-||| No untap-step endpoint exists in this duration vocabulary.
-public export
-badGainsUntilUntapStep : Unspellable (Effect []) (\ok =>
-  Macros.gains (Macros.target Macros.creature) (KeywordAbility Flying)
-        (Just (Until (StartOf UntapStep (Just Yours)))) {sp = ok})
-badGainsUntilUntapStep SpanStated impossible
-
-
 ||| "target with power 2 or less"
 ||| A bound is a modifier: it describes and names nothing, so a determiner cannot determine it.
 public export
@@ -660,30 +595,6 @@ badBecomesInGraveyard : Unspellable (Effect []) (\ok =>
 badBecomesInGraveyard Oh impossible
 
 
-||| "Target creature becomes an artifact … until end of combat."
-||| The combat endpoint belongs to the grants; the type addition ends at end of turn.
-public export
-badBecomesUntilEndOfCombat : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.untilEndOfCombat) {sp = ok})
-badBecomesUntilEndOfCombat SpanStated impossible
-
-
-||| "Target creature becomes an artifact … this turn."
-||| The restriction's current-turn word is not the type addition's either.
-public export
-badBecomesThisTurn : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.thisTurn) {sp = ok})
-badBecomesThisTurn SpanStated impossible
-
-
-||| "Target creature becomes an artifact … until your next upkeep."
-||| The upkeep endpoint stays the keyword grant's alone, as it is against the stat delta.
-public export
-badBecomesUntilYourNextUpkeep : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.untilYourNextUpkeep) {sp = ok})
-badBecomesUntilYourNextUpkeep SpanStated impossible
-
-
 ||| "Zombie that isn't a creature"
 ||| A subtype word PRESUPPOSES its set's card type [CR#205.1a], so the phrase describes nothing.
 public export
@@ -698,16 +609,6 @@ public export
 badBecomesOwnType : Unspellable (Effect []) (\ok =>
   Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Creature]) Nothing {nw = ok})
 badBecomesOwnType Oh impossible
-
-
-||| "Target artifact you control becomes a creature … until your next turn."
-||| A naked type addition takes no across-turn duration in this row's vocabulary.
-public export
-badTypeAdditionAcrossTurns : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target (And [Macros.artifact, ControlledBy You]))
-          (Macros.typesOnly [Creature])
-          (Just Macros.untilYourNextTurn) {sp = ok})
-badTypeAdditionAcrossTurns SpanStated impossible
 
 
 ||| "Create a 1/1 black Zombie creature token if you control a creature. Otherwise, tap it."

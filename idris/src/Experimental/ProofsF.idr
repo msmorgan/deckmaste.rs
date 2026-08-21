@@ -239,23 +239,6 @@ badStaticPlayerCantTargets : Unspellable Ability (\ok =>
 badStaticPlayerCantTargets Oh impossible
 
 
-||| "Players can't gain life." — as a spell's clause, with no duration.
-||| A resolution that establishes a prohibition states how long it lasts; one that does not is a printed line.
-public export
-badSpanlessPlayerCant : Unspellable (Effect []) (\ok =>
-  Continuously (PlayerCant GainsLife (PlayerGroup AllPlayers)) Nothing {sp = ok})
-badSpanlessPlayerCant SpanUnstated impossible
-
-
-||| "Players can't gain life until end of turn."
-||| A prohibition writes "this turn" where a grant writes "until end of turn".
-public export
-badPlayerCantUntilEndOfTurn : Unspellable (Effect []) (\ok =>
-  Continuously (PlayerCant GainsLife (PlayerGroup AllPlayers))
-               (Just Macros.untilEndOfTurn) {sp = ok})
-badPlayerCantUntilEndOfTurn SpanStated impossible
-
-
 ||| "Target creature becomes the basic land type of your choice until end of turn."
 ||| [CR#305.7] states its consequences of a land's subtype, and the subject's projected head is no land.
 public export
@@ -285,14 +268,6 @@ badCreaturesAreMountains : Unspellable (StaticEffect []) (\ok =>
            (MkToken Nothing [] (Macros.basicLandLine [Mountain]) [] Nothing)
            Nothing {af = ok})
 badCreaturesAreMountains Oh impossible
-
-
-||| "of the card name of your choice"
-||| A name is chosen and then matched by name equality, never read as a quality of a description.
-public export
-badYourChoiceCardName : Unspellable (Predicate [] Object) (\ok =>
-  OfYourChoice CardName {read = ok})
-badYourChoiceCardName Oh impossible
 
 
 ||| "of the number of your choice"
@@ -577,46 +552,12 @@ badLookAtHandRider : Unspellable (StaticEffect []) (\ok =>
 badLookAtHandRider Oh impossible
 
 
-||| "Play with the top card of your library revealed." as a resolving spell's clause with no duration
-||| A clause that states no duration lasts until the end of the game [CR#611.2a].
-public export
-badSpanlessVisibility : Unspellable (Effect []) (\ok =>
-  Continuously (Visibility Reveal You TopOfLibrary) Nothing {sp = ok})
-badSpanlessVisibility (SpanUnstated) impossible
-
-
-||| "Until your next turn, you may look at the top card of your library any time."
-||| The rider writes three adverbials and this is not one of them; the play permission's table is wider.
-public export
-badVisibilityUntilYourNextTurn : Unspellable (Effect []) (\ok =>
-  Continuously (Visibility LookAt You TopOfLibrary)
-               (Just (Until (StartOf Turn (Just Yours)))) {sp = ok})
-badVisibilityUntilYourNextTurn (SpanStated) impossible
-
-
 ||| "You may play any number of additional lands on each of your turns."
 ||| [CR#305.2] lets a continuous effect increase the number, and an unbounded top removes the limit instead.
 public export
 badAnyNumberOfAdditionalLands : Unspellable (StaticEffect []) (\ok =>
   MayPlayAdditionalLands You Macros.anyNumber {bi = ok})
 badAnyNumberOfAdditionalLands Oh impossible
-
-
-||| "You may play an additional land." as a resolving spell's clause with no duration
-||| A clause that states no duration lasts until the end of the game [CR#611.2a].
-public export
-badSpanlessLandAllowance : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlayAdditionalLands You (Macros.exactly 1)) Nothing {sp = ok})
-badSpanlessLandAllowance (SpanUnstated) impossible
-
-
-||| "Until end of turn, you may play an additional land."
-||| [CR#305.2a] counts the allowance per turn, so the turn is the only unit the family names.
-public export
-badLandAllowanceUntilEndOfTurn : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlayAdditionalLands You (Macros.exactly 1))
-               (Just Macros.untilEndOfTurn) {sp = ok})
-badLandAllowanceUntilEndOfTurn (SpanStated) impossible
 
 
 ||| "Lands you control are every creature type."
@@ -645,54 +586,6 @@ badEveryCreatureTypeOnKindred : Unspellable (StaticEffect []) (\ok =>
 badEveryCreatureTypeOnKindred Oh impossible
 
 
-||| "You skip your next upkeep step."
-||| The upkeep step is skipped by a permanent's standing line and by no scheduling effect.
-public export
-badSkipNextUpkeepStep : Unspellable (Effect []) (\ok =>
-  SkipsNext You Upkeep 1 {sk = ok})
-badSkipNextUpkeepStep Oh impossible
-
-
-||| "Players skip their turns."
-||| A standing turn skip is an ending, not a tax: [CR#500.11] proceeds as though the turn did not exist.
-public export
-badStandingSkipTurn : Unspellable (StaticEffect []) (\ok =>
-  Skips (PlayerGroup AllPlayers) Turn {sk = ok})
-badStandingSkipTurn Oh impossible
-
-
-||| "You skip your next end step."
-||| The skip reader's row is empty at the end step, where the span and header readers are not.
-public export
-badSkipEndStep : Unspellable (Effect []) (\ok =>
-  SkipsNext You EndStep 1 {sk = ok})
-badSkipEndStep Oh impossible
-
-
-||| "Take three extra turns after this one."
-||| The count vocabulary is closed at one and two.
-public export
-badThreeExtraTurns : Unspellable (Effect []) (\ok =>
-  ExtraTurn You 3 {ct = ok})
-badThreeExtraTurns OneExtraTurn impossible
-
-
-||| "Skip your draw step." written as a RESOLVING clause.
-||| The standing skip is a printed line and never a resolving clause; the resolving form says "next".
-public export
-badSkipClause : Unspellable (Effect []) (\ok =>
-  Continuously (Skips You DrawStep) Nothing {sp = ok})
-badSkipClause SpanUnstated impossible
-
-
-||| "Until end of turn, you skip your draw step."
-||| One span slot: the skip's own table writes no endpoint, though [CR#614.10]'s replacement class does.
-public export
-badSkipUntilEndOfTurn : Unspellable (Effect []) (\ok =>
-  Continuously (Skips You DrawStep) (Just (Until (EndOf Turn Nothing))) {sp = ok})
-badSkipUntilEndOfTurn SpanStated impossible
-
-
 ||| "Draw a card. At the beginning of that turn's end step, you lose the game."
 ||| The possessive reaches a mention, so a clause that made no turn leaves nothing for it to reach.
 public export
@@ -702,50 +595,6 @@ badDeicticTurnWithoutIntroducer : Unspellable (Effect []) (\ok =>
                         (Concludes LoseGame You)])
 badDeicticTurnWithoutIntroducer (NoTurnDeixis) impossible
 badDeicticTurnWithoutIntroducer (TurnInScope) impossible
-
-
-||| "Take an extra turn after this one. At the beginning of that turn's upkeep, draw a card."
-||| The deictic possessor has one cell and it is the end step.
-public export
-badThatTurnsUpkeep : Unspellable (Effect []) (\ok =>
-  Sequentially [ExtraTurn You 1,
-                Delayed (BeginningOf Upkeep (ByWord ThatTurns) {pu = ok})
-                        Macros.drawACard])
-badThatTurnsUpkeep Oh impossible
-
-
-||| "After this main phase, there is an additional main phase."
-||| The main phase is written into the addition as the follower, never as the part added first.
-public export
-badAddedMainPhase : Unspellable (Effect []) (\ok =>
-  AdditionalPart MainPhase (Just MainPhase) 1 {ad = ok})
-badAddedMainPhase Oh impossible
-
-
-||| "After this main phase, there is an additional combat phase followed by an additional combat phase."
-||| The combat phase follows nothing; two of them are written as a count and not a sequence.
-public export
-badCombatFollows : Unspellable (Effect []) (\ok =>
-  AdditionalPart Combat (Just MainPhase) 1 {followedBy = Just Combat} {fb = ok})
-badCombatFollows NoFollower impossible
-badCombatFollows MkFollowerPart impossible
-
-
-||| "After this main phase, there are three additional combat phases."
-||| The count vocabulary is closed at one and two.
-public export
-badThreeAdditionalPhases : Unspellable (Effect []) (\ok =>
-  AdditionalPart Combat (Just MainPhase) 3 {ct = ok})
-badThreeAdditionalPhases OnePhase impossible
-
-
-||| "After this end step, there is an additional combat phase."
-||| The anchor names only the main phase and the combat phase; the end step anchors nothing.
-public export
-badEndStepAnchor : Unspellable (Effect []) (\ok =>
-  AdditionalPart Combat (Just EndStep) 1 {an = ok})
-badEndStepAnchor BareAnchor impossible
-badEndStepAnchor MkAnchorPart impossible
 
 
 ||| "This creature enters with 0 +1/+1 counters on it."
@@ -763,16 +612,6 @@ badEntersCountersInGraveyard : Unspellable (StaticEffect []) (\ok =>
   EntersWithCounters (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
                      (Lit 1) Macros.plusOnePlusOne {mark = Additional} {zn = ok})
 badEntersCountersInGraveyard Oh impossible
-
-
-||| "Each creature you control enters with an additional +1/+1 counter on it." written as a RESOLVING clause.
-||| The entry-counter line is a printed static ability and never a resolving clause [CR#603.6d].
-public export
-badEntersCountersClause : Unspellable (Effect []) (\ok =>
-  Continuously (EntersWithCounters
-                  (Each (And [Macros.creature, ControlledBy You]))
-                  (Lit 1) Macros.plusOnePlusOne {mark = Additional}) Nothing {sp = ok})
-badEntersCountersClause SpanUnstated impossible
 
 
 ||| "Spells with the chosen name can't be activated."
@@ -839,23 +678,13 @@ badAltCostLoyaltySymbol AltPaymentWritten impossible
 
 
 ||| "You may sacrifice a Mountain rather than pay this spell's mana cost" written as a resolving clause
-||| [CR#113.6d] locates the alternative cost in the card's own printed text.
+||| [CR#113.6d] prices one object, and the node names none: the clause has no spell to price.
 public export
 badAltCostClause : Unspellable (Effect []) (\ok =>
   Continuously (AltCost (Just (Do (Macros.sacrifice You
                   (Macros.a (And [Macros.land, HasSubtype Mountain]))))))
-               Nothing {sp = ok})
-badAltCostClause SpanUnstated impossible
-
-
-||| "You may sacrifice a Mountain rather than pay this spell's mana cost until end of turn."
-||| A printed static ability has nothing to state a duration against [CR#604.1].
-public export
-badAltCostUntilEndOfTurn : Unspellable (Effect []) (\ok =>
-  Continuously (AltCost (Just (Do (Macros.sacrifice You
-                  (Macros.a (And [Macros.land, HasSubtype Mountain]))))))
-               (Just Macros.untilEndOfTurn) {sp = ok})
-badAltCostUntilEndOfTurn SpanStated impossible
+               Nothing {cl = ok})
+badAltCostClause Oh impossible
 
 
 ||| "Regenerate target creature card in your graveyard."

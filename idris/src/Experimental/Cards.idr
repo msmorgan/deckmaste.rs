@@ -364,6 +364,23 @@ divination = Macros.drawCards 2
 ancestralRecall : Effect []
 ancestralRecall = Draw (Macros.target AnyPlayer) (Lit 3)
 
+||| Cheering Fanatic
+||| "Whenever this creature attacks, choose a card name. Spells with the
+||| chosen name cost {1} less to cast this turn."
+public export
+cheeringFanatic : Card
+cheeringFanatic =
+  Macros.card "Cheering Fanatic" (Just [Macros.generic 1, Macros.pip Red]) []
+       (MkTypeLine [Goblin] [Creature])
+       [ Triggered Whenever (Attacks Macros.thisCreature)
+                   (Sequentially
+                     [ Choose (Macros.a (QualityNoun CardName))
+                     , Continuously
+                         (CostsToCast (AllOf (And [Macros.spell, OfChosen CardName]))
+                                      (CostLess (Lit 1)))
+                         (Just Macros.thisTurn) ]) ]
+       (Just (2, 2))
+
 public export
 prosperity : Card
 prosperity =
@@ -1010,23 +1027,23 @@ mesmericOrb =
 
 barlsCage : Ability
 barlsCage = Activated (Mana [Macros.generic 3])
-                      (DoesntUntapNext (Macros.target Macros.creature) 1)
+                      (DoesntUntapNext (Macros.target Macros.creature) (Lit 1))
 
 takeIntoCustody : Effect []
 takeIntoCustody = Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                                DoesntUntapNext It 1]
+                                DoesntUntapNext It (Lit 1)]
 
 chandrasRevolution : Effect []
 chandrasRevolution = Sequentially [DealDamage This (Lit 4) (Macros.target Macros.creature),
                                    SetStatus Tapped (Macros.target Macros.land),
-                                   DoesntUntapNext (That (TypeW Land)) 1]
+                                   DoesntUntapNext (That (TypeW Land)) (Lit 1)]
 
 arbalestElite : Ability
 arbalestElite =
   Activated (Compound [Mana [Macros.generic 2, Macros.pip White], TapSymbol])
             (Sequentially [DealDamage Macros.thisCreature (Lit 3)
                                       (Macros.target (And [Macros.creature, Or [Attacking, Blocking]])),
-                           DoesntUntapNext Macros.thisCreature 1])
+                           DoesntUntapNext Macros.thisCreature (Lit 1)])
 
 
 cyberConversion : Effect []
@@ -1108,7 +1125,7 @@ vertigoSpawn : Ability
 vertigoSpawn =
   Triggered Whenever (Blocks Macros.thisCreature (Just (Macros.a Macros.creature)))
             (Sequentially [SetStatus Tapped (That (TypeW Creature)),
-                           DoesntUntapNext (That (TypeW Creature)) 1])
+                           DoesntUntapNext (That (TypeW Creature)) (Lit 1)])
 
 
 munghaWurm : Ability
@@ -4903,7 +4920,7 @@ public export
 timeWalk : Card
 timeWalk =
   Macros.card "Time Walk" (Just [Macros.generic 1, Macros.pip Blue]) []
-       (MkTypeLine [] [Sorcery]) [Spell (ExtraTurn You 1)] Nothing
+       (MkTypeLine [] [Sorcery]) [Spell (ExtraTurn You (Lit 1))] Nothing
 
 public export
 timeStretch : Card
@@ -4911,7 +4928,7 @@ timeStretch =
   Macros.card "Time Stretch"
        (Just [Macros.generic 8, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [Spell (ExtraTurn (Macros.target AnyPlayer) 2)] Nothing
+       [Spell (ExtraTurn (Macros.target AnyPlayer) (Lit 2))] Nothing
 
 public export
 timeSieve : Card
@@ -4921,7 +4938,7 @@ timeSieve =
        [Activated (Compound [TapSymbol,
                              Do (Macros.sacrifice You
                                    (CountedGroup (Macros.exactly 5) Macros.artifact))])
-                  (ExtraTurn You 1)] Nothing
+                  (ExtraTurn You (Lit 1))] Nothing
 
 public export
 magistratesScepter : Card
@@ -4932,21 +4949,21 @@ magistratesScepter =
                    (PutCounters (Lit 1) Charge Macros.thisArtifact)
        , Activated (Compound [TapSymbol,
                               Do (RemoveCounters (Lit 3) Charge Macros.thisArtifact)])
-                   (ExtraTurn You 1) ] Nothing
+                   (ExtraTurn You (Lit 1)) ] Nothing
 
 public export
 fatigue : Card
 fatigue =
   Macros.card "Fatigue" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [Spell (SkipsNext (Macros.target AnyPlayer) DrawStep 1)] Nothing
+       [Spell (SkipsNext (Macros.target AnyPlayer) DrawStep (Lit 1))] Nothing
 
 public export
 meditate : Card
 meditate =
   Macros.card "Meditate" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [Spell (Sequentially [Draw You (Lit 4), SkipsNext You Turn 1])] Nothing
+       [Spell (Sequentially [Draw You (Lit 4), SkipsNext You Turn (Lit 1)])] Nothing
 
 public export
 blindingAngel : Card
@@ -4957,7 +4974,7 @@ blindingAngel =
        [ KeywordAbility Flying
        , Triggered Whenever
            (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
-           (SkipsNext (That PlayerW) Combat 1) ] (Just (2, 4))
+           (SkipsNext (That PlayerW) Combat (Lit 1)) ] (Just (2, 4))
 
 public export
 eonHub : Card
@@ -4996,13 +5013,13 @@ wormfangManta =
        (Just [Macros.generic 5, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [Nightmare, Fish, Beast] [Creature])
        [ KeywordAbility Flying
-       , Triggered When (Enters Macros.thisCreature) (SkipsNext You Turn 1)
-       , Triggered When (Leaves Macros.thisCreature) (ExtraTurn You 1) ]
+       , Triggered When (Enters Macros.thisCreature) (SkipsNext You Turn (Lit 1))
+       , Triggered When (Leaves Macros.thisCreature) (ExtraTurn You (Lit 1)) ]
        (Just (6, 6))
 
 public export
 eaterOfDaysSkip : Effect []
-eaterOfDaysSkip = SkipsNext You Turn 2
+eaterOfDaysSkip = SkipsNext You Turn (Lit 2)
 
 
 
@@ -5011,7 +5028,7 @@ finalFortune : Card
 finalFortune =
   Macros.card "Final Fortune" (Just [Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [Spell (Sequentially [ExtraTurn You 1,
+       [Spell (Sequentially [ExtraTurn You (Lit 1),
                              Delayed (BeginningOf EndStep (ByWord ThatTurns))
                                      (Concludes LoseGame You)])] Nothing
 
@@ -5020,7 +5037,7 @@ lastChance : Card
 lastChance =
   Macros.card "Last Chance" (Just [Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [Spell (Sequentially [ExtraTurn You 1,
+       [Spell (Sequentially [ExtraTurn You (Lit 1),
                              Delayed (BeginningOf EndStep (ByWord ThatTurns))
                                      (Concludes LoseGame You)])] Nothing
 
@@ -5033,7 +5050,7 @@ chanceForGlory =
        [Spell (Sequentially
          [ Continuously (Gains (AllOf (And [Macros.creature, ControlledBy You]))
                                (KeywordAbility Indestructible)) Nothing
-         , ExtraTurn You 1
+         , ExtraTurn You (Lit 1)
          , Delayed (BeginningOf EndStep (ByWord ThatTurns))
                    (Concludes LoseGame You)])] Nothing
 
@@ -5048,7 +5065,7 @@ aggravatedAssault =
                                          (AllOf (And [Macros.creature, ControlledBy You]))
                                      , Macros.additionalPartThen Combat
                                                                  (Just MainPhase)
-                                                                 1
+                                                                 (Lit 1)
                                                                  MainPhase])
                                    AsSorcery] Nothing
 
@@ -5062,7 +5079,7 @@ relentlessAssault =
          [ SetStatus Untapped
              (AllOf (And [Macros.creature,
                           HappenedTo AttackDeclaration Lookback.ThisTurn]))
-         , Macros.additionalPartThen Combat (Just MainPhase) 1 MainPhase])] Nothing
+         , Macros.additionalPartThen Combat (Just MainPhase) (Lit 1) MainPhase])] Nothing
 
 public export
 hellkiteCharger : Card
@@ -5077,19 +5094,19 @@ hellkiteCharger =
               (Pay You (Mana [Macros.generic 5, Macros.pip Red, Macros.pip Red]))
               (Sequentially
                 [ SetStatus Untapped (AllOf (And [Macros.creature, Attacking]))
-                , AdditionalPart Combat Nothing 1])) ] (Just (5, 5))
+                , AdditionalPart Combat Nothing (Lit 1)])) ] (Just (5, 5))
 
 public export
 fullThrottleFirstLine : Effect []
-fullThrottleFirstLine = AdditionalPart Combat (Just MainPhase) 2
+fullThrottleFirstLine = AdditionalPart Combat (Just MainPhase) (Lit 2)
 
 public export
 raphaelAdditionalCombat : Effect []
-raphaelAdditionalCombat = AdditionalPart Combat (Just Combat) 1
+raphaelAdditionalCombat = AdditionalPart Combat (Just Combat) (Lit 1)
 
 public export
 yshtolaAdditionalEndStep : Effect []
-yshtolaAdditionalEndStep = AdditionalPart EndStep Nothing 1
+yshtolaAdditionalEndStep = AdditionalPart EndStep Nothing (Lit 1)
 
 
 

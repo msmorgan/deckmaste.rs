@@ -199,22 +199,6 @@ badUnlessOnPositive : Unspellable Ability (\ok =>
 badUnlessOnPositive MkMarkingOk impossible
 
 
-||| "At your end of combat, draw a card."
-||| The end-of-combat header takes no possessor; the possessed phrase is [CR#511.2]'s duration reading.
-public export
-badTriggerAtYourEndOfCombat : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf EndOfCombat (ByWord Yours) {pu = ok}) Macros.drawACard)
-badTriggerAtYourEndOfCombat Oh impossible
-
-
-||| "Target creature gets +1/+1 until the end-of-combat step."
-||| [CR#511.2] puts "until end of combat" at the end of the combat phase; the step names no endpoint.
-public export
-badUntilEndOfCombatStep : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 1)) (PtUp (Lit 1)) (Just (Until (StartOf EndOfCombat Nothing))) {sp = ok})
-badUntilEndOfCombatStep SpanStated impossible
-
-
 ||| "Destroy target creature. Exile the destroyed card."
 ||| The destroy row writes the deictic only, "destroyed this way".
 public export
@@ -271,7 +255,7 @@ badInterceptBecomesTapped (Oh, _) impossible
 
 
 ||| "Exile target creature until a creature becomes untapped."
-||| The [CR#610.3] rider waits on a departure, never on a status transition.
+||| The event table claims a status transition for the trigger and not for the hold.
 public export
 badHeldUntilBecomesUntapped : Unspellable (Effect []) (\ok =>
   Macros.exileUntil (Macros.target Macros.creature) (StatusEvent (Macros.a Macros.creature) Untapped) {hd = ok})
@@ -287,20 +271,11 @@ badDelayedOnBecomesTapped : Unspellable (Effect []) (\ok =>
 badDelayedOnBecomesTapped Oh impossible
 
 
-||| "Target creature gets +2/+2 until this creature becomes untapped."
-||| A tapped-state span is "for as long as … remains tapped" [CR#611.2b], a condition and not an end.
-public export
-badGetsUntilBecomesUntapped : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 2)) (PtUp (Lit 2))
-       (Just (UntilEvent (StatusEvent Macros.thisCreature Untapped))) {sp = ok})
-badGetsUntilBecomesUntapped SpanStated impossible
-
-
 ||| "Target creature card in your graveyard doesn't untap during its controller's next untap step."
 ||| The timed clause's subject stands on the battlefield [CR#701.26a].
 public export
 badUntapNextGraveyard : Unspellable (Effect []) (\ok =>
-  DoesntUntapNext (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) 1 {ok = ok})
+  DoesntUntapNext (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) (Lit 1) {ok = ok})
 badUntapNextGraveyard OnField impossible
 
 
@@ -310,16 +285,8 @@ public export
 badUntapNextAmbiguousIt : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 SetStatus Tapped (Macros.target Macros.artifact),
-                DoesntUntapNext (It {ok = ok}) 1])
+                DoesntUntapNext (It {ok = ok}) (Lit 1)])
 badUntapNextAmbiguousIt Refl impossible
-
-
-||| "Target creature doesn't untap during its controller's next three untap steps."
-||| The count vocabulary is closed at one and two.
-public export
-badUntapNextThree : Unspellable (Effect []) (\ok =>
-  DoesntUntapNext (Macros.target Macros.creature) 3 {ct = ok})
-badUntapNextThree OneNextStep impossible
 
 
 ||| "Whenever you cast any target, draw a card."
@@ -389,7 +356,7 @@ badInterceptPhasesOut (Oh, _) impossible
 
 
 ||| "Exile target creature until a permanent you control is turned face up."
-||| The [CR#610.3] rider waits on a departure, never on a turning.
+||| The event table claims a turning for the trigger and not for the hold.
 public export
 badHeldUntilTurnedFaceUp : Unspellable (Effect []) (\ok =>
   Macros.exileUntil (Macros.target Macros.creature)
@@ -473,15 +440,6 @@ public export
 badUntapCapHeadless : Unspellable Ability (\ok =>
   Static (CantUntapMoreThan (PlayerGroup AllPlayers) 1 Macros.tapped {hd = ok}))
 badUntapCapHeadless Oh impossible
-
-
-||| "Players can't untap more than one land until your next untap step."
-||| The cap names its interval in its own words and takes no endpoint adverbial.
-public export
-badUntapCapUntilNextUntapStep : Unspellable (Effect []) (\ok =>
-  Continuously (CantUntapMoreThan (PlayerGroup AllPlayers) 1 Macros.land)
-               (Just (Until (StartOf UntapStep (Just Yours)))) {sp = ok})
-badUntapCapUntilNextUntapStep SpanStated impossible
 
 
 ||| "Put a poison counter on target creature."
@@ -604,22 +562,6 @@ badNonMulticolored : Unspellable (Predicate [] Object) (\ok =>
 badNonMulticolored Oh impossible
 
 
-||| "At the beginning of an opponent's upkeep, draw a card."
-||| The trigger header's possessor table does not admit this possessor, though the activation window's does.
-public export
-badTriggerAtAnOpponentsUpkeep : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep (ByWord AnOpponents) {pu = ok}) Macros.drawACard)
-badTriggerAtAnOpponentsUpkeep Oh impossible
-
-
-||| "At the beginning of each opponent's first main phase, draw a card."
-||| A new turn part does not inherit a possessor's cells from the header table.
-public export
-badTriggerAtEachOpponentsFirstMain : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf FirstMain (ByWord EachOpponents) {pu = ok}) Macros.drawACard)
-badTriggerAtEachOpponentsFirstMain Oh impossible
-
-
 ||| "{2}: Draw a card. Activate only during your end step."
 ||| The end step is a trigger header's part; no activation restriction names it.
 public export
@@ -655,14 +597,6 @@ badMustBlockNoPatient : Unspellable (Effect []) (\ok =>
                         {pt = NoDeonticPatient {ok = ok}})
                (Just Macros.thisTurn))
 badMustBlockNoPatient Oh impossible
-
-
-||| "Target artifact may choose not to untap during your untap step this turn."
-||| The permission to decline is a printed static ability and never a clause.
-public export
-badDeclineUntapClause : Unspellable (Effect []) (\ok =>
-  Continuously (MayDeclineUntap (Macros.target Macros.artifact)) Nothing {sp = ok})
-badDeclineUntapClause SpanUnstated impossible
 
 
 ||| "At the beginning of your end step, if it's day, draw a card."
@@ -981,14 +915,6 @@ public export
 badZeroCostShift : Unspellable (StaticEffect []) (\ok =>
   CostsToCast This (CostLess (Lit 0)) {wc = ok})
 badZeroCostShift Oh impossible
-
-
-||| "Spells cost {1} less to cast." written as a resolving clause
-||| A cost statement is a static ability's own line [CR#604.1], with no clause to carry a span.
-public export
-badCostClause : Unspellable (Effect []) (\ok =>
-  Continuously (CostsToCast This (CostLess (Lit 1))) Nothing {sp = ok})
-badCostClause SpanUnstated impossible
 
 
 ||| "a creature card you cast in your graveyard"

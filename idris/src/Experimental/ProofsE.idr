@@ -69,8 +69,8 @@ public export
 badPtDefinitionClause : Unspellable (Effect []) (\ok =>
   Continuously (DefinesPt Macros.thisCreature BothEach
                           (CountOf Macros.creatureYouControl))
-               Nothing {sp = ok})
-badPtDefinitionClause SpanUnstated impossible
+               Nothing {cl = ok})
+badPtDefinitionClause Oh impossible
 
 
 ||| "This creature's power and toughness are switched." as a printed line.
@@ -563,26 +563,6 @@ badStillAnInstant : Unspellable (StaticEffect []) (\ok =>
 badStillAnInstant Oh impossible
 
 
-||| "This land becomes a 2/2 creature this turn."
-||| The current-turn adverbial stays the restriction family's; the type setting writes "until end of turn".
-public export
-badTypeSetThisTurn : Unspellable (Effect []) (\ok =>
-  Continuously (SetsType Macros.thisLand
-                         (MkToken (Just (Lit 2, Lit 2)) []
-                                  (MkTypeLine [] [Creature]) [] Nothing)
-                         Nothing)
-               (Just ThisTurn) {sp = ok})
-badTypeSetThisTurn (SpanStated) impossible
-
-
-||| "Target creature loses all abilities until your next upkeep."
-||| The ability loss writes three adverbials and no fourth; the upkeep endpoint is another row's.
-public export
-badLoseAbilitiesUntilUpkeep : Unspellable (Effect []) (\ok =>
-  Continuously (LosesAllAbilities (Macros.target Macros.creature))
-               (Just (Until (StartOf Upkeep (Just Yours)))) {sp = ok})
-badLoseAbilitiesUntilUpkeep (SpanStated) impossible
-
 ||| "Target creature gets +1/+1 and gains flying and gains trample."
 ||| A coordination inside a coordination spells one flat list twice.
 public export
@@ -602,28 +582,6 @@ badCoordinatedGainsControl : Unspellable Ability (\ok =>
   Static (AndAlso [ Gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))
                   , GainsControl You Them ]) {ln = ok})
 badCoordinatedGainsControl Oh impossible
-
-
-||| "Target creature gets +1/+0 and can't be blocked this turn."
-||| One envelope covers every part, and the grant and the restriction share no current-turn word.
-public export
-badCoordinatedSpanDisagree : Unspellable (Effect []) (\ok =>
-  Continuously (AndAlso [ Gets (Macros.target Macros.creature)
-                               (PtUp (Lit 1)) (PtUp (Lit 0))
-                        , Deontic It Forbid Block Patient Nothing ])
-               (Just Macros.thisTurn) {cs = ok})
-badCoordinatedSpanDisagree Oh impossible
-
-
-||| "Target creature gets +1/+1 and gains flying until end of upkeep."
-||| The carrier writes no adverbial of its own, so every part's own row must admit the span.
-public export
-badCoordinatedUnattestedSpan : Unspellable (Effect []) (\ok =>
-  Continuously (AndAlso [ Gets (Macros.target Macros.creature)
-                               (PtUp (Lit 1)) (PtUp (Lit 1))
-                        , Gains It (KeywordAbility Flying) ])
-               (Just (Until (EndOf Upkeep Nothing))) {cs = ok})
-badCoordinatedUnattestedSpan Oh impossible
 
 
 ||| "This creature gets +1/+1 and that creature has flying."
@@ -916,14 +874,6 @@ public export
 badStandingCopy : Unspellable Ability (\ok =>
   Static (BecomesCopy Macros.thisArtifact (Macros.target Macros.artifact) []) {ln = ok})
 badStandingCopy Oh impossible
-
-||| "This creature becomes a copy of target creature until end of combat."
-||| The end-of-combat endpoint is the type set's; the copy effect is a separate row.
-public export
-badCopyUntilEndOfCombat : Unspellable (Effect []) (\ok =>
-  Continuously (BecomesCopy Macros.thisCreature (Macros.target Macros.creature) [])
-               (Just (Until (EndOf Combat Nothing))) {sp = ok})
-badCopyUntilEndOfCombat SpanStated impossible
 
 ||| "Target creature card in your graveyard becomes a copy of target creature."
 ||| [CR#707.4] keeps the copying permanent on the battlefield.

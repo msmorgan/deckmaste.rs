@@ -360,16 +360,6 @@ joinObjectObject : Object \/ Object = Object
 joinObjectObject = Refl
 
 
-||| "{T}: Draw a card. Activate only during each player's turn, before attackers are declared."
-||| The boundary-relative window takes the three possessors the corpus writes in front of
-||| the point; a quantifier over every turn is not one of them.
-public export
-badBeforeAttackersEachPlayers : Unspellable Ability (\ok =>
-  Activated TapSymbol Macros.drawACard
-            {window = Just (BeforePoint AttackersDeclared (Just EachPlayers) {pk = ok})})
-badBeforeAttackersEachPlayers Oh impossible
-
-
 ||| "if you activated a loyalty ability this turn"
 ||| An activation is an activation of something: with no complement the clause names no event.
 public export
@@ -386,16 +376,6 @@ public export
 badDelayedActivation : Unspellable (Effect []) (\ok =>
   Delayed (Activates You (Macros.a (AbilityHead LoyaltyClass))) Macros.drawACard {aw = ok})
 badDelayedActivation Oh impossible
-
-
-||| "At the beginning of enchanted player's combat phase, draw a card."
-||| The nominal possessor reaches the three steps the Curses write it at, and a
-||| new part does not inherit the slot.
-public export
-badNounPossessorAtCombat : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Combat (ByNoun (AttachHost Enchanted PlayerW)) {pu = ok})
-            Macros.drawACard)
-badNounPossessorAtCombat Oh impossible
 
 
 ||| "At the beginning of you's upkeep, draw a card."

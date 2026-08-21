@@ -88,14 +88,14 @@ Eq QualitySort where
   (==) Number Number = True
   (==) Number _ = False
 
-||| Whether `OfChosen` honestly reads a chosen sort back: colours and
-||| creature types take "of the chosen ...", card names and numbers use
-||| their own later equality surfaces instead.
+||| Whether `OfChosen` honestly reads a chosen sort back: colours,
+||| creature types and card names take "of the chosen ..." (Cheering
+||| Fanatic, Nevermore); a number uses its own equality surface instead.
 public export
 chosenQualityReadOk : QualitySort -> Bool
 chosenQualityReadOk Color = True
 chosenQualityReadOk CreatureType = True
-chosenQualityReadOk CardName = False
+chosenQualityReadOk CardName = True
 chosenQualityReadOk Number = False
 
 public export
@@ -1545,26 +1545,6 @@ countChoosers bs = countOnes Player bs + countManys Player bs
 public export
 data OnBattlefield : Maybe Zone -> Type where
   OnField : OnBattlefield (Just Battlefield)
-
-public export
-data NextUntapCount : Nat -> Type where
-  OneNextStep : NextUntapCount 1
-  TwoNextSteps : NextUntapCount 2
-
-public export
-data ExtraTurnCount : Nat -> Type where
-  OneExtraTurn : ExtraTurnCount 1
-  TwoExtraTurns : ExtraTurnCount 2
-
-public export
-data SkipCount : Nat -> Type where
-  OneSkip : SkipCount 1
-  TwoSkips : SkipCount 2
-
-public export
-data PhaseCount : Nat -> Type where
-  OnePhase : PhaseCount 1
-  TwoPhases : PhaseCount 2
 
 public export
 data EntryCounterMark = Fresh | Additional
@@ -3256,12 +3236,4 @@ public export
 data DurationEnd = StartOf TurnPart (Maybe Whose)
                  | EndOf TurnPart (Maybe Whose)
 
-||| Which duration-adverbial constructions a span use may be written by.
-||| `Unattested` = no line writes the phrase; `Unclaimed` = it is real
-||| oracle English, but a clause this grammar does not construct.
-public export
-data SpanUse = Unattested | Unclaimed | GrantsControlAndTypeSet | GrantsTypesControlReplacementPermissionSetSwitchTypeSetAndLoss
-             | KeywordGrantAndTypeSet | RestrictionsShieldsPermissionsAndDelays | GrantsRestrictionsReplacementBaseSetTypeSetAndLoss
-             | ControlGrantAndPermission | GrantsRestrictionsControlPermissionTypeSetAndLoss
-             | PermissionOnly
 

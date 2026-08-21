@@ -10,31 +10,6 @@ import Experimental.Unspellable
 %unbound_implicits off
 
 
-||| "Gain control of target creature this turn."
-||| The control grant writes the grants' current-turn word, never the restrictions' "this turn".
-public export
-badGainControlThisTurn : Unspellable (Effect []) (\ok =>
-  Macros.gainControl (Macros.target Macros.creature) (Just Macros.thisTurn) {sp = ok})
-badGainControlThisTurn SpanStated impossible
-
-
-||| "Target creature gains haste until the end of your next turn."
-||| That endpoint is the control grant's alone; the keyword grant does not write it.
-public export
-badKeywordGrantEndOfNextTurn : Unspellable (Effect []) (\ok =>
-  Macros.gainsHaste (Macros.target Macros.creature) (Just (Until (EndOf Turn (Just Yours)))) {sp = ok})
-badKeywordGrantEndOfNextTurn SpanStated impossible
-
-
-||| "Target creature becomes an artifact in addition to its other types for as long as you control this creature."
-||| The type addition's phrase takes no "for as long as" adverbial.
-public export
-badTypeAdditionForAsLongAs : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact])
-          (Just (ForAsLongAs (Matches Macros.thisCreature (ControlledBy You)))) {sp = ok})
-badTypeAdditionForAsLongAs SpanStated impossible
-
-
 ||| "Each player creates a 1/1 green Plant creature token. Put a +1/+1 counter on it."
 ||| A distributed creation exports a plural mention, so the singular pronoun resolves to nothing.
 public export
@@ -315,39 +290,6 @@ badEachOfTheRest : Unspellable (Effect []) (\ok =>
 badEachOfTheRest Oh impossible
 
 
-||| "If target creature would die, exile it instead." with no duration
-||| A durationless interception is the static-ability line [CR#611.3]; a one-shot writes a span.
-public export
-badStandingIntercept : Unspellable (Effect []) (\ok =>
-  Macros.ifWouldInstead (Dies (Macros.target Macros.creature)) (Macros.exile It) Nothing {sp = ok})
-badStandingIntercept SpanUnstated impossible
-
-
-||| "Prevent all damage." with no duration
-||| The same on the shield: a "Prevent all …" line stating no duration is a static ability [CR#611.3].
-public export
-badStandingPrevention : Unspellable (Effect []) (\ok =>
-  Macros.preventAll AnyDamage Everywhere Nothing {sp = ok})
-badStandingPrevention SpanUnstated impossible
-
-
-||| "Prevent all combat damage until end of turn."
-||| Prevention writes one adverbial and it is "this turn".
-public export
-badPreventUntilEndOfTurn : Unspellable (Effect []) (\ok =>
-  Macros.preventAll CombatOnly Everywhere (Just Macros.untilEndOfTurn) {sp = ok})
-badPreventUntilEndOfTurn SpanStated impossible
-
-
-||| "If target creature would die, exile it instead for as long as you control a creature."
-||| Nor a for-as-long-as one: no line conditions a shield on a tracked predicate [CR#611.2b].
-public export
-badInterceptForAsLongAs : Unspellable (Effect []) (\ok =>
-  Macros.ifWouldInstead (Dies (Macros.target Macros.creature)) (Macros.exile It)
-                 (Just (ForAsLongAs (Exists Macros.creatureYouControl))) {sp = ok})
-badInterceptForAsLongAs SpanStated impossible
-
-
 ||| "If target creature would be destroyed, exile it instead this turn."
 ||| "Would be destroyed" is regeneration's, whose replacement is [CR#614.8]'s four-part instruction.
 public export
@@ -385,37 +327,12 @@ badInterceptReplacementAntecedent : Unspellable (Effect []) (\ok =>
 badInterceptReplacementAntecedent (Refl, _) impossible
 
 
-||| "Target creature gets +2/+2 until this creature leaves the battlefield."
-||| No leaves-the-battlefield endpoint exists for a continuous effect in this duration vocabulary.
-public export
-badGetsUntilLeavesBattlefield : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 2)) (PtUp (Lit 2)) (Just (UntilEvent (Leaves Macros.thisCreature))) {sp = ok})
-badGetsUntilLeavesBattlefield SpanStated impossible
-
-
-||| "Destroy target creature until this creature leaves the battlefield."
-||| The [CR#610.3] rider goes on a zone change to exile and on nothing else.
-public export
-badHeldUntilDestroy : Unspellable (Effect []) (\ok =>
-  HeldUntil (Macros.destroy (Macros.target Macros.creature)) (Leaves Macros.thisCreature) {ok})
-badHeldUntilDestroy Oh impossible
-
-
 ||| "Exile target creature until this creature dies."
-||| The event half of the same gate: the rider waits for a leaves-the-battlefield event only.
+||| The event table claims a death for the intercept and the delay, not for the hold.
 public export
 badHeldUntilDies : Unspellable (Effect []) (\ok =>
   HeldUntil (Macros.exile (Macros.target Macros.creature)) (Dies Macros.thisCreature) {hd = ok})
 badHeldUntilDies Oh impossible
-
-
-||| "Exile target creature with three time counters on it until this creature leaves the battlefield."
-||| The rider takes the unridden exile: [CR#610.3] schedules a return no ability asks for.
-public export
-badHeldUntilWithCounters : Unspellable (Effect []) (\ok =>
-  HeldUntil (Macros.exileWithCounters (Macros.target Macros.creature) (Lit 3) Time)
-            (Leaves Macros.thisCreature) {ok})
-badHeldUntilWithCounters Oh impossible
 
 
 ||| "Exile target creature until this creature leaves the battlefield. Put that card into your hand."
@@ -653,28 +570,12 @@ badTriggerOnDestruction : Unspellable Ability (\ok =>
 badTriggerOnDestruction (Oh, _) impossible
 
 
-||| "At the beginning of the untap step, draw a card."
-||| The untap step's beginning is not a row of the turn-part header grid.
-public export
-badTriggerAtUntapStep : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf UntapStep NoPossessor {pu = ok}) Macros.drawACard)
-badTriggerAtUntapStep Oh impossible
-
-
 ||| "At the beginning of your turn, draw a card."
-||| Nor the turn's own beginning: the UPKEEP is what English names there.
+||| [CR#603.2b] triggers on a phase or step beginning; a turn is neither [CR#500.1].
 public export
 badTriggerAtYourTurn : Unspellable Ability (\ok =>
   Triggered At (BeginningOf Turn (ByWord Yours) {pu = ok}) Macros.drawACard)
 badTriggerAtYourTurn Oh impossible
-
-
-||| "At the beginning of the upkeep, draw a card."
-||| An unpossessed-looking header names a quantifier or nominal possessor; this one is pronominal.
-public export
-badTriggerAtTheUpkeep : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep NoPossessor {pu = ok}) Macros.drawACard)
-badTriggerAtTheUpkeep Oh impossible
 
 
 ||| "Whenever a creature dies, tap it."
@@ -717,16 +618,6 @@ badConditionalGainControl : Unspellable Ability (\ok =>
 badConditionalGainControl Oh impossible
 
 
-||| "As long as you control a creature, creatures you control get +1/+1." as a clause
-||| The conditional static is an ability line, not a clause: [CR#611.3a]'s bare "as long as" is this row.
-public export
-badConditionalClause : Unspellable (Effect []) (\ok =>
-  Continuously (Macros.asLongAs (Exists Macros.creatureYouControl)
-                         (Gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))))
-               Nothing {sp = ok})
-badConditionalClause SpanUnstated impossible
-
-
 ||| a statement conditioned twice
 ||| A statement takes one condition — the singleton discipline one type up.
 public export
@@ -737,14 +628,6 @@ badDoubleConditional : Unspellable Ability (\ok =>
 badDoubleConditional Oh impossible
 
 
-||| "Creatures you control enter tapped." written as a clause
-||| The entry rider is a static ability and not a clause [CR#603.6d].
-public export
-badEntryRiderClause : Unspellable (Effect []) (\ok =>
-  Continuously (Macros.entersTapped (AllOf Macros.creatureYouControl)) Nothing {sp = ok})
-badEntryRiderClause SpanUnstated impossible
-
-
 ||| "This land enters attacking."
 ||| The line writes one of the two riders: a static ability applies from any zone in any step.
 public export
@@ -753,46 +636,12 @@ badEntersAttackingLine : Unspellable Ability (\ok =>
 badEntersAttackingLine Oh impossible
 
 
-||| "Exile the top card of your library. You may play it." with no duration
-||| The permission writes spans freely and states none only when it is the card's own line.
-public export
-badStandingPermission : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.exile Macros.topCard, Continuously (MayPlay You It) Nothing {sp = ok}])
-badStandingPermission SpanUnstated impossible
-
-
-||| "Exile the top card of your library. You may play it until end of combat."
-||| "Until end of combat" is the two grants' word, not the permission's.
-public export
-badPermissionUntilEndOfCombat : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.exile Macros.topCard,
-                Continuously (MayPlay You It) (Just Macros.untilEndOfCombat) {sp = ok}])
-badPermissionUntilEndOfCombat SpanStated impossible
-
-
-||| "Target creature gains flying until your next end step."
-||| That cell is the permission's alone; the keyword grant does not write it.
-public export
-badGainsUntilYourNextEndStep : Unspellable (Effect []) (\ok =>
-  Macros.gains (Macros.target Macros.creature) (KeywordAbility Flying) (Just Macros.untilYourNextEndStep) {sp = ok})
-badGainsUntilYourNextEndStep SpanStated impossible
-
-
 ||| "You may play a creature this turn." of a battlefield permanent
 ||| A battlefield permanent has already been played [CR#604.6].
 public export
 badPlayFromBattlefield : Unspellable (Effect []) (\ok =>
   Continuously (MayPlay You (Macros.a Macros.creature) {pz = ok}) (Just Macros.thisTurn))
 badPlayFromBattlefield MkPlaySource impossible
-
-
-||| "When target creature dies until end of turn, return that card to the battlefield."
-||| [CR#603.7b] gives a delayed trigger one stated duration, "such as 'this turn'".
-public export
-badDelayedUntilEndOfTurn : Unspellable (Effect []) (\ok =>
-  Delayed (Dies (Macros.target Macros.creature)) {span = Just Macros.untilEndOfTurn}
-          (Move (That CardW) Macros.battlefieldZ) {so = ok})
-badDelayedUntilEndOfTurn DelayFor impossible
 
 
 ||| "When target creature attacks, sacrifice that creature."
@@ -806,7 +655,7 @@ badDelayedOnAttack Oh impossible
 
 
 ||| "Exile target creature until a creature enters."
-||| The [CR#610.3] rider waits on a departure, never on an entry.
+||| The event table claims an entry for the intercept and the trigger, not for the hold.
 public export
 badHeldUntilEnters : Unspellable (Effect []) (\ok =>
   Macros.exileUntil (Macros.target Macros.creature) (Enters (Macros.a Macros.creature)) {hd = ok})
@@ -818,7 +667,7 @@ badHeldUntilEnters Oh impossible
 public export
 badUntilBeginningOfUpkeep : Unspellable (Effect []) (\ok =>
   Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf Upkeep (ByWord Yours)))) {sp = ok})
-badUntilBeginningOfUpkeep SpanStated impossible
+badUntilBeginningOfUpkeep (SpanStated {ok = Oh}) impossible
 
 
 ||| "This creature deals 3 damage to any target. When you do, draw a card."

@@ -18,16 +18,6 @@ badKeywordHead : Unspellable (Effect []) (\ok =>
 badKeywordHead Oh impossible
 
 
-||| "of the chosen name"
-||| A bound card name reads back by name equality, never as a quality.
-public export
-badChosenCardNameRead :
-  Unspellable
-    (Predicate [MkBinding AD (Quality CardName) OneOf QualityP] Object)
-    (\ok => OfChosen CardName {read = ok})
-badChosenCardNameRead Oh impossible
-
-
 ||| "of the chosen number"
 ||| A bound number reads back by numeric equality, never as a quality.
 public export
@@ -429,14 +419,6 @@ public export
 badUntapLockGraveyard : Unspellable Ability (\ok =>
   Static (DoesntUntap (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}))
 badUntapLockGraveyard Oh impossible
-
-
-||| "This artifact doesn't untap." written as a clause
-||| A durationless "doesn't untap" is the static ability line, not a clause.
-public export
-badUntapLockClause : Unspellable (Effect []) (\ok =>
-  Continuously (DoesntUntap (AsType Artifact This)) Nothing {sp = ok})
-badUntapLockClause SpanUnstated impossible
 
 
 ||| "Target creature card in your graveyard fights target creature."

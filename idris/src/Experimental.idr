@@ -2575,12 +2575,6 @@ mutual
   possessorWord (ByNoun _) = Nothing
 
   public export
-  possessorForm : {0 bs : Bindings} -> HeaderPossessor bs -> PossessorForm
-  possessorForm NoPossessor = WordPossessor Nothing
-  possessorForm (ByWord w) = WordPossessor (Just w)
-  possessorForm (ByNoun _) = NounPossessor
-
-  public export
   possessorIntro : {bs : Bindings} -> HeaderPossessor bs -> Bindings
   possessorIntro NoPossessor = bs
   possessorIntro (ByWord w) = possessorB (Just w) ++ bs
@@ -2588,30 +2582,22 @@ mutual
 
   public export
   PartTriggerable : {0 bs : Bindings} -> TurnPart -> HeaderPossessor bs -> Type
-  PartTriggerable {bs} p h = So (headerPossessorOk p (possessorForm h))
-
-  public export
-  ScheduledSkip : TurnPart -> Type
-  ScheduledSkip p = So (admitsScheduledSkip (skipUse p))
-
-  public export
-  StandingSkip : TurnPart -> Type
-  StandingSkip p = So (admitsStandingSkip (skipUse p))
+  PartTriggerable {bs} p h = So (partTriggerOk p)
 
   public export
   AddedPart : TurnPart -> Type
-  AddedPart p = So (admitsAdded (addUse p))
+  AddedPart p = So (partAddable p)
 
   public export
   data FollowerPart : Maybe TurnPart -> Type where
     NoFollower : FollowerPart Nothing
-    MkFollowerPart : {auto 0 ok : So (admitsFollower (addUse p))} ->
+    MkFollowerPart : {auto 0 ok : So (partAddable p)} ->
                      FollowerPart (Just p)
 
   public export
   data AnchorPart : Maybe TurnPart -> Type where
     BareAnchor : AnchorPart Nothing
-    MkAnchorPart : {auto 0 ok : So (admitsAnchor (addUse p))} ->
+    MkAnchorPart : {auto 0 ok : So (partAddable p)} ->
                    AnchorPart (Just p)
 
   public export
@@ -2631,81 +2617,27 @@ mutual
   isTurnDeictic (Just AnOpponents) = False
   isTurnDeictic (Just ThatTurns) = True
 
+  ||| Which endpoint words a duration adverbial spells. [CR#611.2a]
+  ||| gives a clause any stated duration, so the only refusal is a
+  ||| second spelling of an endpoint the adverbial already has.
   public export
-  spanUse : {0 bs : Bindings} -> Duration bs -> SpanUse
-  spanUse ThisTurn = RestrictionsShieldsPermissionsAndDelays
-  spanUse (Until (StartOf Turn Nothing)) = Unattested
-  spanUse (Until (StartOf Turn (Just Yours))) = GrantsRestrictionsReplacementBaseSetTypeSetAndLoss
-  spanUse (Until (StartOf Turn (Just ThatPlayers))) = Unclaimed
-  spanUse (Until (StartOf Upkeep Nothing)) = Unattested
-  spanUse (Until (StartOf Upkeep (Just Yours))) = KeywordGrantAndTypeSet
-  spanUse (Until (StartOf Upkeep (Just ThatPlayers))) = Unattested
-  spanUse (Until (StartOf EndStep Nothing)) = Unclaimed
-  spanUse (Until (StartOf EndStep (Just Yours))) = PermissionOnly
-  spanUse (Until (StartOf EndStep (Just ThatPlayers))) = Unclaimed
-  spanUse (Until (StartOf Combat Nothing)) = Unattested
-  spanUse (Until (StartOf Combat (Just Yours))) = Unattested
-  spanUse (Until (StartOf Combat (Just ThatPlayers))) = Unattested
-  spanUse (Until (StartOf UntapStep Nothing)) = Unattested
-  spanUse (Until (StartOf UntapStep (Just Yours))) = Unattested
-  spanUse (Until (StartOf UntapStep (Just ThatPlayers))) = Unattested
-  spanUse (Until (StartOf EndOfCombat Nothing)) = Unattested
-  spanUse (Until (StartOf EndOfCombat (Just Yours))) = Unattested
-  spanUse (Until (StartOf EndOfCombat (Just ThatPlayers))) = Unattested
-  spanUse (Until (EndOf Turn Nothing)) = GrantsTypesControlReplacementPermissionSetSwitchTypeSetAndLoss
-  spanUse (Until (EndOf Turn (Just Yours))) = ControlGrantAndPermission
-  spanUse (Until (EndOf Turn (Just ThatPlayers))) = Unattested
-  spanUse (Until (EndOf Upkeep Nothing)) = Unattested
-  spanUse (Until (EndOf Upkeep (Just Yours))) = Unclaimed
-  spanUse (Until (EndOf Upkeep (Just ThatPlayers))) = Unattested
-  spanUse (Until (EndOf EndStep Nothing)) = Unattested
-  spanUse (Until (EndOf EndStep (Just Yours))) = Unattested
-  spanUse (Until (EndOf EndStep (Just ThatPlayers))) = Unattested
-  spanUse (Until (EndOf Combat Nothing)) = GrantsControlAndTypeSet
-  spanUse (Until (EndOf Combat (Just Yours))) = PermissionOnly
-  spanUse (Until (EndOf Combat (Just ThatPlayers))) = Unattested
-  spanUse (Until (EndOf UntapStep Nothing)) = Unattested
-  spanUse (Until (EndOf UntapStep (Just Yours))) = Unattested
-  spanUse (Until (EndOf UntapStep (Just ThatPlayers))) = Unattested
-  spanUse (Until (EndOf EndOfCombat Nothing)) = Unattested
-  spanUse (Until (EndOf EndOfCombat (Just Yours))) = Unattested
-  spanUse (Until (EndOf EndOfCombat (Just ThatPlayers))) = Unattested
-  spanUse (Until (StartOf FirstMain Nothing)) = Unattested
-  spanUse (Until (StartOf FirstMain (Just Yours))) = Unattested
-  spanUse (Until (StartOf FirstMain (Just ThatPlayers))) = Unattested
-  spanUse (Until (StartOf PostcombatMain Nothing)) = Unattested
-  spanUse (Until (StartOf PostcombatMain (Just Yours))) = Unattested
-  spanUse (Until (StartOf PostcombatMain (Just ThatPlayers))) = Unattested
-  spanUse (Until (StartOf DrawStep Nothing)) = Unattested
-  spanUse (Until (StartOf DrawStep (Just Yours))) = Unattested
-  spanUse (Until (StartOf DrawStep (Just ThatPlayers))) = Unattested
-  spanUse (Until (EndOf FirstMain Nothing)) = Unattested
-  spanUse (Until (EndOf FirstMain (Just Yours))) = Unattested
-  spanUse (Until (EndOf FirstMain (Just ThatPlayers))) = Unattested
-  spanUse (Until (EndOf PostcombatMain Nothing)) = Unattested
-  spanUse (Until (EndOf PostcombatMain (Just Yours))) = Unattested
-  spanUse (Until (EndOf PostcombatMain (Just ThatPlayers))) = Unattested
-  spanUse (Until (EndOf DrawStep Nothing)) = Unattested
-  spanUse (Until (EndOf DrawStep (Just Yours))) = Unattested
-  spanUse (Until (EndOf DrawStep (Just ThatPlayers))) = Unattested
-  spanUse (Until (StartOf MainPhase Nothing)) = Unattested
-  spanUse (Until (StartOf MainPhase (Just Yours))) = Unattested
-  spanUse (Until (StartOf MainPhase (Just ThatPlayers))) = Unattested
-  spanUse (Until (EndOf MainPhase Nothing)) = Unattested
-  spanUse (Until (EndOf MainPhase (Just Yours))) = Unattested
-  spanUse (Until (EndOf MainPhase (Just ThatPlayers))) = Unattested
-  spanUse (ForAsLongAs _) = GrantsRestrictionsControlPermissionTypeSetAndLoss
-  spanUse (UntilEvent ev) = eventSpan (eventName ev)
+  durationOk : {0 bs : Bindings} -> Duration bs -> Bool
+  durationOk (UntilEvent ev) = spanEventOk (eventName ev)
+  durationOk _ = True
 
+  ||| A resolving clause's duration slot: [CR#611.2a] gives a stated
+  ||| duration its meaning and gives an unstated one the end of the game.
   public export
   data SpanOk : StaticKind -> Maybe (Duration bs) -> Type where
-    SpanUnstated : {auto 0 ok : So (absentOk k)} -> SpanOk k Nothing
-    SpanStated : {auto 0 ok : So (admitsSpan k (spanUse d))} -> SpanOk k (Just d)
+    SpanUnstated : SpanOk k Nothing
+    SpanStated : {auto 0 ok : So (durationOk d)} -> SpanOk k (Just d)
 
+  ||| [CR#603.7b] fires a delayed trigger once "unless it has a stated
+  ||| duration", naming "this turn" as an example and not as the list.
   public export
   data DelaySpanOk : Maybe (Duration bs) -> Type where
     DelayOnce : DelaySpanOk Nothing
-    DelayFor : {auto 0 ok : So (admitsDelaySpan (spanUse d))} -> DelaySpanOk (Just d)
+    DelayFor : {auto 0 ok : So (durationOk d)} -> DelaySpanOk (Just d)
 
   public export
   playSourceOk : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
@@ -2895,8 +2827,7 @@ mutual
                         {auto 0 hd : Headed p} ->
                         {auto 0 zn : ZoneFits (seedZone p) (Just Battlefield)} ->
                         {auto 0 af : AnyTargetFree p} -> StaticEffect bs
-    Skips : (who : Noun bs Player) -> (part : TurnPart) ->
-            {auto 0 sk : StandingSkip part} -> StaticEffect bs
+    Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticEffect bs
     BecomesAlso : (n : Noun bs Object) -> (added : TokenChars bs) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   {auto 0 ne : LineNonEmpty added.line} ->
@@ -3559,7 +3490,7 @@ mutual
     Continuously : (se : StaticEffect bs) -> (span : Maybe (Duration (staticIntro se))) ->
                    {auto 0 nr : NotLetterRider se} ->
                    {auto 0 sp : SpanOk (staticKind se) span} ->
-                   {auto 0 cs : CoordSpanOk se (spanUseOf span)} -> Effect bs
+                   {auto 0 cl : ClauseStatic se} -> Effect bs
     Create : (agent : Noun bs Player) -> (count : Amount (nomIntro agent)) ->
              (spec : TokenSpec (amtIntro count)) -> (riders : List TokenRider) ->
              {auto 0 wc : WrittenCount count} ->
@@ -3637,22 +3568,20 @@ mutual
     Reflexively : (body : Effect bs) -> (trig : Effect (reflexCtx body)) ->
                   {auto 0 en : ReflexEnclosure body} -> Effect bs
 
-    DoesntUntapNext : (n : Noun bs Object) -> (steps : Nat) ->
-                      {auto 0 ok : OnBattlefield (nounZone n)} ->
-                      {auto 0 ct : NextUntapCount steps} -> Effect bs
-    SkipsNext : (who : Noun bs Player) -> (part : TurnPart) -> (count : Nat) ->
-                {auto 0 sk : ScheduledSkip part} ->
-                {auto 0 ct : SkipCount count} -> Effect bs
-    ExtraTurn : (who : Noun bs Player) -> (count : Nat) ->
-                {auto 0 ct : ExtraTurnCount count} -> Effect bs
+    DoesntUntapNext : (n : Noun bs Object) -> (steps : Amount bs) ->
+                      {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+    SkipsNext : (who : Noun bs Player) -> (part : TurnPart) ->
+                (count : Amount bs) -> Effect bs
+    ExtraTurn : (who : Noun bs Player) -> (count : Amount bs) -> Effect bs
     AdditionalPart : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
-                     (count : Nat) ->
+                     (count : Amount bs) ->
                      {default Nothing followedBy : Maybe TurnPart} ->
                      {auto 0 ad : AddedPart part} ->
                      {auto 0 an : AnchorPart anchor} ->
-                     {auto 0 fb : FollowerPart followedBy} ->
-                     {auto 0 ct : PhaseCount count} -> Effect bs
+                     {auto 0 fb : FollowerPart followedBy} -> Effect bs
 
+  ||| [CR#610.3] hangs the "until" rider on a one-shot that changes an
+  ||| object's zone, and on nothing else.
   public export
   heldUntilOk : {0 bs : Bindings} -> Effect bs -> Bool
   heldUntilOk (DealDamage _ _ _) = False
@@ -3676,7 +3605,7 @@ mutual
   heldUntilOk (CopyStack _ _ _ _) = False
   heldUntilOk (ChooseNewTargets _) = False
   heldUntilOk (Choose _) = False
-  heldUntilOk (Move _ _) = False
+  heldUntilOk (Move _ _) = True
   heldUntilOk (ChangeLife _ _) = False
   heldUntilOk (AddMana _ _ _ _) = False
   heldUntilOk (Draw _ _) = False
@@ -3688,12 +3617,7 @@ mutual
   heldUntilOk (GetsEmblem _ _) = False
   heldUntilOk (PutCounters _ _ _) = False
   heldUntilOk (RemoveCounters _ _ _) = False
-  heldUntilOk (Composite Exile (Move _ _ {riders = MkMoveRiders [] Nothing
-                                                    {counters = Nothing}})) = True
-  heldUntilOk (Composite Exile (Move _ _ {riders = MkMoveRiders _ _
-                                                    {counters = Just _}})) = False
-  heldUntilOk (Composite Exile (Move _ _ {riders = MkMoveRiders (_ :: _) _})) = False
-  heldUntilOk (Composite Exile (Move _ _ {riders = MkMoveRiders _ (Just _)})) = False
+  heldUntilOk (Composite _ (Move _ _)) = True
   heldUntilOk (Composite _ _) = False
   heldUntilOk (Does _ _ _) = False
   heldUntilOk (Pay _ _) = False
@@ -3966,15 +3890,15 @@ mutual
   public export
   effEq : {0 bs : Bindings} -> Effect bs -> Effect bs -> Bool
   effEq (DealDamage _ _ _) _ = False
-  effEq (DoesntUntapNext n s) (DoesntUntapNext m t) = nounEqRef n m && s == t
+  effEq (DoesntUntapNext n s) (DoesntUntapNext m t) = nounEqRef n m && boundEq s t
   effEq (DoesntUntapNext _ _) _ = False
   effEq (SkipsNext w p c) (SkipsNext x q d) =
-    nounEqRef w x && p == q && c == d
+    nounEqRef w x && p == q && boundEq c d
   effEq (SkipsNext _ _ _) _ = False
-  effEq (ExtraTurn w c) (ExtraTurn x d) = nounEqRef w x && c == d
+  effEq (ExtraTurn w c) (ExtraTurn x d) = nounEqRef w x && boundEq c d
   effEq (ExtraTurn _ _) _ = False
   effEq (AdditionalPart p a c) (AdditionalPart q b d) =
-    p == q && a == b && c == d
+    p == q && a == b && boundEq c d
   effEq (AdditionalPart _ _ _) _ = False
   effEq (Distribute _ _ _) _ = False
   effEq (Fights _ _) _ = False
@@ -4888,19 +4812,13 @@ mutual
   WindowOk : TurnPart -> Maybe Owner -> Type
   WindowOk p w = So (windowOk p w)
 
-  ||| Which possessor a boundary-relative window writes in front of the
-  ||| point. The corpus writes the bare form, "during your turn", and
-  ||| "during an opponent's turn"; no other possessor reaches this slot.
+  ||| Whose turn a boundary-relative window falls in. An activation
+  ||| restriction introduces no turn, so the deictic possessor reaches no
+  ||| antecedent; every quantifier word names a turn on its own.
   public export
   pointWindowOk : TurnPoint -> Maybe Owner -> Bool
-  pointWindowOk AttackersDeclared Nothing = True
-  pointWindowOk AttackersDeclared (Just Yours) = True
-  pointWindowOk AttackersDeclared (Just ThatPlayers) = False
-  pointWindowOk AttackersDeclared (Just EachPlayers) = False
-  pointWindowOk AttackersDeclared (Just EachOpponents) = False
-  pointWindowOk AttackersDeclared (Just EachYours) = False
-  pointWindowOk AttackersDeclared (Just AnOpponents) = True
-  pointWindowOk AttackersDeclared (Just ThatTurns) = False
+  pointWindowOk _ (Just ThatTurns) = False
+  pointWindowOk _ _ = True
 
   public export
   PointWindowOk : TurnPoint -> Maybe Owner -> Type
@@ -5324,25 +5242,25 @@ mutual
   partsLineOk (se :: rest) = staticLineOk se && partsLineOk rest
 
   public export
-  partsAdmit : {0 n : Nat} -> {0 bs : Bindings} -> StaticParts n bs ->
-               Maybe SpanUse -> Bool
-  partsAdmit [] _ = True
-  partsAdmit (se :: rest) Nothing = absentOk (staticKind se) && partsAdmit rest Nothing
-  partsAdmit (se :: rest) (Just u) = admitsSpan (staticKind se) u && partsAdmit rest (Just u)
+  partsClauseOk : {0 n : Nat} -> {0 bs : Bindings} -> StaticParts n bs -> Bool
+  partsClauseOk [] = True
+  partsClauseOk (se :: rest) = clauseStaticOk se && partsClauseOk rest
+
+  ||| Which continuous effects a resolving clause can establish. A
+  ||| characteristic-defining ability is printed on the card it affects
+  ||| [CR#604.3a], and an alternative cost is that object's own ability
+  ||| [CR#113.6d] while `AltCost` names no object.
+  public export
+  clauseStaticOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
+  clauseStaticOk (DefinesPt _ _ _) = False
+  clauseStaticOk (AltCost _) = False
+  clauseStaticOk (AndAlso parts) = partsClauseOk parts
+  clauseStaticOk (WhereLetterStatic _ _ se) = clauseStaticOk se
+  clauseStaticOk _ = True
 
   public export
-  spanUseOf : {0 bs : Bindings} -> Maybe (Duration bs) -> Maybe SpanUse
-  spanUseOf Nothing = Nothing
-  spanUseOf (Just d) = Just (spanUse d)
-
-  public export
-  coordSpanOk : {0 bs : Bindings} -> StaticEffect bs -> Maybe SpanUse -> Bool
-  coordSpanOk (AndAlso parts) u = partsAdmit parts u
-  coordSpanOk _ _ = True
-
-  public export
-  CoordSpanOk : StaticEffect bs -> Maybe SpanUse -> Type
-  CoordSpanOk {bs} se u = So (coordSpanOk se u)
+  ClauseStatic : StaticEffect bs -> Type
+  ClauseStatic {bs} se = So (clauseStaticOk se)
 
   public export
   selfTapPayment : {0 bs : Bindings} -> Cost bs -> Bool
