@@ -192,7 +192,7 @@ fn parse_abstract_product(input: ParseStream<'_>) -> syn::Result<AbstractProduct
     let name = input.call(Ident::parse_any)?;
     let content;
     braced!(content in input);
-    let fields = parse_fields(&content)?;
+    let fields = parse_fields(&content, &name)?;
 
     let mut requirements = Vec::new();
     while input.peek(keyword::require) {
@@ -289,16 +289,16 @@ fn parse_element(input: ParseStream<'_>) -> syn::Result<Element> {
     let name = input.parse()?;
     let content;
     braced!(content in input);
-    let fields = parse_fields(&content)?;
+    let fields = parse_fields(&content, &name)?;
     Ok(Element { name, fields })
 }
 
-fn parse_fields(input: ParseStream<'_>) -> syn::Result<Vec<Field>> {
+fn parse_fields(input: ParseStream<'_>, owner: &Ident) -> syn::Result<Vec<Field>> {
     let mut fields = Vec::new();
     let mut errors = None;
     while !input.is_empty() {
         reject_doc_comment(input)?;
-        match parse_field(input) {
+        match parse_field(input, owner) {
             Ok(field) => fields.push(field),
             Err(error) => {
                 combine(&mut errors, error);
@@ -312,23 +312,23 @@ fn parse_fields(input: ParseStream<'_>) -> syn::Result<Vec<Field>> {
     errors.map_or(Ok(fields), Err)
 }
 
-fn parse_field(input: ParseStream<'_>) -> syn::Result<Field> {
+fn parse_field(input: ParseStream<'_>, owner: &Ident) -> syn::Result<Field> {
     let name = input.parse()?;
     input.parse::<Token![:]>()?;
-    let kind = parse_field_kind(input, &name)?;
+    let kind = parse_field_kind(input, owner, &name)?;
     input.parse::<Token![,]>()?;
     Ok(Field { name, kind })
 }
 
-fn parse_field_kind(input: ParseStream<'_>, role: &Ident) -> syn::Result<FieldKind> {
+fn parse_field_kind(input: ParseStream<'_>, owner: &Ident, role: &Ident) -> syn::Result<FieldKind> {
     if input.peek(keyword::opt) {
         input.parse::<keyword::opt>()?;
-        return parse_cardinality_inner(input, role, "opt")
+        return parse_cardinality_inner(input, owner, role, "opt")
             .map(|item| FieldKind::Optional(Box::new(item)));
     }
     if input.peek(keyword::seq) {
         input.parse::<keyword::seq>()?;
-        let item = parse_cardinality_inner(input, role, "seq")?;
+        let item = parse_cardinality_inner(input, owner, role, "seq")?;
         let mut separator = None;
         let mut terminator = None;
         while input.peek(keyword::separated) || input.peek(keyword::terminated) {
@@ -367,6 +367,7 @@ fn parse_field_kind(input: ParseStream<'_>, role: &Ident) -> syn::Result<FieldKi
 
 fn parse_cardinality_inner(
     input: ParseStream<'_>,
+    owner: &Ident,
     role: &Ident,
     outer: &str,
 ) -> syn::Result<FieldKind> {
@@ -394,7 +395,7 @@ fn parse_cardinality_inner(
         };
         return Err(syn::Error::new(
             role.span(),
-            format!("field `{role}`: {outer} {nested} {spelling}"),
+            format!("field `{owner}.{role}`: {outer} {nested} {spelling}"),
         ));
     }
     parse_atomic_field_kind(input)
@@ -1864,16 +1865,34 @@ mod tests {
 
     #[test]
     fn parses_structural_rejects_nested_cardinality() {
-        for (spelling, expected) in [
-            ("opt opt Node", "field `value`: opt opt Node"),
-            ("seq opt Node", "field `value`: seq opt Node"),
-            ("seq seq Node", "field `value`: seq seq Node"),
+        for (source, spelling, expected, wrong_owner) in [
+            (
+                "abstract product AbstractOwner { value: opt opt Node, }",
+                "opt opt Node",
+                "field `AbstractOwner.value`: opt opt Node",
+                "ElementOwner.value",
+            ),
+            (
+                "construction build: Category { element ElementOwner { value: seq opt Node, } form build = value; }",
+                "seq opt Node",
+                "field `ElementOwner.value`: seq opt Node",
+                "AbstractOwner.value",
+            ),
+            (
+                "construction build: Category { element ElementOwner { value: seq seq Node, } form build = value; }",
+                "seq seq Node",
+                "field `ElementOwner.value`: seq seq Node",
+                "AbstractOwner.value",
+            ),
         ] {
-            let source = format!("abstract product Holder {{ value: {spelling}, }}");
-            let error = parse(&source)
+            let error = parse(source)
                 .expect_err("nested cardinality must be rejected by the parser")
                 .to_string();
             assert!(error.contains(expected), "{spelling}: {error}");
+            assert!(
+                !error.contains(wrong_owner),
+                "{spelling} must identify its own owner rather than `{wrong_owner}`: {error}"
+            );
         }
     }
 
