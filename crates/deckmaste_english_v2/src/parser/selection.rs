@@ -885,12 +885,12 @@ mod tests {
             |leaf| TestBuildValue::Leaf(*leaf),
             |rule, children| match (rule, children) {
                 (TestRuleId::SharedLiteral, [TestBuildValue::Leaf(Lexical::Literal("alpha"))]) => {
-                    Some(TestBuildValue::Ability("literal form"))
+                    Ok(Some(TestBuildValue::Ability("literal form")))
                 }
                 (TestRuleId::SharedTyped, [TestBuildValue::Leaf(Lexical::Variable)]) => {
-                    Some(TestBuildValue::Ability("typed form"))
+                    Ok(Some(TestBuildValue::Ability("typed form")))
                 }
-                _ => None,
+                _ => Ok(None),
             },
         );
         (roots.len(), candidates)
@@ -1163,7 +1163,7 @@ mod tests {
             |_| Some("same-construction"),
             std::convert::identity,
             |_| SegValue::Leaf,
-            |_, _| Some(SegValue::Same),
+            |_, _| Ok(Some(SegValue::Same)),
         );
 
         assert_eq!(candidates.len(), 2);

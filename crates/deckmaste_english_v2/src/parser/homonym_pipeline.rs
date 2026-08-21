@@ -189,6 +189,11 @@ constructions! {
         element StructuralAtomValue { marker: lex StructuralWord, }
         form structural_atom = lex(marker);
     }
+    construction guarded_structural: GuardedStructural {
+        element GuardedStructuralValue { marker: lex StructuralWord, }
+        require marker is Alpha;
+        form guarded_structural = lex(marker);
+    }
     abstract product OptionalStructural { maybe: opt StructuralAtom, }
     abstract product ExactPairStructural {
         items: seq StructuralAtom separated by position { pair = "<P>"; } terminated by "<T>",
@@ -386,7 +391,7 @@ fn materialize_fixture(
         RuleId::public_construction,
         |terminal: LexicalTerminal| terminal.matcher,
         |leaf| BuildValue::Leaf(leaf.clone()),
-        |rule, children| build(rule, children, context),
+        |rule, children| Ok(build(rule, children, context)),
     )
 }
 
@@ -397,6 +402,78 @@ fn structural_markers(items: &[StructuralAtom]) -> Vec<StructuralWord> {
             StructuralAtom::StructuralAtom(value) => value.marker,
         })
         .collect()
+}
+
+#[test]
+fn generated_invariant_rejection_survives_earley_materialization() {
+    let environment = environment();
+    let context = ParseContext::default();
+    let forest = parse_fixture(Category::GuardedStructural, "Beta", &environment)
+        .expect("the Earley forest accepts the construction surface before semantic checking");
+
+    let (built, rejection) = super::materialize::materialize_with_rejection(
+        &forest,
+        RULES,
+        RuleId::index,
+        RuleId::public_construction,
+        |terminal: LexicalTerminal| terminal.matcher,
+        |leaf| BuildValue::Leaf(leaf.clone()),
+        |rule, children| build_checked(rule, children, &context),
+    );
+
+    assert!(built.is_empty());
+    let rejection = rejection.expect("the generated rejection survives materialization");
+    assert_eq!(rejection.owner(), "GuardedStructural");
+    assert_eq!(rejection.role(), "guarded_structural");
+    assert_eq!(
+        *rejection.violation(),
+        BuildViolation::Invariant {
+            identity: "marker is Alpha",
+        }
+    );
+    assert_eq!(
+        rejection.to_string(),
+        "GuardedStructural.guarded_structural: invariant `marker is Alpha` rejected"
+    );
+}
+
+#[test]
+fn successful_generated_build_dominates_a_rejected_alternative() {
+    let environment = environment();
+    let context = ParseContext::default();
+    let rejected = parse_fixture(Category::GuardedStructural, "Beta", &environment)
+        .expect("the rejected surface still has a syntactic forest");
+    let accepted = parse_fixture(Category::GuardedStructural, "Alpha", &environment)
+        .expect("the accepted surface has a syntactic forest");
+
+    let rejected_root = rejected
+        .accepted_root_ids()
+        .next()
+        .expect("one rejected root");
+    let accepted_root = accepted
+        .accepted_root_ids()
+        .next()
+        .expect("one accepted root");
+    let rejected_node = rejected.node(rejected_root).clone();
+    let mut accepted_node = accepted.node(accepted_root).clone();
+    accepted_node.families.extend(rejected_node.families);
+    let forest = Forest::from_test_parts(vec![accepted_node], vec![super::engine::NodeId(0)]);
+
+    let (built, terminal_rejection) = super::materialize::materialize_with_rejection(
+        &forest,
+        RULES,
+        RuleId::index,
+        RuleId::public_construction,
+        |terminal: LexicalTerminal| terminal.matcher,
+        |leaf| BuildValue::Leaf(leaf.clone()),
+        |rule, children| build_checked(rule, children, &context),
+    );
+    assert_eq!(
+        built.len(),
+        1,
+        "one successful family dominates the rejection"
+    );
+    assert!(terminal_rejection.is_none());
 }
 
 fn materialized_structural_markers(value: &BuildValue) -> Vec<StructuralWord> {
@@ -629,7 +706,7 @@ fn generated_helper_cycle_is_an_internal_materialization_failure_with_owner_role
         RuleId::public_construction,
         |terminal: LexicalTerminal| terminal.matcher,
         |leaf| BuildValue::Leaf(leaf.clone()),
-        |rule, children| build(rule, children, &context),
+        |rule, children| Ok(build(rule, children, &context)),
         structural_rule_label,
         super::diagnostic::TraceLimits::new(16),
     );
@@ -674,7 +751,7 @@ fn generated_helper_cycle_is_an_internal_materialization_failure_with_owner_role
         RuleId::public_construction,
         |terminal: LexicalTerminal| terminal.matcher,
         |leaf| BuildValue::Leaf(leaf.clone()),
-        |rule, children| build(rule, children, &context),
+        |rule, children| Ok(build(rule, children, &context)),
         structural_rule_label,
         super::diagnostic::TraceLimits::new(16),
     );
@@ -789,7 +866,7 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
         RuleId::public_construction,
         |terminal: LexicalTerminal| terminal.matcher,
         |leaf| BuildValue::Leaf(leaf.clone()),
-        |rule, children| build(rule, children, &context),
+        |rule, children| Ok(build(rule, children, &context)),
     );
     assert_eq!(built.len(), 2, "the kernel retains both accepted roots");
 

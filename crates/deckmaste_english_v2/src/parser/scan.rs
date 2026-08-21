@@ -18,6 +18,7 @@ use super::diagnostic::TraceLimits;
 use super::diagnostic::order_bounded_prefix;
 use super::engine::ChartFailure;
 use super::engine::Child;
+use super::engine::CompletionDisposition;
 use super::engine::Family;
 use super::engine::Forest;
 use super::engine::LexicalMatch;
@@ -27,6 +28,7 @@ use super::engine::StatefulLexicalMatch;
 use super::engine::parse_root_observed_with_state;
 use super::engine::parse_root_with_state;
 use super::materialize::completion_has_checked_build;
+use crate::constructions::BuildRejection;
 use crate::constructions::CasePosition;
 use crate::constructions::Category;
 use crate::constructions::DeclarationMatcher;
@@ -181,6 +183,7 @@ struct StructuralObservation {
     forest: Bounded<ForestNode>,
     roots: Bounded<usize>,
     rejections: Vec<CheckedRejectionIdentity>,
+    deferred_build_rejections: Vec<(CheckedRejectionIdentity, BuildRejection)>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -209,6 +212,7 @@ impl StructuralObservation {
             forest: Bounded::new(limits.per_collection()),
             roots: Bounded::new(limits.per_collection()),
             rejections: Vec::new(),
+            deferred_build_rejections: Vec::new(),
         }
     }
 
@@ -230,12 +234,20 @@ impl StructuralObservation {
                 family_identity_v1: family_identity_v1(&rejection.family),
             });
         }
+        self.deferred_build_rejections.sort_by(|left, right| {
+            rejection_identity_cmp(&left.0, &right.0).then_with(|| left.1.cmp(&right.1))
+        });
+        let first_build_rejection = self
+            .deferred_build_rejections
+            .first()
+            .map(|(_, rejection)| *rejection);
         StructuralTrace::new(
             scanner_matches,
             self.chart,
             self.forest,
             self.roots,
             rejections,
+            first_build_rejection,
         )
     }
 
@@ -263,7 +275,9 @@ impl StructuralObservation {
     }
 }
 
-impl Observation<RootRuleId, Leaf, LexicalTerminal, LexicalOwner> for StructuralObservation {
+impl Observation<RootRuleId, Leaf, LexicalTerminal, LexicalOwner, BuildRejection>
+    for StructuralObservation
+{
     fn scanned(&mut self, start: usize, terminal: LexicalTerminal, end: usize, value: &Leaf) {
         self.record_scanned_token(start, end, terminal, value);
     }
@@ -274,7 +288,7 @@ impl Observation<RootRuleId, Leaf, LexicalTerminal, LexicalOwner> for Structural
         start: usize,
         end: usize,
         family: &Family<Leaf, LexicalOwner>,
-        accepted: bool,
+        disposition: &CompletionDisposition<BuildRejection>,
     ) {
         let key = CheckedRejectionIdentity {
             rule,
@@ -282,10 +296,29 @@ impl Observation<RootRuleId, Leaf, LexicalTerminal, LexicalOwner> for Structural
             end,
             family: raw_family_identity(family),
         };
-        if accepted {
-            self.rejections.retain(|rejection| rejection != &key);
-        } else if !self.rejections.contains(&key) {
-            self.rejections.push(key);
+        match disposition {
+            CompletionDisposition::Accepted => {
+                self.rejections.retain(|rejection| rejection != &key);
+                self.deferred_build_rejections
+                    .retain(|(rejection, _)| rejection != &key);
+            }
+            CompletionDisposition::Rejected => {
+                self.deferred_build_rejections
+                    .retain(|(rejection, _)| rejection != &key);
+                if !self.rejections.contains(&key) {
+                    self.rejections.push(key);
+                }
+            }
+            CompletionDisposition::DeferredBuildRejection(rejection) => {
+                self.rejections.retain(|rejection| rejection != &key);
+                if !self
+                    .deferred_build_rejections
+                    .iter()
+                    .any(|(seen, cause)| seen == &key && cause == rejection)
+                {
+                    self.deferred_build_rejections.push((key, *rejection));
+                }
+            }
         }
     }
 
@@ -868,6 +901,7 @@ mod tests {
     use macro_ron::v2::read_str;
 
     use super::super::engine::Child;
+    use super::super::engine::CompletionDisposition;
     use super::super::engine::Family;
     use super::super::engine::NodeId;
     use super::super::engine::Observation;
@@ -2087,20 +2121,53 @@ mod tests {
             1,
             4,
             &family,
-            false,
+            &CompletionDisposition::Rejected,
         );
         observed.checked_completion(
             RootRuleId::Grammar(RuleId::AmountNumber),
             1,
             4,
             &family,
-            true,
+            &CompletionDisposition::Accepted,
         );
         let rejections = observed.finish().checked_completion_rejections().clone();
         assert_eq!(
             (rejections.total(), rejections.shown(), rejections.omitted()),
             (0, 0, 0)
         );
+    }
+
+    #[test]
+    fn structural_trace_transient_typed_rejection_disappears_after_later_success() {
+        let family = Family {
+            children: vec![Child::Node(NodeId(7)), lexical(Leaf::Literal("where"))],
+        };
+        let rejection = crate::constructions::BuildRejection::new(
+            "Sentence",
+            "with_where",
+            crate::constructions::BuildViolation::Invariant {
+                identity: "clause is Where",
+            },
+        );
+        let mut observed = StructuralObservation::new(TraceLimits::new(1));
+        observed.checked_completion(
+            RootRuleId::Grammar(RuleId::AmountNumber),
+            1,
+            4,
+            &family,
+            &CompletionDisposition::DeferredBuildRejection(rejection),
+        );
+        observed.checked_completion(
+            RootRuleId::Grammar(RuleId::AmountNumber),
+            1,
+            4,
+            &family,
+            &CompletionDisposition::Accepted,
+        );
+
+        let trace = observed.finish();
+        assert!(trace.first_build_rejection().is_none());
+        assert_eq!(trace.checked_completion_rejections().total(), 0);
     }
 
     #[test]
@@ -2115,7 +2182,7 @@ mod tests {
                 1,
                 4,
                 &family,
-                false,
+                &CompletionDisposition::Rejected,
             );
             let rejections = observed.finish().checked_completion_rejections().clone();
             assert_eq!(
@@ -2143,14 +2210,14 @@ mod tests {
                 1,
                 2,
                 &family,
-                false,
+                &CompletionDisposition::Rejected,
             );
             observed.checked_completion(
                 RootRuleId::Grammar(RuleId::AmountNumber),
                 1,
                 2,
                 &family,
-                false,
+                &CompletionDisposition::Rejected,
             );
 
             let rejections = observed.finish().checked_completion_rejections().clone();
@@ -2672,15 +2739,22 @@ mod tests {
 
     #[test]
     fn count_np_requires_you_and_bare_control() {
-        for text in [
-            "You gain X life, where X is the number of creatures it control with power 2 or less.",
-            "You gain X life, where X is the number of creatures you controls with power 2 or less.",
-        ] {
-            assert!(
-                slice_candidates(text, "Context Card").is_err(),
-                "completed invalid count noun phrase for {text:?}"
-            );
-        }
+        assert!(
+            slice_candidates(
+                "You gain X life, where X is the number of creatures it control with power 2 or less.",
+                "Context Card"
+            )
+            .is_ok(),
+            "the authored controller invariant is deferred past syntactic completion"
+        );
+        assert!(
+            slice_candidates(
+                "You gain X life, where X is the number of creatures you controls with power 2 or less.",
+                "Context Card"
+            )
+            .is_err(),
+            "derived agreement remains a chart-level grammar constraint"
+        );
 
         assert!(
             slice_candidates(
@@ -2692,12 +2766,16 @@ mod tests {
     }
 
     #[test]
-    fn chart_completion_rejects_a_construction_category_mismatch() {
+    fn chart_completion_retains_an_authored_category_invariant_rejection() {
         let text = "Whenever where X is the number of creatures you control with power 2 or less, you gain X life.";
-        let Err(failure) = slice_candidates(text, "Context Card") else {
-            panic!("a where clause cannot satisfy an event-clause construction role");
-        };
-
-        assert!(!failure.live.is_empty());
+        let forest = slice_candidates(text, "Context Card")
+            .expect("the complete surface survives until its authored category invariant");
+        assert!(
+            !forest
+                .forest()
+                .accepted_root_ids()
+                .collect::<Vec<_>>()
+                .is_empty()
+        );
     }
 }

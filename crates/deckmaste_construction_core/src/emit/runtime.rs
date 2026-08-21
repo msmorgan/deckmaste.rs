@@ -3,6 +3,8 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::identifier::AGREEMENT_TYPE;
+use crate::identifier::BUILD_REJECTION_TYPE;
+use crate::identifier::BUILD_VIOLATION_TYPE;
 use crate::identifier::CASE_POSITION_TYPE;
 use crate::identifier::DECLARATION_CLASS_TYPE;
 use crate::identifier::DECLARATION_LEAF_TYPE;
@@ -299,6 +301,136 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     items
 }
 
+fn emit_build_rejection_types() -> Vec<GeneratedItem> {
+    vec![
+        named_type(
+            BUILD_VIOLATION_TYPE,
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
+                pub enum BuildViolation {
+                    Length {
+                        minimum: usize,
+                        maximum: Option<usize>,
+                        actual: usize,
+                    },
+                    Invariant {
+                        identity: &'static str,
+                    },
+                }
+            },
+        ),
+        impl_item(
+            None,
+            BUILD_VIOLATION_TYPE,
+            quote! {
+                impl BuildViolation {
+                    pub const fn minimum(&self) -> Option<usize> {
+                        match self {
+                            Self::Length { minimum, .. } => Some(*minimum),
+                            Self::Invariant { .. } => None,
+                        }
+                    }
+
+                    pub const fn maximum(&self) -> Option<usize> {
+                        match self {
+                            Self::Length { maximum, .. } => *maximum,
+                            Self::Invariant { .. } => None,
+                        }
+                    }
+
+                    pub const fn actual(&self) -> Option<usize> {
+                        match self {
+                            Self::Length { actual, .. } => Some(*actual),
+                            Self::Invariant { .. } => None,
+                        }
+                    }
+
+                    pub const fn identity(&self) -> Option<&'static str> {
+                        match self {
+                            Self::Length { .. } => None,
+                            Self::Invariant { identity } => Some(*identity),
+                        }
+                    }
+                }
+            },
+        ),
+        named_type(
+            BUILD_REJECTION_TYPE,
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
+                pub struct BuildRejection {
+                    owner: &'static str,
+                    role: &'static str,
+                    violation: BuildViolation,
+                }
+            },
+        ),
+        impl_item(
+            Some(BUILD_REJECTION_TYPE),
+            BUILD_REJECTION_TYPE,
+            quote! {
+                impl BuildRejection {
+                    pub(crate) const fn new(
+                        owner: &'static str,
+                        role: &'static str,
+                        violation: BuildViolation,
+                    ) -> Self {
+                        Self { owner, role, violation }
+                    }
+
+                    pub const fn owner(&self) -> &'static str { self.owner }
+                    pub const fn role(&self) -> &'static str { self.role }
+                    pub const fn violation(&self) -> &BuildViolation { &self.violation }
+                }
+            },
+        ),
+        impl_item(
+            Some("std::fmt::Display"),
+            BUILD_REJECTION_TYPE,
+            quote! {
+                impl std::fmt::Display for BuildRejection {
+                    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        match self.violation {
+                            BuildViolation::Length {
+                                minimum,
+                                maximum: Some(maximum),
+                                actual,
+                            } => write!(
+                                formatter,
+                                "{}.{}: length {} violates {}..={}",
+                                self.owner,
+                                self.role,
+                                actual,
+                                minimum,
+                                maximum,
+                            ),
+                            BuildViolation::Length {
+                                minimum,
+                                maximum: None,
+                                actual,
+                            } => write!(
+                                formatter,
+                                "{}.{}: length {} violates minimum {}",
+                                self.owner,
+                                self.role,
+                                actual,
+                                minimum,
+                            ),
+                            BuildViolation::Invariant { identity } => write!(
+                                formatter,
+                                "{}.{}: invariant `{}` rejected",
+                                self.owner,
+                                self.role,
+                                identity,
+                            ),
+                        }
+                    }
+                }
+            },
+        ),
+    ]
+}
+
 fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let semantic_types = super::semantic_types(plan);
     let build_variants = semantic_types.iter().map(|item| {
@@ -344,7 +476,8 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 quote! { Category::#helper => NonterminalCategory::#owner }
             });
 
-    vec![
+    let mut items = emit_build_rejection_types();
+    items.extend([
         named_type(
             "BuildValue",
             quote! {
@@ -412,7 +545,8 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 }
             },
         ),
-    ]
+    ]);
+    items
 }
 
 fn emit_required_declarations(plan: &SemanticPlan) -> GeneratedItem {

@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use super::SelectionExceptionInventoryError;
+use crate::constructions::BuildRejection;
 use crate::constructions::NonterminalCategory;
 use crate::constructions::TerminalClass;
 
@@ -34,6 +35,10 @@ pub enum ParseError {
         span: TextSpan,
         expectations: BTreeSet<Expectation>,
     },
+    BuildRejected {
+        span: TextSpan,
+        rejection: BuildRejection,
+    },
     Ambiguous {
         first: &'static str,
         second: &'static str,
@@ -61,6 +66,7 @@ impl fmt::Display for ParseError {
                 }
                 Ok(())
             }
+            Self::BuildRejected { rejection, .. } => rejection.fmt(formatter),
             Self::Ambiguous { first, second } => {
                 write!(formatter, "ambiguous parse between {first} and {second}")
             }

@@ -9,6 +9,7 @@ use crate::feature;
 use crate::feature::Feature;
 use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
+use crate::identifier::CHECKED_CONSTRUCTOR;
 use crate::identifier::INVARIANT_CONSTRUCTOR;
 use crate::identifier::key as identifier_key;
 use crate::identifier::pascal_case;
@@ -2077,10 +2078,16 @@ fn validate_invariant_generated_names(constructions: &[ConstructionPlan]) -> syn
             continue;
         }
 
-        let mut associated = HashMap::from([(
-            INVARIANT_CONSTRUCTOR.to_owned(),
-            "generated invariant constructor".to_owned(),
-        )]);
+        let mut associated = HashMap::from([
+            (
+                INVARIANT_CONSTRUCTOR.to_owned(),
+                "generated invariant constructor".to_owned(),
+            ),
+            (
+                CHECKED_CONSTRUCTOR.to_owned(),
+                "generated checked invariant constructor".to_owned(),
+            ),
+        ]);
         for field in construction
             .fields()
             .iter()
@@ -2091,8 +2098,11 @@ fn validate_invariant_generated_names(constructions: &[ConstructionPlan]) -> syn
             if let Some(previous) = associated.get(&name)
                 && previous != &owner
             {
-                let kind =
-                    if name == INVARIANT_CONSTRUCTOR { "associated item" } else { "accessor" };
+                let kind = if matches!(name.as_str(), INVARIANT_CONSTRUCTOR | CHECKED_CONSTRUCTOR) {
+                    "associated item"
+                } else {
+                    "accessor"
+                };
                 combine_errors(
                     &mut errors,
                     syn::Error::new(
@@ -2500,11 +2510,26 @@ impl InvariantPlan {
     }
 
     pub(crate) fn requires_constructor(&self) -> bool {
-        self.requires_context
-            || !matches!(
-                self.alternatives.as_slice(),
-                [alternative] if alternative.atoms.is_empty()
-            )
+        self.requires_context || self.requires_predicate()
+    }
+
+    pub(crate) fn requires_predicate(&self) -> bool {
+        !matches!(
+            self.alternatives.as_slice(),
+            [alternative] if alternative.atoms.is_empty()
+        )
+    }
+
+    pub(crate) fn diagnostic_identity(&self) -> String {
+        let alternatives = self
+            .alternatives
+            .iter()
+            .map(PredicateConjunctionPlan::diagnostic_identity)
+            .collect::<Vec<_>>();
+        match alternatives.as_slice() {
+            [identity] => identity.clone(),
+            identities => format!("any({})", identities.join(", ")),
+        }
     }
 
     pub(crate) fn constant_fold_unit(
@@ -2642,6 +2667,18 @@ impl PredicateConjunctionPlan {
     pub(crate) fn atoms(&self) -> &[PredicateAtomPlan] {
         &self.atoms
     }
+
+    fn diagnostic_identity(&self) -> String {
+        let atoms = self
+            .atoms
+            .iter()
+            .map(PredicateAtomPlan::diagnostic_identity)
+            .collect::<Vec<_>>();
+        match atoms.as_slice() {
+            [identity] => identity.clone(),
+            identities => format!("all({})", identities.join(", ")),
+        }
+    }
 }
 
 impl PredicateAtomPlan {
@@ -2667,6 +2704,19 @@ impl PredicateAtomPlan {
                 .collect::<Vec<_>>()
                 .join("|")
         )
+    }
+
+    fn diagnostic_identity(&self) -> String {
+        let subject = self.subject.diagnostic_identity();
+        let members = self
+            .allowed
+            .iter()
+            .map(PredicateMemberPlan::semantic_key)
+            .collect::<Vec<_>>();
+        match members.as_slice() {
+            [member] => format!("{subject} is {member}"),
+            members => format!("{subject} in [{}]", members.join(", ")),
+        }
     }
 
     #[cfg(test)]
@@ -2705,6 +2755,16 @@ impl PredicateSubjectPlan {
                 format!("feature:{}.{}", identifier_key(role), feature.key())
             }
             Self::ConstructionFeature(feature) => format!("feature:{}", feature.key()),
+        }
+    }
+
+    fn diagnostic_identity(&self) -> String {
+        match self {
+            Self::CategoryRole { role, .. } | Self::VocabRole { role, .. } => identifier_key(role),
+            Self::RoleFeature { role, feature } => {
+                format!("{}.{}", identifier_key(role), feature.key())
+            }
+            Self::ConstructionFeature(feature) => feature.key().to_owned(),
         }
     }
 

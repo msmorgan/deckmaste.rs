@@ -11,6 +11,7 @@ use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
 use crate::feature::FeatureValue;
 use crate::identifier::BUILD_FUNCTION;
+use crate::identifier::CHECKED_BUILD_FUNCTION;
 use crate::identifier::emitted_ident;
 use crate::identifier::feature_helper;
 use crate::identifier::key as identifier_key;
@@ -32,6 +33,7 @@ use crate::semantic::ValueKindPlan;
 
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let build_function = ident(BUILD_FUNCTION);
+    let checked_build_function = ident(CHECKED_BUILD_FUNCTION);
     let constructions = plan.constructions();
     let lowered = super::rules::lowered_rows(plan)?;
     let arms = lowered
@@ -52,22 +54,41 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             clippy::too_many_lines,
             reason = "the exhaustive generated-shape construction dispatch is intentionally flat"
         )]
+        pub(super) fn #checked_build_function(
+            rule: RuleId,
+            children: &[BuildValue],
+            context: &ParseContext<'_>,
+        ) -> Result<Option<BuildValue>, BuildRejection> {
+            match rule { #(#arms)* }
+        }
+    };
+    let compatibility = quote! {
         pub(super) fn #build_function(
             rule: RuleId,
             children: &[BuildValue],
             context: &ParseContext<'_>,
         ) -> Option<BuildValue> {
-            match rule { #(#arms)* }
+            #checked_build_function(rule, children, context).ok().flatten()
         }
     };
-    Ok(vec![GeneratedItem::new(
-        ItemKey::Named {
-            kind: NamedKind::Function,
-            name: BUILD_FUNCTION.to_owned(),
-        },
-        tokens,
-        origins,
-    )])
+    Ok(vec![
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: CHECKED_BUILD_FUNCTION.to_owned(),
+            },
+            tokens,
+            origins.clone(),
+        ),
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: BUILD_FUNCTION.to_owned(),
+            },
+            compatibility,
+            origins,
+        ),
+    ])
 }
 
 struct Lowering {
@@ -197,7 +218,7 @@ fn emit_arm_from_plan(
     Ok(quote! {
         RuleId::#rule_id => match children {
             [#(#patterns),*] #guard => #success,
-            _ => None,
+            _ => Ok(None),
         },
     })
 }
@@ -232,18 +253,22 @@ fn emit_product_arm(
     let product_type = ident(product.name());
     let success = if product.requires_constructor() {
         let arguments = values.iter().map(|(_, value)| value);
-        quote! { #product_type::new(#(#arguments),*).map(BuildValue::#product_type) }
+        quote! {
+            #product_type::try_new(#(#arguments),*)
+                .map(BuildValue::#product_type)
+                .map(Some)
+        }
     } else if values.is_empty() {
-        quote! { Some(BuildValue::#product_type(#product_type)) }
+        quote! { Ok(Some(BuildValue::#product_type(#product_type))) }
     } else {
         let fields = values.iter().map(|(name, value)| quote! { #name: #value });
-        quote! { Some(BuildValue::#product_type(#product_type { #(#fields),* })) }
+        quote! { Ok(Some(BuildValue::#product_type(#product_type { #(#fields),* }))) }
     };
     let rule_id = ident(&rule.id);
     Ok(quote! {
         RuleId::#rule_id => match children {
             [#(#patterns),*] => #success,
-            _ => None,
+            _ => Ok(None),
         },
     })
 }
@@ -273,8 +298,8 @@ fn emit_sum_arm(
     let rule_id = ident(&rule.id);
     Ok(quote! {
         RuleId::#rule_id => match children {
-            [#(#patterns),*] => Some(BuildValue::#sum_type(#sum_type::#variant(#payload))),
-            _ => None,
+            [#(#patterns),*] => Ok(Some(BuildValue::#sum_type(#sum_type::#variant(#payload)))),
+            _ => Ok(None),
         },
     })
 }
@@ -297,8 +322,8 @@ fn emit_optional_arm(
     if !present {
         return Ok(quote! {
             RuleId::#rule_id => match children {
-                [] => Some(BuildValue::#carrier(None)),
-                _ => None,
+                [] => Ok(Some(BuildValue::#carrier(None))),
+                _ => Ok(None),
             },
         });
     }
@@ -311,8 +336,8 @@ fn emit_optional_arm(
     let expression = value.expression;
     Ok(quote! {
         RuleId::#rule_id => match children {
-            [#pattern] => Some(BuildValue::#carrier(Some(#expression))),
-            _ => None,
+            [#pattern] => Ok(Some(BuildValue::#carrier(Some(#expression)))),
+            _ => Ok(None),
         },
     })
 }
@@ -349,16 +374,16 @@ fn emit_sequence_arm(
     let success = match state {
         super::rules::SequenceBuildState::Singleton => {
             let values = exact_sequence_values(lowered, 1, &rule.state)?;
-            quote! { Some(BuildValue::#carrier(vec![#(#values),*])) }
+            quote! { Ok(Some(BuildValue::#carrier(vec![#(#values),*]))) }
         }
         super::rules::SequenceBuildState::Exact(length)
         | super::rules::SequenceBuildState::PositionalExactTail(length) => {
             let values = exact_sequence_values(lowered, length, &rule.state)?;
-            quote! { Some(BuildValue::#carrier(vec![#(#values),*])) }
+            quote! { Ok(Some(BuildValue::#carrier(vec![#(#values),*]))) }
         }
         super::rules::SequenceBuildState::Last => {
             let values = exact_sequence_values(lowered, 2, &rule.state)?;
-            quote! { Some(BuildValue::#carrier(vec![#(#values),*])) }
+            quote! { Ok(Some(BuildValue::#carrier(vec![#(#values),*]))) }
         }
         super::rules::SequenceBuildState::Recursive | super::rules::SequenceBuildState::Middle => {
             let (values, tail) = prefixed_sequence_values(lowered, 1, &rule.state)?;
@@ -367,14 +392,14 @@ fn emit_sequence_arm(
                 let mut values = Vec::with_capacity(#prefix_len + #tail.len());
                 #(values.push(#values);)*
                 values.extend(#tail.iter().cloned());
-                Some(BuildValue::#carrier(values))
+                Ok(Some(BuildValue::#carrier(values)))
             }}
         }
     };
     Ok(quote! {
         RuleId::#rule_id => match children {
             [#(#patterns),*] => #success,
-            _ => None,
+            _ => Ok(None),
         },
     })
 }
@@ -1318,7 +1343,7 @@ fn emit_success(
         if row.invariant().requires_context() {
             arguments.push(quote! { context });
         }
-        let result = quote! { #element::new(#(#arguments),*) };
+        let result = quote! { #element::try_new(#(#arguments),*) };
         return emit_fallible_element_success(
             validated,
             row,
@@ -1358,7 +1383,7 @@ fn emit_success(
     } else {
         quote! { BuildValue::#category(#category_value) }
     };
-    Ok(quote! { Some(#wrapped) })
+    Ok(quote! { Ok(Some(#wrapped)) })
 }
 
 fn emit_fallible_element_success(
@@ -1375,7 +1400,9 @@ fn emit_fallible_element_success(
     let carries_agreement = validated.category_carries_agreement(row.category());
     let carries_number = validated.category_carries_number(row.category());
     if !carries_agreement && !carries_number {
-        return Ok(quote! { #result.map(#mapped).map(BuildValue::#category) });
+        return Ok(quote! {
+            #result.map(#mapped).map(BuildValue::#category).map(Some)
+        });
     }
 
     let agreement = carries_agreement
@@ -1391,18 +1418,24 @@ fn emit_fallible_element_success(
     });
     if let (Some(agreement), Some(number)) = (&agreement, &number) {
         return Ok(quote! {
-            #result.map(|#argument| { BuildValue::#category(#category::#variant(#argument), #agreement, #number) })
+            #result
+                .map(|#argument| { BuildValue::#category(#category::#variant(#argument), #agreement, #number) })
+                .map(Some)
         });
     }
     if let Some(number) = number {
         return Ok(quote! {
-            #result.map(|#argument| { BuildValue::#category(#category::#variant(#argument), #number) })
+            #result
+                .map(|#argument| { BuildValue::#category(#category::#variant(#argument), #number) })
+                .map(Some)
         });
     }
     let output = agreement
         .ok_or_else(|| internal("fallible construction is missing its carried feature output"))?;
     Ok(quote! {
-        #result.map(|#argument| { BuildValue::#category(#category::#variant(#argument), #output) })
+        #result
+            .map(|#argument| { BuildValue::#category(#category::#variant(#argument), #output) })
+            .map(Some)
     })
 }
 
@@ -1477,9 +1510,9 @@ fn emit_dynamic_match(
     }
     if number_arms.is_some() && !lowering.dynamic_numbers.is_empty() {
         let numbers = &lowering.dynamic_numbers;
-        Ok(quote! { match (#role_value, #(#numbers),*) { #(#arms,)* _ => None, } })
+        Ok(quote! { match (#role_value, #(#numbers),*) { #(#arms,)* _ => Ok(None), } })
     } else {
-        Ok(quote! { match #role_value { #(#arms,)* _ => None, } })
+        Ok(quote! { match #role_value { #(#arms,)* _ => Ok(None), } })
     }
 }
 
@@ -1990,7 +2023,7 @@ mod tests {
 
         let owner = arm("UniformUniform");
         assert!(
-            owner.contains("UniformValue :: new")
+            owner.contains("UniformValue :: try_new")
                 && owner.contains("BuildValue :: UniformValueItemsSequence (items)"),
             "the public owner validates bounds through its constructor: {owner}",
         );
@@ -1998,7 +2031,7 @@ mod tests {
         assert!(
             positional.contains("values . push (item_0 . clone ())")
                 && positional.contains("values . extend (tail . iter () . cloned ())")
-                && positional.contains("PositionalValue :: new"),
+                && positional.contains("PositionalValue :: try_new"),
             "the owner folds first + ordered tail and applies bounds: {positional}",
         );
         for helper in [
@@ -2037,10 +2070,11 @@ mod tests {
                         [
                             BuildValue::Child(child),
                             BuildValue::Leaf(Leaf::Mode(mode))
-                        ] => RecursiveNode::new(Box::new(child.clone()), *mode)
+                        ] => RecursiveNode::try_new(Box::new(child.clone()), *mode)
                             .map(Child::Recursive)
-                            .map(BuildValue::Child),
-                        _ => None,
+                            .map(BuildValue::Child)
+                            .map(Some),
+                        _ => Ok(None),
                     }
                 },
             ),
@@ -2050,10 +2084,11 @@ mod tests {
                     RuleId::RootCategoryGuarded => match children {
                         [
                             BuildValue::Child(child)
-                        ] => CategoryGuarded::new(child.clone())
+                        ] => CategoryGuarded::try_new(child.clone())
                             .map(Root::CategoryGuarded)
-                            .map(BuildValue::Root),
-                        _ => None,
+                            .map(BuildValue::Root)
+                            .map(Some),
+                        _ => Ok(None),
                     }
                 },
             ),
@@ -2063,10 +2098,11 @@ mod tests {
                     RuleId::RootVocabGuarded => match children {
                         [
                             BuildValue::Leaf(Leaf::Mode(mode))
-                        ] => VocabGuarded::new(*mode)
+                        ] => VocabGuarded::try_new(*mode)
                             .map(Root::VocabGuarded)
-                            .map(BuildValue::Root),
-                        _ => None,
+                            .map(BuildValue::Root)
+                            .map(Some),
+                        _ => Ok(None),
                     }
                 },
             ),
@@ -2077,10 +2113,11 @@ mod tests {
                         [
                             BuildValue::Leaf(Leaf::Mode(mode)),
                             BuildValue::Child(child)
-                        ] => DnfGuarded::new(*mode, child.clone())
+                        ] => DnfGuarded::try_new(*mode, child.clone())
                             .map(Root::DnfGuarded)
-                            .map(BuildValue::Root),
-                        _ => None,
+                            .map(BuildValue::Root)
+                            .map(Some),
+                        _ => Ok(None),
                     }
                 },
             ),
@@ -2090,10 +2127,11 @@ mod tests {
                     RuleId::RootContextGuarded => match children {
                         [
                             BuildValue::Leaf(Leaf::SelfReference(context_2))
-                        ] => ContextGuarded::new(*context_2, context)
+                        ] => ContextGuarded::try_new(*context_2, context)
                             .map(Root::ContextGuarded)
-                            .map(BuildValue::Root),
-                        _ => None,
+                            .map(BuildValue::Root)
+                            .map(Some),
+                        _ => Ok(None),
                     }
                 },
             ),
@@ -2129,8 +2167,8 @@ mod tests {
                 );
             }
             assert!(
-                source.contains(":: new"),
-                "{rule} calls Element::new: {source}"
+                source.contains(":: try_new"),
+                "{rule} calls Element::try_new: {source}"
             );
         }
     }
@@ -2140,6 +2178,15 @@ mod tests {
         let plan = invariant_build_plan();
         let ast = super::super::ast::emit(&plan).expect("invariant AST fixture emits");
         let build = super::emit(&plan).expect("invariant build fixture emits");
+        let runtime_items = super::super::runtime::emit(&plan)
+            .into_iter()
+            .filter(|item| match &item.key {
+                crate::ItemKey::Named { name, .. } | crate::ItemKey::Impl { self_ty: name, .. } => {
+                    matches!(name.as_str(), "BuildRejection" | "BuildViolation")
+                }
+            })
+            .collect::<Vec<_>>();
+        let runtime = runtime_items.iter().map(|item| &item.tokens);
         let ast = ast.iter().map(|item| &item.tokens);
         let build = build.iter().map(|item| &item.tokens);
         let source = quote::quote! {
@@ -2181,6 +2228,7 @@ mod tests {
 
             mod generated {
                 use super::*;
+                #(#runtime)*
                 #(#ast)*
                 #(#build)*
             }
@@ -2353,7 +2401,7 @@ mod tests {
             "the noun value must be propagated into the construction: {source}"
         );
         assert!(
-            source.contains("_ => None"),
+            source.contains("_ => Ok (None)"),
             "a scanner-number mismatch must retain the ordinary fallback: {source}"
         );
     }
@@ -2373,7 +2421,8 @@ mod tests {
             .tokens
             .to_string();
         assert!(
-            source.contains("Count :: One => Some") && source.contains("Count :: Many => Some"),
+            source.contains("Count :: One => Ok (Some")
+                && source.contains("Count :: Many => Ok (Some"),
             "the stored vocab alone selects the output features: {source}"
         );
         assert!(
@@ -2402,7 +2451,7 @@ mod tests {
                 && source.contains("Count :: Many , Number :: Plural , Number :: Plural"),
             "every noun scanner number must match the vocab-selected number: {source}"
         );
-        assert!(source.contains("_ => None"), "{source}");
+        assert!(source.contains("_ => Ok (None)"), "{source}");
     }
 
     #[test]
@@ -2440,13 +2489,13 @@ mod tests {
         assert!(
             source.contains("Leaf :: Noun { noun : head , number : Number :: Singular }")
                 && source.contains("match count")
-                && source.contains("Count :: One => Some")
+                && source.contains("Count :: One => Ok (Some")
                 && source.contains("Agreement :: ThirdPersonSingular")
-                && source.contains("Count :: Many => Some")
+                && source.contains("Count :: Many => Ok (Some")
                 && source.contains("Agreement :: Bare"),
             "agreement matching is vocab-only while noun number stays constant: {source}"
         );
-        assert!(source.contains("_ => None"), "{source}");
+        assert!(source.contains("_ => Ok (None)"), "{source}");
     }
 
     #[test]
@@ -2487,7 +2536,7 @@ mod tests {
             "* source_number == * right_number",
             "Leaf :: Noun { noun : left , number }",
             "Leaf :: Noun { noun : right , number : right_number }",
-            "_ => None",
+            "_ => Ok (None)",
         ] {
             assert!(source.contains(fragment), "missing `{fragment}`: {source}");
         }
@@ -2534,7 +2583,7 @@ mod tests {
             "the required Mode::One arm must constrain the child agreement: {source}"
         );
         assert!(!source.contains("feature source was not bound"), "{source}");
-        assert!(source.contains("_ => None"), "{source}");
+        assert!(source.contains("_ => Ok (None)"), "{source}");
     }
 
     #[test]
@@ -2646,10 +2695,10 @@ mod tests {
             RuleId::RootWrapped => match children {
                 [
                     BuildValue::Leaf(Leaf::Pair(BoundLeaf::Pair(left, right)))
-                ] => Some(BuildValue::Root(Root::Wrapped(Wrapped {
+                ] => Ok(Some(BuildValue::Root(Root::Wrapped(Wrapped {
                     value: Pair::new(left.code, (Factory::wrap(right)))
-                }))),
-                _ => None,
+                })))),
+                _ => Ok(None),
             }
         };
         assert_eq!(arm, expected);
@@ -2755,7 +2804,7 @@ mod tests {
         )
         .unwrap();
         let actual = super::emit(validated.semantic()).unwrap();
-        assert_eq!(actual.len(), 1);
+        assert_eq!(actual.len(), 2);
         assert_eq!(
             actual[0]
                 .origins
@@ -2777,7 +2826,7 @@ mod tests {
         };
         assert_eq!(
             function.sig,
-            syn::parse_quote!(fn build(rule: RuleId, children: &[BuildValue], context: &ParseContext<'_>,) -> Option<BuildValue>)
+            syn::parse_quote!(fn build_checked(rule: RuleId, children: &[BuildValue], context: &ParseContext<'_>,) -> Result<Option<BuildValue>, BuildRejection>)
         );
         let syn::Stmt::Expr(syn::Expr::Match(dispatch), None) = &function.block.stmts[0] else {
             panic!("flat match dispatch")
@@ -2789,7 +2838,7 @@ mod tests {
             .map(ToTokens::to_token_stream)
             .map(|tokens| tokens.to_string())
             .collect::<Vec<_>>();
-        assert!(arms.iter().all(|arm| arm.contains("_ => None")));
+        assert!(arms.iter().all(|arm| arm.contains("_ => Ok (None)")));
 
         let joined = arms.join("\n");
         for fragment in [
@@ -2810,7 +2859,7 @@ mod tests {
             "RuleId :: DocumentDocument",
             "BuildValue :: Expr (subject",
             "RuntimePair :: new (left , Factory :: wrap (right))",
-            "DocumentNode :: new",
+            "DocumentNode :: try_new",
         ] {
             assert!(
                 joined.contains(fragment),

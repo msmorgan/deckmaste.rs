@@ -163,22 +163,28 @@ fn emit_structural_product_impl(
     product: &crate::semantic::ProductPlan,
     ident: &syn::Ident,
 ) -> TokenStream {
-    let fields = product.fields().iter().map(|field| {
-        let name = emitted_ident(field.name(), Span::call_site());
-        let ty = super::structural_field_type(field);
-        quote! { #name: #ty }
-    });
+    let owner = syn::LitStr::new(product.name(), Span::call_site());
+    let fields = product
+        .fields()
+        .iter()
+        .map(|field| {
+            let name = emitted_ident(field.name(), Span::call_site());
+            let ty = super::structural_field_type(field);
+            quote! { #name: #ty }
+        })
+        .collect::<Vec<_>>();
     let initializers = product
         .fields()
         .iter()
-        .map(|field| emitted_ident(field.name(), Span::call_site()));
-    let guards = product.fields().iter().filter_map(|field| {
+        .map(|field| emitted_ident(field.name(), Span::call_site()))
+        .collect::<Vec<_>>();
+    let checks = product.fields().iter().filter_map(|field| {
         let crate::semantic::StructuralFieldKindPlan::Sequence { bounds, .. } = field.kind() else {
             return None;
         };
         structural_bounds_are_constrained(*bounds).then(|| {
             let name = emitted_ident(field.name(), Span::call_site());
-            emit_length_guard(&name, *bounds)
+            emit_length_check(&owner, field.name(), &name, *bounds)
         })
     });
     let accessors = product
@@ -189,11 +195,12 @@ fn emit_structural_product_impl(
     quote! {
         impl #ident {
             pub fn new(#(#fields),*) -> Option<Self> {
-                if #(#guards)&&* {
-                    Some(Self { #(#initializers),* })
-                } else {
-                    None
-                }
+                Self::try_new(#(#initializers),*).ok()
+            }
+
+            pub(crate) fn try_new(#(#fields),*) -> Result<Self, BuildRejection> {
+                #(#checks)*
+                Ok(Self { #(#initializers),* })
             }
 
             #(#accessors)*
@@ -224,6 +231,33 @@ fn emit_length_guard(name: &syn::Ident, bounds: crate::semantic::LengthBounds) -
         let max = syn::LitInt::new(&max.to_string(), Span::call_site());
         quote! { (#lower) && (#name.len() <= #max) }
     })
+}
+
+fn emit_length_check(
+    owner: &syn::LitStr,
+    role: &str,
+    name: &syn::Ident,
+    bounds: crate::semantic::LengthBounds,
+) -> TokenStream {
+    let role = syn::LitStr::new(role, Span::call_site());
+    let minimum = bounds.min();
+    let maximum = bounds
+        .max()
+        .map_or_else(|| quote! { None }, |maximum| quote! { Some(#maximum) });
+    let guard = emit_length_guard(name, bounds);
+    quote! {
+        if !(#guard) {
+            return Err(BuildRejection::new(
+                #owner,
+                #role,
+                BuildViolation::Length {
+                    minimum: #minimum,
+                    maximum: #maximum,
+                    actual: #name.len(),
+                },
+            ));
+        }
+    }
 }
 
 fn emit_structural_accessor(field: &crate::semantic::StructuralFieldPlan) -> TokenStream {
@@ -339,6 +373,9 @@ fn emit_invariant_impl(
     construction: &ConstructionPlan,
     ident: &syn::Ident,
 ) -> syn::Result<TokenStream> {
+    let owner = syn::LitStr::new(construction.category(), Span::call_site());
+    let construction_role =
+        syn::LitStr::new(construction.construction_id(), construction.origin_span());
     let mut allocator = super::LocalAllocator::default();
     for (category, feature) in construction.invariant().category_feature_reads() {
         allocator.reserve(feature_helper(feature.key(), category));
@@ -363,52 +400,17 @@ fn emit_invariant_impl(
     if construction.invariant().requires_context() {
         parameters.push(quote! { context: &ParseContext<'_> });
     }
-
-    let mut subject_expressions = HashMap::new();
-    for alternative in construction.invariant().alternatives() {
-        for atom in alternative.atoms() {
-            let subject = atom.subject();
-            let key = subject.semantic_key();
-            if subject_expressions.contains_key(&key) {
-                continue;
-            }
-            subject_expressions.insert(
-                key,
-                constructor_subject_expression(plan, construction, subject, &locals)?,
-            );
-        }
-    }
-    let predicate = if construction.invariant().requires_constructor() {
-        super::emit_invariant_expression(construction.invariant(), &subject_expressions)?
-    } else {
-        quote! { true }
-    };
-    let context_guards = construction
-        .invariant()
-        .context_identity_fields()
-        .iter()
-        .map(|field| {
-            let local = locals
-                .get(&identifier_key(field))
-                .ok_or_else(|| internal("context identity field has no constructor local"))?;
-            Ok(quote! { #local.valid_in(context) })
-        })
-        .collect::<syn::Result<Vec<_>>>()?;
-    let length_guards = construction
+    let mut constructor_arguments = construction
         .fields()
         .iter()
-        .filter_map(|field| {
-            let crate::semantic::StructuralFieldKindPlan::Sequence { bounds, .. } =
-                field.structural_kind()?
-            else {
-                return None;
-            };
-            structural_bounds_are_constrained(*bounds).then(|| {
-                let name = field_local(&locals, field)?;
-                Ok(emit_length_guard(name, *bounds))
-            })
-        })
+        .map(|field| field_local(&locals, field).map(|local| quote! { #local }))
         .collect::<syn::Result<Vec<_>>>()?;
+    if construction.invariant().requires_context() {
+        constructor_arguments.push(quote! { context });
+    }
+
+    let (predicate_check, context_checks, length_checks) =
+        emit_invariant_checks(plan, construction, &owner, &construction_role, &locals)?;
     let initializers = construction
         .fields()
         .iter()
@@ -456,16 +458,103 @@ fn emit_invariant_impl(
             pub fn new(
                 #(#parameters),*
             ) -> Option<Self> {
-                if (#predicate) #(&& (#context_guards))* #(&& (#length_guards))* {
-                    Some(Self { #(#initializers),* })
-                } else {
-                    None
-                }
+                Self::try_new(#(#constructor_arguments),*).ok()
+            }
+
+            pub(crate) fn try_new(
+                #(#parameters),*
+            ) -> Result<Self, BuildRejection> {
+                #predicate_check
+                #(#context_checks)*
+                #(#length_checks)*
+                Ok(Self { #(#initializers),* })
             }
 
             #(#accessors)*
         }
     })
+}
+
+fn emit_invariant_checks(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    owner: &syn::LitStr,
+    construction_role: &syn::LitStr,
+    locals: &HashMap<String, syn::Ident>,
+) -> syn::Result<(Option<TokenStream>, Vec<TokenStream>, Vec<TokenStream>)> {
+    let mut subject_expressions = HashMap::new();
+    for alternative in construction.invariant().alternatives() {
+        for atom in alternative.atoms() {
+            let subject = atom.subject();
+            let key = subject.semantic_key();
+            if subject_expressions.contains_key(&key) {
+                continue;
+            }
+            subject_expressions.insert(
+                key,
+                constructor_subject_expression(plan, construction, subject, locals)?,
+            );
+        }
+    }
+    let predicate = if construction.invariant().requires_constructor() {
+        super::emit_invariant_expression(construction.invariant(), &subject_expressions)?
+    } else {
+        quote! { true }
+    };
+    let predicate_check = construction.invariant().requires_predicate().then(|| {
+        let identity = syn::LitStr::new(
+            &construction.invariant().diagnostic_identity(),
+            construction.origin_span(),
+        );
+        quote! {
+            if !(#predicate) {
+                return Err(BuildRejection::new(
+                    #owner,
+                    #construction_role,
+                    BuildViolation::Invariant { identity: #identity },
+                ));
+            }
+        }
+    });
+    let context_checks = construction
+        .invariant()
+        .context_identity_fields()
+        .iter()
+        .map(|field| {
+            let local = locals
+                .get(&identifier_key(field))
+                .ok_or_else(|| internal("context identity field has no constructor local"))?;
+            let identity = syn::LitStr::new(
+                &format!("{} valid in context", identifier_key(field)),
+                field.span(),
+            );
+            Ok(quote! {
+                if !(#local.valid_in(context)) {
+                    return Err(BuildRejection::new(
+                        #owner,
+                        #construction_role,
+                        BuildViolation::Invariant { identity: #identity },
+                    ));
+                }
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let length_checks = construction
+        .fields()
+        .iter()
+        .filter_map(|field| {
+            let crate::semantic::StructuralFieldKindPlan::Sequence { bounds, .. } =
+                field.structural_kind()?
+            else {
+                return None;
+            };
+            structural_bounds_are_constrained(*bounds).then(|| {
+                let name = field_local(locals, field)?;
+                Ok(emit_length_check(owner, &field.name_key(), name, *bounds))
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok((predicate_check, context_checks, length_checks))
 }
 
 fn constructor_subject_expression(
@@ -759,15 +848,20 @@ mod tests {
                     pub fn new(maybe: Option<LeftNode>, items: Vec<Choice>) -> Option<Self>
                 }
                 .to_string(),
+                quote::quote! {
+                    pub(crate) fn try_new(maybe: Option<LeftNode>, items: Vec<Choice>)
+                        -> Result<Self, BuildRejection>
+                }
+                .to_string(),
                 quote::quote! { pub const fn items(&self) -> &[Choice] }.to_string(),
             ]
         );
-        let body = method(&inherent_impl(&items, "Holder"), "new")
+        let body = method(&inherent_impl(&items, "Holder"), "try_new")
             .block
             .to_token_stream()
             .to_string();
         assert!(body.contains("items . len () >= 1"), "{body}");
-        assert!(body.contains("Some (Self { maybe , items })"), "{body}");
+        assert!(body.contains("Ok (Self { maybe , items })"), "{body}");
 
         let Item::Enum(recursive_choice) = parse_named(&items, "RecursiveChoice") else {
             panic!("RecursiveChoice is an enum");
@@ -851,11 +945,16 @@ mod tests {
                     pub fn new(open: OpenValue, mode: Mode, child: Child) -> Option<Self>
                 }
                 .to_string(),
+                quote::quote! {
+                    pub(crate) fn try_new(open: OpenValue, mode: Mode, child: Child)
+                        -> Result<Self, BuildRejection>
+                }
+                .to_string(),
                 quote::quote! { pub const fn mode(&self) -> Mode }.to_string(),
                 quote::quote! { pub const fn child(&self) -> &Child }.to_string(),
             ]
         );
-        let constructor = method(&implementation, "new");
+        let constructor = method(&implementation, "try_new");
         let body = constructor.block.to_token_stream().to_string();
         for required in [
             "matches ! (mode , Mode :: One)",
@@ -864,8 +963,8 @@ mod tests {
             "matches ! (mode , Mode :: Two)",
             "matches ! (& child , Child :: Second (_))",
             "Agreement :: ThirdPersonSingular",
-            "Some (Self { open , mode , child })",
-            "None",
+            "Ok (Self { open , mode , child })",
+            "BuildRejection :: new",
         ] {
             assert!(
                 body.contains(required),
@@ -890,6 +989,11 @@ mod tests {
                     pub fn new(mode: Mode, child: Box<Child>) -> Option<Self>
                 }
                 .to_string(),
+                quote::quote! {
+                    pub(crate) fn try_new(mode: Mode, child: Box<Child>)
+                        -> Result<Self, BuildRejection>
+                }
+                .to_string(),
                 quote::quote! { pub const fn mode(&self) -> Mode }.to_string(),
                 quote::quote! { pub const fn child(&self) -> &Child }.to_string(),
             ]
@@ -911,10 +1015,17 @@ mod tests {
                     ) -> Option<Self>
                 }
                 .to_string(),
+                quote::quote! {
+                    pub(crate) fn try_new(
+                        spelling: SelfReferenceSpelling,
+                        context: &ParseContext<'_>
+                    ) -> Result<Self, BuildRejection>
+                }
+                .to_string(),
                 quote::quote! { pub const fn spelling(&self) -> SelfReferenceSpelling }.to_string(),
             ]
         );
-        let body = method(&implementation, "new")
+        let body = method(&implementation, "try_new")
             .block
             .to_token_stream()
             .to_string();
@@ -968,12 +1079,15 @@ mod tests {
 
         let items = super::emit(&plan).expect("invariant AST fixture emits");
         let guarded = inherent_impl(&items, "GuardedNode");
-        let constructor = method(&guarded, "new");
+        let constructor = method(&guarded, "try_new");
         let Some(syn::Stmt::Expr(syn::Expr::If(condition), None)) = constructor.block.stmts.first()
         else {
             panic!("constructor starts with its invariant condition");
         };
-        let syn::Expr::Paren(predicate) = condition.cond.as_ref() else {
+        let syn::Expr::Unary(negated) = condition.cond.as_ref() else {
+            panic!("constructor rejects the negated invariant");
+        };
+        let syn::Expr::Paren(predicate) = negated.expr.as_ref() else {
             panic!("constructor predicate is explicitly grouped");
         };
         let syn::Expr::Binary(disjunction) = predicate.expr.as_ref() else {
@@ -1017,7 +1131,7 @@ mod tests {
             assert_eq!(
                 method_headers(&inherent_impl(&items, element))
                     .into_iter()
-                    .skip(1)
+                    .skip(2)
                     .collect::<Vec<_>>(),
                 fields
                     .iter()
@@ -1058,10 +1172,16 @@ mod tests {
         assert!(matches!(fields.named[0].vis, Visibility::Public(_)));
         assert_eq!(
             method_headers(&inherent_impl(&items, "ConstantFeatureNode")),
-            [quote::quote! {
-                pub fn new(open: OpenValue) -> Option<Self>
-            }
-            .to_string()],
+            [
+                quote::quote! {
+                    pub fn new(open: OpenValue) -> Option<Self>
+                }
+                .to_string(),
+                quote::quote! {
+                    pub(crate) fn try_new(open: OpenValue) -> Result<Self, BuildRejection>
+                }
+                .to_string()
+            ],
             "the non-tautological product has new and no accessor methods",
         );
     }
@@ -1070,14 +1190,14 @@ mod tests {
     fn invariant_category_feature_helper_is_reserved_before_constructor_locals() {
         let items = invariant_ast_items();
         let implementation = inherent_impl(&items, "FeatureHelperCollisionNode");
-        let constructor = method(&implementation, "new");
+        let constructor = method(&implementation, "try_new");
         assert_eq!(
             constructor.sig.to_token_stream().to_string(),
             quote::quote! {
-                fn new(
+                fn try_new(
                     child: FeatureChild,
                     agreement_for_feature_child_2: Mode
-                ) -> Option<Self>
+                ) -> Result<Self, BuildRejection>
             }
             .to_string(),
             "the authored field local is suffixed while the generated helper keeps its ABI name",
@@ -1121,6 +1241,15 @@ mod tests {
     fn invariant_feature_constructors_compile_and_execute_from_actual_ast_items() {
         let plan = invariant_semantic_plan();
         let items = super::emit(&plan).expect("invariant AST fixture emits");
+        let runtime_items = super::super::runtime::emit(&plan)
+            .into_iter()
+            .filter(|item| match &item.key {
+                ItemKey::Named { name, .. } | ItemKey::Impl { self_ty: name, .. } => {
+                    matches!(name.as_str(), "BuildRejection" | "BuildViolation")
+                }
+            })
+            .collect::<Vec<_>>();
+        let runtime = runtime_items.iter().map(|item| &item.tokens);
         let generated = items.iter().map(|item| &item.tokens);
         let source = quote::quote! {
             #![allow(dead_code)]
@@ -1143,6 +1272,7 @@ mod tests {
                 }
             }
 
+            #(#runtime)*
             #(#generated)*
 
             fn agreement_for_feature_child(child: &FeatureChild) -> Agreement {
@@ -1455,6 +1585,8 @@ mod tests {
                 "LexicalOwnerTemplate",
                 "LexicalOwnerIdentity",
                 "LexicalOwner",
+                "BuildViolation",
+                "BuildRejection",
                 "BuildValue",
                 "NonterminalCategory",
                 "Category",

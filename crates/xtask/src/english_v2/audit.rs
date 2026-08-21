@@ -171,7 +171,7 @@ fn apply_parse_error(row: &mut AuditRow, error: &ParseError) {
 
 fn audit_status_for_error(error: &ParseError) -> AuditStatus {
     match error {
-        ParseError::Failure { .. } => AuditStatus::ParseFailure,
+        ParseError::Failure { .. } | ParseError::BuildRejected { .. } => AuditStatus::ParseFailure,
         ParseError::Ambiguous { .. } => AuditStatus::Ambiguous,
         ParseError::InvalidSelectionExceptionConfiguration(_)
         | ParseError::ValidatedRootDidNotMaterialize
@@ -260,6 +260,7 @@ impl AuditSummary {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_english_v2::context::ParseContext;
     use deckmaste_english_v2::parser::ParseError;
     use deckmaste_english_v2::parser::Parser;
     use deckmaste_english_v2::parser::ParserEntryPoint;
@@ -300,6 +301,25 @@ mod tests {
                 .message()
                 .unwrap()
                 .contains("parse failed at bytes")
+        );
+    }
+
+    #[test]
+    fn authored_build_rejection_counts_as_parse_failure_not_internal_failure() {
+        let context = ParseContext::new("Context Card").expect("test context is valid");
+        let error = parser()
+            .analyze_oracle_text("You gain X life, a player connives.", &context)
+            .into_parse_result()
+            .expect_err("the WithWhere invariant rejects an Event clause");
+
+        assert!(matches!(error, ParseError::BuildRejected { .. }));
+        assert_eq!(
+            super::audit_status_for_error(&error),
+            AuditStatus::ParseFailure
+        );
+        assert_ne!(
+            super::audit_status_for_error(&error),
+            AuditStatus::InternalFailure
         );
     }
 

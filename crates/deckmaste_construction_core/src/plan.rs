@@ -609,7 +609,7 @@ mod tests {
         assert!(build.contains("Leaf :: Mode (mode)"), "{build}");
         assert!(!build.contains("Leaf :: Mode (Mode :: One)"), "{build}");
         assert!(
-            build.contains("Only :: new (* mode , * spelling , context)"),
+            build.contains("Only :: try_new (* mode , * spelling , context)"),
             "{build}",
         );
         assert!(render.contains("Self :: Only (only)"), "{render}");
@@ -656,8 +656,8 @@ mod tests {
             "{changed_ast}",
         );
         assert!(
-            changed_build.contains("Only :: new (* mode , * spelling)")
-                && !changed_build.contains("Only :: new (* mode , * spelling , context)"),
+            changed_build.contains("Only :: try_new (* mode , * spelling)")
+                && !changed_build.contains("Only :: try_new (* mode , * spelling , context)"),
             "{changed_build}",
         );
         assert!(
@@ -2029,7 +2029,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 80);
+        assert_eq!(keys.len(), 86);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,
             name: "GeneratedRoot".into(),

@@ -8,6 +8,7 @@ use super::ParseError;
 use super::SelectedOwnership;
 use super::selection::construction_name_v1;
 use crate::ast::Ability;
+use crate::constructions::BuildRejection;
 use crate::constructions::Construction;
 use crate::constructions::GeneratedParseRoot;
 use crate::constructions::RuleId;
@@ -200,6 +201,7 @@ pub(crate) struct StructuralTrace {
     forest: Bounded<ForestNode>,
     accepted_roots: Bounded<usize>,
     checked_completion_rejections: Bounded<CheckedCompletionRejection>,
+    first_build_rejection: Option<BuildRejection>,
 }
 
 impl StructuralTrace {
@@ -211,6 +213,7 @@ impl StructuralTrace {
             forest: Bounded::new(0),
             accepted_roots: Bounded::new(0),
             checked_completion_rejections: Bounded::new(0),
+            first_build_rejection: None,
         }
     }
     pub(crate) fn new(
@@ -219,6 +222,7 @@ impl StructuralTrace {
         forest: Bounded<ForestNode>,
         accepted_roots: Bounded<usize>,
         checked_completion_rejections: Bounded<CheckedCompletionRejection>,
+        first_build_rejection: Option<BuildRejection>,
     ) -> Self {
         Self {
             scanner_matches,
@@ -226,6 +230,7 @@ impl StructuralTrace {
             forest,
             accepted_roots,
             checked_completion_rejections,
+            first_build_rejection,
         }
     }
     pub(crate) const fn scanner_matches(&self) -> &Bounded<ScannerMatch> {
@@ -244,6 +249,9 @@ impl StructuralTrace {
         &self,
     ) -> &Bounded<CheckedCompletionRejection> {
         &self.checked_completion_rejections
+    }
+    pub(crate) const fn first_build_rejection(&self) -> Option<&BuildRejection> {
+        self.first_build_rejection.as_ref()
     }
 }
 
@@ -886,7 +894,9 @@ impl<V> ParseAnalysis<V> {
     ) -> Self {
         let outcome = match &result {
             Ok(_) => ParseAnalysisOutcome::Selected,
-            Err(ParseError::Failure { .. }) => ParseAnalysisOutcome::ParseFailure,
+            Err(ParseError::Failure { .. } | ParseError::BuildRejected { .. }) => {
+                ParseAnalysisOutcome::ParseFailure
+            }
             Err(ParseError::Ambiguous { .. }) => ParseAnalysisOutcome::UnresolvedAmbiguity,
             Err(ParseError::ValidatedRootDidNotMaterialize) => {
                 ParseAnalysisOutcome::InternalFailure(
@@ -931,6 +941,14 @@ impl<V> ParseAnalysis<V> {
     #[must_use]
     pub fn ownership(&self) -> Option<&SelectedOwnership> {
         self.ownership.as_ref()
+    }
+
+    #[must_use]
+    pub fn build_rejection(&self) -> Option<&BuildRejection> {
+        match &self.result {
+            Err(ParseError::BuildRejected { rejection, .. }) => Some(rejection),
+            _ => None,
+        }
     }
 
     /// # Errors
@@ -1027,6 +1045,7 @@ impl MaterializationCycle {
 pub(crate) struct MaterializationTrace {
     candidates: Bounded<MaterializedCandidateInfo>,
     cycles: Bounded<MaterializationCycle>,
+    first_build_rejection: Option<BuildRejection>,
 }
 
 impl MaterializationTrace {
@@ -1034,6 +1053,7 @@ impl MaterializationTrace {
         Self {
             candidates: Bounded::new(limit),
             cycles: Bounded::new(limit),
+            first_build_rejection: None,
         }
     }
     pub(crate) const fn candidates(&self) -> &Bounded<MaterializedCandidateInfo> {
@@ -1042,6 +1062,9 @@ impl MaterializationTrace {
     pub(crate) const fn cycles(&self) -> &Bounded<MaterializationCycle> {
         &self.cycles
     }
+    pub(crate) const fn first_build_rejection(&self) -> Option<&BuildRejection> {
+        self.first_build_rejection.as_ref()
+    }
 }
 
 pub(crate) struct MaterializationTraceBuilder {
@@ -1049,6 +1072,7 @@ pub(crate) struct MaterializationTraceBuilder {
     candidates: Bounded<MaterializedCandidateInfo>,
     cycles: Bounded<MaterializationCycle>,
     cycle_identities: Vec<(usize, Vec<usize>)>,
+    first_build_rejection: Option<BuildRejection>,
 }
 
 impl MaterializationTraceBuilder {
@@ -1059,6 +1083,7 @@ impl MaterializationTraceBuilder {
             candidates: Bounded::new(limit),
             cycles: Bounded::new(limit),
             cycle_identities: Vec::new(),
+            first_build_rejection: None,
         }
     }
 
@@ -1100,10 +1125,34 @@ impl MaterializationTraceBuilder {
         });
     }
 
+    pub(crate) fn record_build_rejection(
+        &mut self,
+        rule_path: &[RuleId],
+        rejection: BuildRejection,
+    ) {
+        self.record_build_rejection_with(
+            rule_path,
+            rejection,
+            |rule| rule.index(),
+            |rule| rule_label_v1(*rule),
+        );
+    }
+
+    pub(crate) fn record_build_rejection_with<R>(
+        &mut self,
+        _rule_path: &[R],
+        rejection: BuildRejection,
+        _identity: impl Fn(&R) -> usize,
+        _label: impl Fn(&R) -> String,
+    ) {
+        self.first_build_rejection.get_or_insert(rejection);
+    }
+
     pub(crate) fn finish(self) -> MaterializationTrace {
         MaterializationTrace {
             candidates: self.candidates,
             cycles: self.cycles,
+            first_build_rejection: self.first_build_rejection,
         }
     }
 }
@@ -1351,6 +1400,12 @@ impl<V> ParserTrace<V> {
                     expectations: bounded_expectations,
                 })
             }
+            Err(ParseError::BuildRejected { span, .. }) => {
+                BoundedParseOutcome::ParseFailure(ParseFailureOutcome {
+                    span: *span,
+                    expectations: Bounded::new(limit),
+                })
+            }
             Err(ParseError::Ambiguous { .. }) => {
                 let decision = analysis
                     .decision()
@@ -1420,6 +1475,10 @@ impl<V> ParserTrace<V> {
     #[must_use]
     pub const fn checked_completion_rejections(&self) -> &Bounded<CheckedCompletionRejection> {
         self.structural.checked_completion_rejections()
+    }
+    #[must_use]
+    pub fn build_rejection(&self) -> Option<&BuildRejection> {
+        self.analysis.build_rejection()
     }
     #[must_use]
     pub const fn materialized_candidates(&self) -> &Bounded<MaterializedCandidateInfo> {

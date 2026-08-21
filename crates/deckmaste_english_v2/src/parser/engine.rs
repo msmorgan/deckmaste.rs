@@ -103,7 +103,48 @@ pub(crate) struct ChartFailure<N, L> {
     pub live: BTreeSet<RulePosition<N, L>>,
 }
 
-pub(crate) trait Observation<R, T, L, O = ()> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CompletionDisposition<E> {
+    Accepted,
+    Rejected,
+    DeferredBuildRejection(E),
+}
+
+impl<E> CompletionDisposition<E> {
+    pub(crate) const fn is_accepted(&self) -> bool {
+        matches!(self, Self::Accepted | Self::DeferredBuildRejection(_))
+    }
+}
+
+impl From<bool> for CompletionDisposition<()> {
+    fn from(accepted: bool) -> Self {
+        if accepted { Self::Accepted } else { Self::Rejected }
+    }
+}
+
+pub(crate) trait CompletionResult {
+    type Rejection;
+
+    fn into_disposition(self) -> CompletionDisposition<Self::Rejection>;
+}
+
+impl CompletionResult for bool {
+    type Rejection = ();
+
+    fn into_disposition(self) -> CompletionDisposition<Self::Rejection> {
+        self.into()
+    }
+}
+
+impl<E> CompletionResult for CompletionDisposition<E> {
+    type Rejection = E;
+
+    fn into_disposition(self) -> CompletionDisposition<Self::Rejection> {
+        self
+    }
+}
+
+pub(crate) trait Observation<R, T, L, O = (), E = ()> {
     fn scanned(&mut self, _start: usize, _terminal: L, _end: usize, _value: &T) {}
     fn checked_completion(
         &mut self,
@@ -111,7 +152,7 @@ pub(crate) trait Observation<R, T, L, O = ()> {
         _start: usize,
         _end: usize,
         _family: &Family<T, O>,
-        _accepted: bool,
+        _disposition: &CompletionDisposition<E>,
     ) {
     }
     fn chart_item(
@@ -126,13 +167,13 @@ pub(crate) trait Observation<R, T, L, O = ()> {
     fn final_forest(&mut self, _forest: &Forest<R, T, O>) {}
 }
 
-impl<R, T, L, O> Observation<R, T, L, O> for () {}
+impl<R, T, L, O, E> Observation<R, T, L, O, E> for () {}
 
 #[allow(
     dead_code,
     reason = "the stateless compatibility entry remains available to parser unit consumers"
 )]
-pub(crate) fn parse<N, L, R, T, O, Scan, ValidateCompletion>(
+pub(crate) fn parse<N, L, R, T, O, D, Scan, ValidateCompletion>(
     rules: &[Rule<N, L, R>],
     start: N,
     input_length: usize,
@@ -146,7 +187,8 @@ where
     T: Clone + Eq,
     O: Clone + Eq,
     Scan: FnMut(L, usize) -> Vec<LexicalMatch<T, O>>,
-    ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> bool,
+    D: CompletionResult,
+    ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> D,
 {
     parse_with_state(
         rules,
@@ -163,7 +205,7 @@ where
     )
 }
 
-pub(crate) fn parse_with_state<N, L, R, T, O, S, Scan, ValidateCompletion>(
+pub(crate) fn parse_with_state<N, L, R, T, O, D, S, Scan, ValidateCompletion>(
     rules: &[Rule<N, L, R>],
     start: N,
     input_length: usize,
@@ -179,7 +221,8 @@ where
     O: Clone + Eq,
     S: Clone + Eq + Ord,
     Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, O, S>>,
-    ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> bool,
+    D: CompletionResult,
+    ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> D,
 {
     parse_observed_with_state(
         rules,
@@ -192,7 +235,7 @@ where
     )
 }
 
-pub(crate) fn parse_root_with_state<N, L, R, T, O, S, Scan, ValidateCompletion>(
+pub(crate) fn parse_root_with_state<N, L, R, T, O, D, S, Scan, ValidateCompletion>(
     rules: &[Rule<N, L, R>],
     root_rule: R,
     input_length: usize,
@@ -208,7 +251,8 @@ where
     O: Clone + Eq,
     S: Clone + Eq + Ord,
     Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, O, S>>,
-    ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> bool,
+    D: CompletionResult,
+    ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> D,
 {
     parse_root_observed_with_state(
         rules,
@@ -225,7 +269,7 @@ where
     dead_code,
     reason = "the stateless observed entry remains available to parser unit consumers"
 )]
-pub(crate) fn parse_observed<N, L, R, T, Owner, Scan, ValidateCompletion, Obs>(
+pub(crate) fn parse_observed<N, L, R, T, Owner, D, Scan, ValidateCompletion, Obs>(
     rules: &[Rule<N, L, R>],
     start: N,
     input_length: usize,
@@ -240,8 +284,9 @@ where
     T: Clone + Eq,
     Owner: Clone + Eq,
     Scan: FnMut(L, usize) -> Vec<LexicalMatch<T, Owner>>,
-    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> bool,
-    Obs: Observation<R, T, L, Owner>,
+    D: CompletionResult,
+    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> D,
+    Obs: Observation<R, T, L, Owner, D::Rejection>,
 {
     parse_observed_with_state(
         rules,
@@ -259,7 +304,7 @@ where
     )
 }
 
-pub(crate) fn parse_observed_with_state<N, L, R, T, Owner, S, Scan, ValidateCompletion, Obs>(
+pub(crate) fn parse_observed_with_state<N, L, R, T, Owner, D, S, Scan, ValidateCompletion, Obs>(
     rules: &[Rule<N, L, R>],
     start: N,
     input_length: usize,
@@ -276,8 +321,9 @@ where
     Owner: Clone + Eq,
     S: Clone + Eq + Ord,
     Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
-    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> bool,
-    Obs: Observation<R, T, L, Owner>,
+    D: CompletionResult,
+    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> D,
+    Obs: Observation<R, T, L, Owner, D::Rejection>,
 {
     parse_observed_with_state_seed(
         rules,
@@ -290,7 +336,18 @@ where
     )
 }
 
-pub(crate) fn parse_root_observed_with_state<N, L, R, T, Owner, S, Scan, ValidateCompletion, Obs>(
+pub(crate) fn parse_root_observed_with_state<
+    N,
+    L,
+    R,
+    T,
+    Owner,
+    D,
+    S,
+    Scan,
+    ValidateCompletion,
+    Obs,
+>(
     rules: &[Rule<N, L, R>],
     root_rule: R,
     input_length: usize,
@@ -307,8 +364,9 @@ where
     Owner: Clone + Eq,
     S: Clone + Eq + Ord,
     Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
-    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> bool,
-    Obs: Observation<R, T, L, Owner>,
+    D: CompletionResult,
+    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> D,
+    Obs: Observation<R, T, L, Owner, D::Rejection>,
 {
     parse_observed_with_state_seed(
         rules,
@@ -321,7 +379,7 @@ where
     )
 }
 
-fn parse_observed_with_state_seed<N, L, R, T, Owner, S, Scan, ValidateCompletion, Obs>(
+fn parse_observed_with_state_seed<N, L, R, T, Owner, D, S, Scan, ValidateCompletion, Obs>(
     rules: &[Rule<N, L, R>],
     seed: RootSeed<N, R>,
     input_length: usize,
@@ -338,8 +396,9 @@ where
     Owner: Clone + Eq,
     S: Clone + Eq + Ord,
     Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
-    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> bool,
-    Obs: Observation<R, T, L, Owner>,
+    D: CompletionResult,
+    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> D,
+    Obs: Observation<R, T, L, Owner, D::Rejection>,
 {
     let mut stateful_forest = StatefulForest {
         forest: Forest {
@@ -497,7 +556,7 @@ where
     }
 }
 
-fn accept_completed_node<N, L, R, T, O, S, ValidateCompletion, Obs>(
+fn accept_completed_node<N, L, R, T, O, D, S, ValidateCompletion, Obs>(
     rule: &Rule<N, L, R>,
     column: usize,
     item: &ItemKey<S>,
@@ -511,12 +570,14 @@ where
     T: Clone + Eq,
     O: Clone + Eq,
     S: Clone + Eq,
-    ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> bool,
-    Obs: Observation<R, T, L, O>,
+    D: CompletionResult,
+    ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> D,
+    Obs: Observation<R, T, L, O, D::Rejection>,
 {
-    let accepted = validate_completion(rule.id, &family, &stateful_forest.forest);
-    observation.checked_completion(rule.id, item.origin, column, &family, accepted);
-    if !accepted {
+    let disposition =
+        validate_completion(rule.id, &family, &stateful_forest.forest).into_disposition();
+    observation.checked_completion(rule.id, item.origin, column, &family, &disposition);
+    if !disposition.is_accepted() {
         return None;
     }
     let node_id = stateful_forest
@@ -555,14 +616,14 @@ where
     .then_some(node_id)
 }
 
-fn observe_final_chart<N, L, R, T, O, S, Obs>(
+fn observe_final_chart<N, L, R, T, O, E, S, Obs>(
     chart: &[ChartColumn<T, O, S>],
     rules: &[Rule<N, L, R>],
     observation: &mut Obs,
     forest: &Forest<R, T, O>,
 ) where
     R: Copy,
-    Obs: Observation<R, T, L, O>,
+    Obs: Observation<R, T, L, O, E>,
 {
     for (column, items) in chart.iter().enumerate() {
         for (item, families) in items {
@@ -578,7 +639,7 @@ fn observe_final_chart<N, L, R, T, O, S, Obs>(
     observation.final_forest(forest);
 }
 
-fn advance_lexical<L, R, T, O, S, Scan, Obs>(
+fn advance_lexical<L, R, T, O, E, S, Scan, Obs>(
     pending: &PendingLexicalScan<'_, L, T, O, S>,
     chart: &mut [ChartColumn<T, O, S>],
     agenda: &mut Agenda<T, O, S>,
@@ -590,7 +651,7 @@ fn advance_lexical<L, R, T, O, S, Scan, Obs>(
     O: Clone + Eq,
     S: Clone + Eq + Ord,
     Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, O, S>>,
-    Obs: Observation<R, T, L, O>,
+    Obs: Observation<R, T, L, O, E>,
 {
     for stateful_match in scan(pending.lexical, pending.column, &pending.item.state) {
         let lexical_match = stateful_match.lexical;
@@ -866,6 +927,52 @@ mod tests {
         lhs: ToyCategory::Start,
         rhs: &[RulePosition::Lexical("alpha beta")],
     }];
+
+    #[test]
+    fn deferred_build_rejection_preserves_a_complete_syntactic_root_and_typed_cause() {
+        #[derive(Default)]
+        struct Recording(Vec<&'static str>);
+
+        impl Observation<ToyRuleId, &'static str, &'static str, &'static str, &'static str>
+            for Recording
+        {
+            fn checked_completion(
+                &mut self,
+                _rule: ToyRuleId,
+                _start: usize,
+                _end: usize,
+                _family: &Family<&'static str, &'static str>,
+                disposition: &CompletionDisposition<&'static str>,
+            ) {
+                if let CompletionDisposition::DeferredBuildRejection(reason) = disposition {
+                    self.0.push(reason);
+                }
+            }
+        }
+
+        let mut observation = Recording::default();
+        let forest = parse_observed(
+            SCAN_RULES,
+            ToyCategory::Start,
+            10,
+            |_, start| {
+                (start == 0)
+                    .then_some(vec![LexicalMatch {
+                        end: 10,
+                        value: "alpha beta",
+                        owner: Some("toy:alpha-beta"),
+                    }])
+                    .unwrap_or_default()
+            },
+            |_, _, _| CompletionDisposition::DeferredBuildRejection("Root.guarded"),
+            &mut observation,
+        )
+        .expect("a checked-constructor rejection retains the syntactic root");
+
+        assert_eq!(forest.accepted_root_ids().count(), 1);
+        assert!(!observation.0.is_empty());
+        assert!(observation.0.iter().all(|reason| *reason == "Root.guarded"));
+    }
 
     const ROOT_BOUNDARY_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[
         Rule {
@@ -1200,10 +1307,10 @@ mod tests {
                 start: usize,
                 end: usize,
                 family: &Family<&'static str>,
-                accepted: bool,
+                disposition: &CompletionDisposition<()>,
             ) {
                 self.checked
-                    .push((rule, start, end, family.clone(), accepted));
+                    .push((rule, start, end, family.clone(), disposition.is_accepted()));
             }
             fn chart_item(
                 &mut self,

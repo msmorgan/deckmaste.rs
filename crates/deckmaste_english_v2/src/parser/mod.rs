@@ -2,8 +2,8 @@ use engine::ChartFailure;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::SurfaceFeature;
-use materialize::materialize;
-use materialize::materialize_observed;
+use materialize::materialize_checked;
+use materialize::materialize_observed_checked;
 use ownership::validate_ownership;
 use scan::SliceGrammar;
 use scan::parse_forest;
@@ -110,6 +110,8 @@ pub use selection::SelectionExceptionInfo;
 pub use selection::SelectionExceptionInventoryError;
 pub use selection::selection_exception_inventory;
 
+pub use crate::constructions::BuildRejection;
+pub use crate::constructions::BuildViolation;
 pub use crate::constructions::LexicalProvenanceKind;
 pub use crate::constructions::NonterminalCategory;
 pub use crate::constructions::TerminalClass;
@@ -454,9 +456,9 @@ impl Parser {
         parse_forest::<R>(&grammar, text).map_or_else(
             |failure| ParseAnalysis::from_result(Err(chart_failure(text, failure)), None),
             |forest| {
-                analyze_materialized_with_ownership::<R>(
+                analyze_materialization_with_ownership::<R>(
                     text,
-                    materialize::<R>(&forest, context, &self.environment),
+                    materialize_checked::<R>(&forest, context, &self.environment),
                     context,
                     &self.environment,
                 )
@@ -474,12 +476,16 @@ impl Parser {
         let (forest, structural) = parse_forest_observed::<R>(&grammar, text, limits);
         let (analysis, materialization) = match forest {
             Ok(forest) => {
-                let (candidates, materialization) =
-                    materialize_observed::<R>(&forest, context, &self.environment, limits);
+                let (result, materialization) =
+                    materialize_observed_checked::<R>(&forest, context, &self.environment, limits);
+                if let Some(rejection) = result.first_rejection.as_ref() {
+                    debug_assert_eq!(structural.first_build_rejection(), Some(rejection));
+                    debug_assert_eq!(materialization.first_build_rejection(), Some(rejection));
+                }
                 (
-                    analyze_materialized_with_ownership::<R>(
+                    analyze_materialization_with_ownership::<R>(
                         text,
-                        candidates,
+                        result,
                         context,
                         &self.environment,
                     ),
@@ -582,26 +588,73 @@ type SelectedCandidate<V> = Result<
     ParseError,
 >;
 
+#[cfg(test)]
 fn analyze_selected_candidate<V>(
     candidates: Vec<materialize::Candidate<V>>,
+) -> SelectedCandidate<V> {
+    analyze_selected_candidate_with_rejection(candidates, None, TextSpan { start: 0, end: 0 })
+}
+
+fn analyze_selected_candidate_with_rejection<V>(
+    candidates: Vec<materialize::Candidate<V>>,
+    first_rejection: Option<BuildRejection>,
+    span: TextSpan,
 ) -> SelectedCandidate<V> {
     #[cfg(test)]
     count_pipeline_stage(PipelineStage::Selection);
     analyze_selection(candidates).map(|selection| {
         let (result, decision) = selection.into_result_and_decision();
-        let result = result
-            .and_then(|candidate| candidate.ok_or(ParseError::ValidatedRootDidNotMaterialize));
+        let result = result.and_then(|candidate| {
+            candidate.ok_or_else(|| {
+                first_rejection.map_or(ParseError::ValidatedRootDidNotMaterialize, |rejection| {
+                    ParseError::BuildRejected { span, rejection }
+                })
+            })
+        });
         (result, decision)
     })
 }
 
+fn analyze_materialization_with_ownership<R: GeneratedParseRoot>(
+    text: &str,
+    materialized: materialize::MaterializationResult<R>,
+    context: &ParseContext<'_>,
+    environment: &ParserEnvironment,
+) -> ParseAnalysis<R> {
+    analyze_materialized_with_ownership_and_rejection(
+        text,
+        materialized.candidates,
+        materialized.first_rejection,
+        context,
+        environment,
+    )
+}
+
+#[cfg(test)]
 fn analyze_materialized_with_ownership<R: GeneratedParseRoot>(
     text: &str,
     candidates: Vec<materialize::Candidate<R>>,
     context: &ParseContext<'_>,
     environment: &ParserEnvironment,
 ) -> ParseAnalysis<R> {
-    let (result, decision) = match analyze_selected_candidate(candidates) {
+    analyze_materialized_with_ownership_and_rejection(text, candidates, None, context, environment)
+}
+
+fn analyze_materialized_with_ownership_and_rejection<R: GeneratedParseRoot>(
+    text: &str,
+    candidates: Vec<materialize::Candidate<R>>,
+    first_rejection: Option<BuildRejection>,
+    context: &ParseContext<'_>,
+    environment: &ParserEnvironment,
+) -> ParseAnalysis<R> {
+    let (result, decision) = match analyze_selected_candidate_with_rejection(
+        candidates,
+        first_rejection,
+        TextSpan {
+            start: 0,
+            end: text.len(),
+        },
+    ) {
         Ok(selected) => selected,
         Err(error) => return ParseAnalysis::from_result(Err(error), None),
     };

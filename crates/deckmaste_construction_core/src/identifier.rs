@@ -9,7 +9,11 @@ pub(crate) const RULE_ID_PUBLIC_CONSTRUCTION: &str = "public_construction";
 pub(crate) const RULE_ID_INDEX: &str = "index";
 pub(crate) const RULES_CONSTANT: &str = "RULES";
 pub(crate) const BUILD_FUNCTION: &str = "build";
+pub(crate) const CHECKED_BUILD_FUNCTION: &str = "build_checked";
 pub(crate) const INVARIANT_CONSTRUCTOR: &str = "new";
+pub(crate) const CHECKED_CONSTRUCTOR: &str = "try_new";
+pub(crate) const BUILD_REJECTION_TYPE: &str = "BuildRejection";
+pub(crate) const BUILD_VIOLATION_TYPE: &str = "BuildViolation";
 pub(crate) const AGREEMENT_TYPE: &str = "Agreement";
 pub(crate) const NUMBER_TYPE: &str = "Number";
 pub(crate) const FEATURE_CONSTRAINT_TYPE: &str = "FeatureConstraint";
@@ -53,6 +57,8 @@ pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     LEXICAL_OWNER_TEMPLATE_TYPE,
     LEXICAL_OWNER_TYPE,
     LEXICAL_OWNER_IDENTITY_TYPE,
+    BUILD_REJECTION_TYPE,
+    BUILD_VIOLATION_TYPE,
 ];
 
 /// Returns the semantic Rust name of an authored identifier.

@@ -6,6 +6,7 @@ use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::BoundedParseOutcome;
+use deckmaste_english_v2::parser::BuildViolation;
 use deckmaste_english_v2::parser::Expectation;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::ParseAnalysis;
@@ -409,6 +410,71 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     );
 }
 
+#[test]
+fn authored_invariant_rejection_is_typed_parse_failure_not_chart_or_internal_failure() {
+    let parser = parser();
+    let context = context("Context Card");
+    let denied = "You gain X life, a player connives.";
+
+    let error = parser
+        .parse_sentence(denied, &context)
+        .expect_err("an Event clause cannot fill WithWhere's Where role");
+    let ParseError::BuildRejected { span, rejection } = error else {
+        panic!("expected typed generated build rejection, got {error:?}");
+    };
+    assert_eq!(
+        span,
+        TextSpan {
+            start: 0,
+            end: denied.len()
+        }
+    );
+    assert_eq!(rejection.owner(), "Sentence");
+    assert_eq!(rejection.role(), "with_where");
+    assert_eq!(
+        rejection.violation(),
+        &BuildViolation::Invariant {
+            identity: "clause is Where",
+        }
+    );
+    assert_eq!(
+        rejection.to_string(),
+        "Sentence.with_where: invariant `clause is Where` rejected"
+    );
+
+    let trace = parser.trace_sentence(denied, &context, TraceLimits::new(usize::MAX));
+    assert!(matches!(
+        trace.outcome(),
+        BoundedParseOutcome::ParseFailure(_)
+    ));
+    assert!(!trace.accepted_roots().items().is_empty());
+    assert!(trace.materialized_candidates().items().is_empty());
+    assert_eq!(trace.build_rejection(), Some(&rejection));
+    assert!(trace.checked_completion_rejections().items().is_empty());
+
+    let allowed =
+        "You gain X life, where X is the number of creatures you control with power 2 or less.";
+    assert!(parser.parse_sentence(allowed, &context).is_ok());
+    assert!(
+        parser
+            .trace_sentence(allowed, &context, TraceLimits::new(8))
+            .build_rejection()
+            .is_none()
+    );
+
+    let malformed = "You gain X life, a player.";
+    let malformed_error = parser
+        .parse_sentence(malformed, &context)
+        .expect_err("incomplete event syntax remains a chart failure");
+    assert!(matches!(malformed_error, ParseError::Failure { .. }));
+    assert!(
+        parser
+            .trace_sentence(malformed, &context, TraceLimits::new(8))
+            .build_rejection()
+            .is_none()
+    );
+}
+
 fn assert_complete_public_generated_type_inventory(file: &syn::File) {
     let public_types = file
         .items
@@ -469,6 +535,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "TerminalClass",
             "LexicalProvenanceKind",
             "LexicalOwner",
+            "BuildViolation",
+            "BuildRejection",
             "NonterminalCategory",
         ],
         "the complete public generated type inventory is source ordered",
@@ -497,32 +565,32 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
         (
             "Paragraph",
             &[("sentences", false)][..],
-            &["new", "sentences"][..],
+            &["new", "try_new", "sentences"][..],
         ),
         (
             "Triggered",
             &[("trigger", true), ("event", false), ("effects", false)][..],
-            &["new", "event", "effects"][..],
+            &["new", "try_new", "event", "effects"][..],
         ),
         (
             "WithWhere",
             &[("body", true), ("clause", false)][..],
-            &["new", "clause"][..],
+            &["new", "try_new", "clause"][..],
         ),
         (
             "CountNp",
             &[("head", true), ("controller", false), ("threshold", true)][..],
-            &["new", "controller"][..],
+            &["new", "try_new", "controller"][..],
         ),
         (
             "SelfReferenceNp",
             &[("spelling", false)][..],
-            &["new", "spelling"][..],
+            &["new", "try_new", "spelling"][..],
         ),
         (
             "OracleText",
             &[("blocks", false)][..],
-            &["new", "blocks"][..],
+            &["new", "try_new", "blocks"][..],
         ),
     ] {
         let structure = file

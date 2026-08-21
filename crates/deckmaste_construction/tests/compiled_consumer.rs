@@ -1817,10 +1817,26 @@ pub mod fixture {
             GuardedChild::new(Mode::Many, Box::new(Child::Bare(BareChild))).is_none(),
             "invalid vocabulary membership is rejected",
         );
+        let vocab_rejection = GuardedChild::try_new(Mode::Many, Box::new(Child::Bare(BareChild)))
+            .expect_err("the checked seam retains vocabulary rejection identity");
+        assert_eq!(vocab_rejection.owner(), "Child");
+        assert_eq!(vocab_rejection.role(), "guarded");
+        assert_eq!(
+            vocab_rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "all(mode is One, child is Bare)",
+            },
+        );
         assert!(
             GuardedChild::new(Mode::One, Box::new(Child::Third(ThirdChild))).is_none(),
             "invalid category membership is rejected",
         );
+        let category_rejection =
+            GuardedChild::try_new(Mode::One, Box::new(Child::Third(ThirdChild)))
+                .expect_err("the checked seam retains category rejection identity");
+        assert_eq!(category_rejection.owner(), "Child");
+        assert_eq!(category_rejection.role(), "guarded");
+        assert_eq!(category_rejection.violation(), vocab_rejection.violation());
 
         let identity = IdentityGuard::new(SelfRef::Full, &context)
             .expect("the canonical context identity is always valid");
@@ -1829,12 +1845,75 @@ pub mod fixture {
             IdentityGuard::new(SelfRef::Abbreviated, &context).is_none(),
             "a colliding noncanonical context identity is rejected",
         );
+        let context_rejection = IdentityGuard::try_new(SelfRef::Abbreviated, &context)
+            .expect_err("the checked seam retains context rejection identity");
+        assert_eq!(context_rejection.owner(), "ContextBound");
+        assert_eq!(context_rejection.role(), "identity_guard");
+        assert_eq!(
+            context_rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "spelling valid in context",
+            },
+        );
     }
 
     pub(super) fn assert_structural_product_public_boundary() {
         assert!(
             Holder::new(None, vec![]).is_none(),
             "the normalized nonempty bound rejects an empty structural sequence",
+        );
+        let rejection = Holder::try_new(None, vec![])
+            .expect_err("the checked seam retains structural cardinality identity");
+        assert_eq!(rejection.owner(), "Holder");
+        assert_eq!(rejection.role(), "items");
+        assert_eq!(
+            rejection.violation(),
+            &BuildViolation::Length {
+                minimum: 1,
+                maximum: None,
+                actual: 0,
+            },
+        );
+        assert_eq!(
+            rejection.to_string(),
+            "Holder.items: length 0 violates minimum 1",
+        );
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+        };
+        let invalid_owner_children = [
+            BuildValue::StructuralAtom(StructuralAtom::StructuralAtom(StructuralAtomValue {
+                marker: StructuralWord::Alpha,
+            })),
+            BuildValue::Leaf(Leaf::Literal("<BF>")),
+            BuildValue::BoundedPositionalStructuralItemsSequence(vec![]),
+        ];
+        let owner_rejection = build_checked(
+            RuleId::BoundedPositionalStructuralItemsSequenceThreePlus,
+            &invalid_owner_children,
+            &context,
+        )
+        .expect_err("the generated owner rule retains its checked-constructor rejection");
+        assert_eq!(owner_rejection.owner(), "BoundedPositionalStructural");
+        assert_eq!(owner_rejection.role(), "items");
+        assert_eq!(
+            owner_rejection.violation(),
+            &BuildViolation::Length {
+                minimum: 3,
+                maximum: Some(4),
+                actual: 1,
+            },
+        );
+        assert!(
+            build(
+                RuleId::BoundedPositionalStructuralItemsSequenceThreePlus,
+                &invalid_owner_children,
+                &context,
+            )
+            .is_none(),
+            "the compatibility build API remains lossy",
         );
         let expected = Choice::Child(Child::Bare(BareChild));
         let holder = Holder::new(None, vec![expected.clone()])

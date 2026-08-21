@@ -178,6 +178,85 @@ pub(crate) enum LexicalOwnerIdentity {
 pub struct LexicalOwner {
     identity: LexicalOwnerIdentity,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
+pub enum BuildViolation {
+    Length { minimum: usize, maximum: Option<usize>, actual: usize },
+    Invariant { identity: &'static str },
+}
+impl BuildViolation {
+    pub const fn minimum(&self) -> Option<usize> {
+        match self {
+            Self::Length { minimum, .. } => Some(*minimum),
+            Self::Invariant { .. } => None,
+        }
+    }
+    pub const fn maximum(&self) -> Option<usize> {
+        match self {
+            Self::Length { maximum, .. } => *maximum,
+            Self::Invariant { .. } => None,
+        }
+    }
+    pub const fn actual(&self) -> Option<usize> {
+        match self {
+            Self::Length { actual, .. } => Some(*actual),
+            Self::Invariant { .. } => None,
+        }
+    }
+    pub const fn identity(&self) -> Option<&'static str> {
+        match self {
+            Self::Length { .. } => None,
+            Self::Invariant { identity } => Some(*identity),
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
+pub struct BuildRejection {
+    owner: &'static str,
+    role: &'static str,
+    violation: BuildViolation,
+}
+impl BuildRejection {
+    pub(crate) const fn new(
+        owner: &'static str,
+        role: &'static str,
+        violation: BuildViolation,
+    ) -> Self {
+        Self { owner, role, violation }
+    }
+    pub const fn owner(&self) -> &'static str {
+        self.owner
+    }
+    pub const fn role(&self) -> &'static str {
+        self.role
+    }
+    pub const fn violation(&self) -> &BuildViolation {
+        &self.violation
+    }
+}
+impl std::fmt::Display for BuildRejection {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.violation {
+            BuildViolation::Length { minimum, maximum: Some(maximum), actual } => {
+                write!(
+                    formatter, "{}.{}: length {} violates {}..={}", self.owner, self
+                    .role, actual, minimum, maximum,
+                )
+            }
+            BuildViolation::Length { minimum, maximum: None, actual } => {
+                write!(
+                    formatter, "{}.{}: length {} violates minimum {}", self.owner, self
+                    .role, actual, minimum,
+                )
+            }
+            BuildViolation::Invariant { identity } => {
+                write!(
+                    formatter, "{}.{}: invariant `{}` rejected", self.owner, self.role,
+                    identity,
+                )
+            }
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum BuildValue {
     Node(Node),
@@ -1091,33 +1170,35 @@ pub(crate) const RULES: &[Rule<Category, LexicalTerminal, RuleId>] = &[
     clippy::too_many_lines,
     reason = "the exhaustive generated-shape construction dispatch is intentionally flat"
 )]
-pub(super) fn build(
+pub(super) fn build_checked(
     rule: RuleId,
     children: &[BuildValue],
     context: &ParseContext<'_>,
-) -> Option<BuildValue> {
+) -> Result<Option<BuildValue>, BuildRejection> {
     match rule {
         RuleId::NodeLeaf => {
             match children {
                 [BuildValue::Leaf(Leaf::Words(words))] => {
-                    Some(BuildValue::Node(Node::Leaf(WordLeaf { word: *words })))
+                    Ok(Some(BuildValue::Node(Node::Leaf(WordLeaf { word: *words }))))
                 }
-                _ => None,
+                _ => Ok(None),
             }
         }
         RuleId::NodeChain => {
             match children {
                 [BuildValue::Node(next), BuildValue::Leaf(Leaf::Words(words))] => {
-                    Some(
-                        BuildValue::Node(
-                            Node::Chain(Chain {
-                                next: Box::new(next.clone()),
-                                word: *words,
-                            }),
+                    Ok(
+                        Some(
+                            BuildValue::Node(
+                                Node::Chain(Chain {
+                                    next: Box::new(next.clone()),
+                                    word: *words,
+                                }),
+                            ),
                         ),
                     )
                 }
-                _ => None,
+                _ => Ok(None),
             }
         }
         RuleId::ActionAction => {
@@ -1125,17 +1206,26 @@ pub(super) fn build(
                 [BuildValue::Leaf(
                     Leaf::Verb { lexeme: Verbs::Act, agreement: Agreement::Bare },
                 ), BuildValue::Node(node)] => {
-                    Some(
-                        BuildValue::Action(
-                            Action::Action(ActionElement {
-                                node: node.clone(),
-                            }),
-                            Agreement::Bare,
+                    Ok(
+                        Some(
+                            BuildValue::Action(
+                                Action::Action(ActionElement {
+                                    node: node.clone(),
+                                }),
+                                Agreement::Bare,
+                            ),
                         ),
                     )
                 }
-                _ => None,
+                _ => Ok(None),
             }
         }
     }
+}
+pub(super) fn build(
+    rule: RuleId,
+    children: &[BuildValue],
+    context: &ParseContext<'_>,
+) -> Option<BuildValue> {
+    build_checked(rule, children, context).ok().flatten()
 }

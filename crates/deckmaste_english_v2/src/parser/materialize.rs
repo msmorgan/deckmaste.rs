@@ -15,6 +15,7 @@ use super::engine::SpannedLexical;
 use super::ownership::RawLexicalClaim;
 use super::selection::specificity_tiers;
 use crate::ast::Ability;
+use crate::constructions::BuildRejection;
 use crate::constructions::BuildValue;
 use crate::constructions::Category;
 use crate::constructions::Construction;
@@ -26,7 +27,7 @@ use crate::constructions::LexicalTerminal;
 #[cfg(test)]
 use crate::constructions::RULES;
 use crate::constructions::RuleId;
-use crate::constructions::build;
+use crate::constructions::build_checked;
 use crate::context::ParseContext;
 use crate::parser::scan::RootForest;
 use crate::parser::scan::RootRuleId;
@@ -86,12 +87,18 @@ pub(crate) struct Candidate<V = Ability> {
     pub synthetic_claims: Vec<crate::parser::TextSpan>,
 }
 
-trait MaterializationObservation<R> {
-    const ENABLED: bool;
-    fn cycle_pruned(&mut self, _node_id: NodeId, _rule_path: &[R]) {}
+pub(crate) struct MaterializationResult<R: GeneratedParseRoot> {
+    pub(crate) candidates: Vec<Candidate<R>>,
+    pub(crate) first_rejection: Option<BuildRejection>,
 }
 
-impl<R> MaterializationObservation<R> for () {
+trait MaterializationObservation<R, E = BuildRejection> {
+    const ENABLED: bool;
+    fn cycle_pruned(&mut self, _node_id: NodeId, _rule_path: &[R]) {}
+    fn build_rejected(&mut self, _rule_path: &[R], _rejection: &E) {}
+}
+
+impl<R, E> MaterializationObservation<R, E> for () {
     const ENABLED: bool = false;
 }
 
@@ -100,6 +107,10 @@ impl MaterializationObservation<RuleId> for MaterializationTraceBuilder {
 
     fn cycle_pruned(&mut self, node_id: NodeId, rule_path: &[RuleId]) {
         self.record_cycle(node_id.0, rule_path);
+    }
+
+    fn build_rejected(&mut self, rule_path: &[RuleId], rejection: &BuildRejection) {
+        self.record_build_rejection(rule_path, *rejection);
     }
 }
 
@@ -110,6 +121,18 @@ impl MaterializationObservation<RootRuleId> for MaterializationTraceBuilder {
         self.record_cycle_with(
             node_id.0,
             rule_path,
+            |rule| rule.index(),
+            |rule| match rule {
+                RootRuleId::Grammar(rule) => format!("{rule:?}"),
+                RootRuleId::Adapter => "RootAdapter".to_owned(),
+            },
+        );
+    }
+
+    fn build_rejected(&mut self, rule_path: &[RootRuleId], rejection: &BuildRejection) {
+        self.record_build_rejection_with(
+            rule_path,
+            *rejection,
             |rule| rule.index(),
             |rule| match rule {
                 RootRuleId::Grammar(rule) => format!("{rule:?}"),
@@ -133,21 +156,37 @@ impl<V, C, K, M, T, O> Default for MaterializationStateFor<V, C, K, M, T, O> {
     }
 }
 
-struct MaterializationOutcomeFor<V, C, K = Category, M = Lexical, T = (), O = ()> {
+struct MaterializationOutcomeFor<
+    V,
+    C,
+    K = Category,
+    M = Lexical,
+    T = (),
+    O = (),
+    E = BuildRejection,
+> {
     values: Vec<MaterializedCandidate<V, C, K, M, T, O>>,
     cycle_pruned: bool,
+    first_rejection: Option<E>,
 }
 
-struct MaterializationKernel<'a, R, T, V, C, K: 'static, L: 'static, M, Build> {
+struct MaterializationResultFor<V, C, K = Category, M = Lexical, T = (), O = (), E = BuildRejection>
+{
+    values: Vec<MaterializedCandidate<V, C, K, M, T, O>>,
+    first_rejection: Option<E>,
+}
+
+struct MaterializationKernel<'a, R, T, V, C, K: 'static, L: 'static, M, Build, E = BuildRejection> {
     rules: &'a [Rule<K, L, R>],
     rule_index: fn(R) -> usize,
     public_construction: fn(R) -> Option<C>,
     lexical_matcher: fn(L) -> M,
     build_leaf: fn(&T) -> V,
     build: Build,
+    rejection: std::marker::PhantomData<fn() -> E>,
 }
 
-impl<R, T, V, C, K, L, M, Build> MaterializationKernel<'_, R, T, V, C, K, L, M, Build>
+impl<R, T, V, C, K, L, M, Build, E> MaterializationKernel<'_, R, T, V, C, K, L, M, Build, E>
 where
     R: Copy,
     V: Clone + PartialEq,
@@ -156,29 +195,36 @@ where
     L: Copy + 'static,
     M: Clone + PartialEq,
     T: Clone + PartialEq,
-    Build: Fn(R, &[V]) -> Option<V>,
+    E: Copy,
+    Build: Fn(R, &[V]) -> Result<Option<V>, E>,
 {
     fn materialize<Owner, O>(
         &self,
         forest: &Forest<R, T, Owner>,
         observation: &mut O,
-    ) -> Vec<MaterializedCandidate<V, C, K, M, T, Owner>>
+    ) -> MaterializationResultFor<V, C, K, M, T, Owner, E>
     where
-        O: MaterializationObservation<R>,
+        O: MaterializationObservation<R, E>,
         Owner: Clone + PartialEq,
     {
         let mut candidates = Vec::new();
         let mut state = MaterializationStateFor::default();
         let mut rule_path = Vec::new();
+        let mut first_rejection = None;
         for root in forest.accepted_root_ids() {
-            for built in self
-                .materialize_node(forest, root, &mut state, &mut rule_path, observation)
-                .values
-            {
+            let outcome =
+                self.materialize_node(forest, root, &mut state, &mut rule_path, observation);
+            if first_rejection.is_none() {
+                first_rejection = outcome.first_rejection;
+            }
+            for built in outcome.values {
                 push_unique(&mut candidates, built);
             }
         }
-        candidates
+        MaterializationResultFor {
+            first_rejection: candidates.is_empty().then_some(first_rejection).flatten(),
+            values: candidates,
+        }
     }
 
     fn materialize_node<Owner, O>(
@@ -188,15 +234,16 @@ where
         state: &mut MaterializationStateFor<V, C, K, M, T, Owner>,
         rule_path: &mut Vec<R>,
         observation: &mut O,
-    ) -> MaterializationOutcomeFor<V, C, K, M, T, Owner>
+    ) -> MaterializationOutcomeFor<V, C, K, M, T, Owner, E>
     where
-        O: MaterializationObservation<R>,
+        O: MaterializationObservation<R, E>,
         Owner: Clone + PartialEq,
     {
         if let Some(values) = state.memo.get(&node_id) {
             return MaterializationOutcomeFor {
                 values: values.clone(),
                 cycle_pruned: false,
+                first_rejection: None,
             };
         }
         if !state.in_progress.insert(node_id) {
@@ -204,27 +251,34 @@ where
             return MaterializationOutcomeFor {
                 values: Vec::new(),
                 cycle_pruned: true,
+                first_rejection: None,
             };
         }
 
         let node = forest.node(node_id);
         let mut values = Vec::new();
         let mut cycle_pruned = false;
+        let mut first_rejection = None;
         for family in &node.families {
             let outcome =
                 self.materialize_family(forest, node.rule, family, state, rule_path, observation);
             cycle_pruned |= outcome.cycle_pruned;
+            if first_rejection.is_none() {
+                first_rejection = outcome.first_rejection;
+            }
             for built in outcome.values {
                 push_unique(&mut values, built);
             }
         }
         state.in_progress.remove(&node_id);
-        if !cycle_pruned {
+        if !cycle_pruned && first_rejection.is_none() {
             state.memo.insert(node_id, values.clone());
         }
+        let first_rejection = values.is_empty().then_some(first_rejection).flatten();
         MaterializationOutcomeFor {
             values,
             cycle_pruned,
+            first_rejection,
         }
     }
 
@@ -236,9 +290,9 @@ where
         state: &mut MaterializationStateFor<V, C, K, M, T, Owner>,
         rule_path: &mut Vec<R>,
         observation: &mut O,
-    ) -> MaterializationOutcomeFor<V, C, K, M, T, Owner>
+    ) -> MaterializationOutcomeFor<V, C, K, M, T, Owner, E>
     where
-        O: MaterializationObservation<R>,
+        O: MaterializationObservation<R, E>,
         Owner: Clone + PartialEq,
     {
         let rule = &self.rules[(self.rule_index)(rule_id)];
@@ -248,11 +302,15 @@ where
         }
         let mut combinations = vec![Vec::new()];
         let mut cycle_pruned = false;
+        let mut first_rejection = None;
         for child in &family.children {
             let child_values = match child {
                 Child::Node(id) => {
                     let outcome = self.materialize_node(forest, *id, state, rule_path, observation);
                     cycle_pruned |= outcome.cycle_pruned;
+                    if first_rejection.is_none() {
+                        first_rejection = outcome.first_rejection;
+                    }
                     outcome.values
                 }
                 Child::Lexical(lexical) => vec![MaterializedCandidate {
@@ -278,47 +336,58 @@ where
                 .iter()
                 .map(|child| child.value.clone())
                 .collect::<Vec<_>>();
-            if let Some(value) = (self.build)(rule_id, &child_values) {
-                let mut constructions = public_construction.into_iter().collect::<Vec<_>>();
-                let mut positions = if public_construction.is_some() {
-                    rule.rhs
-                        .iter()
-                        .map(|position| match *position {
-                            RulePosition::Nonterminal(category) => {
-                                RulePosition::Nonterminal(category)
-                            }
-                            RulePosition::Lexical(lexical) => {
-                                RulePosition::Lexical((self.lexical_matcher)(lexical))
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                } else {
-                    Vec::new()
-                };
-                let mut claims = Vec::new();
-                for child in children {
-                    constructions.extend(child.constructions);
-                    positions.extend(child.positions);
-                    claims.extend(child.claims);
+            match (self.build)(rule_id, &child_values) {
+                Ok(Some(value)) => {
+                    let mut constructions = public_construction.into_iter().collect::<Vec<_>>();
+                    let mut positions = if public_construction.is_some() {
+                        rule.rhs
+                            .iter()
+                            .map(|position| match *position {
+                                RulePosition::Nonterminal(category) => {
+                                    RulePosition::Nonterminal(category)
+                                }
+                                RulePosition::Lexical(lexical) => {
+                                    RulePosition::Lexical((self.lexical_matcher)(lexical))
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                    } else {
+                        Vec::new()
+                    };
+                    let mut claims = Vec::new();
+                    for child in children {
+                        constructions.extend(child.constructions);
+                        positions.extend(child.positions);
+                        claims.extend(child.claims);
+                    }
+                    claims.sort_by_key(|claim| (claim.span.start, claim.span.end));
+                    push_unique(
+                        &mut values,
+                        MaterializedCandidate {
+                            value,
+                            constructions,
+                            positions,
+                            claims,
+                        },
+                    );
                 }
-                claims.sort_by_key(|claim| (claim.span.start, claim.span.end));
-                push_unique(
-                    &mut values,
-                    MaterializedCandidate {
-                        value,
-                        constructions,
-                        positions,
-                        claims,
-                    },
-                );
+                Ok(None) => {}
+                Err(rejection) => {
+                    if first_rejection.is_none() {
+                        first_rejection = Some(rejection);
+                    }
+                    observation.build_rejected(rule_path, &rejection);
+                }
             }
         }
         if O::ENABLED {
             rule_path.pop();
         }
+        let first_rejection = values.is_empty().then_some(first_rejection).flatten();
         MaterializationOutcomeFor {
             values,
             cycle_pruned,
+            first_rejection,
         }
     }
 }
@@ -342,7 +411,7 @@ where
     M: Clone + PartialEq,
     T: Clone + PartialEq,
     O: Clone + PartialEq,
-    Build: Fn(R, &[V]) -> Option<V>,
+    Build: Fn(R, &[V]) -> Result<Option<V>, BuildRejection>,
 {
     MaterializationKernel {
         rules,
@@ -351,8 +420,49 @@ where
         lexical_matcher,
         build_leaf,
         build,
+        rejection: std::marker::PhantomData,
     }
     .materialize(forest, &mut ())
+    .values
+}
+
+#[cfg(test)]
+type MaterializedRejectionOutput<V, C, K, M, T, O, E> =
+    (Vec<MaterializedCandidate<V, C, K, M, T, O>>, Option<E>);
+
+#[cfg(test)]
+pub(super) fn materialize_with_rejection<R, T, O, V, C, K, L, M, Build, E>(
+    forest: &Forest<R, T, O>,
+    rules: &[Rule<K, L, R>],
+    rule_index: fn(R) -> usize,
+    public_construction: fn(R) -> Option<C>,
+    lexical_matcher: fn(L) -> M,
+    build_leaf: fn(&T) -> V,
+    build: Build,
+) -> MaterializedRejectionOutput<V, C, K, M, T, O, E>
+where
+    R: Copy,
+    V: Clone + PartialEq,
+    C: Copy + PartialEq,
+    K: Copy + PartialEq + 'static,
+    L: Copy + 'static,
+    M: Clone + PartialEq,
+    T: Clone + PartialEq,
+    O: Clone + PartialEq,
+    E: Copy,
+    Build: Fn(R, &[V]) -> Result<Option<V>, E>,
+{
+    let result = MaterializationKernel {
+        rules,
+        rule_index,
+        public_construction,
+        lexical_matcher,
+        build_leaf,
+        build,
+        rejection: std::marker::PhantomData,
+    }
+    .materialize(forest, &mut ());
+    (result.values, result.first_rejection)
 }
 
 #[cfg(test)]
@@ -370,6 +480,15 @@ impl<R: Copy> MaterializationObservation<R> for ProjectedMaterializationTrace<'_
         self.builder.record_cycle_with(
             node_id.0,
             rule_path,
+            |rule| (self.identity)(*rule),
+            |rule| (self.label)(*rule),
+        );
+    }
+
+    fn build_rejected(&mut self, rule_path: &[R], rejection: &BuildRejection) {
+        self.builder.record_build_rejection_with(
+            rule_path,
+            *rejection,
             |rule| (self.identity)(*rule),
             |rule| (self.label)(*rule),
         );
@@ -407,7 +526,7 @@ where
     M: Clone + PartialEq,
     T: Clone + PartialEq,
     O: Clone + PartialEq,
-    Build: Fn(R, &[V]) -> Option<V>,
+    Build: Fn(R, &[V]) -> Result<Option<V>, BuildRejection>,
 {
     let mut builder = MaterializationTraceBuilder::new(limits);
     let values = MaterializationKernel {
@@ -417,6 +536,7 @@ where
         lexical_matcher,
         build_leaf,
         build,
+        rejection: std::marker::PhantomData,
     }
     .materialize(
         forest,
@@ -425,15 +545,16 @@ where
             identity: rule_index,
             label,
         },
-    );
+    )
+    .values;
     (values, builder.finish())
 }
 
-pub(crate) fn materialize<R: GeneratedParseRoot>(
+pub(crate) fn materialize_checked<R: GeneratedParseRoot>(
     forest: &RootForest,
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
-) -> Vec<Candidate<R>> {
+) -> MaterializationResult<R> {
     #[cfg(test)]
     super::count_pipeline_stage(super::PipelineStage::Materialize);
     let rules = rules_for_root::<R>();
@@ -444,17 +565,25 @@ pub(crate) fn materialize<R: GeneratedParseRoot>(
         lexical_matcher: |terminal: LexicalTerminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
         build: |rule, children: &[BuildValue]| build_root_rule(rule, children, context),
+        rejection: std::marker::PhantomData,
     }
     .materialize(forest.forest(), &mut ());
-    finalize_candidates::<R>(built, context, environment, None)
+    let candidates = finalize_candidates::<R>(built.values, context, environment, None);
+    MaterializationResult {
+        first_rejection: candidates
+            .is_empty()
+            .then_some(built.first_rejection)
+            .flatten(),
+        candidates,
+    }
 }
 
-pub(crate) fn materialize_observed<R: GeneratedParseRoot>(
+pub(crate) fn materialize_observed_checked<R: GeneratedParseRoot>(
     forest: &RootForest,
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
     limits: TraceLimits,
-) -> (Vec<Candidate<R>>, MaterializationTrace) {
+) -> (MaterializationResult<R>, MaterializationTrace) {
     #[cfg(test)]
     super::count_pipeline_stage(super::PipelineStage::Materialize);
     let mut observation = MaterializationTraceBuilder::new(limits);
@@ -466,15 +595,46 @@ pub(crate) fn materialize_observed<R: GeneratedParseRoot>(
         lexical_matcher: |terminal: LexicalTerminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
         build: |rule, children: &[BuildValue]| build_root_rule(rule, children, context),
+        rejection: std::marker::PhantomData,
     }
     .materialize(forest.forest(), &mut observation);
     let candidates = finalize_candidates::<R>(
-        built,
+        built.values,
         context,
         environment,
         Some((&mut observation, limits)),
     );
-    (candidates, observation.finish())
+    let first_rejection = candidates
+        .is_empty()
+        .then_some(built.first_rejection)
+        .flatten();
+    (
+        MaterializationResult {
+            candidates,
+            first_rejection,
+        },
+        observation.finish(),
+    )
+}
+
+#[cfg(test)]
+fn materialize<R: GeneratedParseRoot>(
+    forest: &RootForest,
+    context: &ParseContext<'_>,
+    environment: &crate::environment::ParserEnvironment,
+) -> Vec<Candidate<R>> {
+    materialize_checked(forest, context, environment).candidates
+}
+
+#[cfg(test)]
+fn materialize_observed<R: GeneratedParseRoot>(
+    forest: &RootForest,
+    context: &ParseContext<'_>,
+    environment: &crate::environment::ParserEnvironment,
+    limits: TraceLimits,
+) -> (Vec<Candidate<R>>, MaterializationTrace) {
+    let (result, trace) = materialize_observed_checked(forest, context, environment, limits);
+    (result.candidates, trace)
 }
 
 fn finalize_candidates<R: GeneratedParseRoot>(
@@ -577,15 +737,17 @@ fn build_root_rule(
     rule: RootRuleId,
     children: &[BuildValue],
     context: &ParseContext<'_>,
-) -> Option<BuildValue> {
+) -> Result<Option<BuildValue>, BuildRejection> {
     match rule {
-        RootRuleId::Grammar(rule) => build(rule, children, context),
+        RootRuleId::Grammar(rule) => build_checked(rule, children, context),
         RootRuleId::Adapter => {
-            let (value, adapter) = children.split_first()?;
-            adapter
+            let Some((value, adapter)) = children.split_first() else {
+                return Ok(None);
+            };
+            Ok(adapter
                 .iter()
                 .all(|value| matches!(value, BuildValue::Leaf(_)))
-                .then(|| value.clone())
+                .then(|| value.clone()))
         }
     }
 }
@@ -613,7 +775,8 @@ fn materialize_node(
         public_construction: RuleId::public_construction,
         lexical_matcher: |terminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-        build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
+        build: |rule: RuleId, children: &[BuildValue]| build_checked(rule, children, context),
+        rejection: std::marker::PhantomData,
     };
     kernel.materialize_node(forest, node_id, state, &mut Vec::new(), &mut ())
 }
@@ -624,7 +787,7 @@ pub(super) fn completion_has_checked_build(
     family: &Family<Leaf, LexicalOwner>,
     forest: &Forest<RootRuleId, Leaf, LexicalOwner>,
     context: &ParseContext<'_>,
-) -> bool {
+) -> super::engine::CompletionDisposition<BuildRejection> {
     let kernel: MaterializationKernel<
         '_,
         RootRuleId,
@@ -642,25 +805,30 @@ pub(super) fn completion_has_checked_build(
         lexical_matcher: |terminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
         build: |rule, children: &[BuildValue]| build_root_rule(rule, children, context),
+        rejection: std::marker::PhantomData,
     };
-    !kernel
-        .materialize_family(
-            forest,
-            rule,
-            family,
-            &mut MaterializationStateFor::<
-                BuildValue,
-                Construction,
-                Category,
-                Lexical,
-                Leaf,
-                LexicalOwner,
-            >::default(),
-            &mut Vec::new(),
-            &mut (),
-        )
-        .values
-        .is_empty()
+    let outcome = kernel.materialize_family(
+        forest,
+        rule,
+        family,
+        &mut MaterializationStateFor::<
+            BuildValue,
+            Construction,
+            Category,
+            Lexical,
+            Leaf,
+            LexicalOwner,
+        >::default(),
+        &mut Vec::new(),
+        &mut (),
+    );
+    if !outcome.values.is_empty() {
+        super::engine::CompletionDisposition::Accepted
+    } else if let Some(rejection) = outcome.first_rejection {
+        super::engine::CompletionDisposition::DeferredBuildRejection(rejection)
+    } else {
+        super::engine::CompletionDisposition::Rejected
+    }
 }
 
 fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) -> bool {
@@ -801,7 +969,7 @@ mod tests {
                 &adapter_children,
                 &context("Context Card"),
             ),
-            Some(value.clone()),
+            Ok(Some(value.clone())),
         );
         assert_eq!(
             build_root_rule(
@@ -809,7 +977,7 @@ mod tests {
                 &[value.clone(), value],
                 &context("Context Card"),
             ),
-            None,
+            Ok(None),
             "a second semantic child cannot be hidden behind the root adapter",
         );
     }

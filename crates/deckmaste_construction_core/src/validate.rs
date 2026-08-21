@@ -7,6 +7,7 @@ use syn::spanned::Spanned;
 use crate::feature;
 use crate::feature::Feature;
 use crate::identifier::BUILD_FUNCTION;
+use crate::identifier::CHECKED_BUILD_FUNCTION;
 use crate::identifier::FIXED_RUNTIME_TYPE_NAMES;
 use crate::identifier::RULE_CATEGORY_TYPE;
 use crate::identifier::RULE_CONSTRUCTION_TYPE;
@@ -2724,6 +2725,10 @@ fn generated_name_inventory(
     for (name, role) in [
         (RULES_CONSTANT, "fixed generated rules table constant"),
         (BUILD_FUNCTION, "fixed generated build function"),
+        (
+            CHECKED_BUILD_FUNCTION,
+            "fixed generated checked-build function",
+        ),
         (
             SEQUENCE_SEPARATOR_FUNCTION,
             "fixed generated structural separator lookup",
@@ -10752,7 +10757,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 98);
+        assert_eq!(expansion.plan().items().len(), 104);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -11094,7 +11099,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 98);
+        assert_eq!(expansion.plan().items().len(), 104);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -11226,7 +11231,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 98);
+        assert_eq!(emission.items().len(), 104);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,
