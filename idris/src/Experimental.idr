@@ -2434,6 +2434,7 @@ mutual
     MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing) :: bs
   selfSubjIntro (AttachHost _ PermanentW) =
     MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing) :: bs
+  selfSubjIntro (AttachHost _ PlayerW) = MkBinding TheD Player OneOf PlayerP :: bs
   selfSubjIntro n = nomIntro n
 
   public export
@@ -2529,27 +2530,7 @@ mutual
 
   public export
   Interceptable : GameEvent bs -> Type
-  Interceptable {bs} ev = So (admitsIntercept (eventUse (eventName ev)))
-
-  public export
-  Holdable : GameEvent bs -> Type
-  Holdable {bs} ev = So (admitsHold (eventUse (eventName ev)))
-
-  public export
-  Triggerable : GameEvent bs -> Type
-  Triggerable {bs} ev = So (admitsTrigger (eventUse (eventName ev)))
-
-  public export
-  Awaitable : GameEvent bs -> Type
-  Awaitable {bs} ev = So (admitsDelay (eventUse (eventName ev)))
-
-  public export
-  ReplUseOk : GameEvent bs -> ReplUse -> Type
-  ReplUseOk {bs} ev u = So (replUseOk (eventName ev) u)
-
-  public export
-  TriggerWordOk : GameEvent bs -> TriggerWord -> Type
-  TriggerWordOk {bs} ev w = So (triggerWordOk (eventName ev) w)
+  Interceptable {bs} ev = So (interceptOk (eventName ev))
 
   ||| The nouns a trigger header writes as a possessive: the attachment
   ||| anaphor the Curses print ("enchanted player's upkeep"), and no other.
@@ -2804,10 +2785,9 @@ mutual
             {auto 0 gr : Grantable ab} -> StaticEffect bs
     Deontic : (n : Noun bs Object) -> (c : Compulsion bs) ->
               (deed : Deed) -> (role : Role) ->
-              (patient : Maybe (Noun (nomIntro n) Object)) ->
+              (patient : DeonticPatient {bs = nomIntro n} deed role) ->
               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-              {auto 0 dp : DeedParticipant deed role (nounTy n)} ->
-              {auto 0 pt : DeonticPatient (compulsionTag c) deed role patient} -> StaticEffect bs
+              {auto 0 dp : DeedParticipant deed role (nounTy n)} -> StaticEffect bs
     MayDeclineUntap : (n : Noun bs Object) ->
                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                       StaticEffect bs
@@ -2872,8 +2852,7 @@ mutual
                    {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} -> StaticEffect bs
     Intercepts : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                  (use : ReplUse) ->
-                 {auto 0 ok : Interceptable ev} ->
-                 {auto 0 uo : ReplUseOk ev use} -> StaticEffect bs
+                 {auto 0 ok : Interceptable ev} -> StaticEffect bs
     Prevents : (kind : DamageKind) -> (size : Shield bs) ->
                (scope : DamageScope (shieldIntro size)) ->
                (by : Maybe (Noun (scopeIntro scope) Object)) ->
@@ -2954,21 +2933,18 @@ mutual
     Require : Compulsion bs
     GatedBy : (c : Cost bs) -> Compulsion bs
 
+  ||| The deed's other participant, written or left out. [CR#506.3]
+  ||| fixes who that may be: only a player, a planeswalker or a battle
+  ||| is attacked, and only a creature attacks or blocks.
   public export
-  compulsionTag : {0 bs : Bindings} -> Compulsion bs -> CompTag
-  compulsionTag Forbid = ForbidT
-  compulsionTag Require = RequireT
-  compulsionTag (GatedBy _) = GateT
-
-  public export
-  data DeonticPatient : {0 bs : Bindings} -> CompTag -> Deed -> Role ->
-                        Maybe (Noun bs Object) -> Type where
-    NoDeonticPatient : {auto 0 ok : So (notRequired (deonticPatientOk t d r))} ->
-                       DeonticPatient t d r Nothing
-    DeonticPatientWritten : {0 m : Noun bs Object} ->
-                            {auto 0 ok : So (admitsPatient (deonticPatientOk t d r))} ->
-                            {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
-                            DeonticPatient t d r (Just m)
+  data DeonticPatient : {0 bs : Bindings} -> Deed -> Role -> Type where
+    NoDeonticPatient : DeonticPatient {bs} d r
+    ||| The player an attack is aimed at [CR#506.3].
+    DefendingPlayer : (m : Noun bs Player) -> DeonticPatient {bs} Attack Agent
+    DeonticCounterpart : (m : Noun bs Object) ->
+                         {auto 0 dp : DeedParticipant d (counterRole r) (nounTy m)} ->
+                         {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
+                         DeonticPatient {bs} d r
 
   public export
   notConditional : {0 bs : Bindings} -> StaticEffect bs -> Bool
@@ -3172,7 +3148,7 @@ mutual
   staticIntro (CantUntapMoreThan _ _ _) = bs
   staticIntro (Skips _ _) = bs
   staticIntro (MayDeclineUntap n) = selfSubjIntro n
-  staticIntro (OutcomeGate _ who) = nomIntro who
+  staticIntro (OutcomeGate _ who) = selfSubjIntro who
   staticIntro (PlayerCant _ who) = nomIntro who
   staticIntro (ObjectCant _ what) = nomIntro what
   staticIntro (BecomesAlso n _) = selfSubjIntro n
@@ -3556,15 +3532,13 @@ mutual
     Delayed : (ev : GameEvent bs) ->
               {default Nothing span : Maybe (Duration bs)} ->
               Effect (delayedCtx ev) ->
-              {auto 0 aw : Awaitable ev} ->
               {auto 0 one : eventSubjectPlur ev = OneOf} ->
               {auto 0 so : DelaySpanOk span} -> Effect bs
     InsteadOf : (replaced : Effect bs) -> (repl : Effect (annIntro replaced)) ->
                 {auto 0 na : NotInstead replaced} ->
                 {auto 0 nb : NotInstead repl} -> Effect bs
     HeldUntil : (e : Effect bs) -> (ev : GameEvent (annIntro e)) ->
-                {auto 0 ok : HeldClause e} ->
-                {auto 0 hd : Holdable ev} -> Effect bs
+                {auto 0 ok : HeldClause e} -> Effect bs
     Reflexively : (body : Effect bs) -> (trig : Effect (reflexCtx body)) ->
                   {auto 0 en : ReflexEnclosure body} -> Effect bs
 
@@ -3648,10 +3622,6 @@ mutual
       ||| nothing has "occurred earlier during the resolution" [CR#603.12].
       EncNotYetTaken
     | ||| A player's own single action.
-      EncUnattested
-    | ||| Real oracle enclosure this vocabulary cannot yet express.
-      EncUnclaimed
-    |
       EncReflexive
 
   public export
@@ -3664,33 +3634,30 @@ mutual
   reflexEncloseUse (Distribute _ _ _) = EncAgentless
   reflexEncloseUse (Fights _ _) = EncAgentless
   reflexEncloseUse (ChangeLife _ _) = EncAgentless
-  reflexEncloseUse (Continuously (GainsControl _ _) _) = EncUnclaimed
+  reflexEncloseUse (Continuously (GainsControl _ _) _) = EncReflexive
   reflexEncloseUse (Continuously _ _) = EncAgentless
   reflexEncloseUse (Does _ _ _) = EncReflexive
   reflexEncloseUse (Pay _ _) = EncReflexive        -- 66, all of them offered
   reflexEncloseUse (Composite _ _) = EncReflexive  -- 51, every one an exile
-  reflexEncloseUse (SetStatus Tapped _) = EncReflexive
-  reflexEncloseUse (SetStatus Untapped _) = EncUnattested
-  reflexEncloseUse (SetStatus Flipped _) = EncUnattested
-  reflexEncloseUse (SetStatus Unflipped _) = EncUnattested
-  reflexEncloseUse (SetStatus FaceUp _) = EncUnattested
-  reflexEncloseUse (SetStatus FaceDown _) = EncUnattested
+  -- a player is told to tap, untap, flip or turn it: the pro-verb has
+  -- a subject. Phasing has none — the permanent phases by itself.
   reflexEncloseUse (SetStatus PhasedIn _) = EncAgentless
   reflexEncloseUse (SetStatus PhasedOut _) = EncAgentless
+  reflexEncloseUse (SetStatus _ _) = EncReflexive
   reflexEncloseUse (GetsCounters _ _ _) = EncAgentless
   reflexEncloseUse (LosesAllCounters _ _) = EncAgentless
-  reflexEncloseUse (RemoveFromCombat _) = EncUnattested
-  reflexEncloseUse (Regenerate _) = EncUnattested
-  reflexEncloseUse (CantBe _ _ _) = EncUnattested
-  reflexEncloseUse (GainsDesignation _ _ _) = EncUnattested
+  reflexEncloseUse (RemoveFromCombat _) = EncReflexive
+  reflexEncloseUse (Regenerate _) = EncReflexive
+  reflexEncloseUse (CantBe _ _ _) = EncAgentless
+  reflexEncloseUse (GainsDesignation _ _ _) = EncAgentless
   reflexEncloseUse (GameBecomes _) = EncAgentless
   reflexEncloseUse (Concludes _ _) = EncAgentless
   reflexEncloseUse GameDrawn = EncAgentless
-  reflexEncloseUse (CounterSpell _) = EncUnattested
-  reflexEncloseUse (CopyStack _ _ _ _) = EncUnattested
-  reflexEncloseUse (ChooseNewTargets _) = EncUnattested
+  reflexEncloseUse (CounterSpell _) = EncReflexive
+  reflexEncloseUse (CopyStack _ _ _ _) = EncReflexive
+  reflexEncloseUse (ChooseNewTargets _) = EncReflexive
   reflexEncloseUse (Create _ _ _ _) = EncReflexive -- 8
-  reflexEncloseUse (GetsEmblem _ _) = EncUnattested
+  reflexEncloseUse (GetsEmblem _ _) = EncAgentless
   reflexEncloseUse (PutCounters _ _ _) = EncReflexive    -- 8
   reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive -- 7
   reflexEncloseUse (Move _ _) = EncReflexive       -- 3
@@ -3698,9 +3665,11 @@ mutual
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
   reflexEncloseUse (Draw _ _) = EncReflexive       -- 1 ([CR#121.1]: a PLAYER draws)
   reflexEncloseUse (Choose _) = EncReflexive       -- 1
-  reflexEncloseUse (Search _ _ _) = EncUnattested
-  reflexEncloseUse (Shuffle _) = EncUnattested
-  reflexEncloseUse (May _ body Nothing Nothing) = reflexEncloseUse body
+  reflexEncloseUse (Search _ _ _) = EncReflexive
+  reflexEncloseUse (Shuffle _) = EncReflexive
+  -- [CR#603.12] writes the reflexive over what a player did or didn't
+  -- do, so a declined arm leaves one offered action to inflect.
+  reflexEncloseUse (May _ body Nothing _) = reflexEncloseUse body
   reflexEncloseUse (May _ _ _ _) = EncNotOneAction
   reflexEncloseUse (If _ _ _) = EncNotOneAction
   reflexEncloseUse (WhereLetter _ _ _) = EncNotOneAction
@@ -3719,8 +3688,6 @@ mutual
   admitsReflexEnclosure EncAgentless = False
   admitsReflexEnclosure EncNotOneAction = False
   admitsReflexEnclosure EncNotYetTaken = False
-  admitsReflexEnclosure EncUnattested = False
-  admitsReflexEnclosure EncUnclaimed = False
   admitsReflexEnclosure EncReflexive = True
 
   public export
@@ -4725,88 +4692,15 @@ mutual
   simPres (e :: []) = preIntro e
   simPres (e :: es) = simPres es
 
+  ||| [CR#500.1] runs every phase and step on every turn, so a part in
+  ||| a named player's turn picks out a real span. A bare turn picks out
+  ||| none: every moment of the game is during some turn. And a window
+  ||| introduces no turn, so the deictic possessor reaches no antecedent.
   public export
   windowOk : TurnPart -> Maybe Owner -> Bool
   windowOk Turn Nothing = False
-  windowOk Turn (Just Yours) = True
-  windowOk Turn (Just ThatPlayers) = False
-  windowOk Turn (Just EachPlayers) = False
-  windowOk Turn (Just EachOpponents) = False
-  windowOk Turn (Just EachYours) = False
-  windowOk Turn (Just AnOpponents) = True
-  windowOk Turn (Just ThatTurns) = False
-  windowOk Upkeep Nothing = False
-  windowOk Upkeep (Just Yours) = True
-  windowOk Upkeep (Just ThatPlayers) = False
-  windowOk Upkeep (Just EachPlayers) = True
-  windowOk Upkeep (Just EachOpponents) = False
-  windowOk Upkeep (Just EachYours) = False
-  windowOk Upkeep (Just AnOpponents) = True
-  windowOk Upkeep (Just ThatTurns) = False
-  windowOk EndStep Nothing = False
-  windowOk EndStep (Just Yours) = False
-  windowOk EndStep (Just ThatPlayers) = False
-  windowOk EndStep (Just EachPlayers) = False
-  windowOk EndStep (Just EachOpponents) = False
-  windowOk EndStep (Just EachYours) = False
-  windowOk EndStep (Just AnOpponents) = False
-  windowOk EndStep (Just ThatTurns) = False
-  windowOk Combat Nothing = True
-  windowOk Combat (Just Yours) = False
-  windowOk Combat (Just ThatPlayers) = False
-  windowOk Combat (Just EachPlayers) = False
-  windowOk Combat (Just EachOpponents) = False
-  windowOk Combat (Just EachYours) = False
-  windowOk Combat (Just AnOpponents) = False
-  windowOk Combat (Just ThatTurns) = False
-  windowOk UntapStep Nothing = False
-  windowOk UntapStep (Just Yours) = False
-  windowOk UntapStep (Just ThatPlayers) = False
-  windowOk UntapStep (Just EachPlayers) = False
-  windowOk UntapStep (Just EachOpponents) = False
-  windowOk UntapStep (Just EachYours) = False
-  windowOk UntapStep (Just AnOpponents) = False
-  windowOk UntapStep (Just ThatTurns) = False
-  windowOk EndOfCombat Nothing = False
-  windowOk EndOfCombat (Just Yours) = False
-  windowOk EndOfCombat (Just ThatPlayers) = False
-  windowOk EndOfCombat (Just EachPlayers) = False
-  windowOk EndOfCombat (Just EachOpponents) = False
-  windowOk EndOfCombat (Just EachYours) = False
-  windowOk EndOfCombat (Just AnOpponents) = False
-  windowOk EndOfCombat (Just ThatTurns) = False
-  windowOk FirstMain Nothing = False
-  windowOk FirstMain (Just Yours) = False
-  windowOk FirstMain (Just ThatPlayers) = False
-  windowOk FirstMain (Just EachPlayers) = False
-  windowOk FirstMain (Just EachOpponents) = False
-  windowOk FirstMain (Just EachYours) = False
-  windowOk FirstMain (Just AnOpponents) = False
-  windowOk FirstMain (Just ThatTurns) = False
-  windowOk PostcombatMain Nothing = False
-  windowOk PostcombatMain (Just Yours) = False
-  windowOk PostcombatMain (Just ThatPlayers) = False
-  windowOk PostcombatMain (Just EachPlayers) = False
-  windowOk PostcombatMain (Just EachOpponents) = False
-  windowOk PostcombatMain (Just EachYours) = False
-  windowOk PostcombatMain (Just AnOpponents) = False
-  windowOk PostcombatMain (Just ThatTurns) = False
-  windowOk DrawStep Nothing = False
-  windowOk DrawStep (Just Yours) = False
-  windowOk DrawStep (Just ThatPlayers) = False
-  windowOk DrawStep (Just EachPlayers) = False
-  windowOk DrawStep (Just EachOpponents) = False
-  windowOk DrawStep (Just EachYours) = False
-  windowOk DrawStep (Just AnOpponents) = False
-  windowOk DrawStep (Just ThatTurns) = False
-  windowOk MainPhase Nothing = False
-  windowOk MainPhase (Just Yours) = False
-  windowOk MainPhase (Just ThatPlayers) = False
-  windowOk MainPhase (Just EachPlayers) = False
-  windowOk MainPhase (Just EachOpponents) = False
-  windowOk MainPhase (Just EachYours) = False
-  windowOk MainPhase (Just AnOpponents) = False
-  windowOk MainPhase (Just ThatTurns) = False
+  windowOk _ (Just ThatTurns) = False
+  windowOk _ _ = True
 
   public export
   WindowOk : TurnPart -> Maybe Owner -> Type
@@ -4825,96 +4719,9 @@ mutual
   PointWindowOk pt w = So (pointWindowOk pt w)
 
   public export
-  headerWindowOk : TurnPart -> Maybe Owner -> Bool
-  headerWindowOk Turn Nothing = False
-  headerWindowOk Turn (Just Yours) = True
-  headerWindowOk Turn (Just ThatPlayers) = True
-  headerWindowOk Turn (Just EachPlayers) = False
-  headerWindowOk Turn (Just EachOpponents) = True
-  headerWindowOk Turn (Just EachYours) = True
-  headerWindowOk Turn (Just AnOpponents) = True
-  headerWindowOk Turn (Just ThatTurns) = False
-  headerWindowOk Upkeep Nothing = False
-  headerWindowOk Upkeep (Just Yours) = False
-  headerWindowOk Upkeep (Just ThatPlayers) = False
-  headerWindowOk Upkeep (Just EachPlayers) = False
-  headerWindowOk Upkeep (Just EachOpponents) = False
-  headerWindowOk Upkeep (Just EachYours) = False
-  headerWindowOk Upkeep (Just AnOpponents) = False
-  headerWindowOk Upkeep (Just ThatTurns) = False
-  headerWindowOk EndStep Nothing = False
-  headerWindowOk EndStep (Just Yours) = False
-  headerWindowOk EndStep (Just ThatPlayers) = False
-  headerWindowOk EndStep (Just EachPlayers) = False
-  headerWindowOk EndStep (Just EachOpponents) = False
-  headerWindowOk EndStep (Just EachYours) = False
-  headerWindowOk EndStep (Just AnOpponents) = False
-  headerWindowOk EndStep (Just ThatTurns) = False
-  headerWindowOk Combat Nothing = True
-  headerWindowOk Combat (Just Yours) = False
-  headerWindowOk Combat (Just ThatPlayers) = False
-  headerWindowOk Combat (Just EachPlayers) = False
-  headerWindowOk Combat (Just EachOpponents) = False
-  headerWindowOk Combat (Just EachYours) = False
-  headerWindowOk Combat (Just AnOpponents) = False
-  headerWindowOk Combat (Just ThatTurns) = False
-  headerWindowOk UntapStep Nothing = False
-  headerWindowOk UntapStep (Just Yours) = True
-  headerWindowOk UntapStep (Just ThatPlayers) = False
-  headerWindowOk UntapStep (Just EachPlayers) = False
-  headerWindowOk UntapStep (Just EachOpponents) = False
-  headerWindowOk UntapStep (Just EachYours) = False
-  headerWindowOk UntapStep (Just AnOpponents) = False
-  headerWindowOk UntapStep (Just ThatTurns) = False
-  headerWindowOk EndOfCombat Nothing = False
-  headerWindowOk EndOfCombat (Just Yours) = False
-  headerWindowOk EndOfCombat (Just ThatPlayers) = False
-  headerWindowOk EndOfCombat (Just EachPlayers) = False
-  headerWindowOk EndOfCombat (Just EachOpponents) = False
-  headerWindowOk EndOfCombat (Just EachYours) = False
-  headerWindowOk EndOfCombat (Just AnOpponents) = False
-  headerWindowOk EndOfCombat (Just ThatTurns) = False
-  headerWindowOk FirstMain Nothing = False
-  headerWindowOk FirstMain (Just Yours) = False
-  headerWindowOk FirstMain (Just ThatPlayers) = False
-  headerWindowOk FirstMain (Just EachPlayers) = False
-  headerWindowOk FirstMain (Just EachOpponents) = False
-  headerWindowOk FirstMain (Just EachYours) = False
-  headerWindowOk FirstMain (Just AnOpponents) = False
-  headerWindowOk FirstMain (Just ThatTurns) = False
-  headerWindowOk PostcombatMain Nothing = False
-  headerWindowOk PostcombatMain (Just Yours) = False
-  headerWindowOk PostcombatMain (Just ThatPlayers) = False
-  headerWindowOk PostcombatMain (Just EachPlayers) = False
-  headerWindowOk PostcombatMain (Just EachOpponents) = False
-  headerWindowOk PostcombatMain (Just EachYours) = False
-  headerWindowOk PostcombatMain (Just AnOpponents) = False
-  headerWindowOk PostcombatMain (Just ThatTurns) = False
-  headerWindowOk DrawStep Nothing = False
-  headerWindowOk DrawStep (Just Yours) = False
-  headerWindowOk DrawStep (Just ThatPlayers) = False
-  headerWindowOk DrawStep (Just EachPlayers) = False
-  headerWindowOk DrawStep (Just EachOpponents) = False
-  headerWindowOk DrawStep (Just EachYours) = True
-  headerWindowOk DrawStep (Just AnOpponents) = False
-  headerWindowOk DrawStep (Just ThatTurns) = False
-  headerWindowOk MainPhase Nothing = False
-  headerWindowOk MainPhase (Just Yours) = True
-  headerWindowOk MainPhase (Just ThatPlayers) = False
-  headerWindowOk MainPhase (Just EachPlayers) = False
-  headerWindowOk MainPhase (Just EachOpponents) = False
-  headerWindowOk MainPhase (Just EachYours) = False
-  headerWindowOk MainPhase (Just AnOpponents) = False
-  headerWindowOk MainPhase (Just ThatTurns) = False
-
-  public export
-  HeaderWindowOk : TurnPart -> Maybe Owner -> Type
-  HeaderWindowOk p w = So (headerWindowOk p w)
-
-  public export
   data TriggerWindow : Type where
     DuringWindow : (p : TurnPart) -> (w : Maybe Owner) ->
-                   {auto 0 hw : HeaderWindowOk p w} -> TriggerWindow
+                   {auto 0 hw : WindowOk p w} -> TriggerWindow
 
   public export
   data Timing : Type where
@@ -4943,9 +4750,7 @@ mutual
   data AltEvent : TriggerWord -> Maybe (GameEvent bs) -> Type where
     NoAlt : AltEvent w Nothing
     OneAlt : {0 e : GameEvent bs} ->
-             {auto 0 tr : Triggerable e} ->
-             {auto 0 hn : HeaderNontarget e} ->
-             {auto 0 wo : TriggerWordOk e w} -> AltEvent w (Just e)
+             {auto 0 hn : HeaderNontarget e} -> AltEvent w (Just e)
 
   public export
   headerCtx : {bs : Bindings} -> Maybe (GameEvent bs) -> GameEvent bs -> Bindings
@@ -5008,9 +4813,7 @@ mutual
                 {default Nothing limit : Maybe UsageLimit} ->
                 {default Nothing intervening : Maybe (Condition (headerCtx alt ev))} ->
                 (eff : Effect (interveningIntro intervening)) ->
-                {auto 0 tr : Triggerable ev} ->
                 {auto 0 hn : HeaderNontarget ev} ->
-                {auto 0 wo : TriggerWordOk ev word} ->
                 {auto 0 ae : AltEvent word alt} ->
                 {auto 0 cd : ChapterDefaults ev alt window limit intervening} ->
                 AbilityAt bs

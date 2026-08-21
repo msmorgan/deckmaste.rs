@@ -106,83 +106,15 @@ sameLookback LastTurn _ = False
 sameLookback ThisGame ThisGame = True
 sameLookback ThisGame _ = False
 
+||| [CR#614.1] hangs a replacement effect on an event that would
+||| happen. A chapter's arrival is not an event: the chapter symbol is a
+||| keyword ability standing for a triggered ability [CR#107.15], and the
+||| event a replacement reaches there is the lore counter's placement
+||| [CR#714.2b].
 public export
-data EventUse = EventUnattested | EventUnclaimed | TriggeredOnly
-              | InterceptedAndTriggered | InterceptedTriggeredAndDelayed
-              | HeldTriggeredAndDelayed | TriggeredAndDelayed
-
-public export
-eventUse : EventName -> EventUse
-eventUse Death = InterceptedTriggeredAndDelayed
-eventUse Departure = HeldTriggeredAndDelayed
-eventUse Destruction = EventUnclaimed
-eventUse DamageTaken = TriggeredOnly
-eventUse CardDrawn = InterceptedAndTriggered
-eventUse GameLoss = InterceptedAndTriggered
-eventUse Entry = InterceptedAndTriggered
-eventUse AttackDeclaration = TriggeredOnly
-eventUse BlockDeclaration = TriggeredOnly
-eventUse CombatDamage = TriggeredOnly
-eventUse PartBeginning = TriggeredAndDelayed
-eventUse SpellCast = TriggeredOnly
-eventUse StatusChange = TriggeredOnly
-eventUse TurnedFaceUp = TriggeredOnly
-eventUse PhasingChange = TriggeredOnly
-eventUse BlockedDeclaration = TriggeredOnly
-eventUse LastCounterRemoval = TriggeredOnly
-eventUse Placement = InterceptedAndTriggered
-eventUse CounterPlacement = InterceptedAndTriggered
-eventUse CounterRemoval = TriggeredOnly
-eventUse LifeGain = EventUnclaimed
-eventUse LifeLoss = EventUnclaimed
-eventUse TimeShift = TriggeredOnly
-eventUse TokenCreation = InterceptedAndTriggered
-eventUse ChapterArrival = TriggeredOnly
--- the delayed form is written, but no line that writes it is spellable:
--- three coordinate the activation with a cast or hang a payment rider,
--- and the fourth's complement is an exhaust ability, which the ability
--- vocabulary has no word for.
-eventUse AbilityActivation = TriggeredOnly
-
-public export
-admitsIntercept : EventUse -> Bool
-admitsIntercept EventUnattested = False
-admitsIntercept EventUnclaimed = False
-admitsIntercept TriggeredOnly = False
-admitsIntercept InterceptedAndTriggered = True
-admitsIntercept InterceptedTriggeredAndDelayed = True
-admitsIntercept HeldTriggeredAndDelayed = False
-admitsIntercept TriggeredAndDelayed = False
-
-public export
-admitsHold : EventUse -> Bool
-admitsHold EventUnattested = False
-admitsHold EventUnclaimed = False
-admitsHold TriggeredOnly = False
-admitsHold InterceptedAndTriggered = False
-admitsHold InterceptedTriggeredAndDelayed = False
-admitsHold HeldTriggeredAndDelayed = True
-admitsHold TriggeredAndDelayed = False
-
-public export
-admitsTrigger : EventUse -> Bool
-admitsTrigger EventUnattested = False
-admitsTrigger EventUnclaimed = False
-admitsTrigger TriggeredOnly = True
-admitsTrigger InterceptedAndTriggered = True
-admitsTrigger InterceptedTriggeredAndDelayed = True
-admitsTrigger HeldTriggeredAndDelayed = True
-admitsTrigger TriggeredAndDelayed = True
-
-public export
-admitsDelay : EventUse -> Bool
-admitsDelay EventUnattested = False
-admitsDelay EventUnclaimed = False
-admitsDelay TriggeredOnly = False
-admitsDelay InterceptedAndTriggered = False
-admitsDelay InterceptedTriggeredAndDelayed = True
-admitsDelay HeldTriggeredAndDelayed = True
-admitsDelay TriggeredAndDelayed = True
+interceptOk : EventName -> Bool
+interceptOk ChapterArrival = False
+interceptOk _ = True
 
 ||| One phrase, one slot: `Until (StartOf …)` already spells a turn
 ||| part's beginning, so the event form does not spell it a second time.
@@ -195,144 +127,7 @@ public export
 data ReplUse = Repeatedly | NextTimeOnly
 
 public export
-replUseOk : EventName -> ReplUse -> Bool
-replUseOk Death Repeatedly = True
-replUseOk Death NextTimeOnly = False
-replUseOk Departure Repeatedly = True
-replUseOk Departure NextTimeOnly = False
-replUseOk Destruction Repeatedly = True
-replUseOk Destruction NextTimeOnly = True
-replUseOk DamageTaken Repeatedly = True
-replUseOk DamageTaken NextTimeOnly = True
-replUseOk CardDrawn Repeatedly = True
-replUseOk CardDrawn NextTimeOnly = True
-replUseOk GameLoss Repeatedly = True
-replUseOk GameLoss NextTimeOnly = True
-replUseOk SpellCast Repeatedly = False
-replUseOk SpellCast NextTimeOnly = False
-replUseOk Entry Repeatedly = True
-replUseOk Entry NextTimeOnly = False
-replUseOk AttackDeclaration Repeatedly = False
-replUseOk AttackDeclaration NextTimeOnly = False
-replUseOk BlockDeclaration Repeatedly = False
-replUseOk BlockDeclaration NextTimeOnly = False
-replUseOk CombatDamage Repeatedly = False
-replUseOk CombatDamage NextTimeOnly = False
-replUseOk PartBeginning Repeatedly = False
-replUseOk PartBeginning NextTimeOnly = False
-replUseOk StatusChange Repeatedly = False
-replUseOk StatusChange NextTimeOnly = False
-replUseOk TurnedFaceUp Repeatedly = False
-replUseOk TurnedFaceUp NextTimeOnly = False
-replUseOk PhasingChange Repeatedly = False
-replUseOk PhasingChange NextTimeOnly = False
-replUseOk BlockedDeclaration Repeatedly = False
-replUseOk BlockedDeclaration NextTimeOnly = False
-replUseOk LastCounterRemoval Repeatedly = False
-replUseOk LastCounterRemoval NextTimeOnly = False
-replUseOk Placement Repeatedly = True
-replUseOk Placement NextTimeOnly = False
-replUseOk CounterPlacement Repeatedly = True
-replUseOk CounterPlacement NextTimeOnly = False
-replUseOk CounterRemoval Repeatedly = False
-replUseOk CounterRemoval NextTimeOnly = False
-replUseOk LifeGain Repeatedly = False
-replUseOk LifeGain NextTimeOnly = False
-replUseOk LifeLoss Repeatedly = False
-replUseOk LifeLoss NextTimeOnly = False
-replUseOk TimeShift Repeatedly = False
-replUseOk TimeShift NextTimeOnly = False
-replUseOk TokenCreation Repeatedly = True
-replUseOk TokenCreation NextTimeOnly = False
-replUseOk ChapterArrival Repeatedly = False
-replUseOk ChapterArrival NextTimeOnly = False
-replUseOk AbilityActivation Repeatedly = False
-replUseOk AbilityActivation NextTimeOnly = False
-
-
-public export
 data TriggerWord = When | Whenever | At
-
-public export
-triggerWordOk : EventName -> TriggerWord -> Bool
-triggerWordOk Death When = True
-triggerWordOk Death Whenever = True
-triggerWordOk Death At = False
-triggerWordOk Departure When = True
-triggerWordOk Departure Whenever = True
-triggerWordOk Departure At = False
-triggerWordOk Destruction When = False
-triggerWordOk Destruction Whenever = False
-triggerWordOk Destruction At = False
-triggerWordOk DamageTaken When = True
-triggerWordOk DamageTaken Whenever = True
-triggerWordOk DamageTaken At = False
-triggerWordOk CardDrawn When = True
-triggerWordOk CardDrawn Whenever = True
-triggerWordOk CardDrawn At = False
-triggerWordOk GameLoss When = True
-triggerWordOk GameLoss Whenever = True
-triggerWordOk GameLoss At = False
-triggerWordOk Entry When = True
-triggerWordOk Entry Whenever = True
-triggerWordOk Entry At = False
-triggerWordOk SpellCast When = True
-triggerWordOk SpellCast Whenever = True
-triggerWordOk SpellCast At = False
-triggerWordOk AttackDeclaration When = True
-triggerWordOk AttackDeclaration Whenever = True
-triggerWordOk AttackDeclaration At = False
-triggerWordOk BlockDeclaration When = True
-triggerWordOk BlockDeclaration Whenever = True
-triggerWordOk BlockDeclaration At = False
-triggerWordOk CombatDamage When = True
-triggerWordOk CombatDamage Whenever = True
-triggerWordOk CombatDamage At = False
-triggerWordOk PartBeginning When = False
-triggerWordOk PartBeginning Whenever = False
-triggerWordOk PartBeginning At = True
-triggerWordOk StatusChange When = True
-triggerWordOk StatusChange Whenever = True
-triggerWordOk StatusChange At = False
-triggerWordOk TurnedFaceUp When = True
-triggerWordOk TurnedFaceUp Whenever = True
-triggerWordOk TurnedFaceUp At = False
-triggerWordOk PhasingChange When = True
-triggerWordOk PhasingChange Whenever = True
-triggerWordOk PhasingChange At = False
-triggerWordOk BlockedDeclaration When = True
-triggerWordOk BlockedDeclaration Whenever = True
-triggerWordOk BlockedDeclaration At = False
-triggerWordOk LastCounterRemoval When = True
-triggerWordOk LastCounterRemoval Whenever = True
-triggerWordOk LastCounterRemoval At = False
-triggerWordOk Placement When = True
-triggerWordOk Placement Whenever = True
-triggerWordOk Placement At = False
-triggerWordOk CounterPlacement When = True
-triggerWordOk CounterPlacement Whenever = True
-triggerWordOk CounterPlacement At = False
-triggerWordOk CounterRemoval When = True
-triggerWordOk CounterRemoval Whenever = True
-triggerWordOk CounterRemoval At = False
-triggerWordOk LifeGain When = True
-triggerWordOk LifeGain Whenever = True
-triggerWordOk LifeGain At = False
-triggerWordOk LifeLoss When = True
-triggerWordOk LifeLoss Whenever = True
-triggerWordOk LifeLoss At = False
-triggerWordOk TimeShift When = True
-triggerWordOk TimeShift Whenever = True
-triggerWordOk TimeShift At = False
-triggerWordOk TokenCreation When = True
-triggerWordOk TokenCreation Whenever = True
-triggerWordOk TokenCreation At = False
-triggerWordOk ChapterArrival When = True
-triggerWordOk ChapterArrival Whenever = False
-triggerWordOk ChapterArrival At = False
-triggerWordOk AbilityActivation When = True
-triggerWordOk AbilityActivation Whenever = True
-triggerWordOk AbilityActivation At = False
 
 public export
 lookbackSubjectOk : EventName -> Kind -> Bool
@@ -347,7 +142,8 @@ lookbackSubjectOk DamageTaken Player = True
 lookbackSubjectOk CardDrawn Object = False
 lookbackSubjectOk CardDrawn Player = True
 lookbackSubjectOk GameLoss Object = False
-lookbackSubjectOk GameLoss Player = False
+-- [CR#603.10f] a game loss is looked back on.
+lookbackSubjectOk GameLoss Player = True
 lookbackSubjectOk Entry Object = True
 lookbackSubjectOk Entry Player = False
 lookbackSubjectOk AttackDeclaration Object = True
@@ -436,29 +232,15 @@ lookbackComplementOk AbilityActivation Player Ability = True
 lookbackComplementOk AbilityActivation _ _ = False
 lookbackComplementOk _ _ _ = False
 
+||| A lookback names its event; the complement may be dropped unless
+||| dropping it leaves no event named, as a transitive verb with no
+||| object does.
 public export
 bareLookbackOk : EventName -> Kind -> Bool
-bareLookbackOk Death Object = True
-bareLookbackOk Departure Object = True
-bareLookbackOk DamageTaken Object = True
-bareLookbackOk DamageTaken Player = True
-bareLookbackOk CardDrawn Player = True
-bareLookbackOk Entry Object = True
-bareLookbackOk AttackDeclaration Object = True
-bareLookbackOk AttackDeclaration Player = True
-bareLookbackOk BlockDeclaration Object = True
-bareLookbackOk BlockedDeclaration Object = True
-bareLookbackOk SpellCast Player = True
-bareLookbackOk LifeGain Player = True
-bareLookbackOk LifeLoss Player = True
--- the victim cannot be omitted: a bare "dealt combat damage" names no event.
-bareLookbackOk CombatDamage Object = False
--- the object cannot be omitted: a bare "created" names no event.
+-- a creation is a creation of something: a bare "created" names nothing.
 bareLookbackOk TokenCreation Player = False
--- the ability cannot be omitted: a bare "activated" names no event.
+-- an activation is an activation of something.
 bareLookbackOk AbilityActivation Player = False
--- permissive default: a lookback's complement may be omitted unless
--- naming the event requires it, as the two exceptions above do.
 bareLookbackOk _ _ = True
 
 public export
@@ -494,38 +276,12 @@ data Deed = Attack | Block
 public export
 data Role = Agent | Patient
 
+||| The deed's other participant: an attack's defender against its
+||| attacker, a block's attacker against its blocker [CR#506.3].
 public export
-data CompTag = ForbidT | RequireT | GateT
-
-public export
-data PatientNeed = PatientRefused | PatientOptional | PatientRequired
-
-public export
-notRequired : PatientNeed -> Bool
-notRequired PatientRequired = False
-notRequired PatientOptional = True
-notRequired PatientRefused = True
-
-public export
-admitsPatient : PatientNeed -> Bool
-admitsPatient PatientRefused = False
-admitsPatient PatientOptional = True
-admitsPatient PatientRequired = True
-
-public export
-deonticPatientOk : CompTag -> Deed -> Role -> PatientNeed
-deonticPatientOk ForbidT Attack Agent = PatientRefused
-deonticPatientOk ForbidT Attack Patient = PatientRefused
-deonticPatientOk ForbidT Block Agent = PatientOptional
-deonticPatientOk ForbidT Block Patient = PatientRefused
-deonticPatientOk RequireT Attack Agent = PatientRefused
-deonticPatientOk RequireT Attack Patient = PatientRefused
-deonticPatientOk RequireT Block Agent = PatientRequired
-deonticPatientOk RequireT Block Patient = PatientRefused
-deonticPatientOk GateT Attack Agent = PatientRefused
-deonticPatientOk GateT Attack Patient = PatientRefused
-deonticPatientOk GateT Block Agent = PatientOptional
-deonticPatientOk GateT Block Patient = PatientRefused
+counterRole : Role -> Role
+counterRole Agent = Patient
+counterRole Patient = Agent
 
 public export
 deedType : Deed -> Role -> CardType -> Bool

@@ -490,14 +490,6 @@ badRepeatedChapterMark : Unspellable Ability (\ok =>
 badRepeatedChapterMark Oh impossible
 
 
-||| "Whenever I —, draw a card."
-||| [CR#714.2b] supplies the whole header, so a chapter line prints no trigger word.
-public export
-badChapterWhenever : Unspellable Ability (\ok =>
-  Triggered Whenever (ChapterMark [ChapterI]) Macros.drawACard {wo = ok})
-badChapterWhenever Oh impossible
-
-
 ||| "I — Draw a card. This ability triggers only once each turn."
 ||| [CR#714.2b] writes the whole header, so the printed line has nowhere for a rider.
 public export
@@ -518,12 +510,12 @@ badChapterIntervening Oh impossible
 
 
 ||| "If I — would happen, draw a card instead."
-||| [CR#714.2b] expands the marker into a counter placement, which is the event a replacement names.
+||| The chapter symbol stands for a trigger [CR#107.15]; the event a replacement names is
+||| the lore counter's placement [CR#714.2b].
 public export
-badChapterReplacement : Dependent.Unspellable (StaticEffect []) (\x, y =>
-  Intercepts (ChapterMark [ChapterI]) Macros.drawACard Repeatedly
-    {ok = x} {uo = y})
-badChapterReplacement (Oh ** _) impossible
+badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
+  Intercepts (ChapterMark [ChapterI]) Macros.drawACard Repeatedly {ok})
+badChapterReplacement Oh impossible
 
 
 ||| "You may cast this card from your graveyard as though it had flash."

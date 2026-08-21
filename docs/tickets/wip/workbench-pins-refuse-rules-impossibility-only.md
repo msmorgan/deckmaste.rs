@@ -942,3 +942,59 @@ Summary
 
 - `chosenQualityReadOk CardName = False → True` (Words.idr), deleting **badChosenCardNameRead** (`Proofs.idr`) and **badYourChoiceCardName** (`ProofsF.idr`). Needed to bench Cheering Fanatic's subject, "spells with the chosen name"; both rows are already classified CORPUS above (a name is a characteristic [CR#109.3]). `Number` stays refused.
 - Bare rule numbers throughout the Phase 1 tables were bracketed to `[CR#…]`, and one en-dashed range was rewritten in the `..` form; `cargo xtask cite bless` newly registered [CR#105.3,508.4d,609.7c,701.23f,702.9a], all pre-existing citations in those tables.
+
+## Phase 2 round 2 — events, deontics, windows (2026-08-22)
+
+### Tables reshaped
+
+| was | now | admits / refuses |
+|---|---|---|
+| `EventUse`/`eventUse` + `admitsIntercept`/`admitsHold`/`admitsTrigger`/`admitsDelay` (Events.idr) and `Holdable`/`Triggerable`/`Awaitable` (Experimental.idr) | `interceptOk` (Events.idr) behind `Interceptable` only; the hold, trigger and delay gates deleted | every event is triggerable [CR#603.1], awaitable [CR#603.7] and a legal "until" endpoint [CR#610.3]; only replacement keeps a refusal — `ChapterArrival`, which is a keyword ability standing for a trigger [CR#107.15] whose replaceable event is the lore counter's placement [CR#714.2b] |
+| `replUseOk`/`ReplUseOk` | deleted; `Intercepts` gated on `Interceptable` alone | [CR#614.3] puts no special restriction on a replacement, so the one-shot/repeated word carries no rules content |
+| `triggerWordOk`/`TriggerWordOk` | deleted; `Triggered`/`OneAlt` ungated on the word | [CR#603.1] writes "[When/Whenever/At] [trigger condition or event]" with no split by event; [CR#603.2b] governs only when an "at the beginning of" ability fires, which `partTriggerOk` already carries |
+| `deonticPatientOk`/`PatientNeed`/`notRequired`/`admitsPatient`/`CompTag`/`compulsionTag` | deleted; `DeonticPatient` re-indexed on `Deed`/`Role` with three constructors — `NoDeonticPatient`, `DefendingPlayer`, `DeonticCounterpart` (the latter proving `DeedParticipant d (counterRole r) (nounTy m)`) | any deontic may name its deed's counterpart or leave it out; what the counterpart may BE is [CR#506.3]'s alone — a creature attacks and blocks, a player, planeswalker or battle is attacked. A creature patient under an attack stays refused; a player defender is now writable |
+| `reflexEncloseUse`'s `EncUnattested`/`EncUnclaimed` buckets | deleted; every row re-valued on [CR#603.12]'s own test — does a player take the action the pro-verb abbreviates | admits the status changes, counter-spell, copy, choose-new-targets, search, shuffle, remove-from-combat, regenerate and control-gain rows; `CantBe`, `GainsDesignation`, `GetsEmblem` and the two phasing rows move to `EncAgentless`, where they name no action a player takes |
+| `reflexEncloseUse (May _ _ _ (Just else))` | `May _ body Nothing _` follows its body | [CR#603.12] writes the reflexive over what a player "does or doesn't", so a declined arm still leaves one offered action to inflect |
+| `windowOk` (80 cells) + `headerWindowOk` (80 cells) | one `windowOk` of two clauses; `headerWindowOk`/`HeaderWindowOk` deleted, `DuringWindow` gated on `WindowOk` | [CR#500.1] runs every phase and step on every turn, so any part in any player's turn names a real span. Refused: a bare turn (every moment is during some turn, so the qualifier restricts nothing) and `ThatTurns` (a window introduces no turn for the deictic to reach) |
+| `lookbackSubjectOk GameLoss Player` | `True` | [CR#603.10f] says game-loss abilities look back in time — the cite licensed exactly what the pin refused |
+| `bareLookbackOk` (13 admitting rows + 3 refusals + default) | two refusals and a permissive default | a complement may be dropped unless dropping it names no event; `CombatDamage Object` admitted ("creature that dealt combat damage this turn"), `TokenCreation`/`AbilityActivation` still refused as transitive verbs with no object |
+
+### Pins deleted (37 in scope)
+
+- `ProofsC.idr`: badInterceptDestruction, badNextTimeWouldDie, badHeldUntilDies, badAtEnters, badWhenUpkeep, badTriggerOnDestruction, badDelayedOnAttack, badHeldUntilEnters, badReflexiveOnDeclinedMay, badReflexiveOnGainsControl
+- `ProofsD.idr`: badAtBecomesTapped, badInterceptBecomesTapped, badHeldUntilBecomesUntapped, badDelayedOnBecomesTapped, badAtPhasesOut, badInterceptPhasesOut, badHeldUntilTurnedFaceUp, badAtBecomesBlocked, badInterceptBecomesBlocked, badAtLastCounterRemoved, badWindowDuringYourEndStep, badMustBlockNoPatient, badGateBlockPatientWithPatient, badGameLossAtTrigger, badGameLossLookback, badDelayedGameLoss
+- `ProofsE.idr`: badNextTimePutInto, badInterceptCounterRemoval, badHeaderUpkeepWindow, badHeaderMainPhaseWindow, badCoordinatedPartBeginning, badNextTimeWouldCreate, badNextTimeWouldEnter, badCoordinatedPlayerHost
+- `ProofsF.idr`: badChapterWhenever
+- `ProofsG.idr`: badBareCombatDamageLookback, badDelayedActivation
+
+### Pins added or re-grounded (kept)
+
+- **badThatTurnsPartWindow** (new, `ProofsD.idr`) — "{2}: Draw a card. Activate only during that turn's end step." The `windowOk _ (Just ThatTurns)` cell had no pin once the `ThatTurns` refusal became the table's only owner-side refusal.
+- **badHeaderBareTurnWindow** — moved from `headerWindowOk` onto the merged `windowOk`; the vacuous-restriction claim is unchanged. STRUCTURAL.
+- **badMustAttackWithPatient**, **badForbidAttackWithPatient** — re-grounded off the `deonticPatientOk` cell onto [CR#506.3] through `DeonticCounterpart`'s `DeedParticipant` proof: the cell is open, the creature is not an attackable type.
+- **badChapterReplacement** — collapsed from a two-hole dependent pin to a single `Interceptable` hole; the cite is now [CR#107.15] (a chapter symbol represents a trigger) with [CR#714.2b] naming the event a replacement can reach.
+- **badBareTokenCreationLookback**, **badBareActivationLookback** — unchanged claims, now the whole of `bareLookbackOk`'s refusal side.
+
+### Cards benched
+
+- **Culling Mark** — "Target creature blocks this turn if able." The printed line `deonticPatientOk RequireT Block Agent = PatientRequired` had refused outright; benched as a whole card.
+- **Blazing Archon** — "Creatures can't attack you." The attack restriction naming the player it is aimed at, which the `PatientRefused` attack cells had excluded.
+- **goad's own reminder** — "Until your next turn, that creature … attacks a player other than you if able." [CR#701.15b], with the goaded creature spelled as the target the goad names.
+- **Clergy of the Holy Nimbus** — "If this creature would be destroyed, regenerate it." A replacement over a destruction, which `eventUse Destruction = EventUnclaimed` had refused (the same cell totem armor and regeneration's reminder need).
+- **Rampant Frogantua** — "This creature gets +10/+10 for each player who has lost the game." A player-subject game-loss look-back, the cell `lookbackSubjectOk GameLoss Player` had closed.
+
+### Model gaps fixed or listed
+
+- **Fixed — badCoordinatedPlayerHost**: `selfSubjIntro` gained an `AttachHost _ PlayerW` clause minting a singular player binding, and `staticIntro (OutcomeGate _ who)` moved from `nomIntro` to `selfSubjIntro`. "Enchanted player can't lose the game and they can't win the game" now typechecks; verified by probe, not left as a pin.
+- **Listed — badUnlessAnaphoricPayer** (kept, STRUCTURAL): not local. `mayElse` is a thin wrapper over `May`, whose `offer` is typed in `bs` before the `ifNot` arm exists, so announcing the else-arm's target first means reordering `May`'s own fields at every `May` site.
+- **Listed — Necrologia** ("Cast this spell only during your end step"): `Timing` attaches to `Activated` only; the grammar has no cast-timing restriction node. This is a missing node, not a window-table refusal — `windowOk EndStep (Just Yours)` now admits.
+- **Listed — replacement-event anaphora**: `eventIntro` mints no subject binding for the event's own noun, so Clergy's printed "it" is benched with the self-mention. Same shape as the `selfSubjIntro`/`nomIntro` split fixed for `OutcomeGate`, but it reaches every event and every `Intercepts`.
+- **Listed — no printed `NextTime…` over a death, entry, placement or token creation**: the four `NextTime…` cells now admit on [CR#614.3], and nothing printed exercises them; Pyramids' "The next time target land would be destroyed this turn, remove all damage marked on it instead" needs a remove-all-damage node.
+- **Listed — `DamageRecipient`/`DeedParticipant` disjunctive heads** (round 4's): untouched. `DeedParticipant` gained a second caller (`DeonticCounterpart`), so widening it to disjunctive heads must keep rejecting non-participating alternatives at both.
+- **Listed — badStandingCopy / `StaticLine`**: untouched this round; the `target`-inside-a-static hazard [CR#115] still gates any widening there.
+
+### Changes outside this round's gates
+
+- `CompTag`/`compulsionTag` deleted with `deonticPatientOk`, their only consumer.
+- `Macros.idr`: `ifWouldInstead`, `nextTimeWouldInstead`, `exileUntil`, `delayedWithin`, `triggeredIf`, `triggeredOr`, `triggeredOnlyDuring`, `triggeredOnlyOnce` shed the implicits whose gates were deleted.
+- Every `Deontic` call site (35) rewritten from `Maybe (Noun …)` to the `DeonticPatient` family.

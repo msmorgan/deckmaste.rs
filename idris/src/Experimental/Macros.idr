@@ -481,21 +481,21 @@ cantAttack : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n)))
              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
              {auto 0 dp : DeedParticipant Attack Agent (nounTy n)} ->
              {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantAttack n span = Continuously (Deontic n Forbid Attack Agent Nothing {zn} {dp}) span {sp}
+cantAttack n span = Continuously (Deontic n Forbid Attack Agent NoDeonticPatient {zn} {dp}) span {sp}
 
 public export
 cantBlock : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
             {auto 0 dp : DeedParticipant Block Agent (nounTy n)} ->
             {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantBlock n span = Continuously (Deontic n Forbid Block Agent Nothing {zn} {dp}) span {sp}
+cantBlock n span = Continuously (Deontic n Forbid Block Agent NoDeonticPatient {zn} {dp}) span {sp}
 
 public export
 cantBeBlocked : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                 {auto 0 dp : DeedParticipant Block Patient (nounTy n)} ->
                 {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantBeBlocked n span = Continuously (Deontic n Forbid Block Patient Nothing {zn} {dp}) span {sp}
+cantBeBlocked n span = Continuously (Deontic n Forbid Block Patient NoDeonticPatient {zn} {dp}) span {sp}
 
 
 public export
@@ -819,18 +819,16 @@ public export
 ifWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                  (d : Maybe (Duration (eventIntro ev))) ->
                  {auto 0 ok : Interceptable ev} ->
-                 {auto 0 uo : ReplUseOk ev Repeatedly} ->
                  {auto 0 sp : SpanOk Replacement d} -> Effect bs
-ifWouldInstead ev repl d = Continuously (Intercepts ev repl Repeatedly {ok} {uo}) d {sp}
+ifWouldInstead ev repl d = Continuously (Intercepts ev repl Repeatedly {ok}) d {sp}
 
 public export
 nextTimeWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                        (d : Maybe (Duration (eventIntro ev))) ->
                        {auto 0 ok : Interceptable ev} ->
-                       {auto 0 uo : ReplUseOk ev NextTimeOnly} ->
                        {auto 0 sp : SpanOk Replacement d} -> Effect bs
 nextTimeWouldInstead ev repl d =
-  Continuously (Intercepts ev repl NextTimeOnly {ok} {uo}) d {sp}
+  Continuously (Intercepts ev repl NextTimeOnly {ok}) d {sp}
 
 public export
 preventAll : (kind : DamageKind) -> (scope : DamageScope bs) ->
@@ -873,8 +871,8 @@ shieldingIt n = ToRecipient n {rk}
 public export
 exileUntil : (n : Noun bs Object) -> {auto 0 na : NotPlayerSpanning n} ->
              (ev : GameEvent (preIntro (exile n))) ->
-             {auto 0 hd : Holdable ev} -> Effect bs
-exileUntil n ev = HeldUntil (exile n) ev {ok = Oh} {hd}
+             Effect bs
+exileUntil n ev = HeldUntil (exile n) ev {ok = Oh}
 
 public export
 insteadOf : (replaced : Effect bs) -> (repl : Effect (annIntro replaced)) ->
@@ -988,55 +986,47 @@ public export
 triggeredIf : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
               (cond : Condition (headerCtx Nothing ev)) ->
               (eff : Effect (interveningIntro (Just cond))) ->
-              {auto 0 tr : Triggerable ev} ->
               {auto 0 hn : HeaderNontarget ev} ->
-              {auto 0 wo : TriggerWordOk ev word} ->
               {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
               {auto 0 cd : ChapterDefaults ev Nothing Nothing Nothing (Just cond)} ->
               AbilityAt bs
 triggeredIf word ev cond eff =
-  Triggered word ev {intervening = Just cond} eff {tr} {hn} {wo} {ae} {cd}
+  Triggered word ev {intervening = Just cond} eff {hn} {ae} {cd}
 
 ||| "Whenever X or Y, …": a trigger with an alternative event.
 public export
 triggeredOr : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
               (alt : GameEvent bs) -> (eff : Effect bs) ->
-              {auto 0 tr : Triggerable ev} ->
               {auto 0 hn : HeaderNontarget ev} ->
-              {auto 0 wo : TriggerWordOk ev word} ->
               {auto 0 ae : AltEvent word (Just alt)} ->
               {auto 0 cd : ChapterDefaults ev (Just alt) Nothing Nothing Nothing} ->
               AbilityAt bs
 triggeredOr word ev alt eff =
-  Triggered word ev {alt = Just alt} eff {tr} {hn} {wo} {ae} {cd}
+  Triggered word ev {alt = Just alt} eff {hn} {ae} {cd}
 
 ||| "Whenever …, during <window>, …": a trigger confined to a window.
 public export
 triggeredOnlyDuring : {bs : Bindings} -> (word : TriggerWord) ->
                       (ev : GameEvent bs) -> (w : TriggerWindow) ->
                       (eff : Effect (eventAfter ev)) ->
-                      {auto 0 tr : Triggerable ev} ->
-                      {auto 0 hn : HeaderNontarget ev} ->
-                      {auto 0 wo : TriggerWordOk ev word} ->
+                              {auto 0 hn : HeaderNontarget ev} ->
                       {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
                       {auto 0 cd : ChapterDefaults ev Nothing (Just w) Nothing Nothing} ->
                       AbilityAt bs
 triggeredOnlyDuring word ev w eff =
-  Triggered word ev {window = Just w} eff {tr} {hn} {wo} {ae} {cd}
+  Triggered word ev {window = Just w} eff {hn} {ae} {cd}
 
 ||| "Whenever …, … . This triggers only once each turn."
 public export
 triggeredOnlyOnce : {bs : Bindings} -> (word : TriggerWord) ->
                     (ev : GameEvent bs) -> (lim : UsageLimit) ->
                     (eff : Effect (eventAfter ev)) ->
-                    {auto 0 tr : Triggerable ev} ->
-                    {auto 0 hn : HeaderNontarget ev} ->
-                    {auto 0 wo : TriggerWordOk ev word} ->
+                          {auto 0 hn : HeaderNontarget ev} ->
                     {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
                     {auto 0 cd : ChapterDefaults ev Nothing Nothing (Just lim) Nothing} ->
                     AbilityAt bs
 triggeredOnlyOnce word ev lim eff =
-  Triggered word ev {limit = Just lim} eff {tr} {hn} {wo} {ae} {cd}
+  Triggered word ev {limit = Just lim} eff {hn} {ae} {cd}
 
 ||| "Activate only as a sorcery" / "only during your upkeep".
 public export
@@ -1213,10 +1203,9 @@ additionalPartThen part anchor count next =
 public export
 delayedWithin : (ev : GameEvent bs) -> (span : Duration bs) ->
                 (eff : Effect (delayedCtx ev)) ->
-                {auto 0 aw : Awaitable ev} ->
                 {auto 0 one : eventSubjectPlur ev = OneOf} ->
                 {auto 0 so : DelaySpanOk (Just span)} -> Effect bs
-delayedWithin ev span eff = Delayed ev {span = Just span} eff {aw} {one} {so}
+delayedWithin ev span eff = Delayed ev {span = Just span} eff {one} {so}
 
 ||| "a creature type other than Wall": a quality noun with a choice domain.
 public export

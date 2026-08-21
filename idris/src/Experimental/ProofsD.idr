@@ -194,7 +194,7 @@ badMoveOntoBattlefieldAsCost Oh impossible
 public export
 badUnlessOnPositive : Unspellable Ability (\ok =>
   Static (Conditionally (Exists (And [Macros.artifact, ControlledBy You]))
-                        (Deontic Macros.thisCreature Forbid Attack Agent Nothing)
+                        (Deontic Macros.thisCreature Forbid Attack Agent NoDeonticPatient)
                         {marking = Unless} {mk = ok}))
 badUnlessOnPositive MkMarkingOk impossible
 
@@ -234,41 +234,6 @@ badEmbeddedAnyTargetExact1 : Unspellable (Noun [] Object) (\ok =>
 badEmbeddedAnyTargetExact1 Oh impossible
 
 
-
-
-||| "At a creature becomes tapped, draw a card."
-||| [CR#603.2b] keeps "at" for phases and steps, as it does for every other object event.
-public export
-badAtBecomesTapped : Unspellable Ability (\ok =>
-  Triggered At (StatusEvent (Macros.a Macros.creature) Tapped) Macros.drawACard {wo = ok})
-badAtBecomesTapped Oh impossible
-
-
-||| "If target creature would become tapped, exile it instead this turn."
-||| Trigger-only, reader by reader: nothing intercepts a becomes-tapped.
-public export
-badInterceptBecomesTapped : Unspellable (Effect []) (\ok =>
-  Macros.ifWouldInstead (StatusEvent (Macros.target Macros.creature) Tapped)
-                 (Macros.exile It) (Just Macros.thisTurn)
-                 {ok = Builtin.fst ok, uo = Builtin.snd ok})
-badInterceptBecomesTapped (Oh, _) impossible
-
-
-||| "Exile target creature until a creature becomes untapped."
-||| The event table claims a status transition for the trigger and not for the hold.
-public export
-badHeldUntilBecomesUntapped : Unspellable (Effect []) (\ok =>
-  Macros.exileUntil (Macros.target Macros.creature) (StatusEvent (Macros.a Macros.creature) Untapped) {hd = ok})
-badHeldUntilBecomesUntapped Oh impossible
-
-
-||| "When target creature becomes tapped, sacrifice that creature."
-||| The delayed clause's event family is the end-step beginning, the departure and the death.
-public export
-badDelayedOnBecomesTapped : Unspellable (Effect []) (\ok =>
-  Delayed (StatusEvent (Macros.target Macros.creature) Tapped)
-          (Macros.sacrifice You (That (TypeW Creature))) {aw = ok})
-badDelayedOnBecomesTapped Oh impossible
 
 
 ||| "Target creature card in your graveyard doesn't untap during its controller's next untap step."
@@ -337,33 +302,6 @@ badTurnedFaceDownEvent : Unspellable Ability (\ok =>
 badTurnedFaceDownEvent Oh impossible
 
 
-||| "At a creature phases out, draw a card."
-||| [CR#603.2b] keeps "at" for phases and steps, as it does for every other object event.
-public export
-badAtPhasesOut : Unspellable Ability (\ok =>
-  Triggered At (StatusEvent (Macros.a Macros.creature) PhasedOut) Macros.drawACard {wo = ok})
-badAtPhasesOut Oh impossible
-
-
-||| "If target creature would phase out, exile it instead this turn."
-||| Trigger-only, reader by reader: nothing replaces a phasing.
-public export
-badInterceptPhasesOut : Unspellable (Effect []) (\ok =>
-  Macros.ifWouldInstead (StatusEvent (Macros.target Macros.creature) PhasedOut)
-                 (Macros.exile It) (Just Macros.thisTurn)
-                 {ok = Builtin.fst ok, uo = Builtin.snd ok})
-badInterceptPhasesOut (Oh, _) impossible
-
-
-||| "Exile target creature until a permanent you control is turned face up."
-||| The event table claims a turning for the trigger and not for the hold.
-public export
-badHeldUntilTurnedFaceUp : Unspellable (Effect []) (\ok =>
-  Macros.exileUntil (Macros.target Macros.creature)
-                    (StatusEvent (Macros.a (And [Permanent, ControlledBy You])) FaceUp) {hd = ok})
-badHeldUntilTurnedFaceUp Oh impossible
-
-
 ||| "Remove target creature card in your graveyard from combat."
 ||| Combat is the battlefield's: [CR#506.4] lists how a permanent leaves it.
 public export
@@ -390,14 +328,6 @@ badNegatedBlockedBy : Unspellable (Predicate [] Object) (\ok =>
 badNegatedBlockedBy Oh impossible
 
 
-||| "At a creature becomes blocked, draw a card."
-||| [CR#603.2b] keeps "at" for phases and steps, as it does for every other object event.
-public export
-badAtBecomesBlocked : Unspellable Ability (\ok =>
-  Triggered At (BecomesBlocked (Macros.a Macros.creature) Nothing) Macros.drawACard {wo = ok})
-badAtBecomesBlocked Oh impossible
-
-
 ||| "Whenever a creature blocks this, draw a card."
 ||| A bare self offers no evidence of the battlefield [CR#109.2], so the partner is type-ascribed.
 public export
@@ -405,16 +335,6 @@ badBlocksBareThisPartner : Unspellable Ability (\ok =>
   Triggered Whenever (Blocks (Macros.a Macros.creature) (Just This)
                              {bp = OnePartner {ss = ok}}) Macros.drawACard)
 badBlocksBareThisPartner Oh impossible
-
-
-||| "If target creature would become blocked, exile it instead this turn."
-||| Nothing replaces a block declaration; the abilities that stop one are restrictions [CR#509.1b].
-public export
-badInterceptBecomesBlocked : Unspellable (Effect []) (\ok =>
-  Macros.ifWouldInstead (BecomesBlocked (Macros.target Macros.creature) Nothing)
-                 (Macros.exile It) (Just Macros.thisTurn)
-                 {ok = Builtin.fst ok, uo = Builtin.snd ok})
-badInterceptBecomesBlocked (Oh, _) impossible
 
 
 ||| "Your opponents can't untap more than three lands during their untap steps."
@@ -481,14 +401,6 @@ public export
 badLastPoisonCounterRemoved : Unspellable Ability (\ok =>
   Triggered When (LastCounterRemoved Poison Macros.thisCreature {sc = ok}) Macros.drawACard)
 badLastPoisonCounterRemoved Refl impossible
-
-
-||| "At the last time counter is removed from this card, draw a card."
-||| [CR#603.2b] keeps "at" for phases and steps, as it does for every other object event.
-public export
-badAtLastCounterRemoved : Unspellable Ability (\ok =>
-  Triggered At (LastCounterRemoved Time Macros.thisCreature) Macros.drawACard {wo = ok})
-badAtLastCounterRemoved Oh impossible
 
 
 ||| "When the last time counter is removed from this card, if this creature is exiled, draw a card."
@@ -562,13 +474,13 @@ badNonMulticolored : Unspellable (Predicate [] Object) (\ok =>
 badNonMulticolored Oh impossible
 
 
-||| "{2}: Draw a card. Activate only during your end step."
-||| The end step is a trigger header's part; no activation restriction names it.
+||| "{2}: Draw a card. Activate only during that turn's end step."
+||| An activation restriction introduces no turn, so the deictic possessor reaches no antecedent.
 public export
-badWindowDuringYourEndStep : Unspellable Ability (\ok =>
+badThatTurnsPartWindow : Unspellable Ability (\ok =>
   Activated (Mana [Macros.generic 2]) Macros.drawACard
-            {window = Just (DuringPart EndStep (Just Yours) {wk = ok})})
-badWindowDuringYourEndStep Oh impossible
+            {window = Just (DuringPart EndStep (Just ThatTurns) {wk = ok})})
+badThatTurnsPartWindow Oh impossible
 
 
 ||| "{2}: Draw a card. Activate only before that turn's attackers are declared."
@@ -584,28 +496,18 @@ badThatTurnsAttackWindow Oh impossible
 ||| Only a creature attacks [CR#506.3], and the requirement reads the restriction's own grid.
 public export
 badMustAttackLand : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic (Macros.target Macros.land) Require Attack Agent Nothing {dp = ok})
+  Continuously (Deontic (Macros.target Macros.land) Require Attack Agent NoDeonticPatient {dp = ok})
                (Just Macros.thisTurn))
 badMustAttackLand Participant impossible
 
 
 ||| "This creature attacks target creature each combat if able."
-||| The attack requirement names no defender; goad's leg is a designation [CR#701.15b].
+||| Only a player, a planeswalker or a battle is attacked [CR#506.3].
 public export
 badMustAttackWithPatient : Unspellable Ability (\ok =>
-  Static (Deontic Macros.thisCreature Require Attack Agent (Just (Macros.target Macros.creature))
-                  {pt = DeonticPatientWritten {ok = ok}}))
-badMustAttackWithPatient Oh impossible
-
-
-||| "Target creature blocks this turn if able."
-||| The block requirement requires its patient, so the bare form is not English.
-public export
-badMustBlockNoPatient : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic (Macros.target Macros.creature) Require Block Agent Nothing
-                        {pt = NoDeonticPatient {ok = ok}})
-               (Just Macros.thisTurn))
-badMustBlockNoPatient Oh impossible
+  Static (Deontic Macros.thisCreature Require Attack Agent
+                  (DeonticCounterpart (Macros.target Macros.creature) {dp = ok})))
+badMustAttackWithPatient Participant impossible
 
 
 ||| "At the beginning of your end step, if it's day, draw a card."
@@ -644,24 +546,13 @@ badThatCreatureIsSelf Refl impossible
 
 
 ||| "This creature can't attack target creature this turn."
-||| The restriction's patient is a defending player, and no noun here writes one.
+||| Only a player, a planeswalker or a battle is attacked [CR#506.3].
 public export
 badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
   Continuously (Deontic Macros.thisCreature Forbid Attack Agent
-                        (Just (Macros.target Macros.creature))
-                        {pt = DeonticPatientWritten {ok = ok}})
+                        (DeonticCounterpart (Macros.target Macros.creature) {dp = ok}))
                (Just Macros.thisTurn))
-badForbidAttackWithPatient Oh impossible
-
-
-||| "This creature can't be blocked by target creature unless you pay {1}."
-||| The gate's patient cell belongs to the block agent alone.
-public export
-badGateBlockPatientWithPatient : Unspellable Ability (\ok =>
-  Static (Deontic Macros.thisCreature (GatedBy (Mana [Macros.generic 1]))
-                  Block Patient (Just (Macros.target Macros.creature))
-                  {pt = DeonticPatientWritten {ok = ok}}))
-badGateBlockPatientWithPatient Oh impossible
+badForbidAttackWithPatient Participant impossible
 
 
 ||| "As long as this creature is attacking, that creature gets +2/+0."
@@ -735,31 +626,6 @@ public export
 badOwnedByAllPlayers : Unspellable (ZoneExpr []) (\ok =>
   Macros.graveyardOf (PlayerGroup AllPlayers) {pn = ok})
 badOwnedByAllPlayers Oh impossible
-
-
-||| "At a player losing the game, put five +1/+1 counters on this creature."
-||| [CR#603.2b] fixes the At header to a turn-part beginning.
-public export
-badGameLossAtTrigger : Unspellable Ability (\ok =>
-  Triggered At (LosesGame (Macros.a AnyPlayer))
-            (PutCounters (Lit 5) Macros.plusOnePlusOne Macros.thisCreature) {wo = ok})
-badGameLossAtTrigger Oh impossible
-
-
-||| "if a player has lost the game this turn"
-||| The loss is watched and replaced, never queried; [CR#603.10f]'s look-back is the trigger's own.
-public export
-badGameLossLookback : Unspellable (Condition []) (\ok =>
-  Happened GameLoss (Macros.a AnyPlayer) Lookback.ThisTurn {sb = ok})
-badGameLossLookback MkLookbackSubject impossible
-
-
-||| "When a player next loses the game this turn, draw a card."
-||| The only "next" over this event is a replacement's multiplicity, which waits for no event.
-public export
-badDelayedGameLoss : Unspellable (Effect []) (\ok =>
-  Delayed (LosesGame You) (Draw You (Lit 1)) {aw = ok})
-badDelayedGameLoss Oh impossible
 
 
 ||| "You gain life equal to your opponents' life totals."

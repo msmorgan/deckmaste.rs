@@ -132,14 +132,6 @@ badBareTokenCreationLookback : Unspellable (Condition []) (\ok =>
 badBareTokenCreationLookback Oh impossible
 
 
-||| "Destroy target creature that dealt combat damage this turn."
-||| The combat-damage history read names whom the damage was dealt to.
-public export
-badBareCombatDamageLookback : Unspellable (Predicate [] Object) (\ok =>
-  HappenedTo CombatDamage Lookback.ThisTurn {cw = LeftBare {ok = ok}})
-badBareCombatDamageLookback Oh impossible
-
-
 ||| "Destroy target creature that attacked with this creature this turn."
 ||| A creature attacks and does not attack with anything, so the complement's sort refuses.
 public export
@@ -366,16 +358,6 @@ public export
 badBareActivationLookback : Unspellable (Condition []) (\ok =>
   Happened AbilityActivation You Lookback.ThisTurn {cw = LeftBare {ok = ok}})
 badBareActivationLookback Oh impossible
-
-
-||| "When you next activate a loyalty ability this turn, draw a card."
-||| No delayed activation line is spellable: three coordinate the activation with a cast or
-||| hang a payment rider, and the fourth's complement is an exhaust ability. So the event
-||| vocabulary claims the trigger and not the delay.
-public export
-badDelayedActivation : Unspellable (Effect []) (\ok =>
-  Delayed (Activates You (Macros.a (AbilityHead LoyaltyClass))) Macros.drawACard {aw = ok})
-badDelayedActivation Oh impossible
 
 
 ||| "At the beginning of you's upkeep, draw a card."

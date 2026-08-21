@@ -290,22 +290,6 @@ badEachOfTheRest : Unspellable (Effect []) (\ok =>
 badEachOfTheRest Oh impossible
 
 
-||| "If target creature would be destroyed, exile it instead this turn."
-||| "Would be destroyed" is regeneration's, whose replacement is [CR#614.8]'s four-part instruction.
-public export
-badInterceptDestruction : Unspellable (Effect []) (\ok =>
-  Macros.ifWouldInstead (IsDestroyed (Macros.target Macros.creature)) (Macros.exile It) (Just Macros.thisTurn) {ok})
-badInterceptDestruction Oh impossible
-
-
-||| "The next time target creature would die this turn, exile it instead."
-||| A creature dies once, so the two shields would be the same shield [CR#614.3].
-public export
-badNextTimeWouldDie : Unspellable (Effect []) (\ok =>
-  Macros.nextTimeWouldInstead (Dies (Macros.target Macros.creature)) (Macros.exile It) (Just Macros.thisTurn) {uo = ok})
-badNextTimeWouldDie Oh impossible
-
-
 ||| "If target creature card in your graveyard would die, exile it instead this turn."
 ||| Dying is the battlefield-to-graveyard transition [CR#700.4], so the watched object is on the battlefield.
 public export
@@ -325,14 +309,6 @@ badInterceptReplacementAntecedent : Unspellable (Effect []) (\ok =>
                , Macros.sacrifice You (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}
                ])
 badInterceptReplacementAntecedent (Refl, _) impossible
-
-
-||| "Exile target creature until this creature dies."
-||| The event table claims a death for the intercept and the delay, not for the hold.
-public export
-badHeldUntilDies : Unspellable (Effect []) (\ok =>
-  HeldUntil (Macros.exile (Macros.target Macros.creature)) (Dies Macros.thisCreature) {hd = ok})
-badHeldUntilDies Oh impossible
 
 
 ||| "Exile target creature until this creature leaves the battlefield. Put that card into your hand."
@@ -529,14 +505,6 @@ badUnlessAnaphoricPayer : Unspellable (Effect []) (\ok =>
 badUnlessAnaphoricPayer Refl impossible
 
 
-||| "At this creature enters, draw a card."
-||| [CR#603.2b] gives "at the beginning of" a phase or step; no object event takes the word.
-public export
-badAtEnters : Unspellable Ability (\ok =>
-  Triggered At (Enters Macros.thisCreature) Macros.drawACard {wo = ok})
-badAtEnters Oh impossible
-
-
 ||| "When this enters, draw a card."
 ||| The type word places the referent [CR#109.2]; bare "this" is the source as an object and stands nowhere.
 public export
@@ -551,23 +519,6 @@ public export
 badTargetedDeathHeader : Unspellable Ability (\ok =>
   Triggered Whenever (Dies (Macros.target Macros.creature)) Macros.drawACard {hn = ok})
 badTargetedDeathHeader Oh impossible
-
-
-||| "When the beginning of your upkeep, draw a card."
-||| The inverse half of the same table: a turn-part beginning takes neither English word [CR#603.2b].
-public export
-badWhenUpkeep : Unspellable Ability (\ok =>
-  Triggered When (BeginningOf Upkeep (ByWord Yours)) Macros.drawACard {wo = ok})
-badWhenUpkeep Oh impossible
-
-
-||| "Whenever a creature is destroyed, draw a card."
-||| The phrase is regeneration's [CR#614.8]; the header for that event is "dies".
-public export
-badTriggerOnDestruction : Unspellable Ability (\ok =>
-  Triggered Whenever (IsDestroyed (Macros.a Macros.creature)) Macros.drawACard
-            {tr = Builtin.fst ok, wo = Builtin.snd ok})
-badTriggerOnDestruction (Oh, _) impossible
 
 
 ||| "At the beginning of your turn, draw a card."
@@ -598,7 +549,7 @@ badLeavesThenTap OnField impossible
 ||| A static ability does not target [CR#115.1a..115.1e].
 public export
 badStaticTargets : Unspellable Ability (\ok =>
-  Static (Deontic (Macros.target Macros.creature) Forbid Attack Agent Nothing) {ut = ok})
+  Static (Deontic (Macros.target Macros.creature) Forbid Attack Agent NoDeonticPatient) {ut = ok})
 badStaticTargets Oh impossible
 
 
@@ -642,24 +593,6 @@ public export
 badPlayFromBattlefield : Unspellable (Effect []) (\ok =>
   Continuously (MayPlay You (Macros.a Macros.creature) {pz = ok}) (Just Macros.thisTurn))
 badPlayFromBattlefield MkPlaySource impossible
-
-
-||| "When target creature attacks, sacrifice that creature."
-||| The delayed clause's event family is the end-step beginning, the departure and the death.
-public export
-badDelayedOnAttack : Unspellable (Effect []) (\ok =>
-  Delayed (Attacks (Macros.target Macros.creature)) (Macros.sacrifice You (That (TypeW Creature))) {aw = ok})
-badDelayedOnAttack Oh impossible
-
-
-
-
-||| "Exile target creature until a creature enters."
-||| The event table claims an entry for the intercept and the trigger, not for the hold.
-public export
-badHeldUntilEnters : Unspellable (Effect []) (\ok =>
-  Macros.exileUntil (Macros.target Macros.creature) (Enters (Macros.a Macros.creature)) {hd = ok})
-badHeldUntilEnters Oh impossible
 
 
 ||| "Target creature gets +3/+3 until the beginning of your next upkeep." on the event axis
@@ -708,22 +641,6 @@ public export
 badReflexiveOnBranchedMay : Unspellable (Effect []) (\ok =>
   Reflexively (Macros.mayThen You (Macros.sacrifice You (Macros.a Macros.creature)) Macros.drawACard) Macros.drawACard {en = ok})
 badReflexiveOnBranchedMay Oh impossible
-
-
-||| "You may sacrifice a creature. If you don't, draw a card. When you do, draw a card."
-||| [CR#603.12] licenses a negative reflexive, but this vocabulary has no such row.
-public export
-badReflexiveOnDeclinedMay : Unspellable (Effect []) (\ok =>
-  Reflexively (Macros.mayElse You (Macros.sacrifice You (Macros.a Macros.creature)) Macros.drawACard) Macros.drawACard {en = ok})
-badReflexiveOnDeclinedMay Oh impossible
-
-
-||| "Target opponent gains control of this. When they do, draw a card."
-||| A control gain establishes a continuous effect rather than naming an action to inflect.
-public export
-badReflexiveOnGainsControl : Unspellable (Effect []) (\ok =>
-  Reflexively (Macros.gainsControl (Macros.target Opponent) This Nothing) Macros.drawACard {en = ok})
-badReflexiveOnGainsControl Oh impossible
 
 
 ||| "Mill four cards. When you do, create a 1/1 white Soldier creature token. Tap that creature."

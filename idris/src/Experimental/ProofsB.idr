@@ -312,7 +312,7 @@ badCantDisjunctSubject Participant impossible
 ||| Only a player, a planeswalker, or a battle can be attacked [CR#506.3].
 public export
 badCantBeAttacked : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic (Macros.target Macros.creature) Forbid Attack Patient Nothing {dp = ok}) (Just Macros.thisTurn))
+  Continuously (Deontic (Macros.target Macros.creature) Forbid Attack Patient NoDeonticPatient {dp = ok}) (Just Macros.thisTurn))
 badCantBeAttacked Participant impossible
 
 

@@ -721,7 +721,7 @@ scholarOfStars =
 
 ||| Glacial Chasm
 glacialChasmCant : Ability
-glacialChasmCant = Static (Deontic (AllOf Macros.creatureYouControl) Forbid Attack Agent Nothing)
+glacialChasmCant = Static (Deontic (AllOf Macros.creatureYouControl) Forbid Attack Agent NoDeonticPatient)
 
 ||| Glacial Chasm
 glacialChasmShield : Ability
@@ -821,7 +821,7 @@ hymnOfRebirth =
 desperateCastaways : Ability
 desperateCastaways =
   Static (Macros.unlessSo (Exists (And [Macros.artifact, ControlledBy You]))
-                   (Deontic Macros.thisCreature Forbid Attack Agent Nothing))
+                   (Deontic Macros.thisCreature Forbid Attack Agent NoDeonticPatient))
 
 silentAssassin : Ability
 silentAssassin =
@@ -1273,7 +1273,7 @@ leitmotifComposer =
   Activated (Mana [Macros.generic 2, Macros.pip Blue])
             (Continuously (Deontic (AllOf (And [Macros.creature,
                                                 Named (PrintedName "Leitmotif Composer")]))
-                                   Forbid Block Patient Nothing)
+                                   Forbid Block Patient NoDeonticPatient)
                           (Just Macros.thisTurn))
 
 
@@ -1303,19 +1303,19 @@ hammerOfBogardan =
 
 
 berserkersOfBloodRidge : Ability
-berserkersOfBloodRidge = Static (Deontic Macros.thisCreature Require Attack Agent Nothing)
+berserkersOfBloodRidge = Static (Deontic Macros.thisCreature Require Attack Agent NoDeonticPatient)
 
 trumpetingArmodon : Ability
 trumpetingArmodon =
   Activated (Mana [Macros.generic 1, Macros.pip Green])
             (Continuously (Deontic (Macros.target Macros.creature) Require Block Agent
-                                   (Just Macros.thisCreature))
+                                   (DeonticCounterpart Macros.thisCreature))
                           (Just Macros.thisTurn))
 
 loathsomeCatoblepas : Ability
 loathsomeCatoblepas =
   Activated (Mana [Macros.generic 2, Macros.pip Green])
-            (Continuously (Deontic Macros.thisCreature Require Block Patient Nothing)
+            (Continuously (Deontic Macros.thisCreature Require Block Patient NoDeonticPatient)
                           (Just Macros.thisTurn))
 
 ashnodsBattleGear : Ability
@@ -1363,14 +1363,14 @@ hipparion : Ability
 hipparion =
   Static (Deontic Macros.thisCreature (GatedBy (Mana [Macros.generic 1]))
                   Block Agent
-                  (Just (AllOf (And [Macros.creature,
-                                     Compare Power AtLeast (Lit 3)]))))
+                  (DeonticCounterpart (AllOf (And [Macros.creature,
+                                                   Compare Power AtLeast (Lit 3)]))))
 
 
 frodoBaggins : Ability
 frodoBaggins =
   Static (Macros.asLongAs (Matches Macros.thisCreature (HasDesignation RingBearer))
-                          (Deontic It Require Block Patient Nothing))
+                          (Deontic It Require Block Patient NoDeonticPatient))
 
 adantoVanguard : Ability
 adantoVanguard =
@@ -1384,7 +1384,7 @@ bloodshedFever =
        (MkTypeLine [Aura] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (Deontic (AttachHost Enchanted (TypeW Creature))
-                         Require Attack Agent Nothing) ]
+                         Require Attack Agent NoDeonticPatient) ]
        Nothing
 
 brainwash : Card
@@ -1393,13 +1393,13 @@ brainwash =
        (MkTypeLine [Aura] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (Deontic (AttachHost Enchanted (TypeW Creature))
-                         (GatedBy (Mana [Macros.generic 3])) Attack Agent Nothing) ]
+                         (GatedBy (Mana [Macros.generic 3])) Attack Agent NoDeonticPatient) ]
        Nothing
 
 enkiraHostileScavenger : Ability
 enkiraHostileScavenger =
   Static (Macros.asLongAs (Matches Macros.thisCreature (IsAttached Equipped))
-                          (Deontic It Require Block Patient Nothing))
+                          (Deontic It Require Block Patient NoDeonticPatient))
 
 extraArms : Card
 extraArms =
@@ -1461,7 +1461,7 @@ smogElemental =
 
 anglerTurtle : Ability
 anglerTurtle =
-  Static (Deontic (AllOf Macros.creatureYourOpponentsControl) Require Attack Agent Nothing)
+  Static (Deontic (AllOf Macros.creatureYourOpponentsControl) Require Attack Agent NoDeonticPatient)
 
 
 bloodTyrant : Ability
@@ -1558,7 +1558,7 @@ ensnaringBridge =
        [ Static (Deontic (AllOf (And [Macros.creature,
                                       Compare Power Greater
                                               (CountOf (InZone (Macros.handOf You)))]))
-                         Forbid Attack Agent Nothing) ]
+                         Forbid Attack Agent NoDeonticPatient) ]
        Nothing
 
 elderscaleWurm : Ability
@@ -2337,7 +2337,7 @@ undercoverButler =
                                          (Definite (And [AnyPlayer,
                                              Superlative MaxOf (PlayerStatAxis LifeTotal)
                                                          AnyPlayer])))
-                   (Continuously (Deontic It Forbid Block Patient Nothing)
+                   (Continuously (Deontic It Forbid Block Patient NoDeonticPatient)
                                  (Just Macros.thisTurn)) ]
        (Just (2, 3))
 
@@ -2711,7 +2711,7 @@ aetherTunnel =
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
                                 (PtUp (Lit 1)) (PtUp (Lit 0))
-                         , Deontic It Forbid Block Patient Nothing ]) ]
+                         , Deontic It Forbid Block Patient NoDeonticPatient ]) ]
        Nothing
 
 frogify : Card
@@ -5337,7 +5337,7 @@ demotion =
        (MkTypeLine [Aura] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso
-           [ Deontic (AttachHost Enchanted (TypeW Creature)) Forbid Block Agent Nothing
+           [ Deontic (AttachHost Enchanted (TypeW Creature)) Forbid Block Agent NoDeonticPatient
            , ObjectCant Activated
                (AllOf (And [AbilityHead AnyActivated, AbilityOf It])) ]) ]
        Nothing
@@ -6022,7 +6022,7 @@ glacialChasm =
        [ Macros.keywordCosting CumulativeUpkeep (Macros.payLife You 2)
        , Triggered When (Enters Macros.thisLand)
                    (Macros.sacrifice You (Macros.a Macros.land))
-       , Static (Deontic (AllOf Macros.creatureYouControl) Forbid Attack Agent Nothing)
+       , Static (Deontic (AllOf Macros.creatureYouControl) Forbid Attack Agent NoDeonticPatient)
        , Static (Prevents AnyDamage AllOfIt (Macros.shieldingIt You) Nothing Nothing) ]
        Nothing
 
@@ -6826,7 +6826,7 @@ cryptLurker =
 ||| Peacekeeper's second line: the bare generic plural as a deontic subject.
 public export
 peacekeeperCant : Ability
-peacekeeperCant = Static (Deontic (AllOf Macros.creature) Forbid Attack Agent Nothing)
+peacekeeperCant = Static (Deontic (AllOf Macros.creature) Forbid Attack Agent NoDeonticPatient)
 
 
 ||| Memoricide's search clause: "Search target player's graveyard, hand,
@@ -6904,3 +6904,51 @@ writeIntoBeingPlacement =
   Sequentially [ Macros.lookAt (Macros.topCards 2)
                , Macros.exile (Macros.oneOf Them)
                , Move TheRest Macros.topOrBottomZ ]
+
+||| Culling Mark: "Target creature blocks this turn if able." The block
+||| requirement with its patient left out.
+public export
+cullingMark : Card
+cullingMark =
+  Macros.card "Culling Mark" (Just [Macros.generic 2, Macros.pip Green]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Continuously (Deontic (Macros.target Macros.creature)
+                                      Require Block Agent NoDeonticPatient)
+                             (Just Macros.thisTurn)) ]
+       Nothing
+
+||| Blazing Archon's second line: "Creatures can't attack you." The
+||| restriction naming the player the attack is aimed at [CR#506.3].
+public export
+blazingArchonCant : Ability
+blazingArchonCant =
+  Static (Deontic (AllOf Macros.creature) Forbid Attack Agent (DefendingPlayer You))
+
+||| Clergy of the Holy Nimbus: "If this creature would be destroyed,
+||| regenerate it." A replacement effect over a destruction. The
+||| self-mention stands in for the printed "it": a replacement's event
+||| mints no subject binding for its own noun.
+public export
+clergyOfTheHolyNimbus : Ability
+clergyOfTheHolyNimbus =
+  Static (Intercepts (IsDestroyed Macros.thisCreature)
+                     (Regenerate Macros.thisCreature) Repeatedly)
+
+||| Rampant Frogantua's second line: "This creature gets +10/+10 for each
+||| player who has lost the game." The game-loss look-back [CR#603.10f].
+public export
+rampantFrogantuaPump : Ability
+rampantFrogantuaPump =
+  Static (Gets Macros.thisCreature
+               (PtUp (Macros.nForEach 10 (And [AnyPlayer, HappenedTo GameLoss ThisGame])))
+               (PtUp (Macros.nForEach 10 (And [AnyPlayer, HappenedTo GameLoss ThisGame]))))
+
+||| Goad's own reminder text, on the creature the goad names: "Until your
+||| next turn, that creature … attacks a player other than you if able."
+||| [CR#701.15b] The attack requirement naming its defender.
+public export
+goadedAttacksOther : Effect []
+goadedAttacksOther =
+  Continuously (Deontic (Macros.target Macros.creature) Require Attack Agent
+                        (DefendingPlayer (Macros.a (And [AnyPlayer, OtherThan You]))))
+               (Just Macros.untilYourNextTurn)

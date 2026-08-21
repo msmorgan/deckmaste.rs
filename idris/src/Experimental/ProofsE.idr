@@ -367,44 +367,12 @@ badPutFromExile : Unspellable (GameEvent []) (\ok =>
 badPutFromExile Oh impossible
 
 
-||| "The next time this creature would be put into a graveyard from the battlefield this turn, exile it instead."
-||| The zone arrival takes the interception in the standing form only; [CR#614.3]'s one-shot word is another row.
-public export
-badNextTimePutInto : Unspellable (Effect []) (\ok =>
-  Macros.nextTimeWouldInstead
-    (PutInto Macros.thisCreature Macros.graveyardZ
-             {from = Just (FromZone Macros.battlefieldZ)})
-    (Macros.exile Macros.thisCreature) (Just Macros.thisTurn) {uo = ok})
-badNextTimePutInto Oh impossible
-
-
-||| "If a +1/+1 counter would be removed from this creature, draw a card instead this turn."
-||| The counter placement is interceptable and the removal is not, which is why the event has two names.
-public export
-badInterceptCounterRemoval : Unspellable (Effect []) (\ok =>
-  Macros.ifWouldInstead
-    (CounterEvent CounterTaken Macros.plusOnePlusOne Macros.thisCreature)
-    Macros.drawACard (Just Macros.thisTurn)
-    {ok = Builtin.fst ok, uo = Builtin.snd ok})
-badInterceptCounterRemoval (Oh, _) impossible
-
-
 ||| "… if a creature was put into a zone this turn, …"
 ||| The history read names its destination, for which a subject-event-window query has no slot.
 public export
 badPlacementLookback : Unspellable (Condition []) (\ok =>
   Happened Placement (Macros.a Macros.creature) ThisTurn {sb = ok})
 badPlacementLookback MkLookbackSubject impossible
-
-
-||| "Whenever a creature enters during your upkeep, draw a card."
-||| The upkeep is what a header names as an event [CR#603.2b], never as a qualifier on another one.
-public export
-badHeaderUpkeepWindow : Unspellable Ability (\ok =>
-  Triggered Whenever (Enters (Macros.a Macros.creature))
-            {window = Just (DuringWindow Upkeep (Just Yours) {hw = ok})}
-            Macros.drawACard)
-badHeaderUpkeepWindow Oh impossible
 
 
 ||| "Whenever a creature enters during the turn, draw a card."
@@ -415,37 +383,6 @@ badHeaderBareTurnWindow : Unspellable Ability (\ok =>
             {window = Just (DuringWindow Turn Nothing {hw = ok})}
             Macros.drawACard)
 badHeaderBareTurnWindow Oh impossible
-
-
-||| "Whenever a creature enters during your precombat main phase, draw a card."
-||| [CR#505.1] gives a turn two main phases, and this vocabulary has a row for each and none for the pair.
-public export
-badHeaderMainPhaseWindow : Unspellable Ability (\ok =>
-  Triggered Whenever (Enters (Macros.a Macros.creature))
-            {window = Just (DuringWindow FirstMain (Just Yours) {hw = ok})}
-            Macros.drawACard)
-badHeaderMainPhaseWindow Oh impossible
-
-
-||| "Whenever a creature enters or at the beginning of your upkeep, draw a card."
-||| One word governs both disjuncts, and [CR#603.2b] fixes the turn-part beginning's word at "At".
-public export
-badCoordinatedPartBeginning : Unspellable Ability (\ok =>
-  Triggered Whenever (Enters (Macros.a Macros.creature))
-            {alt = Just (BeginningOf Upkeep (ByWord Yours))}
-            Macros.drawACard {ae = OneAlt {wo = ok}})
-badCoordinatedPartBeginning Oh impossible
-
-
-||| "The next time you would create one or more tokens, create a 1/1 white Soldier creature token instead."
-||| [CR#614.3]'s one-shot word belongs to a carrier, and token creation spins none up.
-public export
-badNextTimeWouldCreate : Unspellable (StaticEffect []) (\ok =>
-  Intercepts (TokensCreated (CountedGroup (Macros.atLeast 1) IsToken)
-                            {under = Just You})
-             (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier]))
-             NextTimeOnly {uo = ok})
-badNextTimeWouldCreate Oh impossible
 
 
 ||| "If you would create one or more tokens under your control, …"
@@ -481,15 +418,6 @@ badSingularCounterBatchSize : Unspellable (StaticEffect []) (\ok =>
                           Macros.plusOnePlusOne It)
              Repeatedly)
 badSingularCounterBatchSize Refl impossible
-
-
-||| "The next time a creature would enter, exile it instead."
-||| [CR#614.3]'s one-shot word belongs to a carrier that spins the replacement up, and entry has none.
-public export
-badNextTimeWouldEnter : Unspellable (StaticEffect []) (\ok =>
-  Intercepts (Enters (Macros.a Macros.creature)) (Macros.exile It)
-             NextTimeOnly {uo = ok})
-badNextTimeWouldEnter Oh impossible
 
 
 ||| "If an effect would create one or more tokens, it creates twice that many of those tokens instead."
@@ -603,22 +531,13 @@ badCoordinatedHostPlural : Unspellable Ability (\ok =>
 badCoordinatedHostPlural Refl impossible
 
 
-||| "Enchanted player can't lose the game and they can't win the game."
-||| The statement announces its subject at the object rows only, so a player host announces nothing.
-public export
-badCoordinatedPlayerHost : Unspellable Ability (\ok =>
-  Static (AndAlso [ OutcomeGate CantLose (AttachHost Enchanted PlayerW)
-                  , OutcomeGate CantWin (They {ok = ok}) ]))
-badCoordinatedPlayerHost Refl impossible
-
-
 ||| "Enchanted land gets +1/+1 and can't block."
 ||| The host's type is threaded forward, and only a creature can attack or block [CR#506.3].
 public export
 badCoordinatedLandHostBlocks : Unspellable Ability (\ok =>
   Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Land))
                          (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Deontic It Forbid Block Agent Nothing {dp = ok} ]))
+                  , Deontic It Forbid Block Agent NoDeonticPatient {dp = ok} ]))
 badCoordinatedLandHostBlocks Participant impossible
 
 
@@ -680,7 +599,7 @@ badKindredAlone MkCardLine impossible
 public export
 badPlaneswalkerAttacks : Unspellable Ability (\ok =>
   Static (Deontic (AttachHost Enchanted (TypeW Planeswalker))
-                  Forbid Attack Agent Nothing {dp = ok}))
+                  Forbid Attack Agent NoDeonticPatient {dp = ok}))
 badPlaneswalkerAttacks Participant impossible
 
 
