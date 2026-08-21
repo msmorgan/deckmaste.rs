@@ -34,39 +34,39 @@ public export
 data Characteristic = Power | Toughness | ManaValue
 
 public export
-sameChar : Characteristic -> Characteristic -> Bool
-sameChar Power Power = True
-sameChar Power _ = False
-sameChar Toughness Toughness = True
-sameChar Toughness _ = False
-sameChar ManaValue ManaValue = True
-sameChar ManaValue _ = False
+Eq Characteristic where
+  (==) Power Power = True
+  (==) Power _ = False
+  (==) Toughness Toughness = True
+  (==) Toughness _ = False
+  (==) ManaValue ManaValue = True
+  (==) ManaValue _ = False
 
 public export
 data PlayerStat = LifeTotal | StartingLifeTotal
 
 public export
-samePlayerStat : PlayerStat -> PlayerStat -> Bool
-samePlayerStat LifeTotal LifeTotal = True
-samePlayerStat LifeTotal _ = False
-samePlayerStat StartingLifeTotal StartingLifeTotal = True
-samePlayerStat StartingLifeTotal _ = False
+Eq PlayerStat where
+  (==) LifeTotal LifeTotal = True
+  (==) LifeTotal _ = False
+  (==) StartingLifeTotal StartingLifeTotal = True
+  (==) StartingLifeTotal _ = False
 
 public export
 data Comparator = AtLeast | AtMost | Greater | Less | Eq
 
 public export
-sameCmp : Comparator -> Comparator -> Bool
-sameCmp AtLeast AtLeast = True
-sameCmp AtLeast _ = False
-sameCmp AtMost AtMost = True
-sameCmp AtMost _ = False
-sameCmp Greater Greater = True
-sameCmp Greater _ = False
-sameCmp Less Less = True
-sameCmp Less _ = False
-sameCmp Eq Eq = True
-sameCmp Eq _ = False
+Eq Comparator where
+  (==) AtLeast AtLeast = True
+  (==) AtLeast _ = False
+  (==) AtMost AtMost = True
+  (==) AtMost _ = False
+  (==) Greater Greater = True
+  (==) Greater _ = False
+  (==) Less Less = True
+  (==) Less _ = False
+  (==) Eq Eq = True
+  (==) Eq _ = False
 
 public export
 comparedType : Characteristic -> Maybe CardType
@@ -78,15 +78,15 @@ public export
 data QualitySort = Color | CreatureType | CardName | Number
 
 public export
-sameQ : QualitySort -> QualitySort -> Bool
-sameQ Color Color = True
-sameQ Color _ = False
-sameQ CreatureType CreatureType = True
-sameQ CreatureType _ = False
-sameQ CardName CardName = True
-sameQ CardName _ = False
-sameQ Number Number = True
-sameQ Number _ = False
+Eq QualitySort where
+  (==) Color Color = True
+  (==) Color _ = False
+  (==) CreatureType CreatureType = True
+  (==) CreatureType _ = False
+  (==) CardName CardName = True
+  (==) CardName _ = False
+  (==) Number Number = True
+  (==) Number _ = False
 
 ||| Whether `OfChosen` honestly reads a chosen sort back: colours and
 ||| creature types take "of the chosen ...", card names and numbers use
@@ -106,111 +106,111 @@ public export
 data LetterWord = LetterX | LetterY
 
 public export
-sameLetterWord : LetterWord -> LetterWord -> Bool
-sameLetterWord LetterX LetterX = True
-sameLetterWord LetterX LetterY = False
-sameLetterWord LetterY LetterX = False
-sameLetterWord LetterY LetterY = True
+Eq LetterWord where
+  (==) LetterX LetterX = True
+  (==) LetterX LetterY = False
+  (==) LetterY LetterX = False
+  (==) LetterY LetterY = True
 
 public export
 data Kind = Object | Player | Quality QualitySort | Outcome | Gap
           | Letter LetterWord | TurnRef | Ability | ObjectOrPlayer
 
 public export
-sameKind : Kind -> Kind -> Bool
-sameKind Object Object = True
-sameKind Object Player = False
-sameKind Object (Quality _) = False
-sameKind Object Outcome = False
-sameKind Object Gap = False
-sameKind Object (Letter _) = False
-sameKind Object TurnRef = False
-sameKind Object Ability = False
-sameKind Object ObjectOrPlayer = False
-sameKind Player Object = False
-sameKind Player Player = True
-sameKind Player (Quality _) = False
-sameKind Player Outcome = False
-sameKind Player Gap = False
-sameKind Player (Letter _) = False
-sameKind Player TurnRef = False
-sameKind Player Ability = False
-sameKind Player ObjectOrPlayer = False
-sameKind (Quality _) Object = False
-sameKind (Quality _) Player = False
-sameKind (Quality a) (Quality b) = sameQ a b
-sameKind (Quality _) Outcome = False
-sameKind (Quality _) Gap = False
-sameKind (Quality _) (Letter _) = False
-sameKind (Quality _) TurnRef = False
-sameKind (Quality _) Ability = False
-sameKind (Quality _) ObjectOrPlayer = False
-sameKind Outcome Object = False
-sameKind Outcome Player = False
-sameKind Outcome (Quality _) = False
-sameKind Outcome Outcome = True
-sameKind Outcome Gap = False
-sameKind Outcome (Letter _) = False
-sameKind Outcome TurnRef = False
-sameKind Outcome Ability = False
-sameKind Outcome ObjectOrPlayer = False
-sameKind Gap Object = False
-sameKind Gap Player = False
-sameKind Gap (Quality _) = False
-sameKind Gap Outcome = False
-sameKind Gap Gap = True
-sameKind Gap (Letter _) = False
-sameKind Gap TurnRef = False
-sameKind Gap Ability = False
-sameKind Gap ObjectOrPlayer = False
-sameKind (Letter _) Object = False
-sameKind (Letter _) Player = False
-sameKind (Letter _) (Quality _) = False
-sameKind (Letter _) Outcome = False
-sameKind (Letter _) Gap = False
-sameKind (Letter a) (Letter b) = sameLetterWord a b
-sameKind (Letter _) TurnRef = False
-sameKind (Letter _) Ability = False
-sameKind (Letter _) ObjectOrPlayer = False
-sameKind TurnRef Object = False
-sameKind TurnRef Player = False
-sameKind TurnRef (Quality _) = False
-sameKind TurnRef Outcome = False
-sameKind TurnRef Gap = False
-sameKind TurnRef (Letter _) = False
-sameKind TurnRef TurnRef = True
-sameKind TurnRef Ability = False
-sameKind TurnRef ObjectOrPlayer = False
-sameKind Ability Object = False
-sameKind Ability Player = False
-sameKind Ability (Quality _) = False
-sameKind Ability Outcome = False
-sameKind Ability Gap = False
-sameKind Ability (Letter _) = False
-sameKind Ability TurnRef = False
-sameKind Ability Ability = True
-sameKind Ability ObjectOrPlayer = False
-sameKind ObjectOrPlayer Object = False
-sameKind ObjectOrPlayer Player = False
-sameKind ObjectOrPlayer (Quality _) = False
-sameKind ObjectOrPlayer Outcome = False
-sameKind ObjectOrPlayer Gap = False
-sameKind ObjectOrPlayer (Letter _) = False
-sameKind ObjectOrPlayer TurnRef = False
-sameKind ObjectOrPlayer Ability = False
-sameKind ObjectOrPlayer ObjectOrPlayer = True
+Eq Kind where
+  (==) Object Object = True
+  (==) Object Player = False
+  (==) Object (Quality _) = False
+  (==) Object Outcome = False
+  (==) Object Gap = False
+  (==) Object (Letter _) = False
+  (==) Object TurnRef = False
+  (==) Object Ability = False
+  (==) Object ObjectOrPlayer = False
+  (==) Player Object = False
+  (==) Player Player = True
+  (==) Player (Quality _) = False
+  (==) Player Outcome = False
+  (==) Player Gap = False
+  (==) Player (Letter _) = False
+  (==) Player TurnRef = False
+  (==) Player Ability = False
+  (==) Player ObjectOrPlayer = False
+  (==) (Quality _) Object = False
+  (==) (Quality _) Player = False
+  (==) (Quality a) (Quality b) = a == b
+  (==) (Quality _) Outcome = False
+  (==) (Quality _) Gap = False
+  (==) (Quality _) (Letter _) = False
+  (==) (Quality _) TurnRef = False
+  (==) (Quality _) Ability = False
+  (==) (Quality _) ObjectOrPlayer = False
+  (==) Outcome Object = False
+  (==) Outcome Player = False
+  (==) Outcome (Quality _) = False
+  (==) Outcome Outcome = True
+  (==) Outcome Gap = False
+  (==) Outcome (Letter _) = False
+  (==) Outcome TurnRef = False
+  (==) Outcome Ability = False
+  (==) Outcome ObjectOrPlayer = False
+  (==) Gap Object = False
+  (==) Gap Player = False
+  (==) Gap (Quality _) = False
+  (==) Gap Outcome = False
+  (==) Gap Gap = True
+  (==) Gap (Letter _) = False
+  (==) Gap TurnRef = False
+  (==) Gap Ability = False
+  (==) Gap ObjectOrPlayer = False
+  (==) (Letter _) Object = False
+  (==) (Letter _) Player = False
+  (==) (Letter _) (Quality _) = False
+  (==) (Letter _) Outcome = False
+  (==) (Letter _) Gap = False
+  (==) (Letter a) (Letter b) = a == b
+  (==) (Letter _) TurnRef = False
+  (==) (Letter _) Ability = False
+  (==) (Letter _) ObjectOrPlayer = False
+  (==) TurnRef Object = False
+  (==) TurnRef Player = False
+  (==) TurnRef (Quality _) = False
+  (==) TurnRef Outcome = False
+  (==) TurnRef Gap = False
+  (==) TurnRef (Letter _) = False
+  (==) TurnRef TurnRef = True
+  (==) TurnRef Ability = False
+  (==) TurnRef ObjectOrPlayer = False
+  (==) Ability Object = False
+  (==) Ability Player = False
+  (==) Ability (Quality _) = False
+  (==) Ability Outcome = False
+  (==) Ability Gap = False
+  (==) Ability (Letter _) = False
+  (==) Ability TurnRef = False
+  (==) Ability Ability = True
+  (==) Ability ObjectOrPlayer = False
+  (==) ObjectOrPlayer Object = False
+  (==) ObjectOrPlayer Player = False
+  (==) ObjectOrPlayer (Quality _) = False
+  (==) ObjectOrPlayer Outcome = False
+  (==) ObjectOrPlayer Gap = False
+  (==) ObjectOrPlayer (Letter _) = False
+  (==) ObjectOrPlayer TurnRef = False
+  (==) ObjectOrPlayer Ability = False
+  (==) ObjectOrPlayer ObjectOrPlayer = True
 
 ||| A `QualitySort` matches only itself.
 public export
-sameQRefl : (q : QualitySort) -> So (sameQ q q)
+sameQRefl : (q : QualitySort) -> So (q == q)
 sameQRefl Color = Oh
 sameQRefl CreatureType = Oh
 sameQRefl CardName = Oh
 sameQRefl Number = Oh
 
-||| `sameQ` decides equality: a match is the identity of the two sorts.
+||| `==` decides equality: a match is the identity of the two sorts.
 public export
-sameQEq : (a, b : QualitySort) -> So (sameQ a b) -> a = b
+sameQEq : (a, b : QualitySort) -> So (a == b) -> a = b
 sameQEq Color Color _ = Refl
 sameQEq Color CreatureType ok = absurd ok
 sameQEq Color CardName ok = absurd ok
@@ -233,13 +233,13 @@ sameQEq Number Number _ = Refl
 
 ||| A `LetterWord` matches only itself.
 public export
-sameLetterWordRefl : (w : LetterWord) -> So (sameLetterWord w w)
+sameLetterWordRefl : (w : LetterWord) -> So (w == w)
 sameLetterWordRefl LetterX = Oh
 sameLetterWordRefl LetterY = Oh
 
-||| `sameLetterWord` decides equality likewise.
+||| `==` decides equality likewise.
 public export
-sameLetterWordEq : (a, b : LetterWord) -> So (sameLetterWord a b) -> a = b
+sameLetterWordEq : (a, b : LetterWord) -> So (a == b) -> a = b
 sameLetterWordEq LetterX LetterX _ = Refl
 sameLetterWordEq LetterX LetterY ok = absurd ok
 sameLetterWordEq LetterY LetterX ok = absurd ok
@@ -247,7 +247,7 @@ sameLetterWordEq LetterY LetterY _ = Refl
 
 ||| Every kind matches itself.
 public export
-sameKindRefl : (k : Kind) -> So (sameKind k k)
+sameKindRefl : (k : Kind) -> So (k == k)
 sameKindRefl Object = Oh
 sameKindRefl Player = Oh
 sameKindRefl (Quality q) = sameQRefl q
@@ -275,7 +275,7 @@ joinable Player ObjectOrPlayer = True
 joinable ObjectOrPlayer Object = True
 joinable ObjectOrPlayer Player = True
 joinable ObjectOrPlayer ObjectOrPlayer = True
-joinable a b = sameKind a b
+joinable a b = a == b
 
 export infixl 5 \/
 
@@ -641,13 +641,13 @@ IsExtremal : AggregateOp -> Type
 IsExtremal op = So (isExtremal op)
 
 public export
-sameAggregateOp : AggregateOp -> AggregateOp -> Bool
-sameAggregateOp SumOf SumOf = True
-sameAggregateOp SumOf _ = False
-sameAggregateOp MinOf MinOf = True
-sameAggregateOp MinOf _ = False
-sameAggregateOp MaxOf MaxOf = True
-sameAggregateOp MaxOf _ = False
+Eq AggregateOp where
+  (==) SumOf SumOf = True
+  (==) SumOf _ = False
+  (==) MinOf MinOf = True
+  (==) MinOf _ = False
+  (==) MaxOf MaxOf = True
+  (==) MaxOf _ = False
 
 public export
 data ProjAxis = CharAxis Characteristic | PlayerStatAxis PlayerStat
@@ -658,11 +658,11 @@ projScope (CharAxis _) = Object
 projScope (PlayerStatAxis _) = Player
 
 public export
-sameProjAxis : ProjAxis -> ProjAxis -> Bool
-sameProjAxis (CharAxis a) (CharAxis b) = sameChar a b
-sameProjAxis (CharAxis _) _ = False
-sameProjAxis (PlayerStatAxis a) (PlayerStatAxis b) = samePlayerStat a b
-sameProjAxis (PlayerStatAxis _) _ = False
+Eq ProjAxis where
+  (==) (CharAxis a) (CharAxis b) = a == b
+  (==) (CharAxis _) _ = False
+  (==) (PlayerStatAxis a) (PlayerStatAxis b) = a == b
+  (==) (PlayerStatAxis _) _ = False
 
 public export
 data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
@@ -672,8 +672,8 @@ public export
 data Causer = AnEffect
 
 public export
-sameCauser : Causer -> Causer -> Bool
-sameCauser AnEffect AnEffect = True
+Eq Causer where
+  (==) AnEffect AnEffect = True
 
 public export
 data Plurality = OneOf | ManyOf
@@ -764,19 +764,19 @@ public export
 data Zone = Battlefield | Graveyard | Exile | Hand | Library | Stack
 
 public export
-sameZone : Zone -> Zone -> Bool
-sameZone Battlefield Battlefield = True
-sameZone Battlefield _ = False
-sameZone Graveyard Graveyard = True
-sameZone Graveyard _ = False
-sameZone Exile Exile = True
-sameZone Exile _ = False
-sameZone Hand Hand = True
-sameZone Hand _ = False
-sameZone Library Library = True
-sameZone Library _ = False
-sameZone Stack Stack = True
-sameZone Stack _ = False
+Eq Zone where
+  (==) Battlefield Battlefield = True
+  (==) Battlefield _ = False
+  (==) Graveyard Graveyard = True
+  (==) Graveyard _ = False
+  (==) Exile Exile = True
+  (==) Exile _ = False
+  (==) Hand Hand = True
+  (==) Hand _ = False
+  (==) Library Library = True
+  (==) Library _ = False
+  (==) Stack Stack = True
+  (==) Stack _ = False
 
 public export
 data LibPos = OnTop | OnBottom
@@ -829,21 +829,21 @@ verbAgentive Scry = True
 verbAgentive Surveil = True
 
 public export
-sameVerb : VerbName -> VerbName -> Bool
-sameVerb Scry Scry = True
-sameVerb Scry _ = False
-sameVerb Surveil Surveil = True
-sameVerb Surveil _ = False
-sameVerb Destroy Destroy = True
-sameVerb Destroy _ = False
-sameVerb Sacrifice Sacrifice = True
-sameVerb Sacrifice _ = False
-sameVerb Exile Exile = True
-sameVerb Exile _ = False
-sameVerb Discard Discard = True
-sameVerb Discard _ = False
-sameVerb Mill Mill = True
-sameVerb Mill _ = False
+Eq VerbName where
+  (==) Scry Scry = True
+  (==) Scry _ = False
+  (==) Surveil Surveil = True
+  (==) Surveil _ = False
+  (==) Destroy Destroy = True
+  (==) Destroy _ = False
+  (==) Sacrifice Sacrifice = True
+  (==) Sacrifice _ = False
+  (==) Exile Exile = True
+  (==) Exile _ = False
+  (==) Discard Discard = True
+  (==) Discard _ = False
+  (==) Mill Mill = True
+  (==) Mill _ = False
 
 public export
 record Stamp where
@@ -918,17 +918,17 @@ bindingTy (MkBinding _ _ _ AbilityP) = Nothing
 bindingTy (MkBinding _ _ _ UnionP) = Nothing
 
 public export
-sameOutcomeSort : OutcomeSort -> OutcomeSort -> Bool
-sameOutcomeSort DamageDealt DamageDealt = True
-sameOutcomeSort DamageDealt _ = False
-sameOutcomeSort LifeGained LifeGained = True
-sameOutcomeSort LifeGained _ = False
-sameOutcomeSort LifeLost LifeLost = True
-sameOutcomeSort LifeLost _ = False
-sameOutcomeSort CountersPut CountersPut = True
-sameOutcomeSort CountersPut _ = False
-sameOutcomeSort DamagePrevented DamagePrevented = True
-sameOutcomeSort DamagePrevented _ = False
+Eq OutcomeSort where
+  (==) DamageDealt DamageDealt = True
+  (==) DamageDealt _ = False
+  (==) LifeGained LifeGained = True
+  (==) LifeGained _ = False
+  (==) LifeLost LifeLost = True
+  (==) LifeLost _ = False
+  (==) CountersPut CountersPut = True
+  (==) CountersPut _ = False
+  (==) DamagePrevented DamagePrevented = True
+  (==) DamagePrevented _ = False
 
 public export
 outcomeB : OutcomeSort -> Binding
@@ -951,45 +951,45 @@ qualityB : QualitySort -> Binding
 qualityB q = MkBinding AD (Quality q) OneOf QualityP
 
 public export
-sameCT : CardType -> CardType -> Bool
-sameCT Creature Creature = True
-sameCT Creature _ = False
-sameCT Artifact Artifact = True
-sameCT Artifact _ = False
-sameCT Land Land = True
-sameCT Land _ = False
-sameCT Enchantment Enchantment = True
-sameCT Enchantment _ = False
-sameCT Instant Instant = True
-sameCT Instant _ = False
-sameCT Sorcery Sorcery = True
-sameCT Sorcery _ = False
-sameCT Planeswalker Planeswalker = True
-sameCT Planeswalker _ = False
-sameCT Battle Battle = True
-sameCT Battle _ = False
-sameCT Kindred Kindred = True
-sameCT Kindred _ = False
+Eq CardType where
+  (==) Creature Creature = True
+  (==) Creature _ = False
+  (==) Artifact Artifact = True
+  (==) Artifact _ = False
+  (==) Land Land = True
+  (==) Land _ = False
+  (==) Enchantment Enchantment = True
+  (==) Enchantment _ = False
+  (==) Instant Instant = True
+  (==) Instant _ = False
+  (==) Sorcery Sorcery = True
+  (==) Sorcery _ = False
+  (==) Planeswalker Planeswalker = True
+  (==) Planeswalker _ = False
+  (==) Battle Battle = True
+  (==) Battle _ = False
+  (==) Kindred Kindred = True
+  (==) Kindred _ = False
 
 public export
 countOnes : Kind -> Bindings -> Nat
 countOnes k [] = Z
 countOnes k (MkBinding _ k' OneOf _ :: bs) =
-  if sameKind k k' then S (countOnes k bs) else countOnes k bs
+  if k == k' then S (countOnes k bs) else countOnes k bs
 countOnes k (_ :: bs) = countOnes k bs
 
 public export
 countOutcomes : OutcomeSort -> Bindings -> Nat
 countOutcomes s [] = Z
 countOutcomes s (MkBinding _ Outcome OneOf (OutcomeP s') :: bs) =
-  if sameOutcomeSort s s' then S (countOutcomes s bs) else countOutcomes s bs
+  if s == s' then S (countOutcomes s bs) else countOutcomes s bs
 countOutcomes s (_ :: bs) = countOutcomes s bs
 
 public export
 countQuality : QualitySort -> Bindings -> Nat
 countQuality q [] = Z
 countQuality q (MkBinding _ k OneOf _ :: bs) =
-  if sameKind (Quality q) k then S (countQuality q bs) else countQuality q bs
+  if Quality q == k then S (countQuality q bs) else countQuality q bs
 countQuality q (_ :: bs) = countQuality q bs
 
 public export
@@ -1000,14 +1000,14 @@ public export
 countLetter : LetterWord -> Bindings -> Nat
 countLetter w [] = Z
 countLetter w (MkBinding _ k OneOf _ :: bs) =
-  if sameKind (Letter w) k then S (countLetter w bs) else countLetter w bs
+  if Letter w == k then S (countLetter w bs) else countLetter w bs
 countLetter w (_ :: bs) = countLetter w bs
 
 public export
 countManys : Kind -> Bindings -> Nat
 countManys k [] = Z
 countManys k (MkBinding _ k' ManyOf _ :: bs) =
-  if sameKind k k' then S (countManys k bs) else countManys k bs
+  if k == k' then S (countManys k bs) else countManys k bs
 countManys k (_ :: bs) = countManys k bs
 
 public export
@@ -1057,13 +1057,13 @@ public export
 anyTargeted : Kind -> Bindings -> Bool
 anyTargeted k [] = False
 anyTargeted k (MkBinding TargetD k' _ _ :: bs) =
-  if sameKind k k' then True else anyTargeted k bs
+  if k == k' then True else anyTargeted k bs
 anyTargeted k (_ :: bs) = anyTargeted k bs
 
 public export
 anchorTyOk : CardType -> Maybe CardType -> Bool
 anchorTyOk t Nothing = True
-anchorTyOk t (Just t') = sameCT t t'
+anchorTyOk t (Just t') = t == t'
 
 public export
 anyTargetedAt : Bindings -> Bool
@@ -1075,7 +1075,7 @@ public export
 anyTargetedTy : Kind -> CardType -> Bindings -> Bool
 anyTargetedTy k t [] = False
 anyTargetedTy k t (b@(MkBinding TargetD k' _ _) :: bs) =
-  if sameKind k k' && anchorTyOk t (bindingTy b) then True else anyTargetedTy k t bs
+  if k == k' && anchorTyOk t (bindingTy b) then True else anyTargetedTy k t bs
 anyTargetedTy k t (_ :: bs) = anyTargetedTy k t bs
 
 public export
@@ -1172,7 +1172,7 @@ publicOnly (b :: bs) = if pubB b then b :: publicOnly bs else publicOnly bs
 
 public export
 notInLibrary : Binding -> Bool
-notInLibrary (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = not (sameZone z Library)
+notInLibrary (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = not (z == Library)
 notInLibrary (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
 notInLibrary (MkBinding _ _ _ PlayerP) = True
 notInLibrary (MkBinding _ _ _ QualityP) = True
@@ -1234,7 +1234,7 @@ VerbedMarkingOk v m = So (verbedMarkingOk v m)
 public export
 tyIs : CardType -> Maybe CardType -> Bool
 tyIs t Nothing = False
-tyIs t (Just t') = sameCT t t'
+tyIs t (Just t') = t == t'
 
 public export
 isCardZone : Maybe Zone -> Bool
@@ -1371,7 +1371,7 @@ kindOfW JoinW = Object
 
 public export
 stampedBy : VerbName -> Stamp -> Bool
-stampedBy v (MkStamp v' _) = sameVerb v v'
+stampedBy v (MkStamp v' _) = v == v'
 
 public export
 verbedWordOk : NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
@@ -1546,75 +1546,75 @@ public export
 data EntryCounterMark = Fresh | Additional
 
 public export
-sameEntryCounterMark : EntryCounterMark -> EntryCounterMark -> Bool
-sameEntryCounterMark Fresh Fresh = True
-sameEntryCounterMark Fresh Additional = False
-sameEntryCounterMark Additional Fresh = False
-sameEntryCounterMark Additional Additional = True
+Eq EntryCounterMark where
+  (==) Fresh Fresh = True
+  (==) Fresh Additional = False
+  (==) Additional Fresh = False
+  (==) Additional Additional = True
 
 public export
 data PlayerGroupWord = AllPlayers | YourOpponents
 
 public export
-samePlayerGroupWord : PlayerGroupWord -> PlayerGroupWord -> Bool
-samePlayerGroupWord AllPlayers AllPlayers = True
-samePlayerGroupWord AllPlayers _ = False
-samePlayerGroupWord YourOpponents YourOpponents = True
-samePlayerGroupWord YourOpponents _ = False
+Eq PlayerGroupWord where
+  (==) AllPlayers AllPlayers = True
+  (==) AllPlayers _ = False
+  (==) YourOpponents YourOpponents = True
+  (==) YourOpponents _ = False
 
 public export
 data JoinedPlayer = JoinAnyPlayer | JoinOpponent
 
 public export
-sameJoinedPlayer : JoinedPlayer -> JoinedPlayer -> Bool
-sameJoinedPlayer JoinAnyPlayer JoinAnyPlayer = True
-sameJoinedPlayer JoinAnyPlayer _ = False
-sameJoinedPlayer JoinOpponent JoinOpponent = True
-sameJoinedPlayer JoinOpponent _ = False
+Eq JoinedPlayer where
+  (==) JoinAnyPlayer JoinAnyPlayer = True
+  (==) JoinAnyPlayer _ = False
+  (==) JoinOpponent JoinOpponent = True
+  (==) JoinOpponent _ = False
 
 public export
 data JoinedClass = JoinPermanent | JoinCreature | JoinPlaneswalker | JoinBattle
 
 public export
-sameJoinedClass : JoinedClass -> JoinedClass -> Bool
-sameJoinedClass JoinPermanent JoinPermanent = True
-sameJoinedClass JoinPermanent _ = False
-sameJoinedClass JoinCreature JoinCreature = True
-sameJoinedClass JoinCreature _ = False
-sameJoinedClass JoinPlaneswalker JoinPlaneswalker = True
-sameJoinedClass JoinPlaneswalker _ = False
-sameJoinedClass JoinBattle JoinBattle = True
-sameJoinedClass JoinBattle _ = False
+Eq JoinedClass where
+  (==) JoinPermanent JoinPermanent = True
+  (==) JoinPermanent _ = False
+  (==) JoinCreature JoinCreature = True
+  (==) JoinCreature _ = False
+  (==) JoinPlaneswalker JoinPlaneswalker = True
+  (==) JoinPlaneswalker _ = False
+  (==) JoinBattle JoinBattle = True
+  (==) JoinBattle _ = False
 
 public export
 data RoundMode = RoundUp | RoundDown
 
 public export
-sameRoundMode : RoundMode -> RoundMode -> Bool
-sameRoundMode RoundUp RoundUp = True
-sameRoundMode RoundUp _ = False
-sameRoundMode RoundDown RoundDown = True
-sameRoundMode RoundDown _ = False
+Eq RoundMode where
+  (==) RoundUp RoundUp = True
+  (==) RoundUp _ = False
+  (==) RoundDown RoundDown = True
+  (==) RoundDown _ = False
 
 public export
 data ScaleFactor = Doubled | Tripled
 
 public export
-sameScaleFactor : ScaleFactor -> ScaleFactor -> Bool
-sameScaleFactor Doubled Doubled = True
-sameScaleFactor Doubled _ = False
-sameScaleFactor Tripled Tripled = True
-sameScaleFactor Tripled _ = False
+Eq ScaleFactor where
+  (==) Doubled Doubled = True
+  (==) Doubled _ = False
+  (==) Tripled Tripled = True
+  (==) Tripled _ = False
 
 public export
 data ShiftDir = ShiftUp | ShiftDown
 
 public export
-sameShiftDir : ShiftDir -> ShiftDir -> Bool
-sameShiftDir ShiftUp ShiftUp = True
-sameShiftDir ShiftUp _ = False
-sameShiftDir ShiftDown ShiftDown = True
-sameShiftDir ShiftDown _ = False
+Eq ShiftDir where
+  (==) ShiftUp ShiftUp = True
+  (==) ShiftUp _ = False
+  (==) ShiftDown ShiftDown = True
+  (==) ShiftDown _ = False
 
 public export
 data CapBound : Nat -> Type where
@@ -1647,7 +1647,7 @@ public export
 zoneFits : Maybe Zone -> Maybe Zone -> Bool
 zoneFits Nothing _ = True
 zoneFits (Just _) Nothing = True
-zoneFits (Just a) (Just b) = sameZone a b
+zoneFits (Just a) (Just b) = a == b
 
 public export
 ZoneFits : Maybe Zone -> Maybe Zone -> Type
@@ -1719,90 +1719,90 @@ keywordParamShape Menace = NoParam
 keywordParamShape Skulk = NoParam
 
 public export
-sameParamShape : KeywordParamShape -> KeywordParamShape -> Bool
-sameParamShape NoParam NoParam = True
-sameParamShape NoParam _ = False
-sameParamShape CostParam CostParam = True
-sameParamShape CostParam _ = False
-sameParamShape QualityParam QualityParam = True
-sameParamShape QualityParam _ = False
-sameParamShape SubjectParam SubjectParam = True
-sameParamShape SubjectParam _ = False
-sameParamShape NumberParam NumberParam = True
-sameParamShape NumberParam _ = False
+Eq KeywordParamShape where
+  (==) NoParam NoParam = True
+  (==) NoParam _ = False
+  (==) CostParam CostParam = True
+  (==) CostParam _ = False
+  (==) QualityParam QualityParam = True
+  (==) QualityParam _ = False
+  (==) SubjectParam SubjectParam = True
+  (==) SubjectParam _ = False
+  (==) NumberParam NumberParam = True
+  (==) NumberParam _ = False
 
 public export
 keywordParamless : Keyword -> Bool
-keywordParamless k = sameParamShape (keywordParamShape k) NoParam
+keywordParamless k = keywordParamShape k == NoParam
 
 public export
 KeywordParamless : Keyword -> Type
 KeywordParamless k = So (keywordParamless k)
 
 public export
-sameKeyword : Keyword -> Keyword -> Bool
-sameKeyword Haste Haste = True
-sameKeyword Haste _ = False
-sameKeyword Flying Flying = True
-sameKeyword Flying _ = False
-sameKeyword Trample Trample = True
-sameKeyword Trample _ = False
-sameKeyword Vigilance Vigilance = True
-sameKeyword Vigilance _ = False
-sameKeyword Deathtouch Deathtouch = True
-sameKeyword Deathtouch _ = False
-sameKeyword DoubleStrike DoubleStrike = True
-sameKeyword DoubleStrike _ = False
-sameKeyword FirstStrike FirstStrike = True
-sameKeyword FirstStrike _ = False
-sameKeyword Reach Reach = True
-sameKeyword Reach _ = False
-sameKeyword Convoke Convoke = True
-sameKeyword Convoke _ = False
-sameKeyword Improvise Improvise = True
-sameKeyword Improvise _ = False
-sameKeyword Storm Storm = True
-sameKeyword Storm _ = False
-sameKeyword Lifelink Lifelink = True
-sameKeyword Lifelink _ = False
-sameKeyword Ward Ward = True
-sameKeyword Ward _ = False
-sameKeyword Protection Protection = True
-sameKeyword Protection _ = False
-sameKeyword Enchant Enchant = True
-sameKeyword Enchant _ = False
-sameKeyword Equip Equip = True
-sameKeyword Equip _ = False
-sameKeyword Ascend Ascend = True
-sameKeyword Ascend _ = False
-sameKeyword Storied Storied = True
-sameKeyword Storied _ = False
-sameKeyword Renown Renown = True
-sameKeyword Renown _ = False
-sameKeyword Indestructible Indestructible = True
-sameKeyword Indestructible _ = False
-sameKeyword Flash Flash = True
-sameKeyword Flash _ = False
-sameKeyword CumulativeUpkeep CumulativeUpkeep = True
-sameKeyword CumulativeUpkeep _ = False
-sameKeyword Hexproof Hexproof = True
-sameKeyword Hexproof _ = False
-sameKeyword Menace Menace = True
-sameKeyword Menace _ = False
-sameKeyword Skulk Skulk = True
-sameKeyword Skulk _ = False
+Eq Keyword where
+  (==) Haste Haste = True
+  (==) Haste _ = False
+  (==) Flying Flying = True
+  (==) Flying _ = False
+  (==) Trample Trample = True
+  (==) Trample _ = False
+  (==) Vigilance Vigilance = True
+  (==) Vigilance _ = False
+  (==) Deathtouch Deathtouch = True
+  (==) Deathtouch _ = False
+  (==) DoubleStrike DoubleStrike = True
+  (==) DoubleStrike _ = False
+  (==) FirstStrike FirstStrike = True
+  (==) FirstStrike _ = False
+  (==) Reach Reach = True
+  (==) Reach _ = False
+  (==) Convoke Convoke = True
+  (==) Convoke _ = False
+  (==) Improvise Improvise = True
+  (==) Improvise _ = False
+  (==) Storm Storm = True
+  (==) Storm _ = False
+  (==) Lifelink Lifelink = True
+  (==) Lifelink _ = False
+  (==) Ward Ward = True
+  (==) Ward _ = False
+  (==) Protection Protection = True
+  (==) Protection _ = False
+  (==) Enchant Enchant = True
+  (==) Enchant _ = False
+  (==) Equip Equip = True
+  (==) Equip _ = False
+  (==) Ascend Ascend = True
+  (==) Ascend _ = False
+  (==) Storied Storied = True
+  (==) Storied _ = False
+  (==) Renown Renown = True
+  (==) Renown _ = False
+  (==) Indestructible Indestructible = True
+  (==) Indestructible _ = False
+  (==) Flash Flash = True
+  (==) Flash _ = False
+  (==) CumulativeUpkeep CumulativeUpkeep = True
+  (==) CumulativeUpkeep _ = False
+  (==) Hexproof Hexproof = True
+  (==) Hexproof _ = False
+  (==) Menace Menace = True
+  (==) Menace _ = False
+  (==) Skulk Skulk = True
+  (==) Skulk _ = False
 
 public export
 data AbilityClass = AnyActivated | LoyaltyClass | KeywordClass Keyword
 
 public export
-sameAbilityClass : AbilityClass -> AbilityClass -> Bool
-sameAbilityClass AnyActivated AnyActivated = True
-sameAbilityClass AnyActivated _ = False
-sameAbilityClass LoyaltyClass LoyaltyClass = True
-sameAbilityClass LoyaltyClass _ = False
-sameAbilityClass (KeywordClass a) (KeywordClass b) = sameKeyword a b
-sameAbilityClass (KeywordClass _) _ = False
+Eq AbilityClass where
+  (==) AnyActivated AnyActivated = True
+  (==) AnyActivated _ = False
+  (==) LoyaltyClass LoyaltyClass = True
+  (==) LoyaltyClass _ = False
+  (==) (KeywordClass a) (KeywordClass b) = a == b
+  (==) (KeywordClass _) _ = False
 
 
 
@@ -1814,17 +1814,17 @@ namespace Chroma
   data ColorOrColorless = Colorless | OfColor Color
 
 public export
-sameColor : Color -> Color -> Bool
-sameColor White White = True
-sameColor White _ = False
-sameColor Blue Blue = True
-sameColor Blue _ = False
-sameColor Black Black = True
-sameColor Black _ = False
-sameColor Red Red = True
-sameColor Red _ = False
-sameColor Green Green = True
-sameColor Green _ = False
+Eq Color where
+  (==) White White = True
+  (==) White _ = False
+  (==) Blue Blue = True
+  (==) Blue _ = False
+  (==) Black Black = True
+  (==) Black _ = False
+  (==) Red Red = True
+  (==) Red _ = False
+  (==) Green Green = True
+  (==) Green _ = False
 
 
 public export
@@ -1834,7 +1834,7 @@ public export
 halvesDistinct : SimpleManaSymbol -> Color -> Bool
 halvesDistinct (Generic _) d = True
 halvesDistinct (Specific Colorless) d = True
-halvesDistinct (Specific (OfColor c)) d = not (sameColor c d)
+halvesDistinct (Specific (OfColor c)) d = not (c == d)
 
 public export
 HalvesDistinct : SimpleManaSymbol -> Color -> Type
@@ -1843,7 +1843,7 @@ HalvesDistinct l r = So (halvesDistinct l r)
 public export
 phyrexianDistinct : Color -> Maybe Color -> Bool
 phyrexianDistinct c Nothing = True
-phyrexianDistinct c (Just d) = not (sameColor c d)
+phyrexianDistinct c (Just d) = not (c == d)
 
 public export
 PhyrexianDistinct : Color -> Maybe Color -> Type
@@ -1961,189 +1961,189 @@ data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
              | Werewolf | Eldrazi
 
 public export
-sameSub : Subtype -> Subtype -> Bool
-sameSub Goblin Goblin = True
-sameSub Goblin _ = False
-sameSub Equipment Equipment = True
-sameSub Equipment _ = False
-sameSub Avatar Avatar = True
-sameSub Avatar _ = False
-sameSub Insect Insect = True
-sameSub Insect _ = False
-sameSub Elder Elder = True
-sameSub Elder _ = False
-sameSub Dinosaur Dinosaur = True
-sameSub Dinosaur _ = False
-sameSub Horror Horror = True
-sameSub Horror _ = False
-sameSub Gargoyle Gargoyle = True
-sameSub Gargoyle _ = False
-sameSub Assassin Assassin = True
-sameSub Assassin _ = False
-sameSub Skeleton Skeleton = True
-sameSub Skeleton _ = False
-sameSub Town Town = True
-sameSub Town _ = False
-sameSub Desert Desert = True
-sameSub Desert _ = False
-sameSub Pegasus Pegasus = True
-sameSub Pegasus _ = False
-sameSub Faerie Faerie = True
-sameSub Faerie _ = False
-sameSub Kraken Kraken = True
-sameSub Kraken _ = False
-sameSub Sphinx Sphinx = True
-sameSub Sphinx _ = False
-sameSub Werewolf Werewolf = True
-sameSub Werewolf _ = False
-sameSub Eldrazi Eldrazi = True
-sameSub Eldrazi _ = False
-sameSub Goat Goat = True
-sameSub Goat _ = False
-sameSub Spirit Spirit = True
-sameSub Spirit _ = False
-sameSub Shapeshifter Shapeshifter = True
-sameSub Shapeshifter _ = False
-sameSub Centaur Centaur = True
-sameSub Centaur _ = False
-sameSub Monk Monk = True
-sameSub Monk _ = False
-sameSub Nymph Nymph = True
-sameSub Nymph _ = False
-sameSub Dryad Dryad = True
-sameSub Dryad _ = False
-sameSub Nightmare Nightmare = True
-sameSub Nightmare _ = False
-sameSub Fish Fish = True
-sameSub Fish _ = False
-sameSub Saga Saga = True
-sameSub Saga _ = False
-sameSub Human Human = True
-sameSub Human _ = False
-sameSub Advisor Advisor = True
-sameSub Advisor _ = False
-sameSub Wizard Wizard = True
-sameSub Wizard _ = False
-sameSub Merfolk Merfolk = True
-sameSub Merfolk _ = False
-sameSub Shaman Shaman = True
-sameSub Shaman _ = False
-sameSub Vedalken Vedalken = True
-sameSub Vedalken _ = False
-sameSub Artificer Artificer = True
-sameSub Artificer _ = False
-sameSub Zombie Zombie = True
-sameSub Zombie _ = False
-sameSub Army Army = True
-sameSub Army _ = False
-sameSub Soldier Soldier = True
-sameSub Soldier _ = False
-sameSub Knight Knight = True
-sameSub Knight _ = False
-sameSub Myr Myr = True
-sameSub Myr _ = False
-sameSub Elk Elk = True
-sameSub Elk _ = False
-sameSub Treefolk Treefolk = True
-sameSub Treefolk _ = False
-sameSub Siege Siege = True
-sameSub Siege _ = False
-sameSub Imp Imp = True
-sameSub Imp _ = False
-sameSub Saheeli Saheeli = True
-sameSub Saheeli _ = False
-sameSub Jace Jace = True
-sameSub Jace _ = False
-sameSub Elspeth Elspeth = True
-sameSub Elspeth _ = False
-sameSub Thopter Thopter = True
-sameSub Thopter _ = False
-sameSub Construct Construct = True
-sameSub Construct _ = False
-sameSub Fractal Fractal = True
-sameSub Fractal _ = False
-sameSub Coward Coward = True
-sameSub Coward _ = False
-sameSub Demon Demon = True
-sameSub Demon _ = False
-sameSub Illusion Illusion = True
-sameSub Illusion _ = False
-sameSub Sliver Sliver = True
-sameSub Sliver _ = False
-sameSub Wall Wall = True
-sameSub Wall _ = False
-sameSub Cleric Cleric = True
-sameSub Cleric _ = False
-sameSub Angel Angel = True
-sameSub Angel _ = False
-sameSub Elemental Elemental = True
-sameSub Elemental _ = False
-sameSub Plant Plant = True
-sameSub Plant _ = False
-sameSub Dragon Dragon = True
-sameSub Dragon _ = False
-sameSub Plains Plains = True
-sameSub Plains _ = False
-sameSub Island Island = True
-sameSub Island _ = False
-sameSub Swamp Swamp = True
-sameSub Swamp _ = False
-sameSub Mountain Mountain = True
-sameSub Mountain _ = False
-sameSub Forest Forest = True
-sameSub Forest _ = False
-sameSub Aura Aura = True
-sameSub Aura _ = False
-sameSub Curse Curse = True
-sameSub Curse _ = False
-sameSub Tiefling Tiefling = True
-sameSub Tiefling _ = False
-sameSub Warlock Warlock = True
-sameSub Warlock _ = False
-sameSub Pirate Pirate = True
-sameSub Pirate _ = False
-sameSub Cat Cat = True
-sameSub Cat _ = False
-sameSub Beast Beast = True
-sameSub Beast _ = False
-sameSub Dwarf Dwarf = True
-sameSub Dwarf _ = False
-sameSub Bard Bard = True
-sameSub Bard _ = False
-sameSub Hero Hero = True
-sameSub Hero _ = False
-sameSub Elf Elf = True
-sameSub Elf _ = False
-sameSub Scout Scout = True
-sameSub Scout _ = False
-sameSub Rogue Rogue = True
-sameSub Rogue _ = False
-sameSub Druid Druid = True
-sameSub Druid _ = False
-sameSub Alien Alien = True
-sameSub Alien _ = False
-sameSub Warrior Warrior = True
-sameSub Warrior _ = False
-sameSub Vampire Vampire = True
-sameSub Vampire _ = False
-sameSub Mutant Mutant = True
-sameSub Mutant _ = False
-sameSub AssemblyWorker AssemblyWorker = True
-sameSub AssemblyWorker _ = False
-sameSub Ooze Ooze = True
-sameSub Ooze _ = False
-sameSub Frog Frog = True
-sameSub Frog _ = False
-sameSub Horse Horse = True
-sameSub Horse _ = False
-sameSub Bird Bird = True
-sameSub Bird _ = False
-sameSub Ally Ally = True
-sameSub Ally _ = False
-sameSub Gideon Gideon = True
-sameSub Gideon _ = False
-sameSub Arcane Arcane = True
-sameSub Arcane _ = False
+Eq Subtype where
+  (==) Goblin Goblin = True
+  (==) Goblin _ = False
+  (==) Equipment Equipment = True
+  (==) Equipment _ = False
+  (==) Avatar Avatar = True
+  (==) Avatar _ = False
+  (==) Insect Insect = True
+  (==) Insect _ = False
+  (==) Elder Elder = True
+  (==) Elder _ = False
+  (==) Dinosaur Dinosaur = True
+  (==) Dinosaur _ = False
+  (==) Horror Horror = True
+  (==) Horror _ = False
+  (==) Gargoyle Gargoyle = True
+  (==) Gargoyle _ = False
+  (==) Assassin Assassin = True
+  (==) Assassin _ = False
+  (==) Skeleton Skeleton = True
+  (==) Skeleton _ = False
+  (==) Town Town = True
+  (==) Town _ = False
+  (==) Desert Desert = True
+  (==) Desert _ = False
+  (==) Pegasus Pegasus = True
+  (==) Pegasus _ = False
+  (==) Faerie Faerie = True
+  (==) Faerie _ = False
+  (==) Kraken Kraken = True
+  (==) Kraken _ = False
+  (==) Sphinx Sphinx = True
+  (==) Sphinx _ = False
+  (==) Werewolf Werewolf = True
+  (==) Werewolf _ = False
+  (==) Eldrazi Eldrazi = True
+  (==) Eldrazi _ = False
+  (==) Goat Goat = True
+  (==) Goat _ = False
+  (==) Spirit Spirit = True
+  (==) Spirit _ = False
+  (==) Shapeshifter Shapeshifter = True
+  (==) Shapeshifter _ = False
+  (==) Centaur Centaur = True
+  (==) Centaur _ = False
+  (==) Monk Monk = True
+  (==) Monk _ = False
+  (==) Nymph Nymph = True
+  (==) Nymph _ = False
+  (==) Dryad Dryad = True
+  (==) Dryad _ = False
+  (==) Nightmare Nightmare = True
+  (==) Nightmare _ = False
+  (==) Fish Fish = True
+  (==) Fish _ = False
+  (==) Saga Saga = True
+  (==) Saga _ = False
+  (==) Human Human = True
+  (==) Human _ = False
+  (==) Advisor Advisor = True
+  (==) Advisor _ = False
+  (==) Wizard Wizard = True
+  (==) Wizard _ = False
+  (==) Merfolk Merfolk = True
+  (==) Merfolk _ = False
+  (==) Shaman Shaman = True
+  (==) Shaman _ = False
+  (==) Vedalken Vedalken = True
+  (==) Vedalken _ = False
+  (==) Artificer Artificer = True
+  (==) Artificer _ = False
+  (==) Zombie Zombie = True
+  (==) Zombie _ = False
+  (==) Army Army = True
+  (==) Army _ = False
+  (==) Soldier Soldier = True
+  (==) Soldier _ = False
+  (==) Knight Knight = True
+  (==) Knight _ = False
+  (==) Myr Myr = True
+  (==) Myr _ = False
+  (==) Elk Elk = True
+  (==) Elk _ = False
+  (==) Treefolk Treefolk = True
+  (==) Treefolk _ = False
+  (==) Siege Siege = True
+  (==) Siege _ = False
+  (==) Imp Imp = True
+  (==) Imp _ = False
+  (==) Saheeli Saheeli = True
+  (==) Saheeli _ = False
+  (==) Jace Jace = True
+  (==) Jace _ = False
+  (==) Elspeth Elspeth = True
+  (==) Elspeth _ = False
+  (==) Thopter Thopter = True
+  (==) Thopter _ = False
+  (==) Construct Construct = True
+  (==) Construct _ = False
+  (==) Fractal Fractal = True
+  (==) Fractal _ = False
+  (==) Coward Coward = True
+  (==) Coward _ = False
+  (==) Demon Demon = True
+  (==) Demon _ = False
+  (==) Illusion Illusion = True
+  (==) Illusion _ = False
+  (==) Sliver Sliver = True
+  (==) Sliver _ = False
+  (==) Wall Wall = True
+  (==) Wall _ = False
+  (==) Cleric Cleric = True
+  (==) Cleric _ = False
+  (==) Angel Angel = True
+  (==) Angel _ = False
+  (==) Elemental Elemental = True
+  (==) Elemental _ = False
+  (==) Plant Plant = True
+  (==) Plant _ = False
+  (==) Dragon Dragon = True
+  (==) Dragon _ = False
+  (==) Plains Plains = True
+  (==) Plains _ = False
+  (==) Island Island = True
+  (==) Island _ = False
+  (==) Swamp Swamp = True
+  (==) Swamp _ = False
+  (==) Mountain Mountain = True
+  (==) Mountain _ = False
+  (==) Forest Forest = True
+  (==) Forest _ = False
+  (==) Aura Aura = True
+  (==) Aura _ = False
+  (==) Curse Curse = True
+  (==) Curse _ = False
+  (==) Tiefling Tiefling = True
+  (==) Tiefling _ = False
+  (==) Warlock Warlock = True
+  (==) Warlock _ = False
+  (==) Pirate Pirate = True
+  (==) Pirate _ = False
+  (==) Cat Cat = True
+  (==) Cat _ = False
+  (==) Beast Beast = True
+  (==) Beast _ = False
+  (==) Dwarf Dwarf = True
+  (==) Dwarf _ = False
+  (==) Bard Bard = True
+  (==) Bard _ = False
+  (==) Hero Hero = True
+  (==) Hero _ = False
+  (==) Elf Elf = True
+  (==) Elf _ = False
+  (==) Scout Scout = True
+  (==) Scout _ = False
+  (==) Rogue Rogue = True
+  (==) Rogue _ = False
+  (==) Druid Druid = True
+  (==) Druid _ = False
+  (==) Alien Alien = True
+  (==) Alien _ = False
+  (==) Warrior Warrior = True
+  (==) Warrior _ = False
+  (==) Vampire Vampire = True
+  (==) Vampire _ = False
+  (==) Mutant Mutant = True
+  (==) Mutant _ = False
+  (==) AssemblyWorker AssemblyWorker = True
+  (==) AssemblyWorker _ = False
+  (==) Ooze Ooze = True
+  (==) Ooze _ = False
+  (==) Frog Frog = True
+  (==) Frog _ = False
+  (==) Horse Horse = True
+  (==) Horse _ = False
+  (==) Bird Bird = True
+  (==) Bird _ = False
+  (==) Ally Ally = True
+  (==) Ally _ = False
+  (==) Gideon Gideon = True
+  (==) Gideon _ = False
+  (==) Arcane Arcane = True
+  (==) Arcane _ = False
 
 public export
 subtypeType : Subtype -> CardType
@@ -2380,7 +2380,7 @@ ascribesAsSubtype Elspeth = False
 public export
 ascriptionOk : CardType -> Maybe Subtype -> Bool
 ascriptionOk t Nothing = ascribesAsType t
-ascriptionOk t (Just s) = ascribesAsSubtype s && sameCT (subtypeType s) t
+ascriptionOk t (Just s) = ascribesAsSubtype s && subtypeType s == t
 
 namespace Counter
   public export
@@ -2389,11 +2389,11 @@ namespace Counter
     Down : Nat -> Delta
 
   public export
-  sameDelta : Delta -> Delta -> Bool
-  sameDelta (Up a) (Up b) = a == b
-  sameDelta (Up _) _ = False
-  sameDelta (Down a) (Down b) = a == b
-  sameDelta (Down _) _ = False
+  Eq Delta where
+    (==) (Up a) (Up b) = a == b
+    (==) (Up _) _ = False
+    (==) (Down a) (Down b) = a == b
+    (==) (Down _) _ = False
 
 public export
 keywordCounterOk : Keyword -> Bool
@@ -2431,11 +2431,11 @@ public export
 data StackRegime = AtCasting | AtResolution
 
 public export
-sameRegime : StackRegime -> StackRegime -> Bool
-sameRegime AtCasting AtCasting = True
-sameRegime AtCasting _ = False
-sameRegime AtResolution AtResolution = True
-sameRegime AtResolution _ = False
+Eq StackRegime where
+  (==) AtCasting AtCasting = True
+  (==) AtCasting _ = False
+  (==) AtResolution AtResolution = True
+  (==) AtResolution _ = False
 
 public export
 keywordStackRegime : Keyword -> Maybe StackRegime
@@ -2469,13 +2469,13 @@ public export
 data Supertype = Legendary | Basic | Snow
 
 public export
-sameSupertype : Supertype -> Supertype -> Bool
-sameSupertype Legendary Legendary = True
-sameSupertype Legendary _ = False
-sameSupertype Basic Basic = True
-sameSupertype Basic _ = False
-sameSupertype Snow Snow = True
-sameSupertype Snow _ = False
+Eq Supertype where
+  (==) Legendary Legendary = True
+  (==) Legendary _ = False
+  (==) Basic Basic = True
+  (==) Basic _ = False
+  (==) Snow Snow = True
+  (==) Snow _ = False
 
 public export
 data Designation
@@ -2510,35 +2510,35 @@ designationScope Day = HeldByGame
 designationScope Night = HeldByGame
 
 public export
-sameDesignation : Designation -> Designation -> Bool
-sameDesignation Monarch Monarch = True
-sameDesignation Monarch _ = False
-sameDesignation TheInitiative TheInitiative = True
-sameDesignation TheInitiative _ = False
-sameDesignation CitysBlessing CitysBlessing = True
-sameDesignation CitysBlessing _ = False
-sameDesignation EnduringStory EnduringStory = True
-sameDesignation EnduringStory _ = False
-sameDesignation Goaded Goaded = True
-sameDesignation Goaded _ = False
-sameDesignation RingBearer RingBearer = True
-sameDesignation RingBearer _ = False
-sameDesignation Monstrous Monstrous = True
-sameDesignation Monstrous _ = False
-sameDesignation Renowned Renowned = True
-sameDesignation Renowned _ = False
-sameDesignation Suspected Suspected = True
-sameDesignation Suspected _ = False
-sameDesignation Saddled Saddled = True
-sameDesignation Saddled _ = False
-sameDesignation Prepared Prepared = True
-sameDesignation Prepared _ = False
-sameDesignation CommanderD CommanderD = True
-sameDesignation CommanderD _ = False
-sameDesignation Day Day = True
-sameDesignation Day _ = False
-sameDesignation Night Night = True
-sameDesignation Night _ = False
+Eq Designation where
+  (==) Monarch Monarch = True
+  (==) Monarch _ = False
+  (==) TheInitiative TheInitiative = True
+  (==) TheInitiative _ = False
+  (==) CitysBlessing CitysBlessing = True
+  (==) CitysBlessing _ = False
+  (==) EnduringStory EnduringStory = True
+  (==) EnduringStory _ = False
+  (==) Goaded Goaded = True
+  (==) Goaded _ = False
+  (==) RingBearer RingBearer = True
+  (==) RingBearer _ = False
+  (==) Monstrous Monstrous = True
+  (==) Monstrous _ = False
+  (==) Renowned Renowned = True
+  (==) Renowned _ = False
+  (==) Suspected Suspected = True
+  (==) Suspected _ = False
+  (==) Saddled Saddled = True
+  (==) Saddled _ = False
+  (==) Prepared Prepared = True
+  (==) Prepared _ = False
+  (==) CommanderD CommanderD = True
+  (==) CommanderD _ = False
+  (==) Day Day = True
+  (==) Day _ = False
+  (==) Night Night = True
+  (==) Night _ = False
 
 public export
 designationChecked : Designation -> Bool
@@ -2619,13 +2619,13 @@ public export
 data AttachWord = Enchanted | Equipped | Fortified
 
 public export
-sameAttachWord : AttachWord -> AttachWord -> Bool
-sameAttachWord Enchanted Enchanted = True
-sameAttachWord Enchanted _ = False
-sameAttachWord Equipped Equipped = True
-sameAttachWord Equipped _ = False
-sameAttachWord Fortified Fortified = True
-sameAttachWord Fortified _ = False
+Eq AttachWord where
+  (==) Enchanted Enchanted = True
+  (==) Enchanted _ = False
+  (==) Equipped Equipped = True
+  (==) Equipped _ = False
+  (==) Fortified Fortified = True
+  (==) Fortified _ = False
 
 public export
 attachHeadOk : AttachWord -> NounWord -> Bool
@@ -2714,11 +2714,11 @@ public export
 data OutcomeVerb = WinGame | LoseGame
 
 public export
-sameOutcomeVerb : OutcomeVerb -> OutcomeVerb -> Bool
-sameOutcomeVerb WinGame WinGame = True
-sameOutcomeVerb WinGame _ = False
-sameOutcomeVerb LoseGame LoseGame = True
-sameOutcomeVerb LoseGame _ = False
+Eq OutcomeVerb where
+  (==) WinGame WinGame = True
+  (==) WinGame _ = False
+  (==) LoseGame LoseGame = True
+  (==) LoseGame _ = False
 
 public export
 data OutcomeGateKind = CantLose | CantWin
@@ -2790,36 +2790,36 @@ counterScope Lore = Object
 counterScope Age = Object
 
 public export
-sameCounter : CounterKind -> CounterKind -> Bool
-sameCounter (BoostCounter ap at) (BoostCounter bp bt) =
-  Counter.sameDelta ap bp && Counter.sameDelta at bt
-sameCounter (BoostCounter _ _) _ = False
-sameCounter Stun Stun = True
-sameCounter Stun _ = False
-sameCounter Time Time = True
-sameCounter Time _ = False
-sameCounter (KeywordCounter a) (KeywordCounter b) = sameKeyword a b
-sameCounter (KeywordCounter _) _ = False
-sameCounter Charge Charge = True
-sameCounter Charge _ = False
-sameCounter Omen Omen = True
-sameCounter Omen _ = False
-sameCounter Spite Spite = True
-sameCounter Spite _ = False
-sameCounter Rev Rev = True
-sameCounter Rev _ = False
-sameCounter Intervention Intervention = True
-sameCounter Intervention _ = False
-sameCounter Poison Poison = True
-sameCounter Poison _ = False
-sameCounter Rad Rad = True
-sameCounter Rad _ = False
-sameCounter Experience Experience = True
-sameCounter Experience _ = False
-sameCounter Lore Lore = True
-sameCounter Lore _ = False
-sameCounter Age Age = True
-sameCounter Age _ = False
+Eq CounterKind where
+  (==) (BoostCounter ap at) (BoostCounter bp bt) =
+    ap == bp && at == bt
+  (==) (BoostCounter _ _) _ = False
+  (==) Stun Stun = True
+  (==) Stun _ = False
+  (==) Time Time = True
+  (==) Time _ = False
+  (==) (KeywordCounter a) (KeywordCounter b) = a == b
+  (==) (KeywordCounter _) _ = False
+  (==) Charge Charge = True
+  (==) Charge _ = False
+  (==) Omen Omen = True
+  (==) Omen _ = False
+  (==) Spite Spite = True
+  (==) Spite _ = False
+  (==) Rev Rev = True
+  (==) Rev _ = False
+  (==) Intervention Intervention = True
+  (==) Intervention _ = False
+  (==) Poison Poison = True
+  (==) Poison _ = False
+  (==) Rad Rad = True
+  (==) Rad _ = False
+  (==) Experience Experience = True
+  (==) Experience _ = False
+  (==) Lore Lore = True
+  (==) Lore _ = False
+  (==) Age Age = True
+  (==) Age _ = False
 
 public export
 data CounterKindNamed : Kind -> Maybe CounterKind -> Type where
@@ -2859,11 +2859,6 @@ record TypeLine where
   tys : List CardType
 
 public export
-lineHasType : CardType -> List CardType -> Bool
-lineHasType t [] = False
-lineHasType t (u :: us) = sameCT t u || lineHasType t us
-
-public export
 lineNonEmpty : TypeLine -> Bool
 lineNonEmpty (MkTypeLine [] []) = False
 lineNonEmpty (MkTypeLine _ _) = True
@@ -2875,8 +2870,8 @@ subsFitLine [] tys = True
 subsFitLine (s :: ss) tys =
   -- [CR#308.2]: kindred subtypes are the same set as creature subtypes,
   -- so a creature subtype fits a Kindred-typed line too.
-  (lineHasType (subtypeType s) tys
-     || (sameCT (subtypeType s) Creature && lineHasType Kindred tys))
+  (elem (subtypeType s) tys
+     || (subtypeType s == Creature && elem Kindred tys))
   && subsFitLine ss tys
 
 
@@ -3044,14 +3039,9 @@ StatusEffectVal : StatusVal c -> Type
 StatusEffectVal v = So (statusEffectOk v)
 
 public export
-colorMember : Color -> List Color -> Bool
-colorMember c [] = False
-colorMember c (d :: ds) = sameColor c d || colorMember c ds
-
-public export
 colorsDistinct : List Color -> Bool
 colorsDistinct [] = True
-colorsDistinct (c :: cs) = not (colorMember c cs) && colorsDistinct cs
+colorsDistinct (c :: cs) = not (elem c cs) && colorsDistinct cs
 
 public export
 ColorsDistinct : List Color -> Type
@@ -3062,10 +3052,10 @@ public export
 addedFits : Maybe CardType -> TypeLine -> Bool
 addedFits subj (MkTypeLine [] tys) = True
 addedFits subj (MkTypeLine (s :: ss) tys) =
-  (lineHasType (subtypeType s) tys ||
+  (elem (subtypeType s) tys ||
    (case subj of
       Nothing => False
-      Just t => sameCT (subtypeType s) t)) &&
+      Just t => subtypeType s == t)) &&
   addedFits subj (MkTypeLine ss tys)
 
 public export
@@ -3143,34 +3133,27 @@ data TurnPart = Turn | Upkeep | EndStep | Combat | UntapStep | EndOfCombat
               | MainPhase
 
 public export
-sameTurnPart : TurnPart -> TurnPart -> Bool
-sameTurnPart Turn Turn = True
-sameTurnPart Turn _ = False
-sameTurnPart Upkeep Upkeep = True
-sameTurnPart Upkeep _ = False
-sameTurnPart EndStep EndStep = True
-sameTurnPart EndStep _ = False
-sameTurnPart Combat Combat = True
-sameTurnPart Combat _ = False
-sameTurnPart UntapStep UntapStep = True
-sameTurnPart UntapStep _ = False
-sameTurnPart EndOfCombat EndOfCombat = True
-sameTurnPart EndOfCombat _ = False
-sameTurnPart FirstMain FirstMain = True
-sameTurnPart FirstMain _ = False
-sameTurnPart PostcombatMain PostcombatMain = True
-sameTurnPart PostcombatMain _ = False
-sameTurnPart DrawStep DrawStep = True
-sameTurnPart DrawStep _ = False
-sameTurnPart MainPhase MainPhase = True
-sameTurnPart MainPhase _ = False
-
-public export
-sameMaybePart : Maybe TurnPart -> Maybe TurnPart -> Bool
-sameMaybePart Nothing Nothing = True
-sameMaybePart Nothing (Just _) = False
-sameMaybePart (Just _) Nothing = False
-sameMaybePart (Just a) (Just b) = sameTurnPart a b
+Eq TurnPart where
+  (==) Turn Turn = True
+  (==) Turn _ = False
+  (==) Upkeep Upkeep = True
+  (==) Upkeep _ = False
+  (==) EndStep EndStep = True
+  (==) EndStep _ = False
+  (==) Combat Combat = True
+  (==) Combat _ = False
+  (==) UntapStep UntapStep = True
+  (==) UntapStep _ = False
+  (==) EndOfCombat EndOfCombat = True
+  (==) EndOfCombat _ = False
+  (==) FirstMain FirstMain = True
+  (==) FirstMain _ = False
+  (==) PostcombatMain PostcombatMain = True
+  (==) PostcombatMain _ = False
+  (==) DrawStep DrawStep = True
+  (==) DrawStep _ = False
+  (==) MainPhase MainPhase = True
+  (==) MainPhase _ = False
 
 public export
 data Whose = Yours | ThatPlayers
@@ -3182,21 +3165,21 @@ namespace Owner
              | ThatTurns
 
 public export
-sameOwner : Owner -> Owner -> Bool
-sameOwner Yours Yours = True
-sameOwner Yours _ = False
-sameOwner ThatPlayers ThatPlayers = True
-sameOwner ThatPlayers _ = False
-sameOwner EachPlayers EachPlayers = True
-sameOwner EachPlayers _ = False
-sameOwner EachOpponents EachOpponents = True
-sameOwner EachOpponents _ = False
-sameOwner EachYours EachYours = True
-sameOwner EachYours _ = False
-sameOwner AnOpponents AnOpponents = True
-sameOwner AnOpponents _ = False
-sameOwner ThatTurns ThatTurns = True
-sameOwner ThatTurns _ = False
+Eq Owner where
+  (==) Yours Yours = True
+  (==) Yours _ = False
+  (==) ThatPlayers ThatPlayers = True
+  (==) ThatPlayers _ = False
+  (==) EachPlayers EachPlayers = True
+  (==) EachPlayers _ = False
+  (==) EachOpponents EachOpponents = True
+  (==) EachOpponents _ = False
+  (==) EachYours EachYours = True
+  (==) EachYours _ = False
+  (==) AnOpponents AnOpponents = True
+  (==) AnOpponents _ = False
+  (==) ThatTurns ThatTurns = True
+  (==) ThatTurns _ = False
 
 public export
 data DurationEnd = StartOf TurnPart (Maybe Whose)

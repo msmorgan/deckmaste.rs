@@ -55,13 +55,13 @@ mutual
                  {auto 0 one : nounPlur n = OneOf} -> NameSource bs
 
   public export
-  sameNameSource : NameSource bs -> NameSource bs -> Bool
-  sameNameSource (PrintedName a) (PrintedName b) = a == b
-  sameNameSource (PrintedName _) _ = False
-  sameNameSource ChosenName ChosenName = True
-  sameNameSource ChosenName _ = False
-  sameNameSource (SameNameAs a) (SameNameAs b) = nounEqRef a b
-  sameNameSource (SameNameAs _) _ = False
+  Eq (NameSource bs) where
+    (==) (PrintedName a) (PrintedName b) = a == b
+    (==) (PrintedName _) _ = False
+    (==) ChosenName ChosenName = True
+    (==) ChosenName _ = False
+    (==) (SameNameAs a) (SameNameAs b) = nounEqRef a b
+    (==) (SameNameAs _) _ = False
 
   public export
   nameSrcDelta : {bs : Bindings} -> NameSource bs -> List Binding
@@ -87,11 +87,14 @@ mutual
                     ChoiceDomain CreatureType
     NumberAbove : (n : Nat) -> ChoiceDomain Number
 
+  ||| Not an `Eq` instance: this equality calls `predEq`, which calls back,
+  ||| and an implementation is opaque to the size-change checker, so the
+  ||| mutual block loses totality.
   public export
   sameChoiceDomain : {0 q : QualitySort} -> ChoiceDomain q -> ChoiceDomain q -> Bool
   sameChoiceDomain (NameOfCard a) (NameOfCard b) = predEq a b
-  sameChoiceDomain (ColorOtherThan a) (ColorOtherThan b) = sameColor a b
-  sameChoiceDomain (TypeOtherThan a) (TypeOtherThan b) = sameSub a b
+  sameChoiceDomain (ColorOtherThan a) (ColorOtherThan b) = a == b
+  sameChoiceDomain (TypeOtherThan a) (TypeOtherThan b) = a == b
   sameChoiceDomain (NumberAbove a) (NumberAbove b) = a == b
 
   public export
@@ -239,7 +242,7 @@ mutual
   allSeedTy t [] = True
   allSeedTy t (p :: ps) = case seedTy p of
     Nothing => False
-    Just u => sameCT t u && allSeedTy t ps
+    Just u => t == u && allSeedTy t ps
 
   public export
   optCT : Maybe CardType -> List CardType
@@ -312,7 +315,7 @@ mutual
   allSeedZone z [] = True
   allSeedZone z (p :: ps) = case seedZone p of
     Nothing => False
-    Just w => sameZone z w && allSeedZone z ps
+    Just w => z == w && allSeedZone z ps
 
   public export
   seedsToken : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -384,7 +387,7 @@ mutual
   allSeedType t [] = True
   allSeedType t (p :: ps) = case seedType p of
     Nothing => False
-    Just u => sameCT t u && allSeedType t ps
+    Just u => t == u && allSeedType t ps
 
   public export
   hasHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -491,7 +494,7 @@ mutual
     Nothing => zonesAgree acc ps
     Just z => case acc of
       Nothing => zonesAgree (Just z) ps
-      Just w => sameZone w z && zonesAgree (Just w) ps
+      Just w => w == z && zonesAgree (Just w) ps
 
   public export
   negZonesOf : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List Zone
@@ -504,14 +507,9 @@ mutual
   negZones (p :: ps) = negZonesOf p ++ negZones ps
 
   public export
-  zoneMember : Zone -> List Zone -> Bool
-  zoneMember z [] = False
-  zoneMember z (w :: ws) = sameZone z w || zoneMember z ws
-
-  public export
   zoneAdmits : Zone -> List Zone -> Bool
   zoneAdmits z [] = True
-  zoneAdmits z zs = zoneMember z zs
+  zoneAdmits z zs = elem z zs
 
   public export
   zoneAdmitsAll : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -522,8 +520,8 @@ mutual
   public export
   zonesOk : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
   zonesOk ps = zonesAgree Nothing (flattenPs ps) &&
-               not (zoneMember (zoneOr Battlefield (seedZoneAll (flattenPs ps)))
-                               (negZones (flattenPs ps))) &&
+               not (elem (zoneOr Battlefield (seedZoneAll (flattenPs ps)))
+                         (negZones (flattenPs ps))) &&
                zoneAdmitsAll (zoneOr Battlefield (seedZoneAll (flattenPs ps)))
                              (flattenPs ps)
 
@@ -536,9 +534,9 @@ mutual
   ||| rather than over-refuses.
   public export
   predEq : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Predicate bs k -> Bool
-  predEq (HasType a) (HasType b) = sameCT a b
+  predEq (HasType a) (HasType b) = a == b
   predEq (HasType _) _ = False
-  predEq (HasSubtype a) (HasSubtype b) = sameSub a b
+  predEq (HasSubtype a) (HasSubtype b) = a == b
   predEq (HasSubtype _) _ = False
   predEq AnyPlayer AnyPlayer = True
   predEq AnyPlayer _ = False
@@ -546,13 +544,13 @@ mutual
   predEq Opponent _ = False
   predEq (QualityNoun a {dom = d}) (QualityNoun a {dom = e}) = sameDomainOpt d e
   predEq (QualityNoun _) _ = False
-  predEq (OfChosen a) (OfChosen b) = sameQ a b
+  predEq (OfChosen a) (OfChosen b) = a == b
   predEq (OfChosen _) _ = False
   predEq OfLastChosenColor OfLastChosenColor = True
   predEq OfLastChosenColor _ = False
-  predEq (OfYourChoice a) (OfYourChoice b) = sameQ a b
+  predEq (OfYourChoice a) (OfYourChoice b) = a == b
   predEq (OfYourChoice _) _ = False
-  predEq (AbilityHead a) (AbilityHead b) = sameAbilityClass a b
+  predEq (AbilityHead a) (AbilityHead b) = a == b
   predEq (AbilityHead _) _ = False
   predEq (AbilityOf a) (AbilityOf b) = nounEqRef a b
   predEq (AbilityOf _) _ = False
@@ -562,7 +560,7 @@ mutual
   predEq IsManaAbility _ = False
   predEq IsSource IsSource = True
   predEq IsSource _ = False
-  predEq (HasKeyword a) (HasKeyword b) = sameKeyword a b
+  predEq (HasKeyword a) (HasKeyword b) = a == b
   predEq (HasKeyword _) _ = False
   predEq (ControlledBy a) (ControlledBy b) = nounEqRef a b
   predEq (ControlledBy _) _ = False
@@ -583,7 +581,7 @@ mutual
   predEq (HappenedTo a v {what = Nothing}) (HappenedTo b w {what = Nothing}) =
     sameEventName a b && sameLookback v w
   predEq (HappenedTo _ _) _ = False
-  predEq (ColorIs a) (ColorIs b) = sameColor a b
+  predEq (ColorIs a) (ColorIs b) = a == b
   predEq (ColorIs _) _ = False
   predEq IsColorless IsColorless = True
   predEq IsColorless _ = False
@@ -591,13 +589,13 @@ mutual
   predEq Multicolored _ = False
   predEq Monocolored Monocolored = True
   predEq Monocolored _ = False
-  predEq (HasSupertype a) (HasSupertype b) = sameSupertype a b
+  predEq (HasSupertype a) (HasSupertype b) = a == b
   predEq (HasSupertype _) _ = False
-  predEq (Named a) (Named b) = sameNameSource a b
+  predEq (Named a) (Named b) = a == b
   predEq (Named _) _ = False
-  predEq (HasDesignation a) (HasDesignation b) = sameDesignation a b
+  predEq (HasDesignation a) (HasDesignation b) = a == b
   predEq (HasDesignation _) _ = False
-  predEq (IsAttached a) (IsAttached b) = sameAttachWord a b
+  predEq (IsAttached a) (IsAttached b) = a == b
   predEq (IsAttached _) _ = False
   predEq Permanent Permanent = True
   predEq Permanent _ = False
@@ -606,17 +604,17 @@ mutual
   predEq (HasStatus v) (HasStatus w) = sameStatusVal v w
   predEq (HasStatus _) _ = False
   predEq (HasCounters Nothing) (HasCounters Nothing) = True
-  predEq (HasCounters (Just a)) (HasCounters (Just b)) = sameCounter a b
+  predEq (HasCounters (Just a)) (HasCounters (Just b)) = a == b
   predEq (HasCounters _) _ = False
-  predEq (Compare c r b) (Compare d s e) = sameChar c d && sameCmp r s &&
+  predEq (Compare c r b) (Compare d s e) = c == d && r == s &&
                                            boundEq b e
   predEq (Compare _ _ _) _ = False
   predEq (Superlative o a d) (Superlative p b e) =
-    sameAggregateOp o p && sameProjAxis a b && predEq d e
+    o == p && a == b && predEq d e
   predEq (Superlative _ _ _) _ = False
-  predEq (CastFrom z) (CastFrom w) = sameZone (zoneSort z) (zoneSort w)
+  predEq (CastFrom z) (CastFrom w) = zoneSort z == zoneSort w
   predEq (CastFrom _) _ = False
-  predEq (InZone z) (InZone w) = sameZone (zoneSort z) (zoneSort w)
+  predEq (InZone z) (InZone w) = zoneSort z == zoneSort w
   predEq (InZone _) _ = False
   predEq (And xs) (And ys) = predEqAll xs ys
   predEq (And _) _ = False
@@ -632,7 +630,7 @@ mutual
   predEq (OtherThan _) _ = False
   predEq AnyTarget AnyTarget = True
   predEq AnyTarget _ = False
-  predEq (KindJoin w c) (KindJoin x d) = sameJoinedPlayer w x && sameJoinedClass c d
+  predEq (KindJoin w c) (KindJoin x d) = w == x && c == d
   predEq (KindJoin _ _) _ = False
 
   public export
@@ -734,14 +732,9 @@ mutual
     Nothing => seedTypes ps
 
   public export
-  typeMember : CardType -> List CardType -> Bool
-  typeMember t [] = False
-  typeMember t (u :: us) = sameCT t u || typeMember t us
-
-  public export
   anyTypeClash : List CardType -> List CardType -> Bool
   anyTypeClash [] seeds = False
-  anyTypeClash (t :: ts) seeds = typeMember t seeds || anyTypeClash ts seeds
+  anyTypeClash (t :: ts) seeds = elem t seeds || anyTypeClash ts seeds
 
   public export
   contradictionFree : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
@@ -941,23 +934,11 @@ mutual
   headsUniform b (p :: ps) = (if hasHead p then b else not b) && headsUniform b ps
 
   public export
-  sameSeedZone : Maybe Zone -> Maybe Zone -> Bool
-  sameSeedZone Nothing Nothing = True
-  sameSeedZone (Just z) (Just w) = sameZone z w
-  sameSeedZone _ _ = False
-
-  public export
-  sameSeedType : Maybe CardType -> Maybe CardType -> Bool
-  sameSeedType Nothing Nothing = True
-  sameSeedType (Just t) (Just u) = sameCT t u
-  sameSeedType _ _ = False
-
-  public export
   seedsUniform : {0 bs : Bindings} -> {0 k : Kind} -> Maybe Zone -> Maybe CardType ->
                  List (Predicate bs k) -> Bool
   seedsUniform z t [] = True
-  seedsUniform z t (p :: ps) = sameSeedZone z (seedZone p) &&
-                               sameSeedType t (seedType p) &&
+  seedsUniform z t (p :: ps) = z == seedZone p &&
+                               t == seedType p &&
                                seedsUniform z t ps
 
   public export
@@ -1346,7 +1327,7 @@ mutual
   nounEqRef (AsType _ _) _ = False
   nounEqRef You You = True
   nounEqRef You _ = False
-  nounEqRef (PlayerGroup v) (PlayerGroup w) = samePlayerGroupWord v w
+  nounEqRef (PlayerGroup v) (PlayerGroup w) = v == w
   nounEqRef (PlayerGroup _) _ = False
   nounEqRef (Each _) _ = False
   nounEqRef (Indefinite _ _) _ = False
@@ -2601,7 +2582,7 @@ mutual
 
   public export
   tokenPtOk : {0 bs : Bindings} -> TokenChars bs -> Bool
-  tokenPtOk t = not (lineHasType Creature t.line.tys) || ptWritten t.pt
+  tokenPtOk t = not (elem Creature t.line.tys) || ptWritten t.pt
 
   public export
   TokenTyped : TokenChars bs -> Type
@@ -2674,6 +2655,7 @@ mutual
   writtenZero (Lit Z) = True
   writtenZero _ = False
 
+  ||| Direction agreement, not structural equality: no `Eq` instance.
   public export
   sameDirection : {0 bs : Bindings} -> PtShift bs -> PtShift bs -> Bool
   sameDirection p t = if shiftRises p then shiftRises t else not (shiftRises t)
@@ -3204,7 +3186,7 @@ mutual
   public export
   ridersFitZone : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Bool
   ridersFitZone r z =
-    (not (fieldRidersWritten r) || sameZone z Battlefield) &&
+    (not (fieldRidersWritten r) || z == Battlefield) &&
     (not (counterRiderWritten r) || counterZone (Just z))
 
   public export
@@ -3761,7 +3743,7 @@ mutual
   costActionOk (ChooseNewTargets _) = False
   costActionOk (Choose _) = False
   costActionOk (Move what to) =
-    costNounOk what && not (sameZone (zoneSort to) Battlefield)
+    costNounOk what && not (zoneSort to == Battlefield)
   costActionOk (ChangeLife _ (Down _)) = True
   costActionOk (ChangeLife _ _) = False
   costActionOk (AddMana _ _ _ _) = False
@@ -3823,12 +3805,12 @@ mutual
   effEq (DoesntUntapNext n s) (DoesntUntapNext m t) = nounEqRef n m && s == t
   effEq (DoesntUntapNext _ _) _ = False
   effEq (SkipsNext w p c) (SkipsNext x q d) =
-    nounEqRef w x && sameTurnPart p q && c == d
+    nounEqRef w x && p == q && c == d
   effEq (SkipsNext _ _ _) _ = False
   effEq (ExtraTurn w c) (ExtraTurn x d) = nounEqRef w x && c == d
   effEq (ExtraTurn _ _) _ = False
   effEq (AdditionalPart p a c) (AdditionalPart q b d) =
-    sameTurnPart p q && sameMaybePart a b && c == d
+    p == q && a == b && c == d
   effEq (AdditionalPart _ _ _) _ = False
   effEq (Distribute _ _ _) _ = False
   effEq (Fights _ _) _ = False
@@ -3837,7 +3819,7 @@ mutual
   effEq (GetsCounters _ _ _) _ = False
   effEq (LosesAllCounters a Nothing) (LosesAllCounters b Nothing) = nounEqRef a b
   effEq (LosesAllCounters a (Just j)) (LosesAllCounters b (Just l)) =
-    nounEqRef a b && sameCounter j l
+    nounEqRef a b && j == l
   effEq (LosesAllCounters _ _) _ = False
   effEq (RemoveFromCombat a) (RemoveFromCombat b) = nounEqRef a b
   effEq (RemoveFromCombat _) _ = False
@@ -3845,9 +3827,9 @@ mutual
   effEq (Regenerate _) _ = False
   effEq (CantBe _ _ _) _ = False
   effEq (GainsDesignation _ _) _ = False
-  effEq (GameBecomes a) (GameBecomes b) = sameDesignation a b
+  effEq (GameBecomes a) (GameBecomes b) = a == b
   effEq (GameBecomes _) _ = False
-  effEq (Concludes v a) (Concludes w b) = sameOutcomeVerb v w && nounEqRef a b
+  effEq (Concludes v a) (Concludes w b) = v == w && nounEqRef a b
   effEq (Concludes _ _) _ = False
   effEq GameDrawn GameDrawn = True
   effEq GameDrawn _ = False
@@ -3857,7 +3839,7 @@ mutual
   effEq (ChooseNewTargets a) (ChooseNewTargets b) = nounEqRef a b
   effEq (ChooseNewTargets _) _ = False
   effEq (Choose _) _ = False
-  effEq (Move a s) (Move b t) = nounEqRef a b && sameZone (zoneSort s) (zoneSort t)
+  effEq (Move a s) (Move b t) = nounEqRef a b && zoneSort s == zoneSort t
   effEq (Move _ _) _ = False
   effEq (ChangeLife _ _) _ = False
   effEq (AddMana _ _ _ _) _ = False
@@ -3871,7 +3853,7 @@ mutual
   effEq (GetsEmblem _ _) _ = False
   effEq (PutCounters _ _ _) _ = False
   effEq (RemoveCounters _ _ _) _ = False
-  effEq (Composite v e) (Composite w f) = sameVerb v w && effEq e f
+  effEq (Composite v e) (Composite w f) = v == w && effEq e f
   effEq (Composite _ _) _ = False
   effEq (Does _ _ _) _ = False
   effEq (Pay _ _) _ = False
@@ -4883,7 +4865,7 @@ mutual
 
   public export
   keywordParamFits : {0 bs : Bindings} -> Keyword -> Maybe (KeywordParam bs) -> Bool
-  keywordParamFits k p = sameParamShape (keywordParamShape k) (paramShapeOf p)
+  keywordParamFits k p = keywordParamShape k == paramShapeOf p
 
   public export
   KeywordParamFits : Keyword -> Maybe (KeywordParam bs) -> Type
@@ -4968,13 +4950,8 @@ mutual
   keywordListOk ab ks = case lineKeyword ab of
     Nothing => False
     Just base => not (isNil ks) && allParamless ks && distinctKeywords ks &&
-                 not (keywordElem base ks)
+                 not (elem base ks)
 
-
-  public export
-  keywordElem : Keyword -> List Keyword -> Bool
-  keywordElem _ [] = False
-  keywordElem k (x :: xs) = sameKeyword k x || keywordElem k xs
 
   public export
   allParamless : List Keyword -> Bool
@@ -4984,7 +4961,7 @@ mutual
   public export
   distinctKeywords : List Keyword -> Bool
   distinctKeywords [] = True
-  distinctKeywords (k :: ks) = not (keywordElem k ks) && distinctKeywords ks
+  distinctKeywords (k :: ks) = not (elem k ks) && distinctKeywords ks
 
   public export
   KeywordExtendable : {0 bs : Bindings} -> AbilityAt bs -> Type
@@ -5087,7 +5064,7 @@ mutual
 
   public export
   regimeMatches : Maybe StackRegime -> Maybe StackRegime -> Bool
-  regimeMatches (Just a) (Just b) = sameRegime a b
+  regimeMatches (Just a) (Just b) = a == b
   regimeMatches _ _ = False
 
   public export
@@ -5259,14 +5236,9 @@ Ability = AbilityAt []
 
 
 public export
-supertypeMember : Supertype -> List Supertype -> Bool
-supertypeMember s [] = False
-supertypeMember s (t :: ts) = sameSupertype s t || supertypeMember s ts
-
-public export
 supersDistinct : List Supertype -> Bool
 supersDistinct [] = True
-supersDistinct (s :: ss) = not (supertypeMember s ss) && supersDistinct ss
+supersDistinct (s :: ss) = not (elem s ss) && supersDistinct ss
 
 public export
 CardSupers : List Supertype -> Type
@@ -5293,13 +5265,13 @@ anySpellType (t :: ts) = spellType t || anySpellType ts
 public export
 hasNonKindredType : List CardType -> Bool
 hasNonKindredType [] = False
-hasNonKindredType (t :: ts) = not (sameCT t Kindred) || hasNonKindredType ts
+hasNonKindredType (t :: ts) = not (t == Kindred) || hasNonKindredType ts
 
 public export
 typesCombinable : List CardType -> Bool
 typesCombinable tys =
   not (anyPermanentType tys && anySpellType tys)
-    && (not (lineHasType Kindred tys) || hasNonKindredType tys)
+    && (not (elem Kindred tys) || hasNonKindredType tys)
 
 public export
 keywordCardOk : CardClass -> Keyword -> Bool
@@ -5383,13 +5355,8 @@ cardTextOk tys [] = True
 cardTextOk tys (a :: as) = cardAbilityOk (cardClassOf tys) a && cardTextOk tys as
 
 public export
-subtypeMember : Subtype -> List Subtype -> Bool
-subtypeMember s [] = False
-subtypeMember s (t :: ts) = sameSub s t || subtypeMember s ts
-
-public export
 chapterLineOk : {0 bs : Bindings} -> List Subtype -> AbilityAt bs -> Bool
-chapterLineOk subs (Triggered _ (ChapterMark _) _) = subtypeMember Saga subs
+chapterLineOk subs (Triggered _ (ChapterMark _) _) = elem Saga subs
 chapterLineOk _ _ = True
 
 public export
@@ -5432,13 +5399,13 @@ public export
 cardPtOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs ->
            Maybe (PrintedStat, PrintedStat) -> Bool
 cardPtOk tys text pt =
-  (not (lineHasType Creature tys) || isJust pt) &&
+  (not (elem Creature tys) || isJust pt) &&
   definedSlotsStarred pt (textDefines definesPower text)
                          (textDefines definesToughness text)
 
 public export
 cardCostOk : List CardType -> Maybe ManaCost -> Bool
-cardCostOk tys cost = case (lineHasType Land tys, cost) of
+cardCostOk tys cost = case (elem Land tys, cost) of
   (True, Just _) => False
   _ => True
 
