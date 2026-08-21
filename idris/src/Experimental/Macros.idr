@@ -696,25 +696,46 @@ yourLibrary = libraryOf You
 
 public export
 onTopZ : ZoneExpr bs
-onTopZ = LibraryAt OnTop Nothing Bare
+onTopZ = LibraryAt (OneEnd OnTop) Nothing Bare
 
 public export
 onBottomZ : ZoneExpr bs
-onBottomZ = LibraryAt OnBottom Nothing Bare
+onBottomZ = LibraryAt (OneEnd OnBottom) Nothing Bare
 
 public export
-onTopIn : (a : Arrangement) -> {auto 0 af : ArrangementFits OnTop (Just a)} ->
+onTopIn : (a : Arrangement) ->
+          {auto 0 af : PlaceArrangementFits (OneEnd {bs} OnTop) (Just a)} ->
           ZoneExpr bs
-onTopIn a = LibraryAt OnTop (Just a) {af} Bare
+onTopIn a = LibraryAt (OneEnd OnTop) (Just a) {af} Bare
 
 public export
-onBottomIn : (a : Arrangement) -> {auto 0 af : ArrangementFits OnBottom (Just a)} ->
+onBottomIn : (a : Arrangement) ->
+             {auto 0 af : PlaceArrangementFits (OneEnd {bs} OnBottom) (Just a)} ->
              ZoneExpr bs
-onBottomIn a = LibraryAt OnBottom (Just a) {af} Bare
+onBottomIn a = LibraryAt (OneEnd OnBottom) (Just a) {af} Bare
 
 public export
 nthFromTop : (n : LibOrdinal) -> ZoneExpr bs
-nthFromTop n = LibraryAt OnTop Nothing {off = Just n} Bare
+nthFromTop n = LibraryAt (OneEnd OnTop) Nothing {off = Just n} Bare
+
+||| "on the top or bottom of <a> library": the bare position disjunction,
+||| no chooser named (Write into Being).
+public export
+topOrBottomZ : ZoneExpr bs
+topOrBottomZ = LibraryAt (EitherEnd Nothing) Nothing Bare
+
+||| "on <player>'s choice of the top or bottom of <a> library": the
+||| separable chooser slot over the same disjunction.
+public export
+choiceOfTopOrBottom : (chooser : Noun bs Player) ->
+                      {auto 0 ag : EventAgent (Just chooser)} -> ZoneExpr bs
+choiceOfTopOrBottom chooser = LibraryAt (EitherEnd (Just chooser) {ag}) Nothing Bare
+
+||| "into <a> library Nth from the top or on the bottom": the offset
+||| spelling, whose ordinal rides the top alternative [CR#401.7].
+public export
+nthFromTopOrBottomZ : (n : LibOrdinal) -> ZoneExpr bs
+nthFromTopOrBottomZ n = LibraryAt (EitherEnd Nothing) Nothing {off = Just n} Bare
 
 public export
 topCards : (n : Nat) -> {auto 0 wc : WrittenCount {bs} (Lit n)} -> Noun bs Object
@@ -763,7 +784,27 @@ searchLibraryFor : (p : Predicate bs Object) ->
                    {auto 0 hd : Headed p} ->
                    {auto 0 af : AnyTargetFree p} ->
                    {auto 0 zf : ZoneFree p} -> Effect bs
-searchLibraryFor p = Search You yourLibrary p {hd} {af} {zf}
+searchLibraryFor p = Search You (OneZone yourLibrary) p {hd} {af} {zf}
+
+||| "Search <player>'s graveyard, hand, and library for …": the three-zone
+||| sweep, possessor-anchored [CR#701.23a].
+public export
+searchZonesOf : (whose : Noun bs Player) -> (p : Predicate bs Object) ->
+                {auto 0 pn : SweepPossessor whose} ->
+                {auto 0 af : AnyTargetFree p} ->
+                {auto 0 zf : ZoneFree p} -> Effect bs
+searchZonesOf whose p = Search You (GraveyardHandLibraryOf whose {pn}) p {af} {zf}
+
+||| "<player> puts <it> into/onto <zone>": the agentive placement clause.
+public export
+puts : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
+       (to : ZoneExpr (nomIntro n)) ->
+       {auto 0 ok : DestOk to} ->
+       {auto 0 arr : ArrangementOk (nounPlur n) to} ->
+       {auto 0 na : NotPlayerSpanning n} ->
+       {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
+       {auto 0 pz : PutAgentiveZone (zoneSort to)} -> Effect bs
+puts agent n to = Does agent Put (Move n to {ok} {arr} {na} {pl}) {tb = PutB {pz}}
 
 public export
 shuffle : Effect bs

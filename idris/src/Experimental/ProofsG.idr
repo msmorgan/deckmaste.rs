@@ -178,7 +178,7 @@ badCastFromStack Oh impossible
 ||| The origin names a whole zone, never a position inside one.
 public export
 badCastFromLibraryTop : Unspellable (Predicate [] Object) (\ok =>
-  CastFrom (LibraryAt OnTop Nothing (OwnedBy You)) {wz = ok})
+  CastFrom (LibraryAt (OneEnd OnTop) Nothing (OwnedBy You)) {wz = ok})
 badCastFromLibraryTop Oh impossible
 
 
@@ -186,7 +186,7 @@ badCastFromLibraryTop Oh impossible
 ||| [CR#401.7] states the construction as "Nth from the top".
 public export
 badBottomOrdinal : Unspellable (ZoneExpr []) (\ok =>
-  LibraryAt OnBottom Nothing {off = Just Second} {ofit = ok} Bare)
+  LibraryAt (OneEnd OnBottom) Nothing {off = Just Second} {ofit = ok} Bare)
 badBottomOrdinal Oh impossible
 
 
@@ -194,7 +194,7 @@ badBottomOrdinal Oh impossible
 ||| One place holds one card [CR#401.7], so there is no order to state [CR#401.4].
 public export
 badOrdinalOrderRider : Unspellable (ZoneExpr []) (\ok =>
-  LibraryAt OnTop (Just AnyOrder) {off = Just Third} {ofit = ok} Bare)
+  LibraryAt (OneEnd OnTop) (Just AnyOrder) {off = Just Third} {ofit = ok} Bare)
 badOrdinalOrderRider Oh impossible
 
 
@@ -404,3 +404,50 @@ public export
 badNounPossessorYou : Unspellable Ability (\ok =>
   Triggered At (BeginningOf Upkeep (ByNoun You {pn = ok})) Macros.drawACard)
 badNounPossessorYou AttachedPossessor impossible
+
+
+||| "Search each player's graveyard, hand, and library for a creature card."
+||| The sweep's possessor slot refuses every group word; no line names the
+||| zones of a group.
+public export
+badSweepAcrossPlayers : Unspellable (Effect []) (\ok =>
+  Search You (GraveyardHandLibraryOf (PlayerGroup AllPlayers) {pn = ok})
+         Macros.creature)
+badSweepAcrossPlayers Oh impossible
+
+
+||| "Put target creature into its owner's hand." tagged as a placement.
+||| The imperative spells the bare move and the agentive names its subject;
+||| one event, so the tag has no subjectless frame.
+public export
+badSubjectlessPut : Unspellable (Effect []) (\ok =>
+  Composite Put (Move (Macros.target Macros.creature) Macros.handZ) {na = ok})
+badSubjectlessPut Oh impossible
+
+
+||| "Put those cards on the top or bottom of your library in any order."
+||| [CR#401.4] arranges cards sharing one position; a disjunction names two
+||| ends, so there is no single pile to order.
+public export
+badDisjunctionOrdered : Unspellable (ZoneExpr []) (\ok =>
+  LibraryAt (EitherEnd Nothing) (Just AnyOrder) {af = ok} Bare)
+badDisjunctionOrdered Oh impossible
+
+
+||| "Search each opponent's graveyard, hand, and library for a creature card."
+||| The other group word, refused by the same gate where `Possessor` admits it.
+public export
+badSweepAcrossOpponents : Unspellable (Effect []) (\ok =>
+  Search You (GraveyardHandLibraryOf (PlayerGroup YourOpponents) {pn = ok})
+         Macros.creature)
+badSweepAcrossOpponents Oh impossible
+
+
+||| "Target player puts that card into exile."
+||| The exile tag owns that destination; no line writes a placement into it.
+public export
+badPutIntoExile : Unspellable (Effect []) (\ok =>
+  Does (Macros.target AnyPlayer) Put
+       (Move (Macros.target Macros.creature) Macros.exileZ)
+       {tb = PutB {pz = ok}})
+badPutIntoExile Oh impossible

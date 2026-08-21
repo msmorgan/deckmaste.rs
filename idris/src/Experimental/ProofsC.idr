@@ -233,7 +233,7 @@ badRevealGraveyard Oh impossible
 ||| [CR#701.23a] finds a card among cards you cannot otherwise read; the battlefield is public.
 public export
 badSearchBattlefield : Unspellable (Effect []) (\ok =>
-  Search You Macros.battlefieldZ Macros.creature {sz = ok})
+  Search You (OneZone Macros.battlefieldZ {sz = ok}) Macros.creature)
 badSearchBattlefield Oh impossible
 
 
@@ -241,7 +241,7 @@ badSearchBattlefield Oh impossible
 ||| [CR#701.23a] looks through all cards in the zone, and [CR#401.2] makes the library one pile.
 public export
 badSearchLibraryPosition : Unspellable (Effect []) (\ok =>
-  Search You (LibraryAt OnTop Nothing Bare) Macros.land {wz = ok})
+  Search You (OneZone (LibraryAt (OneEnd OnTop) Nothing Bare) {wz = ok}) Macros.land)
 badSearchLibraryPosition Oh impossible
 
 
@@ -249,7 +249,8 @@ badSearchLibraryPosition Oh impossible
 ||| The same refusal: a search cannot look through cards "in a random order" [CR#701.23a].
 public export
 badSearchLibraryPositionOrdered : Unspellable (Effect []) (\ok =>
-  Search You (LibraryAt OnBottom (Just RandomOrder) Bare) Macros.creature {wz = ok})
+  Search You (OneZone (LibraryAt (OneEnd OnBottom) (Just RandomOrder) Bare) {wz = ok})
+         Macros.creature)
 badSearchLibraryPositionOrdered Oh impossible
 
 

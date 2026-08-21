@@ -14,13 +14,47 @@ mutual
     OwnedBy : (n : Noun bs Player) -> {auto 0 ps : Possessable z} ->
               {auto 0 pn : Possessor n} -> ZoneScope bs z
 
+  ||| Where in a library a card lands: one end of the ordered pile
+  ||| [CR#401.2], or the top-or-bottom disjunction. The chooser is a
+  ||| separable slot on the
+  ||| disjunction alone — Write into Being writes the bare coordination.
+  public export
+  data LibPlace : Bindings -> Type where
+    OneEnd : (pos : LibPos) -> LibPlace bs
+    EitherEnd : (chooser : Maybe (Noun bs Player)) ->
+                {auto 0 ag : EventAgent chooser} -> LibPlace bs
+
+  ||| One card goes to one end, so a disjunction states no order [CR#401.4].
+  public export
+  placeArrangementOk : {0 bs : Bindings} -> LibPlace bs -> Maybe Arrangement -> Bool
+  placeArrangementOk (OneEnd pos) ord = arrangementFits pos ord
+  placeArrangementOk (EitherEnd _) Nothing = True
+  placeArrangementOk (EitherEnd _) (Just _) = False
+
+  public export
+  PlaceArrangementFits : {0 bs : Bindings} -> LibPlace bs -> Maybe Arrangement -> Type
+  PlaceArrangementFits pl ord = So (placeArrangementOk pl ord)
+
+  ||| The offset rides the top alternative: "second from the top or on the
+  ||| bottom" [CR#401.7].
+  public export
+  placeOrdinalOk : {0 bs : Bindings} -> LibPlace bs -> Maybe Arrangement ->
+                   Maybe LibOrdinal -> Bool
+  placeOrdinalOk (OneEnd pos) ord off = ordinalFits pos ord off
+  placeOrdinalOk (EitherEnd _) ord off = ordinalFits OnTop ord off
+
+  public export
+  PlaceOrdinalFits : {0 bs : Bindings} -> LibPlace bs -> Maybe Arrangement ->
+                     Maybe LibOrdinal -> Type
+  PlaceOrdinalFits pl ord off = So (placeOrdinalOk pl ord off)
+
   public export
   data ZoneExpr : Bindings -> Type where
     ZoneAt : (z : Zone) -> ZoneScope bs z -> ZoneExpr bs
-    LibraryAt : (pos : LibPos) -> (ord : Maybe Arrangement) ->
+    LibraryAt : (place : LibPlace bs) -> (ord : Maybe Arrangement) ->
                 {default Nothing off : Maybe LibOrdinal} ->
-                {auto 0 af : ArrangementFits pos ord} ->
-                {auto 0 ofit : OrdinalFits pos ord off} ->
+                {auto 0 af : PlaceArrangementFits place ord} ->
+                {auto 0 ofit : PlaceOrdinalFits place ord off} ->
                 ZoneScope bs Library -> ZoneExpr bs
 
   public export
@@ -1382,11 +1416,18 @@ mutual
   nounAnyTargetFree (OwnerOf n) = nounAnyTargetFree n
 
   public export
+  placeAnyTargetFree : {0 bs : Bindings} -> LibPlace bs -> Bool
+  placeAnyTargetFree (OneEnd _) = True
+  placeAnyTargetFree (EitherEnd Nothing) = True
+  placeAnyTargetFree (EitherEnd (Just n)) = nounAnyTargetFree n
+
+  public export
   zoneAnyTargetFree : {0 bs : Bindings} -> ZoneExpr bs -> Bool
   zoneAnyTargetFree (ZoneAt z Bare) = True
   zoneAnyTargetFree (ZoneAt z (OwnedBy n)) = nounAnyTargetFree n
-  zoneAnyTargetFree (LibraryAt _ _ Bare) = True
-  zoneAnyTargetFree (LibraryAt _ _ (OwnedBy n)) = nounAnyTargetFree n
+  zoneAnyTargetFree (LibraryAt pl _ Bare) = placeAnyTargetFree pl
+  zoneAnyTargetFree (LibraryAt pl _ (OwnedBy n)) =
+    placeAnyTargetFree pl && nounAnyTargetFree n
 
   ||| Destination legality for the move primitive [CR#400.3]: an owned
   ||| destination naming an arbitrary player is unwritable — a moved card
@@ -1399,9 +1440,9 @@ mutual
     ExileOk : DestOk (ZoneAt Exile Bare)
     HandOkBare : DestOk (ZoneAt Hand Bare)
     GraveyardOkBare : DestOk (ZoneAt Graveyard Bare)
-    LibraryPosOk : {auto 0 af : ArrangementFits pos arrg} ->
-                   {auto 0 ofit : OrdinalFits pos arrg offs} ->
-                   DestOk (LibraryAt pos arrg {off = offs} {af} {ofit} Bare)
+    LibraryPosOk : {auto 0 af : PlaceArrangementFits place arrg} ->
+                   {auto 0 ofit : PlaceOrdinalFits place arrg offs} ->
+                   DestOk (LibraryAt place arrg {off = offs} {af} {ofit} Bare)
 
   public export
   orderOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Bool
@@ -1487,11 +1528,51 @@ mutual
   predDeltaAll (p :: ps) = predDelta p ++ predDeltaAll ps
 
   public export
+  placeDelta : {bs : Bindings} -> LibPlace bs -> List Binding
+  placeDelta (OneEnd _) = []
+  placeDelta (EitherEnd Nothing) = []
+  placeDelta (EitherEnd (Just n)) = nounDelta n
+
+  public export
   zoneDelta : {bs : Bindings} -> ZoneExpr bs -> List Binding
   zoneDelta (ZoneAt z (OwnedBy n)) = nounDelta n
   zoneDelta (ZoneAt z Bare) = []
-  zoneDelta (LibraryAt _ _ (OwnedBy n)) = nounDelta n
-  zoneDelta (LibraryAt _ _ Bare) = []
+  zoneDelta (LibraryAt pl _ (OwnedBy n)) = placeDelta pl ++ nounDelta n
+  zoneDelta (LibraryAt pl _ Bare) = placeDelta pl
+
+  ||| What a search clause names: one zone, or the graveyard-hand-library
+  ||| sweep written once against its possessor and shared by both name
+  ||| families. Each named zone is searched per [CR#701.23a].
+  public export
+  data SearchScope : Bindings -> Type where
+    OneZone : (z : ZoneExpr bs) ->
+              {auto 0 sz : SearchableZone (zoneSort z)} ->
+              {auto 0 wz : WholeZone z} -> SearchScope bs
+    GraveyardHandLibraryOf : (whose : Noun bs Player) ->
+                             {auto 0 pn : SweepPossessor whose} -> SearchScope bs
+
+  ||| The sweep fixes no single zone for what it finds.
+  public export
+  searchZone : {0 bs : Bindings} -> SearchScope bs -> Maybe Zone
+  searchZone (OneZone z) = Just (zoneSort z)
+  searchZone (GraveyardHandLibraryOf _) = Nothing
+
+  ||| The sweep names cards itself, so its slot carries the modifier;
+  ||| only the single-zone form asks the description for a head.
+  public export
+  searchHeadNeeded : {0 bs : Bindings} -> SearchScope bs -> Bool
+  searchHeadNeeded (OneZone _) = True
+  searchHeadNeeded (GraveyardHandLibraryOf _) = False
+
+  public export
+  SearchDescribed : {0 bs : Bindings} -> SearchScope bs ->
+                    Predicate bs Object -> Type
+  SearchDescribed sc p = So (not (searchHeadNeeded sc) || hasHead p)
+
+  public export
+  searchDelta : {bs : Bindings} -> SearchScope bs -> List Binding
+  searchDelta (OneZone z) = zoneDelta z
+  searchDelta (GraveyardHandLibraryOf whose) = nounDelta whose
 
   public export
   nomIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
@@ -1926,6 +2007,18 @@ mutual
   public export
   Possessor : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
   Possessor {bs} {k} n = So (possessorOk n)
+
+  ||| The sweep is anchored on one player. No line names the zones of a
+  ||| group, so a group word is refused here where `Possessor` admits
+  ||| "each opponent".
+  public export
+  sweepPossessorOk : {bs : Bindings} -> Noun bs Player -> Bool
+  sweepPossessorOk (PlayerGroup _) = False
+  sweepPossessorOk n = possessorOk n
+
+  public export
+  SweepPossessor : {bs : Bindings} -> Noun bs Player -> Type
+  SweepPossessor {bs} n = So (sweepPossessorOk n)
 
   public export
   slicePossessorOk : {bs : Bindings} -> Noun bs Player -> Bool
@@ -3429,11 +3522,9 @@ mutual
            {auto 0 wc : WrittenCount amt} -> Effect bs
     Expose : (v : ExposeVerb) -> (who : Noun bs Player) ->
              (what : Exposed (nomIntro who)) -> Effect bs
-    Search : (who : Noun bs Player) -> (z : ZoneExpr (nomIntro who)) ->
+    Search : (who : Noun bs Player) -> (sc : SearchScope (nomIntro who)) ->
              (p : Predicate (nomIntro who) Object) ->
-             {auto 0 sz : SearchableZone (zoneSort z)} ->
-             {auto 0 wz : WholeZone z} ->
-             {auto 0 hd : Headed p} ->
+             {auto 0 hd : SearchDescribed sc p} ->
              {auto 0 af : AnyTargetFree p} ->
              {auto 0 zf : ZoneFree p} -> Effect bs
     Shuffle : (whose : Noun bs Player) -> Effect bs
@@ -4168,6 +4259,12 @@ mutual
                TagBody Surveil
                        (Expose LookAt You
                                (ExposedCards (LibrarySlice OnTop amt You {sp} {wc})))
+    ||| The agentive placement clause: the imperative and "<player> puts it
+    ||| into/onto <zone>" spell one event, so the tag rides the same Move.
+    ||| Every Move admits: its own gates already bound the destination, and
+    ||| the destination's possessive is rendering's business [CR#400.3].
+    PutB : {auto 0 pz : PutAgentiveZone (zoneSort to)} ->
+           TagBody Put (Move n to {riders} {ok} {arr} {na} {pl} {rf})
 
   public export
   NonAgentive : VerbName -> Type
@@ -4401,9 +4498,9 @@ mutual
   effIntro (AddMana who amt _ _) = amtIntro amt
   effIntro (Draw who amt) = amtIntro amt
   effIntro (Expose v who what) = exposedIntro what
-  effIntro (Search who z p) =
-    MkBinding AD Object OneOf (ObjectP (seedTy p) (Just (zoneSort z)) Nothing Nothing)
-      :: (predDelta p ++ nomIntro who)
+  effIntro (Search who sc p) =
+    MkBinding AD Object OneOf (ObjectP (seedTy p) (searchZone sc) Nothing Nothing)
+      :: (predDelta p ++ searchDelta sc ++ nomIntro who)
   effIntro (Shuffle whose) = shuffledAway (nomIntro whose)
   effIntro (Continuously se _) = staticIntro se
   effIntro (Create agent count spec riders) =
@@ -4466,7 +4563,7 @@ mutual
   preIntro (AddMana who amt _ _) = amtIntro amt
   preIntro (Draw who amt) = amtIntro amt
   preIntro (Expose v who what) = exposedIntro what
-  preIntro (Search who z p) = predDelta p ++ nomIntro who
+  preIntro (Search who sc p) = predDelta p ++ searchDelta sc ++ nomIntro who
   preIntro (Shuffle whose) = nomIntro whose
   preIntro (Continuously se _) = staticIntro se
   preIntro (Create agent count spec riders) = amtIntro count
@@ -4524,7 +4621,7 @@ mutual
   annIntro (AddMana who amt _ _) = amtIntro amt
   annIntro (Draw who amt) = amtIntro amt
   annIntro (Expose v who what) = exposedIntro what
-  annIntro (Search who z p) = predDelta p ++ nomIntro who
+  annIntro (Search who sc p) = predDelta p ++ searchDelta sc ++ nomIntro who
   annIntro (Shuffle whose) = nomIntro whose
   annIntro (Continuously se _) = staticIntro se
   annIntro (Create agent count spec riders) = amtIntro count
@@ -4591,8 +4688,8 @@ mutual
   deedDelta (AddMana _ _ _ _) = []
   deedDelta (Draw who amt) = []
   deedDelta (Expose v who what) = []
-  deedDelta (Search who z p) =
-    [MkBinding AD Object OneOf (ObjectP (seedTy p) (Just (zoneSort z)) Nothing Nothing)]
+  deedDelta (Search who sc p) =
+    [MkBinding AD Object OneOf (ObjectP (seedTy p) (searchZone sc) Nothing Nothing)]
   deedDelta (Shuffle whose) = []
   deedDelta (Continuously se _) = []
   deedDelta (Create agent count spec riders) =

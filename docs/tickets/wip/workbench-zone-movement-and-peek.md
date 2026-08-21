@@ -162,3 +162,103 @@ spellings, `ScryB`, `SurveilB`), the pin modules
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## As landed (2026-08-21)
+
+Counts below are distinct oracle lines from `mtg-rules corpus --match`.
+
+### The three-zone search
+
+`SearchScope` (Experimental.idr), one sum argument replacing `Search`'s
+`ZoneExpr`: `OneZone` (carrying the old `SearchableZone`/`WholeZone` gates) and
+`GraveyardHandLibraryOf (whose : Noun bs Player)` under `Possessor`. `searchZone`
+returns `Nothing` for the sweep — it fixes no one zone for what it finds —
+and `searchDelta` puts the possessor's binding in `effIntro`/`preIntro`/`annIntro`,
+which is what lets "Then that player shuffles" read it back.
+
+`Headed p` became `SearchDescribed sc p`, which still demands a head on
+`OneZone` and WAIVES the requirement on the sweep — permissively: a headed
+predicate is still admitted there, and no head is supplied to the semantics.
+The waiver is what lets the plural forms' bare "cards with that name" write;
+2 of the 33 sweep lines head singular instead ("for a card named The Spear of
+Leonidas", Kassandra; Shaun & Rebecca), so the description is not uniformly
+plural and the slot is left free rather than fixed. Macro `searchZonesOf`.
+
+The possessor slot takes `SweepPossessor`, which refuses every `PlayerGroup`
+where `Possessor` admits `YourOpponents`: neither "each player's" nor "each
+opponent's" graveyard, hand, and library is attested.
+
+Witnesses: `memoricideSearch` ("Search target player's …", target-anchored) and
+`eradicateSearch` ("Search its controller's …", co-referential possessor) — one
+from each name family. Pins: `badSweepAcrossPlayers` and
+`badSweepAcrossOpponents`, the two group words.
+
+Family size: 15, not the ticket's 16 — Bloodbond March has no sweep ("each
+player returns all cards with the same name as that spell from their graveyard
+to the battlefield"), so the same-name family is 4.
+
+### The agentive placement clause
+
+Taken as the `Put` row in `VerbName` with `PutB : TagBody Put (Move …)`, not a
+subject slot on `Move`. `verbAgentive Put = True`, so `Composite Put …` is
+refused and the imperative keeps the bare `Move`: the two frames spell one
+event. `PutB` is gated on `PutAgentiveZone (zoneSort to)`: library, hand,
+battlefield and graveyard are attested destinations, exile is 0 lines (the
+exile tag owns it) and the stack is never written as one. Without the gate
+`Does p Put (Move n exileZ)` would be a second spelling of `Does p Exile …`.
+
+`verbedMarkingOk Put _ = False` — "put this way" is a measured zero; English
+marks a placement patient by its destination verb.
+
+Macro `puts`. Witnesses: `deemInferior`, `lostHoursPlacement`,
+`aetherGustPlacement`. Pins: `badSubjectlessPut` (`Composite Put …`) and
+`badPutIntoExile`.
+
+### The top-or-bottom position disjunction
+
+`LibPlace` (Experimental.idr) replaces `LibraryAt`'s `LibPos`: `OneEnd pos` and
+`EitherEnd (chooser : Maybe (Noun bs Player))` under `EventAgent`. The chooser
+is a separable slot on the disjunction alone, so the bare coordination writes
+without it. The arrangement gate became `PlaceArrangementFits` and the ordinal
+gate `PlaceOrdinalFits`; on `EitherEnd` the ordinal rides the top alternative,
+which is the offset spelling.
+
+Macros `topOrBottomZ`, `choiceOfTopOrBottom`, `nthFromTopOrBottomZ`. Witnesses:
+`aetherGustPlacement` (chooser, agentive), `deemInferior` (offset),
+`notForgottenPlacement` (chooser, imperative, "your choice"),
+`writeIntoBeingPlacement` (bare). Pin: `badDisjunctionOrdered` — a disjunction
+with an order rider.
+
+`EitherEnd Nothing` is bought by a single attested line, Write into Being's
+"put the other on the top or bottom of your library", and manifest is not in
+the vocabulary — so that witness is synthetic: it stands an exile where the
+card manifests, and only the placement half is the card's own words.
+
+The two-destination cell ("onto the battlefield or into your hand", 2 lines) was
+not folded in: `LibPlace` is library-internal and cannot name another zone.
+
+### The peek residues
+
+- **Scrying subject — DECLINED.** 2 of 369 scry lines ("Target player scries 3",
+  "Target player scries X, then draws a card"); 0 of 150 surveil lines. A slot
+  bought for one keyword's two lines does not carry the family.
+- **Process read — DECLINED for now.** 3 lines ("where X is the number of cards
+  looked at while scrying this way"). The read reaches into the keyword action's
+  body, whose partition the row records without spelling.
+- **Per-turn state read — DECLINED for now.** 2 lines, and they are not one
+  shape: Darkblade Agent's is a condition, the other a relative clause on cards
+  in a graveyard.
+- **Coordinated event — DECLINED for now.** 2 lines.
+
+The last three all wait on the same unmade decision — whether a keyword-action
+NAME is admitted to the event-name taxonomy `Happened`/`AltEvent` are indexed
+on. That decision is the catalog's admission test, the same one Fateseal waits
+behind; it was out of this round's pinned scope. Fateseal is not minted. The
+look-and-partition frame and `ScryB`/`SurveilB` are untouched.
+
+### Stopped
+
+- The 15 three-zone cards still do not write end to end: their search results are
+  plural ("all cards" / "any number of cards" → "exile them") and `Search`
+  introduces a singular binding. The search quantity is a separate gap; the
+  benched witnesses are the search clause and the possessor read-back.

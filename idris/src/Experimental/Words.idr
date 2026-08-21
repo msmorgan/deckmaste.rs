@@ -817,6 +817,7 @@ OrdinalFits p o n = So (ordinalFits p o n)
 namespace Verb
   public export
   data VerbName = Destroy | Sacrifice | Exile | Discard | Mill | Scry | Surveil
+                | Put
 
 public export
 verbAgentive : VerbName -> Bool
@@ -827,6 +828,7 @@ verbAgentive Discard = True
 verbAgentive Mill = True
 verbAgentive Scry = True
 verbAgentive Surveil = True
+verbAgentive Put = True
 
 public export
 Eq VerbName where
@@ -844,6 +846,8 @@ Eq VerbName where
   (==) Discard _ = False
   (==) Mill Mill = True
   (==) Mill _ = False
+  (==) Put Put = True
+  (==) Put _ = False
 
 public export
 record Stamp where
@@ -1152,6 +1156,22 @@ public export
 SearchableZone : Zone -> Type
 SearchableZone z = So (searchableZone z)
 
+||| Where the agentive placement clause lands a card. No line writes a
+||| placement into exile — the exile tag owns that destination — and the
+||| stack is never written as one.
+public export
+putAgentiveZoneOk : Zone -> Bool
+putAgentiveZoneOk Library = True
+putAgentiveZoneOk Hand = True
+putAgentiveZoneOk Battlefield = True
+putAgentiveZoneOk Graveyard = True
+putAgentiveZoneOk Exile = False
+putAgentiveZoneOk Stack = False
+
+public export
+PutAgentiveZone : Zone -> Type
+PutAgentiveZone z = So (putAgentiveZoneOk z)
+
 public export
 pubB : Binding -> Bool
 pubB (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = publicZone z
@@ -1226,6 +1246,10 @@ verbedMarkingOk Scry Attributive = False
 verbedMarkingOk Scry ThisWay = False
 verbedMarkingOk Surveil Attributive = False
 verbedMarkingOk Surveil ThisWay = False
+-- No line marks a placement patient by the bare participle; the marking
+-- names the destination too ("put onto the battlefield this way").
+verbedMarkingOk Put Attributive = False
+verbedMarkingOk Put ThisWay = False
 
 public export
 VerbedMarkingOk : VerbName -> VerbedMarking -> Type

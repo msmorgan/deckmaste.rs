@@ -845,7 +845,7 @@ badLoyaltySorcery Oh impossible
 ||| [CR#401.4] grants the arrangement to the owner, so an override is written only where the order is hidden.
 public export
 badRandomOnTop : Unspellable (ZoneExpr []) (\ok =>
-  LibraryAt OnTop (Just RandomOrder) {af = ok} Bare)
+  LibraryAt (OneEnd OnTop) (Just RandomOrder) {af = ok} Bare)
 badRandomOnTop Oh impossible
 
 

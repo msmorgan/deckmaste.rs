@@ -6536,7 +6536,7 @@ everAfter =
                 Macros.becomesAs (Those (TypeW Creature))
                                  (MkToken Nothing [Black] (MkTypeLine [Zombie] []) [] Nothing)
                                  Nothing,
-                Move This (LibraryAt OnBottom Nothing Bare)]
+                Move This (LibraryAt (OneEnd OnBottom) Nothing Bare)]
 
 public export
 infernalVessel : Card
@@ -6798,3 +6798,80 @@ cryptLurker =
 public export
 peacekeeperCant : Ability
 peacekeeperCant = Static (Deontic (AllOf Macros.creature) Forbid Attack Agent Nothing)
+
+
+||| Memoricide's search clause: "Search target player's graveyard, hand,
+||| and library for … cards with that name. Then that player shuffles."
+||| The name choice heads the card; the sweep is what was missing.
+||| ("… and exile them" wants a plural search result, which is not the
+||| sweep's gap.)
+public export
+memoricideSearch : Effect []
+memoricideSearch =
+  Sequentially [ Choose (Macros.a (Macros.qualityFrom CardName
+                                     (NameOfCard (Not (HasType Land)))))
+               , Macros.searchZonesOf (Macros.target AnyPlayer) (Named ChosenName)
+               , Shuffle (That PlayerW) ]
+
+||| Eradicate's search clause: "Exile target nonblack creature. Search its
+||| controller's graveyard, hand, and library for all cards with the same
+||| name as that creature. Then that player shuffles." The same sweep,
+||| anchored on a co-referential possessor instead of a target. The card
+||| writes "that creature"; the exile has already rebound it as a card in
+||| exile [CR#400.7], so the type word finds no antecedent and `CardW` is
+||| what the binding offers.
+public export
+eradicateSearch : Effect []
+eradicateSearch =
+  Sequentially [ Macros.exile (Macros.target (And [Macros.creature,
+                                                   Not (ColorIs Black)]))
+               , Macros.searchZonesOf (ControllerOf (That CardW))
+                                      (Named (SameNameAs (That CardW)))
+               , Shuffle (That PlayerW) ]
+
+||| Deem Inferior: "The owner of target nonland permanent puts it into
+||| their library second from the top or on the bottom." The agentive
+||| placement clause carrying the offset spelling of the disjunction.
+public export
+deemInferior : Effect []
+deemInferior =
+  Macros.puts (OwnerOf (Macros.target (And [Permanent, Not (HasType Land)])))
+              It
+              (Macros.nthFromTopOrBottomZ Second)
+
+||| Lost Hours' third line: "That player puts that card into their library
+||| third from the top." The agentive clause over a plain ordinal.
+public export
+lostHoursPlacement : Effect []
+lostHoursPlacement =
+  Sequentially [ Macros.revealsTheirHand (Macros.target AnyPlayer)
+               , Choose (Macros.a (And [Not (HasType Land),
+                                        InZone (Macros.handOf They)]))
+               , Macros.puts (That PlayerW) It (Macros.nthFromTop Third) ]
+
+||| Aether Gust's second line: "Its owner puts it on their choice of the
+||| top or bottom of their library." The agentive clause with the chooser
+||| slot filled by the subject.
+public export
+aetherGustPlacement : Effect []
+aetherGustPlacement =
+  Sequentially [ Choose (Macros.target (And [Permanent, ColorIs Red]))
+               , Macros.puts (OwnerOf It) It (Macros.choiceOfTopOrBottom They) ]
+
+||| Not Forgotten's first line: "Put target card from a graveyard on your
+||| choice of the top or bottom of its owner's library." The same
+||| disjunction under an imperative, with the chooser slot spelling "your".
+public export
+notForgottenPlacement : Effect []
+notForgottenPlacement =
+  Move (Macros.target (InZone Macros.graveyardZ)) (Macros.choiceOfTopOrBottom You)
+
+||| Write into Being's placement half: "put the other on the top or bottom
+||| of your library" — the bare disjunction, no chooser named. (Manifest is
+||| not in the vocabulary; the exile stands in for the card it consumes.)
+public export
+writeIntoBeingPlacement : Effect []
+writeIntoBeingPlacement =
+  Sequentially [ Macros.lookAt (Macros.topCards 2)
+               , Macros.exile (Macros.oneOf Them)
+               , Move TheRest Macros.topOrBottomZ ]
