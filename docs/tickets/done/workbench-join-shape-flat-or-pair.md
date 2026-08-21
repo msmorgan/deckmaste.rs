@@ -58,3 +58,13 @@ the tables.
   it — a docstring on the join, not a note elsewhere.
 
 Standard constraints apply.
+
+## Decision as landed (2026-08-21)
+
+Taken: **flat on `Kind`, pair-carrying on `Payload`**. The trichotomy above
+conflated the kind index with the binding payload — the "pairs" are card-type
+and possessor content, which `Payload` carries. The 33/33 echo therefore
+derives from `Payload ObjectOrPlayer` (minted by
+`workbench-joined-kind-binding`), not from the index. The full record is the
+`(\/)` docstring in `idris/src/Experimental/Words.idr`. `ObjectOrPlayer` has no
+users until that payload lands; that is the intended intermediate state.

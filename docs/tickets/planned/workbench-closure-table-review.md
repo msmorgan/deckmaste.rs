@@ -33,6 +33,12 @@ Authority:
 — a measured phrasing fact is table content, not type-level law. A verdict that
 widens must move the measurement into a table, never delete it.
 
+> **Stale anchors (2026-08-21):** the four region boundaries below and the
+> closure tables' header line totals predate a large shrink —
+> `Experimental.idr` is ~5,500 lines, `Words.idr` ~3,200, `Events.idr` ~1,100;
+> three of the four regions no longer exist, and the tables' §7 line refs
+> exceed every file. Re-anchor against the tree before partitioning the sweep.
+
 ## Do not drop a measured zero
 
 The tables' rows exist because a zero was counted. Carrying a row forward without
