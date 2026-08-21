@@ -9,7 +9,7 @@ use super::SelectedOwnership;
 use super::selection::construction_name_v1;
 use crate::ast::Ability;
 use crate::constructions::Construction;
-use crate::constructions::GeneratedRoot;
+use crate::constructions::GeneratedParseRoot;
 use crate::constructions::RuleId;
 use crate::context::ParseContext;
 
@@ -1307,7 +1307,7 @@ impl<V> ParserTrace<V> {
         environment: &crate::environment::ParserEnvironment,
     ) -> Self
     where
-        V: GeneratedRoot,
+        V: GeneratedParseRoot,
     {
         let limit = limits.per_collection();
         let selected_ownership = analysis.ownership();

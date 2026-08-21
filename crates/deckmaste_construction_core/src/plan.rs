@@ -2027,13 +2027,21 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 78);
+        assert_eq!(keys.len(), 80);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,
             name: "GeneratedRoot".into(),
         }));
+        assert!(keys.contains(&&ItemKey::Named {
+            kind: NamedKind::Trait,
+            name: "GeneratedParseRoot".into(),
+        }));
         assert!(keys.contains(&&ItemKey::Impl {
             trait_name: Some("GeneratedRoot".into()),
+            self_ty: "Action".into(),
+        }));
+        assert!(keys.contains(&&ItemKey::Impl {
+            trait_name: Some("GeneratedParseRoot".into()),
             self_ty: "Action".into(),
         }));
         assert!(keys.contains(&&ItemKey::Impl {

@@ -18,7 +18,7 @@ use crate::ast::Ability;
 use crate::constructions::BuildValue;
 use crate::constructions::Category;
 use crate::constructions::Construction;
-use crate::constructions::GeneratedRoot;
+use crate::constructions::GeneratedParseRoot;
 use crate::constructions::Leaf;
 use crate::constructions::Lexical;
 use crate::constructions::LexicalOwner;
@@ -429,7 +429,7 @@ where
     (values, builder.finish())
 }
 
-pub(crate) fn materialize<R: GeneratedRoot>(
+pub(crate) fn materialize<R: GeneratedParseRoot>(
     forest: &RootForest,
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
@@ -449,7 +449,7 @@ pub(crate) fn materialize<R: GeneratedRoot>(
     finalize_candidates::<R>(built, context, environment, None)
 }
 
-pub(crate) fn materialize_observed<R: GeneratedRoot>(
+pub(crate) fn materialize_observed<R: GeneratedParseRoot>(
     forest: &RootForest,
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
@@ -477,7 +477,7 @@ pub(crate) fn materialize_observed<R: GeneratedRoot>(
     (candidates, observation.finish())
 }
 
-fn finalize_candidates<R: GeneratedRoot>(
+fn finalize_candidates<R: GeneratedParseRoot>(
     built_values: Vec<
         MaterializedCandidate<BuildValue, Construction, Category, Lexical, Leaf, LexicalOwner>,
     >,
@@ -618,7 +618,7 @@ fn materialize_node(
     kernel.materialize_node(forest, node_id, state, &mut Vec::new(), &mut ())
 }
 
-pub(super) fn completion_has_checked_build<R: GeneratedRoot>(
+pub(super) fn completion_has_checked_build(
     rules: &[Rule<Category, LexicalTerminal, RootRuleId>],
     rule: RootRuleId,
     family: &Family<Leaf, LexicalOwner>,

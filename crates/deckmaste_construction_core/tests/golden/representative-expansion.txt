@@ -220,6 +220,8 @@ pub(crate) trait GeneratedRoot: Clone + PartialEq + Eq + std::fmt::Debug {
     const NAME: &'static str;
     const EOI: bool;
     fn from_build(value: BuildValue) -> Option<Self>;
+}
+pub(crate) trait GeneratedParseRoot: GeneratedRoot {
     fn render_with_claims(
         &self,
         context: &ParseContext<'_>,
@@ -236,6 +238,8 @@ impl GeneratedRoot for Action {
             _ => None,
         }
     }
+}
+impl GeneratedParseRoot for Action {
     fn render_with_claims(
         &self,
         context: &ParseContext<'_>,

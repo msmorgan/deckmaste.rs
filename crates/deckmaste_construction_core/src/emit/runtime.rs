@@ -185,41 +185,48 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             crate::plan::DeclarationKey::new(crate::plan::DeclarationKind::Root, root.category())
         })
         .collect::<Vec<_>>();
-    let mut items = vec![GeneratedItem::new(
-        ItemKey::Named {
-            kind: NamedKind::Trait,
-            name: "GeneratedRoot".to_owned(),
-        },
-        quote! {
-            pub(crate) trait GeneratedRoot:
-                Clone + PartialEq + Eq + std::fmt::Debug
-            {
-                const CATEGORY: Category;
-                const NAME: &'static str;
-                const EOI: bool;
-                fn from_build(value: BuildValue) -> Option<Self>;
-                fn render_with_claims(
-                    &self,
-                    context: &ParseContext<'_>,
-                    environment: &crate::environment::ParserEnvironment,
-                ) -> (
-                    String,
-                    Vec<RawRenderedClaim>,
-                );
-            }
-        },
-        origins,
-    )];
-    let takes_environment = plan.needs_parser_environment();
+    let mut items = vec![
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Trait,
+                name: "GeneratedRoot".to_owned(),
+            },
+            quote! {
+                pub(crate) trait GeneratedRoot:
+                    Clone + PartialEq + Eq + std::fmt::Debug
+                {
+                    const CATEGORY: Category;
+                    const NAME: &'static str;
+                    const EOI: bool;
+                    fn from_build(value: BuildValue) -> Option<Self>;
+                }
+            },
+            origins.clone(),
+        ),
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Trait,
+                name: "GeneratedParseRoot".to_owned(),
+            },
+            quote! {
+                pub(crate) trait GeneratedParseRoot: GeneratedRoot {
+                    fn render_with_claims(
+                        &self,
+                        context: &ParseContext<'_>,
+                        environment: &crate::environment::ParserEnvironment,
+                    ) -> (
+                        String,
+                        Vec<RawRenderedClaim>,
+                    );
+                }
+            },
+            origins,
+        ),
+    ];
     items.extend(plan.roots().iter().map(|root| {
         let category = emitted_ident(root.category(), Span::call_site());
         let name = syn::LitStr::new(root.category(), Span::call_site());
         let eoi = root.is_parse_entry();
-        let renderer = emitted_ident(
-            &format!("render_{}_with_claims", snake_case(root.category())),
-            Span::call_site(),
-        );
-        let environment = takes_environment.then(|| quote! { , environment });
         let agreement = plan
             .category_carries_agreement(root.category())
             .then(|| quote! { , _ });
@@ -243,17 +250,6 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                             _ => None,
                         }
                     }
-
-                    fn render_with_claims(
-                        &self,
-                        context: &ParseContext<'_>,
-                        environment: &crate::environment::ParserEnvironment,
-                    ) -> (
-                        String,
-                        Vec<RawRenderedClaim>,
-                    ) {
-                        #renderer(self, context #environment)
-                    }
                 }
             },
             vec![crate::plan::DeclarationKey::new(
@@ -262,6 +258,44 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             )],
         )
     }));
+    let takes_environment = plan.needs_parser_environment();
+    items.extend(
+        plan.roots()
+            .iter()
+            .filter(|root| root.is_render_entry())
+            .map(|root| {
+                let category = emitted_ident(root.category(), Span::call_site());
+                let renderer = emitted_ident(
+                    &format!("render_{}_with_claims", snake_case(root.category())),
+                    Span::call_site(),
+                );
+                let environment = takes_environment.then(|| quote! { , environment });
+                GeneratedItem::new(
+                    ItemKey::Impl {
+                        trait_name: Some("GeneratedParseRoot".to_owned()),
+                        self_ty: root.category().to_owned(),
+                    },
+                    quote! {
+                        impl GeneratedParseRoot for #category {
+                            fn render_with_claims(
+                                &self,
+                                context: &ParseContext<'_>,
+                                environment: &crate::environment::ParserEnvironment,
+                            ) -> (
+                                String,
+                                Vec<RawRenderedClaim>,
+                            ) {
+                                #renderer(self, context #environment)
+                            }
+                        }
+                    },
+                    vec![crate::plan::DeclarationKey::new(
+                        crate::plan::DeclarationKind::Root,
+                        root.category(),
+                    )],
+                )
+            }),
+    );
     items
 }
 
@@ -1284,7 +1318,7 @@ mod tests {
     use syn::Item;
 
     #[test]
-    fn generated_root_metadata_is_sealed_typed_and_source_ordered() {
+    fn generated_root_metadata_and_parse_capability_are_sealed_and_source_ordered() {
         let plan = structural_semantic_plan();
         let runtime = super::emit(&plan);
 
@@ -1302,12 +1336,34 @@ mod tests {
             "const NAME : & 'static str",
             "const EOI : bool",
             "fn from_build (value : BuildValue) -> Option < Self >",
-            "fn render_with_claims",
-            "Vec < RawRenderedClaim >",
         ] {
             assert!(
                 contract.contains(fragment),
                 "missing `{fragment}`: {contract}"
+            );
+        }
+        assert!(
+            !contract.contains("render_with_claims"),
+            "universal root metadata must not imply standalone rendering: {contract}",
+        );
+
+        let Item::Trait(generated_parse_root) = parse_named(&runtime, "GeneratedParseRoot") else {
+            panic!("GeneratedParseRoot is a trait");
+        };
+        assert_eq!(generated_parse_root.ident, "GeneratedParseRoot");
+        assert!(
+            matches!(&generated_parse_root.vis, syn::Visibility::Restricted(_)),
+            "GeneratedParseRoot remains sealed inside the generated crate",
+        );
+        let parse_contract = generated_parse_root.to_token_stream().to_string();
+        for fragment in [
+            "GeneratedParseRoot : GeneratedRoot",
+            "fn render_with_claims",
+            "Vec < RawRenderedClaim >",
+        ] {
+            assert!(
+                parse_contract.contains(fragment),
+                "missing `{fragment}`: {parse_contract}",
             );
         }
 
@@ -1330,10 +1386,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["LeftNode", "RightNode"],
         );
-        for (self_ty, eoi, renderer) in [
-            ("LeftNode", "true", "render_left_node_with_claims"),
-            ("RightNode", "false", "render_right_node_with_claims"),
-        ] {
+        for (self_ty, eoi) in [("LeftNode", "true"), ("RightNode", "false")] {
             let implementation = implementations
                 .iter()
                 .find_map(|(actual, tokens)| (*actual == self_ty).then_some(tokens))
@@ -1344,14 +1397,44 @@ mod tests {
                 format!("const EOI : bool = {eoi}"),
                 format!("BuildValue :: {self_ty} (value) => Some (value)"),
                 "_ => None".to_owned(),
-                renderer.to_owned(),
             ] {
                 assert!(
                     implementation.contains(&fragment),
                     "{self_ty} root metadata lacks `{fragment}`: {implementation}",
                 );
             }
+            assert!(
+                !implementation.contains("render_with_claims"),
+                "{self_ty} metadata impl must not imply parse-root capability: {implementation}",
+            );
         }
+
+        let parse_implementations = runtime
+            .iter()
+            .filter_map(|item| match &item.key {
+                crate::ItemKey::Impl {
+                    trait_name: Some(trait_name),
+                    self_ty,
+                } if trait_name == "GeneratedParseRoot" => {
+                    Some((self_ty.as_str(), item.tokens.to_string()))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            parse_implementations
+                .iter()
+                .map(|(self_ty, _)| *self_ty)
+                .collect::<Vec<_>>(),
+            ["LeftNode"],
+            "only source-ordered standalone roots are selectable parse roots",
+        );
+        assert!(
+            parse_implementations[0]
+                .1
+                .contains("render_left_node_with_claims (self , context"),
+            "the selectable root owns standalone claim rendering",
+        );
     }
 
     #[test]

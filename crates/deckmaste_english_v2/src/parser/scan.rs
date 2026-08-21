@@ -31,7 +31,7 @@ use crate::constructions::CasePosition;
 use crate::constructions::Category;
 use crate::constructions::DeclarationMatcher;
 use crate::constructions::FeatureConstraint;
-use crate::constructions::GeneratedRoot;
+use crate::constructions::GeneratedParseRoot;
 use crate::constructions::Leaf;
 use crate::constructions::Lexical;
 use crate::constructions::LexicalOwner;
@@ -105,7 +105,7 @@ impl std::ops::Deref for RootForest {
     }
 }
 
-pub(crate) fn parse_forest<R: GeneratedRoot>(
+pub(crate) fn parse_forest<R: GeneratedParseRoot>(
     grammar: &SliceGrammar<'_>,
     text: &str,
 ) -> Result<RootForest, ChartFailure<Category, Lexical>> {
@@ -119,7 +119,7 @@ pub(crate) fn parse_forest<R: GeneratedRoot>(
         &initial_scan_position(),
         |lexical, offset, position| grammar.scan_stateful(lexical, text, offset, *position),
         |rule, family, forest| {
-            completion_has_checked_build::<R>(&rules, rule, family, forest, grammar.context)
+            completion_has_checked_build(&rules, rule, family, forest, grammar.context)
         },
     )
     .map_err(project_failure)?;
@@ -128,7 +128,7 @@ pub(crate) fn parse_forest<R: GeneratedRoot>(
 
 type ObservedForestResult = Result<RootForest, ChartFailure<Category, Lexical>>;
 
-pub(crate) fn parse_forest_observed<R: GeneratedRoot>(
+pub(crate) fn parse_forest_observed<R: GeneratedParseRoot>(
     grammar: &SliceGrammar<'_>,
     text: &str,
     limits: TraceLimits,
@@ -144,7 +144,7 @@ pub(crate) fn parse_forest_observed<R: GeneratedRoot>(
         &initial_scan_position(),
         |lexical, offset, position| grammar.scan_stateful(lexical, text, offset, *position),
         |rule, family, forest| {
-            completion_has_checked_build::<R>(&rules, rule, family, forest, grammar.context)
+            completion_has_checked_build(&rules, rule, family, forest, grammar.context)
         },
         &mut observation,
     )
@@ -154,8 +154,8 @@ pub(crate) fn parse_forest_observed<R: GeneratedRoot>(
     (result, trace)
 }
 
-pub(super) fn rules_for_root<R: GeneratedRoot>() -> Vec<Rule<Category, LexicalTerminal, RootRuleId>>
-{
+pub(super) fn rules_for_root<R: GeneratedParseRoot>()
+-> Vec<Rule<Category, LexicalTerminal, RootRuleId>> {
     let mut rules = RULES
         .iter()
         .map(|rule| Rule {

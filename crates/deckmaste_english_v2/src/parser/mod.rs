@@ -14,7 +14,7 @@ use crate::ast::Ability;
 use crate::ast::Sentence;
 use crate::constructions::Category;
 use crate::constructions::FeatureConstraint;
-use crate::constructions::GeneratedRoot;
+use crate::constructions::GeneratedParseRoot;
 use crate::constructions::REQUIRED_DECLARATIONS;
 use crate::context::ParseContext;
 use crate::environment::DeclarationId;
@@ -369,7 +369,7 @@ impl Parser {
         (analysis, trace.structural)
     }
 
-    fn analyze_root<R: GeneratedRoot>(
+    fn analyze_root<R: GeneratedParseRoot>(
         &self,
         text: &str,
         context: &ParseContext<'_>,
@@ -388,7 +388,7 @@ impl Parser {
         )
     }
 
-    fn analyze_root_with_trace<R: GeneratedRoot>(
+    fn analyze_root_with_trace<R: GeneratedParseRoot>(
         &self,
         text: &str,
         context: &ParseContext<'_>,
@@ -519,7 +519,7 @@ fn analyze_selected_candidate<V>(
     })
 }
 
-fn analyze_materialized_with_ownership<R: GeneratedRoot>(
+fn analyze_materialized_with_ownership<R: GeneratedParseRoot>(
     text: &str,
     candidates: Vec<materialize::Candidate<R>>,
     context: &ParseContext<'_>,

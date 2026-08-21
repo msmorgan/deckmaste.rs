@@ -77,13 +77,14 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         .collect::<HashSet<_>>();
     let root_names = roots
         .iter()
+        .filter(|root| root.is_render_entry())
         .map(|root| root.category().to_owned())
         .collect::<HashSet<_>>();
     let mut items = Vec::new();
     let takes_environment = validated.needs_parser_environment();
     items.extend(emit_structural_surface_runtime(validated)?);
     items.extend(emit_structural_renderers(validated, &root_names)?);
-    for root in &roots {
+    for root in roots.iter().filter(|root| root.is_render_entry()) {
         let category = root.category().to_owned();
         let write_function = ident(&format!("write_{}_render", snake_case(&category)));
         let collecting_function = ident(&format!("render_{}_with_claims", snake_case(&category)));
@@ -154,13 +155,12 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             },
             vec![origin.clone()],
         ));
-        if root.is_render_entry() {
-            items.push(GeneratedItem::new(
-                ItemKey::Impl {
-                    trait_name: Some("Render".to_owned()),
-                    self_ty: category.clone(),
-                },
-                quote! {
+        items.push(GeneratedItem::new(
+            ItemKey::Impl {
+                trait_name: Some("Render".to_owned()),
+                self_ty: category.clone(),
+            },
+            quote! {
                 impl Render for #ty {
                     fn render(&self, context: &ParseContext<'_> #environment) -> String {
                         let mut writer = Writer::new();
@@ -168,10 +168,9 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                         writer.finish()
                     }
                 }
-                },
-                vec![origin.clone()],
-            ));
-        }
+            },
+            vec![origin.clone()],
+        ));
         items.push(GeneratedItem::new(
             ItemKey::Named {
                 kind: NamedKind::Function,
@@ -3187,6 +3186,48 @@ mod tests {
                 .to_string()
                 .contains("writer . punctuation ('.')")
         );
+    }
+
+    #[test]
+    fn non_standalone_root_with_parent_supplied_agreement_reaches_emission() {
+        let expansion = crate::generate(quote::quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Act = "act", }
+            construction action: Child {
+                element ActionNode {}
+                derive agreement = verb.agreement;
+                form action = verb(Verbs::Act);
+            }
+            construction parent: Parent {
+                element ParentNode { child: Child, }
+                derive child.agreement = Values::Bare;
+                form parent = child;
+            }
+            root Child { punctuation = "!"; eoi = true; standalone_render = false; }
+            root Parent { punctuation = "."; eoi = false; standalone_render = true; }
+        })
+        .expect("a nested-only root may receive agreement from its parent");
+
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            source.contains("render_child (writer , child , Agreement :: Bare)"),
+            "the parent must supply the nested-only root's agreement: {source}",
+        );
+        assert!(
+            !source.contains("impl Render for Child"),
+            "the nested-only root must not acquire standalone rendering: {source}",
+        );
+        for forbidden in ["write_child_render", "render_child_with_claims"] {
+            assert!(
+                !source.contains(forbidden),
+                "the nested-only root must not acquire `{forbidden}`: {source}",
+            );
+        }
     }
 
     #[test]
