@@ -292,6 +292,12 @@ impl EmissionPlan {
 }
 
 pub(crate) fn plan_emission(plan: &SemanticPlan) -> syn::Result<EmissionPlan> {
+    if plan.has_deferred_structural_emission() {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "structural declaration emission is deferred until the structural emitters are installed",
+        ));
+    }
     let mut items = crate::emit::ast::emit(plan)?;
     let (terminal_items, mut terminal_contributions) = crate::emit::terminal::emit(plan)?;
     seal_terminal_contribution_projection(plan, &mut terminal_contributions)?;
@@ -383,6 +389,49 @@ mod tests {
     use crate::NamedKind;
     use crate::semantic::SemanticPlan;
     use crate::test_support::representative_expansion;
+
+    #[test]
+    fn structural_planning_keeps_abstract_rows_semantic_and_defers_structural_constructions() {
+        let abstract_semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction node: Node { element NodeValue {} form node = "node"; }
+                abstract product Holder { value: Node, }
+                abstract sum Choice { node: Node, }
+                root Node { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("abstract planning fixture parses"),
+        )
+        .expect("abstract planning fixture validates")
+        .into_semantic();
+        let emission = super::plan_emission(&abstract_semantic)
+            .expect("abstract rows do not emit before the structural AST task");
+        assert!(emission.items().iter().all(|item| match &item.key {
+            crate::ItemKey::Named { name, .. } => name != "Holder" && name != "Choice",
+            crate::ItemKey::Impl { self_ty, .. } => self_ty != "Holder" && self_ty != "Choice",
+        }));
+
+        let construction_semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction node: Node { element NodeValue {} form node = "node"; }
+                construction document: Document {
+                    element DocumentValue { nodes: seq Node terminated by ".", }
+                    require len(nodes) >= 1;
+                    form document = nodes;
+                }
+                root Node { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("structural construction fixture parses"),
+        )
+        .expect("structural construction fixture validates")
+        .into_semantic();
+        let error = super::plan_emission(&construction_semantic)
+            .expect_err("Task 2 must not emit structural construction fields")
+            .to_string();
+        assert!(
+            error.contains("structural declaration emission is deferred"),
+            "{error}"
+        );
+    }
 
     #[test]
     fn invariant_field_policy_discovers_context_and_seals_accessor_modes() {

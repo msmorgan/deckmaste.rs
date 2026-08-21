@@ -1,5 +1,7 @@
 use crate::model::TerminalBindingKind;
 use crate::semantic::SemanticPlan;
+use crate::semantic::SeparatorPlan;
+use crate::semantic::StructuralFieldKindPlan;
 use crate::semantic::TerminalPlan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,6 +82,14 @@ impl TerminalBindingDeclarationKind {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct EscapeHatchReport {
+    abstract_products: Vec<String>,
+    abstract_sums: Vec<String>,
+    optional_roles: Vec<String>,
+    sequence_roles: Vec<String>,
+    uniform_separators: Vec<String>,
+    positional_separator_tables: Vec<String>,
+    terminators: Vec<String>,
+    stored_separator_fields: Vec<String>,
     mapping_layers: Vec<String>,
     handwritten_codecs: Vec<String>,
     stored_form_tags: Vec<String>,
@@ -90,6 +100,48 @@ pub struct EscapeHatchReport {
 }
 
 impl EscapeHatchReport {
+    #[must_use]
+    pub fn abstract_products(&self) -> &[String] {
+        &self.abstract_products
+    }
+
+    #[must_use]
+    pub fn abstract_sums(&self) -> &[String] {
+        &self.abstract_sums
+    }
+
+    #[must_use]
+    pub fn optional_roles(&self) -> &[String] {
+        &self.optional_roles
+    }
+
+    #[must_use]
+    pub fn sequence_roles(&self) -> &[String] {
+        &self.sequence_roles
+    }
+
+    #[must_use]
+    pub fn uniform_separators(&self) -> &[String] {
+        &self.uniform_separators
+    }
+
+    #[must_use]
+    pub fn positional_separator_tables(&self) -> &[String] {
+        &self.positional_separator_tables
+    }
+
+    #[must_use]
+    pub fn terminators(&self) -> &[String] {
+        &self.terminators
+    }
+
+    #[must_use]
+    /// Returns sequence roles that store separator syntax in the public AST.
+    /// Derived structural surfaces never contribute a row here.
+    pub fn stored_separator_fields(&self) -> &[String] {
+        &self.stored_separator_fields
+    }
+
     #[must_use]
     /// Returns mapping-layer declarations in source order.
     ///
@@ -138,7 +190,112 @@ impl EscapeHatchReport {
     }
 }
 
+struct StructuralReportInventory {
+    abstract_products: Vec<String>,
+    abstract_sums: Vec<String>,
+    optional_roles: Vec<String>,
+    sequence_roles: Vec<String>,
+    uniform_separators: Vec<String>,
+    positional_separator_tables: Vec<String>,
+    terminators: Vec<String>,
+    stored_separator_fields: Vec<String>,
+}
+
+fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory {
+    let abstract_products = plan
+        .products()
+        .iter()
+        .map(|product| product.name().to_owned())
+        .collect();
+    let abstract_sums = plan
+        .sums()
+        .iter()
+        .map(|sum| sum.name().to_owned())
+        .collect();
+    let mut optional_roles = Vec::new();
+    let mut sequence_roles = Vec::new();
+    let mut uniform_separators = Vec::new();
+    let mut positional_separator_tables = Vec::new();
+    let mut terminators = Vec::new();
+    let stored_separator_fields = Vec::new();
+    let mut structural_owners = plan
+        .products()
+        .iter()
+        .map(|product| {
+            (
+                product.source_index(),
+                product.name().to_owned(),
+                product
+                    .fields()
+                    .iter()
+                    .map(|field| (field.name().to_owned(), field.kind()))
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .chain(plan.constructions().iter().map(|construction| {
+            (
+                construction.source_index(),
+                construction.element_type().to_owned(),
+                construction
+                    .fields()
+                    .iter()
+                    .filter_map(|field| {
+                        field
+                            .structural_kind()
+                            .map(|kind| (field.name().to_string(), kind))
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        }))
+        .collect::<Vec<_>>();
+    structural_owners.sort_by_key(|(source_index, _, _)| *source_index);
+    for (_, owner, fields) in structural_owners {
+        for (field, kind) in fields {
+            let role = format!("{owner}.{field}");
+            match kind {
+                StructuralFieldKindPlan::Required(_) => {}
+                StructuralFieldKindPlan::Optional(_) => optional_roles.push(role),
+                StructuralFieldKindPlan::Sequence { surface, .. } => {
+                    sequence_roles.push(role.clone());
+                    match surface.separator() {
+                        Some(SeparatorPlan::Uniform(_)) => {
+                            uniform_separators.push(role.clone());
+                        }
+                        Some(SeparatorPlan::Positional(_)) => {
+                            positional_separator_tables.push(role.clone());
+                        }
+                        None => {}
+                    }
+                    if surface.terminator().is_some() {
+                        terminators.push(role);
+                    }
+                }
+            }
+        }
+    }
+    StructuralReportInventory {
+        abstract_products,
+        abstract_sums,
+        optional_roles,
+        sequence_roles,
+        uniform_separators,
+        positional_separator_tables,
+        terminators,
+        stored_separator_fields,
+    }
+}
+
 pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatchReport> {
+    let StructuralReportInventory {
+        abstract_products,
+        abstract_sums,
+        optional_roles,
+        sequence_roles,
+        uniform_separators,
+        positional_separator_tables,
+        terminators,
+        stored_separator_fields,
+    } = structural_report_inventory(plan);
     let mapping_layers = Vec::new();
     let mut handwritten_codecs = Vec::new();
     let stored_form_tags = Vec::new();
@@ -221,6 +378,14 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
     roots.extend(plan.roots().iter().map(|root| root.category().to_owned()));
 
     Ok(EscapeHatchReport {
+        abstract_products,
+        abstract_sums,
+        optional_roles,
+        sequence_roles,
+        uniform_separators,
+        positional_separator_tables,
+        terminators,
+        stored_separator_fields,
         mapping_layers,
         handwritten_codecs,
         stored_form_tags,
@@ -246,6 +411,45 @@ mod tests {
     use crate::TerminalBindingDeclaration;
     use crate::TerminalBindingDeclarationKind;
     use crate::test_support::synthetic_projection_expansion;
+
+    #[test]
+    fn structural_inventory_is_source_ordered_and_separator_storage_stays_empty() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction node: Node {
+                    element NodeValue {}
+                    form node = "node";
+                }
+                abstract sum Choice { node: Node, }
+                abstract product Holder {
+                    maybe: opt Node,
+                    items: seq Choice
+                        separated by position {
+                            pair = " and ";
+                            first = ", ";
+                            middle = ", ";
+                            last = ", and ";
+                        }
+                        terminated by ".",
+                }
+                require len(Holder.items) >= 2;
+                root Node { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("structural inventory fixture parses"),
+        )
+        .expect("structural inventory fixture validates")
+        .into_semantic();
+        let report = super::escape_hatch_report(&semantic).expect("sealed report");
+
+        assert_eq!(report.abstract_products(), ["Holder"]);
+        assert_eq!(report.abstract_sums(), ["Choice"]);
+        assert_eq!(report.optional_roles(), ["Holder.maybe"]);
+        assert_eq!(report.sequence_roles(), ["Holder.items"]);
+        assert!(report.uniform_separators().is_empty());
+        assert_eq!(report.positional_separator_tables(), ["Holder.items"]);
+        assert_eq!(report.terminators(), ["Holder.items"]);
+        assert!(report.stored_separator_fields().is_empty());
+    }
 
     #[test]
     fn report_is_a_read_only_source_order_view_of_the_seven_counted_kinds() {

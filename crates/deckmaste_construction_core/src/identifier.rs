@@ -143,6 +143,30 @@ pub(crate) fn lexeme_surface_helper(lexeme: &str) -> String {
     format!("surface_for_{}", snake_case(lexeme))
 }
 
+pub(crate) fn structural_sequence_aggregate(owner: &str, role: &str) -> String {
+    format!("{}{}Sequence", pascal_case(owner), pascal_case(role))
+}
+
+pub(crate) fn structural_sequence_category(owner: &str, role: &str) -> String {
+    format!("{}Category", structural_sequence_aggregate(owner, role))
+}
+
+pub(crate) fn structural_sequence_rule(owner: &str, role: &str) -> String {
+    format!("{}Rule", structural_sequence_aggregate(owner, role))
+}
+
+pub(crate) fn structural_sequence_builder(owner: &str, role: &str) -> String {
+    prefixed("build_", &format!("{owner}_{role}_sequence"))
+}
+
+pub(crate) fn structural_sequence_renderer(owner: &str, role: &str) -> String {
+    prefixed("render_", &format!("{owner}_{role}_sequence"))
+}
+
+pub(crate) fn structural_sequence_walker(owner: &str, role: &str) -> String {
+    prefixed("walk_", &format!("{owner}_{role}_sequence"))
+}
+
 /// Returns the legal deterministic spelling used for a generated local.
 ///
 /// Local bindings may originate in authored raw fields, so keywords receive a

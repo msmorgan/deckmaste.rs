@@ -29,6 +29,15 @@ use crate::validate::CategoryRenderCapability;
 pub(crate) struct SemanticPlan {
     declaration_keys: Vec<DeclarationKey>,
     constructions: Vec<ConstructionPlan>,
+    #[allow(dead_code, reason = "Task 3 consumes sealed abstract product rows")]
+    products: Vec<ProductPlan>,
+    #[allow(dead_code, reason = "Task 3 consumes sealed abstract sum rows")]
+    sums: Vec<SumPlan>,
+    #[allow(
+        dead_code,
+        reason = "Tasks 3 through 5 consume sealed nullability facts"
+    )]
+    nullable_types: HashSet<String>,
     #[allow(
         dead_code,
         reason = "sealed morphology rows are consumed by later generation phases"
@@ -38,6 +47,399 @@ pub(crate) struct SemanticPlan {
     runtime: RuntimeEmissionPlan,
     roots: Vec<RootPlan>,
     features: FeaturePlan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct LengthBounds {
+    min: usize,
+    max: Option<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum EdgeClass {
+    Pair,
+    First,
+    Middle,
+    Last,
+}
+
+#[derive(Debug)]
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume the sealed product plan"
+)]
+pub(crate) struct ProductPlan {
+    source_index: usize,
+    name: String,
+    fields: Vec<StructuralFieldPlan>,
+    bounds_by_role: HashMap<String, LengthBounds>,
+    nullable: bool,
+}
+
+#[derive(Debug)]
+#[allow(dead_code, reason = "Tasks 3 through 5 consume the sealed sum plan")]
+pub(crate) struct SumPlan {
+    source_index: usize,
+    name: String,
+    alternatives: Vec<SumAlternativePlan>,
+    nullable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ValueKindPlan {
+    Category(String),
+    Lex(String),
+    Identity(String),
+    Product(String),
+    Sum(String),
+}
+
+#[derive(Debug)]
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume sealed structural fields"
+)]
+pub(crate) struct StructuralFieldPlan {
+    name: String,
+    kind: StructuralFieldKindPlan,
+    recursive: bool,
+    helper_names: Option<StructuralHelperNames>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum StructuralFieldKindPlan {
+    Required(ValueKindPlan),
+    Optional(ValueKindPlan),
+    Sequence {
+        item: ValueKindPlan,
+        bounds: LengthBounds,
+        surface: SequenceSurfacePlan,
+    },
+}
+
+#[derive(Debug)]
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume sealed sum alternatives"
+)]
+pub(crate) struct SumAlternativePlan {
+    name: String,
+    value: ValueKindPlan,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SequenceSurfacePlan {
+    separator: Option<SeparatorPlan>,
+    terminator: Option<FixedSurfacePlan>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume sealed separator surfaces"
+)]
+pub(crate) enum SeparatorPlan {
+    Uniform(FixedSurfacePlan),
+    Positional(Vec<PositionalSeparatorPlan>),
+}
+
+#[derive(Debug, Clone)]
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume positional separator rows"
+)]
+pub(crate) struct PositionalSeparatorPlan {
+    class: EdgeClass,
+    surface: FixedSurfacePlan,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct FixedSurfacePlan {
+    atoms: Vec<FixedSurfaceAtomPlan>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code, reason = "Tasks 3 through 5 consume fixed-surface atoms")]
+pub(crate) enum FixedSurfaceAtomPlan {
+    Literal(String),
+    Lex { terminal: String, variant: String },
+}
+
+#[derive(Debug, Clone)]
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume the helper-name inventory"
+)]
+pub(crate) struct StructuralHelperNames {
+    aggregate: String,
+    category: String,
+    rule: String,
+    builder: String,
+    renderer: String,
+    walker: String,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct StructuralSemantics {
+    pub(crate) products: Vec<ProductPlan>,
+    pub(crate) sums: Vec<SumPlan>,
+    pub(crate) nullable_types: HashSet<String>,
+    pub(crate) construction_fields: HashMap<(String, String), StructuralFieldKindPlan>,
+    pub(crate) boxed_fields: HashSet<(String, String)>,
+}
+
+impl LengthBounds {
+    pub(crate) const fn new(min: usize, max: Option<usize>) -> Self {
+        Self { min, max }
+    }
+
+    pub(crate) const fn min(self) -> usize {
+        self.min
+    }
+
+    pub(crate) const fn max(self) -> Option<usize> {
+        self.max
+    }
+
+    pub(crate) fn allows(self, length: usize) -> bool {
+        length >= self.min && self.max.is_none_or(|max| length <= max)
+    }
+
+    pub(crate) fn allows_at_least(self, length: usize) -> bool {
+        self.max.is_none_or(|max| max >= length)
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume the sealed product accessors"
+)]
+impl ProductPlan {
+    pub(crate) fn new(
+        source_index: usize,
+        name: String,
+        fields: Vec<StructuralFieldPlan>,
+        bounds_by_role: HashMap<String, LengthBounds>,
+        nullable: bool,
+    ) -> Self {
+        Self {
+            source_index,
+            name,
+            fields,
+            bounds_by_role,
+            nullable,
+        }
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub(crate) const fn source_index(&self) -> usize {
+        self.source_index
+    }
+
+    pub(crate) fn fields(&self) -> &[StructuralFieldPlan] {
+        &self.fields
+    }
+
+    pub(crate) fn bounds(&self, role: &str) -> Option<LengthBounds> {
+        self.bounds_by_role.get(role).copied()
+    }
+
+    pub(crate) const fn is_nullable(&self) -> bool {
+        self.nullable
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume the sealed sum accessors"
+)]
+impl SumPlan {
+    pub(crate) fn new(
+        source_index: usize,
+        name: String,
+        alternatives: Vec<SumAlternativePlan>,
+        nullable: bool,
+    ) -> Self {
+        Self {
+            source_index,
+            name,
+            alternatives,
+            nullable,
+        }
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub(crate) const fn source_index(&self) -> usize {
+        self.source_index
+    }
+
+    pub(crate) fn alternatives(&self) -> &[SumAlternativePlan] {
+        &self.alternatives
+    }
+
+    pub(crate) const fn is_nullable(&self) -> bool {
+        self.nullable
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume sealed structural field accessors"
+)]
+impl StructuralFieldPlan {
+    pub(crate) fn new(
+        name: String,
+        kind: StructuralFieldKindPlan,
+        recursive: bool,
+        helper_names: Option<StructuralHelperNames>,
+    ) -> Self {
+        Self {
+            name,
+            kind,
+            recursive,
+            helper_names,
+        }
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub(crate) fn kind(&self) -> &StructuralFieldKindPlan {
+        &self.kind
+    }
+
+    pub(crate) const fn is_recursive(&self) -> bool {
+        self.recursive
+    }
+
+    pub(crate) fn helper_names(&self) -> Option<&StructuralHelperNames> {
+        self.helper_names.as_ref()
+    }
+}
+
+impl StructuralFieldKindPlan {
+    pub(crate) fn value(&self) -> &ValueKindPlan {
+        match self {
+            Self::Required(value) | Self::Optional(value) => value,
+            Self::Sequence { item, .. } => item,
+        }
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume sealed alternative accessors"
+)]
+impl SumAlternativePlan {
+    pub(crate) fn new(name: String, value: ValueKindPlan) -> Self {
+        Self { name, value }
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub(crate) fn value(&self) -> &ValueKindPlan {
+        &self.value
+    }
+}
+
+impl SequenceSurfacePlan {
+    pub(crate) fn new(
+        separator: Option<SeparatorPlan>,
+        terminator: Option<FixedSurfacePlan>,
+    ) -> Self {
+        Self {
+            separator,
+            terminator,
+        }
+    }
+
+    pub(crate) fn separator(&self) -> Option<&SeparatorPlan> {
+        self.separator.as_ref()
+    }
+
+    pub(crate) fn terminator(&self) -> Option<&FixedSurfacePlan> {
+        self.terminator.as_ref()
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume positional separator accessors"
+)]
+impl PositionalSeparatorPlan {
+    pub(crate) fn new(class: EdgeClass, surface: FixedSurfacePlan) -> Self {
+        Self { class, surface }
+    }
+
+    pub(crate) const fn class(&self) -> EdgeClass {
+        self.class
+    }
+
+    pub(crate) fn surface(&self) -> &FixedSurfacePlan {
+        &self.surface
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "Tasks 3 through 5 consume fixed-surface accessors"
+)]
+impl FixedSurfacePlan {
+    pub(crate) fn new(atoms: Vec<FixedSurfaceAtomPlan>) -> Self {
+        Self { atoms }
+    }
+
+    pub(crate) fn atoms(&self) -> &[FixedSurfaceAtomPlan] {
+        &self.atoms
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.atoms.iter().all(|atom| match atom {
+            FixedSurfaceAtomPlan::Literal(value) => value.is_empty(),
+            FixedSurfaceAtomPlan::Lex { .. } => false,
+        })
+    }
+}
+
+#[allow(dead_code, reason = "Tasks 3 through 5 consume helper-name accessors")]
+impl StructuralHelperNames {
+    pub(crate) fn new(
+        aggregate: String,
+        category: String,
+        rule: String,
+        builder: String,
+        renderer: String,
+        walker: String,
+    ) -> Self {
+        Self {
+            aggregate,
+            category,
+            rule,
+            builder,
+            renderer,
+            walker,
+        }
+    }
+
+    pub(crate) fn all(&self) -> [&str; 6] {
+        [
+            &self.aggregate,
+            &self.category,
+            &self.rule,
+            &self.builder,
+            &self.renderer,
+            &self.walker,
+        ]
+    }
 }
 
 #[derive(Debug)]
@@ -71,6 +473,7 @@ pub(crate) struct ConstructionFieldPlan {
     kind: ConstructionFieldKind,
     terminal: String,
     value_type: syn::Path,
+    structural_kind: Option<StructuralFieldKindPlan>,
     invariant_bearing: bool,
     accessor_mode: Option<AccessorMode>,
 }
@@ -328,6 +731,7 @@ impl RuntimeEmissionPlan {
         plan.punctuation_literals = roots
             .iter()
             .map(|root| root.punctuation.clone())
+            .filter(|punctuation| !punctuation.is_empty())
             .chain(constructions.iter().flat_map(|construction| {
                 construction.atoms.iter().filter_map(|atom| match atom {
                     AtomPlan::Literal(literal) if is_punctuation_literal(literal) => {
@@ -662,6 +1066,7 @@ impl SemanticPlan {
     )]
     pub(crate) fn new(
         source: &Declarations,
+        structural: StructuralSemantics,
         boxed_fields: HashSet<(String, String)>,
         dynamic_numbers: HashSet<String>,
         mut category_reads: HashMap<String, HashSet<Feature>>,
@@ -671,6 +1076,13 @@ impl SemanticPlan {
         mut atoms_by_construction: HashMap<String, (Span, Vec<AtomContribution>)>,
         mut invariants_by_construction: HashMap<String, (Span, InvariantPlan)>,
     ) -> syn::Result<Self> {
+        let StructuralSemantics {
+            products,
+            sums,
+            nullable_types,
+            mut construction_fields,
+            boxed_fields: _,
+        } = structural;
         let declaration_keys = source
             .declarations
             .iter()
@@ -726,9 +1138,23 @@ impl SemanticPlan {
                                 ),
                             )
                         })?;
-                    ConstructionPlan::from_source(source_index, construction, &atoms, invariant)
+                    ConstructionPlan::from_source(
+                        source_index,
+                        construction,
+                        &atoms,
+                        invariant,
+                        &mut construction_fields,
+                    )
                 })
                 .collect::<syn::Result<Vec<_>>>()?;
+        if let Some(((construction, role), _)) = construction_fields.into_iter().next() {
+            return Err(syn::Error::new(
+                Span::call_site(),
+                format!(
+                    "sealed semantic plan has surplus structural field `{construction}.{role}`"
+                ),
+            ));
+        }
         if let Some((name, (span, _))) = atoms_by_construction.into_iter().next() {
             return Err(syn::Error::new(
                 span,
@@ -763,8 +1189,7 @@ impl SemanticPlan {
                     punctuation: root
                         .punctuation
                         .as_ref()
-                        .expect("structural root punctuation is deferred before semantic lowering")
-                        .value(),
+                        .map_or_else(String::new, syn::LitStr::value),
                     parse_entry: root.eoi,
                     render_entry: root.standalone_render,
                 }),
@@ -783,6 +1208,9 @@ impl SemanticPlan {
         Ok(Self {
             declaration_keys,
             constructions,
+            products,
+            sums,
+            nullable_types,
             morphologies,
             terminals,
             runtime,
@@ -813,6 +1241,32 @@ impl SemanticPlan {
     )]
     pub(crate) fn constructions(&self) -> &[ConstructionPlan] {
         &self.constructions
+    }
+
+    pub(crate) fn products(&self) -> &[ProductPlan] {
+        &self.products
+    }
+
+    pub(crate) fn sums(&self) -> &[SumPlan] {
+        &self.sums
+    }
+
+    #[allow(
+        dead_code,
+        reason = "Tasks 3 through 5 consume sealed nullability facts"
+    )]
+    pub(crate) fn is_nullable(&self, name: &str) -> bool {
+        self.nullable_types.contains(name)
+    }
+
+    pub(crate) fn has_deferred_structural_emission(&self) -> bool {
+        self.roots.iter().any(|root| root.punctuation.is_empty())
+            || self.constructions.iter().any(|construction| {
+                construction
+                    .fields
+                    .iter()
+                    .any(|field| field.structural_kind.is_some())
+            })
     }
 
     pub(crate) fn required_open_declarations(
@@ -1751,6 +2205,7 @@ impl ConstructionPlan {
         source: &crate::Construction,
         resolved_atoms: &[AtomContribution],
         invariant: InvariantPlan,
+        structural_fields: &mut HashMap<(String, String), StructuralFieldKindPlan>,
     ) -> syn::Result<Self> {
         let construction_id = identifier_key(&source.name);
         let category = path_key(&source.category);
@@ -1762,7 +2217,8 @@ impl ConstructionPlan {
             .fields
             .iter()
             .map(|field| {
-                let (kind, terminal, value_type) = match &field.kind {
+                let leaf = structural_field_source_leaf(&field.kind);
+                let (kind, terminal, value_type) = match leaf {
                     crate::model::FieldKind::Category(path) => (
                         ConstructionFieldKind::Category,
                         path_key(path),
@@ -1777,15 +2233,17 @@ impl ConstructionPlan {
                         path.clone(),
                     ),
                     crate::model::FieldKind::Optional(_)
-                    | crate::model::FieldKind::Sequence { .. } => {
-                        unreachable!("structural fields are rejected before semantic lowering")
-                    }
+                    | crate::model::FieldKind::Sequence { .. } => unreachable!(
+                        "the parser rejects nested structural cardinality before semantic lowering"
+                    ),
                 };
+                let role = identifier_key(&field.name);
                 Ok(ConstructionFieldPlan {
                     name: field.name.clone(),
                     kind,
                     terminal,
                     value_type,
+                    structural_kind: structural_fields.remove(&(construction_id.clone(), role)),
                     invariant_bearing: false,
                     accessor_mode: None,
                 })
@@ -1881,6 +2339,16 @@ impl ConstructionPlan {
     }
 }
 
+fn structural_field_source_leaf(kind: &crate::model::FieldKind) -> &crate::model::FieldKind {
+    match kind {
+        crate::model::FieldKind::Optional(value) => structural_field_source_leaf(value),
+        crate::model::FieldKind::Sequence { item, .. } => structural_field_source_leaf(item),
+        crate::model::FieldKind::Category(_)
+        | crate::model::FieldKind::Lex(_)
+        | crate::model::FieldKind::Identity(_) => kind,
+    }
+}
+
 impl ConstructionFieldPlan {
     pub(crate) fn name(&self) -> &syn::Ident {
         &self.name
@@ -1900,6 +2368,14 @@ impl ConstructionFieldPlan {
 
     pub(crate) fn value_type(&self) -> &syn::Path {
         &self.value_type
+    }
+
+    #[allow(
+        dead_code,
+        reason = "Tasks 3 through 5 consume structural construction fields"
+    )]
+    pub(crate) fn structural_kind(&self) -> Option<&StructuralFieldKindPlan> {
+        self.structural_kind.as_ref()
     }
 
     #[allow(
@@ -3568,6 +4044,130 @@ impl RootPlan {
 
 #[cfg(test)]
 mod tests {
+    use super::EdgeClass;
+    use super::FixedSurfaceAtomPlan;
+    use super::FixedSurfacePlan;
+    use super::LengthBounds;
+    use super::PositionalSeparatorPlan;
+    use super::ProductPlan;
+    use super::SeparatorPlan;
+    use super::StructuralFieldKindPlan;
+    use super::ValueKindPlan;
+
+    #[test]
+    fn structural_plan_resolves_bounds_surfaces_nullability_and_recursive_edges() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction node: Node {
+                    element NodeValue {}
+                    form node = "node";
+                }
+                construction document: Document {
+                    element DocumentValue { nodes: seq Node terminated by ".", }
+                    require len(nodes) >= 1;
+                    form document = nodes;
+                }
+                abstract sum Choice { node: Node, }
+                abstract product Holder {
+                    maybe: opt Node,
+                    items: seq Choice
+                        separated by position {
+                            pair = " and ";
+                            first = ", ";
+                            middle = ", ";
+                            last = ", and ";
+                        }
+                        terminated by ".",
+                }
+                require len(Holder.items) >= 2;
+                require len(Holder.items) <= 4;
+                abstract product Tree { children: seq Tree terminated by ".", }
+                require len(Tree.children) = 1;
+                root Node { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("structural semantic fixture parses"),
+        )
+        .expect("structural semantic fixture validates")
+        .into_semantic();
+
+        assert_eq!(
+            semantic
+                .products()
+                .iter()
+                .map(ProductPlan::name)
+                .collect::<Vec<_>>(),
+            ["Holder", "Tree"]
+        );
+        let holder = &semantic.products()[0];
+        assert_eq!(holder.bounds("items"), Some(LengthBounds::new(2, Some(4))));
+        assert!(!holder.is_nullable());
+        assert!(matches!(
+            holder.fields()[0].kind(),
+            StructuralFieldKindPlan::Optional(ValueKindPlan::Category(name)) if name == "Node"
+        ));
+        let StructuralFieldKindPlan::Sequence {
+            item,
+            bounds,
+            surface,
+        } = holder.fields()[1].kind()
+        else {
+            panic!("Holder.items is a sealed sequence");
+        };
+        assert_eq!(item, &ValueKindPlan::Sum("Choice".to_owned()));
+        assert_eq!(*bounds, LengthBounds::new(2, Some(4)));
+        let Some(SeparatorPlan::Positional(rows)) = surface.separator() else {
+            panic!("Holder.items has a positional separator table");
+        };
+        assert_eq!(
+            rows.iter()
+                .map(PositionalSeparatorPlan::class)
+                .collect::<Vec<_>>(),
+            [
+                EdgeClass::Pair,
+                EdgeClass::First,
+                EdgeClass::Middle,
+                EdgeClass::Last
+            ]
+        );
+        assert!(rows.iter().all(|row| !row.surface().is_empty()));
+        assert!(matches!(
+            surface.terminator().map(FixedSurfacePlan::atoms),
+            Some([FixedSurfaceAtomPlan::Literal(mark)]) if mark == "."
+        ));
+        assert_eq!(
+            holder.fields()[1]
+                .helper_names()
+                .expect("sequence helper inventory")
+                .all(),
+            [
+                "HolderItemsSequence",
+                "HolderItemsSequenceCategory",
+                "HolderItemsSequenceRule",
+                "build_holder_items_sequence",
+                "render_holder_items_sequence",
+                "walk_holder_items_sequence",
+            ]
+        );
+        assert_eq!(semantic.sums()[0].name(), "Choice");
+        assert!(!semantic.sums()[0].is_nullable());
+        assert_eq!(semantic.sums()[0].alternatives()[0].name(), "node");
+        assert_eq!(
+            semantic.sums()[0].alternatives()[0].value(),
+            &ValueKindPlan::Category("Node".to_owned())
+        );
+        assert!(semantic.products()[1].fields()[0].is_recursive());
+        assert!(!semantic.is_nullable("Holder"));
+        assert!(!semantic.is_nullable("Choice"));
+        assert!(matches!(
+            semantic.constructions()[1].fields()[0].structural_kind(),
+            Some(StructuralFieldKindPlan::Sequence {
+                item: ValueKindPlan::Category(name),
+                bounds,
+                ..
+            }) if name == "Node" && *bounds == LengthBounds::new(1, None)
+        ));
+    }
+
     #[test]
     fn invariant_normalization_has_stable_dnf_order_and_removes_duplicate_alternatives() {
         let semantic = crate::validate_declarations(

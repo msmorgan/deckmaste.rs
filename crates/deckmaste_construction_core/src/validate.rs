@@ -27,6 +27,12 @@ use crate::identifier::prefixed;
 use crate::identifier::same as same_identifier;
 use crate::identifier::snake_case;
 use crate::identifier::spelling_key;
+use crate::identifier::structural_sequence_aggregate;
+use crate::identifier::structural_sequence_builder;
+use crate::identifier::structural_sequence_category;
+use crate::identifier::structural_sequence_renderer;
+use crate::identifier::structural_sequence_rule;
+use crate::identifier::structural_sequence_walker;
 use crate::model::CodecAtomClass;
 use crate::model::Declaration;
 use crate::model::Declarations;
@@ -40,12 +46,27 @@ use crate::model::TerminalBinding;
 use crate::model::TraversalKind;
 use crate::model::VerbOperand;
 use crate::model::VisitMode;
+use crate::semantic::EdgeClass;
+use crate::semantic::FixedSurfaceAtomPlan;
+use crate::semantic::FixedSurfacePlan;
 use crate::semantic::InvariantPlan;
+use crate::semantic::LengthBounds;
+use crate::semantic::PositionalSeparatorPlan;
 use crate::semantic::PredicateAtomPlan;
 use crate::semantic::PredicateConjunctionPlan;
 use crate::semantic::PredicateMemberPlan;
 use crate::semantic::PredicateSubjectPlan;
+use crate::semantic::ProductPlan;
 use crate::semantic::SemanticPlan;
+use crate::semantic::SeparatorPlan;
+use crate::semantic::SequenceSurfacePlan;
+use crate::semantic::StructuralFieldKindPlan;
+use crate::semantic::StructuralFieldPlan;
+use crate::semantic::StructuralHelperNames;
+use crate::semantic::StructuralSemantics;
+use crate::semantic::SumAlternativePlan;
+use crate::semantic::SumPlan;
+use crate::semantic::ValueKindPlan;
 
 #[derive(Debug)]
 pub struct ValidatedDeclarations {
@@ -295,6 +316,7 @@ struct TerminalInfo {
 #[derive(Debug)]
 struct Symbols {
     categories: HashSet<String>,
+    structural_types: HashSet<String>,
     category_variant_order: HashMap<String, Vec<String>>,
     terminals: HashMap<String, TerminalInfo>,
 }
@@ -310,25 +332,11 @@ struct ResolvedGrammar {
     reason = "the validation boundary consumes the unsealed declaration graph"
 )]
 pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarations> {
-    if raw.declarations.iter().any(|declaration| {
-        matches!(declaration, Declaration::AbstractProduct(_) | Declaration::AbstractSum(_))
-            || matches!(
-                declaration,
-                Declaration::Construction(construction)
-                    if construction.element.fields.iter().any(|field| matches!(field.kind, FieldKind::Optional(_) | FieldKind::Sequence { .. }))
-                        || construction.requirements.iter().any(|requirement| matches!(requirement, RequireExprSource::Length { .. }))
-            )
-            || matches!(declaration, Declaration::Root(root) if root.punctuation.is_none())
-    }) {
-        return Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
-            "structural declaration semantic validation is not implemented",
-        ));
-    }
     validate_generated_codecs(&raw)?;
     validate_generated_identities(&raw)?;
     validate_morphology(&raw)?;
     let (symbols, _) = validate_namespaces(&raw)?;
+    let structural = validate_structural_semantics(&raw, &symbols)?;
     validate_generated_owned_paths(&raw)?;
     let resolved = validate_resolution(&raw, &symbols)?;
     validate_stored_fields(&raw)?;
@@ -340,7 +348,8 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     let category_render = seal_category_render_capabilities(&raw, &feature_resolutions);
     let category_reads = seal_category_feature_reads(&raw);
     validate_contextual_agreement_uses(&raw, &category_render)?;
-    let boxed_fields = validate_category_graph(&raw);
+    let mut boxed_fields = validate_category_graph(&raw);
+    boxed_fields.extend(structural.boxed_fields.iter().cloned());
     validate_roots(&raw, &symbols, &category_render)?;
     validate_backend_completeness(&raw, &resolved)?;
     let ResolvedGrammar {
@@ -350,6 +359,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     Ok(ValidatedDeclarations {
         semantic: SemanticPlan::new(
             &raw,
+            structural,
             boxed_fields,
             dynamic_numbers,
             category_reads,
@@ -360,6 +370,948 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             invariants,
         )?,
     })
+}
+
+#[derive(Debug)]
+struct StructuralOwnerDraft {
+    source_index: usize,
+    name: String,
+    node: String,
+    fields: Vec<StructuralFieldDraft>,
+    is_product: bool,
+    has_fixed_width: bool,
+    construction_id: Option<String>,
+}
+
+#[derive(Debug)]
+struct StructuralFieldDraft {
+    name: String,
+    span: proc_macro2::Span,
+    kind: StructuralFieldKindPlan,
+    helper_names: Option<StructuralHelperNames>,
+    authored_structural: bool,
+}
+
+#[derive(Debug)]
+struct StructuralSumDraft {
+    source_index: usize,
+    name: String,
+    node: String,
+    alternatives: Vec<SumAlternativePlan>,
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "the structural sealing pass accumulates and then seals one mutually recursive declaration graph"
+)]
+fn validate_structural_semantics(
+    raw: &Declarations,
+    symbols: &Symbols,
+) -> syn::Result<StructuralSemantics> {
+    let products = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::AbstractProduct(product) => Some(identifier_key(&product.name)),
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
+    let sums = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::AbstractSum(sum) => Some(identifier_key(&sum.name)),
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
+    let mut errors = None;
+    let mut owners = Vec::new();
+    let mut sum_drafts = Vec::new();
+    let mut bounds_by_owner = HashMap::new();
+
+    for (source_index, declaration) in raw.declarations.iter().enumerate() {
+        match declaration {
+            Declaration::AbstractProduct(product) => {
+                let owner = identifier_key(&product.name);
+                let bounds = normalize_length_requirements(
+                    &owner,
+                    &product.fields,
+                    &product.requirements,
+                    &mut errors,
+                );
+                let fields = seal_structural_fields(
+                    &owner,
+                    &product.fields,
+                    &bounds,
+                    &products,
+                    &sums,
+                    symbols,
+                    true,
+                    &mut errors,
+                );
+                bounds_by_owner.insert(owner.clone(), bounds);
+                owners.push(StructuralOwnerDraft {
+                    source_index,
+                    node: structural_product_node(&owner),
+                    name: owner,
+                    fields,
+                    is_product: true,
+                    has_fixed_width: false,
+                    construction_id: None,
+                });
+            }
+            Declaration::Construction(construction) => {
+                let owner = identifier_key(&construction.element.name);
+                let bounds = normalize_length_requirements(
+                    &owner,
+                    &construction.element.fields,
+                    &construction.requirements,
+                    &mut errors,
+                );
+                let fields = seal_structural_fields(
+                    &owner,
+                    &construction.element.fields,
+                    &bounds,
+                    &products,
+                    &sums,
+                    symbols,
+                    false,
+                    &mut errors,
+                );
+                bounds_by_owner.insert(owner.clone(), bounds);
+                owners.push(StructuralOwnerDraft {
+                    source_index,
+                    node: structural_construction_node(&identifier_key(&construction.name)),
+                    name: owner,
+                    fields,
+                    is_product: false,
+                    has_fixed_width: construction.form.atoms.iter().any(|atom| match atom {
+                        FormAtom::Literal(value) => !value.value().is_empty(),
+                        FormAtom::Role(_) => false,
+                        FormAtom::Lex(_)
+                        | FormAtom::Identity(_)
+                        | FormAtom::Noun(_)
+                        | FormAtom::Verb(_)
+                        | FormAtom::OpenVerb(_) => true,
+                    }),
+                    construction_id: Some(identifier_key(&construction.name)),
+                });
+            }
+            Declaration::AbstractSum(sum) => {
+                let owner = identifier_key(&sum.name);
+                let mut alternatives = Vec::new();
+                for alternative in &sum.alternatives {
+                    let role = identifier_key(&alternative.name);
+                    let target = path_name(&alternative.value_type);
+                    let value = resolve_structural_bare_value(&target, &products, &sums, symbols);
+                    if let Some(value) = value {
+                        alternatives.push(SumAlternativePlan::new(role, value));
+                    } else {
+                        combine(
+                            &mut errors,
+                            syn::Error::new_spanned(
+                                &alternative.value_type,
+                                format!(
+                                    "{owner}.{role}: unresolved structural alternative {target}"
+                                ),
+                            ),
+                        );
+                    }
+                }
+                sum_drafts.push(StructuralSumDraft {
+                    source_index,
+                    node: structural_sum_node(&owner),
+                    name: owner,
+                    alternatives,
+                });
+            }
+            Declaration::Vocab(_)
+            | Declaration::Morphology(_)
+            | Declaration::Lexeme(_)
+            | Declaration::Codec(_)
+            | Declaration::Identity(_)
+            | Declaration::Root(_) => {}
+        }
+    }
+
+    let mut category_members: HashMap<String, Vec<String>> = HashMap::new();
+    for declaration in &raw.declarations {
+        if let Declaration::Construction(construction) = declaration {
+            category_members
+                .entry(path_name(&construction.category))
+                .or_default()
+                .push(structural_construction_node(&identifier_key(
+                    &construction.name,
+                )));
+        }
+    }
+    let nullable_nodes = compute_structural_nullability(&owners, &sum_drafts, &category_members);
+    validate_nullable_repeated_items(&owners, &nullable_nodes, &mut errors);
+    validate_zero_width_cycles(
+        &owners,
+        &sum_drafts,
+        &category_members,
+        &nullable_nodes,
+        &mut errors,
+    );
+    finish(errors)?;
+
+    let all_edges = structural_dependency_edges(&owners, &sum_drafts, &category_members);
+    let construction_fields = owners
+        .iter()
+        .filter_map(|owner| owner.construction_id.as_ref().map(|id| (id, owner)))
+        .flat_map(|(construction_id, owner)| {
+            owner
+                .fields
+                .iter()
+                .filter(|field| field.authored_structural)
+                .map(move |field| {
+                    (
+                        (construction_id.clone(), field.name.clone()),
+                        field.kind.clone(),
+                    )
+                })
+        })
+        .collect();
+    let boxed_fields = owners
+        .iter()
+        .filter_map(|owner| owner.construction_id.as_ref().map(|id| (id, owner)))
+        .flat_map(|(construction_id, owner)| {
+            let all_edges = &all_edges;
+            owner.fields.iter().filter_map(move |field| {
+                let target = structural_value_node(field.kind.value());
+                (field.authored_structural && graph_reaches(all_edges, &target, &owner.node))
+                    .then(|| (construction_id.clone(), field.name.clone()))
+            })
+        })
+        .collect();
+    let product_plans = owners
+        .into_iter()
+        .filter(|owner| owner.is_product)
+        .map(|owner| {
+            let fields = owner
+                .fields
+                .into_iter()
+                .map(|field| {
+                    let target = structural_value_node(field.kind.value());
+                    let recursive = graph_reaches(&all_edges, &target, &owner.node);
+                    StructuralFieldPlan::new(field.name, field.kind, recursive, field.helper_names)
+                })
+                .collect();
+            ProductPlan::new(
+                owner.source_index,
+                owner.name.clone(),
+                fields,
+                bounds_by_owner.remove(&owner.name).unwrap_or_default(),
+                nullable_nodes.contains(&owner.node),
+            )
+        })
+        .collect();
+    let sum_plans = sum_drafts
+        .into_iter()
+        .map(|sum| {
+            SumPlan::new(
+                sum.source_index,
+                sum.name,
+                sum.alternatives,
+                nullable_nodes.contains(&sum.node),
+            )
+        })
+        .collect();
+    let nullable_types = nullable_nodes
+        .iter()
+        .filter_map(|node| {
+            node.strip_prefix("product:")
+                .or_else(|| node.strip_prefix("sum:"))
+                .or_else(|| node.strip_prefix("category:"))
+                .map(str::to_owned)
+        })
+        .collect();
+    Ok(StructuralSemantics {
+        products: product_plans,
+        sums: sum_plans,
+        nullable_types,
+        construction_fields,
+        boxed_fields,
+    })
+}
+
+fn normalize_length_requirements(
+    owner: &str,
+    fields: &[crate::model::Field],
+    requirements: &[RequireExprSource],
+    errors: &mut Option<syn::Error>,
+) -> HashMap<String, LengthBounds> {
+    let sequences = fields
+        .iter()
+        .filter(|field| matches!(field.kind, FieldKind::Sequence { .. }))
+        .map(|field| (identifier_key(&field.name), field.name.span()))
+        .collect::<HashMap<_, _>>();
+    let mut bounds = sequences
+        .keys()
+        .map(|role| (role.clone(), LengthBounds::new(0, None)))
+        .collect::<HashMap<_, _>>();
+    for requirement in requirements {
+        let RequireExprSource::Length {
+            owner: authored_owner,
+            role,
+            comparison,
+            value,
+        } = requirement
+        else {
+            continue;
+        };
+        let role_name = identifier_key(role);
+        let label = format!("{owner}.{role_name}");
+        if authored_owner
+            .as_ref()
+            .is_some_and(|authored| path_name(authored) != owner)
+        {
+            combine(
+                errors,
+                syn::Error::new_spanned(
+                    authored_owner.as_ref().expect("checked owner"),
+                    format!("{label}: length requirement names a different owner"),
+                ),
+            );
+            continue;
+        }
+        if !sequences.contains_key(&role_name) {
+            combine(
+                errors,
+                syn::Error::new(
+                    role.span(),
+                    format!("{label}: length requirement requires a sequence role"),
+                ),
+            );
+            continue;
+        }
+        let Ok(number) = value.base10_parse::<usize>() else {
+            combine(
+                errors,
+                syn::Error::new(value.span(), format!("{label}: length bound overflow")),
+            );
+            continue;
+        };
+        let requirement_bounds = match comparison {
+            crate::model::LengthComparison::Equal => LengthBounds::new(number, Some(number)),
+            crate::model::LengthComparison::GreaterThanOrEqual => LengthBounds::new(number, None),
+            crate::model::LengthComparison::GreaterThan => {
+                let Some(min) = number.checked_add(1) else {
+                    combine(
+                        errors,
+                        syn::Error::new(value.span(), format!("{label}: length bound overflow")),
+                    );
+                    continue;
+                };
+                LengthBounds::new(min, None)
+            }
+            crate::model::LengthComparison::LessThanOrEqual => LengthBounds::new(0, Some(number)),
+            crate::model::LengthComparison::LessThan => {
+                let Some(max) = number.checked_sub(1) else {
+                    combine(
+                        errors,
+                        syn::Error::new(value.span(), format!("{label}: len < 0 is impossible")),
+                    );
+                    continue;
+                };
+                LengthBounds::new(0, Some(max))
+            }
+        };
+        let current = bounds
+            .get(&role_name)
+            .copied()
+            .expect("sequence bounds initialized");
+        let min = current.min().max(requirement_bounds.min());
+        let max = match (current.max(), requirement_bounds.max()) {
+            (Some(left), Some(right)) => Some(left.min(right)),
+            (Some(value), None) | (None, Some(value)) => Some(value),
+            (None, None) => None,
+        };
+        if max.is_some_and(|max| min > max) {
+            combine(
+                errors,
+                syn::Error::new(
+                    value.span(),
+                    format!("{label}: contradictory length requirements"),
+                ),
+            );
+        } else {
+            bounds.insert(role_name, LengthBounds::new(min, max));
+        }
+    }
+    bounds
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "structural field sealing needs the complete resolved declaration inventory"
+)]
+fn seal_structural_fields(
+    owner: &str,
+    fields: &[crate::model::Field],
+    bounds: &HashMap<String, LengthBounds>,
+    products: &HashSet<String>,
+    sums: &HashSet<String>,
+    symbols: &Symbols,
+    abstract_product: bool,
+    errors: &mut Option<syn::Error>,
+) -> Vec<StructuralFieldDraft> {
+    fields
+        .iter()
+        .filter_map(|field| {
+            let role = identifier_key(&field.name);
+            let label = format!("{owner}.{role}");
+            let (kind, helper_names, authored_structural) = match &field.kind {
+                FieldKind::Optional(value) => (
+                    resolve_structural_field_value(value, &label, products, sums, symbols, errors)
+                        .map(StructuralFieldKindPlan::Optional),
+                    None,
+                    true,
+                ),
+                FieldKind::Sequence { item, surface } => {
+                    let value = resolve_structural_field_value(
+                        item, &label, products, sums, symbols, errors,
+                    );
+                    let role_bounds = bounds
+                        .get(&role)
+                        .copied()
+                        .unwrap_or_else(|| LengthBounds::new(0, None));
+                    let surface = seal_sequence_surface(
+                        &label,
+                        field.name.span(),
+                        surface,
+                        role_bounds,
+                        symbols,
+                        errors,
+                    );
+                    (
+                        value.map(|item| StructuralFieldKindPlan::Sequence {
+                            item,
+                            bounds: role_bounds,
+                            surface,
+                        }),
+                        Some(structural_helper_names(owner, &role)),
+                        true,
+                    )
+                }
+                FieldKind::Category(_) | FieldKind::Lex(_) | FieldKind::Identity(_) => (
+                    if abstract_product {
+                        resolve_structural_field_value(
+                            &field.kind,
+                            &label,
+                            products,
+                            sums,
+                            symbols,
+                            errors,
+                        )
+                    } else {
+                        resolve_structural_field_value_silent(&field.kind, products, sums, symbols)
+                    }
+                    .map(StructuralFieldKindPlan::Required),
+                    None,
+                    abstract_product
+                        || matches!(
+                            resolve_structural_field_value_silent(
+                                &field.kind,
+                                products,
+                                sums,
+                                symbols,
+                            ),
+                            Some(ValueKindPlan::Product(_) | ValueKindPlan::Sum(_))
+                        ),
+                ),
+            };
+            kind.map(|kind| StructuralFieldDraft {
+                name: role,
+                span: field.name.span(),
+                kind,
+                helper_names,
+                authored_structural,
+            })
+        })
+        .collect()
+}
+
+fn resolve_structural_field_value_silent(
+    kind: &FieldKind,
+    products: &HashSet<String>,
+    sums: &HashSet<String>,
+    symbols: &Symbols,
+) -> Option<ValueKindPlan> {
+    let (path, explicit) = match kind {
+        FieldKind::Category(path) => (path, None),
+        FieldKind::Lex(path) => (path, Some(false)),
+        FieldKind::Identity(path) => (path, Some(true)),
+        FieldKind::Optional(_) | FieldKind::Sequence { .. } => return None,
+    };
+    let name = path_name(path);
+    match explicit {
+        None => resolve_structural_bare_value(&name, products, sums, symbols),
+        Some(true) => symbols
+            .terminals
+            .get(&name)
+            .filter(|terminal| terminal.kind == TerminalKind::Identity)
+            .map(|_| ValueKindPlan::Identity(name)),
+        Some(false) => symbols
+            .terminals
+            .get(&name)
+            .filter(|terminal| terminal.kind != TerminalKind::Identity)
+            .map(|_| ValueKindPlan::Lex(name)),
+    }
+}
+
+fn resolve_structural_field_value(
+    kind: &FieldKind,
+    label: &str,
+    products: &HashSet<String>,
+    sums: &HashSet<String>,
+    symbols: &Symbols,
+    errors: &mut Option<syn::Error>,
+) -> Option<ValueKindPlan> {
+    let (path, explicit) = match kind {
+        FieldKind::Category(path) => (path, None),
+        FieldKind::Lex(path) => (path, Some(TerminalKind::Codec)),
+        FieldKind::Identity(path) => (path, Some(TerminalKind::Identity)),
+        FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
+            unreachable!("the parser rejects nested structural cardinality")
+        }
+    };
+    let name = path_name(path);
+    let resolved = match explicit {
+        None => resolve_structural_bare_value(&name, products, sums, symbols),
+        Some(TerminalKind::Identity) => symbols
+            .terminals
+            .get(&name)
+            .filter(|terminal| terminal.kind == TerminalKind::Identity)
+            .map(|_| ValueKindPlan::Identity(name.clone())),
+        Some(_) => symbols
+            .terminals
+            .get(&name)
+            .filter(|terminal| terminal.kind != TerminalKind::Identity)
+            .map(|_| ValueKindPlan::Lex(name.clone())),
+    };
+    if resolved.is_none() {
+        combine(
+            errors,
+            syn::Error::new_spanned(path, format!("{label}: unresolved structural value {name}")),
+        );
+    }
+    resolved
+}
+
+fn resolve_structural_bare_value(
+    name: &str,
+    products: &HashSet<String>,
+    sums: &HashSet<String>,
+    symbols: &Symbols,
+) -> Option<ValueKindPlan> {
+    if products.contains(name) {
+        Some(ValueKindPlan::Product(name.to_owned()))
+    } else if sums.contains(name) {
+        Some(ValueKindPlan::Sum(name.to_owned()))
+    } else if symbols.categories.contains(name) {
+        Some(ValueKindPlan::Category(name.to_owned()))
+    } else {
+        None
+    }
+}
+
+fn seal_sequence_surface(
+    label: &str,
+    role_span: proc_macro2::Span,
+    source: &crate::model::SequenceSurfaceSource,
+    bounds: LengthBounds,
+    symbols: &Symbols,
+    errors: &mut Option<syn::Error>,
+) -> SequenceSurfacePlan {
+    let separator = source.separator.as_ref().map(|separator| match separator {
+        crate::model::SeparatorSource::Uniform(surface) => {
+            let surface = seal_fixed_surface(label, "separator", surface, symbols, errors);
+            SeparatorPlan::Uniform(surface)
+        }
+        crate::model::SeparatorSource::Positional(rows) => {
+            let mut seen = HashSet::new();
+            let mut sealed = Vec::new();
+            for row in rows {
+                let spelling = identifier_key(&row.class);
+                let class = match spelling.as_str() {
+                    "pair" => Some(EdgeClass::Pair),
+                    "first" => Some(EdgeClass::First),
+                    "middle" => Some(EdgeClass::Middle),
+                    "last" => Some(EdgeClass::Last),
+                    _ => None,
+                };
+                let Some(class) = class else {
+                    combine(
+                        errors,
+                        syn::Error::new(
+                            row.class.span(),
+                            format!("{label}: unknown positional separator class {spelling}"),
+                        ),
+                    );
+                    continue;
+                };
+                if !seen.insert(class) {
+                    combine(
+                        errors,
+                        syn::Error::new(row.class.span(), format!("{label}: duplicate {spelling}")),
+                    );
+                    continue;
+                }
+                let surface = seal_fixed_surface(label, "separator", &row.surface, symbols, errors);
+                sealed.push(PositionalSeparatorPlan::new(class, surface));
+            }
+            for (class, spelling, reachable) in [
+                (EdgeClass::Pair, "pair", bounds.allows(2)),
+                (EdgeClass::First, "first", bounds.allows_at_least(3)),
+                (EdgeClass::Middle, "middle", bounds.allows_at_least(4)),
+                (EdgeClass::Last, "last", bounds.allows_at_least(3)),
+            ] {
+                if reachable && !seen.contains(&class) {
+                    combine(
+                        errors,
+                        syn::Error::new(role_span, format!("{label}: missing {spelling}")),
+                    );
+                } else if !reachable && seen.contains(&class) {
+                    let span = rows
+                        .iter()
+                        .find(|row| identifier_key(&row.class) == spelling)
+                        .map_or_else(proc_macro2::Span::call_site, |row| row.class.span());
+                    combine(
+                        errors,
+                        syn::Error::new(span, format!("{label}: unreachable {spelling}")),
+                    );
+                }
+            }
+            SeparatorPlan::Positional(sealed)
+        }
+    });
+    let terminator = source
+        .terminator
+        .as_ref()
+        .map(|surface| seal_fixed_surface(label, "terminator", surface, symbols, errors));
+    SequenceSurfacePlan::new(separator, terminator)
+}
+
+fn seal_fixed_surface(
+    label: &str,
+    role: &str,
+    source: &crate::model::FixedSurfaceSource,
+    symbols: &Symbols,
+    errors: &mut Option<syn::Error>,
+) -> FixedSurfacePlan {
+    let atoms = source
+        .atoms
+        .iter()
+        .filter_map(|atom| match atom {
+            crate::model::FixedSurfaceAtomSource::Literal(value) => {
+                Some(FixedSurfaceAtomPlan::Literal(value.value()))
+            }
+            crate::model::FixedSurfaceAtomSource::Lex(path) => {
+                let segments = &path.segments;
+                let variant = segments.last()?;
+                let Some(terminal) = segments.iter().rev().nth(1) else {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            path,
+                            format!("{label}: fixed surface lexeme requires Type::Variant"),
+                        ),
+                    );
+                    return None;
+                };
+                let terminal_name = identifier_key(&terminal.ident);
+                let variant_name = identifier_key(&variant.ident);
+                if !symbols
+                    .terminals
+                    .get(&terminal_name)
+                    .is_some_and(|info| info.variants.contains(&variant_name))
+                {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            path,
+                            format!(
+                                "{label}: unresolved fixed surface lexeme {terminal_name}::{variant_name}"
+                            ),
+                        ),
+                    );
+                    return None;
+                }
+                Some(FixedSurfaceAtomPlan::Lex {
+                    terminal: terminal_name,
+                    variant: variant_name,
+                })
+            }
+        })
+        .collect();
+    let surface = FixedSurfacePlan::new(atoms);
+    if surface.is_empty() {
+        let span =
+            source
+                .atoms
+                .first()
+                .map_or_else(proc_macro2::Span::call_site, |atom| match atom {
+                    crate::model::FixedSurfaceAtomSource::Literal(value) => value.span(),
+                    crate::model::FixedSurfaceAtomSource::Lex(path) => path.span(),
+                });
+        combine(
+            errors,
+            syn::Error::new(span, format!("{label}: empty {role} surface")),
+        );
+    }
+    surface
+}
+
+fn structural_helper_names(owner: &str, role: &str) -> StructuralHelperNames {
+    StructuralHelperNames::new(
+        structural_sequence_aggregate(owner, role),
+        structural_sequence_category(owner, role),
+        structural_sequence_rule(owner, role),
+        structural_sequence_builder(owner, role),
+        structural_sequence_renderer(owner, role),
+        structural_sequence_walker(owner, role),
+    )
+}
+
+fn structural_product_node(name: &str) -> String {
+    format!("product:{name}")
+}
+
+fn structural_sum_node(name: &str) -> String {
+    format!("sum:{name}")
+}
+
+fn structural_category_node(name: &str) -> String {
+    format!("category:{name}")
+}
+
+fn structural_construction_node(name: &str) -> String {
+    format!("construction:{name}")
+}
+
+fn structural_value_node(value: &ValueKindPlan) -> String {
+    match value {
+        ValueKindPlan::Category(name) => structural_category_node(name),
+        ValueKindPlan::Product(name) => structural_product_node(name),
+        ValueKindPlan::Sum(name) => structural_sum_node(name),
+        ValueKindPlan::Lex(name) => format!("lex:{name}"),
+        ValueKindPlan::Identity(name) => format!("identity:{name}"),
+    }
+}
+
+fn structural_dependency_edges(
+    owners: &[StructuralOwnerDraft],
+    sums: &[StructuralSumDraft],
+    category_members: &HashMap<String, Vec<String>>,
+) -> HashMap<String, Vec<String>> {
+    let mut edges = HashMap::new();
+    for owner in owners {
+        edges.insert(
+            owner.node.clone(),
+            owner
+                .fields
+                .iter()
+                .map(|field| structural_value_node(field.kind.value()))
+                .collect(),
+        );
+    }
+    for sum in sums {
+        edges.insert(
+            sum.node.clone(),
+            sum.alternatives
+                .iter()
+                .map(|alternative| structural_value_node(alternative.value()))
+                .collect(),
+        );
+    }
+    for (category, members) in category_members {
+        edges.insert(structural_category_node(category), members.clone());
+    }
+    edges
+}
+
+fn graph_reaches(edges: &HashMap<String, Vec<String>>, from: &str, target: &str) -> bool {
+    let mut todo = vec![from.to_owned()];
+    let mut seen = HashSet::new();
+    while let Some(node) = todo.pop() {
+        if node == target {
+            return true;
+        }
+        if seen.insert(node.clone()) {
+            todo.extend(edges.get(&node).into_iter().flatten().cloned());
+        }
+    }
+    false
+}
+
+fn compute_structural_nullability(
+    owners: &[StructuralOwnerDraft],
+    sums: &[StructuralSumDraft],
+    category_members: &HashMap<String, Vec<String>>,
+) -> HashSet<String> {
+    let mut nullable = HashSet::new();
+    loop {
+        let before = nullable.len();
+        for owner in owners {
+            if !owner.has_fixed_width
+                && owner
+                    .fields
+                    .iter()
+                    .all(|field| structural_field_is_nullable(&field.kind, &nullable))
+            {
+                nullable.insert(owner.node.clone());
+            }
+        }
+        for sum in sums {
+            if sum
+                .alternatives
+                .iter()
+                .any(|alternative| nullable.contains(&structural_value_node(alternative.value())))
+            {
+                nullable.insert(sum.node.clone());
+            }
+        }
+        for (category, members) in category_members {
+            if members.iter().any(|member| nullable.contains(member)) {
+                nullable.insert(structural_category_node(category));
+            }
+        }
+        if nullable.len() == before {
+            return nullable;
+        }
+    }
+}
+
+fn structural_field_is_nullable(
+    kind: &StructuralFieldKindPlan,
+    nullable: &HashSet<String>,
+) -> bool {
+    match kind {
+        StructuralFieldKindPlan::Required(value) => {
+            nullable.contains(&structural_value_node(value))
+        }
+        StructuralFieldKindPlan::Optional(_) => true,
+        StructuralFieldKindPlan::Sequence {
+            item,
+            bounds,
+            surface,
+        } => {
+            bounds.allows(0)
+                || (nullable.contains(&structural_value_node(item))
+                    && sequence_surface_can_be_empty(surface, *bounds))
+        }
+    }
+}
+
+fn sequence_surface_can_be_empty(surface: &SequenceSurfacePlan, bounds: LengthBounds) -> bool {
+    if bounds.allows(0) {
+        return true;
+    }
+    if surface.terminator().is_some() {
+        return false;
+    }
+    bounds.allows(1) || surface.separator().is_none()
+}
+
+fn validate_nullable_repeated_items(
+    owners: &[StructuralOwnerDraft],
+    nullable: &HashSet<String>,
+    errors: &mut Option<syn::Error>,
+) {
+    for owner in owners {
+        for field in &owner.fields {
+            let StructuralFieldKindPlan::Sequence { item, bounds, .. } = &field.kind else {
+                continue;
+            };
+            if bounds.max().is_none() && nullable.contains(&structural_value_node(item)) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        field.span,
+                        format!("{}.{}: nullable repeated item", owner.name, field.name),
+                    ),
+                );
+            }
+        }
+    }
+}
+
+fn validate_zero_width_cycles(
+    owners: &[StructuralOwnerDraft],
+    sums: &[StructuralSumDraft],
+    category_members: &HashMap<String, Vec<String>>,
+    nullable: &HashSet<String>,
+    errors: &mut Option<syn::Error>,
+) {
+    let mut zero_edges: HashMap<String, Vec<String>> = category_members
+        .iter()
+        .map(|(category, members)| (structural_category_node(category), members.clone()))
+        .collect();
+    for sum in sums {
+        zero_edges.insert(
+            sum.node.clone(),
+            sum.alternatives
+                .iter()
+                .map(|alternative| structural_value_node(alternative.value()))
+                .collect(),
+        );
+    }
+    for owner in owners {
+        let mut targets = Vec::new();
+        if owner.has_fixed_width {
+            zero_edges.insert(owner.node.clone(), targets);
+            continue;
+        }
+        for (index, field) in owner.fields.iter().enumerate() {
+            let siblings_nullable = owner.fields.iter().enumerate().all(|(other, sibling)| {
+                index == other || structural_field_is_nullable(&sibling.kind, nullable)
+            });
+            if siblings_nullable && field_can_expose_zero_width_edge(&field.kind) {
+                targets.push(structural_value_node(field.kind.value()));
+            }
+        }
+        zero_edges.insert(owner.node.clone(), targets);
+    }
+    for owner in owners {
+        if owner.has_fixed_width {
+            continue;
+        }
+        for (index, field) in owner.fields.iter().enumerate() {
+            let siblings_nullable = owner.fields.iter().enumerate().all(|(other, sibling)| {
+                index == other || structural_field_is_nullable(&sibling.kind, nullable)
+            });
+            if !field.authored_structural
+                || !siblings_nullable
+                || !field_can_expose_zero_width_edge(&field.kind)
+            {
+                continue;
+            }
+            let target = structural_value_node(field.kind.value());
+            if graph_reaches(&zero_edges, &target, &owner.node) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        field.span,
+                        format!("{}.{}: zero-width recursive cycle", owner.name, field.name),
+                    ),
+                );
+            }
+        }
+    }
+}
+
+fn field_can_expose_zero_width_edge(kind: &StructuralFieldKindPlan) -> bool {
+    match kind {
+        StructuralFieldKindPlan::Required(_) | StructuralFieldKindPlan::Optional(_) => true,
+        StructuralFieldKindPlan::Sequence {
+            bounds, surface, ..
+        } => {
+            let has_positive = bounds.max().is_none_or(|max| max >= 1);
+            has_positive && sequence_surface_can_be_empty(surface, *bounds)
+        }
+    }
 }
 
 fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
@@ -1055,15 +2007,7 @@ fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
             Declaration::Construction(construction) => {
                 validate_generated_owned_path(&construction.category, &mut errors);
                 for field in &construction.element.fields {
-                    let path = match &field.kind {
-                        FieldKind::Category(path)
-                        | FieldKind::Lex(path)
-                        | FieldKind::Identity(path) => path,
-                        FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
-                            unreachable!("structural fields are rejected before validation")
-                        }
-                    };
-                    validate_generated_owned_path(path, &mut errors);
+                    validate_generated_owned_field_kind(&field.kind, &mut errors);
                 }
                 for equation in &construction.equations {
                     match &equation.value {
@@ -1104,6 +2048,35 @@ fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
     finish(errors)
 }
 
+fn validate_generated_owned_field_kind(kind: &FieldKind, errors: &mut Option<syn::Error>) {
+    match kind {
+        FieldKind::Category(path) | FieldKind::Lex(path) | FieldKind::Identity(path) => {
+            validate_generated_owned_path(path, errors);
+        }
+        FieldKind::Optional(value) => validate_generated_owned_field_kind(value, errors),
+        FieldKind::Sequence { item, surface } => {
+            validate_generated_owned_field_kind(item, errors);
+            for fixed in surface
+                .separator
+                .iter()
+                .flat_map(|separator| match separator {
+                    crate::model::SeparatorSource::Uniform(surface) => vec![surface],
+                    crate::model::SeparatorSource::Positional(rows) => {
+                        rows.iter().map(|row| &row.surface).collect()
+                    }
+                })
+                .chain(surface.terminator.iter())
+            {
+                for atom in &fixed.atoms {
+                    if let crate::model::FixedSurfaceAtomSource::Lex(path) = atom {
+                        validate_generated_owned_path(path, errors);
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn validate_generated_owned_path(path: &syn::Path, errors: &mut Option<syn::Error>) {
     if path
         .segments
@@ -1131,6 +2104,15 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
     let mut categories = HashSet::new();
     let mut category_variant_order: HashMap<String, Vec<String>> = HashMap::new();
     let mut terminals = HashMap::new();
+    let structural_types = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::AbstractProduct(product) => Some(identifier_key(&product.name)),
+            Declaration::AbstractSum(sum) => Some(identifier_key(&sum.name)),
+            _ => None,
+        })
+        .collect();
 
     for declaration in &raw.declarations {
         match declaration {
@@ -1327,8 +2309,53 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     variant_order: Vec::new(),
                 });
             }
+            Declaration::AbstractProduct(product) => {
+                let name = identifier_key(&product.name);
+                declaration_names.push(name.clone());
+                reject_raw_keyword_identifier(
+                    &product.name,
+                    "generated abstract product type",
+                    &mut errors,
+                );
+                duplicate_name(&mut source_names, &name, &product.name, &mut errors);
+                let mut fields = HashSet::new();
+                for field in &product.fields {
+                    let role = identifier_key(&field.name);
+                    if !fields.insert(role) {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                field.name.span(),
+                                format!("duplicate field `{}`", field.name),
+                            ),
+                        );
+                    }
+                }
+            }
+            Declaration::AbstractSum(sum) => {
+                let name = identifier_key(&sum.name);
+                declaration_names.push(name.clone());
+                reject_raw_keyword_identifier(
+                    &sum.name,
+                    "generated abstract sum type",
+                    &mut errors,
+                );
+                duplicate_name(&mut source_names, &name, &sum.name, &mut errors);
+                let mut alternatives = HashSet::new();
+                for alternative in &sum.alternatives {
+                    let role = identifier_key(&alternative.name);
+                    if !alternatives.insert(role) {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                alternative.name.span(),
+                                format!("duplicate alternative `{}`", alternative.name),
+                            ),
+                        );
+                    }
+                }
+            }
             Declaration::Root(root) => declaration_names.push(path_name(&root.category)),
-            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => {}
         }
     }
 
@@ -1337,6 +2364,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
     Ok((
         Symbols {
             categories,
+            structural_types,
             category_variant_order,
             terminals,
         },
@@ -1771,6 +2799,12 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                     element_span,
                     errors,
                 );
+                register_structural_field_names(
+                    &mut names,
+                    &element,
+                    &construction.element.fields,
+                    errors,
+                );
 
                 let category_variant = pascal_case(&construction_name);
                 names.register_category_variant(
@@ -1933,9 +2967,62 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                     );
                 }
             }
-            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => {}
+            Declaration::AbstractProduct(product) => {
+                let owner = identifier_key(&product.name);
+                names.register_type(
+                    &owner,
+                    &format!("generated abstract product type for `{owner}`"),
+                    product.name.span(),
+                    errors,
+                );
+                register_structural_field_names(&mut names, &owner, &product.fields, errors);
+            }
+            Declaration::AbstractSum(sum) => {
+                let owner = identifier_key(&sum.name);
+                names.register_type(
+                    &owner,
+                    &format!("generated abstract sum type for `{owner}`"),
+                    sum.name.span(),
+                    errors,
+                );
+            }
             Declaration::Root(_) | Declaration::Morphology(_) => {}
         }
+    }
+}
+
+fn register_structural_field_names(
+    names: &mut GeneratedNameInventory,
+    owner: &str,
+    fields: &[crate::model::Field],
+    errors: &mut Option<syn::Error>,
+) {
+    for field in fields {
+        if !matches!(field.kind, FieldKind::Sequence { .. }) {
+            continue;
+        }
+        let role = identifier_key(&field.name);
+        let collision_role = format!("{owner}.{role}: generated helper name collision");
+        for generated in [
+            structural_sequence_aggregate(owner, &role),
+            structural_sequence_category(owner, &role),
+            structural_sequence_rule(owner, &role),
+        ] {
+            names.register_type(&generated, &collision_role, field.name.span(), errors);
+        }
+        for generated in [
+            structural_sequence_builder(owner, &role),
+            structural_sequence_renderer(owner, &role),
+            structural_sequence_walker(owner, &role),
+        ] {
+            names.register_value(&generated, &collision_role, field.name.span(), errors);
+        }
+        names.register_visitor_item(
+            &prefixed("visit_", &format!("{owner}_{role}_sequence")),
+            &collision_role,
+            field.name.span(),
+            errors,
+        );
     }
 }
 
@@ -2055,46 +3142,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
             );
         }
         for field in &construction.element.fields {
-            let ty = match &field.kind {
-                FieldKind::Category(path) => {
-                    let name = path_name(path);
-                    if !symbols.categories.contains(&name) {
-                        combine(
-                            &mut errors,
-                            syn::Error::new_spanned(path, format!("unknown category `{name}`")),
-                        );
-                    }
-                    continue;
-                }
-                FieldKind::Lex(path) | FieldKind::Identity(path) => path,
-                FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
-                    unreachable!("structural fields are rejected before validation")
-                }
-            };
-            let name = path_name(ty);
-            let expected = if matches!(field.kind, FieldKind::Identity(_)) {
-                TerminalKind::Identity
-            } else {
-                TerminalKind::Codec
-            };
-            match symbols.terminals.get(&name) {
-                None => combine(
-                    &mut errors,
-                    syn::Error::new_spanned(ty, format!("unknown terminal type `{name}`")),
-                ),
-                Some(info)
-                    if matches!(field.kind, FieldKind::Identity(_)) && info.kind != expected =>
-                {
-                    combine(
-                        &mut errors,
-                        syn::Error::new_spanned(
-                            ty,
-                            format!("terminal `{name}` is not an identity binding"),
-                        ),
-                    );
-                }
-                _ => {}
-            }
+            validate_resolved_field_kind(&field.kind, symbols, &mut errors);
         }
         for atom in &construction.form.atoms {
             match atom {
@@ -2161,6 +3209,48 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
     }
     finish(errors)?;
     resolve_grammar_uses(raw)
+}
+
+fn validate_resolved_field_kind(
+    kind: &FieldKind,
+    symbols: &Symbols,
+    errors: &mut Option<syn::Error>,
+) {
+    match kind {
+        FieldKind::Category(path) => {
+            let name = path_name(path);
+            if !symbols.categories.contains(&name) && !symbols.structural_types.contains(&name) {
+                combine(
+                    errors,
+                    syn::Error::new_spanned(path, format!("unknown category `{name}`")),
+                );
+            }
+        }
+        FieldKind::Lex(path) | FieldKind::Identity(path) => {
+            let name = path_name(path);
+            match symbols.terminals.get(&name) {
+                None => combine(
+                    errors,
+                    syn::Error::new_spanned(path, format!("unknown terminal type `{name}`")),
+                ),
+                Some(info)
+                    if matches!(kind, FieldKind::Identity(_))
+                        && info.kind != TerminalKind::Identity =>
+                {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            path,
+                            format!("terminal `{name}` is not an identity binding"),
+                        ),
+                    );
+                }
+                _ => {}
+            }
+        }
+        FieldKind::Optional(value) => validate_resolved_field_kind(value, symbols, errors),
+        FieldKind::Sequence { item, .. } => validate_resolved_field_kind(item, symbols, errors),
+    }
 }
 
 fn validate_open_declaration(
@@ -2253,13 +3343,16 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
         for atom in &construction.form.atoms {
             let resolved = match atom {
                 FormAtom::Literal(_) => Some(AtomContribution::Literal),
-                FormAtom::Role(role) => match fields.get(&identifier_key(role)) {
-                    Some(FieldKind::Category(path)) => Some(AtomContribution::Category {
-                        role: identifier_key(role),
-                        category: path_name(path),
+                FormAtom::Role(role) => fields
+                    .get(&identifier_key(role))
+                    .map(|kind| field_kind_leaf(kind))
+                    .and_then(|kind| match kind {
+                        FieldKind::Category(path) => Some(AtomContribution::Category {
+                            role: identifier_key(role),
+                            category: path_name(path),
+                        }),
+                        _ => None,
                     }),
-                    _ => None,
-                },
                 FormAtom::Lex(role) => match fields.get(&identifier_key(role)) {
                     Some(FieldKind::Lex(path)) => Some(AtomContribution::Lex {
                         role: identifier_key(role),
@@ -2563,7 +3656,10 @@ fn check_role_kind(
     category: bool,
     errors: &mut Option<syn::Error>,
 ) {
-    match fields.get(&identifier_key(role)) {
+    match fields
+        .get(&identifier_key(role))
+        .map(|kind| field_kind_leaf(kind))
+    {
         None => combine(
             errors,
             syn::Error::new(role.span(), format!("unknown role `{role}`")),
@@ -2583,6 +3679,14 @@ fn check_role_kind(
             ),
         ),
         _ => {}
+    }
+}
+
+fn field_kind_leaf(kind: &FieldKind) -> &FieldKind {
+    match kind {
+        FieldKind::Optional(value) => field_kind_leaf(value),
+        FieldKind::Sequence { item, .. } => field_kind_leaf(item),
+        FieldKind::Category(_) | FieldKind::Lex(_) | FieldKind::Identity(_) => kind,
     }
 }
 
@@ -3647,6 +4751,9 @@ fn validate_invariants(
             .collect();
         let mut alternatives = vec![PredicateConjunctionPlan::new(Vec::new())];
         for requirement in &construction.requirements {
+            if matches!(requirement, RequireExprSource::Length { .. }) {
+                continue;
+            }
             let normalized =
                 match normalize_predicate(raw, construction, requirement, &fields, symbols) {
                     Ok(normalized) => normalized,
@@ -3724,9 +4831,7 @@ fn normalize_predicate(
             deduplicate_alternatives(&mut alternatives);
             errors.map_or(Ok(alternatives), Err)
         }
-        crate::RequireExprSource::Length { .. } => {
-            unreachable!("structural requirements are rejected before validation")
-        }
+        crate::RequireExprSource::Length { .. } => Ok(Vec::new()),
     }
 }
 
@@ -3786,7 +4891,12 @@ fn resolve_predicate_atom(
                     ));
                 }
                 Some(FieldKind::Optional(_) | FieldKind::Sequence { .. }) => {
-                    unreachable!("structural fields are rejected before validation")
+                    return Err(syn::Error::new(
+                        role.span(),
+                        format!(
+                            "predicate subject `{role_name}` is not a category or vocab predicate domain"
+                        ),
+                    ));
                 }
                 None => {
                     return Err(syn::Error::new(
@@ -7623,33 +8733,132 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn structural_source_rows_are_fenced_before_semantic_lowering() {
-        let punctuationless_root = crate::generate(quote! {
-            construction only: Root { element Only {} form only = "only"; }
-            root Root { eoi = true; standalone_render = true; }
-        })
-        .expect_err("punctuation-less roots are source-only structural declarations")
-        .to_string();
+    fn structural_validation_reports_owner_and_role_for_every_failure_class() {
+        let cases = [
+            (
+                quote! {
+                    abstract product Holder {
+                        items: seq Node separated by position {
+                            first = ", "; middle = ", "; last = ", and ";
+                        },
+                    }
+                    require len(Holder.items) = 2;
+                },
+                "Holder.items: missing pair",
+            ),
+            (
+                quote! {
+                    abstract product Holder {
+                        items: seq Node separated by position {
+                            pair = " and "; first = ", "; middle = ", ";
+                            last = ", and "; last = " or ";
+                        },
+                    }
+                    require len(Holder.items) >= 2;
+                },
+                "Holder.items: duplicate last",
+            ),
+            (
+                quote! {
+                    abstract product Holder {
+                        items: seq Node separated by position {
+                            pair = " and "; first = ", "; middle = ", "; last = ", and ";
+                        },
+                    }
+                    require len(Holder.items) >= 2;
+                    require len(Holder.items) <= 3;
+                },
+                "Holder.items: unreachable middle",
+            ),
+            (
+                quote! { abstract product Holder { items: seq Node separated by "", } },
+                "Holder.items: empty separator surface",
+            ),
+            (
+                quote! { abstract product Holder { items: seq Node terminated by "", } },
+                "Holder.items: empty terminator surface",
+            ),
+            (
+                quote! {
+                    abstract product Empty {}
+                    abstract product Holder { items: seq Empty, }
+                },
+                "Holder.items: nullable repeated item",
+            ),
+            (
+                quote! {
+                    abstract product Holder { items: seq Node, }
+                    require len(Holder.items) >= 3;
+                    require len(Holder.items) <= 2;
+                },
+                "Holder.items: contradictory length requirements",
+            ),
+            (
+                quote! { abstract sum Holder { items: Missing, } },
+                "Holder.items: unresolved structural alternative Missing",
+            ),
+            (
+                quote! {
+                    abstract product Holder { items: seq Node, }
+                    abstract product HolderItemsSequence {}
+                },
+                "Holder.items: generated helper name collision",
+            ),
+            (
+                quote! {
+                    abstract product Holder { items: seq Holder, }
+                    require len(Holder.items) = 1;
+                },
+                "Holder.items: zero-width recursive cycle",
+            ),
+        ];
+
+        for (source, expected) in cases {
+            let actual = error(source);
+            assert!(
+                actual.contains(expected),
+                "expected `{expected}` in {actual}"
+            );
+        }
+    }
+
+    #[test]
+    fn structural_validation_accumulates_independent_declaration_errors() {
+        let actual = error(quote! {
+            abstract sum Choice { absent: Missing, }
+            abstract product Holder { items: seq Node separated by "", }
+        });
+
         assert!(
-            punctuationless_root
-                .contains("structural declaration semantic validation is not implemented"),
-            "{punctuationless_root}"
+            actual.contains("Choice.absent: unresolved structural alternative Missing"),
+            "{actual}"
+        );
+        assert!(
+            actual.contains("Holder.items: empty separator surface"),
+            "{actual}"
+        );
+    }
+
+    #[test]
+    fn structural_length_normalization_rejects_underflow_and_overflow() {
+        let underflow = error(quote! {
+            abstract product Holder { items: seq Holder terminated by ".", }
+            require len(Holder.items) < 0;
+        });
+        assert!(
+            underflow.contains("Holder.items: len < 0 is impossible"),
+            "{underflow}"
         );
 
-        let construction_length = crate::generate(quote! {
-            construction only: Root {
-                element Only { values: Root, }
-                require len(values) >= 1;
-                form only = values;
-            }
-            root Root { punctuation = "."; eoi = true; standalone_render = true; }
-        })
-        .expect_err("length requirements are source-only structural declarations")
-        .to_string();
+        let overflow =
+            syn::LitInt::new(&format!("{}0", usize::MAX), proc_macro2::Span::call_site());
+        let overflow = error(quote! {
+            abstract product Holder { items: seq Holder terminated by ".", }
+            require len(Holder.items) > #overflow;
+        });
         assert!(
-            construction_length
-                .contains("structural declaration semantic validation is not implemented"),
-            "{construction_length}"
+            overflow.contains("Holder.items: length bound overflow"),
+            "{overflow}"
         );
     }
 
