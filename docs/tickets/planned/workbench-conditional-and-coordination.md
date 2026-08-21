@@ -244,12 +244,16 @@ recorded as "not measured by this round's recon" and is
   The bench uses it for leading-if sentences authored backwards (Tezzeret,
   `Experimental/Cards.idr` ~592, ~601, ~2140), and a leading condition's own
   mentions are unreadable because `condDelta` is `[]` for every `Condition`.
-  Split it: a leading `If : (c : Condition bs) -> (e : Effect (condIntro c))
-  -> Maybe (Effect bs) -> Effect bs` whose effect reads the condition (give
-  `condDelta` the mentions English binds through a condition), and a postposed
-  `OnlyIf`-shaped constructor keeping today's orientation under a name that
-  cannot be mistaken for the leading one. Both stay in core — they differ in
-  binding direction — and the card language names the English over them.
+  Ruling: **one core shape, the leading one** — `If : (c : Condition bs) ->
+  (e : Effect (condIntro c)) -> Maybe (Effect bs) -> Effect bs`, the effect
+  reading the condition's mentions (give `condDelta` the mentions English binds
+  through a condition). The postposed sentence is the same term: "Counter
+  target spell if it's red" is `If (Matches (target spell) red) (counter
+  That)`, the target introduced in the condition and read back by the effect.
+  Postposed "E if C" is therefore spelling — a linearization heuristic for a
+  short condition, or a card-language macro if a construction needs to name
+  it — and never a second core constructor or binding direction. Today's
+  `preIntro`-typed orientation is deleted, not renamed.
 - **`WhereLetter` / `WhereLetterStatic`** take the definition first where
   English postposes it ("…, where X is the number of …"); eight bench sites
   author backwards and `DefinedLetter` is the largest family. Same treatment:
