@@ -2598,7 +2598,7 @@ mutual
 
   public export
   tokenCanonical : {0 bs : Bindings} -> TokenChars bs -> Bool
-  tokenCanonical t = colorsDistinct t.colors && typesOrdered t.line.tys
+  tokenCanonical t = colorsDistinct t.colors && typesDistinct t.line.tys
 
   public export
   TokenCanonical : TokenChars bs -> Type
@@ -5412,7 +5412,7 @@ cardCostOk tys cost = case (elem Land tys, cost) of
 public export
 data CardLine : TypeLine -> Type where
   MkCardLine : {auto 0 ne : So (lineNonEmpty l)} ->
-               {auto 0 ord : So (typesOrdered l.tys)} ->
+               {auto 0 dst : So (typesDistinct l.tys)} ->
                {auto 0 cmb : So (typesCombinable l.tys)} ->
                {auto 0 sf : So (subsFitLine l.subs l.tys)} -> CardLine l
 

@@ -594,13 +594,13 @@ badRemoveCountersDead : Unspellable (Effect []) (\ok =>
 badRemoveCountersDead Oh impossible
 
 
-||| "Create a 1/1 creature artifact token."
-||| A token's stated characteristics are its text [CR#111.3], so the type words take one written order.
+||| "Create a 1/1 creature creature token."
+||| Same surface phrase: a type word written twice is a word written twice.
 public export
-badTokenTypeOrder : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [] (MkTypeLine [] [Creature, Artifact])
+badTokenDuplicateType : Unspellable (Effect []) (\ok =>
+  Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [] (MkTypeLine [] [Creature, Creature])
                           [] Nothing) {tc = ok})
-badTokenTypeOrder Oh impossible
+badTokenDuplicateType Oh impossible
 
 
 ||| "Create a 1/1 white white Soldier creature token."

@@ -103,13 +103,13 @@ badCardNoTypes : Unspellable Card (\ok =>
 badCardNoTypes MkCardLine impossible
 
 
-||| "Creature Artifact"
-||| The type line's words fall into one printed order [CR#205.1].
+||| "Creature Creature"
+||| A type line names each of the card's types once; a type written twice is a word written twice.
 public export
-badCardTypeOrder : Unspellable Card (\ok =>
-  Macros.card "" (Just [Macros.generic 2]) [] (MkTypeLine [] [Creature, Artifact]) []
+badCardDuplicateType : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.generic 2]) [] (MkTypeLine [] [Creature, Creature]) []
        (Just (2, 2)) {ln = ok})
-badCardTypeOrder MkCardLine impossible
+badCardDuplicateType MkCardLine impossible
 
 
 ||| "Target creature gains a spell ability."

@@ -2876,24 +2876,21 @@ subsFitLine (s :: ss) tys =
 
 
 
+||| Printed order of the type words on a type line. Spelling-only: no gate
+||| consumes it, and a type line's meaning does not depend on it. Awaiting a
+||| home in english_v2's type-line construction (ticket
+||| workbench-type-line-order-is-spelling).
 public export
-typeRank : CardType -> Nat
-typeRank Kindred = 0
-typeRank Enchantment = 1
-typeRank Artifact = 2
-typeRank Land = 3
-typeRank Creature = 4
-typeRank Planeswalker = 5
-typeRank Battle = 6
-typeRank Instant = 7
-typeRank Sorcery = 8
-
-public export
-typesOrdered : List CardType -> Bool
-typesOrdered [] = True
-typesOrdered (t :: []) = True
-typesOrdered (t :: u :: ts) = lt (typeRank t) (typeRank u) &&
-                              typesOrdered (u :: ts)
+typePrintOrder : CardType -> Nat
+typePrintOrder Kindred = 0
+typePrintOrder Enchantment = 1
+typePrintOrder Artifact = 2
+typePrintOrder Land = 3
+typePrintOrder Creature = 4
+typePrintOrder Planeswalker = 5
+typePrintOrder Battle = 6
+typePrintOrder Instant = 7
+typePrintOrder Sorcery = 8
 
 public export
 permanentType : CardType -> Bool
@@ -3046,6 +3043,11 @@ colorsDistinct (c :: cs) = not (elem c cs) && colorsDistinct cs
 public export
 ColorsDistinct : List Color -> Type
 ColorsDistinct cs = So (colorsDistinct cs)
+
+public export
+typesDistinct : List CardType -> Bool
+typesDistinct [] = True
+typesDistinct (t :: ts) = not (elem t ts) && typesDistinct ts
 
 
 public export

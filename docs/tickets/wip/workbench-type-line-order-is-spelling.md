@@ -43,3 +43,50 @@ table in `crates/deckmaste_english_v2`.
   `cargo xtask cite check` 0/0 after the off-topic cite is removed.
 
 Standard constraints apply.
+
+## As landed (2026-08-21)
+
+**Distinctness replaces order.** `typesDistinct : List CardType -> Bool`
+(`Words.idr`, beside `colorsDistinct`, same pairwise `not (elem …)` idiom, on
+the `Eq CardType` instance) is now the gate at both sites: `CardLine`'s
+`{auto 0 dst : So (typesDistinct l.tys)}` (`Experimental.idr`, binder renamed
+from `ord`) and `tokenCanonical` (`colorsDistinct t.colors && typesDistinct
+t.line.tys`). `typesOrdered` is deleted; no order predicate over `CardType`
+remains in `idris/src/Experimental*`.
+
+**The order table's home is still pending.** `crates/deckmaste_english_v2`
+builds no type line today — no `TypeLine`, `type_line`, or card-type spelling
+anywhere in its `src/` (its only card-type contact is a `kinds = [Type,
+Subtype]` construction field and subtype-lexeme scan tests). Nothing was
+invented there. Per the ticket's fallback the table stays in `Words.idr`,
+renamed `typeRank` -> `typePrintOrder`, with a docstring marking it
+spelling-only, consumed by no gate, and awaiting english_v2's type-line
+construction. **Follow-up:** move `typePrintOrder` to english_v2 when that
+crate gains type-line construction; a dropped row is a silent yes.
+
+**Pins.** Two order pins existed, not one — the ticket named only the card
+side. Both retire, each replaced by its duplicate-type analogue in the
+neighbouring house idiom (`badTokenDuplicateColor` is the model), and neither
+carries a CR cite: [CR#205.1], [CR#205.2a], and [CR#205.2b] were read and none
+of them states that a card's types are a set, so the claim is spelling's, not
+the CR's.
+
+- `ProofsD.badCardTypeOrder` (`[Creature, Artifact]`, cited [CR#205.1])
+  -> `badCardDuplicateType` (`[Creature, Creature]`).
+- `ProofsB.badTokenTypeOrder` (`[Creature, Artifact]`, cited [CR#111.3])
+  -> `badTokenDuplicateType` (`[Creature, Creature]`).
+
+Both bite: swapped to the now-admissible `[Artifact, Creature]` each fails with
+`is not a valid impossible case`.
+
+**Bench.** No card or token in `Experimental/` writes a duplicate type; the two
+`[Creature, Artifact]` occurrences in the tree were exactly the two retired
+pins. All 502 type-line sites keep elaborating unchanged.
+
+**Not updated:** `docs/idris-workbench-closure-tables.md` rows 280 and 603 still
+describe `typeRank`/`typesOrdered` as the census measured them; that document is
+a historical measurement record, not a mirror of current source.
+
+`idris/scripts/build` 18/18 clean, exit 0. `cargo xtask cite check
+--list-noncompliant` 0; `cargo xtask cite check` 0 stale; audit selected 0 sites
+(the diff removes cites and adds none).
