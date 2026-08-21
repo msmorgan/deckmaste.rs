@@ -33,7 +33,7 @@ public export
 badPreventFromPluralSource : Unspellable (StaticEffect []) (\ok =>
   PreventsFrom AnyDamage (DealtBy (AllOf Macros.creature) {ds = ok})
                (Macros.shieldingIt You) CutAll Repeatedly Nothing)
-badPreventFromPluralSource MkDamageSource impossible
+badPreventFromPluralSource Oh impossible
 
 
 ||| "The next time creatures would deal damage to you this turn, that damage is dealt to this creature instead."
@@ -42,7 +42,7 @@ public export
 badRedirectFromPluralSource : Unspellable (StaticEffect []) (\ok =>
   RedirectsFrom AnyDamage (DealtBy (AllOf Macros.creature) {ds = ok})
                 (Macros.shieldingIt You) Macros.thisCreature NextTimeOnly)
-badRedirectFromPluralSource MkDamageSource impossible
+badRedirectFromPluralSource Oh impossible
 
 
 ||| "All damage that would be dealt to you is dealt to target artifact instead."
@@ -60,7 +60,7 @@ public export
 badRedirectToPlural : Unspellable (StaticEffect []) (\ok =>
   Redirects AnyDamage AllOfIt (Macros.shieldingIt You) Nothing
             (AllOf Macros.creatureYouControl) {one = ok})
-badRedirectToPlural MkSingleRecipient impossible
+badRedirectToPlural Oh impossible
 
 
 ||| "Deal 3 damage to target creature. You gain life equal to the damage prevented this way."
@@ -110,7 +110,7 @@ badDamageToSource ObjectTakes impossible
 public export
 badNonsource : Unspellable (Predicate [] Object) (\ok =>
   Not Macros.source {ng = ok})
-badNonsource MkNegatable impossible
+badNonsource Oh impossible
 
 
 ||| "Tap target permanent or player."
@@ -134,7 +134,7 @@ badExileKindJoin MkNotPlayerSpanning impossible
 public export
 badKindJoinInOr : Unspellable (Predicate [] Object) (\ok =>
   Or [KindJoin JoinAnyPlayer JoinPlaneswalker, Macros.creature] {cd = ok})
-badKindJoinInOr MkCoordinableDisjuncts impossible
+badKindJoinInOr Oh impossible
 
 
 ||| "Tap you and permanents you control."
@@ -150,7 +150,7 @@ badTapYouAnd OnField impossible
 public export
 badNestedYouAnd : Unspellable (Noun [] Object) (\ok =>
   YouAnd (YouAnd (AllOf (And [Permanent, ControlledBy You]))) {nn = ok})
-badNestedYouAnd MkNotMixedGroup impossible
+badNestedYouAnd Oh impossible
 
 
 ||| "All damage that would be dealt to you is dealt to you and permanents you control instead."
@@ -159,7 +159,7 @@ public export
 badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
   Redirects AnyDamage AllOfIt (Macros.shieldingIt You) Nothing
             (YouAnd (AllOf (And [Permanent, ControlledBy You]))) {one = ok})
-badRedirectToGroup MkSingleRecipient impossible
+badRedirectToGroup Oh impossible
 
 
 ||| "If creatures would deal damage to a permanent or player, they deal double that damage instead."
@@ -169,7 +169,7 @@ badScaleFromPluralSource : Unspellable (StaticEffect []) (\ok =>
   Scales AnyDamage (AllOf Macros.creature)
          (Macros.shieldingIt (Macros.a (KindJoin JoinAnyPlayer JoinPermanent)))
          (Multiplied Doubled) Repeatedly {ds = ok})
-badScaleFromPluralSource MkDamageSource impossible
+badScaleFromPluralSource Oh impossible
 
 
 ||| "… it deals that much damage plus 0 instead."
@@ -179,7 +179,7 @@ badScaleShiftByZero : Unspellable (StaticEffect []) (\ok =>
   Scales AnyDamage (Macros.a Macros.source)
          (Macros.shieldingIt (Macros.a (KindJoin JoinAnyPlayer JoinPermanent)))
          (Shifted ShiftUp (Lit 0) {wc = ok}) Repeatedly)
-badScaleShiftByZero MkWrittenCount impossible
+badScaleShiftByZero Oh impossible
 
 
 ||| "… it deals that much damage plus that much instead."
@@ -236,7 +236,7 @@ badThatCreatureIsDamagedSelf Refl impossible
 public export
 badStaticPlayerCantTargets : Unspellable Ability (\ok =>
   Static (PlayerCant GainsLife (Macros.target AnyPlayer)) {ut = ok})
-badStaticPlayerCantTargets MkUntargeting impossible
+badStaticPlayerCantTargets Oh impossible
 
 
 ||| "Players can't gain life." — as a spell's clause, with no duration.
@@ -262,7 +262,7 @@ public export
 badChosenBasicTypeOnCreature : Unspellable (Effect []) (\ok =>
   Continuously (SetsChosenBasicType (Macros.target Macros.creature) {ls = ok})
                (Just Macros.untilEndOfTurn))
-badChosenBasicTypeOnCreature MkLandSubject impossible
+badChosenBasicTypeOnCreature Oh impossible
 
 
 ||| "Target land card in your graveyard becomes the basic land type of your choice until end of turn."
@@ -308,7 +308,7 @@ badYourChoiceNumber Oh impossible
 public export
 badLoneYourChoice : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.a (OfYourChoice CreatureType) {hd = ok}))
-badLoneYourChoice MkHeaded impossible
+badLoneYourChoice Oh impossible
 
 
 ||| "Creatures you control of the chosen type get +1/+1. / As this enchantment enters, choose a creature type."
@@ -384,7 +384,7 @@ badExtendedPump : Unspellable (StaticEffect []) (\ok =>
   AlsoOffBattlefield
     (Gets (AllOf (And [Macros.creature, ControlledBy You]))
           (PtUp (Lit 1)) (PtUp (Lit 1))) {ex = ok})
-badExtendedPump MkExtendableScope impossible
+badExtendedPump Oh impossible
 
 
 ||| "Creatures you control are artifacts in addition to their other types. The same is true for … . The same is true for … ."
@@ -395,7 +395,7 @@ badDoubleExtension : Unspellable (StaticEffect []) (\ok =>
     (AlsoOffBattlefield
        (BecomesAlso (AllOf (And [Macros.creature, ControlledBy You]))
                     (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing))) {ex = ok})
-badDoubleExtension MkExtendableScope impossible
+badDoubleExtension Oh impossible
 
 
 ||| "{U}: Counter target spell with the chosen name. / As this enchantment enters, choose a card name."
@@ -434,7 +434,7 @@ badAscribedName :
     (StaticEffect [MkBinding AD (Quality CardName) OneOf QualityP])
     (\ok => SetsChosenQuality (AllOf (And [Macros.creature, ControlledBy You]))
                               (Named ChosenName) {qr = ok})
-badAscribedName MkQualityRead impossible
+badAscribedName Oh impossible
 
 
 ||| "Choose a creature type other than Equipment."
@@ -467,7 +467,7 @@ badCounteredInGraveyard Oh impossible
 public export
 badPlayedNonland : Unspellable (StaticEffect []) (\ok =>
   ObjectCant Played (AllOf Macros.creature) {sub = PlayedIsLand {ld = ok}})
-badPlayedNonland MkLandSubject impossible
+badPlayedNonland Oh impossible
 
 
 ||| an instant printing "Spells you control can't be countered" as a standing line
@@ -478,7 +478,7 @@ badStaticClassCounterOnInstant : Unspellable Card (\ok =>
        [ Static (ObjectCant Countered
                    (AllOf (And [Macros.spell, ControlledBy You]))) ]
        Nothing {tx = ok})
-badStaticClassCounterOnInstant MkCardText impossible
+badStaticClassCounterOnInstant Oh impossible
 
 
 ||| a plain enchantment printing "I — Draw a card."
@@ -488,7 +488,7 @@ badChapterOnNonSaga : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Enchantment])
        [ Triggered When (ChapterMark [ChapterI]) Macros.drawACard ]
        Nothing {ch = ok})
-badChapterOnNonSaga MkCardChapters impossible
+badChapterOnNonSaga Oh impossible
 
 
 ||| "— Draw a card." — a chapter line with no numeral before the dash.
@@ -520,7 +520,7 @@ badRepeatedChapterMark Oh impossible
 public export
 badChapterWhenever : Unspellable Ability (\ok =>
   Triggered Whenever (ChapterMark [ChapterI]) Macros.drawACard {wo = ok})
-badChapterWhenever MkTriggerWordOk impossible
+badChapterWhenever Oh impossible
 
 
 ||| "I — Draw a card. This ability triggers only once each turn."
@@ -529,7 +529,7 @@ public export
 badChapterLimit : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) {limit = Just OncePerTurn}
     Macros.drawACard {cd = ok})
-badChapterLimit MkChapterDefaults impossible
+badChapterLimit Oh impossible
 
 
 ||| "I — , if you control a creature, draw a card."
@@ -539,7 +539,7 @@ badChapterIntervening : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI])
     {intervening = Just (Exists (And [Macros.creature, ControlledBy You]))}
     Macros.drawACard {cd = ok})
-badChapterIntervening MkChapterDefaults impossible
+badChapterIntervening Oh impossible
 
 
 ||| "If I — would happen, draw a card instead."
@@ -548,7 +548,7 @@ public export
 badChapterReplacement : Dependent.Unspellable (StaticEffect []) (\x, y =>
   Intercepts (ChapterMark [ChapterI]) Macros.drawACard Repeatedly
     {ok = x} {uo = y})
-badChapterReplacement (MkInterceptable ** _) impossible
+badChapterReplacement (Oh ** _) impossible
 
 
 ||| "You may cast this card from your graveyard as though it had flash."
@@ -650,7 +650,7 @@ badEveryCreatureTypeOnKindred Oh impossible
 public export
 badSkipNextUpkeepStep : Unspellable (Effect []) (\ok =>
   SkipsNext You Upkeep 1 {sk = ok})
-badSkipNextUpkeepStep MkScheduledSkip impossible
+badSkipNextUpkeepStep Oh impossible
 
 
 ||| "Players skip their turns."
@@ -658,7 +658,7 @@ badSkipNextUpkeepStep MkScheduledSkip impossible
 public export
 badStandingSkipTurn : Unspellable (StaticEffect []) (\ok =>
   Skips (PlayerGroup AllPlayers) Turn {sk = ok})
-badStandingSkipTurn MkStandingSkip impossible
+badStandingSkipTurn Oh impossible
 
 
 ||| "You skip your next end step."
@@ -666,7 +666,7 @@ badStandingSkipTurn MkStandingSkip impossible
 public export
 badSkipEndStep : Unspellable (Effect []) (\ok =>
   SkipsNext You EndStep 1 {sk = ok})
-badSkipEndStep MkScheduledSkip impossible
+badSkipEndStep Oh impossible
 
 
 ||| "Take three extra turns after this one."
@@ -711,7 +711,7 @@ badThatTurnsUpkeep : Unspellable (Effect []) (\ok =>
   Sequentially [ExtraTurn You 1,
                 Delayed (BeginningOf Upkeep (Just ThatTurns) {pu = ok})
                         Macros.drawACard])
-badThatTurnsUpkeep MkPartTriggerable impossible
+badThatTurnsUpkeep Oh impossible
 
 
 ||| "After this main phase, there is an additional main phase."
@@ -719,7 +719,7 @@ badThatTurnsUpkeep MkPartTriggerable impossible
 public export
 badAddedMainPhase : Unspellable (Effect []) (\ok =>
   AdditionalPart MainPhase (Just MainPhase) 1 {ad = ok})
-badAddedMainPhase MkAddedPart impossible
+badAddedMainPhase Oh impossible
 
 
 ||| "After this main phase, there is an additional combat phase followed by an additional combat phase."
@@ -753,7 +753,7 @@ badEndStepAnchor MkAnchorPart impossible
 public export
 badEntersZeroCounters : Unspellable (StaticEffect []) (\ok =>
   EntersWithCounters Macros.thisCreature (Lit 0) Macros.plusOnePlusOne {wc = ok})
-badEntersZeroCounters MkWrittenCount impossible
+badEntersZeroCounters Oh impossible
 
 
 ||| "A creature in your graveyard enters with an additional +1/+1 counter on it."
@@ -807,7 +807,7 @@ badCastAbilityClass ActivatedIsAbility impossible
 public export
 badManaAbilityClassSubject : Unspellable (StaticEffect []) (\ok =>
   ObjectCant Activated (AllOf IsManaAbility {hd = ok}))
-badManaAbilityClassSubject MkHeaded impossible
+badManaAbilityClassSubject Oh impossible
 
 
 ||| "Activated abilities not of artifacts can't be activated."
@@ -817,7 +817,7 @@ badNegatedAbilityAnchor : Unspellable (StaticEffect []) (\ok =>
   ObjectCant Activated
     (AllOf (And [ AbilityHead AnyActivated
                 , Not (AbilityOf (AllOf Macros.artifact)) {ng = ok} ])))
-badNegatedAbilityAnchor MkNegatable impossible
+badNegatedAbilityAnchor Oh impossible
 
 
 ||| "You may {T} rather than pay this spell's mana cost."
@@ -883,7 +883,7 @@ public export
 badRiderAnnouncesTarget : Unspellable (Effect []) (\ok =>
   CantBe (Macros.destroy (Macros.target Macros.creature)) Regenerated
          (Macros.target Macros.creature) {bl = ok})
-badRiderAnnouncesTarget MkBindingless impossible
+badRiderAnnouncesTarget Refl impossible
 
 
 ||| "Destroy target creature. It can't be cast."
@@ -891,7 +891,7 @@ badRiderAnnouncesTarget MkBindingless impossible
 public export
 badCastRider : Unspellable (Effect []) (\ok =>
   CantBe (Macros.destroy (Macros.target Macros.creature)) Cast It {rd = ok})
-badCastRider Refl impossible
+badCastRider Oh impossible
 
 
 ||| "{T}: Add {R}{G} or one mana of the chosen color."

@@ -15,7 +15,7 @@ import public Experimental.Unspellable
 public export
 badKeywordHead : Unspellable (Effect []) (\ok =>
   Choose (Macros.a (HasKeyword Flying) {hd = ok}))
-badKeywordHead MkHeaded impossible
+badKeywordHead Oh impossible
 
 
 ||| "of the chosen name"
@@ -70,7 +70,7 @@ badFightGroup Refl impossible
 public export
 badControlledByGroup : Unspellable (Predicate [] Object) (\ok =>
   ControlledBy (TargetGroup (Macros.exactly 2) Opponent) {ps = ok})
-badControlledByGroup MkPossessor impossible
+badControlledByGroup Oh impossible
 
 
 ||| "two target opponents' graveyards"
@@ -78,7 +78,7 @@ badControlledByGroup MkPossessor impossible
 public export
 badGraveyardOfGroup : Unspellable (ZoneExpr []) (\ok =>
   Macros.graveyardOf (TargetGroup (Macros.exactly 2) Opponent) {pn = ok})
-badGraveyardOfGroup MkPossessor impossible
+badGraveyardOfGroup Oh impossible
 
 
 ||| "When two target creatures die this turn, you gain 1 life."
@@ -111,7 +111,7 @@ badDivideAmongSingular Refl impossible
 public export
 badSliceOfGroupPossessor : Unspellable (Effect []) (\ok =>
   Macros.lookAt (LibrarySlice OnTop (Lit 1) (PlayerGroup YourOpponents) {sp = ok}))
-badSliceOfGroupPossessor MkSlicePossessor impossible
+badSliceOfGroupPossessor Oh impossible
 
 
 ||| "Whenever you cast all spells, draw a card."
@@ -139,7 +139,7 @@ public export
 badDestroyAsCost : Unspellable Ability (\ok =>
   Activated (Do (Macros.destroy (Macros.a Macros.creature)) {ok})
             Macros.drawACard)
-badDestroyAsCost MkCostAction impossible
+badDestroyAsCost Oh impossible
 
 
 ||| "Tap target creature with flying that doesn't have flying."
@@ -148,7 +148,7 @@ public export
 badKeywordContradiction : Unspellable (Effect []) (\ok =>
   SetStatus Tapped (Macros.target (And [Macros.creature, HasKeyword Flying,
                             Not (HasKeyword Flying)] {cf = ok})))
-badKeywordContradiction MkContradictionFree impossible
+badKeywordContradiction Oh impossible
 
 
 ||| "Tap target nonland Forest."
@@ -156,7 +156,7 @@ badKeywordContradiction MkContradictionFree impossible
 public export
 badForestNonland : Unspellable (Effect []) (\ok =>
   SetStatus Tapped (Macros.target (And [HasSubtype Forest, Not Macros.land] {cf = ok})))
-badForestNonland MkContradictionFree impossible
+badForestNonland Oh impossible
 
 
 ||| "Snow Snow Land — Forest"
@@ -164,7 +164,7 @@ badForestNonland MkContradictionFree impossible
 public export
 badDuplicateSnow : Unspellable Card (\ok =>
   Macros.card "" Nothing [Snow, Snow] (MkTypeLine [Forest] [Land]) [] Nothing {sp = ok})
-badDuplicateSnow MkCardSupers impossible
+badDuplicateSnow Oh impossible
 
 
 ||| "This deals 1 damage to any other target."
@@ -337,7 +337,7 @@ badTapGraveyard OnField impossible
 public export
 badBareTappedHead : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target Macros.tapped {hd = ok}))
-badBareTappedHead MkHeaded impossible
+badBareTappedHead Oh impossible
 
 
 ||| "Destroy target tapped creature card in your graveyard."
@@ -346,7 +346,7 @@ public export
 badTappedGraveyard : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped,
                                        InZone (Macros.graveyardOf You)] {zc = ok})))
-badTappedGraveyard MkZoneCoherent impossible
+badTappedGraveyard Oh impossible
 
 
 ||| "Destroy target tapped untapped creature."
@@ -354,7 +354,7 @@ badTappedGraveyard MkZoneCoherent impossible
 public export
 badTappedUntapped : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped, Macros.untapped] {cf = ok})))
-badTappedUntapped MkContradictionFree impossible
+badTappedUntapped Oh impossible
 
 
 ||| "nontapped"
@@ -362,7 +362,7 @@ badTappedUntapped MkContradictionFree impossible
 public export
 badNonTapped : Unspellable (Predicate [] Object) (\ok =>
   Not Macros.tapped {ng = ok})
-badNonTapped MkNegatable impossible
+badNonTapped Oh impossible
 
 
 ||| "phased-in"
@@ -386,7 +386,7 @@ badUntapGraveyard OnField impossible
 public export
 badPermanentInstant : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Permanent, HasType Instant] {cf = ok})))
-badPermanentInstant MkContradictionFree impossible
+badPermanentInstant Oh impossible
 
 
 ||| "Destroy target permanent. Tap that permanent."
@@ -403,7 +403,7 @@ badThatPermanentDeparted (Refl, _) impossible
 public export
 badTokenGraveyard : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [IsToken, InZone (Macros.graveyardOf You)] {zc = ok})))
-badTokenGraveyard MkZoneCoherent impossible
+badTokenGraveyard Oh impossible
 
 
 ||| "Destroy target nontoken token."
@@ -411,7 +411,7 @@ badTokenGraveyard MkZoneCoherent impossible
 public export
 badNontokenToken : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [IsToken, Macros.nontoken] {cf = ok})))
-badNontokenToken MkContradictionFree impossible
+badNontokenToken Oh impossible
 
 
 ||| "Tap target creature. Untap that token."
@@ -495,7 +495,7 @@ badDamageArtifact ObjectTakes impossible
 public export
 badNegatedQualityHead : Unspellable (Effect []) (\ok =>
   Choose (Macros.a (Not (QualityNoun Color)) {hd = ok}))
-badNegatedQualityHead MkHeaded impossible
+badNegatedQualityHead Oh impossible
 
 
 ||| "non-player"
@@ -503,7 +503,7 @@ badNegatedQualityHead MkHeaded impossible
 public export
 badNegatedPlayerHead : Unspellable (Predicate [] Player) (\ok =>
   Not AnyPlayer {ng = ok})
-badNegatedPlayerHead MkNegatable impossible
+badNegatedPlayerHead Oh impossible
 
 
 ||| "Tap target creature an opponent doesn't control. That player loses 1 life."
@@ -520,7 +520,7 @@ badNegatedAntecedent Refl impossible
 public export
 badConflictingZones : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.battlefieldZ, InZone Macros.graveyardZ] {zc = ok})))
-badConflictingZones MkZoneCoherent impossible
+badConflictingZones Oh impossible
 
 
 ||| "Choose target color."
@@ -585,7 +585,7 @@ badCompositeDestroyGraveyard OnField impossible
 public export
 badAgentlessSacrifice : Unspellable (Effect []) (\ok =>
   Composite Sacrifice (Move (Macros.a Macros.creature) Macros.graveyardZ) {ok = SacrificeB} {na = ok})
-badAgentlessSacrifice MkNonAgentive impossible
+badAgentlessSacrifice Oh impossible
 
 
 ||| "You discard a creature." spelled under Does
@@ -655,7 +655,7 @@ public export
 badOtherCrossHead : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target (HasType Land)),
                 Macros.destroy (Macros.target (And [Macros.creature, Other] {oa = ok}))])
-badOtherCrossHead MkOtherAnchored impossible
+badOtherCrossHead Oh impossible
 
 
 ||| "for each you control"
@@ -663,7 +663,7 @@ badOtherCrossHead MkOtherAnchored impossible
 public export
 badForEachHeadless : Unspellable (Amount []) (\ok =>
   Macros.forEach (ControlledBy You) {hd = ok})
-badForEachHeadless MkHeaded impossible
+badForEachHeadless Oh impossible
 
 
 ||| "1 life for each 0 creatures"
@@ -679,7 +679,7 @@ badForEachZero OneUp impossible
 public export
 badNotOnBattlefield : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, Not (InZone Macros.battlefieldZ)] {zc = ok})
-badNotOnBattlefield MkZoneCoherent impossible
+badNotOnBattlefield Oh impossible
 
 
 ||| "of the chosen color and not of the chosen color"
@@ -688,7 +688,7 @@ public export
 badQualityContradiction : Unspellable
   (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
   (\ok => And [OfChosen Color, Not (OfChosen Color)] {cf = ok})
-badQualityContradiction MkContradictionFree impossible
+badQualityContradiction Oh impossible
 
 
 ||| "creature that is a noncreature", the clash one level down
@@ -696,7 +696,7 @@ badQualityContradiction MkContradictionFree impossible
 public export
 badNestedContradiction : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, And [Not Macros.creature]] {cf = ok})
-badNestedContradiction MkContradictionFree impossible
+badNestedContradiction Oh impossible
 
 
 ||| "attacking card in your hand"
@@ -704,7 +704,7 @@ badNestedContradiction MkContradictionFree impossible
 public export
 badAttackingInHand : Unspellable (Predicate [] Object) (\ok =>
   And [Attacking, InZone Macros.handZ] {zc = ok})
-badAttackingInHand MkZoneCoherent impossible
+badAttackingInHand Oh impossible
 
 
 ||| "Two target creatures deal 3 damage to target player."
@@ -712,7 +712,7 @@ badAttackingInHand MkZoneCoherent impossible
 public export
 badGroupDamageSource : Unspellable (Effect []) (\ok =>
   DealDamage (TargetGroup (Macros.exactly 2) Macros.creature) (Lit 3) (Macros.target AnyPlayer) {ds = ok})
-badGroupDamageSource MkDamageSource impossible
+badGroupDamageSource Oh impossible
 
 
 ||| "non-any target"
@@ -720,7 +720,7 @@ badGroupDamageSource MkDamageSource impossible
 public export
 badNegatedAnyTarget : Unspellable (Predicate [] Object) (\ok =>
   Not AnyTarget {ng = ok})
-badNegatedAnyTarget MkNegatable impossible
+badNegatedAnyTarget Oh impossible
 
 
 ||| "any target in a graveyard"
@@ -728,7 +728,7 @@ badNegatedAnyTarget MkNegatable impossible
 public export
 badAnyTargetInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [AnyTarget, InZone Macros.graveyardZ] {at = ok})
-badAnyTargetInGraveyard MkAnyTargetLone impossible
+badAnyTargetInGraveyard Oh impossible
 
 
 ||| "a any target" / "each any target"
@@ -736,7 +736,7 @@ badAnyTargetInGraveyard MkAnyTargetLone impossible
 public export
 badAnyTargetUnderA : Unspellable (Noun [] Object) (\ok =>
   Macros.a AnyTarget {af = ok})
-badAnyTargetUnderA MkAnyTargetFree impossible
+badAnyTargetUnderA Oh impossible
 
 
 ||| "two any targets"
@@ -744,7 +744,7 @@ badAnyTargetUnderA MkAnyTargetFree impossible
 public export
 badGroupAnyTarget : Unspellable (Noun [] Object) (\ok =>
   TargetGroup (Macros.exactly 2) AnyTarget {af = ok})
-badGroupAnyTarget MkAnyTargetAtCount impossible
+badGroupAnyTarget Oh impossible
 
 
 ||| "Discard this creature."
@@ -768,7 +768,7 @@ badAscribedTarget AscribeThis impossible
 public export
 badNegatedConjunction : Unspellable (Predicate [] Object) (\ok =>
   Not (And [Macros.creature]) {ng = ok})
-badNegatedConjunction MkNegatable impossible
+badNegatedConjunction Oh impossible
 
 
 ||| "creature you control that you don't control"
@@ -776,7 +776,7 @@ badNegatedConjunction MkNegatable impossible
 public export
 badControlContradiction : Unspellable (Predicate [] Object) (\ok =>
   And [ControlledBy You, Not (ControlledBy You)] {cf = ok})
-badControlContradiction MkContradictionFree impossible
+badControlContradiction Oh impossible
 
 
 ||| "attacking noncreature"
@@ -784,4 +784,4 @@ badControlContradiction MkContradictionFree impossible
 public export
 badAttackingNoncreature : Unspellable (Predicate [] Object) (\ok =>
   And [Attacking, Not Macros.creature] {cf = ok})
-badAttackingNoncreature MkContradictionFree impossible
+badAttackingNoncreature Oh impossible

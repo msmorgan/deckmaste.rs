@@ -229,20 +229,20 @@ anOpponent = a Opponent
 
 public export
 anyOtherTarget : {auto 0 ok : anyTargeted Object bs = True} -> Predicate bs Object
-anyOtherTarget = And [AnyTarget, Other]
+anyOtherTarget = And [AnyTarget, Other {ok = eqToSo ok}] {oa = eqToSo ok}
 
 
 public export
 otherCreature : (n : Noun bs Object) -> {auto 0 ca : ComplementAnchor n} ->
                 {auto 0 ty : anchorTyFits [Creature] (nounTy n) = True} ->
                 Predicate bs Object
-otherCreature n = And [creature, OtherThan n {ca}]
+otherCreature n = And [creature, OtherThan n {ca}] {oa = eqToSo ty}
 
 public export
 otherCreatureYouControl : (n : Noun bs Object) -> {auto 0 ca : ComplementAnchor n} ->
                           {auto 0 ty : anchorTyFits [Creature] (nounTy n) = True} ->
                           Predicate bs Object
-otherCreatureYouControl n = And [creature, ControlledBy You, OtherThan n {ca}]
+otherCreatureYouControl n = And [creature, ControlledBy You, OtherThan n {ca}] {oa = eqToSo ty}
 
 public export
 otherPlayer : Predicate bs Player
@@ -632,7 +632,7 @@ chooseOne : (modes : List (Effect bs)) ->
             {auto 0 mf : ModesFit (exactly 1) (modeCount modes)} ->
             {auto 0 mh : ModalHead (exactly 1) (modeCount modes)} ->
             {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseOne modes = Modal (exactly 1) modes {tw} {mf} {mh} {dm}
+chooseOne modes = Modal (exactly 1) modes {tw} {mf} {mh} {dm = eqToSo dm}
 
 public export
 chooseTwo : (modes : List (Effect bs)) ->
@@ -640,7 +640,7 @@ chooseTwo : (modes : List (Effect bs)) ->
             {auto 0 mf : ModesFit (exactly 2) (modeCount modes)} ->
             {auto 0 mh : ModalHead (exactly 2) (modeCount modes)} ->
             {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseTwo modes = Modal (exactly 2) modes {tw} {mf} {mh} {dm}
+chooseTwo modes = Modal (exactly 2) modes {tw} {mf} {mh} {dm = eqToSo dm}
 
 public export
 chooseOneOrBoth : (modes : List (Effect bs)) ->
@@ -648,7 +648,7 @@ chooseOneOrBoth : (modes : List (Effect bs)) ->
                   {auto 0 mf : ModesFit Macros.oneOrBoth (modeCount modes)} ->
                   {auto 0 mh : ModalHead Macros.oneOrBoth (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseOneOrBoth modes = Modal Macros.oneOrBoth modes {tw} {mf} {mh} {dm}
+chooseOneOrBoth modes = Modal Macros.oneOrBoth modes {tw} {mf} {mh} {dm = eqToSo dm}
 
 public export
 chooseOneOrMore : (modes : List (Effect bs)) ->
@@ -656,7 +656,7 @@ chooseOneOrMore : (modes : List (Effect bs)) ->
                   {auto 0 mf : ModesFit (atLeast 1) (modeCount modes)} ->
                   {auto 0 mh : ModalHead (atLeast 1) (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf} {mh} {dm}
+chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf} {mh} {dm = eqToSo dm}
 
 public export
 chooseAnyNumber : (modes : List (Effect bs)) ->
@@ -664,7 +664,7 @@ chooseAnyNumber : (modes : List (Effect bs)) ->
                   {auto 0 mf : ModesFit Macros.anyNumber (modeCount modes)} ->
                   {auto 0 mh : ModalHead Macros.anyNumber (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseAnyNumber modes = Modal Macros.anyNumber modes {wf = Oh} {tw} {mf} {mh} {dm}
+chooseAnyNumber modes = Modal Macros.anyNumber modes {wf = Oh} {tw} {mf} {mh} {dm = eqToSo dm}
 
 public export
 notSo : (c : Condition bs) -> {auto 0 ng : CondNegatable c} -> Condition bs
@@ -683,7 +683,7 @@ itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
           {auto 0 zc : ZoneFits (zoneOfIt bs) (seedZone p)} ->
           {auto 0 af : AnyTargetFree p} ->
           {auto 0 nf : predNegFree p = True} -> Condition bs
-itIsntA p = NotCond (itsA p {ok} {sy} {zc} {af}) {ng = MkCondNegatable {ok = nf}}
+itIsntA p = NotCond (itsA p {ok} {sy} {zc} {af}) {ng = eqToSo nf}
 
 
 public export
@@ -833,7 +833,7 @@ public export
 exileUntil : (n : Noun bs Object) -> {auto 0 na : NotPlayerSpanning n} ->
              (ev : GameEvent (preIntro (exile n))) ->
              {auto 0 hd : Holdable ev} -> Effect bs
-exileUntil n ev = HeldUntil (exile n) ev {ok = MkHeldClause} {hd}
+exileUntil n ev = HeldUntil (exile n) ev {ok = Oh} {hd}
 
 public export
 insteadOf : (replaced : Effect bs) -> (repl : Effect (annIntro replaced)) ->
@@ -885,7 +885,7 @@ public export
 -- settled here first.
 mayWhen : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
           Effect (settleTargets (effIntro body)) ->
-          {auto 0 ok : admitsReflexEnclosure (reflexEncloseUse body) = True} ->
+          {auto 0 ok : So (admitsReflexEnclosure (reflexEncloseUse body))} ->
           Effect bs
 mayWhen d body trig =
-  Reflexively (May (Just d) body Nothing Nothing) trig {en = MkReflexEnclosure {ok}}
+  Reflexively (May (Just d) body Nothing Nothing) trig {en = ok}

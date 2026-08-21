@@ -34,8 +34,8 @@ mutual
   wholeZone (LibraryAt _ _ _) = False
 
   public export
-  data WholeZone : ZoneExpr bs -> Type where
-    MkWholeZone : {auto 0 ok : wholeZone z = True} -> WholeZone z
+  WholeZone : ZoneExpr bs -> Type
+  WholeZone {bs} z = So (wholeZone z)
 
   public export
   zoneArrangement : ZoneExpr bs -> Maybe Arrangement
@@ -112,7 +112,7 @@ mutual
                            {0 ks : Kind} ->
                            Maybe (EventComplement bs ev ks) -> Type where
     LeftBare : {0 bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
-               {auto 0 ok : bareLookbackOk ev ks = True} ->
+               {auto 0 ok : So (bareLookbackOk ev ks)} ->
                ComplementWritten {bs} {ev} {ks} Nothing
     Written : {0 bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
               {0 c : EventComplement bs ev ks} -> ComplementWritten (Just c)
@@ -145,7 +145,7 @@ mutual
     ControlledBy : (n : Noun bs Player) -> {auto 0 ps : Possessor n} -> Predicate bs Object
     CastBy : (n : Noun bs Player) -> {auto 0 ps : Possessor n} -> Predicate bs Object
     CastFrom : (z : ZoneExpr bs) ->
-               {auto 0 pf : playableFrom (Just (zoneSort z)) = True} ->
+               {auto 0 pf : So (playableFrom (Just (zoneSort z)))} ->
                {auto 0 wz : WholeZone z} -> Predicate bs Object
     Attacking : Predicate bs Object
     Blocking : Predicate bs Object
@@ -167,10 +167,10 @@ mutual
     Named : (src : NameSource bs) -> Predicate bs Object
     HasDesignation : (d : Designation) ->
                      {auto 0 sc : designationScope d = HeldBy k} ->
-                     {auto 0 at : designationChecked d = True} ->
+                     {auto 0 at : So (designationChecked d)} ->
                      Predicate bs k
     IsAttached : (w : AttachWord) ->
-                 {auto 0 ok : attachedCheckOk w = True} -> Predicate bs Object
+                 {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
     Permanent : Predicate bs Object
     IsToken : Predicate bs Object
     HasStatus : {c : StatusCat} -> (v : StatusVal c) ->
@@ -198,7 +198,7 @@ mutual
          {auto 0 cd : CoordinableDisjuncts ps} ->
          {auto 0 dd : DistinctDisjuncts ps} -> Predicate bs k
     Not : (p : Predicate bs k) -> {auto 0 ng : Negatable p} -> Predicate bs k
-    Other : {auto 0 ok : anyTargeted k bs = True} -> Predicate bs k
+    Other : {auto 0 ok : So (anyTargeted k bs)} -> Predicate bs k
     OtherThan : (n : Noun bs k) -> {auto 0 ca : ComplementAnchor n} -> Predicate bs k
     AnyTarget : Predicate bs Object
     KindJoin : (who : JoinedPlayer) -> (what : JoinedClass) ->
@@ -447,8 +447,8 @@ mutual
   hasHeadAll (p :: ps) = hasHead p && hasHeadAll ps
 
   public export
-  data Headed : Predicate bs k -> Type where
-    MkHeaded : {auto 0 ok : hasHead p = True} -> Headed p
+  Headed : Predicate bs k -> Type
+  Headed {bs} {k} p = So (hasHead p)
 
   public export
   qualityReadOk : {0 bs : Bindings} -> Predicate bs Object -> Bool
@@ -458,8 +458,8 @@ mutual
   qualityReadOk _ = False
 
   public export
-  data QualityRead : Predicate bs Object -> Type where
-    MkQualityRead : {auto 0 ok : qualityReadOk p = True} -> QualityRead p
+  QualityRead : Predicate bs Object -> Type
+  QualityRead {bs} p = So (qualityReadOk p)
 
   public export
   uniquifiesAny : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -474,8 +474,8 @@ mutual
   uniquifies _ = False
 
   public export
-  data Uniquifying : Predicate bs k -> Type where
-    MkUniquifying : {auto 0 ok : uniquifies p = True} -> Uniquifying p
+  Uniquifying : Predicate bs k -> Type
+  Uniquifying {bs} {k} p = So (uniquifies p)
 
   public export
   flattenPs : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -528,8 +528,8 @@ mutual
                              (flattenPs ps)
 
   public export
-  data ZoneCoherent : List (Predicate bs k) -> Type where
-    MkZoneCoherent : {auto 0 ok : zonesOk ps = True} -> ZoneCoherent ps
+  ZoneCoherent : List (Predicate bs k) -> Type
+  ZoneCoherent {bs} {k} ps = So (zonesOk ps)
 
   ||| Syntactic predicate equality, deliberately conservative: `False`
   ||| means "not provably the same referent", so the gate under-refuses
@@ -754,9 +754,8 @@ mutual
                               anyNonPermanentTy (flattenPs ps))
 
   public export
-  data ContradictionFree : List (Predicate bs k) -> Type where
-    MkContradictionFree : {auto 0 ok : contradictionFree ps = True} ->
-                          ContradictionFree ps
+  ContradictionFree : List (Predicate bs k) -> Type
+  ContradictionFree {bs} {k} ps = So (contradictionFree ps)
 
   public export
   hasOther : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -800,9 +799,8 @@ mutual
   complementAnchorsOk ts (_ :: ps) = complementAnchorsOk ts ps
 
   public export
-  data OtherAnchored : List (Predicate bs k) -> Type where
-    MkOtherAnchored : {auto 0 ok : otherAnchorOk k (headTysAll ps) ps = True} ->
-                      OtherAnchored ps
+  OtherAnchored : {bs : Bindings} -> {k : Kind} -> List (Predicate bs k) -> Type
+  OtherAnchored {bs} {k} ps = So (otherAnchorOk k (headTysAll ps) ps)
 
   public export
   isAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -901,8 +899,8 @@ mutual
                        else True
 
   public export
-  data AnyTargetLone : List (Predicate bs k) -> Type where
-    MkAnyTargetLone : {auto 0 ok : anyTargetLone ps = True} -> AnyTargetLone ps
+  AnyTargetLone : List (Predicate bs k) -> Type
+  AnyTargetLone {bs} {k} ps = So (anyTargetLone ps)
 
   public export
   isComparison : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -923,9 +921,8 @@ mutual
   loneComparison ps = atMostOne (countComparisons (flattenPs ps))
 
   public export
-  data LoneComparison : List (Predicate bs k) -> Type where
-    MkLoneComparison : {auto 0 ok : loneComparison ps = True} ->
-                       LoneComparison ps
+  LoneComparison : List (Predicate bs k) -> Type
+  LoneComparison {bs} {k} ps = So (loneComparison ps)
 
   public export
   atLeastTwoPs : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
@@ -934,8 +931,8 @@ mutual
   atLeastTwoPs (_ :: _ :: _) = True
 
   public export
-  data TwoDisjuncts : List (Predicate bs k) -> Type where
-    MkTwoDisjuncts : {auto 0 ok : atLeastTwoPs ps = True} -> TwoDisjuncts ps
+  TwoDisjuncts : List (Predicate bs k) -> Type
+  TwoDisjuncts {bs} {k} ps = So (atLeastTwoPs ps)
 
   public export
   headsUniform : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -971,9 +968,8 @@ mutual
                                 seedsUniform (seedZone p) (seedType p) ps
 
   public export
-  data ParallelDisjuncts : List (Predicate bs k) -> Type where
-    MkParallelDisjuncts : {auto 0 ok : parallelDisjuncts ps = True} ->
-                          ParallelDisjuncts ps
+  ParallelDisjuncts : List (Predicate bs k) -> Type
+  ParallelDisjuncts {bs} {k} ps = So (parallelDisjuncts ps)
 
   public export
   isOr : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -999,9 +995,8 @@ mutual
   coordinableAll (p :: ps) = coordinable p && coordinableAll ps
 
   public export
-  data CoordinableDisjuncts : List (Predicate bs k) -> Type where
-    MkCoordinableDisjuncts : {auto 0 ok : coordinableAll ps = True} ->
-                             CoordinableDisjuncts ps
+  CoordinableDisjuncts : List (Predicate bs k) -> Type
+  CoordinableDisjuncts {bs} {k} ps = So (coordinableAll ps)
 
   public export
   anyPredEq : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -1016,9 +1011,8 @@ mutual
   noRepeatedPair (p :: ps) = not (anyPredEq p ps) && noRepeatedPair ps
 
   public export
-  data DistinctDisjuncts : List (Predicate bs k) -> Type where
-    MkDistinctDisjuncts : {auto 0 ok : noRepeatedPair ps = True} ->
-                          DistinctDisjuncts ps
+  DistinctDisjuncts : List (Predicate bs k) -> Type
+  DistinctDisjuncts {bs} {k} ps = So (noRepeatedPair ps)
 
   public export
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -1069,8 +1063,8 @@ mutual
   negatable (KindJoin _ _) = False
 
   public export
-  data Negatable : Predicate bs k -> Type where
-    MkNegatable : {auto 0 ok : negatable p = True} -> Negatable p
+  Negatable : Predicate bs k -> Type
+  Negatable {bs} {k} p = So (negatable p)
 
   public export
   predSays : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -1126,8 +1120,8 @@ mutual
   predSaysAny (p :: ps) = predSays p || predSaysAny ps
 
   public export
-  data PredSays : Predicate bs k -> Type where
-    MkPredSays : {auto 0 ok : predSays p = True} -> PredSays p
+  PredSays : Predicate bs k -> Type
+  PredSays {bs} {k} p = So (predSays p)
 
   public export
   predNegFree : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -1237,12 +1231,12 @@ mutual
   anyTargetFreeAll (p :: ps) = anyTargetFree p && anyTargetFreeAll ps
 
   public export
-  data AnyTargetFree : Predicate bs k -> Type where
-    MkAnyTargetFree : {auto 0 ok : anyTargetFree p = True} -> AnyTargetFree p
+  AnyTargetFree : Predicate bs k -> Type
+  AnyTargetFree {bs} {k} p = So (anyTargetFree p)
 
   public export
-  data ZoneFree : Predicate bs k -> Type where
-    MkZoneFree : {auto 0 ok : seedZone p = Nothing} -> ZoneFree p
+  ZoneFree : Predicate bs k -> Type
+  ZoneFree {bs} {k} p = seedZone p = Nothing
 
   public export
   anyTargetOkAt : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -1252,9 +1246,8 @@ mutual
   anyTargetOkAt (Range (Just _) _) p = anyTargetFree p
 
   public export
-  data AnyTargetAtCount : Quantity -> Predicate bs k -> Type where
-    MkAnyTargetAtCount : {auto 0 ok : anyTargetOkAt q p = True} ->
-                         AnyTargetAtCount q p
+  AnyTargetAtCount : Quantity -> Predicate bs k -> Type
+  AnyTargetAtCount {bs} {k} q p = So (anyTargetOkAt q p)
 
   public export
   zoneOr : Zone -> Maybe Zone -> Zone
@@ -1281,7 +1274,7 @@ mutual
     AsType : (t : CardType) -> (n : Noun bs Object) ->
              {default Nothing sub : Maybe Subtype} ->
              {auto 0 asc : Ascribable n} ->
-             {auto 0 way : ascriptionOk t sub = True} -> Noun bs Object
+             {auto 0 way : So (ascriptionOk t sub)} -> Noun bs Object
     You : Noun bs Player        -- "you" [CR#109.5]
     PlayerGroup : (w : PlayerGroupWord) -> Noun bs Player
     Each : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
@@ -1322,7 +1315,7 @@ mutual
              {auto 0 gm : GroupMention grp} ->
              {auto 0 nz : NonZeroQ q} ->
              {auto 0 wf : WellFormedQ q} -> Noun bs Object
-    TheRest : {auto 0 ok : theRestOk bs = True} -> Noun bs Object
+    TheRest : {auto 0 ok : So (theRestOk bs)} -> Noun bs Object
     It : {auto 0 ok : countOnes Object bs = 1} -> Noun bs Object
     They : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
     Them : {auto 0 ok : countManys Object bs = 1} -> Noun bs Object
@@ -1438,8 +1431,8 @@ mutual
                                 Just _ => not (isOne pl)
 
   public export
-  data ArrangementOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Type where
-    MkArrangementOk : {auto 0 ok : orderOk pl z = True} -> ArrangementOk pl z
+  ArrangementOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Type
+  ArrangementOk {bs} pl z = So (orderOk pl z)
 
   public export
   nounDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
@@ -1692,8 +1685,8 @@ mutual
   writtenCount (Minus a b) = writtenCount a && writtenCount b
 
   public export
-  data WrittenCount : Amount bs -> Type where
-    MkWrittenCount : {auto 0 ok : writtenCount a = True} -> WrittenCount a
+  WrittenCount : Amount bs -> Type
+  WrittenCount {bs} a = So (writtenCount a)
 
   public export
   boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
@@ -1733,32 +1726,32 @@ mutual
   readAmount (Minus _ _) = False
 
   public export
-  data ReadAmount : Amount bs -> Type where
-    MkReadAmount : {auto 0 ok : readAmount a = True} -> ReadAmount a
+  ReadAmount : Amount bs -> Type
+  ReadAmount {bs} a = So (readAmount a)
 
   public export
   comparableBound : {0 bs : Bindings} -> Amount bs -> Bool
   comparableBound a = writtenBound a || readAmount a
 
   public export
-  data ComparableBound : Amount bs -> Type where
-    MkComparableBound : {auto 0 ok : comparableBound b = True} -> ComparableBound b
+  ComparableBound : Amount bs -> Type
+  ComparableBound {bs} b = So (comparableBound b)
 
   public export
   letterDefines : {0 bs : Bindings} -> Amount bs -> Bool
   letterDefines d = not (writtenBound d)
 
   public export
-  data LetterDefinition : Amount bs -> Type where
-    MkLetterDefinition : {auto 0 ok : letterDefines d = True} -> LetterDefinition d
+  LetterDefinition : Amount bs -> Type
+  LetterDefinition {bs} d = So (letterDefines d)
 
   public export
-  data DefiningValue : Amount bs -> Type where
-    MkDefiningValue : {auto 0 ok : letterDefines d = True} -> DefiningValue d
+  DefiningValue : Amount bs -> Type
+  DefiningValue {bs} d = So (letterDefines d)
 
   public export
-  data Bindingless : Noun bs k -> Type where
-    MkBindingless : {auto 0 ok : nounDelta n = []} -> Bindingless n
+  Bindingless : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+  Bindingless {bs} {k} n = nounDelta n = []
 
   public export
   anchorPhrase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -1790,7 +1783,7 @@ mutual
 
   public export
   data ComplementAnchor : Noun bs k -> Type where
-    MkComplementAnchor : {auto 0 sh : anchorPhrase n = True} ->
+    MkComplementAnchor : {auto 0 sh : So (anchorPhrase n)} ->
                          {auto 0 one : nounPlur n = OneOf} ->
                          ComplementAnchor n
 
@@ -1798,7 +1791,7 @@ mutual
   data LinkSource : Noun bs k -> Type where
     SelfLinked : LinkSource This
     SortedSelfLinked : {0 t : CardType} -> {0 asc : Ascribable This} ->
-                       {0 way : ascriptionOk t Nothing = True} ->
+                       {0 way : So (ascriptionOk t Nothing)} ->
                        LinkSource (AsType t This {sub = Nothing} {asc} {way})
 
   public export
@@ -1830,8 +1823,8 @@ mutual
   choosable (OwnerOf _) = False
 
   public export
-  data Choosable : Noun bs k -> Type where
-    MkChoosable : {auto 0 ok : choosable n = True} -> Choosable n
+  Choosable : Noun bs k -> Type
+  Choosable {bs} {k} n = So (choosable n)
 
   public export
   agentChoosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -1842,9 +1835,9 @@ mutual
   data ChoiceClause : {0 bs : Bindings} -> {0 k : Kind} ->
                       Maybe (Noun bs Player) -> Noun bs k -> Type where
     BareChoice : {0 n : Noun bs k} ->
-                 {auto 0 ok : choosable n = True} -> ChoiceClause Nothing n
+                 {auto 0 ok : So (choosable n)} -> ChoiceClause Nothing n
     AgentChoice : {0 by : Noun bs Player} -> {0 n : Noun bs k} ->
-                  {auto 0 ok : agentChoosable n = True} ->
+                  {auto 0 ok : So (agentChoosable n)} ->
                   ChoiceClause (Just by) n
 
   public export
@@ -1876,8 +1869,8 @@ mutual
   groupMention (OwnerOf _) = False
 
   public export
-  data GroupMention : Noun bs k -> Type where
-    MkGroupMention : {auto 0 ok : groupMention n = True} -> GroupMention n
+  GroupMention : Noun bs k -> Type
+  GroupMention {bs} {k} n = So (groupMention n)
 
   public export
   perMemberOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
@@ -1886,8 +1879,8 @@ mutual
   perMemberOk n = isOne (nounPlur n)
 
   public export
-  data PerMember : Noun bs k -> Type where
-    MkPerMember : {auto 0 ok : perMemberOk n = True} -> PerMember n
+  PerMember : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+  PerMember {bs} {k} n = So (perMemberOk n)
 
   public export
   capSubjectOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -1918,12 +1911,12 @@ mutual
   capSubjectOk (OwnerOf _) = False
 
   public export
-  data CapSubject : Noun bs k -> Type where
-    MkCapSubject : {auto 0 ok : capSubjectOk n = True} -> CapSubject n
+  CapSubject : Noun bs k -> Type
+  CapSubject {bs} {k} n = So (capSubjectOk n)
 
   public export
-  data LandSubject : Noun bs k -> Type where
-    MkLandSubject : {auto 0 ok : tyIs Land (nounTy n) = True} -> LandSubject n
+  LandSubject : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+  LandSubject {bs} {k} n = So (tyIs Land (nounTy n))
 
   public export
   data ActSubject : {0 k : Kind} -> ObjectAct -> Noun bs k -> Type where
@@ -1950,8 +1943,8 @@ mutual
   possessorOk n = isOne (nounPlur n)
 
   public export
-  data Possessor : Noun bs k -> Type where
-    MkPossessor : {auto 0 ok : possessorOk n = True} -> Possessor n
+  Possessor : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+  Possessor {bs} {k} n = So (possessorOk n)
 
   public export
   slicePossessorOk : {bs : Bindings} -> Noun bs Player -> Bool
@@ -1960,9 +1953,8 @@ mutual
   slicePossessorOk n = isOne (nounPlur n)
 
   public export
-  data SlicePossessor : Noun bs Player -> Type where
-    MkSlicePossessor : {auto 0 ok : slicePossessorOk n = True} ->
-                       SlicePossessor n
+  SlicePossessor : {bs : Bindings} -> Noun bs Player -> Type
+  SlicePossessor {bs} n = So (slicePossessorOk n)
 
   public export
   costSubjectOk : {bs : Bindings} -> Noun bs Object -> Bool
@@ -1972,7 +1964,7 @@ mutual
   public export
   data CostSubject : {0 k : Kind} -> Noun bs k -> Type where
     MkCostSubject : {0 n : Noun bs Object} ->
-                    {auto 0 ok : costSubjectOk n = True} -> CostSubject n
+                    {auto 0 ok : So (costSubjectOk n)} -> CostSubject n
     AbilityCostSubject : {0 n : Noun bs Ability} -> CostSubject n
 
   public export
@@ -1982,8 +1974,8 @@ mutual
   selfDefinedOk _ = False
 
   public export
-  data SelfDefined : Noun bs Object -> Type where
-    MkSelfDefined : {auto 0 ok : selfDefinedOk n = True} -> SelfDefined n
+  SelfDefined : {bs : Bindings} -> Noun bs Object -> Type
+  SelfDefined {bs} n = So (selfDefinedOk n)
 
   public export
   data Condition : Bindings -> Type where
@@ -1998,7 +1990,7 @@ mutual
                {auto 0 sb : LookbackSubject ev k} -> Condition bs
     GameIs : (d : Designation) ->
              {auto 0 sc : designationScope d = HeldByGame} ->
-             {auto 0 at : designationChecked d = True} -> Condition bs
+             {auto 0 at : So (designationChecked d)} -> Condition bs
     Matches : {k : Kind} -> (n : Noun bs k) -> (p : Predicate bs k) ->
               {auto 0 bl : Bindingless n} ->
               {auto 0 sy : PredSays p} ->
@@ -2023,8 +2015,8 @@ mutual
   condNegatable (AndCond _) = False
 
   public export
-  data CondNegatable : Condition bs -> Type where
-    MkCondNegatable : {auto 0 ok : condNegatable c = True} -> CondNegatable c
+  CondNegatable : Condition bs -> Type
+  CondNegatable {bs} c = So (condNegatable c)
 
   public export
   atLeastTwoCs : {0 bs : Bindings} -> List (Condition bs) -> Bool
@@ -2033,8 +2025,8 @@ mutual
   atLeastTwoCs (_ :: _ :: _) = True
 
   public export
-  data TwoConjuncts : List (Condition bs) -> Type where
-    MkTwoConjuncts : {auto 0 ok : atLeastTwoCs cs = True} -> TwoConjuncts cs
+  TwoConjuncts : List (Condition bs) -> Type
+  TwoConjuncts {bs} cs = So (atLeastTwoCs cs)
 
   public export
   isCondCoord : {0 bs : Bindings} -> Condition bs -> Bool
@@ -2047,8 +2039,8 @@ mutual
   flatConjuncts (c :: cs) = not (isCondCoord c) && flatConjuncts cs
 
   public export
-  data FlatConjuncts : List (Condition bs) -> Type where
-    MkFlatConjuncts : {auto 0 ok : flatConjuncts cs = True} -> FlatConjuncts cs
+  FlatConjuncts : List (Condition bs) -> Type
+  FlatConjuncts {bs} cs = So (flatConjuncts cs)
 
   public export
   condNegated : {0 bs : Bindings} -> Condition bs -> Bool
@@ -2068,7 +2060,7 @@ mutual
   public export
   data MarkingOk : {0 bs : Bindings} -> CondMarking -> Condition bs -> Type where
     MkMarkingOk : {0 c : Condition bs} ->
-                  {auto 0 ok : markingOk m c = True} -> MarkingOk m c
+                  {auto 0 ok : So (markingOk m c)} -> MarkingOk m c
 
   public export
   condDelta : {bs : Bindings} -> Condition bs -> List Binding
@@ -2132,12 +2124,12 @@ mutual
                     {0 ph : Phrasal Object} -> {0 nz : NonZeroQ q} ->
                     {0 wf : WellFormedQ q} -> {0 hd : Headed p} ->
                     {0 af : AnyTargetFree p} ->
-                    {auto 0 ok : seedsToken p = True} ->
+                    {auto 0 ok : So (seedsToken p)} ->
                     TokenPhrase (CountedGroup q p {ph} {nz} {wf} {hd} {af})
     OneToken : {0 m : ChoiceMode bs} -> {0 p : Predicate bs Object} ->
                {0 ph : Phrasal Object} -> {0 hd : Headed p} ->
                {0 af : AnyTargetFree p} ->
-               {auto 0 ok : seedsToken p = True} ->
+               {auto 0 ok : So (seedsToken p)} ->
                TokenPhrase (Indefinite m p {ph} {hd} {af})
 
   public export
@@ -2171,8 +2163,8 @@ mutual
   putDestOk z = wholeZone z && putDestZoneOk (zoneSort z)
 
   public export
-  data PutDest : {0 bs : Bindings} -> ZoneExpr bs -> Type where
-    MkPutDest : {auto 0 ok : putDestOk z = True} -> PutDest z
+  PutDest : {0 bs : Bindings} -> ZoneExpr bs -> Type
+  PutDest {bs} z = So (putDestOk z)
 
   public export
   putSourceZoneOk : Zone -> Bool
@@ -2190,8 +2182,8 @@ mutual
   putSourceOk (Just (FromZone z)) = wholeZone z && putSourceZoneOk (zoneSort z)
 
   public export
-  data PutSource : {0 bs : Bindings} -> Maybe (EventSource bs) -> Type where
-    MkPutSource : {auto 0 ok : putSourceOk s = True} -> PutSource s
+  PutSource : {0 bs : Bindings} -> Maybe (EventSource bs) -> Type
+  PutSource {bs} s = So (putSourceOk s)
 
   public export
   data GameEvent : Bindings -> Type where
@@ -2429,68 +2421,60 @@ mutual
   delayedCtx ev = settleTargets (eventAfter ev)
 
   public export
-  data Interceptable : GameEvent bs -> Type where
-    MkInterceptable : {auto 0 ok : admitsIntercept (eventUse (eventName ev)) = True} ->
-                      Interceptable ev
+  Interceptable : GameEvent bs -> Type
+  Interceptable {bs} ev = So (admitsIntercept (eventUse (eventName ev)))
 
   public export
-  data Holdable : GameEvent bs -> Type where
-    MkHoldable : {auto 0 ok : admitsHold (eventUse (eventName ev)) = True} ->
-                 Holdable ev
+  Holdable : GameEvent bs -> Type
+  Holdable {bs} ev = So (admitsHold (eventUse (eventName ev)))
 
   public export
-  data Triggerable : GameEvent bs -> Type where
-    MkTriggerable : {auto 0 ok : admitsTrigger (eventUse (eventName ev)) = True} ->
-                    Triggerable ev
+  Triggerable : GameEvent bs -> Type
+  Triggerable {bs} ev = So (admitsTrigger (eventUse (eventName ev)))
 
   public export
-  data Awaitable : GameEvent bs -> Type where
-    MkAwaitable : {auto 0 ok : admitsDelay (eventUse (eventName ev)) = True} ->
-                  Awaitable ev
+  Awaitable : GameEvent bs -> Type
+  Awaitable {bs} ev = So (admitsDelay (eventUse (eventName ev)))
 
   public export
-  data ReplUseOk : GameEvent bs -> ReplUse -> Type where
-    MkReplUseOk : {auto 0 ok : replUseOk (eventName ev) u = True} -> ReplUseOk ev u
+  ReplUseOk : GameEvent bs -> ReplUse -> Type
+  ReplUseOk {bs} ev u = So (replUseOk (eventName ev) u)
 
   public export
-  data TriggerWordOk : GameEvent bs -> TriggerWord -> Type where
-    MkTriggerWordOk : {auto 0 ok : triggerWordOk (eventName ev) w = True} ->
-                      TriggerWordOk ev w
+  TriggerWordOk : GameEvent bs -> TriggerWord -> Type
+  TriggerWordOk {bs} ev w = So (triggerWordOk (eventName ev) w)
 
   public export
-  data PartTriggerable : TurnPart -> Maybe Owner -> Type where
-    MkPartTriggerable : {auto 0 ok : admitsPartTrigger (partUse p w) = True} ->
-                        PartTriggerable p w
+  PartTriggerable : TurnPart -> Maybe Owner -> Type
+  PartTriggerable p w = So (admitsPartTrigger (partUse p w))
 
   public export
-  data ScheduledSkip : TurnPart -> Type where
-    MkScheduledSkip : {auto 0 ok : admitsScheduledSkip (skipUse p) = True} ->
-                      ScheduledSkip p
+  ScheduledSkip : TurnPart -> Type
+  ScheduledSkip p = So (admitsScheduledSkip (skipUse p))
 
   public export
-  data StandingSkip : TurnPart -> Type where
-    MkStandingSkip : {auto 0 ok : admitsStandingSkip (skipUse p) = True} ->
-                     StandingSkip p
+  StandingSkip : TurnPart -> Type
+  StandingSkip p = So (admitsStandingSkip (skipUse p))
 
   public export
-  data AddedPart : TurnPart -> Type where
-    MkAddedPart : {auto 0 ok : admitsAdded (addUse p) = True} -> AddedPart p
+  AddedPart : TurnPart -> Type
+  AddedPart p = So (admitsAdded (addUse p))
 
   public export
   data FollowerPart : Maybe TurnPart -> Type where
     NoFollower : FollowerPart Nothing
-    MkFollowerPart : {auto 0 ok : admitsFollower (addUse p) = True} ->
+    MkFollowerPart : {auto 0 ok : So (admitsFollower (addUse p))} ->
                      FollowerPart (Just p)
 
   public export
   data AnchorPart : Maybe TurnPart -> Type where
     BareAnchor : AnchorPart Nothing
-    MkAnchorPart : {auto 0 ok : admitsAnchor (addUse p) = True} ->
+    MkAnchorPart : {auto 0 ok : So (admitsAnchor (addUse p))} ->
                    AnchorPart (Just p)
 
   public export
   data TurnDeixis : Maybe Owner -> Bindings -> Type where
-    NoTurnDeixis : {auto 0 ok : isTurnDeictic w = False} -> TurnDeixis w bs
+    NoTurnDeixis : {auto 0 ok : So (not (isTurnDeictic w))} -> TurnDeixis w bs
     TurnInScope : {auto 0 ok : countOnes TurnRef bs = 1} ->
                   TurnDeixis (Just ThatTurns) bs
 
@@ -2573,13 +2557,13 @@ mutual
 
   public export
   data SpanOk : StaticKind -> Maybe (Duration bs) -> Type where
-    SpanUnstated : {auto 0 ok : absentOk k = True} -> SpanOk k Nothing
-    SpanStated : {auto 0 ok : admitsSpan k (spanUse d) = True} -> SpanOk k (Just d)
+    SpanUnstated : {auto 0 ok : So (absentOk k)} -> SpanOk k Nothing
+    SpanStated : {auto 0 ok : So (admitsSpan k (spanUse d))} -> SpanOk k (Just d)
 
   public export
   data DelaySpanOk : Maybe (Duration bs) -> Type where
     DelayOnce : DelaySpanOk Nothing
-    DelayFor : {auto 0 ok : admitsDelaySpan (spanUse d) = True} -> DelaySpanOk (Just d)
+    DelayFor : {auto 0 ok : So (admitsDelaySpan (spanUse d))} -> DelaySpanOk (Just d)
 
   public export
   playSourceOk : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
@@ -2595,7 +2579,7 @@ mutual
   data PlaySource : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
                     Maybe PlayAsThough -> Type where
     MkPlaySource : {0 fz : Maybe (ZoneExpr bs)} ->
-                   {auto 0 ok : playSourceOk zn fz at = True} -> PlaySource zn fz at
+                   {auto 0 ok : So (playSourceOk zn fz at)} -> PlaySource zn fz at
 
   public export
   record TokenChars (bs : Bindings) where
@@ -2620,25 +2604,24 @@ mutual
   tokenPtOk t = not (lineHasType Creature t.line.tys) || ptWritten t.pt
 
   public export
-  data TokenTyped : TokenChars bs -> Type where
-    MkTokenTyped : {auto 0 ok : tokenTyped t = True} -> TokenTyped t
+  TokenTyped : TokenChars bs -> Type
+  TokenTyped {bs} t = So (tokenTyped t)
 
   public export
-  data TokenPt : TokenChars bs -> Type where
-    MkTokenPt : {auto 0 ok : tokenPtOk t = True} -> TokenPt t
+  TokenPt : TokenChars bs -> Type
+  TokenPt {bs} t = So (tokenPtOk t)
 
   public export
-  data SubtypesFit : TokenChars bs -> Type where
-    MkSubtypesFit : {auto 0 ok : subsFitLine t.line.subs t.line.tys = True} ->
-                    SubtypesFit t
+  SubtypesFit : TokenChars bs -> Type
+  SubtypesFit {bs} t = So (subsFitLine t.line.subs t.line.tys)
 
   public export
   tokenCanonical : {0 bs : Bindings} -> TokenChars bs -> Bool
   tokenCanonical t = colorsDistinct t.colors && typesOrdered t.line.tys
 
   public export
-  data TokenCanonical : TokenChars bs -> Type where
-    MkTokenCanonical : {auto 0 ok : tokenCanonical t = True} -> TokenCanonical t
+  TokenCanonical : TokenChars bs -> Type
+  TokenCanonical {bs} t = So (tokenCanonical t)
 
   public export
   nameUnwritten : Maybe String -> Bool
@@ -2650,9 +2633,8 @@ mutual
   additionUnnamed t = nameUnwritten t.name
 
   public export
-  data AdditionUnnamed : TokenChars bs -> Type where
-    MkAdditionUnnamed : {auto 0 ok : additionUnnamed t = True} ->
-                        AdditionUnnamed t
+  AdditionUnnamed : TokenChars bs -> Type
+  AdditionUnnamed {bs} t = So (additionUnnamed t)
 
 
   public export
@@ -2709,8 +2691,8 @@ mutual
        else True
 
   public export
-  data PumpSigns : PtShift bs -> PtShift bs -> Type where
-    MkPumpSigns : {auto 0 ok : pumpSignsOk p t = True} -> PumpSigns p t
+  PumpSigns : PtShift bs -> PtShift bs -> Type
+  PumpSigns {bs} p t = So (pumpSignsOk p t)
 
   public export
   data CostShift : Bindings -> Type where
@@ -2894,8 +2876,8 @@ mutual
   entryRiderOk EntersAttacking = False
 
   public export
-  data EntryRiderOk : TokenRider -> Type where
-    MkEntryRiderOk : {auto 0 ok : entryRiderOk r = True} -> EntryRiderOk r
+  EntryRiderOk : TokenRider -> Type
+  EntryRiderOk r = So (entryRiderOk r)
 
   public export
   data Compulsion : Bindings -> Type where
@@ -2912,10 +2894,10 @@ mutual
   public export
   data DeonticPatient : {0 bs : Bindings} -> CompTag -> Deed -> Role ->
                         Maybe (Noun bs Object) -> Type where
-    NoDeonticPatient : {auto 0 ok : notRequired (deonticPatientOk t d r) = True} ->
+    NoDeonticPatient : {auto 0 ok : So (notRequired (deonticPatientOk t d r))} ->
                        DeonticPatient t d r Nothing
     DeonticPatientWritten : {0 m : Noun bs Object} ->
-                            {auto 0 ok : admitsPatient (deonticPatientOk t d r) = True} ->
+                            {auto 0 ok : So (admitsPatient (deonticPatientOk t d r))} ->
                             {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
                             DeonticPatient t d r (Just m)
 
@@ -2932,9 +2914,8 @@ mutual
   extendableScopeOk _ = False
 
   public export
-  data ExtendableScope : StaticEffect bs -> Type where
-    MkExtendableScope : {auto 0 ok : extendableScopeOk se = True} ->
-                        ExtendableScope se
+  ExtendableScope : StaticEffect bs -> Type
+  ExtendableScope {bs} se = So (extendableScopeOk se)
 
   public export
   notLetterRider : {0 bs : Bindings} -> StaticEffect bs -> Bool
@@ -2942,12 +2923,12 @@ mutual
   notLetterRider _ = True
 
   public export
-  data NotLetterRider : StaticEffect bs -> Type where
-    MkNotLetterRider : {auto 0 ok : notLetterRider se = True} -> NotLetterRider se
+  NotLetterRider : StaticEffect bs -> Type
+  NotLetterRider {bs} se = So (notLetterRider se)
 
   public export
-  data NotConditional : StaticEffect bs -> Type where
-    MkNotConditional : {auto 0 ok : notConditional se = True} -> NotConditional se
+  NotConditional : StaticEffect bs -> Type
+  NotConditional {bs} se = So (notConditional se)
 
   public export
   data Shield : Bindings -> Type where
@@ -3015,8 +2996,8 @@ mutual
   isCoord _ = False
 
   public export
-  data NotCoord : StaticEffect bs -> Type where
-    MkNotCoord : {auto 0 ok : isCoord se = False} -> NotCoord se
+  NotCoord : StaticEffect bs -> Type
+  NotCoord {bs} se = So (not (isCoord se))
 
   public export
   staticKind : {0 bs : Bindings} -> StaticEffect bs -> StaticKind
@@ -3232,9 +3213,8 @@ mutual
     (not (counterRiderWritten r) || counterZone (Just z))
 
   public export
-  data RidersFit : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Type where
-    MkRidersFit : {0 r : MoveRiders bs} ->
-                  {auto 0 ok : ridersFitZone r z = True} -> RidersFit r z
+  RidersFit : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Type
+  RidersFit r z = So (ridersFitZone r z)
 
   public export
   data Cost : Bindings -> Type where
@@ -3254,8 +3234,8 @@ mutual
   forEachAmount _ = False
 
   public export
-  data ForEachAmount : Amount bs -> Type where
-    MkForEachAmount : {auto 0 ok : forEachAmount a = True} -> ForEachAmount a
+  ForEachAmount : Amount bs -> Type
+  ForEachAmount {bs} a = So (forEachAmount a)
 
   public export
   costIntro : {bs : Bindings} -> Cost bs -> Bindings
@@ -3274,8 +3254,8 @@ mutual
   isCompound _ = False
 
   public export
-  data NotCompound : Cost bs -> Type where
-    MkNotCompound : {auto 0 ok : isCompound c = False} -> NotCompound c
+  NotCompound : Cost bs -> Type
+  NotCompound {bs} c = So (not (isCompound c))
 
   public export
   isLoyalty : {0 bs : Bindings} -> Cost bs -> Bool
@@ -3283,8 +3263,8 @@ mutual
   isLoyalty _ = False
 
   public export
-  data NotLoyalty : Cost bs -> Type where
-    MkNotLoyalty : {auto 0 ok : isLoyalty c = False} -> NotLoyalty c
+  NotLoyalty : Cost bs -> Type
+  NotLoyalty {bs} c = So (not (isLoyalty c))
 
   public export
   data ProducedMana : Bindings -> Type where
@@ -3312,7 +3292,7 @@ mutual
   public export
   data MaybeHeaded : {0 bs : Bindings} -> Maybe (Predicate bs Object) -> Type where
     MkMaybeHeaded : {0 src : Maybe (Predicate bs Object)} ->
-                    {auto 0 ok : maybeHeaded src = True} -> MaybeHeaded src
+                    {auto 0 ok : So (maybeHeaded src)} -> MaybeHeaded src
 
   public export
   data ManaRider : Bindings -> Type where
@@ -3333,7 +3313,7 @@ mutual
   data FreedomFits : {0 bs, cs : Bindings} ->
                      Amount bs -> ProducedMana cs -> Type where
     MkFreedomFits : {0 a : Amount bs} -> {0 p : ProducedMana cs} ->
-                    {auto 0 ok : freedomFits a p = True} -> FreedomFits a p
+                    {auto 0 ok : So (freedomFits a p)} -> FreedomFits a p
 
 
   public export
@@ -3352,8 +3332,8 @@ mutual
   repeatCount a = writtenCount a && writtenBound a
 
   public export
-  data RepeatCount : Amount bs -> Type where
-    MkRepeatCount : {auto 0 ok : repeatCount a = True} -> RepeatCount a
+  RepeatCount : Amount bs -> Type
+  RepeatCount {bs} a = So (repeatCount a)
 
   public export
   data Repetition : Bindings -> Type where
@@ -3387,16 +3367,16 @@ mutual
                  Effect bs
     CantBe : {k : Kind} -> (e : Effect bs) -> (act : ObjectAct) ->
              (what : Noun (preIntro e) k) ->
-             {auto 0 rd : riderAct act = True} ->
+             {auto 0 rd : So (riderAct act)} ->
              {auto 0 bl : Bindingless what} ->
              {auto 0 sub : ActSubject act what} -> Effect bs
     GainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->
                        {auto 0 sc : designationScope d = HeldBy k} ->
-                       {auto 0 at : designationGiven d = True} ->
+                       {auto 0 at : So (designationGiven d)} ->
                        {auto 0 zn : DesignationHolder d (nounZone n)} -> Effect bs
     GameBecomes : (d : Designation) ->
                   {auto 0 sc : designationScope d = HeldByGame} ->
-                  {auto 0 at : designationGiven d = True} -> Effect bs
+                  {auto 0 at : So (designationGiven d)} -> Effect bs
     Concludes : (v : OutcomeVerb) -> (who : Noun bs Player) -> Effect bs
     GameDrawn : Effect bs
     Choose : {k : Kind} -> (n : Noun bs k) ->
@@ -3502,7 +3482,7 @@ mutual
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
             {auto 0 mf : ModesFit q (modeCount modes)} ->
             {auto 0 mh : ModalHead q (modeCount modes)} ->
-            {auto 0 dm : distinctModes modes = True} -> Effect bs
+            {auto 0 dm : So (distinctModes modes)} -> Effect bs
     Delayed : (ev : GameEvent bs) ->
               {default Nothing span : Maybe (Duration bs)} ->
               Effect (delayedCtx ev) ->
@@ -3681,10 +3661,8 @@ mutual
   admitsReflexEnclosure EncReflexive = True
 
   public export
-  data ReflexEnclosure : Effect bs -> Type where
-    MkReflexEnclosure :
-      {auto 0 ok : admitsReflexEnclosure (reflexEncloseUse e) = True} ->
-      ReflexEnclosure e
+  ReflexEnclosure : Effect bs -> Type
+  ReflexEnclosure e = So (admitsReflexEnclosure (reflexEncloseUse e))
 
   public export
   payableOk : {0 bs : Bindings} -> Cost bs -> Bool
@@ -3698,8 +3676,8 @@ mutual
   payableOk (Compound _) = False
 
   public export
-  data Payable : Cost bs -> Type where
-    MkPayable : {auto 0 ok : payableOk c = True} -> Payable c
+  Payable : Cost bs -> Type
+  Payable {bs} c = So (payableOk c)
 
   public export
   costNounOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -3823,12 +3801,12 @@ mutual
   costActionOk (Reflexively _ _) = False
 
   public export
-  data CostAction : Effect bs -> Type where
-    MkCostAction : {auto 0 ok : costActionOk e = True} -> CostAction e
+  CostAction : Effect bs -> Type
+  CostAction {bs} e = So (costActionOk e)
 
   public export
-  data HeldClause : Effect bs -> Type where
-    MkHeldClause : {auto 0 ok : heldUntilOk e = True} -> HeldClause e
+  HeldClause : Effect bs -> Type
+  HeldClause {bs} e = So (heldUntilOk e)
 
   public export
   isInstead : {0 bs : Bindings} -> Effect bs -> Bool
@@ -3836,8 +3814,8 @@ mutual
   isInstead _ = False
 
   public export
-  data NotInstead : Effect bs -> Type where
-    MkNotInstead : {auto 0 ok : isInstead e = False} -> NotInstead e
+  NotInstead : Effect bs -> Type
+  NotInstead {bs} e = So (not (isInstead e))
 
   public export
   modeCount : {0 bs : Bindings} -> List (Effect bs) -> Nat
@@ -3937,8 +3915,8 @@ mutual
   isSeq _ = False
 
   public export
-  data NotSeq : Effect bs -> Type where
-    MkNotSeq : {auto 0 ok : isSeq e = False} -> NotSeq e
+  NotSeq : Effect bs -> Type
+  NotSeq {bs} e = So (not (isSeq e))
 
   public export
   isForEach : {0 bs : Bindings} -> Effect bs -> Bool
@@ -3946,8 +3924,8 @@ mutual
   isForEach _ = False
 
   public export
-  data NotForEach : Effect bs -> Type where
-    MkNotForEach : {auto 0 ok : isForEach e = False} -> NotForEach e
+  NotForEach : Effect bs -> Type
+  NotForEach {bs} e = So (not (isForEach e))
 
   namespace Sim
     public export
@@ -3962,8 +3940,8 @@ mutual
   isSim _ = False
 
   public export
-  data NotSim : Effect bs -> Type where
-    MkNotSim : {auto 0 ok : isSim e = False} -> NotSim e
+  NotSim : Effect bs -> Type
+  NotSim {bs} e = So (not (isSim e))
 
   public export
   nounIsAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -4028,9 +4006,8 @@ mutual
   nounIsMixedGroup _ = False
 
   public export
-  data NotMixedGroup : Noun bs k -> Type where
-    MkNotMixedGroup : {auto 0 ok : nounIsMixedGroup n = False} ->
-                      NotMixedGroup n
+  NotMixedGroup : Noun bs k -> Type
+  NotMixedGroup {bs} {k} n = So (not (nounIsMixedGroup n))
 
   public export
   nounSpansPlayers : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -4039,7 +4016,7 @@ mutual
 
   public export
   data NotPlayerSpanning : Noun bs k -> Type where
-    MkNotPlayerSpanning : {auto 0 ok : nounSpansPlayers n = False} ->
+    MkNotPlayerSpanning : {auto 0 ok : So (not (nounSpansPlayers n))} ->
                           NotPlayerSpanning n
 
   public export
@@ -4071,8 +4048,8 @@ mutual
   nounTargeted (OwnerOf _) = False
 
   public export
-  data Nontarget : Noun bs k -> Type where
-    MkNontarget : {auto 0 ok : nounTargeted n = False} -> Nontarget n
+  Nontarget : Noun bs k -> Type
+  Nontarget {bs} {k} n = So (not (nounTargeted n))
 
   public export
   selfSortedOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -4103,26 +4080,25 @@ mutual
   selfSortedOk (OwnerOf _) = True
 
   public export
-  data SelfSorted : Noun bs k -> Type where
-    MkSelfSorted : {auto 0 ok : selfSortedOk n = True} -> SelfSorted n
+  SelfSorted : Noun bs k -> Type
+  SelfSorted {bs} {k} n = So (selfSortedOk n)
 
   public export
   data DamageRecipient : Noun bs k -> Type where
     PlayerTakes : DamageRecipient {k = Player} n
-    AnyTargetTakes : {auto 0 ok : nounIsAnyTarget n = True} ->
+    AnyTargetTakes : {auto 0 ok : So (nounIsAnyTarget n)} ->
                      DamageRecipient {k = Object} n
-    JoinTakes : {auto 0 ok : nounIsKindJoin n = True} ->
+    JoinTakes : {auto 0 ok : So (nounIsKindJoin n)} ->
                 DamageRecipient {k = Object} n
-    GroupTakes : {auto 0 ok : nounIsMixedGroup n = True} ->
+    GroupTakes : {auto 0 ok : So (nounIsMixedGroup n)} ->
                  DamageRecipient {k = Object} n
     ObjectTakes : {auto 0 field : OnBattlefield (nounZone n)} ->
                   {auto 0 dm : DamageableTy (nounTy n)} ->
                   DamageRecipient {k = Object} n
 
   public export
-  data SingleRecipient : Noun bs k -> Type where
-    MkSingleRecipient : {auto 0 ok : isOne (nounPlur n) = True} ->
-                        SingleRecipient n
+  SingleRecipient : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+  SingleRecipient {bs} {k} n = So (isOne (nounPlur n))
 
   public export
   data DiscardOk : Noun bs Object -> Type where
@@ -4161,21 +4137,21 @@ mutual
             TagBody Mill (Move (LibrarySlice OnTop amt whose {sp} {wc})
                                (ZoneAt Graveyard Bare) {na})
     ScryB : {0 amt : Amount bs} ->
-            {auto 0 sp : SlicePossessor You} ->
+            {auto 0 sp : SlicePossessor {bs} You} ->
             {auto 0 wc : WrittenCount amt} ->
             TagBody Scry
                     (Expose LookAt You
                             (ExposedCards (LibrarySlice OnTop amt You {sp} {wc})))
     SurveilB : {0 amt : Amount bs} ->
-               {auto 0 sp : SlicePossessor You} ->
+               {auto 0 sp : SlicePossessor {bs} You} ->
                {auto 0 wc : WrittenCount amt} ->
                TagBody Surveil
                        (Expose LookAt You
                                (ExposedCards (LibrarySlice OnTop amt You {sp} {wc})))
 
   public export
-  data NonAgentive : VerbName -> Type where
-    MkNonAgentive : {auto 0 ok : verbAgentive v = False} -> NonAgentive v
+  NonAgentive : VerbName -> Type
+  NonAgentive v = So (not (verbAgentive v))
 
   public export
   damageSrcOk : {bs : Bindings} -> Noun bs Object -> Bool
@@ -4183,8 +4159,8 @@ mutual
   damageSrcOk n = isOne (nounPlur n)
 
   public export
-  data DamageSource : Noun bs Object -> Type where
-    MkDamageSource : {auto 0 ok : damageSrcOk n = True} -> DamageSource n
+  DamageSource : {bs : Bindings} -> Noun bs Object -> Type
+  DamageSource {bs} n = So (damageSrcOk n)
 
   public export
   setZone : Maybe VerbName -> Maybe Zone -> Binding -> Binding
@@ -4752,8 +4728,8 @@ mutual
   windowOk MainPhase (Just ThatTurns) = False
 
   public export
-  data WindowOk : TurnPart -> Maybe Owner -> Type where
-    MkWindowOk : {auto 0 ok : windowOk p w = True} -> WindowOk p w
+  WindowOk : TurnPart -> Maybe Owner -> Type
+  WindowOk p w = So (windowOk p w)
 
   public export
   headerWindowOk : TurnPart -> Maybe Owner -> Bool
@@ -4839,9 +4815,8 @@ mutual
   headerWindowOk MainPhase (Just ThatTurns) = False
 
   public export
-  data HeaderWindowOk : TurnPart -> Maybe Owner -> Type where
-    MkHeaderWindowOk : {auto 0 ok : headerWindowOk p w = True} ->
-                       HeaderWindowOk p w
+  HeaderWindowOk : TurnPart -> Maybe Owner -> Type
+  HeaderWindowOk p w = So (headerWindowOk p w)
 
   public export
   data TriggerWindow : Type where
@@ -4866,10 +4841,8 @@ mutual
   loyaltyDefaultsOk _ _ _ _ = True
 
   public export
-  data LoyaltyDefaults : Cost bs -> Maybe Timing -> Maybe UsageLimit ->
-                         Maybe (Condition bs) -> Type where
-    MkLoyaltyDefaults : {auto 0 ok : loyaltyDefaultsOk c w l g = True} ->
-                        LoyaltyDefaults c w l g
+  LoyaltyDefaults : Cost bs -> Maybe Timing -> Maybe UsageLimit -> Maybe (Condition bs) -> Type
+  LoyaltyDefaults {bs} c w l g = So (loyaltyDefaultsOk c w l g)
 
   public export
   data AltEvent : TriggerWord -> Maybe (GameEvent bs) -> Type where
@@ -4893,11 +4866,8 @@ mutual
   chapterDefaultsOk _ _ _ _ _ = True
 
   public export
-  data ChapterDefaults : (ev : GameEvent bs) -> (alt : Maybe (GameEvent bs)) ->
-                         Maybe TriggerWindow -> Maybe UsageLimit ->
-                         Maybe (Condition (headerCtx alt ev)) -> Type where
-    MkChapterDefaults : {auto 0 ok : chapterDefaultsOk ev alt w l i = True} ->
-                        ChapterDefaults ev alt w l i
+  ChapterDefaults : {bs : Bindings} -> (ev : GameEvent bs) -> (alt : Maybe (GameEvent bs)) -> Maybe TriggerWindow -> Maybe UsageLimit -> Maybe (Condition (headerCtx alt ev)) -> Type
+  ChapterDefaults {bs} ev alt w l i = So (chapterDefaultsOk ev alt w l i)
 
   public export
   data KeywordParam : Bindings -> Type where
@@ -4921,9 +4891,8 @@ mutual
   keywordParamFits k p = sameParamShape (keywordParamShape k) (paramShapeOf p)
 
   public export
-  data KeywordParamFits : Keyword -> Maybe (KeywordParam bs) -> Type where
-    MkKeywordParamFits : {auto 0 ok : keywordParamFits k p = True} ->
-                         KeywordParamFits k p
+  KeywordParamFits : Keyword -> Maybe (KeywordParam bs) -> Type
+  KeywordParamFits {bs} k p = So (keywordParamFits k p)
 
   public export
   data AbilityAt : Bindings -> Type where
@@ -4959,17 +4928,16 @@ mutual
                       {auto 0 lk : KeywordListOk ab ks} -> AbilityAt bs
 
   public export
-  data StaticLine : StaticEffect bs -> Type where
-    MkStaticLine : {auto 0 ok : staticLineOk se = True} -> StaticLine se
+  StaticLine : StaticEffect bs -> Type
+  StaticLine {bs} se = So (staticLineOk se)
 
   public export
-  data Untargeting : StaticEffect bs -> Type where
-    MkUntargeting : {auto 0 ok : anyTargetedAt (staticIntro se) = False} -> Untargeting se
+  Untargeting : {bs : Bindings} -> StaticEffect bs -> Type
+  Untargeting {bs} se = So (not (anyTargetedAt (staticIntro se)))
 
   public export
-  data HeaderNontarget : GameEvent bs -> Type where
-    MkHeaderNontarget : {auto 0 ok : anyTargetedAt (eventIntro ev) = False} ->
-                        HeaderNontarget ev
+  HeaderNontarget : {bs : Bindings} -> GameEvent bs -> Type
+  HeaderNontarget {bs} ev = So (not (anyTargetedAt (eventIntro ev)))
 
   public export
   lineKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe Keyword
@@ -5028,15 +4996,12 @@ mutual
   distinctKeywords (k :: ks) = not (keywordElem k ks) && distinctKeywords ks
 
   public export
-  data KeywordExtendable : {0 bs : Bindings} -> AbilityAt bs -> Type where
-    MkKeywordExtendable : {auto 0 ok : keywordExtendableOk ab = True} ->
-                          KeywordExtendable ab
+  KeywordExtendable : {0 bs : Bindings} -> AbilityAt bs -> Type
+  KeywordExtendable {bs} ab = So (keywordExtendableOk ab)
 
   public export
-  data KeywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List Keyword ->
-                       Type where
-    MkKeywordListOk : {auto 0 ok : keywordListOk ab ks = True} ->
-                      KeywordListOk ab ks
+  KeywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List Keyword -> Type
+  KeywordListOk {bs} ab ks = So (keywordListOk ab ks)
 
   public export
   grantableAb : {0 bs : Bindings} -> AbilityAt bs -> Bool
@@ -5048,8 +5013,8 @@ mutual
   grantableAb (AlsoForKeywords _ _) = False
 
   public export
-  data Grantable : AbilityAt bs -> Type where
-    MkGrantable : {auto 0 ok : grantableAb ab = True} -> Grantable ab
+  Grantable : AbilityAt bs -> Type
+  Grantable {bs} ab = So (grantableAb ab)
 
   public export
   emblemAbilityOk : AbilityAt [] -> Bool
@@ -5071,9 +5036,8 @@ mutual
   emblemAbilitiesOk (a :: as) = emblemAbilityOk a && emblemAbilitiesAll as
 
   public export
-  data EmblemAbilities : List (AbilityAt []) -> Type where
-    MkEmblemAbilities : {auto 0 ok : emblemAbilitiesOk abl = True} ->
-                        EmblemAbilities abl
+  EmblemAbilities : List (AbilityAt []) -> Type
+  EmblemAbilities abl = So (emblemAbilitiesOk abl)
 
   public export
   abilitiesGrantable : List (AbilityAt []) -> Bool
@@ -5085,8 +5049,8 @@ mutual
   tokenAbilitiesOk t = abilitiesGrantable t.abilities
 
   public export
-  data TokenAbilities : TokenChars bs -> Type where
-    MkTokenAbilities : {auto 0 ok : tokenAbilitiesOk t = True} -> TokenAbilities t
+  TokenAbilities : TokenChars bs -> Type
+  TokenAbilities {bs} t = So (tokenAbilitiesOk t)
 
   public export
   predRegime : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -5143,8 +5107,8 @@ mutual
       else zoneFits (nounZone n) (Just Battlefield) && not (castingOnly (abRegime ab))
 
   public export
-  data GrantSubject : AbilityAt bs -> Noun bs Object -> Type where
-    MkGrantSubject : {auto 0 ok : grantSubjectOk ab n = True} -> GrantSubject ab n
+  GrantSubject : {bs : Bindings} -> AbilityAt bs -> Noun bs Object -> Type
+  GrantSubject {bs} ab n = So (grantSubjectOk ab n)
 
   public export
   abIntro : {bs : Bindings} -> AbilityAt bs -> Bindings
@@ -5209,8 +5173,8 @@ mutual
   coordSpanOk _ _ = True
 
   public export
-  data CoordSpanOk : StaticEffect bs -> Maybe SpanUse -> Type where
-    MkCoordSpanOk : {auto 0 ok : coordSpanOk se u = True} -> CoordSpanOk se u
+  CoordSpanOk : StaticEffect bs -> Maybe SpanUse -> Type
+  CoordSpanOk {bs} se u = So (coordSpanOk se u)
 
   public export
   selfTapPayment : {0 bs : Bindings} -> Cost bs -> Bool
@@ -5243,8 +5207,8 @@ mutual
   costTapOnce (Compound cs) = selfTapOnce cs
 
   public export
-  data CostTapOnce : Cost bs -> Type where
-    MkCostTapOnce : {auto 0 ok : costTapOnce c = True} -> CostTapOnce c
+  CostTapOnce : Cost bs -> Type
+  CostTapOnce {bs} c = So (costTapOnce c)
 
   public export
   costPaidByYou : {0 bs : Bindings} -> Cost bs -> Bool
@@ -5264,8 +5228,8 @@ mutual
   costsPaidByYou (c :: cs) = costPaidByYou c && costsPaidByYou cs
 
   public export
-  data CostPaidByYou : Cost bs -> Type where
-    MkCostPaidByYou : {auto 0 ok : costPaidByYou c = True} -> CostPaidByYou c
+  CostPaidByYou : Cost bs -> Type
+  CostPaidByYou {bs} c = So (costPaidByYou c)
 
   public export
   payAgreesOk : {0 bs : Bindings} -> {0 cs : Bindings} ->
@@ -5273,8 +5237,8 @@ mutual
   payAgreesOk who c = not (nounIsYou who) || costPaidByYou c
 
   public export
-  data PayAgrees : Noun bs Player -> Cost cs -> Type where
-    MkPayAgrees : {auto 0 ok : payAgreesOk who c = True} -> PayAgrees who c
+  PayAgrees : Noun bs Player -> Cost cs -> Type
+  PayAgrees {bs} {cs} who c = So (payAgreesOk who c)
 
   public export
   costOffBattlefield : {0 bs : Bindings} -> Cost bs -> Bool
@@ -5295,7 +5259,7 @@ mutual
   data AltPayment : {0 bs : Bindings} -> Maybe (Cost bs) -> Type where
     NoAltPayment : AltPayment Nothing
     AltPaymentWritten : {0 c : Cost bs} ->
-                        {auto 0 ok : costOffBattlefield c = True} ->
+                        {auto 0 ok : So (costOffBattlefield c)} ->
                         AltPayment (Just c)
 
 public export
@@ -5314,8 +5278,8 @@ supersDistinct [] = True
 supersDistinct (s :: ss) = not (supertypeMember s ss) && supersDistinct ss
 
 public export
-data CardSupers : List Supertype -> Type where
-  MkCardSupers : {auto 0 ok : supersDistinct ss = True} -> CardSupers ss
+CardSupers : List Supertype -> Type
+CardSupers ss = So (supersDistinct ss)
 
 public export
 data CardClass = PermanentCard | SpellCard
@@ -5494,28 +5458,27 @@ cardCostOk tys cost = case (lineHasType Land tys, cost) of
 
 public export
 data CardLine : TypeLine -> Type where
-  MkCardLine : {auto 0 ne : lineNonEmpty l = True} ->
-               {auto 0 ord : typesOrdered l.tys = True} ->
-               {auto 0 cmb : typesCombinable l.tys = True} ->
-               {auto 0 sf : subsFitLine l.subs l.tys = True} -> CardLine l
+  MkCardLine : {auto 0 ne : So (lineNonEmpty l)} ->
+               {auto 0 ord : So (typesOrdered l.tys)} ->
+               {auto 0 cmb : So (typesCombinable l.tys)} ->
+               {auto 0 sf : So (subsFitLine l.subs l.tys)} -> CardLine l
 
 public export
-data CardText : TypeLine -> AbilitySeq [] -> Type where
-  MkCardText : {auto 0 ok : cardTextOk l.tys as = True} -> CardText l as
+CardText : TypeLine -> AbilitySeq [] -> Type
+CardText l as = So (cardTextOk l.tys as)
 
 public export
-data CardChapters : TypeLine -> AbilitySeq [] -> Type where
-  MkCardChapters : {auto 0 ok : chapterFrameOk l.subs as = True} ->
-                   CardChapters l as
+CardChapters : TypeLine -> AbilitySeq [] -> Type
+CardChapters l as = So (chapterFrameOk l.subs as)
 
 public export
 data CardPt : TypeLine -> AbilitySeq [] -> Maybe (PrintedStat, PrintedStat) -> Type where
   MkCardPt : {0 stats : Maybe (PrintedStat, PrintedStat)} ->
-             {auto 0 ok : cardPtOk l.tys as stats = True} -> CardPt l as stats
+             {auto 0 ok : So (cardPtOk l.tys as stats)} -> CardPt l as stats
 
 public export
-data CardCost : TypeLine -> Maybe ManaCost -> Type where
-  MkCardCost : {auto 0 ok : cardCostOk l.tys c = True} -> CardCost l c
+CardCost : TypeLine -> Maybe ManaCost -> Type
+CardCost l c = So (cardCostOk l.tys c)
 
 public export
 record Card where

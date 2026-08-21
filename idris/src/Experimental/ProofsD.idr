@@ -15,7 +15,7 @@ import Experimental.Unspellable
 public export
 badExiledWithAttacking : Unspellable (Predicate [] Object) (\ok =>
   And [Attacking, Macros.exiledWithThisArtifact] {zc = ok})
-badExiledWithAttacking MkZoneCoherent impossible
+badExiledWithAttacking Oh impossible
 
 
 ||| "not exiled with this artifact"
@@ -23,7 +23,7 @@ badExiledWithAttacking MkZoneCoherent impossible
 public export
 badNegatedExiledWith : Unspellable (Predicate [] Object) (\ok =>
   Not Macros.exiledWithThisArtifact {ng = ok})
-badNegatedExiledWith MkNegatable impossible
+badNegatedExiledWith Oh impossible
 
 
 ||| "Draw a card." printed as a spell ability on a creature card
@@ -32,7 +32,7 @@ public export
 badSpellAbilityOnPermanent : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature])
        [Spell Macros.drawACard] (Just (1, 1)) {tx = ok})
-badSpellAbilityOnPermanent MkCardText impossible
+badSpellAbilityOnPermanent Oh impossible
 
 
 ||| "Creatures you control get +1/+1." printed as a static ability on a sorcery
@@ -41,7 +41,7 @@ public export
 badStaticOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
        [Static (Gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))] Nothing {tx = ok})
-badStaticOnSorcery MkCardText impossible
+badStaticOnSorcery Oh impossible
 
 
 ||| "Flying" printed as a bare line on an instant card
@@ -50,7 +50,7 @@ public export
 badKeywordOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Instant])
        [KeywordAbility Flying] Nothing {tx = ok})
-badKeywordOnInstant MkCardText impossible
+badKeywordOnInstant Oh impossible
 
 
 ||| "{T}: Draw a card." printed on a sorcery card
@@ -59,7 +59,7 @@ public export
 badTapSorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Tap Sorcery" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
        [Activated TapSymbol Macros.drawACard] Nothing {tx = ok})
-badTapSorcery MkCardText impossible
+badTapSorcery Oh impossible
 
 
 ||| a creature card printed with no power or toughness
@@ -75,7 +75,7 @@ badCreatureCardNoPt MkCardPt impossible
 public export
 badLandWithManaCost : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] [Land]) [] Nothing {mc = ok})
-badLandWithManaCost MkCardCost impossible
+badLandWithManaCost Oh impossible
 
 
 ||| "Legendary Legendary Creature"
@@ -84,7 +84,7 @@ public export
 badDuplicateSupertype : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [Legendary, Legendary] (MkTypeLine [] [Creature])
        [] (Just (1, 1)) {sp = ok})
-badDuplicateSupertype MkCardSupers impossible
+badDuplicateSupertype Oh impossible
 
 
 ||| "Land Creature Instant"
@@ -117,7 +117,7 @@ badCardTypeOrder MkCardLine impossible
 public export
 badGainsSpellAbility : Unspellable (Effect []) (\ok =>
   Macros.gains (Macros.target Macros.creature) (Spell Macros.drawACard) Nothing {gr = ok})
-badGainsSpellAbility MkGrantable impossible
+badGainsSpellAbility Oh impossible
 
 
 ||| "Counter target creature."
@@ -133,7 +133,7 @@ badCounterPermanent OnTheStack impossible
 public export
 badCounterAsCost : Unspellable Ability (\ok =>
   Activated (Do (Macros.counterSpell (Macros.target Macros.spell)) {ok}) Macros.drawACard)
-badCounterAsCost MkCostAction impossible
+badCounterAsCost Oh impossible
 
 
 ||| "You may play a spell this turn." of an object on the stack
@@ -186,7 +186,7 @@ public export
 badMoveOntoBattlefieldAsCost : Unspellable Ability (\ok =>
   Activated (Do (Macros.putOntoBattlefield (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)]))) {ok})
             Macros.drawACard)
-badMoveOntoBattlefieldAsCost MkCostAction impossible
+badMoveOntoBattlefieldAsCost Oh impossible
 
 
 ||| "unless" written over a positive condition
@@ -204,7 +204,7 @@ badUnlessOnPositive MkMarkingOk impossible
 public export
 badTriggerAtYourEndOfCombat : Unspellable Ability (\ok =>
   Triggered At (BeginningOf EndOfCombat (Just Yours) {pu = ok}) Macros.drawACard)
-badTriggerAtYourEndOfCombat MkPartTriggerable impossible
+badTriggerAtYourEndOfCombat Oh impossible
 
 
 ||| "Target creature gets +1/+1 until the end-of-combat step."
@@ -247,7 +247,7 @@ badUnflipEvent Oh impossible
 public export
 badEmbeddedAnyTargetExact1 : Unspellable (Noun [] Object) (\ok =>
   Macros.target (And [Macros.creature, ControlledBy (ControllerOf (Macros.target AnyTarget))]) {af = ok})
-badEmbeddedAnyTargetExact1 MkAnyTargetAtCount impossible
+badEmbeddedAnyTargetExact1 Oh impossible
 
 
 
@@ -257,7 +257,7 @@ badEmbeddedAnyTargetExact1 MkAnyTargetAtCount impossible
 public export
 badAtBecomesTapped : Unspellable Ability (\ok =>
   Triggered At (StatusEvent (Macros.a Macros.creature) Tapped) Macros.drawACard {wo = ok})
-badAtBecomesTapped MkTriggerWordOk impossible
+badAtBecomesTapped Oh impossible
 
 
 ||| "If target creature would become tapped, exile it instead this turn."
@@ -267,7 +267,7 @@ badInterceptBecomesTapped : Unspellable (Effect []) (\ok =>
   Macros.ifWouldInstead (StatusEvent (Macros.target Macros.creature) Tapped)
                  (Macros.exile It) (Just Macros.thisTurn)
                  {ok = Builtin.fst ok, uo = Builtin.snd ok})
-badInterceptBecomesTapped (MkInterceptable, _) impossible
+badInterceptBecomesTapped (Oh, _) impossible
 
 
 ||| "Exile target creature until a creature becomes untapped."
@@ -275,7 +275,7 @@ badInterceptBecomesTapped (MkInterceptable, _) impossible
 public export
 badHeldUntilBecomesUntapped : Unspellable (Effect []) (\ok =>
   Macros.exileUntil (Macros.target Macros.creature) (StatusEvent (Macros.a Macros.creature) Untapped) {hd = ok})
-badHeldUntilBecomesUntapped MkHoldable impossible
+badHeldUntilBecomesUntapped Oh impossible
 
 
 ||| "When target creature becomes tapped, sacrifice that creature."
@@ -284,7 +284,7 @@ public export
 badDelayedOnBecomesTapped : Unspellable (Effect []) (\ok =>
   Delayed (StatusEvent (Macros.target Macros.creature) Tapped)
           (Macros.sacrifice You (That (TypeW Creature))) {aw = ok})
-badDelayedOnBecomesTapped MkAwaitable impossible
+badDelayedOnBecomesTapped Oh impossible
 
 
 ||| "Target creature gets +2/+2 until this creature becomes untapped."
@@ -329,10 +329,10 @@ badCastsAnyTarget : Unspellable Ability (\ok =>
   Triggered Whenever
             (Casts You (Macros.target AnyTarget)
                    {zn = Builtin.fst ok}
-                   {nt = MkNontarget {ok = Builtin.fst (Builtin.snd ok)}})
+                   {nt = Builtin.fst (Builtin.snd ok)})
             Macros.drawACard
-            {hn = MkHeaderNontarget {ok = Builtin.snd (Builtin.snd ok)}})
-badCastsAnyTarget (_, (Refl, _)) impossible
+            {hn = Builtin.snd (Builtin.snd ok)})
+badCastsAnyTarget (_, (Oh, _)) impossible
 
 
 ||| "Exile target creature tapped."
@@ -341,9 +341,9 @@ public export
 badExileTapped : Dependent.Unspellable (Effect []) (\x, y =>
   Composite Exile (Move (Macros.target Macros.creature) Macros.exileZ
                         {riders = MkMoveRiders [EntersTapped] Nothing}
-                        {rf = MkRidersFit {ok = x}})
+                        {rf = x})
                   {ok = y})
-badExileTapped (Refl ** _) impossible
+badExileTapped (Oh ** _) impossible
 
 
 ||| "Turn target creature card in your graveyard face down."
@@ -375,7 +375,7 @@ badTurnedFaceDownEvent Oh impossible
 public export
 badAtPhasesOut : Unspellable Ability (\ok =>
   Triggered At (StatusEvent (Macros.a Macros.creature) PhasedOut) Macros.drawACard {wo = ok})
-badAtPhasesOut MkTriggerWordOk impossible
+badAtPhasesOut Oh impossible
 
 
 ||| "If target creature would phase out, exile it instead this turn."
@@ -385,7 +385,7 @@ badInterceptPhasesOut : Unspellable (Effect []) (\ok =>
   Macros.ifWouldInstead (StatusEvent (Macros.target Macros.creature) PhasedOut)
                  (Macros.exile It) (Just Macros.thisTurn)
                  {ok = Builtin.fst ok, uo = Builtin.snd ok})
-badInterceptPhasesOut (MkInterceptable, _) impossible
+badInterceptPhasesOut (Oh, _) impossible
 
 
 ||| "Exile target creature until a permanent you control is turned face up."
@@ -394,7 +394,7 @@ public export
 badHeldUntilTurnedFaceUp : Unspellable (Effect []) (\ok =>
   Macros.exileUntil (Macros.target Macros.creature)
                     (StatusEvent (Macros.a (And [Permanent, ControlledBy You])) FaceUp) {hd = ok})
-badHeldUntilTurnedFaceUp MkHoldable impossible
+badHeldUntilTurnedFaceUp Oh impossible
 
 
 ||| "Remove target creature card in your graveyard from combat."
@@ -420,7 +420,7 @@ badBlockingGraveyardRelatum Oh impossible
 public export
 badNegatedBlockedBy : Unspellable (Predicate [] Object) (\ok =>
   Not (BlockedBy Macros.thisCreature) {ng = ok})
-badNegatedBlockedBy MkNegatable impossible
+badNegatedBlockedBy Oh impossible
 
 
 ||| "At a creature becomes blocked, draw a card."
@@ -428,7 +428,7 @@ badNegatedBlockedBy MkNegatable impossible
 public export
 badAtBecomesBlocked : Unspellable Ability (\ok =>
   Triggered At (BecomesBlocked (Macros.a Macros.creature) Nothing) Macros.drawACard {wo = ok})
-badAtBecomesBlocked MkTriggerWordOk impossible
+badAtBecomesBlocked Oh impossible
 
 
 ||| "Whenever a creature blocks this, draw a card."
@@ -437,7 +437,7 @@ public export
 badBlocksBareThisPartner : Unspellable Ability (\ok =>
   Triggered Whenever (Blocks (Macros.a Macros.creature) (Just This)
                              {bp = OnePartner {ss = ok}}) Macros.drawACard)
-badBlocksBareThisPartner MkSelfSorted impossible
+badBlocksBareThisPartner Oh impossible
 
 
 ||| "If target creature would become blocked, exile it instead this turn."
@@ -447,7 +447,7 @@ badInterceptBecomesBlocked : Unspellable (Effect []) (\ok =>
   Macros.ifWouldInstead (BecomesBlocked (Macros.target Macros.creature) Nothing)
                  (Macros.exile It) (Just Macros.thisTurn)
                  {ok = Builtin.fst ok, uo = Builtin.snd ok})
-badInterceptBecomesBlocked (MkInterceptable, _) impossible
+badInterceptBecomesBlocked (Oh, _) impossible
 
 
 ||| "Your opponents can't untap more than three lands during their untap steps."
@@ -472,7 +472,7 @@ badUntapCapGraveyardSet Oh impossible
 public export
 badUntapCapHeadless : Unspellable Ability (\ok =>
   Static (CantUntapMoreThan (PlayerGroup AllPlayers) 1 Macros.tapped {hd = ok}))
-badUntapCapHeadless MkHeaded impossible
+badUntapCapHeadless Oh impossible
 
 
 ||| "Players can't untap more than one land until your next untap step."
@@ -530,7 +530,7 @@ badLastPoisonCounterRemoved Refl impossible
 public export
 badAtLastCounterRemoved : Unspellable Ability (\ok =>
   Triggered At (LastCounterRemoved Time Macros.thisCreature) Macros.drawACard {wo = ok})
-badAtLastCounterRemoved MkTriggerWordOk impossible
+badAtLastCounterRemoved Oh impossible
 
 
 ||| "When the last time counter is removed from this card, if this creature is exiled, draw a card."
@@ -593,7 +593,7 @@ badHappenedToPlayerDied MkLookbackSubject impossible
 public export
 badColorlessWhite : Unspellable (Noun [] Object) (\ok =>
   Macros.target (And [Macros.creature, IsColorless, ColorIs White] {cf = ok}))
-badColorlessWhite MkContradictionFree impossible
+badColorlessWhite Oh impossible
 
 
 ||| "target nonmulticolored permanent"
@@ -601,7 +601,7 @@ badColorlessWhite MkContradictionFree impossible
 public export
 badNonMulticolored : Unspellable (Predicate [] Object) (\ok =>
   Not Multicolored {ng = ok})
-badNonMulticolored MkNegatable impossible
+badNonMulticolored Oh impossible
 
 
 ||| "At the beginning of an opponent's upkeep, draw a card."
@@ -609,7 +609,7 @@ badNonMulticolored MkNegatable impossible
 public export
 badTriggerAtAnOpponentsUpkeep : Unspellable Ability (\ok =>
   Triggered At (BeginningOf Upkeep (Just AnOpponents) {pu = ok}) Macros.drawACard)
-badTriggerAtAnOpponentsUpkeep MkPartTriggerable impossible
+badTriggerAtAnOpponentsUpkeep Oh impossible
 
 
 ||| "At the beginning of each opponent's first main phase, draw a card."
@@ -617,7 +617,7 @@ badTriggerAtAnOpponentsUpkeep MkPartTriggerable impossible
 public export
 badTriggerAtEachOpponentsFirstMain : Unspellable Ability (\ok =>
   Triggered At (BeginningOf FirstMain (Just EachOpponents) {pu = ok}) Macros.drawACard)
-badTriggerAtEachOpponentsFirstMain MkPartTriggerable impossible
+badTriggerAtEachOpponentsFirstMain Oh impossible
 
 
 ||| "{2}: Draw a card. Activate only during your end step."
@@ -626,7 +626,7 @@ public export
 badWindowDuringYourEndStep : Unspellable Ability (\ok =>
   Activated (Mana [Macros.generic 2]) Macros.drawACard
             {window = Just (DuringPart EndStep (Just Yours) {wk = ok})})
-badWindowDuringYourEndStep MkWindowOk impossible
+badWindowDuringYourEndStep Oh impossible
 
 
 ||| "Target land attacks each combat if able."
@@ -644,7 +644,7 @@ public export
 badMustAttackWithPatient : Unspellable Ability (\ok =>
   Static (Deontic Macros.thisCreature Require Attack Agent (Just (Macros.target Macros.creature))
                   {pt = DeonticPatientWritten {ok = ok}}))
-badMustAttackWithPatient Refl impossible
+badMustAttackWithPatient Oh impossible
 
 
 ||| "Target creature blocks this turn if able."
@@ -654,7 +654,7 @@ badMustBlockNoPatient : Unspellable (Effect []) (\ok =>
   Continuously (Deontic (Macros.target Macros.creature) Require Block Agent Nothing
                         {pt = NoDeonticPatient {ok = ok}})
                (Just Macros.thisTurn))
-badMustBlockNoPatient Refl impossible
+badMustBlockNoPatient Oh impossible
 
 
 ||| "Target artifact may choose not to untap during your untap step this turn."
@@ -671,7 +671,7 @@ public export
 badItIsDay : Unspellable Ability (\ok =>
   Triggered At (BeginningOf EndStep (Just Yours)) Macros.drawACard
             {intervening = Just (GameIs Day {at = ok})})
-badItIsDay Refl impossible
+badItIsDay Oh impossible
 
 
 ||| "if you aren't the monarch"
@@ -679,7 +679,7 @@ badItIsDay Refl impossible
 public export
 badNegatedMonarch : Unspellable (Predicate [] Player) (\ok =>
   Not (HasDesignation Monarch) {ng = ok})
-badNegatedMonarch MkNegatable impossible
+badNegatedMonarch Oh impossible
 
 
 ||| "target creature card in your graveyard that is your Ring-bearer"
@@ -688,7 +688,7 @@ public export
 badRingBearerInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, HasDesignation RingBearer,
        InZone (Macros.graveyardOf You)] {zc = ok})
-badRingBearerInGraveyard MkZoneCoherent impossible
+badRingBearerInGraveyard Oh impossible
 
 
 ||| "Whenever this creature attacks, that creature gets +2/+0 until end of turn."
@@ -708,7 +708,7 @@ badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
                         (Just (Macros.target Macros.creature))
                         {pt = DeonticPatientWritten {ok = ok}})
                (Just Macros.thisTurn))
-badForbidAttackWithPatient Refl impossible
+badForbidAttackWithPatient Oh impossible
 
 
 ||| "This creature can't be blocked by target creature unless you pay {1}."
@@ -718,7 +718,7 @@ badGateBlockPatientWithPatient : Unspellable Ability (\ok =>
   Static (Deontic Macros.thisCreature (GatedBy (Mana [Macros.generic 1]))
                   Block Patient (Just (Macros.target Macros.creature))
                   {pt = DeonticPatientWritten {ok = ok}}))
-badGateBlockPatientWithPatient Refl impossible
+badGateBlockPatientWithPatient Oh impossible
 
 
 ||| "As long as this creature is attacking, that creature gets +2/+0."
@@ -751,7 +751,7 @@ badFortifiedCreature Oh impossible
 public export
 badTargetedOutcomeGate : Unspellable Ability (\ok =>
   Static (OutcomeGate CantLose (Macros.target AnyPlayer)) {ut = ok})
-badTargetedOutcomeGate MkUntargeting impossible
+badTargetedOutcomeGate Oh impossible
 
 
 ||| "You lose the game: Draw a card."
@@ -759,7 +759,7 @@ badTargetedOutcomeGate MkUntargeting impossible
 public export
 badConcludesAsCost : Unspellable Ability (\ok =>
   Activated (Do (Concludes LoseGame You) {ok = ok}) Macros.drawACard)
-badConcludesAsCost MkCostAction impossible
+badConcludesAsCost Oh impossible
 
 
 ||| "Each player can't untap more than one creature during their untap step."
@@ -767,7 +767,7 @@ badConcludesAsCost MkCostAction impossible
 public export
 badUntapCapEachPlayer : Unspellable Ability (\ok =>
   Static (CantUntapMoreThan (Each AnyPlayer) 1 Macros.creature {cs = ok}))
-badUntapCapEachPlayer MkCapSubject impossible
+badUntapCapEachPlayer Oh impossible
 
 
 ||| "This creature deals 2 damage to your opponents."
@@ -775,7 +775,7 @@ badUntapCapEachPlayer MkCapSubject impossible
 public export
 badPluralPlayerDamageRecipient : Unspellable (Effect []) (\ok =>
   DealDamage Macros.thisCreature (Lit 2) (PlayerGroup YourOpponents) {pm = ok})
-badPluralPlayerDamageRecipient MkPerMember impossible
+badPluralPlayerDamageRecipient Oh impossible
 
 
 ||| "creatures players control"
@@ -783,7 +783,7 @@ badPluralPlayerDamageRecipient MkPerMember impossible
 public export
 badControlledByAllPlayers : Unspellable (Predicate [] Object) (\ok =>
   ControlledBy (PlayerGroup AllPlayers) {ps = ok})
-badControlledByAllPlayers MkPossessor impossible
+badControlledByAllPlayers Oh impossible
 
 
 ||| "cards in players' graveyards"
@@ -791,7 +791,7 @@ badControlledByAllPlayers MkPossessor impossible
 public export
 badOwnedByAllPlayers : Unspellable (ZoneExpr []) (\ok =>
   Macros.graveyardOf (PlayerGroup AllPlayers) {pn = ok})
-badOwnedByAllPlayers MkPossessor impossible
+badOwnedByAllPlayers Oh impossible
 
 
 ||| "At a player losing the game, put five +1/+1 counters on this creature."
@@ -800,7 +800,7 @@ public export
 badGameLossAtTrigger : Unspellable Ability (\ok =>
   Triggered At (LosesGame (Macros.a AnyPlayer))
             (PutCounters (Lit 5) Macros.plusOnePlusOne Macros.thisCreature) {wo = ok})
-badGameLossAtTrigger MkTriggerWordOk impossible
+badGameLossAtTrigger Oh impossible
 
 
 ||| "if a player has lost the game this turn"
@@ -816,7 +816,7 @@ badGameLossLookback MkLookbackSubject impossible
 public export
 badDelayedGameLoss : Unspellable (Effect []) (\ok =>
   Delayed (LosesGame You) (Draw You (Lit 1)) {aw = ok})
-badDelayedGameLoss MkAwaitable impossible
+badDelayedGameLoss Oh impossible
 
 
 ||| "You gain life equal to your opponents' life totals."
@@ -840,7 +840,7 @@ badDistributiveLifeTotalRead Refl impossible
 public export
 badScaledBound : Unspellable (Predicate [] Object) (\ok =>
   Compare Power AtMost (Times 2 (Macros.powerOf This)) {cb = ok})
-badScaledBound MkComparableBound impossible
+badScaledBound Oh impossible
 
 
 ||| "if your life total is less than or equal to twice an opponent's life total"
@@ -849,7 +849,7 @@ public export
 badScaledConditionBound : Unspellable (Condition []) (\ok =>
   CompareAmt (PlayerStatOf LifeTotal You) AtMost
              (Times 2 (PlayerStatOf LifeTotal Macros.anOpponent)) {cb = ok})
-badScaledConditionBound MkComparableBound impossible
+badScaledConditionBound Oh impossible
 
 
 ||| "Draw cards equal to the difference."
@@ -880,7 +880,7 @@ badDifferenceSubject : Unspellable Ability (\ok =>
                 Nothing)
             {intervening = Just (CompareAmt (CountOf (InZone (Macros.handOf You)))
                                             Less (Lit 7))})
-badDifferenceSubject MkReadAmount impossible
+badDifferenceSubject Oh impossible
 
 
 ||| "Draw X cards."
@@ -896,7 +896,7 @@ badUnlicensedX Refl impossible
 public export
 badWrittenXDef : Unspellable (Effect []) (\ok =>
   WhereLetter LetterX (Lit 4) {xd = ok} (Draw You (DefinedLetter LetterX {ok = Refl})))
-badWrittenXDef MkLetterDefinition impossible
+badWrittenXDef Oh impossible
 
 
 ||| "Draw X cards, where X is the number of creatures you control, where X is the number of creatures on the battlefield."
@@ -915,7 +915,7 @@ public export
 badDisagreeingZeroPump : Unspellable (Effect []) (\ok =>
   Macros.gets (Macros.target Macros.creature) (PtUp (Lit 0)) (PtDown (Lit 2))
        (Just Macros.untilEndOfTurn) {ps = ok})
-badDisagreeingZeroPump MkPumpSigns impossible
+badDisagreeingZeroPump Oh impossible
 
 
 ||| "Draw Y cards, where X is the number of creatures you control."
@@ -936,7 +936,7 @@ badRiderInsideDuration : Unspellable (Effect []) (\ok =>
                                         (PtUp (DefinedLetter LetterX))
                                         (PtUp (DefinedLetter LetterX))))
                (Just Macros.untilEndOfTurn) {nr = ok})
-badRiderInsideDuration MkNotLetterRider impossible
+badRiderInsideDuration Oh impossible
 
 
 ||| "This creature gets +X/+0, where X is the number of creatures you control, where X is the number of creatures on the battlefield."
@@ -980,7 +980,7 @@ badCostSubjectOnBattlefield MkCostSubject impossible
 public export
 badZeroCostShift : Unspellable (StaticEffect []) (\ok =>
   CostsToCast This (CostLess (Lit 0)) {wc = ok})
-badZeroCostShift MkWrittenCount impossible
+badZeroCostShift Oh impossible
 
 
 ||| "Spells cost {1} less to cast." written as a resolving clause
@@ -996,7 +996,7 @@ badCostClause SpanUnstated impossible
 public export
 badCastInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, CastBy You, InZone Macros.graveyardZ] {zc = ok})
-badCastInGraveyard MkZoneCoherent impossible
+badCastInGraveyard Oh impossible
 
 
 ||| "spells players cast"
@@ -1004,4 +1004,4 @@ badCastInGraveyard MkZoneCoherent impossible
 public export
 badCastByAllPlayers : Unspellable (Predicate [] Object) (\ok =>
   CastBy (PlayerGroup AllPlayers) {ps = ok})
-badCastByAllPlayers MkPossessor impossible
+badCastByAllPlayers Oh impossible

@@ -44,7 +44,7 @@ public export
 badCounterDescriptionInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, InZone (Macros.graveyardOf You),
        HasCounters (Just Macros.plusOnePlusOne)] {zc = ok})
-badCounterDescriptionInGraveyard MkZoneCoherent impossible
+badCounterDescriptionInGraveyard Oh impossible
 
 
 ||| "each creature with a poison counter on it"
@@ -60,7 +60,7 @@ badPoisonCounterDescription Refl impossible
 public export
 badHeadlessCounterDescription : Unspellable (Noun [] Object) (\ok =>
   Each (HasCounters Nothing) {hd = ok})
-badHeadlessCounterDescription MkHeaded impossible
+badHeadlessCounterDescription Oh impossible
 
 
 ||| "Cumulative upkeep"
@@ -68,7 +68,7 @@ badHeadlessCounterDescription MkHeaded impossible
 public export
 badBareCumulativeUpkeep : Unspellable Ability (\ok =>
   KeywordAbility CumulativeUpkeep {pf = ok})
-badBareCumulativeUpkeep MkKeywordParamFits impossible
+badBareCumulativeUpkeep Oh impossible
 
 
 ||| "Cumulative upkeep {2}" printed on a sorcery.
@@ -78,7 +78,7 @@ badCumulativeUpkeepOnSpell : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
        [KeywordAbility CumulativeUpkeep
           {param = Just (ParamCost (Mana [Macros.generic 2]))}] Nothing {tx = ok})
-badCumulativeUpkeepOnSpell MkCardText impossible
+badCumulativeUpkeepOnSpell Oh impossible
 
 
 ||| "a cumulative upkeep counter"
@@ -97,7 +97,7 @@ badKeywordListOnPlainLine : Unspellable Ability (\ok =>
                                 (PtUp (Lit 1)) (PtUp (Lit 1))))
                   [Menace, Trample]
                   {ex = Builtin.fst ok, lk = Builtin.snd ok})
-badKeywordListOnPlainLine (MkKeywordExtendable, _) impossible
+badKeywordListOnPlainLine (Oh, _) impossible
 
 
 ||| "This creature has flying as long as a card exiled with it has flying. The same is true for."
@@ -109,7 +109,7 @@ badEmptyKeywordList : Unspellable Ability (\ok =>
                                            HasKeyword Flying]))
                              (Gains Macros.thisCreature (KeywordAbility Flying))))
                   [] {lk = ok})
-badEmptyKeywordList MkKeywordListOk impossible
+badEmptyKeywordList Oh impossible
 
 
 ||| "This creature has flying as long as a card exiled with it has flying. The same is true for menace, flying, and trample."
@@ -121,7 +121,7 @@ badKeywordListRepeatingBase : Unspellable Ability (\ok =>
                                            HasKeyword Flying]))
                              (Gains Macros.thisCreature (KeywordAbility Flying))))
                   [Menace, Flying, Trample] {lk = ok})
-badKeywordListRepeatingBase MkKeywordListOk impossible
+badKeywordListRepeatingBase Oh impossible
 
 
 ||| "{T}: Draw a card. Activate only if you created this turn."
@@ -129,7 +129,7 @@ badKeywordListRepeatingBase MkKeywordListOk impossible
 public export
 badBareTokenCreationLookback : Unspellable (Condition []) (\ok =>
   Happened TokenCreation You Lookback.ThisTurn {cw = LeftBare {ok = ok}})
-badBareTokenCreationLookback Refl impossible
+badBareTokenCreationLookback Oh impossible
 
 
 ||| "Destroy target creature that dealt combat damage this turn."
@@ -137,7 +137,7 @@ badBareTokenCreationLookback Refl impossible
 public export
 badBareCombatDamageLookback : Unspellable (Predicate [] Object) (\ok =>
   HappenedTo CombatDamage Lookback.ThisTurn {cw = LeftBare {ok = ok}})
-badBareCombatDamageLookback Refl impossible
+badBareCombatDamageLookback Oh impossible
 
 
 ||| "Destroy target creature that attacked with this creature this turn."
@@ -163,7 +163,7 @@ badPlayerCastComplement MkLookbackComplement impossible
 public export
 badCastFromBattlefield : Unspellable (Predicate [] Object) (\ok =>
   CastFrom Macros.battlefieldZ {pf = ok})
-badCastFromBattlefield Refl impossible
+badCastFromBattlefield Oh impossible
 
 
 ||| "Counter target spell cast from the stack."
@@ -171,7 +171,7 @@ badCastFromBattlefield Refl impossible
 public export
 badCastFromStack : Unspellable (Predicate [] Object) (\ok =>
   CastFrom Macros.stackZ {pf = ok})
-badCastFromStack Refl impossible
+badCastFromStack Oh impossible
 
 
 ||| "Counter target spell cast from the top of your library."
@@ -179,7 +179,7 @@ badCastFromStack Refl impossible
 public export
 badCastFromLibraryTop : Unspellable (Predicate [] Object) (\ok =>
   CastFrom (LibraryAt OnTop Nothing (OwnedBy You)) {wz = ok})
-badCastFromLibraryTop MkWholeZone impossible
+badCastFromLibraryTop Oh impossible
 
 
 ||| "Put target creature into its owner's library second from the bottom."
@@ -204,7 +204,7 @@ public export
 badPluralOrdinalPlacement : Unspellable (Effect []) (\ok =>
   Move (TargetGroup (Macros.exactly 2) Macros.creature)
        (Macros.nthFromTop Third) {arr = ok})
-badPluralOrdinalPlacement MkArrangementOk impossible
+badPluralOrdinalPlacement Oh impossible
 
 
 ||| "If you control an artifact, create a token."
@@ -212,7 +212,7 @@ badPluralOrdinalPlacement MkArrangementOk impossible
 public export
 badSingletonConjunction : Unspellable (Condition []) (\ok =>
   AndCond [Exists (And [Macros.artifact, ControlledBy You])] {tw = ok})
-badSingletonConjunction MkTwoConjuncts impossible
+badSingletonConjunction Oh impossible
 
 
 ||| "If you control an artifact and an enchantment, and you control a land, …"
@@ -222,7 +222,7 @@ badNestedConjunction : Unspellable (Condition []) (\ok =>
   AndCond [ AndCond [ Exists (And [Macros.artifact, ControlledBy You])
                     , Exists (And [Macros.enchantment, ControlledBy You]) ]
           , Exists (And [Macros.land, ControlledBy You]) ] {fl = ok})
-badNestedConjunction MkFlatConjuncts impossible
+badNestedConjunction Oh impossible
 
 
 ||| "If you don't control an artifact and an enchantment, …"
@@ -231,7 +231,7 @@ public export
 badNegatedCondConjunction : Unspellable (Condition []) (\ok =>
   NotCond (AndCond [ Exists (And [Macros.artifact, ControlledBy You])
                    , Exists (And [Macros.enchantment, ControlledBy You]) ]) {ng = ok})
-badNegatedCondConjunction MkCondNegatable impossible
+badNegatedCondConjunction Oh impossible
 
 
 ||| "Unless you control an artifact and an enchantment, you may cast this spell without paying its mana cost."
@@ -249,7 +249,7 @@ badUnlessConjunction MkMarkingOk impossible
 public export
 badLiteralScaledMana : Unspellable (Cost []) (\ok =>
   ScaledMana (Lit 2) {fe = ok})
-badLiteralScaledMana MkForEachAmount impossible
+badLiteralScaledMana Oh impossible
 
 
 ||| "Counter target spell unless its controller pays the number of artifacts you control."
@@ -257,7 +257,7 @@ badLiteralScaledMana MkForEachAmount impossible
 public export
 badBareCountScaledMana : Unspellable (Cost []) (\ok =>
   ScaledMana (CountOf (And [Macros.artifact, ControlledBy You])) {fe = ok})
-badBareCountScaledMana MkForEachAmount impossible
+badBareCountScaledMana Oh impossible
 
 
 ||| "Target creature becomes a Zombie named Bob in addition to its other types."
@@ -267,7 +267,7 @@ badNamedAddition : Unspellable (Effect []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [] (MkTypeLine [Zombie] []) [] (Just "Bob"))
                    Nothing {un = ok})
-badNamedAddition MkAdditionUnnamed impossible
+badNamedAddition Oh impossible
 
 
 ||| "Target creature becomes a black black Zombie in addition to its other colors and types."
@@ -295,7 +295,7 @@ badNestedForEach : Unspellable (Effect []) (\ok =>
   Sequentially [Choose (TargetGroup Macros.anyNumber Macros.creatureYouControl),
                 ForEachOf Them (ForEachOf (Each Macros.creature) (Draw You (Lit 1)))
                           {nf = ok}])
-badNestedForEach MkNotForEach impossible
+badNestedForEach Oh impossible
 
 
 ||| "Draw a card. Repeat this process a number of times equal to the number of creatures you control."
@@ -305,7 +305,7 @@ badCountedRepeat : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.drawACard,
                 Repeat (MoreTimes (Macros.forEach Macros.creatureYouControl)
                                   {rc = ok})])
-badCountedRepeat MkRepeatCount impossible
+badCountedRepeat Oh impossible
 
 
 ||| "Draw a card. Repeat this process zero more times."
@@ -313,4 +313,4 @@ badCountedRepeat MkRepeatCount impossible
 public export
 badZeroRepeat : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.drawACard, Repeat (MoreTimes (Lit 0) {rc = ok})])
-badZeroRepeat MkRepeatCount impossible
+badZeroRepeat Oh impossible

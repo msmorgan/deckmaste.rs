@@ -15,7 +15,7 @@ import Experimental.Unspellable
 public export
 badDoubleAnyTarget : Unspellable (Predicate [] Object) (\ok =>
   And [AnyTarget, AnyTarget] {at = ok})
-badDoubleAnyTarget MkAnyTargetLone impossible
+badDoubleAnyTarget Oh impossible
 
 
 ||| "another other creature"
@@ -25,7 +25,7 @@ badDoubleOther : Unspellable
   (Predicate [MkBinding TargetD Object OneOf
                         (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing)] Object)
   (\ok => And [Macros.creature, Other, Other] {oa = ok})
-badDoubleOther MkOtherAnchored impossible
+badDoubleOther Oh impossible
 
 
 ||| "a creature the controller of any target controls"
@@ -33,7 +33,7 @@ badDoubleOther MkOtherAnchored impossible
 public export
 badAnyTargetEmbedded : Unspellable (Noun [] Object) (\ok =>
   Macros.a (And [Macros.creature, ControlledBy (ControllerOf (Macros.target AnyTarget))]) {af = ok})
-badAnyTargetEmbedded MkAnyTargetFree impossible
+badAnyTargetEmbedded Oh impossible
 
 
 ||| "You discard it." of a referent nothing has placed
@@ -58,7 +58,7 @@ badDiscardAnyTarget (_, MkNotPlayerSpanning) impossible
 public export
 badControlledInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, ControlledBy You, InZone Macros.graveyardZ] {zc = ok})
-badControlledInGraveyard MkZoneCoherent impossible
+badControlledInGraveyard Oh impossible
 
 
 ||| an empty sentence list
@@ -131,7 +131,7 @@ badDamageThis ObjectTakes impossible
 public export
 badEmptyOr : Unspellable (Predicate [] Object) (\ok =>
   Or [] {tw = ok})
-badEmptyOr MkTwoDisjuncts impossible
+badEmptyOr Oh impossible
 
 
 ||| "creature" written as a one-alternative coordination
@@ -139,7 +139,7 @@ badEmptyOr MkTwoDisjuncts impossible
 public export
 badSingletonOr : Unspellable (Predicate [] Object) (\ok =>
   Or [Macros.creature] {tw = ok})
-badSingletonOr MkTwoDisjuncts impossible
+badSingletonOr Oh impossible
 
 
 ||| "artifact or artifact"
@@ -147,7 +147,7 @@ badSingletonOr MkTwoDisjuncts impossible
 public export
 badRepeatedDisjunct : Unspellable (Predicate [] Object) (\ok =>
   Or [Macros.artifact, Macros.artifact] {dd = ok})
-badRepeatedDisjunct MkDistinctDisjuncts impossible
+badRepeatedDisjunct Oh impossible
 
 
 ||| "artifact or attacking"
@@ -155,7 +155,7 @@ badRepeatedDisjunct MkDistinctDisjuncts impossible
 public export
 badHeadlessDisjunct : Unspellable (Predicate [] Object) (\ok =>
   Or [Macros.artifact, Attacking] {pd = ok})
-badHeadlessDisjunct MkParallelDisjuncts impossible
+badHeadlessDisjunct Oh impossible
 
 
 ||| "in your hand or in your graveyard"
@@ -163,7 +163,7 @@ badHeadlessDisjunct MkParallelDisjuncts impossible
 public export
 badCrossZoneDisjunction : Unspellable (Predicate [] Object) (\ok =>
   Or [InZone Macros.handZ, InZone Macros.graveyardZ] {pd = ok})
-badCrossZoneDisjunction MkParallelDisjuncts impossible
+badCrossZoneDisjunction Oh impossible
 
 
 ||| "any target or creature"
@@ -171,7 +171,7 @@ badCrossZoneDisjunction MkParallelDisjuncts impossible
 public export
 badAnyTargetInOr : Unspellable (Predicate [] Object) (\ok =>
   Or [AnyTarget, Macros.creature] {cd = ok})
-badAnyTargetInOr MkCoordinableDisjuncts impossible
+badAnyTargetInOr Oh impossible
 
 
 ||| "any target or creature" with the class word wrapped in a conjunction
@@ -179,7 +179,7 @@ badAnyTargetInOr MkCoordinableDisjuncts impossible
 public export
 badAnyTargetInOrLaundered : Unspellable (Predicate [] Object) (\ok =>
   Or [And [AnyTarget], Macros.creature] {cd = ok})
-badAnyTargetInOrLaundered MkCoordinableDisjuncts impossible
+badAnyTargetInOrLaundered Oh impossible
 
 
 ||| "other creature or land"
@@ -189,7 +189,7 @@ badOtherInOr : Unspellable
   (Predicate [MkBinding TargetD Object OneOf
                         (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing)] Object)
   (\ok => Or [And [Macros.creature, Other], Macros.land] {cd = ok})
-badOtherInOr MkCoordinableDisjuncts impossible
+badOtherInOr Oh impossible
 
 
 ||| "(creature or land) or artifact"
@@ -197,7 +197,7 @@ badOtherInOr MkCoordinableDisjuncts impossible
 public export
 badNestedOr : Unspellable (Predicate [] Object) (\ok =>
   Or [Or [Macros.creature, Macros.land], Macros.artifact] {cd = ok})
-badNestedOr MkCoordinableDisjuncts impossible
+badNestedOr Oh impossible
 
 
 ||| "non-(creature or land)"
@@ -205,7 +205,7 @@ badNestedOr MkCoordinableDisjuncts impossible
 public export
 badNegatedDisjunction : Unspellable (Predicate [] Object) (\ok =>
   Not (Or [Macros.creature, Macros.land]) {ng = ok})
-badNegatedDisjunction MkNegatable impossible
+badNegatedDisjunction Oh impossible
 
 
 ||| "This deals 2 damage to target artifact or enchantment."
@@ -221,7 +221,7 @@ badDamageDisjunctHead ObjectTakes impossible
 public export
 badAttackingOrBlockingInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, Or [Attacking, Blocking], InZone Macros.graveyardZ] {zc = ok})
-badAttackingOrBlockingInGraveyard MkZoneCoherent impossible
+badAttackingOrBlockingInGraveyard Oh impossible
 
 
 ||| "noncreature that is attacking or blocking"
@@ -229,7 +229,7 @@ badAttackingOrBlockingInGraveyard MkZoneCoherent impossible
 public export
 badNoncreatureAttackingOrBlocking : Unspellable (Predicate [] Object) (\ok =>
   And [Not Macros.creature, Or [Attacking, Blocking]] {cf = ok})
-badNoncreatureAttackingOrBlocking MkContradictionFree impossible
+badNoncreatureAttackingOrBlocking Oh impossible
 
 
 ||| "noncreature that is an attacking artifact or a blocking land"
@@ -237,7 +237,7 @@ badNoncreatureAttackingOrBlocking MkContradictionFree impossible
 public export
 badWrappedStatusLaunder : Unspellable (Predicate [] Object) (\ok =>
   And [Or [And [Macros.artifact, Attacking], And [Macros.land, Blocking]], Not Macros.creature] {cf = ok})
-badWrappedStatusLaunder MkContradictionFree impossible
+badWrappedStatusLaunder Oh impossible
 
 
 ||| "between three and two target creatures"
@@ -253,7 +253,7 @@ badDescendingRange Oh impossible
 public export
 badPartialZoneJoin : Unspellable (Predicate [] Object) (\ok =>
   Or [And [Macros.artifact, Attacking], Macros.land] {pd = ok})
-badPartialZoneJoin MkParallelDisjuncts impossible
+badPartialZoneJoin Oh impossible
 
 
 ||| "zero or more target creatures"
@@ -271,7 +271,7 @@ badDisjunctiveOtherCrossHead : Unspellable
   (Predicate [MkBinding TargetD Object OneOf
                         (ObjectP (Just Land) (Just Battlefield) Nothing Nothing)] Object)
   (\ok => And [Or [Macros.artifact, Macros.enchantment], Other] {oa = ok})
-badDisjunctiveOtherCrossHead MkOtherAnchored impossible
+badDisjunctiveOtherCrossHead Oh impossible
 
 
 ||| "creature you control or creature you control"
@@ -279,7 +279,7 @@ badDisjunctiveOtherCrossHead MkOtherAnchored impossible
 public export
 badRepeatedStructuredDisjunct : Unspellable (Predicate [] Object) (\ok =>
   Or [And [Macros.creature, ControlledBy You], And [Macros.creature, ControlledBy You]] {dd = ok})
-badRepeatedStructuredDisjunct MkDistinctDisjuncts impossible
+badRepeatedStructuredDisjunct Oh impossible
 
 
 ||| a sequence written as one element of a sequence
@@ -289,7 +289,7 @@ badNestedSequence : Unspellable (Effect []) (\ok =>
   Sequentially
     ((Sequentially [Macros.destroy (Macros.target Macros.creature), Macros.exile (Macros.target Macros.creature)]
       :: (Macros.destroy (Macros.target Macros.land) :: Nil)) {ns = ok}))
-badNestedSequence MkNotSeq impossible
+badNestedSequence Oh impossible
 
 
 ||| "Target land can't attack this turn."
@@ -402,7 +402,7 @@ badGainsUntilUntapStep SpanStated impossible
 public export
 badBareComparison : Unspellable (Noun [] Object) (\ok =>
   Macros.target (Compare Power AtMost (Lit 2)) {hd = ok})
-badBareComparison MkHeaded impossible
+badBareComparison Oh impossible
 
 
 ||| "noncreature with power 2 or less"
@@ -410,7 +410,7 @@ badBareComparison MkHeaded impossible
 public export
 badNoncreaturePower : Unspellable (Predicate [] Object) (\ok =>
   And [Compare Power AtMost (Lit 2), Not Macros.creature] {cf = ok})
-badNoncreaturePower MkContradictionFree impossible
+badNoncreaturePower Oh impossible
 
 
 ||| "not with power 2 or less"
@@ -418,7 +418,7 @@ badNoncreaturePower MkContradictionFree impossible
 public export
 badNegatedComparison : Unspellable (Predicate [] Object) (\ok =>
   Not (Compare Power AtMost (Lit 2)) {ng = ok})
-badNegatedComparison MkNegatable impossible
+badNegatedComparison Oh impossible
 
 
 ||| "creature with power 2 or less and power 4 or greater"
@@ -427,7 +427,7 @@ public export
 badDoubleComparison : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, Compare Power AtMost (Lit 2),
        Compare Power AtLeast (Lit 4)] {lc = ok})
-badDoubleComparison MkLoneComparison impossible
+badDoubleComparison Oh impossible
 
 
 ||| "with power 2 or less or with power 2 or less"
@@ -436,7 +436,7 @@ public export
 badRepeatedComparisonDisjunct : Unspellable (Predicate [] Object) (\ok =>
   Or [Compare Power AtMost (Lit 2),
       Compare Power AtMost (Lit 2)] {dd = ok})
-badRepeatedComparisonDisjunct MkDistinctDisjuncts impossible
+badRepeatedComparisonDisjunct Oh impossible
 
 
 ||| "with power 2 or less or mana value 3 or less"
@@ -445,7 +445,7 @@ public export
 badMixedCharacteristicDisjunct : Unspellable (Predicate [] Object) (\ok =>
   Or [Compare Power AtMost (Lit 2),
       Compare ManaValue AtMost (Lit 3)] {pd = ok})
-badMixedCharacteristicDisjunct MkParallelDisjuncts impossible
+badMixedCharacteristicDisjunct Oh impossible
 
 
 ||| "any target with power 2 or less"
@@ -453,7 +453,7 @@ badMixedCharacteristicDisjunct MkParallelDisjuncts impossible
 public export
 badAnyTargetComparison : Unspellable (Predicate [] Object) (\ok =>
   And [AnyTarget, Compare Power AtMost (Lit 2)] {at = ok})
-badAnyTargetComparison MkAnyTargetLone impossible
+badAnyTargetComparison Oh impossible
 
 
 ||| "if you control attacking"
@@ -461,7 +461,7 @@ badAnyTargetComparison MkAnyTargetLone impossible
 public export
 badExistsUnheaded : Unspellable (Condition []) (\ok =>
   Exists Attacking {hd = ok})
-badExistsUnheaded MkHeaded impossible
+badExistsUnheaded Oh impossible
 
 
 ||| "if you control any target"
@@ -469,7 +469,7 @@ badExistsUnheaded MkHeaded impossible
 public export
 badExistsAnyTarget : Unspellable (Condition []) (\ok =>
   Exists AnyTarget {af = ok})
-badExistsAnyTarget MkAnyTargetFree impossible
+badExistsAnyTarget Oh impossible
 
 
 ||| "Destroy target artifact if it's any target."
@@ -477,7 +477,7 @@ badExistsAnyTarget MkAnyTargetFree impossible
 public export
 badMatchesAnyTarget : Unspellable (Effect []) (\ok =>
   If (Macros.destroy (Macros.target Macros.artifact)) (Macros.itsA AnyTarget {af = ok}) Nothing)
-badMatchesAnyTarget MkAnyTargetFree impossible
+badMatchesAnyTarget Oh impossible
 
 
 ||| "if target creature is an artifact"
@@ -485,7 +485,7 @@ badMatchesAnyTarget MkAnyTargetFree impossible
 public export
 badMatchesTargetSubject : Unspellable (Condition []) (\ok =>
   Matches (Macros.target Macros.creature) Macros.artifact {bl = ok})
-badMatchesTargetSubject MkBindingless impossible
+badMatchesTargetSubject Refl impossible
 
 
 ||| "Tap target creature. You gain 1 life if it's."
@@ -494,7 +494,7 @@ public export
 badMatchesNothing : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 If (Macros.gainsLife You (Lit 1)) (Matches It (And []) {sy = ok}) Nothing])
-badMatchesNothing MkPredSays impossible
+badMatchesNothing Oh impossible
 
 
 ||| "Tap target creature. You gain 1 life if it isn't a nonartifact."
@@ -505,7 +505,7 @@ badNegatedNegativeMatch : Unspellable (Effect []) (\ok =>
                 If (Macros.gainsLife You (Lit 1))
                    (Macros.notSo (Matches It (Not Macros.artifact)) {ng = ok})
                    Nothing])
-badNegatedNegativeMatch MkCondNegatable impossible
+badNegatedNegativeMatch Oh impossible
 
 
 ||| "Destroy target creature if it's in a graveyard."
@@ -521,7 +521,7 @@ badTrailingPostStateZone Oh impossible
 public export
 badCompareLiteralSubject : Unspellable (Condition []) (\ok =>
   CompareAmt (Lit 3) AtLeast (Lit 4) {rd = ok})
-badCompareLiteralSubject MkReadAmount impossible
+badCompareLiteralSubject Oh impossible
 
 
 
@@ -549,7 +549,7 @@ public export
 badZombieArtifactToken : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [Black] (MkTypeLine [Zombie] [Artifact])
                           [] Nothing) {sf = ok})
-badZombieArtifactToken MkSubtypesFit impossible
+badZombieArtifactToken Oh impossible
 
 
 ||| "Create a white Soldier creature token." with no power or toughness
@@ -557,7 +557,7 @@ badZombieArtifactToken MkSubtypesFit impossible
 public export
 badCreatureTokenNoPt : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [Soldier] [Creature]) [] Nothing) {tp = ok})
-badCreatureTokenNoPt MkTokenPt impossible
+badCreatureTokenNoPt Oh impossible
 
 
 ||| "Create a 1/1 white token."
@@ -565,7 +565,7 @@ badCreatureTokenNoPt MkTokenPt impossible
 public export
 badTypelessToken : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [White] (MkTypeLine [] []) [] Nothing) {tt = ok})
-badTypelessToken MkTokenTyped impossible
+badTypelessToken Oh impossible
 
 
 ||| "Create a 1/1 red Soldier creature token that's attacking."
@@ -600,7 +600,7 @@ public export
 badTokenTypeOrder : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [] (MkTypeLine [] [Creature, Artifact])
                           [] Nothing) {tc = ok})
-badTokenTypeOrder MkTokenCanonical impossible
+badTokenTypeOrder Oh impossible
 
 
 ||| "Create a 1/1 white white Soldier creature token."
@@ -608,7 +608,7 @@ badTokenTypeOrder MkTokenCanonical impossible
 public export
 badTokenDuplicateColor : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [Soldier]) {tc = ok})
-badTokenDuplicateColor MkTokenCanonical impossible
+badTokenDuplicateColor Oh impossible
 
 
 ||| "Draw zero cards."
@@ -616,7 +616,7 @@ badTokenDuplicateColor MkTokenCanonical impossible
 public export
 badDrawZero : Unspellable (Effect []) (\ok =>
   Macros.drawCards 0 {wc = ok})
-badDrawZero MkWrittenCount impossible
+badDrawZero Oh impossible
 
 
 ||| "Create zero 1/1 white Soldier creature tokens."
@@ -624,7 +624,7 @@ badDrawZero MkWrittenCount impossible
 public export
 badCreateZero : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 0) (Macros.creatureTok 1 1 [White] [Soldier]) {wc = ok})
-badCreateZero MkWrittenCount impossible
+badCreateZero Oh impossible
 
 
 ||| "Put zero +1/+1 counters on target creature."
@@ -632,7 +632,7 @@ badCreateZero MkWrittenCount impossible
 public export
 badPutZeroCounters : Unspellable (Effect []) (\ok =>
   PutCounters (Lit 0) Macros.plusOnePlusOne (Macros.target Macros.creature) {wc = ok})
-badPutZeroCounters MkWrittenCount impossible
+badPutZeroCounters Oh impossible
 
 
 ||| "Target land becomes a Zombie in addition to its other types."
@@ -689,7 +689,7 @@ badBecomesUntilYourNextUpkeep SpanStated impossible
 public export
 badZombieNoncreature : Unspellable (Predicate [] Object) (\ok =>
   And [HasSubtype Zombie, Not Macros.creature] {cf = ok})
-badZombieNoncreature MkContradictionFree impossible
+badZombieNoncreature Oh impossible
 
 
 ||| "Target creature becomes a creature in addition to its other types."
@@ -771,7 +771,7 @@ badNegatedComparisonCondition : Unspellable (Effect []) (\ok =>
   If (Macros.destroy (Macros.target Macros.artifact))
      (Macros.notSo (CompareAmt (Macros.manaValueOf It) AtMost (Lit 2)) {ng = ok})
      Nothing)
-badNegatedComparisonCondition MkCondNegatable impossible
+badNegatedComparisonCondition Oh impossible
 
 
 ||| "Destroy target artifact if it isn't the case that you don't control a creature."
@@ -781,7 +781,7 @@ badDoubleNegatedCondition : Unspellable (Effect []) (\ok =>
   If (Macros.destroy (Macros.target Macros.artifact))
      (Macros.notSo (Macros.notSo (Exists Macros.creatureYouControl)) {ng = ok})
      Nothing)
-badDoubleNegatedCondition MkCondNegatable impossible
+badDoubleNegatedCondition Oh impossible
 
 
 ||| "Draw a card. Exile that card."
@@ -861,7 +861,7 @@ badPluralComplementAnchor MkComplementAnchor impossible
 public export
 badComplementCrossHead : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1) (Each (And [Macros.creature, OtherThan Macros.thisLand] {oa = ok})))
-badComplementCrossHead MkOtherAnchored impossible
+badComplementCrossHead Oh impossible
 
 
 ||| "each creature other than this creature other than this creature"
@@ -870,7 +870,7 @@ public export
 badDoubleComplement : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1)
              (Each (And [Macros.creature, OtherThan Macros.thisCreature, OtherThan Macros.thisCreature] {oa = ok})))
-badDoubleComplement MkOtherAnchored impossible
+badDoubleComplement Oh impossible
 
 
 ||| "each other creature other than this creature"
@@ -880,7 +880,7 @@ badOtherAndComplement : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 DealDamage This (Lit 1)
                            (Each (And [Macros.creature, Other, OtherThan Macros.thisCreature] {oa = ok}))])
-badOtherAndComplement MkOtherAnchored impossible
+badOtherAndComplement Oh impossible
 
 
 ||| "creature other than this creature, or land"
@@ -888,7 +888,7 @@ badOtherAndComplement MkOtherAnchored impossible
 public export
 badComplementInOr : Unspellable (Predicate [] Object) (\ok =>
   Or [And [Macros.creature, OtherThan Macros.thisCreature], Macros.land] {cd = ok})
-badComplementInOr MkCoordinableDisjuncts impossible
+badComplementInOr Oh impossible
 
 
 ||| "not other than this creature"
@@ -896,7 +896,7 @@ badComplementInOr MkCoordinableDisjuncts impossible
 public export
 badNegatedComplement : Unspellable (Predicate [] Object) (\ok =>
   Not (OtherThan Macros.thisCreature) {ng = ok})
-badNegatedComplement MkNegatable impossible
+badNegatedComplement Oh impossible
 
 
 ||| an empty batch
@@ -922,7 +922,7 @@ badNestedSimultaneous : Unspellable (Effect []) (\ok =>
   Simultaneously
     ((Simultaneously [Macros.destroy (Macros.target Macros.creature), Macros.destroy (Macros.target Macros.artifact)]
       :: (Macros.destroy (Macros.target Macros.land) :: Nil)) {ns = ok}))
-badNestedSimultaneous MkNotSim impossible
+badNestedSimultaneous Oh impossible
 
 
 ||| a sequence written as one element of a batch
@@ -932,7 +932,7 @@ badSequenceInsideSimultaneous : Unspellable (Effect []) (\ok =>
   Simultaneously
     ((Sequentially [Macros.destroy (Macros.target Macros.creature), Macros.destroy (Macros.target Macros.artifact)]
       :: (Macros.destroy (Macros.target Macros.land) :: Nil)) {nq = ok}))
-badSequenceInsideSimultaneous MkNotSeq impossible
+badSequenceInsideSimultaneous Oh impossible
 
 
 ||| "Exile target creature and destroy that card." as one instruction
