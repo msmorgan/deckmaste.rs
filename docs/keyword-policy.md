@@ -4,9 +4,9 @@ The normative policy on **which keyword abilities and keyword actions are
 intrinsic engine primitives versus plugin macros**, and the **template-param
 story for parameterized keywords**. It is the prescriptive companion to
 `docs/rules-taxonomy.md §5,§10`, which derive the descriptive classification
-(pinned to the mtg-rules skill v1.7.0); this file states the rules the engine
-commits to and where the code embodies them. Decided by the
-`core-intrinsic-keywords-policy` ticket.
+(pinned to the mtg-rules skill v1.10.0, CR effective 2026-08-07); this file
+states the rules the engine commits to and where the code embodies them.
+Decided by the `core-intrinsic-keywords-policy` ticket.
 
 **Part I** governs keyword *abilities* (`[CR#702]` — the `KeywordAbility`
 enum). **Part II** governs keyword *actions* (`[CR#701]` — the `Action` /
@@ -41,12 +41,19 @@ intrinsic can still be parameterized (mutate carries a cost).
 
 ## 2. The three-class map, and enum membership
 
-| Class | Count | Representation | Matched in engine |
-|---|---|---|---|
-| **Intrinsic** | 9 abilities | `KeywordAbility` enum variant | by-variant (`has_keyword`) |
-| **Composite-given(P)** | 19 | `Composite` macro | by-name (`has_keyword_named`) |
-| **Composite** | 215 | `Composite` macro | by-name |
-| **Marker** | 1 (reach) | empty `Composite` macro | by-name |
+| Class | Abilities | Actions | Representation | Matched in engine |
+|---|---:|---:|---|---|
+| **Intrinsic** | 9 | 16 | `KeywordAbility` enum variant (abilities); native verb (actions) | by-variant (`has_keyword`) |
+| **Composite-given(P)** | 14 | 5 | `Composite` macro | by-name (`has_keyword_named`) |
+| **Composite** | 171 | 49 | `Composite` macro | by-name |
+| **Marker** | 1 (reach) | 0 | empty `Composite` macro | by-name |
+
+The columns are the two catalogs, not one population: 195 keyword abilities
+(`data/gen/catalogs/keyword-abilities.txt`) and 70 keyword actions
+(`keyword-actions.txt`). The 16 action intrinsics are `Action` / `PlayerAction`
+verbs governed by Part II §10 — they never become `KeywordAbility` variants, and
+Part I's "intrinsic set is closed at 9" is a statement about the ability column
+alone.
 
 **The intrinsic set (9 abilities) is closed and exhaustive:** first strike
 `[CR#702.7]`, double strike `[CR#702.4]`, deathtouch `[CR#702.2,704.5h]`,
@@ -250,12 +257,14 @@ target (⊕ = also carries a name-tag):
 | **GetDesignation** | goad `[CR#701.15]`, detain `[CR#701.35]`, suspect `[CR#701.60]`, harness `[CR#701.64]`, monstrosity `[CR#701.37]`, become day/night `[CR#731.1]`, the Ring tempts you `[CR#701.54]` |
 | **CreateReplacement** | regenerate `[CR#701.19]` |
 | **Reveal + Move** (peek-and-sort) | scry⊕ `[CR#701.22]`, surveil⊕ `[CR#701.25]`, fateseal⊕ `[CR#701.29]`, clash `[CR#701.30]`, explore `[CR#701.44]`, discover `[CR#701.57]` |
-| **Draw / Discard combinations** | connive `[CR#701.50]`, learn `[CR#701.48]` |
+| **Draw / Discard combinations** | connive `[CR#701.50]`, learn `[CR#701.48]`, recruit `[CR#701.70]` (draw, discard, then a conditional token) |
+| **RemoveDamage** | heal `[CR#701.69]` |
+| **continuous restriction** | exert `[CR#701.43]` (a next-untap-step restriction; the attack rider is an optional cost plus a linked trigger, `[CR#701.43d]`) |
 | **continuous P/T** | double `[CR#701.10]`, triple `[CR#701.11]` |
 | **GainControl / life swap** | exchange `[CR#701.12]` |
 | **Reveal / choice** | behold `[CR#701.4]` (reveal-from-hand or choose), vote `[CR#701.38]`, face a villainous choice `[CR#701.55]` |
 | **composite-given (deferred primitive)** | manifest/cloak/manifest dread `[CR#701.40,701.58,701.62]` (face-down objects), meld `[CR#701.42]` (merged objects), waterbend `[CR#701.67]` (cost-modification hook), airbend `[CR#701.65]` |
-| **variant-format machinery** | venture `[CR#701.49]`, planeswalk `[CR#701.31]`, set in motion `[CR#701.32]`, abandon `[CR#701.33]`, open an attraction `[CR#701.51]`, roll to visit `[CR#701.52]` |
+| **variant-format machinery** | venture `[CR#701.49]`, planeswalk `[CR#701.31]`, set in motion `[CR#701.32]`, abandon `[CR#701.33]`, open an attraction `[CR#701.51]`, roll to visit `[CR#701.52]`, assemble `[CR#701.45]` (Unstable Contraptions — outside these rules, `[CR#701.45a]`) |
 
 ## 12. The primitive-verb inventory (the atoms)
 
@@ -343,3 +352,38 @@ This policy authorizes, but does not itself perform:
    their macros land) to `KeywordActionSpec` (§14).
 8. **Build the staged composite actions** — Explore, Connive, Bolster, Search-
    dependent actions, and the rest of §11 as card pressure demands.
+
+---
+
+## 16. Classification audit — 2026-08-21
+
+Re-pinned from mtg-rules **v1.10.0** (CR effective 2026-08-07,
+`keywords-classified.json` sha256 `6b1ab6ae89a9…`, 265 records = 195 abilities +
+70 actions), replacing the v1.7.0 baseline (260 records). Every catalog entry was
+re-checked against §1's rubric; the result is a count refresh, not a
+reclassification.
+
+- **265 checked, 0 reclassified.** No entry changed class between the two pins.
+  The intrinsic (9 / 16), composite-given (19), and marker (1) populations are
+  identical; only the composite population grew, 215 → 220.
+- **5 additions since the pin.** Ability composites Storied `[CR#702.195]`,
+  Power-up `[CR#702.193]`, Teamwork `[CR#702.194]` (absorbed by §2's count — the
+  ability composites are not enumerated here); action composites heal
+  `[CR#701.69]` and recruit `[CR#701.70]`, now filed in §11. Storied and recruit
+  are confirmed 1.10.0 additions; the other three are inferred from the
+  1.7.0 → 1.8.0 count delta, the v1.7.0 catalog not being recoverable locally.
+- **4 misses closed.** §11 lacked assemble `[CR#701.45]`, exert `[CR#701.43]`,
+  heal `[CR#701.69]`, and recruit `[CR#701.70]`; each is now under its
+  decomposition target.
+- **5 knowing divergences, all retained.** §8's stricter criterion keeps destroy
+  `[CR#701.8]`, sacrifice `[CR#701.21]`, discard `[CR#701.9]`, and exile
+  `[CR#701.13]` composite where the descriptive catalog files them as intrinsic
+  event-basis actions; §10 keeps attach `[CR#701.3]` native where the catalog
+  files it composite-given(attachment-relation) — the same primitive, minted
+  here (§13) rather than deferred.
+- **Non-catalog entries in §11 stay.** "Return-to-hand" and "become day/night"
+  `[CR#731.1]` are effect-language verbs, not `[CR#701]` keyword actions; they
+  are decomposition examples, not classified entries.
+- §2's rows are now labeled by catalog, which discharges the count-reconciliation
+  item of `docs-keyword-policy-refresh`. That ticket keeps the §6
+  `ParamShape` / `KeywordDecl` decision.

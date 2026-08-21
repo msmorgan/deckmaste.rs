@@ -676,12 +676,12 @@ between two abilities on a face), and granted-vs-printed provenance
 **Keyword classification** — this section is the descriptive derivation; the
 engine's *normative* policy built on it (the graduation rule, enum membership,
 template-param conventions, typed cycling, the `ParamShape`/`KeywordDecl`
-prune) is `docs/keyword-policy.md`. The full 260-row derivation (192 abilities +
-68 actions, each classified by what an engine must build) lives in the
+prune) is `docs/keyword-policy.md`. The full 265-row derivation (195 abilities +
+70 actions, each classified by what an engine must build) lives in the
 mtg-rules skill's `keyword-classification.md` + `keywords-classified.json`.
-Pinned baseline: **skill v1.7.0** (commit `31797b3e`, CR effective
-2026-04-17, keywords-classified sha256 `0f984a98b363…`; re-run the skill's
-`scripts/version` and re-sync this section when it bumps). Rubric:
+Pinned baseline: **skill v1.10.0** (CR effective 2026-08-07,
+keywords-classified sha256 `6b1ab6ae89a9…`; the build reports no commit; re-run
+the skill's `scripts/version` and re-sync this section when it bumps). Rubric:
 decompose to statics + triggers + replacements + permissions/restrictions +
 action-sequences before declaring anything intrinsic; a `given` primitive
 needs ≥ 2 keyword dependents — a sole-dependent primitive collapses into
@@ -717,7 +717,7 @@ its keyword as intrinsic. Four classes:
   sole-dependent once enlist reclassified as plain composite
   ([CR#702.154b] names its hooks: an optional attack cost, [CR#508.1g],
   plus a linked trigger, [CR#607.2h]).
-- **Composite (215)** — macro sugar over the kinds above, including
+- **Composite (220)** — macro sugar over the kinds above, including
   everything this doc once called first-class besides the true intrinsics:
   flying and all evasion/menace/skulk (block-legality Cant clauses,
   [CR#702.9b]), hexproof/shroud (targeting Cant clauses, [CR#702.11,702.18]),
