@@ -108,7 +108,6 @@ enum Atom {
     Punct(char),
     Open(Delimiter),
     Close(Delimiter),
-    Literal,
 }
 
 struct ForbiddenPattern {
@@ -361,10 +360,6 @@ fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn set<const N: usize>(paths: [&str; N]) -> BTreeSet<String> {
-    paths.into_iter().map(str::to_owned).collect()
-}
-
 fn normalized_relative(root: &Path, path: &Path) -> Result<String, String> {
     path.strip_prefix(root)
         .map_err(|error| {
@@ -435,18 +430,6 @@ fn inventory_diff(
     roots: &[&str],
     expected: &BTreeSet<String>,
 ) -> Result<InventoryDiff, String> {
-    let actual = discover_rs_files(root, roots)?;
-    Ok(InventoryDiff {
-        missing: expected.difference(&actual).cloned().collect(),
-        unexpected: actual.difference(expected).cloned().collect(),
-    })
-}
-
-fn inventory_diff_with_singletons(
-    root: &Path,
-    roots: &[&str],
-    expected: &BTreeSet<String>,
-) -> Result<InventoryDiff, String> {
     let mut actual = discover_rs_files(root, roots)?;
     let singleton = "crates/xtask/src/english_v2.rs";
     match fs::symlink_metadata(root.join(singleton)) {
@@ -497,7 +480,6 @@ fn atom_matches(atom: Atom, token: &LexToken) -> bool {
         (Atom::Punct(expected), LexToken::Punct(observed)) => expected == *observed,
         (Atom::Open(expected), LexToken::Open(observed))
         | (Atom::Close(expected), LexToken::Close(observed)) => expected == *observed,
-        (Atom::Literal, LexToken::Literal) => true,
         _ => false,
     }
 }
@@ -523,14 +505,6 @@ fn path_in_scope(path: &str, scope: PathScope) -> bool {
         PathScope::All => true,
         PathScope::Exact(expected) => path == expected,
     }
-}
-
-fn find_forbidden(tokens: &[LexToken]) -> Vec<String> {
-    GLOBAL_FORBIDDEN
-        .iter()
-        .filter(|pattern| count_pattern(tokens, pattern.atoms) != 0)
-        .map(|pattern| pattern.label.to_owned())
-        .collect()
 }
 
 fn check_forbidden(path: &str, tokens: &[LexToken], patterns: &[ForbiddenPattern]) -> Vec<String> {
@@ -631,9 +605,13 @@ fn audit_root(root: &Path) -> Result<Vec<String>, String> {
         .iter()
         .map(|path| (*path).to_owned())
         .collect();
-    let diff = inventory_diff_with_singletons(root, INVENTORY_ROOTS, &expected)?;
+    let diff = inventory_diff(root, INVENTORY_ROOTS, &expected)?;
+    let missing = diff.missing.iter().cloned().collect::<BTreeSet<_>>();
     let mut violations = inventory_violations(diff);
     for relative in INVENTORY_FILES {
+        if missing.contains(*relative) {
+            continue;
+        }
         let source = fs::read_to_string(root.join(relative))
             .map_err(|error| format!("reading {relative}: {error}"))?;
         let tokens = lex_source(&source).map_err(|error| format!("{relative}: {error}"))?;
@@ -670,68 +648,54 @@ fn hash_inventory(root: &Path) -> Result<[u8; 32], String> {
     Ok(hash.finalize().into())
 }
 
-fn write_fixture_tree(root: &Path, paths: &[&str]) {
-    for relative in paths {
-        let path = root.join(relative);
-        fs::create_dir_all(path.parent().expect("fixture path has a parent"))
-            .expect("fixture parent directories are created");
-        fs::write(path, "").expect("fixture source writes");
-    }
-}
-
 #[test]
 fn plan04_closed_world_inventory_fails_loud() {
+    let live = workspace_root();
     let temp = tempfile::tempdir().expect("temporary inventory root");
-    write_fixture_tree(temp.path(), &["src/a.rs", "src/b.rs"]);
-    let expected = set(["src/a.rs", "src/b.rs"]);
-    assert_eq!(
-        inventory_diff(temp.path(), &["src"], &expected),
-        Ok(InventoryDiff::default())
-    );
+    copy_inventory(&live, temp.path()).expect("inventory copies");
+    assert_eq!(audit_root(temp.path()), Ok(vec![]));
 
-    fs::write(temp.path().join("src/unreviewed.rs"), "fn new_surface() {}")
+    let unexpected = "crates/deckmaste_english_v2/src/unreviewed.rs";
+    fs::write(temp.path().join(unexpected), "fn unreviewed_surface() {}")
         .expect("unexpected fixture writes");
     assert_eq!(
-        inventory_diff(temp.path(), &["src"], &expected).unwrap(),
-        InventoryDiff {
-            missing: vec![],
-            unexpected: vec!["src/unreviewed.rs".into()]
-        },
+        audit_root(temp.path()),
+        Ok(vec![format!(
+            "{unexpected}: inventory member: expected count 0, observed count 1"
+        )]),
     );
 
-    fs::remove_file(temp.path().join("src/a.rs")).expect("missing fixture removes");
+    let missing = "crates/deckmaste_english_v2/src/lib.rs";
+    fs::remove_file(temp.path().join(missing)).expect("missing fixture removes");
     assert_eq!(
-        inventory_diff(temp.path(), &["src"], &expected).unwrap(),
-        InventoryDiff {
-            missing: vec!["src/a.rs".into()],
-            unexpected: vec!["src/unreviewed.rs".into()],
-        },
+        audit_root(temp.path()),
+        Ok(vec![
+            format!("{missing}: inventory member: expected count 1, observed count 0"),
+            format!("{unexpected}: inventory member: expected count 0, observed count 1"),
+        ]),
     );
 }
 
 #[test]
 fn plan04_closed_world_lexical_tokens_reject_retired_authority() {
+    let live = workspace_root();
+    let temp = tempfile::tempdir().expect("temporary audit root");
+    copy_inventory(&live, temp.path()).expect("inventory copies");
+    let relative = "crates/deckmaste_english_v2/src/lib.rs";
+    let fixture = temp.path().join(relative);
+    let original = fs::read(&fixture).expect("copied fixture reads");
     let source = r#"
         macro_rules! emits { ($body:tt) => { impl Triggered $body }; }
         const PROSE: &str = "impl Triggered { checked_constructor }";
     "#;
-    let tokens = lex_source(source).expect("fixture lexes");
+    fs::write(&fixture, [original.as_slice(), source.as_bytes()].concat())
+        .expect("lexical fixture writes only in disposable root");
     assert_eq!(
-        count_pattern(
-            &tokens,
-            &[
-                Atom::Ident("const"),
-                Atom::Ident("PROSE"),
-                Atom::Punct(':'),
-                Atom::Punct('&'),
-                Atom::Ident("str"),
-                Atom::Punct('='),
-                Atom::Literal,
-            ],
-        ),
-        1,
+        audit_root(temp.path()),
+        Ok(vec![format!(
+            "{relative}: impl Triggered: expected count 0, observed count 1"
+        )]),
     );
-    assert_eq!(find_forbidden(&tokens), vec!["impl Triggered".to_owned()]);
 }
 
 #[test]
