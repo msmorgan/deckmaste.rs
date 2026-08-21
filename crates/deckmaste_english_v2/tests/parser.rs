@@ -409,31 +409,15 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     );
 }
 
-#[test]
-fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
-    use syn::Fields;
-    use syn::ImplItem;
-    use syn::Item;
-    use syn::Type;
-    use syn::Visibility;
-
-    let source =
-        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/constructions.rs"))
-            .expect("production construction source is readable");
-    let invocation = deckmaste_construction_core::invocation_from_source(&source)
-        .expect("production construction invocation is authentic");
-    let expansion = deckmaste_construction_core::generate(invocation.tokens)
-        .expect("production construction inventory compiles");
-    let file = syn::parse2::<syn::File>(expansion.tokens()).expect("generated Rust parses");
-
+fn assert_complete_public_generated_type_inventory(file: &syn::File) {
     let public_types = file
         .items
         .iter()
         .filter_map(|item| match item {
-            Item::Enum(item) if matches!(item.vis, Visibility::Public(_)) => {
+            syn::Item::Enum(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
                 Some(item.ident.to_string())
             }
-            Item::Struct(item) if matches!(item.vis, Visibility::Public(_)) => {
+            syn::Item::Struct(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
                 Some(item.ident.to_string())
             }
             _ => None,
@@ -489,6 +473,25 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
         ],
         "the complete public generated type inventory is source ordered",
     );
+}
+
+#[test]
+fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
+    use syn::Fields;
+    use syn::ImplItem;
+    use syn::Item;
+    use syn::Type;
+    use syn::Visibility;
+
+    let source =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/constructions.rs"))
+            .expect("production construction source is readable");
+    let invocation = deckmaste_construction_core::invocation_from_source(&source)
+        .expect("production construction invocation is authentic");
+    let expansion = deckmaste_construction_core::generate(invocation.tokens)
+        .expect("production construction inventory compiles");
+    let file = syn::parse2::<syn::File>(expansion.tokens()).expect("generated Rust parses");
+    assert_complete_public_generated_type_inventory(&file);
 
     for (product, expected_fields, expected_methods) in [
         (
