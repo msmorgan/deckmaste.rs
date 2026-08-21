@@ -18,6 +18,7 @@ use crate::identifier::LEXICAL_TYPE;
 use crate::identifier::NUMBER_TYPE;
 use crate::identifier::PREFIX_POSITION_TYPE;
 use crate::identifier::SCAN_POSITION_TYPE;
+use crate::identifier::STRUCTURAL_TRANSITION_TYPE;
 use crate::identifier::TERMINAL_CLASS_TYPE;
 use crate::identifier::emitted_ident;
 use crate::identifier::path_key;
@@ -107,6 +108,13 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum PrefixPosition { WordOwnedSpace, SurfaceOwned, None }
+            },
+        ),
+        named_type(
+            STRUCTURAL_TRANSITION_TYPE,
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum StructuralTransition { Preserve, SentenceInitial }
             },
         ),
         named_type(
@@ -486,6 +494,7 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     None,
                     Structural {
                         stable_id: &'static str,
+                        transition: StructuralTransition,
                     },
                     Static {
                         kind: LexicalProvenanceKind,
@@ -622,6 +631,32 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     });
     vec![
         impl_item(
+            Some("StructuralTransition"),
+            "StructuralTransition",
+            quote! {
+                impl StructuralTransition {
+                    pub(crate) const fn case_after(self, current: CasePosition) -> CasePosition {
+                        match self {
+                            StructuralTransition::Preserve => current,
+                            StructuralTransition::SentenceInitial => CasePosition::SentenceInitial,
+                        }
+                    }
+
+                    pub(crate) const fn position_after(
+                        self,
+                        current: ScanPosition,
+                        byte_offset: usize,
+                    ) -> ScanPosition {
+                        ScanPosition {
+                            byte_offset,
+                            case: self.case_after(current.case),
+                            prefix: PrefixPosition::SurfaceOwned,
+                        }
+                    }
+                }
+            },
+        ),
+        impl_item(
             Some("Lexical"),
             "Lexical",
             quote! {
@@ -655,6 +690,28 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 impl LexicalTerminal {
                     pub(crate) const fn class(self) -> TerminalClass {
                         self.matcher.class()
+                    }
+
+                    pub(crate) const fn position_after(
+                        self,
+                        current: ScanPosition,
+                        byte_offset: usize,
+                    ) -> ScanPosition {
+                        match self.owner {
+                            LexicalOwnerTemplate::Structural { transition, .. } => {
+                                transition.position_after(current, byte_offset)
+                            }
+                            LexicalOwnerTemplate::None => ScanPosition {
+                                byte_offset,
+                                case: current.case,
+                                prefix: current.prefix,
+                            },
+                            _ => ScanPosition {
+                                byte_offset,
+                                case: CasePosition::Continuation,
+                                prefix: PrefixPosition::WordOwnedSpace,
+                            },
+                        }
                     }
                 }
             },
@@ -1077,7 +1134,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     pub(crate) fn instantiate(self, value: &Leaf) -> Option<LexicalOwner> {
                         match (self, value) {
                             (LexicalOwnerTemplate::None, Leaf::EndOfInput) => None,
-                            (LexicalOwnerTemplate::Structural { stable_id }, _) => {
+                            (LexicalOwnerTemplate::Structural { stable_id, .. }, _) => {
                                 Some(LexicalOwner::static_owner(
                                     LexicalProvenanceKind::FormLiteral,
                                     stable_id,

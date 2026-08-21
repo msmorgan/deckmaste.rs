@@ -15,7 +15,8 @@ use super::engine::LexicalMatch;
 use super::engine::Observation;
 use super::engine::Rule;
 use super::engine::RulePosition;
-use super::engine::parse_observed;
+use super::engine::StatefulLexicalMatch;
+use super::engine::parse_observed_with_state;
 use super::materialize::materialize_with;
 use crate::environment::ParserEnvironment;
 
@@ -97,8 +98,17 @@ impl Writer<'_> {
         dead_code,
         reason = "the synthetic grammar uses the generated structural renderer ABI conditionally"
     )]
-    fn structural_surface(&mut self, surface: &str, _terminates_sentence: bool) {
+    fn structural_surface(&mut self, surface: &str, transition: StructuralTransition) {
         self.output.push_str(surface);
+        let current = if self.capitalize_next {
+            CasePosition::SentenceInitial
+        } else {
+            CasePosition::Continuation
+        };
+        self.capitalize_next = matches!(
+            transition.case_after(current),
+            CasePosition::DocumentInitial | CasePosition::SentenceInitial
+        );
     }
 
     fn finish(self) -> String {
@@ -300,32 +310,24 @@ impl Visitor for IdentityVisitor {
 
 fn scan(
     text: &str,
-    offset: usize,
+    position: ScanPosition,
     terminal: LexicalTerminal,
     environment: &ParserEnvironment,
-) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
+) -> Vec<StatefulLexicalMatch<Leaf, LexicalOwner, ScanPosition>> {
     scan_lexical(
         &ScanInput {
             text,
-            position: ScanPosition {
-                byte_offset: offset,
-                case: if offset == 0 {
-                    CasePosition::DocumentInitial
-                } else {
-                    CasePosition::Continuation
-                },
-                prefix: if offset == 0 {
-                    PrefixPosition::None
-                } else if text.as_bytes().get(offset) == Some(&b' ') {
-                    PrefixPosition::WordOwnedSpace
-                } else {
-                    PrefixPosition::SurfaceOwned
-                },
-            },
+            position,
             environment,
         },
         terminal,
     )
+    .into_iter()
+    .map(|lexical| StatefulLexicalMatch {
+        state: terminal.position_after(position, lexical.end),
+        lexical,
+    })
+    .collect()
 }
 
 fn parse_fixture(
@@ -336,11 +338,19 @@ fn parse_fixture(
     Forest<RuleId, Leaf, LexicalOwner>,
     super::engine::ChartFailure<Category, LexicalTerminal>,
 > {
-    parse_observed(
+    parse_observed_with_state(
         RULES,
         category,
         text.len(),
-        |terminal, offset| scan(text, offset, terminal, environment),
+        &ScanPosition {
+            byte_offset: 0,
+            case: CasePosition::DocumentInitial,
+            prefix: PrefixPosition::None,
+        },
+        |terminal, offset, position| {
+            debug_assert_eq!(offset, position.byte_offset);
+            scan(text, *position, terminal, environment)
+        },
         |_rule, _family, _forest| true,
         &mut (),
     )
@@ -680,11 +690,19 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
         ])
     );
     let mut trace = IdentityTrace::default();
-    let forest = parse_observed(
+    let forest = parse_observed_with_state(
         RULES,
         Category::Homonym,
         text.len(),
-        |terminal, offset| scan(text, offset, terminal, &environment),
+        &ScanPosition {
+            byte_offset: 0,
+            case: CasePosition::DocumentInitial,
+            prefix: PrefixPosition::None,
+        },
+        |terminal, offset, position| {
+            debug_assert_eq!(offset, position.byte_offset);
+            scan(text, *position, terminal, &environment)
+        },
         |_rule, _family, _forest| true,
         &mut trace,
     )

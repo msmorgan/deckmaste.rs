@@ -1442,6 +1442,7 @@ mod tests {
                 "FeatureConstraint",
                 "CasePosition",
                 "PrefixPosition",
+                "StructuralTransition",
                 "ScanPosition",
                 "DeclarationClass",
                 "DeclarationMatcher",

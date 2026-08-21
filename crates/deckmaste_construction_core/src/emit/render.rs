@@ -337,90 +337,8 @@ fn emit_structural_surface_runtime(plan: &SemanticPlan) -> syn::Result<Vec<Gener
             crate::identifier::pascal_case(carrier.field.name()),
         ))
     });
-    let separator_arms = carriers
-        .iter()
-        .map(|carrier| -> syn::Result<TokenStream> {
-            let variant = ident(&format!(
-                "{}{}",
-                crate::identifier::pascal_case(carrier.owner),
-                crate::identifier::pascal_case(carrier.field.name()),
-            ));
-            let StructuralFieldKindPlan::Sequence { surface, .. } = carrier.field.kind() else {
-                return Err(internal("sequence surface owner is not a sequence"));
-            };
-            let body = match surface.separator() {
-                None => quote! { &[] },
-                Some(SeparatorPlan::Uniform(surface)) => fixed_surface_atoms(
-                    plan,
-                    carrier.owner,
-                    carrier.field.name(),
-                    surface,
-                    crate::emit::rules::StructuralSurfacePolicy::SeparatorUniform,
-                )?,
-                Some(SeparatorPlan::Positional(rows)) => {
-                    let arms = rows
-                        .iter()
-                        .map(|row| -> syn::Result<TokenStream> {
-                            let condition = match row.class() {
-                                crate::semantic::EdgeClass::Pair => {
-                                    quote! { member_count == 2 && edge_index == 0 }
-                                }
-                                crate::semantic::EdgeClass::First => {
-                                    quote! { member_count >= 3 && edge_index == 0 }
-                                }
-                                crate::semantic::EdgeClass::Middle => quote! {
-                                    member_count >= 4
-                                        && edge_index > 0
-                                        && edge_index < member_count - 2
-                                },
-                                crate::semantic::EdgeClass::Last => quote! {
-                                    member_count >= 3 && edge_index == member_count - 2
-                                },
-                            };
-                            let atoms = fixed_surface_atoms(
-                                plan,
-                                carrier.owner,
-                                carrier.field.name(),
-                                row.surface(),
-                                crate::emit::rules::StructuralSurfacePolicy::SeparatorPositional(
-                                    row.class(),
-                                ),
-                            )?;
-                            Ok(quote! { if #condition { return #atoms; } })
-                        })
-                        .collect::<syn::Result<Vec<_>>>()?;
-                    quote! {{ #(#arms)* &[] }}
-                }
-            };
-            Ok(quote! { SequenceOwner::#variant => #body })
-        })
-        .collect::<syn::Result<Vec<_>>>()?;
-    let terminator_arms = carriers
-        .iter()
-        .map(|carrier| -> syn::Result<TokenStream> {
-            let variant = ident(&format!(
-                "{}{}",
-                crate::identifier::pascal_case(carrier.owner),
-                crate::identifier::pascal_case(carrier.field.name()),
-            ));
-            let StructuralFieldKindPlan::Sequence { surface, .. } = carrier.field.kind() else {
-                return Err(internal("sequence terminator owner is not a sequence"));
-            };
-            let atoms = surface.terminator().map_or_else(
-                || Ok(quote! { &[] }),
-                |terminator| {
-                    fixed_surface_atoms(
-                        plan,
-                        carrier.owner,
-                        carrier.field.name(),
-                        terminator,
-                        crate::emit::rules::StructuralSurfacePolicy::Terminator,
-                    )
-                },
-            )?;
-            Ok(quote! { SequenceOwner::#variant => #atoms })
-        })
-        .collect::<syn::Result<Vec<_>>>()?;
+    let separator_arms = sequence_separator_arms(plan, &carriers)?;
+    let terminator_arms = sequence_terminator_arms(plan, &carriers)?;
     let origins = plan.declaration_keys().to_vec();
     Ok(vec![
         GeneratedItem::new(
@@ -438,7 +356,7 @@ fn emit_structural_surface_runtime(plan: &SemanticPlan) -> syn::Result<Vec<Gener
                 pub(crate) struct FixedSurfaceAtom {
                     pub(crate) text: &'static str,
                     pub(crate) stable_id: &'static str,
-                    pub(crate) terminates_sentence: bool,
+                    pub(crate) transition: StructuralTransition,
                 }
             },
             origins.clone(),
@@ -476,6 +394,122 @@ fn emit_structural_surface_runtime(plan: &SemanticPlan) -> syn::Result<Vec<Gener
     ])
 }
 
+fn sequence_separator_arms(
+    plan: &SemanticPlan,
+    carriers: &[super::StructuralCarrier<'_>],
+) -> syn::Result<Vec<TokenStream>> {
+    carriers
+        .iter()
+        .map(|carrier| -> syn::Result<TokenStream> {
+            let variant = ident(&format!(
+                "{}{}",
+                crate::identifier::pascal_case(carrier.owner),
+                crate::identifier::pascal_case(carrier.field.name()),
+            ));
+            let StructuralFieldKindPlan::Sequence {
+                bounds, surface, ..
+            } = carrier.field.kind()
+            else {
+                return Err(internal("sequence surface owner is not a sequence"));
+            };
+            let minimum = bounds.min();
+            let valid_member_count = bounds.max().map_or_else(
+                || quote! { member_count >= #minimum },
+                |maximum| quote! { (#minimum..=#maximum).contains(&member_count) },
+            );
+            let valid_edge = quote! {
+                #valid_member_count
+                    && member_count
+                        .checked_sub(1)
+                        .is_some_and(|edge_count| edge_index < edge_count)
+            };
+            let body = match surface.separator() {
+                None => quote! { &[] },
+                Some(SeparatorPlan::Uniform(surface)) => {
+                    let atoms = fixed_surface_atoms(
+                        plan,
+                        carrier.owner,
+                        carrier.field.name(),
+                        surface,
+                        crate::emit::rules::StructuralSurfacePolicy::SeparatorUniform,
+                    )?;
+                    quote! { if #valid_edge { #atoms } else { &[] } }
+                }
+                Some(SeparatorPlan::Positional(rows)) => {
+                    let arms = positional_separator_arms(plan, carrier, rows)?;
+                    quote! {{ if !(#valid_edge) { return &[]; } #(#arms)* &[] }}
+                }
+            };
+            Ok(quote! { SequenceOwner::#variant => #body })
+        })
+        .collect()
+}
+
+fn positional_separator_arms(
+    plan: &SemanticPlan,
+    carrier: &super::StructuralCarrier<'_>,
+    rows: &[crate::semantic::PositionalSeparatorPlan],
+) -> syn::Result<Vec<TokenStream>> {
+    rows.iter()
+        .map(|row| -> syn::Result<TokenStream> {
+            let condition = match row.class() {
+                crate::semantic::EdgeClass::Pair => {
+                    quote! { member_count == 2 && edge_index == 0 }
+                }
+                crate::semantic::EdgeClass::First => {
+                    quote! { member_count >= 3 && edge_index == 0 }
+                }
+                crate::semantic::EdgeClass::Middle => quote! {
+                    member_count >= 4 && edge_index > 0 && edge_index < member_count - 2
+                },
+                crate::semantic::EdgeClass::Last => {
+                    quote! { member_count >= 3 && edge_index == member_count - 2 }
+                }
+            };
+            let atoms = fixed_surface_atoms(
+                plan,
+                carrier.owner,
+                carrier.field.name(),
+                row.surface(),
+                crate::emit::rules::StructuralSurfacePolicy::SeparatorPositional(row.class()),
+            )?;
+            Ok(quote! { if #condition { return #atoms; } })
+        })
+        .collect()
+}
+
+fn sequence_terminator_arms(
+    plan: &SemanticPlan,
+    carriers: &[super::StructuralCarrier<'_>],
+) -> syn::Result<Vec<TokenStream>> {
+    carriers
+        .iter()
+        .map(|carrier| -> syn::Result<TokenStream> {
+            let variant = ident(&format!(
+                "{}{}",
+                crate::identifier::pascal_case(carrier.owner),
+                crate::identifier::pascal_case(carrier.field.name()),
+            ));
+            let StructuralFieldKindPlan::Sequence { surface, .. } = carrier.field.kind() else {
+                return Err(internal("sequence terminator owner is not a sequence"));
+            };
+            let atoms = surface.terminator().map_or_else(
+                || Ok(quote! { &[] }),
+                |terminator| {
+                    fixed_surface_atoms(
+                        plan,
+                        carrier.owner,
+                        carrier.field.name(),
+                        terminator,
+                        crate::emit::rules::StructuralSurfacePolicy::Terminator,
+                    )
+                },
+            )?;
+            Ok(quote! { SequenceOwner::#variant => #atoms })
+        })
+        .collect()
+}
+
 fn structural_sequence_carriers(plan: &SemanticPlan) -> Vec<super::StructuralCarrier<'_>> {
     super::structural_carriers(plan)
         .into_iter()
@@ -500,12 +534,14 @@ fn fixed_surface_atoms(
                 &crate::emit::rules::structural_surface_stable_id(owner, role, policy, atom_index),
                 Span::call_site(),
             );
-            let terminates_sentence = text.value() == ".";
+            let transition = crate::emit::rules::emit_structural_transition(
+                crate::emit::rules::structural_surface_transition(surface, policy, atom_index),
+            );
             Ok(quote! {
                 FixedSurfaceAtom {
                     text: #text,
                     stable_id: #stable_id,
-                    terminates_sentence: #terminates_sentence,
+                    transition: #transition,
                 }
             })
         })
@@ -710,7 +746,7 @@ fn emit_sequence_renderer(
                             ),
                             |writer| writer.structural_surface(
                                 atom.text,
-                                atom.terminates_sentence,
+                                atom.transition,
                             ),
                         );
                     }
@@ -727,7 +763,7 @@ fn emit_sequence_renderer(
                                 ),
                                 |writer| writer.structural_surface(
                                     atom.text,
-                                    atom.terminates_sentence,
+                                    atom.transition,
                                 ),
                             );
                         }

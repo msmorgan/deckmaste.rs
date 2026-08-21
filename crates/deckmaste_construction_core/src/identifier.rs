@@ -15,6 +15,7 @@ pub(crate) const NUMBER_TYPE: &str = "Number";
 pub(crate) const FEATURE_CONSTRAINT_TYPE: &str = "FeatureConstraint";
 pub(crate) const CASE_POSITION_TYPE: &str = "CasePosition";
 pub(crate) const PREFIX_POSITION_TYPE: &str = "PrefixPosition";
+pub(crate) const STRUCTURAL_TRANSITION_TYPE: &str = "StructuralTransition";
 pub(crate) const SCAN_POSITION_TYPE: &str = "ScanPosition";
 pub(crate) const SEQUENCE_OWNER_TYPE: &str = "SequenceOwner";
 pub(crate) const FIXED_SURFACE_ATOM_TYPE: &str = "FixedSurfaceAtom";
@@ -37,6 +38,7 @@ pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     FEATURE_CONSTRAINT_TYPE,
     CASE_POSITION_TYPE,
     PREFIX_POSITION_TYPE,
+    STRUCTURAL_TRANSITION_TYPE,
     SCAN_POSITION_TYPE,
     SEQUENCE_OWNER_TYPE,
     FIXED_SURFACE_ATOM_TYPE,

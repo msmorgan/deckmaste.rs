@@ -1551,6 +1551,10 @@ mod tests {
             enum_variants(generated_item(&expansion, "PrefixPosition")),
             ["WordOwnedSpace", "SurfaceOwned", "None"]
         );
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "StructuralTransition")),
+            ["Preserve", "SentenceInitial"]
+        );
         let scan_position =
             syn::parse2::<syn::File>(generated_item(&expansion, "ScanPosition").tokens.clone())
                 .expect("ScanPosition parses");
@@ -1636,6 +1640,7 @@ mod tests {
         for name in [
             "FeatureConstraint",
             "PrefixPosition",
+            "StructuralTransition",
             "ScanPosition",
             "DeclarationMatcher",
             "DeclarationLeaf",
@@ -1996,7 +2001,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 73);
+        assert_eq!(keys.len(), 75);
         assert!(keys.iter().any(|key| {
             matches!(
                 key,

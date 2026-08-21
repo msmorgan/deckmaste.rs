@@ -1,6 +1,7 @@
 use crate::constructions::CasePosition;
 use crate::constructions::LexicalOwner;
 use crate::constructions::PrefixPosition;
+use crate::constructions::StructuralTransition;
 use crate::context::ParseContext;
 use crate::parser::TextSpan;
 use crate::parser::ownership::RawRenderedClaim;
@@ -104,13 +105,9 @@ impl Writer<'_> {
         dead_code,
         reason = "generated structural renderers use this ABI when the authored grammar has structural sequences"
     )]
-    pub(crate) fn structural_surface(&mut self, surface: &str, terminates_sentence: bool) {
+    pub(crate) fn structural_surface(&mut self, surface: &str, transition: StructuralTransition) {
         self.output.push_str(surface);
-        if terminates_sentence {
-            self.case = CasePosition::SentenceInitial;
-        } else if self.case != CasePosition::SentenceInitial {
-            self.case = CasePosition::Continuation;
-        }
+        self.case = transition.case_after(self.case);
         self.prefix = PrefixPosition::SurfaceOwned;
     }
 
@@ -137,6 +134,7 @@ mod tests {
     use crate::constructions::LexicalOwner;
     use crate::constructions::LexicalProvenanceKind;
     use crate::constructions::PrefixPosition;
+    use crate::constructions::StructuralTransition;
     use crate::context::ParseContext;
     use crate::environment::canonical_test_environment;
     use crate::parser::Parser;
@@ -190,7 +188,7 @@ mod tests {
         writer.claim(|| owner("terminator"), |writer| writer.punctuation('.'));
         writer.claim(
             || owner("separator"),
-            |writer| writer.structural_surface(" ", false),
+            |writer| writer.structural_surface(" ", StructuralTransition::Preserve),
         );
         writer.claim(|| owner("word:you"), |writer| writer.word("you"));
 
@@ -224,7 +222,7 @@ mod tests {
         );
         writer.claim(
             || LexicalOwner::static_owner(LexicalProvenanceKind::FormLiteral, "separator"),
-            |writer| writer.structural_surface(", ", false),
+            |writer| writer.structural_surface(", ", StructuralTransition::Preserve),
         );
         assert_eq!(writer.case_position(), CasePosition::Continuation);
         assert_eq!(writer.prefix_position(), PrefixPosition::SurfaceOwned);

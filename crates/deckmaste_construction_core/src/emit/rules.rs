@@ -89,10 +89,17 @@ pub(super) enum StructuralSurfacePolicy {
     Terminator,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum StructuralTransitionPlan {
+    Preserve,
+    SentenceInitial,
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct StructuralSurfaceSymbolPlan {
     pub(super) atom: FixedSurfaceAtomPlan,
     pub(super) stable_id: String,
+    pub(super) transition: StructuralTransitionPlan,
 }
 
 impl RuleSymbolPlan {
@@ -364,23 +371,37 @@ fn emit_rule_symbol(plan: &SemanticPlan, symbol: &RuleSymbolPlan) -> syn::Result
         RuleSymbolPlan::Surface(StructuralSurfaceSymbolPlan {
             atom: FixedSurfaceAtomPlan::Literal(value),
             stable_id,
+            transition,
         }) => {
             let value = syn::LitStr::new(value, Span::call_site());
             let stable_id = syn::LitStr::new(stable_id, Span::call_site());
+            let transition = emit_structural_transition(*transition);
             Ok(lexical_terminal(
                 &quote! { Lexical::Literal(#value) },
-                &quote! { LexicalOwnerTemplate::Structural { stable_id: #stable_id } },
+                &quote! {
+                    LexicalOwnerTemplate::Structural {
+                        stable_id: #stable_id,
+                        transition: #transition,
+                    }
+                },
             ))
         }
         RuleSymbolPlan::Surface(StructuralSurfaceSymbolPlan {
             atom: FixedSurfaceAtomPlan::Lex { terminal, .. },
             stable_id,
+            transition,
         }) => {
             let lexical = lexical_variant(plan, terminal)?;
             let stable_id = syn::LitStr::new(stable_id, Span::call_site());
+            let transition = emit_structural_transition(*transition);
             Ok(lexical_terminal(
                 &lexical,
-                &quote! { LexicalOwnerTemplate::Structural { stable_id: #stable_id } },
+                &quote! {
+                    LexicalOwnerTemplate::Structural {
+                        stable_id: #stable_id,
+                        transition: #transition,
+                    }
+                },
             ))
         }
     }
@@ -1205,9 +1226,44 @@ fn surface_symbols(
             RuleSymbolPlan::Surface(StructuralSurfaceSymbolPlan {
                 atom,
                 stable_id: structural_surface_stable_id(owner, role, policy, atom_index),
+                transition: structural_surface_transition(surface, policy, atom_index),
             })
         })
         .collect()
+}
+
+pub(super) fn fixed_surface_terminates_sentence(surface: &FixedSurfacePlan) -> bool {
+    surface.atoms().iter().rev().find_map(|atom| match atom {
+        FixedSurfaceAtomPlan::Literal(value) => {
+            let significant = value.trim_end_matches(char::is_whitespace);
+            (!significant.is_empty()).then(|| significant.ends_with('.'))
+        }
+        FixedSurfaceAtomPlan::Lex { .. } => Some(false),
+    }) == Some(true)
+}
+
+pub(super) fn structural_surface_transition(
+    surface: &FixedSurfacePlan,
+    policy: StructuralSurfacePolicy,
+    atom_index: usize,
+) -> StructuralTransitionPlan {
+    if policy == StructuralSurfacePolicy::Terminator
+        && atom_index.checked_add(1) == Some(surface.atoms().len())
+        && fixed_surface_terminates_sentence(surface)
+    {
+        StructuralTransitionPlan::SentenceInitial
+    } else {
+        StructuralTransitionPlan::Preserve
+    }
+}
+
+pub(super) fn emit_structural_transition(transition: StructuralTransitionPlan) -> TokenStream {
+    match transition {
+        StructuralTransitionPlan::Preserve => quote! { StructuralTransition::Preserve },
+        StructuralTransitionPlan::SentenceInitial => {
+            quote! { StructuralTransition::SentenceInitial }
+        }
+    }
 }
 
 pub(super) fn structural_surface_stable_id(

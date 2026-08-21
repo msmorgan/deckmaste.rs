@@ -169,13 +169,9 @@ mod declaration_noun_fixture {
             self.prefix = PrefixPosition::WordOwnedSpace;
         }
 
-        fn structural_surface(&mut self, surface: &str, terminates_sentence: bool) {
+        fn structural_surface(&mut self, surface: &str, transition: StructuralTransition) {
             self.output.push_str(surface);
-            if terminates_sentence {
-                self.case = CasePosition::SentenceInitial;
-            } else if self.case != CasePosition::SentenceInitial {
-                self.case = CasePosition::Continuation;
-            }
+            self.case = transition.case_after(self.case);
             self.prefix = PrefixPosition::SurfaceOwned;
         }
 
@@ -648,6 +644,7 @@ pub mod fixture {
     use engine::LexicalMatch as EngineLexicalMatch;
     use engine::Rule;
     use engine::RulePosition;
+    use engine::StatefulLexicalMatch as EngineStatefulLexicalMatch;
 
     #[derive(Default)]
     struct ParseContext<'a> {
@@ -750,13 +747,9 @@ pub mod fixture {
             self.prefix = PrefixPosition::WordOwnedSpace;
         }
 
-        fn structural_surface(&mut self, surface: &str, terminates_sentence: bool) {
+        fn structural_surface(&mut self, surface: &str, transition: StructuralTransition) {
             self.output.push_str(surface);
-            if terminates_sentence {
-                self.case = CasePosition::SentenceInitial;
-            } else if self.case != CasePosition::SentenceInitial {
-                self.case = CasePosition::Continuation;
-            }
+            self.case = transition.case_after(self.case);
             self.prefix = PrefixPosition::SurfaceOwned;
         }
 
@@ -1236,6 +1229,18 @@ pub mod fixture {
             items: seq LetterAtom separated by " " terminated by ".",
         }
         require len(SentenceStructural.items) >= 1;
+        abstract product PeriodSeparatedStructural {
+            items: seq LetterAtom separated by ".",
+        }
+        require len(PeriodSeparatedStructural.items) = 2;
+        abstract product SingleAtomSentenceStructural {
+            items: seq LetterAtom terminated by ". ",
+        }
+        require len(SingleAtomSentenceStructural.items) = 2;
+        abstract product MultiAtomSentenceStructural {
+            items: seq LetterAtom terminated by "." " ",
+        }
+        require len(MultiAtomSentenceStructural.items) = 2;
         abstract product SingletonBlock {
             sentences: seq LetterAtom terminated by ".",
         }
@@ -1253,6 +1258,15 @@ pub mod fixture {
             },
         }
         require len(ContinuationStructural.items) >= 1;
+        abstract product BoundedPositionalStructural {
+            items: seq StructuralAtom separated by position {
+                first = "<BF>";
+                middle = "<BM>";
+                last = "<BL>";
+            },
+        }
+        require len(BoundedPositionalStructural.items) >= 3;
+        require len(BoundedPositionalStructural.items) <= 4;
         abstract sum TraversalChoice { StructuralAtom, MarkerCategory, }
         abstract product TraversalHolder {
             maybe: opt TraversalChoice,
@@ -1849,46 +1863,36 @@ pub mod fixture {
         text: &str,
         context: &ParseContext<'_>,
     ) -> engine::Forest<RuleId, Leaf, LexicalOwner> {
-        engine::parse(
+        engine::parse_with_state(
             RULES,
             category,
             text.len(),
-            |terminal, offset| {
+            &ScanPosition {
+                byte_offset: 0,
+                case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
+            },
+            |terminal, offset, position| {
+                debug_assert_eq!(offset, position.byte_offset);
                 scan_lexical(
                     &ScanInput {
                         text,
-                        position: ScanPosition {
-                            byte_offset: offset,
-                            case: if offset == 0 {
-                                CasePosition::DocumentInitial
-                            } else if text.get(..offset).is_some_and(|prefix| {
-                                prefix.trim_end_matches(char::is_whitespace).ends_with('.')
-                            }) {
-                                CasePosition::SentenceInitial
-                            } else {
-                                CasePosition::Continuation
-                            },
-                            prefix: if offset == 0 {
-                                PrefixPosition::None
-                            } else if matches!(
-                                terminal.owner,
-                                LexicalOwnerTemplate::Structural { .. }
-                            ) || text.as_bytes().get(offset) != Some(&b' ')
-                            {
-                                PrefixPosition::SurfaceOwned
-                            } else {
-                                PrefixPosition::WordOwnedSpace
-                            },
-                        },
+                        position: *position,
                         context,
                     },
                     terminal,
                 )
                 .into_iter()
-                .map(|lexical_match| EngineLexicalMatch {
-                    end: lexical_match.end,
-                    value: lexical_match.value,
-                    owner: lexical_match.owner,
+                .map(|lexical_match| {
+                    let end = lexical_match.end;
+                    EngineStatefulLexicalMatch {
+                        lexical: EngineLexicalMatch {
+                            end,
+                            value: lexical_match.value,
+                            owner: lexical_match.owner,
+                        },
+                        state: terminal.position_after(*position, end),
+                    }
                 })
                 .collect()
             },
@@ -2082,6 +2086,106 @@ pub mod fixture {
             sequence_terminator(SequenceOwner::PositionalStructuralItems)[0].stable_id,
             "structural:PositionalStructural/items/terminator/0",
         );
+
+        let single = sequence_terminator(SequenceOwner::SingleAtomSentenceStructuralItems);
+        let multi = sequence_terminator(SequenceOwner::MultiAtomSentenceStructuralItems);
+        assert_eq!(single.len(), 1);
+        assert_eq!(multi.len(), 2);
+
+        let writer_state_after = |atoms: &[FixedSurfaceAtom]| {
+            let mut writer = Writer::new();
+            writer.word("a");
+            for atom in atoms {
+                writer.structural_surface(atom.text, atom.transition);
+            }
+            (writer.case, writer.prefix)
+        };
+        assert_eq!(
+            writer_state_after(single),
+            (CasePosition::SentenceInitial, PrefixPosition::SurfaceOwned),
+        );
+        assert_eq!(writer_state_after(multi), writer_state_after(single));
+
+        let scanner_state_after = |atoms: &[FixedSurfaceAtom]| {
+            atoms.iter().fold(
+                ScanPosition {
+                    byte_offset: 1,
+                    case: CasePosition::Continuation,
+                    prefix: PrefixPosition::WordOwnedSpace,
+                },
+                |position, atom| {
+                    atom.transition
+                        .position_after(position, position.byte_offset + atom.text.len())
+                },
+            )
+        };
+        assert_eq!(
+            scanner_state_after(single),
+            ScanPosition {
+                byte_offset: 3,
+                case: CasePosition::SentenceInitial,
+                prefix: PrefixPosition::SurfaceOwned,
+            },
+        );
+        assert_eq!(scanner_state_after(multi), scanner_state_after(single));
+
+        let period_separator =
+            sequence_separator(SequenceOwner::PeriodSeparatedStructuralItems, 2, 0);
+        assert_eq!(
+            period_separator[0].transition,
+            StructuralTransition::Preserve
+        );
+
+        for (member_count, edge_index) in [
+            (0, 0),
+            (1, 0),
+            (2, 1),
+            (3, 0),
+            (usize::MAX, 0),
+            (2, usize::MAX),
+        ] {
+            assert!(
+                sequence_separator(
+                    SequenceOwner::PeriodSeparatedStructuralItems,
+                    member_count,
+                    edge_index,
+                )
+                .is_empty(),
+                "uniform lookup accepts invalid count/edge ({member_count}, {edge_index})",
+            );
+        }
+
+        for (member_count, edge_index) in [
+            (0, 0),
+            (1, 0),
+            (2, 0),
+            (3, 2),
+            (5, 0),
+            (usize::MAX, 0),
+            (4, usize::MAX),
+        ] {
+            assert!(
+                sequence_separator(
+                    SequenceOwner::BoundedPositionalStructuralItems,
+                    member_count,
+                    edge_index,
+                )
+                .is_empty(),
+                "positional lookup accepts invalid count/edge ({member_count}, {edge_index})",
+            );
+        }
+        assert_eq!(
+            sequence_separator(SequenceOwner::BoundedPositionalStructuralItems, 3, 0)[0].text,
+            "<BF>",
+        );
+        assert_eq!(
+            sequence_separator(SequenceOwner::BoundedPositionalStructuralItems, 4, 1)[0].text,
+            "<BM>",
+        );
+        assert_eq!(
+            sequence_separator(SequenceOwner::BoundedPositionalStructuralItems, 4, 2)[0].text,
+            "<BL>",
+        );
     }
 
     fn assert_sentence_and_block_partitions(context: &ParseContext<'_>) {
@@ -2124,6 +2228,66 @@ pub mod fixture {
         collect_first_family_claims(&forest, root, &mut parsed_claims);
         assert_eq!(parsed_claims, rendered_claims);
         assert_exact_partition(&text, &parsed_claims);
+
+        let period_separated =
+            PeriodSeparatedStructural::new(vec![letter(Letter::A), letter(Letter::B)])
+                .expect("two period-separated members satisfy the exact bound");
+        let (text, rendered_claims) = render_structural(
+            &period_separated,
+            context,
+            render_period_separated_structural,
+        );
+        assert_eq!(
+            text, "A.b",
+            "a separator period does not establish sentence case"
+        );
+        let forest = parse_structural(Category::PeriodSeparatedStructural, &text, context);
+        let root = forest
+            .accepted_root_ids()
+            .next()
+            .expect("the lowercase continuation accepts through generated scan state");
+        let mut parsed_claims = Vec::new();
+        collect_first_family_claims(&forest, root, &mut parsed_claims);
+        assert_eq!(parsed_claims, rendered_claims);
+        assert_exact_partition(&text, &parsed_claims);
+
+        let single_atom =
+            SingleAtomSentenceStructural::new(vec![letter(Letter::A), letter(Letter::B)])
+                .expect("two single-atom terminated members satisfy the exact bound");
+        let multi_atom =
+            MultiAtomSentenceStructural::new(vec![letter(Letter::A), letter(Letter::B)])
+                .expect("two multi-atom terminated members satisfy the exact bound");
+        let (single_text, single_claims) = render_structural(
+            &single_atom,
+            context,
+            render_single_atom_sentence_structural,
+        );
+        let (multi_text, multi_claims) =
+            render_structural(&multi_atom, context, render_multi_atom_sentence_structural);
+        assert_eq!(single_text, "A. B. ");
+        assert_eq!(multi_text, single_text);
+        for (category, text, rendered_claims) in [
+            (
+                Category::SingleAtomSentenceStructural,
+                single_text,
+                single_claims,
+            ),
+            (
+                Category::MultiAtomSentenceStructural,
+                multi_text,
+                multi_claims,
+            ),
+        ] {
+            let forest = parse_structural(category, &text, context);
+            let root = forest
+                .accepted_root_ids()
+                .next()
+                .expect("period-bearing terminator establishes sentence case");
+            let mut parsed_claims = Vec::new();
+            collect_first_family_claims(&forest, root, &mut parsed_claims);
+            assert_eq!(parsed_claims, rendered_claims);
+            assert_exact_partition(&text, &parsed_claims);
+        }
 
         let block_a = SingletonBlock::new(vec![letter(Letter::A)]).expect("one sentence in block");
         let block_b = SingletonBlock::new(vec![letter(Letter::B)]).expect("one sentence in block");
@@ -2252,6 +2416,27 @@ pub mod fixture {
         assert_eq!(text, "Alpha and beta");
         assert_eq!((claims[2].0, claims[2].1), (10, 14));
         assert_exact_partition(&text, &claims);
+        let forest = parse_structural(Category::ContinuationStructural, &text, &context);
+        let root = forest
+            .accepted_root_ids()
+            .next()
+            .expect("non-sentence positional continuation parses through generated state");
+        let mut parsed_claims = Vec::new();
+        collect_first_family_claims(&forest, root, &mut parsed_claims);
+        assert_eq!(parsed_claims, claims);
+        assert_exact_partition(&text, &parsed_claims);
+
+        let empty_traversal = TraversalHolder {
+            maybe: None,
+            items: vec![],
+        };
+        let mut empty_visitor = RecordingVisitor::default();
+        walk_traversal_holder(&mut empty_visitor, &empty_traversal);
+        assert_eq!(
+            empty_visitor.0,
+            [],
+            "None and an empty sequence produce no value, helper, or policy callbacks",
+        );
 
         let traversal = TraversalHolder {
             maybe: Some(TraversalChoice::StructuralAtom(alpha)),
@@ -2271,7 +2456,7 @@ pub mod fixture {
                 VisitEvent::StructuralWord(StructuralWord::Beta),
                 VisitEvent::Marker(Marker::One),
             ],
-            "optional then sequence traversal follows stored source order",
+            "the complete callback log contains only stored values in source order",
         );
     }
 

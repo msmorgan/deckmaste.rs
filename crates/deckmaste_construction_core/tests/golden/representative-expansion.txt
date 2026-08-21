@@ -83,6 +83,11 @@ pub(crate) enum PrefixPosition {
     None,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum StructuralTransition {
+    Preserve,
+    SentenceInitial,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) struct ScanPosition {
     pub(crate) byte_offset: usize,
     pub(crate) case: CasePosition,
@@ -150,7 +155,7 @@ pub enum LexicalProvenanceKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum LexicalOwnerTemplate {
     None,
-    Structural { stable_id: &'static str },
+    Structural { stable_id: &'static str, transition: StructuralTransition },
     Static { kind: LexicalProvenanceKind, stable_id: &'static str },
     Vocab { declaration: &'static str },
     Lexeme { declaration: &'static str, member: &'static str },
@@ -210,6 +215,25 @@ impl From<Category> for NonterminalCategory {
         value.nonterminal_category()
     }
 }
+impl StructuralTransition {
+    pub(crate) const fn case_after(self, current: CasePosition) -> CasePosition {
+        match self {
+            StructuralTransition::Preserve => current,
+            StructuralTransition::SentenceInitial => CasePosition::SentenceInitial,
+        }
+    }
+    pub(crate) const fn position_after(
+        self,
+        current: ScanPosition,
+        byte_offset: usize,
+    ) -> ScanPosition {
+        ScanPosition {
+            byte_offset,
+            case: self.case_after(current.case),
+            prefix: PrefixPosition::SurfaceOwned,
+        }
+    }
+}
 impl Lexical {
     pub(crate) const fn class(self) -> TerminalClass {
         match self {
@@ -231,6 +255,31 @@ impl Lexical {
 impl LexicalTerminal {
     pub(crate) const fn class(self) -> TerminalClass {
         self.matcher.class()
+    }
+    pub(crate) const fn position_after(
+        self,
+        current: ScanPosition,
+        byte_offset: usize,
+    ) -> ScanPosition {
+        match self.owner {
+            LexicalOwnerTemplate::Structural { transition, .. } => {
+                transition.position_after(current, byte_offset)
+            }
+            LexicalOwnerTemplate::None => {
+                ScanPosition {
+                    byte_offset,
+                    case: current.case,
+                    prefix: current.prefix,
+                }
+            }
+            _ => {
+                ScanPosition {
+                    byte_offset,
+                    case: CasePosition::Continuation,
+                    prefix: PrefixPosition::WordOwnedSpace,
+                }
+            }
+        }
     }
 }
 impl TerminalClass {
@@ -432,7 +481,7 @@ impl LexicalOwnerTemplate {
     pub(crate) fn instantiate(self, value: &Leaf) -> Option<LexicalOwner> {
         match (self, value) {
             (LexicalOwnerTemplate::None, Leaf::EndOfInput) => None,
-            (LexicalOwnerTemplate::Structural { stable_id }, _) => {
+            (LexicalOwnerTemplate::Structural { stable_id, .. }, _) => {
                 Some(
                     LexicalOwner::static_owner(
                         LexicalProvenanceKind::FormLiteral,

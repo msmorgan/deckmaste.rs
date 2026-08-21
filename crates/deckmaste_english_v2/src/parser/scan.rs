@@ -22,8 +22,9 @@ use super::engine::Family;
 use super::engine::Forest;
 use super::engine::LexicalMatch;
 use super::engine::Observation;
-use super::engine::parse;
-use super::engine::parse_observed;
+use super::engine::StatefulLexicalMatch;
+use super::engine::parse_observed_with_state;
+use super::engine::parse_with_state;
 use super::materialize::completion_has_checked_build;
 use crate::constructions::CasePosition;
 use crate::constructions::Category;
@@ -62,11 +63,12 @@ pub(crate) fn parse_forest(
 ) -> Result<Forest<RuleId, Leaf, LexicalOwner>, ChartFailure<Category, Lexical>> {
     #[cfg(test)]
     super::count_pipeline_stage(super::PipelineStage::Parse);
-    parse(
+    parse_with_state(
         RULES,
         Category::Ability,
         text.len(),
-        |lexical, offset| grammar.scan(lexical, text, offset),
+        &initial_scan_position(),
+        |lexical, offset, position| grammar.scan_stateful(lexical, text, offset, *position),
         |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),
     )
     .map_err(project_failure)
@@ -81,11 +83,12 @@ pub(crate) fn parse_forest_observed(
     limits: TraceLimits,
 ) -> (ObservedForestResult, StructuralTrace) {
     let mut observation = StructuralObservation::new(limits);
-    let result = parse_observed(
+    let result = parse_observed_with_state(
         RULES,
         Category::Ability,
         text.len(),
-        |lexical, offset| grammar.scan(lexical, text, offset),
+        &initial_scan_position(),
+        |lexical, offset, position| grammar.scan_stateful(lexical, text, offset, *position),
         |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),
         &mut observation,
     )
@@ -445,38 +448,48 @@ fn trace_label_counts() -> TraceLabelCounts {
 }
 
 impl SliceGrammar<'_> {
+    #[cfg(test)]
     pub(super) fn scan(
         &self,
         terminal: LexicalTerminal,
         text: &str,
         offset: usize,
     ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
-        let case = if offset == 0 {
-            CasePosition::DocumentInitial
-        } else if text
-            .get(..offset)
-            .is_some_and(|prefix| prefix.trim_end_matches(char::is_whitespace).ends_with('.'))
-        {
-            CasePosition::SentenceInitial
+        let position = if offset == 0 {
+            initial_scan_position()
         } else {
-            CasePosition::Continuation
+            ScanPosition {
+                byte_offset: offset,
+                case: CasePosition::Continuation,
+                prefix: PrefixPosition::WordOwnedSpace,
+            }
         };
-        let prefix = if offset == 0 {
-            PrefixPosition::None
-        } else if matches!(
-            terminal.owner,
-            crate::constructions::LexicalOwnerTemplate::Structural { .. }
-        ) || text.as_bytes().get(offset) != Some(&b' ')
-        {
-            PrefixPosition::SurfaceOwned
-        } else {
-            PrefixPosition::WordOwnedSpace
-        };
-        let position = ScanPosition {
-            byte_offset: offset,
-            case,
-            prefix,
-        };
+        self.scan_at(terminal, text, position)
+    }
+
+    fn scan_stateful(
+        &self,
+        terminal: LexicalTerminal,
+        text: &str,
+        offset: usize,
+        position: ScanPosition,
+    ) -> Vec<StatefulLexicalMatch<Leaf, LexicalOwner, ScanPosition>> {
+        debug_assert_eq!(offset, position.byte_offset);
+        self.scan_at(terminal, text, position)
+            .into_iter()
+            .map(|lexical| StatefulLexicalMatch {
+                state: terminal.position_after(position, lexical.end),
+                lexical,
+            })
+            .collect()
+    }
+
+    fn scan_at(
+        &self,
+        terminal: LexicalTerminal,
+        text: &str,
+        position: ScanPosition,
+    ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
         scan_lexical(
             &ScanInput {
                 text,
@@ -486,6 +499,14 @@ impl SliceGrammar<'_> {
             },
             terminal,
         )
+    }
+}
+
+const fn initial_scan_position() -> ScanPosition {
+    ScanPosition {
+        byte_offset: 0,
+        case: CasePosition::DocumentInitial,
+        prefix: PrefixPosition::None,
     }
 }
 
