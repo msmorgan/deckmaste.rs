@@ -1137,8 +1137,9 @@ impl SemanticPlan {
                 .enumerate()
                 .filter_map(|(source_index, declaration)| match declaration {
                     Declaration::Construction(construction) => Some((source_index, construction)),
-                    Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => None,
-                    Declaration::Vocab(_)
+                    Declaration::AbstractProduct(_)
+                    | Declaration::AbstractSum(_)
+                    | Declaration::Vocab(_)
                     | Declaration::Morphology(_)
                     | Declaration::Lexeme(_)
                     | Declaration::Codec(_)

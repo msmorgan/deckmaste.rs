@@ -1880,11 +1880,11 @@ mod tests {
     #[test]
     fn parses_unqualified_length_and_root_without_punctuation() {
         let declarations = parse(
-            r#"
+            r"
                 abstract product Holder { items: seq Node, }
                 require len(items) = 0;
                 root Sentence { eoi = true; standalone_render = true; }
-            "#,
+            ",
         )
         .expect("source-level structural rows parse before semantic validation");
 

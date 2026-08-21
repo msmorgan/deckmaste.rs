@@ -2076,8 +2076,9 @@ fn seal_category_feature_reads(raw: &Declarations) -> HashMap<String, HashSet<Fe
         .iter()
         .filter_map(|declaration| match declaration {
             Declaration::Construction(construction) => Some(path_name(&construction.category)),
-            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => None,
-            Declaration::Vocab(_)
+            Declaration::AbstractProduct(_)
+            | Declaration::AbstractSum(_)
+            | Declaration::Vocab(_)
             | Declaration::Morphology(_)
             | Declaration::Lexeme(_)
             | Declaration::Codec(_)
@@ -2138,8 +2139,11 @@ fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
                     }
                 }
             }
-            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => {}
-            Declaration::Vocab(_) | Declaration::Morphology(_) | Declaration::Lexeme(_) => {}
+            Declaration::AbstractProduct(_)
+            | Declaration::AbstractSum(_)
+            | Declaration::Vocab(_)
+            | Declaration::Morphology(_)
+            | Declaration::Lexeme(_) => {}
         }
     }
     finish(errors)
@@ -2819,8 +2823,10 @@ fn generated_name_inventory(
         .flatten()
         .filter_map(|field| match &field.kind {
             FieldKind::Category(path) => Some(path_name(path)),
-            FieldKind::Lex(_) | FieldKind::Identity(_) => None,
-            FieldKind::Optional(_) | FieldKind::Sequence { .. } => None,
+            FieldKind::Lex(_)
+            | FieldKind::Identity(_)
+            | FieldKind::Optional(_)
+            | FieldKind::Sequence { .. } => None,
         })
         .collect::<HashSet<_>>();
     let standalone_roots = raw
@@ -2950,8 +2956,10 @@ fn generated_name_inventory(
                             .then_some(&field.kind)
                             .and_then(|kind| match kind {
                                 FieldKind::Lex(path) => Some(path_name(path)),
-                                FieldKind::Category(_) | FieldKind::Identity(_) => None,
-                                FieldKind::Optional(_) | FieldKind::Sequence { .. } => None,
+                                FieldKind::Category(_)
+                                | FieldKind::Identity(_)
+                                | FieldKind::Optional(_)
+                                | FieldKind::Sequence { .. } => None,
                             })
                     }) else {
                         continue;
@@ -4402,8 +4410,10 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
                     );
                 }
             }
-            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => {}
-            Declaration::Root(_) | Declaration::Morphology(_) => {}
+            Declaration::AbstractProduct(_)
+            | Declaration::AbstractSum(_)
+            | Declaration::Root(_)
+            | Declaration::Morphology(_) => {}
         }
     }
     for declaration in &raw.declarations {
@@ -5985,8 +5995,10 @@ fn seal_category_render_capabilities(
                         .then_some(&field.kind)
                         .and_then(|kind| match kind {
                             FieldKind::Category(category) => Some(path_name(category)),
-                            FieldKind::Lex(_) | FieldKind::Identity(_) => None,
-                            FieldKind::Optional(_) | FieldKind::Sequence { .. } => None,
+                            FieldKind::Lex(_)
+                            | FieldKind::Identity(_)
+                            | FieldKind::Optional(_)
+                            | FieldKind::Sequence { .. } => None,
                         })
                 }) else {
                     return false;
@@ -6167,8 +6179,10 @@ fn validate_contextual_agreement_uses(
                     .then_some(&field.kind)
                     .and_then(|kind| match kind {
                         FieldKind::Category(category) => Some(path_name(category)),
-                        FieldKind::Lex(_) | FieldKind::Identity(_) => None,
-                        FieldKind::Optional(_) | FieldKind::Sequence { .. } => None,
+                        FieldKind::Lex(_)
+                        | FieldKind::Identity(_)
+                        | FieldKind::Optional(_)
+                        | FieldKind::Sequence { .. } => None,
                     })
             }) else {
                 continue;
@@ -6593,8 +6607,11 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
                     ),
                 }
             }
-            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => {}
-            Declaration::Vocab(_) | Declaration::Morphology(_) | Declaration::Lexeme(_) => {}
+            Declaration::AbstractProduct(_)
+            | Declaration::AbstractSum(_)
+            | Declaration::Vocab(_)
+            | Declaration::Morphology(_)
+            | Declaration::Lexeme(_) => {}
         }
     }
     validate_category_feature_uniformity(raw, &mut errors);

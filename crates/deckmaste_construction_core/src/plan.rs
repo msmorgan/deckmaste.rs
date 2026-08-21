@@ -1714,8 +1714,9 @@ mod tests {
             .iter()
             .find_map(|declaration| match declaration {
                 crate::Declaration::Construction(construction) => Some(construction),
-                crate::Declaration::AbstractProduct(_) | crate::Declaration::AbstractSum(_) => None,
-                crate::Declaration::Vocab(_)
+                crate::Declaration::AbstractProduct(_)
+                | crate::Declaration::AbstractSum(_)
+                | crate::Declaration::Vocab(_)
                 | crate::Declaration::Morphology(_)
                 | crate::Declaration::Lexeme(_)
                 | crate::Declaration::Codec(_)
@@ -1856,8 +1857,9 @@ mod tests {
             .into_iter()
             .find_map(|declaration| match declaration {
                 crate::Declaration::Construction(construction) => Some(construction.form),
-                crate::Declaration::AbstractProduct(_) | crate::Declaration::AbstractSum(_) => None,
-                crate::Declaration::Vocab(_)
+                crate::Declaration::AbstractProduct(_)
+                | crate::Declaration::AbstractSum(_)
+                | crate::Declaration::Vocab(_)
                 | crate::Declaration::Morphology(_)
                 | crate::Declaration::Lexeme(_)
                 | crate::Declaration::Codec(_)
