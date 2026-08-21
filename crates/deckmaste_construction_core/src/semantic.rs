@@ -1039,6 +1039,36 @@ impl SemanticPlan {
     }
 
     #[cfg(test)]
+    pub(crate) fn test_only_remove_invariant_context_field(
+        &mut self,
+        construction_id: &str,
+        field: &str,
+    ) {
+        let terminals = &self.terminals;
+        let construction = self
+            .constructions
+            .iter_mut()
+            .find(|construction| construction.construction_id == construction_id)
+            .expect("test construction is present");
+        let before = construction.invariant.context_identity_fields.len();
+        construction
+            .invariant
+            .context_identity_fields
+            .retain(|candidate| identifier_key(candidate) != field);
+        assert_eq!(
+            construction.invariant.context_identity_fields.len() + 1,
+            before,
+            "test context-identity field is present",
+        );
+        construction.invariant.requires_context =
+            !construction.invariant.context_identity_fields.is_empty();
+        construction
+            .invariant
+            .apply_field_policy(&mut construction.fields, terminals)
+            .expect("mutated test field policy remains sealable");
+    }
+
+    #[cfg(test)]
     pub(crate) fn test_only_replace_planned_literal(
         &mut self,
         construction_id: &str,
@@ -1925,6 +1955,51 @@ impl InvariantPlan {
                 self.alternatives.as_slice(),
                 [alternative] if alternative.atoms.is_empty()
             )
+    }
+
+    pub(crate) fn constant_fold_unit(
+        &mut self,
+        construction: &syn::Ident,
+        resolutions: Option<&HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
+    ) -> syn::Result<()> {
+        for alternative in &self.alternatives {
+            let mut satisfied = true;
+            for atom in &alternative.atoms {
+                let PredicateSubjectPlan::ConstructionFeature(feature) = atom.subject else {
+                    return Err(syn::Error::new(
+                        construction.span(),
+                        format!(
+                            "unit invariant for construction `{construction}` is not compile-time resolvable"
+                        ),
+                    ));
+                };
+                let place = feature::FeaturePlace::Construction(feature);
+                let Some(feature::FeatureResolution::Known(value)) =
+                    resolutions.and_then(|resolutions| resolutions.get(&place))
+                else {
+                    return Err(syn::Error::new(
+                        construction.span(),
+                        format!(
+                            "unit invariant for construction `{construction}` is not compile-time resolvable"
+                        ),
+                    ));
+                };
+                if !atom.allowed.iter().any(
+                    |member| matches!(member, PredicateMemberPlan::Feature(member) if member.value() == value),
+                ) {
+                    satisfied = false;
+                    break;
+                }
+            }
+            if satisfied {
+                self.alternatives = vec![PredicateConjunctionPlan::new(Vec::new())];
+                return Ok(());
+            }
+        }
+        Err(syn::Error::new(
+            construction.span(),
+            format!("unit invariant for construction `{construction}` is unsatisfiable"),
+        ))
     }
 
     fn seal_field_policy(
@@ -3515,6 +3590,29 @@ mod tests {
     }
 
     #[test]
+    fn invariant_normalization_keeps_satisfiable_mixed_dnf_alternatives() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Mode { One = "one", Two = "two", }
+                construction predicate: Predicate {
+                    element PredicateNode { mode: lex Mode, }
+                    require all(any(mode is One, mode is Two), mode is One);
+                    form predicate = lex(mode);
+                }
+                root Predicate { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("mixed-DNF fixture parses"),
+        )
+        .expect("a contradictory Cartesian pair does not reject a surviving alternative")
+        .into_semantic();
+
+        assert_eq!(
+            semantic.constructions()[0].invariant().snapshot(),
+            "(mode in [One])"
+        );
+    }
+
+    #[test]
     fn invariant_resolution_covers_category_vocab_role_and_construction_features() {
         let semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
@@ -3566,6 +3664,99 @@ mod tests {
     }
 
     #[test]
+    fn invariant_resolution_accepts_a_recursive_feature_chain() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                lexeme Verbs using EnglishVerb { Act = "act", }
+                vocab Mode { One = "one", Two = "two", }
+                construction recursive: Root {
+                    element RecursiveNode { mode: lex Mode, }
+                    require agreement is Bare;
+                    derive agreement = verb.agreement;
+                    derive verb.agreement = mode.agreement;
+                    derive mode.agreement = match mode {
+                        One => Values::Bare,
+                        Two => Values::ThirdPersonSingular,
+                    };
+                    form recursive = lex(mode) verb(Verbs::Act);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("recursive feature-chain fixture parses"),
+        )
+        .expect("an acyclic multi-hop feature chain is constructible")
+        .into_semantic();
+        let construction = &semantic.constructions()[0];
+
+        assert_eq!(construction.invariant().snapshot(), "(agreement in [Bare])");
+        assert_eq!(
+            construction
+                .invariant()
+                .constrained_fields()
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["mode"]
+        );
+    }
+
+    #[test]
+    fn invariant_resolution_follows_construction_a_b_and_stored_mode_chain() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Mode { One = "one", Two = "two", }
+                construction feature_bare: FeatureChild {
+                    element FeatureBare {}
+                    derive agreement = Values::Bare;
+                    form feature_bare = "feature bare";
+                }
+                construction feature_third: FeatureChild {
+                    element FeatureThird {}
+                    derive agreement = Values::ThirdPersonSingular;
+                    form feature_third = "feature third";
+                }
+                construction recursive: Root {
+                    element RecursiveNode {
+                        a: FeatureChild,
+                        b: FeatureChild,
+                        mode: lex Mode,
+                    }
+                    require agreement is Bare;
+                    derive agreement = a.agreement;
+                    derive a.agreement = b.agreement;
+                    derive b.agreement = mode.agreement;
+                    derive mode.agreement = match mode {
+                        One => Values::Bare,
+                        Two => Values::ThirdPersonSingular,
+                    };
+                    form recursive = a b lex(mode);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("construction/a/b/mode feature-chain fixture parses"),
+        )
+        .expect("the sealed resolver follows every acyclic feature hop")
+        .into_semantic();
+        let construction = semantic
+            .constructions()
+            .iter()
+            .find(|construction| construction.construction_id() == "recursive")
+            .expect("recursive construction is sealed");
+
+        assert_eq!(construction.invariant().snapshot(), "(agreement in [Bare])");
+        assert_eq!(
+            construction
+                .invariant()
+                .constrained_fields()
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["mode"]
+        );
+    }
+
+    #[test]
     fn multiple_require_clauses_are_an_implicit_all_and_tautologies_disappear() {
         let semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
@@ -3585,6 +3776,48 @@ mod tests {
         .into_semantic();
 
         assert_eq!(semantic.constructions()[0].invariant().snapshot(), "TRUE");
+    }
+
+    #[test]
+    fn satisfied_unit_invariant_is_constant_folded_before_emission() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction satisfied: Root {
+                    element SatisfiedUnit {}
+                    require agreement is Bare;
+                    derive agreement = Values::Bare;
+                    form satisfied = "satisfied";
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("satisfied unit fixture parses"),
+        )
+        .expect("a statically true unit invariant validates")
+        .into_semantic();
+        let invariant = semantic.constructions()[0].invariant();
+
+        assert_eq!(invariant.snapshot(), "TRUE");
+        assert!(!invariant.requires_constructor());
+    }
+
+    #[test]
+    fn false_unit_invariant_is_rejected_before_emission() {
+        let error = crate::generate(quote::quote! {
+            construction impossible: Root {
+                element ImpossibleUnit {}
+                require agreement is Bare;
+                derive agreement = Values::ThirdPersonSingular;
+                form impossible = "impossible";
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("a false unit invariant must not reach direct unit construction")
+        .to_string();
+
+        assert!(
+            error.contains("unit invariant for construction `impossible` is unsatisfiable"),
+            "{error}"
+        );
     }
 }
 

@@ -317,9 +317,10 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     let resolved = validate_resolution(&raw, &symbols)?;
     validate_stored_fields(&raw)?;
     validate_bindings(&raw)?;
-    let invariants = validate_invariants(&raw, &symbols)?;
+    let mut invariants = validate_invariants(&raw, &symbols)?;
     let (feature_equations, dynamic_numbers) = validate_features(&raw, &symbols)?;
     let feature_resolutions = seal_feature_resolutions(&raw, &feature_equations, &invariants);
+    fold_unit_invariants(&raw, &mut invariants, &feature_resolutions)?;
     let category_render = seal_category_render_capabilities(&raw, &feature_resolutions);
     let category_reads = seal_category_feature_reads(&raw);
     validate_contextual_agreement_uses(&raw, &category_render)?;
@@ -3899,7 +3900,11 @@ fn predicate_all(
         }
     }
     deduplicate_alternatives(&mut combined);
-    errors.map_or(Ok(combined), Err)
+    if combined.is_empty() {
+        errors.map_or(Ok(combined), Err)
+    } else {
+        Ok(combined)
+    }
 }
 
 fn merge_predicate_conjunctions(
@@ -3964,10 +3969,13 @@ fn construction_feature_is_constructible(
     fields: &HashMap<String, &FieldKind>,
     feature: ParsedFeature,
 ) -> bool {
-    construction.equations.iter().any(|equation| {
-        matches!(equation.target, ParsedFeaturePlace::Construction(candidate) if candidate == feature)
-            && feature_expression_is_constructible(raw, construction, fields, &equation.value)
-    })
+    feature_place_is_constructible(
+        construction,
+        fields,
+        &feature_providers(raw),
+        &ParsedFeaturePlace::Construction(feature),
+        &mut HashSet::new(),
+    )
 }
 
 fn role_feature_is_constructible(
@@ -3977,44 +3985,76 @@ fn role_feature_is_constructible(
     role: &syn::Ident,
     feature: ParsedFeature,
 ) -> bool {
-    if let Some(FieldKind::Category(path)) = fields.get(&identifier_key(role))
-        && feature_providers(raw).contains(&(path_name(path), feature))
-    {
-        return true;
+    feature_place_is_constructible(
+        construction,
+        fields,
+        &feature_providers(raw),
+        &ParsedFeaturePlace::Role {
+            field: role.clone(),
+            feature,
+        },
+        &mut HashSet::new(),
+    )
+}
+
+fn feature_place_is_constructible(
+    construction: &crate::Construction,
+    fields: &HashMap<String, &FieldKind>,
+    providers: &HashSet<(String, ParsedFeature)>,
+    place: &ParsedFeaturePlace,
+    visiting: &mut HashSet<String>,
+) -> bool {
+    let key = place_key(place);
+    if !visiting.insert(key.clone()) {
+        return false;
     }
-    construction.equations.iter().any(|equation| {
-        matches!(
-            &equation.target,
-            ParsedFeaturePlace::Role { field, feature: candidate }
-                if identifier_key(field) == identifier_key(role) && *candidate == feature
-        ) && feature_expression_is_constructible(raw, construction, fields, &equation.value)
-    })
+    let constructible = construction
+        .equations
+        .iter()
+        .find(|equation| place_key(&equation.target) == key)
+        .map_or_else(
+            || match place {
+                ParsedFeaturePlace::Role { field, feature } => fields
+                    .get(&identifier_key(field))
+                    .is_some_and(|kind| {
+                        matches!(kind, FieldKind::Category(path) if providers.contains(&(path_name(path), *feature)))
+                    }),
+                ParsedFeaturePlace::Construction(_) => false,
+            },
+            |equation| {
+                feature_expression_is_constructible(
+                    construction,
+                    fields,
+                    providers,
+                    &equation.value,
+                    visiting,
+                )
+            },
+        );
+    visiting.remove(&key);
+    constructible
 }
 
 fn feature_expression_is_constructible(
-    raw: &Declarations,
     construction: &crate::Construction,
     fields: &HashMap<String, &FieldKind>,
+    providers: &HashSet<(String, ParsedFeature)>,
     value: &ParsedFeatureValue,
+    visiting: &mut HashSet<String>,
 ) -> bool {
     match value {
         ParsedFeatureValue::Constant(_) => true,
         ParsedFeatureValue::Match { role, .. } => fields.contains_key(&identifier_key(role)),
-        ParsedFeatureValue::FromRole(slot) => {
-            matches!(
-                fields.get(&identifier_key(&slot.role)),
-                Some(FieldKind::Category(path))
-                    if feature_providers(raw).contains(&(path_name(path), slot.feature))
-            ) || (fields.contains_key(&identifier_key(&slot.role))
-                && construction.equations.iter().any(|equation| {
-                    matches!(
-                        &equation.target,
-                        ParsedFeaturePlace::Role { field, feature }
-                            if identifier_key(field) == identifier_key(&slot.role)
-                                && *feature == slot.feature
-                    ) && !matches!(equation.value, ParsedFeatureValue::FromRole(_))
-                }))
-        }
+        ParsedFeatureValue::FromRole(slot) => feature_place_is_constructible(
+            construction,
+            fields,
+            providers,
+            &ParsedFeaturePlace::Role {
+                field: slot.role.clone(),
+                feature: slot.feature,
+            },
+            visiting,
+        ),
     }
 }
 
@@ -4290,6 +4330,26 @@ fn seal_feature_resolutions(
         sealed.insert(identifier_key(&construction.name), resolutions);
     }
     sealed
+}
+
+fn fold_unit_invariants(
+    raw: &Declarations,
+    invariants: &mut HashMap<String, (proc_macro2::Span, InvariantPlan)>,
+    resolutions: &HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
+) -> syn::Result<()> {
+    for declaration in &raw.declarations {
+        let Declaration::Construction(construction) = declaration else { continue };
+        if !construction.element.fields.is_empty() {
+            continue;
+        }
+        let construction_id = identifier_key(&construction.name);
+        let invariant = &mut invariants
+            .get_mut(&construction_id)
+            .expect("validated unit invariant is present")
+            .1;
+        invariant.constant_fold_unit(&construction.name, resolutions.get(&construction_id))?;
+    }
+    Ok(())
 }
 
 fn seal_category_render_capabilities(

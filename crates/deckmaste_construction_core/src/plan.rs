@@ -528,8 +528,15 @@ mod tests {
         );
 
         semantic.test_only_replace_invariant_member("only", "mode", "Two");
+        semantic.test_only_remove_invariant_context_field("only", "spelling");
         let changed_ast =
             formatted(&crate::emit::ast::emit(&semantic).expect("mutated sealed AST emits"));
+        let changed_build =
+            formatted(&crate::emit::build::emit(&semantic).expect("mutated sealed build emits"));
+        let changed_render =
+            formatted(&crate::emit::render::emit(&semantic).expect("mutated sealed render emits"));
+        let changed_visitor =
+            formatted(&crate::emit::visit::emit(&semantic).expect("mutated sealed visitor emits"));
         assert!(
             changed_ast.contains("matches ! (mode , Mode :: Two)"),
             "{changed_ast}"
@@ -538,6 +545,31 @@ mod tests {
             !changed_ast.contains("matches ! (mode , Mode :: One)"),
             "{changed_ast}"
         );
+        assert!(
+            changed_ast.contains("pub spelling : SelfReferenceSpelling")
+                && !changed_ast.contains("spelling . valid_in (context)")
+                && !changed_ast.contains("pub const fn spelling"),
+            "{changed_ast}",
+        );
+        assert!(
+            changed_build.contains("Only :: new (* mode , * spelling)")
+                && !changed_build.contains("Only :: new (* mode , * spelling , context)"),
+            "{changed_build}",
+        );
+        assert!(
+            changed_render.contains("only . spelling")
+                && !changed_render.contains("only . spelling ()"),
+            "{changed_render}",
+        );
+        assert!(
+            changed_visitor.contains("only . spelling")
+                && !changed_visitor.contains("only . spelling ()"),
+            "{changed_visitor}",
+        );
+        assert_ne!(ast, changed_ast);
+        assert_ne!(build, changed_build);
+        assert_ne!(render, changed_render);
+        assert_ne!(visitor, changed_visitor);
     }
 
     #[test]
