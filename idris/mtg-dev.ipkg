@@ -20,6 +20,8 @@
 
 package mtg-dev
 
+depends = base
+
 modules = Semantics
         , Macros
         , Cards

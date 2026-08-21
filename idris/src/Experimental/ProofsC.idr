@@ -576,7 +576,7 @@ badDoubleTapCost Oh impossible
 public export
 badEmptyManaCost : Unspellable Ability (\ok =>
   Activated (Mana [] {wr = ok}) Macros.drawACard)
-badEmptyManaCost Oh impossible
+badEmptyManaCost IsNonEmpty impossible
 
 
 ||| "{W/W/P}"

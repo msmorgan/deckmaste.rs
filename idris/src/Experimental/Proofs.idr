@@ -671,7 +671,7 @@ badForEachHeadless Oh impossible
 public export
 badForEachZero : Unspellable (Amount []) (\ok =>
   Macros.nForEach 0 Macros.creature {nz = ok})
-badForEachZero OneUp impossible
+badForEachZero ItIsSucc impossible
 
 
 ||| "creature that isn't on the battlefield"

@@ -2,6 +2,9 @@
 ||| counters, statuses, bindings, payloads, mana, and designations.
 module Experimental.Words
 
+import public Data.List
+import public Data.Maybe
+import public Data.Nat
 import public Data.So
 
 %default total
@@ -697,17 +700,11 @@ data NonZeroQ : Quantity -> Type where
   MaxAtLeastOne : NonZeroQ (Range lo (Just (S n)))
 
 public export
-leNat : Nat -> Nat -> Bool
-leNat Z _ = True
-leNat (S _) Z = False
-leNat (S a) (S b) = leNat a b
-
-public export
 quantWellFormed : Quantity -> Bool
 quantWellFormed (Range Nothing _) = True
 quantWellFormed (Range (Just Z) _) = False
 quantWellFormed (Range (Just (S n)) Nothing) = True
-quantWellFormed (Range (Just (S n)) (Just hi)) = leNat (S n) hi
+quantWellFormed (Range (Just (S n)) (Just hi)) = lte (S n) hi
 
 public export
 WellFormedQ : Quantity -> Type
@@ -728,17 +725,13 @@ quantPlur (Range _ (Just (S Z))) = OneOf
 quantPlur (Range _ _) = ManyOf
 
 public export
-eqNat : Nat -> Nat -> Bool
-eqNat a b = leNat a b && leNat b a
-
-public export
 modesFit : Quantity -> Nat -> Bool
 modesFit (Range Nothing Nothing) n = True
-modesFit (Range Nothing (Just hi)) n = leNat hi n
-modesFit (Range (Just lo) Nothing) n = leNat lo n
+modesFit (Range Nothing (Just hi)) n = lte hi n
+modesFit (Range (Just lo) Nothing) n = lte lo n
 -- [CR#700.2]: a modal spell offers a choice among its modes, so a
 -- headcount that fixes the whole list instructs nothing.
-modesFit (Range (Just lo) (Just hi)) n = leNat hi n && not (eqNat lo hi && eqNat hi n)
+modesFit (Range (Just lo) (Just hi)) n = lte hi n && not (lo == hi && hi == n)
 
 public export
 ModesFit : Quantity -> Nat -> Type
@@ -752,15 +745,11 @@ modalHead (Range Nothing (Just _)) n = False
 modalHead (Range (Just (S Z)) Nothing) n = True
 modalHead (Range (Just _) Nothing) n = False
 modalHead (Range (Just lo) (Just hi)) n =
-  (eqNat lo hi && leNat lo 3) || (eqNat lo 1 && eqNat hi n)
+  (lo == hi && lte lo 3) || (lo == 1 && hi == n)
 
 public export
 ModalHead : Quantity -> Nat -> Type
 ModalHead q n = So (modalHead q n)
-
-public export
-data AtLeastOne : Nat -> Type where
-  OneUp : AtLeastOne (S n)
 
 public export
 data AtLeastTwo : Nat -> Type where
@@ -1039,7 +1028,7 @@ public export
 -- without it) and at least one part taken from it (nothing taken and the
 -- text would have written "them").
 theRestOk : Bindings -> Bool
-theRestOk bs = eqNat (countGroups bs) 1 && not (eqNat (countParts bs) Z)
+theRestOk bs = countGroups bs == 1 && not (countParts bs == Z)
 
 public export
 groupSpent : Bindings -> Bindings
@@ -1875,13 +1864,8 @@ ManaCost : Type
 ManaCost = List ManaSymbol
 
 public export
-manaRunWritten : ManaCost -> Bool
-manaRunWritten [] = False
-manaRunWritten (_ :: _) = True
-
-public export
 ManaRun : ManaCost -> Type
-ManaRun c = So (manaRunWritten c)
+ManaRun c = NonEmpty c
 
 
 public export
@@ -1917,13 +1901,8 @@ public export
 data ColorFreedom = SameColor | EachColor
 
 public export
-loyaltyStepWritten : Nat -> Bool
-loyaltyStepWritten Z = False
-loyaltyStepWritten (S _) = True
-
-public export
 LoyaltyStep : Nat -> Type
-LoyaltyStep n = So (loyaltyStepWritten n)
+LoyaltyStep n = IsSucc n
 
 public export
 data LoyaltyCost : Type where
@@ -2915,14 +2894,10 @@ typeRank Instant = 7
 typeRank Sorcery = 8
 
 public export
-ltNat : Nat -> Nat -> Bool
-ltNat a b = leNat (S a) b
-
-public export
 typesOrdered : List CardType -> Bool
 typesOrdered [] = True
 typesOrdered (t :: []) = True
-typesOrdered (t :: u :: ts) = ltNat (typeRank t) (typeRank u) &&
+typesOrdered (t :: u :: ts) = lt (typeRank t) (typeRank u) &&
                               typesOrdered (u :: ts)
 
 public export

@@ -59,3 +59,22 @@ Rust crate is touched.
   silently passing (break one pin, watch it fail, restore).
 
 Standard constraints apply.
+
+## As landed (2026-08-21)
+
+Swapped: `leNat`/`ltNat`/`eqNat`, `isNil`, `AtLeastOne`/`OneUp`,
+`nameUnwritten`, `ptPrinted`, `manaRunWritten`, `loyaltyStepWritten`. Words.idr
+imports `Data.List`/`Data.Maybe`/`Data.Nat` as `import public` — a privately
+imported `public export` function does not reduce in downstream modules.
+
+Kept, with the reason the audit missed: **strict positivity**. A function from
+outside the mutual block applied to the datatype inside a constructor's type
+fails the positivity check, however concrete and `public export` it is
+(`List.length` fails exactly as `Foldable.length` does). That pins `modeCount`,
+`optCT`, `ptWritten`, `negTypes`/`negZones` in place; `headTysJoin`/
+`condMintAll` additionally fail totality under `concatMap` (higher-order
+recursion). `lastType` stays because base's `last'` is `export`, opaque, and
+feeds a `Bindings` index. Events.idr: `PlayableFrom` is a `So` synonym;
+`LookbackSubject`/`LookbackComplement`/`CastableTy` stay `data` (pins match
+their constructors); `DeedParticipant` stays `data` (R5(c): its `Just t` index
+is what infers `t`).

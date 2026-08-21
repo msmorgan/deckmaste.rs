@@ -264,7 +264,7 @@ manaValueOf n = StatOf ManaValue n {one}
 
 public export
 nForEach : {k : Kind} -> (n : Nat) -> (p : Predicate bs k) ->
-           {auto 0 hd : Headed p} -> {auto 0 nz : AtLeastOne n} ->
+           {auto 0 hd : Headed p} -> {auto 0 nz : IsSucc n} ->
            {auto 0 af : AnyTargetFree p} -> Amount bs
 nForEach n p = Times n (CountOf p {hd} {af}) {nz}
 

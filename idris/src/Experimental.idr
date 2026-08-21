@@ -253,18 +253,18 @@ mutual
   headTys p = optCT (seedTy p)
 
   public export
+  headTysJoin : {0 bs : Bindings} -> {0 k : Kind} ->
+                List (Predicate bs k) -> List CardType
+  headTysJoin [] = []
+  headTysJoin (p :: ps) = headTys p ++ headTysJoin ps
+
+  public export
   headTysAll : {0 bs : Bindings} -> {0 k : Kind} ->
                List (Predicate bs k) -> List CardType
   headTysAll [] = []
   headTysAll (p :: ps) = case headTys p of
     [] => headTysAll ps
     ts => ts
-
-  public export
-  headTysJoin : {0 bs : Bindings} -> {0 k : Kind} ->
-                List (Predicate bs k) -> List CardType
-  headTysJoin [] = []
-  headTysJoin (p :: ps) = headTys p ++ headTysJoin ps
 
   public export
   seedZone : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe Zone
@@ -1555,7 +1555,7 @@ mutual
                  {auto 0 cw : ComplementWritten what} ->
                  {auto 0 sb : LookbackSubject ev k} -> Amount bs
     Times : (per : Nat) -> (a : Amount bs) ->
-            {auto 0 nz : AtLeastOne per} -> Amount bs
+            {auto 0 nz : IsSucc per} -> Amount bs
     ThatMuch : {auto 0 ok : countOnes Outcome bs = 1} -> Amount bs
     PreventedThisWay : {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
                        Amount bs
@@ -2624,13 +2624,8 @@ mutual
   TokenCanonical {bs} t = So (tokenCanonical t)
 
   public export
-  nameUnwritten : Maybe String -> Bool
-  nameUnwritten Nothing = True
-  nameUnwritten (Just _) = False
-
-  public export
   additionUnnamed : {0 bs : Bindings} -> TokenChars bs -> Bool
-  additionUnnamed t = nameUnwritten t.name
+  additionUnnamed t = isNothing t.name
 
   public export
   AdditionUnnamed : TokenChars bs -> Type
@@ -4975,10 +4970,6 @@ mutual
     Just base => not (isNil ks) && allParamless ks && distinctKeywords ks &&
                  not (keywordElem base ks)
 
-  public export
-  isNil : List Keyword -> Bool
-  isNil [] = True
-  isNil (_ :: _) = False
 
   public export
   keywordElem : Keyword -> List Keyword -> Bool
@@ -5194,7 +5185,7 @@ mutual
 
   public export
   selfTapOnce : {0 bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Bool
-  selfTapOnce cs = leNat (selfTapCount cs) 1
+  selfTapOnce cs = lte (selfTapCount cs) 1
 
   public export
   costTapOnce : {0 bs : Bindings} -> Cost bs -> Bool
@@ -5432,11 +5423,6 @@ textDefines f (Static se :: as) =
 textDefines f (_ :: as) = textDefines f as
 
 public export
-ptPrinted : Maybe (PrintedStat, PrintedStat) -> Bool
-ptPrinted Nothing = False
-ptPrinted (Just _) = True
-
-public export
 definedSlotsStarred : Maybe (PrintedStat, PrintedStat) -> Bool -> Bool -> Bool
 definedSlotsStarred Nothing dp dt = not dp && not dt
 definedSlotsStarred (Just (p, t)) dp dt =
@@ -5446,7 +5432,7 @@ public export
 cardPtOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs ->
            Maybe (PrintedStat, PrintedStat) -> Bool
 cardPtOk tys text pt =
-  (not (lineHasType Creature tys) || ptPrinted pt) &&
+  (not (lineHasType Creature tys) || isJust pt) &&
   definedSlotsStarred pt (textDefines definesPower text)
                          (textDefines definesToughness text)
 

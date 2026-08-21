@@ -406,7 +406,7 @@ lookbackSubjectOk _ ObjectOrPlayer = False
 
 public export
 data LookbackSubject : EventName -> Kind -> Type where
-  MkLookbackSubject : {auto 0 ok : lookbackSubjectOk ev k = True} ->
+  MkLookbackSubject : {auto 0 ok : So (lookbackSubjectOk ev k)} ->
                       LookbackSubject ev k
 
 public export
@@ -465,7 +465,7 @@ bareLookbackOk _ _ = True
 
 public export
 data LookbackComplement : EventName -> Kind -> Kind -> Type where
-  MkLookbackComplement : {auto 0 ok : lookbackComplementOk ev ks kc = True} ->
+  MkLookbackComplement : {auto 0 ok : So (lookbackComplementOk ev ks kc)} ->
                          LookbackComplement ev ks kc
 
 
@@ -715,7 +715,7 @@ deedType Block Patient Kindred = False
 
 public export
 data DeedParticipant : Deed -> Role -> Maybe CardType -> Type where
-  Participant : {auto 0 ok : deedType d r t = True} -> DeedParticipant d r (Just t)
+  Participant : {auto 0 ok : So (deedType d r t)} -> DeedParticipant d r (Just t)
 
 public export
 data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
@@ -1042,8 +1042,8 @@ playableFrom (Just Library) = True
 playableFrom (Just Stack) = False
 
 public export
-data PlayableFrom : Maybe Zone -> Type where
-  MkPlayableFrom : {auto 0 ok : playableFrom z = True} -> PlayableFrom z
+PlayableFrom : Maybe Zone -> Type
+PlayableFrom z = So (playableFrom z)
 
 public export
 -- a complement's zone locates its object exactly when that zone could
@@ -1053,7 +1053,7 @@ complementLocates z = playableFrom z
 
 public export
 data CastableTy : PlayVerb -> Maybe CardType -> Type where
-  MkCastableTy : {auto 0 ok : castableTy v ty = True} -> CastableTy v ty
+  MkCastableTy : {auto 0 ok : So (castableTy v ty)} -> CastableTy v ty
 
 public export
 admitsDelaySpan : SpanUse -> Bool

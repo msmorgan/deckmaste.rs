@@ -776,7 +776,7 @@ badEmblemAsCost Oh impossible
 public export
 badLoyaltyUpZero : Unspellable Ability (\ok =>
   Activated (LoyaltySymbol (LoyaltyUp 0 {nz = ok})) Macros.drawACard)
-badLoyaltyUpZero Oh impossible
+badLoyaltyUpZero ItIsSucc impossible
 
 
 ||| "[−0]: Draw a card."
@@ -784,7 +784,7 @@ badLoyaltyUpZero Oh impossible
 public export
 badLoyaltyDownZero : Unspellable Ability (\ok =>
   Activated (LoyaltySymbol (LoyaltyDown 0 {nz = ok})) Macros.drawACard)
-badLoyaltyDownZero Oh impossible
+badLoyaltyDownZero ItIsSucc impossible
 
 
 ||| "[+1], {T}: Draw a card."
