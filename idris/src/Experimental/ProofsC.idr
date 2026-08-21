@@ -42,7 +42,7 @@ badDistributedCreationIt : Unspellable (Effect []) (\ok =>
   Sequentially [Create (Each AnyPlayer) (Lit 1)
                        (TokenWritten (Macros.creatureTok 1 1 [Green] [Plant])) [],
                 PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
-badDistributedCreationIt (_, MkCounterHolder) impossible
+badDistributedCreationIt (_, Oh) impossible
 
 
 ||| "each of each creature"
@@ -218,7 +218,7 @@ badSliceTypeRead Refl impossible
 public export
 badRevealWholeLibrary : Unspellable (Effect []) (\ok =>
   Expose Reveal You (ExposedZone Macros.yourLibrary {ok}))
-badRevealWholeLibrary MkExposableZone impossible
+badRevealWholeLibrary Oh impossible
 
 
 ||| "Reveal your graveyard."
@@ -226,7 +226,7 @@ badRevealWholeLibrary MkExposableZone impossible
 public export
 badRevealGraveyard : Unspellable (Effect []) (\ok =>
   Expose Reveal You (ExposedZone Macros.graveyardZ {ok}))
-badRevealGraveyard MkExposableZone impossible
+badRevealGraveyard Oh impossible
 
 
 ||| "Search the battlefield for a creature."
@@ -234,7 +234,7 @@ badRevealGraveyard MkExposableZone impossible
 public export
 badSearchBattlefield : Unspellable (Effect []) (\ok =>
   Search You Macros.battlefieldZ Macros.creature {sz = ok})
-badSearchBattlefield MkSearchableZone impossible
+badSearchBattlefield Oh impossible
 
 
 ||| "Search the top of your library for a land card."
@@ -369,7 +369,7 @@ public export
 badWouldDieInGraveyard : Unspellable (Effect []) (\ok =>
   Macros.ifWouldInstead (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok})
                  (Macros.exile It) (Just Macros.thisTurn))
-badWouldDieInGraveyard MkZoneFits impossible
+badWouldDieInGraveyard Oh impossible
 
 
 ||| "The next time you would draw a card this turn, create a 1/1 green Soldier creature token instead. Sacrifice it."
@@ -576,7 +576,7 @@ badDoubleTapCost MkCostTapOnce impossible
 public export
 badEmptyManaCost : Unspellable Ability (\ok =>
   Activated (Mana [] {wr = ok}) Macros.drawACard)
-badEmptyManaCost MkManaRun impossible
+badEmptyManaCost Oh impossible
 
 
 ||| "{W/W/P}"
@@ -584,7 +584,7 @@ badEmptyManaCost MkManaRun impossible
 public export
 badSameColorPhyrexian : Unspellable ManaSymbol (\ok =>
   Phyrexian White (Just White) {ds = ok})
-badSameColorPhyrexian MkPhyrexianDistinct impossible
+badSameColorPhyrexian Oh impossible
 
 
 ||| "{U/U}"
@@ -592,7 +592,7 @@ badSameColorPhyrexian MkPhyrexianDistinct impossible
 public export
 badSameColorHybrid : Unspellable ManaSymbol (\ok =>
   Macros.hybridPip Blue Blue {ds = ok})
-badSameColorHybrid MkHalvesDistinct impossible
+badSameColorHybrid Oh impossible
 
 
 ||| "Sacrifice a creature. If you don't, exile it."
@@ -920,7 +920,7 @@ public export
 badMoveAttackingUntapped : Unspellable (Effect []) (\ok =>
   Move (Macros.target Macros.creature) Macros.battlefieldZ
        {riders = MkMoveRiders [EntersAttacking] Nothing {ro = ok}})
-badMoveAttackingUntapped MkRidersOk impossible
+badMoveAttackingUntapped Oh impossible
 
 
 ||| "Put target creature onto the battlefield attacking and tapped."
@@ -929,7 +929,7 @@ public export
 badMoveRidersReversed : Unspellable (Effect []) (\ok =>
   Move (Macros.target Macros.creature) Macros.battlefieldZ
        {riders = MkMoveRiders [EntersAttacking, EntersTapped] Nothing {ro = ok}})
-badMoveRidersReversed MkRidersOk impossible
+badMoveRidersReversed Oh impossible
 
 
 ||| "Put target creature onto the battlefield under the other players' control."

@@ -2,6 +2,8 @@
 ||| counters, statuses, bindings, payloads, mana, and designations.
 module Experimental.Words
 
+import public Data.So
+
 %default total
 
 
@@ -23,7 +25,7 @@ combatant Sorcery = False
 
 public export
 data FightParticipant : Maybe CardType -> Type where
-  Fighter : {auto 0 ok : combatant t = True} -> FightParticipant (Just t)
+  Fighter : {auto 0 ok : So (combatant t)} -> FightParticipant (Just t)
 
 public export
 data Characteristic = Power | Toughness | ManaValue
@@ -94,9 +96,8 @@ chosenQualityReadOk CardName = False
 chosenQualityReadOk Number = False
 
 public export
-data ChosenQualityRead : QualitySort -> Type where
-  MkChosenQualityRead : {auto 0 ok : chosenQualityReadOk q = True} ->
-                        ChosenQualityRead q
+ChosenQualityRead : QualitySort -> Type
+ChosenQualityRead q = So (chosenQualityReadOk q)
 
 public export
 data LetterWord = LetterX | LetterY
@@ -189,8 +190,8 @@ isExtremal MinOf = True
 isExtremal MaxOf = True
 
 public export
-data IsExtremal : AggregateOp -> Type where
-  MkIsExtremal : {auto 0 ok : isExtremal op = True} -> IsExtremal op
+IsExtremal : AggregateOp -> Type
+IsExtremal op = So (isExtremal op)
 
 public export
 sameAggregateOp : AggregateOp -> AggregateOp -> Bool
@@ -265,8 +266,8 @@ quantWellFormed (Range (Just (S n)) Nothing) = True
 quantWellFormed (Range (Just (S n)) (Just hi)) = leNat (S n) hi
 
 public export
-data WellFormedQ : Quantity -> Type where
-  MkWellFormedQ : {auto 0 ok : quantWellFormed q = True} -> WellFormedQ q
+WellFormedQ : Quantity -> Type
+WellFormedQ q = So (quantWellFormed q)
 
 public export
 boundedIncrease : Quantity -> Bool
@@ -274,9 +275,8 @@ boundedIncrease (Range _ Nothing) = False
 boundedIncrease (Range _ (Just _)) = True
 
 public export
-data BoundedIncrease : Quantity -> Type where
-  MkBoundedIncrease : {auto 0 ok : boundedIncrease q = True} ->
-                      BoundedIncrease q
+BoundedIncrease : Quantity -> Type
+BoundedIncrease q = So (boundedIncrease q)
 
 public export
 quantPlur : Quantity -> Plurality
@@ -297,8 +297,8 @@ modesFit (Range (Just lo) Nothing) n = leNat lo n
 modesFit (Range (Just lo) (Just hi)) n = leNat hi n && not (eqNat lo hi && eqNat hi n)
 
 public export
-data ModesFit : Quantity -> Nat -> Type where
-  MkModesFit : {auto 0 ok : modesFit q n = True} -> ModesFit q n
+ModesFit : Quantity -> Nat -> Type
+ModesFit q n = So (modesFit q n)
 
 public export
 modalHead : Quantity -> Nat -> Bool
@@ -311,8 +311,8 @@ modalHead (Range (Just lo) (Just hi)) n =
   (eqNat lo hi && leNat lo 3) || (eqNat lo 1 && eqNat hi n)
 
 public export
-data ModalHead : Quantity -> Nat -> Type where
-  MkModalHead : {auto 0 ok : modalHead q n = True} -> ModalHead q n
+ModalHead : Quantity -> Nat -> Type
+ModalHead q n = So (modalHead q n)
 
 public export
 data AtLeastOne : Nat -> Type where
@@ -362,8 +362,8 @@ arrangementFits OnBottom (Just RandomOrder) = True
 arrangementFits OnTop (Just RandomOrder) = False
 
 public export
-data ArrangementFits : LibPos -> Maybe Arrangement -> Type where
-  MkArrangementFits : {auto 0 ok : arrangementFits p o = True} -> ArrangementFits p o
+ArrangementFits : LibPos -> Maybe Arrangement -> Type
+ArrangementFits p o = So (arrangementFits p o)
 
 public export
 data LibOrdinal = Second | Third | Fourth | Fifth | Seventh
@@ -378,8 +378,8 @@ ordinalFits OnTop (Just _) (Just _) = False
 ordinalFits OnBottom _ (Just _) = False
 
 public export
-data OrdinalFits : LibPos -> Maybe Arrangement -> Maybe LibOrdinal -> Type where
-  MkOrdinalFits : {auto 0 ok : ordinalFits p o n = True} -> OrdinalFits p o n
+OrdinalFits : LibPos -> Maybe Arrangement -> Maybe LibOrdinal -> Type
+OrdinalFits p o n = So (ordinalFits p o n)
 
 namespace Verb
   public export
@@ -686,8 +686,8 @@ exposableZone Library = False
 exposableZone Stack = False
 
 public export
-data ExposableZone : Zone -> Type where
-  MkExposableZone : {auto 0 ok : exposableZone z = True} -> ExposableZone z
+ExposableZone : Zone -> Type
+ExposableZone z = So (exposableZone z)
 
 public export
 data VisibleThing = TopOfLibrary | WholeHand
@@ -703,8 +703,8 @@ visibilityOk LookAt TopOfLibrary = True
 visibilityOk LookAt WholeHand = False
 
 public export
-data VisibilityOk : ExposeVerb -> VisibleThing -> Type where
-  MkVisibilityOk : {auto 0 ok : visibilityOk v w = True} -> VisibilityOk v w
+VisibilityOk : ExposeVerb -> VisibleThing -> Type
+VisibilityOk v w = So (visibilityOk v w)
 
 public export
 searchableZone : Zone -> Bool
@@ -716,8 +716,8 @@ searchableZone Exile = False
 searchableZone Stack = False
 
 public export
-data SearchableZone : Zone -> Type where
-  MkSearchableZone : {auto 0 ok : searchableZone z = True} -> SearchableZone z
+SearchableZone : Zone -> Type
+SearchableZone z = So (searchableZone z)
 
 public export
 pubB : Binding -> Bool
@@ -795,8 +795,8 @@ verbedMarkingOk Surveil Attributive = False
 verbedMarkingOk Surveil ThisWay = False
 
 public export
-data VerbedMarkingOk : VerbName -> VerbedMarking -> Type where
-  MkVerbedMarkingOk : {auto 0 ok : verbedMarkingOk v m = True} -> VerbedMarkingOk v m
+VerbedMarkingOk : VerbName -> VerbedMarking -> Type
+VerbedMarkingOk v m = So (verbedMarkingOk v m)
 
 public export
 tyIs : CardType -> Maybe CardType -> Bool
@@ -1207,8 +1207,8 @@ counterZone (Just Library) = False
 counterZone (Just Stack) = False
 
 public export
-data CounterHolder : Maybe Zone -> Type where
-  MkCounterHolder : {auto 0 ok : counterZone z = True} -> CounterHolder z
+CounterHolder : Maybe Zone -> Type
+CounterHolder z = So (counterZone z)
 
 public export
 zoneFits : Maybe Zone -> Maybe Zone -> Bool
@@ -1217,8 +1217,8 @@ zoneFits (Just _) Nothing = True
 zoneFits (Just a) (Just b) = sameZone a b
 
 public export
-data ZoneFits : Maybe Zone -> Maybe Zone -> Type where
-  MkZoneFits : {auto 0 ok : zoneFits subj desc = True} -> ZoneFits subj desc
+ZoneFits : Maybe Zone -> Maybe Zone -> Type
+ZoneFits subj desc = So (zoneFits subj desc)
 
 public export
 data Targetable : Kind -> Type where
@@ -1303,9 +1303,8 @@ keywordParamless : Keyword -> Bool
 keywordParamless k = sameParamShape (keywordParamShape k) NoParam
 
 public export
-data KeywordParamless : Keyword -> Type where
-  MkKeywordParamless : {auto 0 ok : keywordParamless k = True} ->
-                       KeywordParamless k
+KeywordParamless : Keyword -> Type
+KeywordParamless k = So (keywordParamless k)
 
 public export
 sameKeyword : Keyword -> Keyword -> Bool
@@ -1405,8 +1404,8 @@ halvesDistinct (Specific Colorless) d = True
 halvesDistinct (Specific (OfColor c)) d = not (sameColor c d)
 
 public export
-data HalvesDistinct : SimpleManaSymbol -> Color -> Type where
-  MkHalvesDistinct : {auto 0 ok : halvesDistinct l r = True} -> HalvesDistinct l r
+HalvesDistinct : SimpleManaSymbol -> Color -> Type
+HalvesDistinct l r = So (halvesDistinct l r)
 
 public export
 phyrexianDistinct : Color -> Maybe Color -> Bool
@@ -1414,9 +1413,8 @@ phyrexianDistinct c Nothing = True
 phyrexianDistinct c (Just d) = not (sameColor c d)
 
 public export
-data PhyrexianDistinct : Color -> Maybe Color -> Type where
-  MkPhyrexianDistinct : {auto 0 ok : phyrexianDistinct c d = True} ->
-                        PhyrexianDistinct c d
+PhyrexianDistinct : Color -> Maybe Color -> Type
+PhyrexianDistinct c d = So (phyrexianDistinct c d)
 
 public export
 data ManaSymbol : Type where
@@ -1438,8 +1436,8 @@ manaRunWritten [] = False
 manaRunWritten (_ :: _) = True
 
 public export
-data ManaRun : ManaCost -> Type where
-  MkManaRun : {auto 0 ok : manaRunWritten c = True} -> ManaRun c
+ManaRun : ManaCost -> Type
+ManaRun c = So (manaRunWritten c)
 
 
 public export
@@ -1458,8 +1456,8 @@ producedRunsWritten [] = False
 producedRunsWritten rs@(_ :: _) = runsNonEmpty rs
 
 public export
-data ProducedRuns : List ProducedRun -> Type where
-  MkProducedRuns : {auto 0 ok : producedRunsWritten rs = True} -> ProducedRuns rs
+ProducedRuns : List ProducedRun -> Type
+ProducedRuns rs = So (producedRunsWritten rs)
 
 public export
 altRunWritten : Maybe ProducedRun -> Bool
@@ -1468,8 +1466,8 @@ altRunWritten (Just [_]) = True
 altRunWritten (Just _) = False
 
 public export
-data AltRunWritten : Maybe ProducedRun -> Type where
-  MkAltRunWritten : {auto 0 ok : altRunWritten alt = True} -> AltRunWritten alt
+AltRunWritten : Maybe ProducedRun -> Type
+AltRunWritten alt = So (altRunWritten alt)
 
 public export
 data ColorFreedom = SameColor | EachColor
@@ -1480,8 +1478,8 @@ loyaltyStepWritten Z = False
 loyaltyStepWritten (S _) = True
 
 public export
-data LoyaltyStep : Nat -> Type where
-  MkLoyaltyStep : {auto 0 ok : loyaltyStepWritten n = True} -> LoyaltyStep n
+LoyaltyStep : Nat -> Type
+LoyaltyStep n = So (loyaltyStepWritten n)
 
 public export
 data LoyaltyCost : Type where
@@ -1836,8 +1834,8 @@ spaceHosted LandSpace ty = tyIs Land ty
 spaceHosted CreatureSpace ty = tyIs Creature ty
 
 public export
-data SpaceHosted : TypeSpace -> Maybe CardType -> Type where
-  MkSpaceHosted : {auto 0 ok : spaceHosted sp ty = True} -> SpaceHosted sp ty
+SpaceHosted : TypeSpace -> Maybe CardType -> Type
+SpaceHosted sp ty = So (spaceHosted sp ty)
 
 public export
 data BasicLandTypes : List Subtype -> Type where
@@ -2003,9 +2001,8 @@ keywordCounterOk Menace = True
 keywordCounterOk Skulk = False
 
 public export
-data KeywordCounterEligible : Keyword -> Type where
-  MkKeywordCounterEligible : {auto 0 ok : keywordCounterOk k = True} ->
-                            KeywordCounterEligible k
+KeywordCounterEligible : Keyword -> Type
+KeywordCounterEligible k = So (keywordCounterOk k)
 
 public export
 data StackRegime = AtCasting | AtResolution
@@ -2265,8 +2262,8 @@ attachedCheckOk Equipped = True
 attachedCheckOk Fortified = False
 
 public export
-data AttachHeadOk : AttachWord -> NounWord -> Type where
-  MkAttachHeadOk : {auto 0 ok : attachHeadOk w h = True} -> AttachHeadOk w h
+AttachHeadOk : AttachWord -> NounWord -> Type
+AttachHeadOk w h = So (attachHeadOk w h)
 
 public export
 attachHostZone : NounWord -> Maybe Zone
@@ -2429,8 +2426,8 @@ chapterMarksOk (a :: b :: rest) =
   chapterOrd a < chapterOrd b && chapterMarksOk (b :: rest)
 
 public export
-data ChapterMarks : List ChapterNumber -> Type where
-  MkChapterMarks : {auto 0 ok : chapterMarksOk ns = True} -> ChapterMarks ns
+ChapterMarks : List ChapterNumber -> Type
+ChapterMarks ns = So (chapterMarksOk ns)
 
 public export
 record TypeLine where
@@ -2523,8 +2520,8 @@ destTypeOk ty Library = True
 destTypeOk ty Stack = True
 
 public export
-data Placeable : Maybe CardType -> Zone -> Type where
-  MkPlaceable : {auto 0 ok : destTypeOk ty z = True} -> Placeable ty z
+Placeable : Maybe CardType -> Zone -> Type
+Placeable ty z = So (destTypeOk ty z)
 
 public export
 data StatusCat = TapC | FlipC | FaceC | PhaseC
@@ -2590,8 +2587,8 @@ statusWordOk PhasedIn = False
 statusWordOk PhasedOut = False
 
 public export
-data StatusWord : StatusVal c -> Type where
-  MkStatusWord : {auto 0 ok : statusWordOk v = True} -> StatusWord v
+StatusWord : StatusVal c -> Type
+StatusWord v = So (statusWordOk v)
 
 public export
 statusEventOk : {0 c : StatusCat} -> StatusVal c -> Bool
@@ -2605,8 +2602,8 @@ statusEventOk PhasedIn = True
 statusEventOk PhasedOut = True
 
 public export
-data StatusEventVal : StatusVal c -> Type where
-  MkStatusEventVal : {auto 0 ok : statusEventOk v = True} -> StatusEventVal v
+StatusEventVal : StatusVal c -> Type
+StatusEventVal v = So (statusEventOk v)
 
 -- [CR#702.26a]: phasing has no imperative wording of its own, only the
 -- intransitive declarative ("target creature phases out").
@@ -2624,8 +2621,8 @@ statusEffectOk PhasedIn = True
 statusEffectOk PhasedOut = True
 
 public export
-data StatusEffectVal : StatusVal c -> Type where
-  MkStatusEffectVal : {auto 0 ok : statusEffectOk v = True} -> StatusEffectVal v
+StatusEffectVal : StatusVal c -> Type
+StatusEffectVal v = So (statusEffectOk v)
 
 public export
 colorMember : Color -> List Color -> Bool
@@ -2638,8 +2635,8 @@ colorsDistinct [] = True
 colorsDistinct (c :: cs) = not (colorMember c cs) && colorsDistinct cs
 
 public export
-data ColorsDistinct : List Color -> Type where
-  MkColorsDistinct : {auto 0 ok : colorsDistinct cs = True} -> ColorsDistinct cs
+ColorsDistinct : List Color -> Type
+ColorsDistinct cs = So (colorsDistinct cs)
 
 
 public export
@@ -2653,8 +2650,8 @@ addedFits subj (MkTypeLine (s :: ss) tys) =
   addedFits subj (MkTypeLine ss tys)
 
 public export
-data AddedFits : Maybe CardType -> TypeLine -> Type where
-  MkAddedFits : {auto 0 ok : addedFits subj tl = True} -> AddedFits subj tl
+AddedFits : Maybe CardType -> TypeLine -> Type
+AddedFits subj tl = So (addedFits subj tl)
 
 public export
 anyNewType : Maybe CardType -> List CardType -> Bool
@@ -2667,13 +2664,12 @@ addsSomething subj (MkTypeLine [] tys) = anyNewType subj tys
 addsSomething subj (MkTypeLine (_ :: _) tys) = True
 
 public export
-data AddsSomething : Maybe CardType -> TypeLine -> Type where
-  MkAddsSomething : {auto 0 ok : addsSomething subj tl = True} ->
-                    AddsSomething subj tl
+AddsSomething : Maybe CardType -> TypeLine -> Type
+AddsSomething subj tl = So (addsSomething subj tl)
 
 public export
-data LineNonEmpty : TypeLine -> Type where
-  MkLineNonEmpty : {auto 0 ok : lineNonEmpty tl = True} -> LineNonEmpty tl
+LineNonEmpty : TypeLine -> Type
+LineNonEmpty tl = So (lineNonEmpty tl)
 
 public export
 retainable : CardType -> Bool
@@ -2696,8 +2692,8 @@ retentionOk (MkTypeLine _ []) (Just t) = False
 retentionOk (MkTypeLine _ (u :: us)) (Just t) = retainable t
 
 public export
-data RetentionOk : TypeLine -> Maybe CardType -> Type where
-  MkRetentionOk : {auto 0 ok : retentionOk tl ret = True} -> RetentionOk tl ret
+RetentionOk : TypeLine -> Maybe CardType -> Type
+RetentionOk tl ret = So (retentionOk tl ret)
 
 public export
 data TokenRider = EntersTapped | EntersAttacking
@@ -2712,8 +2708,8 @@ ridersOk [EntersTapped, EntersAttacking] = True
 ridersOk _ = False
 
 public export
-data RidersOk : List TokenRider -> Type where
-  MkRidersOk : {auto 0 ok : ridersOk rs = True} -> RidersOk rs
+RidersOk : List TokenRider -> Type
+RidersOk rs = So (ridersOk rs)
 
 public export
 lastType : List CardType -> Maybe CardType

@@ -25,7 +25,7 @@ badChosenCardNameRead :
   Unspellable
     (Predicate [MkBinding AD (Quality CardName) OneOf QualityP] Object)
     (\ok => OfChosen CardName {read = ok})
-badChosenCardNameRead MkChosenQualityRead impossible
+badChosenCardNameRead Oh impossible
 
 
 ||| "of the chosen number"
@@ -35,7 +35,7 @@ badChosenNumberRead :
   Unspellable
     (Predicate [MkBinding AD (Quality Number) OneOf QualityP] Object)
     (\ok => OfChosen Number {read = ok})
-badChosenNumberRead MkChosenQualityRead impossible
+badChosenNumberRead Oh impossible
 
 
 ||| "Choose two target creatures. You gain life equal to their power."
@@ -370,7 +370,7 @@ badNonTapped MkNegatable impossible
 public export
 badPhasedInWord : Unspellable (Predicate [] Object) (\ok =>
   HasStatus PhasedIn {at = ok})
-badPhasedInWord MkStatusWord impossible
+badPhasedInWord Oh impossible
 
 
 ||| "Untap target creature card in your graveyard."
@@ -428,7 +428,7 @@ badThatTokenOfCard (Refl, _) impossible
 public export
 badUntapLockGraveyard : Unspellable Ability (\ok =>
   Static (DoesntUntap (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}))
-badUntapLockGraveyard MkZoneFits impossible
+badUntapLockGraveyard Oh impossible
 
 
 ||| "This artifact doesn't untap." written as a clause
@@ -462,7 +462,7 @@ public export
 badDiesInGraveyard : Unspellable (Effect []) (\ok =>
   Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) {span = Just ThisTurn}
           (Move (That CardW) Macros.battlefieldZ))
-badDiesInGraveyard MkZoneFits impossible
+badDiesInGraveyard Oh impossible
 
 
 ||| "Destroy target creature. This deals 3 damage to it."
@@ -537,7 +537,7 @@ public export
 badGetsGraveyard : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
                 Macros.gets It (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn) {ok}])
-badGetsGraveyard MkZoneFits impossible
+badGetsGraveyard Oh impossible
 
 
 ||| "Put target creature into target player's hand."

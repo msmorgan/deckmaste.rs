@@ -86,7 +86,7 @@ badCumulativeUpkeepOnSpell MkCardText impossible
 public export
 badCumulativeUpkeepCounter : Unspellable CounterKind (\ok =>
   KeywordCounter CumulativeUpkeep {ok = ok})
-badCumulativeUpkeepCounter MkKeywordCounterEligible impossible
+badCumulativeUpkeepCounter Oh impossible
 
 
 ||| "Creatures you control get +1/+1. The same is true for menace and trample."
@@ -187,7 +187,7 @@ badCastFromLibraryTop MkWholeZone impossible
 public export
 badBottomOrdinal : Unspellable (ZoneExpr []) (\ok =>
   LibraryAt OnBottom Nothing {off = Just Second} {ofit = ok} Bare)
-badBottomOrdinal MkOrdinalFits impossible
+badBottomOrdinal Oh impossible
 
 
 ||| "Put those cards into their owner's library third from the top in any order."
@@ -195,7 +195,7 @@ badBottomOrdinal MkOrdinalFits impossible
 public export
 badOrdinalOrderRider : Unspellable (ZoneExpr []) (\ok =>
   LibraryAt OnTop (Just AnyOrder) {off = Just Third} {ofit = ok} Bare)
-badOrdinalOrderRider MkOrdinalFits impossible
+badOrdinalOrderRider Oh impossible
 
 
 ||| "Put two target creatures into their owners' libraries third from the top."
@@ -277,7 +277,7 @@ badRepeatedAdditionColor : Unspellable (Effect []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [Black, Black] (MkTypeLine [Zombie] []) [] Nothing)
                    Nothing {cd = ok})
-badRepeatedAdditionColor MkColorsDistinct impossible
+badRepeatedAdditionColor Oh impossible
 
 
 ||| "For each of target creature, its controller draws a card."

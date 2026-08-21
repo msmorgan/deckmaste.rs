@@ -274,7 +274,7 @@ badChosenBasicTypeInGraveyard : Unspellable (Effect []) (\ok =>
                                        InZone (Macros.graveyardOf You)]))
                   {zn = ok})
                (Just Macros.untilEndOfTurn))
-badChosenBasicTypeInGraveyard MkZoneFits impossible
+badChosenBasicTypeInGraveyard Oh impossible
 
 
 ||| "Creatures are Mountains."
@@ -284,7 +284,7 @@ badCreaturesAreMountains : Unspellable (StaticEffect []) (\ok =>
   SetsType (AllOf Macros.creature)
            (MkToken Nothing [] (Macros.basicLandLine [Mountain]) [] Nothing)
            Nothing {af = ok})
-badCreaturesAreMountains MkAddedFits impossible
+badCreaturesAreMountains Oh impossible
 
 
 ||| "of the card name of your choice"
@@ -292,7 +292,7 @@ badCreaturesAreMountains MkAddedFits impossible
 public export
 badYourChoiceCardName : Unspellable (Predicate [] Object) (\ok =>
   OfYourChoice CardName {read = ok})
-badYourChoiceCardName MkChosenQualityRead impossible
+badYourChoiceCardName Oh impossible
 
 
 ||| "of the number of your choice"
@@ -300,7 +300,7 @@ badYourChoiceCardName MkChosenQualityRead impossible
 public export
 badYourChoiceNumber : Unspellable (Predicate [] Object) (\ok =>
   OfYourChoice Number {read = ok})
-badYourChoiceNumber MkChosenQualityRead impossible
+badYourChoiceNumber Oh impossible
 
 
 ||| "Destroy one of the creature type of your choice."
@@ -459,7 +459,7 @@ public export
 badCounteredInGraveyard : Unspellable (StaticEffect []) (\ok =>
   ObjectCant Countered (AllOf (And [Macros.creature, InZone Macros.graveyardZ]))
     {sub = CounteredOnStack {zn = ok}})
-badCounteredInGraveyard MkZoneFits impossible
+badCounteredInGraveyard Oh impossible
 
 
 ||| "Creatures can't be played."
@@ -496,7 +496,7 @@ badChapterOnNonSaga MkCardChapters impossible
 public export
 badEmptyChapterMark : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [] {cm = ok}) Macros.drawACard)
-badEmptyChapterMark MkChapterMarks impossible
+badEmptyChapterMark Oh impossible
 
 
 ||| "III, II — Draw a card."
@@ -504,7 +504,7 @@ badEmptyChapterMark MkChapterMarks impossible
 public export
 badDescendingChapterMark : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterIII, ChapterII] {cm = ok}) Macros.drawACard)
-badDescendingChapterMark MkChapterMarks impossible
+badDescendingChapterMark Oh impossible
 
 
 ||| "II, II — Draw a card."
@@ -512,7 +512,7 @@ badDescendingChapterMark MkChapterMarks impossible
 public export
 badRepeatedChapterMark : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterII, ChapterII] {cm = ok}) Macros.drawACard)
-badRepeatedChapterMark MkChapterMarks impossible
+badRepeatedChapterMark Oh impossible
 
 
 ||| "Whenever I —, draw a card."
@@ -574,7 +574,7 @@ badFlashPermissionOnPermanent MkPlaySource impossible
 public export
 badLookAtHandRider : Unspellable (StaticEffect []) (\ok =>
   Visibility LookAt You WholeHand {vo = ok})
-badLookAtHandRider MkVisibilityOk impossible
+badLookAtHandRider Oh impossible
 
 
 ||| "Play with the top card of your library revealed." as a resolving spell's clause with no duration
@@ -599,7 +599,7 @@ badVisibilityUntilYourNextTurn (SpanStated) impossible
 public export
 badAnyNumberOfAdditionalLands : Unspellable (StaticEffect []) (\ok =>
   MayPlayAdditionalLands You Macros.anyNumber {bi = ok})
-badAnyNumberOfAdditionalLands MkBoundedIncrease impossible
+badAnyNumberOfAdditionalLands Oh impossible
 
 
 ||| "You may play an additional land." as a resolving spell's clause with no duration
@@ -625,7 +625,7 @@ public export
 badEveryCreatureTypeOnLand : Unspellable (StaticEffect []) (\ok =>
   AddsEveryType (AllOf (And [Macros.land, ControlledBy You])) CreatureSpace
                 {sh = ok})
-badEveryCreatureTypeOnLand MkSpaceHosted impossible
+badEveryCreatureTypeOnLand Oh impossible
 
 
 ||| "Creatures you control are every basic land type."
@@ -634,7 +634,7 @@ public export
 badEveryBasicLandTypeOnCreature : Unspellable (StaticEffect []) (\ok =>
   AddsEveryType (AllOf (And [Macros.creature, ControlledBy You])) BasicLandSpace
                 {sh = ok})
-badEveryBasicLandTypeOnCreature MkSpaceHosted impossible
+badEveryBasicLandTypeOnCreature Oh impossible
 
 
 ||| "Kindred permanents you control are every creature type."
@@ -642,7 +642,7 @@ badEveryBasicLandTypeOnCreature MkSpaceHosted impossible
 public export
 badEveryCreatureTypeOnKindred : Unspellable (StaticEffect []) (\ok =>
   AddsEveryType (AllOf (HasType Kindred)) CreatureSpace {sh = ok})
-badEveryCreatureTypeOnKindred MkSpaceHosted impossible
+badEveryCreatureTypeOnKindred Oh impossible
 
 
 ||| "You skip your next upkeep step."
@@ -762,7 +762,7 @@ public export
 badEntersCountersInGraveyard : Unspellable (StaticEffect []) (\ok =>
   EntersWithCounters (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
                      (Lit 1) Macros.plusOnePlusOne {mark = Additional} {zn = ok})
-badEntersCountersInGraveyard MkZoneFits impossible
+badEntersCountersInGraveyard Oh impossible
 
 
 ||| "Each creature you control enters with an additional +1/+1 counter on it." written as a RESOLVING clause.
@@ -864,7 +864,7 @@ public export
 badRegenerateInGraveyard : Unspellable (Effect []) (\ok =>
   Regenerate (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
              {zn = ok})
-badRegenerateInGraveyard MkZoneFits impossible
+badRegenerateInGraveyard Oh impossible
 
 
 ||| "Creature cards in your graveyard can't be regenerated."
@@ -874,7 +874,7 @@ badRegeneratedInGraveyard : Unspellable (StaticEffect []) (\ok =>
   ObjectCant Regenerated
              (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
              {sub = ok})
-badRegeneratedInGraveyard (RegeneratedOnField {zn = MkZoneFits}) impossible
+badRegeneratedInGraveyard (RegeneratedOnField {zn = Oh}) impossible
 
 
 ||| "Destroy target creature. Target creature can't be regenerated."
@@ -905,7 +905,7 @@ badMultiSymbolBesideChosen : Unspellable Card (\ok =>
                     (OfChosenColor (Just [OfColor Red, OfColor Green])
                                    {ar = ok}) []) ]
        Nothing)
-badMultiSymbolBesideChosen MkAltRunWritten impossible
+badMultiSymbolBesideChosen Oh impossible
 
 
 ||| "{T}: Add one mana of the chosen color." (on a card that chooses nothing)

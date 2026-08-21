@@ -177,7 +177,7 @@ badMoveToStack BattlefieldOk impossible
 public export
 badInstantOntoBattlefield : Unspellable (Effect []) (\ok =>
   Macros.putOntoBattlefieldTapped (Macros.target (And [HasType Instant, InZone Macros.graveyardZ])) {pl = ok})
-badInstantOntoBattlefield MkPlaceable impossible
+badInstantOntoBattlefield Oh impossible
 
 
 ||| "Put a creature card from your graveyard onto the battlefield: Draw a card."
@@ -221,7 +221,7 @@ public export
 badDestroyedAttributive : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
                 Macros.exile (TheVerbed Destroy CardW {marking = Attributive} {mk = ok})])
-badDestroyedAttributive MkVerbedMarkingOk impossible
+badDestroyedAttributive Oh impossible
 
 
 ||| a trigger header watching a permanent flip
@@ -229,7 +229,7 @@ badDestroyedAttributive MkVerbedMarkingOk impossible
 public export
 badFlipEvent : Unspellable Ability (\ok =>
   Triggered Whenever (StatusEvent (Macros.a Permanent) Flipped {at = ok}) Macros.drawACard)
-badFlipEvent MkStatusEventVal impossible
+badFlipEvent Oh impossible
 
 
 ||| a trigger header watching a permanent become unflipped
@@ -237,7 +237,7 @@ badFlipEvent MkStatusEventVal impossible
 public export
 badUnflipEvent : Unspellable Ability (\ok =>
   Triggered Whenever (StatusEvent (Macros.a Permanent) Unflipped {at = ok}) Macros.drawACard)
-badUnflipEvent MkStatusEventVal impossible
+badUnflipEvent Oh impossible
 
 
 
@@ -367,7 +367,7 @@ badPhasesOutInHand OnField impossible
 public export
 badTurnedFaceDownEvent : Unspellable Ability (\ok =>
   Triggered Whenever (StatusEvent (Macros.a Permanent) FaceDown {at = ok}) Macros.drawACard)
-badTurnedFaceDownEvent MkStatusEventVal impossible
+badTurnedFaceDownEvent Oh impossible
 
 
 ||| "At a creature phases out, draw a card."
@@ -412,7 +412,7 @@ badBlockingGraveyardRelatum : Unspellable (Noun [] Object) (\ok =>
   Macros.target (And [Macros.creature,
                       BlockerOf (Macros.target (And [Macros.creature,
                                                      InZone (Macros.graveyardOf You)])) {zn = ok}]))
-badBlockingGraveyardRelatum MkZoneFits impossible
+badBlockingGraveyardRelatum Oh impossible
 
 
 ||| "target creature not blocked by this creature"
@@ -464,7 +464,7 @@ public export
 badUntapCapGraveyardSet : Unspellable Ability (\ok =>
   Static (CantUntapMoreThan (PlayerGroup AllPlayers) 1
                             (And [Macros.creature, InZone (Macros.graveyardOf You)]) {zn = ok}))
-badUntapCapGraveyardSet MkZoneFits impossible
+badUntapCapGraveyardSet Oh impossible
 
 
 ||| "Players can't untap more than one tapped during their untap steps."
@@ -540,7 +540,7 @@ badExileCheckOnSortedSelf : Unspellable Ability (\ok =>
   Triggered When (LastCounterRemoved Time Macros.thisCreature) Macros.drawACard
             {intervening = Just (Matches Macros.thisCreature (InZone Macros.exileZ)
                                          {zc = ok})})
-badExileCheckOnSortedSelf MkZoneFits impossible
+badExileCheckOnSortedSelf Oh impossible
 
 
 ||| "When this creature enters, if you died this turn, draw a card."
@@ -735,7 +735,7 @@ badThatCreatureIsCondSubject Refl impossible
 public export
 badEquippedLand : Unspellable Ability (\ok =>
   Static (Gets (AttachHost Equipped (TypeW Land) {ok = ok}) (PtUp (Lit 1)) (PtUp (Lit 1))))
-badEquippedLand MkAttachHeadOk impossible
+badEquippedLand Oh impossible
 
 
 ||| "Fortified creature gets +1/+1."
@@ -743,7 +743,7 @@ badEquippedLand MkAttachHeadOk impossible
 public export
 badFortifiedCreature : Unspellable Ability (\ok =>
   Static (Gets (AttachHost Fortified (TypeW Creature) {ok = ok}) (PtUp (Lit 1)) (PtUp (Lit 1))))
-badFortifiedCreature MkAttachHeadOk impossible
+badFortifiedCreature Oh impossible
 
 
 ||| "Target player can't lose the game."

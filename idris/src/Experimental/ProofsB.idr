@@ -245,7 +245,7 @@ badWrappedStatusLaunder MkContradictionFree impossible
 public export
 badDescendingRange : Unspellable (Noun [] Object) (\ok =>
   TargetGroup (Range (Just 3) (Just 2)) Macros.creature {wf = ok})
-badDescendingRange MkWellFormedQ impossible
+badDescendingRange Oh impossible
 
 
 ||| "attacking artifact or land"
@@ -261,7 +261,7 @@ badPartialZoneJoin MkParallelDisjuncts impossible
 public export
 badZeroLowerRange : Unspellable (Noun [] Object) (\ok =>
   TargetGroup (Range (Just 0) Nothing) Macros.creature {wf = ok})
-badZeroLowerRange MkWellFormedQ impossible
+badZeroLowerRange Oh impossible
 
 
 ||| "another target artifact or enchantment" anchored to an earlier land
@@ -321,7 +321,7 @@ badCantBeAttacked Participant impossible
 public export
 badCantInGraveyard : Unspellable (Effect []) (\ok =>
   Macros.cantBlock (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) (Just Macros.thisTurn) {zn = ok})
-badCantInGraveyard MkZoneFits impossible
+badCantInGraveyard Oh impossible
 
 
 ||| "Any target can't block this turn."
@@ -513,7 +513,7 @@ badNegatedNegativeMatch MkCondNegatable impossible
 public export
 badTrailingPostStateZone : Unspellable (Effect []) (\ok =>
   If (Macros.destroy (Macros.target Macros.creature)) (Matches It (InZone Macros.graveyardZ) {zc = ok}) Nothing)
-badTrailingPostStateZone MkZoneFits impossible
+badTrailingPostStateZone Oh impossible
 
 
 ||| "if 3 is 4 or greater"
@@ -574,7 +574,7 @@ public export
 badAttackingUntapped : Unspellable (Effect []) (\ok =>
   Create You (Lit 1) (TokenWritten (Macros.creatureTok 1 1 [Red] [Soldier]))
              [EntersAttacking] {rr = ok})
-badAttackingUntapped MkRidersOk impossible
+badAttackingUntapped Oh impossible
 
 
 ||| "Put a +1/+1 counter on target creature card in your graveyard."
@@ -582,7 +582,7 @@ badAttackingUntapped MkRidersOk impossible
 public export
 badPutCountersGraveyard : Unspellable (Effect []) (\ok =>
   PutCounters (Lit 1) Macros.plusOnePlusOne (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok})
-badPutCountersGraveyard MkCounterHolder impossible
+badPutCountersGraveyard Oh impossible
 
 
 ||| "Destroy target creature. Remove a +1/+1 counter from it."
@@ -591,7 +591,7 @@ public export
 badRemoveCountersDead : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
                 RemoveCounters (Lit 1) Macros.plusOnePlusOne It {zn = ok}])
-badRemoveCountersDead MkCounterHolder impossible
+badRemoveCountersDead Oh impossible
 
 
 ||| "Create a 1/1 creature artifact token."
@@ -640,7 +640,7 @@ badPutZeroCounters MkWrittenCount impossible
 public export
 badBecomesZombieLand : Unspellable (Effect []) (\ok =>
   Macros.becomes (Macros.target Macros.land) (Macros.subtypesOnly [Zombie]) Nothing {af = ok})
-badBecomesZombieLand MkAddedFits impossible
+badBecomesZombieLand Oh impossible
 
 
 ||| "Target creature becomes in addition to its other types."
@@ -649,7 +649,7 @@ public export
 badBecomesNothing : Unspellable (Effect []) (\ok =>
   Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] []) Nothing
                  {ne = Builtin.fst ok, nw = Builtin.snd ok})
-badBecomesNothing (MkLineNonEmpty, _) impossible
+badBecomesNothing (Oh, _) impossible
 
 
 ||| "Target creature card in your graveyard becomes an artifact in addition to its other types."
@@ -657,7 +657,7 @@ badBecomesNothing (MkLineNonEmpty, _) impossible
 public export
 badBecomesInGraveyard : Unspellable (Effect []) (\ok =>
   Macros.becomes (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) (Macros.typesOnly [Artifact]) Nothing {zn = ok})
-badBecomesInGraveyard MkZoneFits impossible
+badBecomesInGraveyard Oh impossible
 
 
 ||| "Target creature becomes an artifact … until end of combat."
@@ -697,7 +697,7 @@ badZombieNoncreature MkContradictionFree impossible
 public export
 badBecomesOwnType : Unspellable (Effect []) (\ok =>
   Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Creature]) Nothing {nw = ok})
-badBecomesOwnType MkAddsSomething impossible
+badBecomesOwnType Oh impossible
 
 
 ||| "Target artifact you control becomes a creature … until your next turn."
@@ -734,7 +734,7 @@ public export
 badModalFixedWhole : Unspellable (Effect []) (\ok =>
   Macros.chooseTwo [Macros.destroy (Macros.target Macros.artifact),
                     Macros.destroy (Macros.target Macros.enchantment)] {mf = ok})
-badModalFixedWhole MkModesFit impossible
+badModalFixedWhole Oh impossible
 
 
 ||| "Choose three — Destroy target artifact; or destroy target enchantment."
@@ -743,7 +743,7 @@ public export
 badModalOverreach : Unspellable (Effect []) (\ok =>
   Modal (Macros.exactly 3) [Macros.destroy (Macros.target Macros.artifact),
                             Macros.destroy (Macros.target Macros.enchantment)] {mf = ok})
-badModalOverreach MkModesFit impossible
+badModalOverreach Oh impossible
 
 
 ||| "Choose one — Destroy target artifact; or tap it."
@@ -799,7 +799,7 @@ badModalUpToTwo : Unspellable (Effect []) (\ok =>
   Modal (Macros.upTo 2) [Macros.destroy (Macros.target Macros.artifact),
                         Macros.destroy (Macros.target Macros.enchantment),
                         Macros.drawACard] {mh = ok})
-badModalUpToTwo MkModalHead impossible
+badModalUpToTwo Oh impossible
 
 
 ||| "Choose one — Draw a card; or draw a card."
@@ -826,7 +826,7 @@ badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
                    (Exists Macros.creatureYouControl)
                    Nothing,
                 PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
-badConditionalArmAntecedent (_, MkCounterHolder) impossible
+badConditionalArmAntecedent (_, Oh) impossible
 
 
 ||| "You may gain 1 life. If you do, create a token. If you don't, create two. Put a +1/+1 counter on it."
@@ -837,7 +837,7 @@ badBothArmsAntecedent : Unspellable (Effect []) (\ok =>
                      (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier])))
                      (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [Soldier]))),
                 PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
-badBothArmsAntecedent (_, MkCounterHolder) impossible
+badBothArmsAntecedent (_, Oh) impossible
 
 
 ||| "other than a creature"
@@ -959,7 +959,7 @@ public export
 badSimultaneousReadsMayDeed : Unspellable (Effect []) (\ok =>
   Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Plant])),
                   PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
-badSimultaneousReadsMayDeed (_, MkCounterHolder) impossible
+badSimultaneousReadsMayDeed (_, Oh) impossible
 
 
 ||| "You may have this deal 2 damage and you gain that much life." as one instruction
@@ -996,4 +996,4 @@ badBatchTwoOutcomesThenThatMuch Refl impossible
 public export
 badGainControlGraveyard : Unspellable (Effect []) (\ok =>
   Macros.gainControl (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Nothing {zn = ok})
-badGainControlGraveyard MkZoneFits impossible
+badGainControlGraveyard Oh impossible

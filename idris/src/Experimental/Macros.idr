@@ -569,7 +569,7 @@ create : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
          {auto 0 tc : TokenCanonical tok} ->
          {auto 0 wc : WrittenCount count} -> Effect bs
 create count tok = Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc}) [] {wc}
-                          {rr = MkRidersOk}
+                          {rr = Oh}
 
 public export
 createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
@@ -582,7 +582,7 @@ createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count
 createTappedAttacking count tok =
   Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc})
          [EntersTapped, EntersAttacking] {wc}
-         {rr = MkRidersOk}
+         {rr = Oh}
 
 public export
 becomesAs : (n : Noun bs Object) -> (added : TokenChars bs) ->
@@ -664,7 +664,7 @@ chooseAnyNumber : (modes : List (Effect bs)) ->
                   {auto 0 mf : ModesFit Macros.anyNumber (modeCount modes)} ->
                   {auto 0 mh : ModalHead Macros.anyNumber (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseAnyNumber modes = Modal Macros.anyNumber modes {tw} {mf} {mh} {dm}
+chooseAnyNumber modes = Modal Macros.anyNumber modes {wf = Oh} {tw} {mf} {mh} {dm}
 
 public export
 notSo : (c : Condition bs) -> {auto 0 ng : CondNegatable c} -> Condition bs

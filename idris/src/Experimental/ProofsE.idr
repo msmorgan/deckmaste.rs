@@ -87,7 +87,7 @@ public export
 badBasePtInGraveyard : Unspellable (StaticEffect []) (\ok =>
   HasBasePt (Macros.target (And [Macros.creature, InZone Macros.graveyardZ]))
             (Lit 1) (Lit 1) {zn = ok})
-badBasePtInGraveyard MkZoneFits impossible
+badBasePtInGraveyard Oh impossible
 
 
 ||| "the creature with the total power among creatures you control"
@@ -95,7 +95,7 @@ badBasePtInGraveyard MkZoneFits impossible
 public export
 badSumSelection : Unspellable (Predicate [] Object) (\ok =>
   Superlative SumOf (CharAxis Power) Macros.creature {ex = ok})
-badSumSelection MkIsExtremal impossible
+badSumSelection Oh impossible
 
 
 ||| "the creature"
@@ -214,7 +214,7 @@ badGoadInGraveyard (HolderOnField {ok = OnField}) impossible
 public export
 badUnflipInstruction : Unspellable (Effect []) (\ok =>
   SetStatus Unflipped (Macros.target Macros.creature) {at = ok})
-badUnflipInstruction MkStatusEffectVal impossible
+badUnflipInstruction Oh impossible
 
 
 ||| "Mill a card." spelled off the BOTTOM of the library
@@ -252,7 +252,7 @@ badParamOnNullaryKeyword MkKeywordParamFits impossible
 ||| The description position refuses the parameterized rows the ability position demands a parameter for.
 public export
 badWardDescription : Unspellable (Predicate [] Object) (\ok => HasKeyword Ward {np = ok})
-badWardDescription MkKeywordParamless impossible
+badWardDescription Oh impossible
 
 
 ||| "Protection from red" printed as a line on an instant card
@@ -540,7 +540,7 @@ badStillOnSubtypeSet : Unspellable (StaticEffect []) (\ok =>
   SetsType (Macros.target Macros.creature)
            (MkToken Nothing [] (MkTypeLine [Coward] []) [] Nothing)
            (Just Land) {ro = ok})
-badStillOnSubtypeSet MkRetentionOk impossible
+badStillOnSubtypeSet Oh impossible
 
 
 ||| "This land becomes an artifact until end of turn. It's still a creature."
@@ -550,7 +550,7 @@ badStillACreature : Unspellable (StaticEffect []) (\ok =>
   SetsType Macros.thisLand
            (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing)
            (Just Creature) {ro = ok})
-badStillACreature MkRetentionOk impossible
+badStillACreature Oh impossible
 
 
 ||| "Target creature becomes an artifact until end of turn. It's still an instant."
@@ -560,7 +560,7 @@ badStillAnInstant : Unspellable (StaticEffect []) (\ok =>
   SetsType (Macros.target Macros.creature)
            (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing)
            (Just Instant) {ro = ok})
-badStillAnInstant MkRetentionOk impossible
+badStillAnInstant Oh impossible
 
 
 ||| "This land becomes a 2/2 creature this turn."
@@ -776,7 +776,7 @@ badEmblemAsCost MkCostAction impossible
 public export
 badLoyaltyUpZero : Unspellable Ability (\ok =>
   Activated (LoyaltySymbol (LoyaltyUp 0 {nz = ok})) Macros.drawACard)
-badLoyaltyUpZero MkLoyaltyStep impossible
+badLoyaltyUpZero Oh impossible
 
 
 ||| "[−0]: Draw a card."
@@ -784,7 +784,7 @@ badLoyaltyUpZero MkLoyaltyStep impossible
 public export
 badLoyaltyDownZero : Unspellable Ability (\ok =>
   Activated (LoyaltySymbol (LoyaltyDown 0 {nz = ok})) Macros.drawACard)
-badLoyaltyDownZero MkLoyaltyStep impossible
+badLoyaltyDownZero Oh impossible
 
 
 ||| "[+1], {T}: Draw a card."
@@ -846,7 +846,7 @@ badLoyaltySorcery MkCardText impossible
 public export
 badRandomOnTop : Unspellable (ZoneExpr []) (\ok =>
   LibraryAt OnTop (Just RandomOrder) {af = ok} Bare)
-badRandomOnTop MkArrangementFits impossible
+badRandomOnTop Oh impossible
 
 
 ||| "Scry 1." with no one scrying
@@ -878,14 +878,14 @@ badScryReveals ScryB impossible
 public export
 badEmptyProduction : Unspellable (Effect []) (\ok =>
   AddMana You (Lit 1) (Runs [] {ok}) [])
-badEmptyProduction MkProducedRuns impossible
+badEmptyProduction Oh impossible
 
 ||| "Add {R} or ." — one alternative producing nothing beside one that does.
 ||| [CR#106.3]'s refusal one level in: an alternative that produces nothing names no mana.
 public export
 badEmptyAlternative : Unspellable (Effect []) (\ok =>
   AddMana You (Lit 1) (Runs [[OfColor Red], []] {ok}) [])
-badEmptyAlternative MkProducedRuns impossible
+badEmptyAlternative Oh impossible
 
 ||| "Add one mana in any combination of colors."
 ||| At one mana the freedom axis is vacuous: one unit takes one color either way [CR#106.1a].
@@ -931,7 +931,7 @@ public export
 badGraveyardBecomesCopy : Unspellable (StaticEffect []) (\ok =>
   BecomesCopy (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
               (Macros.target Macros.creature) [] {zn = ok})
-badGraveyardBecomesCopy MkZoneFits impossible
+badGraveyardBecomesCopy Oh impossible
 
 ||| "Create a token that's a copy of it, except it's in addition to its other types."
 ||| An exception that adds no word is not an exception; the tail names at least one type.
@@ -940,7 +940,7 @@ badEmptyCopyTypeException : Unspellable (Effect []) (\ok =>
   Create You (Lit 1)
          (TokenCopyOf (Macros.target Macros.creature)
                       [ExceptTypes (MkTypeLine [] []) {ne = ok}]) [])
-badEmptyCopyTypeException MkLineNonEmpty impossible
+badEmptyCopyTypeException Oh impossible
 
 ||| "Copy target creature."
 ||| The stack verbs act on an object on the stack [CR#707.10,112.1], which a permanent is not.
