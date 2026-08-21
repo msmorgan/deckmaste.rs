@@ -151,6 +151,17 @@ pub(crate) fn structural_sequence_category(owner: &str, role: &str) -> String {
     format!("{}Category", structural_sequence_aggregate(owner, role))
 }
 
+pub(crate) fn structural_sequence_counted_category(
+    owner: &str,
+    role: &str,
+    count: usize,
+) -> String {
+    format!(
+        "{}Count{count}Category",
+        structural_sequence_aggregate(owner, role)
+    )
+}
+
 pub(crate) fn structural_sequence_rule(owner: &str, role: &str) -> String {
     format!("{}Rule", structural_sequence_aggregate(owner, role))
 }

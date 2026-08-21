@@ -143,7 +143,15 @@ fn emit_rule_arm(plan: &SemanticPlan, row: &super::rules::RuleRowPlan) -> syn::R
             owner,
             field_index,
             state,
-        } => emit_sequence_arm(plan, row, *owner, *field_index, *state),
+            helper_category,
+        } => emit_sequence_arm(
+            plan,
+            row,
+            *owner,
+            *field_index,
+            *state,
+            helper_category.as_deref(),
+        ),
     }
 }
 
@@ -345,6 +353,7 @@ fn emit_sequence_arm(
     owner: super::rules::StructuralOwner,
     field_index: usize,
     state: super::rules::SequenceBuildState,
+    helper_category: Option<&str>,
 ) -> syn::Result<TokenStream> {
     let (owner_name, field) = structural_owner_field(plan, owner, field_index);
     let StructuralFieldKindPlan::Sequence { .. } = field.kind() else {
@@ -353,7 +362,6 @@ fn emit_sequence_arm(
         ));
     };
     let carrier = ident(&carrier_variant(owner_name, field)?);
-    let helper_category = sequence_helper_category(field)?;
     let rule_id = ident(&rule.id);
     let mut binders = LocalAllocator::default();
     for name in ["rule", "children", "context"] {
@@ -363,7 +371,7 @@ fn emit_sequence_arm(
         plan,
         &rule.rhs,
         &carrier,
-        &helper_category,
+        helper_category,
         &rule.state,
         &mut binders,
     )?;
@@ -591,12 +599,11 @@ fn lower_sequence_owner_value(
         .get(state.rhs_start..state.rhs_end)
         .ok_or_else(|| internal("sequence owner RHS range exceeds the lowered rule"))?;
     let carrier = ident(&carrier_variant(owner, field)?);
-    let helper_category = sequence_helper_category(field)?;
     let lowered = lower_sequence_rhs(
         plan,
         symbols,
         &carrier,
-        &helper_category,
+        state.helper_category.as_deref(),
         &rule.state,
         binders,
     )?;
@@ -618,10 +625,6 @@ fn lower_sequence_owner_value(
         }
         super::rules::SequenceOwnerState::PositionalPair => {
             let values = exact_sequence_values(lowered, 2, &rule.state)?;
-            quote! { vec![#(#values),*] }
-        }
-        super::rules::SequenceOwnerState::PositionalExact(length) => {
-            let values = exact_sequence_values(lowered, length, &rule.state)?;
             quote! { vec![#(#values),*] }
         }
         super::rules::SequenceOwnerState::PositionalThreePlus
@@ -649,7 +652,7 @@ fn lower_sequence_rhs(
     plan: &SemanticPlan,
     symbols: &[super::rules::RuleSymbolPlan],
     carrier: &syn::Ident,
-    helper_category: &str,
+    helper_category: Option<&str>,
     state: &str,
     binders: &mut LocalAllocator,
 ) -> syn::Result<LoweredSequenceRhs> {
@@ -664,7 +667,7 @@ fn lower_sequence_rhs(
                 values.push(value.expression);
             }
             super::rules::RuleSymbolPlan::Helper(category) => {
-                if category != helper_category {
+                if Some(category.as_str()) != helper_category {
                     return Err(internal(&format!(
                         "{state} sequence RHS names a different helper category"
                     )));
@@ -795,13 +798,6 @@ fn carrier_variant(owner: &str, field: &StructuralFieldPlan) -> syn::Result<Stri
             Err(internal("required field has no helper carrier"))
         }
     }
-}
-
-fn sequence_helper_category(field: &StructuralFieldPlan) -> syn::Result<String> {
-    field
-        .helper_names()
-        .map(|names| names.all()[1].to_owned())
-        .ok_or_else(|| internal("sequence field has no helper category inventory"))
 }
 
 fn atom_role(atom: &AtomPlan) -> Option<&str> {
@@ -1815,6 +1811,14 @@ mod tests {
                     require len(items) >= 1;
                     form uniform = items;
                 }
+                construction finite: Finite {
+                    element FiniteValue {
+                        items: seq Item separated by "<S>" terminated by "<T>",
+                    }
+                    require len(items) >= 2;
+                    require len(items) <= 4;
+                    form finite = items;
+                }
                 root Item { punctuation = "."; eoi = true; standalone_render = true; }
             })
             .expect("shared-RHS fixture parses"),
@@ -1872,6 +1876,52 @@ mod tests {
         assert!(
             mismatch.contains("sequence_recursive") && mismatch.contains("tail"),
             "the shared lowering mismatch must identify the row state: {mismatch}",
+        );
+
+        let finite_rows =
+            super::super::rules::lowered_rows(&plan).expect("finite shared-RHS rows lower");
+        let mut counted = finite_rows
+            .iter()
+            .find(|row| row.id == "FiniteValueItemsSequenceCount2Continue")
+            .expect("counted continuation row")
+            .clone();
+        let counted_tail = counted
+            .rhs
+            .iter_mut()
+            .find_map(|symbol| match symbol {
+                super::super::rules::RuleSymbolPlan::Helper(category) => Some(category),
+                _ => None,
+            })
+            .expect("counted continuation has a tail");
+        *counted_tail = "FiniteValueItemsSequenceCount4Category".to_owned();
+        let mismatch = super::emit_rule_arm(&plan, &counted)
+            .expect_err("a counted fold cannot skip to a different count category")
+            .to_string();
+        assert!(
+            mismatch.contains("sequence_count_2_continue") && mismatch.contains("helper category"),
+            "the counted shared lowering mismatch must identify its row: {mismatch}",
+        );
+
+        let mut owner = finite_rows
+            .iter()
+            .find(|row| row.id == "FiniteValueItemsSequenceNonEmpty")
+            .expect("finite nonempty owner row")
+            .clone();
+        let owner_tail = owner
+            .rhs
+            .iter_mut()
+            .find_map(|symbol| match symbol {
+                super::super::rules::RuleSymbolPlan::Helper(category) => Some(category),
+                _ => None,
+            })
+            .expect("finite owner has a helper entry");
+        *owner_tail = "FiniteValueItemsSequenceCount2Category".to_owned();
+        let mismatch = super::emit_rule_arm(&plan, &owner)
+            .expect_err("a finite owner cannot skip its first counted category")
+            .to_string();
+        assert!(
+            mismatch.contains("sequence_non_empty") && mismatch.contains("helper category"),
+            "the owner shared lowering mismatch must identify its row: {mismatch}",
         );
     }
 

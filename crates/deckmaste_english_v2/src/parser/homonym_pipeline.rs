@@ -192,6 +192,16 @@ constructions! {
     }
     require len(BoundedUniformStructural.items) >= 2;
     require len(BoundedUniformStructural.items) <= 4;
+    abstract product BoundedPositionalStructural {
+        items: seq StructuralAtom separated by position {
+            pair = "<P>";
+            first = "<F>";
+            middle = "<M>";
+            last = "<L>";
+        } terminated by "<T>",
+    }
+    require len(BoundedPositionalStructural.items) >= 2;
+    require len(BoundedPositionalStructural.items) <= 4;
     construction action: Homonym {
         element Action {}
         derive agreement = verb.agreement;
@@ -347,6 +357,25 @@ fn structural_markers(items: &[StructuralAtom]) -> Vec<StructuralWord> {
         .collect()
 }
 
+fn materialized_structural_markers(value: &BuildValue) -> Vec<StructuralWord> {
+    match value {
+        BuildValue::OptionalStructural(value) => value
+            .maybe
+            .as_ref()
+            .into_iter()
+            .flat_map(|item| structural_markers(std::slice::from_ref(item)))
+            .collect(),
+        BuildValue::ExactPairStructural(value) => structural_markers(&value.items),
+        BuildValue::TerminatedStructural(value) => structural_markers(&value.items),
+        BuildValue::SeparatedStructural(value) => structural_markers(&value.items),
+        BuildValue::CombinedStructural(value) => structural_markers(&value.items),
+        BuildValue::PositionalStructural(value) => structural_markers(&value.items),
+        BuildValue::BoundedUniformStructural(value) => structural_markers(&value.items),
+        BuildValue::BoundedPositionalStructural(value) => structural_markers(&value.items),
+        value => panic!("unexpected structural materialization {value:?}"),
+    }
+}
+
 #[test]
 fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order() {
     let environment = environment();
@@ -424,6 +453,30 @@ fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order()
                 StructuralWord::Delta,
             ],
         ),
+        (
+            Category::BoundedPositionalStructural,
+            "Alpha <T> <P> beta <T>",
+            vec![StructuralWord::Alpha, StructuralWord::Beta],
+        ),
+        (
+            Category::BoundedPositionalStructural,
+            "Alpha <T> <F> beta <T> <L> gamma <T>",
+            vec![
+                StructuralWord::Alpha,
+                StructuralWord::Beta,
+                StructuralWord::Gamma,
+            ],
+        ),
+        (
+            Category::BoundedPositionalStructural,
+            "Alpha <T> <F> beta <T> <M> gamma <T> <L> delta <T>",
+            vec![
+                StructuralWord::Alpha,
+                StructuralWord::Beta,
+                StructuralWord::Gamma,
+                StructuralWord::Delta,
+            ],
+        ),
     ];
 
     for (category, text, expected) in cases {
@@ -432,21 +485,7 @@ fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order()
         });
         let built = materialize_fixture(&forest, &context);
         assert_eq!(built.len(), 1, "one materialized value for {text:?}");
-        let actual = match &built[0].value {
-            BuildValue::OptionalStructural(value) => value
-                .maybe
-                .as_ref()
-                .into_iter()
-                .flat_map(|item| structural_markers(std::slice::from_ref(item)))
-                .collect(),
-            BuildValue::ExactPairStructural(value) => structural_markers(&value.items),
-            BuildValue::TerminatedStructural(value) => structural_markers(&value.items),
-            BuildValue::SeparatedStructural(value) => structural_markers(&value.items),
-            BuildValue::CombinedStructural(value) => structural_markers(&value.items),
-            BuildValue::PositionalStructural(value) => structural_markers(&value.items),
-            BuildValue::BoundedUniformStructural(value) => structural_markers(&value.items),
-            value => panic!("unexpected structural materialization {value:?}"),
-        };
+        let actual = materialized_structural_markers(&built[0].value);
         assert_eq!(
             actual, expected,
             "source order survives parse and fold for {text:?}"
@@ -465,6 +504,15 @@ fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order()
             "Alpha <T> <S> beta <T> <S> gamma <T> <S> delta <T> <S> alpha <T>",
         ),
         (Category::BoundedUniformStructural, "Alpha <S> <T> beta <T>"),
+        (Category::BoundedPositionalStructural, "Alpha <T>"),
+        (
+            Category::BoundedPositionalStructural,
+            "Alpha <T> <F> beta <T> <M> gamma <T> <M> delta <T> <L> alpha <T>",
+        ),
+        (
+            Category::BoundedPositionalStructural,
+            "Alpha <T> <P> beta <T> <P> gamma <T>",
+        ),
         (Category::CombinedStructural, "Alpha <T> <S>"),
         (
             Category::PositionalStructural,
@@ -532,6 +580,52 @@ fn generated_helper_cycle_is_an_internal_materialization_failure_with_owner_role
         [
             "OptionalStructural [public]",
             "OptionalStructural.maybe [optional_absent]",
+        ],
+    );
+
+    let parsed = parse_fixture(
+        Category::BoundedUniformStructural,
+        "Alpha <T> <S> beta <T>",
+        &environment,
+    )
+    .expect("the finite counted helper produces an accepted Earley forest");
+    let helper = parsed
+        .nodes()
+        .find_map(|(id, node)| {
+            (node.rule == RuleId::BoundedUniformStructuralItemsSequenceCount2Final).then_some(id)
+        })
+        .expect("the accepted forest contains the generated counted-final helper node");
+    let roots = parsed.accepted_root_ids().collect::<Vec<_>>();
+    let mut nodes = parsed
+        .nodes()
+        .map(|(_, node)| node.clone())
+        .collect::<Vec<_>>();
+    nodes[helper.0].families = vec![Family {
+        children: vec![Child::Node(helper)],
+    }];
+    let cycle_only = Forest::from_test_parts(nodes, roots);
+    let (built, trace) = super::materialize::materialize_with_trace(
+        &cycle_only,
+        RULES,
+        RuleId::index,
+        RuleId::public_construction,
+        |terminal: LexicalTerminal| terminal.matcher,
+        |leaf| BuildValue::Leaf(leaf.clone()),
+        |rule, children| build(rule, children, &context),
+        structural_rule_label,
+        super::diagnostic::TraceLimits::new(16),
+    );
+    assert!(
+        built.is_empty(),
+        "the counted cycle-only accepted forest cannot materialize"
+    );
+    assert_eq!(trace.cycles().total(), 1);
+    assert_eq!(
+        trace.cycles().items()[0].construction_path().items(),
+        [
+            "BoundedUniformStructural.items [sequence_non_empty]",
+            "BoundedUniformStructural.items [sequence_count_1_continue]",
+            "BoundedUniformStructural.items [sequence_count_2_final]",
         ],
     );
 

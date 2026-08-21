@@ -30,6 +30,7 @@ use crate::identifier::spelling_key;
 use crate::identifier::structural_sequence_aggregate;
 use crate::identifier::structural_sequence_builder;
 use crate::identifier::structural_sequence_category;
+use crate::identifier::structural_sequence_counted_category;
 use crate::identifier::structural_sequence_renderer;
 use crate::identifier::structural_sequence_rule;
 use crate::identifier::structural_sequence_walker;
@@ -2685,11 +2686,18 @@ fn register_associated_name(
     }
 }
 
+fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn::Error>) {
+    let _ = generated_name_inventory(raw, errors);
+}
+
 #[allow(
     clippy::too_many_lines,
     reason = "the sealed source-ordered inventory enumerates every emitted Rust namespace"
 )]
-fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn::Error>) {
+fn generated_name_inventory(
+    raw: &Declarations,
+    errors: &mut Option<syn::Error>,
+) -> GeneratedNameInventory {
     let mut names = GeneratedNameInventory::default();
     let fixed_span = proc_macro2::Span::call_site();
     for (name, role) in [
@@ -3119,6 +3127,7 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
             Declaration::Root(_) | Declaration::Morphology(_) => {}
         }
     }
+    names
 }
 
 fn register_structural_field_names(
@@ -3174,6 +3183,11 @@ fn register_structural_field_names(
                     .get(&role)
                     .copied()
                     .unwrap_or_else(|| LengthBounds::new(0, None));
+                for generated in
+                    sequence_counted_category_names(owner, &role, surface, field_bounds)
+                {
+                    names.register_type(&generated, &collision_role, field.name.span(), errors);
+                }
                 for suffix in sequence_helper_rule_suffixes(surface, field_bounds) {
                     names.register_rule_variant(
                         &format!("{aggregate}{suffix}"),
@@ -3185,6 +3199,25 @@ fn register_structural_field_names(
             }
             FieldKind::Category(_) | FieldKind::Lex(_) | FieldKind::Identity(_) => {}
         }
+    }
+}
+
+fn sequence_counted_category_names(
+    owner: &str,
+    role: &str,
+    surface: &crate::model::SequenceSurfaceSource,
+    bounds: LengthBounds,
+) -> Vec<String> {
+    let Some(maximum) = bounds.max() else {
+        return Vec::new();
+    };
+    match &surface.separator {
+        Some(crate::model::SeparatorSource::Positional(_)) => (3..maximum)
+            .map(|position| structural_sequence_counted_category(owner, role, position))
+            .collect(),
+        Some(crate::model::SeparatorSource::Uniform(_)) | None => (2..=maximum)
+            .map(|count| structural_sequence_counted_category(owner, role, count))
+            .collect(),
     }
 }
 
@@ -3203,8 +3236,18 @@ fn sequence_helper_rule_suffixes(
 ) -> Vec<String> {
     match &surface.separator {
         Some(crate::model::SeparatorSource::Positional(_)) => {
-            if bounds.max().is_some() {
-                return Vec::new();
+            if let Some(maximum) = bounds.max() {
+                let mut suffixes = Vec::new();
+                for position in 2..maximum {
+                    let total = position + 1;
+                    if bounds.allows(total) {
+                        suffixes.push(format!("Count{position}Last"));
+                    }
+                    if total < maximum {
+                        suffixes.push(format!("Count{position}Middle"));
+                    }
+                }
+                return suffixes;
             }
             let tail_length = bounds.min().max(3) - 1;
             vec![
@@ -3218,9 +3261,16 @@ fn sequence_helper_rule_suffixes(
         }
         Some(crate::model::SeparatorSource::Uniform(_)) | None => {
             if let Some(maximum) = bounds.max() {
-                return (bounds.min()..=maximum)
-                    .map(|length| format!("Length{length}"))
-                    .collect();
+                let mut suffixes = Vec::new();
+                for count in 1..=maximum {
+                    if bounds.allows(count) {
+                        suffixes.push(format!("Count{count}Final"));
+                    }
+                    if count < maximum {
+                        suffixes.push(format!("Count{count}Continue"));
+                    }
+                }
+                return suffixes;
             }
             vec![
                 if bounds.min() <= 1 {
@@ -3289,9 +3339,21 @@ fn sequence_owner_rule_suffixes(
     match &surface.separator {
         Some(crate::model::SeparatorSource::Positional(_)) => {
             if let Some(maximum) = bounds.max() {
-                return (bounds.min()..=maximum)
-                    .map(sequence_exact_owner_suffix)
-                    .collect();
+                let mut suffixes = Vec::new();
+                for length in 0..3 {
+                    if bounds.allows(length) {
+                        suffixes.push(sequence_exact_owner_suffix(length));
+                    }
+                }
+                let minimum = bounds.min().max(3);
+                if maximum >= minimum {
+                    suffixes.push(if minimum == 3 {
+                        "ThreePlus".to_owned()
+                    } else {
+                        format!("Minimum{minimum}Plus")
+                    });
+                }
+                return suffixes;
             }
             let mut suffixes = Vec::new();
             for length in 0..3 {
@@ -3307,12 +3369,20 @@ fn sequence_owner_rule_suffixes(
             });
             suffixes
         }
-        Some(crate::model::SeparatorSource::Uniform(_)) | None
-            if bounds.max().is_none() && bounds.min() == 0 =>
-        {
-            vec!["Empty".to_owned(), "NonEmpty".to_owned()]
-        }
-        Some(crate::model::SeparatorSource::Uniform(_)) | None => Vec::new(),
+        Some(crate::model::SeparatorSource::Uniform(_)) | None => match bounds.max() {
+            None if bounds.min() == 0 => vec!["Empty".to_owned(), "NonEmpty".to_owned()],
+            None => Vec::new(),
+            Some(maximum) => {
+                let mut suffixes = Vec::new();
+                if bounds.allows(0) {
+                    suffixes.push("Empty".to_owned());
+                }
+                if maximum >= bounds.min().max(1) {
+                    suffixes.push("NonEmpty".to_owned());
+                }
+                suffixes
+            }
+        },
     }
 }
 
@@ -7748,9 +7818,56 @@ pub(crate) mod tests {
                 construction item: Item { element ItemValue {} form item = "item"; }
                 abstract product Holder { items: seq Item separated by ", ", }
                 require len(Holder.items) = 2;
-                construction sequence_length2: HolderItems {
+                construction sequence_count2_final: HolderItems {
                     element SequenceCollision {}
-                    form length2 = "length2";
+                    form count2 = "count2";
+                }
+                root HolderItems { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            quote! {
+                construction item: Item { element ItemValue {} form item = "item"; }
+                abstract product Holder { items: seq Item separated by ", ", }
+                require len(Holder.items) >= 2;
+                require len(Holder.items) <= 4;
+                construction sequence_count1_continue: HolderItems {
+                    element SequenceContinueCollision {}
+                    form count1 = "count1";
+                }
+                root HolderItems { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            quote! {
+                construction item: Item { element ItemValue {} form item = "item"; }
+                abstract product Holder {
+                    items: seq Item separated by position {
+                        pair = "<P>";
+                        first = "<F>";
+                        middle = "<M>";
+                        last = "<L>";
+                    },
+                }
+                require len(Holder.items) >= 2;
+                require len(Holder.items) <= 4;
+                construction sequence_count2_last: HolderItems {
+                    element PositionalLastCollision {}
+                    form last = "last";
+                }
+                root HolderItems { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            quote! {
+                construction item: Item { element ItemValue {} form item = "item"; }
+                abstract product Holder {
+                    items: seq Item separated by position {
+                        pair = "<P>";
+                        first = "<F>";
+                        middle = "<M>";
+                        last = "<L>";
+                    },
+                }
+                require len(Holder.items) >= 2;
+                require len(Holder.items) <= 4;
+                construction sequence_count2_middle: HolderItems {
+                    element PositionalMiddleCollision {}
+                    form middle = "middle";
                 }
                 root HolderItems { punctuation = "."; eoi = true; standalone_render = true; }
             },
@@ -7803,6 +7920,90 @@ pub(crate) mod tests {
             );
             assert!(!message.contains("internal"), "{message}");
         }
+    }
+
+    #[test]
+    fn rejects_authored_type_colliding_with_a_counted_sequence_category() {
+        let parsed = crate::parse_declarations(quote! {
+            construction item: Item { element ItemValue {} form item = "item"; }
+            abstract product Holder { items: seq Item separated by ", ", }
+            require len(Holder.items) >= 2;
+            require len(Holder.items) <= 4;
+            abstract product HolderItemsSequenceCount3Category {}
+            root Holder { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("counted-category collision fixture parses");
+        let expected_span = parsed
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                Declaration::AbstractProduct(product)
+                    if product.name == "HolderItemsSequenceCount3Category" =>
+                {
+                    Some(product.name.span())
+                }
+                _ => None,
+            })
+            .expect("colliding authored product span");
+
+        let error = crate::validate_declarations(parsed)
+            .expect_err("an authored type cannot collide with a counted helper category");
+        assert_same_span(error.span(), expected_span);
+        let message = error.to_string();
+        assert!(
+            message.contains("HolderItemsSequenceCount3Category")
+                && message.contains("generated helper name collision"),
+            "the collision must identify the exact counted category family: {message}",
+        );
+    }
+
+    fn counted_inventory_size(maximum: usize) -> (usize, usize) {
+        let maximum = syn::LitInt::new(&maximum.to_string(), proc_macro2::Span::call_site());
+        let parsed = crate::parse_declarations(quote! {
+            construction item: Item { element ItemValue {} form item = "item"; }
+            abstract product FiniteUniformValue {
+                items: seq Item separated by "<S>" terminated by "<T>",
+            }
+            require len(FiniteUniformValue.items) <= #maximum;
+            abstract product FinitePositionalValue {
+                items: seq Item separated by position {
+                    pair = "<P>";
+                    first = "<F>";
+                    middle = "<M>";
+                    last = "<L>";
+                } terminated by "<T>",
+            }
+            require len(FinitePositionalValue.items) <= #maximum;
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("counted inventory fixture parses");
+        let mut errors = None;
+        let inventory = super::generated_name_inventory(&parsed, &mut errors);
+        assert!(
+            errors.is_none(),
+            "counted inventory fixture is collision-free"
+        );
+        let belongs_to_counted_family = |role: &&String| {
+            role.contains("FiniteUniformValue") || role.contains("FinitePositionalValue")
+        };
+        (
+            inventory
+                .type_names
+                .values()
+                .filter(belongs_to_counted_family)
+                .count(),
+            inventory
+                .rule_variants
+                .values()
+                .filter(belongs_to_counted_family)
+                .count(),
+        )
+    }
+
+    #[test]
+    fn counted_sequence_collision_inventory_has_exact_linear_growth() {
+        assert_eq!(counted_inventory_size(32), (68, 128));
+        assert_eq!(counted_inventory_size(64), (132, 256));
     }
 
     #[test]

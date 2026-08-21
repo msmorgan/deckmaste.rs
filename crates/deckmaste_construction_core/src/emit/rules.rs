@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -38,7 +40,6 @@ pub(super) enum SequenceOwnerState {
     PositionalEmpty,
     PositionalSingleton,
     PositionalPair,
-    PositionalExact(usize),
     PositionalThreePlus,
     PositionalMinimumPlus(usize),
 }
@@ -51,7 +52,6 @@ impl SequenceOwnerState {
             Self::PositionalEmpty => "positional_empty".to_owned(),
             Self::PositionalSingleton => "positional_singleton".to_owned(),
             Self::PositionalPair => "positional_pair".to_owned(),
-            Self::PositionalExact(length) => format!("positional_length_{length}"),
             Self::PositionalThreePlus => "positional_three_plus".to_owned(),
             Self::PositionalMinimumPlus(length) => {
                 format!("positional_minimum_{length}_plus")
@@ -65,7 +65,6 @@ impl SequenceOwnerState {
             Self::UniformNonEmpty => "NonEmpty".to_owned(),
             Self::PositionalSingleton => "Singleton".to_owned(),
             Self::PositionalPair => "Pair".to_owned(),
-            Self::PositionalExact(length) => format!("Length{length}"),
             Self::PositionalThreePlus => "ThreePlus".to_owned(),
             Self::PositionalMinimumPlus(length) => format!("Minimum{length}Plus"),
         }
@@ -123,6 +122,7 @@ pub(super) enum RuleBuildPlan {
         owner: StructuralOwner,
         field_index: usize,
         state: SequenceBuildState,
+        helper_category: Option<String>,
     },
 }
 
@@ -132,7 +132,11 @@ pub(super) struct SequenceOwnerBuildPlan {
     pub(super) state: SequenceOwnerState,
     pub(super) rhs_start: usize,
     pub(super) rhs_end: usize,
+    pub(super) helper_category: Option<String>,
 }
+
+type HelperCategoryNames<'a> =
+    HashMap<(&'a str, &'a str, super::StructuralHelperCategoryState), &'a str>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum StructuralOwner {
@@ -371,6 +375,16 @@ fn emit_value_position(plan: &SemanticPlan, value: &ValueKindPlan) -> syn::Resul
 
 pub(super) fn lowered_rows(plan: &SemanticPlan) -> syn::Result<Vec<RuleRowPlan>> {
     let mut rows = Vec::new();
+    let helper_categories = super::structural_helper_categories(plan);
+    let helper_category_names = helper_categories
+        .iter()
+        .map(|category| {
+            (
+                (category.owner, category.field.name(), category.state),
+                category.name.as_str(),
+            )
+        })
+        .collect::<HelperCategoryNames<'_>>();
     for (index, construction) in plan.constructions().iter().enumerate() {
         rows.extend(lower_construction_rows(index, construction)?);
         rows.extend(lower_helper_rows(
@@ -381,6 +395,7 @@ pub(super) fn lowered_rows(plan: &SemanticPlan) -> syn::Result<Vec<RuleRowPlan>>
                 .iter()
                 .enumerate()
                 .filter_map(|(index, field)| field.structural_plan().map(|field| (index, field))),
+            &helper_category_names,
         )?);
     }
     for (index, product) in plan.products().iter().enumerate() {
@@ -389,6 +404,7 @@ pub(super) fn lowered_rows(plan: &SemanticPlan) -> syn::Result<Vec<RuleRowPlan>>
             StructuralOwner::Product(index),
             product.name(),
             product.fields().iter().enumerate(),
+            &helper_category_names,
         )?);
     }
     for (sum_index, sum) in plan.sums().iter().enumerate() {
@@ -567,11 +583,16 @@ fn combine_owner_variants(
                 let rhs_start = combined.len();
                 combined.extend(field_rhs.iter().cloned());
                 if let Some(state) = state {
+                    let helper_category = field_rhs.iter().find_map(|symbol| match symbol {
+                        RuleSymbolPlan::Helper(category) => Some(category.clone()),
+                        _ => None,
+                    });
                     states.push(SequenceOwnerBuildPlan {
                         role: field.name().to_owned(),
                         state: *state,
                         rhs_start,
                         rhs_end: combined.len(),
+                        helper_category,
                     });
                 }
                 (states, combined)
@@ -599,36 +620,23 @@ fn owner_field_variants(
         } => match surface.separator() {
             Some(SeparatorPlan::Positional(rows)) => {
                 let mut variants = Vec::new();
-                if let Some(maximum) = bounds.max() {
-                    for length in bounds.min()..=maximum {
-                        let state = match length {
-                            0 => SequenceOwnerState::PositionalEmpty,
-                            1 => SequenceOwnerState::PositionalSingleton,
-                            2 => SequenceOwnerState::PositionalPair,
-                            length => SequenceOwnerState::PositionalExact(length),
-                        };
-                        variants.push((
-                            Some(state),
-                            exact_positional_rhs(item, surface, rows, length)?,
-                        ));
-                    }
-                } else {
-                    if bounds.allows(0) {
-                        variants.push((Some(SequenceOwnerState::PositionalEmpty), Vec::new()));
-                    }
-                    if bounds.allows(1) {
-                        variants.push((
-                            Some(SequenceOwnerState::PositionalSingleton),
-                            item_with_terminator(item, surface.terminator()),
-                        ));
-                    }
-                    if bounds.allows(2) {
-                        variants.push((
-                            Some(SequenceOwnerState::PositionalPair),
-                            exact_positional_rhs(item, surface, rows, 2)?,
-                        ));
-                    }
-                    let minimum = bounds.min().max(3);
+                if bounds.allows(0) {
+                    variants.push((Some(SequenceOwnerState::PositionalEmpty), Vec::new()));
+                }
+                if bounds.allows(1) {
+                    variants.push((
+                        Some(SequenceOwnerState::PositionalSingleton),
+                        item_with_terminator(item, surface.terminator()),
+                    ));
+                }
+                if bounds.allows(2) {
+                    variants.push((
+                        Some(SequenceOwnerState::PositionalPair),
+                        exact_positional_rhs(item, surface, rows, 2)?,
+                    ));
+                }
+                let minimum = bounds.min().max(3);
+                if bounds.max().is_none_or(|maximum| maximum >= minimum) {
                     let state = if minimum == 3 {
                         SequenceOwnerState::PositionalThreePlus
                     } else {
@@ -641,21 +649,38 @@ fn owner_field_variants(
                 }
                 Ok(variants)
             }
-            Some(SeparatorPlan::Uniform(_)) | None
-                if bounds.max().is_none() && bounds.min() == 0 =>
-            {
-                Ok(vec![
-                    (Some(SequenceOwnerState::UniformEmpty), Vec::new()),
-                    (
+            Some(SeparatorPlan::Uniform(_)) | None => {
+                if bounds.max().is_none() {
+                    if bounds.min() == 0 {
+                        return Ok(vec![
+                            (Some(SequenceOwnerState::UniformEmpty), Vec::new()),
+                            (
+                                Some(SequenceOwnerState::UniformNonEmpty),
+                                vec![RuleSymbolPlan::Helper(helper_category(owner, field)?)],
+                            ),
+                        ]);
+                    }
+                    return Ok(vec![(
+                        None,
+                        vec![RuleSymbolPlan::Helper(helper_category(owner, field)?)],
+                    )]);
+                }
+
+                let mut variants = Vec::new();
+                if bounds.allows(0) {
+                    variants.push((Some(SequenceOwnerState::UniformEmpty), Vec::new()));
+                }
+                if bounds
+                    .max()
+                    .is_some_and(|maximum| maximum >= bounds.min().max(1))
+                {
+                    variants.push((
                         Some(SequenceOwnerState::UniformNonEmpty),
                         vec![RuleSymbolPlan::Helper(helper_category(owner, field)?)],
-                    ),
-                ])
+                    ));
+                }
+                Ok(variants)
             }
-            Some(SeparatorPlan::Uniform(_)) | None => Ok(vec![(
-                None,
-                vec![RuleSymbolPlan::Helper(helper_category(owner, field)?)],
-            )]),
         },
     }
 }
@@ -668,6 +693,7 @@ fn lower_helper_rows<'a>(
     owner_key: StructuralOwner,
     owner: &str,
     fields: impl Iterator<Item = (usize, &'a StructuralFieldPlan)>,
+    helper_categories: &HelperCategoryNames<'_>,
 ) -> syn::Result<Vec<RuleRowPlan>> {
     let mut rows = Vec::new();
     for (field_index, field) in fields {
@@ -720,7 +746,65 @@ fn lower_helper_rows<'a>(
                 surface,
             } => match surface.separator() {
                 Some(SeparatorPlan::Positional(positional)) => {
-                    if bounds.max().is_none() && bounds.allows_at_least(3) {
+                    if let Some(maximum) = bounds.max() {
+                        for position in 2..maximum {
+                            let lhs = counted_helper_category(
+                                helper_categories,
+                                owner,
+                                field.name(),
+                                super::StructuralHelperCategoryState::PositionalCount(position),
+                            )?;
+                            let total = position + 1;
+                            if bounds.allows(total) {
+                                let mut last = item_with_terminator(item, surface.terminator());
+                                last.extend(surface_symbols(positional_surface(
+                                    positional,
+                                    EdgeClass::Last,
+                                )?));
+                                last.extend(item_with_terminator(item, surface.terminator()));
+                                rows.push(sequence_helper_row(
+                                    owner_key,
+                                    field_index,
+                                    owner,
+                                    field.name(),
+                                    &aggregate,
+                                    &lhs,
+                                    &format!("Count{position}Last"),
+                                    &format!("positional_count_{position}_last"),
+                                    SequenceBuildState::Last,
+                                    last,
+                                ));
+                            }
+                            if total < maximum {
+                                let next = counted_helper_category(
+                                    helper_categories,
+                                    owner,
+                                    field.name(),
+                                    super::StructuralHelperCategoryState::PositionalCount(
+                                        position + 1,
+                                    ),
+                                )?;
+                                let mut middle = item_with_terminator(item, surface.terminator());
+                                middle.extend(surface_symbols(positional_surface(
+                                    positional,
+                                    EdgeClass::Middle,
+                                )?));
+                                middle.push(RuleSymbolPlan::Helper(next));
+                                rows.push(sequence_helper_row(
+                                    owner_key,
+                                    field_index,
+                                    owner,
+                                    field.name(),
+                                    &aggregate,
+                                    &lhs,
+                                    &format!("Count{position}Middle"),
+                                    &format!("positional_count_{position}_middle"),
+                                    SequenceBuildState::Middle,
+                                    middle,
+                                ));
+                            }
+                        }
+                    } else if bounds.allows_at_least(3) {
                         let tail_length = bounds.min().max(3) - 1;
                         let (suffix, state, build_state) = if tail_length == 2 {
                             (
@@ -769,19 +853,53 @@ fn lower_helper_rows<'a>(
                 }
                 uniform => {
                     if let Some(maximum) = bounds.max() {
-                        for length in bounds.min()..=maximum {
-                            rows.push(sequence_helper_row(
-                                owner_key,
-                                field_index,
+                        for count in 1..=maximum {
+                            let lhs = counted_helper_category(
+                                helper_categories,
                                 owner,
                                 field.name(),
-                                &aggregate,
-                                &category,
-                                &format!("Length{length}"),
-                                &format!("sequence_length_{length}"),
-                                SequenceBuildState::Exact(length),
-                                exact_uniform_rhs(item, surface, uniform, length),
-                            ));
+                                super::StructuralHelperCategoryState::UniformCount(count),
+                            )?;
+                            if bounds.allows(count) {
+                                rows.push(sequence_helper_row(
+                                    owner_key,
+                                    field_index,
+                                    owner,
+                                    field.name(),
+                                    &aggregate,
+                                    &lhs,
+                                    &format!("Count{count}Final"),
+                                    &format!("sequence_count_{count}_final"),
+                                    SequenceBuildState::Singleton,
+                                    item_with_terminator(item, surface.terminator()),
+                                ));
+                            }
+                            if count < maximum {
+                                let next = counted_helper_category(
+                                    helper_categories,
+                                    owner,
+                                    field.name(),
+                                    super::StructuralHelperCategoryState::UniformCount(count + 1),
+                                )?;
+                                let mut recursive =
+                                    item_with_terminator(item, surface.terminator());
+                                if let Some(SeparatorPlan::Uniform(separator)) = uniform {
+                                    recursive.extend(surface_symbols(separator));
+                                }
+                                recursive.push(RuleSymbolPlan::Helper(next));
+                                rows.push(sequence_helper_row(
+                                    owner_key,
+                                    field_index,
+                                    owner,
+                                    field.name(),
+                                    &aggregate,
+                                    &lhs,
+                                    &format!("Count{count}Continue"),
+                                    &format!("sequence_count_{count}_continue"),
+                                    SequenceBuildState::Recursive,
+                                    recursive,
+                                ));
+                            }
                         }
                     } else {
                         let base_length = bounds.min().max(1);
@@ -851,6 +969,10 @@ fn sequence_helper_row(
     build_state: SequenceBuildState,
     rhs: Vec<RuleSymbolPlan>,
 ) -> RuleRowPlan {
+    let helper_category = rhs.iter().find_map(|symbol| match symbol {
+        RuleSymbolPlan::Helper(category) => Some(category.clone()),
+        _ => None,
+    });
     RuleRowPlan {
         id: format!("{aggregate}{suffix}"),
         lhs: category.to_owned(),
@@ -863,6 +985,7 @@ fn sequence_helper_row(
             owner: owner_key,
             field_index,
             state: build_state,
+            helper_category,
         },
     }
 }
@@ -968,6 +1091,18 @@ fn helper_category(owner: &str, field: &StructuralFieldPlan) -> syn::Result<Stri
     Err(internal(
         "structural cardinality field has no helper inventory",
     ))
+}
+
+fn counted_helper_category(
+    categories: &HelperCategoryNames<'_>,
+    owner: &str,
+    role: &str,
+    state: super::StructuralHelperCategoryState,
+) -> syn::Result<String> {
+    categories
+        .get(&(owner, role, state))
+        .map(|name| (*name).to_owned())
+        .ok_or_else(|| internal("counted sequence row has no sealed helper category"))
 }
 
 fn atom_role(atom: &AtomPlan) -> Option<&str> {
@@ -1256,9 +1391,9 @@ fn category_names(plan: &SemanticPlan) -> Vec<syn::Ident> {
         .into_iter()
         .map(|item| ident(item.name))
         .chain(
-            super::structural_carriers(plan)
+            super::structural_helper_categories(plan)
                 .into_iter()
-                .map(|carrier| ident(&carrier.category_variant())),
+                .map(|category| ident(&category.name)),
         )
         .collect()
 }
@@ -1287,7 +1422,16 @@ fn internal(message: &str) -> syn::Error {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use quote::quote;
+
+    #[derive(Debug, Clone, Copy)]
+    struct LoweringSize {
+        rows: usize,
+        symbols: usize,
+        names: usize,
+    }
 
     fn structural_semantic_plan() -> crate::semantic::SemanticPlan {
         crate::validate_declarations(
@@ -1348,6 +1492,19 @@ mod tests {
                     require len(items) <= 4;
                     form bounded_uniform = items;
                 }
+                construction bounded_positional: BoundedPositional {
+                    element BoundedPositionalValue {
+                        items: seq Item separated by position {
+                            pair = "<P>";
+                            first = "<F>";
+                            middle = "<M>";
+                            last = "<L>";
+                        } terminated by "<T>",
+                    }
+                    require len(items) >= 2;
+                    require len(items) <= 4;
+                    form bounded_positional = items;
+                }
                 construction zero_uniform: ZeroUniform {
                     element ZeroUniformValue {
                         items: seq Item separated by "<S>" terminated by "<T>",
@@ -1360,6 +1517,85 @@ mod tests {
         )
         .expect("bounded sequence rule fixture validates")
         .into_semantic()
+    }
+
+    fn finite_lowering_size(maximum: usize) -> LoweringSize {
+        let maximum = syn::LitInt::new(&maximum.to_string(), proc_macro2::Span::call_site());
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote! {
+                construction item: Item {
+                    element ItemValue {}
+                    form item = "item";
+                }
+                construction finite_uniform: FiniteUniform {
+                    element FiniteUniformValue {
+                        items: seq Item separated by "<S>" terminated by "<T>",
+                    }
+                    require len(items) <= #maximum;
+                    form finite_uniform = items;
+                }
+                construction finite_positional: FinitePositional {
+                    element FinitePositionalValue {
+                        items: seq Item separated by position {
+                            pair = "<P>";
+                            first = "<F>";
+                            middle = "<M>";
+                            last = "<L>";
+                        } terminated by "<T>",
+                    }
+                    require len(items) <= #maximum;
+                    form finite_positional = items;
+                }
+                root Item { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("finite complexity fixture parses"),
+        )
+        .expect("finite complexity fixture validates")
+        .into_semantic();
+        let rows = super::lowered_rows(&plan).expect("finite complexity rows lower");
+        let rows = rows
+            .iter()
+            .filter(|row| {
+                matches!(
+                    row.owner.as_str(),
+                    "FiniteUniformValue" | "FinitePositionalValue"
+                )
+            })
+            .collect::<Vec<_>>();
+        let symbols = rows.iter().map(|row| row.rhs.len()).sum();
+        let names = rows
+            .iter()
+            .flat_map(|row| [row.id.as_str(), row.lhs.as_str()])
+            .collect::<HashSet<_>>()
+            .len();
+        LoweringSize {
+            rows: rows.len(),
+            symbols,
+            names,
+        }
+    }
+
+    #[test]
+    fn structural_finite_lowering_rows_symbols_and_names_grow_linearly() {
+        let small = finite_lowering_size(32);
+        let large = finite_lowering_size(64);
+
+        assert!(
+            large.rows <= small.rows * 2 + 8,
+            "finite row growth must be linear: N=32 {small:?}, N=64 {large:?}",
+        );
+        assert!(
+            large.symbols <= small.symbols * 2 + 64,
+            "finite symbol growth must be linear: N=32 {small:?}, N=64 {large:?}",
+        );
+        assert!(
+            large.symbols <= large.rows * 8,
+            "every counted row must have a constant-size RHS: N=64 {large:?}",
+        );
+        assert!(
+            large.names <= small.names * 2 + 8,
+            "finite generated-name growth must be linear: N=32 {small:?}, N=64 {large:?}",
+        );
     }
 
     #[test]
@@ -1423,49 +1659,137 @@ mod tests {
             bounded_uniform,
             [
                 (
-                    "BoundedUniformValueItemsSequenceLength2",
-                    "sequence_length_2",
+                    "BoundedUniformValueItemsSequenceNonEmpty",
+                    "sequence_non_empty",
+                    vec!["helper:BoundedUniformValueItemsSequenceCategory".to_owned()],
+                ),
+                (
+                    "BoundedUniformValueItemsSequenceCount1Continue",
+                    "sequence_count_1_continue",
                     vec![
                         "value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<S>".to_owned(),
+                        "helper:BoundedUniformValueItemsSequenceCount2Category".to_owned(),
+                    ],
+                ),
+                (
+                    "BoundedUniformValueItemsSequenceCount2Final",
+                    "sequence_count_2_final",
+                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                ),
+                (
+                    "BoundedUniformValueItemsSequenceCount2Continue",
+                    "sequence_count_2_continue",
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<S>".to_owned(),
+                        "helper:BoundedUniformValueItemsSequenceCount3Category".to_owned(),
+                    ],
+                ),
+                (
+                    "BoundedUniformValueItemsSequenceCount3Final",
+                    "sequence_count_3_final",
+                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                ),
+                (
+                    "BoundedUniformValueItemsSequenceCount3Continue",
+                    "sequence_count_3_continue",
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<S>".to_owned(),
+                        "helper:BoundedUniformValueItemsSequenceCount4Category".to_owned(),
+                    ],
+                ),
+                (
+                    "BoundedUniformValueItemsSequenceCount4Final",
+                    "sequence_count_4_final",
+                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                ),
+            ],
+            "finite uniform bounds use constant-size counted transitions only",
+        );
+
+        let bounded_positional = rows
+            .iter()
+            .filter(|row| row.owner == "BoundedPositionalValue")
+            .map(|row| {
+                (
+                    row.id.as_str(),
+                    row.lhs.as_str(),
+                    row.state.as_str(),
+                    row.rhs
+                        .iter()
+                        .map(super::RuleSymbolPlan::test_label)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            bounded_positional,
+            [
+                (
+                    "BoundedPositionalValueItemsSequencePair",
+                    "BoundedPositional",
+                    "positional_pair",
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<P>".to_owned(),
                         "value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                     ],
                 ),
                 (
-                    "BoundedUniformValueItemsSequenceLength3",
-                    "sequence_length_3",
+                    "BoundedPositionalValueItemsSequenceThreePlus",
+                    "BoundedPositional",
+                    "positional_three_plus",
                     vec![
                         "value:Item".to_owned(),
                         "literal:<T>".to_owned(),
-                        "literal:<S>".to_owned(),
+                        "literal:<F>".to_owned(),
+                        "helper:BoundedPositionalValueItemsSequenceCategory".to_owned(),
+                    ],
+                ),
+                (
+                    "BoundedPositionalValueItemsSequenceCount2Last",
+                    "BoundedPositionalValueItemsSequenceCategory",
+                    "positional_count_2_last",
+                    vec![
                         "value:Item".to_owned(),
                         "literal:<T>".to_owned(),
-                        "literal:<S>".to_owned(),
+                        "literal:<L>".to_owned(),
                         "value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                     ],
                 ),
                 (
-                    "BoundedUniformValueItemsSequenceLength4",
-                    "sequence_length_4",
+                    "BoundedPositionalValueItemsSequenceCount2Middle",
+                    "BoundedPositionalValueItemsSequenceCategory",
+                    "positional_count_2_middle",
                     vec![
                         "value:Item".to_owned(),
                         "literal:<T>".to_owned(),
-                        "literal:<S>".to_owned(),
+                        "literal:<M>".to_owned(),
+                        "helper:BoundedPositionalValueItemsSequenceCount3Category".to_owned(),
+                    ],
+                ),
+                (
+                    "BoundedPositionalValueItemsSequenceCount3Last",
+                    "BoundedPositionalValueItemsSequenceCount3Category",
+                    "positional_count_3_last",
+                    vec![
                         "value:Item".to_owned(),
                         "literal:<T>".to_owned(),
-                        "literal:<S>".to_owned(),
-                        "value:Item".to_owned(),
-                        "literal:<T>".to_owned(),
-                        "literal:<S>".to_owned(),
+                        "literal:<L>".to_owned(),
                         "value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                     ],
                 ),
             ],
-            "a finite maximum must have no empty, singleton, or unbounded recursive row",
+            "finite positional derivations select pair versus first/middle/last exactly",
         );
 
         let zero_uniform = rows

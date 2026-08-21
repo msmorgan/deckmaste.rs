@@ -195,11 +195,14 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         let name = emitted_ident(item.name, Span::call_site());
         quote! { Category::#name => NonterminalCategory::#name }
     });
-    let helper_category_mappings = super::structural_carriers(plan).into_iter().map(|carrier| {
-        let helper = emitted_ident(&carrier.category_variant(), Span::call_site());
-        let owner = emitted_ident(carrier.diagnostic_owner, Span::call_site());
-        quote! { Category::#helper => NonterminalCategory::#owner }
-    });
+    let helper_category_mappings =
+        super::structural_helper_categories(plan)
+            .into_iter()
+            .map(|category| {
+                let helper = emitted_ident(&category.name, Span::call_site());
+                let owner = emitted_ident(category.diagnostic_owner, Span::call_site());
+                quote! { Category::#helper => NonterminalCategory::#owner }
+            });
 
     vec![
         named_type(
@@ -1214,6 +1217,9 @@ mod tests {
             "Category :: RightNode => NonterminalCategory :: RightNode",
             "Category :: HolderMaybeOptionalCategory => NonterminalCategory :: Holder",
             "Category :: HolderItemsSequenceCategory => NonterminalCategory :: Holder",
+            "Category :: HolderItemsSequenceCount2Category => NonterminalCategory :: Holder",
+            "Category :: HolderItemsSequenceCount3Category => NonterminalCategory :: Holder",
+            "Category :: HolderItemsSequenceCount4Category => NonterminalCategory :: Holder",
             "Category :: RecursiveBranchChoicesSequenceCategory => NonterminalCategory :: RecursiveBranch",
             "Category :: LeftValueMaybeOptionalCategory => NonterminalCategory :: LeftNode",
         ] {
@@ -1247,6 +1253,7 @@ mod tests {
                     items: seq Choice terminated by ",",
                 }
                 require len(Holder.items) >= 1;
+                require len(Holder.items) <= 4;
                 abstract sum RecursiveChoice { Branch: RecursiveBranch, }
                 abstract product RecursiveBranch {
                     choices: seq RecursiveChoice terminated by ".",

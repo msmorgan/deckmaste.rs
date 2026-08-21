@@ -1,0 +1,5 @@
+error: generated Rust type name `HolderItemsSequenceCount3Category` collides: semantic identity `HolderItemsSequenceCount3Category` is shared by Holder.items: generated helper name collision and generated abstract product type for `HolderItemsSequenceCount3Category`
+  --> tests/compile_fail/structural_counted_category_collision.rs:11:22
+   |
+11 |     abstract product HolderItemsSequenceCount3Category {}
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

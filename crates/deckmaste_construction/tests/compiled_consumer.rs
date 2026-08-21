@@ -592,10 +592,7 @@ pub mod fixture {
     }
 
     mod engine {
-        include!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../deckmaste_english_v2/src/parser/engine.rs"
-        ));
+        include!("../../deckmaste_english_v2/src/parser/engine.rs");
     }
 
     use RulePosition::Lexical as L;
