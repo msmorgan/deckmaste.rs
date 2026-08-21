@@ -347,6 +347,41 @@ mod tests {
         inherent_template! {
             fn macro_template() {}
         }
+
+        mod exported {
+            pub(super) type Alias = super::Triggered;
+            pub(super) type Transitive = self::Alias;
+            pub(super) use self::Transitive as Renamed;
+
+            pub(super) mod nested {
+                pub(crate) type Deep = super::Renamed;
+
+                impl self::Deep {
+                    fn nested_self_alias() {}
+                }
+            }
+
+            impl self::Alias {
+                fn module_self_alias() {}
+            }
+        }
+
+        impl exported::Alias {
+            fn qualified_alias() {}
+        }
+
+        use self::exported::Renamed as ImportedAlias;
+        impl ImportedAlias {
+            fn imported_alias() {}
+        }
+
+        mod from_super {
+            pub(super) type Alias = super::exported::nested::Deep;
+
+            impl Alias {
+                fn super_alias() {}
+            }
+        }
     }
 
     fn contains_production_function(file: &syn::File, name: &str) -> bool {
@@ -670,12 +705,103 @@ mod tests {
         found
     }
 
+    fn plan04_module_location(workspace_root: &Path, path: &Path) -> (String, Vec<String>) {
+        let relative = path
+            .strip_prefix(workspace_root)
+            .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+        let components = relative
+            .components()
+            .map(|component| component.as_os_str().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        if let [crates, crate_name, surface, rest @ ..] = components.as_slice()
+            && crates == "crates"
+            && surface == "src"
+            && !rest.is_empty()
+        {
+            let mut module = rest.to_vec();
+            let file = module.pop().expect("source path has a file");
+            if file != "lib.rs" && file != "main.rs" && file != "mod.rs" {
+                module.push(
+                    Path::new(&file)
+                        .file_stem()
+                        .expect("Rust source has a stem")
+                        .to_string_lossy()
+                        .into_owned(),
+                );
+            }
+            return (format!("crate:{crate_name}"), module);
+        }
+        if let [crates, crate_name, surface, rest @ ..] = components.as_slice()
+            && crates == "crates"
+            && surface == "tests"
+            && !rest.is_empty()
+        {
+            let integration_root = Path::new(&rest[0])
+                .file_stem()
+                .expect("integration test path has a stem")
+                .to_string_lossy();
+            let mut module = rest[1..].to_vec();
+            if let Some(file) = module.pop()
+                && file != "mod.rs"
+            {
+                module.push(
+                    Path::new(&file)
+                        .file_stem()
+                        .expect("Rust source has a stem")
+                        .to_string_lossy()
+                        .into_owned(),
+                );
+            }
+            return (format!("test:{crate_name}:{integration_root}"), module);
+        }
+        (format!("file:{}", relative.display()), Vec::new())
+    }
+
+    fn plan04_qualified_alias_graphs(
+        workspace_root: &Path,
+        paths: &[PathBuf],
+    ) -> std::collections::BTreeMap<String, QualifiedAliasGraph> {
+        let mut grouped =
+            std::collections::BTreeMap::<String, Vec<(syn::File, Vec<String>)>>::new();
+        for path in paths {
+            if path.extension().is_none_or(|extension| extension != "rs") {
+                continue;
+            }
+            let source = fs::read_to_string(path)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            let file = syn::parse_file(&source)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            let (key, module) = plan04_module_location(workspace_root, path);
+            grouped.entry(key).or_default().push((file, module));
+        }
+        grouped
+            .into_iter()
+            .map(|(key, files)| {
+                let graph = QualifiedAliasGraph::from_files(
+                    files.iter().map(|(file, module)| (file, module.as_slice())),
+                    false,
+                );
+                (key, graph)
+            })
+            .collect()
+    }
+
     #[derive(Default)]
     struct Plan04RetiredAuthorityFinder {
         allow_report_schema_field: bool,
         skip_strict_test_only: bool,
         alias_scopes: Vec<std::collections::BTreeMap<String, String>>,
+        qualified_aliases: QualifiedAliasGraph,
+        module_path: Vec<String>,
+        qualified_aliases_initialized: bool,
         violations: Vec<&'static str>,
+    }
+
+    #[derive(Clone, Default)]
+    struct QualifiedAliasGraph {
+        bindings: std::collections::BTreeMap<String, String>,
+        symbols: std::collections::BTreeSet<String>,
+        glob_imports: Vec<(Vec<String>, Vec<String>)>,
     }
 
     impl Plan04RetiredAuthorityFinder {
@@ -694,8 +820,15 @@ mod tests {
         }
 
         fn type_resolves_to(&self, ty: &syn::Type, target: &str) -> bool {
-            type_last_name(ty)
-                .is_some_and(|name| name_resolves_to(&name, target, &self.visible_aliases()))
+            type_path(ty).is_some_and(|path| {
+                path.path
+                    .segments
+                    .last()
+                    .is_some_and(|segment| segment.ident == target)
+                    || self
+                        .qualified_aliases
+                        .path_resolves_to(path, &self.module_path, target)
+            })
         }
     }
 
@@ -707,6 +840,30 @@ mod tests {
             ..Plan04RetiredAuthorityFinder::default()
         };
         finder.visit_file(file);
+        finder.violations
+    }
+
+    fn plan04_host_authorities_with_report(
+        host: &syn::File,
+        report: &syn::File,
+        host_module: &[String],
+    ) -> Vec<&'static str> {
+        use syn::visit::Visit as _;
+
+        let mut report_module = host_module.to_vec();
+        report_module.push("report".to_owned());
+        let graph = QualifiedAliasGraph::from_files(
+            [(host, host_module), (report, report_module.as_slice())],
+            true,
+        );
+        let mut finder = Plan04RetiredAuthorityFinder {
+            skip_strict_test_only: true,
+            qualified_aliases: graph,
+            module_path: host_module.to_vec(),
+            qualified_aliases_initialized: true,
+            ..Plan04RetiredAuthorityFinder::default()
+        };
+        finder.visit_file(host);
         finder.violations
     }
 
@@ -733,36 +890,275 @@ mod tests {
         .collect()
     }
 
-    fn type_last_name(ty: &syn::Type) -> Option<String> {
+    fn type_path(ty: &syn::Type) -> Option<&syn::TypePath> {
         match ty {
-            syn::Type::Group(group) => type_last_name(&group.elem),
-            syn::Type::Paren(paren) => type_last_name(&paren.elem),
-            syn::Type::Path(path) if path.qself.is_none() => path
-                .path
-                .segments
-                .last()
-                .map(|segment| segment.ident.to_string()),
+            syn::Type::Group(group) => type_path(&group.elem),
+            syn::Type::Paren(paren) => type_path(&paren.elem),
+            syn::Type::Path(path) if path.qself.is_none() => Some(path),
             _ => None,
         }
     }
 
-    fn name_resolves_to(
-        name: &str,
-        target: &str,
-        aliases: &std::collections::BTreeMap<String, String>,
-    ) -> bool {
-        let mut candidate = name;
-        let mut seen = std::collections::BTreeSet::new();
-        while seen.insert(candidate.to_owned()) {
-            if candidate == target {
-                return true;
-            }
-            let Some(next) = aliases.get(candidate) else {
-                return false;
-            };
-            candidate = next;
+    fn type_last_name(ty: &syn::Type) -> Option<String> {
+        type_path(ty).and_then(|path| {
+            path.path
+                .segments
+                .last()
+                .map(|segment| segment.ident.to_string())
+        })
+    }
+
+    fn qualified_name(module: &[String], name: &str) -> String {
+        if module.is_empty() {
+            name.to_owned()
+        } else {
+            format!("{}::{name}", module.join("::"))
         }
-        false
+    }
+
+    fn normalize_qualified_segments(segments: &[String], module: &[String]) -> Vec<String> {
+        let mut normalized = module.to_vec();
+        let mut index = 0;
+        if segments.first().is_some_and(|segment| segment == "crate") {
+            normalized.clear();
+            index = 1;
+        } else if segments.first().is_some_and(|segment| segment == "self") {
+            index = 1;
+        } else {
+            while segments
+                .get(index)
+                .is_some_and(|segment| segment == "super")
+            {
+                normalized.pop();
+                index += 1;
+            }
+        }
+        normalized.extend(segments[index..].iter().cloned());
+        normalized
+    }
+
+    fn syn_path_segments(path: &syn::Path) -> Vec<String> {
+        path.segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect()
+    }
+
+    impl QualifiedAliasGraph {
+        fn from_file(file: &syn::File, root: &[String], skip_strict_test_only: bool) -> Self {
+            Self::from_files([(file, root)], skip_strict_test_only)
+        }
+
+        fn from_files<'ast>(
+            files: impl IntoIterator<Item = (&'ast syn::File, &'ast [String])> + Clone,
+            skip_strict_test_only: bool,
+        ) -> Self {
+            let mut graph = Self::default();
+            for (file, root) in files.clone() {
+                graph.collect_symbols(&file.items, root, skip_strict_test_only);
+            }
+            for (file, root) in files {
+                graph.collect_bindings(&file.items, root, skip_strict_test_only);
+            }
+            graph.expand_globs();
+            graph
+        }
+
+        fn collect_symbols(
+            &mut self,
+            items: &[syn::Item],
+            module: &[String],
+            skip_strict_test_only: bool,
+        ) {
+            for item in items {
+                if skip_strict_test_only && item_attrs(item).is_some_and(is_test_only) {
+                    continue;
+                }
+                match item {
+                    syn::Item::Enum(item) => {
+                        self.symbols
+                            .insert(qualified_name(module, &item.ident.to_string()));
+                    }
+                    syn::Item::Struct(item) => {
+                        self.symbols
+                            .insert(qualified_name(module, &item.ident.to_string()));
+                    }
+                    syn::Item::Type(item) => {
+                        self.symbols
+                            .insert(qualified_name(module, &item.ident.to_string()));
+                    }
+                    syn::Item::Union(item) => {
+                        self.symbols
+                            .insert(qualified_name(module, &item.ident.to_string()));
+                    }
+                    syn::Item::Mod(item) => {
+                        let mut child = module.to_vec();
+                        child.push(item.ident.to_string());
+                        self.symbols.insert(child.join("::"));
+                        if let Some((_, items)) = &item.content {
+                            self.collect_symbols(items, &child, skip_strict_test_only);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        fn collect_bindings(
+            &mut self,
+            items: &[syn::Item],
+            module: &[String],
+            skip_strict_test_only: bool,
+        ) {
+            for item in items {
+                if skip_strict_test_only && item_attrs(item).is_some_and(is_test_only) {
+                    continue;
+                }
+                match item {
+                    syn::Item::Enum(item) => {
+                        let name = qualified_name(module, &item.ident.to_string());
+                        self.bindings.insert(name.clone(), name);
+                    }
+                    syn::Item::Struct(item) => {
+                        let name = qualified_name(module, &item.ident.to_string());
+                        self.bindings.insert(name.clone(), name);
+                    }
+                    syn::Item::Type(item) => {
+                        if let Some(path) = type_path(&item.ty) {
+                            let target = normalize_qualified_segments(
+                                &syn_path_segments(&path.path),
+                                module,
+                            )
+                            .join("::");
+                            self.bindings
+                                .insert(qualified_name(module, &item.ident.to_string()), target);
+                        }
+                    }
+                    syn::Item::Union(item) => {
+                        let name = qualified_name(module, &item.ident.to_string());
+                        self.bindings.insert(name.clone(), name);
+                    }
+                    syn::Item::Use(item) => {
+                        self.collect_use_tree(&item.tree, module, &[]);
+                    }
+                    syn::Item::Mod(item) => {
+                        if let Some((_, items)) = &item.content {
+                            let mut child = module.to_vec();
+                            child.push(item.ident.to_string());
+                            self.collect_bindings(items, &child, skip_strict_test_only);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        fn collect_use_tree(&mut self, tree: &syn::UseTree, module: &[String], prefix: &[String]) {
+            match tree {
+                syn::UseTree::Path(path) => {
+                    let mut next = prefix.to_vec();
+                    next.push(path.ident.to_string());
+                    self.collect_use_tree(&path.tree, module, &next);
+                }
+                syn::UseTree::Name(name) => {
+                    let mut source = prefix.to_vec();
+                    source.push(name.ident.to_string());
+                    let source = normalize_qualified_segments(&source, module).join("::");
+                    self.bindings
+                        .insert(qualified_name(module, &name.ident.to_string()), source);
+                }
+                syn::UseTree::Rename(rename) => {
+                    let mut source = prefix.to_vec();
+                    source.push(rename.ident.to_string());
+                    let source = normalize_qualified_segments(&source, module).join("::");
+                    self.bindings
+                        .insert(qualified_name(module, &rename.rename.to_string()), source);
+                }
+                syn::UseTree::Group(group) => {
+                    for tree in &group.items {
+                        self.collect_use_tree(tree, module, prefix);
+                    }
+                }
+                syn::UseTree::Glob(_) => {
+                    let source = normalize_qualified_segments(prefix, module);
+                    self.glob_imports.push((module.to_vec(), source));
+                }
+            }
+        }
+
+        fn expand_globs(&mut self) {
+            loop {
+                let names = self
+                    .symbols
+                    .iter()
+                    .chain(self.bindings.keys())
+                    .cloned()
+                    .collect::<Vec<_>>();
+                let mut changed = false;
+                for (destination, source) in self.glob_imports.clone() {
+                    let source_prefix = if source.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{}::", source.join("::"))
+                    };
+                    for name in &names {
+                        let Some(rest) = name.strip_prefix(&source_prefix) else {
+                            continue;
+                        };
+                        if rest.contains("::") {
+                            continue;
+                        }
+                        let local = qualified_name(&destination, rest);
+                        if let std::collections::btree_map::Entry::Vacant(entry) =
+                            self.bindings.entry(local)
+                        {
+                            entry.insert(name.clone());
+                            changed = true;
+                        }
+                    }
+                }
+                if !changed {
+                    break;
+                }
+            }
+        }
+
+        fn path_resolves_to(&self, path: &syn::TypePath, module: &[String], target: &str) -> bool {
+            let segments = syn_path_segments(&path.path);
+            let mut candidate = normalize_qualified_segments(&segments, module).join("::");
+            let mut seen = std::collections::BTreeSet::new();
+            while seen.insert(candidate.clone()) {
+                if candidate
+                    .rsplit("::")
+                    .next()
+                    .is_some_and(|name| name == target)
+                {
+                    return true;
+                }
+                if let Some(next) = self.bindings.get(&candidate) {
+                    candidate = next.clone();
+                    continue;
+                }
+                let parts = candidate.split("::").collect::<Vec<_>>();
+                let mut expanded = None;
+                for prefix_len in (1..parts.len()).rev() {
+                    let prefix = parts[..prefix_len].join("::");
+                    if let Some(target_prefix) = self.bindings.get(&prefix) {
+                        expanded = Some(format!(
+                            "{}::{}",
+                            target_prefix,
+                            parts[prefix_len..].join("::")
+                        ));
+                        break;
+                    }
+                }
+                let Some(next) = expanded else {
+                    return false;
+                };
+                candidate = next;
+            }
+            false
+        }
     }
 
     fn collect_use_aliases(
@@ -835,8 +1231,11 @@ mod tests {
                         .cloned()
                         .collect::<proc_macro2::TokenStream>();
                     if let Ok(item) = syn::parse2::<syn::ItemType>(candidate.clone()) {
-                        if let Some(target) = type_last_name(&item.ty) {
-                            aliases.insert(item.ident.to_string(), target);
+                        if let Some(path) = type_path(&item.ty) {
+                            aliases.insert(
+                                item.ident.to_string(),
+                                syn_path_segments(&path.path).join("::"),
+                            );
                         }
                         break;
                     }
@@ -881,19 +1280,188 @@ mod tests {
         normalized
     }
 
+    fn macro_rules_transcribers(
+        tokens: proc_macro2::TokenStream,
+    ) -> Option<Vec<proc_macro2::TokenStream>> {
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        let mut transcribers = Vec::new();
+        let mut index = 0;
+        while index < tokens.len() {
+            while matches!(
+                tokens.get(index),
+                Some(proc_macro2::TokenTree::Punct(punct))
+                    if punct.as_char() == ';' || punct.as_char() == ','
+            ) {
+                index += 1;
+            }
+            if index == tokens.len() {
+                break;
+            }
+            if !matches!(tokens.get(index), Some(proc_macro2::TokenTree::Group(_)))
+                || !matches!(
+                    tokens.get(index + 1),
+                    Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '='
+                )
+                || !matches!(
+                    tokens.get(index + 2),
+                    Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '>'
+                )
+            {
+                return None;
+            }
+            let Some(proc_macro2::TokenTree::Group(transcriber)) = tokens.get(index + 3) else {
+                return None;
+            };
+            transcribers.push(transcriber.stream());
+            index += 4;
+        }
+        Some(transcribers)
+    }
+
+    fn production_macro_tokens(tokens: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        let mut production = proc_macro2::TokenStream::new();
+        let mut index = 0;
+        while index < tokens.len() {
+            let macro_name = match tokens.get(index) {
+                Some(proc_macro2::TokenTree::Ident(ident)) => Some(ident.to_string()),
+                _ => None,
+            };
+            if macro_name
+                .as_deref()
+                .is_some_and(|name| name == "concat" || name == "stringify")
+                && matches!(
+                    tokens.get(index + 1),
+                    Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '!'
+                )
+                && matches!(
+                    tokens.get(index + 2),
+                    Some(proc_macro2::TokenTree::Group(_))
+                )
+            {
+                index += 3;
+                continue;
+            }
+            if macro_name.as_deref() == Some("macro_rules")
+                && matches!(
+                    tokens.get(index + 1),
+                    Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '!'
+                )
+                && let Some(proc_macro2::TokenTree::Group(body)) = tokens.get(index + 3)
+            {
+                let transcribers =
+                    macro_rules_transcribers(body.stream()).unwrap_or_else(|| vec![body.stream()]);
+                for transcriber in transcribers {
+                    production.extend([proc_macro2::TokenTree::Group(proc_macro2::Group::new(
+                        proc_macro2::Delimiter::Brace,
+                        production_macro_tokens(transcriber),
+                    ))]);
+                }
+                index += 4;
+                continue;
+            }
+            match &tokens[index] {
+                proc_macro2::TokenTree::Group(group) => {
+                    let mut filtered = proc_macro2::Group::new(
+                        group.delimiter(),
+                        production_macro_tokens(group.stream()),
+                    );
+                    filtered.set_span(group.span());
+                    production.extend([proc_macro2::TokenTree::Group(filtered)]);
+                }
+                token => production.extend([token.clone()]),
+            }
+            index += 1;
+        }
+        production
+    }
+
+    fn macro_production_streams(mac: &syn::Macro) -> Vec<proc_macro2::TokenStream> {
+        if mac.path.is_ident("concat") || mac.path.is_ident("stringify") {
+            return Vec::new();
+        }
+        if mac.path.is_ident("macro_rules") {
+            return macro_rules_transcribers(mac.tokens.clone())
+                .unwrap_or_else(|| vec![mac.tokens.clone()])
+                .into_iter()
+                .map(production_macro_tokens)
+                .collect();
+        }
+        vec![production_macro_tokens(mac.tokens.clone())]
+    }
+
     fn macro_tokens_contain_inherent_impl(
         tokens: proc_macro2::TokenStream,
         target: &str,
         outer_aliases: &std::collections::BTreeMap<String, String>,
+        qualified_aliases: &QualifiedAliasGraph,
+        module: &[String],
     ) -> bool {
         let tokens = normalize_macro_metavariables(tokens);
-        macro_tokens_contain_inherent_impl_with_aliases(tokens, target, outer_aliases)
+        macro_tokens_contain_inherent_impl_with_aliases(
+            tokens,
+            target,
+            outer_aliases,
+            qualified_aliases,
+            module,
+        )
+    }
+
+    fn macro_type_resolves_to(
+        ty: &syn::Type,
+        target: &str,
+        aliases: &std::collections::BTreeMap<String, String>,
+        qualified_aliases: &QualifiedAliasGraph,
+        module: &[String],
+    ) -> bool {
+        let Some(path) = type_path(ty) else {
+            return false;
+        };
+        if path
+            .path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == target)
+        {
+            return true;
+        }
+        let mut candidate = syn_path_segments(&path.path).join("::");
+        let mut seen = std::collections::BTreeSet::new();
+        while seen.insert(candidate.clone()) {
+            if let Some(next) = aliases.get(&candidate) {
+                candidate = next.clone();
+                continue;
+            }
+            let parts = candidate.split("::").collect::<Vec<_>>();
+            let mut expanded = None;
+            for prefix_len in (1..parts.len()).rev() {
+                let prefix = parts[..prefix_len].join("::");
+                if let Some(target_prefix) = aliases.get(&prefix) {
+                    expanded = Some(format!(
+                        "{}::{}",
+                        target_prefix,
+                        parts[prefix_len..].join("::")
+                    ));
+                    break;
+                }
+            }
+            let Some(next) = expanded else {
+                break;
+            };
+            candidate = next;
+        }
+        syn::parse_str::<syn::Type>(&candidate)
+            .ok()
+            .and_then(|ty| type_path(&ty).cloned())
+            .is_some_and(|path| qualified_aliases.path_resolves_to(&path, module, target))
     }
 
     fn macro_tokens_contain_inherent_impl_with_aliases(
         tokens: proc_macro2::TokenStream,
         target: &str,
         aliases: &std::collections::BTreeMap<String, String>,
+        qualified_aliases: &QualifiedAliasGraph,
+        module: &[String],
     ) -> bool {
         let mut scoped_aliases = aliases.clone();
         collect_macro_aliases(tokens.clone(), &mut scoped_aliases);
@@ -915,8 +1483,13 @@ mod tests {
                     ))]);
                     if let Ok(item) = syn::parse2::<syn::ItemImpl>(candidate)
                         && item.trait_.is_none()
-                        && type_last_name(&item.self_ty)
-                            .is_some_and(|name| name_resolves_to(&name, target, &scoped_aliases))
+                        && macro_type_resolves_to(
+                            &item.self_ty,
+                            target,
+                            &scoped_aliases,
+                            qualified_aliases,
+                            module,
+                        )
                     {
                         return true;
                     }
@@ -927,6 +1500,8 @@ mod tests {
                     group.stream(),
                     target,
                     &scoped_aliases,
+                    qualified_aliases,
+                    module,
                 )
             {
                 return true;
@@ -937,6 +1512,14 @@ mod tests {
 
     impl<'ast> syn::visit::Visit<'ast> for Plan04RetiredAuthorityFinder {
         fn visit_file(&mut self, file: &'ast syn::File) {
+            if !self.qualified_aliases_initialized {
+                self.qualified_aliases = QualifiedAliasGraph::from_file(
+                    file,
+                    &self.module_path,
+                    self.skip_strict_test_only,
+                );
+                self.qualified_aliases_initialized = true;
+            }
             self.alias_scopes.push(collect_item_aliases(
                 &file.items,
                 self.skip_strict_test_only,
@@ -956,12 +1539,14 @@ mod tests {
 
         fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
             if let Some((_, items)) = &item.content {
+                self.module_path.push(item.ident.to_string());
                 self.alias_scopes
                     .push(collect_item_aliases(items, self.skip_strict_test_only));
                 for item in items {
                     self.visit_item(item);
                 }
                 self.alias_scopes.pop();
+                self.module_path.pop();
             }
         }
 
@@ -1010,18 +1595,25 @@ mod tests {
         }
 
         fn visit_macro(&mut self, mac: &'ast syn::Macro) {
-            if macro_tokens_contain_identifier(mac.tokens.clone(), "checked_constructor") {
+            let production_streams = macro_production_streams(mac);
+            if production_streams.iter().any(|tokens| {
+                macro_tokens_contain_identifier(tokens.clone(), "checked_constructor")
+            }) {
                 self.record("checked_constructor");
             }
             for (target, authority) in [
                 ("Triggered", "impl Triggered"),
                 ("SelfReferenceNp", "impl SelfReferenceNp"),
             ] {
-                if macro_tokens_contain_inherent_impl(
-                    mac.tokens.clone(),
-                    target,
-                    &self.visible_aliases(),
-                ) {
+                if production_streams.iter().any(|tokens| {
+                    macro_tokens_contain_inherent_impl(
+                        tokens.clone(),
+                        target,
+                        &self.visible_aliases(),
+                        &self.qualified_aliases,
+                        &self.module_path,
+                    )
+                }) {
                     self.record(authority);
                 }
             }
@@ -1038,7 +1630,10 @@ mod tests {
                     "enum ConstructorArgument",
                 ),
             ] {
-                if macro_tokens_contain_declaration(mac.tokens.clone(), kind, name) {
+                if production_streams
+                    .iter()
+                    .any(|tokens| macro_tokens_contain_declaration(tokens.clone(), kind, name))
+                {
                     self.record(authority);
                 }
             }
@@ -1052,12 +1647,14 @@ mod tests {
         empty_blocks: Vec<bool>,
         string_blocks: usize,
         exact_empty_string_blocks: usize,
+        unresolved_compositions: usize,
     }
 
     struct CheckedBlockCensus {
         structural: Vec<bool>,
         strings: usize,
         exact_empty_strings: usize,
+        unresolved_compositions: usize,
     }
 
     fn checked_text_block_pattern() -> regex::Regex {
@@ -1087,21 +1684,103 @@ mod tests {
         }
     }
 
-    fn collect_macro_fixture_strings(tokens: proc_macro2::TokenStream, fixtures: &mut Vec<String>) {
+    fn string_composition_could_contain_checked(tokens: proc_macro2::TokenStream) -> bool {
+        fn collect_fragments(tokens: proc_macro2::TokenStream, fragments: &mut Vec<String>) {
+            for token in tokens {
+                match token {
+                    proc_macro2::TokenTree::Group(group) => {
+                        let delimiters = match group.delimiter() {
+                            proc_macro2::Delimiter::Brace => Some(("{", "}")),
+                            proc_macro2::Delimiter::Bracket => Some(("[", "]")),
+                            proc_macro2::Delimiter::Parenthesis | proc_macro2::Delimiter::None => {
+                                None
+                            }
+                        };
+                        if let Some((open, _)) = delimiters {
+                            fragments.push(open.to_owned());
+                        }
+                        collect_fragments(group.stream(), fragments);
+                        if let Some((_, close)) = delimiters {
+                            fragments.push(close.to_owned());
+                        }
+                    }
+                    proc_macro2::TokenTree::Ident(ident) => {
+                        fragments.push(ident.to_string());
+                    }
+                    proc_macro2::TokenTree::Literal(literal) => {
+                        let spelling = syn::parse_str::<syn::Lit>(&literal.to_string())
+                            .ok()
+                            .and_then(|literal| literal_constant_string(&literal))
+                            .unwrap_or_else(|| literal.to_string());
+                        fragments.push(spelling);
+                    }
+                    proc_macro2::TokenTree::Punct(_) => {}
+                }
+            }
+        }
+
+        let mut fragments = Vec::new();
+        collect_fragments(tokens, &mut fragments);
+        (0..fragments.len()).any(|start| {
+            let mut candidate = String::new();
+            fragments[start..].iter().any(|fragment| {
+                candidate.push_str(fragment);
+                checked_text_block_pattern().is_match(&candidate)
+            })
+        })
+    }
+
+    fn collect_macro_fixture_strings(
+        tokens: proc_macro2::TokenStream,
+        fixtures: &mut Vec<String>,
+        unresolved_compositions: &mut usize,
+    ) {
         let tokens = tokens.into_iter().collect::<Vec<_>>();
         let mut index = 0;
         while index < tokens.len() {
-            if matches!(&tokens[index], proc_macro2::TokenTree::Ident(ident) if ident == "concat")
+            if matches!(&tokens[index], proc_macro2::TokenTree::Ident(ident) if ident == "macro_rules")
+                && matches!(
+                    tokens.get(index + 1),
+                    Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '!'
+                )
+                && let Some(proc_macro2::TokenTree::Group(body)) = tokens.get(index + 3)
+            {
+                let transcribers =
+                    macro_rules_transcribers(body.stream()).unwrap_or_else(|| vec![body.stream()]);
+                for transcriber in transcribers {
+                    collect_macro_fixture_strings(transcriber, fixtures, unresolved_compositions);
+                }
+                index += 4;
+                continue;
+            }
+            let string_macro = match &tokens[index] {
+                proc_macro2::TokenTree::Ident(ident) if ident == "concat" => Some("concat"),
+                proc_macro2::TokenTree::Ident(ident) if ident == "stringify" => Some("stringify"),
+                _ => None,
+            };
+            if let Some(string_macro) = string_macro
                 && matches!(
                     tokens.get(index + 1),
                     Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '!'
                 )
                 && let Some(proc_macro2::TokenTree::Group(group)) = tokens.get(index + 2)
             {
-                if let Some(fixture) = constant_concat_tokens(group.stream()) {
+                let fixture = if string_macro == "concat" {
+                    constant_concat_tokens(group.stream())
+                } else {
+                    Some(group.stream().to_string())
+                };
+                if let Some(fixture) = fixture {
                     fixtures.push(fixture);
                 } else {
-                    collect_macro_fixture_strings(group.stream(), fixtures);
+                    if string_composition_could_contain_checked(group.stream()) {
+                        *unresolved_compositions += 1;
+                    }
+                    collect_macro_fixture_strings(
+                        group.stream(),
+                        fixtures,
+                        unresolved_compositions,
+                    );
                 }
                 index += 3;
                 continue;
@@ -1115,7 +1794,11 @@ mod tests {
                     }
                 }
                 proc_macro2::TokenTree::Group(group) => {
-                    collect_macro_fixture_strings(group.stream(), fixtures);
+                    collect_macro_fixture_strings(
+                        group.stream(),
+                        fixtures,
+                        unresolved_compositions,
+                    );
                 }
                 proc_macro2::TokenTree::Ident(_) | proc_macro2::TokenTree::Punct(_) => {}
             }
@@ -1147,9 +1830,42 @@ mod tests {
         }
 
         fn visit_macro(&mut self, mac: &'ast syn::Macro) {
-            collect_checked_blocks(mac.tokens.clone(), &mut self.empty_blocks);
+            for tokens in macro_production_streams(mac) {
+                collect_checked_blocks(tokens, &mut self.empty_blocks);
+            }
             let mut fixtures = Vec::new();
-            collect_macro_fixture_strings(mac.tokens.clone(), &mut fixtures);
+            if mac.path.is_ident("concat") {
+                if let Some(fixture) = constant_concat_tokens(mac.tokens.clone()) {
+                    fixtures.push(fixture);
+                } else {
+                    if string_composition_could_contain_checked(mac.tokens.clone()) {
+                        self.unresolved_compositions += 1;
+                    }
+                    collect_macro_fixture_strings(
+                        mac.tokens.clone(),
+                        &mut fixtures,
+                        &mut self.unresolved_compositions,
+                    );
+                }
+            } else if mac.path.is_ident("stringify") {
+                fixtures.push(mac.tokens.to_string());
+            } else if mac.path.is_ident("macro_rules") {
+                for transcriber in macro_rules_transcribers(mac.tokens.clone())
+                    .unwrap_or_else(|| vec![mac.tokens.clone()])
+                {
+                    collect_macro_fixture_strings(
+                        transcriber,
+                        &mut fixtures,
+                        &mut self.unresolved_compositions,
+                    );
+                }
+            } else {
+                collect_macro_fixture_strings(
+                    mac.tokens.clone(),
+                    &mut fixtures,
+                    &mut self.unresolved_compositions,
+                );
+            }
             for fixture in fixtures {
                 self.record_string_fixture(&fixture);
             }
@@ -1168,6 +1884,7 @@ mod tests {
             structural: finder.empty_blocks,
             strings: finder.string_blocks,
             exact_empty_strings: finder.exact_empty_string_blocks,
+            unresolved_compositions: finder.unresolved_compositions,
         }
     }
 
@@ -1484,6 +2201,9 @@ mod tests {
             syn::Expr::Lit(expression) => literal_constant_string(&expression.lit),
             syn::Expr::Macro(expression) if expression.mac.path.is_ident("concat") => {
                 constant_concat_tokens(expression.mac.tokens.clone())
+            }
+            syn::Expr::Macro(expression) if expression.mac.path.is_ident("stringify") => {
+                Some(expression.mac.tokens.to_string())
             }
             syn::Expr::Group(expression) => constant_string_expression(&expression.expr),
             syn::Expr::Paren(expression) => constant_string_expression(&expression.expr),
@@ -2839,6 +3559,22 @@ mod tests {
     }
 
     #[test]
+    fn plan04_host_scan_links_file_backed_production_modules() {
+        let host = syn::parse_file(
+            "struct Triggered; mod report; impl report::Alias {} \
+             #[cfg(test)] mod tests { type Alias = Triggered; }",
+        )
+        .expect("synthetic file-backed host reparses");
+        let report = syn::parse_file("pub(super) type Alias = super::Triggered;")
+            .expect("synthetic linked report reparses");
+
+        assert_eq!(
+            plan04_host_authorities_with_report(&host, &report, &[]),
+            ["impl Triggered"]
+        );
+    }
+
+    #[test]
     fn plan04_checked_blocks_are_detected_as_comment_insensitive_macro_tokens() {
         for source in [
             "fn fixture() { constructions! { checked /* legacy */ { constructor = old; } } }",
@@ -2879,6 +3615,57 @@ mod tests {
         assert!(parser_census.structural.is_empty());
         assert_eq!(parser_census.strings, 2);
         assert_eq!(parser_census.exact_empty_strings, 1);
+
+        let token_roles = r"
+            const STRINGIFIED: &str = stringify!(checked {});
+            macro_rules! recognizes { (checked {}) => {}; }
+        ";
+        let role_census = checked_block_census_in_rust_source(token_roles);
+        assert!(role_census.structural.is_empty());
+        assert_eq!(role_census.strings, 1);
+        assert_eq!(role_census.exact_empty_strings, 0);
+    }
+
+    #[test]
+    fn plan04_checked_block_census_evaluates_nested_string_macros() {
+        let fixtures = r##"
+            const DIRECT: &str = concat!(stringify!(checked), "{}");
+            const RAW: &str = concat!(stringify!(checked), r#" /* legacy */ {"#);
+            const BYTES: &[u8] = concat!(b"check", stringify!(ed), b" {}");
+            const NESTED: &str = (concat!(concat!("check", "ed"), stringify!({})));
+        "##;
+        let fixture_census = checked_block_census_in_rust_source(fixtures);
+        assert!(fixture_census.structural.is_empty());
+        assert_eq!(fixture_census.strings, 4);
+        assert_eq!(fixture_census.exact_empty_strings, 1);
+
+        let parser_like = r##"
+            const ALLOWED: &str = r#"checked {}"#;
+            const EXTRA: &str = concat!(stringify!(checked), "{}");
+        "##;
+        let parser_census = checked_block_census_in_rust_source(parser_like);
+        assert!(parser_census.structural.is_empty());
+        assert_eq!(parser_census.strings, 2);
+        assert_eq!(parser_census.exact_empty_strings, 1);
+    }
+
+    #[test]
+    fn plan04_checked_block_census_fails_closed_on_unknown_string_composition() {
+        let fixtures = r#"
+            const TOKEN: &str = concat!(unknown!(checked), "{}");
+            const FRAGMENTS: &str = concat!(unknown!("check"), "ed{}");
+        "#;
+        let fixture_census = checked_block_census_in_rust_source(fixtures);
+        assert_eq!(fixture_census.unresolved_compositions, 2);
+
+        let parser_like = r##"
+            const ALLOWED: &str = r#"checked {}"#;
+            const UNKNOWN: &str = concat!(unknown!(checked), "{}");
+        "##;
+        let parser_census = checked_block_census_in_rust_source(parser_like);
+        assert_eq!(parser_census.strings, 1);
+        assert_eq!(parser_census.exact_empty_strings, 1);
+        assert_eq!(parser_census.unresolved_compositions, 1);
     }
 
     #[test]
@@ -3003,6 +3790,118 @@ mod tests {
             finder.visit_file(&file);
             assert!(!finder.violations.contains(&"impl Triggered"), "{source}");
         }
+
+        let module = syn::parse_file("pub(super) type Alias = super::Triggered;")
+            .expect("file-backed alias module reparses");
+        let module_path = vec!["aliases".to_owned()];
+        for root_source in [
+            "struct Triggered; mod aliases; impl aliases::Alias {}",
+            "struct Triggered; mod aliases; use aliases::Alias; impl Alias {}",
+        ] {
+            let root = syn::parse_file(root_source).expect("file-backed root reparses");
+            let root_path = Vec::new();
+            let graph = QualifiedAliasGraph::from_files(
+                [
+                    (&root, root_path.as_slice()),
+                    (&module, module_path.as_slice()),
+                ],
+                false,
+            );
+            let mut finder = Plan04RetiredAuthorityFinder {
+                qualified_aliases: graph,
+                qualified_aliases_initialized: true,
+                ..Plan04RetiredAuthorityFinder::default()
+            };
+            finder.visit_file(&root);
+            assert!(
+                finder.violations.contains(&"impl Triggered"),
+                "{root_source}"
+            );
+        }
+    }
+
+    #[test]
+    fn plan04_impl_authority_resolves_qualified_module_exports() {
+        use syn::visit::Visit as _;
+
+        for source in [
+            "struct Triggered; mod aliases { pub(super) type Alias = super::Triggered; } \
+             impl aliases::Alias {}",
+            "struct Triggered; mod aliases { pub(super) type Alias = super::Triggered; } \
+             use aliases::Alias; impl Alias {}",
+            "struct Triggered; mod aliases { type Alias = super::Triggered; \
+                 pub(super) use self::Alias as Exported; } \
+             use self::aliases::Exported as Imported; impl Imported {}",
+            "struct Triggered; mod aliases { type Alias = super::Triggered; \
+                 impl self::Alias {} }",
+            "struct Triggered; mod aliases { type Alias = super::Triggered; \
+                 mod nested { type Deep = super::Alias; impl self::Deep {} } }",
+            "struct Triggered; mod aliases { type Alias = super::Triggered; } \
+             mod nested { type Deep = super::aliases::Alias; impl Deep {} }",
+            "struct Triggered; mod aliases { pub type Alias = super::Triggered; } \
+             use aliases::*; impl Alias {}",
+        ] {
+            let file = syn::parse_file(source).expect("qualified impl authority reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+
+        for source in [
+            "struct Triggered; mod one { type Alias = super::Triggered; } \
+             mod two { struct Alias; impl self::Alias {} }",
+            "struct Triggered; mod target { type Alias = super::Triggered; } \
+             mod unrelated { pub(super) struct Alias; } \
+             use unrelated::Alias; impl Alias {}",
+            "mod aliases { type One = self::Two; type Two = self::One; impl One {} }",
+            "mod unrelated { pub struct Alias; } use unrelated::*; impl Alias {}",
+        ] {
+            let file = syn::parse_file(source).expect("qualified allowed authority reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(!finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+    }
+
+    #[test]
+    fn plan04_impl_authority_scans_macro_transcribers_not_matchers_or_strings() {
+        use syn::visit::Visit as _;
+
+        for source in [
+            "const TEXT: &str = stringify!(impl Triggered {});",
+            "const TEXT: &str = concat!(stringify!(impl Triggered {}), \"\");",
+            "macro_rules! recognizes { (impl Triggered {}) => { impl Unrelated {} }; }",
+            "macro_rules! repeated { ($(impl Triggered {})*) => { impl Unrelated {} }; }",
+        ] {
+            let file = syn::parse_file(source).expect("non-authority macro source reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(!finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+
+        for source in [
+            "macro_rules! emits { () => { impl Triggered {} }; }",
+            "macro_rules! emits { () => { impl (crate::Triggered) {} }; }",
+            "struct Triggered; mod aliases { pub type Alias = super::Triggered; } \
+             macro_rules! emits { () => { impl crate::aliases::Alias {} }; }",
+            "macro_rules! emits { () => { type Alias = Triggered; impl Alias {} }; }",
+            "struct Triggered; mod aliases { pub type Alias = super::Triggered; } \
+             macro_rules! emits { () => { \
+                 type Local = crate::aliases::Alias; impl Local {} \
+             }; }",
+            "macro_rules! emits { ($alias:ident) => { \
+                 type $alias = Triggered; impl $alias {} \
+             }; }",
+            "macro_rules! emits { \
+                 (impl Triggered {}) => { impl Triggered {} }; \
+                 ($other:tt) => { impl Unrelated {} }; \
+             }",
+        ] {
+            let file = syn::parse_file(source).expect("authority macro source reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(finder.violations.contains(&"impl Triggered"), "{source}");
+        }
     }
 
     #[test]
@@ -3016,8 +3915,10 @@ mod tests {
         let mut violations = Vec::new();
         let checked_text_block = checked_text_block_pattern();
         let mut parser_checked_census = None;
+        let source_paths = plan04_source_fixture_paths(&workspace_root);
+        let qualified_alias_graphs = plan04_qualified_alias_graphs(&workspace_root, &source_paths);
 
-        for path in plan04_source_fixture_paths(&workspace_root) {
+        for path in source_paths {
             let relative = path
                 .strip_prefix(&workspace_root)
                 .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
@@ -3034,14 +3935,24 @@ mod tests {
                 let checked_census = checked_block_census(&file, false);
                 if path == parser_path {
                     parser_checked_census = Some(checked_census);
-                } else if !checked_census.structural.is_empty() || checked_census.strings != 0 {
+                } else if !checked_census.structural.is_empty()
+                    || checked_census.strings != 0
+                    || checked_census.unresolved_compositions != 0
+                {
                     violations.push(format!(
                         "{} retains checked metadata block",
                         relative.display()
                     ));
                 }
+                let (module_key, module_path) = plan04_module_location(&workspace_root, &path);
                 let mut finder = Plan04RetiredAuthorityFinder {
                     allow_report_schema_field: path == report_path,
+                    qualified_aliases: qualified_alias_graphs
+                        .get(&module_key)
+                        .unwrap_or_else(|| panic!("{} has an alias graph", path.display()))
+                        .clone(),
+                    module_path,
+                    qualified_aliases_initialized: true,
                     ..Plan04RetiredAuthorityFinder::default()
                 };
                 finder.visit_file(&file);
@@ -3061,13 +3972,18 @@ mod tests {
 
         let host_source = fs::read_to_string(&host_path).expect("audit host source is readable");
         let host = syn::parse_file(&host_source).expect("audit host source reparses");
+        let report_source = fs::read_to_string(&report_path).expect("report source is readable");
+        let report = syn::parse_file(&report_source).expect("report source reparses");
         violations.extend(
-            plan04_host_authorities(&host)
+            plan04_host_authorities_with_report(&host, &report, &["english_v2".to_owned()])
                 .into_iter()
                 .map(|authority| format!("crates/xtask/src/english_v2.rs retains {authority}")),
         );
         let host_checked_census = checked_block_census(&host, true);
-        if !host_checked_census.structural.is_empty() || host_checked_census.strings != 0 {
+        if !host_checked_census.structural.is_empty()
+            || host_checked_census.strings != 0
+            || host_checked_census.unresolved_compositions != 0
+        {
             violations
                 .push("crates/xtask/src/english_v2.rs retains checked metadata block".to_owned());
         }
@@ -3086,6 +4002,10 @@ mod tests {
             parser_checked_census.exact_empty_strings, 1,
             "the parser's sole checked-metadata string fixture must be precisely empty"
         );
+        assert_eq!(
+            parser_checked_census.unresolved_compositions, 0,
+            "the parser must not hide checked metadata in an unresolved string composition"
+        );
         let parser_source = fs::read_to_string(&parser_path).expect("parser source is readable");
         assert_eq!(
             parser_source.matches("checked {}").count(),
@@ -3100,8 +4020,6 @@ mod tests {
             "the parser and its regression must pin the exact retirement diagnostic"
         );
 
-        let report_source = fs::read_to_string(&report_path).expect("report source is readable");
-        let report = syn::parse_file(&report_source).expect("report source reparses");
         let mut producer = CheckedBindingsProducerFinder::default();
         producer.visit_file(&report);
         violations.extend(
