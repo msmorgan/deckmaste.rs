@@ -208,7 +208,7 @@ impl AmbiguityRow {
         let context = ParseContext::new(unit.context_name())
             .expect("corpus admission validates every parser context");
 
-        let analysis = parser.analyze(unit.text(), &context);
+        let analysis = parser.analyze_oracle_text(unit.text(), &context);
         row.decision = analysis.decision().map(SelectionDecision::from_parser);
         match analysis.outcome() {
             ParseAnalysisOutcome::Selected => {
@@ -591,6 +591,9 @@ fn render_then_apply(
     output: &mut dyn Write,
 ) -> anyhow::Result<()> {
     render_report(report, json, output)?;
+    output
+        .flush()
+        .context("flushing English-v2 ambiguity census")?;
     apply_exit_predicates(report, require_resolved)
 }
 
@@ -703,6 +706,9 @@ fn counted(count: usize, singular: &str, plural: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_english_v2::parser::reset_analyze_calls_for_test;
+    use deckmaste_english_v2::parser::take_analyze_calls_for_test;
+
     use super::AmbiguityReport;
     use super::AmbiguityRow;
     use super::AmbiguityStatus;
@@ -710,9 +716,32 @@ mod tests {
     use super::SelectionResolution;
     use super::apply_exit_predicates;
     use super::render_report;
+    use crate::english_v2::corpus::Corpus;
+    use crate::english_v2::corpus::CorpusUnit;
 
     fn complete_fixture_report() -> AmbiguityReport {
         AmbiguityReport::fixture_with_every_status()
+    }
+
+    #[test]
+    fn corpus_runner_analyzes_each_oracle_text_once_without_focused_root_fallback() {
+        let corpus = Corpus::from_units_for_test(vec![
+            CorpusUnit::for_test("Two Blocks", "Destroy target creature.\nYou gain 2 life."),
+            CorpusUnit::for_test("Failed", "You frobnitz a card."),
+        ]);
+        reset_analyze_calls_for_test();
+
+        let report =
+            AmbiguityReport::run(&corpus, &crate::english_v2::parser_from_builtin_v2()).unwrap();
+
+        assert!(
+            take_analyze_calls_for_test().is_empty(),
+            "ambiguity must never invoke the Ability analysis entry"
+        );
+        assert_eq!(report.rows()[0].card_name, corpus.units()[0].card_name());
+        assert_eq!(report.rows()[1].card_name, corpus.units()[1].card_name());
+        assert_eq!(report.rows()[0].status(), AmbiguityStatus::ParseFailure);
+        assert_eq!(report.rows()[1].status(), AmbiguityStatus::Selected);
     }
 
     #[test]

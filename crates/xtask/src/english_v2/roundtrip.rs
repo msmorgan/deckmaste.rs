@@ -17,6 +17,9 @@ pub(super) fn run(args: &RoundtripArgs, output: &mut dyn Write) -> anyhow::Resul
     let report = AuditReport::run(&corpus, &parser);
 
     render_report(&report, args.json, output)?;
+    output
+        .flush()
+        .context("flushing English-v2 round-trip report")?;
     if args.require_clean {
         require_clean(&report)?;
     }

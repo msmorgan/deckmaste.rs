@@ -143,9 +143,12 @@ fn audit_unit(unit: &CorpusUnit, parser: &Parser) -> AuditRow {
         return row;
     };
 
-    match parser.parse(unit.text(), &context) {
-        Ok(ability) => {
-            let rendered = ability.render(&context, parser.environment());
+    match parser
+        .analyze_oracle_text(unit.text(), &context)
+        .into_parse_result()
+    {
+        Ok(oracle_text) => {
+            let rendered = oracle_text.render(&context, parser.environment());
             row.status =
                 if rendered == unit.text() { AuditStatus::Clean } else { AuditStatus::Mismatch };
             row.message =
@@ -260,6 +263,8 @@ mod tests {
     use deckmaste_english_v2::parser::ParseError;
     use deckmaste_english_v2::parser::Parser;
     use deckmaste_english_v2::parser::SelectionExceptionInventoryError;
+    use deckmaste_english_v2::parser::reset_analyze_calls_for_test;
+    use deckmaste_english_v2::parser::take_analyze_calls_for_test;
 
     use super::AuditReport;
     use super::AuditRow;
@@ -295,6 +300,33 @@ mod tests {
                 .unwrap()
                 .contains("parse failed at bytes")
         );
+    }
+
+    #[test]
+    fn corpus_runner_analyzes_each_complete_document_once_without_ability_fallback() {
+        let corpus = Corpus::from_units_for_test(vec![
+            unit("Two Blocks", "Destroy target creature.\nYou gain 2 life."),
+            unit("Failed", "You frobnitz a card."),
+        ]);
+        reset_analyze_calls_for_test();
+
+        let report = AuditReport::run(&corpus, &parser());
+
+        assert!(
+            take_analyze_calls_for_test().is_empty(),
+            "the shared parse/roundtrip runner must never call the Ability root"
+        );
+        assert_eq!(report.rows().len(), corpus.units().len());
+        assert_eq!(
+            report.rows()[0].printed_face(),
+            corpus.units()[0].card_name()
+        );
+        assert_eq!(
+            report.rows()[1].printed_face(),
+            corpus.units()[1].card_name()
+        );
+        assert_eq!(report.rows()[0].status(), AuditStatus::ParseFailure);
+        assert_eq!(report.rows()[1].status(), AuditStatus::Clean);
     }
 
     #[test]

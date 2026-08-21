@@ -37,6 +37,7 @@ use serde::Serialize;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub(super) struct DiagnosticReport {
     schema_version: u32,
+    root: String,
     source: DiagnosticSource,
     trace: DiagnosticTrace,
 }
@@ -295,6 +296,7 @@ trait TraceSourceView {
     type MaterializationCycle: MaterializationCycleSource;
     type Selection: SelectionDecisionSource;
 
+    fn root_name(&self) -> &'static str;
     fn scanner_matches(&self) -> BoundedSource<'_, Self::ScannerMatch>;
     fn selected_lexical_claims(&self) -> BoundedSource<'_, Self::LexicalClaim>;
     fn ownership(&self) -> Option<&Self::OwnershipSummary>;
@@ -608,7 +610,7 @@ impl SelectionDecisionSource for RuntimeSelectionDecision {
     }
 }
 
-impl TraceSourceView for ParserTrace {
+impl<V> TraceSourceView for ParserTrace<V> {
     type ScannerMatch = RuntimeScannerMatch;
     type LexicalClaim = RuntimeLexicalClaim;
     type OwnershipSummary = RuntimeOwnershipSummary;
@@ -618,6 +620,10 @@ impl TraceSourceView for ParserTrace {
     type MaterializedCandidate = RuntimeMaterializedCandidate;
     type MaterializationCycle = RuntimeMaterializationCycle;
     type Selection = RuntimeSelectionDecision;
+
+    fn root_name(&self) -> &'static str {
+        ParserTrace::root_name(self)
+    }
 
     fn scanner_matches(&self) -> BoundedSource<'_, Self::ScannerMatch> {
         runtime_bounded(ParserTrace::scanner_matches(self))
@@ -895,6 +901,8 @@ enum Expectation {
 #[serde(rename_all = "snake_case")]
 enum NonterminalKind {
     Ability,
+    DocumentBlock,
+    OracleText,
     Sentence,
     Clause,
     NounPhrase,
@@ -1014,7 +1022,7 @@ enum SelectionLoserReason {
 }
 
 impl DiagnosticReport {
-    pub(super) fn from_probe(text: &str, context: &str, trace: &ParserTrace) -> Self {
+    pub(super) fn from_probe<V>(text: &str, context: &str, trace: &ParserTrace<V>) -> Self {
         Self::from_probe_source(text, context, trace)
     }
 
@@ -1025,6 +1033,7 @@ impl DiagnosticReport {
     ) -> Self {
         Self {
             schema_version: 2,
+            root: trace.root_name().to_owned(),
             source: DiagnosticSource::Probe {
                 text: text.to_owned(),
                 context: context.to_owned(),
@@ -1033,9 +1042,10 @@ impl DiagnosticReport {
         }
     }
 
-    pub(super) fn from_corpus(unit: &super::corpus::CorpusUnit, trace: &ParserTrace) -> Self {
+    pub(super) fn from_corpus<V>(unit: &super::corpus::CorpusUnit, trace: &ParserTrace<V>) -> Self {
         Self {
             schema_version: 2,
+            root: trace.root_name().to_owned(),
             source: corpus_source(unit),
             trace: DiagnosticTrace::from_source(trace),
         }
@@ -1313,6 +1323,8 @@ fn expectation(expectation: &RuntimeExpectation) -> Expectation {
 fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
     match kind {
         NonterminalCategory::Ability => NonterminalKind::Ability,
+        NonterminalCategory::DocumentBlock => NonterminalKind::DocumentBlock,
+        NonterminalCategory::OracleText => NonterminalKind::OracleText,
         NonterminalCategory::Sentence => NonterminalKind::Sentence,
         NonterminalCategory::Clause => NonterminalKind::Clause,
         NonterminalCategory::NounPhrase => NonterminalKind::NounPhrase,
@@ -1447,8 +1459,9 @@ fn render_human(report: &DiagnosticReport, output: &mut dyn Write) -> anyhow::Re
     match &report.source {
         DiagnosticSource::Probe { text, context } => writeln!(
             output,
-            "English v2 diagnostic schema_version={} source_kind=probe text={} context={}",
+            "English v2 diagnostic schema_version={} root={} source_kind=probe text={} context={}",
             report.schema_version,
+            report.root,
             json_value(text)?,
             json_value(context)?,
         ),
@@ -1461,8 +1474,9 @@ fn render_human(report: &DiagnosticReport, output: &mut dyn Write) -> anyhow::Re
             context,
         } => writeln!(
             output,
-            "English v2 diagnostic schema_version={} source_kind=corpus id={} card={} face={} side={} text={} context={}",
+            "English v2 diagnostic schema_version={} root={} source_kind=corpus id={} card={} face={} side={} text={} context={}",
             report.schema_version,
+            report.root,
             json_value(id)?,
             json_value(card)?,
             json_value(face)?,
@@ -1961,6 +1975,7 @@ pub(super) fn fixture_report(outcome: FixtureOutcome) -> DiagnosticReport {
     let selected = matches!(&outcome, DiagnosticOutcome::Selected(_));
     DiagnosticReport {
         schema_version: 2,
+        root: "Ability".to_owned(),
         source: DiagnosticSource::Probe {
             text: "line\nbreak".to_owned(),
             context: "context\rbreak".to_owned(),
@@ -2584,6 +2599,10 @@ mod tests {
         type MaterializedCandidate = FixtureMaterializedCandidate;
         type MaterializationCycle = FixtureCycle;
         type Selection = FixtureSelection;
+
+        fn root_name(&self) -> &'static str {
+            "Ability"
+        }
 
         fn scanner_matches(&self) -> BoundedSource<'_, Self::ScannerMatch> {
             self.scanner_matches.view()
@@ -3872,7 +3891,7 @@ mod tests {
         assert_eq!(failure.kind, InternalFailureKind::OwnershipInspection);
         assert_eq!(
             failure.message,
-            "selected lexical ownership could not be inspected"
+            "Ability root: selected lexical ownership could not be inspected"
         );
     }
 

@@ -17,6 +17,7 @@ pub(super) fn run(args: &ParseArgs, output: &mut dyn Write) -> anyhow::Result<()
     let report = AuditReport::run(&corpus, &parser);
 
     render_report(&report, args.json, output)?;
+    output.flush().context("flushing English-v2 parse census")?;
     if args.require_complete {
         require_complete(&report, corpus.units().len())?;
     }

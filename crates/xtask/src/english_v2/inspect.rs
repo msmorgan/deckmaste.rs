@@ -2,6 +2,7 @@ use std::io::Write;
 use std::path::Path;
 
 use anyhow::Context;
+use deckmaste_english_v2::ast::OracleText;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::ParserTrace;
@@ -58,7 +59,7 @@ impl InspectSteps for ProductionSteps {
     type Unit = CorpusUnit;
     type Parser = Parser;
     type Context<'a> = ParseContext<'a>;
-    type Trace = ParserTrace;
+    type Trace = ParserTrace<OracleText>;
 
     fn load_corpus(&mut self, path: &Path) -> anyhow::Result<Self::Corpus> {
         Corpus::load(path)
@@ -93,7 +94,7 @@ impl InspectSteps for ProductionSteps {
         context: &Self::Context<'_>,
         limits: TraceLimits,
     ) -> Self::Trace {
-        parser.trace(unit.text(), context, limits)
+        parser.trace_oracle_text(unit.text(), context, limits)
     }
 
     fn map(&mut self, unit: &Self::Unit, trace: &Self::Trace) -> DiagnosticReport {
@@ -519,17 +520,19 @@ mod tests {
         assert_eq!(inspect_value["source"]["side"], unit.side().unwrap());
         assert_eq!(inspect_value["source"]["context"], unit.context_name());
         assert_eq!(inspect_value["source"]["text"], unit.text());
+        assert_eq!(inspect_value["root"], "OracleText");
 
         let probe_args = ProbeArgs {
             text: unit.text().to_owned(),
             context: unit.context_name().to_owned(),
             limit: 0,
+            root: crate::english_v2::ProbeRoot::Ability,
             json: true,
         };
         let mut probe_json = Vec::new();
         probe::run(&probe_args, &mut probe_json).unwrap();
         let probe_value: Value = serde_json::from_slice(&probe_json).unwrap();
-        assert_eq!(inspect_value["trace"], probe_value["trace"]);
+        assert_eq!(probe_value["root"], "Ability");
 
         inspect_args.json = false;
         let mut human = Vec::new();

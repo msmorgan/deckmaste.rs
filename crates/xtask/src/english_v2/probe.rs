@@ -2,12 +2,15 @@ use std::io::Write;
 
 use anyhow::Context;
 use anyhow::ensure;
+use deckmaste_english_v2::ast::OracleText;
+use deckmaste_english_v2::ast::Sentence;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::ParserTrace;
 use deckmaste_english_v2::parser::TraceLimits;
 
 use super::ProbeArgs;
+use super::ProbeRoot;
 use super::diagnostic;
 use super::diagnostic::DiagnosticReport;
 
@@ -28,6 +31,7 @@ trait ProbeSteps {
         text: &str,
         context: &Self::Context<'_>,
         limits: TraceLimits,
+        root: ProbeRoot,
     ) -> Self::Trace;
     fn map(&mut self, text: &str, context: &str, trace: &Self::Trace) -> DiagnosticReport;
     fn render(
@@ -40,10 +44,16 @@ trait ProbeSteps {
 
 struct ProductionSteps;
 
+enum ProductionTrace {
+    Ability(ParserTrace),
+    Sentence(ParserTrace<Sentence>),
+    OracleText(ParserTrace<OracleText>),
+}
+
 impl ProbeSteps for ProductionSteps {
     type Parser = Parser;
     type Context<'a> = ParseContext<'a>;
-    type Trace = ParserTrace;
+    type Trace = ProductionTrace;
 
     fn load_parser(&mut self) -> anyhow::Result<Self::Parser> {
         Ok(crate::english_v2::parser_from_builtin_v2())
@@ -64,12 +74,27 @@ impl ProbeSteps for ProductionSteps {
         text: &str,
         context: &Self::Context<'_>,
         limits: TraceLimits,
+        root: ProbeRoot,
     ) -> Self::Trace {
-        parser.trace(text, context, limits)
+        match root {
+            ProbeRoot::Ability => Self::Trace::Ability(parser.trace(text, context, limits)),
+            ProbeRoot::Sentence => {
+                Self::Trace::Sentence(parser.trace_sentence(text, context, limits))
+            }
+            ProbeRoot::OracleText => {
+                Self::Trace::OracleText(parser.trace_oracle_text(text, context, limits))
+            }
+        }
     }
 
     fn map(&mut self, text: &str, context: &str, trace: &Self::Trace) -> DiagnosticReport {
-        DiagnosticReport::from_probe(text, context, trace)
+        match trace {
+            ProductionTrace::Ability(trace) => DiagnosticReport::from_probe(text, context, trace),
+            ProductionTrace::Sentence(trace) => DiagnosticReport::from_probe(text, context, trace),
+            ProductionTrace::OracleText(trace) => {
+                DiagnosticReport::from_probe(text, context, trace)
+            }
+        }
     }
 
     fn render(
@@ -94,7 +119,13 @@ fn orchestrate<S: ProbeSteps>(
 
     let parser = steps.load_parser()?;
     let context = steps.context(&args.context)?;
-    let trace = steps.trace(&parser, &args.text, &context, TraceLimits::new(args.limit));
+    let trace = steps.trace(
+        &parser,
+        &args.text,
+        &context,
+        TraceLimits::new(args.limit),
+        args.root,
+    );
     let report = steps.map(&args.text, &args.context, &trace);
     steps.render(&report, args.json, output)?;
     output.flush().context("flush English-v2 probe output")?;
@@ -128,6 +159,7 @@ mod tests {
             text: text.to_owned(),
             context: context.to_owned(),
             limit: 1,
+            root: ProbeRoot::Ability,
             json: true,
         }
     }
@@ -197,8 +229,13 @@ mod tests {
             _text: &str,
             _context: &Self::Context<'_>,
             limits: deckmaste_english_v2::parser::TraceLimits,
+            root: ProbeRoot,
         ) -> Self::Trace {
-            self.events.push("trace");
+            self.events.push(match root {
+                ProbeRoot::Ability => "trace_ability",
+                ProbeRoot::Sentence => "trace_sentence",
+                ProbeRoot::OracleText => "trace_oracle_text",
+            });
             self.limits.push(limits.per_collection());
         }
 
@@ -230,7 +267,10 @@ mod tests {
             ..RecordingSteps::default()
         };
         orchestrate(&args("text", "context"), &mut Vec::new(), &mut steps).unwrap();
-        assert_eq!(steps.events, ["load", "context", "trace", "map", "render"]);
+        assert_eq!(
+            steps.events,
+            ["load", "context", "trace_ability", "map", "render"]
+        );
         assert_eq!(steps.limits, [1]);
     }
 
@@ -254,7 +294,50 @@ mod tests {
                     .unwrap()
                     .contains(&error.to_string())
             );
-            assert_eq!(steps.events, ["load", "context", "trace", "map", "render"]);
+            assert_eq!(
+                steps.events,
+                ["load", "context", "trace_ability", "map", "render"]
+            );
+        }
+    }
+
+    #[test]
+    fn orchestration_dispatches_exactly_one_typed_root_for_every_outcome() {
+        for root in [
+            ProbeRoot::Ability,
+            ProbeRoot::Sentence,
+            ProbeRoot::OracleText,
+        ] {
+            for outcome in [
+                FixtureOutcome::Selected,
+                FixtureOutcome::ParseFailure,
+                FixtureOutcome::UnresolvedAmbiguity,
+                FixtureOutcome::ValidatedRootDidNotMaterialize,
+                FixtureOutcome::SelectionConfiguration,
+                FixtureOutcome::OwnershipInspection,
+            ] {
+                let mut arguments = args("text", "context");
+                arguments.root = root;
+                let mut steps = RecordingSteps {
+                    outcome,
+                    ..RecordingSteps::default()
+                };
+                let _ = orchestrate(&arguments, &mut Vec::new(), &mut steps);
+                let trace_events = steps
+                    .events
+                    .iter()
+                    .filter(|event| event.starts_with("trace_"))
+                    .copied()
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    trace_events,
+                    [match root {
+                        ProbeRoot::Ability => "trace_ability",
+                        ProbeRoot::Sentence => "trace_sentence",
+                        ProbeRoot::OracleText => "trace_oracle_text",
+                    }]
+                );
+            }
         }
     }
 

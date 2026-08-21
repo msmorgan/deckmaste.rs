@@ -26,6 +26,14 @@ struct CountedReport {
     terminal_bindings: Vec<CountedEntry>,
     checked_constructor_bindings: Vec<CountedEntry>,
     roots: Vec<CountedEntry>,
+    abstract_products: Vec<String>,
+    abstract_sums: Vec<String>,
+    optional_roles: Vec<String>,
+    sequence_roles: Vec<String>,
+    uniform_separators: Vec<String>,
+    positional_separator_tables: Vec<String>,
+    terminators: Vec<String>,
+    stored_separator_fields: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -105,7 +113,7 @@ fn build_report(
         .chain(builtin_nouns.irregulars)
         .collect();
     let mut report = CountedReport {
-        schema_version: 2,
+        schema_version: 3,
         noun_morphology: builtin_nouns.census,
         mapping_layers: plain_entries(escape_hatches.mapping_layers(), None, None),
         handwritten_codecs: plain_entries(
@@ -143,6 +151,14 @@ fn build_report(
             Some("declared parser entry point"),
             None,
         ),
+        abstract_products: escape_hatches.abstract_products().to_vec(),
+        abstract_sums: escape_hatches.abstract_sums().to_vec(),
+        optional_roles: escape_hatches.optional_roles().to_vec(),
+        sequence_roles: escape_hatches.sequence_roles().to_vec(),
+        uniform_separators: escape_hatches.uniform_separators().to_vec(),
+        positional_separator_tables: escape_hatches.positional_separator_tables().to_vec(),
+        terminators: escape_hatches.terminators().to_vec(),
+        stored_separator_fields: escape_hatches.stored_separator_fields().to_vec(),
     };
     validate_and_sort(&mut report)?;
     Ok(report)
@@ -350,6 +366,14 @@ fn render_human(report: &CountedReport) -> String {
             }
         }
     }
+    for (category, entries) in structural_categories(report) {
+        writeln!(&mut output, "{category} ({})", entries.len())
+            .expect("writing to String cannot fail");
+        for identity in entries {
+            writeln!(&mut output, "  - identity={identity:?}")
+                .expect("writing to String cannot fail");
+        }
+    }
     output
 }
 
@@ -369,6 +393,22 @@ fn categories(report: &CountedReport) -> [(&'static str, &[CountedEntry]); 8] {
     ]
 }
 
+fn structural_categories(report: &CountedReport) -> [(&'static str, &[String]); 8] {
+    [
+        ("abstract products", &report.abstract_products),
+        ("abstract sums", &report.abstract_sums),
+        ("optional roles", &report.optional_roles),
+        ("sequence roles", &report.sequence_roles),
+        ("uniform separators", &report.uniform_separators),
+        (
+            "positional separator tables",
+            &report.positional_separator_tables,
+        ),
+        ("terminators", &report.terminators),
+        ("stored separator fields", &report.stored_separator_fields),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use serde::Deserialize as _;
@@ -377,6 +417,142 @@ mod tests {
 
     const PRODUCTION_SOURCE: &str =
         include_str!("../../../deckmaste_english_v2/src/constructions.rs");
+
+    const SCHEMA3_STRUCTURAL_SOURCE: &str = r#"
+        constructions! {
+            construction node: Node {
+                element NodeValue {}
+                form node = "node";
+            }
+            abstract sum ZetaChoice { node: Node, }
+            abstract sum AlphaChoice { node: Node, }
+            abstract sum MuChoice { node: Node, }
+            abstract sum BetaChoice { node: Node, }
+            abstract product ZetaHolder {
+                maybe_zeta: opt Node,
+                items_zeta: seq ZetaChoice separated by " / " terminated by ".",
+            }
+            require len(ZetaHolder.items_zeta) >= 1;
+            abstract product AlphaHolder {
+                maybe_alpha: opt Node,
+                items_alpha: seq AlphaChoice separated by " + " terminated by "!",
+            }
+            require len(AlphaHolder.items_alpha) >= 1;
+            abstract product MuHolder {
+                maybe_mu: opt Node,
+                items_mu: seq MuChoice
+                    separated by position {
+                        pair = " and ";
+                        first = ", ";
+                        middle = ", ";
+                        last = ", and ";
+                    }
+                    terminated by "?",
+            }
+            require len(MuHolder.items_mu) >= 2;
+            abstract product BetaHolder {
+                maybe_beta: opt Node,
+                items_beta: seq BetaChoice
+                    separated by position {
+                        pair = " or ";
+                        first = "; ";
+                        middle = "; ";
+                        last = "; or ";
+                    }
+                    terminated by ":",
+            }
+            require len(BetaHolder.items_beta) >= 2;
+            root Node { punctuation = "."; eoi = true; standalone_render = true; }
+        }
+    "#;
+
+    #[test]
+    fn schema3_projects_every_sealed_structural_row_in_source_order() {
+        let report = build_report_from_source(SCHEMA3_STRUCTURAL_SOURCE)
+            .expect("structural report fixture builds");
+        let rendered = render_json(&report).expect("schema 3 serializes");
+        let json: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+
+        assert_eq!(json["schema_version"], 3);
+        assert_eq!(
+            json["abstract_products"],
+            serde_json::json!(["ZetaHolder", "AlphaHolder", "MuHolder", "BetaHolder"])
+        );
+        assert_eq!(
+            json["abstract_sums"],
+            serde_json::json!(["ZetaChoice", "AlphaChoice", "MuChoice", "BetaChoice"])
+        );
+        assert_eq!(
+            json["optional_roles"],
+            serde_json::json!([
+                "ZetaHolder.maybe_zeta",
+                "AlphaHolder.maybe_alpha",
+                "MuHolder.maybe_mu",
+                "BetaHolder.maybe_beta"
+            ])
+        );
+        assert_eq!(
+            json["sequence_roles"],
+            serde_json::json!([
+                "ZetaHolder.items_zeta",
+                "AlphaHolder.items_alpha",
+                "MuHolder.items_mu",
+                "BetaHolder.items_beta"
+            ])
+        );
+        assert_eq!(
+            json["uniform_separators"],
+            serde_json::json!(["ZetaHolder.items_zeta", "AlphaHolder.items_alpha"])
+        );
+        assert_eq!(
+            json["positional_separator_tables"],
+            serde_json::json!(["MuHolder.items_mu", "BetaHolder.items_beta"])
+        );
+        assert_eq!(
+            json["terminators"],
+            serde_json::json!([
+                "ZetaHolder.items_zeta",
+                "AlphaHolder.items_alpha",
+                "MuHolder.items_mu",
+                "BetaHolder.items_beta"
+            ])
+        );
+        assert_eq!(json["stored_separator_fields"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn schema3_pins_exact_top_level_key_order_and_has_no_schema2_mode() {
+        let report = build_report_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration report builds");
+        let rendered = render_json(&report).expect("production report serializes");
+
+        assert_eq!(
+            raw_top_level_keys(&rendered),
+            [
+                "schema_version",
+                "noun_morphology",
+                "mapping_layers",
+                "handwritten_codecs",
+                "stored_form_tags",
+                "stored_spelling_codecs",
+                "morphology_irregulars",
+                "selection_exceptions",
+                "terminal_bindings",
+                "checked_constructor_bindings",
+                "roots",
+                "abstract_products",
+                "abstract_sums",
+                "optional_roles",
+                "sequence_roles",
+                "uniform_separators",
+                "positional_separator_tables",
+                "terminators",
+                "stored_separator_fields",
+            ]
+        );
+        assert!(rendered.contains("\"schema_version\": 3"));
+        assert!(!rendered.contains("\"schema_version\": 2"));
+    }
 
     fn entry(identity: &str) -> CountedEntry {
         CountedEntry {
@@ -388,7 +564,7 @@ mod tests {
 
     fn report() -> CountedReport {
         CountedReport {
-            schema_version: 2,
+            schema_version: 3,
             noun_morphology: NounMorphologyCensus {
                 total: 0,
                 derived_plural: 0,
@@ -404,6 +580,14 @@ mod tests {
             terminal_bindings: vec![],
             checked_constructor_bindings: vec![],
             roots: vec![],
+            abstract_products: vec![],
+            abstract_sums: vec![],
+            optional_roles: vec![],
+            sequence_roles: vec![],
+            uniform_separators: vec![],
+            positional_separator_tables: vec![],
+            terminators: vec![],
+            stored_separator_fields: vec![],
         }
     }
 
@@ -509,7 +693,15 @@ mod tests {
                 "selection exceptions (0)\n",
                 "terminal bindings (0)\n",
                 "checked constructor bindings (0)\n",
-                "roots (0)\n"
+                "roots (0)\n",
+                "abstract products (0)\n",
+                "abstract sums (0)\n",
+                "optional roles (0)\n",
+                "sequence roles (0)\n",
+                "uniform separators (0)\n",
+                "positional separator tables (0)\n",
+                "terminators (0)\n",
+                "stored separator fields (0)\n"
             )
         );
     }
@@ -519,7 +711,7 @@ mod tests {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
 
-        assert_eq!(report.schema_version, 2);
+        assert_eq!(report.schema_version, 3);
         assert_eq!(
             report.noun_morphology,
             NounMorphologyCensus {
@@ -541,7 +733,7 @@ mod tests {
                 report.checked_constructor_bindings.len(),
                 report.roots.len(),
             ],
-            [0, 0, 0, 1, 27, 0, 0, 0, 2],
+            [0, 0, 0, 1, 27, 0, 0, 0, 3],
             "categories intentionally overlap and have no unique total"
         );
         assert!(report.handwritten_codecs.is_empty());
@@ -551,7 +743,35 @@ mod tests {
         );
         assert!(report.terminal_bindings.is_empty());
         assert!(report.checked_constructor_bindings.is_empty());
-        assert_eq!(identities(&report.roots), ["Ability", "Sentence"]);
+        assert_eq!(
+            identities(&report.roots),
+            ["Ability", "OracleText", "Sentence"]
+        );
+        assert_eq!(report.abstract_products, ["OracleText"]);
+        assert_eq!(report.abstract_sums, ["DocumentBlock"]);
+        assert!(report.optional_roles.is_empty());
+        assert_eq!(
+            report.sequence_roles,
+            [
+                "Paragraph.sentences",
+                "Triggered.effects",
+                "OracleText.blocks",
+            ]
+        );
+        assert_eq!(
+            report.uniform_separators,
+            [
+                "Paragraph.sentences",
+                "Triggered.effects",
+                "OracleText.blocks",
+            ]
+        );
+        assert!(report.positional_separator_tables.is_empty());
+        assert_eq!(
+            report.terminators,
+            ["Paragraph.sentences", "Triggered.effects"]
+        );
+        assert!(report.stored_separator_fields.is_empty());
         assert_eq!(
             morphology_rows(&report.morphology_irregulars),
             expected_irregulars()
@@ -622,7 +842,7 @@ mod tests {
         let actual = serde_json::from_str::<serde_json::Value>(&rendered)
             .expect("production report JSON reparses");
         let expected = serde_json::json!({
-            "schema_version": 2,
+            "schema_version": 3,
             "noun_morphology": {
                 "total": 472,
                 "derived_plural": 146,
@@ -682,11 +902,32 @@ mod tests {
                     "removal_target": null
                 },
                 {
+                    "identity": "OracleText",
+                    "rationale": "declared parser entry point",
+                    "removal_target": null
+                },
+                {
                     "identity": "Sentence",
                     "rationale": "declared parser entry point",
                     "removal_target": null
                 }
-            ]
+            ],
+            "abstract_products": ["OracleText"],
+            "abstract_sums": ["DocumentBlock"],
+            "optional_roles": [],
+            "sequence_roles": [
+                "Paragraph.sentences",
+                "Triggered.effects",
+                "OracleText.blocks"
+            ],
+            "uniform_separators": [
+                "Paragraph.sentences",
+                "Triggered.effects",
+                "OracleText.blocks"
+            ],
+            "positional_separator_tables": [],
+            "terminators": ["Paragraph.sentences", "Triggered.effects"],
+            "stored_separator_fields": []
         });
 
         assert_eq!(actual, expected);
@@ -694,7 +935,7 @@ mod tests {
     }
 
     #[test]
-    fn schema2_json_field_order() {
+    fn schema3_preserves_legacy_field_order_before_structural_inventory() {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
         let rendered = render_json(&report).expect("production report serializes");
@@ -713,13 +954,21 @@ mod tests {
                 "terminal_bindings",
                 "checked_constructor_bindings",
                 "roots",
+                "abstract_products",
+                "abstract_sums",
+                "optional_roles",
+                "sequence_roles",
+                "uniform_separators",
+                "positional_separator_tables",
+                "terminators",
+                "stored_separator_fields",
             ]
         );
-        assert!(has_schema2_morphology_field_order(&rendered));
+        assert!(has_legacy_morphology_field_order(&rendered));
     }
 
     #[test]
-    fn schema2_order_oracle_rejects_reordered_and_nested_decoys() {
+    fn legacy_order_oracle_rejects_reordered_and_nested_decoys() {
         let reordered = r#"{
             "stored_spelling_codecs": [],
             "decoy": { "morphology_irregulars": [] },
@@ -736,7 +985,7 @@ mod tests {
                 "morphology_irregulars",
             ]
         );
-        assert!(!has_schema2_morphology_field_order(reordered));
+        assert!(!has_legacy_morphology_field_order(reordered));
     }
 
     #[test]
@@ -805,7 +1054,7 @@ mod tests {
             .0
     }
 
-    fn has_schema2_morphology_field_order(rendered: &str) -> bool {
+    fn has_legacy_morphology_field_order(rendered: &str) -> bool {
         raw_top_level_keys(rendered).windows(3).any(|keys| {
             keys == [
                 "stored_spelling_codecs",

@@ -527,7 +527,7 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
     row
 }
 
-fn runtime_analysis_row(unit: &CorpusUnit, analysis: &ParseAnalysis) -> CoverageRow {
+fn runtime_analysis_row<V: Clone>(unit: &CorpusUnit, analysis: &ParseAnalysis<V>) -> CoverageRow {
     let outcome = analysis.outcome();
     let error = analysis
         .clone()
@@ -969,10 +969,10 @@ where
     let parser = load_parser()?;
     let mut rows = Vec::with_capacity(corpus.units().len());
     for unit in corpus.units() {
-        observer.record(format!("analyze:{}", unit.id()));
+        observer.record(format!("analyze_oracle_text:{}", unit.id()));
         let context = ParseContext::new(unit.context_name())
             .expect("Corpus validates every stored parse context");
-        let analysis = parser.analyze(unit.text(), &context);
+        let analysis = parser.analyze_oracle_text(unit.text(), &context);
         observer.record(format!("map_row:{}", unit.id()));
         rows.push(runtime_analysis_row(unit, &analysis));
     }
@@ -2132,9 +2132,9 @@ mod tests {
             [
                 "load_corpus".to_owned(),
                 "load_environment".to_owned(),
-                format!("analyze:{}", ordered_ids[0]),
+                format!("analyze_oracle_text:{}", ordered_ids[0]),
                 format!("map_row:{}", ordered_ids[0]),
-                format!("analyze:{}", ordered_ids[1]),
+                format!("analyze_oracle_text:{}", ordered_ids[1]),
                 format!("map_row:{}", ordered_ids[1]),
                 "validate".to_owned(),
                 "render".to_owned(),
@@ -2153,16 +2153,11 @@ mod tests {
     }
 
     #[test]
-    fn runner_calls_the_actual_parser_analyze_entry_once_per_ordered_unit() {
+    fn runner_calls_oracle_text_once_per_ordered_unit_without_ability_fallback() {
         let corpus = Corpus::from_units_for_test(vec![
-            unit("Zulu", "Destroy target Spirit."),
+            unit("Zulu", "Destroy target Spirit.\nYou gain 2 life."),
             unit("Alpha", "Whenever a player connives, you gain X life."),
         ]);
-        let expected_calls = corpus
-            .units()
-            .iter()
-            .map(|unit| (unit.text().to_owned(), unit.context_name().to_owned()))
-            .collect::<Vec<_>>();
         let expected_ids = corpus
             .units()
             .iter()
@@ -2171,7 +2166,7 @@ mod tests {
         reset_analyze_calls_for_test();
         let mut output = Vec::new();
         let mut diagnostics = Vec::new();
-        let mut observer = NoopObserver;
+        let mut observer = Recorder::default();
 
         run_with_components(
             &args(true, CoverageLockMode::None),
@@ -2184,7 +2179,28 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(take_analyze_calls_for_test(), expected_calls);
+        assert!(
+            take_analyze_calls_for_test().is_empty(),
+            "the Ability analysis entry must never be called"
+        );
+        assert_eq!(
+            observer
+                .events
+                .iter()
+                .filter(|event| event.starts_with("analyze_oracle_text:"))
+                .count(),
+            expected_ids.len(),
+            "the OracleText analysis entry runs exactly once per unit"
+        );
+        assert!(
+            observer
+                .events
+                .iter()
+                .all(|event| !event.starts_with("analyze_ability:")
+                    && !event.starts_with("analyze_sentence:")),
+            "no focused-root retry is permitted: {:?}",
+            observer.events
+        );
         let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
         assert_eq!(
             json["rows"]
@@ -2195,6 +2211,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             expected_ids.iter().map(String::as_str).collect::<Vec<_>>()
         );
+        assert_eq!(json["rows"][0]["status"], "selected_covered");
     }
 
     #[test]

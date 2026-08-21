@@ -23,6 +23,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::Args;
 use clap::Subcommand;
+use clap::ValueEnum;
 use deckmaste_construction_core::DeclarationKind;
 use deckmaste_construction_core::Expansion;
 use deckmaste_construction_core::ItemKey;
@@ -132,8 +133,18 @@ struct ProbeArgs {
     context: String,
     #[arg(long, default_value_t = 256)]
     limit: usize,
+    #[arg(long, value_enum, default_value_t = ProbeRoot::Ability)]
+    root: ProbeRoot,
     #[arg(long)]
     json: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
+enum ProbeRoot {
+    #[default]
+    Ability,
+    Sentence,
+    OracleText,
 }
 
 #[derive(Debug, clap::Args)]
@@ -296,6 +307,8 @@ fn item_key_name(key: &ItemKey) -> String {
 fn declaration_kind_name(kind: DeclarationKind) -> &'static str {
     match kind {
         DeclarationKind::Construction => "construction",
+        DeclarationKind::AbstractProduct => "abstract product",
+        DeclarationKind::AbstractSum => "abstract sum",
         DeclarationKind::Vocab => "vocab",
         DeclarationKind::Morphology => "morphology",
         DeclarationKind::Lexeme => "lexeme",
@@ -309,8 +322,95 @@ fn declaration_kind_name(kind: DeclarationKind) -> &'static str {
 mod tests {
     use super::*;
 
+    #[derive(Debug, clap::Parser)]
+    struct ProbeCli {
+        #[command(flatten)]
+        args: ProbeArgs,
+    }
+
     const PRODUCTION_SOURCE: &str = include_str!("../../deckmaste_english_v2/src/constructions.rs");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
+
+    fn parse_probe_args(root: Option<&str>, json: bool, text: &str) -> ProbeArgs {
+        use clap::Parser as _;
+
+        let mut arguments = vec![
+            "probe".to_owned(),
+            "--text".to_owned(),
+            text.to_owned(),
+            "--context".to_owned(),
+            "Probe Card".to_owned(),
+        ];
+        if let Some(root) = root {
+            arguments.extend(["--root".to_owned(), root.to_owned()]);
+        }
+        if json {
+            arguments.push("--json".to_owned());
+        }
+        ProbeCli::try_parse_from(arguments)
+            .expect("the exact supported probe root spelling parses")
+            .args
+    }
+
+    #[test]
+    fn probe_root_accepts_only_the_three_exact_spellings_and_defaults_to_ability() {
+        use clap::Parser as _;
+
+        for root in [None, Some("ability"), Some("sentence"), Some("oracle-text")] {
+            let _ = parse_probe_args(root, false, "Destroy target creature.");
+        }
+
+        for invalid in ["oracle_text", "OracleText", "document", ""] {
+            let arguments = [
+                "probe",
+                "--text",
+                "Destroy target creature.",
+                "--context",
+                "Probe Card",
+                "--root",
+                invalid,
+            ];
+            assert!(
+                ProbeCli::try_parse_from(arguments).is_err(),
+                "invalid root spelling {invalid:?} must be a Clap error"
+            );
+        }
+    }
+
+    #[test]
+    fn probe_root_dispatch_names_the_single_selected_root_in_json_and_human_output() {
+        let fixtures = [
+            (None, "Destroy target creature.", "Ability"),
+            (Some("ability"), "Destroy target creature.", "Ability"),
+            (Some("sentence"), "Destroy target creature.", "Sentence"),
+            (
+                Some("oracle-text"),
+                "Destroy target creature.\nYou gain 2 life.",
+                "OracleText",
+            ),
+        ];
+
+        for (root, text, expected) in fixtures {
+            let mut json = Vec::new();
+            probe::run(&parse_probe_args(root, true, text), &mut json)
+                .expect("typed probe JSON command succeeds");
+            let json: serde_json::Value = serde_json::from_slice(&json).unwrap();
+            assert_eq!(json["root"], expected, "root selection {root:?}");
+
+            let mut human = Vec::new();
+            probe::run(&parse_probe_args(root, false, text), &mut human)
+                .expect("typed probe human command succeeds");
+            let human = String::from_utf8(human).unwrap();
+            assert!(
+                human
+                    .lines()
+                    .next()
+                    .unwrap()
+                    .contains(&format!("root={expected}")),
+                "root selection {root:?}: {human}"
+            );
+        }
+    }
 
     fn contains_production_function(file: &syn::File, name: &str) -> bool {
         contains_production_authority(file, ProductionAuthorityKind::Function, name)
@@ -1330,7 +1430,7 @@ mod tests {
         "codec Noun",
         "identity SelfReferenceSpelling",
         "codec SignedNumber",
-        "construction spell",
+        "construction paragraph",
         "construction triggered",
         "construction imperative",
         "construction declarative",
@@ -1349,12 +1449,15 @@ mod tests {
         "construction gain_life",
         "construction number",
         "construction variable",
+        "abstract sum DocumentBlock",
+        "abstract product OracleText",
         "root Ability",
         "root Sentence",
+        "root OracleText",
     ];
 
     const CONSTRUCTION_ORIGINS: &[&str] = &[
-        "construction spell",
+        "construction paragraph",
         "construction triggered",
         "construction imperative",
         "construction declarative",
@@ -1390,10 +1493,11 @@ mod tests {
         "construction with_where",
         "root Ability",
         "root Sentence",
+        "root OracleText",
     ];
 
     const VISITOR_ORIGINS: &[&str] = &[
-        "construction spell",
+        "construction paragraph",
         "construction triggered",
         "construction imperative",
         "construction declarative",
@@ -1414,7 +1518,7 @@ mod tests {
         "construction variable",
         "codec SignedNumber",
         "codec Noun",
-        "construction spell",
+        "construction paragraph",
         "construction triggered",
         "construction imperative",
         "construction declarative",
@@ -1450,7 +1554,7 @@ mod tests {
     fn expected_production_origins(item_key: &str) -> Option<&'static [&'static str]> {
         Some(match item_key {
             "type Ability" | "function walk_ability" => {
-                &["construction spell", "construction triggered"]
+                &["construction paragraph", "construction triggered"]
             }
             "type Sentence" | "function render_sentence_body" | "function walk_sentence" => &[
                 "construction imperative",
@@ -1481,10 +1585,25 @@ mod tests {
             "type Amount" | "function render_amount" | "function walk_amount" => {
                 &["construction number", "construction variable"]
             }
-            "type Spell" | "function walk_spell" => &["construction spell"],
+            "type DocumentBlock"
+            | "function render_document_block"
+            | "function walk_document_block" => &["abstract sum DocumentBlock"],
+            "type OracleText"
+            | "impl OracleText"
+            | "function render_oracle_text_blocks_sequence"
+            | "function render_oracle_text"
+            | "function walk_oracle_text_blocks_sequence"
+            | "function walk_oracle_text" => &["abstract product OracleText"],
+            "type Paragraph" | "impl Paragraph" | "function walk_paragraph" => {
+                &["construction paragraph"]
+            }
             "type Triggered" | "impl Triggered" | "function walk_triggered" => {
                 &["construction triggered"]
             }
+            "function render_paragraph_sentences_sequence"
+            | "function walk_paragraph_sentences_sequence" => &["construction Paragraph"],
+            "function render_triggered_effects_sequence"
+            | "function walk_triggered_effects_sequence" => &["construction Triggered"],
             "type Imperative" | "function walk_imperative" => &["construction imperative"],
             "type Declarative" | "function walk_declarative" => &["construction declarative"],
             "type WithWhere" | "impl WithWhere" | "function walk_with_where" => {
@@ -1548,6 +1667,8 @@ mod tests {
             | "type Number"
             | "type FeatureConstraint"
             | "type CasePosition"
+            | "type PrefixPosition"
+            | "type StructuralTransition"
             | "type ScanPosition"
             | "type DeclarationClass"
             | "type DeclarationMatcher"
@@ -1560,6 +1681,21 @@ mod tests {
             | "type LexicalOwnerTemplate"
             | "type LexicalOwnerIdentity"
             | "type LexicalOwner"
+            | "type BuildValue"
+            | "type NonterminalCategory"
+            | "impl NonterminalCategory for NonterminalCategory"
+            | "impl std::fmt::Display for NonterminalCategory"
+            | "impl Category for Category"
+            | "impl From<Category> for NonterminalCategory"
+            | "trait GeneratedRoot"
+            | "trait GeneratedParseRoot"
+            | "impl GeneratedRoot for Ability"
+            | "impl GeneratedRoot for Sentence"
+            | "impl GeneratedRoot for OracleText"
+            | "impl GeneratedParseRoot for Ability"
+            | "impl GeneratedParseRoot for Sentence"
+            | "impl GeneratedParseRoot for OracleText"
+            | "impl StructuralTransition for StructuralTransition"
             | "impl Lexical for Lexical"
             | "impl LexicalTerminal for LexicalTerminal"
             | "impl TerminalClass for TerminalClass"
@@ -1574,7 +1710,11 @@ mod tests {
             | "impl Ord for LexicalOwner"
             | "impl PartialOrd for LexicalOwner"
             | "impl LexicalOwnerTemplate for LexicalOwnerTemplate"
-            | "constant REQUIRED_DECLARATIONS" => ALL_DECLARATION_ORIGINS,
+            | "constant REQUIRED_DECLARATIONS"
+            | "type SequenceOwner"
+            | "type FixedSurfaceAtom"
+            | "function sequence_separator"
+            | "function sequence_terminator" => ALL_DECLARATION_ORIGINS,
             "function scan_lexical" => SCANNER_ORIGINS,
             "impl Ability" | "impl Render for Ability" | "function render_ability_with_claims" => {
                 &["root Ability"]
@@ -1582,13 +1722,41 @@ mod tests {
             "impl Sentence"
             | "impl Render for Sentence"
             | "function render_sentence_with_claims" => &["root Sentence"],
+            "function write_oracle_text_render"
+            | "impl Render for OracleText"
+            | "function render_oracle_text_with_claims" => &["root OracleText"],
+            "function render_ability_body" => &["construction paragraph", "construction triggered"],
             "trait Visitor" => VISITOR_ORIGINS,
             "function walk_self_reference_spelling" => &["identity SelfReferenceSpelling"],
-            "type Category" | "type Construction" | "type RuleId" | "impl RuleId" => {
+            "type Category" => &[
+                "construction paragraph",
+                "construction triggered",
+                "construction imperative",
+                "construction declarative",
+                "construction with_where",
+                "construction event",
+                "construction where",
+                "construction pronoun",
+                "construction common",
+                "construction demonstrative",
+                "construction target",
+                "construction self_reference",
+                "construction count",
+                "construction destroy",
+                "construction connive",
+                "construction deal_damage",
+                "construction gain_life",
+                "construction number",
+                "construction variable",
+                "abstract sum DocumentBlock",
+                "abstract product OracleText",
+            ],
+            "type Construction" | "type RuleId" | "impl RuleId" | "function build" => {
                 CONSTRUCTION_ORIGINS
             }
-            "constant RULES" | "function build" => &[
-                "construction spell",
+            "impl Category" => &["root Ability", "root Sentence", "root OracleText"],
+            "constant RULES" => &[
+                "construction paragraph",
                 "construction triggered",
                 "construction imperative",
                 "construction declarative",
@@ -1608,6 +1776,7 @@ mod tests {
                 "construction number",
                 "construction variable",
                 "root Ability",
+                "root OracleText",
             ],
             _ => return None,
         })
@@ -1706,7 +1875,11 @@ mod tests {
         "type NounPhrase",
         "type VerbPhrase",
         "type Amount",
-        "type Spell",
+        "type DocumentBlock",
+        "type OracleText",
+        "impl OracleText",
+        "type Paragraph",
+        "impl Paragraph",
         "type Triggered",
         "impl Triggered",
         "type Imperative",
@@ -1749,6 +1922,8 @@ mod tests {
         "type Number",
         "type FeatureConstraint",
         "type CasePosition",
+        "type PrefixPosition",
+        "type StructuralTransition",
         "type ScanPosition",
         "type DeclarationClass",
         "type DeclarationMatcher",
@@ -1761,6 +1936,21 @@ mod tests {
         "type LexicalOwnerTemplate",
         "type LexicalOwnerIdentity",
         "type LexicalOwner",
+        "type BuildValue",
+        "type NonterminalCategory",
+        "impl NonterminalCategory for NonterminalCategory",
+        "impl std::fmt::Display for NonterminalCategory",
+        "impl Category for Category",
+        "impl From<Category> for NonterminalCategory",
+        "trait GeneratedRoot",
+        "trait GeneratedParseRoot",
+        "impl GeneratedRoot for Ability",
+        "impl GeneratedRoot for Sentence",
+        "impl GeneratedRoot for OracleText",
+        "impl GeneratedParseRoot for Ability",
+        "impl GeneratedParseRoot for Sentence",
+        "impl GeneratedParseRoot for OracleText",
+        "impl StructuralTransition for StructuralTransition",
         "impl Lexical for Lexical",
         "impl LexicalTerminal for LexicalTerminal",
         "impl TerminalClass for TerminalClass",
@@ -1777,16 +1967,29 @@ mod tests {
         "impl LexicalOwnerTemplate for LexicalOwnerTemplate",
         "constant REQUIRED_DECLARATIONS",
         "function scan_lexical",
+        "type SequenceOwner",
+        "type FixedSurfaceAtom",
+        "function sequence_separator",
+        "function sequence_terminator",
+        "function render_oracle_text_blocks_sequence",
+        "function render_oracle_text",
+        "function render_paragraph_sentences_sequence",
+        "function render_triggered_effects_sequence",
+        "function render_document_block",
         "impl Ability",
         "impl Render for Ability",
         "function render_ability_with_claims",
         "impl Sentence",
         "impl Render for Sentence",
         "function render_sentence_with_claims",
+        "function write_oracle_text_render",
+        "impl Render for OracleText",
+        "function render_oracle_text_with_claims",
+        "function render_ability_body",
         "function render_sentence_body",
         "function render_clause",
-        "function render_verb_phrase",
         "function render_noun_phrase",
+        "function render_verb_phrase",
         "function render_amount",
         "function render_trigger_word",
         "function render_article",
@@ -1806,7 +2009,12 @@ mod tests {
         "function walk_noun_phrase",
         "function walk_verb_phrase",
         "function walk_amount",
-        "function walk_spell",
+        "function walk_paragraph_sentences_sequence",
+        "function walk_triggered_effects_sequence",
+        "function walk_document_block",
+        "function walk_oracle_text_blocks_sequence",
+        "function walk_oracle_text",
+        "function walk_paragraph",
         "function walk_triggered",
         "function walk_imperative",
         "function walk_declarative",
@@ -1839,6 +2047,7 @@ mod tests {
         "function walk_noun",
         "type Category",
         "type Construction",
+        "impl Category",
         "type RuleId",
         "impl RuleId",
         "constant RULES",
@@ -2508,7 +2717,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 143);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 183);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -2545,9 +2754,10 @@ mod tests {
              //   - bare = \"are\"\n\
              //   - third_person_singular = \"is\"\n\
              // terminal bindings (0)\n\
-             // roots (2)\n\
+             // roots (3)\n\
              // - root Ability\n\
-             // - root Sentence\n"
+             // - root Sentence\n\
+             // - root OracleText\n"
         );
     }
 
@@ -2558,7 +2768,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 143);
+        assert_eq!(parsed.items.len(), 183);
     }
 
     #[test]
@@ -2612,11 +2822,11 @@ mod tests {
                 "SelfReferenceSpelling",
                 "card_name",
                 "abbreviated_card_name",
-                "surface",
                 "valid_in",
             ] {
                 assert!(!contains_production_identifier(source, forbidden));
             }
+            assert!(!contains_production_method_call(source, "surface"));
             assert!(!contains_production_method_call(source, "spelling"));
         }
         assert!(!contains_production_identifier(
