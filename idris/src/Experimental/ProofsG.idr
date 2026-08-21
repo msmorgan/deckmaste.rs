@@ -314,3 +314,47 @@ public export
 badZeroRepeat : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.drawACard, Repeat (MoreTimes (Lit 0) {rc = ok})])
 badZeroRepeat Oh impossible
+
+
+||| "of the chosen colour or outcome"
+||| The kind join is gated to the one cross-kind pair English writes [CR#115.4];
+||| a quality and an outcome have no join.
+public export
+badJoinQualityOutcome : Unspellable Kind (\ok =>
+  (\/) (Quality Color) Outcome {ok = ok})
+badJoinQualityOutcome Oh impossible
+
+
+||| "this turn or target creature"
+||| A turn reference names a time, and no join carries it to an object.
+public export
+badJoinTurnRefObject : Unspellable Kind (\ok =>
+  (\/) TurnRef Object {ok = ok})
+badJoinTurnRefObject Oh impossible
+
+
+||| "X or target player"
+||| A letter word names a chosen number, and no join carries it to a player.
+public export
+badJoinLetterPlayer : Unspellable Kind (\ok =>
+  (\/) (Letter LetterX) Player {ok = ok})
+badJoinLetterPlayer Oh impossible
+
+
+-- ...and the joins the gate DOES admit, pinned by Refl: "any target"
+-- [CR#115.4] in both orders, the absorption, and the like-with-like case.
+public export
+joinObjectPlayer : Object \/ Player = ObjectOrPlayer
+joinObjectPlayer = Refl
+
+public export
+joinPlayerObject : Player \/ Object = ObjectOrPlayer
+joinPlayerObject = Refl
+
+public export
+joinAbsorbsObject : ObjectOrPlayer \/ Object = ObjectOrPlayer
+joinAbsorbsObject = Refl
+
+public export
+joinObjectObject : Object \/ Object = Object
+joinObjectObject = Refl

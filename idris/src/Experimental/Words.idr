@@ -111,7 +111,7 @@ sameLetterWord LetterY LetterY = True
 
 public export
 data Kind = Object | Player | Quality QualitySort | Outcome | Gap
-          | Letter LetterWord | TurnRef | Ability
+          | Letter LetterWord | TurnRef | Ability | ObjectOrPlayer
 
 public export
 sameKind : Kind -> Kind -> Bool
@@ -123,6 +123,7 @@ sameKind Object Gap = False
 sameKind Object (Letter _) = False
 sameKind Object TurnRef = False
 sameKind Object Ability = False
+sameKind Object ObjectOrPlayer = False
 sameKind Player Object = False
 sameKind Player Player = True
 sameKind Player (Quality _) = False
@@ -131,6 +132,7 @@ sameKind Player Gap = False
 sameKind Player (Letter _) = False
 sameKind Player TurnRef = False
 sameKind Player Ability = False
+sameKind Player ObjectOrPlayer = False
 sameKind (Quality _) Object = False
 sameKind (Quality _) Player = False
 sameKind (Quality a) (Quality b) = sameQ a b
@@ -139,6 +141,7 @@ sameKind (Quality _) Gap = False
 sameKind (Quality _) (Letter _) = False
 sameKind (Quality _) TurnRef = False
 sameKind (Quality _) Ability = False
+sameKind (Quality _) ObjectOrPlayer = False
 sameKind Outcome Object = False
 sameKind Outcome Player = False
 sameKind Outcome (Quality _) = False
@@ -147,6 +150,7 @@ sameKind Outcome Gap = False
 sameKind Outcome (Letter _) = False
 sameKind Outcome TurnRef = False
 sameKind Outcome Ability = False
+sameKind Outcome ObjectOrPlayer = False
 sameKind Gap Object = False
 sameKind Gap Player = False
 sameKind Gap (Quality _) = False
@@ -155,6 +159,7 @@ sameKind Gap Gap = True
 sameKind Gap (Letter _) = False
 sameKind Gap TurnRef = False
 sameKind Gap Ability = False
+sameKind Gap ObjectOrPlayer = False
 sameKind (Letter _) Object = False
 sameKind (Letter _) Player = False
 sameKind (Letter _) (Quality _) = False
@@ -163,6 +168,7 @@ sameKind (Letter _) Gap = False
 sameKind (Letter a) (Letter b) = sameLetterWord a b
 sameKind (Letter _) TurnRef = False
 sameKind (Letter _) Ability = False
+sameKind (Letter _) ObjectOrPlayer = False
 sameKind TurnRef Object = False
 sameKind TurnRef Player = False
 sameKind TurnRef (Quality _) = False
@@ -171,6 +177,7 @@ sameKind TurnRef Gap = False
 sameKind TurnRef (Letter _) = False
 sameKind TurnRef TurnRef = True
 sameKind TurnRef Ability = False
+sameKind TurnRef ObjectOrPlayer = False
 sameKind Ability Object = False
 sameKind Ability Player = False
 sameKind Ability (Quality _) = False
@@ -179,6 +186,443 @@ sameKind Ability Gap = False
 sameKind Ability (Letter _) = False
 sameKind Ability TurnRef = False
 sameKind Ability Ability = True
+sameKind Ability ObjectOrPlayer = False
+sameKind ObjectOrPlayer Object = False
+sameKind ObjectOrPlayer Player = False
+sameKind ObjectOrPlayer (Quality _) = False
+sameKind ObjectOrPlayer Outcome = False
+sameKind ObjectOrPlayer Gap = False
+sameKind ObjectOrPlayer (Letter _) = False
+sameKind ObjectOrPlayer TurnRef = False
+sameKind ObjectOrPlayer Ability = False
+sameKind ObjectOrPlayer ObjectOrPlayer = True
+
+||| A `QualitySort` matches only itself.
+public export
+sameQRefl : (q : QualitySort) -> So (sameQ q q)
+sameQRefl Color = Oh
+sameQRefl CreatureType = Oh
+sameQRefl CardName = Oh
+sameQRefl Number = Oh
+
+||| `sameQ` decides equality: a match is the identity of the two sorts.
+public export
+sameQEq : (a, b : QualitySort) -> So (sameQ a b) -> a = b
+sameQEq Color Color _ = Refl
+sameQEq Color CreatureType ok = absurd ok
+sameQEq Color CardName ok = absurd ok
+sameQEq Color Number ok = absurd ok
+
+sameQEq CreatureType Color ok = absurd ok
+sameQEq CreatureType CreatureType _ = Refl
+sameQEq CreatureType CardName ok = absurd ok
+sameQEq CreatureType Number ok = absurd ok
+
+sameQEq CardName Color ok = absurd ok
+sameQEq CardName CreatureType ok = absurd ok
+sameQEq CardName CardName _ = Refl
+sameQEq CardName Number ok = absurd ok
+
+sameQEq Number Color ok = absurd ok
+sameQEq Number CreatureType ok = absurd ok
+sameQEq Number CardName ok = absurd ok
+sameQEq Number Number _ = Refl
+
+||| A `LetterWord` matches only itself.
+public export
+sameLetterWordRefl : (w : LetterWord) -> So (sameLetterWord w w)
+sameLetterWordRefl LetterX = Oh
+sameLetterWordRefl LetterY = Oh
+
+||| `sameLetterWord` decides equality likewise.
+public export
+sameLetterWordEq : (a, b : LetterWord) -> So (sameLetterWord a b) -> a = b
+sameLetterWordEq LetterX LetterX _ = Refl
+sameLetterWordEq LetterX LetterY ok = absurd ok
+sameLetterWordEq LetterY LetterX ok = absurd ok
+sameLetterWordEq LetterY LetterY _ = Refl
+
+||| Every kind matches itself.
+public export
+sameKindRefl : (k : Kind) -> So (sameKind k k)
+sameKindRefl Object = Oh
+sameKindRefl Player = Oh
+sameKindRefl (Quality q) = sameQRefl q
+sameKindRefl Outcome = Oh
+sameKindRefl Gap = Oh
+sameKindRefl (Letter w) = sameLetterWordRefl w
+sameKindRefl TurnRef = Oh
+sameKindRefl Ability = Oh
+sameKindRefl ObjectOrPlayer = Oh
+
+||| Which kind pairs have a join. Like-with-like joins itself; `Object` and
+||| `Player` join in either order; `ObjectOrPlayer` absorbs both and itself.
+||| Nothing else joins: among the kinds a target slot admits (`Targetable`
+||| has only `Object` and `Player`) the corpus attests this one cross-kind
+||| join. Kinds outside that set are not surveyed here: "target spell or
+||| ability" is attested and would be `Object \/ Ability`, so that cell is
+||| `False` as unsurveyed, not refused — it is `workbench-unhomed-union-gates`'
+||| to measure and admit, and no pin freezes it.
+public export
+joinable : Kind -> Kind -> Bool
+joinable Object Player = True
+joinable Object ObjectOrPlayer = True
+joinable Player Object = True
+joinable Player ObjectOrPlayer = True
+joinable ObjectOrPlayer Object = True
+joinable ObjectOrPlayer Player = True
+joinable ObjectOrPlayer ObjectOrPlayer = True
+joinable a b = sameKind a b
+
+export infixl 5 \/
+
+||| The kind join, FLAT ON `Kind`: `Object \/ Player = ObjectOrPlayer`, one
+||| joined kind and no pair in the index. WHICH union a term names is carried
+||| by `Payload`, not by the kind — the ticket's flat/pair/powerset trichotomy
+||| conflated the two levels, since its "pairs" ({Permanent,Player},
+||| {Creature,Player}) are card-type and possessor content, which `Payload` and
+||| the predicates already hold.
+|||
+||| The measurements: the demonstrative echo copies its antecedent's kind pair
+||| 33 of 33 with no crossing in either direction; the 15 readbacks with no
+||| pair to echo write the generic "permanent or player"; the 10 class-word
+||| readbacks write that same generic pair, which a naive powerset kind
+||| ({Creature,Player,Planeswalker,Battle}) would mis-spell as "that creature,
+||| player, planeswalker, or battle"; and all 43 share one demonstrative.
+||| So the 33 echoes derive from the Object-half type the joined payload will
+||| carry, while the class word and the 15 no-pair readbacks have no type and
+||| spell the generic pair — the kind index needs no collapse table.
+|||
+||| Site 2's 2x4 admissible-pair grid is payload admissibility, routed to
+||| `workbench-unhomed-union-gates`; the joined payload and its Object-half
+||| type are `workbench-joined-kind-binding`. Neither is decided here.
+|||
+||| The semilattice is UNBOUNDED by decision — no unit kind. `Or` carries
+||| `TwoDisjuncts`, so a heterogeneous fold is over a non-empty list and seeds
+||| with its head; the "an empty `Or` is vacuous" reading that justified old
+||| semantics' `Empty` is refused upstream, so no `Top` and no `Bottom`.
+|||
+||| R5(c): the kinds are INPUTS. `ok` is erased and `Oh : So True` constrains
+||| nothing, so no call may leave `a` or `b` to be inferred from the witness.
+||| Off the attested pairs the operator returns its left kind; `ok` refuses
+||| every such pair ("any target" is the one join English writes [CR#115.4]).
+public export
+(\/) : (a, b : Kind) -> {auto 0 ok : So (joinable a b)} -> Kind
+(\/) Object Object = Object
+(\/) Object Player = ObjectOrPlayer
+(\/) Object ObjectOrPlayer = ObjectOrPlayer
+(\/) Object _ = Object
+(\/) Player Object = ObjectOrPlayer
+(\/) Player Player = Player
+(\/) Player ObjectOrPlayer = ObjectOrPlayer
+(\/) Player _ = Player
+(\/) ObjectOrPlayer _ = ObjectOrPlayer
+(\/) (Quality q) _ = Quality q
+(\/) Outcome _ = Outcome
+(\/) Gap _ = Gap
+(\/) (Letter w) _ = Letter w
+(\/) TurnRef _ = TurnRef
+(\/) Ability _ = Ability
+
+||| Reflexivity of the gate: every kind joins itself.
+public export
+joinableRefl : (k : Kind) -> So (joinable k k)
+joinableRefl Object = Oh
+joinableRefl Player = Oh
+joinableRefl (Quality q) = sameQRefl q
+joinableRefl Outcome = Oh
+joinableRefl Gap = Oh
+joinableRefl (Letter w) = sameLetterWordRefl w
+joinableRefl TurnRef = Oh
+joinableRefl Ability = Oh
+joinableRefl ObjectOrPlayer = Oh
+
+||| Symmetry of the gate, as a LEMMA: a symmetric constructor on a witness
+||| type would loop auto search, so the fact is a function instead.
+public export
+joinableSym : (a, b : Kind) -> So (joinable a b) -> So (joinable b a)
+joinableSym Object Object _ = Oh
+joinableSym Object Player _ = Oh
+joinableSym Object (Quality _) ok = absurd ok
+joinableSym Object Outcome ok = absurd ok
+joinableSym Object Gap ok = absurd ok
+joinableSym Object (Letter _) ok = absurd ok
+joinableSym Object TurnRef ok = absurd ok
+joinableSym Object Ability ok = absurd ok
+joinableSym Object ObjectOrPlayer _ = Oh
+
+joinableSym Player Object _ = Oh
+joinableSym Player Player _ = Oh
+joinableSym Player (Quality _) ok = absurd ok
+joinableSym Player Outcome ok = absurd ok
+joinableSym Player Gap ok = absurd ok
+joinableSym Player (Letter _) ok = absurd ok
+joinableSym Player TurnRef ok = absurd ok
+joinableSym Player Ability ok = absurd ok
+joinableSym Player ObjectOrPlayer _ = Oh
+
+joinableSym (Quality _) Object ok = absurd ok
+joinableSym (Quality _) Player ok = absurd ok
+joinableSym (Quality x) (Quality y) ok = case sameQEq x y ok of Refl => ok
+joinableSym (Quality _) Outcome ok = absurd ok
+joinableSym (Quality _) Gap ok = absurd ok
+joinableSym (Quality _) (Letter _) ok = absurd ok
+joinableSym (Quality _) TurnRef ok = absurd ok
+joinableSym (Quality _) Ability ok = absurd ok
+joinableSym (Quality _) ObjectOrPlayer ok = absurd ok
+
+joinableSym Outcome Object ok = absurd ok
+joinableSym Outcome Player ok = absurd ok
+joinableSym Outcome (Quality _) ok = absurd ok
+joinableSym Outcome Outcome _ = Oh
+joinableSym Outcome Gap ok = absurd ok
+joinableSym Outcome (Letter _) ok = absurd ok
+joinableSym Outcome TurnRef ok = absurd ok
+joinableSym Outcome Ability ok = absurd ok
+joinableSym Outcome ObjectOrPlayer ok = absurd ok
+
+joinableSym Gap Object ok = absurd ok
+joinableSym Gap Player ok = absurd ok
+joinableSym Gap (Quality _) ok = absurd ok
+joinableSym Gap Outcome ok = absurd ok
+joinableSym Gap Gap _ = Oh
+joinableSym Gap (Letter _) ok = absurd ok
+joinableSym Gap TurnRef ok = absurd ok
+joinableSym Gap Ability ok = absurd ok
+joinableSym Gap ObjectOrPlayer ok = absurd ok
+
+joinableSym (Letter _) Object ok = absurd ok
+joinableSym (Letter _) Player ok = absurd ok
+joinableSym (Letter _) (Quality _) ok = absurd ok
+joinableSym (Letter _) Outcome ok = absurd ok
+joinableSym (Letter _) Gap ok = absurd ok
+joinableSym (Letter v) (Letter w) ok = case sameLetterWordEq v w ok of Refl => ok
+joinableSym (Letter _) TurnRef ok = absurd ok
+joinableSym (Letter _) Ability ok = absurd ok
+joinableSym (Letter _) ObjectOrPlayer ok = absurd ok
+
+joinableSym TurnRef Object ok = absurd ok
+joinableSym TurnRef Player ok = absurd ok
+joinableSym TurnRef (Quality _) ok = absurd ok
+joinableSym TurnRef Outcome ok = absurd ok
+joinableSym TurnRef Gap ok = absurd ok
+joinableSym TurnRef (Letter _) ok = absurd ok
+joinableSym TurnRef TurnRef _ = Oh
+joinableSym TurnRef Ability ok = absurd ok
+joinableSym TurnRef ObjectOrPlayer ok = absurd ok
+
+joinableSym Ability Object ok = absurd ok
+joinableSym Ability Player ok = absurd ok
+joinableSym Ability (Quality _) ok = absurd ok
+joinableSym Ability Outcome ok = absurd ok
+joinableSym Ability Gap ok = absurd ok
+joinableSym Ability (Letter _) ok = absurd ok
+joinableSym Ability TurnRef ok = absurd ok
+joinableSym Ability Ability _ = Oh
+joinableSym Ability ObjectOrPlayer ok = absurd ok
+
+joinableSym ObjectOrPlayer Object _ = Oh
+joinableSym ObjectOrPlayer Player _ = Oh
+joinableSym ObjectOrPlayer (Quality _) ok = absurd ok
+joinableSym ObjectOrPlayer Outcome ok = absurd ok
+joinableSym ObjectOrPlayer Gap ok = absurd ok
+joinableSym ObjectOrPlayer (Letter _) ok = absurd ok
+joinableSym ObjectOrPlayer TurnRef ok = absurd ok
+joinableSym ObjectOrPlayer Ability ok = absurd ok
+joinableSym ObjectOrPlayer ObjectOrPlayer _ = Oh
+
+||| Idempotence.
+public export
+joinIdem : (k : Kind) -> (\/) k k {ok = joinableRefl k} = k
+joinIdem Object = Refl
+joinIdem Player = Refl
+joinIdem (Quality q) = Refl
+joinIdem Outcome = Refl
+joinIdem Gap = Refl
+joinIdem (Letter w) = Refl
+joinIdem TurnRef = Refl
+joinIdem Ability = Refl
+joinIdem ObjectOrPlayer = Refl
+
+||| Commutativity.
+public export
+joinComm : (a, b : Kind) -> (ok : So (joinable a b)) ->
+           (\/) a b {ok} = (\/) b a {ok = joinableSym a b ok}
+joinComm Object Object _ = Refl
+joinComm Object Player _ = Refl
+joinComm Object (Quality _) ok = absurd ok
+joinComm Object Outcome ok = absurd ok
+joinComm Object Gap ok = absurd ok
+joinComm Object (Letter _) ok = absurd ok
+joinComm Object TurnRef ok = absurd ok
+joinComm Object Ability ok = absurd ok
+joinComm Object ObjectOrPlayer _ = Refl
+
+joinComm Player Object _ = Refl
+joinComm Player Player _ = Refl
+joinComm Player (Quality _) ok = absurd ok
+joinComm Player Outcome ok = absurd ok
+joinComm Player Gap ok = absurd ok
+joinComm Player (Letter _) ok = absurd ok
+joinComm Player TurnRef ok = absurd ok
+joinComm Player Ability ok = absurd ok
+joinComm Player ObjectOrPlayer _ = Refl
+
+joinComm (Quality _) Object ok = absurd ok
+joinComm (Quality _) Player ok = absurd ok
+joinComm (Quality x) (Quality y) ok = case sameQEq x y ok of Refl => Refl
+joinComm (Quality _) Outcome ok = absurd ok
+joinComm (Quality _) Gap ok = absurd ok
+joinComm (Quality _) (Letter _) ok = absurd ok
+joinComm (Quality _) TurnRef ok = absurd ok
+joinComm (Quality _) Ability ok = absurd ok
+joinComm (Quality _) ObjectOrPlayer ok = absurd ok
+
+joinComm Outcome Object ok = absurd ok
+joinComm Outcome Player ok = absurd ok
+joinComm Outcome (Quality _) ok = absurd ok
+joinComm Outcome Outcome _ = Refl
+joinComm Outcome Gap ok = absurd ok
+joinComm Outcome (Letter _) ok = absurd ok
+joinComm Outcome TurnRef ok = absurd ok
+joinComm Outcome Ability ok = absurd ok
+joinComm Outcome ObjectOrPlayer ok = absurd ok
+
+joinComm Gap Object ok = absurd ok
+joinComm Gap Player ok = absurd ok
+joinComm Gap (Quality _) ok = absurd ok
+joinComm Gap Outcome ok = absurd ok
+joinComm Gap Gap _ = Refl
+joinComm Gap (Letter _) ok = absurd ok
+joinComm Gap TurnRef ok = absurd ok
+joinComm Gap Ability ok = absurd ok
+joinComm Gap ObjectOrPlayer ok = absurd ok
+
+joinComm (Letter _) Object ok = absurd ok
+joinComm (Letter _) Player ok = absurd ok
+joinComm (Letter _) (Quality _) ok = absurd ok
+joinComm (Letter _) Outcome ok = absurd ok
+joinComm (Letter _) Gap ok = absurd ok
+joinComm (Letter v) (Letter w) ok = case sameLetterWordEq v w ok of Refl => Refl
+joinComm (Letter _) TurnRef ok = absurd ok
+joinComm (Letter _) Ability ok = absurd ok
+joinComm (Letter _) ObjectOrPlayer ok = absurd ok
+
+joinComm TurnRef Object ok = absurd ok
+joinComm TurnRef Player ok = absurd ok
+joinComm TurnRef (Quality _) ok = absurd ok
+joinComm TurnRef Outcome ok = absurd ok
+joinComm TurnRef Gap ok = absurd ok
+joinComm TurnRef (Letter _) ok = absurd ok
+joinComm TurnRef TurnRef _ = Refl
+joinComm TurnRef Ability ok = absurd ok
+joinComm TurnRef ObjectOrPlayer ok = absurd ok
+
+joinComm Ability Object ok = absurd ok
+joinComm Ability Player ok = absurd ok
+joinComm Ability (Quality _) ok = absurd ok
+joinComm Ability Outcome ok = absurd ok
+joinComm Ability Gap ok = absurd ok
+joinComm Ability (Letter _) ok = absurd ok
+joinComm Ability TurnRef ok = absurd ok
+joinComm Ability Ability _ = Refl
+joinComm Ability ObjectOrPlayer ok = absurd ok
+
+joinComm ObjectOrPlayer Object _ = Refl
+joinComm ObjectOrPlayer Player _ = Refl
+joinComm ObjectOrPlayer (Quality _) ok = absurd ok
+joinComm ObjectOrPlayer Outcome ok = absurd ok
+joinComm ObjectOrPlayer Gap ok = absurd ok
+joinComm ObjectOrPlayer (Letter _) ok = absurd ok
+joinComm ObjectOrPlayer TurnRef ok = absurd ok
+joinComm ObjectOrPlayer Ability ok = absurd ok
+joinComm ObjectOrPlayer ObjectOrPlayer _ = Refl
+
+||| Associativity over the attested sublattice: every regrouping the four
+||| gates admit computes the same kind.
+public export
+joinAssoc : (a, b, c : Kind) ->
+            (ab : So (joinable a b)) -> (bc : So (joinable b c)) ->
+            (abc : So (joinable ((\/) a b {ok = ab}) c)) ->
+            (a_bc : So (joinable a ((\/) b c {ok = bc}))) ->
+            (\/) ((\/) a b {ok = ab}) c {ok = abc}
+              = (\/) a ((\/) b c {ok = bc}) {ok = a_bc}
+joinAssoc Object Object Object _ _ _ _ = Refl
+joinAssoc Object Object Player _ _ _ _ = Refl
+joinAssoc Object Object (Quality _) _ bc _ _ = absurd bc
+joinAssoc Object Object Outcome _ bc _ _ = absurd bc
+joinAssoc Object Object Gap _ bc _ _ = absurd bc
+joinAssoc Object Object (Letter _) _ bc _ _ = absurd bc
+joinAssoc Object Object TurnRef _ bc _ _ = absurd bc
+joinAssoc Object Object Ability _ bc _ _ = absurd bc
+joinAssoc Object Object ObjectOrPlayer _ _ _ _ = Refl
+
+joinAssoc Object Player Object _ _ _ _ = Refl
+joinAssoc Object Player Player _ _ _ _ = Refl
+joinAssoc Object Player (Quality _) _ bc _ _ = absurd bc
+joinAssoc Object Player Outcome _ bc _ _ = absurd bc
+joinAssoc Object Player Gap _ bc _ _ = absurd bc
+joinAssoc Object Player (Letter _) _ bc _ _ = absurd bc
+joinAssoc Object Player TurnRef _ bc _ _ = absurd bc
+joinAssoc Object Player Ability _ bc _ _ = absurd bc
+joinAssoc Object Player ObjectOrPlayer _ _ _ _ = Refl
+
+joinAssoc Object (Quality _) _ ab _ _ _ = absurd ab
+
+joinAssoc Object Outcome _ ab _ _ _ = absurd ab
+
+joinAssoc Object Gap _ ab _ _ _ = absurd ab
+
+joinAssoc Object (Letter _) _ ab _ _ _ = absurd ab
+
+joinAssoc Object TurnRef _ ab _ _ _ = absurd ab
+
+joinAssoc Object Ability _ ab _ _ _ = absurd ab
+
+joinAssoc Object ObjectOrPlayer _ _ _ _ _ = Refl
+
+joinAssoc Player Object Object _ _ _ _ = Refl
+joinAssoc Player Object Player _ _ _ _ = Refl
+joinAssoc Player Object (Quality _) _ bc _ _ = absurd bc
+joinAssoc Player Object Outcome _ bc _ _ = absurd bc
+joinAssoc Player Object Gap _ bc _ _ = absurd bc
+joinAssoc Player Object (Letter _) _ bc _ _ = absurd bc
+joinAssoc Player Object TurnRef _ bc _ _ = absurd bc
+joinAssoc Player Object Ability _ bc _ _ = absurd bc
+joinAssoc Player Object ObjectOrPlayer _ _ _ _ = Refl
+
+joinAssoc Player Player Object _ _ _ _ = Refl
+joinAssoc Player Player Player _ _ _ _ = Refl
+joinAssoc Player Player (Quality _) _ bc _ _ = absurd bc
+joinAssoc Player Player Outcome _ bc _ _ = absurd bc
+joinAssoc Player Player Gap _ bc _ _ = absurd bc
+joinAssoc Player Player (Letter _) _ bc _ _ = absurd bc
+joinAssoc Player Player TurnRef _ bc _ _ = absurd bc
+joinAssoc Player Player Ability _ bc _ _ = absurd bc
+joinAssoc Player Player ObjectOrPlayer _ _ _ _ = Refl
+
+joinAssoc Player (Quality _) _ ab _ _ _ = absurd ab
+
+joinAssoc Player Outcome _ ab _ _ _ = absurd ab
+
+joinAssoc Player Gap _ ab _ _ _ = absurd ab
+
+joinAssoc Player (Letter _) _ ab _ _ _ = absurd ab
+
+joinAssoc Player TurnRef _ ab _ _ _ = absurd ab
+
+joinAssoc Player Ability _ ab _ _ _ = absurd ab
+
+joinAssoc Player ObjectOrPlayer _ _ _ _ _ = Refl
+
+joinAssoc ObjectOrPlayer _ _ _ _ _ _ = Refl
+
+joinAssoc (Quality q) _ _ _ _ _ _ = Refl
+joinAssoc Outcome _ _ _ _ _ _ = Refl
+joinAssoc Gap _ _ _ _ _ _ = Refl
+joinAssoc (Letter w) _ _ _ _ _ _ = Refl
+joinAssoc TurnRef _ _ _ _ _ _ = Refl
+joinAssoc Ability _ _ _ _ _ _ = Refl
 
 public export
 data AggregateOp = SumOf | MinOf | MaxOf

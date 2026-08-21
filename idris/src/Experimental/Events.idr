@@ -400,6 +400,9 @@ lookbackSubjectOk _ Gap = False
 lookbackSubjectOk _ TurnRef = False
 lookbackSubjectOk _ Ability = False
 lookbackSubjectOk _ (Letter _) = False
+-- deferred, not decided: the joined kind has no payload until
+-- workbench-joined-kind-binding lands one.
+lookbackSubjectOk _ ObjectOrPlayer = False
 
 public export
 data LookbackSubject : EventName -> Kind -> Type where
