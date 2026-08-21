@@ -1,3 +1,11 @@
+//! **PRE-CUTOVER v1 — this crate is deleted at the english_v2 cutover.**
+//!
+//! `deckmaste_english_v2` takes this crate's name at cutover. Put new
+//! architecture and features there; touch this crate only to keep current
+//! users functioning or to enable cutover. Never treat the pair as parallel
+//! long-term implementations, and never copy the v2 design back here for
+//! parity. Authority: `docs/decisions/english-v2-rewrite.md`.
+//!
 //! A grammatical syntax tree for Magic card text.
 //!
 //! This crate parses Oracle text into English structure before deckmaste's

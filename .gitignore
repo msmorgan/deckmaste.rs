@@ -15,3 +15,7 @@
 !/.claude/skills/
 /.claude/skills/*
 !/.claude/skills/ron-lsp/
+# The pre-cutover guard hook is checked in: the tracked .claude/settings.json
+# wires it as a PreToolUse command, so a checkout without it would point at a
+# missing script.
+!/.claude/hooks/
