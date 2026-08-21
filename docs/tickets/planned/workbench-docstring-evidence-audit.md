@@ -266,3 +266,49 @@ denominator; 6 end with an explicit "qualitative, not measured" marker and no
 count (`Phrasal`, `typePrintOrder`, `anchorPhrase`'s False cells, `If`,
 `WhereLetter`, the `Card` record's name field). 16 counted sites additionally
 carry a qualitative marker for the sub-claim no line regex can decide.
+
+## Measured 2026-08-21 — round discarded, not landed
+
+A round re-measured every site and wrote ~277 lines of counts into the
+docstrings. It was discarded: counts baked into prose drift stale and read as
+sprawl, and the round's own finding shows why the ticket's premise is wrong —
+**the numeric docstrings this ticket audits no longer exist in the sources.**
+`docs/idris-workbench-closure-tables.md` quotes them from a ~17.1k-line
+`Experimental.idr`; the file is ~5.4k lines and no revision in history carries
+"138 sentences", "the two composite rows", or `annIntro`'s "exactly" sentence.
+The numbers survive only in that document. Where measurements should live is an
+open ruling (the closure tables as the measurement record, or nowhere); until
+it is made, this ticket is not claimable as written. The measurements
+themselves, over supported oracle lines:
+
+- **Decide 4** `attachHeadOk Equipped PermanentW = False`: "equipped
+  permanent" 1 of 627 "equipped" lines (Luxior, Giada's Gift); "equipped
+  creature(s)" 615; "equipped planeswalker" 0; "enchanted permanent" 76. An
+  unmarked refusal of an attested line — flip in the owning ticket or pin it
+  as a deliberate single-witness refusal.
+- **Decide 5** `comparableBound`: of 36 "with <char> equal to …" lines, 15
+  take "the number of", 0 a summed bound; corpus-wide 24 "equal to the total",
+  0 "greater/less than the total". Gate the summed bound to equality in the
+  ticket owning `Compare`; today all five comparators admit it on zero
+  evidence.
+- **Decide 6** `admitsSpan CostModification`: 5 of 188 cost-modification
+  lines carry a duration on the static (4 "until your next turn", Cheering
+  Fanatic's "this turn") — not one. Flip and rename the `SpanUse` row.
+- **Decide 7** `annIntro` vs `preIntro`: 52 rows, 9 differ, 4 substantive
+  (`May`, `Sequentially`, `Simultaneously`, `ExtraTurn`); "exactly" should read
+  "except where the clause makes its referent". Neither row is wrong.
+- **Refuted cell not in the ticket:** `visibilityOk LookAt WholeHand = False`
+  against 35 "look at <someone>'s hand" lines; its [CR#402.3] comment argues
+  backwards (the rule denies what all 35 grant). Route to `ExposeVerb`'s owner.
+- **Re-measure 1–3** do not reproduce the quoted populations: "can't be
+  regenerated" 142 (124 unspanned, all after a destroy clause; 18 spanned);
+  keyword rows 25 (16 composite, 3 composite-given, 5 intrinsic, 1 marker);
+  prevention 464 lines (`CutAll` 229, `CutSome` 98, "all but" 4, "half" 2,
+  residue 131). The old 88/135/138 were over a differently defined "supported
+  sentence" set that the sources no longer name.
+- Part 2: 56 sites; 50 measurable by regex, 6 only qualitative (`Phrasal`,
+  `typePrintOrder`, `anchorPhrase` False cells, `If`, `WhereLetter`,
+  `Card.name`). Notables: `negatable Permanent` is a measured zero
+  ("nonpermanent" 0 of 2326); `headerWindowOk` has 101 main-phase headers, all
+  "each of your … main phases"; `CostShift` 558, not "about twenty-five";
+  `DealsCombatDamage` 630/693.
