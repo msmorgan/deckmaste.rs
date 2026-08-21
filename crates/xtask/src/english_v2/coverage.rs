@@ -1307,9 +1307,10 @@ mod tests {
     use deckmaste_english_v2::parser::InvalidSpanKind;
     use deckmaste_english_v2::parser::OwnershipFailure;
     use deckmaste_english_v2::parser::ParseAnalysisOutcome;
+    use deckmaste_english_v2::parser::ParserEntryPoint;
     use deckmaste_english_v2::parser::TextSpan;
-    use deckmaste_english_v2::parser::reset_analyze_calls_for_test;
-    use deckmaste_english_v2::parser::take_analyze_calls_for_test;
+    use deckmaste_english_v2::parser::reset_parser_entry_calls_for_test;
+    use deckmaste_english_v2::parser::take_parser_entry_calls_for_test;
     use deckmaste_english_v2::parser::with_forced_ownership_inspection_failure_for_test;
 
     use super::CoverageByteMismatchScope;
@@ -2163,7 +2164,7 @@ mod tests {
             .iter()
             .map(|unit| unit.id().to_owned())
             .collect::<Vec<_>>();
-        reset_analyze_calls_for_test();
+        reset_parser_entry_calls_for_test();
         let mut output = Vec::new();
         let mut diagnostics = Vec::new();
         let mut observer = Recorder::default();
@@ -2179,27 +2180,21 @@ mod tests {
         )
         .unwrap();
 
-        assert!(
-            take_analyze_calls_for_test().is_empty(),
-            "the Ability analysis entry must never be called"
-        );
         assert_eq!(
-            observer
-                .events
-                .iter()
-                .filter(|event| event.starts_with("analyze_oracle_text:"))
-                .count(),
-            expected_ids.len(),
-            "the OracleText analysis entry runs exactly once per unit"
-        );
-        assert!(
-            observer
-                .events
-                .iter()
-                .all(|event| !event.starts_with("analyze_ability:")
-                    && !event.starts_with("analyze_sentence:")),
-            "no focused-root retry is permitted: {:?}",
-            observer.events
+            take_parser_entry_calls_for_test(),
+            [
+                (
+                    ParserEntryPoint::AnalyzeOracleText,
+                    "Whenever a player connives, you gain X life.".to_owned(),
+                    "Alpha".to_owned(),
+                ),
+                (
+                    ParserEntryPoint::AnalyzeOracleText,
+                    "Destroy target Spirit.\nYou gain 2 life.".to_owned(),
+                    "Zulu".to_owned(),
+                ),
+            ],
+            "coverage must enter only OracleText, exactly once per ordered corpus unit"
         );
         let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
         assert_eq!(

@@ -148,6 +148,9 @@ mod tests {
     use std::io;
     use std::io::Write;
 
+    use deckmaste_english_v2::parser::ParserEntryPoint;
+    use deckmaste_english_v2::parser::reset_parser_entry_calls_for_test;
+    use deckmaste_english_v2::parser::take_parser_entry_calls_for_test;
     use serde_json::Value;
 
     use super::*;
@@ -186,6 +189,29 @@ mod tests {
             } else {
                 assert!(report["trace"]["ownership"].is_null());
             }
+        }
+    }
+
+    #[test]
+    fn real_runner_enters_exactly_one_public_trace_for_each_typed_root() {
+        let text = "Destroy target creature.";
+        let context = "Probe Card";
+        for (root, expected_entry) in [
+            (ProbeRoot::Ability, ParserEntryPoint::TraceAbility),
+            (ProbeRoot::Sentence, ParserEntryPoint::TraceSentence),
+            (ProbeRoot::OracleText, ParserEntryPoint::TraceOracleText),
+        ] {
+            let mut arguments = args(text, context);
+            arguments.root = root;
+            reset_parser_entry_calls_for_test();
+
+            run(&arguments, &mut Vec::new()).unwrap();
+
+            assert_eq!(
+                take_parser_entry_calls_for_test(),
+                [(expected_entry, text.to_owned(), context.to_owned())],
+                "probe must enter exactly the one public trace selected by --root"
+            );
         }
     }
 

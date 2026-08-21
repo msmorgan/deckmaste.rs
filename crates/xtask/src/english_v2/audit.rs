@@ -262,9 +262,10 @@ impl AuditSummary {
 mod tests {
     use deckmaste_english_v2::parser::ParseError;
     use deckmaste_english_v2::parser::Parser;
+    use deckmaste_english_v2::parser::ParserEntryPoint;
     use deckmaste_english_v2::parser::SelectionExceptionInventoryError;
-    use deckmaste_english_v2::parser::reset_analyze_calls_for_test;
-    use deckmaste_english_v2::parser::take_analyze_calls_for_test;
+    use deckmaste_english_v2::parser::reset_parser_entry_calls_for_test;
+    use deckmaste_english_v2::parser::take_parser_entry_calls_for_test;
 
     use super::AuditReport;
     use super::AuditRow;
@@ -308,13 +309,25 @@ mod tests {
             unit("Two Blocks", "Destroy target creature.\nYou gain 2 life."),
             unit("Failed", "You frobnitz a card."),
         ]);
-        reset_analyze_calls_for_test();
+        reset_parser_entry_calls_for_test();
 
         let report = AuditReport::run(&corpus, &parser());
 
-        assert!(
-            take_analyze_calls_for_test().is_empty(),
-            "the shared parse/roundtrip runner must never call the Ability root"
+        assert_eq!(
+            take_parser_entry_calls_for_test(),
+            [
+                (
+                    ParserEntryPoint::AnalyzeOracleText,
+                    "You frobnitz a card.".to_owned(),
+                    "Failed".to_owned(),
+                ),
+                (
+                    ParserEntryPoint::AnalyzeOracleText,
+                    "Destroy target creature.\nYou gain 2 life.".to_owned(),
+                    "Two Blocks".to_owned(),
+                ),
+            ],
+            "the shared parse/roundtrip audit must enter only OracleText, exactly once per ordered corpus unit"
         );
         assert_eq!(report.rows().len(), corpus.units().len());
         assert_eq!(

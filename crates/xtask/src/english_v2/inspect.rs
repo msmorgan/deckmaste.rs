@@ -158,7 +158,10 @@ mod tests {
     use anyhow::Context;
     use anyhow::ensure;
     use deckmaste_english_v2::context::ParseContext;
+    use deckmaste_english_v2::parser::ParserEntryPoint;
     use deckmaste_english_v2::parser::TraceLimits;
+    use deckmaste_english_v2::parser::reset_parser_entry_calls_for_test;
+    use deckmaste_english_v2::parser::take_parser_entry_calls_for_test;
     use serde_json::Value;
     use tempfile::tempdir;
 
@@ -510,8 +513,18 @@ mod tests {
         inspect_args.data = data;
         inspect_args.limit = 0;
 
+        reset_parser_entry_calls_for_test();
         let mut inspect_json = Vec::new();
         run(&inspect_args, &mut inspect_json).unwrap();
+        assert_eq!(
+            take_parser_entry_calls_for_test(),
+            [(
+                ParserEntryPoint::TraceOracleText,
+                "Destroy target Forest.\nSecond complete line (reminder text).".to_owned(),
+                "Face\rName".to_owned(),
+            )],
+            "inspect must enter the real OracleText trace exactly once"
+        );
         let inspect_value: Value = serde_json::from_slice(&inspect_json).unwrap();
         assert_eq!(inspect_value["source"]["kind"], "corpus");
         assert_eq!(inspect_value["source"]["id"], unit.id());

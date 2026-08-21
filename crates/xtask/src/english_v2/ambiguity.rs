@@ -706,8 +706,9 @@ fn counted(count: usize, singular: &str, plural: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_english_v2::parser::reset_analyze_calls_for_test;
-    use deckmaste_english_v2::parser::take_analyze_calls_for_test;
+    use deckmaste_english_v2::parser::ParserEntryPoint;
+    use deckmaste_english_v2::parser::reset_parser_entry_calls_for_test;
+    use deckmaste_english_v2::parser::take_parser_entry_calls_for_test;
 
     use super::AmbiguityReport;
     use super::AmbiguityRow;
@@ -729,14 +730,26 @@ mod tests {
             CorpusUnit::for_test("Two Blocks", "Destroy target creature.\nYou gain 2 life."),
             CorpusUnit::for_test("Failed", "You frobnitz a card."),
         ]);
-        reset_analyze_calls_for_test();
+        reset_parser_entry_calls_for_test();
 
         let report =
             AmbiguityReport::run(&corpus, &crate::english_v2::parser_from_builtin_v2()).unwrap();
 
-        assert!(
-            take_analyze_calls_for_test().is_empty(),
-            "ambiguity must never invoke the Ability analysis entry"
+        assert_eq!(
+            take_parser_entry_calls_for_test(),
+            [
+                (
+                    ParserEntryPoint::AnalyzeOracleText,
+                    "You frobnitz a card.".to_owned(),
+                    "Failed".to_owned(),
+                ),
+                (
+                    ParserEntryPoint::AnalyzeOracleText,
+                    "Destroy target creature.\nYou gain 2 life.".to_owned(),
+                    "Two Blocks".to_owned(),
+                ),
+            ],
+            "ambiguity must enter only OracleText, exactly once per ordered corpus unit"
         );
         assert_eq!(report.rows()[0].card_name, corpus.units()[0].card_name());
         assert_eq!(report.rows()[1].card_name, corpus.units()[1].card_name());

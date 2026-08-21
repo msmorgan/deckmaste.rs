@@ -154,24 +154,47 @@ thread_local! {
 
 #[cfg(feature = "test-support")]
 thread_local! {
-    static ANALYZE_CALLS: std::cell::RefCell<Vec<(String, String)>> = const {
+    static PARSER_ENTRY_CALLS: std::cell::RefCell<Vec<(ParserEntryPoint, String, String)>> = const {
         std::cell::RefCell::new(Vec::new())
     };
 }
 
-/// Clears the production-entry analysis log used by cross-crate tests.
+/// A public parser entry point observed by cross-crate tests.
 #[doc(hidden)]
 #[cfg(feature = "test-support")]
-pub fn reset_analyze_calls_for_test() {
-    ANALYZE_CALLS.with(|calls| calls.borrow_mut().clear());
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParserEntryPoint {
+    AnalyzeAbility,
+    AnalyzeSentence,
+    AnalyzeOracleText,
+    TraceAbility,
+    TraceSentence,
+    TraceOracleText,
 }
 
-/// Takes the exact `(text, context)` sequence observed at `Parser::analyze`.
+#[cfg(feature = "test-support")]
+fn record_parser_entry_call(entry: ParserEntryPoint, text: &str, context: &ParseContext<'_>) {
+    PARSER_ENTRY_CALLS.with(|calls| {
+        calls
+            .borrow_mut()
+            .push((entry, text.to_owned(), context.card_name().to_owned()));
+    });
+}
+
+/// Clears the production parser-entry log used by cross-crate tests.
+#[doc(hidden)]
+#[cfg(feature = "test-support")]
+pub fn reset_parser_entry_calls_for_test() {
+    PARSER_ENTRY_CALLS.with(|calls| calls.borrow_mut().clear());
+}
+
+/// Takes the exact `(entry point, text, context)` sequence observed by public
+/// parser entry methods.
 #[doc(hidden)]
 #[cfg(feature = "test-support")]
 #[must_use]
-pub fn take_analyze_calls_for_test() -> Vec<(String, String)> {
-    ANALYZE_CALLS.with(|calls| std::mem::take(&mut *calls.borrow_mut()))
+pub fn take_parser_entry_calls_for_test() -> Vec<(ParserEntryPoint, String, String)> {
+    PARSER_ENTRY_CALLS.with(|calls| std::mem::take(&mut *calls.borrow_mut()))
 }
 
 /// Runs a cross-crate test with the production ownership-inspection failure
@@ -238,11 +261,7 @@ impl Parser {
     #[must_use]
     pub fn analyze(&self, text: &str, context: &ParseContext<'_>) -> ParseAnalysis {
         #[cfg(feature = "test-support")]
-        ANALYZE_CALLS.with(|calls| {
-            calls
-                .borrow_mut()
-                .push((text.to_owned(), context.card_name().to_owned()));
-        });
+        record_parser_entry_call(ParserEntryPoint::AnalyzeAbility, text, context);
         self.analyze_root::<Ability>(text, context)
     }
 
@@ -268,6 +287,8 @@ impl Parser {
         text: &str,
         context: &ParseContext<'_>,
     ) -> ParseAnalysis<Sentence> {
+        #[cfg(feature = "test-support")]
+        record_parser_entry_call(ParserEntryPoint::AnalyzeSentence, text, context);
         self.analyze_root::<Sentence>(text, context)
     }
 
@@ -294,6 +315,8 @@ impl Parser {
         text: &str,
         context: &ParseContext<'_>,
     ) -> ParseAnalysis<OracleText> {
+        #[cfg(feature = "test-support")]
+        record_parser_entry_call(ParserEntryPoint::AnalyzeOracleText, text, context);
         self.analyze_root::<OracleText>(text, context)
     }
 
@@ -306,6 +329,8 @@ impl Parser {
         context: &ParseContext<'_>,
         limits: TraceLimits,
     ) -> ParserTrace {
+        #[cfg(feature = "test-support")]
+        record_parser_entry_call(ParserEntryPoint::TraceAbility, text, context);
         let (analysis, trace) = self.analyze_root_with_trace::<Ability>(text, context, limits);
         ParserTrace::from_parts(
             analysis,
@@ -326,6 +351,8 @@ impl Parser {
         context: &ParseContext<'_>,
         limits: TraceLimits,
     ) -> ParserTrace<Sentence> {
+        #[cfg(feature = "test-support")]
+        record_parser_entry_call(ParserEntryPoint::TraceSentence, text, context);
         let (analysis, trace) = self.analyze_root_with_trace::<Sentence>(text, context, limits);
         ParserTrace::from_parts(
             analysis,
@@ -346,6 +373,8 @@ impl Parser {
         context: &ParseContext<'_>,
         limits: TraceLimits,
     ) -> ParserTrace<OracleText> {
+        #[cfg(feature = "test-support")]
+        record_parser_entry_call(ParserEntryPoint::TraceOracleText, text, context);
         let (analysis, trace) = self.analyze_root_with_trace::<OracleText>(text, context, limits);
         ParserTrace::from_parts(
             analysis,
