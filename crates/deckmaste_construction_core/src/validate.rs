@@ -398,6 +398,7 @@ struct StructuralSumDraft {
     name: String,
     node: String,
     alternatives: Vec<SumAlternativePlan>,
+    alternative_spans: Vec<proc_macro2::Span>,
 }
 
 #[allow(
@@ -485,27 +486,21 @@ fn validate_structural_semantics(
                     name: owner,
                     fields,
                     is_product: false,
-                    has_fixed_width: construction.form.atoms.iter().any(|atom| match atom {
-                        FormAtom::Literal(value) => !value.value().is_empty(),
-                        FormAtom::Role(_) => false,
-                        FormAtom::Lex(_)
-                        | FormAtom::Identity(_)
-                        | FormAtom::Noun(_)
-                        | FormAtom::Verb(_)
-                        | FormAtom::OpenVerb(_) => true,
-                    }),
+                    has_fixed_width: construction_has_fixed_width(construction),
                     construction_id: Some(identifier_key(&construction.name)),
                 });
             }
             Declaration::AbstractSum(sum) => {
                 let owner = identifier_key(&sum.name);
                 let mut alternatives = Vec::new();
+                let mut alternative_spans = Vec::new();
                 for alternative in &sum.alternatives {
                     let role = identifier_key(&alternative.name);
                     let target = path_name(&alternative.value_type);
                     let value = resolve_structural_bare_value(&target, &products, &sums, symbols);
                     if let Some(value) = value {
                         alternatives.push(SumAlternativePlan::new(role, value));
+                        alternative_spans.push(alternative.name.span());
                     } else {
                         combine(
                             &mut errors,
@@ -523,6 +518,7 @@ fn validate_structural_semantics(
                     node: structural_sum_node(&owner),
                     name: owner,
                     alternatives,
+                    alternative_spans,
                 });
             }
             Declaration::Vocab(_)
@@ -561,16 +557,34 @@ fn validate_structural_semantics(
         .iter()
         .filter_map(|owner| owner.construction_id.as_ref().map(|id| (id, owner)))
         .flat_map(|(construction_id, owner)| {
+            let all_edges = &all_edges;
             owner
                 .fields
                 .iter()
                 .filter(|field| field.authored_structural)
                 .map(move |field| {
+                    let target = structural_value_node(field.kind.value());
                     (
                         (construction_id.clone(), field.name.clone()),
-                        field.kind.clone(),
+                        StructuralFieldPlan::new(
+                            field.name.clone(),
+                            field.kind.clone(),
+                            graph_reaches(all_edges, &target, &owner.node),
+                            field.helper_names.clone(),
+                        ),
                     )
                 })
+        })
+        .collect();
+    let construction_nullability = owners
+        .iter()
+        .filter_map(|owner| {
+            owner.construction_id.as_ref().map(|construction_id| {
+                (
+                    construction_id.clone(),
+                    nullable_nodes.contains(&owner.node),
+                )
+            })
         })
         .collect();
     let boxed_fields = owners
@@ -610,10 +624,19 @@ fn validate_structural_semantics(
     let sum_plans = sum_drafts
         .into_iter()
         .map(|sum| {
+            let alternatives = sum
+                .alternatives
+                .into_iter()
+                .map(|alternative| {
+                    let target = structural_value_node(alternative.value());
+                    let recursive = graph_reaches(&all_edges, &target, &sum.node);
+                    alternative.with_recursive(recursive)
+                })
+                .collect();
             SumPlan::new(
                 sum.source_index,
                 sum.name,
-                sum.alternatives,
+                alternatives,
                 nullable_nodes.contains(&sum.node),
             )
         })
@@ -632,7 +655,27 @@ fn validate_structural_semantics(
         sums: sum_plans,
         nullable_types,
         construction_fields,
+        construction_nullability,
         boxed_fields,
+    })
+}
+
+fn construction_has_fixed_width(construction: &crate::Construction) -> bool {
+    let fields = construction
+        .element
+        .fields
+        .iter()
+        .map(|field| (identifier_key(&field.name), &field.kind))
+        .collect::<HashMap<_, _>>();
+    construction.form.atoms.iter().any(|atom| match atom {
+        FormAtom::Literal(value) => !value.value().is_empty(),
+        FormAtom::Lex(role) | FormAtom::Identity(role) | FormAtom::Noun(role) => {
+            fields.get(&identifier_key(role)).is_some_and(|kind| {
+                !matches!(kind, FieldKind::Optional(_) | FieldKind::Sequence { .. })
+            })
+        }
+        FormAtom::Verb(_) | FormAtom::OpenVerb(_) => true,
+        FormAtom::Role(_) => false,
     })
 }
 
@@ -652,6 +695,13 @@ fn normalize_length_requirements(
         .map(|role| (role.clone(), LengthBounds::new(0, None)))
         .collect::<HashMap<_, _>>();
     for requirement in requirements {
+        if matches!(
+            requirement,
+            RequireExprSource::All(_) | RequireExprSource::Any(_)
+        ) {
+            reject_grouped_length_requirements(owner, requirement, errors);
+            continue;
+        }
         let RequireExprSource::Length {
             owner: authored_owner,
             role,
@@ -741,6 +791,31 @@ fn normalize_length_requirements(
         }
     }
     bounds
+}
+
+fn reject_grouped_length_requirements(
+    owner: &str,
+    requirement: &RequireExprSource,
+    errors: &mut Option<syn::Error>,
+) {
+    match requirement {
+        RequireExprSource::Length { role, .. } => {
+            let role_name = identifier_key(role);
+            combine(
+                errors,
+                syn::Error::new(
+                    role.span(),
+                    format!("{owner}.{role_name}: grouped length requirements are unsupported"),
+                ),
+            );
+        }
+        RequireExprSource::All(operands) | RequireExprSource::Any(operands) => {
+            for operand in operands {
+                reject_grouped_length_requirements(owner, operand, errors);
+            }
+        }
+        RequireExprSource::In { .. } => {}
+    }
 }
 
 #[allow(
@@ -1295,6 +1370,24 @@ fn validate_zero_width_cycles(
                     syn::Error::new(
                         field.span,
                         format!("{}.{}: zero-width recursive cycle", owner.name, field.name),
+                    ),
+                );
+            }
+        }
+    }
+    for sum in sums {
+        for (alternative, span) in sum.alternatives.iter().zip(&sum.alternative_spans) {
+            let target = structural_value_node(alternative.value());
+            if graph_reaches(&zero_edges, &target, &sum.node) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        *span,
+                        format!(
+                            "{}.{}: zero-width recursive cycle",
+                            sum.name,
+                            alternative.name()
+                        ),
                     ),
                 );
             }
@@ -3148,7 +3241,10 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
             match atom {
                 FormAtom::Role(role) => check_role_kind(role, &fields, true, &mut errors),
                 FormAtom::Lex(role) => check_lex_role(role, &fields, symbols, &mut errors),
-                FormAtom::Identity(role) => match fields.get(&identifier_key(role)) {
+                FormAtom::Identity(role) => match fields
+                    .get(&identifier_key(role))
+                    .map(|kind| field_kind_leaf(kind))
+                {
                     None => combine(
                         &mut errors,
                         syn::Error::new(role.span(), format!("unknown role `{role}`")),
@@ -3353,14 +3449,20 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                         }),
                         _ => None,
                     }),
-                FormAtom::Lex(role) => match fields.get(&identifier_key(role)) {
+                FormAtom::Lex(role) => match fields
+                    .get(&identifier_key(role))
+                    .map(|kind| field_kind_leaf(kind))
+                {
                     Some(FieldKind::Lex(path)) => Some(AtomContribution::Lex {
                         role: identifier_key(role),
                         terminal: path_name(path),
                     }),
                     _ => None,
                 },
-                FormAtom::Identity(role) => match fields.get(&identifier_key(role)) {
+                FormAtom::Identity(role) => match fields
+                    .get(&identifier_key(role))
+                    .map(|kind| field_kind_leaf(kind))
+                {
                     Some(FieldKind::Identity(path)) => Some(AtomContribution::Identity {
                         role: identifier_key(role),
                         terminal: path_name(path),
@@ -3442,7 +3544,10 @@ fn check_lex_role(
     errors: &mut Option<syn::Error>,
 ) {
     check_role_kind(role, fields, false, errors);
-    if let Some(FieldKind::Lex(path)) = fields.get(&identifier_key(role)) {
+    if let Some(FieldKind::Lex(path)) = fields
+        .get(&identifier_key(role))
+        .map(|kind| field_kind_leaf(kind))
+    {
         let terminal = path_name(path);
         match symbols.terminals.get(&terminal).map(|info| info.kind) {
             Some(TerminalKind::Vocab) | None => {}
@@ -4882,15 +4987,9 @@ fn resolve_predicate_atom(
                         }
                     }
                 }
-                Some(FieldKind::Identity(_)) => {
-                    return Err(syn::Error::new(
-                        role.span(),
-                        format!(
-                            "predicate subject `{role_name}` is not a category or vocab predicate domain"
-                        ),
-                    ));
-                }
-                Some(FieldKind::Optional(_) | FieldKind::Sequence { .. }) => {
+                Some(
+                    FieldKind::Identity(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. },
+                ) => {
                     return Err(syn::Error::new(
                         role.span(),
                         format!(
@@ -8835,6 +8934,51 @@ pub(crate) mod tests {
         );
         assert!(
             actual.contains("Holder.items: empty separator surface"),
+            "{actual}"
+        );
+    }
+
+    #[test]
+    fn structural_sum_only_cycle_is_rejected_with_owner_evidence() {
+        let actual = error(quote! {
+            abstract sum Left { right: Right, }
+            abstract sum Right { left: Left, }
+            construction entry: Root {
+                element Entry { value: Left, }
+                form entry = value;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+
+        assert!(
+            actual.contains("Left.right: zero-width recursive cycle"),
+            "{actual}"
+        );
+        assert!(
+            actual.contains("Right.left: zero-width recursive cycle"),
+            "{actual}"
+        );
+    }
+
+    #[test]
+    fn structural_grouped_length_requirements_are_rejected_with_owner_and_role() {
+        let actual = error(quote! {
+            abstract product AllHolder {
+                items: seq AllHolder terminated by ".",
+            }
+            require all(len(AllHolder.items) >= 1, len(AllHolder.items) <= 2);
+            abstract product AnyHolder {
+                items: seq AnyHolder terminated by ".",
+            }
+            require any(len(AnyHolder.items) = 1, len(AnyHolder.items) = 2);
+        });
+
+        assert!(
+            actual.contains("AllHolder.items: grouped length requirements are unsupported"),
+            "{actual}"
+        );
+        assert!(
+            actual.contains("AnyHolder.items: grouped length requirements are unsupported"),
             "{actual}"
         );
     }

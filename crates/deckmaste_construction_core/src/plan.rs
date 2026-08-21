@@ -434,6 +434,42 @@ mod tests {
     }
 
     #[test]
+    fn structural_wrapped_terminal_roles_reach_the_deferred_emission_boundary() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Word { One = "one", }
+                identity HandleSpelling {
+                    generate context {
+                        Full => card_name,
+                        Abbreviated => abbreviated_card_name,
+                        canonical_on_collision = Full;
+                    }
+                }
+                construction wrapped: Root {
+                    element Wrapped {
+                        maybe: opt lex Word,
+                        handles: seq identity HandleSpelling,
+                    }
+                    form wrapped = lex(maybe) identity(handles);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("wrapped terminal fixture parses"),
+        )
+        .expect("wrapped terminal fixture validates")
+        .into_semantic();
+
+        let error = super::plan_emission(&semantic)
+            .expect_err("Task 2 intentionally defers structural field emission")
+            .to_string();
+        assert!(
+            error.contains("structural declaration emission is deferred"),
+            "{error}"
+        );
+        assert!(!error.contains("inconsistent"), "{error}");
+    }
+
+    #[test]
     fn invariant_field_policy_discovers_context_and_seals_accessor_modes() {
         let semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {

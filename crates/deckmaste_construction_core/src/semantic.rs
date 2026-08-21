@@ -125,6 +125,7 @@ pub(crate) enum StructuralFieldKindPlan {
 pub(crate) struct SumAlternativePlan {
     name: String,
     value: ValueKindPlan,
+    recursive: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -184,7 +185,8 @@ pub(crate) struct StructuralSemantics {
     pub(crate) products: Vec<ProductPlan>,
     pub(crate) sums: Vec<SumPlan>,
     pub(crate) nullable_types: HashSet<String>,
-    pub(crate) construction_fields: HashMap<(String, String), StructuralFieldKindPlan>,
+    pub(crate) construction_fields: HashMap<(String, String), StructuralFieldPlan>,
+    pub(crate) construction_nullability: HashMap<String, bool>,
     pub(crate) boxed_fields: HashSet<(String, String)>,
 }
 
@@ -339,7 +341,16 @@ impl StructuralFieldKindPlan {
 )]
 impl SumAlternativePlan {
     pub(crate) fn new(name: String, value: ValueKindPlan) -> Self {
-        Self { name, value }
+        Self {
+            name,
+            value,
+            recursive: false,
+        }
+    }
+
+    pub(crate) const fn with_recursive(mut self, recursive: bool) -> Self {
+        self.recursive = recursive;
+        self
     }
 
     pub(crate) fn name(&self) -> &str {
@@ -348,6 +359,10 @@ impl SumAlternativePlan {
 
     pub(crate) fn value(&self) -> &ValueKindPlan {
         &self.value
+    }
+
+    pub(crate) const fn is_recursive(&self) -> bool {
+        self.recursive
     }
 }
 
@@ -462,6 +477,7 @@ pub(crate) struct ConstructionPlan {
     render_arm: String,
     visitor_method: String,
     walker: String,
+    nullable: bool,
     fields: Vec<ConstructionFieldPlan>,
     invariant: InvariantPlan,
     atoms: Vec<AtomPlan>,
@@ -473,7 +489,7 @@ pub(crate) struct ConstructionFieldPlan {
     kind: ConstructionFieldKind,
     terminal: String,
     value_type: syn::Path,
-    structural_kind: Option<StructuralFieldKindPlan>,
+    structural: Option<StructuralFieldPlan>,
     invariant_bearing: bool,
     accessor_mode: Option<AccessorMode>,
 }
@@ -1062,7 +1078,8 @@ fn seal_terminals(
 impl SemanticPlan {
     #[allow(
         clippy::too_many_arguments,
-        reason = "validation seals its independent facts together"
+        clippy::too_many_lines,
+        reason = "validation seals its independent facts together into one complete plan"
     )]
     pub(crate) fn new(
         source: &Declarations,
@@ -1081,6 +1098,7 @@ impl SemanticPlan {
             sums,
             nullable_types,
             mut construction_fields,
+            mut construction_nullability,
             boxed_fields: _,
         } = structural;
         let declaration_keys = source
@@ -1138,11 +1156,22 @@ impl SemanticPlan {
                                 ),
                             )
                         })?;
+                    let nullable = construction_nullability
+                        .remove(&construction_id)
+                        .ok_or_else(|| {
+                            syn::Error::new(
+                                construction.name.span(),
+                                format!(
+                                    "sealed semantic plan is missing construction nullability '{construction_id}'"
+                                ),
+                            )
+                        })?;
                     ConstructionPlan::from_source(
                         source_index,
                         construction,
                         &atoms,
                         invariant,
+                        nullable,
                         &mut construction_fields,
                     )
                 })
@@ -1152,6 +1181,14 @@ impl SemanticPlan {
                 Span::call_site(),
                 format!(
                     "sealed semantic plan has surplus structural field `{construction}.{role}`"
+                ),
+            ));
+        }
+        if let Some((construction, _)) = construction_nullability.into_iter().next() {
+            return Err(syn::Error::new(
+                Span::call_site(),
+                format!(
+                    "sealed semantic plan has surplus construction nullability '{construction}'"
                 ),
             ));
         }
@@ -1265,7 +1302,7 @@ impl SemanticPlan {
                 construction
                     .fields
                     .iter()
-                    .any(|field| field.structural_kind.is_some())
+                    .any(|field| field.structural.is_some())
             })
     }
 
@@ -2205,7 +2242,8 @@ impl ConstructionPlan {
         source: &crate::Construction,
         resolved_atoms: &[AtomContribution],
         invariant: InvariantPlan,
-        structural_fields: &mut HashMap<(String, String), StructuralFieldKindPlan>,
+        nullable: bool,
+        structural_fields: &mut HashMap<(String, String), StructuralFieldPlan>,
     ) -> syn::Result<Self> {
         let construction_id = identifier_key(&source.name);
         let category = path_key(&source.category);
@@ -2243,7 +2281,7 @@ impl ConstructionPlan {
                     kind,
                     terminal,
                     value_type,
-                    structural_kind: structural_fields.remove(&(construction_id.clone(), role)),
+                    structural: structural_fields.remove(&(construction_id.clone(), role)),
                     invariant_bearing: false,
                     accessor_mode: None,
                 })
@@ -2268,6 +2306,7 @@ impl ConstructionPlan {
             render_arm: element_type.clone(),
             visitor_method: format!("visit_{}", snake_case(&element_type)),
             walker: format!("walk_{}", snake_case(&element_type)),
+            nullable,
             fields,
             invariant,
             atoms,
@@ -2326,6 +2365,14 @@ impl ConstructionPlan {
         &self.fields
     }
 
+    #[allow(
+        dead_code,
+        reason = "Tasks 3 through 5 consume construction nullability"
+    )]
+    pub(crate) const fn is_nullable(&self) -> bool {
+        self.nullable
+    }
+
     pub(crate) fn field(&self, role: &str) -> syn::Result<&ConstructionFieldPlan> {
         self.fields
             .iter()
@@ -2375,7 +2422,15 @@ impl ConstructionFieldPlan {
         reason = "Tasks 3 through 5 consume structural construction fields"
     )]
     pub(crate) fn structural_kind(&self) -> Option<&StructuralFieldKindPlan> {
-        self.structural_kind.as_ref()
+        self.structural.as_ref().map(StructuralFieldPlan::kind)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "Tasks 3 through 5 consume complete construction structural facts"
+    )]
+    pub(crate) fn structural_plan(&self) -> Option<&StructuralFieldPlan> {
+        self.structural.as_ref()
     }
 
     #[allow(
@@ -4055,6 +4110,10 @@ mod tests {
     use super::ValueKindPlan;
 
     #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one fixture asserts the mutually recursive structural plan as a whole"
+    )]
     fn structural_plan_resolves_bounds_surfaces_nullability_and_recursive_edges() {
         let semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
@@ -4067,7 +4126,18 @@ mod tests {
                     require len(nodes) >= 1;
                     form document = nodes;
                 }
+                vocab Word { One = "one", }
+                construction emptyable: Emptyable {
+                    element EmptyableValue { maybe: opt lex Word, }
+                    form emptyable = lex(maybe);
+                }
+                construction chain: Chain {
+                    element ChainValue { rest: seq Chain terminated by ".", }
+                    require len(rest) = 1;
+                    form chain = rest;
+                }
                 abstract sum Choice { node: Node, }
+                abstract sum RecursiveChoice { branch: RecursiveBranch, }
                 abstract product Holder {
                     maybe: opt Node,
                     items: seq Choice
@@ -4083,6 +4153,10 @@ mod tests {
                 require len(Holder.items) <= 4;
                 abstract product Tree { children: seq Tree terminated by ".", }
                 require len(Tree.children) = 1;
+                abstract product RecursiveBranch {
+                    choices: seq RecursiveChoice terminated by ".",
+                }
+                require len(RecursiveBranch.choices) = 1;
                 root Node { punctuation = "."; eoi = true; standalone_render = true; }
             })
             .expect("structural semantic fixture parses"),
@@ -4096,7 +4170,7 @@ mod tests {
                 .iter()
                 .map(ProductPlan::name)
                 .collect::<Vec<_>>(),
-            ["Holder", "Tree"]
+            ["Holder", "Tree", "RecursiveBranch"]
         );
         let holder = &semantic.products()[0];
         assert_eq!(holder.bounds("items"), Some(LengthBounds::new(2, Some(4))));
@@ -4155,17 +4229,56 @@ mod tests {
             semantic.sums()[0].alternatives()[0].value(),
             &ValueKindPlan::Category("Node".to_owned())
         );
+        assert!(semantic.sums()[1].alternatives()[0].is_recursive());
         assert!(semantic.products()[1].fields()[0].is_recursive());
         assert!(!semantic.is_nullable("Holder"));
         assert!(!semantic.is_nullable("Choice"));
+        let document = &semantic.constructions()[1];
+        assert!(!document.is_nullable());
+        let document_nodes = document.fields()[0]
+            .structural_plan()
+            .expect("construction structural field facts are sealed");
         assert!(matches!(
-            semantic.constructions()[1].fields()[0].structural_kind(),
-            Some(StructuralFieldKindPlan::Sequence {
+            document_nodes.kind(),
+            StructuralFieldKindPlan::Sequence {
                 item: ValueKindPlan::Category(name),
                 bounds,
                 ..
-            }) if name == "Node" && *bounds == LengthBounds::new(1, None)
+            } if name == "Node" && *bounds == LengthBounds::new(1, None)
         ));
+        assert_eq!(
+            document_nodes
+                .helper_names()
+                .expect("construction sequence helper inventory")
+                .all(),
+            [
+                "DocumentValueNodesSequence",
+                "DocumentValueNodesSequenceCategory",
+                "DocumentValueNodesSequenceRule",
+                "build_document_value_nodes_sequence",
+                "render_document_value_nodes_sequence",
+                "walk_document_value_nodes_sequence",
+            ]
+        );
+        assert!(semantic.constructions()[2].is_nullable());
+        let chain_rest = semantic.constructions()[3].fields()[0]
+            .structural_plan()
+            .expect("recursive construction field facts are sealed");
+        assert!(chain_rest.is_recursive());
+        assert_eq!(
+            chain_rest
+                .helper_names()
+                .expect("recursive construction helper inventory")
+                .all(),
+            [
+                "ChainValueRestSequence",
+                "ChainValueRestSequenceCategory",
+                "ChainValueRestSequenceRule",
+                "build_chain_value_rest_sequence",
+                "render_chain_value_rest_sequence",
+                "walk_chain_value_rest_sequence",
+            ]
+        );
     }
 
     #[test]
