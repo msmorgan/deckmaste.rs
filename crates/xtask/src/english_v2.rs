@@ -310,6 +310,91 @@ mod tests {
     const PRODUCTION_SOURCE: &str = include_str!("../../deckmaste_english_v2/src/constructions.rs");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
+    fn assert_plan04_rustc_accepts(source: &str) {
+        let temp = tempfile::tempdir().expect("temporary rustc fixture directory is created");
+        let source_path = temp.path().join("fixture.rs");
+        fs::write(&source_path, source).expect("rustc fixture source is written");
+        assert_plan04_rustc_accepts_file(&source_path);
+    }
+
+    fn assert_plan04_rustc_accepts_file(source_path: &Path) {
+        let output_path = source_path.with_extension("rlib");
+        let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+        let output = std::process::Command::new(rustc)
+            .args([
+                "--crate-name",
+                "plan04_fixture",
+                "--crate-type",
+                "lib",
+                "--edition",
+                "2024",
+                "-o",
+            ])
+            .arg(output_path)
+            .arg(source_path)
+            .output()
+            .expect("rustc fixture process starts");
+        assert!(
+            output.status.success(),
+            "rustc rejected fixture {}:\n{}",
+            source_path.display(),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    fn assert_plan04_rustc_runs(source: &str) {
+        let temp = tempfile::tempdir().expect("temporary runnable rustc fixture is created");
+        let source_path = temp.path().join("fixture.rs");
+        let output_path = temp.path().join("fixture");
+        fs::write(&source_path, source).expect("runnable rustc fixture source is written");
+        let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+        let compile = std::process::Command::new(rustc)
+            .args(["--crate-name", "plan04_fixture", "--edition", "2024", "-o"])
+            .arg(&output_path)
+            .arg(&source_path)
+            .output()
+            .expect("runnable rustc fixture compiler starts");
+        assert!(
+            compile.status.success(),
+            "rustc rejected runnable fixture:\n{source}\n{}",
+            String::from_utf8_lossy(&compile.stderr)
+        );
+        let run = std::process::Command::new(output_path)
+            .output()
+            .expect("compiled rustc fixture starts");
+        assert!(
+            run.status.success(),
+            "compiled fixture failed:\n{source}\n{}",
+            String::from_utf8_lossy(&run.stderr)
+        );
+    }
+
+    fn assert_plan04_rustc_rejects(source: &str) {
+        let temp = tempfile::tempdir().expect("temporary rejected rustc fixture is created");
+        let source_path = temp.path().join("fixture.rs");
+        let output_path = temp.path().join("fixture.rlib");
+        fs::write(&source_path, source).expect("rejected rustc fixture source is written");
+        let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+        let output = std::process::Command::new(rustc)
+            .args([
+                "--crate-name",
+                "plan04_fixture",
+                "--crate-type",
+                "lib",
+                "--edition",
+                "2024",
+                "-o",
+            ])
+            .arg(output_path)
+            .arg(&source_path)
+            .output()
+            .expect("rejected rustc fixture compiler starts");
+        assert!(
+            output.status.code().is_some_and(|code| code != 0),
+            "{source}"
+        );
+    }
+
     #[allow(
         dead_code,
         unused_parens,
@@ -382,6 +467,51 @@ mod tests {
                 fn super_alias() {}
             }
         }
+
+        macro_rules! repeated_plus_self {
+            ($($ty:tt)+) => {
+                impl $($ty)+ {
+                    fn repeated_plus() {}
+                }
+            };
+        }
+        repeated_plus_self!(Triggered);
+
+        macro_rules! repeated_star_self {
+            ($($ty:tt)*) => {
+                impl $($ty)* {
+                    fn repeated_star() {}
+                }
+            };
+        }
+        repeated_star_self!(Triggered);
+
+        macro_rules! repeated_optional_self {
+            ($($ty:tt)?) => {
+                impl $($ty)? {
+                    fn repeated_optional() {}
+                }
+            };
+        }
+        repeated_optional_self!(Triggered);
+
+        macro_rules! repeated_parenthesized_self {
+            ($($ty:tt)+) => {
+                impl ($($ty)+) {
+                    fn repeated_parenthesized() {}
+                }
+            };
+        }
+        repeated_parenthesized_self!(Triggered);
+
+        macro_rules! repeated_qualified_self {
+            ($head:ident $(, $tail:ident)*) => {
+                impl $head$(::$tail)* {
+                    fn repeated_qualified() {}
+                }
+            };
+        }
+        repeated_qualified_self!(exported, Alias);
     }
 
     fn contains_production_function(file: &syn::File, name: &str) -> bool {
@@ -705,61 +835,100 @@ mod tests {
         found
     }
 
-    fn plan04_module_location(workspace_root: &Path, path: &Path) -> (String, Vec<String>) {
-        let relative = path
-            .strip_prefix(workspace_root)
-            .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    struct Plan04QualifiedAliasSurfaces {
+        graphs: std::collections::BTreeMap<String, QualifiedAliasGraph>,
+        memberships: std::collections::BTreeMap<PathBuf, Vec<(String, Vec<String>)>>,
+        discovery_violations: Vec<String>,
+    }
+
+    struct Plan04ModuleRoot {
+        key: String,
+        source: PathBuf,
+        audit_root: PathBuf,
+        effective_dir: PathBuf,
+    }
+
+    fn plan04_lexical_normalize(path: &Path) -> Option<PathBuf> {
+        let mut normalized = if path.is_absolute() {
+            PathBuf::from(std::path::MAIN_SEPARATOR.to_string())
+        } else {
+            PathBuf::new()
+        };
+        for component in path.components() {
+            match component {
+                std::path::Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
+                std::path::Component::RootDir | std::path::Component::CurDir => {}
+                std::path::Component::ParentDir => {
+                    if !normalized.pop() {
+                        return None;
+                    }
+                }
+                std::path::Component::Normal(component) => normalized.push(component),
+            }
+        }
+        Some(normalized)
+    }
+
+    fn plan04_module_root(workspace_root: &Path, path: &Path) -> Option<Plan04ModuleRoot> {
+        let relative = path.strip_prefix(workspace_root).ok()?;
         let components = relative
             .components()
             .map(|component| component.as_os_str().to_string_lossy().into_owned())
             .collect::<Vec<_>>();
-        if let [crates, crate_name, surface, rest @ ..] = components.as_slice()
-            && crates == "crates"
-            && surface == "src"
-            && !rest.is_empty()
-        {
-            let mut module = rest.to_vec();
-            let file = module.pop().expect("source path has a file");
-            if file != "lib.rs" && file != "main.rs" && file != "mod.rs" {
-                module.push(
-                    Path::new(&file)
-                        .file_stem()
-                        .expect("Rust source has a stem")
-                        .to_string_lossy()
-                        .into_owned(),
-                );
-            }
-            return (format!("crate:{crate_name}"), module);
+        let [crates, crate_name, surface, rest @ ..] = components.as_slice() else {
+            return None;
+        };
+        if crates != "crates" {
+            return None;
         }
-        if let [crates, crate_name, surface, rest @ ..] = components.as_slice()
-            && crates == "crates"
-            && surface == "tests"
-            && !rest.is_empty()
-        {
-            let integration_root = Path::new(&rest[0])
-                .file_stem()
-                .expect("integration test path has a stem")
-                .to_string_lossy();
-            let mut module = rest[1..].to_vec();
-            if let Some(file) = module.pop()
-                && file != "mod.rs"
+        let crate_root = workspace_root.join("crates").join(crate_name);
+        let (key, effective_dir) = match (surface.as_str(), rest) {
+            ("src", [root]) if root == "lib.rs" => {
+                (format!("crate:{crate_name}:lib"), path.parent()?.to_owned())
+            }
+            ("src", [root]) if root == "main.rs" => (
+                format!("crate:{crate_name}:main"),
+                path.parent()?.to_owned(),
+            ),
+            ("src", [bin, root])
+                if bin == "bin"
+                    && Path::new(root)
+                        .extension()
+                        .is_some_and(|extension| extension == "rs") =>
             {
-                module.push(
-                    Path::new(&file)
-                        .file_stem()
-                        .expect("Rust source has a stem")
-                        .to_string_lossy()
-                        .into_owned(),
-                );
+                (
+                    format!(
+                        "crate:{crate_name}:bin:{}",
+                        Path::new(root).file_stem()?.to_string_lossy()
+                    ),
+                    path.parent()?.to_owned(),
+                )
             }
-            return (format!("test:{crate_name}:{integration_root}"), module);
-        }
-        (format!("file:{}", relative.display()), Vec::new())
-    }
-
-    struct Plan04QualifiedAliasSurfaces {
-        graphs: std::collections::BTreeMap<String, QualifiedAliasGraph>,
-        memberships: std::collections::BTreeMap<PathBuf, Vec<(String, Vec<String>)>>,
+            ("src", [bin, name, root]) if bin == "bin" && root == "main.rs" => (
+                format!("crate:{crate_name}:bin:{name}"),
+                path.parent()?.to_owned(),
+            ),
+            ("tests", [root])
+                if Path::new(root)
+                    .extension()
+                    .is_some_and(|extension| extension == "rs") =>
+            {
+                (
+                    format!(
+                        "test:{crate_name}:{}",
+                        Path::new(root).file_stem()?.to_string_lossy()
+                    ),
+                    path.parent()?.to_owned(),
+                )
+            }
+            _ => return None,
+        };
+        Some(Plan04ModuleRoot {
+            key,
+            source: path.to_owned(),
+            audit_root: crate_root,
+            effective_dir,
+        })
     }
 
     fn plan04_path_attribute(item: &syn::ItemMod) -> Option<PathBuf> {
@@ -780,14 +949,19 @@ mod tests {
         })
     }
 
+    struct Plan04ModuleDiscovery<'a> {
+        audit_root: &'a Path,
+        parsed: &'a std::collections::BTreeMap<PathBuf, syn::File>,
+        found: &'a mut Vec<(PathBuf, Vec<String>)>,
+        visited: &'a mut std::collections::BTreeSet<(PathBuf, Vec<String>)>,
+        violations: &'a mut Vec<String>,
+    }
+
     fn plan04_discover_modules(
-        source_path: &Path,
         items: &[syn::Item],
         module: &[String],
-        search_dir: &Path,
-        parsed: &std::collections::BTreeMap<PathBuf, syn::File>,
-        found: &mut Vec<(PathBuf, Vec<String>)>,
-        visited: &mut std::collections::BTreeSet<(PathBuf, Vec<String>)>,
+        effective_dir: &Path,
+        discovery: &mut Plan04ModuleDiscovery<'_>,
     ) {
         for item in items {
             let syn::Item::Mod(item) = item else {
@@ -797,57 +971,69 @@ mod tests {
             child_module.push(item.ident.to_string());
             if let Some((_, items)) = &item.content {
                 plan04_discover_modules(
-                    source_path,
                     items,
                     &child_module,
-                    &search_dir.join(item.ident.to_string()),
-                    parsed,
-                    found,
-                    visited,
+                    &effective_dir.join(item.ident.to_string()),
+                    discovery,
                 );
                 continue;
             }
-            let candidates = if let Some(path) = plan04_path_attribute(item) {
-                vec![
-                    source_path
-                        .parent()
-                        .expect("module source has a parent")
-                        .join(path),
-                ]
+            let explicit = plan04_path_attribute(item);
+            let candidates = if let Some(path) = &explicit {
+                vec![effective_dir.join(path)]
             } else {
                 vec![
-                    search_dir.join(format!("{}.rs", item.ident)),
-                    search_dir.join(item.ident.to_string()).join("mod.rs"),
+                    effective_dir.join(format!("{}.rs", item.ident)),
+                    effective_dir.join(item.ident.to_string()).join("mod.rs"),
                 ]
             };
-            for candidate in candidates {
-                let Some(file) = parsed.get(&candidate) else {
-                    continue;
-                };
-                let identity = (candidate.clone(), child_module.clone());
-                if !visited.insert(identity.clone()) {
-                    continue;
-                }
-                found.push(identity);
-                let child_search_dir = if candidate.file_name().is_some_and(|name| name == "mod.rs")
-                {
-                    candidate.parent().expect("mod.rs has a parent").to_owned()
-                } else {
-                    candidate
-                        .parent()
-                        .expect("module source has a parent")
-                        .join(candidate.file_stem().expect("module source has a stem"))
-                };
-                plan04_discover_modules(
-                    &candidate,
-                    &file.items,
-                    &child_module,
-                    &child_search_dir,
-                    parsed,
-                    found,
-                    visited,
-                );
+            let mut escaped = false;
+            let normalized = candidates
+                .into_iter()
+                .filter_map(|candidate| match plan04_lexical_normalize(&candidate) {
+                    Some(candidate) if candidate.starts_with(discovery.audit_root) => {
+                        Some(candidate)
+                    }
+                    _ => {
+                        escaped = true;
+                        discovery.violations.push(format!(
+                            "module {} escapes audit root {}",
+                            child_module.join("::"),
+                            discovery.audit_root.display()
+                        ));
+                        None
+                    }
+                })
+                .filter(|candidate| discovery.parsed.contains_key(candidate))
+                .collect::<Vec<_>>();
+            if escaped {
+                continue;
             }
+            if normalized.len() != 1 {
+                discovery.violations.push(format!(
+                    "module {} resolves to {} audited files",
+                    child_module.join("::"),
+                    normalized.len()
+                ));
+                continue;
+            }
+            let candidate = &normalized[0];
+            let file = &discovery.parsed[candidate];
+            let identity = (candidate.clone(), child_module.clone());
+            if !discovery.visited.insert(identity.clone()) {
+                continue;
+            }
+            discovery.found.push(identity);
+            let child_effective_dir = if candidate.file_name().is_some_and(|name| name == "mod.rs")
+            {
+                candidate.parent().expect("mod.rs has a parent").to_owned()
+            } else {
+                candidate
+                    .parent()
+                    .expect("module source has a parent")
+                    .join(candidate.file_stem().expect("module source has a stem"))
+            };
+            plan04_discover_modules(&file.items, &child_module, &child_effective_dir, discovery);
         }
     }
 
@@ -855,6 +1041,12 @@ mod tests {
         workspace_root: &Path,
         paths: &[PathBuf],
     ) -> Plan04QualifiedAliasSurfaces {
+        let workspace_root = plan04_lexical_normalize(workspace_root).unwrap_or_else(|| {
+            panic!(
+                "{} cannot be lexically normalized",
+                workspace_root.display()
+            )
+        });
         let mut parsed = std::collections::BTreeMap::new();
         for path in paths {
             if path.extension().is_none_or(|extension| extension != "rs") {
@@ -864,69 +1056,73 @@ mod tests {
                 .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
             let file = syn::parse_file(&source)
                 .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-            parsed.insert(path.clone(), file);
+            let path = plan04_lexical_normalize(path)
+                .unwrap_or_else(|| panic!("{} cannot be lexically normalized", path.display()));
+            parsed.insert(path, file);
         }
 
         let mut grouped = std::collections::BTreeMap::<String, Vec<(PathBuf, Vec<String>)>>::new();
-        for path in parsed.keys() {
-            let relative = path
-                .strip_prefix(workspace_root)
-                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-            let components = relative.components().collect::<Vec<_>>();
-            let is_integration = components.len() >= 4
-                && components[0].as_os_str() == "crates"
-                && components[2].as_os_str() == "tests";
-            if !is_integration {
-                let (key, module) = plan04_module_location(workspace_root, path);
-                grouped.entry(key).or_default().push((path.clone(), module));
-            }
-        }
-
-        for root in parsed.keys() {
-            let relative = root
-                .strip_prefix(workspace_root)
-                .unwrap_or_else(|error| panic!("{}: {error}", root.display()));
-            let components = relative.components().collect::<Vec<_>>();
-            if components.len() != 4
-                || components[0].as_os_str() != "crates"
-                || components[2].as_os_str() != "tests"
-            {
-                continue;
-            }
-            let Some(stem) = root.file_stem() else {
-                continue;
-            };
-            let key = format!(
-                "test:{}:{}",
-                components[1].as_os_str().to_string_lossy(),
-                stem.to_string_lossy()
-            );
-            let mut found = vec![(root.clone(), Vec::new())];
+        let mut discovery_violations = Vec::new();
+        let roots = parsed
+            .keys()
+            .filter_map(|path| plan04_module_root(&workspace_root, path))
+            .collect::<Vec<_>>();
+        for root in roots {
+            let mut found = vec![(root.source.clone(), Vec::new())];
             let mut visited = found.iter().cloned().collect();
+            let mut discovery = Plan04ModuleDiscovery {
+                audit_root: &root.audit_root,
+                parsed: &parsed,
+                found: &mut found,
+                visited: &mut visited,
+                violations: &mut discovery_violations,
+            };
             plan04_discover_modules(
-                root,
-                &parsed[root].items,
+                &parsed[&root.source].items,
                 &[],
-                root.parent().expect("integration root has a parent"),
-                &parsed,
-                &mut found,
-                &mut visited,
+                &root.effective_dir,
+                &mut discovery,
             );
-            grouped.insert(key, found);
+            grouped.insert(root.key, found);
         }
 
         let assigned = grouped
             .values()
             .flat_map(|files| files.iter().map(|(path, _)| path.clone()))
             .collect::<std::collections::BTreeSet<_>>();
-        for path in parsed.keys().filter(|path| !assigned.contains(*path)) {
+        let fallback_roots = parsed
+            .keys()
+            .filter(|path| !assigned.contains(*path))
+            .cloned()
+            .collect::<Vec<_>>();
+        for path in fallback_roots {
             let relative = path
-                .strip_prefix(workspace_root)
+                .strip_prefix(&workspace_root)
                 .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-            grouped.insert(
-                format!("integration-file:{}", relative.display()),
-                vec![(path.clone(), Vec::new())],
+            let components = relative.components().collect::<Vec<_>>();
+            let audit_root = if components.len() >= 2 && components[0].as_os_str() == "crates" {
+                workspace_root
+                    .join("crates")
+                    .join(components[1].as_os_str())
+            } else {
+                workspace_root.clone()
+            };
+            let mut found = vec![(path.clone(), Vec::new())];
+            let mut visited = found.iter().cloned().collect();
+            let mut discovery = Plan04ModuleDiscovery {
+                audit_root: &audit_root,
+                parsed: &parsed,
+                found: &mut found,
+                visited: &mut visited,
+                violations: &mut discovery_violations,
+            };
+            plan04_discover_modules(
+                &parsed[&path].items,
+                &[],
+                path.parent().expect("candidate root has a parent"),
+                &mut discovery,
             );
+            grouped.insert(format!("candidate-root:{}", relative.display()), found);
         }
 
         let mut memberships =
@@ -952,6 +1148,7 @@ mod tests {
         Plan04QualifiedAliasSurfaces {
             graphs,
             memberships,
+            discovery_violations,
         }
     }
 
@@ -968,7 +1165,7 @@ mod tests {
 
     #[derive(Clone, Default)]
     struct QualifiedAliasGraph {
-        bindings: std::collections::BTreeMap<String, String>,
+        bindings: std::collections::BTreeMap<String, Vec<String>>,
         symbols: std::collections::BTreeSet<String>,
         glob_imports: Vec<(Vec<String>, Vec<String>)>,
     }
@@ -1186,26 +1383,28 @@ mod tests {
                 match item {
                     syn::Item::Enum(item) => {
                         let name = qualified_name(module, &item.ident.to_string());
-                        self.bindings.insert(name.clone(), name);
+                        self.bindings
+                            .insert(name.clone(), name.split("::").map(str::to_owned).collect());
                     }
                     syn::Item::Struct(item) => {
                         let name = qualified_name(module, &item.ident.to_string());
-                        self.bindings.insert(name.clone(), name);
+                        self.bindings
+                            .insert(name.clone(), name.split("::").map(str::to_owned).collect());
                     }
                     syn::Item::Type(item) => {
                         if let Some(path) = type_path(&item.ty) {
                             let target = normalize_qualified_segments(
                                 &syn_path_segments(&path.path),
                                 module,
-                            )
-                            .join("::");
+                            );
                             self.bindings
                                 .insert(qualified_name(module, &item.ident.to_string()), target);
                         }
                     }
                     syn::Item::Union(item) => {
                         let name = qualified_name(module, &item.ident.to_string());
-                        self.bindings.insert(name.clone(), name);
+                        self.bindings
+                            .insert(name.clone(), name.split("::").map(str::to_owned).collect());
                     }
                     syn::Item::Use(item) => {
                         self.collect_use_tree(&item.tree, module, &[]);
@@ -1235,13 +1434,13 @@ mod tests {
                     if !is_self {
                         source.push(name.ident.to_string());
                     }
-                    let source = normalize_qualified_segments(&source, module).join("::");
+                    let source = normalize_qualified_segments(&source, module);
                     let local = if is_self {
                         source
-                            .rsplit("::")
-                            .next()
-                            .expect("a grouped self import has a containing path")
-                            .to_owned()
+                            .last()
+                            .cloned()
+                            .or_else(|| prefix.last().cloned())
+                            .expect("a grouped self import has a syntactic containing path")
                     } else {
                         name.ident.to_string()
                     };
@@ -1252,7 +1451,7 @@ mod tests {
                     if rename.ident != "self" {
                         source.push(rename.ident.to_string());
                     }
-                    let source = normalize_qualified_segments(&source, module).join("::");
+                    let source = normalize_qualified_segments(&source, module);
                     self.bindings
                         .insert(qualified_name(module, &rename.rename.to_string()), source);
                 }
@@ -1294,7 +1493,7 @@ mod tests {
                         if let std::collections::btree_map::Entry::Vacant(entry) =
                             self.bindings.entry(local)
                         {
-                            entry.insert(name.clone());
+                            entry.insert(name.split("::").map(str::to_owned).collect());
                             changed = true;
                         }
                     }
@@ -1307,30 +1506,23 @@ mod tests {
 
         fn path_resolves_to(&self, path: &syn::TypePath, module: &[String], target: &str) -> bool {
             let segments = syn_path_segments(&path.path);
-            let mut candidate = normalize_qualified_segments(&segments, module).join("::");
+            let mut candidate = normalize_qualified_segments(&segments, module);
             let mut seen = std::collections::BTreeSet::new();
             while seen.insert(candidate.clone()) {
-                if candidate
-                    .rsplit("::")
-                    .next()
-                    .is_some_and(|name| name == target)
-                {
+                if candidate.last().is_some_and(|name| name == target) {
                     return true;
                 }
-                if let Some(next) = self.bindings.get(&candidate) {
+                if let Some(next) = self.bindings.get(&candidate.join("::")) {
                     candidate = next.clone();
                     continue;
                 }
-                let parts = candidate.split("::").collect::<Vec<_>>();
                 let mut expanded = None;
-                for prefix_len in (1..parts.len()).rev() {
-                    let prefix = parts[..prefix_len].join("::");
+                for prefix_len in (1..candidate.len()).rev() {
+                    let prefix = candidate[..prefix_len].join("::");
                     if let Some(target_prefix) = self.bindings.get(&prefix) {
-                        expanded = Some(format!(
-                            "{}::{}",
-                            target_prefix,
-                            parts[prefix_len..].join("::")
-                        ));
+                        let mut next = target_prefix.clone();
+                        next.extend_from_slice(&candidate[prefix_len..]);
+                        expanded = Some(next);
                         break;
                     }
                 }
@@ -1538,25 +1730,31 @@ mod tests {
             .then_some(name + 2)
         }
         fn begins_absolute_path(tokens: &[proc_macro2::TokenTree], index: usize) -> bool {
-            match index
-                .checked_sub(1)
-                .and_then(|previous| tokens.get(previous))
-            {
-                None => true,
-                Some(proc_macro2::TokenTree::Punct(punct))
-                    if matches!(punct.as_char(), '=' | ',' | ';') =>
+            let Some(previous_index) = index.checked_sub(1) else {
+                return true;
+            };
+            match &tokens[previous_index] {
+                proc_macro2::TokenTree::Ident(_) => false,
+                proc_macro2::TokenTree::Punct(previous) if previous.as_char() == '>' => false,
+                proc_macro2::TokenTree::Group(_)
+                    if previous_index > 0 && punct(tokens.get(previous_index - 1), '!') =>
                 {
-                    true
+                    false
                 }
-                Some(proc_macro2::TokenTree::Punct(previous)) if previous.as_char() == '>' => {
-                    index >= 2 && punct(tokens.get(index - 2), '=')
-                }
-                Some(proc_macro2::TokenTree::Ident(ident))
-                    if matches!(ident.to_string().as_str(), "break" | "return" | "yield") =>
+                proc_macro2::TokenTree::Punct(repetition)
+                    if matches!(repetition.as_char(), '*' | '+' | '?')
+                        && previous_index >= 2
+                        && matches!(
+                            tokens.get(previous_index - 1),
+                            Some(proc_macro2::TokenTree::Group(_))
+                        )
+                        && punct(tokens.get(previous_index - 2), '$') =>
                 {
-                    true
+                    false
                 }
-                _ => false,
+                proc_macro2::TokenTree::Punct(_)
+                | proc_macro2::TokenTree::Group(_)
+                | proc_macro2::TokenTree::Literal(_) => true,
             }
         }
 
@@ -1831,6 +2029,70 @@ mod tests {
         macro_tokens_contain_unresolved_inherent_impl_with_aliases(tokens, outer_aliases)
     }
 
+    fn macro_impl_self_region(
+        tokens: &[proc_macro2::TokenTree],
+        impl_index: usize,
+        body_index: usize,
+    ) -> Option<&[proc_macro2::TokenTree]> {
+        let header = tokens.get(impl_index + 1..body_index)?;
+        let mut angle_depth = 0_usize;
+        for token in header {
+            match token {
+                proc_macro2::TokenTree::Punct(punct) if punct.as_char() == '<' => {
+                    angle_depth += 1;
+                }
+                proc_macro2::TokenTree::Punct(punct) if punct.as_char() == '>' => {
+                    angle_depth = angle_depth.saturating_sub(1);
+                }
+                proc_macro2::TokenTree::Ident(ident) if ident == "for" && angle_depth == 0 => {
+                    return None;
+                }
+                _ => {}
+            }
+        }
+        let mut start = 0;
+        if matches!(header.first(), Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '<')
+        {
+            let mut depth = 0_usize;
+            for (index, token) in header.iter().enumerate() {
+                match token {
+                    proc_macro2::TokenTree::Punct(punct) if punct.as_char() == '<' => depth += 1,
+                    proc_macro2::TokenTree::Punct(punct) if punct.as_char() == '>' => {
+                        depth = depth.checked_sub(1)?;
+                        if depth == 0 {
+                            start = index + 1;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if depth != 0 {
+                return None;
+            }
+        }
+        let end = header[start..]
+            .iter()
+            .position(
+                |token| matches!(token, proc_macro2::TokenTree::Ident(ident) if ident == "where"),
+            )
+            .map_or(header.len(), |where_index| start + where_index);
+        (start < end).then_some(&header[start..end])
+    }
+
+    fn macro_tokens_contain_metasyntax(tokens: &[proc_macro2::TokenTree]) -> bool {
+        tokens.iter().any(|token| match token {
+            proc_macro2::TokenTree::Punct(punct) => punct.as_char() == '$',
+            proc_macro2::TokenTree::Ident(ident) => {
+                ident.to_string().starts_with("__plan04_macro_")
+            }
+            proc_macro2::TokenTree::Group(group) => {
+                macro_tokens_contain_metasyntax(&group.stream().into_iter().collect::<Vec<_>>())
+            }
+            proc_macro2::TokenTree::Literal(_) => false,
+        })
+    }
+
     fn macro_tokens_contain_unresolved_inherent_impl_with_aliases(
         tokens: proc_macro2::TokenStream,
         aliases: &std::collections::BTreeMap<String, String>,
@@ -1857,6 +2119,11 @@ mod tests {
                         && item.trait_.is_none()
                         && macro_type_candidate(&item.self_ty, &scoped_aliases)
                             .is_none_or(|candidate| candidate.contains("__plan04_macro_"))
+                    {
+                        return true;
+                    }
+                    if macro_impl_self_region(&tokens, start, end)
+                        .is_some_and(macro_tokens_contain_metasyntax)
                     {
                         return true;
                     }
@@ -2512,9 +2779,53 @@ mod tests {
         }
     }
 
+    fn concat_integer_string(literal: &syn::LitInt) -> Option<String> {
+        let spelling = literal.to_string();
+        let unsuffixed = spelling.strip_suffix(literal.suffix())?;
+        let normalized = unsuffixed.replace('_', "");
+        let (digits, radix) = normalized
+            .strip_prefix("0x")
+            .map(|digits| (digits, 16))
+            .or_else(|| normalized.strip_prefix("0o").map(|digits| (digits, 8)))
+            .or_else(|| normalized.strip_prefix("0b").map(|digits| (digits, 2)))
+            .unwrap_or((&normalized, 10));
+        u128::from_str_radix(digits, radix)
+            .ok()
+            .map(|value| value.to_string())
+    }
+
+    fn concat_literal_string(literal: &syn::Lit) -> Option<String> {
+        match literal {
+            syn::Lit::Str(literal) => Some(literal.value()),
+            syn::Lit::Char(literal) => Some(literal.value().to_string()),
+            syn::Lit::Int(literal) => concat_integer_string(literal),
+            syn::Lit::Float(literal) => literal
+                .to_string()
+                .strip_suffix(literal.suffix())
+                .map(|unsuffixed| unsuffixed.replace('_', "")),
+            syn::Lit::Bool(literal) => Some(literal.value.to_string()),
+            _ => None,
+        }
+    }
+
     fn constant_string_expression(expression: &syn::Expr) -> Option<String> {
         match expression {
-            syn::Expr::Lit(expression) => literal_constant_string(&expression.lit),
+            syn::Expr::Lit(expression) => concat_literal_string(&expression.lit),
+            syn::Expr::Unary(expression)
+                if matches!(expression.op, syn::UnOp::Neg(_))
+                    && matches!(
+                        expression.expr.as_ref(),
+                        syn::Expr::Lit(syn::ExprLit {
+                            lit: syn::Lit::Int(_) | syn::Lit::Float(_),
+                            ..
+                        })
+                    ) =>
+            {
+                let syn::Expr::Lit(literal) = expression.expr.as_ref() else {
+                    unreachable!("guard requires a literal expression")
+                };
+                Some(format!("-{}", concat_literal_string(&literal.lit)?))
+            }
             syn::Expr::Macro(expression)
                 if standard_string_macro(&expression.mac.path)
                     == Some(StandardStringMacro::Concat) =>
@@ -3834,13 +4145,12 @@ mod tests {
 
     #[test]
     fn production_spelling_census_evaluates_nested_concat() {
-        let source = syn::parse_file(
-            "fn spellings() { \
+        let fixture = "fn spellings() { \
              let _ = concat!(\"de\", concat!(\"stro\", \"ys\")); \
-             let _ = concat!(b\"con\", concat!(\"ni\", b\"ves\")); \
-             }",
-        )
-        .expect("constant spelling source reparses");
+             let _ = concat!(\"con\", concat!(\"ni\", 'v', \"es\")); \
+             }";
+        assert_plan04_rustc_accepts(fixture);
+        let source = syn::parse_file(fixture).expect("constant spelling source reparses");
         let spellings = production_string_literals(&source);
 
         assert!(spellings.iter().any(|spelling| spelling == "destroys"));
@@ -3896,12 +4206,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn plan04_integration_graphs_follow_real_module_edges() {
-        use syn::visit::Visit as _;
-
-        let temp = tempfile::tempdir().expect("temporary module workspace is created");
-        let workspace_root = temp.path();
+    fn plan04_write_integration_graph_fixtures(workspace_root: &Path) -> [PathBuf; 16] {
         let nested_tests = workspace_root.join("crates/nested/tests");
         fs::create_dir_all(nested_tests.join("common"))
             .expect("nested integration module directory is created");
@@ -3920,6 +4225,7 @@ mod tests {
         .expect("nested common module is written");
         fs::write(&nested_leaf, "pub type Deep = super::Alias;")
             .expect("nested leaf module is written");
+        assert_plan04_rustc_accepts_file(&nested_case);
 
         let flat_tests = workspace_root.join("crates/flat/tests");
         fs::create_dir_all(flat_tests.join("shared"))
@@ -3941,6 +4247,8 @@ mod tests {
         .expect("second flat integration root is written");
         fs::write(&flat_common, "pub type Alias = super::Triggered;")
             .expect("shared flat module is written");
+        assert_plan04_rustc_accepts_file(&flat_case);
+        assert_plan04_rustc_accepts_file(&flat_other);
         fs::write(
             &path_case,
             "struct Triggered; #[path = \"shared/renamed.rs\"] mod local; \
@@ -3949,8 +4257,67 @@ mod tests {
         .expect("path-qualified integration root is written");
         fs::write(&path_common, "pub type Alias = super::Triggered;")
             .expect("path-qualified shared module is written");
+        assert_plan04_rustc_accepts_file(&path_case);
 
-        let paths = [
+        let normalized_tests = workspace_root.join("crates/normalized/tests");
+        fs::create_dir_all(normalized_tests.join("shared"))
+            .expect("normalization directory is created");
+        let normalized_case = normalized_tests.join("case.rs");
+        let normalized_common = normalized_tests.join("common.rs");
+        fs::write(
+            &normalized_case,
+            "struct Triggered; #[path = \"shared/../common.rs\"] mod aliases; \
+             impl aliases::Alias {}",
+        )
+        .expect("normalized-path integration root is written");
+        fs::write(&normalized_common, "pub type Alias = super::Triggered;")
+            .expect("normalized-path module is written");
+        assert_plan04_rustc_accepts_file(&normalized_case);
+
+        let inline_tests = workspace_root.join("crates/inline/tests");
+        fs::create_dir_all(inline_tests.join("inline"))
+            .expect("inline effective module directory is created");
+        let inline_case = inline_tests.join("case.rs");
+        let inline_common = inline_tests.join("inline/renamed.rs");
+        fs::write(
+            &inline_case,
+            "struct Triggered; mod inline { #[path = \"renamed.rs\"] mod aliases; \
+                 impl aliases::Alias {} \
+             }",
+        )
+        .expect("inline path integration root is written");
+        fs::write(&inline_common, "pub type Alias = super::super::Triggered;")
+            .expect("inline path module is written");
+        assert_plan04_rustc_accepts_file(&inline_case);
+
+        let ordinary_src = workspace_root.join("crates/ordinary/src");
+        fs::create_dir_all(&ordinary_src).expect("ordinary source directory is created");
+        let ordinary_root = ordinary_src.join("lib.rs");
+        let ordinary_aliases = ordinary_src.join("renamed.rs");
+        fs::write(
+            &ordinary_root,
+            "struct Triggered; #[path = \"renamed.rs\"] mod aliases; \
+             impl aliases::Alias {}",
+        )
+        .expect("ordinary crate root is written");
+        fs::write(&ordinary_aliases, "pub type Alias = super::Triggered;")
+            .expect("ordinary renamed module is written");
+        assert_plan04_rustc_accepts_file(&ordinary_root);
+
+        let bin_src = workspace_root.join("crates/bin-root/src/bin");
+        fs::create_dir_all(&bin_src).expect("bin root directory is created");
+        let bin_root = bin_src.join("tool.rs");
+        let bin_aliases = bin_src.join("aliases.rs");
+        fs::write(
+            &bin_root,
+            "struct Triggered; mod aliases; impl aliases::Alias {}",
+        )
+        .expect("bin crate root is written");
+        fs::write(&bin_aliases, "pub type Alias = super::Triggered;")
+            .expect("bin module is written");
+        assert_plan04_rustc_accepts_file(&bin_root);
+
+        [
             nested_case,
             nested_common,
             nested_leaf,
@@ -3959,9 +4326,34 @@ mod tests {
             flat_common,
             path_case,
             path_common,
-        ];
+            normalized_case,
+            normalized_common,
+            inline_case,
+            inline_common,
+            ordinary_root,
+            ordinary_aliases,
+            bin_root,
+            bin_aliases,
+        ]
+    }
+
+    #[test]
+    fn plan04_integration_graphs_follow_real_module_edges() {
+        use syn::visit::Visit as _;
+
+        let temp = tempfile::tempdir().expect("temporary module workspace is created");
+        let workspace_root = temp.path();
+        let paths = plan04_write_integration_graph_fixtures(workspace_root);
         let surfaces = plan04_qualified_alias_surfaces(workspace_root, &paths);
-        for root in [&paths[0], &paths[3], &paths[4], &paths[6]] {
+        assert!(
+            surfaces.discovery_violations.is_empty(),
+            "valid module graph reported discovery violations: {:?}",
+            surfaces.discovery_violations
+        );
+        for root in [
+            &paths[0], &paths[3], &paths[4], &paths[6], &paths[8], &paths[10], &paths[12],
+            &paths[14],
+        ] {
             let source = fs::read_to_string(root).expect("integration root is readable");
             let file = syn::parse_file(&source).expect("integration root reparses");
             let memberships = surfaces
@@ -3992,6 +4384,127 @@ mod tests {
             3,
             "common.rs is its own integration root and is shared by case.rs and other.rs"
         );
+    }
+
+    #[test]
+    fn plan04_module_graph_discovery_fails_closed() {
+        let temp = tempfile::tempdir().expect("temporary invalid module workspace is created");
+        let workspace_root = temp.path();
+        let source_root = workspace_root.join("crates/invalid/src");
+        fs::create_dir_all(source_root.join("ambiguous"))
+            .expect("ambiguous module directory is created");
+        let root = source_root.join("lib.rs");
+        let ambiguous_file = source_root.join("ambiguous.rs");
+        let ambiguous_mod = source_root.join("ambiguous/mod.rs");
+        let outside = workspace_root.join("outside.rs");
+        fs::write(
+            &root,
+            "mod missing; mod ambiguous; \
+             #[path = \"../../../outside.rs\"] mod escaped;",
+        )
+        .expect("invalid module root is written");
+        fs::write(&ambiguous_file, "").expect("ambiguous flat module is written");
+        fs::write(&ambiguous_mod, "").expect("ambiguous mod.rs is written");
+        fs::write(&outside, "").expect("escaped module is written");
+
+        let surfaces = plan04_qualified_alias_surfaces(
+            workspace_root,
+            &[root, ambiguous_file, ambiguous_mod, outside],
+        );
+        assert_eq!(surfaces.discovery_violations.len(), 3);
+        assert!(
+            surfaces
+                .discovery_violations
+                .iter()
+                .any(|violation| violation.contains("missing") && violation.contains('0'))
+        );
+        assert!(
+            surfaces
+                .discovery_violations
+                .iter()
+                .any(|violation| violation.contains("ambiguous") && violation.contains('2'))
+        );
+        assert!(
+            surfaces
+                .discovery_violations
+                .iter()
+                .any(|violation| violation.contains("escaped") && violation.contains("escapes"))
+        );
+    }
+
+    #[test]
+    fn plan04_unconventional_roots_follow_declared_modules() {
+        use syn::visit::Visit as _;
+
+        let temp = tempfile::tempdir().expect("temporary unconventional roots are created");
+        let workspace_root = temp.path();
+
+        let conventional_dir = workspace_root.join("crates/custom/tools");
+        fs::create_dir_all(&conventional_dir)
+            .expect("unconventional conventional-module directory is created");
+        let conventional_root = conventional_dir.join("entry.rs");
+        let conventional_alias = conventional_dir.join("aliases.rs");
+        fs::write(
+            &conventional_root,
+            "struct Triggered; mod aliases; impl aliases::Alias {}",
+        )
+        .expect("unconventional conventional root is written");
+        fs::write(&conventional_alias, "pub type Alias = super::Triggered;")
+            .expect("unconventional conventional alias is written");
+        assert_plan04_rustc_accepts_file(&conventional_root);
+
+        let explicit_dir = workspace_root.join("crates/custom-path/tools");
+        fs::create_dir_all(explicit_dir.join("shared"))
+            .expect("unconventional explicit-path directory is created");
+        let explicit_root = explicit_dir.join("entry.rs");
+        let explicit_alias = explicit_dir.join("shared/renamed.rs");
+        fs::write(
+            &explicit_root,
+            "struct Triggered; #[path = \"shared/renamed.rs\"] mod aliases; \
+             impl aliases::Alias {}",
+        )
+        .expect("unconventional explicit root is written");
+        fs::write(&explicit_alias, "pub type Alias = super::Triggered;")
+            .expect("unconventional explicit alias is written");
+        assert_plan04_rustc_accepts_file(&explicit_root);
+
+        let unrelated_dir = workspace_root.join("crates/unrelated/tools");
+        fs::create_dir_all(&unrelated_dir).expect("unrelated root directory is created");
+        let unrelated_root = unrelated_dir.join("entry.rs");
+        let unrelated_alias = unrelated_dir.join("aliases.rs");
+        fs::write(
+            &unrelated_root,
+            "struct Triggered; mod aliases; impl aliases::Alias {}",
+        )
+        .expect("unrelated root is written");
+        fs::write(&unrelated_alias, "pub struct Alias;").expect("unrelated alias is written");
+        assert_plan04_rustc_accepts_file(&unrelated_root);
+
+        let paths = [
+            conventional_root,
+            conventional_alias,
+            explicit_root,
+            explicit_alias,
+            unrelated_root,
+            unrelated_alias,
+        ];
+        let surfaces = plan04_qualified_alias_surfaces(workspace_root, &paths);
+        assert!(surfaces.discovery_violations.is_empty());
+        for (root, forbidden) in [(&paths[0], true), (&paths[2], true), (&paths[4], false)] {
+            let source = fs::read_to_string(root).expect("unconventional root is readable");
+            let file = syn::parse_file(&source).expect("unconventional root reparses");
+            let detected = surfaces.memberships[root].iter().any(|(key, module)| {
+                let mut finder = Plan04RetiredAuthorityFinder {
+                    qualified_aliases: surfaces.graphs[key].clone(),
+                    module_path: module.clone(),
+                    qualified_aliases_initialized: true,
+                    ..Plan04RetiredAuthorityFinder::default()
+                };
+                finder.visit_file(&file);
+                finder.violations.contains(&"impl Triggered")
+            });
+            assert_eq!(detected, forbidden, "{}", root.display());
+        }
     }
 
     #[test]
@@ -4051,9 +4564,10 @@ mod tests {
         let fixtures = r##"
             const DIRECT: &str = concat!(stringify!(checked), "{}");
             const RAW: &str = concat!(stringify!(checked), r#" /* legacy */ {"#);
-            const BYTES: &[u8] = concat!(b"check", stringify!(ed), b" {}");
+            const LITERALS: &str = concat!("check", 'e', stringify!(d), " {}", 1, true);
             const NESTED: &str = (concat!(concat!("check", "ed"), stringify!({})));
         "##;
+        assert_plan04_rustc_accepts(fixtures);
         let fixture_census = checked_block_census_in_rust_source(fixtures);
         assert!(fixture_census.structural.is_empty());
         assert_eq!(fixture_census.strings, 4);
@@ -4089,6 +4603,39 @@ mod tests {
         assert_eq!(parser_census.strings, 1);
         assert_eq!(parser_census.exact_empty_strings, 1);
         assert_eq!(parser_census.unresolved_compositions, 1);
+    }
+
+    #[test]
+    fn plan04_concat_literal_domain_matches_rustc() {
+        let expression = r##"concat!(
+            "a", r#"b"#, 'e', '\n', 1, 0xff, 0b10, 42u8,
+            1.5, 2.0f32, 1e+3, true, false, -1, -2.5, stringify!(d)
+        )"##;
+        let expected = "abe\n12552421.52.01e+3truefalse-1-2.5d";
+        assert_plan04_rustc_runs(&format!(
+            "fn main() {{ assert_eq!({expression}, {expected:?}); }}"
+        ));
+        let expression = syn::parse_str::<syn::ExprMacro>(expression)
+            .expect("characterized concat expression reparses");
+        assert_eq!(
+            constant_concat_tokens(expression.mac.tokens),
+            Some(expected.to_owned())
+        );
+
+        for rejected in ["b'e'", "b\"bytes\"", "c\"c string\""] {
+            assert_plan04_rustc_rejects(&format!("const REJECTED: &str = concat!({rejected});"));
+            let expression = syn::parse_str::<syn::ExprMacro>(&format!("concat!({rejected})"))
+                .expect("rejected concat expression still reparses structurally");
+            assert_eq!(constant_concat_tokens(expression.mac.tokens), None);
+        }
+
+        let census = checked_block_census_in_rust_source(
+            "const FIXTURE: &str = concat!(\"check\", 'e', stringify!(d), \"{}\"); \
+             const NUMBERS: &str = concat!(1, 0xff, 2.0f32, true, -1);",
+        );
+        assert_eq!(census.strings, 1);
+        assert_eq!(census.exact_empty_strings, 0);
+        assert_eq!(census.unresolved_compositions, 0);
     }
 
     #[test]
@@ -4321,6 +4868,53 @@ mod tests {
     }
 
     #[test]
+    fn plan04_qualified_alias_graph_handles_zero_segment_roots() {
+        use syn::visit::Visit as _;
+
+        for source in [
+            "struct Triggered; mod aliases { pub(crate) type Alias = super::Triggered; } \
+             use crate::{self as root}; impl root::aliases::Alias {}",
+            "struct Triggered; mod aliases { pub(crate) type Alias = super::Triggered; } \
+             mod first { use super::{self as root}; impl root::aliases::Alias {} }",
+            "struct Triggered; mod aliases { pub(crate) type Alias = super::Triggered; } \
+             mod first { mod deeper { use super::super::{self as root}; \
+                 impl root::aliases::Alias {} } }",
+            "struct Triggered; mod aliases { pub(crate) type Alias = super::Triggered; } \
+             use crate::{aliases::{self as local}}; impl local::Alias {}",
+        ] {
+            assert_plan04_rustc_accepts(source);
+            let file = syn::parse_file(source).expect("zero-segment root alias reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+
+        let parser_only = "struct Triggered; mod aliases { pub(crate) type Alias = super::Triggered; } \
+             use crate::{self}; impl crate::aliases::Alias {}";
+        let file = syn::parse_file(parser_only).expect("unrenamed crate-self syntax reparses");
+        let mut finder = Plan04RetiredAuthorityFinder::default();
+        finder.visit_file(&file);
+        assert!(
+            finder.violations.contains(&"impl Triggered"),
+            "the audit handles syn's accepted crate-self syntax without manufacturing a path"
+        );
+
+        for source in [
+            "struct Triggered; mod unrelated { pub struct Alias; } \
+             use crate::{self as root}; impl root::unrelated::Alias {}",
+            "struct Triggered; use crate::{self as root}; mod inner { \
+                 mod root { pub struct Alias; } impl root::Alias {} \
+             }",
+        ] {
+            assert_plan04_rustc_accepts(source);
+            let file = syn::parse_file(source).expect("zero-segment root shadow reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(!finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+    }
+
+    #[test]
     fn plan04_impl_authority_scans_macro_transcribers_not_matchers_or_strings() {
         use syn::visit::Visit as _;
 
@@ -4403,6 +4997,62 @@ mod tests {
     }
 
     #[test]
+    fn plan04_macro_repetition_in_self_types_fails_closed() {
+        use syn::visit::Visit as _;
+
+        let higher_ranked_self = "struct Triggered; struct Wrapper<T>(T); \
+            macro_rules! emits { ($($ty:tt)+) => { \
+                impl Wrapper<for<'a> fn(&'a $($ty)+)> {} \
+            }; } \
+            emits!(Triggered);";
+        assert_plan04_rustc_accepts(higher_ranked_self);
+        for source in [
+            "struct Triggered; macro_rules! emits { ($($ty:tt)+) => { impl $($ty)+ {} }; }",
+            "struct Triggered; macro_rules! emits { ($($ty:tt)+) => { impl $($ty)+ {} }; } \
+             emits!(Triggered);",
+            "macro_rules! emits { ($($ty:tt)*) => { impl $($ty)* {} }; }",
+            "macro_rules! emits { ($($ty:tt)?) => { impl $($ty)? {} }; }",
+            "macro_rules! emits { ($($ty:tt)+) => { impl ($($ty)+) {} }; }",
+            "macro_rules! emits { ($head:ident $(, $tail:ident)*) => { \
+                 impl $head$(::$tail)* {} \
+             }; }",
+            "macro_rules! emits { ($ty:ident, $($arg:ty),+) => { \
+                 impl $ty<$($arg),+> {} \
+             }; }",
+            "macro_rules! emits { ($($outer:tt)*) => { \
+                 impl $($( $outer )*)* {} \
+             }; }",
+            higher_ranked_self,
+        ] {
+            let file = syn::parse_file(source).expect("repeated inherent transcriber reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(
+                finder
+                    .violations
+                    .contains(&"unresolved inherent impl transcriber"),
+                "{source}"
+            );
+        }
+
+        for source in [
+            "macro_rules! emits { ($($ty:tt)+) => { impl Render for $($ty)+ {} }; }",
+            "macro_rules! emits { ($(impl $ty:ty {})+) => { impl Unrelated {} }; }",
+            "macro_rules! emits { () => { impl Unrelated {} }; }",
+        ] {
+            let file = syn::parse_file(source).expect("allowed repeated macro source reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(
+                !finder
+                    .violations
+                    .contains(&"unresolved inherent impl transcriber"),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
     fn plan04_standard_string_macro_paths_are_text_only() {
         use syn::visit::Visit as _;
 
@@ -4446,6 +5096,82 @@ mod tests {
     }
 
     #[test]
+    fn plan04_absolute_standard_macro_boundaries_are_structural() {
+        use syn::visit::Visit as _;
+
+        for source in [
+            "macro_rules! swallow { ($($tokens:tt)*) => {}; } \
+             swallow!(Prefix & ::std::stringify!(impl Triggered {}));",
+            "macro_rules! accepts_expr { ($value:expr) => {}; } \
+             accepts_expr!(& ::core::stringify!(impl Triggered {}));",
+            "macro_rules! accepts_pattern { ($value:pat) => {}; } \
+             accepts_pattern!(& ::std::stringify!(impl Triggered {}));",
+            "macro_rules! accepts_type { ($value:ty) => {}; } \
+             accepts_type!(& ::core::stringify!(impl Triggered {}));",
+            "fn fixture() { let _: &&str = & ::std::stringify!(impl Triggered {}); }",
+            "struct Prefix; impl std::ops::BitAnd<&'static str> for Prefix { \
+                 type Output = (); fn bitand(self, _: &'static str) {} \
+             } fn fixture() { let _ = Prefix & ::core::stringify!(impl Triggered {}); }",
+            "fn fixture(value: &str) { match value { \
+                 ::std::concat!(\"impl \", stringify!(Triggered), \" {}\") => {}, _ => {} \
+             } }",
+            "macro_rules! accepts_type { ($ty:ty) => {}; } \
+             accepts_type!(::core::stringify!(impl Triggered {}));",
+            "fn fixture() { let _ = (::std::stringify!(impl Triggered {})); }",
+        ] {
+            assert_plan04_rustc_accepts(source);
+            let file = syn::parse_file(source).expect("absolute standard boundary reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(!finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+
+        for source in [
+            "macro_rules! emits { () => { \
+                 let _ = Prefix & custom::std::stringify!(impl Triggered {}); \
+             }; }",
+            "macro_rules! emits { () => { \
+                 let _ = Prefix & custom::core::concat!(impl Triggered {}); \
+             }; }",
+            "macro_rules! emits { () => { \
+                 let _ = Prefix & custom::stringify!(impl Triggered {}); \
+             }; }",
+        ] {
+            assert_plan04_rustc_accepts(source);
+            let file = syn::parse_file(source).expect("custom standard suffix reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+    }
+
+    fn plan04_collect_build_authority_violations(
+        workspace_root: &Path,
+        violations: &mut Vec<String>,
+    ) {
+        let build_path =
+            workspace_root.join("crates/deckmaste_construction_core/src/emit/build.rs");
+        let build_source = fs::read_to_string(&build_path).expect("build emitter is readable");
+        let build = syn::parse_file(&build_source).expect("build emitter reparses");
+        for authority in [
+            "legacy_refinement",
+            "validate_legacy_refinement_projection",
+            "as_role_refinement",
+            "RequireExprSource",
+            "RequireSubjectSource",
+            "PredicateAtomPlan",
+            "PredicateMemberPlan",
+            "PredicateSubjectPlan",
+        ] {
+            if contains_production_identifier(&build, authority) {
+                violations.push(format!(
+                    "crates/deckmaste_construction_core/src/emit/build.rs retains build-side require/refinement authority {authority}"
+                ));
+            }
+        }
+    }
+
+    #[test]
     fn plan04_generated_invariants_are_single_authority() {
         use syn::visit::Visit as _;
 
@@ -4459,6 +5185,12 @@ mod tests {
         let source_paths = plan04_source_fixture_paths(&workspace_root);
         let qualified_alias_surfaces =
             plan04_qualified_alias_surfaces(&workspace_root, &source_paths);
+        violations.extend(
+            qualified_alias_surfaces
+                .discovery_violations
+                .iter()
+                .map(|violation| format!("module graph: {violation}")),
+        );
 
         for path in source_paths {
             let relative = path
@@ -4488,7 +5220,9 @@ mod tests {
                 }
                 for (module_key, module_path) in qualified_alias_surfaces
                     .memberships
-                    .get(&path)
+                    .get(&plan04_lexical_normalize(&path).unwrap_or_else(|| {
+                        panic!("{} cannot be lexically normalized", path.display())
+                    }))
                     .unwrap_or_else(|| panic!("{} has an alias-graph membership", path.display()))
                 {
                     let mut finder = Plan04RetiredAuthorityFinder {
@@ -4573,26 +5307,7 @@ mod tests {
                 .map(|violation| format!("crates/xtask/src/english_v2/report.rs: {violation}")),
         );
 
-        let build_path =
-            workspace_root.join("crates/deckmaste_construction_core/src/emit/build.rs");
-        let build_source = fs::read_to_string(&build_path).expect("build emitter is readable");
-        let build = syn::parse_file(&build_source).expect("build emitter reparses");
-        for authority in [
-            "legacy_refinement",
-            "validate_legacy_refinement_projection",
-            "as_role_refinement",
-            "RequireExprSource",
-            "RequireSubjectSource",
-            "PredicateAtomPlan",
-            "PredicateMemberPlan",
-            "PredicateSubjectPlan",
-        ] {
-            if contains_production_identifier(&build, authority) {
-                violations.push(format!(
-                    "crates/deckmaste_construction_core/src/emit/build.rs retains build-side require/refinement authority {authority}"
-                ));
-            }
-        }
+        plan04_collect_build_authority_violations(&workspace_root, &mut violations);
 
         violations.sort();
         violations.dedup();
