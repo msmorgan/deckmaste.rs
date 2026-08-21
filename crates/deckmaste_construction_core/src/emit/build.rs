@@ -38,7 +38,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         .iter()
         .map(|row| emit_rule_arm(plan, row))
         .collect::<syn::Result<Vec<_>>>()?;
-    let mut origins = constructions
+    let origins = constructions
         .iter()
         .map(|construction| {
             DeclarationKey::new(
@@ -47,12 +47,6 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             )
         })
         .collect::<Vec<_>>();
-    origins.extend(
-        plan.roots()
-            .iter()
-            .filter(|root| root.is_parse_entry())
-            .map(|root| DeclarationKey::new(DeclarationKind::Root, root.category())),
-    );
     let tokens = quote! {
         #[expect(
             clippy::too_many_lines,
@@ -186,17 +180,6 @@ fn emit_arm_from_plan(
             lower_atom(plan, row, atom, &mut lowering)?;
         }
     }
-    if let Some(root) = plan.parse_root(row.category()) {
-        if !root.punctuation().is_empty() {
-            let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
-            lowering
-                .patterns
-                .push(quote! { BuildValue::Leaf(Leaf::Literal(#punctuation)) });
-        }
-        lowering
-            .patterns
-            .push(quote! { BuildValue::Leaf(Leaf::EndOfInput) });
-    }
     lower_feature_guards(plan, row, &mut lowering)?;
     let success = if let Some(dynamic_role) = dynamic_match_role(plan, row) {
         emit_dynamic_match(plan, row, &mut lowering, &dynamic_role)?
@@ -246,7 +229,6 @@ fn emit_product_arm(
         }
         values.push((ident(field.name()), value));
     }
-    append_root_patterns(plan, product.name(), &mut patterns);
     let product_type = ident(product.name());
     let success = if product.requires_constructor() {
         let arguments = values.iter().map(|(_, value)| value);
@@ -287,8 +269,7 @@ fn emit_sum_arm(
     };
     let sum_type = ident(sum.name());
     let variant = ident(alternative.name());
-    let mut patterns = vec![value.pattern];
-    append_root_patterns(plan, sum.name(), &mut patterns);
+    let patterns = vec![value.pattern];
     let rule_id = ident(&rule.id);
     Ok(quote! {
         RuleId::#rule_id => match children {
@@ -296,17 +277,6 @@ fn emit_sum_arm(
             _ => None,
         },
     })
-}
-
-fn append_root_patterns(plan: &SemanticPlan, category: &str, patterns: &mut Vec<TokenStream>) {
-    let Some(root) = plan.parse_root(category) else {
-        return;
-    };
-    if !root.punctuation().is_empty() {
-        let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
-        patterns.push(quote! { BuildValue::Leaf(Leaf::Literal(#punctuation)) });
-    }
-    patterns.push(quote! { BuildValue::Leaf(Leaf::EndOfInput) });
 }
 
 fn emit_optional_arm(
@@ -2079,9 +2049,7 @@ mod tests {
                 syn::parse_quote! {
                     RuleId::RootCategoryGuarded => match children {
                         [
-                            BuildValue::Child(child),
-                            BuildValue::Leaf(Leaf::Literal(".")),
-                            BuildValue::Leaf(Leaf::EndOfInput)
+                            BuildValue::Child(child)
                         ] => CategoryGuarded::new(child.clone())
                             .map(Root::CategoryGuarded)
                             .map(BuildValue::Root),
@@ -2094,9 +2062,7 @@ mod tests {
                 syn::parse_quote! {
                     RuleId::RootVocabGuarded => match children {
                         [
-                            BuildValue::Leaf(Leaf::Mode(mode)),
-                            BuildValue::Leaf(Leaf::Literal(".")),
-                            BuildValue::Leaf(Leaf::EndOfInput)
+                            BuildValue::Leaf(Leaf::Mode(mode))
                         ] => VocabGuarded::new(*mode)
                             .map(Root::VocabGuarded)
                             .map(BuildValue::Root),
@@ -2110,9 +2076,7 @@ mod tests {
                     RuleId::RootDnfGuarded => match children {
                         [
                             BuildValue::Leaf(Leaf::Mode(mode)),
-                            BuildValue::Child(child),
-                            BuildValue::Leaf(Leaf::Literal(".")),
-                            BuildValue::Leaf(Leaf::EndOfInput)
+                            BuildValue::Child(child)
                         ] => DnfGuarded::new(*mode, child.clone())
                             .map(Root::DnfGuarded)
                             .map(BuildValue::Root),
@@ -2125,9 +2089,7 @@ mod tests {
                 syn::parse_quote! {
                     RuleId::RootContextGuarded => match children {
                         [
-                            BuildValue::Leaf(Leaf::SelfReference(context_2)),
-                            BuildValue::Leaf(Leaf::Literal(".")),
-                            BuildValue::Leaf(Leaf::EndOfInput)
+                            BuildValue::Leaf(Leaf::SelfReference(context_2))
                         ] => ContextGuarded::new(*context_2, context)
                             .map(Root::ContextGuarded)
                             .map(BuildValue::Root),
@@ -2237,13 +2199,9 @@ mod tests {
                 };
                 let valid = [
                     BuildValue::Child(generated::Child::First(generated::FirstChild)),
-                    BuildValue::Leaf(Leaf::Literal(".")),
-                    BuildValue::Leaf(Leaf::EndOfInput),
                 ];
                 let invalid = [
                     BuildValue::Child(generated::Child::Second(generated::SecondChild)),
-                    BuildValue::Leaf(Leaf::Literal(".")),
-                    BuildValue::Leaf(Leaf::EndOfInput),
                 ];
 
                 assert!(matches!(
@@ -2647,7 +2605,7 @@ mod tests {
     }
 
     #[test]
-    fn binding_build_construct_consumes_every_declared_pattern_slot() {
+    fn binding_build_construct_consumes_only_semantic_pattern_slots() {
         let validated = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
                 codec Pair {
@@ -2687,9 +2645,7 @@ mod tests {
         let expected: syn::Arm = syn::parse_quote! {
             RuleId::RootWrapped => match children {
                 [
-                    BuildValue::Leaf(Leaf::Pair(BoundLeaf::Pair(left, right))),
-                    BuildValue::Leaf(Leaf::Literal("!")),
-                    BuildValue::Leaf(Leaf::EndOfInput)
+                    BuildValue::Leaf(Leaf::Pair(BoundLeaf::Pair(left, right)))
                 ] => Some(BuildValue::Root(Root::Wrapped(Wrapped {
                     value: Pair::new(left.code, (Factory::wrap(right)))
                 }))),
@@ -2813,7 +2769,6 @@ mod tests {
                 (crate::DeclarationKind::Construction, "idle"),
                 (crate::DeclarationKind::Construction, "solo"),
                 (crate::DeclarationKind::Construction, "document"),
-                (crate::DeclarationKind::Root, "Document"),
             ],
         );
 
@@ -2856,14 +2811,18 @@ mod tests {
             "BuildValue :: Expr (subject",
             "RuntimePair :: new (left , Factory :: wrap (right))",
             "DocumentNode :: new",
-            r#"Leaf :: Literal ("!")"#,
-            "Leaf :: EndOfInput",
         ] {
             assert!(
                 joined.contains(fragment),
                 "build dispatch lacks `{fragment}`"
             );
         }
+        let root_arm = arms
+            .iter()
+            .find(|arm| arm.contains("RuleId :: DocumentDocument"))
+            .expect("root-category construction build arm");
+        assert!(!root_arm.contains("Leaf :: Literal"), "{root_arm}");
+        assert!(!root_arm.contains("Leaf :: EndOfInput"), "{root_arm}");
         assert!(!joined.contains("vec !"), "{joined}");
     }
 }

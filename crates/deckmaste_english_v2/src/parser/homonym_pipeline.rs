@@ -239,7 +239,17 @@ constructions! {
         derive verb.agreement = Values::Bare;
         form ability = open_verb(KeywordAbility, "Destroy");
     }
+    construction nested_root_leaf: NestedRoot {
+        element NestedRootValue { marker: lex StructuralWord, }
+        form nested_root_leaf = lex(marker);
+    }
+    construction outer_root: OuterRoot {
+        element OuterRootValue { inner: NestedRoot, }
+        form outer_root = inner;
+    }
     root Homonym { punctuation = "."; eoi = true; standalone_render = true; }
+    root NestedRoot { punctuation = "!"; eoi = true; standalone_render = false; }
+    root OuterRoot { punctuation = "."; eoi = true; standalone_render = true; }
 }
 
 fn environment() -> ParserEnvironment {
@@ -406,6 +416,27 @@ fn materialized_structural_markers(value: &BuildValue) -> Vec<StructuralWord> {
         BuildValue::BoundedPositionalStructural(value) => structural_markers(&value.items),
         value => panic!("unexpected structural materialization {value:?}"),
     }
+}
+
+#[test]
+fn cross_root_nesting_materializes_from_base_children_without_root_sentinels() {
+    let environment = environment();
+    let context = ParseContext::default();
+    let forest = parse_fixture(Category::OuterRoot, "Alpha", &environment)
+        .expect("the ordinary nested categories parse without root punctuation");
+
+    let built = materialize_fixture(&forest, &context);
+
+    assert_eq!(built.len(), 1);
+    let BuildValue::OuterRoot(OuterRoot::OuterRoot(value)) = &built[0].value else {
+        panic!("the nested category materializes as the outer root value");
+    };
+    assert!(matches!(
+        value.inner,
+        NestedRoot::NestedRootLeaf(NestedRootValue {
+            marker: StructuralWord::Alpha,
+        })
+    ));
 }
 
 #[test]
@@ -734,6 +765,11 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
         })
         .collect::<Vec<_>>();
     assert_eq!(root_position.byte_offset, text.len());
+    assert_eq!(
+        root_values,
+        vec![Leaf::Literal("."), Leaf::EndOfInput],
+        "the generated root adapter owns punctuation and EOI outside base productions",
+    );
 
     assert_eq!(forest.accepted_roots().count(), 2);
     let traced_owners = trace.finish();
@@ -753,20 +789,7 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
         RuleId::public_construction,
         |terminal: LexicalTerminal| terminal.matcher,
         |leaf| BuildValue::Leaf(leaf.clone()),
-        |rule, children| {
-            let extended;
-            let children = if RULES[rule.index()].lhs == Category::Homonym {
-                extended = children
-                    .iter()
-                    .cloned()
-                    .chain(root_values.iter().cloned().map(BuildValue::Leaf))
-                    .collect::<Vec<_>>();
-                &extended
-            } else {
-                children
-            };
-            build(rule, children, &context)
-        },
+        |rule, children| build(rule, children, &context),
     );
     assert_eq!(built.len(), 2, "the kernel retains both accepted roots");
 

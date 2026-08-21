@@ -969,38 +969,25 @@ impl Category {
     pub(crate) const fn root_rule_rhs(
         self,
         eoi: bool,
-        rule: RuleId,
-    ) -> Option<&'static [RulePosition<Category, LexicalTerminal>]> {
-        match (self, eoi, rule) {
-            (Self::Action, true, RuleId::ActionAction) => {
-                Some(
-                    &[
-                        L(LexicalTerminal {
-                            matcher: Lexical::Verb(
-                                Verbs::Act,
-                                FeatureConstraint::Exact(Agreement::Bare),
-                            ),
-                            owner: LexicalOwnerTemplate::Lexeme {
-                                declaration: "Verbs",
-                                member: "Act",
-                            },
-                        }),
-                        N(Category::Node),
-                        L(LexicalTerminal {
-                            matcher: Lexical::Literal("."),
-                            owner: LexicalOwnerTemplate::Static {
-                                kind: LexicalProvenanceKind::FormLiteral,
-                                stable_id: "root:Action/punctuation",
-                            },
-                        }),
-                        L(LexicalTerminal {
-                            matcher: Lexical::EndOfInput,
-                            owner: LexicalOwnerTemplate::None,
-                        }),
-                    ],
-                )
+    ) -> &'static [RulePosition<Category, LexicalTerminal>] {
+        match (self, eoi) {
+            (Self::Action, true) => {
+                &[
+                    RulePosition::Nonterminal(Self::Action),
+                    L(LexicalTerminal {
+                        matcher: Lexical::Literal("."),
+                        owner: LexicalOwnerTemplate::Static {
+                            kind: LexicalProvenanceKind::FormLiteral,
+                            stable_id: "root:Action/punctuation",
+                        },
+                    }),
+                    L(LexicalTerminal {
+                        matcher: Lexical::EndOfInput,
+                        owner: LexicalOwnerTemplate::None,
+                    }),
+                ]
             }
-            _ => None,
+            _ => &[],
         }
     }
     pub(crate) const fn root_eoi(self) -> Option<bool> {
@@ -1133,8 +1120,7 @@ pub(super) fn build(
             match children {
                 [BuildValue::Leaf(
                     Leaf::Verb { lexeme: Verbs::Act, agreement: Agreement::Bare },
-                ), BuildValue::Node(node), BuildValue::Leaf(Leaf::Literal(".")),
-                BuildValue::Leaf(Leaf::EndOfInput)] => {
+                ), BuildValue::Node(node)] => {
                     Some(
                         BuildValue::Action(
                             Action::Action(ActionElement {

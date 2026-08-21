@@ -23,11 +23,13 @@ use crate::constructions::Leaf;
 use crate::constructions::Lexical;
 use crate::constructions::LexicalOwner;
 use crate::constructions::LexicalTerminal;
+#[cfg(test)]
 use crate::constructions::RULES;
 use crate::constructions::RuleId;
 use crate::constructions::build;
 use crate::context::ParseContext;
 use crate::parser::scan::RootForest;
+use crate::parser::scan::RootRuleId;
 use crate::parser::scan::rules_for_root;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,6 +100,22 @@ impl MaterializationObservation<RuleId> for MaterializationTraceBuilder {
 
     fn cycle_pruned(&mut self, node_id: NodeId, rule_path: &[RuleId]) {
         self.record_cycle(node_id.0, rule_path);
+    }
+}
+
+impl MaterializationObservation<RootRuleId> for MaterializationTraceBuilder {
+    const ENABLED: bool = true;
+
+    fn cycle_pruned(&mut self, node_id: NodeId, rule_path: &[RootRuleId]) {
+        self.record_cycle_with(
+            node_id.0,
+            rule_path,
+            |rule| rule.index(),
+            |rule| match rule {
+                RootRuleId::Grammar(rule) => format!("{rule:?}"),
+                RootRuleId::Adapter => "RootAdapter".to_owned(),
+            },
+        );
     }
 }
 
@@ -421,13 +439,11 @@ pub(crate) fn materialize<R: GeneratedRoot>(
     let rules = rules_for_root::<R>();
     let built = MaterializationKernel {
         rules: &rules,
-        rule_index: RuleId::index,
-        public_construction: RuleId::public_construction,
+        rule_index: RootRuleId::index,
+        public_construction: RootRuleId::public_construction,
         lexical_matcher: |terminal: LexicalTerminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-        build: |rule: RuleId, children: &[BuildValue]| {
-            build_for_selected_root::<R>(rule, children, context)
-        },
+        build: |rule, children: &[BuildValue]| build_root_rule(rule, children, context),
     }
     .materialize(forest.forest(), &mut ());
     finalize_candidates::<R>(built, context, environment, None)
@@ -445,13 +461,11 @@ pub(crate) fn materialize_observed<R: GeneratedRoot>(
     let rules = rules_for_root::<R>();
     let built = MaterializationKernel {
         rules: &rules,
-        rule_index: RuleId::index,
-        public_construction: RuleId::public_construction,
+        rule_index: RootRuleId::index,
+        public_construction: RootRuleId::public_construction,
         lexical_matcher: |terminal: LexicalTerminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-        build: |rule: RuleId, children: &[BuildValue]| {
-            build_for_selected_root::<R>(rule, children, context)
-        },
+        build: |rule, children: &[BuildValue]| build_root_rule(rule, children, context),
     }
     .materialize(forest.forest(), &mut observation);
     let candidates = finalize_candidates::<R>(
@@ -559,42 +573,21 @@ fn finalize_candidates<R: GeneratedRoot>(
     candidates
 }
 
-fn build_with_root_sentinels(
-    rule: RuleId,
+fn build_root_rule(
+    rule: RootRuleId,
     children: &[BuildValue],
     context: &ParseContext<'_>,
 ) -> Option<BuildValue> {
-    let category = RULES[rule.index()].lhs;
-    if category.root_eoi() != Some(true) {
-        return build(rule, children, context);
+    match rule {
+        RootRuleId::Grammar(rule) => build(rule, children, context),
+        RootRuleId::Adapter => {
+            let (value, adapter) = children.split_first()?;
+            adapter
+                .iter()
+                .all(|value| matches!(value, BuildValue::Leaf(_)))
+                .then(|| value.clone())
+        }
     }
-    let mut adapted = Vec::with_capacity(children.len() + category.root_adapter(true).len());
-    adapted.extend_from_slice(children);
-    adapted.extend(category.root_adapter(true).iter().map(|terminal| {
-        BuildValue::Leaf(match terminal.matcher {
-            Lexical::Literal(literal) => Leaf::Literal(literal),
-            Lexical::EndOfInput => Leaf::EndOfInput,
-            _ => unreachable!("generated root adapters contain only punctuation and EOI"),
-        })
-    }));
-    build(rule, &adapted, context)
-}
-
-fn build_for_selected_root<R: GeneratedRoot>(
-    rule: RuleId,
-    children: &[BuildValue],
-    context: &ParseContext<'_>,
-) -> Option<BuildValue> {
-    if RULES[rule.index()].lhs != R::CATEGORY {
-        return build_with_root_sentinels(rule, children, context);
-    }
-    if R::EOI {
-        return build(rule, children, context);
-    }
-    let content_length = children
-        .len()
-        .checked_sub(R::CATEGORY.root_adapter(R::EOI).len())?;
-    build(rule, &children[..content_length], context)
 }
 
 #[cfg(test)]
@@ -620,23 +613,21 @@ fn materialize_node(
         public_construction: RuleId::public_construction,
         lexical_matcher: |terminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-        build: |rule: RuleId, children: &[BuildValue]| {
-            build_with_root_sentinels(rule, children, context)
-        },
+        build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
     };
     kernel.materialize_node(forest, node_id, state, &mut Vec::new(), &mut ())
 }
 
 pub(super) fn completion_has_checked_build<R: GeneratedRoot>(
-    rules: &[Rule<Category, LexicalTerminal, RuleId>],
-    rule: RuleId,
+    rules: &[Rule<Category, LexicalTerminal, RootRuleId>],
+    rule: RootRuleId,
     family: &Family<Leaf, LexicalOwner>,
-    forest: &Forest<RuleId, Leaf, LexicalOwner>,
+    forest: &Forest<RootRuleId, Leaf, LexicalOwner>,
     context: &ParseContext<'_>,
 ) -> bool {
     let kernel: MaterializationKernel<
         '_,
-        RuleId,
+        RootRuleId,
         Leaf,
         BuildValue,
         Construction,
@@ -646,13 +637,11 @@ pub(super) fn completion_has_checked_build<R: GeneratedRoot>(
         _,
     > = MaterializationKernel {
         rules,
-        rule_index: RuleId::index,
-        public_construction: RuleId::public_construction,
+        rule_index: RootRuleId::index,
+        public_construction: RootRuleId::public_construction,
         lexical_matcher: |terminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-        build: |rule: RuleId, children: &[BuildValue]| {
-            build_for_selected_root::<R>(rule, children, context)
-        },
+        build: |rule, children: &[BuildValue]| build_root_rule(rule, children, context),
     };
     !kernel
         .materialize_family(
@@ -697,7 +686,9 @@ mod tests {
     use super::Leaf;
     use super::Lexical;
     use super::MaterializationStateFor;
+    use super::RootRuleId;
     use super::RuleId;
+    use super::build_root_rule;
     use super::materialize;
     use super::materialize_node;
     use super::materialize_observed;
@@ -792,6 +783,37 @@ mod tests {
             ],
         }
     }
+
+    #[test]
+    fn root_adapter_materialization_is_identity_over_one_semantic_child() {
+        let value = BuildValue::Sentence(Sentence::Imperative(Imperative {
+            predicate: VerbPhrase::Connive(Connive),
+        }));
+        let adapter_children = [
+            value.clone(),
+            BuildValue::Leaf(Leaf::Literal(".")),
+            BuildValue::Leaf(Leaf::EndOfInput),
+        ];
+
+        assert_eq!(
+            build_root_rule(
+                RootRuleId::Adapter,
+                &adapter_children,
+                &context("Context Card"),
+            ),
+            Some(value.clone()),
+        );
+        assert_eq!(
+            build_root_rule(
+                RootRuleId::Adapter,
+                &[value.clone(), value],
+                &context("Context Card"),
+            ),
+            None,
+            "a second semantic child cannot be hidden behind the root adapter",
+        );
+    }
+
     #[test]
     fn materialization_rejects_a_direct_nullable_cycle_but_keeps_an_acyclic_family() {
         let forest = Forest::from_test_parts(
@@ -1054,8 +1076,6 @@ mod tests {
             candidates[0].positions,
             vec![
                 RulePosition::Nonterminal(Category::Sentence),
-                RulePosition::Lexical(Lexical::Literal(".")),
-                RulePosition::Lexical(Lexical::EndOfInput),
                 RulePosition::Nonterminal(Category::VerbPhrase),
                 RulePosition::Lexical(Lexical::Declaration(DeclarationMatcher {
                     kind: DeclarationKind::KeywordAction,
@@ -1173,7 +1193,7 @@ mod tests {
             .collect::<Vec<_>>();
         let bridge = NodeId(nodes.len());
         nodes.push(PackedNode {
-            rule: RuleId::SentenceImperative,
+            rule: RootRuleId::Grammar(RuleId::SentenceImperative),
             start: 0,
             end: 0,
             families: vec![Family {
@@ -1242,12 +1262,12 @@ mod tests {
             );
             if limit > 0 {
                 let cycle = &trace.materialization_cycles().items()[0];
-                assert_eq!(cycle.node_ordinal(), 3);
+                assert_eq!(cycle.node_ordinal(), 4);
                 assert_eq!(cycle.construction_path().total(), 2);
                 assert_eq!(cycle.construction_path().shown(), usize::min(limit, 2));
                 assert_eq!(
                     cycle.construction_path().items(),
-                    &["AbilitySpell".to_owned(), "SentenceImperative".to_owned(),]
+                    &["RootAdapter".to_owned(), "SentenceImperative".to_owned(),]
                         [..usize::min(limit, 2)]
                 );
                 let candidate = &trace.materialized_candidates().items()[0];
@@ -1262,7 +1282,7 @@ mod tests {
     fn parser_trace_internal_only_cycle_keeps_typed_materialization_failure() {
         let forest = RootForest::from_test_forest(Forest::from_test_parts(
             vec![PackedNode {
-                rule: RuleId::AbilitySpell,
+                rule: RootRuleId::Grammar(RuleId::AbilitySpell),
                 start: 0,
                 end: 0,
                 families: vec![Family {

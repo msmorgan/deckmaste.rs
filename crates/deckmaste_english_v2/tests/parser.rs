@@ -518,6 +518,31 @@ fn generic_root_api_preserves_types_and_sentence_root_metadata() {
 }
 
 #[test]
+fn generic_root_adapter_is_only_applied_at_the_outer_recursive_sentence_boundary() {
+    let parser = parser();
+    let context = context("Context Card");
+    let text =
+        "You gain X life, where X is the number of creatures you control with power 2 or less.";
+    let Ability::Spell(Spell { effect: expected }) = gain_life_with_where() else {
+        panic!("the recursive Sentence fixture is an ordinary spell");
+    };
+
+    let trace = parser.trace_sentence(text, &context, TraceLimits::new(usize::MAX));
+
+    assert_eq!(trace.clone().into_parse_result(), Ok(expected));
+    assert_eq!(
+        trace
+            .scanner_matches()
+            .items()
+            .iter()
+            .filter(|scanned| scanned.terminal_name_v1() == "Literal(\".\")")
+            .count(),
+        1,
+        "only the true Sentence root boundary scans its declared period",
+    );
+}
+
+#[test]
 fn parses_and_round_trips_the_five_slice_abilities() {
     let parser = parser();
     for (text, card_name, expected) in [
@@ -794,8 +819,8 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
             let candidate = &trace.materialized_candidates().items()[0];
             assert_eq!(candidate.construction_path().total(), 4);
             assert_eq!(candidate.construction_path().shown(), usize::min(limit, 4));
-            assert_eq!(candidate.specificity().total(), 8);
-            assert_eq!(candidate.specificity().shown(), usize::min(limit, 8));
+            assert_eq!(candidate.specificity().total(), 6);
+            assert_eq!(candidate.specificity().shown(), usize::min(limit, 6));
         }
 
         if limit == usize::MAX {
@@ -815,7 +840,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "NounPhraseTarget",
                 ]
             );
-            assert_eq!(candidate.specificity().total(), 8);
+            assert_eq!(candidate.specificity().total(), 6);
             assert!(selection.unselected_candidates().items().is_empty());
             assert_eq!(selection.resolution(), complete.resolution());
             assert_eq!(selection.survivors().items(), complete.survivors());

@@ -46,11 +46,7 @@ use crate::semantic::VocabPlan;
 )]
 pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = validated.constructions();
-    let roots = validated
-        .roots()
-        .iter()
-        .filter(|root| root.is_render_entry())
-        .collect::<Vec<_>>();
+    let roots = validated.roots().iter().collect::<Vec<_>>();
     let categories = category_groups(constructions);
     let nested_categories = constructions
         .iter()
@@ -158,22 +154,24 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             },
             vec![origin.clone()],
         ));
-        items.push(GeneratedItem::new(
-            ItemKey::Impl {
-                trait_name: Some("Render".to_owned()),
-                self_ty: category.clone(),
-            },
-            quote! {
-            impl Render for #ty {
-                fn render(&self, context: &ParseContext<'_> #environment) -> String {
-                    let mut writer = Writer::new();
-                    self.#write_function(&mut writer, context #environment_argument);
-                    writer.finish()
+        if root.is_render_entry() {
+            items.push(GeneratedItem::new(
+                ItemKey::Impl {
+                    trait_name: Some("Render".to_owned()),
+                    self_ty: category.clone(),
+                },
+                quote! {
+                impl Render for #ty {
+                    fn render(&self, context: &ParseContext<'_> #environment) -> String {
+                        let mut writer = Writer::new();
+                        self.#write_function(&mut writer, context #environment_argument);
+                        writer.finish()
+                    }
                 }
-            }
-            },
-            vec![origin.clone()],
-        ));
+                },
+                vec![origin.clone()],
+            ));
+        }
         items.push(GeneratedItem::new(
             ItemKey::Named {
                 kind: NamedKind::Function,

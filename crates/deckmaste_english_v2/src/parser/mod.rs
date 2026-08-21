@@ -652,7 +652,10 @@ mod structural_trace_tests {
         super::materialize::set_materialized_candidate_copies(3);
         super::materialize::reset_specificity_candidate_evaluations();
 
-        let analysis = parser.analyze("Destroy target creature.", &context);
+        let analysis = parser.analyze(
+            "You gain X life, where X is the number of creatures you control with power 2 or less.",
+            &context,
+        );
         super::materialize::set_materialized_candidate_copies(1);
 
         assert!(analysis.ownership().is_some());

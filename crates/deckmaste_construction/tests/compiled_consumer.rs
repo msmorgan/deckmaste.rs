@@ -339,11 +339,7 @@ mod declaration_noun_fixture {
     ) {
         let built = build(
             RuleId::PhraseSingular,
-            &[
-                BuildValue::Leaf(singular.value.clone()),
-                BuildValue::Leaf(Leaf::Literal(".")),
-                BuildValue::Leaf(Leaf::EndOfInput),
-            ],
+            &[BuildValue::Leaf(singular.value.clone())],
             context,
         )
         .expect("generated declaration noun builds through its construction");
@@ -366,11 +362,7 @@ mod declaration_noun_fixture {
 
         let built = build(
             RuleId::PluralPhrasePlural,
-            &[
-                BuildValue::Leaf(plural.value.clone()),
-                BuildValue::Leaf(Leaf::Literal(".")),
-                BuildValue::Leaf(Leaf::EndOfInput),
-            ],
+            &[BuildValue::Leaf(plural.value.clone())],
             context,
         )
         .expect("generated plural declaration noun builds through its construction");
@@ -1710,11 +1702,7 @@ pub mod fixture {
         );
         let built = build(
             RuleId::BeSentenceBareBe,
-            &[
-                BuildValue::Leaf(bare_be[0].value.clone()),
-                BuildValue::Leaf(Leaf::Literal(".")),
-                BuildValue::Leaf(Leaf::EndOfInput),
-            ],
+            &[BuildValue::Leaf(bare_be[0].value.clone())],
             context,
         )
         .expect("the exact Bare Be scanner reading builds its generated rule");
@@ -2527,8 +2515,6 @@ pub mod fixture {
                     noun: Head(1),
                     number,
                 }),
-                BuildValue::Leaf(Leaf::Literal(".")),
-                BuildValue::Leaf(Leaf::EndOfInput),
             ]
         };
         assert!(build(RuleId::PhraseOne, &one_children(Number::Singular), &context).is_some());
@@ -2861,11 +2847,7 @@ pub mod fixture {
 
         let raw_category = build(
             RuleId::RawCategoryRawLeaf,
-            &[
-                BuildValue::Leaf(Leaf::Literal("raw")),
-                BuildValue::Leaf(Leaf::Literal("?")),
-                BuildValue::Leaf(Leaf::EndOfInput),
-            ],
+            &[BuildValue::Leaf(Leaf::Literal("raw"))],
             &context,
         )
         .expect("raw nonkeyword declaration spellings build through canonical generated names");

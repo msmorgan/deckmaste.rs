@@ -242,7 +242,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         .zip(&rule_ids)
         .map(|(row, rule_id)| emit_rule(plan, row, rule_id))
         .collect::<syn::Result<Vec<_>>>()?;
-    let root_adapter = emit_root_adapter(plan, &lowered)?;
+    let root_adapter = emit_root_adapter(plan);
 
     let mut rule_origins = origins.clone();
     rule_origins.extend(
@@ -315,13 +315,13 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     ])
 }
 
-fn emit_root_adapter(plan: &SemanticPlan, rows: &[RuleRowPlan]) -> syn::Result<GeneratedItem> {
+fn emit_root_adapter(plan: &SemanticPlan) -> GeneratedItem {
     let root_adapters = plan
         .roots()
         .iter()
         .map(|root| {
             let category = ident(root.category());
-            let eoi = root.is_parse_entry();
+            let eoi = plan.parse_root(root.category()).is_some();
             let mut terminals = Vec::new();
             if !root.punctuation().is_empty() {
                 let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
@@ -348,35 +348,28 @@ fn emit_root_adapter(plan: &SemanticPlan, rows: &[RuleRowPlan]) -> syn::Result<G
                     }
                 });
             }
-            (root, category, eoi, terminals)
+            (category, eoi, terminals)
         })
         .collect::<Vec<_>>();
-    let adapter_arms = root_adapters.iter().map(|(_, category, eoi, terminals)| {
+    let adapter_arms = root_adapters.iter().map(|(category, eoi, terminals)| {
         quote! { (Self::#category, #eoi) => &[#(#terminals),*] }
     });
     let mut root_rule_arms = Vec::new();
-    for (root, category, eoi, terminals) in &root_adapters {
-        for row in rows.iter().filter(|row| row.lhs == root.category()) {
-            let rule_id = ident(&row.id);
-            let rhs = row
-                .rhs
-                .iter()
-                .map(|symbol| emit_rule_symbol(plan, symbol))
-                .collect::<syn::Result<Vec<_>>>()?;
-            let adapter = terminals.iter().map(|terminal| quote! { L(#terminal) });
-            root_rule_arms.push(quote! {
-                (Self::#category, #eoi, RuleId::#rule_id) => {
-                    Some(&[#(#rhs,)* #(#adapter),*])
-                }
-            });
-        }
+    for (category, eoi, terminals) in &root_adapters {
+        let adapter = terminals.iter().map(|terminal| quote! { L(#terminal) });
+        root_rule_arms.push(quote! {
+            (Self::#category, #eoi) => &[
+                RulePosition::Nonterminal(Self::#category),
+                #(#adapter),*
+            ]
+        });
     }
     let eoi_arms = plan.roots().iter().map(|root| {
         let category = ident(root.category());
         let eoi = root.is_parse_entry();
         quote! { Self::#category => Some(#eoi) }
     });
-    Ok(GeneratedItem::new(
+    GeneratedItem::new(
         ItemKey::Impl {
             trait_name: None,
             self_ty: RULE_CATEGORY_TYPE.to_owned(),
@@ -393,11 +386,10 @@ fn emit_root_adapter(plan: &SemanticPlan, rows: &[RuleRowPlan]) -> syn::Result<G
                 pub(crate) const fn root_rule_rhs(
                     self,
                     eoi: bool,
-                    rule: RuleId,
-                ) -> Option<&'static [RulePosition<Category, LexicalTerminal>]> {
-                    match (self, eoi, rule) {
+                ) -> &'static [RulePosition<Category, LexicalTerminal>] {
+                    match (self, eoi) {
                         #(#root_rule_arms,)*
-                        _ => None,
+                        _ => &[],
                     }
                 }
 
@@ -413,7 +405,7 @@ fn emit_root_adapter(plan: &SemanticPlan, rows: &[RuleRowPlan]) -> syn::Result<G
             .iter()
             .map(|root| DeclarationKey::new(DeclarationKind::Root, root.category()))
             .collect(),
-    ))
+    )
 }
 
 fn emit_rule(

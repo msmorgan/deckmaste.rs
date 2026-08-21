@@ -181,7 +181,6 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let origins = plan
         .roots()
         .iter()
-        .filter(|root| root.is_render_entry())
         .map(|root| {
             crate::plan::DeclarationKey::new(crate::plan::DeclarationKind::Root, root.category())
         })
@@ -212,62 +211,57 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         origins,
     )];
     let takes_environment = plan.needs_parser_environment();
-    items.extend(
-        plan.roots()
-            .iter()
-            .filter(|root| root.is_render_entry())
-            .map(|root| {
-                let category = emitted_ident(root.category(), Span::call_site());
-                let name = syn::LitStr::new(root.category(), Span::call_site());
-                let eoi = root.is_parse_entry();
-                let renderer = emitted_ident(
-                    &format!("render_{}_with_claims", snake_case(root.category())),
-                    Span::call_site(),
-                );
-                let environment = takes_environment.then(|| quote! { , environment });
-                let agreement = plan
-                    .category_carries_agreement(root.category())
-                    .then(|| quote! { , _ });
-                let number = plan
-                    .category_carries_number(root.category())
-                    .then(|| quote! { , _ });
-                GeneratedItem::new(
-                    ItemKey::Impl {
-                        trait_name: Some("GeneratedRoot".to_owned()),
-                        self_ty: root.category().to_owned(),
-                    },
-                    quote! {
-                        impl GeneratedRoot for #category {
-                            const CATEGORY: Category = Category::#category;
-                            const NAME: &'static str = #name;
-                            const EOI: bool = #eoi;
+    items.extend(plan.roots().iter().map(|root| {
+        let category = emitted_ident(root.category(), Span::call_site());
+        let name = syn::LitStr::new(root.category(), Span::call_site());
+        let eoi = root.is_parse_entry();
+        let renderer = emitted_ident(
+            &format!("render_{}_with_claims", snake_case(root.category())),
+            Span::call_site(),
+        );
+        let environment = takes_environment.then(|| quote! { , environment });
+        let agreement = plan
+            .category_carries_agreement(root.category())
+            .then(|| quote! { , _ });
+        let number = plan
+            .category_carries_number(root.category())
+            .then(|| quote! { , _ });
+        GeneratedItem::new(
+            ItemKey::Impl {
+                trait_name: Some("GeneratedRoot".to_owned()),
+                self_ty: root.category().to_owned(),
+            },
+            quote! {
+                impl GeneratedRoot for #category {
+                    const CATEGORY: Category = Category::#category;
+                    const NAME: &'static str = #name;
+                    const EOI: bool = #eoi;
 
-                            fn from_build(value: BuildValue) -> Option<Self> {
-                                match value {
-                                    BuildValue::#category(value #agreement #number) => Some(value),
-                                    _ => None,
-                                }
-                            }
-
-                            fn render_with_claims(
-                                &self,
-                                context: &ParseContext<'_>,
-                                environment: &crate::environment::ParserEnvironment,
-                            ) -> (
-                                String,
-                                Vec<RawRenderedClaim>,
-                            ) {
-                                #renderer(self, context #environment)
-                            }
+                    fn from_build(value: BuildValue) -> Option<Self> {
+                        match value {
+                            BuildValue::#category(value #agreement #number) => Some(value),
+                            _ => None,
                         }
-                    },
-                    vec![crate::plan::DeclarationKey::new(
-                        crate::plan::DeclarationKind::Root,
-                        root.category(),
-                    )],
-                )
-            }),
-    );
+                    }
+
+                    fn render_with_claims(
+                        &self,
+                        context: &ParseContext<'_>,
+                        environment: &crate::environment::ParserEnvironment,
+                    ) -> (
+                        String,
+                        Vec<RawRenderedClaim>,
+                    ) {
+                        #renderer(self, context #environment)
+                    }
+                }
+            },
+            vec![crate::plan::DeclarationKey::new(
+                crate::plan::DeclarationKind::Root,
+                root.category(),
+            )],
+        )
+    }));
     items
 }
 
@@ -1509,7 +1503,7 @@ mod tests {
                     form right = "right";
                 }
                 root LeftNode { punctuation = "."; eoi = true; standalone_render = true; }
-                root RightNode { punctuation = "."; eoi = false; standalone_render = true; }
+                root RightNode { punctuation = "."; eoi = false; standalone_render = false; }
             })
             .expect("structural runtime fixture parses"),
         )

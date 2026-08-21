@@ -24,8 +24,8 @@ use super::engine::LexicalMatch;
 use super::engine::Observation;
 use super::engine::Rule;
 use super::engine::StatefulLexicalMatch;
-use super::engine::parse_observed_with_state;
-use super::engine::parse_with_state;
+use super::engine::parse_root_observed_with_state;
+use super::engine::parse_root_with_state;
 use super::materialize::completion_has_checked_build;
 use crate::constructions::CasePosition;
 use crate::constructions::Category;
@@ -59,24 +59,46 @@ pub(crate) struct ScanInput<'a> {
     pub(crate) context: &'a ParseContext<'a>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RootRuleId {
+    Grammar(RuleId),
+    Adapter,
+}
+
+impl RootRuleId {
+    pub(super) const fn index(self) -> usize {
+        match self {
+            Self::Grammar(rule) => rule.index(),
+            Self::Adapter => RULES.len(),
+        }
+    }
+
+    pub(super) const fn public_construction(self) -> Option<crate::constructions::Construction> {
+        match self {
+            Self::Grammar(rule) => rule.public_construction(),
+            Self::Adapter => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RootForest {
-    forest: Forest<RuleId, Leaf, LexicalOwner>,
+    forest: Forest<RootRuleId, Leaf, LexicalOwner>,
 }
 
 impl RootForest {
-    pub(crate) fn forest(&self) -> &Forest<RuleId, Leaf, LexicalOwner> {
+    pub(crate) fn forest(&self) -> &Forest<RootRuleId, Leaf, LexicalOwner> {
         &self.forest
     }
 
     #[cfg(test)]
-    pub(crate) fn from_test_forest(forest: Forest<RuleId, Leaf, LexicalOwner>) -> Self {
+    pub(crate) fn from_test_forest(forest: Forest<RootRuleId, Leaf, LexicalOwner>) -> Self {
         Self { forest }
     }
 }
 
 impl std::ops::Deref for RootForest {
-    type Target = Forest<RuleId, Leaf, LexicalOwner>;
+    type Target = Forest<RootRuleId, Leaf, LexicalOwner>;
 
     fn deref(&self) -> &Self::Target {
         &self.forest
@@ -90,9 +112,9 @@ pub(crate) fn parse_forest<R: GeneratedRoot>(
     #[cfg(test)]
     super::count_pipeline_stage(super::PipelineStage::Parse);
     let rules = rules_for_root::<R>();
-    let forest = parse_with_state(
+    let forest = parse_root_with_state(
         &rules,
-        R::CATEGORY,
+        RootRuleId::Adapter,
         text.len(),
         &initial_scan_position(),
         |lexical, offset, position| grammar.scan_stateful(lexical, text, offset, *position),
@@ -115,9 +137,9 @@ pub(crate) fn parse_forest_observed<R: GeneratedRoot>(
     super::count_pipeline_stage(super::PipelineStage::Parse);
     let mut observation = StructuralObservation::new(limits);
     let rules = rules_for_root::<R>();
-    let result = parse_observed_with_state(
+    let result = parse_root_observed_with_state(
         &rules,
-        R::CATEGORY,
+        RootRuleId::Adapter,
         text.len(),
         &initial_scan_position(),
         |lexical, offset, position| grammar.scan_stateful(lexical, text, offset, *position),
@@ -132,17 +154,24 @@ pub(crate) fn parse_forest_observed<R: GeneratedRoot>(
     (result, trace)
 }
 
-pub(super) fn rules_for_root<R: GeneratedRoot>() -> Vec<Rule<Category, LexicalTerminal, RuleId>> {
-    RULES
+pub(super) fn rules_for_root<R: GeneratedRoot>() -> Vec<Rule<Category, LexicalTerminal, RootRuleId>>
+{
+    let mut rules = RULES
         .iter()
         .map(|rule| Rule {
-            id: rule.id,
+            id: RootRuleId::Grammar(rule.id),
             lhs: rule.lhs,
-            rhs: R::CATEGORY
-                .root_rule_rhs(R::EOI, rule.id)
-                .unwrap_or(rule.rhs),
+            rhs: rule.rhs,
         })
-        .collect()
+        .collect::<Vec<_>>();
+    let rhs = R::CATEGORY.root_rule_rhs(R::EOI);
+    debug_assert!(!rhs.is_empty(), "generated root has one adapter rule");
+    rules.push(Rule {
+        id: RootRuleId::Adapter,
+        lhs: R::CATEGORY,
+        rhs,
+    });
+    rules
 }
 
 struct StructuralObservation {
@@ -156,7 +185,7 @@ struct StructuralObservation {
 
 #[derive(Clone, PartialEq, Eq)]
 struct CheckedRejectionIdentity {
-    rule: RuleId,
+    rule: RootRuleId,
     start: usize,
     end: usize,
     family: RawFamilyIdentity,
@@ -234,14 +263,14 @@ impl StructuralObservation {
     }
 }
 
-impl Observation<RuleId, Leaf, LexicalTerminal, LexicalOwner> for StructuralObservation {
+impl Observation<RootRuleId, Leaf, LexicalTerminal, LexicalOwner> for StructuralObservation {
     fn scanned(&mut self, start: usize, terminal: LexicalTerminal, end: usize, value: &Leaf) {
         self.record_scanned_token(start, end, terminal, value);
     }
 
     fn checked_completion(
         &mut self,
-        rule: RuleId,
+        rule: RootRuleId,
         start: usize,
         end: usize,
         family: &Family<Leaf, LexicalOwner>,
@@ -263,7 +292,7 @@ impl Observation<RuleId, Leaf, LexicalTerminal, LexicalOwner> for StructuralObse
     fn chart_item(
         &mut self,
         column: usize,
-        rule: RuleId,
+        rule: RootRuleId,
         dot: usize,
         origin: usize,
         family_count: usize,
@@ -277,7 +306,7 @@ impl Observation<RuleId, Leaf, LexicalTerminal, LexicalOwner> for StructuralObse
         });
     }
 
-    fn final_forest(&mut self, forest: &Forest<RuleId, Leaf, LexicalOwner>) {
+    fn final_forest(&mut self, forest: &Forest<RootRuleId, Leaf, LexicalOwner>) {
         for root in forest.accepted_root_ids() {
             self.roots.push_with(|| root.0);
         }
@@ -314,14 +343,17 @@ impl Observation<RuleId, Leaf, LexicalTerminal, LexicalOwner> for StructuralObse
     }
 }
 
-fn rule_name_v1(rule: RuleId) -> String {
+fn rule_name_v1(rule: RootRuleId) -> String {
     #[cfg(test)]
     TRACE_LABEL_COUNTS.with(|counts| {
         let mut current = counts.get();
         current.rules += 1;
         counts.set(current);
     });
-    format!("{rule:?}")
+    match rule {
+        RootRuleId::Grammar(rule) => format!("{rule:?}"),
+        RootRuleId::Adapter => "RootAdapter".to_owned(),
+    }
 }
 fn terminal_name_v1(terminal: Lexical) -> String {
     #[cfg(test)]
@@ -845,6 +877,7 @@ mod tests {
     use super::Leaf;
     use super::Lexical;
     use super::LexicalMatch;
+    use super::RootRuleId;
     use super::RuleId;
     use super::ScanInput;
     use super::SliceGrammar;
@@ -2049,8 +2082,20 @@ mod tests {
             children: vec![Child::Node(NodeId(7)), lexical(Leaf::Literal("where"))],
         };
         let mut observed = StructuralObservation::new(TraceLimits::new(1));
-        observed.checked_completion(RuleId::AmountNumber, 1, 4, &family, false);
-        observed.checked_completion(RuleId::AmountNumber, 1, 4, &family, true);
+        observed.checked_completion(
+            RootRuleId::Grammar(RuleId::AmountNumber),
+            1,
+            4,
+            &family,
+            false,
+        );
+        observed.checked_completion(
+            RootRuleId::Grammar(RuleId::AmountNumber),
+            1,
+            4,
+            &family,
+            true,
+        );
         let rejections = observed.finish().checked_completion_rejections().clone();
         assert_eq!(
             (rejections.total(), rejections.shown(), rejections.omitted()),
@@ -2065,7 +2110,13 @@ mod tests {
         };
         for (limit, shown) in [(0, 0), (1, 1)] {
             let mut observed = StructuralObservation::new(TraceLimits::new(limit));
-            observed.checked_completion(RuleId::AmountNumber, 1, 4, &family, false);
+            observed.checked_completion(
+                RootRuleId::Grammar(RuleId::AmountNumber),
+                1,
+                4,
+                &family,
+                false,
+            );
             let rejections = observed.finish().checked_completion_rejections().clone();
             assert_eq!(
                 (rejections.total(), rejections.shown(), rejections.omitted()),
@@ -2087,8 +2138,20 @@ mod tests {
         for (limit, expected_labels) in [(0, 0), (1, 1)] {
             reset_trace_label_counts();
             let mut observed = StructuralObservation::new(TraceLimits::new(limit));
-            observed.checked_completion(RuleId::VerbPhraseGainLife, 1, 2, &family, false);
-            observed.checked_completion(RuleId::AmountNumber, 1, 2, &family, false);
+            observed.checked_completion(
+                RootRuleId::Grammar(RuleId::VerbPhraseGainLife),
+                1,
+                2,
+                &family,
+                false,
+            );
+            observed.checked_completion(
+                RootRuleId::Grammar(RuleId::AmountNumber),
+                1,
+                2,
+                &family,
+                false,
+            );
 
             let rejections = observed.finish().checked_completion_rejections().clone();
             assert_eq!(
@@ -2111,7 +2174,11 @@ mod tests {
         let mut seen_rules = BTreeSet::new();
         let rules = RULES
             .iter()
-            .filter_map(|rule| seen_rules.insert(rule.id).then_some(rule_name_v1(rule.id)))
+            .filter_map(|rule| {
+                seen_rules
+                    .insert(rule.id)
+                    .then_some(rule_name_v1(RootRuleId::Grammar(rule.id)))
+            })
             .collect::<Vec<_>>();
         assert_eq!(
             rules,

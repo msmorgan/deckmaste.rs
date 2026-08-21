@@ -192,6 +192,35 @@ where
     )
 }
 
+pub(crate) fn parse_root_with_state<N, L, R, T, O, S, Scan, ValidateCompletion>(
+    rules: &[Rule<N, L, R>],
+    root_rule: R,
+    input_length: usize,
+    initial_state: &S,
+    scan: Scan,
+    validate_completion: ValidateCompletion,
+) -> Result<Forest<R, T, O>, ChartFailure<N, L>>
+where
+    N: Copy + Eq + Ord + 'static,
+    L: Copy + Eq + Ord + std::fmt::Debug + 'static,
+    R: Copy + Eq,
+    T: Clone + Eq,
+    O: Clone + Eq,
+    S: Clone + Eq + Ord,
+    Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, O, S>>,
+    ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> bool,
+{
+    parse_root_observed_with_state(
+        rules,
+        root_rule,
+        input_length,
+        initial_state,
+        scan,
+        validate_completion,
+        &mut (),
+    )
+}
+
 #[allow(
     dead_code,
     reason = "the stateless observed entry remains available to parser unit consumers"
@@ -235,6 +264,68 @@ pub(crate) fn parse_observed_with_state<N, L, R, T, Owner, S, Scan, ValidateComp
     start: N,
     input_length: usize,
     initial_state: &S,
+    scan: Scan,
+    validate_completion: ValidateCompletion,
+    observation: &mut Obs,
+) -> Result<Forest<R, T, Owner>, ChartFailure<N, L>>
+where
+    N: Copy + Eq + Ord + 'static,
+    L: Copy + Eq + Ord + std::fmt::Debug + 'static,
+    R: Copy + Eq,
+    T: Clone + Eq,
+    Owner: Clone + Eq,
+    S: Clone + Eq + Ord,
+    Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
+    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> bool,
+    Obs: Observation<R, T, L, Owner>,
+{
+    parse_observed_with_state_seed(
+        rules,
+        RootSeed::Category(start),
+        input_length,
+        initial_state,
+        scan,
+        validate_completion,
+        observation,
+    )
+}
+
+pub(crate) fn parse_root_observed_with_state<N, L, R, T, Owner, S, Scan, ValidateCompletion, Obs>(
+    rules: &[Rule<N, L, R>],
+    root_rule: R,
+    input_length: usize,
+    initial_state: &S,
+    scan: Scan,
+    validate_completion: ValidateCompletion,
+    observation: &mut Obs,
+) -> Result<Forest<R, T, Owner>, ChartFailure<N, L>>
+where
+    N: Copy + Eq + Ord + 'static,
+    L: Copy + Eq + Ord + std::fmt::Debug + 'static,
+    R: Copy + Eq,
+    T: Clone + Eq,
+    Owner: Clone + Eq,
+    S: Clone + Eq + Ord,
+    Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
+    ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> bool,
+    Obs: Observation<R, T, L, Owner>,
+{
+    parse_observed_with_state_seed(
+        rules,
+        RootSeed::Rule(root_rule),
+        input_length,
+        initial_state,
+        scan,
+        validate_completion,
+        observation,
+    )
+}
+
+fn parse_observed_with_state_seed<N, L, R, T, Owner, S, Scan, ValidateCompletion, Obs>(
+    rules: &[Rule<N, L, R>],
+    seed: RootSeed<N, R>,
+    input_length: usize,
+    initial_state: &S,
     mut scan: Scan,
     mut validate_completion: ValidateCompletion,
     observation: &mut Obs,
@@ -266,7 +357,7 @@ where
         .map(|_| Vec::<(N, NodeId)>::new())
         .collect::<Vec<_>>();
 
-    seed_chart(rules, start, initial_state, &mut chart, &mut agenda);
+    seed_chart(rules, seed, initial_state, &mut chart, &mut agenda);
 
     while let Some((column, item, family)) = agenda.pop_front() {
         let rule = &rules[item.rule_index];
@@ -284,13 +375,17 @@ where
             };
             requeue_completed_items_after_forest_growth(&chart, rules, &mut agenda);
 
-            if !completed_by_start[item.origin].contains(&(rule.lhs, node_id)) {
-                completed_by_start[item.origin].push((rule.lhs, node_id));
-            }
-            if completed_rule_is_root(&rule.lhs, &start, item.origin, column, input_length)
+            if completed_rule_is_root(&rule.id, &rule.lhs, seed, item.origin, column, input_length)
                 && !stateful_forest.forest.accepted_roots.contains(&node_id)
             {
                 stateful_forest.forest.accepted_roots.push(node_id);
+            }
+            if seed.excludes_from_prediction(&rule.id) {
+                continue;
+            }
+
+            if !completed_by_start[item.origin].contains(&(rule.lhs, node_id)) {
+                completed_by_start[item.origin].push((rule.lhs, node_id));
             }
 
             let waiters = chart[item.origin]
@@ -329,7 +424,7 @@ where
         match rule.rhs[item.dot] {
             RulePosition::Nonterminal(category) => {
                 for (predicted_rule, predicted) in rules.iter().enumerate() {
-                    if predicted.lhs == category {
+                    if predicted.lhs == category && !seed.excludes_from_prediction(&predicted.id) {
                         insert_item(
                             &mut chart,
                             &mut agenda,
@@ -533,20 +628,37 @@ fn advance_lexical<L, R, T, O, S, Scan, Obs>(
     }
 }
 
+#[derive(Clone, Copy)]
+enum RootSeed<N, R> {
+    Category(N),
+    Rule(R),
+}
+
+impl<N, R: Eq> RootSeed<N, R> {
+    fn excludes_from_prediction(self, rule: &R) -> bool {
+        matches!(self, Self::Rule(root_rule) if &root_rule == rule)
+    }
+}
+
 fn seed_chart<N, L, R, T, O, S>(
     rules: &[Rule<N, L, R>],
-    start: N,
+    seed: RootSeed<N, R>,
     initial_state: &S,
     chart: &mut [ChartColumn<T, O, S>],
     agenda: &mut Agenda<T, O, S>,
 ) where
     N: Copy + Eq,
+    R: Copy + Eq,
     T: Clone + Eq,
     O: Clone + Eq,
     S: Clone + Eq + Ord,
 {
     for (rule_index, rule) in rules.iter().enumerate() {
-        if rule.lhs == start {
+        let selected = match seed {
+            RootSeed::Category(start) => rule.lhs == start,
+            RootSeed::Rule(root_rule) => rule.id == root_rule,
+        };
+        if selected {
             insert_item(
                 chart,
                 agenda,
@@ -566,14 +678,19 @@ fn seed_chart<N, L, R, T, O, S>(
     }
 }
 
-fn completed_rule_is_root<N: Eq>(
+fn completed_rule_is_root<N: Eq, R: Eq>(
+    rule: &R,
     lhs: &N,
-    start: &N,
+    seed: RootSeed<N, R>,
     origin: usize,
     column: usize,
     input_length: usize,
 ) -> bool {
-    lhs == start && origin == 0 && column == input_length
+    let selected = match seed {
+        RootSeed::Category(start) => lhs == &start,
+        RootSeed::Rule(root_rule) => rule == &root_rule,
+    };
+    selected && origin == 0 && column == input_length
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -723,6 +840,7 @@ mod tests {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
     enum ToyCategory {
         Start,
+        Value,
         DirectParent,
         Wrapper,
         Child,
@@ -732,6 +850,8 @@ mod tests {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum ToyRuleId {
         Start,
+        RootAdapter,
+        ValueLeaf,
         DirectStart,
         WrapperStart,
         DirectParent,
@@ -746,6 +866,89 @@ mod tests {
         lhs: ToyCategory::Start,
         rhs: &[RulePosition::Lexical("alpha beta")],
     }];
+
+    const ROOT_BOUNDARY_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[
+        Rule {
+            id: ToyRuleId::RootAdapter,
+            lhs: ToyCategory::Value,
+            rhs: &[
+                RulePosition::Nonterminal(ToyCategory::Value),
+                RulePosition::Lexical("!"),
+            ],
+        },
+        Rule {
+            id: ToyRuleId::ValueLeaf,
+            lhs: ToyCategory::Value,
+            rhs: &[RulePosition::Lexical("a")],
+        },
+    ];
+
+    #[derive(Clone, PartialEq, Eq, Ord, PartialOrd)]
+    struct RootBoundaryState;
+
+    fn scan_root_boundary(
+        terminal: &'static str,
+        start: usize,
+        _state: &RootBoundaryState,
+    ) -> Vec<StatefulLexicalMatch<&'static str, (), RootBoundaryState>> {
+        match (terminal, start) {
+            ("a", 0) => vec![StatefulLexicalMatch {
+                lexical: LexicalMatch {
+                    end: 1,
+                    value: "a",
+                    owner: None,
+                },
+                state: RootBoundaryState,
+            }],
+            ("!", 1 | 2) => vec![StatefulLexicalMatch {
+                lexical: LexicalMatch {
+                    end: start + 1,
+                    value: "!",
+                    owner: None,
+                },
+                state: RootBoundaryState,
+            }],
+            _ => Vec::new(),
+        }
+    }
+
+    #[test]
+    fn explicit_root_rule_is_the_unique_outer_seed() {
+        let forest = parse_root_with_state(
+            ROOT_BOUNDARY_RULES,
+            ToyRuleId::RootAdapter,
+            2,
+            &RootBoundaryState,
+            scan_root_boundary,
+            |_, _, _| true,
+        )
+        .expect("the explicit root rule consumes one semantic value and one adapter");
+
+        let roots = forest.accepted_roots().collect::<Vec<_>>();
+        assert_eq!(roots.len(), 1);
+        assert_eq!(roots[0].rule, ToyRuleId::RootAdapter);
+        assert!(matches!(
+            roots[0].families[0].children.as_slice(),
+            [Child::Node(_), Child::Lexical(SpannedLexical { value: "!", .. })]
+        ));
+    }
+
+    #[test]
+    fn explicit_root_rule_is_excluded_from_same_category_prediction() {
+        let result =
+            parse_root_with_state(
+                ROOT_BOUNDARY_RULES,
+                ToyRuleId::RootAdapter,
+                3,
+                &RootBoundaryState,
+                scan_root_boundary,
+                |_, _, _| true,
+            );
+        assert!(
+            result.is_err(),
+            "a nested root-only rule must not consume a second adapter: {result:#?}",
+        );
+    }
 
     const SEQUENCE_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[Rule {
         id: ToyRuleId::Start,
