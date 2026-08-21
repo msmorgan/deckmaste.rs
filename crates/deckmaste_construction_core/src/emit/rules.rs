@@ -32,29 +32,42 @@ use crate::semantic::StructuralFieldPlan;
 use crate::semantic::ValueKindPlan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum PositionalOwnerState {
-    Empty,
-    Singleton,
-    Pair,
-    ThreePlus,
+pub(super) enum SequenceOwnerState {
+    UniformEmpty,
+    UniformNonEmpty,
+    PositionalEmpty,
+    PositionalSingleton,
+    PositionalPair,
+    PositionalExact(usize),
+    PositionalThreePlus,
+    PositionalMinimumPlus(usize),
 }
 
-impl PositionalOwnerState {
-    pub(super) const fn spelling(self) -> &'static str {
+impl SequenceOwnerState {
+    pub(super) fn spelling(self) -> String {
         match self {
-            Self::Empty => "positional_empty",
-            Self::Singleton => "positional_singleton",
-            Self::Pair => "positional_pair",
-            Self::ThreePlus => "positional_three_plus",
+            Self::UniformEmpty => "sequence_empty".to_owned(),
+            Self::UniformNonEmpty => "sequence_non_empty".to_owned(),
+            Self::PositionalEmpty => "positional_empty".to_owned(),
+            Self::PositionalSingleton => "positional_singleton".to_owned(),
+            Self::PositionalPair => "positional_pair".to_owned(),
+            Self::PositionalExact(length) => format!("positional_length_{length}"),
+            Self::PositionalThreePlus => "positional_three_plus".to_owned(),
+            Self::PositionalMinimumPlus(length) => {
+                format!("positional_minimum_{length}_plus")
+            }
         }
     }
 
-    fn suffix(self) -> &'static str {
+    fn suffix(self) -> String {
         match self {
-            Self::Empty => "Empty",
-            Self::Singleton => "Singleton",
-            Self::Pair => "Pair",
-            Self::ThreePlus => "ThreePlus",
+            Self::UniformEmpty | Self::PositionalEmpty => "Empty".to_owned(),
+            Self::UniformNonEmpty => "NonEmpty".to_owned(),
+            Self::PositionalSingleton => "Singleton".to_owned(),
+            Self::PositionalPair => "Pair".to_owned(),
+            Self::PositionalExact(length) => format!("Length{length}"),
+            Self::PositionalThreePlus => "ThreePlus".to_owned(),
+            Self::PositionalMinimumPlus(length) => format!("Minimum{length}Plus"),
         }
     }
 }
@@ -91,11 +104,11 @@ impl RuleSymbolPlan {
 pub(super) enum RuleBuildPlan {
     Construction {
         index: usize,
-        positional: Vec<(String, PositionalOwnerState)>,
+        sequence_states: Vec<SequenceOwnerBuildPlan>,
     },
     Product {
         index: usize,
-        positional: Vec<(String, PositionalOwnerState)>,
+        sequence_states: Vec<SequenceOwnerBuildPlan>,
     },
     Sum {
         sum_index: usize,
@@ -113,6 +126,14 @@ pub(super) enum RuleBuildPlan {
     },
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct SequenceOwnerBuildPlan {
+    pub(super) role: String,
+    pub(super) state: SequenceOwnerState,
+    pub(super) rhs_start: usize,
+    pub(super) rhs_end: usize,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum StructuralOwner {
     Construction(usize),
@@ -121,10 +142,11 @@ pub(super) enum StructuralOwner {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SequenceBuildState {
-    Empty,
     Singleton,
+    Exact(usize),
     Recursive,
     Last,
+    PositionalExactTail(usize),
     Middle,
 }
 
@@ -398,7 +420,7 @@ fn lower_construction_rows(
     construction: &ConstructionPlan,
 ) -> syn::Result<Vec<RuleRowPlan>> {
     let mut variants = vec![(
-        Vec::<(String, PositionalOwnerState)>::new(),
+        Vec::<SequenceOwnerBuildPlan>::new(),
         Vec::<RuleSymbolPlan>::new(),
     )];
     for (atom_index, atom) in construction.atoms().iter().enumerate() {
@@ -423,7 +445,7 @@ fn lower_construction_rows(
     }
     variants
         .into_iter()
-        .map(|(positional, rhs)| {
+        .map(|(sequence_states, rhs)| {
             let (id, role, state) = public_variant_metadata(
                 construction.rule_id(),
                 construction.element_type(),
@@ -432,7 +454,7 @@ fn lower_construction_rows(
                         .structural_plan()
                         .map(|structural| (field.name_key(), structural))
                 }),
-                &positional,
+                &sequence_states,
             )?;
             Ok(RuleRowPlan {
                 id,
@@ -444,7 +466,7 @@ fn lower_construction_rows(
                 rhs,
                 build: RuleBuildPlan::Construction {
                     index: construction_index,
-                    positional,
+                    sequence_states,
                 },
             })
         })
@@ -456,7 +478,7 @@ fn lower_product_rows(
     product: &crate::semantic::ProductPlan,
 ) -> syn::Result<Vec<RuleRowPlan>> {
     let mut variants = vec![(
-        Vec::<(String, PositionalOwnerState)>::new(),
+        Vec::<SequenceOwnerBuildPlan>::new(),
         Vec::<RuleSymbolPlan>::new(),
     )];
     for field in product.fields() {
@@ -465,7 +487,7 @@ fn lower_product_rows(
     }
     variants
         .into_iter()
-        .map(|(positional, rhs)| {
+        .map(|(sequence_states, rhs)| {
             let base = format!("{}Product", crate::identifier::pascal_case(product.name()));
             let (id, role, state) = public_variant_metadata(
                 &base,
@@ -474,7 +496,7 @@ fn lower_product_rows(
                     .fields()
                     .iter()
                     .map(|field| (field.name().to_owned(), field)),
-                &positional,
+                &sequence_states,
             )?;
             Ok(RuleRowPlan {
                 id,
@@ -486,7 +508,7 @@ fn lower_product_rows(
                 rhs,
                 build: RuleBuildPlan::Product {
                     index: product_index,
-                    positional,
+                    sequence_states,
                 },
             })
         })
@@ -497,13 +519,13 @@ fn public_variant_metadata<'a>(
     base: &str,
     _owner: &str,
     fields: impl Iterator<Item = (String, &'a StructuralFieldPlan)>,
-    positional: &[(String, PositionalOwnerState)],
+    sequence_states: &[SequenceOwnerBuildPlan],
 ) -> syn::Result<(String, Option<String>, String)> {
-    if positional.is_empty() {
+    if sequence_states.is_empty() {
         return Ok((base.to_owned(), None, "public".to_owned()));
     }
-    if positional.len() == 1 {
-        let (role, state) = &positional[0];
+    if sequence_states.len() == 1 {
+        let SequenceOwnerBuildPlan { role, state, .. } = &sequence_states[0];
         let field = fields
             .into_iter()
             .find(|(candidate, _)| candidate == role)
@@ -516,13 +538,14 @@ fn public_variant_metadata<'a>(
         return Ok((
             format!("{aggregate}{}", state.suffix()),
             Some(role.clone()),
-            state.spelling().to_owned(),
+            state.spelling(),
         ));
     }
-    let suffix = positional
-        .iter()
-        .map(|(role, state)| format!("{}{}", crate::identifier::pascal_case(role), state.suffix()))
-        .collect::<String>();
+    let mut suffix = String::new();
+    for field in sequence_states {
+        suffix.push_str(&crate::identifier::pascal_case(&field.role));
+        suffix.push_str(&field.state.suffix());
+    }
     Ok((
         format!("{base}{suffix}"),
         None,
@@ -531,20 +554,26 @@ fn public_variant_metadata<'a>(
 }
 
 fn combine_owner_variants(
-    current: Vec<(Vec<(String, PositionalOwnerState)>, Vec<RuleSymbolPlan>)>,
+    current: Vec<(Vec<SequenceOwnerBuildPlan>, Vec<RuleSymbolPlan>)>,
     field: &StructuralFieldPlan,
-    field_variants: &[(Option<PositionalOwnerState>, Vec<RuleSymbolPlan>)],
-) -> Vec<(Vec<(String, PositionalOwnerState)>, Vec<RuleSymbolPlan>)> {
+    field_variants: &[(Option<SequenceOwnerState>, Vec<RuleSymbolPlan>)],
+) -> Vec<(Vec<SequenceOwnerBuildPlan>, Vec<RuleSymbolPlan>)> {
     current
         .into_iter()
         .flat_map(|(states, rhs)| {
             field_variants.iter().map(move |(state, field_rhs)| {
                 let mut states = states.clone();
-                if let Some(state) = state {
-                    states.push((field.name().to_owned(), *state));
-                }
                 let mut combined = rhs.clone();
+                let rhs_start = combined.len();
                 combined.extend(field_rhs.iter().cloned());
+                if let Some(state) = state {
+                    states.push(SequenceOwnerBuildPlan {
+                        role: field.name().to_owned(),
+                        state: *state,
+                        rhs_start,
+                        rhs_end: combined.len(),
+                    });
+                }
                 (states, combined)
             })
         })
@@ -554,7 +583,7 @@ fn combine_owner_variants(
 fn owner_field_variants(
     owner: &str,
     field: &StructuralFieldPlan,
-) -> syn::Result<Vec<(Option<PositionalOwnerState>, Vec<RuleSymbolPlan>)>> {
+) -> syn::Result<Vec<(Option<SequenceOwnerState>, Vec<RuleSymbolPlan>)>> {
     match field.kind() {
         StructuralFieldKindPlan::Required(value) => {
             Ok(vec![(None, vec![RuleSymbolPlan::Value(value.clone())])])
@@ -570,28 +599,58 @@ fn owner_field_variants(
         } => match surface.separator() {
             Some(SeparatorPlan::Positional(rows)) => {
                 let mut variants = Vec::new();
-                if bounds.allows(0) {
-                    variants.push((Some(PositionalOwnerState::Empty), Vec::new()));
-                }
-                if bounds.allows(1) {
-                    variants.push((
-                        Some(PositionalOwnerState::Singleton),
-                        item_with_terminator(item, surface.terminator()),
-                    ));
-                }
-                if bounds.allows(2) {
-                    let mut rhs = item_with_terminator(item, surface.terminator());
-                    rhs.extend(surface_symbols(positional_surface(rows, EdgeClass::Pair)?));
-                    rhs.extend(item_with_terminator(item, surface.terminator()));
-                    variants.push((Some(PositionalOwnerState::Pair), rhs));
-                }
-                if bounds.allows_at_least(3) {
+                if let Some(maximum) = bounds.max() {
+                    for length in bounds.min()..=maximum {
+                        let state = match length {
+                            0 => SequenceOwnerState::PositionalEmpty,
+                            1 => SequenceOwnerState::PositionalSingleton,
+                            2 => SequenceOwnerState::PositionalPair,
+                            length => SequenceOwnerState::PositionalExact(length),
+                        };
+                        variants.push((
+                            Some(state),
+                            exact_positional_rhs(item, surface, rows, length)?,
+                        ));
+                    }
+                } else {
+                    if bounds.allows(0) {
+                        variants.push((Some(SequenceOwnerState::PositionalEmpty), Vec::new()));
+                    }
+                    if bounds.allows(1) {
+                        variants.push((
+                            Some(SequenceOwnerState::PositionalSingleton),
+                            item_with_terminator(item, surface.terminator()),
+                        ));
+                    }
+                    if bounds.allows(2) {
+                        variants.push((
+                            Some(SequenceOwnerState::PositionalPair),
+                            exact_positional_rhs(item, surface, rows, 2)?,
+                        ));
+                    }
+                    let minimum = bounds.min().max(3);
+                    let state = if minimum == 3 {
+                        SequenceOwnerState::PositionalThreePlus
+                    } else {
+                        SequenceOwnerState::PositionalMinimumPlus(minimum)
+                    };
                     let mut rhs = item_with_terminator(item, surface.terminator());
                     rhs.extend(surface_symbols(positional_surface(rows, EdgeClass::First)?));
                     rhs.push(RuleSymbolPlan::Helper(helper_category(owner, field)?));
-                    variants.push((Some(PositionalOwnerState::ThreePlus), rhs));
+                    variants.push((Some(state), rhs));
                 }
                 Ok(variants)
+            }
+            Some(SeparatorPlan::Uniform(_)) | None
+                if bounds.max().is_none() && bounds.min() == 0 =>
+            {
+                Ok(vec![
+                    (Some(SequenceOwnerState::UniformEmpty), Vec::new()),
+                    (
+                        Some(SequenceOwnerState::UniformNonEmpty),
+                        vec![RuleSymbolPlan::Helper(helper_category(owner, field)?)],
+                    ),
+                ])
             }
             Some(SeparatorPlan::Uniform(_)) | None => Ok(vec![(
                 None,
@@ -601,6 +660,10 @@ fn owner_field_variants(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "helper lowering exhaustively separates positional and uniform reachable states"
+)]
 fn lower_helper_rows<'a>(
     owner_key: StructuralOwner,
     owner: &str,
@@ -651,30 +714,39 @@ fn lower_helper_rows<'a>(
                     });
                 }
             }
-            StructuralFieldKindPlan::Sequence { item, surface, .. } => match surface.separator() {
+            StructuralFieldKindPlan::Sequence {
+                item,
+                bounds,
+                surface,
+            } => match surface.separator() {
                 Some(SeparatorPlan::Positional(positional)) => {
-                    let mut last = item_with_terminator(item, surface.terminator());
-                    last.extend(surface_symbols(positional_surface(
-                        positional,
-                        EdgeClass::Last,
-                    )?));
-                    last.extend(item_with_terminator(item, surface.terminator()));
-                    rows.push(sequence_helper_row(
-                        owner_key,
-                        field_index,
-                        owner,
-                        field.name(),
-                        &aggregate,
-                        &category,
-                        "Last",
-                        "positional_last",
-                        SequenceBuildState::Last,
-                        last,
-                    ));
-                    if positional
-                        .iter()
-                        .any(|row| row.class() == EdgeClass::Middle)
-                    {
+                    if bounds.max().is_none() && bounds.allows_at_least(3) {
+                        let tail_length = bounds.min().max(3) - 1;
+                        let (suffix, state, build_state) = if tail_length == 2 {
+                            (
+                                "Last".to_owned(),
+                                "positional_last".to_owned(),
+                                SequenceBuildState::Last,
+                            )
+                        } else {
+                            (
+                                format!("TailLength{tail_length}"),
+                                format!("positional_tail_length_{tail_length}"),
+                                SequenceBuildState::PositionalExactTail(tail_length),
+                            )
+                        };
+                        rows.push(sequence_helper_row(
+                            owner_key,
+                            field_index,
+                            owner,
+                            field.name(),
+                            &aggregate,
+                            &category,
+                            &suffix,
+                            &state,
+                            build_state,
+                            exact_positional_tail_rhs(item, surface, positional, tail_length)?,
+                        ));
                         let mut middle = item_with_terminator(item, surface.terminator());
                         middle.extend(surface_symbols(positional_surface(
                             positional,
@@ -696,47 +768,66 @@ fn lower_helper_rows<'a>(
                     }
                 }
                 uniform => {
-                    rows.push(sequence_helper_row(
-                        owner_key,
-                        field_index,
-                        owner,
-                        field.name(),
-                        &aggregate,
-                        &category,
-                        "Empty",
-                        "sequence_empty",
-                        SequenceBuildState::Empty,
-                        Vec::new(),
-                    ));
-                    rows.push(sequence_helper_row(
-                        owner_key,
-                        field_index,
-                        owner,
-                        field.name(),
-                        &aggregate,
-                        &category,
-                        "Singleton",
-                        "sequence_singleton",
-                        SequenceBuildState::Singleton,
-                        item_with_terminator(item, surface.terminator()),
-                    ));
-                    let mut recursive = item_with_terminator(item, surface.terminator());
-                    if let Some(SeparatorPlan::Uniform(separator)) = uniform {
-                        recursive.extend(surface_symbols(separator));
+                    if let Some(maximum) = bounds.max() {
+                        for length in bounds.min()..=maximum {
+                            rows.push(sequence_helper_row(
+                                owner_key,
+                                field_index,
+                                owner,
+                                field.name(),
+                                &aggregate,
+                                &category,
+                                &format!("Length{length}"),
+                                &format!("sequence_length_{length}"),
+                                SequenceBuildState::Exact(length),
+                                exact_uniform_rhs(item, surface, uniform, length),
+                            ));
+                        }
+                    } else {
+                        let base_length = bounds.min().max(1);
+                        let (suffix, state, build_state) = if base_length == 1 {
+                            (
+                                "Singleton".to_owned(),
+                                "sequence_singleton".to_owned(),
+                                SequenceBuildState::Singleton,
+                            )
+                        } else {
+                            (
+                                format!("Length{base_length}"),
+                                format!("sequence_length_{base_length}"),
+                                SequenceBuildState::Exact(base_length),
+                            )
+                        };
+                        rows.push(sequence_helper_row(
+                            owner_key,
+                            field_index,
+                            owner,
+                            field.name(),
+                            &aggregate,
+                            &category,
+                            &suffix,
+                            &state,
+                            build_state,
+                            exact_uniform_rhs(item, surface, uniform, base_length),
+                        ));
+                        let mut recursive = item_with_terminator(item, surface.terminator());
+                        if let Some(SeparatorPlan::Uniform(separator)) = uniform {
+                            recursive.extend(surface_symbols(separator));
+                        }
+                        recursive.push(RuleSymbolPlan::Helper(category.clone()));
+                        rows.push(sequence_helper_row(
+                            owner_key,
+                            field_index,
+                            owner,
+                            field.name(),
+                            &aggregate,
+                            &category,
+                            "Recursive",
+                            "sequence_recursive",
+                            SequenceBuildState::Recursive,
+                            recursive,
+                        ));
                     }
-                    recursive.push(RuleSymbolPlan::Helper(category.clone()));
-                    rows.push(sequence_helper_row(
-                        owner_key,
-                        field_index,
-                        owner,
-                        field.name(),
-                        &aggregate,
-                        &category,
-                        "Recursive",
-                        "sequence_recursive",
-                        SequenceBuildState::Recursive,
-                        recursive,
-                    ));
                 }
             },
         }
@@ -744,7 +835,10 @@ fn lower_helper_rows<'a>(
     Ok(rows)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one helper row carries its complete diagnostic and build identity"
+)]
 fn sequence_helper_row(
     owner_key: StructuralOwner,
     field_index: usize,
@@ -771,6 +865,63 @@ fn sequence_helper_row(
             state: build_state,
         },
     }
+}
+
+fn exact_uniform_rhs(
+    item: &ValueKindPlan,
+    surface: &crate::semantic::SequenceSurfacePlan,
+    separator: Option<&SeparatorPlan>,
+    length: usize,
+) -> Vec<RuleSymbolPlan> {
+    let mut rhs = Vec::new();
+    for index in 0..length {
+        if index > 0
+            && let Some(SeparatorPlan::Uniform(separator)) = separator
+        {
+            rhs.extend(surface_symbols(separator));
+        }
+        rhs.extend(item_with_terminator(item, surface.terminator()));
+    }
+    rhs
+}
+
+fn exact_positional_rhs(
+    item: &ValueKindPlan,
+    surface: &crate::semantic::SequenceSurfacePlan,
+    rows: &[crate::semantic::PositionalSeparatorPlan],
+    length: usize,
+) -> syn::Result<Vec<RuleSymbolPlan>> {
+    let mut rhs = Vec::new();
+    for index in 0..length {
+        if index > 0 {
+            let class = match length {
+                2 => EdgeClass::Pair,
+                _ if index == 1 => EdgeClass::First,
+                _ if index + 1 == length => EdgeClass::Last,
+                _ => EdgeClass::Middle,
+            };
+            rhs.extend(surface_symbols(positional_surface(rows, class)?));
+        }
+        rhs.extend(item_with_terminator(item, surface.terminator()));
+    }
+    Ok(rhs)
+}
+
+fn exact_positional_tail_rhs(
+    item: &ValueKindPlan,
+    surface: &crate::semantic::SequenceSurfacePlan,
+    rows: &[crate::semantic::PositionalSeparatorPlan],
+    length: usize,
+) -> syn::Result<Vec<RuleSymbolPlan>> {
+    let mut rhs = Vec::new();
+    for index in 0..length {
+        if index > 0 {
+            let class = if index + 1 == length { EdgeClass::Last } else { EdgeClass::Middle };
+            rhs.extend(surface_symbols(positional_surface(rows, class)?));
+        }
+        rhs.extend(item_with_terminator(item, surface.terminator()));
+    }
+    Ok(rhs)
 }
 
 fn item_with_terminator(
@@ -1174,6 +1325,206 @@ mod tests {
         .into_semantic()
     }
 
+    fn bounded_sequence_semantic_plan() -> crate::semantic::SemanticPlan {
+        crate::validate_declarations(
+            crate::parse_declarations(quote! {
+                vocab Marker { Alpha = "alpha", Beta = "beta", Gamma = "gamma", Delta = "delta", }
+                construction item: Item {
+                    element ItemValue { marker: lex Marker, }
+                    form item = lex(marker);
+                }
+                construction exact_pair: ExactPair {
+                    element ExactPairValue {
+                        items: seq Item separated by position { pair = "<P>"; } terminated by "<T>",
+                    }
+                    require len(items) = 2;
+                    form exact_pair = items;
+                }
+                construction bounded_uniform: BoundedUniform {
+                    element BoundedUniformValue {
+                        items: seq Item separated by "<S>" terminated by "<T>",
+                    }
+                    require len(items) >= 2;
+                    require len(items) <= 4;
+                    form bounded_uniform = items;
+                }
+                construction zero_uniform: ZeroUniform {
+                    element ZeroUniformValue {
+                        items: seq Item separated by "<S>" terminated by "<T>",
+                    }
+                    form zero_uniform = items;
+                }
+                root Item { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("bounded sequence rule fixture parses"),
+        )
+        .expect("bounded sequence rule fixture validates")
+        .into_semantic()
+    }
+
+    #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one exact assertion authenticates every bounded row and symbol order"
+    )]
+    fn bounded_sequences_emit_only_reachable_exact_cardinality_rows() {
+        let plan = bounded_sequence_semantic_plan();
+        let rows = super::lowered_rows(&plan).expect("bounded sequence rows lower");
+
+        let exact_pair = rows
+            .iter()
+            .filter(|row| row.owner == "ExactPairValue")
+            .map(|row| {
+                (
+                    row.id.as_str(),
+                    row.lhs.as_str(),
+                    row.state.as_str(),
+                    row.rhs
+                        .iter()
+                        .map(super::RuleSymbolPlan::test_label)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            exact_pair,
+            [(
+                "ExactPairValueItemsSequencePair",
+                "ExactPair",
+                "positional_pair",
+                vec![
+                    "value:Item".to_owned(),
+                    "literal:<T>".to_owned(),
+                    "literal:<P>".to_owned(),
+                    "value:Item".to_owned(),
+                    "literal:<T>".to_owned(),
+                ],
+            )],
+            "exact-two positional lowering must not request unreachable last/middle helpers",
+        );
+
+        let bounded_uniform = rows
+            .iter()
+            .filter(|row| {
+                row.owner == "BoundedUniformValue" && row.role.as_deref() == Some("items")
+            })
+            .map(|row| {
+                (
+                    row.id.as_str(),
+                    row.state.as_str(),
+                    row.rhs
+                        .iter()
+                        .map(super::RuleSymbolPlan::test_label)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            bounded_uniform,
+            [
+                (
+                    "BoundedUniformValueItemsSequenceLength2",
+                    "sequence_length_2",
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<S>".to_owned(),
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                    ],
+                ),
+                (
+                    "BoundedUniformValueItemsSequenceLength3",
+                    "sequence_length_3",
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<S>".to_owned(),
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<S>".to_owned(),
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                    ],
+                ),
+                (
+                    "BoundedUniformValueItemsSequenceLength4",
+                    "sequence_length_4",
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<S>".to_owned(),
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<S>".to_owned(),
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<S>".to_owned(),
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                    ],
+                ),
+            ],
+            "a finite maximum must have no empty, singleton, or unbounded recursive row",
+        );
+
+        let zero_uniform = rows
+            .iter()
+            .filter(|row| row.owner == "ZeroUniformValue")
+            .map(|row| {
+                (
+                    row.id.as_str(),
+                    row.lhs.as_str(),
+                    row.state.as_str(),
+                    row.public_construction.as_deref(),
+                    row.rhs
+                        .iter()
+                        .map(super::RuleSymbolPlan::test_label)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            zero_uniform,
+            [
+                (
+                    "ZeroUniformValueItemsSequenceEmpty",
+                    "ZeroUniform",
+                    "sequence_empty",
+                    Some("ZeroUniformZeroUniform"),
+                    vec![],
+                ),
+                (
+                    "ZeroUniformValueItemsSequenceNonEmpty",
+                    "ZeroUniform",
+                    "sequence_non_empty",
+                    Some("ZeroUniformZeroUniform"),
+                    vec!["helper:ZeroUniformValueItemsSequenceCategory".to_owned()],
+                ),
+                (
+                    "ZeroUniformValueItemsSequenceSingleton",
+                    "ZeroUniformValueItemsSequenceCategory",
+                    "sequence_singleton",
+                    None,
+                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                ),
+                (
+                    "ZeroUniformValueItemsSequenceRecursive",
+                    "ZeroUniformValueItemsSequenceCategory",
+                    "sequence_recursive",
+                    None,
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<S>".to_owned(),
+                        "helper:ZeroUniformValueItemsSequenceCategory".to_owned(),
+                    ],
+                ),
+            ],
+            "the nullable owner branch must be distinct from a nonempty separated tail",
+        );
+    }
+
     #[test]
     fn structural_optional_and_uniform_rows_have_exact_metadata_and_surface_order() {
         let plan = structural_semantic_plan();
@@ -1220,15 +1571,6 @@ mod tests {
                     "optional_present",
                     None,
                     vec!["value:Item".to_owned()],
-                ),
-                (
-                    "UniformValueItemsSequenceEmpty",
-                    "UniformValueItemsSequenceCategory",
-                    "UniformValue",
-                    Some("items"),
-                    "sequence_empty",
-                    None,
-                    vec![],
                 ),
                 (
                     "UniformValueItemsSequenceSingleton",

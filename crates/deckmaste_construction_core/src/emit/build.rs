@@ -122,12 +122,14 @@ enum ResolvedFeatureValue {
 
 fn emit_rule_arm(plan: &SemanticPlan, row: &super::rules::RuleRowPlan) -> syn::Result<TokenStream> {
     match &row.build {
-        super::rules::RuleBuildPlan::Construction { index, positional } => {
-            emit_arm_from_plan(plan, row, &plan.constructions()[*index], positional)
-        }
-        super::rules::RuleBuildPlan::Product { index, positional } => {
-            emit_product_arm(plan, row, &plan.products()[*index], positional)
-        }
+        super::rules::RuleBuildPlan::Construction {
+            index,
+            sequence_states,
+        } => emit_arm_from_plan(plan, row, &plan.constructions()[*index], sequence_states),
+        super::rules::RuleBuildPlan::Product {
+            index,
+            sequence_states,
+        } => emit_product_arm(plan, row, &plan.products()[*index], sequence_states),
         super::rules::RuleBuildPlan::Sum {
             sum_index,
             alternative_index,
@@ -149,25 +151,29 @@ fn emit_arm_from_plan(
     plan: &SemanticPlan,
     rule: &super::rules::RuleRowPlan,
     row: &ConstructionPlan,
-    positional: &[(String, super::rules::PositionalOwnerState)],
+    sequence_states: &[super::rules::SequenceOwnerBuildPlan],
 ) -> syn::Result<TokenStream> {
     let mut lowering = Lowering::default();
     for atom in row.atoms() {
-        let state = atom_role(atom).and_then(|role| {
-            positional
-                .iter()
-                .find(|(candidate, _)| candidate == role)
-                .map(|(_, state)| *state)
-        });
+        let state = atom_role(atom)
+            .and_then(|role| sequence_states.iter().find(|field| field.role == role));
         if let Some(state) = state {
-            let role = atom_role(atom).ok_or_else(|| internal("positional atom has no role"))?;
+            let field_role =
+                atom_role(atom).ok_or_else(|| internal("sequence atom has no role"))?;
             let field = row
                 .fields()
                 .iter()
-                .find(|field| field.name_key() == role)
+                .find(|field| field.name_key() == field_role)
                 .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
                 .ok_or_else(|| internal("positional atom has no structural plan"))?;
-            lower_positional_owner_field(plan, row.element_type(), field, state, &mut lowering)?;
+            lower_sequence_owner_field(
+                plan,
+                rule,
+                row.element_type(),
+                field,
+                state,
+                &mut lowering,
+            )?;
         } else {
             lower_atom(plan, row, atom, &mut lowering)?;
         }
@@ -209,7 +215,7 @@ fn emit_product_arm(
     plan: &SemanticPlan,
     rule: &super::rules::RuleRowPlan,
     product: &crate::semantic::ProductPlan,
-    positional: &[(String, super::rules::PositionalOwnerState)],
+    sequence_states: &[super::rules::SequenceOwnerBuildPlan],
 ) -> syn::Result<TokenStream> {
     let mut binders = LocalAllocator::default();
     for name in ["rule", "children", "context"] {
@@ -218,12 +224,11 @@ fn emit_product_arm(
     let mut patterns = Vec::new();
     let mut values = Vec::new();
     for field in product.fields() {
-        let state = positional
+        let state = sequence_states
             .iter()
-            .find(|(role, _)| role == field.name())
-            .map(|(_, state)| *state);
+            .find(|state| state.role == field.name());
         let (mut field_patterns, mut value) = if let Some(state) = state {
-            lower_positional_field(plan, product.name(), field, state, &mut binders)?
+            lower_sequence_owner_value(plan, rule, product.name(), field, state, &mut binders)?
         } else {
             lower_product_field(plan, product.name(), field, &mut binders)?
         };
@@ -342,83 +347,51 @@ fn emit_sequence_arm(
     state: super::rules::SequenceBuildState,
 ) -> syn::Result<TokenStream> {
     let (owner_name, field) = structural_owner_field(plan, owner, field_index);
-    let StructuralFieldKindPlan::Sequence { item, surface, .. } = field.kind() else {
+    let StructuralFieldKindPlan::Sequence { .. } = field.kind() else {
         return Err(internal(
             "sequence build row does not name a sequence field",
         ));
     };
     let carrier = ident(&carrier_variant(owner_name, field)?);
+    let helper_category = sequence_helper_category(field)?;
     let rule_id = ident(&rule.id);
-    if state == super::rules::SequenceBuildState::Empty {
-        return Ok(quote! {
-            RuleId::#rule_id => match children {
-                [] => Some(BuildValue::#carrier(Vec::new())),
-                _ => None,
-            },
-        });
-    }
     let mut binders = LocalAllocator::default();
     for name in ["rule", "children", "context"] {
         binders.reserve(name);
     }
-    let first = lower_value(plan, item, "item", &mut binders)?;
-    let mut patterns = vec![first.pattern];
-    patterns.extend(surface_patterns(plan, surface.terminator())?);
+    let lowered = lower_sequence_rhs(
+        plan,
+        &rule.rhs,
+        &carrier,
+        &helper_category,
+        &rule.state,
+        &mut binders,
+    )?;
+    let patterns = lowered.patterns.clone();
     let success = match state {
         super::rules::SequenceBuildState::Singleton => {
-            let item = first.expression;
-            quote! { Some(BuildValue::#carrier(vec![#item])) }
+            let values = exact_sequence_values(lowered, 1, &rule.state)?;
+            quote! { Some(BuildValue::#carrier(vec![#(#values),*])) }
         }
-        super::rules::SequenceBuildState::Recursive => {
-            if let Some(crate::semantic::SeparatorPlan::Uniform(separator)) = surface.separator() {
-                patterns.extend(surface_patterns(plan, Some(separator))?);
-            }
-            let tail = binders.allocate("tail");
-            patterns.push(quote! { BuildValue::#carrier(#tail) });
-            let item = first.expression;
-            quote! {{
-                let mut values = Vec::with_capacity(1 + #tail.len());
-                values.push(#item);
-                values.extend(#tail.iter().cloned());
-                Some(BuildValue::#carrier(values))
-            }}
+        super::rules::SequenceBuildState::Exact(length)
+        | super::rules::SequenceBuildState::PositionalExactTail(length) => {
+            let values = exact_sequence_values(lowered, length, &rule.state)?;
+            quote! { Some(BuildValue::#carrier(vec![#(#values),*])) }
         }
         super::rules::SequenceBuildState::Last => {
-            let positional = positional_separator(surface)?;
-            patterns.extend(surface_patterns(
-                plan,
-                Some(positional_surface(
-                    positional,
-                    crate::semantic::EdgeClass::Last,
-                )?),
-            )?);
-            let second = lower_value(plan, item, "last", &mut binders)?;
-            patterns.push(second.pattern);
-            patterns.extend(surface_patterns(plan, surface.terminator())?);
-            let first = first.expression;
-            let second = second.expression;
-            quote! { Some(BuildValue::#carrier(vec![#first, #second])) }
+            let values = exact_sequence_values(lowered, 2, &rule.state)?;
+            quote! { Some(BuildValue::#carrier(vec![#(#values),*])) }
         }
-        super::rules::SequenceBuildState::Middle => {
-            let positional = positional_separator(surface)?;
-            patterns.extend(surface_patterns(
-                plan,
-                Some(positional_surface(
-                    positional,
-                    crate::semantic::EdgeClass::Middle,
-                )?),
-            )?);
-            let tail = binders.allocate("tail");
-            patterns.push(quote! { BuildValue::#carrier(#tail) });
-            let item = first.expression;
+        super::rules::SequenceBuildState::Recursive | super::rules::SequenceBuildState::Middle => {
+            let (values, tail) = prefixed_sequence_values(lowered, 1, &rule.state)?;
+            let prefix_len = values.len();
             quote! {{
-                let mut values = Vec::with_capacity(1 + #tail.len());
-                values.push(#item);
+                let mut values = Vec::with_capacity(#prefix_len + #tail.len());
+                #(values.push(#values);)*
                 values.extend(#tail.iter().cloned());
                 Some(BuildValue::#carrier(values))
             }}
         }
-        super::rules::SequenceBuildState::Empty => unreachable!(),
     };
     Ok(quote! {
         RuleId::#rule_id => match children {
@@ -560,8 +533,7 @@ fn lower_product_field(
             let value = lower_value(plan, value, field.name(), binders)?;
             Ok((vec![value.pattern], value.expression))
         }
-        StructuralFieldKindPlan::Optional(_)
-        | StructuralFieldKindPlan::Sequence { surface: _, .. } => {
+        StructuralFieldKindPlan::Optional(_) | StructuralFieldKindPlan::Sequence { .. } => {
             if matches!(
                 field.kind(),
                 StructuralFieldKindPlan::Sequence {
@@ -586,103 +558,187 @@ fn lower_product_field(
     }
 }
 
-fn lower_positional_owner_field(
+fn lower_sequence_owner_field(
     plan: &SemanticPlan,
+    rule: &super::rules::RuleRowPlan,
     owner: &str,
     field: &StructuralFieldPlan,
-    state: super::rules::PositionalOwnerState,
+    state: &super::rules::SequenceOwnerBuildPlan,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
     let (patterns, value) =
-        lower_positional_field(plan, owner, field, state, &mut lowering.binders)?;
+        lower_sequence_owner_value(plan, rule, owner, field, state, &mut lowering.binders)?;
     lowering.patterns.extend(patterns);
     lowering.field_values.insert(field.name().to_owned(), value);
     Ok(())
 }
 
-fn lower_positional_field(
+fn lower_sequence_owner_value(
     plan: &SemanticPlan,
+    rule: &super::rules::RuleRowPlan,
     owner: &str,
     field: &StructuralFieldPlan,
-    state: super::rules::PositionalOwnerState,
+    state: &super::rules::SequenceOwnerBuildPlan,
     binders: &mut LocalAllocator,
 ) -> syn::Result<(Vec<TokenStream>, TokenStream)> {
-    let StructuralFieldKindPlan::Sequence { item, surface, .. } = field.kind() else {
-        return Err(internal("positional state does not name a sequence field"));
+    let StructuralFieldKindPlan::Sequence { .. } = field.kind() else {
+        return Err(internal(
+            "sequence owner state does not name a sequence field",
+        ));
     };
-    let positional = positional_separator(surface)?;
-    match state {
-        super::rules::PositionalOwnerState::Empty => Ok((Vec::new(), quote! { Vec::new() })),
-        super::rules::PositionalOwnerState::Singleton => {
-            let item = lower_value(plan, item, "item", binders)?;
-            let mut patterns = vec![item.pattern];
-            patterns.extend(surface_patterns(plan, surface.terminator())?);
-            let item = item.expression;
-            Ok((patterns, quote! { vec![#item] }))
+    let symbols = rule
+        .rhs
+        .get(state.rhs_start..state.rhs_end)
+        .ok_or_else(|| internal("sequence owner RHS range exceeds the lowered rule"))?;
+    let carrier = ident(&carrier_variant(owner, field)?);
+    let helper_category = sequence_helper_category(field)?;
+    let lowered = lower_sequence_rhs(
+        plan,
+        symbols,
+        &carrier,
+        &helper_category,
+        &rule.state,
+        binders,
+    )?;
+    let patterns = lowered.patterns.clone();
+    let value = match state.state {
+        super::rules::SequenceOwnerState::UniformEmpty
+        | super::rules::SequenceOwnerState::PositionalEmpty => {
+            let values = exact_sequence_values(lowered, 0, &rule.state)?;
+            quote! { vec![#(#values),*] }
         }
-        super::rules::PositionalOwnerState::Pair => {
-            let first = lower_value(plan, item, "first", binders)?;
-            let mut patterns = vec![first.pattern];
-            patterns.extend(surface_patterns(plan, surface.terminator())?);
-            patterns.extend(surface_patterns(
-                plan,
-                Some(positional_surface(
-                    positional,
-                    crate::semantic::EdgeClass::Pair,
-                )?),
-            )?);
-            let second = lower_value(plan, item, "second", binders)?;
-            patterns.push(second.pattern);
-            patterns.extend(surface_patterns(plan, surface.terminator())?);
-            let first = first.expression;
-            let second = second.expression;
-            Ok((patterns, quote! { vec![#first, #second] }))
+        super::rules::SequenceOwnerState::UniformNonEmpty => {
+            let (values, tail) = prefixed_sequence_values(lowered, 0, &rule.state)?;
+            debug_assert!(values.is_empty());
+            quote! { #tail.clone() }
         }
-        super::rules::PositionalOwnerState::ThreePlus => {
-            let first = lower_value(plan, item, "first", binders)?;
-            let mut patterns = vec![first.pattern];
-            patterns.extend(surface_patterns(plan, surface.terminator())?);
-            patterns.extend(surface_patterns(
-                plan,
-                Some(positional_surface(
-                    positional,
-                    crate::semantic::EdgeClass::First,
-                )?),
-            )?);
-            let carrier = ident(&carrier_variant(owner, field)?);
-            let tail = binders.allocate("tail");
-            patterns.push(quote! { BuildValue::#carrier(#tail) });
-            let first = first.expression;
-            Ok((
-                patterns,
-                quote! {{
-                    let mut values = Vec::with_capacity(1 + #tail.len());
-                    values.push(#first);
-                    values.extend(#tail.iter().cloned());
-                    values
-                }},
-            ))
+        super::rules::SequenceOwnerState::PositionalSingleton => {
+            let values = exact_sequence_values(lowered, 1, &rule.state)?;
+            quote! { vec![#(#values),*] }
         }
-    }
+        super::rules::SequenceOwnerState::PositionalPair => {
+            let values = exact_sequence_values(lowered, 2, &rule.state)?;
+            quote! { vec![#(#values),*] }
+        }
+        super::rules::SequenceOwnerState::PositionalExact(length) => {
+            let values = exact_sequence_values(lowered, length, &rule.state)?;
+            quote! { vec![#(#values),*] }
+        }
+        super::rules::SequenceOwnerState::PositionalThreePlus
+        | super::rules::SequenceOwnerState::PositionalMinimumPlus(_) => {
+            let (values, tail) = prefixed_sequence_values(lowered, 1, &rule.state)?;
+            let prefix_len = values.len();
+            quote! {{
+                let mut values = Vec::with_capacity(#prefix_len + #tail.len());
+                #(values.push(#values);)*
+                values.extend(#tail.iter().cloned());
+                values
+            }}
+        }
+    };
+    Ok((patterns, value))
 }
 
-fn surface_patterns(
+struct LoweredSequenceRhs {
+    patterns: Vec<TokenStream>,
+    values: Vec<TokenStream>,
+    tail: Option<syn::Ident>,
+}
+
+fn lower_sequence_rhs(
     plan: &SemanticPlan,
-    surface: Option<&crate::semantic::FixedSurfacePlan>,
+    symbols: &[super::rules::RuleSymbolPlan],
+    carrier: &syn::Ident,
+    helper_category: &str,
+    state: &str,
+    binders: &mut LocalAllocator,
+) -> syn::Result<LoweredSequenceRhs> {
+    let mut patterns = Vec::new();
+    let mut values = Vec::new();
+    let mut tail = None;
+    for (index, symbol) in symbols.iter().enumerate() {
+        match symbol {
+            super::rules::RuleSymbolPlan::Value(value) => {
+                let value = lower_value(plan, value, &format!("item_{index}"), binders)?;
+                patterns.push(value.pattern);
+                values.push(value.expression);
+            }
+            super::rules::RuleSymbolPlan::Helper(category) => {
+                if category != helper_category {
+                    return Err(internal(&format!(
+                        "{state} sequence RHS names a different helper category"
+                    )));
+                }
+                if tail.is_some() {
+                    return Err(internal(&format!(
+                        "{state} sequence RHS contains more than one tail"
+                    )));
+                }
+                let binding = binders.allocate("tail");
+                patterns.push(quote! { BuildValue::#carrier(#binding) });
+                tail = Some(binding);
+            }
+            super::rules::RuleSymbolPlan::Surface(surface) => {
+                patterns.push(fixed_surface_pattern(plan, surface)?);
+            }
+            super::rules::RuleSymbolPlan::Authored { .. } => {
+                return Err(internal(&format!(
+                    "{state} sequence RHS contains an authored atom"
+                )));
+            }
+        }
+    }
+    Ok(LoweredSequenceRhs {
+        patterns,
+        values,
+        tail,
+    })
+}
+
+fn exact_sequence_values(
+    lowered: LoweredSequenceRhs,
+    expected: usize,
+    state: &str,
 ) -> syn::Result<Vec<TokenStream>> {
-    surface
-        .into_iter()
-        .flat_map(crate::semantic::FixedSurfacePlan::atoms)
-        .map(|atom| match atom {
-            crate::semantic::FixedSurfaceAtomPlan::Literal(value) => {
-                let value = syn::LitStr::new(value, Span::call_site());
-                Ok(quote! { BuildValue::Leaf(Leaf::Literal(#value)) })
-            }
-            crate::semantic::FixedSurfaceAtomPlan::Lex { terminal, variant } => {
-                fixed_lex_pattern(plan, terminal, variant)
-            }
-        })
-        .collect()
+    if lowered.tail.is_some() || lowered.values.len() != expected {
+        return Err(internal(&format!(
+            "{state} sequence RHS must contain exactly {expected} values and no tail"
+        )));
+    }
+    Ok(lowered.values)
+}
+
+fn prefixed_sequence_values(
+    lowered: LoweredSequenceRhs,
+    expected: usize,
+    state: &str,
+) -> syn::Result<(Vec<TokenStream>, syn::Ident)> {
+    let Some(tail) = lowered.tail else {
+        return Err(internal(&format!(
+            "{state} sequence RHS must contain a tail"
+        )));
+    };
+    if lowered.values.len() != expected {
+        return Err(internal(&format!(
+            "{state} sequence RHS must contain exactly {expected} prefix values"
+        )));
+    }
+    Ok((lowered.values, tail))
+}
+
+fn fixed_surface_pattern(
+    plan: &SemanticPlan,
+    surface: &crate::semantic::FixedSurfaceAtomPlan,
+) -> syn::Result<TokenStream> {
+    match surface {
+        crate::semantic::FixedSurfaceAtomPlan::Literal(value) => {
+            let value = syn::LitStr::new(value, Span::call_site());
+            Ok(quote! { BuildValue::Leaf(Leaf::Literal(#value)) })
+        }
+        crate::semantic::FixedSurfaceAtomPlan::Lex { terminal, variant } => {
+            fixed_lex_pattern(plan, terminal, variant)
+        }
+    }
 }
 
 fn fixed_lex_pattern(
@@ -700,27 +756,6 @@ fn fixed_lex_pattern(
             "fixed structural lexeme lowering currently requires a vocabulary terminal",
         )),
     }
-}
-
-fn positional_separator(
-    surface: &crate::semantic::SequenceSurfacePlan,
-) -> syn::Result<&[crate::semantic::PositionalSeparatorPlan]> {
-    match surface.separator() {
-        Some(crate::semantic::SeparatorPlan::Positional(rows)) => Ok(rows),
-        Some(crate::semantic::SeparatorPlan::Uniform(_)) | None => {
-            Err(internal("positional build row has no positional separator"))
-        }
-    }
-}
-
-fn positional_surface(
-    rows: &[crate::semantic::PositionalSeparatorPlan],
-    class: crate::semantic::EdgeClass,
-) -> syn::Result<&crate::semantic::FixedSurfacePlan> {
-    rows.iter()
-        .find(|row| row.class() == class)
-        .map(crate::semantic::PositionalSeparatorPlan::surface)
-        .ok_or_else(|| internal("reachable positional class has no surface"))
 }
 
 fn structural_owner_field(
@@ -760,6 +795,13 @@ fn carrier_variant(owner: &str, field: &StructuralFieldPlan) -> syn::Result<Stri
             Err(internal("required field has no helper carrier"))
         }
     }
+}
+
+fn sequence_helper_category(field: &StructuralFieldPlan) -> syn::Result<String> {
+    field
+        .helper_names()
+        .map(|names| names.all()[1].to_owned())
+        .ok_or_else(|| internal("sequence field has no helper category inventory"))
 }
 
 fn atom_role(atom: &AtomPlan) -> Option<&str> {
@@ -1758,6 +1800,81 @@ mod tests {
 
     struct Binders(Vec<String>);
 
+    fn shared_rhs_structural_plan() -> crate::semantic::SemanticPlan {
+        crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Marker { Alpha = "alpha", Beta = "beta", }
+                construction item: Item {
+                    element ItemValue { marker: lex Marker, }
+                    form item = lex(marker);
+                }
+                construction uniform: Uniform {
+                    element UniformValue {
+                        items: seq Item separated by "<S>" terminated by "<T>",
+                    }
+                    require len(items) >= 1;
+                    form uniform = items;
+                }
+                root Item { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("shared-RHS fixture parses"),
+        )
+        .expect("shared-RHS fixture validates")
+        .into_semantic()
+    }
+
+    #[test]
+    fn sequence_build_patterns_consume_the_exact_lowered_rule_rhs() {
+        let plan = shared_rhs_structural_plan();
+        let mut row = super::super::rules::lowered_rows(&plan)
+            .expect("shared-RHS rows lower")
+            .into_iter()
+            .find(|row| row.id == "UniformValueItemsSequenceRecursive")
+            .expect("recursive sequence row");
+
+        row.rhs.swap(1, 2);
+        let mutated = super::emit_rule_arm(&plan, &row)
+            .expect("a reordered sealed RHS still lowers")
+            .to_string();
+        let separator = mutated
+            .find("Literal (\"<S>\")")
+            .expect("separator pattern");
+        let terminator = mutated
+            .find("Literal (\"<T>\")")
+            .expect("terminator pattern");
+        assert!(
+            separator < terminator,
+            "build patterns must follow the mutated rule RHS order: {mutated}",
+        );
+
+        let mut wrong_category = row.clone();
+        let helper = wrong_category
+            .rhs
+            .iter_mut()
+            .find_map(|symbol| match symbol {
+                super::super::rules::RuleSymbolPlan::Helper(category) => Some(category),
+                _ => None,
+            })
+            .expect("recursive row has a helper symbol");
+        *helper = "WrongSequenceCategory".to_owned();
+        let mismatch = super::emit_rule_arm(&plan, &wrong_category)
+            .expect_err("a sequence fold cannot consume a different helper category")
+            .to_string();
+        assert!(
+            mismatch.contains("sequence_recursive") && mismatch.contains("helper category"),
+            "the shared lowering mismatch must identify the row state: {mismatch}",
+        );
+
+        row.rhs.pop();
+        let mismatch = super::emit_rule_arm(&plan, &row)
+            .expect_err("a recursive fold without its lowered tail must be rejected")
+            .to_string();
+        assert!(
+            mismatch.contains("sequence_recursive") && mismatch.contains("tail"),
+            "the shared lowering mismatch must identify the row state: {mismatch}",
+        );
+    }
+
     #[test]
     fn structural_helper_folds_are_tag_free_bounded_and_source_ordered() {
         let plan = crate::validate_declarations(
@@ -1827,12 +1944,19 @@ mod tests {
                 .contains("BuildValue :: UniformValueMaybeOptional (Some (item . clone ()))"),
         );
         assert!(
-            arm("UniformValueItemsSequenceEmpty")
-                .contains("BuildValue :: UniformValueItemsSequence (Vec :: new ())"),
+            !arms
+                .iter()
+                .any(|(id, _)| id == "RuleId :: UniformValueItemsSequenceEmpty"
+                    || id == "RuleId :: UniformValueItemsSequenceSingleton"),
+            "the minimum-two sequence must expose neither an empty nor singleton build arm",
+        );
+        assert!(
+            arm("UniformValueItemsSequenceLength2")
+                .contains("BuildValue :: UniformValueItemsSequence (vec ! [item_0 . clone () , item_3 . clone ()])"),
         );
         let recursive = arm("UniformValueItemsSequenceRecursive");
         assert!(
-            recursive.contains("values . push (item . clone ())"),
+            recursive.contains("values . push (item_0 . clone ())"),
             "{recursive}"
         );
         assert!(
@@ -1852,7 +1976,7 @@ mod tests {
         );
         let positional = arm("PositionalValueItemsSequenceThreePlus");
         assert!(
-            positional.contains("values . push (first . clone ())")
+            positional.contains("values . push (item_0 . clone ())")
                 && positional.contains("values . extend (tail . iter () . cloned ())")
                 && positional.contains("PositionalValue :: new"),
             "the owner folds first + ordered tail and applies bounds: {positional}",
@@ -1860,8 +1984,7 @@ mod tests {
         for helper in [
             "UniformValueMaybeOptionalAbsent",
             "UniformValueMaybeOptionalPresent",
-            "UniformValueItemsSequenceEmpty",
-            "UniformValueItemsSequenceSingleton",
+            "UniformValueItemsSequenceLength2",
             "UniformValueItemsSequenceRecursive",
             "PositionalValueItemsSequenceLast",
             "PositionalValueItemsSequenceMiddle",

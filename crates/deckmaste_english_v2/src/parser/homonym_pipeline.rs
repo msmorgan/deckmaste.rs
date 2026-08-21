@@ -1,12 +1,16 @@
 use std::collections::BTreeSet;
 
 use RulePosition::Lexical as L;
+use RulePosition::Nonterminal as N;
 use deckmaste_construction::constructions;
 use macro_ron::v2::DeclarationIdentity;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::SurfaceFeature;
 
 use super::diagnostic::SemanticScannerMatchInventory;
+use super::engine::Child;
+use super::engine::Family;
+use super::engine::Forest;
 use super::engine::LexicalMatch;
 use super::engine::Observation;
 use super::engine::Rule;
@@ -150,6 +154,44 @@ impl ScanInput<'_> {
 }
 
 constructions! {
+    vocab StructuralWord {
+        Alpha = "alpha",
+        Beta = "beta",
+        Gamma = "gamma",
+        Delta = "delta",
+    }
+    construction structural_atom: StructuralAtom {
+        element StructuralAtomValue { marker: lex StructuralWord, }
+        form structural_atom = lex(marker);
+    }
+    abstract product OptionalStructural { maybe: opt StructuralAtom, }
+    abstract product ExactPairStructural {
+        items: seq StructuralAtom separated by position { pair = "<P>"; } terminated by "<T>",
+    }
+    require len(ExactPairStructural.items) = 2;
+    abstract product TerminatedStructural {
+        items: seq StructuralAtom terminated by "<T>",
+    }
+    abstract product SeparatedStructural {
+        items: seq StructuralAtom separated by "<S>",
+    }
+    abstract product CombinedStructural {
+        items: seq StructuralAtom separated by "<S>" terminated by "<T>",
+    }
+    abstract product PositionalStructural {
+        items: seq StructuralAtom separated by position {
+            pair = "<P>";
+            first = "<F>";
+            middle = "<M>";
+            last = "<L>";
+        } terminated by "<T>",
+    }
+    require len(PositionalStructural.items) >= 1;
+    abstract product BoundedUniformStructural {
+        items: seq StructuralAtom separated by "<S>" terminated by "<T>",
+    }
+    require len(BoundedUniformStructural.items) >= 2;
+    require len(BoundedUniformStructural.items) <= 4;
     construction action: Homonym {
         element Action {}
         derive agreement = verb.agreement;
@@ -252,6 +294,250 @@ fn scan(
         },
         terminal,
     )
+}
+
+fn parse_fixture(
+    category: Category,
+    text: &str,
+    environment: &ParserEnvironment,
+) -> Result<
+    Forest<RuleId, Leaf, LexicalOwner>,
+    super::engine::ChartFailure<Category, LexicalTerminal>,
+> {
+    parse_observed(
+        RULES,
+        category,
+        text.len(),
+        |terminal, offset| scan(text, offset, terminal, environment),
+        |_rule, _family, _forest| true,
+        &mut (),
+    )
+}
+
+fn materialize_fixture(
+    forest: &Forest<RuleId, Leaf, LexicalOwner>,
+    context: &ParseContext<'_>,
+) -> Vec<
+    super::materialize::MaterializedCandidate<
+        BuildValue,
+        Construction,
+        Category,
+        Lexical,
+        Leaf,
+        LexicalOwner,
+    >,
+> {
+    materialize_with(
+        forest,
+        RULES,
+        RuleId::index,
+        RuleId::public_construction,
+        |terminal: LexicalTerminal| terminal.matcher,
+        |leaf| BuildValue::Leaf(leaf.clone()),
+        |rule, children| build(rule, children, context),
+    )
+}
+
+fn structural_markers(items: &[StructuralAtom]) -> Vec<StructuralWord> {
+    items
+        .iter()
+        .map(|item| match item {
+            StructuralAtom::StructuralAtom(value) => value.marker,
+        })
+        .collect()
+}
+
+#[test]
+fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order() {
+    let environment = environment();
+    let context = ParseContext::default();
+    let cases = [
+        (Category::OptionalStructural, "", Vec::new()),
+        (
+            Category::OptionalStructural,
+            "Alpha",
+            vec![StructuralWord::Alpha],
+        ),
+        (
+            Category::ExactPairStructural,
+            "Alpha <T> <P> beta <T>",
+            vec![StructuralWord::Alpha, StructuralWord::Beta],
+        ),
+        (
+            Category::TerminatedStructural,
+            "Alpha <T> beta <T>",
+            vec![StructuralWord::Alpha, StructuralWord::Beta],
+        ),
+        (
+            Category::SeparatedStructural,
+            "Alpha <S> beta",
+            vec![StructuralWord::Alpha, StructuralWord::Beta],
+        ),
+        (Category::CombinedStructural, "", Vec::new()),
+        (
+            Category::CombinedStructural,
+            "Alpha <T>",
+            vec![StructuralWord::Alpha],
+        ),
+        (
+            Category::CombinedStructural,
+            "Alpha <T> <S> beta <T>",
+            vec![StructuralWord::Alpha, StructuralWord::Beta],
+        ),
+        (
+            Category::CombinedStructural,
+            "Alpha <T> <S> beta <T> <S> gamma <T> <S> delta <T>",
+            vec![
+                StructuralWord::Alpha,
+                StructuralWord::Beta,
+                StructuralWord::Gamma,
+                StructuralWord::Delta,
+            ],
+        ),
+        (
+            Category::PositionalStructural,
+            "Alpha <T> <P> beta <T>",
+            vec![StructuralWord::Alpha, StructuralWord::Beta],
+        ),
+        (
+            Category::PositionalStructural,
+            "Alpha <T> <F> beta <T> <M> gamma <T> <L> delta <T>",
+            vec![
+                StructuralWord::Alpha,
+                StructuralWord::Beta,
+                StructuralWord::Gamma,
+                StructuralWord::Delta,
+            ],
+        ),
+        (
+            Category::BoundedUniformStructural,
+            "Alpha <T> <S> beta <T>",
+            vec![StructuralWord::Alpha, StructuralWord::Beta],
+        ),
+        (
+            Category::BoundedUniformStructural,
+            "Alpha <T> <S> beta <T> <S> gamma <T> <S> delta <T>",
+            vec![
+                StructuralWord::Alpha,
+                StructuralWord::Beta,
+                StructuralWord::Gamma,
+                StructuralWord::Delta,
+            ],
+        ),
+    ];
+
+    for (category, text, expected) in cases {
+        let forest = parse_fixture(category, text, &environment).unwrap_or_else(|failure| {
+            panic!("{category:?} failed at {} on {text:?}", failure.offset)
+        });
+        let built = materialize_fixture(&forest, &context);
+        assert_eq!(built.len(), 1, "one materialized value for {text:?}");
+        let actual = match &built[0].value {
+            BuildValue::OptionalStructural(value) => value
+                .maybe
+                .as_ref()
+                .into_iter()
+                .flat_map(|item| structural_markers(std::slice::from_ref(item)))
+                .collect(),
+            BuildValue::ExactPairStructural(value) => structural_markers(&value.items),
+            BuildValue::TerminatedStructural(value) => structural_markers(&value.items),
+            BuildValue::SeparatedStructural(value) => structural_markers(&value.items),
+            BuildValue::CombinedStructural(value) => structural_markers(&value.items),
+            BuildValue::PositionalStructural(value) => structural_markers(&value.items),
+            BuildValue::BoundedUniformStructural(value) => structural_markers(&value.items),
+            value => panic!("unexpected structural materialization {value:?}"),
+        };
+        assert_eq!(
+            actual, expected,
+            "source order survives parse and fold for {text:?}"
+        );
+    }
+
+    for (category, text) in [
+        (Category::ExactPairStructural, "Alpha <T>"),
+        (
+            Category::ExactPairStructural,
+            "Alpha <T> <P> beta <T> <P> gamma <T>",
+        ),
+        (Category::BoundedUniformStructural, "Alpha <T>"),
+        (
+            Category::BoundedUniformStructural,
+            "Alpha <T> <S> beta <T> <S> gamma <T> <S> delta <T> <S> alpha <T>",
+        ),
+        (Category::BoundedUniformStructural, "Alpha <S> <T> beta <T>"),
+        (Category::CombinedStructural, "Alpha <T> <S>"),
+        (
+            Category::PositionalStructural,
+            "Alpha <T> <F> beta <T> <L> gamma <T> <M> delta <T>",
+        ),
+    ] {
+        assert!(
+            parse_fixture(category, text, &environment).is_err(),
+            "{category:?} must reject invalid cardinality or surface order {text:?}",
+        );
+    }
+}
+
+fn structural_rule_label(rule: RuleId) -> String {
+    super::diagnostic::rule_label_from_metadata(
+        rule.public_construction()
+            .map(|construction| format!("{construction:?}")),
+        rule.owner(),
+        rule.role(),
+        rule.state(),
+    )
+}
+
+#[test]
+fn generated_helper_cycle_is_an_internal_materialization_failure_with_owner_role_path() {
+    let environment = environment();
+    let context = ParseContext::default();
+    let parsed = parse_fixture(Category::OptionalStructural, "", &environment)
+        .expect("the nullable generated helper produces an accepted Earley forest");
+    assert!(parsed.accepted_root_ids().next().is_some());
+    let helper = parsed
+        .nodes()
+        .find_map(|(id, node)| {
+            (node.rule == RuleId::OptionalStructuralMaybeOptionalAbsent).then_some(id)
+        })
+        .expect("the accepted forest contains the generated absent-helper node");
+    let roots = parsed.accepted_root_ids().collect::<Vec<_>>();
+    let mut nodes = parsed
+        .nodes()
+        .map(|(_, node)| node.clone())
+        .collect::<Vec<_>>();
+    nodes[helper.0].families = vec![Family {
+        children: vec![Child::Node(helper)],
+    }];
+    let cycle_only = Forest::from_test_parts(nodes, roots);
+
+    let (built, trace) = super::materialize::materialize_with_trace(
+        &cycle_only,
+        RULES,
+        RuleId::index,
+        RuleId::public_construction,
+        |terminal: LexicalTerminal| terminal.matcher,
+        |leaf| BuildValue::Leaf(leaf.clone()),
+        |rule, children| build(rule, children, &context),
+        structural_rule_label,
+        super::diagnostic::TraceLimits::new(16),
+    );
+    assert!(
+        built.is_empty(),
+        "the cycle-only accepted forest cannot materialize"
+    );
+    assert_eq!(trace.cycles().total(), 1);
+    assert_eq!(
+        trace.cycles().items()[0].construction_path().items(),
+        [
+            "OptionalStructural [public]",
+            "OptionalStructural.maybe [optional_absent]",
+        ],
+    );
+
+    let ordinary_failure = parse_fixture(Category::ExactPairStructural, "Alpha <T>", &environment)
+        .expect_err("a short exact pair is an ordinary chart failure");
+    assert_eq!(ordinary_failure.offset, "Alpha <T>".len());
 }
 
 #[test]

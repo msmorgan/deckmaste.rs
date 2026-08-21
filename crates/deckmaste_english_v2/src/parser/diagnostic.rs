@@ -1048,7 +1048,7 @@ pub(crate) struct MaterializationTraceBuilder {
     limit: usize,
     candidates: Bounded<MaterializedCandidateInfo>,
     cycles: Bounded<MaterializationCycle>,
-    cycle_identities: Vec<(usize, Vec<RuleId>)>,
+    cycle_identities: Vec<(usize, Vec<usize>)>,
 }
 
 impl MaterializationTraceBuilder {
@@ -1070,18 +1070,33 @@ impl MaterializationTraceBuilder {
     }
 
     pub(crate) fn record_cycle(&mut self, node_ordinal: usize, rule_path: &[RuleId]) {
+        self.record_cycle_with(
+            node_ordinal,
+            rule_path,
+            |rule| rule.index(),
+            |rule| rule_label_v1(*rule),
+        );
+    }
+
+    pub(crate) fn record_cycle_with<R>(
+        &mut self,
+        node_ordinal: usize,
+        rule_path: &[R],
+        identity: impl Fn(&R) -> usize,
+        label: impl Fn(&R) -> String,
+    ) {
+        let identities = rule_path.iter().map(identity).collect::<Vec<_>>();
         if self
             .cycle_identities
             .iter()
-            .any(|(seen_node, seen_path)| *seen_node == node_ordinal && seen_path == rule_path)
+            .any(|(seen_node, seen_path)| *seen_node == node_ordinal && seen_path == &identities)
         {
             return;
         }
-        self.cycle_identities
-            .push((node_ordinal, rule_path.to_vec()));
+        self.cycle_identities.push((node_ordinal, identities));
         self.cycles.push_with(|| MaterializationCycle {
             node_ordinal,
-            construction_path: bounded_copy(rule_path, self.limit, |rule| rule_label_v1(*rule)),
+            construction_path: bounded_copy(rule_path, self.limit, label),
         });
     }
 
@@ -1094,13 +1109,26 @@ impl MaterializationTraceBuilder {
 }
 
 fn rule_label_v1(rule: RuleId) -> String {
-    if let Some(construction) = rule.public_construction() {
-        return construction_name_v1(construction);
-    }
-    rule.role().map_or_else(
-        || format!("{} [{}]", rule.owner(), rule.state()),
-        |role| format!("{}.{role} [{}]", rule.owner(), rule.state()),
+    rule_label_from_metadata(
+        rule.public_construction().map(construction_name_v1),
+        rule.owner(),
+        rule.role(),
+        rule.state(),
     )
+}
+
+pub(super) fn rule_label_from_metadata(
+    public_construction: Option<String>,
+    owner: &str,
+    role: Option<&str>,
+    state: &str,
+) -> String {
+    public_construction.unwrap_or_else(|| {
+        role.map_or_else(
+            || format!("{owner} [{state}]"),
+            |role| format!("{owner}.{role} [{state}]"),
+        )
+    })
 }
 
 /// Stable trace projection of a parse expectation.
@@ -1517,6 +1545,30 @@ mod tests {
             assert_eq!(trace.candidates().shown(), expected_constructions);
             assert_eq!(constructions, expected_constructions);
         }
+    }
+
+    #[test]
+    fn materialization_cycle_deduplication_uses_rule_identity_not_projected_label() {
+        let mut builder = MaterializationTraceBuilder::new(TraceLimits::new(8));
+        builder.record_cycle_with(
+            0,
+            &[0usize],
+            |rule| *rule,
+            |_| "same projected label".to_owned(),
+        );
+        builder.record_cycle_with(
+            0,
+            &[1usize],
+            |rule| *rule,
+            |_| "same projected label".to_owned(),
+        );
+
+        let trace = builder.finish();
+        assert_eq!(
+            trace.cycles().total(),
+            2,
+            "distinct rule paths must survive even when their public labels coincide",
+        );
     }
 
     #[test]

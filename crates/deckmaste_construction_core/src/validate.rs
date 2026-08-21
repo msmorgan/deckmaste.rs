@@ -10,9 +10,9 @@ use crate::identifier::BUILD_FUNCTION;
 use crate::identifier::FIXED_RUNTIME_TYPE_NAMES;
 use crate::identifier::RULE_CATEGORY_TYPE;
 use crate::identifier::RULE_CONSTRUCTION_TYPE;
-use crate::identifier::RULE_ID_CONSTRUCTION;
 use crate::identifier::RULE_ID_COUNT;
 use crate::identifier::RULE_ID_INDEX;
+use crate::identifier::RULE_ID_PUBLIC_CONSTRUCTION;
 use crate::identifier::RULE_ID_TYPE;
 use crate::identifier::RULES_CONSTANT;
 use crate::identifier::VISITOR_TRAIT;
@@ -2715,8 +2715,8 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
     for (name, role) in [
         (RULE_ID_COUNT, "fixed generated RuleId test count"),
         (
-            RULE_ID_CONSTRUCTION,
-            "fixed generated RuleId construction accessor",
+            RULE_ID_PUBLIC_CONSTRUCTION,
+            "fixed generated RuleId public-construction accessor",
         ),
         (RULE_ID_INDEX, "fixed generated RuleId index accessor"),
     ] {
@@ -2896,6 +2896,7 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                     &mut names,
                     &element,
                     &construction.element.fields,
+                    &construction.requirements,
                     errors,
                 );
 
@@ -2907,8 +2908,12 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                     construction.name.span(),
                     errors,
                 );
-                names.register_rule_variant(
+                register_structural_owner_rule_names(
+                    &mut names,
                     &format!("{}{category_variant}", pascal_case(&category)),
+                    &element,
+                    &construction.element.fields,
+                    &construction.requirements,
                     &format!("RuleId for construction {construction_name}"),
                     construction.name.span(),
                     errors,
@@ -3068,7 +3073,23 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                     product.name.span(),
                     errors,
                 );
-                register_structural_field_names(&mut names, &owner, &product.fields, errors);
+                register_structural_field_names(
+                    &mut names,
+                    &owner,
+                    &product.fields,
+                    &product.requirements,
+                    errors,
+                );
+                register_structural_owner_rule_names(
+                    &mut names,
+                    &format!("{}Product", pascal_case(&owner)),
+                    &owner,
+                    &product.fields,
+                    &product.requirements,
+                    &format!("generated structural product RuleId for `{owner}`"),
+                    product.name.span(),
+                    errors,
+                );
             }
             Declaration::AbstractSum(sum) => {
                 let owner = identifier_key(&sum.name);
@@ -3078,6 +3099,22 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                     sum.name.span(),
                     errors,
                 );
+                for alternative in &sum.alternatives {
+                    names.register_rule_variant(
+                        &format!(
+                            "{}{}",
+                            pascal_case(&owner),
+                            pascal_case(&identifier_key(&alternative.name))
+                        ),
+                        &format!(
+                            "generated structural sum RuleId for `{}.{}`",
+                            owner,
+                            identifier_key(&alternative.name)
+                        ),
+                        alternative.name.span(),
+                        errors,
+                    );
+                }
             }
             Declaration::Root(_) | Declaration::Morphology(_) => {}
         }
@@ -3088,35 +3125,231 @@ fn register_structural_field_names(
     names: &mut GeneratedNameInventory,
     owner: &str,
     fields: &[crate::model::Field],
+    requirements: &[RequireExprSource],
     errors: &mut Option<syn::Error>,
 ) {
+    let bounds = inventory_length_bounds(owner, fields, requirements);
     for field in fields {
-        if !matches!(field.kind, FieldKind::Sequence { .. }) {
-            continue;
-        }
         let role = identifier_key(&field.name);
         let collision_role = format!("{owner}.{role}: generated helper name collision");
-        for generated in [
-            structural_sequence_aggregate(owner, &role),
-            structural_sequence_category(owner, &role),
-            structural_sequence_rule(owner, &role),
-        ] {
-            names.register_type(&generated, &collision_role, field.name.span(), errors);
+        match &field.kind {
+            FieldKind::Optional(_) => {
+                let aggregate = format!("{}{}Optional", pascal_case(owner), pascal_case(&role));
+                names.register_rule_variant(
+                    &format!("{aggregate}Absent"),
+                    &format!("generated structural optional RuleId for `{owner}.{role}`"),
+                    field.name.span(),
+                    errors,
+                );
+                names.register_rule_variant(
+                    &format!("{aggregate}Present"),
+                    &format!("generated structural optional RuleId for `{owner}.{role}`"),
+                    field.name.span(),
+                    errors,
+                );
+            }
+            FieldKind::Sequence { surface, .. } => {
+                let aggregate = structural_sequence_aggregate(owner, &role);
+                for generated in [
+                    aggregate.clone(),
+                    structural_sequence_category(owner, &role),
+                    structural_sequence_rule(owner, &role),
+                ] {
+                    names.register_type(&generated, &collision_role, field.name.span(), errors);
+                }
+                for generated in [
+                    structural_sequence_builder(owner, &role),
+                    structural_sequence_renderer(owner, &role),
+                    structural_sequence_walker(owner, &role),
+                ] {
+                    names.register_value(&generated, &collision_role, field.name.span(), errors);
+                }
+                names.register_visitor_item(
+                    &prefixed("visit_", &format!("{owner}_{role}_sequence")),
+                    &collision_role,
+                    field.name.span(),
+                    errors,
+                );
+                let field_bounds = bounds
+                    .get(&role)
+                    .copied()
+                    .unwrap_or_else(|| LengthBounds::new(0, None));
+                for suffix in sequence_helper_rule_suffixes(surface, field_bounds) {
+                    names.register_rule_variant(
+                        &format!("{aggregate}{suffix}"),
+                        &format!("generated structural sequence RuleId for `{owner}.{role}`"),
+                        field.name.span(),
+                        errors,
+                    );
+                }
+            }
+            FieldKind::Category(_) | FieldKind::Lex(_) | FieldKind::Identity(_) => {}
         }
-        for generated in [
-            structural_sequence_builder(owner, &role),
-            structural_sequence_renderer(owner, &role),
-            structural_sequence_walker(owner, &role),
-        ] {
-            names.register_value(&generated, &collision_role, field.name.span(), errors);
-        }
-        names.register_visitor_item(
-            &prefixed("visit_", &format!("{owner}_{role}_sequence")),
-            &collision_role,
-            field.name.span(),
-            errors,
-        );
     }
+}
+
+fn inventory_length_bounds(
+    owner: &str,
+    fields: &[crate::model::Field],
+    requirements: &[RequireExprSource],
+) -> HashMap<String, LengthBounds> {
+    let mut ignored_errors = None;
+    normalize_length_requirements(owner, fields, requirements, &mut ignored_errors)
+}
+
+fn sequence_helper_rule_suffixes(
+    surface: &crate::model::SequenceSurfaceSource,
+    bounds: LengthBounds,
+) -> Vec<String> {
+    match &surface.separator {
+        Some(crate::model::SeparatorSource::Positional(_)) => {
+            if bounds.max().is_some() {
+                return Vec::new();
+            }
+            let tail_length = bounds.min().max(3) - 1;
+            vec![
+                if tail_length == 2 {
+                    "Last".to_owned()
+                } else {
+                    format!("TailLength{tail_length}")
+                },
+                "Middle".to_owned(),
+            ]
+        }
+        Some(crate::model::SeparatorSource::Uniform(_)) | None => {
+            if let Some(maximum) = bounds.max() {
+                return (bounds.min()..=maximum)
+                    .map(|length| format!("Length{length}"))
+                    .collect();
+            }
+            vec![
+                if bounds.min() <= 1 {
+                    "Singleton".to_owned()
+                } else {
+                    format!("Length{}", bounds.min())
+                },
+                "Recursive".to_owned(),
+            ]
+        }
+    }
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "owner rule inventory registration carries one complete diagnostic identity"
+)]
+fn register_structural_owner_rule_names(
+    names: &mut GeneratedNameInventory,
+    base: &str,
+    owner: &str,
+    fields: &[crate::model::Field],
+    requirements: &[RequireExprSource],
+    base_role: &str,
+    span: proc_macro2::Span,
+    errors: &mut Option<syn::Error>,
+) {
+    let bounds = inventory_length_bounds(owner, fields, requirements);
+    let state_fields = fields
+        .iter()
+        .filter_map(|field| {
+            let FieldKind::Sequence { surface, .. } = &field.kind else {
+                return None;
+            };
+            let role = identifier_key(&field.name);
+            let field_bounds = bounds
+                .get(&role)
+                .copied()
+                .unwrap_or_else(|| LengthBounds::new(0, None));
+            let suffixes = sequence_owner_rule_suffixes(surface, field_bounds);
+            (!suffixes.is_empty()).then(|| {
+                (
+                    role.clone(),
+                    structural_sequence_aggregate(owner, &role),
+                    suffixes,
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let variants = owner_rule_variant_names(base, &state_fields);
+    let role = if state_fields.is_empty() {
+        base_role.to_owned()
+    } else {
+        format!("generated structural owner-state RuleId for `{owner}`")
+    };
+    for variant in variants {
+        names.register_rule_variant(&variant, &role, span, errors);
+    }
+}
+
+fn sequence_owner_rule_suffixes(
+    surface: &crate::model::SequenceSurfaceSource,
+    bounds: LengthBounds,
+) -> Vec<String> {
+    match &surface.separator {
+        Some(crate::model::SeparatorSource::Positional(_)) => {
+            if let Some(maximum) = bounds.max() {
+                return (bounds.min()..=maximum)
+                    .map(sequence_exact_owner_suffix)
+                    .collect();
+            }
+            let mut suffixes = Vec::new();
+            for length in 0..3 {
+                if bounds.allows(length) {
+                    suffixes.push(sequence_exact_owner_suffix(length));
+                }
+            }
+            let minimum = bounds.min().max(3);
+            suffixes.push(if minimum == 3 {
+                "ThreePlus".to_owned()
+            } else {
+                format!("Minimum{minimum}Plus")
+            });
+            suffixes
+        }
+        Some(crate::model::SeparatorSource::Uniform(_)) | None
+            if bounds.max().is_none() && bounds.min() == 0 =>
+        {
+            vec!["Empty".to_owned(), "NonEmpty".to_owned()]
+        }
+        Some(crate::model::SeparatorSource::Uniform(_)) | None => Vec::new(),
+    }
+}
+
+fn sequence_exact_owner_suffix(length: usize) -> String {
+    match length {
+        0 => "Empty".to_owned(),
+        1 => "Singleton".to_owned(),
+        2 => "Pair".to_owned(),
+        length => format!("Length{length}"),
+    }
+}
+
+fn owner_rule_variant_names(
+    base: &str,
+    state_fields: &[(String, String, Vec<String>)],
+) -> Vec<String> {
+    if state_fields.is_empty() {
+        return vec![base.to_owned()];
+    }
+    if let [(.., aggregate, suffixes)] = state_fields {
+        return suffixes
+            .iter()
+            .map(|suffix| format!("{aggregate}{suffix}"))
+            .collect();
+    }
+    state_fields
+        .iter()
+        .fold(vec![base.to_owned()], |variants, (role, _, suffixes)| {
+            variants
+                .into_iter()
+                .flat_map(|variant| {
+                    suffixes
+                        .iter()
+                        .map(move |suffix| format!("{variant}{}{suffix}", pascal_case(role)))
+                })
+                .collect()
+        })
 }
 
 fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Feature) -> bool {
@@ -7497,6 +7730,79 @@ pub(crate) mod tests {
             "{message}"
         );
         assert!(!message.contains("internal"), "{message}");
+    }
+
+    #[test]
+    fn rejects_authored_rule_ids_colliding_with_every_structural_helper_family() {
+        let cases = [
+            quote! {
+                construction item: Item { element ItemValue {} form item = "item"; }
+                abstract product Holder { maybe: opt Item, }
+                construction optional_absent: HolderMaybe {
+                    element OptionalCollision {}
+                    form absent = "absent";
+                }
+                root HolderMaybe { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            quote! {
+                construction item: Item { element ItemValue {} form item = "item"; }
+                abstract product Holder { items: seq Item separated by ", ", }
+                require len(Holder.items) = 2;
+                construction sequence_length2: HolderItems {
+                    element SequenceCollision {}
+                    form length2 = "length2";
+                }
+                root HolderItems { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            quote! {
+                construction item: Item { element ItemValue {} form item = "item"; }
+                abstract sum FooBar { baz: Item, }
+                construction bar_baz: Foo {
+                    element SumCollision {}
+                    form alpha = "alpha";
+                }
+                root Foo { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            quote! {
+                construction item: Item { element ItemValue {} form item = "item"; }
+                construction exact_pair: ExactPair {
+                    element ExactPairValue {
+                        items: seq Item separated by position { pair = " and "; },
+                    }
+                    require len(items) = 2;
+                    form exact_pair = items;
+                }
+                construction pair_value_items_sequence_pair: Exact {
+                    element OwnerStateCollision {}
+                    form pair = "pair";
+                }
+                root Exact {
+                    punctuation = "."; eoi = true; standalone_render = true;
+                }
+            },
+        ];
+
+        for source in cases {
+            let parsed = crate::parse_declarations(source.clone()).expect("collision case parses");
+            let expected_span = parsed
+                .declarations
+                .iter()
+                .rev()
+                .find_map(|declaration| match declaration {
+                    Declaration::Construction(construction) => Some(construction.name.span()),
+                    _ => None,
+                })
+                .expect("colliding authored construction");
+            let error = crate::validate_declarations(parsed)
+                .expect_err("a structural RuleId helper collision must fail validation");
+            assert_same_span(error.span(), expected_span);
+            let message = error.to_string();
+            assert!(
+                message.contains("Construction/RuleId variant") && message.contains("structural"),
+                "the collision must identify the structural RuleId family: {message}",
+            );
+            assert!(!message.contains("internal"), "{message}");
+        }
     }
 
     #[test]

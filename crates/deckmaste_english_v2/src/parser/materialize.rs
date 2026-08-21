@@ -335,6 +335,80 @@ where
     .materialize(forest, &mut ())
 }
 
+#[cfg(test)]
+struct ProjectedMaterializationTrace<'a, R> {
+    builder: &'a mut MaterializationTraceBuilder,
+    identity: fn(R) -> usize,
+    label: fn(R) -> String,
+}
+
+#[cfg(test)]
+impl<R: Copy> MaterializationObservation<R> for ProjectedMaterializationTrace<'_, R> {
+    const ENABLED: bool = true;
+
+    fn cycle_pruned(&mut self, node_id: NodeId, rule_path: &[R]) {
+        self.builder.record_cycle_with(
+            node_id.0,
+            rule_path,
+            |rule| (self.identity)(*rule),
+            |rule| (self.label)(*rule),
+        );
+    }
+}
+
+#[cfg(test)]
+type MaterializedTraceOutput<V, C, K, M, T, O> = (
+    Vec<MaterializedCandidate<V, C, K, M, T, O>>,
+    MaterializationTrace,
+);
+
+#[cfg(test)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the generic test seam mirrors every production materialization authority"
+)]
+pub(super) fn materialize_with_trace<R, T, O, V, C, K, L, M, Build>(
+    forest: &Forest<R, T, O>,
+    rules: &[Rule<K, L, R>],
+    rule_index: fn(R) -> usize,
+    public_construction: fn(R) -> Option<C>,
+    lexical_matcher: fn(L) -> M,
+    build_leaf: fn(&T) -> V,
+    build: Build,
+    label: fn(R) -> String,
+    limits: TraceLimits,
+) -> MaterializedTraceOutput<V, C, K, M, T, O>
+where
+    R: Copy,
+    V: Clone + PartialEq,
+    C: Copy + PartialEq,
+    K: Copy + PartialEq + 'static,
+    L: Copy + 'static,
+    M: Clone + PartialEq,
+    T: Clone + PartialEq,
+    O: Clone + PartialEq,
+    Build: Fn(R, &[V]) -> Option<V>,
+{
+    let mut builder = MaterializationTraceBuilder::new(limits);
+    let values = MaterializationKernel {
+        rules,
+        rule_index,
+        public_construction,
+        lexical_matcher,
+        build_leaf,
+        build,
+    }
+    .materialize(
+        forest,
+        &mut ProjectedMaterializationTrace {
+            builder: &mut builder,
+            identity: rule_index,
+            label,
+        },
+    );
+    (values, builder.finish())
+}
+
 pub(crate) fn materialize(
     forest: &Forest<RuleId, Leaf, LexicalOwner>,
     context: &ParseContext<'_>,
