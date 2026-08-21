@@ -48,3 +48,6 @@ requires explicit review rather than an opportunistic refactor.
 - [The kind index joins; union marking is spelling](kind-index-joins-union-marking-is-spelling.md) —
   Semantics takes the join lattice; the marked union constructions are
   spelling-boundary knowledge.
+- [Card authoring binds no implicits](card-authoring-binds-no-implicits.md) —
+  A card applies constructors and card-language functions positionally; a
+  wrapping macro fills every optional slot and proof.

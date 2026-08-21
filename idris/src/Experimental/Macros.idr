@@ -889,3 +889,341 @@ mayWhen : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
           Effect bs
 mayWhen d body trig =
   Reflexively (May (Just d) body Nothing Nothing) trig {en = ok}
+
+
+-- Wrapping macros for the optional and proof-carrying slots, so a card
+-- never binds an implicit: every slot below is reached by a positional
+-- argument here instead.
+
+||| "Target player mills N cards."
+public export
+mills : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
+        (whose : Noun (nomIntro agent) Player) ->
+        {auto 0 sp : SlicePossessor whose} ->
+        {auto 0 wc : WrittenCount amt} ->
+        {auto 0 na : NotPlayerSpanning (LibrarySlice OnTop amt whose {sp} {wc})} ->
+        Effect bs
+mills agent amt whose =
+  Does agent Mill
+       (Move (LibrarySlice OnTop amt whose {sp} {wc}) graveyardZ {na})
+       {tb = MillB {sp} {wc} {na}}
+
+||| "Enchant creature": a keyword whose parameter is a subject phrase.
+public export
+keywordSubject : {0 bs : Bindings} -> {k : Kind} -> (kw : Keyword) ->
+                 (p : Predicate [] k) ->
+                 {auto 0 hd : Headed p} ->
+                 {auto 0 pf : KeywordParamFits {bs} kw
+                                (Just (ParamSubject {bs} p {hd}))} ->
+                 AbilityAt bs
+keywordSubject kw p = KeywordAbility kw {param = Just (ParamSubject p {hd})} {pf}
+
+||| "Equip {2}", "Ward {2}": a keyword whose parameter is a cost.
+public export
+keywordCosting : {0 bs : Bindings} -> (kw : Keyword) -> (c : Cost []) ->
+                 {auto 0 pf : KeywordParamFits {bs} kw
+                                (Just (ParamCost {bs} c))} ->
+                 AbilityAt bs
+keywordCosting kw c = KeywordAbility kw {param = Just (ParamCost c)} {pf}
+
+||| "Protection from red": a keyword whose parameter is a quality.
+public export
+keywordQuality : (kw : Keyword) -> (q : Predicate bs Object) ->
+                 {auto 0 pf : KeywordParamFits kw (Just (ParamQuality q))} ->
+                 AbilityAt bs
+keywordQuality kw q = KeywordAbility kw {param = Just (ParamQuality q)} {pf}
+
+||| "Renown 1": a keyword whose parameter is a written number.
+public export
+keywordNumber : {0 bs : Bindings} -> (kw : Keyword) -> (amt : Amount []) ->
+                {auto 0 wc : WrittenCount amt} ->
+                {auto 0 pf : KeywordParamFits {bs} kw
+                               (Just (ParamNumber {bs} amt {wc}))} ->
+                AbilityAt bs
+keywordNumber kw amt = KeywordAbility kw {param = Just (ParamNumber amt {wc})} {pf}
+
+||| "Whenever …, if <condition>, …": a trigger with an intervening-if clause.
+public export
+triggeredIf : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
+              (cond : Condition (headerCtx Nothing ev)) ->
+              (eff : Effect (interveningIntro (Just cond))) ->
+              {auto 0 tr : Triggerable ev} ->
+              {auto 0 hn : HeaderNontarget ev} ->
+              {auto 0 wo : TriggerWordOk ev word} ->
+              {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
+              {auto 0 cd : ChapterDefaults ev Nothing Nothing Nothing (Just cond)} ->
+              AbilityAt bs
+triggeredIf word ev cond eff =
+  Triggered word ev {intervening = Just cond} eff {tr} {hn} {wo} {ae} {cd}
+
+||| "Whenever X or Y, …": a trigger with an alternative event.
+public export
+triggeredOr : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
+              (alt : GameEvent bs) -> (eff : Effect bs) ->
+              {auto 0 tr : Triggerable ev} ->
+              {auto 0 hn : HeaderNontarget ev} ->
+              {auto 0 wo : TriggerWordOk ev word} ->
+              {auto 0 ae : AltEvent word (Just alt)} ->
+              {auto 0 cd : ChapterDefaults ev (Just alt) Nothing Nothing Nothing} ->
+              AbilityAt bs
+triggeredOr word ev alt eff =
+  Triggered word ev {alt = Just alt} eff {tr} {hn} {wo} {ae} {cd}
+
+||| "Whenever …, during <window>, …": a trigger confined to a window.
+public export
+triggeredOnlyDuring : {bs : Bindings} -> (word : TriggerWord) ->
+                      (ev : GameEvent bs) -> (w : TriggerWindow) ->
+                      (eff : Effect (eventAfter ev)) ->
+                      {auto 0 tr : Triggerable ev} ->
+                      {auto 0 hn : HeaderNontarget ev} ->
+                      {auto 0 wo : TriggerWordOk ev word} ->
+                      {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
+                      {auto 0 cd : ChapterDefaults ev Nothing (Just w) Nothing Nothing} ->
+                      AbilityAt bs
+triggeredOnlyDuring word ev w eff =
+  Triggered word ev {window = Just w} eff {tr} {hn} {wo} {ae} {cd}
+
+||| "Whenever …, … . This triggers only once each turn."
+public export
+triggeredOnlyOnce : {bs : Bindings} -> (word : TriggerWord) ->
+                    (ev : GameEvent bs) -> (lim : UsageLimit) ->
+                    (eff : Effect (eventAfter ev)) ->
+                    {auto 0 tr : Triggerable ev} ->
+                    {auto 0 hn : HeaderNontarget ev} ->
+                    {auto 0 wo : TriggerWordOk ev word} ->
+                    {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
+                    {auto 0 cd : ChapterDefaults ev Nothing Nothing (Just lim) Nothing} ->
+                    AbilityAt bs
+triggeredOnlyOnce word ev lim eff =
+  Triggered word ev {limit = Just lim} eff {tr} {hn} {wo} {ae} {cd}
+
+||| "Activate only as a sorcery" / "only during your upkeep".
+public export
+activatedOnlyDuring : (cost : Cost bs) ->
+                      (eff : Effect (publicOnly (costIntro cost))) ->
+                      (w : Timing) ->
+                      {auto 0 tp : CostTapOnce cost} ->
+                      {auto 0 py : CostPaidByYou cost} ->
+                      {auto 0 ld : LoyaltyDefaults cost (Just w) Nothing Nothing} ->
+                      AbilityAt bs
+activatedOnlyDuring cost eff w = Activated cost eff {window = Just w} {tp} {py} {ld}
+
+||| "Activate only once each turn" (or once each game).
+public export
+activatedOnlyOnce : (cost : Cost bs) ->
+                    (eff : Effect (publicOnly (costIntro cost))) ->
+                    (lim : UsageLimit) ->
+                    {auto 0 tp : CostTapOnce cost} ->
+                    {auto 0 py : CostPaidByYou cost} ->
+                    {auto 0 ld : LoyaltyDefaults cost Nothing (Just lim) Nothing} ->
+                    AbilityAt bs
+activatedOnlyOnce cost eff lim = Activated cost eff {limit = Just lim} {tp} {py} {ld}
+
+||| "Activate only if <condition>."
+public export
+activatedOnlyIf : (cost : Cost bs) ->
+                  (eff : Effect (publicOnly (costIntro cost))) ->
+                  (g : Condition bs) ->
+                  {auto 0 tp : CostTapOnce cost} ->
+                  {auto 0 py : CostPaidByYou cost} ->
+                  {auto 0 ld : LoyaltyDefaults cost Nothing Nothing (Just g)} ->
+                  AbilityAt bs
+activatedOnlyIf cost eff g = Activated cost eff {guard = Just g} {tp} {py} {ld}
+
+||| "Activate only once each turn and only if <condition>."
+public export
+activatedOnlyOnceIf : (cost : Cost bs) ->
+                      (eff : Effect (publicOnly (costIntro cost))) ->
+                      (lim : UsageLimit) -> (g : Condition bs) ->
+                      {auto 0 tp : CostTapOnce cost} ->
+                      {auto 0 py : CostPaidByYou cost} ->
+                      {auto 0 ld : LoyaltyDefaults cost Nothing (Just lim) (Just g)} ->
+                      AbilityAt bs
+activatedOnlyOnceIf cost eff lim g =
+  Activated cost eff {limit = Just lim} {guard = Just g} {tp} {py} {ld}
+
+||| "You may cast <what> from <zone>."
+public export
+mayCastFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+              (from : ZoneExpr (nomIntro what)) ->
+              {auto 0 pz : PlaySource (nounZone what) (Just from) Nothing} ->
+              {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+mayCastFrom who what from =
+  MayPlay who what {verb = Cast} {from = Just from} {pz} {cv}
+
+||| "You may play <what> from <zone>."
+public export
+mayPlayFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+              (from : ZoneExpr (nomIntro what)) ->
+              {auto 0 pz : PlaySource (nounZone what) (Just from) Nothing} ->
+              {auto 0 cv : CastableTy Play (nounTy what)} -> StaticEffect bs
+mayPlayFrom who what from =
+  MayPlay who what {verb = Play} {from = Just from} {pz} {cv}
+
+||| "You may cast <what> from <zone>", under a play limit.
+public export
+mayCastFromLimited : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+                     (from : ZoneExpr (nomIntro what)) -> (lim : PlayLimit) ->
+                     {auto 0 pz : PlaySource (nounZone what) (Just from) Nothing} ->
+                     {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+mayCastFromLimited who what from lim =
+  MayPlay who what {verb = Cast} {from = Just from} {limit = Just lim} {pz} {cv}
+
+||| "You may cast <what> as though it had flash."
+public export
+mayCastAsThough : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+                  (asThough : PlayAsThough) ->
+                  {auto 0 pz : PlaySource (nounZone what)
+                                          (the (Maybe (ZoneExpr (nomIntro what))) Nothing)
+                                          (Just asThough)} ->
+                  {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+mayCastAsThough who what asThough =
+  MayPlay who what {verb = Cast} {asThough = Just asThough} {pz} {cv}
+
+||| "… is put into <zone> from <source>."
+public export
+putIntoFrom : (n : Noun bs Object) -> (to : ZoneExpr bs) -> (src : EventSource bs) ->
+              {auto 0 dk : PutDest to} ->
+              {auto 0 sk : PutSource (Just src)} ->
+              {auto 0 zn : ZoneFits (nounZone n) (sourceZone (Just src))} ->
+              {auto 0 ss : SelfSorted n} -> GameEvent bs
+putIntoFrom n to src = PutInto n to {from = Just src} {dk} {sk} {zn} {ss}
+
+||| "… enters with an additional counter on it."
+public export
+entersWithAdditionalCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
+                               (kind : CounterKind) ->
+                               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                               {auto 0 wc : WrittenCount amt} -> StaticEffect bs
+entersWithAdditionalCounters n amt kind =
+  EntersWithCounters n amt kind {mark = Additional} {zn} {wc}
+
+||| "Whenever <creature> attacks <player>."
+public export
+attacksPlayer : (n : Noun bs Object) -> (whom : Noun (nomIntro n) Player) ->
+                {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                {auto 0 ss : SelfSorted n} ->
+                {auto 0 df : AttackDefender (Just whom)} -> GameEvent bs
+attacksPlayer n whom = Attacks n {whom = Just whom} {zn} {ss} {df}
+
+||| "Whenever one or more tokens are created under <player>'s control."
+public export
+tokensCreatedUnder : (n : Noun bs Object) -> (under : Noun bs Player) ->
+                     {auto 0 tk : TokenPhrase n} ->
+                     {auto 0 vo : CreationVoice Nothing Nothing (Just under)} ->
+                     GameEvent bs
+tokensCreatedUnder n under = TokensCreated n {under = Just under} {tk} {vo}
+
+||| "Whenever an effect creates tokens under <player>'s control."
+public export
+tokensCreatedByEffectUnder : (n : Noun bs Object) -> (under : Noun bs Player) ->
+                             {auto 0 tk : TokenPhrase n} ->
+                             {auto 0 vo : CreationVoice (Just AnEffect) Nothing
+                                                        (Just under)} ->
+                             GameEvent bs
+tokensCreatedByEffectUnder n under =
+  TokensCreated n {cause = Just AnEffect} {under = Just under} {tk} {vo}
+
+||| "Whenever a counter is put on …": the one-counter reading.
+public export
+singleCounterEvent : (dir : CounterMove) -> (kind : CounterKind) ->
+                     (n : Noun bs Object) ->
+                     {auto 0 sc : counterScope kind = Object} ->
+                     {auto 0 zn : CounterHolder (nounZone n)} ->
+                     {auto 0 ss : SelfSorted n} -> GameEvent bs
+singleCounterEvent dir kind n =
+  CounterEvent dir kind n {many = OneCounter} {sc} {zn} {ss}
+
+||| "When the last <kind> counter is removed from … by <player>."
+public export
+lastCounterRemovedBy : (kind : CounterKind) -> (n : Noun bs Object) ->
+                       (who : Noun bs Player) ->
+                       {auto 0 sc : counterScope kind = Object} ->
+                       {auto 0 zn : CounterHolder (nounZone n)} ->
+                       {auto 0 ss : SelfSorted n} ->
+                       {auto 0 ag : EventAgent (Just who)} -> GameEvent bs
+lastCounterRemovedBy kind n who =
+  LastCounterRemoved kind n {by = Just who} {sc} {zn} {ss} {ag}
+
+||| "<player> chooses …": a choice made by someone other than you.
+public export
+chooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
+          {auto 0 ch : ChoiceClause (Just who) n} -> Effect bs
+chooses who n = Choose n {by = Just who} {ch}
+
+||| "those cards destroyed this way": the marked plural anaphor.
+public export
+thoseVerbedThisWay : (v : VerbName) -> (w : NounWord) ->
+                     {auto 0 ok : countManyVerbed v w bs = 1} ->
+                     {auto 0 mk : VerbedMarkingOk v ThisWay} -> Noun bs (kindOfW w)
+thoseVerbedThisWay v w = ThoseVerbed v w {marking = ThisWay} {ok} {mk}
+
+||| "… followed by <part>": an added turn part with a successor.
+public export
+additionalPartThen : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
+                     (count : Nat) -> (next : TurnPart) ->
+                     {auto 0 ad : AddedPart part} ->
+                     {auto 0 an : AnchorPart anchor} ->
+                     {auto 0 fb : FollowerPart (Just next)} ->
+                     {auto 0 ct : PhaseCount count} -> Effect bs
+additionalPartThen part anchor count next =
+  AdditionalPart part anchor count {followedBy = Just next} {ad} {an} {fb} {ct}
+
+||| "When <event> this turn, …": a delayed trigger with an explicit span.
+public export
+delayedWithin : (ev : GameEvent bs) -> (span : Duration bs) ->
+                (eff : Effect (delayedCtx ev)) ->
+                {auto 0 aw : Awaitable ev} ->
+                {auto 0 one : eventSubjectPlur ev = OneOf} ->
+                {auto 0 so : DelaySpanOk (Just span)} -> Effect bs
+delayedWithin ev span eff = Delayed ev {span = Just span} eff {aw} {one} {so}
+
+||| "a creature type other than Wall": a quality noun with a choice domain.
+public export
+qualityFrom : (q : QualitySort) -> (d : ChoiceDomain q) -> Predicate bs (Quality q)
+qualityFrom q d = QualityNoun q {dom = Just d}
+
+||| "As … enters, choose a color other than red."
+public export
+entersChoosingFrom : (n : Noun bs Object) -> (q : QualitySort) ->
+                     (d : ChoiceDomain q) ->
+                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                     StaticEffect bs
+entersChoosingFrom n q d = EntersChoice n q {dom = Just d} {zn}
+
+||| "this Siege": the self-reference read at a subtype.
+public export
+thisSiege : Noun bs Object
+thisSiege = AsType Battle This {sub = Just Siege}
+
+||| "… that was dealt damage by <noun> this turn": the lookback complement.
+public export
+happenedToInvolving : {ks : Kind} -> {kc : Kind} -> (ev : EventName) ->
+                      (w : Lookback) -> (what : Noun bs kc) ->
+                      {auto 0 cp : LookbackComplement ev ks kc} ->
+                      {auto 0 cw : ComplementWritten (Just (Involving what {cp}))} ->
+                      {auto 0 sb : LookbackSubject ev ks} -> Predicate bs ks
+happenedToInvolving ev w what =
+  HappenedTo ev w {what = Just (Involving what {cp})} {cw} {sb}
+
+||| "if you cast <noun> this turn": a lookback condition with a complement.
+public export
+happenedInvolving : {k : Kind} -> {kc : Kind} -> (ev : EventName) ->
+                    (who : Noun bs k) -> (w : Lookback) ->
+                    (what : Noun (nomIntro who) kc) ->
+                    {auto 0 cp : LookbackComplement ev k kc} ->
+                    {auto 0 cw : ComplementWritten (Just (Involving what {cp}))} ->
+                    {auto 0 sb : LookbackSubject ev k} -> Condition bs
+happenedInvolving ev who w what =
+  Happened ev who w {what = Just (Involving what {cp})} {cw} {sb}
+
+||| "the number of <noun> you cast this turn": a counted lookback.
+public export
+eventCountInvolving : {k : Kind} -> {kc : Kind} -> (ev : EventName) ->
+                      (who : Noun bs k) -> (w : Lookback) ->
+                      (what : Noun (nomIntro who) kc) ->
+                      {auto 0 cp : LookbackComplement ev k kc} ->
+                      {auto 0 cw : ComplementWritten (Just (Involving what {cp}))} ->
+                      {auto 0 sb : LookbackSubject ev k} -> Amount bs
+eventCountInvolving ev who w what =
+  EventCount ev who w {what = Just (Involving what {cp})} {cw} {sb}
