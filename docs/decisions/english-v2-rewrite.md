@@ -76,10 +76,20 @@ The vocabulary is the reduced grammatical surface from the 2026-08-12 DSL
 classification, with these deltas:
 
 - **Kept:** `construction ID: Category`, named role fields, named `element`
-  products, `lex`, `identity`, `opt`, `seq` (with `require len` replacing the
-  dedicated `nonempty`/`separated` forms), abstract sum/product, `require`
+  products, `lex`, `identity`, `opt`, `seq`, abstract sum/product, `require`
   predicates, `derive` feature flow, `form`/`when`/`otherwise`, and the
   literal / role / `lex(..)` / `identity(..)` form atoms.
+
+`require len` remains the only cardinality language; no dedicated `nonempty`
+type or declaration returns. A `seq` may independently be `separated by` a
+uniform or total positional fixed surface and `terminated by` a fixed surface.
+Separation emits only between adjacent members; termination emits after every
+member, including the last. The declaration and member count/edge position
+derive these surfaces and their lexical ownership; no separator field, value,
+form tag, or token node is stored. Oracle sentences are period-terminated,
+sentence edges are ASCII-space-separated, and document blocks are LF-separated.
+This follows the [Oracle text style guide §1](../oracle-style-guide.md#1-write-rules-instructions-not-conversational-prose)
+and [§3](../oracle-style-guide.md#3-punctuation-and-glyphs).
 - **Added:** inflected atoms — `verb(lexeme)` and `noun(role)` render their
   inflection from derived feature context; and the terminal declarations
   `vocab`, `lexeme`, `codec` (§Terminals).
