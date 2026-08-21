@@ -212,6 +212,10 @@ says whether a rule or a count is closing it. Rows, evidence and widening costs:
 in the workbench with **no CR anchor at all**, so nothing but the count closes
 it.
 
+## Measured cell (2026-08-21)
+
+- `attachHeadOk Equipped PermanentW = False` refuses an attested line: "equipped permanent" 1 of 627 "equipped" lines (Luxior, Giada's Gift); "equipped planeswalker" 0; "enchanted permanent" 76. Flip it or pin it as a deliberate single-witness refusal — today it is unmarked.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`Static`, `StaticParts`, `AndAlso`, the span table

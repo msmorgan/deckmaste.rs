@@ -157,6 +157,11 @@ does not work them; it records them so the ranking's tail is not lost.
 | `negatable`'s full-row census over every `Predicate` constructor (Experimental.idr:1024) | `workbench-conditional-and-coordination` |
 | `pumpSignsOk`'s four disagreeing-zero cells (Experimental.idr:2705) — the four zeros are one canonicality fact rather than four independent ones, which is why it sits at the top of this list rather than the bottom of the previous one | `workbench-amount-comparison-and-quantity` |
 
+## Measured cell (2026-08-21)
+
+- `admitsSpan CostModification` (Events.idr) is held False on "exactly one" attested line; measured, 5 of 188 cost-modification lines carry a duration on the static (4 "until your next turn", Cheering Fanatic's "this turn"). Flip and rename the `SpanUse` row.
+- `visibilityOk LookAt WholeHand = False` against 35 "look at <someone>'s hand" lines; its [CR#402.3] comment argues backwards — the rule denies what all 35 grant. Flip, and fix the cite.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr`, `idris/src/Experimental/Words.idr`,

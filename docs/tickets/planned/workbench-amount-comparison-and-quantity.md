@@ -278,6 +278,10 @@ at the **top** of the grid list rather than the bottom, because the four zeros
 are one canonicality fact rather than four independent ones — one printing can
 take the whole closure, not one cell.
 
+## Measured cell (2026-08-21)
+
+- `comparableBound` admits a summed bound at all five comparators; the corpus attests it at equality only — of 36 "with <char> equal to …" lines, 15 take "the number of", 0 a summed bound; 24 "equal to the total" corpus-wide, 0 "greater/less than the total". Gate the summed bound to equality.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (the `Amount` reads, `CountOf`, `PrintedStat`, the
