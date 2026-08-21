@@ -107,6 +107,30 @@ badAscribeInstant : Unspellable (Noun [] Object) (\ok =>
 badAscribeInstant Oh impossible
 
 
+||| "this sorcery"
+||| [CR#109.2] projects a type word with no zone word onto the battlefield, where a sorcery never is [CR#110.4].
+public export
+badAscribeSorcery : Unspellable (Noun [] Object) (\ok =>
+  AsType Sorcery This {way = ok})
+badAscribeSorcery Oh impossible
+
+
+||| "this kindred"
+||| [CR#308.1] gives every kindred card another card type, so "kindred" is never the word a card names itself by.
+public export
+badAscribeKindred : Unspellable (Noun [] Object) (\ok =>
+  AsType Kindred This {way = ok})
+badAscribeKindred Oh impossible
+
+
+||| "this Aura land"
+||| [CR#205.1a] sorts subtypes into one set per card type, so an enchantment type carried by a land word names nothing.
+public export
+badAscribeForeignSubtype : Unspellable (Noun [] Object) (\ok =>
+  AsType Land This {sub = Just Aura} {way = ok})
+badAscribeForeignSubtype Oh impossible
+
+
 ||| "target creature that is the monarch"
 ||| The monarch is a designation a player can have [CR#725.1], so no object description is qualified by it.
 public export

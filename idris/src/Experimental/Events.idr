@@ -377,29 +377,6 @@ castableTy Cast (Just Planeswalker) = True
 castableTy Cast (Just Battle) = True
 castableTy Cast (Just Kindred) = True
 
-public export
-staticAsAbility : StaticKind -> Bool
-staticAsAbility CopyEffect = True
-staticAsAbility PtDelta = True
-staticAsAbility KeywordGrant = True
-staticAsAbility DeedRestriction = True
-staticAsAbility TypeAddition = True
-staticAsAbility ControlGrant = True
-staticAsAbility Replacement = True
-staticAsAbility Prevention = True
-staticAsAbility Conditional = True
-staticAsAbility PlayPermission = True
-staticAsAbility VisibilityRider = True
-staticAsAbility LandAllowance = True
-staticAsAbility TurnSkip = True
-staticAsAbility EntryRider = True
-staticAsAbility CostModification = True
-staticAsAbility PtDefinition = True
-staticAsAbility BasePtSet = True
-staticAsAbility PtSwitch = True
-staticAsAbility TypeSet = True
-staticAsAbility AbilityLoss = True
-staticAsAbility Coordination = True
 
 public export
 playableFrom : Maybe Zone -> Bool

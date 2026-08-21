@@ -7040,7 +7040,9 @@ luxiorEquippedPermanent =
 ||| Nahiri, the Unforgiving's [0] read: "creature card with mana value
 ||| less than Nahiri's loyalty from your graveyard". [CR#109.3] lists
 ||| loyalty among an object's characteristics and [CR#306.5] gives it to
-||| planeswalkers alone.
+||| planeswalkers alone. The printed head is "creature or Equipment
+||| card"; the disjunction is trimmed here and waits on the union
+||| redesign.
 public export
 nahiriLoyaltyRead : Predicate [] Object
 nahiriLoyaltyRead =

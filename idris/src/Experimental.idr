@@ -2898,50 +2898,6 @@ mutual
   staticKind (EntersChoice _ _) = EntryRider
   staticKind (AndAlso _) = Coordination
 
-  public export
-  staticLineOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
-  staticLineOk (Conditionally _ se) =
-    staticAsAbility Conditional && staticLineOk se
-  staticLineOk (AlsoOffBattlefield se) = staticLineOk se
-  staticLineOk (WhereLetterStatic _ _ se) = staticLineOk se
-  staticLineOk se@(Gets _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(DefinesPt _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(HasBasePt _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(BecomesCopy _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(SwitchesPt _) = staticAsAbility (staticKind se)
-  staticLineOk se@(CostsToCast _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(AltCost _) = staticAsAbility (staticKind se)
-  staticLineOk se@(Gains _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(Deontic _ _ _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(DoesntUntap _) = staticAsAbility (staticKind se)
-  staticLineOk se@(CantUntapMoreThan _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(Skips _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(MayDeclineUntap _) = staticAsAbility (staticKind se)
-  staticLineOk se@(OutcomeGate _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(PlayerCant _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(ObjectCant _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(BecomesAlso _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(AddsEveryType _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(SetsType _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(SetsChosenBasicType _) = staticAsAbility (staticKind se)
-  staticLineOk se@(AddsChosenQuality _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(SetsChosenQuality _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(LosesAllAbilities _) = staticAsAbility (staticKind se)
-  staticLineOk se@(GainsControl _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(Intercepts _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(Prevents _ _ _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(PreventsFrom _ _ _ _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(CantPrevent _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(Redirects _ _ _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(RedirectsFrom _ _ _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(Scales _ _ _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(MayPlay _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(Visibility _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(MayPlayAdditionalLands _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(EntersRider _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(EntersWithCounters _ _ _) = staticAsAbility (staticKind se)
-  staticLineOk se@(EntersChoice _ _) = staticAsAbility (staticKind se)
-  staticLineOk (AndAlso parts) = partsLineOk parts
 
   public export
   staticIntro : {bs : Bindings} -> StaticEffect bs -> Bindings
@@ -4539,16 +4495,12 @@ mutual
                 {auto 0 cd : ChapterDefaults ev alt window limit intervening} ->
                 AbilityAt bs
     Static : (se : StaticEffect bs) ->
-             {auto 0 ln : StaticLine se} ->
              {auto 0 ut : Untargeting se} -> AbilityAt bs
     Spell : (eff : Effect bs) -> AbilityAt bs
     AlsoForKeywords : (ab : AbilityAt bs) -> (ks : List Keyword) ->
                       {auto 0 ex : KeywordExtendable ab} ->
                       {auto 0 lk : KeywordListOk ab ks} -> AbilityAt bs
 
-  public export
-  StaticLine : StaticEffect bs -> Type
-  StaticLine {bs} se = So (staticLineOk se)
 
   public export
   Untargeting : {bs : Bindings} -> StaticEffect bs -> Type
@@ -4759,10 +4711,6 @@ mutual
   partsIntro [] = bs
   partsIntro (se :: rest) = partsIntro rest
 
-  public export
-  partsLineOk : {0 n : Nat} -> {0 bs : Bindings} -> StaticParts n bs -> Bool
-  partsLineOk [] = True
-  partsLineOk (se :: rest) = staticLineOk se && partsLineOk rest
 
   public export
   partsClauseOk : {0 n : Nat} -> {0 bs : Bindings} -> StaticParts n bs -> Bool
