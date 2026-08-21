@@ -1,5 +1,5 @@
 ---
-needs: [idris-adopt-base-library]
+needs: [idris-cards-bind-no-implicits]
 ---
 # Replace the `sameX` equality family with `Eq` instances
 
