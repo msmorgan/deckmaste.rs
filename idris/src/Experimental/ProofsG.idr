@@ -451,3 +451,57 @@ badPutIntoExile : Unspellable (Effect []) (\ok =>
        (Move (Macros.target Macros.creature) Macros.exileZ)
        {tb = PutB {pz = ok}})
 badPutIntoExile Oh impossible
+
+
+||| "This creature becomes monstrous."
+||| Monstrous is conferred only inside monstrosity's expansion body
+||| [CR#701.37a]; no card writes the bare instruction.
+public export
+badMonstrousInstruction : Unspellable (Effect []) (\ok =>
+  GainsDesignation Macros.thisCreature Monstrous (Instructed {at = ok}))
+badMonstrousInstruction Oh impossible
+
+
+||| "You get the city's blessing."
+||| Ascend's own expansion is the only conferral [CR#702.131a]; the
+||| player-held cell refuses the bare instruction as the object-held one
+||| does.
+public export
+badBlessingInstruction : Unspellable (Effect []) (\ok =>
+  GainsDesignation You CitysBlessing (Instructed {at = ok}))
+badBlessingInstruction Oh impossible
+
+
+||| "if there is no monstrous creature"
+||| The absence check reads a player-held designation [CR#725.1]; an
+||| object-held marker is described on the object that holds it.
+public export
+badNoHolderOnObject : Unspellable (Condition []) (\ok =>
+  NoHolder Monstrous {sc = ok})
+badNoHolderOnObject Refl impossible
+
+
+||| "if there is a monarch"
+||| The designation family writes the absence and never its negation.
+public export
+badNoHolderNegated : Unspellable (Condition []) (\ok =>
+  NotCond (NoHolder Monarch) {ng = ok})
+badNoHolderNegated Oh impossible
+
+
+||| "your monarch"
+||| Only the card-scope designation is a possessed noun [CR#903.3]; the
+||| monarch is held by a player and read as a description.
+public export
+badPossessedMonarch : Unspellable (Noun [] Object) (\ok =>
+  Designated Monarch You {sc = ok})
+badPossessedMonarch Refl impossible
+
+
+||| "all players' commander"
+||| The possessive is anchored on one player, as everywhere else the
+||| grammar writes one.
+public export
+badGroupCommander : Unspellable (Noun [] Object) (\ok =>
+  Designated CommanderD (PlayerGroup AllPlayers) {ps = ok})
+badGroupCommander Oh impossible

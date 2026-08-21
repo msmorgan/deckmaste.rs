@@ -1314,12 +1314,12 @@ throneWarden =
 
 aragornKingOfGondor : Ability
 aragornKingOfGondor =
-  Triggered When (Enters Macros.thisCreature) (GainsDesignation You Monarch)
+  Triggered When (Enters Macros.thisCreature) (GainsDesignation You Monarch Instructed)
 
 goadTargetCreature : Ability
 goadTargetCreature =
   Activated (Compound [Mana [Macros.generic 3], TapSymbol])
-            (GainsDesignation (Macros.target Macros.creature) Goaded)
+            (GainsDesignation (Macros.target Macros.creature) Goaded Instructed)
 
 goadedAttackTrigger : Ability
 goadedAttackTrigger =
@@ -2175,7 +2175,7 @@ passagewaySeer =
        (MkTypeLine [Tiefling, Warlock] [Creature])
        [ KeywordAbility Lifelink
        , Triggered When (Enters Macros.thisCreature)
-                   (GainsDesignation You TheInitiative)
+                   (GainsDesignation You TheInitiative Instructed)
        , Macros.triggeredIf At
                             (BeginningOf EndStep (ByWord Yours))
                             (Matches You (HasDesignation TheInitiative))
@@ -2195,10 +2195,22 @@ deadeyeBrawler =
                             Macros.drawACard ]
        (Just (2, 4))
 
-chillerpillar : Ability
+chillerpillar : Card
 chillerpillar =
-  Static (Macros.asLongAs (Matches Macros.thisCreature (HasDesignation Monstrous))
-                          (Gains It (KeywordAbility Flying)))
+  Macros.card "Chillerpillar" (Just [Macros.generic 3, Macros.pip Blue]) [Snow]
+       (MkTypeLine [Insect] [Creature])
+       [ Activated (Mana [Macros.generic 4, SnowMana, SnowMana])
+                   (Macros.monstrosity (Lit 2))
+       , Static (Macros.asLongAs (Matches Macros.thisCreature (HasDesignation Monstrous))
+                                 (Gains It (KeywordAbility Flying))) ]
+       (Just (3, 3))
+
+archivistOfGondor : Ability
+archivistOfGondor =
+  Macros.triggeredIf When
+                     (DealsCombatDamage Macros.yourCommander (Macros.a AnyPlayer))
+                     (Macros.thereIsNo Monarch)
+                     (GainsDesignation You Monarch Instructed)
 
 
 jushiApprentice : Ability

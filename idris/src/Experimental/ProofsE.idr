@@ -195,7 +195,7 @@ badObjectMonarch Refl impossible
 ||| Goaded is a designation a permanent can have [CR#701.15b], so no player gains one.
 public export
 badGoadedPlayer : Unspellable (Effect []) (\ok =>
-  GainsDesignation You Goaded {sc = ok})
+  GainsDesignation You Goaded Instructed {sc = ok})
 badGoadedPlayer Refl impossible
 
 
@@ -205,7 +205,7 @@ public export
 badGoadInGraveyard : Unspellable (Effect []) (\ok =>
   GainsDesignation (Macros.target (And [Macros.creature,
                                         InZone (Macros.graveyardOf You)]))
-                   Goaded {zn = ok})
+                   Goaded Instructed {zn = ok})
 badGoadInGraveyard (HolderOnField {ok = OnField}) impossible
 
 

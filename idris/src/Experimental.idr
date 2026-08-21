@@ -1348,6 +1348,12 @@ mutual
                   {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
     ControllerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
     OwnerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
+    ||| "your commander" [CR#903.3]: the card-scope designation is an
+    ||| attribute of the card itself, so the possessed noun reads it in
+    ||| every zone. The possessive is the only determiner written.
+    Designated : (d : Designation) -> (whose : Noun bs Player) ->
+                 {auto 0 sc : designationScope d = HeldByCard} ->
+                 {auto 0 ps : Possessor whose} -> Noun bs Object
 
   ||| Referent equality between two possessor nouns, deliberately the
   ||| smallest honest relation: `True` only for the atomic words whose
@@ -1386,6 +1392,7 @@ mutual
   nounEqRef (ThoseVerbed _ _) _ = False
   nounEqRef (ControllerOf _) _ = False
   nounEqRef (OwnerOf _) _ = False
+  nounEqRef (Designated _ _) _ = False
 
   public export
   nounAnyTargetFree : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -1414,6 +1421,7 @@ mutual
   nounAnyTargetFree (ThoseVerbed _ _) = True
   nounAnyTargetFree (ControllerOf n) = nounAnyTargetFree n
   nounAnyTargetFree (OwnerOf n) = nounAnyTargetFree n
+  nounAnyTargetFree (Designated _ n) = nounAnyTargetFree n
 
   public export
   placeAnyTargetFree : {0 bs : Bindings} -> LibPlace bs -> Bool
@@ -1488,6 +1496,7 @@ mutual
   nounDelta (ThoseVerbed v w) = []
   nounDelta (ControllerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
   nounDelta (OwnerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
+  nounDelta (Designated _ _) = []
 
   public export
   elemIntro : {bs : Bindings} -> Noun bs Object -> Bindings
@@ -1842,6 +1851,7 @@ mutual
   anchorPhrase (ThoseVerbed _ _) = True
   anchorPhrase (ControllerOf _) = True
   anchorPhrase (OwnerOf _) = True
+  anchorPhrase (Designated _ _) = True
 
   public export
   data ComplementAnchor : Noun bs k -> Type where
@@ -1883,6 +1893,7 @@ mutual
   choosable (ThoseVerbed _ _) = False
   choosable (ControllerOf _) = False
   choosable (OwnerOf _) = False
+  choosable (Designated _ _) = False
 
   public export
   Choosable : Noun bs k -> Type
@@ -1929,6 +1940,7 @@ mutual
   groupMention (ThoseVerbed _ _) = True
   groupMention (ControllerOf _) = False
   groupMention (OwnerOf _) = False
+  groupMention (Designated _ _) = False
 
   public export
   GroupMention : Noun bs k -> Type
@@ -1971,6 +1983,7 @@ mutual
   capSubjectOk (ThoseVerbed _ _) = False
   capSubjectOk (ControllerOf _) = False
   capSubjectOk (OwnerOf _) = False
+  capSubjectOk (Designated _ _) = False
 
   public export
   CapSubject : Noun bs k -> Type
@@ -2065,6 +2078,13 @@ mutual
     GameIs : (d : Designation) ->
              {auto 0 sc : designationScope d = HeldByGame} ->
              {auto 0 at : So (designationChecked d)} -> Condition bs
+    ||| "there is no monarch" [CR#725.1]: an existential over the holder,
+    ||| asking whether ANY player holds the designation where
+    ||| `HasDesignation` describes one that does. Only the absence is
+    ||| written, so the absence is the whole condition.
+    NoHolder : (d : Designation) ->
+               {auto 0 sc : designationScope d = HeldBy Player} ->
+               {auto 0 at : So (designationChecked d)} -> Condition bs
     Matches : {k : Kind} -> (n : Noun bs k) -> (p : Predicate bs k) ->
               {auto 0 bl : Bindingless n} ->
               {auto 0 sy : PredSays p} ->
@@ -2083,6 +2103,7 @@ mutual
   condNegatable (Exists p) = predNegFree p
   condNegatable (Happened _ _ _) = True
   condNegatable (GameIs _) = False
+  condNegatable (NoHolder _) = False
   condNegatable (Matches n p) = predNegFree p
   condNegatable (CompareAmt subj r bound) = False
   condNegatable (NotCond c) = False
@@ -2121,6 +2142,9 @@ mutual
   condNegated (Exists _) = False
   condNegated (Happened _ _ _) = False
   condNegated (GameIs _) = False
+  -- atomic: the absence is the condition's own content, not a marked
+  -- negation of one.
+  condNegated (NoHolder _) = False
   condNegated (Matches _ _) = False
   condNegated (CompareAmt _ _ _) = False
   condNegated (NotCond _) = True
@@ -2141,6 +2165,7 @@ mutual
   condDelta (Exists p) = []
   condDelta (Happened _ _ _) = []
   condDelta (GameIs _) = []
+  condDelta (NoHolder _) = []
   condDelta (Matches n p) = []
   condDelta (CompareAmt subj r bound) = []
   condDelta (NotCond c) = []
@@ -3483,9 +3508,12 @@ mutual
              {auto 0 rd : So (riderAct act)} ->
              {auto 0 bl : Bindingless what} ->
              {auto 0 sub : ActSubject act what} -> Effect bs
+    ||| The warrant tells the bare instruction from a keyword's expansion
+    ||| body, which is the only place the five keyword-conferred
+    ||| designations are given [CR#701.37a].
     GainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->
+                       (w : GivingWarrant d) ->
                        {auto 0 sc : designationScope d = HeldBy k} ->
-                       {auto 0 at : So (designationGiven d)} ->
                        {auto 0 zn : DesignationHolder d (nounZone n)} -> Effect bs
     GameBecomes : (d : Designation) ->
                   {auto 0 sc : designationScope d = HeldByGame} ->
@@ -3640,7 +3668,7 @@ mutual
   heldUntilOk (RemoveFromCombat _) = False
   heldUntilOk (Regenerate _) = False
   heldUntilOk (CantBe _ _ _) = False
-  heldUntilOk (GainsDesignation _ _) = False
+  heldUntilOk (GainsDesignation _ _ _) = False
   heldUntilOk (GameBecomes _) = False
   heldUntilOk (Concludes _ _) = False
   heldUntilOk GameDrawn = False
@@ -3730,7 +3758,7 @@ mutual
   reflexEncloseUse (RemoveFromCombat _) = EncUnattested
   reflexEncloseUse (Regenerate _) = EncUnattested
   reflexEncloseUse (CantBe _ _ _) = EncUnattested
-  reflexEncloseUse (GainsDesignation _ _) = EncUnattested
+  reflexEncloseUse (GainsDesignation _ _ _) = EncUnattested
   reflexEncloseUse (GameBecomes _) = EncAgentless
   reflexEncloseUse (Concludes _ _) = EncAgentless
   reflexEncloseUse GameDrawn = EncAgentless
@@ -3817,6 +3845,7 @@ mutual
   costNounOk (ThoseVerbed _ _) = False
   costNounOk (ControllerOf _) = True
   costNounOk (OwnerOf _) = True
+  costNounOk (Designated _ _) = True
 
   public export
   nounIsYou : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -3845,6 +3874,7 @@ mutual
   nounIsYou (ThoseVerbed _ _) = False
   nounIsYou (ControllerOf _) = False
   nounIsYou (OwnerOf _) = False
+  nounIsYou (Designated _ _) = False
 
   public export
   costActionOk : {0 bs : Bindings} -> Effect bs -> Bool
@@ -3868,7 +3898,7 @@ mutual
   costActionOk (RemoveFromCombat _) = False
   costActionOk (Regenerate _) = False
   costActionOk (CantBe _ _ _) = False
-  costActionOk (GainsDesignation _ _) = False
+  costActionOk (GainsDesignation _ _ _) = False
   costActionOk (GameBecomes _) = False
   costActionOk (Concludes _ _) = False
   costActionOk GameDrawn = False
@@ -3960,7 +3990,7 @@ mutual
   effEq (Regenerate a) (Regenerate b) = nounEqRef a b
   effEq (Regenerate _) _ = False
   effEq (CantBe _ _ _) _ = False
-  effEq (GainsDesignation _ _) _ = False
+  effEq (GainsDesignation _ _ _) _ = False
   effEq (GameBecomes a) (GameBecomes b) = a == b
   effEq (GameBecomes _) _ = False
   effEq (Concludes v a) (Concludes w b) = v == w && nounEqRef a b
@@ -4081,6 +4111,7 @@ mutual
   nounIsAnyTarget (ThoseVerbed _ _) = False
   nounIsAnyTarget (ControllerOf _) = False
   nounIsAnyTarget (OwnerOf _) = False
+  nounIsAnyTarget (Designated _ _) = False
 
   public export
   nounIsKindJoin : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -4110,6 +4141,7 @@ mutual
   nounIsKindJoin (ThoseVerbed _ _) = False
   nounIsKindJoin (ControllerOf _) = False
   nounIsKindJoin (OwnerOf _) = False
+  nounIsKindJoin (Designated _ _) = False
 
   public export
   nounIsMixedGroup : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -4157,6 +4189,7 @@ mutual
   nounTargeted (ThoseVerbed _ _) = False
   nounTargeted (ControllerOf _) = False
   nounTargeted (OwnerOf _) = False
+  nounTargeted (Designated _ _) = False
 
   public export
   Nontarget : Noun bs k -> Type
@@ -4189,6 +4222,7 @@ mutual
   selfSortedOk (ThoseVerbed _ _) = True
   selfSortedOk (ControllerOf _) = True
   selfSortedOk (OwnerOf _) = True
+  selfSortedOk (Designated _ _) = True
 
   public export
   SelfSorted : Noun bs k -> Type
@@ -4373,6 +4407,7 @@ mutual
   moveIntro p They z = bs
   moveIntro p (ControllerOf n) z = nomIntro (ControllerOf n)
   moveIntro p (OwnerOf n) z = nomIntro (OwnerOf n)
+  moveIntro p (Designated d n) z = bs
 
   public export
   nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone
@@ -4407,6 +4442,9 @@ mutual
   nounZone (ThoseVerbed v w) = zoneOfManyVerbed v w bs
   nounZone (ControllerOf n) = Nothing
   nounZone (OwnerOf n) = Nothing
+  -- [CR#903.3]: the designation is an attribute of the card, so it
+  -- survives a zone change and the noun names no zone.
+  nounZone (Designated _ _) = Nothing
 
   public export
   nounTy : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe CardType
@@ -4435,6 +4473,7 @@ mutual
   nounTy (ThoseVerbed v w) = tyOfManyVerbed v w bs
   nounTy (ControllerOf n) = Nothing
   nounTy (OwnerOf n) = Nothing
+  nounTy (Designated _ _) = Nothing
 
   public export
   nounPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
@@ -4463,6 +4502,7 @@ mutual
   nounPlur (ThoseVerbed v w) = ManyOf
   nounPlur (ControllerOf n) = OneOf
   nounPlur (OwnerOf n) = OneOf
+  nounPlur (Designated _ _) = OneOf
 
   ||| What a clause contributes to the discourse that follows it.
   public export
@@ -4479,7 +4519,7 @@ mutual
   effIntro (RemoveFromCombat n) = nomIntro n
   effIntro (Regenerate n) = nomIntro n
   effIntro (CantBe e _ _) = effIntro e
-  effIntro (GainsDesignation n _) = nomIntro n
+  effIntro (GainsDesignation n _ _) = nomIntro n
   effIntro (GameBecomes _) = bs
   effIntro (Concludes _ who) = nomIntro who
   effIntro GameDrawn = bs
@@ -4548,7 +4588,7 @@ mutual
   preIntro (RemoveFromCombat n) = nomIntro n
   preIntro (Regenerate n) = nomIntro n
   preIntro (CantBe e _ _) = preIntro e
-  preIntro (GainsDesignation n _) = nomIntro n
+  preIntro (GainsDesignation n _ _) = nomIntro n
   preIntro (GameBecomes _) = bs
   preIntro (Concludes _ who) = nomIntro who
   preIntro GameDrawn = bs
@@ -4606,7 +4646,7 @@ mutual
   annIntro (RemoveFromCombat n) = nomIntro n
   annIntro (Regenerate n) = nomIntro n
   annIntro (CantBe e _ _) = annIntro e
-  annIntro (GainsDesignation n _) = nomIntro n
+  annIntro (GainsDesignation n _ _) = nomIntro n
   annIntro (GameBecomes _) = bs
   annIntro (Concludes _ who) = nomIntro who
   annIntro GameDrawn = bs
@@ -4671,7 +4711,7 @@ mutual
   deedDelta (RemoveFromCombat _) = []
   deedDelta (Regenerate _) = []
   deedDelta (CantBe e _ _) = deedDelta e
-  deedDelta (GainsDesignation _ _) = []
+  deedDelta (GainsDesignation _ _ _) = []
   deedDelta (GameBecomes _) = []
   deedDelta (Concludes _ _) = []
   deedDelta GameDrawn = []

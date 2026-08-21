@@ -2598,6 +2598,30 @@ designationGiven CommanderD = False
 designationGiven Day = True
 designationGiven Night = True
 
+||| The keywords whose expansion body confers a designation and whose
+||| expansion this grammar can write. One arm, bought by monstrosity's
+||| expansion [CR#701.37a] and Chillerpillar.
+public export
+data ConferringWord = MonstrosityW
+
+public export
+conferredDesignation : ConferringWord -> Designation
+conferredDesignation MonstrosityW = Monstrous
+
+||| Why a line may confer a designation. `Instructed` is the bare
+||| sentence, which needs the designation's own giving cell.
+||| `InExpansionOf` is the warrant a keyword's own macro supplies when it
+||| spells that keyword's expansion body.
+|||
+||| Nothing in the types ties `InExpansionOf` to an expansion: a bare
+||| ability can name the word and confer. The bare-sentence refusal
+||| therefore rests on macro discipline plus the `Instructed` pins, not
+||| on structure. A structural expansion-context index is a recorded gap.
+public export
+data GivingWarrant : Designation -> Type where
+  Instructed : {auto 0 at : So (designationGiven d)} -> GivingWarrant d
+  InExpansionOf : (w : ConferringWord) -> GivingWarrant (conferredDesignation w)
+
 public export
 designationSeedZone : Designation -> Maybe Zone
 designationSeedZone Monarch = Nothing

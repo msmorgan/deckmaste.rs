@@ -1277,3 +1277,29 @@ beginningOfPossessed : (part : TurnPart) -> (poss : Noun bs Player) ->
                        {auto 0 pu : PartTriggerable part (ByNoun poss {pn})} ->
                        GameEvent bs
 beginningOfPossessed part poss = BeginningOf part (ByNoun poss {pn}) {pu}
+
+||| "Monstrosity N" [CR#701.37a]: the keyword action spells its own
+||| expansion body, and that body is the only place `Monstrous` is
+||| conferred.
+public export
+monstrosity : {bs : Bindings} -> (amt : Amount bs) ->
+              {auto 0 wc : WrittenCount amt} -> Effect bs
+monstrosity amt =
+  If (Sequentially [ PutCounters amt plusOnePlusOne thisCreature
+                   , GainsDesignation thisCreature Monstrous
+                                      (InExpansionOf MonstrosityW) ])
+     (notSo (Matches thisCreature (HasDesignation Monstrous)))
+     Nothing
+
+||| "your commander" [CR#903.3]: the card-scope designation read as a
+||| possessed noun.
+public export
+yourCommander : Noun bs Object
+yourCommander = Designated CommanderD You
+
+||| "there is no monarch" [CR#725.1]: the designation's absence check.
+public export
+thereIsNo : (d : Designation) ->
+            {auto 0 sc : designationScope d = HeldBy Player} ->
+            {auto 0 at : So (designationChecked d)} -> Condition bs
+thereIsNo d = NoHolder d {sc} {at}
