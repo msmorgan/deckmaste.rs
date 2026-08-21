@@ -3149,7 +3149,7 @@ mutual
   staticIntro (Skips _ _) = bs
   staticIntro (MayDeclineUntap n) = selfSubjIntro n
   staticIntro (OutcomeGate _ who) = selfSubjIntro who
-  staticIntro (PlayerCant _ who) = nomIntro who
+  staticIntro (PlayerCant _ who) = selfSubjIntro who
   staticIntro (ObjectCant _ what) = nomIntro what
   staticIntro (BecomesAlso n _) = selfSubjIntro n
   staticIntro (AddsEveryType n _) = selfSubjIntro n
@@ -3639,22 +3639,20 @@ mutual
   reflexEncloseUse (Does _ _ _) = EncReflexive
   reflexEncloseUse (Pay _ _) = EncReflexive        -- 66, all of them offered
   reflexEncloseUse (Composite _ _) = EncReflexive  -- 51, every one an exile
-  -- a player is told to tap, untap, flip or turn it: the pro-verb has
-  -- a subject. Phasing has none — the permanent phases by itself.
-  reflexEncloseUse (SetStatus PhasedIn _) = EncAgentless
-  reflexEncloseUse (SetStatus PhasedOut _) = EncAgentless
-  reflexEncloseUse (SetStatus _ _) = EncReflexive
+  -- a status change is the effect's, not a player's: [CR#603.12]'s
+  -- agent form has no subject to inflect.
+  reflexEncloseUse (SetStatus _ _) = EncAgentless
   reflexEncloseUse (GetsCounters _ _ _) = EncAgentless
   reflexEncloseUse (LosesAllCounters _ _) = EncAgentless
-  reflexEncloseUse (RemoveFromCombat _) = EncReflexive
-  reflexEncloseUse (Regenerate _) = EncReflexive
+  reflexEncloseUse (RemoveFromCombat _) = EncAgentless
+  reflexEncloseUse (Regenerate _) = EncAgentless
   reflexEncloseUse (CantBe _ _ _) = EncAgentless
   reflexEncloseUse (GainsDesignation _ _ _) = EncAgentless
   reflexEncloseUse (GameBecomes _) = EncAgentless
   reflexEncloseUse (Concludes _ _) = EncAgentless
   reflexEncloseUse GameDrawn = EncAgentless
-  reflexEncloseUse (CounterSpell _) = EncReflexive
-  reflexEncloseUse (CopyStack _ _ _ _) = EncReflexive
+  reflexEncloseUse (CounterSpell _) = EncAgentless
+  reflexEncloseUse (CopyStack _ _ _ _) = EncAgentless
   reflexEncloseUse (ChooseNewTargets _) = EncReflexive
   reflexEncloseUse (Create _ _ _ _) = EncReflexive -- 8
   reflexEncloseUse (GetsEmblem _ _) = EncAgentless

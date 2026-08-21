@@ -232,9 +232,9 @@ lookbackComplementOk AbilityActivation Player Ability = True
 lookbackComplementOk AbilityActivation _ _ = False
 lookbackComplementOk _ _ _ = False
 
-||| A lookback names its event; the complement may be dropped unless
-||| dropping it leaves no event named, as a transitive verb with no
-||| object does.
+||| A lookback names its event. No rule fixes which subject a lookback
+||| reads it from, so the complement may be dropped unless dropping it
+||| leaves no event named, as a transitive verb with no object does.
 public export
 bareLookbackOk : EventName -> Kind -> Bool
 -- a creation is a creation of something: a bare "created" names nothing.

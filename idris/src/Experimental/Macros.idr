@@ -1009,7 +1009,7 @@ public export
 triggeredOnlyDuring : {bs : Bindings} -> (word : TriggerWord) ->
                       (ev : GameEvent bs) -> (w : TriggerWindow) ->
                       (eff : Effect (eventAfter ev)) ->
-                              {auto 0 hn : HeaderNontarget ev} ->
+                      {auto 0 hn : HeaderNontarget ev} ->
                       {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
                       {auto 0 cd : ChapterDefaults ev Nothing (Just w) Nothing Nothing} ->
                       AbilityAt bs
@@ -1021,7 +1021,7 @@ public export
 triggeredOnlyOnce : {bs : Bindings} -> (word : TriggerWord) ->
                     (ev : GameEvent bs) -> (lim : UsageLimit) ->
                     (eff : Effect (eventAfter ev)) ->
-                          {auto 0 hn : HeaderNontarget ev} ->
+                    {auto 0 hn : HeaderNontarget ev} ->
                     {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
                     {auto 0 cd : ChapterDefaults ev Nothing Nothing (Just lim) Nothing} ->
                     AbilityAt bs

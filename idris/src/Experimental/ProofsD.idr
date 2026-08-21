@@ -501,15 +501,6 @@ badMustAttackLand : Unspellable (Effect []) (\ok =>
 badMustAttackLand Participant impossible
 
 
-||| "This creature attacks target creature each combat if able."
-||| Only a player, a planeswalker or a battle is attacked [CR#506.3].
-public export
-badMustAttackWithPatient : Unspellable Ability (\ok =>
-  Static (Deontic Macros.thisCreature Require Attack Agent
-                  (DeonticCounterpart (Macros.target Macros.creature) {dp = ok})))
-badMustAttackWithPatient Participant impossible
-
-
 ||| "At the beginning of your end step, if it's day, draw a card."
 ||| The designation check writes only "it's night", where the transition writes both directions [CR#731.1].
 public export
@@ -545,8 +536,10 @@ badThatCreatureIsSelf : Unspellable Ability (\ok =>
 badThatCreatureIsSelf Refl impossible
 
 
-||| "This creature can't attack target creature this turn."
-||| Only a player, a planeswalker or a battle is attacked [CR#506.3].
+||| "This creature can't attack target creature this turn." — and its
+||| requiring twin, "this creature attacks target creature each combat
+||| if able": one cell, since only a player, a planeswalker or a battle
+||| is attacked [CR#506.3].
 public export
 badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
   Continuously (Deontic Macros.thisCreature Forbid Attack Agent
