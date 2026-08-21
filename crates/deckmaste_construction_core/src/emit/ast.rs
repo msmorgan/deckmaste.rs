@@ -1441,6 +1441,7 @@ mod tests {
                 "Number",
                 "FeatureConstraint",
                 "CasePosition",
+                "PrefixPosition",
                 "ScanPosition",
                 "DeclarationClass",
                 "DeclarationMatcher",

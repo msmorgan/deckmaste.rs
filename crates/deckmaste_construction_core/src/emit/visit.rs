@@ -10,6 +10,7 @@ use crate::identifier::VISITOR_TRAIT;
 use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
 use crate::identifier::snake_case;
+use crate::identifier::structural_sequence_walker;
 use crate::model::VisitMode;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
@@ -27,11 +28,13 @@ use crate::semantic::DeclarationNounPlan;
 use crate::semantic::LexemePlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::SignedDecimalPlan;
+use crate::semantic::StructuralFieldKindPlan;
 use crate::semantic::TerminalPlan;
 use crate::semantic::TraversalBranchArmPlan;
 use crate::semantic::TraversalCallPlan;
 use crate::semantic::TraversalFieldPlan;
 use crate::semantic::TraversalValuePlan;
+use crate::semantic::ValueKindPlan;
 use crate::semantic::VocabPlan;
 use crate::semantic::VocabVariantPlan;
 
@@ -91,11 +94,12 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         signed_decimal,
         declaration_noun,
     };
-    let trait_item = emit_trait(&categories, constructions, &terminal_visitors)?;
+    let trait_item = emit_trait(validated, &categories, constructions, &terminal_visitors)?;
     let mut items = vec![trait_item];
     for (category, members) in &categories {
         items.push(emit_category_walker(category, members));
     }
+    items.extend(emit_structural_walkers(validated)?);
     for binding in &containers {
         items.push(emit_binding_walker(binding)?);
     }
@@ -159,65 +163,13 @@ struct TerminalVisitors<'a> {
     reason = "keeps every visitor phase finalizer on one fallible interface"
 )]
 fn emit_trait(
+    plan: &SemanticPlan,
     categories: &[(String, Vec<&ConstructionPlan>)],
     constructions: &[ConstructionPlan],
     terminals: &TerminalVisitors<'_>,
 ) -> syn::Result<GeneratedItem> {
     let visitor = ident(VISITOR_TRAIT);
-    let mut methods = Vec::new();
-    for (category, _) in categories {
-        methods.push(default_method(category, &category_argument(category)));
-    }
-    for binding in terminals.containers {
-        methods.push(default_method(binding.name(), &binding_argument(binding)));
-    }
-    for construction in constructions {
-        methods.push(default_method(
-            construction.element_type(),
-            &snake_case(construction.element_type()),
-        ));
-    }
-    for vocab in terminals.vocabs {
-        methods.push(noop_method(vocab.name(), VisitMode::Copy));
-    }
-    for binding in terminals.copy_bindings {
-        methods.push(noop_method(binding.name(), VisitMode::Copy));
-    }
-    for identity in terminals.context_identities {
-        methods.push(noop_method(identity.name(), VisitMode::Copy));
-    }
-    for lexeme in terminals.lexemes {
-        methods.push(noop_method(lexeme.name(), VisitMode::Copy));
-    }
-    for binding in terminals.borrowed_bindings {
-        methods.push(noop_method(binding.name(), VisitMode::Borrowed));
-    }
-    if let Some(codec) = terminals.signed_decimal {
-        methods.push(noop_method(&codec.sign_type().to_string(), VisitMode::Copy));
-        methods.push(noop_method(codec.codec_name(), VisitMode::Borrowed));
-    }
-    if let Some(codec) = terminals.declaration_noun {
-        methods.push(default_method(codec.codec_name(), codec.codec_name()));
-        methods.push(default_method(
-            &codec.declaration_value_ident().to_string(),
-            &crate::identifier::snake_case(&codec.declaration_value_ident().to_string()),
-        ));
-    }
-    if terminals.declaration_noun.is_some()
-        || constructions.iter().any(|construction| {
-            construction
-                .atoms()
-                .iter()
-                .any(|atom| matches!(atom, AtomPlan::OpenDeclaration(_)))
-        })
-    {
-        methods.push(quote! {
-            fn visit_declaration(
-                &mut self,
-                _declaration: &::macro_ron::v2::DeclarationIdentity,
-            ) {}
-        });
-    }
+    let mut methods = visitor_methods(plan, categories, constructions, terminals);
 
     let mut leaf_origins = Vec::new();
     let mut seen = HashSet::new();
@@ -315,6 +267,77 @@ fn emit_trait(
     ))
 }
 
+fn visitor_methods(
+    plan: &SemanticPlan,
+    categories: &[(String, Vec<&ConstructionPlan>)],
+    constructions: &[ConstructionPlan],
+    terminals: &TerminalVisitors<'_>,
+) -> Vec<TokenStream> {
+    let mut methods = Vec::new();
+    for (category, _) in categories {
+        methods.push(default_method(category, &category_argument(category)));
+    }
+    for semantic in super::semantic_types(plan) {
+        if matches!(
+            semantic.kind,
+            super::SemanticTypeKind::Product | super::SemanticTypeKind::Sum
+        ) {
+            methods.push(default_method(semantic.name, &snake_case(semantic.name)));
+        }
+    }
+    for binding in terminals.containers {
+        methods.push(default_method(binding.name(), &binding_argument(binding)));
+    }
+    for construction in constructions {
+        methods.push(default_method(
+            construction.element_type(),
+            &snake_case(construction.element_type()),
+        ));
+    }
+    for vocab in terminals.vocabs {
+        methods.push(noop_method(vocab.name(), VisitMode::Copy));
+    }
+    for binding in terminals.copy_bindings {
+        methods.push(noop_method(binding.name(), VisitMode::Copy));
+    }
+    for identity in terminals.context_identities {
+        methods.push(noop_method(identity.name(), VisitMode::Copy));
+    }
+    for lexeme in terminals.lexemes {
+        methods.push(noop_method(lexeme.name(), VisitMode::Copy));
+    }
+    for binding in terminals.borrowed_bindings {
+        methods.push(noop_method(binding.name(), VisitMode::Borrowed));
+    }
+    if let Some(codec) = terminals.signed_decimal {
+        methods.push(noop_method(&codec.sign_type().to_string(), VisitMode::Copy));
+        methods.push(noop_method(codec.codec_name(), VisitMode::Borrowed));
+    }
+    if let Some(codec) = terminals.declaration_noun {
+        methods.push(default_method(codec.codec_name(), codec.codec_name()));
+        methods.push(default_method(
+            &codec.declaration_value_ident().to_string(),
+            &crate::identifier::snake_case(&codec.declaration_value_ident().to_string()),
+        ));
+    }
+    if terminals.declaration_noun.is_some()
+        || constructions.iter().any(|construction| {
+            construction
+                .atoms()
+                .iter()
+                .any(|atom| matches!(atom, AtomPlan::OpenDeclaration(_)))
+        })
+    {
+        methods.push(quote! {
+            fn visit_declaration(
+                &mut self,
+                _declaration: &::macro_ron::v2::DeclarationIdentity,
+            ) {}
+        });
+    }
+    methods
+}
+
 fn emit_declaration_noun_value_walker(codec: &DeclarationNounPlan) -> GeneratedItem {
     let ty = codec.declaration_value_ident();
     let function = ident(&format!("walk_{}", snake_case(&ty.to_string())));
@@ -330,6 +353,185 @@ fn emit_declaration_noun_value_walker(codec: &DeclarationNounPlan) -> GeneratedI
         },
         vec![codec.origin().clone()],
     )
+}
+
+fn emit_structural_walkers(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
+    let mut rows = Vec::new();
+    for product in plan.products() {
+        let mut emitted = Vec::new();
+        for field in product.fields() {
+            if matches!(field.kind(), StructuralFieldKindPlan::Sequence { .. }) {
+                emitted.push(emit_sequence_walker(
+                    plan,
+                    product.name(),
+                    field,
+                    DeclarationKind::AbstractProduct,
+                )?);
+            }
+        }
+        emitted.push(emit_product_walker(plan, product)?);
+        rows.push((product.source_index(), emitted));
+    }
+    for sum in plan.sums() {
+        rows.push((sum.source_index(), vec![emit_sum_walker(plan, sum)?]));
+    }
+    for construction in plan.constructions() {
+        let mut emitted = Vec::new();
+        for field in construction
+            .fields()
+            .iter()
+            .filter_map(|field| field.structural_plan())
+        {
+            if matches!(field.kind(), StructuralFieldKindPlan::Sequence { .. }) {
+                emitted.push(emit_sequence_walker(
+                    plan,
+                    construction.element_type(),
+                    field,
+                    DeclarationKind::Construction,
+                )?);
+            }
+        }
+        if !emitted.is_empty() {
+            rows.push((construction.source_index(), emitted));
+        }
+    }
+    rows.sort_by_key(|(source_index, _)| *source_index);
+    Ok(rows.into_iter().flat_map(|(_, items)| items).collect())
+}
+
+fn emit_product_walker(
+    plan: &SemanticPlan,
+    product: &crate::semantic::ProductPlan,
+) -> syn::Result<GeneratedItem> {
+    let function_name = crate::identifier::prefixed("walk_", product.name());
+    let function = ident(&function_name);
+    let ty = ident(product.name());
+    let argument = ident(&snake_case(product.name()));
+    let calls = product
+        .fields()
+        .iter()
+        .map(|field| walk_structural_field(plan, product.name(), field, &argument))
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) {
+                #(#calls)*
+            }
+        },
+        vec![DeclarationKey::new(
+            DeclarationKind::AbstractProduct,
+            product.name(),
+        )],
+    ))
+}
+
+fn emit_sum_walker(
+    plan: &SemanticPlan,
+    sum: &crate::semantic::SumPlan,
+) -> syn::Result<GeneratedItem> {
+    let function_name = crate::identifier::prefixed("walk_", sum.name());
+    let function = ident(&function_name);
+    let ty = ident(sum.name());
+    let argument = ident(&snake_case(sum.name()));
+    let arms = sum
+        .alternatives()
+        .iter()
+        .map(|alternative| -> syn::Result<TokenStream> {
+            let variant = ident(alternative.name());
+            let call = walk_structural_value(plan, alternative.value(), quote! { value })?;
+            Ok(quote! { #ty::#variant(value) => { #call } })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) {
+                match #argument { #(#arms),* }
+            }
+        },
+        vec![DeclarationKey::new(
+            DeclarationKind::AbstractSum,
+            sum.name(),
+        )],
+    ))
+}
+
+fn emit_sequence_walker(
+    plan: &SemanticPlan,
+    owner: &str,
+    field: &crate::semantic::StructuralFieldPlan,
+    kind: DeclarationKind,
+) -> syn::Result<GeneratedItem> {
+    let StructuralFieldKindPlan::Sequence { item, .. } = field.kind() else {
+        return Err(internal("sequence walker received a non-sequence field"));
+    };
+    let function_name = structural_sequence_walker(owner, field.name());
+    let function = ident(&function_name);
+    let item_ty = super::value_kind_type(item);
+    let call = walk_structural_value(plan, item, quote! { value })?;
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function<V: Visitor + ?Sized>(visitor: &mut V, values: &[#item_ty]) {
+                for value in values { #call }
+            }
+        },
+        vec![DeclarationKey::new(kind, owner)],
+    ))
+}
+
+fn walk_structural_field(
+    plan: &SemanticPlan,
+    owner: &str,
+    field: &crate::semantic::StructuralFieldPlan,
+    whole: &syn::Ident,
+) -> syn::Result<TokenStream> {
+    let name = ident(field.name());
+    match field.kind() {
+        StructuralFieldKindPlan::Required(value) => {
+            walk_structural_value(plan, value, quote! { &#whole.#name })
+        }
+        StructuralFieldKindPlan::Optional(value) => {
+            let call = walk_structural_value(plan, value, quote! { value })?;
+            Ok(quote! { if let Some(value) = #whole.#name.as_ref() { #call } })
+        }
+        StructuralFieldKindPlan::Sequence { .. } => {
+            let function = ident(&structural_sequence_walker(owner, field.name()));
+            Ok(quote! { #function(visitor, &#whole.#name); })
+        }
+    }
+}
+
+fn walk_structural_value(
+    plan: &SemanticPlan,
+    value: &ValueKindPlan,
+    expression: TokenStream,
+) -> syn::Result<TokenStream> {
+    match value {
+        ValueKindPlan::Category(name) | ValueKindPlan::Product(name) | ValueKindPlan::Sum(name) => {
+            let callback = ident(&crate::identifier::prefixed("visit_", name));
+            Ok(quote! { visitor.#callback(#expression); })
+        }
+        ValueKindPlan::Lex(name) | ValueKindPlan::Identity(name) => {
+            let walker = ident(&crate::identifier::prefixed("walk_", name));
+            let expression = if terminal_mode(plan, name)? == VisitMode::Copy {
+                quote! { *#expression }
+            } else {
+                expression
+            };
+            Ok(quote! { #walker(visitor, #expression); })
+        }
+    }
 }
 
 fn emit_declaration_noun_walker(codec: &DeclarationNounPlan) -> GeneratedItem {
@@ -518,6 +720,30 @@ fn emit_construction_walker(
         .collect::<HashMap<_, _>>();
     let mut calls = Vec::new();
     for atom in construction.atoms() {
+        if let Some(role) = visit_atom_role(atom)
+            && let Some(field) = fields.get(role)
+            && let Some(structural) = field.structural_plan()
+        {
+            let value = field_value(construction, role, &argument, &field_locals)?;
+            let call = match structural.kind() {
+                StructuralFieldKindPlan::Required(kind) => {
+                    walk_structural_value(validated, kind, value)?
+                }
+                StructuralFieldKindPlan::Optional(kind) => {
+                    let visit = walk_structural_value(validated, kind, quote! { value })?;
+                    quote! { if let Some(value) = #value { #visit } }
+                }
+                StructuralFieldKindPlan::Sequence { .. } => {
+                    let walker = ident(&structural_sequence_walker(
+                        construction.element_type(),
+                        structural.name(),
+                    ));
+                    quote! { #walker(visitor, #value); }
+                }
+            };
+            calls.push(call);
+            continue;
+        }
         let call = match atom {
             AtomPlan::Literal(_) => None,
             AtomPlan::Category { role, category } => {
@@ -596,6 +822,16 @@ fn emit_construction_walker(
             construction.construction_id(),
         )],
     ))
+}
+
+fn visit_atom_role(atom: &AtomPlan) -> Option<&str> {
+    match atom {
+        AtomPlan::Category { role, .. }
+        | AtomPlan::Lex { role, .. }
+        | AtomPlan::Identity { role, .. }
+        | AtomPlan::Noun { role, .. } => Some(role),
+        AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
+    }
 }
 
 fn emit_enum_walker<'a>(
@@ -956,6 +1192,87 @@ mod tests {
     )]
     use quote::ToTokens;
     use syn::visit::Visit;
+
+    #[test]
+    fn structural_optional_sum_and_sequence_walkers_preserve_stored_source_order() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Word { Alpha = "alpha", Beta = "beta", }
+            construction atom: Atom {
+                element AtomValue { word: lex Word, }
+                form atom = lex(word);
+            }
+            abstract sum Branch { Atom, }
+            abstract product Holder {
+                maybe: opt Branch,
+                items: seq Branch separated by ", ",
+            }
+            root Atom { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("structural traversal fixture validates");
+
+        let syn::Item::Trait(visitor) = named(&expansion, "Visitor") else {
+            panic!("Visitor is a trait")
+        };
+        let callbacks = visitor
+            .items
+            .iter()
+            .filter_map(|item| {
+                let syn::TraitItem::Fn(method) = item else {
+                    return None;
+                };
+                matches!(
+                    method.sig.ident.to_string().as_str(),
+                    "visit_branch" | "visit_holder"
+                )
+                .then(|| method.sig.ident.to_string())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(callbacks, ["visit_branch", "visit_holder"]);
+
+        let syn::Item::Fn(holder) = named(&expansion, "walk_holder") else {
+            panic!("Holder walker is a function")
+        };
+        let holder_source = holder.block.to_token_stream().to_string();
+        assert!(
+            holder_source.contains(
+                "if let Some (value) = holder . maybe . as_ref () { visitor . visit_branch (value) ; }"
+            ),
+            "optional traversal visits only Some: {holder_source}",
+        );
+        let optional = holder_source
+            .find("visit_branch")
+            .expect("optional callback");
+        let sequence = holder_source
+            .find("walk_holder_items_sequence")
+            .expect("sequence callback");
+        assert!(
+            optional < sequence,
+            "field order is declaration order: {holder_source}"
+        );
+
+        let syn::Item::Fn(sequence) = named(&expansion, "walk_holder_items_sequence") else {
+            panic!("sequence walker is a function")
+        };
+        assert!(
+            sequence
+                .block
+                .to_token_stream()
+                .to_string()
+                .contains("for value in values { visitor . visit_branch (value) ; }"),
+            "sequence traversal walks the stored slice without indices or reversal",
+        );
+
+        let syn::Item::Fn(sum) = named(&expansion, "walk_branch") else {
+            panic!("sum walker is a function")
+        };
+        assert!(
+            sum.block
+                .to_token_stream()
+                .to_string()
+                .contains("Branch :: Atom (value) => { visitor . visit_atom (value) ; }"),
+            "sum traversal delegates directly to its declared payload callback",
+        );
+    }
 
     #[test]
     fn invariant_mixed_fields_visit_through_sealed_access_modes_in_form_order() {

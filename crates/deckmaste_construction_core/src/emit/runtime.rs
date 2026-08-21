@@ -16,6 +16,7 @@ use crate::identifier::LEXICAL_PROVENANCE_KIND_TYPE;
 use crate::identifier::LEXICAL_TERMINAL_TYPE;
 use crate::identifier::LEXICAL_TYPE;
 use crate::identifier::NUMBER_TYPE;
+use crate::identifier::PREFIX_POSITION_TYPE;
 use crate::identifier::SCAN_POSITION_TYPE;
 use crate::identifier::TERMINAL_CLASS_TYPE;
 use crate::identifier::emitted_ident;
@@ -98,7 +99,14 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             CASE_POSITION_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum CasePosition { DocumentInitial, Continuation }
+                pub(crate) enum CasePosition { DocumentInitial, SentenceInitial, Continuation }
+            },
+        ),
+        named_type(
+            PREFIX_POSITION_TYPE,
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum PrefixPosition { WordOwnedSpace, SurfaceOwned, None }
             },
         ),
         named_type(
@@ -108,6 +116,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 pub(crate) struct ScanPosition {
                     pub(crate) byte_offset: usize,
                     pub(crate) case: CasePosition,
+                    pub(crate) prefix: PrefixPosition,
                 }
             },
         ),
@@ -475,6 +484,9 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum LexicalOwnerTemplate {
                     None,
+                    Structural {
+                        stable_id: &'static str,
+                    },
                     Static {
                         kind: LexicalProvenanceKind,
                         stable_id: &'static str,
@@ -1065,6 +1077,12 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     pub(crate) fn instantiate(self, value: &Leaf) -> Option<LexicalOwner> {
                         match (self, value) {
                             (LexicalOwnerTemplate::None, Leaf::EndOfInput) => None,
+                            (LexicalOwnerTemplate::Structural { stable_id }, _) => {
+                                Some(LexicalOwner::static_owner(
+                                    LexicalProvenanceKind::FormLiteral,
+                                    stable_id,
+                                ))
+                            },
                             (
                                 LexicalOwnerTemplate::Static { kind, stable_id },
                                 _,

@@ -93,6 +93,14 @@ impl Writer<'_> {
         self.output.push(punctuation);
     }
 
+    #[allow(
+        dead_code,
+        reason = "the synthetic grammar uses the generated structural renderer ABI conditionally"
+    )]
+    fn structural_surface(&mut self, surface: &str, _terminates_sentence: bool) {
+        self.output.push_str(surface);
+    }
+
     fn finish(self) -> String {
         self.output
     }
@@ -106,7 +114,7 @@ struct ScanInput<'a> {
 
 impl ScanInput<'_> {
     fn word_end(&self, running_text: &str) -> Option<usize> {
-        let prefix = usize::from(self.position.case == CasePosition::Continuation);
+        let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
         let remainder = self.text.get(self.position.byte_offset..)?;
         let remainder = (prefix == 0)
             .then_some(remainder)
@@ -131,6 +139,13 @@ impl ScanInput<'_> {
             .get(self.position.byte_offset..)?
             .starts_with(punctuation)
             .then_some(self.position.byte_offset + punctuation.len())
+    }
+
+    fn structural_surface_end(&self, surface: &str) -> Option<usize> {
+        self.text
+            .get(self.position.byte_offset..)?
+            .starts_with(surface)
+            .then_some(self.position.byte_offset + surface.len())
     }
 
     fn declaration_readings(
@@ -299,6 +314,13 @@ fn scan(
                 } else {
                     CasePosition::Continuation
                 },
+                prefix: if offset == 0 {
+                    PrefixPosition::None
+                } else if text.as_bytes().get(offset) == Some(&b' ') {
+                    PrefixPosition::WordOwnedSpace
+                } else {
+                    PrefixPosition::SurfaceOwned
+                },
             },
             environment,
         },
@@ -389,33 +411,33 @@ fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order()
         ),
         (
             Category::ExactPairStructural,
-            "Alpha <T> <P> beta <T>",
+            "Alpha<T><P>beta<T>",
             vec![StructuralWord::Alpha, StructuralWord::Beta],
         ),
         (
             Category::TerminatedStructural,
-            "Alpha <T> beta <T>",
+            "Alpha<T>beta<T>",
             vec![StructuralWord::Alpha, StructuralWord::Beta],
         ),
         (
             Category::SeparatedStructural,
-            "Alpha <S> beta",
+            "Alpha<S>beta",
             vec![StructuralWord::Alpha, StructuralWord::Beta],
         ),
         (Category::CombinedStructural, "", Vec::new()),
         (
             Category::CombinedStructural,
-            "Alpha <T>",
+            "Alpha<T>",
             vec![StructuralWord::Alpha],
         ),
         (
             Category::CombinedStructural,
-            "Alpha <T> <S> beta <T>",
+            "Alpha<T><S>beta<T>",
             vec![StructuralWord::Alpha, StructuralWord::Beta],
         ),
         (
             Category::CombinedStructural,
-            "Alpha <T> <S> beta <T> <S> gamma <T> <S> delta <T>",
+            "Alpha<T><S>beta<T><S>gamma<T><S>delta<T>",
             vec![
                 StructuralWord::Alpha,
                 StructuralWord::Beta,
@@ -425,12 +447,12 @@ fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order()
         ),
         (
             Category::PositionalStructural,
-            "Alpha <T> <P> beta <T>",
+            "Alpha<T><P>beta<T>",
             vec![StructuralWord::Alpha, StructuralWord::Beta],
         ),
         (
             Category::PositionalStructural,
-            "Alpha <T> <F> beta <T> <M> gamma <T> <L> delta <T>",
+            "Alpha<T><F>beta<T><M>gamma<T><L>delta<T>",
             vec![
                 StructuralWord::Alpha,
                 StructuralWord::Beta,
@@ -440,12 +462,12 @@ fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order()
         ),
         (
             Category::BoundedUniformStructural,
-            "Alpha <T> <S> beta <T>",
+            "Alpha<T><S>beta<T>",
             vec![StructuralWord::Alpha, StructuralWord::Beta],
         ),
         (
             Category::BoundedUniformStructural,
-            "Alpha <T> <S> beta <T> <S> gamma <T> <S> delta <T>",
+            "Alpha<T><S>beta<T><S>gamma<T><S>delta<T>",
             vec![
                 StructuralWord::Alpha,
                 StructuralWord::Beta,
@@ -455,12 +477,12 @@ fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order()
         ),
         (
             Category::BoundedPositionalStructural,
-            "Alpha <T> <P> beta <T>",
+            "Alpha<T><P>beta<T>",
             vec![StructuralWord::Alpha, StructuralWord::Beta],
         ),
         (
             Category::BoundedPositionalStructural,
-            "Alpha <T> <F> beta <T> <L> gamma <T>",
+            "Alpha<T><F>beta<T><L>gamma<T>",
             vec![
                 StructuralWord::Alpha,
                 StructuralWord::Beta,
@@ -469,7 +491,7 @@ fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order()
         ),
         (
             Category::BoundedPositionalStructural,
-            "Alpha <T> <F> beta <T> <M> gamma <T> <L> delta <T>",
+            "Alpha<T><F>beta<T><M>gamma<T><L>delta<T>",
             vec![
                 StructuralWord::Alpha,
                 StructuralWord::Beta,
@@ -493,30 +515,30 @@ fn generated_structural_rows_parse_and_materialize_with_exact_bounds_and_order()
     }
 
     for (category, text) in [
-        (Category::ExactPairStructural, "Alpha <T>"),
+        (Category::ExactPairStructural, "Alpha<T>"),
         (
             Category::ExactPairStructural,
-            "Alpha <T> <P> beta <T> <P> gamma <T>",
+            "Alpha<T><P>beta<T><P>gamma<T>",
         ),
-        (Category::BoundedUniformStructural, "Alpha <T>"),
+        (Category::BoundedUniformStructural, "Alpha<T>"),
         (
             Category::BoundedUniformStructural,
-            "Alpha <T> <S> beta <T> <S> gamma <T> <S> delta <T> <S> alpha <T>",
+            "Alpha<T><S>beta<T><S>gamma<T><S>delta<T><S>alpha<T>",
         ),
-        (Category::BoundedUniformStructural, "Alpha <S> <T> beta <T>"),
-        (Category::BoundedPositionalStructural, "Alpha <T>"),
+        (Category::BoundedUniformStructural, "Alpha<S><T>beta<T>"),
+        (Category::BoundedPositionalStructural, "Alpha<T>"),
         (
             Category::BoundedPositionalStructural,
-            "Alpha <T> <F> beta <T> <M> gamma <T> <M> delta <T> <L> alpha <T>",
+            "Alpha<T><F>beta<T><M>gamma<T><M>delta<T><L>alpha<T>",
         ),
         (
             Category::BoundedPositionalStructural,
-            "Alpha <T> <P> beta <T> <P> gamma <T>",
+            "Alpha<T><P>beta<T><P>gamma<T>",
         ),
-        (Category::CombinedStructural, "Alpha <T> <S>"),
+        (Category::CombinedStructural, "Alpha<T><S>"),
         (
             Category::PositionalStructural,
-            "Alpha <T> <F> beta <T> <L> gamma <T> <M> delta <T>",
+            "Alpha<T><F>beta<T><L>gamma<T><M>delta<T>",
         ),
     ] {
         assert!(
@@ -585,7 +607,7 @@ fn generated_helper_cycle_is_an_internal_materialization_failure_with_owner_role
 
     let parsed = parse_fixture(
         Category::BoundedUniformStructural,
-        "Alpha <T> <S> beta <T>",
+        "Alpha<T><S>beta<T>",
         &environment,
     )
     .expect("the finite counted helper produces an accepted Earley forest");
@@ -629,9 +651,9 @@ fn generated_helper_cycle_is_an_internal_materialization_failure_with_owner_role
         ],
     );
 
-    let ordinary_failure = parse_fixture(Category::ExactPairStructural, "Alpha <T>", &environment)
+    let ordinary_failure = parse_fixture(Category::ExactPairStructural, "Alpha<T>", &environment)
         .expect_err("a short exact pair is an ordinary chart failure");
-    assert_eq!(ordinary_failure.offset, "Alpha <T>".len());
+    assert_eq!(ordinary_failure.offset, "Alpha<T>".len());
 }
 
 #[test]

@@ -79,7 +79,20 @@ pub(super) enum RuleSymbolPlan {
     },
     Value(ValueKindPlan),
     Helper(String),
-    Surface(FixedSurfaceAtomPlan),
+    Surface(StructuralSurfaceSymbolPlan),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum StructuralSurfacePolicy {
+    SeparatorUniform,
+    SeparatorPositional(EdgeClass),
+    Terminator,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct StructuralSurfaceSymbolPlan {
+    pub(super) atom: FixedSurfaceAtomPlan,
+    pub(super) stable_id: String,
 }
 
 impl RuleSymbolPlan {
@@ -89,10 +102,16 @@ impl RuleSymbolPlan {
             Self::Authored { .. } => "authored".to_owned(),
             Self::Value(value) => format!("value:{}", value_name(value)),
             Self::Helper(category) => format!("helper:{category}"),
-            Self::Surface(FixedSurfaceAtomPlan::Literal(value)) => {
+            Self::Surface(StructuralSurfaceSymbolPlan {
+                atom: FixedSurfaceAtomPlan::Literal(value),
+                ..
+            }) => {
                 format!("literal:{value}")
             }
-            Self::Surface(FixedSurfaceAtomPlan::Lex { terminal, variant }) => {
+            Self::Surface(StructuralSurfaceSymbolPlan {
+                atom: FixedSurfaceAtomPlan::Lex { terminal, variant },
+                ..
+            }) => {
                 format!("lex:{terminal}::{variant}")
             }
         }
@@ -342,18 +361,26 @@ fn emit_rule_symbol(plan: &SemanticPlan, symbol: &RuleSymbolPlan) -> syn::Result
             let category = ident(category);
             Ok(quote! { N(Category::#category) })
         }
-        RuleSymbolPlan::Surface(FixedSurfaceAtomPlan::Literal(value)) => {
+        RuleSymbolPlan::Surface(StructuralSurfaceSymbolPlan {
+            atom: FixedSurfaceAtomPlan::Literal(value),
+            stable_id,
+        }) => {
             let value = syn::LitStr::new(value, Span::call_site());
+            let stable_id = syn::LitStr::new(stable_id, Span::call_site());
             Ok(lexical_terminal(
                 &quote! { Lexical::Literal(#value) },
-                &quote! { LexicalOwnerTemplate::None },
+                &quote! { LexicalOwnerTemplate::Structural { stable_id: #stable_id } },
             ))
         }
-        RuleSymbolPlan::Surface(FixedSurfaceAtomPlan::Lex { terminal, .. }) => {
+        RuleSymbolPlan::Surface(StructuralSurfaceSymbolPlan {
+            atom: FixedSurfaceAtomPlan::Lex { terminal, .. },
+            stable_id,
+        }) => {
             let lexical = lexical_variant(plan, terminal)?;
+            let stable_id = syn::LitStr::new(stable_id, Span::call_site());
             Ok(lexical_terminal(
                 &lexical,
-                &quote! { LexicalOwnerTemplate::None },
+                &quote! { LexicalOwnerTemplate::Structural { stable_id: #stable_id } },
             ))
         }
     }
@@ -626,13 +653,13 @@ fn owner_field_variants(
                 if bounds.allows(1) {
                     variants.push((
                         Some(SequenceOwnerState::PositionalSingleton),
-                        item_with_terminator(item, surface.terminator()),
+                        item_with_terminator(item, surface.terminator(), owner, field.name()),
                     ));
                 }
                 if bounds.allows(2) {
                     variants.push((
                         Some(SequenceOwnerState::PositionalPair),
-                        exact_positional_rhs(item, surface, rows, 2)?,
+                        exact_positional_rhs(item, surface, rows, 2, owner, field.name())?,
                     ));
                 }
                 let minimum = bounds.min().max(3);
@@ -642,8 +669,14 @@ fn owner_field_variants(
                     } else {
                         SequenceOwnerState::PositionalMinimumPlus(minimum)
                     };
-                    let mut rhs = item_with_terminator(item, surface.terminator());
-                    rhs.extend(surface_symbols(positional_surface(rows, EdgeClass::First)?));
+                    let mut rhs =
+                        item_with_terminator(item, surface.terminator(), owner, field.name());
+                    rhs.extend(surface_symbols(
+                        positional_surface(rows, EdgeClass::First)?,
+                        owner,
+                        field.name(),
+                        StructuralSurfacePolicy::SeparatorPositional(EdgeClass::First),
+                    ));
                     rhs.push(RuleSymbolPlan::Helper(helper_category(owner, field)?));
                     variants.push((Some(state), rhs));
                 }
@@ -756,12 +789,24 @@ fn lower_helper_rows<'a>(
                             )?;
                             let total = position + 1;
                             if bounds.allows(total) {
-                                let mut last = item_with_terminator(item, surface.terminator());
-                                last.extend(surface_symbols(positional_surface(
-                                    positional,
-                                    EdgeClass::Last,
-                                )?));
-                                last.extend(item_with_terminator(item, surface.terminator()));
+                                let mut last = item_with_terminator(
+                                    item,
+                                    surface.terminator(),
+                                    owner,
+                                    field.name(),
+                                );
+                                last.extend(surface_symbols(
+                                    positional_surface(positional, EdgeClass::Last)?,
+                                    owner,
+                                    field.name(),
+                                    StructuralSurfacePolicy::SeparatorPositional(EdgeClass::Last),
+                                ));
+                                last.extend(item_with_terminator(
+                                    item,
+                                    surface.terminator(),
+                                    owner,
+                                    field.name(),
+                                ));
                                 rows.push(sequence_helper_row(
                                     owner_key,
                                     field_index,
@@ -784,11 +829,18 @@ fn lower_helper_rows<'a>(
                                         position + 1,
                                     ),
                                 )?;
-                                let mut middle = item_with_terminator(item, surface.terminator());
-                                middle.extend(surface_symbols(positional_surface(
-                                    positional,
-                                    EdgeClass::Middle,
-                                )?));
+                                let mut middle = item_with_terminator(
+                                    item,
+                                    surface.terminator(),
+                                    owner,
+                                    field.name(),
+                                );
+                                middle.extend(surface_symbols(
+                                    positional_surface(positional, EdgeClass::Middle)?,
+                                    owner,
+                                    field.name(),
+                                    StructuralSurfacePolicy::SeparatorPositional(EdgeClass::Middle),
+                                ));
                                 middle.push(RuleSymbolPlan::Helper(next));
                                 rows.push(sequence_helper_row(
                                     owner_key,
@@ -829,13 +881,23 @@ fn lower_helper_rows<'a>(
                             &suffix,
                             &state,
                             build_state,
-                            exact_positional_tail_rhs(item, surface, positional, tail_length)?,
+                            exact_positional_tail_rhs(
+                                item,
+                                surface,
+                                positional,
+                                tail_length,
+                                owner,
+                                field.name(),
+                            )?,
                         ));
-                        let mut middle = item_with_terminator(item, surface.terminator());
-                        middle.extend(surface_symbols(positional_surface(
-                            positional,
-                            EdgeClass::Middle,
-                        )?));
+                        let mut middle =
+                            item_with_terminator(item, surface.terminator(), owner, field.name());
+                        middle.extend(surface_symbols(
+                            positional_surface(positional, EdgeClass::Middle)?,
+                            owner,
+                            field.name(),
+                            StructuralSurfacePolicy::SeparatorPositional(EdgeClass::Middle),
+                        ));
                         middle.push(RuleSymbolPlan::Helper(category.clone()));
                         rows.push(sequence_helper_row(
                             owner_key,
@@ -871,7 +933,12 @@ fn lower_helper_rows<'a>(
                                     &format!("Count{count}Final"),
                                     &format!("sequence_count_{count}_final"),
                                     SequenceBuildState::Singleton,
-                                    item_with_terminator(item, surface.terminator()),
+                                    item_with_terminator(
+                                        item,
+                                        surface.terminator(),
+                                        owner,
+                                        field.name(),
+                                    ),
                                 ));
                             }
                             if count < maximum {
@@ -881,10 +948,19 @@ fn lower_helper_rows<'a>(
                                     field.name(),
                                     super::StructuralHelperCategoryState::UniformCount(count + 1),
                                 )?;
-                                let mut recursive =
-                                    item_with_terminator(item, surface.terminator());
+                                let mut recursive = item_with_terminator(
+                                    item,
+                                    surface.terminator(),
+                                    owner,
+                                    field.name(),
+                                );
                                 if let Some(SeparatorPlan::Uniform(separator)) = uniform {
-                                    recursive.extend(surface_symbols(separator));
+                                    recursive.extend(surface_symbols(
+                                        separator,
+                                        owner,
+                                        field.name(),
+                                        StructuralSurfacePolicy::SeparatorUniform,
+                                    ));
                                 }
                                 recursive.push(RuleSymbolPlan::Helper(next));
                                 rows.push(sequence_helper_row(
@@ -926,11 +1002,24 @@ fn lower_helper_rows<'a>(
                             &suffix,
                             &state,
                             build_state,
-                            exact_uniform_rhs(item, surface, uniform, base_length),
+                            exact_uniform_rhs(
+                                item,
+                                surface,
+                                uniform,
+                                base_length,
+                                owner,
+                                field.name(),
+                            ),
                         ));
-                        let mut recursive = item_with_terminator(item, surface.terminator());
+                        let mut recursive =
+                            item_with_terminator(item, surface.terminator(), owner, field.name());
                         if let Some(SeparatorPlan::Uniform(separator)) = uniform {
-                            recursive.extend(surface_symbols(separator));
+                            recursive.extend(surface_symbols(
+                                separator,
+                                owner,
+                                field.name(),
+                                StructuralSurfacePolicy::SeparatorUniform,
+                            ));
                         }
                         recursive.push(RuleSymbolPlan::Helper(category.clone()));
                         rows.push(sequence_helper_row(
@@ -995,15 +1084,27 @@ fn exact_uniform_rhs(
     surface: &crate::semantic::SequenceSurfacePlan,
     separator: Option<&SeparatorPlan>,
     length: usize,
+    owner: &str,
+    role: &str,
 ) -> Vec<RuleSymbolPlan> {
     let mut rhs = Vec::new();
     for index in 0..length {
         if index > 0
             && let Some(SeparatorPlan::Uniform(separator)) = separator
         {
-            rhs.extend(surface_symbols(separator));
+            rhs.extend(surface_symbols(
+                separator,
+                owner,
+                role,
+                StructuralSurfacePolicy::SeparatorUniform,
+            ));
         }
-        rhs.extend(item_with_terminator(item, surface.terminator()));
+        rhs.extend(item_with_terminator(
+            item,
+            surface.terminator(),
+            owner,
+            role,
+        ));
     }
     rhs
 }
@@ -1013,6 +1114,8 @@ fn exact_positional_rhs(
     surface: &crate::semantic::SequenceSurfacePlan,
     rows: &[crate::semantic::PositionalSeparatorPlan],
     length: usize,
+    owner: &str,
+    role: &str,
 ) -> syn::Result<Vec<RuleSymbolPlan>> {
     let mut rhs = Vec::new();
     for index in 0..length {
@@ -1023,9 +1126,19 @@ fn exact_positional_rhs(
                 _ if index + 1 == length => EdgeClass::Last,
                 _ => EdgeClass::Middle,
             };
-            rhs.extend(surface_symbols(positional_surface(rows, class)?));
+            rhs.extend(surface_symbols(
+                positional_surface(rows, class)?,
+                owner,
+                role,
+                StructuralSurfacePolicy::SeparatorPositional(class),
+            ));
         }
-        rhs.extend(item_with_terminator(item, surface.terminator()));
+        rhs.extend(item_with_terminator(
+            item,
+            surface.terminator(),
+            owner,
+            role,
+        ));
     }
     Ok(rhs)
 }
@@ -1035,14 +1148,26 @@ fn exact_positional_tail_rhs(
     surface: &crate::semantic::SequenceSurfacePlan,
     rows: &[crate::semantic::PositionalSeparatorPlan],
     length: usize,
+    owner: &str,
+    role: &str,
 ) -> syn::Result<Vec<RuleSymbolPlan>> {
     let mut rhs = Vec::new();
     for index in 0..length {
         if index > 0 {
             let class = if index + 1 == length { EdgeClass::Last } else { EdgeClass::Middle };
-            rhs.extend(surface_symbols(positional_surface(rows, class)?));
+            rhs.extend(surface_symbols(
+                positional_surface(rows, class)?,
+                owner,
+                role,
+                StructuralSurfacePolicy::SeparatorPositional(class),
+            ));
         }
-        rhs.extend(item_with_terminator(item, surface.terminator()));
+        rhs.extend(item_with_terminator(
+            item,
+            surface.terminator(),
+            owner,
+            role,
+        ));
     }
     Ok(rhs)
 }
@@ -1050,21 +1175,56 @@ fn exact_positional_tail_rhs(
 fn item_with_terminator(
     item: &ValueKindPlan,
     terminator: Option<&FixedSurfacePlan>,
+    owner: &str,
+    role: &str,
 ) -> Vec<RuleSymbolPlan> {
     let mut symbols = vec![RuleSymbolPlan::Value(item.clone())];
     if let Some(terminator) = terminator {
-        symbols.extend(surface_symbols(terminator));
+        symbols.extend(surface_symbols(
+            terminator,
+            owner,
+            role,
+            StructuralSurfacePolicy::Terminator,
+        ));
     }
     symbols
 }
 
-fn surface_symbols(surface: &FixedSurfacePlan) -> Vec<RuleSymbolPlan> {
+fn surface_symbols(
+    surface: &FixedSurfacePlan,
+    owner: &str,
+    role: &str,
+    policy: StructuralSurfacePolicy,
+) -> Vec<RuleSymbolPlan> {
     surface
         .atoms()
         .iter()
         .cloned()
-        .map(RuleSymbolPlan::Surface)
+        .enumerate()
+        .map(|(atom_index, atom)| {
+            RuleSymbolPlan::Surface(StructuralSurfaceSymbolPlan {
+                atom,
+                stable_id: structural_surface_stable_id(owner, role, policy, atom_index),
+            })
+        })
         .collect()
+}
+
+pub(super) fn structural_surface_stable_id(
+    owner: &str,
+    role: &str,
+    policy: StructuralSurfacePolicy,
+    atom_index: usize,
+) -> String {
+    let policy = match policy {
+        StructuralSurfacePolicy::SeparatorUniform => "separator/uniform",
+        StructuralSurfacePolicy::SeparatorPositional(EdgeClass::Pair) => "separator/pair",
+        StructuralSurfacePolicy::SeparatorPositional(EdgeClass::First) => "separator/first",
+        StructuralSurfacePolicy::SeparatorPositional(EdgeClass::Middle) => "separator/middle",
+        StructuralSurfacePolicy::SeparatorPositional(EdgeClass::Last) => "separator/last",
+        StructuralSurfacePolicy::Terminator => "terminator",
+    };
+    format!("structural:{owner}/{role}/{policy}/{atom_index}")
 }
 
 fn positional_surface(

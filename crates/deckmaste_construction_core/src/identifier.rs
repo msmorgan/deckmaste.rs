@@ -14,7 +14,12 @@ pub(crate) const AGREEMENT_TYPE: &str = "Agreement";
 pub(crate) const NUMBER_TYPE: &str = "Number";
 pub(crate) const FEATURE_CONSTRAINT_TYPE: &str = "FeatureConstraint";
 pub(crate) const CASE_POSITION_TYPE: &str = "CasePosition";
+pub(crate) const PREFIX_POSITION_TYPE: &str = "PrefixPosition";
 pub(crate) const SCAN_POSITION_TYPE: &str = "ScanPosition";
+pub(crate) const SEQUENCE_OWNER_TYPE: &str = "SequenceOwner";
+pub(crate) const FIXED_SURFACE_ATOM_TYPE: &str = "FixedSurfaceAtom";
+pub(crate) const SEQUENCE_SEPARATOR_FUNCTION: &str = "sequence_separator";
+pub(crate) const SEQUENCE_TERMINATOR_FUNCTION: &str = "sequence_terminator";
 pub(crate) const DECLARATION_CLASS_TYPE: &str = "DeclarationClass";
 pub(crate) const DECLARATION_MATCHER_TYPE: &str = "DeclarationMatcher";
 pub(crate) const DECLARATION_LEAF_TYPE: &str = "DeclarationLeaf";
@@ -31,7 +36,10 @@ pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     NUMBER_TYPE,
     FEATURE_CONSTRAINT_TYPE,
     CASE_POSITION_TYPE,
+    PREFIX_POSITION_TYPE,
     SCAN_POSITION_TYPE,
+    SEQUENCE_OWNER_TYPE,
+    FIXED_SURFACE_ATOM_TYPE,
     DECLARATION_CLASS_TYPE,
     DECLARATION_MATCHER_TYPE,
     DECLARATION_LEAF_TYPE,

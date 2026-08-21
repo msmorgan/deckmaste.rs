@@ -1545,7 +1545,25 @@ mod tests {
         );
         assert_eq!(
             enum_variants(generated_item(&expansion, "CasePosition")),
-            ["DocumentInitial", "Continuation"]
+            ["DocumentInitial", "SentenceInitial", "Continuation"]
+        );
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "PrefixPosition")),
+            ["WordOwnedSpace", "SurfaceOwned", "None"]
+        );
+        let scan_position =
+            syn::parse2::<syn::File>(generated_item(&expansion, "ScanPosition").tokens.clone())
+                .expect("ScanPosition parses");
+        let syn::Item::Struct(scan_position) = &scan_position.items[0] else {
+            panic!("ScanPosition is a struct")
+        };
+        assert_eq!(
+            scan_position
+                .fields
+                .iter()
+                .map(|field| field.ident.as_ref().unwrap().to_string())
+                .collect::<Vec<_>>(),
+            ["byte_offset", "case", "prefix"],
         );
         assert_eq!(
             enum_variants(generated_item(&expansion, "Lexical")),
@@ -1617,6 +1635,7 @@ mod tests {
 
         for name in [
             "FeatureConstraint",
+            "PrefixPosition",
             "ScanPosition",
             "DeclarationMatcher",
             "DeclarationLeaf",
@@ -1977,7 +1996,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 72);
+        assert_eq!(keys.len(), 73);
         assert!(keys.iter().any(|key| {
             matches!(
                 key,

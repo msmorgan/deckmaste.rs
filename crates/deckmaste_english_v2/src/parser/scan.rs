@@ -34,6 +34,7 @@ use crate::constructions::Lexical;
 use crate::constructions::LexicalOwner;
 use crate::constructions::LexicalTerminal;
 use crate::constructions::Number;
+use crate::constructions::PrefixPosition;
 use crate::constructions::RULES;
 use crate::constructions::RuleId;
 use crate::constructions::ScanPosition;
@@ -450,13 +451,31 @@ impl SliceGrammar<'_> {
         text: &str,
         offset: usize,
     ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
+        let case = if offset == 0 {
+            CasePosition::DocumentInitial
+        } else if text
+            .get(..offset)
+            .is_some_and(|prefix| prefix.trim_end_matches(char::is_whitespace).ends_with('.'))
+        {
+            CasePosition::SentenceInitial
+        } else {
+            CasePosition::Continuation
+        };
+        let prefix = if offset == 0 {
+            PrefixPosition::None
+        } else if matches!(
+            terminal.owner,
+            crate::constructions::LexicalOwnerTemplate::Structural { .. }
+        ) || text.as_bytes().get(offset) != Some(&b' ')
+        {
+            PrefixPosition::SurfaceOwned
+        } else {
+            PrefixPosition::WordOwnedSpace
+        };
         let position = ScanPosition {
             byte_offset: offset,
-            case: if offset == 0 {
-                CasePosition::DocumentInitial
-            } else {
-                CasePosition::Continuation
-            },
+            case,
+            prefix,
         };
         scan_lexical(
             &ScanInput {
@@ -473,20 +492,20 @@ impl SliceGrammar<'_> {
 impl ScanInput<'_> {
     pub(crate) fn word_end(&self, running_text: &str) -> Option<usize> {
         let offset = self.position.byte_offset;
-        debug_assert_eq!(
-            self.position.case,
-            if offset == 0 {
-                CasePosition::DocumentInitial
-            } else {
-                CasePosition::Continuation
-            }
+        debug_assert!(
+            self.position.case != CasePosition::DocumentInitial
+                || self.position.prefix == PrefixPosition::None,
         );
-        let prefix = usize::from(self.position.case == CasePosition::Continuation);
+        debug_assert!(self.position.prefix != PrefixPosition::None || offset == 0,);
+        let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
         let remainder = self.text.get(offset..)?;
         let remainder = (prefix == 0)
             .then_some(remainder)
             .or_else(|| remainder.strip_prefix(' '))?;
-        let word = if self.position.case == CasePosition::DocumentInitial {
+        let word = if matches!(
+            self.position.case,
+            CasePosition::DocumentInitial | CasePosition::SentenceInitial
+        ) {
             initial_surface(running_text)
         } else {
             running_text.to_owned()
@@ -497,7 +516,7 @@ impl ScanInput<'_> {
 
     pub(crate) fn identity_end(&self, exact_text: &str) -> Option<usize> {
         let offset = self.position.byte_offset;
-        let prefix = usize::from(self.position.case == CasePosition::Continuation);
+        let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
         let remainder = self.text.get(offset..)?;
         let remainder = (prefix == 0)
             .then_some(remainder)
@@ -518,14 +537,26 @@ impl ScanInput<'_> {
             .then_some(offset + punctuation.len())
     }
 
+    pub(crate) fn structural_surface_end(&self, surface: &str) -> Option<usize> {
+        let offset = self.position.byte_offset;
+        self.text
+            .get(offset..)?
+            .starts_with(surface)
+            .then_some(offset + surface.len())
+    }
+
     pub(crate) fn declaration_readings(
         &self,
         matcher: DeclarationMatcher,
     ) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
-        lookup_declaration_readings(
+        lookup_declaration_readings_with_prefix(
             self.text,
             self.position.byte_offset,
-            self.position.case == CasePosition::DocumentInitial,
+            matches!(
+                self.position.case,
+                CasePosition::DocumentInitial | CasePosition::SentenceInitial
+            ),
+            self.position.prefix,
             self.environment,
             matcher.kind,
             matcher.name,
@@ -540,8 +571,11 @@ impl ScanInput<'_> {
         wanted: FeatureConstraint<Number>,
     ) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
         let offset = self.position.byte_offset;
-        let document_initial = self.position.case == CasePosition::DocumentInitial;
-        let prefix = usize::from(!document_initial);
+        let initial = matches!(
+            self.position.case,
+            CasePosition::DocumentInitial | CasePosition::SentenceInitial
+        );
+        let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
         let Some(remainder) = self.text.get(offset..) else {
             return Vec::new();
         };
@@ -551,7 +585,7 @@ impl ScanInput<'_> {
         else {
             return Vec::new();
         };
-        let surface_byte_limit = if document_initial {
+        let surface_byte_limit = if initial {
             self.environment.initial_surface_byte_limit(position)
         } else {
             self.environment.running_surface_byte_limit(position)
@@ -569,7 +603,7 @@ impl ScanInput<'_> {
                 continue;
             }
             let candidate = &surface_text[..relative_end];
-            let readings = if document_initial {
+            let readings = if initial {
                 self.environment.initial_readings(position, candidate)
             } else {
                 self.environment.readings(position, candidate)
@@ -599,6 +633,7 @@ impl ScanInput<'_> {
     clippy::too_many_arguments,
     reason = "the shared lookup seam keeps synthetic generated grammars on the production scanner algorithm"
 )]
+#[cfg(test)]
 pub(super) fn lookup_declaration_readings(
     text: &str,
     offset: usize,
@@ -609,7 +644,39 @@ pub(super) fn lookup_declaration_readings(
     position: GrammarPosition,
     matches_feature: impl Fn(SurfaceFeature) -> bool,
 ) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
-    let prefix = usize::from(!document_initial);
+    lookup_declaration_readings_with_prefix(
+        text,
+        offset,
+        document_initial,
+        if document_initial {
+            PrefixPosition::None
+        } else {
+            PrefixPosition::WordOwnedSpace
+        },
+        environment,
+        kind,
+        name,
+        position,
+        matches_feature,
+    )
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "case and prefix are independent generated scanner state"
+)]
+fn lookup_declaration_readings_with_prefix(
+    text: &str,
+    offset: usize,
+    initial: bool,
+    prefix_position: PrefixPosition,
+    environment: &ParserEnvironment,
+    kind: DeclarationKind,
+    name: &str,
+    position: GrammarPosition,
+    matches_feature: impl Fn(SurfaceFeature) -> bool,
+) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
+    let prefix = usize::from(prefix_position == PrefixPosition::WordOwnedSpace);
     let Some(remainder) = text.get(offset..) else {
         return Vec::new();
     };
@@ -621,7 +688,7 @@ pub(super) fn lookup_declaration_readings(
     };
 
     let mut results = Vec::new();
-    let surface_byte_limit = if document_initial {
+    let surface_byte_limit = if initial {
         environment.initial_surface_byte_limit(position)
     } else {
         environment.running_surface_byte_limit(position)
@@ -638,7 +705,7 @@ pub(super) fn lookup_declaration_readings(
             continue;
         }
         let candidate = &surface_text[..relative_end];
-        let readings = if document_initial {
+        let readings = if initial {
             environment.initial_readings(position, candidate)
         } else {
             environment.readings(position, candidate)
@@ -743,6 +810,7 @@ mod tests {
     use crate::constructions::LexicalProvenanceKind;
     use crate::constructions::LexicalTerminal;
     use crate::constructions::Number;
+    use crate::constructions::PrefixPosition;
     use crate::constructions::RULES;
     use crate::constructions::ScanPosition;
     use crate::context::ParseContext;
@@ -783,6 +851,127 @@ mod tests {
     }
 
     #[test]
+    fn sentence_initial_case_and_surface_owned_prefix_are_orthogonal() {
+        let environment = canonical_test_environment();
+        let context = context("Context Card");
+        let word_end = |text, byte_offset, case, prefix, word| {
+            ScanInput {
+                text,
+                position: ScanPosition {
+                    byte_offset,
+                    case,
+                    prefix,
+                },
+                environment: &environment,
+                context: &context,
+            }
+            .word_end(word)
+        };
+
+        assert_eq!(
+            word_end(
+                "Destroy",
+                0,
+                CasePosition::DocumentInitial,
+                PrefixPosition::None,
+                "destroy",
+            ),
+            Some(7),
+        );
+        assert_eq!(
+            word_end(
+                "Destroy target",
+                7,
+                CasePosition::Continuation,
+                PrefixPosition::WordOwnedSpace,
+                "target",
+            ),
+            Some(14),
+        );
+        assert_eq!(
+            word_end(
+                "Destroy target creature. You",
+                25,
+                CasePosition::SentenceInitial,
+                PrefixPosition::SurfaceOwned,
+                "you",
+            ),
+            Some(28),
+            "the following word starts after the separator-owned byte",
+        );
+        assert_eq!(
+            word_end(
+                "alpha, beta",
+                7,
+                CasePosition::Continuation,
+                PrefixPosition::SurfaceOwned,
+                "beta",
+            ),
+            Some(11),
+            "a non-sentence separator suppresses a word-owned prefix without capitalizing",
+        );
+
+        assert_eq!(
+            word_end(
+                "Destroy target creature. You",
+                25,
+                CasePosition::Continuation,
+                PrefixPosition::SurfaceOwned,
+                "you",
+            ),
+            None,
+            "capitalization depends on case, not surface ownership",
+        );
+        assert_eq!(
+            word_end(
+                "Destroy target creature. You",
+                25,
+                CasePosition::SentenceInitial,
+                PrefixPosition::WordOwnedSpace,
+                "you",
+            ),
+            None,
+            "prefix consumption depends on ownership, not sentence case",
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion failed")]
+    fn document_initial_rejects_a_nonempty_prefix_contract() {
+        let environment = canonical_test_environment();
+        let context = context("Context Card");
+        let input = ScanInput {
+            text: " Destroy",
+            position: ScanPosition {
+                byte_offset: 0,
+                case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::WordOwnedSpace,
+            },
+            environment: &environment,
+            context: &context,
+        };
+        let _ = input.word_end("destroy");
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion failed")]
+    fn noninitial_offset_rejects_an_absent_prefix_contract() {
+        let environment = canonical_test_environment();
+        let context = context("Context Card");
+        let input = ScanInput {
+            text: " alpha",
+            position: ScanPosition {
+                byte_offset: 1,
+                case: CasePosition::Continuation,
+                prefix: PrefixPosition::None,
+            },
+            environment: &environment,
+            context: &context,
+        };
+        let _ = input.word_end("alpha");
+    }
+
+    #[test]
     fn generated_morphology_scans_exact_closed_surfaces_boundaries_and_owners() {
         let environment = canonical_test_environment();
         let context = context("Context Card");
@@ -793,6 +982,7 @@ mod tests {
                     position: ScanPosition {
                         byte_offset: 0,
                         case: CasePosition::DocumentInitial,
+                        prefix: PrefixPosition::None,
                     },
                     environment: &environment,
                     context: &context,
@@ -955,6 +1145,7 @@ mod tests {
                 position: ScanPosition {
                     byte_offset: 0,
                     case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
                 },
                 environment: &environment,
                 context: &context,
@@ -991,6 +1182,7 @@ mod tests {
                     position: ScanPosition {
                         byte_offset: 0,
                         case: CasePosition::DocumentInitial,
+                        prefix: PrefixPosition::None,
                     },
                     environment: &environment,
                     context: &context,
@@ -1106,6 +1298,7 @@ mod tests {
                 position: ScanPosition {
                     byte_offset: 0,
                     case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
                 },
                 environment: &environment,
                 context: &context,
@@ -1130,6 +1323,7 @@ mod tests {
                     position: ScanPosition {
                         byte_offset: "Prefix".len(),
                         case: CasePosition::Continuation,
+                        prefix: PrefixPosition::WordOwnedSpace,
                     },
                     environment: &environment,
                     context: &context,
@@ -1146,6 +1340,7 @@ mod tests {
                     position: ScanPosition {
                         byte_offset: "Prefix".len(),
                         case: CasePosition::Continuation,
+                        prefix: PrefixPosition::WordOwnedSpace,
                     },
                     environment: &environment,
                     context: &context,
@@ -1168,6 +1363,7 @@ mod tests {
             position: ScanPosition {
                 byte_offset: 0,
                 case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
             },
             environment: &environment,
             context: &context,
@@ -1191,6 +1387,7 @@ mod tests {
                 position: ScanPosition {
                     byte_offset: 0,
                     case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
                 },
                 environment,
                 context: &context,
@@ -1297,6 +1494,11 @@ mod tests {
                     } else {
                         CasePosition::Continuation
                     },
+                    prefix: if offset == 0 {
+                        PrefixPosition::None
+                    } else {
+                        PrefixPosition::WordOwnedSpace
+                    },
                 },
                 environment: &environment,
                 context: &context,
@@ -1342,6 +1544,7 @@ mod tests {
             position: ScanPosition {
                 byte_offset: 0,
                 case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
             },
             environment: &environment,
             context: &context,
@@ -1381,6 +1584,7 @@ mod tests {
             position: ScanPosition {
                 byte_offset: 0,
                 case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
             },
             environment: &environment,
             context: &context,
@@ -1421,6 +1625,7 @@ mod tests {
             position: ScanPosition {
                 byte_offset: 0,
                 case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
             },
             environment: &environment,
             context: &context,
@@ -1563,7 +1768,15 @@ mod tests {
             super::scan_lexical(
                 &ScanInput {
                     text,
-                    position: ScanPosition { byte_offset, case },
+                    position: ScanPosition {
+                        byte_offset,
+                        case,
+                        prefix: if byte_offset == 0 {
+                            PrefixPosition::None
+                        } else {
+                            PrefixPosition::WordOwnedSpace
+                        },
+                    },
                     environment: &environment,
                     context: &context,
                 },
@@ -2024,7 +2237,15 @@ mod tests {
                 let matches = super::scan_lexical(
                     &ScanInput {
                         text: &text,
-                        position: ScanPosition { byte_offset, case },
+                        position: ScanPosition {
+                            byte_offset,
+                            case,
+                            prefix: if byte_offset == 0 {
+                                PrefixPosition::None
+                            } else {
+                                PrefixPosition::WordOwnedSpace
+                            },
+                        },
                         environment: &environment,
                         context: &context,
                     },
@@ -2069,7 +2290,15 @@ mod tests {
                 let matches = super::scan_lexical(
                     &ScanInput {
                         text: &text,
-                        position: ScanPosition { byte_offset, case },
+                        position: ScanPosition {
+                            byte_offset,
+                            case,
+                            prefix: if byte_offset == 0 {
+                                PrefixPosition::None
+                            } else {
+                                PrefixPosition::WordOwnedSpace
+                            },
+                        },
                         environment: &environment,
                         context: &context,
                     },
@@ -2089,6 +2318,7 @@ mod tests {
                     position: ScanPosition {
                         byte_offset: 0,
                         case: CasePosition::DocumentInitial,
+                        prefix: PrefixPosition::None,
                     },
                     environment: &environment,
                     context: &context,
@@ -2154,7 +2384,15 @@ mod tests {
                     let matches = super::scan_lexical(
                         &ScanInput {
                             text: &text,
-                            position: ScanPosition { byte_offset, case },
+                            position: ScanPosition {
+                                byte_offset,
+                                case,
+                                prefix: if byte_offset == 0 {
+                                    PrefixPosition::None
+                                } else {
+                                    PrefixPosition::WordOwnedSpace
+                                },
+                            },
                             environment: &environment,
                             context: &context,
                         },
@@ -2191,6 +2429,7 @@ mod tests {
                 position: ScanPosition {
                     byte_offset: 0,
                     case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
                 },
                 environment: &environment,
                 context: &equal,
@@ -2218,6 +2457,7 @@ mod tests {
                         position: ScanPosition {
                             byte_offset: 0,
                             case: CasePosition::DocumentInitial,
+                            prefix: PrefixPosition::None,
                         },
                         environment: &environment,
                         context: &equal,

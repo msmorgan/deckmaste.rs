@@ -73,12 +73,20 @@ pub(crate) enum FeatureConstraint<F> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum CasePosition {
     DocumentInitial,
+    SentenceInitial,
     Continuation,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum PrefixPosition {
+    WordOwnedSpace,
+    SurfaceOwned,
+    None,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) struct ScanPosition {
     pub(crate) byte_offset: usize,
     pub(crate) case: CasePosition,
+    pub(crate) prefix: PrefixPosition,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub struct DeclarationClass {
@@ -142,6 +150,7 @@ pub enum LexicalProvenanceKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum LexicalOwnerTemplate {
     None,
+    Structural { stable_id: &'static str },
     Static { kind: LexicalProvenanceKind, stable_id: &'static str },
     Vocab { declaration: &'static str },
     Lexeme { declaration: &'static str, member: &'static str },
@@ -423,6 +432,14 @@ impl LexicalOwnerTemplate {
     pub(crate) fn instantiate(self, value: &Leaf) -> Option<LexicalOwner> {
         match (self, value) {
             (LexicalOwnerTemplate::None, Leaf::EndOfInput) => None,
+            (LexicalOwnerTemplate::Structural { stable_id }, _) => {
+                Some(
+                    LexicalOwner::static_owner(
+                        LexicalProvenanceKind::FormLiteral,
+                        stable_id,
+                    ),
+                )
+            }
             (LexicalOwnerTemplate::Static { kind, stable_id }, _) => {
                 Some(LexicalOwner::static_owner(kind, stable_id))
             }
@@ -492,6 +509,9 @@ pub(crate) fn scan_lexical(
     input: &ScanInput<'_>,
     terminal: LexicalTerminal,
 ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
+    let structural_surface = matches!(
+        terminal.owner, LexicalOwnerTemplate::Structural { .. },
+    );
     let mut matches: Vec<LexicalMatch<Leaf, LexicalOwner>> = match terminal.matcher {
         Lexical::EndOfInput => {
             (input.position.byte_offset == input.text.len())
@@ -515,8 +535,11 @@ pub(crate) fn scan_lexical(
                 .collect()
         }
         Lexical::Literal(literal) => {
-            input
-                .word_end(literal)
+            (if structural_surface {
+                input.structural_surface_end(literal)
+            } else {
+                input.word_end(literal)
+            })
                 .map(|end| LexicalMatch {
                     end,
                     value: Leaf::Literal(literal),
@@ -529,19 +552,24 @@ pub(crate) fn scan_lexical(
             [("first", Words::First), ("second", Words::Second)]
                 .into_iter()
                 .filter_map(|(running_text, value)| {
-                    input
-                        .word_end(running_text)
-                        .map(|end| LexicalMatch {
-                            end,
-                            value: Leaf::Words(value),
-                            owner: None,
-                        })
+                    let end = if structural_surface {
+                        input.structural_surface_end(running_text)
+                    } else {
+                        input.word_end(running_text)
+                    };
+                    end.map(|end| LexicalMatch {
+                        end,
+                        value: Leaf::Words(value),
+                        owner: None,
+                    })
                 })
                 .collect()
         }
         Lexical::SignedNumber => {
             let offset = input.position.byte_offset;
-            let prefix = usize::from(input.position.case == CasePosition::Continuation);
+            let prefix = usize::from(
+                input.position.prefix == PrefixPosition::WordOwnedSpace,
+            );
             let Some(remainder) = input.text.get(offset..) else {
                 return Vec::new();
             };

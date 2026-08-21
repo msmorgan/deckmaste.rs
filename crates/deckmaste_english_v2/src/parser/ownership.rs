@@ -557,6 +557,51 @@ mod tests {
     }
 
     #[test]
+    fn structural_sentence_claims_partition_terminators_separator_and_members_exactly() {
+        let claims = [
+            parsed(0, 1, "vocab:Letter/A"),
+            parsed(1, 2, "structural:SentenceStructural/items/terminator/0"),
+            parsed(
+                2,
+                3,
+                "structural:SentenceStructural/items/separator/uniform/0",
+            ),
+            parsed(3, 4, "vocab:Letter/B"),
+            parsed(4, 5, "structural:SentenceStructural/items/terminator/0"),
+        ];
+        let rendered_claims = [
+            rendered(0, 1, "vocab:Letter/A"),
+            rendered(1, 2, "structural:SentenceStructural/items/terminator/0"),
+            rendered(
+                2,
+                3,
+                "structural:SentenceStructural/items/separator/uniform/0",
+            ),
+            rendered(3, 4, "vocab:Letter/B"),
+            rendered(4, 5, "structural:SentenceStructural/items/terminator/0"),
+        ];
+        let result =
+            validate_ownership("A. B.", &claims, &[], "A. B.".to_owned(), &rendered_claims)
+                .expect("the literal structural partition is inspectable");
+
+        assert!(result.failures.is_empty(), "{:?}", result.failures);
+        assert_eq!(
+            result
+                .parsed_claims
+                .iter()
+                .map(|claim| claim.span)
+                .collect::<Vec<_>>(),
+            [
+                TextSpan { start: 0, end: 1 },
+                TextSpan { start: 1, end: 2 },
+                TextSpan { start: 2, end: 3 },
+                TextSpan { start: 3, end: 4 },
+                TextSpan { start: 4, end: 5 },
+            ],
+        );
+    }
+
+    #[test]
     fn lexical_ownership_pins_whole_render_mismatch_separately() {
         let failures = failures(
             "abc",

@@ -15,6 +15,8 @@ use crate::identifier::RULE_ID_INDEX;
 use crate::identifier::RULE_ID_PUBLIC_CONSTRUCTION;
 use crate::identifier::RULE_ID_TYPE;
 use crate::identifier::RULES_CONSTANT;
+use crate::identifier::SEQUENCE_SEPARATOR_FUNCTION;
+use crate::identifier::SEQUENCE_TERMINATOR_FUNCTION;
 use crate::identifier::StructuralSequenceStyle;
 use crate::identifier::VISITOR_TRAIT;
 use crate::identifier::category_renderer;
@@ -2718,6 +2720,14 @@ fn generated_name_inventory(
     for (name, role) in [
         (RULES_CONSTANT, "fixed generated rules table constant"),
         (BUILD_FUNCTION, "fixed generated build function"),
+        (
+            SEQUENCE_SEPARATOR_FUNCTION,
+            "fixed generated structural separator lookup",
+        ),
+        (
+            SEQUENCE_TERMINATOR_FUNCTION,
+            "fixed generated structural terminator lookup",
+        ),
     ] {
         names.register_value(name, role, fixed_span, errors);
     }
@@ -3076,6 +3086,24 @@ fn generated_name_inventory(
             }
             Declaration::AbstractProduct(product) => {
                 let owner = identifier_key(&product.name);
+                names.register_value(
+                    &prefixed("render_", &owner),
+                    &format!("generated abstract product renderer for `{owner}`"),
+                    product.name.span(),
+                    errors,
+                );
+                names.register_value(
+                    &prefixed("walk_", &owner),
+                    &format!("generated abstract product walker for `{owner}`"),
+                    product.name.span(),
+                    errors,
+                );
+                names.register_visitor_item(
+                    &prefixed("visit_", &owner),
+                    &format!("generated abstract product visitor callback for `{owner}`"),
+                    product.name.span(),
+                    errors,
+                );
                 names.register_type(
                     &owner,
                     &format!("generated abstract product type for `{owner}`"),
@@ -3102,6 +3130,24 @@ fn generated_name_inventory(
             }
             Declaration::AbstractSum(sum) => {
                 let owner = identifier_key(&sum.name);
+                names.register_value(
+                    &prefixed("render_", &owner),
+                    &format!("generated abstract sum renderer for `{owner}`"),
+                    sum.name.span(),
+                    errors,
+                );
+                names.register_value(
+                    &prefixed("walk_", &owner),
+                    &format!("generated abstract sum walker for `{owner}`"),
+                    sum.name.span(),
+                    errors,
+                );
+                names.register_visitor_item(
+                    &prefixed("visit_", &owner),
+                    &format!("generated abstract sum visitor callback for `{owner}`"),
+                    sum.name.span(),
+                    errors,
+                );
                 names.register_type(
                     &owner,
                     &format!("generated abstract sum type for `{owner}`"),
@@ -8144,7 +8190,10 @@ pub(crate) mod tests {
             "Number",
             "FeatureConstraint",
             "CasePosition",
+            "PrefixPosition",
             "ScanPosition",
+            "SequenceOwner",
+            "FixedSurfaceAtom",
             "DeclarationClass",
             "DeclarationMatcher",
             "DeclarationLeaf",
@@ -8199,6 +8248,14 @@ pub(crate) mod tests {
         for (element, fixed_role) in [
             ("RULES", "fixed generated rules table constant"),
             ("build", "fixed generated build function"),
+            (
+                "sequence_separator",
+                "fixed generated structural separator lookup",
+            ),
+            (
+                "sequence_terminator",
+                "fixed generated structural terminator lookup",
+            ),
         ] {
             let source: proc_macro2::TokenStream = format!(
                 r#"
@@ -8239,6 +8296,73 @@ pub(crate) mod tests {
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
         .expect("types without value constructors may share fixed value spellings");
+    }
+
+    #[test]
+    fn rejects_authored_values_colliding_with_structural_product_and_sum_render_walk_names() {
+        for (element, abstract_declaration, generated) in [
+            (
+                "render_holder",
+                "abstract product Holder {}",
+                "generated abstract product renderer",
+            ),
+            (
+                "walk_holder",
+                "abstract product Holder {}",
+                "generated abstract product walker",
+            ),
+            (
+                "render_choice",
+                "abstract sum Choice { Root, }",
+                "generated abstract sum renderer",
+            ),
+            (
+                "walk_choice",
+                "abstract sum Choice { Root, }",
+                "generated abstract sum walker",
+            ),
+        ] {
+            let source: proc_macro2::TokenStream = format!(
+                r#"
+                construction only: Root {{
+                    element {element} {{}}
+                    form only = "only";
+                }}
+                {abstract_declaration}
+                root Root {{ punctuation = "."; eoi = true; standalone_render = true; }}
+                "#,
+            )
+            .parse()
+            .expect("structural renderer/walker collision syntax");
+            let error = crate::generate(source).expect_err("generated structural helper collides");
+            let message = error.to_string();
+            assert!(
+                message.contains(element) && message.contains(generated),
+                "{element}: {message}",
+            );
+        }
+
+        let error = crate::generate(quote! {
+            codec Runtime {
+                value_type = Runtime;
+                traversal {
+                    callback = borrowed;
+                    argument = runtime;
+                    leaf visit_holder: Runtime = borrowed;
+                    call visitor::visit_holder(borrowed(runtime));
+                }
+            }
+            construction only: Root { element RootNode {} form only = "only"; }
+            abstract product Holder {}
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("the generated product visitor callback collides");
+        let message = error.to_string();
+        assert!(
+            message.contains("visit_holder")
+                && message.contains("generated abstract product visitor callback"),
+            "{message}",
+        );
     }
 
     #[test]
@@ -10590,7 +10714,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 90);
+        assert_eq!(expansion.plan().items().len(), 91);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -10932,7 +11056,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 90);
+        assert_eq!(expansion.plan().items().len(), 91);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -11064,7 +11188,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 90);
+        assert_eq!(emission.items().len(), 91);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

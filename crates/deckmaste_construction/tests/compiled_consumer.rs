@@ -102,7 +102,8 @@ mod declaration_noun_fixture {
 
     struct Writer<'a> {
         output: String,
-        capitalize_next: bool,
+        case: CasePosition,
+        prefix: PrefixPosition,
         claims: ClaimSink<'a>,
     }
 
@@ -110,7 +111,8 @@ mod declaration_noun_fixture {
         fn new() -> Self {
             Self {
                 output: String::new(),
-                capitalize_next: true,
+                case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
                 claims: ClaimSink::Noop,
             }
         }
@@ -118,7 +120,8 @@ mod declaration_noun_fixture {
         fn collecting(claims: &mut Vec<RawRenderedClaim>) -> Writer<'_> {
             Writer {
                 output: String::new(),
-                capitalize_next: true,
+                case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
                 claims: ClaimSink::Collect(claims),
             }
         }
@@ -137,23 +140,43 @@ mod declaration_noun_fixture {
         }
 
         fn word(&mut self, word: &str) {
-            if !self.output.is_empty() {
+            if self.prefix == PrefixPosition::WordOwnedSpace {
                 self.output.push(' ');
             }
-            if self.capitalize_next {
+            if matches!(
+                self.case,
+                CasePosition::DocumentInitial | CasePosition::SentenceInitial
+            ) {
                 let mut characters = word.chars();
                 if let Some(first) = characters.next() {
                     self.output.extend(first.to_uppercase());
                     self.output.push_str(characters.as_str());
                 }
-                self.capitalize_next = false;
             } else {
                 self.output.push_str(word);
             }
+            self.case = CasePosition::Continuation;
+            self.prefix = PrefixPosition::WordOwnedSpace;
         }
 
         fn punctuation(&mut self, punctuation: char) {
             self.output.push(punctuation);
+            self.case = if punctuation == '.' {
+                CasePosition::SentenceInitial
+            } else {
+                CasePosition::Continuation
+            };
+            self.prefix = PrefixPosition::WordOwnedSpace;
+        }
+
+        fn structural_surface(&mut self, surface: &str, terminates_sentence: bool) {
+            self.output.push_str(surface);
+            if terminates_sentence {
+                self.case = CasePosition::SentenceInitial;
+            } else if self.case != CasePosition::SentenceInitial {
+                self.case = CasePosition::Continuation;
+            }
+            self.prefix = PrefixPosition::SurfaceOwned;
         }
 
         fn finish(self) -> String {
@@ -177,12 +200,15 @@ mod declaration_noun_fixture {
 
     impl ScanInput<'_> {
         fn word_end(&self, running_text: &str) -> Option<usize> {
-            let prefix = usize::from(self.position.case == CasePosition::Continuation);
+            let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
             let remainder = self.text.get(self.position.byte_offset..)?;
             let remainder = (prefix == 0)
                 .then_some(remainder)
                 .or_else(|| remainder.strip_prefix(' '))?;
-            let rendered = if self.position.case == CasePosition::DocumentInitial {
+            let rendered = if matches!(
+                self.position.case,
+                CasePosition::DocumentInitial | CasePosition::SentenceInitial
+            ) {
                 let mut characters = running_text.chars();
                 characters
                     .next()
@@ -205,6 +231,12 @@ mod declaration_noun_fixture {
             self.text[self.position.byte_offset..]
                 .starts_with(punctuation)
                 .then_some(self.position.byte_offset + punctuation.len())
+        }
+
+        fn structural_surface_end(&self, surface: &str) -> Option<usize> {
+            self.text[self.position.byte_offset..]
+                .starts_with(surface)
+                .then_some(self.position.byte_offset + surface.len())
         }
 
         fn declaration_noun_readings(
@@ -394,7 +426,15 @@ mod declaration_noun_fixture {
             scan_lexical(
                 &ScanInput {
                     text,
-                    position: ScanPosition { byte_offset, case },
+                    position: ScanPosition {
+                        byte_offset,
+                        case,
+                        prefix: if byte_offset == 0 {
+                            PrefixPosition::None
+                        } else {
+                            PrefixPosition::WordOwnedSpace
+                        },
+                    },
                     environment,
                     context,
                 },
@@ -514,7 +554,15 @@ mod declaration_noun_fixture {
             scan_lexical(
                 &ScanInput {
                     text,
-                    position: ScanPosition { byte_offset, case },
+                    position: ScanPosition {
+                        byte_offset,
+                        case,
+                        prefix: if byte_offset == 0 {
+                            PrefixPosition::None
+                        } else {
+                            PrefixPosition::WordOwnedSpace
+                        },
+                    },
                     environment: &environment,
                     context: &context,
                 },
@@ -626,6 +674,8 @@ pub mod fixture {
 
     struct Writer<'a> {
         output: String,
+        case: CasePosition,
+        prefix: PrefixPosition,
         claims: ClaimSink<'a>,
     }
 
@@ -633,6 +683,8 @@ pub mod fixture {
         fn new() -> Self {
             Self {
                 output: String::new(),
+                case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
                 claims: ClaimSink::Noop,
             }
         }
@@ -640,6 +692,8 @@ pub mod fixture {
         fn collecting(claims: &mut Vec<RawRenderedClaim>) -> Writer<'_> {
             Writer {
                 output: String::new(),
+                case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
                 claims: ClaimSink::Collect(claims),
             }
         }
@@ -658,18 +712,52 @@ pub mod fixture {
         }
 
         fn word(&mut self, word: &str) {
-            if !self.output.is_empty() {
+            if self.prefix == PrefixPosition::WordOwnedSpace {
                 self.output.push(' ');
             }
-            self.output.push_str(word);
+            if matches!(
+                self.case,
+                CasePosition::DocumentInitial | CasePosition::SentenceInitial
+            ) {
+                let mut characters = word.chars();
+                if let Some(first) = characters.next() {
+                    self.output.extend(first.to_uppercase());
+                    self.output.push_str(characters.as_str());
+                }
+            } else {
+                self.output.push_str(word);
+            }
+            self.case = CasePosition::Continuation;
+            self.prefix = PrefixPosition::WordOwnedSpace;
         }
 
         fn punctuation(&mut self, punctuation: char) {
             self.output.push(punctuation);
+            self.case = if punctuation == '.' {
+                CasePosition::SentenceInitial
+            } else {
+                CasePosition::Continuation
+            };
+            self.prefix = PrefixPosition::WordOwnedSpace;
         }
 
         fn identity(&mut self, identity: &str) {
-            self.word(identity);
+            if self.prefix == PrefixPosition::WordOwnedSpace {
+                self.output.push(' ');
+            }
+            self.output.push_str(identity);
+            self.case = CasePosition::Continuation;
+            self.prefix = PrefixPosition::WordOwnedSpace;
+        }
+
+        fn structural_surface(&mut self, surface: &str, terminates_sentence: bool) {
+            self.output.push_str(surface);
+            if terminates_sentence {
+                self.case = CasePosition::SentenceInitial;
+            } else if self.case != CasePosition::SentenceInitial {
+                self.case = CasePosition::Continuation;
+            }
+            self.prefix = PrefixPosition::SurfaceOwned;
         }
 
         fn finish(self) -> String {
@@ -764,12 +852,15 @@ pub mod fixture {
 
     impl ScanInput<'_> {
         fn word_end(&self, running_text: &str) -> Option<usize> {
-            let prefix = usize::from(self.position.case == CasePosition::Continuation);
+            let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
             let remainder = self.text.get(self.position.byte_offset..)?;
             let remainder = (prefix == 0)
                 .then_some(remainder)
                 .or_else(|| remainder.strip_prefix(' '))?;
-            let rendered = if self.position.case == CasePosition::DocumentInitial {
+            let rendered = if matches!(
+                self.position.case,
+                CasePosition::DocumentInitial | CasePosition::SentenceInitial
+            ) {
                 let mut chars = running_text.chars();
                 chars
                     .next()
@@ -798,8 +889,14 @@ pub mod fixture {
                 .then_some(self.position.byte_offset + punctuation.len())
         }
 
+        fn structural_surface_end(&self, surface: &str) -> Option<usize> {
+            self.text[self.position.byte_offset..]
+                .starts_with(surface)
+                .then_some(self.position.byte_offset + surface.len())
+        }
+
         fn identity_end(&self, exact_text: &str) -> Option<usize> {
-            let prefix = usize::from(self.position.case == CasePosition::Continuation);
+            let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
             let remainder = self.text.get(self.position.byte_offset..)?;
             let remainder = (prefix == 0)
                 .then_some(remainder)
@@ -844,6 +941,7 @@ pub mod fixture {
             Gamma = "gamma",
             Delta = "delta",
         }
+        vocab Letter { A = "a", B = "b", }
         morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
         lexeme VerbLexeme using EnglishVerb {
             Act = "act",
@@ -1104,6 +1202,10 @@ pub mod fixture {
             element StructuralAtomValue { marker: lex StructuralWord, }
             form structural_atom = lex(marker);
         }
+        construction letter_atom: LetterAtom {
+            element LetterAtomValue { letter: lex Letter, }
+            form letter_atom = lex(letter);
+        }
 
         abstract sum Choice { Child, MarkerCategory, }
         abstract product Holder {
@@ -1130,6 +1232,32 @@ pub mod fixture {
             } terminated by "<T>",
         }
         require len(PositionalStructural.items) >= 1;
+        abstract product SentenceStructural {
+            items: seq LetterAtom separated by " " terminated by ".",
+        }
+        require len(SentenceStructural.items) >= 1;
+        abstract product SingletonBlock {
+            sentences: seq LetterAtom terminated by ".",
+        }
+        require len(SingletonBlock.sentences) = 1;
+        abstract product BlockDocument {
+            blocks: seq SingletonBlock separated by "\n",
+        }
+        require len(BlockDocument.blocks) = 2;
+        abstract product ContinuationStructural {
+            items: seq StructuralAtom separated by position {
+                pair = " and ";
+                first = ", ";
+                middle = "; ";
+                last = ", and ";
+            },
+        }
+        require len(ContinuationStructural.items) >= 1;
+        abstract sum TraversalChoice { StructuralAtom, MarkerCategory, }
+        abstract product TraversalHolder {
+            maybe: opt TraversalChoice,
+            items: seq TraversalChoice separated by ", ",
+        }
 
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         root BeSentence { punctuation = "."; eoi = true; standalone_render = true; }
@@ -1146,6 +1274,7 @@ pub mod fixture {
         Sign(Sign),
         SignedNumber(Sign, u32),
         SelfRef(SelfRef),
+        StructuralWord(StructuralWord),
     }
 
     #[derive(Default)]
@@ -1175,6 +1304,10 @@ pub mod fixture {
 
         fn visit_self_ref(&mut self, spelling: SelfRef) {
             self.0.push(VisitEvent::SelfRef(spelling));
+        }
+
+        fn visit_structural_word(&mut self, word: StructuralWord) {
+            self.0.push(VisitEvent::StructuralWord(word));
         }
     }
 
@@ -1364,6 +1497,7 @@ pub mod fixture {
             position: ScanPosition {
                 byte_offset: 0,
                 case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
             },
             context,
         };
@@ -1396,6 +1530,11 @@ pub mod fixture {
                     position: ScanPosition {
                         byte_offset: 0,
                         case,
+                        prefix: if case == CasePosition::DocumentInitial {
+                            PrefixPosition::None
+                        } else {
+                            PrefixPosition::WordOwnedSpace
+                        },
                     },
                     context,
                 },
@@ -1474,6 +1613,7 @@ pub mod fixture {
             position: ScanPosition {
                 byte_offset: 0,
                 case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
             },
             context,
         };
@@ -1537,6 +1677,7 @@ pub mod fixture {
                 position: ScanPosition {
                     byte_offset: 0,
                     case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
                 },
                 context,
             },
@@ -1567,10 +1708,10 @@ pub mod fixture {
             panic!("Bare Be rule produced the wrong generated category value")
         };
         let (rendered, claims) = render_be_sentence_with_claims(&be_sentence, context);
-        assert_eq!(rendered, "are.");
+        assert_eq!(rendered, "Are.");
         assert!(claims.iter().any(|claim| {
             claim.owner.stable_id() == "lexeme:VerbLexeme/Be/bare"
-                && &rendered[claim.start..claim.end] == "are"
+                && &rendered[claim.start..claim.end] == "Are"
         }));
     }
 
@@ -1598,7 +1739,15 @@ pub mod fixture {
             };
             let input = ScanInput {
                 text: rendered,
-                position: ScanPosition { byte_offset, case },
+                position: ScanPosition {
+                    byte_offset,
+                    case,
+                    prefix: if byte_offset == 0 {
+                        PrefixPosition::None
+                    } else {
+                        PrefixPosition::WordOwnedSpace
+                    },
+                },
                 context,
             };
             let terminal = LexicalTerminal {
@@ -1627,6 +1776,7 @@ pub mod fixture {
             position: ScanPosition {
                 byte_offset: start,
                 case: CasePosition::Continuation,
+                prefix: PrefixPosition::SurfaceOwned,
             },
             context,
         };
@@ -1711,8 +1861,23 @@ pub mod fixture {
                             byte_offset: offset,
                             case: if offset == 0 {
                                 CasePosition::DocumentInitial
+                            } else if text.get(..offset).is_some_and(|prefix| {
+                                prefix.trim_end_matches(char::is_whitespace).ends_with('.')
+                            }) {
+                                CasePosition::SentenceInitial
                             } else {
                                 CasePosition::Continuation
+                            },
+                            prefix: if offset == 0 {
+                                PrefixPosition::None
+                            } else if matches!(
+                                terminal.owner,
+                                LexicalOwnerTemplate::Structural { .. }
+                            ) || text.as_bytes().get(offset) != Some(&b' ')
+                            {
+                                PrefixPosition::SurfaceOwned
+                            } else {
+                                PrefixPosition::WordOwnedSpace
                             },
                         },
                         context,
@@ -1764,36 +1929,31 @@ pub mod fixture {
             Category::TerminatedStructural,
             &[
                 "",
-                "Alpha <T>",
-                "Alpha <T> beta <T>",
-                "Alpha <T> beta <T> gamma <T> delta <T>",
+                "Alpha<T>",
+                "Alpha<T>beta<T>",
+                "Alpha<T>beta<T>gamma<T>delta<T>",
             ],
         );
         assert_structural_accepts(
             Category::SeparatedStructural,
-            &[
-                "",
-                "Alpha",
-                "Alpha <S> beta",
-                "Alpha <S> beta <S> gamma <S> delta",
-            ],
+            &["", "Alpha", "Alpha<S>beta", "Alpha<S>beta<S>gamma<S>delta"],
         );
         assert_structural_accepts(
             Category::CombinedStructural,
             &[
                 "",
-                "Alpha <T>",
-                "Alpha <T> <S> beta <T>",
-                "Alpha <T> <S> beta <T> <S> gamma <T> <S> delta <T>",
+                "Alpha<T>",
+                "Alpha<T><S>beta<T>",
+                "Alpha<T><S>beta<T><S>gamma<T><S>delta<T>",
             ],
         );
         assert_structural_accepts(
             Category::PositionalStructural,
             &[
-                "Alpha <T>",
-                "Alpha <T> <P> beta <T>",
-                "Alpha <T> <F> beta <T> <L> gamma <T>",
-                "Alpha <T> <F> beta <T> <M> gamma <T> <L> delta <T>",
+                "Alpha<T>",
+                "Alpha<T><P>beta<T>",
+                "Alpha<T><F>beta<T><L>gamma<T>",
+                "Alpha<T><F>beta<T><M>gamma<T><L>delta<T>",
             ],
         );
 
@@ -1855,6 +2015,266 @@ pub mod fixture {
         assert_eq!(values, four, "recursive folds preserve source order");
     }
 
+    fn collect_first_family_claims(
+        forest: &engine::Forest<RuleId, Leaf, LexicalOwner>,
+        node: engine::NodeId,
+        claims: &mut Vec<(usize, usize, String)>,
+    ) {
+        for child in &forest.node(node).families[0].children {
+            match child {
+                engine::Child::Node(child) => collect_first_family_claims(forest, *child, claims),
+                engine::Child::Lexical(lexical) => {
+                    if let Some(owner) = &lexical.owner {
+                        claims.push((
+                            lexical.span.start,
+                            lexical.span.end,
+                            owner.stable_id().to_owned(),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    fn assert_exact_partition(text: &str, claims: &[(usize, usize, String)]) {
+        let mut next = 0;
+        for (start, end, _) in claims {
+            assert_eq!(*start, next, "claim gap or overlap in {claims:?}");
+            assert!(*end > *start, "zero-width lexical claim in {claims:?}");
+            next = *end;
+        }
+        assert_eq!(next, text.len(), "claim partition does not cover {text:?}");
+    }
+
+    fn render_structural<T>(
+        value: &T,
+        context: &ParseContext<'_>,
+        render: fn(&mut Writer<'_>, &T, &ParseContext<'_>),
+    ) -> (String, Vec<(usize, usize, String)>) {
+        let mut claims = Vec::new();
+        let mut writer = Writer::collecting(&mut claims);
+        render(&mut writer, value, context);
+        let text = writer.finish();
+        let claims = claims
+            .into_iter()
+            .map(|claim| (claim.start, claim.end, claim.owner.stable_id().to_owned()))
+            .collect();
+        (text, claims)
+    }
+
+    fn assert_structural_surface_lookup() {
+        let pair = sequence_separator(SequenceOwner::PositionalStructuralItems, 2, 0);
+        let three_first = sequence_separator(SequenceOwner::PositionalStructuralItems, 3, 0);
+        let three_last = sequence_separator(SequenceOwner::PositionalStructuralItems, 3, 1);
+        let four_middle = sequence_separator(SequenceOwner::PositionalStructuralItems, 4, 1);
+        assert_eq!(pair[0].text, "<P>");
+        assert_eq!(three_first[0].text, "<F>");
+        assert_eq!(three_last[0].text, "<L>");
+        assert_eq!(four_middle[0].text, "<M>");
+        assert!(
+            sequence_separator(SequenceOwner::PositionalStructuralItems, 4, usize::MAX,).is_empty()
+        );
+        assert_eq!(
+            pair[0].stable_id,
+            "structural:PositionalStructural/items/separator/pair/0",
+        );
+        assert_eq!(
+            sequence_terminator(SequenceOwner::PositionalStructuralItems)[0].stable_id,
+            "structural:PositionalStructural/items/terminator/0",
+        );
+    }
+
+    fn assert_sentence_and_block_partitions(context: &ParseContext<'_>) {
+        let letter = |letter| LetterAtom::LetterAtom(LetterAtomValue { letter });
+        let sentence = SentenceStructural::new(vec![letter(Letter::A), letter(Letter::B)])
+            .expect("two sentence members satisfy the nonempty bound");
+        let (text, rendered_claims) =
+            render_structural(&sentence, context, render_sentence_structural);
+        assert_eq!(text, "A. B.");
+        assert_eq!(
+            rendered_claims,
+            [
+                (0, 1, "vocab:Letter/A".to_owned()),
+                (
+                    1,
+                    2,
+                    "structural:SentenceStructural/items/terminator/0".to_owned(),
+                ),
+                (
+                    2,
+                    3,
+                    "structural:SentenceStructural/items/separator/uniform/0".to_owned(),
+                ),
+                (3, 4, "vocab:Letter/B".to_owned()),
+                (
+                    4,
+                    5,
+                    "structural:SentenceStructural/items/terminator/0".to_owned(),
+                ),
+            ],
+        );
+        assert_exact_partition(&text, &rendered_claims);
+
+        let forest = parse_structural(Category::SentenceStructural, &text, context);
+        let root = forest
+            .accepted_root_ids()
+            .next()
+            .expect("one accepted sentence root");
+        let mut parsed_claims = Vec::new();
+        collect_first_family_claims(&forest, root, &mut parsed_claims);
+        assert_eq!(parsed_claims, rendered_claims);
+        assert_exact_partition(&text, &parsed_claims);
+
+        let block_a = SingletonBlock::new(vec![letter(Letter::A)]).expect("one sentence in block");
+        let block_b = SingletonBlock::new(vec![letter(Letter::B)]).expect("one sentence in block");
+        let document = BlockDocument::new(vec![block_a, block_b]).expect("two blocks in document");
+        let (text, rendered_claims) = render_structural(&document, context, render_block_document);
+        assert_eq!(text, "A.\nB.");
+        assert_eq!(
+            rendered_claims,
+            [
+                (0, 1, "vocab:Letter/A".to_owned()),
+                (
+                    1,
+                    2,
+                    "structural:SingletonBlock/sentences/terminator/0".to_owned(),
+                ),
+                (
+                    2,
+                    3,
+                    "structural:BlockDocument/blocks/separator/uniform/0".to_owned(),
+                ),
+                (3, 4, "vocab:Letter/B".to_owned()),
+                (
+                    4,
+                    5,
+                    "structural:SingletonBlock/sentences/terminator/0".to_owned(),
+                ),
+            ],
+        );
+        assert_exact_partition(&text, &rendered_claims);
+
+        let forest = parse_structural(Category::BlockDocument, &text, context);
+        let root = forest
+            .accepted_root_ids()
+            .next()
+            .expect("one accepted document root");
+        let mut parsed_claims = Vec::new();
+        collect_first_family_claims(&forest, root, &mut parsed_claims);
+        assert_eq!(parsed_claims, rendered_claims);
+        assert_exact_partition(&text, &parsed_claims);
+    }
+
+    pub(super) fn assert_structural_render_scan_ownership_and_traversal() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+        };
+        let atom = |marker| StructuralAtom::StructuralAtom(StructuralAtomValue { marker });
+        let alpha = atom(StructuralWord::Alpha);
+        let beta = atom(StructuralWord::Beta);
+        let gamma = atom(StructuralWord::Gamma);
+        let delta = atom(StructuralWord::Delta);
+
+        let cases = [
+            render_structural(
+                &TerminatedStructural {
+                    items: vec![alpha.clone(), beta.clone()],
+                },
+                &context,
+                render_terminated_structural,
+            ),
+            render_structural(
+                &SeparatedStructural {
+                    items: vec![alpha.clone(), beta.clone()],
+                },
+                &context,
+                render_separated_structural,
+            ),
+            render_structural(
+                &CombinedStructural {
+                    items: vec![alpha.clone(), beta.clone()],
+                },
+                &context,
+                render_combined_structural,
+            ),
+            render_structural(
+                &PositionalStructural::new(vec![alpha.clone(), beta.clone()])
+                    .expect("pair is allowed"),
+                &context,
+                render_positional_structural,
+            ),
+            render_structural(
+                &PositionalStructural::new(vec![alpha.clone(), beta.clone(), gamma.clone()])
+                    .expect("three members are allowed"),
+                &context,
+                render_positional_structural,
+            ),
+            render_structural(
+                &PositionalStructural::new(vec![
+                    alpha.clone(),
+                    beta.clone(),
+                    gamma.clone(),
+                    delta.clone(),
+                ])
+                .expect("four members are allowed"),
+                &context,
+                render_positional_structural,
+            ),
+        ];
+        assert_eq!(
+            cases
+                .iter()
+                .map(|(text, _)| text.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "Alpha<T>beta<T>",
+                "Alpha<S>beta",
+                "Alpha<T><S>beta<T>",
+                "Alpha<T><P>beta<T>",
+                "Alpha<T><F>beta<T><L>gamma<T>",
+                "Alpha<T><F>beta<T><M>gamma<T><L>delta<T>",
+            ],
+        );
+        for (text, claims) in &cases {
+            assert_exact_partition(text, claims);
+        }
+
+        assert_sentence_and_block_partitions(&context);
+
+        assert_structural_surface_lookup();
+
+        let continuation = ContinuationStructural::new(vec![alpha.clone(), beta.clone()])
+            .expect("pair continuation is allowed");
+        let (text, claims) =
+            render_structural(&continuation, &context, render_continuation_structural);
+        assert_eq!(text, "Alpha and beta");
+        assert_eq!((claims[2].0, claims[2].1), (10, 14));
+        assert_exact_partition(&text, &claims);
+
+        let traversal = TraversalHolder {
+            maybe: Some(TraversalChoice::StructuralAtom(alpha)),
+            items: vec![
+                TraversalChoice::StructuralAtom(beta),
+                TraversalChoice::MarkerCategory(MarkerCategory::Marker(WalkMarker {
+                    marker: Marker::One,
+                })),
+            ],
+        };
+        let mut visitor = RecordingVisitor::default();
+        walk_traversal_holder(&mut visitor, &traversal);
+        assert_eq!(
+            visitor.0,
+            [
+                VisitEvent::StructuralWord(StructuralWord::Alpha),
+                VisitEvent::StructuralWord(StructuralWord::Beta),
+                VisitEvent::Marker(Marker::One),
+            ],
+            "optional then sequence traversal follows stored source order",
+        );
+    }
+
     #[allow(
         clippy::too_many_lines,
         reason = "one authentic compiled consumer executes the complete boundary matrix"
@@ -1882,6 +2302,7 @@ pub mod fixture {
                 position: ScanPosition {
                     byte_offset: 0,
                     case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
                 },
                 context: &abbreviated_context,
             },
@@ -2161,7 +2582,7 @@ pub mod fixture {
         });
         let rendered_hygiene_root = Render::render(&hygiene_root, &context);
         assert_eq!(
-            rendered_hygiene_root, "marker card marker act bare writer marker marker!",
+            rendered_hygiene_root, "Marker card marker act bare writer marker marker!",
             "allocated render locals preserve ABI values and generated helper calls",
         );
         assert_generated_punctuation_scan(&rendered_hygiene_root, Some("marker"), "!", &context);
@@ -2170,7 +2591,7 @@ pub mod fixture {
         });
         assert_eq!(
             Render::render(&context_free_nested_root, &context),
-            "bare.",
+            "Bare.",
             "a context-free nested category and its standalone root share one helper arity",
         );
 
@@ -2220,6 +2641,7 @@ pub mod fixture {
                 position: ScanPosition {
                     byte_offset: 0,
                     case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
                 },
                 context: &context,
             },
@@ -2266,7 +2688,7 @@ pub mod fixture {
             panic!("raw nonkeyword root preserves its generated category value")
         };
         let rendered_raw_category = Render::render(&raw_category, &context);
-        assert_eq!(rendered_raw_category, "raw?");
+        assert_eq!(rendered_raw_category, "Raw?");
         assert_generated_punctuation_scan(&rendered_raw_category, None, "?", &context);
         walk_raw_category(&mut recording, &raw_category);
     }
@@ -2291,4 +2713,9 @@ fn structural_constructors_enforce_the_compiled_public_boundary() {
 #[test]
 fn structural_helpers_parse_and_fold_through_ordinary_bnf() {
     fixture::assert_structural_bnf_boundaries();
+}
+
+#[test]
+fn structural_surfaces_ownership_and_traversal_execute_generated_code() {
+    fixture::assert_structural_render_scan_ownership_and_traversal();
 }

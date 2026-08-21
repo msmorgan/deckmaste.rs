@@ -682,7 +682,7 @@ fn lower_sequence_rhs(
                 tail = Some(binding);
             }
             super::rules::RuleSymbolPlan::Surface(surface) => {
-                patterns.push(fixed_surface_pattern(plan, surface)?);
+                patterns.push(fixed_surface_pattern(plan, &surface.atom)?);
             }
             super::rules::RuleSymbolPlan::Authored { .. } => {
                 return Err(internal(&format!(

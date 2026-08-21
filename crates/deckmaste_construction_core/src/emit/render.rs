@@ -16,6 +16,7 @@ use crate::identifier::feature_helper;
 use crate::identifier::key as identifier_key;
 use crate::identifier::lexeme_surface_helper;
 use crate::identifier::snake_case;
+use crate::identifier::structural_sequence_renderer;
 use crate::model::VisitMode;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
@@ -32,8 +33,11 @@ use crate::semantic::ConstructionPlan;
 use crate::semantic::LexemePlan;
 use crate::semantic::RootPlan;
 use crate::semantic::SemanticPlan;
+use crate::semantic::SeparatorPlan;
 use crate::semantic::SignedDecimalPlan;
+use crate::semantic::StructuralFieldKindPlan;
 use crate::semantic::TerminalPlan;
+use crate::semantic::ValueKindPlan;
 use crate::semantic::VocabPlan;
 
 #[allow(
@@ -53,6 +57,27 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         .flat_map(ConstructionPlan::fields)
         .filter(|field| field.kind() == ConstructionFieldKind::Category)
         .map(|field| field.terminal().to_owned())
+        .chain(validated.products().iter().flat_map(|product| {
+            product
+                .fields()
+                .iter()
+                .filter_map(|field| match field.kind().value() {
+                    ValueKindPlan::Category(category) => Some(category.clone()),
+                    ValueKindPlan::Lex(_)
+                    | ValueKindPlan::Identity(_)
+                    | ValueKindPlan::Product(_)
+                    | ValueKindPlan::Sum(_) => None,
+                })
+        }))
+        .chain(validated.sums().iter().flat_map(|sum| {
+            sum.alternatives().iter().filter_map(|alternative| {
+                if let ValueKindPlan::Category(category) = alternative.value() {
+                    Some(category.clone())
+                } else {
+                    None
+                }
+            })
+        }))
         .collect::<HashSet<_>>();
     let root_names = roots
         .iter()
@@ -60,6 +85,8 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         .collect::<HashSet<_>>();
     let mut items = Vec::new();
     let takes_environment = validated.needs_parser_environment();
+    items.extend(emit_structural_surface_runtime(validated)?);
+    items.extend(emit_structural_renderers(validated, &root_names)?);
     for root in &roots {
         let category = root.category().to_owned();
         let write_function = ident(&format!("write_{}_render", snake_case(&category)));
@@ -296,6 +323,579 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         }
     }
     Ok(items)
+}
+
+fn emit_structural_surface_runtime(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
+    let carriers = structural_sequence_carriers(plan);
+    if carriers.is_empty() {
+        return Ok(Vec::new());
+    }
+    let owner_variants = carriers.iter().map(|carrier| {
+        ident(&format!(
+            "{}{}",
+            crate::identifier::pascal_case(carrier.owner),
+            crate::identifier::pascal_case(carrier.field.name()),
+        ))
+    });
+    let separator_arms = carriers
+        .iter()
+        .map(|carrier| -> syn::Result<TokenStream> {
+            let variant = ident(&format!(
+                "{}{}",
+                crate::identifier::pascal_case(carrier.owner),
+                crate::identifier::pascal_case(carrier.field.name()),
+            ));
+            let StructuralFieldKindPlan::Sequence { surface, .. } = carrier.field.kind() else {
+                return Err(internal("sequence surface owner is not a sequence"));
+            };
+            let body = match surface.separator() {
+                None => quote! { &[] },
+                Some(SeparatorPlan::Uniform(surface)) => fixed_surface_atoms(
+                    plan,
+                    carrier.owner,
+                    carrier.field.name(),
+                    surface,
+                    crate::emit::rules::StructuralSurfacePolicy::SeparatorUniform,
+                )?,
+                Some(SeparatorPlan::Positional(rows)) => {
+                    let arms = rows
+                        .iter()
+                        .map(|row| -> syn::Result<TokenStream> {
+                            let condition = match row.class() {
+                                crate::semantic::EdgeClass::Pair => {
+                                    quote! { member_count == 2 && edge_index == 0 }
+                                }
+                                crate::semantic::EdgeClass::First => {
+                                    quote! { member_count >= 3 && edge_index == 0 }
+                                }
+                                crate::semantic::EdgeClass::Middle => quote! {
+                                    member_count >= 4
+                                        && edge_index > 0
+                                        && edge_index < member_count - 2
+                                },
+                                crate::semantic::EdgeClass::Last => quote! {
+                                    member_count >= 3 && edge_index == member_count - 2
+                                },
+                            };
+                            let atoms = fixed_surface_atoms(
+                                plan,
+                                carrier.owner,
+                                carrier.field.name(),
+                                row.surface(),
+                                crate::emit::rules::StructuralSurfacePolicy::SeparatorPositional(
+                                    row.class(),
+                                ),
+                            )?;
+                            Ok(quote! { if #condition { return #atoms; } })
+                        })
+                        .collect::<syn::Result<Vec<_>>>()?;
+                    quote! {{ #(#arms)* &[] }}
+                }
+            };
+            Ok(quote! { SequenceOwner::#variant => #body })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let terminator_arms = carriers
+        .iter()
+        .map(|carrier| -> syn::Result<TokenStream> {
+            let variant = ident(&format!(
+                "{}{}",
+                crate::identifier::pascal_case(carrier.owner),
+                crate::identifier::pascal_case(carrier.field.name()),
+            ));
+            let StructuralFieldKindPlan::Sequence { surface, .. } = carrier.field.kind() else {
+                return Err(internal("sequence terminator owner is not a sequence"));
+            };
+            let atoms = surface.terminator().map_or_else(
+                || Ok(quote! { &[] }),
+                |terminator| {
+                    fixed_surface_atoms(
+                        plan,
+                        carrier.owner,
+                        carrier.field.name(),
+                        terminator,
+                        crate::emit::rules::StructuralSurfacePolicy::Terminator,
+                    )
+                },
+            )?;
+            Ok(quote! { SequenceOwner::#variant => #atoms })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let origins = plan.declaration_keys().to_vec();
+    Ok(vec![
+        GeneratedItem::new(
+            ItemKey::named_type(crate::identifier::SEQUENCE_OWNER_TYPE),
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum SequenceOwner { #(#owner_variants),* }
+            },
+            origins.clone(),
+        ),
+        GeneratedItem::new(
+            ItemKey::named_type(crate::identifier::FIXED_SURFACE_ATOM_TYPE),
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) struct FixedSurfaceAtom {
+                    pub(crate) text: &'static str,
+                    pub(crate) stable_id: &'static str,
+                    pub(crate) terminates_sentence: bool,
+                }
+            },
+            origins.clone(),
+        ),
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: crate::identifier::SEQUENCE_SEPARATOR_FUNCTION.to_owned(),
+            },
+            quote! {
+                pub(crate) fn sequence_separator(
+                    owner: SequenceOwner,
+                    member_count: usize,
+                    edge_index: usize,
+                ) -> &'static [FixedSurfaceAtom] {
+                    match owner { #(#separator_arms,)* }
+                }
+            },
+            origins.clone(),
+        ),
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: crate::identifier::SEQUENCE_TERMINATOR_FUNCTION.to_owned(),
+            },
+            quote! {
+                pub(crate) fn sequence_terminator(
+                    owner: SequenceOwner,
+                ) -> &'static [FixedSurfaceAtom] {
+                    match owner { #(#terminator_arms,)* }
+                }
+            },
+            origins,
+        ),
+    ])
+}
+
+fn structural_sequence_carriers(plan: &SemanticPlan) -> Vec<super::StructuralCarrier<'_>> {
+    super::structural_carriers(plan)
+        .into_iter()
+        .filter(|carrier| matches!(carrier.kind, super::StructuralCarrierKind::Sequence))
+        .collect()
+}
+
+fn fixed_surface_atoms(
+    plan: &SemanticPlan,
+    owner: &str,
+    role: &str,
+    surface: &crate::semantic::FixedSurfacePlan,
+    policy: crate::emit::rules::StructuralSurfacePolicy,
+) -> syn::Result<TokenStream> {
+    let atoms = surface
+        .atoms()
+        .iter()
+        .enumerate()
+        .map(|(atom_index, atom)| -> syn::Result<TokenStream> {
+            let text = fixed_surface_atom_text(plan, atom)?;
+            let stable_id = syn::LitStr::new(
+                &crate::emit::rules::structural_surface_stable_id(owner, role, policy, atom_index),
+                Span::call_site(),
+            );
+            let terminates_sentence = text.value() == ".";
+            Ok(quote! {
+                FixedSurfaceAtom {
+                    text: #text,
+                    stable_id: #stable_id,
+                    terminates_sentence: #terminates_sentence,
+                }
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(quote! { &[#(#atoms),*] })
+}
+
+fn fixed_surface_atom_text(
+    plan: &SemanticPlan,
+    atom: &crate::semantic::FixedSurfaceAtomPlan,
+) -> syn::Result<syn::LitStr> {
+    match atom {
+        crate::semantic::FixedSurfaceAtomPlan::Literal(value) => {
+            Ok(syn::LitStr::new(value, Span::call_site()))
+        }
+        crate::semantic::FixedSurfaceAtomPlan::Lex { terminal, variant } => {
+            let vocab = plan
+                .terminals()
+                .iter()
+                .find_map(|terminal_plan| match terminal_plan {
+                    TerminalPlan::Vocab(vocab) if vocab.name() == terminal => Some(vocab),
+                    _ => None,
+                })
+                .ok_or_else(|| internal("fixed lexical surface lacks its vocabulary"))?;
+            let value = vocab
+                .variants()
+                .iter()
+                .find(|candidate| identifier_key(candidate.name()) == *variant)
+                .map(crate::semantic::VocabVariantPlan::word)
+                .ok_or_else(|| internal("fixed lexical surface lacks its vocabulary member"))?;
+            Ok(value.clone())
+        }
+    }
+}
+
+fn emit_structural_renderers(
+    plan: &SemanticPlan,
+    root_names: &HashSet<String>,
+) -> syn::Result<Vec<GeneratedItem>> {
+    let mut items = Vec::new();
+    for product in plan.products() {
+        for field in product.fields() {
+            if matches!(field.kind(), StructuralFieldKindPlan::Sequence { .. }) {
+                items.push(emit_sequence_renderer(
+                    plan,
+                    product.name(),
+                    field,
+                    root_names,
+                    DeclarationKind::AbstractProduct,
+                )?);
+            }
+        }
+        items.push(emit_product_renderer(plan, product, root_names)?);
+    }
+    for construction in plan.constructions() {
+        for field in construction
+            .fields()
+            .iter()
+            .filter_map(|field| field.structural_plan())
+        {
+            if matches!(field.kind(), StructuralFieldKindPlan::Sequence { .. }) {
+                items.push(emit_sequence_renderer(
+                    plan,
+                    construction.element_type(),
+                    field,
+                    root_names,
+                    DeclarationKind::Construction,
+                )?);
+            }
+        }
+    }
+    for sum in plan.sums() {
+        items.push(emit_sum_renderer(plan, sum, root_names)?);
+    }
+    Ok(items)
+}
+
+fn emit_product_renderer(
+    plan: &SemanticPlan,
+    product: &crate::semantic::ProductPlan,
+    root_names: &HashSet<String>,
+) -> syn::Result<GeneratedItem> {
+    let function_name = crate::identifier::prefixed("render_", product.name());
+    let function = ident(&function_name);
+    let ty = ident(product.name());
+    let value = ident(&snake_case(product.name()));
+    let statements = product
+        .fields()
+        .iter()
+        .map(|field| render_structural_field(plan, product.name(), field, &value, root_names))
+        .collect::<syn::Result<Vec<_>>>()?;
+    let environment = plan.needs_parser_environment().then(|| {
+        quote! { , environment: &crate::environment::ParserEnvironment }
+    });
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            pub(crate) fn #function(
+                writer: &mut Writer,
+                #value: &#ty,
+                context: &ParseContext<'_> #environment,
+            ) { #(#statements)* }
+        },
+        vec![DeclarationKey::new(
+            DeclarationKind::AbstractProduct,
+            product.name(),
+        )],
+    ))
+}
+
+fn emit_sum_renderer(
+    plan: &SemanticPlan,
+    sum: &crate::semantic::SumPlan,
+    root_names: &HashSet<String>,
+) -> syn::Result<GeneratedItem> {
+    let function_name = crate::identifier::prefixed("render_", sum.name());
+    let function = ident(&function_name);
+    let ty = ident(sum.name());
+    let value = ident(&snake_case(sum.name()));
+    let arms = sum
+        .alternatives()
+        .iter()
+        .map(|alternative| -> syn::Result<TokenStream> {
+            let variant = ident(alternative.name());
+            let binding = ident("value");
+            let statement = render_structural_value(
+                plan,
+                alternative.value(),
+                quote! { #binding },
+                root_names,
+            )?;
+            Ok(quote! { #ty::#variant(#binding) => { #statement } })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let environment = plan.needs_parser_environment().then(|| {
+        quote! { , environment: &crate::environment::ParserEnvironment }
+    });
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            pub(crate) fn #function(
+                writer: &mut Writer,
+                #value: &#ty,
+                context: &ParseContext<'_> #environment,
+            ) { match #value { #(#arms),* } }
+        },
+        vec![DeclarationKey::new(
+            DeclarationKind::AbstractSum,
+            sum.name(),
+        )],
+    ))
+}
+
+fn emit_sequence_renderer(
+    plan: &SemanticPlan,
+    owner: &str,
+    field: &crate::semantic::StructuralFieldPlan,
+    root_names: &HashSet<String>,
+    kind: DeclarationKind,
+) -> syn::Result<GeneratedItem> {
+    let StructuralFieldKindPlan::Sequence { item, .. } = field.kind() else {
+        return Err(internal(
+            "structural sequence renderer received a non-sequence",
+        ));
+    };
+    let function_name = structural_sequence_renderer(owner, field.name());
+    let function = ident(&function_name);
+    let item_ty = super::value_kind_type(item);
+    let owner_variant = ident(&format!(
+        "{}{}",
+        crate::identifier::pascal_case(owner),
+        crate::identifier::pascal_case(field.name()),
+    ));
+    let render_value = render_structural_value(plan, item, quote! { value }, root_names)?;
+    let environment = plan.needs_parser_environment().then(|| {
+        quote! { , environment: &crate::environment::ParserEnvironment }
+    });
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(
+                writer: &mut Writer,
+                values: &[#item_ty],
+                context: &ParseContext<'_> #environment,
+            ) {
+                for (index, value) in values.iter().enumerate() {
+                    #render_value
+                    for atom in sequence_terminator(SequenceOwner::#owner_variant) {
+                        writer.claim(
+                            || LexicalOwner::static_owner(
+                                LexicalProvenanceKind::FormLiteral,
+                                atom.stable_id,
+                            ),
+                            |writer| writer.structural_surface(
+                                atom.text,
+                                atom.terminates_sentence,
+                            ),
+                        );
+                    }
+                    if index + 1 < values.len() {
+                        for atom in sequence_separator(
+                            SequenceOwner::#owner_variant,
+                            values.len(),
+                            index,
+                        ) {
+                            writer.claim(
+                                || LexicalOwner::static_owner(
+                                    LexicalProvenanceKind::FormLiteral,
+                                    atom.stable_id,
+                                ),
+                                |writer| writer.structural_surface(
+                                    atom.text,
+                                    atom.terminates_sentence,
+                                ),
+                            );
+                        }
+                    }
+                }
+            }
+        },
+        vec![DeclarationKey::new(kind, owner)],
+    ))
+}
+
+fn render_structural_field(
+    plan: &SemanticPlan,
+    owner: &str,
+    field: &crate::semantic::StructuralFieldPlan,
+    whole: &syn::Ident,
+    root_names: &HashSet<String>,
+) -> syn::Result<TokenStream> {
+    let name = ident(field.name());
+    match field.kind() {
+        StructuralFieldKindPlan::Required(value) => {
+            render_structural_value(plan, value, quote! { &#whole.#name }, root_names)
+        }
+        StructuralFieldKindPlan::Optional(value) => {
+            let statement = render_structural_value(plan, value, quote! { value }, root_names)?;
+            Ok(quote! {
+                if let Some(value) = #whole.#name.as_ref() { #statement }
+            })
+        }
+        StructuralFieldKindPlan::Sequence { .. } => {
+            let function = ident(&structural_sequence_renderer(owner, field.name()));
+            let environment = plan
+                .needs_parser_environment()
+                .then(|| quote! { , environment });
+            Ok(quote! { #function(writer, &#whole.#name, context #environment); })
+        }
+    }
+}
+
+fn render_structural_value(
+    plan: &SemanticPlan,
+    value: &ValueKindPlan,
+    expression: TokenStream,
+    root_names: &HashSet<String>,
+) -> syn::Result<TokenStream> {
+    let environment = plan
+        .needs_parser_environment()
+        .then(|| quote! { , environment });
+    match value {
+        ValueKindPlan::Category(category) => {
+            let capability = plan.category_render_capability(category);
+            if capability.requires_external_agreement() {
+                return Err(internal(
+                    "structural category rendering cannot supply external agreement",
+                ));
+            }
+            let function = render_category_name(category, root_names.contains(category));
+            let context = capability.requires_context().then(|| quote! { , context });
+            Ok(quote! { #function(writer, #expression #context #environment); })
+        }
+        ValueKindPlan::Product(name) | ValueKindPlan::Sum(name) => {
+            let function = ident(&crate::identifier::prefixed("render_", name));
+            Ok(quote! { #function(writer, #expression, context #environment); })
+        }
+        ValueKindPlan::Lex(name) => {
+            if let Some(vocab) = find_vocab(plan, name) {
+                let function = ident(&format!("render_{}", snake_case(vocab.name())));
+                let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
+                let owner_arms = vocab.variants().iter().map(|variant| {
+                    let member =
+                        emitted_ident(&identifier_key(variant.name()), variant.name().span());
+                    let stable_id = syn::LitStr::new(
+                        &format!("vocab:{}/{}", vocab.name(), member),
+                        Span::call_site(),
+                    );
+                    quote! {
+                        #ty::#member => LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Vocab,
+                            #stable_id,
+                        )
+                    }
+                });
+                Ok(quote! {
+                    writer.claim(
+                        || match *#expression { #(#owner_arms,)* },
+                        |writer| #function(writer, *#expression),
+                    );
+                })
+            } else if let Some(codec) = find_signed_decimal(plan, name) {
+                let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
+                let stable_id = syn::LitStr::new(&format!("codec:{name}"), Span::call_site());
+                Ok(quote! {
+                    writer.claim(
+                        || LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Codec,
+                            #stable_id,
+                        ),
+                        |writer| #function(writer, #expression),
+                    );
+                })
+            } else {
+                let binding = find_binding(plan, name)?;
+                let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
+                    return Err(internal("structural lexical value lacks runtime rendering"));
+                };
+                let expression = match binding.traversal().mode() {
+                    VisitMode::Copy => quote! { *#expression },
+                    VisitMode::Borrowed => expression,
+                };
+                let (kind, prefix) = match binding.kind() {
+                    crate::model::TerminalBindingKind::Codec => {
+                        (quote! { LexicalProvenanceKind::Codec }, "codec")
+                    }
+                    crate::model::TerminalBindingKind::Identity => {
+                        (quote! { LexicalProvenanceKind::Identity }, "identity")
+                    }
+                };
+                let stable_id = syn::LitStr::new(&format!("{prefix}:{name}"), Span::call_site());
+                Ok(quote! {
+                    writer.claim(
+                        || LexicalOwner::static_owner(#kind, #stable_id),
+                        |writer| #function(writer, #expression),
+                    );
+                })
+            }
+        }
+        ValueKindPlan::Identity(name) => {
+            if let Some(identity) = find_context_identity(plan, name) {
+                let ty = identity.ident();
+                let owner_arms = identity.arms().iter().map(|arm| {
+                    let member = arm.variant();
+                    let stable_id =
+                        syn::LitStr::new(&format!("identity:{name}/{member}"), Span::call_site());
+                    quote! {
+                        #ty::#member => LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Identity,
+                            #stable_id,
+                        )
+                    }
+                });
+                Ok(quote! {
+                    writer.claim(
+                        || match *#expression { #(#owner_arms,)* },
+                        |writer| writer.identity((#expression).surface(context)),
+                    );
+                })
+            } else {
+                let binding = find_binding(plan, name)?;
+                let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
+                    return Err(internal("structural identity lacks runtime rendering"));
+                };
+                let expression = match binding.traversal().mode() {
+                    VisitMode::Copy => quote! { *#expression },
+                    VisitMode::Borrowed => expression,
+                };
+                let stable_id = syn::LitStr::new(&format!("identity:{name}"), Span::call_site());
+                Ok(quote! {
+                    writer.claim(
+                        || LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Identity,
+                            #stable_id,
+                        ),
+                        |writer| #function(writer, #expression, context),
+                    );
+                })
+            }
+        }
+    }
 }
 
 struct VocabFeatureHelper<'a> {
@@ -700,7 +1300,6 @@ fn render_atoms(
     locals: &RenderLocals,
     root_names: &HashSet<String>,
 ) -> syn::Result<Vec<TokenStream>> {
-    let call_writer = quote! { writer };
     let method_writer = quote! { writer };
     let fields = construction
         .fields()
@@ -712,135 +1311,31 @@ fn render_atoms(
         .iter()
         .enumerate()
         .map(|(atom_index, atom)| {
-            let statement = match atom {
-                AtomPlan::Literal(value) => {
-                    if value.chars().count() == 1
-                        && value
-                            .chars()
-                            .all(|character| character.is_ascii_punctuation())
-                    {
-                        let mark = value
-                            .chars()
-                            .next()
-                            .ok_or_else(|| internal("one punctuation character is absent"))?;
-                        Ok(quote! { #method_writer.punctuation(#mark); })
-                    } else {
-                        let literal = syn::LitStr::new(value, Span::call_site());
-                        Ok(quote! { #method_writer.word(#literal); })
-                    }
-                }
-                AtomPlan::Category { role, .. } => {
-                    let field = fields
-                        .get(role)
-                        .ok_or_else(|| internal("resolved role is absent"))?;
-                    if field.kind() != ConstructionFieldKind::Category {
-                        return Err(internal("bare role is not a category"));
-                    }
-                    let category = field.terminal();
-                    let helper = render_category_name(category, root_names.contains(category));
-                    let value = field_value(construction, role, locals)?;
-                    let capability = validated.category_render_capability(category);
-                    let agreement = if capability.requires_external_agreement() {
-                        role_agreement(validated, construction, role, locals)?
-                    } else {
-                        None
-                    };
-                    let context = capability.requires_context().then(|| quote! { context });
-                    let environment = validated
-                        .needs_parser_environment()
-                        .then(|| quote! { environment });
-                    let tail = signature_tail(&[agreement, context, environment]);
-                    return Ok(quote! { #helper(#call_writer, #value #tail); });
-                }
-                AtomPlan::Lex { role, .. } => {
-                    let field = fields
-                        .get(role)
-                        .ok_or_else(|| internal("resolved lexical role is absent"))?;
-                    let terminal = field.terminal();
-                    let value = field_value(construction, role, locals)?;
-                    if let Some(vocab) = find_vocab(validated, terminal) {
-                        let function = ident(&format!("render_{}", snake_case(vocab.name())));
-                        let value = copy_value(construction, role, value)?;
-                        Ok(quote! { #function(#call_writer, #value); })
-                    } else if let Some(codec) = find_signed_decimal(validated, terminal) {
-                        let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
-                        Ok(quote! { #function(#call_writer, #value); })
-                    } else {
-                        let binding = find_binding(validated, terminal)?;
-                        let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
-                            return Err(internal("lex terminal lacks runtime render binding"));
-                        };
-                        let value = match binding.traversal().mode() {
-                            VisitMode::Copy => copy_value(construction, role, value)?,
-                            VisitMode::Borrowed => value,
-                        };
-                        Ok(quote! { #function(#call_writer, #value); })
-                    }
-                }
-                AtomPlan::Identity { role, .. } => {
-                    let field = fields
-                        .get(role)
-                        .ok_or_else(|| internal("resolved identity role is absent"))?;
-                    let value = field_value(construction, role, locals)?;
-                    if find_context_identity(validated, field.terminal()).is_some() {
-                        let value = copy_value(construction, role, value)?;
-                        Ok(quote! { #method_writer.identity((#value).surface(context)); })
-                    } else {
-                        let binding = find_binding(validated, field.terminal())?;
-                        match binding
-                            .render()
-                            .ok_or_else(|| internal("identity lacks render metadata"))?
-                        {
-                            BindingRenderPlan::Runtime(function) => {
-                                let value = match binding.traversal().mode() {
-                                    VisitMode::Copy => copy_value(construction, role, value)?,
-                                    VisitMode::Borrowed => value,
-                                };
-                                Ok(quote! { #function(#call_writer, #value, context); })
-                            }
-                            BindingRenderPlan::ContextIdentity(arms) => {
-                                let ty = binding.value_type_name();
-                                let match_arms = arms.iter().map(|arm| {
-                                    let variant = arm.variant();
-                                    let accessor = arm.accessor();
-                                    crate::emit::call_match_arm(
-                                        &quote! { #ty::#variant },
-                                        &quote! { #method_writer.identity(context.#accessor()) },
-                                        12,
-                                    )
-                                });
-                                let value = match binding.traversal().mode() {
-                                    VisitMode::Copy => copy_value(construction, role, value)?,
-                                    VisitMode::Borrowed => value,
-                                };
-                                Ok(quote! { match #value { #(#match_arms),* } })
-                            }
-                        }
-                    }
-                }
-                AtomPlan::VerbFixed {
-                    terminal,
-                    path: variant,
-                    ..
-                } => render_fixed_verb_atom(validated, construction, locals, terminal, variant),
-                AtomPlan::OpenDeclaration(open) => {
-                    render_open_declaration(validated, construction, open, locals, &method_writer)
-                }
-                AtomPlan::Noun { role, .. } => {
-                    let field = fields
-                        .get(role)
-                        .ok_or_else(|| internal("resolved noun role is absent"))?;
-                    render_noun_atom(
-                        validated,
-                        construction,
-                        field,
-                        role,
-                        locals,
-                        &method_writer,
-                        &call_writer,
-                    )
-                }
-            }?;
+            if let Some(role) = render_atom_role(atom)
+                && let Some(field) = fields.get(role)
+                && let Some(structural) = field.structural_plan()
+            {
+                return render_construction_structural_field(
+                    validated,
+                    construction,
+                    role,
+                    structural,
+                    locals,
+                    root_names,
+                );
+            }
+            if matches!(atom, AtomPlan::Category { .. }) {
+                return render_atom_statement(
+                    validated,
+                    construction,
+                    atom,
+                    locals,
+                    root_names,
+                    &fields,
+                );
+            }
+            let statement =
+                render_atom_statement(validated, construction, atom, locals, root_names, &fields)?;
             let owner = render_owner(validated, construction, atom_index, atom, locals)?;
             Ok(quote! {
                 #method_writer.claim(
@@ -850,6 +1345,187 @@ fn render_atoms(
             })
         })
         .collect()
+}
+
+fn render_atom_statement(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    atom: &AtomPlan,
+    locals: &RenderLocals,
+    root_names: &HashSet<String>,
+    fields: &HashMap<String, &ConstructionFieldPlan>,
+) -> syn::Result<TokenStream> {
+    let call_writer = quote! { writer };
+    let method_writer = quote! { writer };
+    match atom {
+        AtomPlan::Literal(value) => {
+            if value.chars().count() == 1
+                && value
+                    .chars()
+                    .all(|character| character.is_ascii_punctuation())
+            {
+                let mark = value
+                    .chars()
+                    .next()
+                    .ok_or_else(|| internal("one punctuation character is absent"))?;
+                Ok(quote! { #method_writer.punctuation(#mark); })
+            } else {
+                let literal = syn::LitStr::new(value, Span::call_site());
+                Ok(quote! { #method_writer.word(#literal); })
+            }
+        }
+        AtomPlan::Category { role, .. } => {
+            let field = fields
+                .get(role)
+                .ok_or_else(|| internal("resolved role is absent"))?;
+            if field.kind() != ConstructionFieldKind::Category {
+                return Err(internal("bare role is not a category"));
+            }
+            let category = field.terminal();
+            let helper = render_category_name(category, root_names.contains(category));
+            let value = field_value(construction, role, locals)?;
+            let capability = validated.category_render_capability(category);
+            let agreement = if capability.requires_external_agreement() {
+                role_agreement(validated, construction, role, locals)?
+            } else {
+                None
+            };
+            let context = capability.requires_context().then(|| quote! { context });
+            let environment = validated
+                .needs_parser_environment()
+                .then(|| quote! { environment });
+            let tail = signature_tail(&[agreement, context, environment]);
+            Ok(quote! { #helper(#call_writer, #value #tail); })
+        }
+        AtomPlan::Lex { role, .. } => {
+            let field = fields
+                .get(role)
+                .ok_or_else(|| internal("resolved lexical role is absent"))?;
+            let terminal = field.terminal();
+            let value = field_value(construction, role, locals)?;
+            if let Some(vocab) = find_vocab(validated, terminal) {
+                let function = ident(&format!("render_{}", snake_case(vocab.name())));
+                let value = copy_value(construction, role, value)?;
+                Ok(quote! { #function(#call_writer, #value); })
+            } else if let Some(codec) = find_signed_decimal(validated, terminal) {
+                let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
+                Ok(quote! { #function(#call_writer, #value); })
+            } else {
+                let binding = find_binding(validated, terminal)?;
+                let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
+                    return Err(internal("lex terminal lacks runtime render binding"));
+                };
+                let value = match binding.traversal().mode() {
+                    VisitMode::Copy => copy_value(construction, role, value)?,
+                    VisitMode::Borrowed => value,
+                };
+                Ok(quote! { #function(#call_writer, #value); })
+            }
+        }
+        AtomPlan::Identity { role, .. } => {
+            let field = fields
+                .get(role)
+                .ok_or_else(|| internal("resolved identity role is absent"))?;
+            let value = field_value(construction, role, locals)?;
+            if find_context_identity(validated, field.terminal()).is_some() {
+                let value = copy_value(construction, role, value)?;
+                Ok(quote! { #method_writer.identity((#value).surface(context)); })
+            } else {
+                let binding = find_binding(validated, field.terminal())?;
+                match binding
+                    .render()
+                    .ok_or_else(|| internal("identity lacks render metadata"))?
+                {
+                    BindingRenderPlan::Runtime(function) => {
+                        let value = match binding.traversal().mode() {
+                            VisitMode::Copy => copy_value(construction, role, value)?,
+                            VisitMode::Borrowed => value,
+                        };
+                        Ok(quote! { #function(#call_writer, #value, context); })
+                    }
+                    BindingRenderPlan::ContextIdentity(arms) => {
+                        let ty = binding.value_type_name();
+                        let match_arms = arms.iter().map(|arm| {
+                            let variant = arm.variant();
+                            let accessor = arm.accessor();
+                            crate::emit::call_match_arm(
+                                &quote! { #ty::#variant },
+                                &quote! { #method_writer.identity(context.#accessor()) },
+                                12,
+                            )
+                        });
+                        let value = match binding.traversal().mode() {
+                            VisitMode::Copy => copy_value(construction, role, value)?,
+                            VisitMode::Borrowed => value,
+                        };
+                        Ok(quote! { match #value { #(#match_arms),* } })
+                    }
+                }
+            }
+        }
+        AtomPlan::VerbFixed {
+            terminal,
+            path: variant,
+            ..
+        } => render_fixed_verb_atom(validated, construction, locals, terminal, variant),
+        AtomPlan::OpenDeclaration(open) => {
+            render_open_declaration(validated, construction, open, locals, &method_writer)
+        }
+        AtomPlan::Noun { role, .. } => {
+            let field = fields
+                .get(role)
+                .ok_or_else(|| internal("resolved noun role is absent"))?;
+            render_noun_atom(
+                validated,
+                construction,
+                field,
+                role,
+                locals,
+                &method_writer,
+                &call_writer,
+            )
+        }
+    }
+}
+
+fn render_construction_structural_field(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+    field: &crate::semantic::StructuralFieldPlan,
+    locals: &RenderLocals,
+    root_names: &HashSet<String>,
+) -> syn::Result<TokenStream> {
+    let value = field_value(construction, role, locals)?;
+    match field.kind() {
+        StructuralFieldKindPlan::Required(kind) => {
+            render_structural_value(plan, kind, value, root_names)
+        }
+        StructuralFieldKindPlan::Optional(kind) => {
+            let render = render_structural_value(plan, kind, quote! { value }, root_names)?;
+            Ok(quote! { if let Some(value) = #value { #render } })
+        }
+        StructuralFieldKindPlan::Sequence { .. } => {
+            let function = ident(&structural_sequence_renderer(
+                construction.element_type(),
+                field.name(),
+            ));
+            let environment = plan
+                .needs_parser_environment()
+                .then(|| quote! { , environment });
+            Ok(quote! { #function(writer, #value, context #environment); })
+        }
+    }
+}
+
+fn render_atom_role(atom: &AtomPlan) -> Option<&str> {
+    match atom {
+        AtomPlan::Category { role, .. }
+        | AtomPlan::Lex { role, .. }
+        | AtomPlan::Identity { role, .. }
+        | AtomPlan::Noun { role, .. } => Some(role),
+        AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
+    }
 }
 
 fn render_fixed_verb_atom(
@@ -1804,6 +2480,81 @@ mod tests {
         reason = "literal full-surface structural oracles retain detailed mismatch output"
     )]
     use quote::ToTokens;
+
+    #[test]
+    fn structural_surface_lookup_is_total_and_owner_ids_retain_policy_and_edge_class() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Word { Alpha = "alpha", Beta = "beta", }
+            construction atom: Atom {
+                element AtomValue { word: lex Word, }
+                form atom = lex(word);
+            }
+            abstract sum Branch { Atom, }
+            abstract product Holder {
+                maybe: opt Branch,
+                items: seq Branch separated by position {
+                    pair = "<P>";
+                    first = "<F>";
+                    middle = "<M>";
+                    last = "<L>";
+                } terminated by ".",
+            }
+            require len(Holder.items) >= 1;
+            root Atom { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("structural render fixture validates");
+
+        let source = expansion
+            .items()
+            .iter()
+            .filter(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named { name, .. }
+                        if matches!(
+                            name.as_str(),
+                            "SequenceOwner"
+                                | "FixedSurfaceAtom"
+                                | "sequence_separator"
+                                | "sequence_terminator"
+                                | "render_holder_items_sequence"
+                                | "render_holder"
+                                | "render_branch"
+                        )
+                )
+            })
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        for fragment in [
+            "enum SequenceOwner { HolderItems }",
+            "fn sequence_separator (owner : SequenceOwner , member_count : usize , edge_index : usize",
+            "structural:Holder/items/separator/pair/0",
+            "structural:Holder/items/separator/first/0",
+            "structural:Holder/items/separator/middle/0",
+            "structural:Holder/items/separator/last/0",
+            "structural:Holder/items/terminator/0",
+            "sequence_terminator (SequenceOwner :: HolderItems)",
+            "sequence_separator (SequenceOwner :: HolderItems , values . len () , index",
+        ] {
+            assert!(source.contains(fragment), "missing `{fragment}`: {source}");
+        }
+
+        let sequence = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { name, .. } if name == "render_holder_items_sequence"))
+            .expect("sequence renderer");
+        let body = sequence.tokens.to_string();
+        let member = body.find("render_branch").expect("member render");
+        let terminator = body.find("sequence_terminator").expect("terminator lookup");
+        let separator = body.find("sequence_separator").expect("separator lookup");
+        assert!(
+            member < terminator && terminator < separator,
+            "each member renders before its terminator and following separator: {body}",
+        );
+    }
 
     #[test]
     fn invariant_mixed_fields_render_through_sealed_access_modes() {

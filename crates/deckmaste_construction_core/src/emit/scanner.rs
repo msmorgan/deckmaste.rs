@@ -26,7 +26,12 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             Lexical::#vocab_name => [#(#variants),*]
                 .into_iter()
                 .filter_map(|(running_text, value)| {
-                    input.word_end(running_text).map(|end| LexicalMatch {
+                    let end = if structural_surface {
+                        input.structural_surface_end(running_text)
+                    } else {
+                        input.word_end(running_text)
+                    };
+                    end.map(|end| LexicalMatch {
                         end,
                         value: Leaf::#vocab_name(value),
                         owner: None,
@@ -44,7 +49,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         quote! {
             Lexical::#codec_name => {
                 let offset = input.position.byte_offset;
-                let prefix = usize::from(input.position.case == CasePosition::Continuation);
+                let prefix = usize::from(
+                    input.position.prefix == PrefixPosition::WordOwnedSpace,
+                );
                 let Some(remainder) = input.text.get(offset..) else {
                     return Vec::new();
                 };
@@ -135,6 +142,10 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             input: &ScanInput<'_>,
             terminal: LexicalTerminal,
         ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
+            let structural_surface = matches!(
+                terminal.owner,
+                LexicalOwnerTemplate::Structural { .. },
+            );
             let mut matches: Vec<LexicalMatch<Leaf, LexicalOwner>> = match terminal.matcher {
                 Lexical::EndOfInput => (input.position.byte_offset == input.text.len())
                     .then_some(LexicalMatch {
@@ -145,8 +156,11 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     .into_iter()
                     .collect(),
                 #punctuation_arm
-                Lexical::Literal(literal) => input
-                    .word_end(literal)
+                Lexical::Literal(literal) => (if structural_surface {
+                    input.structural_surface_end(literal)
+                } else {
+                    input.word_end(literal)
+                })
                     .map(|end| LexicalMatch {
                         end,
                         value: Leaf::Literal(literal),
