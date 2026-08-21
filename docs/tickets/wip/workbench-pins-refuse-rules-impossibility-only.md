@@ -41,9 +41,13 @@ index or a trimmed sum, restore the arm with the rules-correct shape (a
 duration the CR states, an agent slot) rather than just admitting. Bench any
 printed card the refusal had left out — Luxior first. Named first cases:
 
-- `attachHeadOk Equipped PermanentW` → admitted ([CR#301.5]: creatures
-  "unless an effect says otherwise"); `Equipped`/`Enchanted` are words for
-  `AttachHost`, not constructors.
+- `attachHeadOk Equipped PermanentW` → admitted. (This row's original cite
+  was wrong: [CR#301.5] says an Equipment "can't legally be attached to
+  anything that isn't a creature" and contains no "unless an effect says
+  otherwise". The rule that licenses the widening is [CR#301.5f], which
+  lets an ability say "equipped [something]" of whatever the permanent is
+  actually attached to; that is the cite the round landed.)
+  `Equipped`/`Enchanted` are words for `AttachHost`, not constructors.
 - `comparableBound` → a summed bound at every comparator.
 - `admitsSpan CostModification` → admitted; `SpanUse` row renamed.
 - `visibilityOk LookAt WholeHand` → admitted; its backwards [CR#402.3] cite
@@ -1191,7 +1195,8 @@ bracket a description, which a colour word is.
 | `loyaltyDefaultsOk`/`LoyaltyDefaults` | deleted | [CR#606.3] grants the loyalty permission; restating it longhand, or conditioning it further, is redundant rather than meaningless |
 | `DamageableTy` (Creature, Planeswalker) | `DamBattle` added | [CR#120.1a] names battles, creatures and planeswalkers; [CR#115.4] the same three beside players |
 | `ascribesAsType Battle = False` | `True`; `ascribesAsSubtype` (a ~200-row subtype table) deleted, `ascriptionOk t (Just s) = ascribesAsType t && subtypeType s == t` | [CR#109.2] admits a description including "a card type **or subtype**", so a subtype rides its parent type; the surviving zeros are Instant/Sorcery ([CR#110.4]: never permanents) and Kindred ([CR#308.1]) |
-| `attachHeadOk Equipped PermanentW = False` | `True` | [CR#301.5f] lets "equipped" name whatever the permanent is attached to — Luxior, Giada's Gift. The other zeros keep [CR#301.5]/[CR#301.6]/[CR#303.4] |
+| `attachHeadOk Equipped PermanentW = False` | `True` | [CR#301.5f] lets "equipped" name whatever the permanent is attached to — Luxior, Giada's Gift |
+| `attachHeadOk Enchanted` (16 rows, `CardW`/`SpellW`/`TypeW Instant`/`TypeW Sorcery`/`TypeW Battle`/`TypeW Kindred`/`TokenW`/`CopyW`/`JoinW` all `False`) | `attachHeadOk Enchanted _ = True` (review finding 2) | [CR#303.4] attaches an Aura to "an object or player", which every noun word names; the zeros contradicted the gate's own [CR#303.4m] cite and refused printed "Enchant card in your hand", "Enchanted card costs {1} less to cast" and "Enchant instant or sorcery spell on the stack". The table's only refusals are now the two artifact rules, pinned as **badEquippedPlayer** [CR#301.5] and **badFortifiedCreature** [CR#301.6] |
 | `attachedCheckOk Fortified = False` | `True` | fortify is real [CR#301.6]; the head reader already admitted the word |
 | `comparableBound`/`ComparableBound` | deleted | no rule restricts what a comparison's standard may be; a summed or scaled bound is a magnitude |
 | `writtenCount`/`WrittenCount` (23 sites) | deleted | [CR#107.1b]/[CR#107.1c] use zero routinely; a literal `0` is vacuous, never meaningless |
@@ -1292,8 +1297,8 @@ a duplicate. Pithing Needle is not benched: see gaps.
 
 - **Fixed — counter provenance**: `verbMoves`, `stampMoves`, `provOfIt` and `provOfThem` (Words.idr) give `counterMemoryOk` the [CR#122.2] fact off the binding's own stamp rather than off its zone.
 - **Fixed — token characteristics anaphor**: `countTokenSpecs` reads "those tokens" as [CR#111.3]'s definition, which [CR#111.7] does not end.
-- **Listed — the rest of `costActionOk`**: only the six pinned rows moved. `DealDamage`, `Fights`, `Distribute`, the four turn-structure rows, the non-tap `SetStatus` rows, `GetsCounters`, `LosesAllCounters`, `RemoveFromCombat`, `Regenerate`, `CantBe`, `GainsDesignation`, `GameBecomes`, `GameDrawn`, `CopyStack`, `ChooseNewTargets`, `Choose`, `AddMana`, `Expose LookAt`, `Search`, `Shuffle`, `Continuously`, `Create`, the non-Exile/Destroy `Composite` tags and the non-Sacrifice/Discard/Mill `Does` tags all still refuse on attestation and carry no pin. [CR#118.1] does not distinguish them; a costs round should either widen or pin each.
-- **Listed — `grantSubjectOk`/`regimeMatches`**: `badCastGrantAtResolution` and `badControlGrantAtCasting` are deleted as CORPUS, but the gate is untouched — the two terms are still refused, now with no pin. The honest fix is to key the regime off what the keyword reads rather than off the subject's determiner; that is a keyword-regime question, not a zone one.
+- **Partly fixed — `costActionOk`**: six rows were widened; five of the survivors are structural and are now pinned on [CR#118.1] — **badContinuousAsCost**, **badInsteadAsCost**, **badDelayedAsCost**, **badHeldUntilAsCost**, **badReflexiveAsCost**. A cost is an action a player carries out; a continuous effect, a replacement [CR#614.6], a delayed trigger [CR#603.7a], an "until" rider [CR#610.3] and a reflexive trigger [CR#603.12] are not. The remaining ~35 rows are attestation and belong to a costs round; see gap 10.
+- **Fixed (review finding 1) — `grantSubjectOk`**: the off-stack branch dropped its `zoneFits … Battlefield` demand. [CR#113.6b] licenses an ability that states the zone it functions in, and the gate had been refusing every off-battlefield grant. What survives off the stack is [CR#113.6e]'s refusal of a GRANTED play-modifying ability, which keeps `badBattlefieldConvoke` and `badBattlefieldFlash`; the stack branch, and `badQuotedGrantOnSpell` with it, is untouched. No printed line is benched for the widening: every printed off-battlefield grant uses a keyword outside this grammar's `Keyword` sum — retrace, unearth, flashback, dredge, sneak, cycling, ninjutsu, miracle, warp — so the witness is a vocabulary gap, not a gate one. (Corpus checked for every keyword the sum does have; the graveyard hits are conditions like Kathril's "if a creature card in your graveyard has flying", which run through `Matches`, not `Gains`.)
 - **Listed — Pithing Needle**: "Activated abilities of sources with the chosen name can't be activated unless they're mana abilities" needs an ability-class subject under a deontic with an unless-arm. `chosenQualityReadOk CardName` (round 1) covers the name half; the ability-class deontic does not exist.
 - **Listed — Nahiri's Compleated reminder**: `EntryCounterMark` has no "fewer" arm, so "enters with two fewer loyalty counters" has no shape. One constructor plus its lowering.
 - **Listed — `DamageRecipient`/`DeedParticipant` disjunctive heads**: NOT delivered. `DamageableTy` gained `DamBattle`, so "target creature or planeswalker" is still refused at the head, and "can't attack you or planeswalkers you control" still has no patient spanning `DefendingPlayer` and `DeonticCounterpart`. Both need a disjunctive noun head, which is the union-family redesign this ticket was sequenced before; the round did not open it.
@@ -1362,11 +1367,32 @@ graveyard-counter line.
 7. **Replacement-event anaphora** — `eventIntro` mints no subject binding for the event's own noun; Clergy's printed "it".
 8. **Set-aside stamp** — deleting `shuffledAway` admits more than [CR#701.24b] licenses; needs a search verb in `VerbName`.
 9. **`negatable (QualityNoun _)` over-reaches** — [CR#105.1] empties the complement only for the domainless quality noun.
-10. **The rest of `costActionOk`** — ~25 unpinned attestation rows.
-11. **`grantSubjectOk`/`regimeMatches`** — two now-pinless refusals.
+10. **The rest of `costActionOk`** — the table still carries ~40 `False`
+    rows, of which five were structural and are now pinned on [CR#118.1]
+    ("a cost is an action … a player carries out"): `Continuously`,
+    `InsteadOf`, `Delayed`, `HeldUntil` and `Reflexively` are not player
+    actions — a continuous effect, a replacement [CR#614.6], a delayed
+    trigger [CR#603.7a], an "until" rider [CR#610.3] and a reflexive
+    trigger [CR#603.12] each schedule or displace rather than act. The
+    rest (`DealDamage`, `Fights`, `Distribute`, the turn-structure rows,
+    the non-tap `SetStatus` rows, `GetsCounters`, `LosesAllCounters`,
+    `RemoveFromCombat`, `Regenerate`, `CantBe`, `GainsDesignation`,
+    `GameBecomes`, `GameDrawn`, `CopyStack`, `ChooseNewTargets`,
+    `Choose`, `AddMana`, `Expose LookAt`, `Search`, `Shuffle`, `Create`,
+    the non-Exile/Destroy `Composite` tags, the non-Sacrifice/Discard/Mill
+    `Does` tags) are attestation and wait for a costs round.
+11. ~~`grantSubjectOk`/`regimeMatches`~~ — **FIXED** (review finding 1).
+    The off-stack branch no longer demands a battlefield subject:
+    [CR#113.6b] lets an ability state which zones it functions in, so a
+    grant may name a subject in any zone. The one surviving refusal is
+    [CR#113.6e]'s — a granted play-modifying ability functions only on the
+    stack — and it keeps its pins, **badBattlefieldConvoke**
+    [CR#702.51a] and **badBattlefieldFlash** [CR#702.8a,113.6e]. The stack
+    branch is untouched, so **badQuotedGrantOnSpell** [CR#113.6e] stands.
 12. **`EntryCounterMark` has no "fewer" arm** — Nahiri's Compleated reminder.
 13. **No ability-class deontic** — Pithing Needle.
-14. **`staticAsAbility` is vacuous** — mechanical deletion pending.
+14. ~~`staticAsAbility` is vacuous~~ — **FIXED**: the reviewer deleted the
+    gate.
 15. **Joint-typing container for cross-line choices** — would move the five [CR#608.2c] pins and the "unless" node together.
 
 ### Acceptance

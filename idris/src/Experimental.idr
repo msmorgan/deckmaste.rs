@@ -4662,11 +4662,16 @@ mutual
   regimeMatches _ _ = False
 
   public export
+  ||| [CR#113.6b]: an ability that states which zones it functions in
+  ||| functions from those zones, so a grant may name a subject in any
+  ||| zone. The one refusal off the stack is [CR#113.6e]'s: an ability
+  ||| granting an object another ability that modifies how that object is
+  ||| played or cast functions only on the stack.
   grantSubjectOk : {bs : Bindings} -> AbilityAt bs -> Noun bs Object -> Bool
   grantSubjectOk ab n =
     if onStackZone (nounZone n)
       then regimeMatches (abRegime ab) (nounRegime n)
-      else zoneFits (nounZone n) (Just Battlefield) && not (castingOnly (abRegime ab))
+      else not (castingOnly (abRegime ab))
 
   public export
   GrantSubject : {bs : Bindings} -> AbilityAt bs -> Noun bs Object -> Type

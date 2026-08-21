@@ -387,6 +387,22 @@ badCoordinatedLandHostBlocks : Unspellable Ability (\ok =>
 badCoordinatedLandHostBlocks Participant impossible
 
 
+||| "equipped player"
+||| [CR#301.5]: an Equipment attaches to a creature and can't legally be attached to anything that isn't one.
+public export
+badEquippedPlayer : Unspellable (Noun [] Player) (\ok =>
+  AttachHost Equipped PlayerW {ok})
+badEquippedPlayer Oh impossible
+
+
+||| "fortified creature"
+||| [CR#301.6]: a Fortification attaches to a land and can't legally be attached to an object that isn't one.
+public export
+badFortifiedCreature : Unspellable (Noun [] Object) (\ok =>
+  AttachHost Fortified (TypeW Creature) {ok})
+badFortifiedCreature Oh impossible
+
+
 ||| "Target creature gains flash."
 ||| Flash functions where the card is played from and on the stack [CR#702.8a,113.6e], never on the battlefield.
 public export

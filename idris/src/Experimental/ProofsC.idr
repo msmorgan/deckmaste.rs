@@ -289,6 +289,54 @@ badPayTapSymbol : Unspellable (Effect []) (\ok =>
 badPayTapSymbol Oh impossible
 
 
+||| "Creatures you control get +1/+1 until end of turn:" written as a cost
+||| [CR#118.1] makes a cost an action a PLAYER carries out; a continuous effect is no such action.
+public export
+badContinuousAsCost : Unspellable Ability (\ok =>
+  Activated (Do (Macros.gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))
+                             (Just Macros.untilEndOfTurn)) {ok})
+            Macros.drawACard)
+badContinuousAsCost Oh impossible
+
+
+||| a replacement written as a cost
+||| [CR#118.1] makes a cost an action a player carries out; a replacement [CR#614.6] happens instead of an event.
+public export
+badInsteadAsCost : Unspellable Ability (\ok =>
+  Activated (Do (InsteadOf (Macros.destroy (Macros.target Macros.creature))
+                           (Macros.exile (Macros.target Macros.creature))) {ok})
+            Macros.drawACard)
+badInsteadAsCost Oh impossible
+
+
+||| a delayed trigger written as a cost
+||| [CR#118.1] makes a cost an action taken now; a delayed trigger [CR#603.7a] only sets one up for later.
+public export
+badDelayedAsCost : Unspellable Ability (\ok =>
+  Activated (Do (Delayed (BeginningOf EndStep NoPossessor) Macros.drawACard) {ok})
+            Macros.drawACard)
+badDelayedAsCost Oh impossible
+
+
+||| an "until" rider written as a cost
+||| [CR#118.1] makes a cost an action a player carries out; the rider [CR#610.3] schedules a later return.
+public export
+badHeldUntilAsCost : Unspellable Ability (\ok =>
+  Activated (Do (HeldUntil (Macros.exile (Macros.target Macros.creature))
+                           (Dies (Macros.a Macros.creature))) {ok})
+            Macros.drawACard)
+badHeldUntilAsCost Oh impossible
+
+
+||| a reflexive trigger written as a cost
+||| [CR#118.1] makes a cost an action taken now; [CR#603.12] creates a trigger that fires afterwards.
+public export
+badReflexiveAsCost : Unspellable Ability (\ok =>
+  Activated (Do (Reflexively (Macros.gainsLife You (Lit 2)) Macros.drawACard) {ok})
+            Macros.drawACard)
+badReflexiveAsCost Oh impossible
+
+
 ||| a compound cost of no components
 ||| A cost telescope of nothing is no cost: there is nothing to pay.
 public export

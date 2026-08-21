@@ -2508,28 +2508,14 @@ Eq AttachWord where
 ||| Which host word an attachment word may call its host by.
 ||| [CR#301.5f] and [CR#303.4m] both let the word name whatever the
 ||| permanent is attached to, so a broader permanent word is the host's
-||| own — Luxior, Giada's Gift writes "equipped permanent". The zeros are
-||| the attachment rules themselves: an Equipment attaches to a creature
-||| [CR#301.5] and a Fortification to a land [CR#301.6], while an Aura
-||| attaches to an object or player [CR#303.4].
+||| own — Luxior, Giada's Gift writes "equipped permanent". An Aura
+||| attaches to an object or player [CR#303.4], which every noun word
+||| names, so "enchanted" takes them all. The zeros are the two artifact
+||| attachment rules: an Equipment attaches to a creature [CR#301.5] and
+||| a Fortification to a land [CR#301.6].
 public export
 attachHeadOk : AttachWord -> NounWord -> Bool
-attachHeadOk Enchanted (TypeW Creature) = True
-attachHeadOk Enchanted (TypeW Artifact) = True
-attachHeadOk Enchanted (TypeW Land) = True
-attachHeadOk Enchanted (TypeW Enchantment) = True
-attachHeadOk Enchanted (TypeW Instant) = False
-attachHeadOk Enchanted (TypeW Sorcery) = False
-attachHeadOk Enchanted CardW = False
-attachHeadOk Enchanted SpellW = False
-attachHeadOk Enchanted (TypeW Planeswalker) = True
-attachHeadOk Enchanted (TypeW Battle) = False
-attachHeadOk Enchanted (TypeW Kindred) = False
-attachHeadOk Enchanted PlayerW = True
-attachHeadOk Enchanted PermanentW = True
-attachHeadOk Enchanted TokenW = False
-attachHeadOk Enchanted CopyW = False
-attachHeadOk Enchanted JoinW = False
+attachHeadOk Enchanted _ = True
 attachHeadOk Equipped (TypeW Creature) = True
 attachHeadOk Equipped (TypeW Artifact) = False
 attachHeadOk Equipped (TypeW Land) = False
