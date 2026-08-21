@@ -1038,8 +1038,10 @@ pub mod fixture {
         }
         construction guarded: Child {
             element GuardedChild { mode: lex Mode, child: Child, }
-            require mode is One;
-            require child is Bare;
+            require any(
+                all(mode is One, child is Bare),
+                all(mode is Many, child is Third)
+            );
             derive agreement = Values::Bare;
             derive child.agreement = Values::Bare;
             form guarded = lex(mode) child;
@@ -1186,6 +1188,14 @@ pub mod fixture {
         construction structural_atom: StructuralAtom {
             element StructuralAtomValue { marker: lex StructuralWord, }
             form structural_atom = lex(marker);
+        }
+        construction inline_structural: InlineStructural {
+            element InlineStructuralValue {
+                spelling: identity SelfRef,
+                items: seq StructuralAtom,
+            }
+            require len(InlineStructuralValue.items) >= 2;
+            form inline_structural = identity(spelling) items;
         }
         construction letter_atom: LetterAtom {
             element LetterAtomValue { letter: lex Letter, }
@@ -1824,7 +1834,7 @@ pub mod fixture {
         assert_eq!(
             vocab_rejection.violation(),
             &BuildViolation::Invariant {
-                identity: "all(mode is One, child is Bare)",
+                identity: "any(all(mode is One, child is Bare), all(mode is Many, child is Third))",
             },
         );
         assert!(
@@ -1837,6 +1847,10 @@ pub mod fixture {
         assert_eq!(category_rejection.owner(), "Child");
         assert_eq!(category_rejection.role(), "guarded");
         assert_eq!(category_rejection.violation(), vocab_rejection.violation());
+        let second_branch = GuardedChild::try_new(Mode::Many, Box::new(Child::Third(ThirdChild)))
+            .expect("the second distinguishable DNF branch remains valid");
+        assert_eq!(second_branch.mode(), Mode::Many);
+        assert!(matches!(second_branch.child(), Child::Third(ThirdChild)));
 
         let identity = IdentityGuard::new(SelfRef::Full, &context)
             .expect("the canonical context identity is always valid");
@@ -1858,6 +1872,49 @@ pub mod fixture {
     }
 
     pub(super) fn assert_structural_product_public_boundary() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+        };
+        let inline_member = StructuralAtom::StructuralAtom(StructuralAtomValue {
+            marker: StructuralWord::Alpha,
+        });
+        let inline_rejection =
+            InlineStructuralValue::try_new(SelfRef::Full, vec![inline_member], &context)
+                .expect_err("an inline element retains its product-level length rejection");
+        assert_eq!(inline_rejection.owner(), "InlineStructuralValue");
+        assert_eq!(inline_rejection.role(), "items");
+        assert_eq!(
+            inline_rejection.violation(),
+            &BuildViolation::Length {
+                minimum: 2,
+                maximum: None,
+                actual: 1,
+            },
+        );
+        let invariant_rejection = InlineStructuralValue::try_new(
+            SelfRef::Abbreviated,
+            vec![
+                StructuralAtom::StructuralAtom(StructuralAtomValue {
+                    marker: StructuralWord::Alpha,
+                }),
+                StructuralAtom::StructuralAtom(StructuralAtomValue {
+                    marker: StructuralWord::Beta,
+                }),
+            ],
+            &context,
+        )
+        .expect_err("the authored context invariant remains independently attributed");
+        assert_eq!(invariant_rejection.owner(), "InlineStructural");
+        assert_eq!(invariant_rejection.role(), "inline_structural");
+        assert_eq!(
+            invariant_rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "spelling valid in context",
+            },
+        );
+
         assert!(
             Holder::new(None, vec![]).is_none(),
             "the normalized nonempty bound rejects an empty structural sequence",
@@ -1878,11 +1935,6 @@ pub mod fixture {
             rejection.to_string(),
             "Holder.items: length 0 violates minimum 1",
         );
-        let context = ParseContext {
-            sentinel: 99,
-            card_name: "card",
-            abbreviated_card_name: "card",
-        };
         let invalid_owner_children = [
             BuildValue::StructuralAtom(StructuralAtom::StructuralAtom(StructuralAtomValue {
                 marker: StructuralWord::Alpha,

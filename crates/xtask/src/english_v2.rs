@@ -1681,6 +1681,11 @@ mod tests {
             | "type LexicalOwnerTemplate"
             | "type LexicalOwnerIdentity"
             | "type LexicalOwner"
+            | "type BuildViolation"
+            | "impl BuildViolation"
+            | "type BuildRejection"
+            | "impl BuildRejection for BuildRejection"
+            | "impl std::fmt::Display for BuildRejection"
             | "type BuildValue"
             | "type NonterminalCategory"
             | "impl NonterminalCategory for NonterminalCategory"
@@ -1751,9 +1756,11 @@ mod tests {
                 "abstract sum DocumentBlock",
                 "abstract product OracleText",
             ],
-            "type Construction" | "type RuleId" | "impl RuleId" | "function build" => {
-                CONSTRUCTION_ORIGINS
-            }
+            "type Construction"
+            | "type RuleId"
+            | "impl RuleId"
+            | "function build_checked"
+            | "function build" => CONSTRUCTION_ORIGINS,
             "impl Category" => &["root Ability", "root Sentence", "root OracleText"],
             "constant RULES" => &[
                 "construction paragraph",
@@ -1936,6 +1943,11 @@ mod tests {
         "type LexicalOwnerTemplate",
         "type LexicalOwnerIdentity",
         "type LexicalOwner",
+        "type BuildViolation",
+        "impl BuildViolation",
+        "type BuildRejection",
+        "impl BuildRejection for BuildRejection",
+        "impl std::fmt::Display for BuildRejection",
         "type BuildValue",
         "type NonterminalCategory",
         "impl NonterminalCategory for NonterminalCategory",
@@ -2051,6 +2063,7 @@ mod tests {
         "type RuleId",
         "impl RuleId",
         "constant RULES",
+        "function build_checked",
         "function build",
     ];
 
@@ -2717,7 +2730,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 183);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 189);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -2768,7 +2781,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 183);
+        assert_eq!(parsed.items.len(), 189);
     }
 
     #[test]

@@ -311,13 +311,9 @@ impl Observation<RootRuleId, Leaf, LexicalTerminal, LexicalOwner, BuildRejection
             }
             CompletionDisposition::DeferredBuildRejection(rejection) => {
                 self.rejections.retain(|rejection| rejection != &key);
-                if !self
-                    .deferred_build_rejections
-                    .iter()
-                    .any(|(seen, cause)| seen == &key && cause == rejection)
-                {
-                    self.deferred_build_rejections.push((key, *rejection));
-                }
+                self.deferred_build_rejections
+                    .retain(|(seen, _)| seen != &key);
+                self.deferred_build_rejections.push((key, *rejection));
             }
         }
     }
@@ -2168,6 +2164,75 @@ mod tests {
         let trace = observed.finish();
         assert!(trace.first_build_rejection().is_none());
         assert_eq!(trace.checked_completion_rejections().total(), 0);
+    }
+
+    #[test]
+    fn structural_trace_replaces_a_stale_typed_cause_for_the_same_family_only() {
+        let family = Family {
+            children: vec![Child::Node(NodeId(7)), lexical(Leaf::Literal("where"))],
+        };
+        let unrelated_family = Family {
+            children: vec![Child::Node(NodeId(8)), lexical(Leaf::Literal("where"))],
+        };
+        let stale_child = crate::constructions::BuildRejection::new(
+            "AChild",
+            "guarded",
+            crate::constructions::BuildViolation::Invariant {
+                identity: "child is Allowed",
+            },
+        );
+        let current_parent = crate::constructions::BuildRejection::new(
+            "CParent",
+            "guarded",
+            crate::constructions::BuildViolation::Invariant {
+                identity: "child is Built",
+            },
+        );
+        let unrelated = crate::constructions::BuildRejection::new(
+            "BUnrelated",
+            "guarded",
+            crate::constructions::BuildViolation::Invariant {
+                identity: "other is Allowed",
+            },
+        );
+        let mut observed = StructuralObservation::new(TraceLimits::new(3));
+        for (family, rejection) in [
+            (&family, stale_child),
+            (&unrelated_family, unrelated),
+            (&family, current_parent),
+        ] {
+            observed.checked_completion(
+                RootRuleId::Grammar(RuleId::AmountNumber),
+                1,
+                4,
+                family,
+                &CompletionDisposition::DeferredBuildRejection(rejection),
+            );
+        }
+
+        let family_key = super::CheckedRejectionIdentity {
+            rule: RootRuleId::Grammar(RuleId::AmountNumber),
+            start: 1,
+            end: 4,
+            family: super::raw_family_identity(&family),
+        };
+        let retained_for_family = observed
+            .deferred_build_rejections
+            .iter()
+            .filter_map(|(key, rejection)| (key == &family_key).then_some(*rejection))
+            .collect::<Vec<_>>();
+        assert_eq!(retained_for_family, [current_parent]);
+        assert_eq!(observed.deferred_build_rejections.len(), 2);
+        assert!(
+            observed
+                .deferred_build_rejections
+                .iter()
+                .any(|(_, rejection)| rejection == &unrelated)
+        );
+        assert_eq!(
+            observed.finish().first_build_rejection(),
+            Some(&current_parent),
+        );
     }
 
     #[test]

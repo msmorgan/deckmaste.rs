@@ -373,7 +373,8 @@ fn emit_invariant_impl(
     construction: &ConstructionPlan,
     ident: &syn::Ident,
 ) -> syn::Result<TokenStream> {
-    let owner = syn::LitStr::new(construction.category(), Span::call_site());
+    let invariant_owner = syn::LitStr::new(construction.category(), Span::call_site());
+    let structural_owner = syn::LitStr::new(construction.element_type(), Span::call_site());
     let construction_role =
         syn::LitStr::new(construction.construction_id(), construction.origin_span());
     let mut allocator = super::LocalAllocator::default();
@@ -409,8 +410,14 @@ fn emit_invariant_impl(
         constructor_arguments.push(quote! { context });
     }
 
-    let (predicate_check, context_checks, length_checks) =
-        emit_invariant_checks(plan, construction, &owner, &construction_role, &locals)?;
+    let (predicate_check, context_checks, length_checks) = emit_invariant_checks(
+        plan,
+        construction,
+        &invariant_owner,
+        &structural_owner,
+        &construction_role,
+        &locals,
+    )?;
     let initializers = construction
         .fields()
         .iter()
@@ -478,7 +485,8 @@ fn emit_invariant_impl(
 fn emit_invariant_checks(
     plan: &SemanticPlan,
     construction: &ConstructionPlan,
-    owner: &syn::LitStr,
+    invariant_owner: &syn::LitStr,
+    structural_owner: &syn::LitStr,
     construction_role: &syn::LitStr,
     locals: &HashMap<String, syn::Ident>,
 ) -> syn::Result<(Option<TokenStream>, Vec<TokenStream>, Vec<TokenStream>)> {
@@ -509,7 +517,7 @@ fn emit_invariant_checks(
         quote! {
             if !(#predicate) {
                 return Err(BuildRejection::new(
-                    #owner,
+                    #invariant_owner,
                     #construction_role,
                     BuildViolation::Invariant { identity: #identity },
                 ));
@@ -531,7 +539,7 @@ fn emit_invariant_checks(
             Ok(quote! {
                 if !(#local.valid_in(context)) {
                     return Err(BuildRejection::new(
-                        #owner,
+                        #invariant_owner,
                         #construction_role,
                         BuildViolation::Invariant { identity: #identity },
                     ));
@@ -550,7 +558,12 @@ fn emit_invariant_checks(
             };
             structural_bounds_are_constrained(*bounds).then(|| {
                 let name = field_local(locals, field)?;
-                Ok(emit_length_check(owner, &field.name_key(), name, *bounds))
+                Ok(emit_length_check(
+                    structural_owner,
+                    &field.name_key(),
+                    name,
+                    *bounds,
+                ))
             })
         })
         .collect::<syn::Result<Vec<_>>>()?;

@@ -529,7 +529,7 @@ where
     Build: Fn(R, &[V]) -> Result<Option<V>, BuildRejection>,
 {
     let mut builder = MaterializationTraceBuilder::new(limits);
-    let values = MaterializationKernel {
+    let outcome = MaterializationKernel {
         rules,
         rule_index,
         public_construction,
@@ -545,9 +545,9 @@ where
             identity: rule_index,
             label,
         },
-    )
-    .values;
-    (values, builder.finish())
+    );
+    builder.project_terminal_build_rejection(outcome.first_rejection);
+    (outcome.values, builder.finish())
 }
 
 pub(crate) fn materialize_checked<R: GeneratedParseRoot>(
@@ -608,6 +608,7 @@ pub(crate) fn materialize_observed_checked<R: GeneratedParseRoot>(
         .is_empty()
         .then_some(built.first_rejection)
         .flatten();
+    observation.project_terminal_build_rejection(first_rejection);
     (
         MaterializationResult {
             candidates,
@@ -1187,6 +1188,152 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn final_trace_rejection_ignores_a_rejected_packed_child_sibling() {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum TestCategory {
+            Parent,
+            Child,
+        }
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum TestLexical {
+            Token,
+        }
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum TestRule {
+            Parent,
+            Child,
+        }
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum TestValue {
+            Token(&'static str),
+            Child,
+        }
+
+        let stale_child = crate::constructions::BuildRejection::new(
+            "AChild",
+            "guarded",
+            crate::constructions::BuildViolation::Invariant {
+                identity: "token is good",
+            },
+        );
+        let current_parent = crate::constructions::BuildRejection::new(
+            "CParent",
+            "guarded",
+            crate::constructions::BuildViolation::Invariant {
+                identity: "child is accepted",
+            },
+        );
+        let rules = [
+            crate::parser::engine::Rule {
+                id: TestRule::Parent,
+                lhs: TestCategory::Parent,
+                rhs: &[crate::parser::engine::RulePosition::Nonterminal(
+                    TestCategory::Child,
+                )],
+            },
+            crate::parser::engine::Rule {
+                id: TestRule::Child,
+                lhs: TestCategory::Child,
+                rhs: &[crate::parser::engine::RulePosition::Lexical(
+                    TestLexical::Token,
+                )],
+            },
+        ];
+        let child = PackedNode {
+            rule: TestRule::Child,
+            start: 0,
+            end: 1,
+            families: vec![
+                Family {
+                    children: vec![Child::Lexical(SpannedLexical {
+                        span: crate::parser::TextSpan { start: 0, end: 1 },
+                        value: "bad",
+                        owner: None::<()>,
+                    })],
+                },
+                Family {
+                    children: vec![Child::Lexical(SpannedLexical {
+                        span: crate::parser::TextSpan { start: 0, end: 1 },
+                        value: "good",
+                        owner: None::<()>,
+                    })],
+                },
+            ],
+        };
+        let parent = PackedNode {
+            rule: TestRule::Parent,
+            start: 0,
+            end: 1,
+            families: vec![Family {
+                children: vec![Child::Node(NodeId(1))],
+            }],
+        };
+        let build = |rule, children: &[TestValue]| match (rule, children) {
+            (TestRule::Child, [TestValue::Token("bad")]) => Err(stale_child),
+            (TestRule::Child, [TestValue::Token("good")]) => Ok(Some(TestValue::Child)),
+            (TestRule::Parent, [TestValue::Child]) => Err(current_parent),
+            _ => Ok(None),
+        };
+        let rule_index = |rule| match rule {
+            TestRule::Parent => 0,
+            TestRule::Child => 1,
+        };
+
+        let rejected_root = Forest::from_test_parts(vec![parent, child.clone()], vec![NodeId(0)]);
+        let (values, terminal_rejection) = super::materialize_with_rejection(
+            &rejected_root,
+            &rules,
+            rule_index,
+            |_| None::<()>,
+            std::convert::identity,
+            |token| TestValue::Token(token),
+            build,
+        );
+        assert!(values.is_empty());
+        assert_eq!(terminal_rejection, Some(current_parent));
+        let (values, trace) = super::materialize_with_trace(
+            &rejected_root,
+            &rules,
+            rule_index,
+            |_| None::<()>,
+            std::convert::identity,
+            |token| TestValue::Token(token),
+            build,
+            |rule| format!("{rule:?}"),
+            TraceLimits::new(4),
+        );
+        assert!(values.is_empty());
+        assert_eq!(trace.first_build_rejection(), Some(&current_parent));
+
+        let successful_root = Forest::from_test_parts(vec![child], vec![NodeId(0)]);
+        let (values, terminal_rejection) = super::materialize_with_rejection(
+            &successful_root,
+            &rules,
+            rule_index,
+            |_| None::<()>,
+            std::convert::identity,
+            |token| TestValue::Token(token),
+            build,
+        );
+        assert_eq!(values.len(), 1);
+        assert!(terminal_rejection.is_none());
+        let (values, trace) = super::materialize_with_trace(
+            &successful_root,
+            &rules,
+            rule_index,
+            |_| None::<()>,
+            std::convert::identity,
+            |token| TestValue::Token(token),
+            build,
+            |rule| format!("{rule:?}"),
+            TraceLimits::new(4),
+        );
+        assert_eq!(values.len(), 1);
+        assert!(trace.first_build_rejection().is_none());
+    }
+
     #[test]
     fn materialize_builds_checked_slice_values() {
         for (text, card_name) in [

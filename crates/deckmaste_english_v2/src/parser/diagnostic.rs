@@ -253,6 +253,10 @@ impl StructuralTrace {
     pub(crate) const fn first_build_rejection(&self) -> Option<&BuildRejection> {
         self.first_build_rejection.as_ref()
     }
+
+    pub(crate) fn project_terminal_build_rejection(&mut self, rejection: Option<BuildRejection>) {
+        self.first_build_rejection = rejection;
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1065,6 +1069,10 @@ impl MaterializationTrace {
     pub(crate) const fn first_build_rejection(&self) -> Option<&BuildRejection> {
         self.first_build_rejection.as_ref()
     }
+
+    pub(crate) fn project_terminal_build_rejection(&mut self, rejection: Option<BuildRejection>) {
+        self.first_build_rejection = rejection;
+    }
 }
 
 pub(crate) struct MaterializationTraceBuilder {
@@ -1146,6 +1154,10 @@ impl MaterializationTraceBuilder {
         _label: impl Fn(&R) -> String,
     ) {
         self.first_build_rejection.get_or_insert(rejection);
+    }
+
+    pub(crate) fn project_terminal_build_rejection(&mut self, rejection: Option<BuildRejection>) {
+        self.first_build_rejection = rejection;
     }
 
     pub(crate) fn finish(self) -> MaterializationTrace {

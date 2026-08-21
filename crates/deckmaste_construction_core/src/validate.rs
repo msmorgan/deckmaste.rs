@@ -573,6 +573,7 @@ fn validate_structural_semantics(
                         (construction_id.clone(), field.name.clone()),
                         StructuralFieldPlan::new(
                             field.name.clone(),
+                            field.span,
                             field.kind.clone(),
                             graph_reaches(all_edges, &target, &owner.node),
                             field.helper_names.clone(),
@@ -614,7 +615,13 @@ fn validate_structural_semantics(
                 .map(|field| {
                     let target = structural_value_node(field.kind.value());
                     let recursive = graph_reaches(&all_edges, &target, &owner.node);
-                    StructuralFieldPlan::new(field.name, field.kind, recursive, field.helper_names)
+                    StructuralFieldPlan::new(
+                        field.name,
+                        field.span,
+                        field.kind,
+                        recursive,
+                        field.helper_names,
+                    )
                 })
                 .collect();
             ProductPlan::new(
@@ -8228,6 +8235,8 @@ pub(crate) mod tests {
             "LexicalProvenanceKind",
             "LexicalOwnerTemplate",
             "LexicalOwner",
+            "BuildViolation",
+            "BuildRejection",
         ] {
             let source: proc_macro2::TokenStream = format!(
                 r#"
@@ -8272,6 +8281,7 @@ pub(crate) mod tests {
         for (element, fixed_role) in [
             ("RULES", "fixed generated rules table constant"),
             ("build", "fixed generated build function"),
+            ("build_checked", "fixed generated checked-build function"),
             (
                 "sequence_separator",
                 "fixed generated structural separator lookup",
@@ -8673,7 +8683,7 @@ pub(crate) mod tests {
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            transitive_new_collision.contains("generated invariant associated item `new` collides"),
+            transitive_new_collision.contains("generated construction associated item `new`"),
             "{transitive_new_collision}"
         );
 
@@ -8687,7 +8697,7 @@ pub(crate) mod tests {
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            new_collision.contains("generated invariant associated item `new` collides"),
+            new_collision.contains("generated construction associated item `new`"),
             "{new_collision}"
         );
 
@@ -8705,6 +8715,74 @@ pub(crate) mod tests {
             1,
             "the same generated accessor is not diagnosed twice: {same_item_collision}",
         );
+    }
+
+    #[test]
+    fn constrained_structural_products_reserve_both_generated_constructor_names() {
+        for (field, expected) in [
+            (
+                quote! { try_new },
+                "generated structural associated item `try_new` for `Holder` collides with generated structural accessor `Holder.try_new`",
+            ),
+            (
+                quote! { new },
+                "generated structural associated item `new` for `Holder` collides with generated structural accessor `Holder.new`",
+            ),
+        ] {
+            let actual = error(quote! {
+                construction item: Item {
+                    element ItemValue {}
+                    form item = "item";
+                }
+                abstract product Holder { #field: seq Item, }
+                require len(Holder.#field) >= 1;
+                root Holder { eoi = true; standalone_render = true; }
+            });
+            assert!(actual.contains(expected), "{actual}");
+        }
+    }
+
+    #[test]
+    fn structural_only_construction_products_reserve_both_generated_constructor_names() {
+        for (field, expected) in [
+            (
+                quote! { try_new },
+                "generated construction associated item `try_new` for `ContainerValue` collides with generated construction accessor `ContainerValue.try_new`",
+            ),
+            (
+                quote! { new },
+                "generated construction associated item `new` for `ContainerValue` collides with generated construction accessor `ContainerValue.new`",
+            ),
+        ] {
+            let actual = error(quote! {
+                construction item: Item {
+                    element ItemValue {}
+                    form item = "item";
+                }
+                construction container: Container {
+                    element ContainerValue { #field: seq Item, }
+                    require len(ContainerValue.#field) >= 1;
+                    form container = #field;
+                }
+                root Container { eoi = true; standalone_render = true; }
+            });
+            assert!(actual.contains(expected), "{actual}");
+        }
+    }
+
+    #[test]
+    fn unconstrained_structural_constructor_names_and_nonreserved_accessors_remain_legal() {
+        validate(quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            abstract product PublicNames { new: Item, try_new: seq Item, }
+            abstract product ConstrainedNeighbor { items: seq Item, }
+            require len(ConstrainedNeighbor.items) >= 1;
+            root PublicNames { eoi = true; standalone_render = true; }
+        })
+        .expect("unconstrained reserved names and a nonreserved constrained accessor are legal");
     }
 
     #[test]

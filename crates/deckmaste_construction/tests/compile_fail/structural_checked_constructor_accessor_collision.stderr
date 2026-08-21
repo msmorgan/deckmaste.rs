@@ -1,0 +1,5 @@
+error: generated structural associated item `try_new` for `Holder` collides with generated structural accessor `Holder.try_new`
+   --> tests/compile_fail/structural_checked_constructor_accessor_collision.rs:217:35
+    |
+217 |         abstract product Holder { try_new: seq Item, }
+    |                                   ^^^^^^^

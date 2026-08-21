@@ -473,11 +473,13 @@ impl Parser {
         limits: TraceLimits,
     ) -> (ParseAnalysis<R>, TraceParts) {
         let grammar = self.grammar(context);
-        let (forest, structural) = parse_forest_observed::<R>(&grammar, text, limits);
+        let (forest, mut structural) = parse_forest_observed::<R>(&grammar, text, limits);
         let (analysis, materialization) = match forest {
             Ok(forest) => {
-                let (result, materialization) =
+                let (result, mut materialization) =
                     materialize_observed_checked::<R>(&forest, context, &self.environment, limits);
+                structural.project_terminal_build_rejection(result.first_rejection);
+                materialization.project_terminal_build_rejection(result.first_rejection);
                 if let Some(rejection) = result.first_rejection.as_ref() {
                     debug_assert_eq!(structural.first_build_rejection(), Some(rejection));
                     debug_assert_eq!(materialization.first_build_rejection(), Some(rejection));
@@ -1031,6 +1033,40 @@ mod structural_trace_tests {
         assert_eq!(first, second);
         assert_eq!(first.scanner_matches().total(), 11);
         assert_eq!(first.scanner_matches().shown(), 1);
+    }
+
+    #[test]
+    fn public_trace_projects_the_terminal_root_rejection_into_both_traces() {
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Trace Card").expect("valid context");
+        let text = "You gain X life, a player connives.";
+        let (analysis, trace) = parser.analyze_root_with_trace::<crate::ast::Sentence>(
+            text,
+            &context,
+            TraceLimits::new(usize::MAX),
+        );
+        let rejection = analysis
+            .build_rejection()
+            .expect("the accepted root is rejected by its authored invariant");
+        assert_eq!(rejection.owner(), "Sentence");
+        assert_eq!(rejection.role(), "with_where");
+        assert_eq!(
+            rejection.violation(),
+            &crate::constructions::BuildViolation::Invariant {
+                identity: "clause is Where",
+            }
+        );
+        assert_eq!(trace.structural.first_build_rejection(), Some(rejection));
+        assert_eq!(
+            trace.materialization.first_build_rejection(),
+            Some(rejection)
+        );
+        assert_eq!(
+            parser
+                .trace_sentence(text, &context, TraceLimits::new(usize::MAX))
+                .build_rejection(),
+            Some(rejection),
+        );
     }
 
     #[test]

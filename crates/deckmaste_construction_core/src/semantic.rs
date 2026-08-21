@@ -102,6 +102,7 @@ pub(crate) enum ValueKindPlan {
 )]
 pub(crate) struct StructuralFieldPlan {
     name: String,
+    span: Span,
     kind: StructuralFieldKindPlan,
     recursive: bool,
     helper_names: Option<StructuralHelperNames>,
@@ -255,13 +256,9 @@ impl ProductPlan {
     }
 
     pub(crate) fn requires_constructor(&self) -> bool {
-        self.fields.iter().any(|field| {
-            matches!(
-                field.kind(),
-                StructuralFieldKindPlan::Sequence { bounds, .. }
-                    if bounds.min() != 0 || bounds.max().is_some()
-            )
-        })
+        self.fields
+            .iter()
+            .any(StructuralFieldPlan::emits_generated_accessor)
     }
 }
 
@@ -308,12 +305,14 @@ impl SumPlan {
 impl StructuralFieldPlan {
     pub(crate) fn new(
         name: String,
+        span: Span,
         kind: StructuralFieldKindPlan,
         recursive: bool,
         helper_names: Option<StructuralHelperNames>,
     ) -> Self {
         Self {
             name,
+            span,
             kind,
             recursive,
             helper_names,
@@ -324,8 +323,20 @@ impl StructuralFieldPlan {
         &self.name
     }
 
+    pub(crate) const fn span(&self) -> Span {
+        self.span
+    }
+
     pub(crate) fn kind(&self) -> &StructuralFieldKindPlan {
         &self.kind
+    }
+
+    pub(crate) fn emits_generated_accessor(&self) -> bool {
+        matches!(
+            self.kind(),
+            StructuralFieldKindPlan::Sequence { bounds, .. }
+                if bounds.min() != 0 || bounds.max().is_some()
+        )
     }
 
     pub(crate) const fn is_recursive(&self) -> bool {
@@ -1221,7 +1232,7 @@ impl SemanticPlan {
             &resolutions,
             &field_policy_terminals,
         )?;
-        validate_invariant_generated_names(&constructions)?;
+        validate_generated_associated_names(&constructions, &products)?;
         seal_invariant_category_feature_reads(&constructions, &mut category_reads);
         let number_carry_categories = number_carry_categories(&constructions, &equations);
 
@@ -2071,51 +2082,64 @@ struct InvariantFeatureDependencies {
     category_reads: HashSet<(String, Feature)>,
 }
 
-fn validate_invariant_generated_names(constructions: &[ConstructionPlan]) -> syn::Result<()> {
+fn validate_generated_associated_names(
+    constructions: &[ConstructionPlan],
+    products: &[ProductPlan],
+) -> syn::Result<()> {
     let mut errors = None;
     for construction in constructions {
-        if construction.fields().is_empty() || !construction.invariant().requires_constructor() {
+        if !construction.requires_constructor() {
             continue;
         }
-
-        let mut associated = HashMap::from([
-            (
-                INVARIANT_CONSTRUCTOR.to_owned(),
-                "generated invariant constructor".to_owned(),
-            ),
-            (
-                CHECKED_CONSTRUCTOR.to_owned(),
-                "generated checked invariant constructor".to_owned(),
-            ),
-        ]);
-        for field in construction
-            .fields()
-            .iter()
-            .filter(|field| field.accessor_mode().is_some())
-        {
-            let name = field.name_key();
-            let owner = format!("generated invariant accessor for `{name}`");
-            if let Some(previous) = associated.get(&name)
-                && previous != &owner
-            {
-                let kind = if matches!(name.as_str(), INVARIANT_CONSTRUCTOR | CHECKED_CONSTRUCTOR) {
-                    "associated item"
-                } else {
-                    "accessor"
-                };
-                combine_errors(
-                    &mut errors,
-                    syn::Error::new(
-                        field.name().span(),
-                        format!("generated invariant {kind} `{name}` collides with {previous}"),
-                    ),
-                );
-            } else {
-                associated.insert(name, owner);
-            }
-        }
+        validate_constructor_associated_names(
+            "construction",
+            construction.element_type(),
+            construction
+                .fields()
+                .iter()
+                .filter(|field| field.emits_generated_accessor())
+                .map(|field| (field.name_key(), field.name().span())),
+            &mut errors,
+        );
+    }
+    for product in products
+        .iter()
+        .filter(|product| product.requires_constructor())
+    {
+        validate_constructor_associated_names(
+            "structural",
+            product.name(),
+            product
+                .fields()
+                .iter()
+                .filter(|field| field.emits_generated_accessor())
+                .map(|field| (field.name().to_owned(), field.span())),
+            &mut errors,
+        );
     }
     errors.map_or(Ok(()), Err)
+}
+
+fn validate_constructor_associated_names(
+    surface: &str,
+    owner: &str,
+    accessors: impl IntoIterator<Item = (String, Span)>,
+    errors: &mut Option<syn::Error>,
+) {
+    for (name, span) in accessors {
+        if !matches!(name.as_str(), INVARIANT_CONSTRUCTOR | CHECKED_CONSTRUCTOR) {
+            continue;
+        }
+        combine_errors(
+            errors,
+            syn::Error::new(
+                span,
+                format!(
+                    "generated {surface} associated item `{name}` for `{owner}` collides with generated {surface} accessor `{owner}.{name}`"
+                ),
+            ),
+        );
+    }
 }
 
 fn combine_errors(errors: &mut Option<syn::Error>, error: syn::Error) {
@@ -2463,6 +2487,14 @@ impl ConstructionFieldPlan {
     )]
     pub(crate) fn accessor_mode(&self) -> Option<AccessorMode> {
         self.accessor_mode
+    }
+
+    fn emits_generated_accessor(&self) -> bool {
+        self.accessor_mode.is_some()
+            || self
+                .structural
+                .as_ref()
+                .is_some_and(StructuralFieldPlan::emits_generated_accessor)
     }
 }
 
