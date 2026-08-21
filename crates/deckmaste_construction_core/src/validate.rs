@@ -35,6 +35,7 @@ use crate::model::FeaturePlace as ParsedFeaturePlace;
 use crate::model::FeatureValue as ParsedFeatureValue;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
+use crate::model::RequireExprSource;
 use crate::model::TerminalBinding;
 use crate::model::TraversalKind;
 use crate::model::VerbOperand;
@@ -315,7 +316,9 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
                 declaration,
                 Declaration::Construction(construction)
                     if construction.element.fields.iter().any(|field| matches!(field.kind, FieldKind::Optional(_) | FieldKind::Sequence { .. }))
+                        || construction.requirements.iter().any(|requirement| matches!(requirement, RequireExprSource::Length { .. }))
             )
+            || matches!(declaration, Declaration::Root(root) if root.punctuation.is_none())
     }) {
         return Err(syn::Error::new(
             proc_macro2::Span::call_site(),
@@ -7616,6 +7619,37 @@ pub(crate) mod tests {
         assert!(
             !message.contains("internal"),
             "validation must own this diagnostic: {message}"
+        );
+    }
+
+    #[test]
+    fn structural_source_rows_are_fenced_before_semantic_lowering() {
+        let punctuationless_root = crate::generate(quote! {
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { eoi = true; standalone_render = true; }
+        })
+        .expect_err("punctuation-less roots are source-only structural declarations")
+        .to_string();
+        assert!(
+            punctuationless_root
+                .contains("structural declaration semantic validation is not implemented"),
+            "{punctuationless_root}"
+        );
+
+        let construction_length = crate::generate(quote! {
+            construction only: Root {
+                element Only { values: Root, }
+                require len(values) >= 1;
+                form only = values;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("length requirements are source-only structural declarations")
+        .to_string();
+        assert!(
+            construction_length
+                .contains("structural declaration semantic validation is not implemented"),
+            "{construction_length}"
         );
     }
 
