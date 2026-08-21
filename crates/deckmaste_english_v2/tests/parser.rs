@@ -233,6 +233,26 @@ fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SelfRefer
 }
 
 #[test]
+fn ast_re_exports_keep_the_retired_spell_audit_line_local() {
+    let public_prefix = concat!("pub ", "use ");
+    let retired_name = concat!("Sp", "ell");
+    for line in include_str!("../src/ast.rs").lines() {
+        assert!(
+            !(line.contains(public_prefix) && line.contains(retired_name)),
+            "retired audit match: {line}"
+        );
+    }
+}
+
+#[test]
+fn self_reference_spelling_variants_remain_publicly_importable() {
+    use deckmaste_english_v2::ast::SelfReferenceSpelling::{Abbreviated, Full};
+
+    let _: SelfReferenceSpelling = Full;
+    let _: SelfReferenceSpelling = Abbreviated;
+}
+
+#[test]
 fn parse_context_rejects_empty_self_names_and_abbreviations() {
     assert!(ParseContext::new("").is_none());
     assert!(ParseContext::new(", the Empty Prefix").is_none());

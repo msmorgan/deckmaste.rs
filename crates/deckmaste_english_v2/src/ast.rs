@@ -24,7 +24,10 @@ pub use crate::constructions::Paragraph;
 pub use crate::constructions::Pronoun;
 pub use crate::constructions::PronounNp;
 pub use crate::constructions::SelfReferenceNp;
-pub use crate::constructions::SelfReferenceSpelling;
+#[rustfmt::skip]
+pub use crate::constructions::{
+    SelfReferenceSpelling,
+};
 pub use crate::constructions::Sentence;
 pub use crate::constructions::Sign;
 pub use crate::constructions::SignedNumber;
