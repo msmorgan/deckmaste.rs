@@ -200,14 +200,6 @@ badNestedOr : Unspellable (Predicate [] Object) (\ok =>
 badNestedOr Oh impossible
 
 
-||| "non-(creature or land)"
-||| Negation attaches to one modifier at a time, never to a coordination.
-public export
-badNegatedDisjunction : Unspellable (Predicate [] Object) (\ok =>
-  Not (Or [Macros.creature, Macros.land]) {ng = ok})
-badNegatedDisjunction Oh impossible
-
-
 ||| "This deals 2 damage to target artifact or enchantment."
 ||| A disjunctive head fixes no type, and damage reaches only a battle, creature, or planeswalker [CR#120.1a].
 public export
@@ -262,16 +254,6 @@ public export
 badZeroLowerRange : Unspellable (Noun [] Object) (\ok =>
   TargetGroup (Range (Just 0) Nothing) Macros.creature {wf = ok})
 badZeroLowerRange Oh impossible
-
-
-||| "another target artifact or enchantment" anchored to an earlier land
-||| A coordinated head offers one type per alternative, and a land anchors none of them.
-public export
-badDisjunctiveOtherCrossHead : Unspellable
-  (Predicate [MkBinding TargetD Object OneOf
-                        (ObjectP (Just Land) (Just Battlefield) Nothing Nothing)] Object)
-  (\ok => And [Or [Macros.artifact, Macros.enchantment], Other] {oa = ok})
-badDisjunctiveOtherCrossHead Oh impossible
 
 
 ||| "creature you control or creature you control"
@@ -332,28 +314,12 @@ badCantAnyTarget : Unspellable (Effect []) (\ok =>
 badCantAnyTarget Participant impossible
 
 
-||| "target with power 2 or less"
-||| A bound is a modifier: it describes and names nothing, so a determiner cannot determine it.
-public export
-badBareComparison : Unspellable (Noun [] Object) (\ok =>
-  Macros.target (Compare Power AtMost (Lit 2)) {hd = ok})
-badBareComparison Oh impossible
-
-
 ||| "noncreature with power 2 or less"
 ||| Only a creature has power [CR#208.3], so bounding power while denying the type describes nothing.
 public export
 badNoncreaturePower : Unspellable (Predicate [] Object) (\ok =>
   And [Compare Power AtMost (Lit 2), Not Macros.creature] {cf = ok})
 badNoncreaturePower Oh impossible
-
-
-||| "not with power 2 or less"
-||| The game's numbers are integers [CR#107.1], so a flipped comparator leaves no gap to negate.
-public export
-badNegatedComparison : Unspellable (Predicate [] Object) (\ok =>
-  Not (Compare Power AtMost (Lit 2)) {ng = ok})
-badNegatedComparison Oh impossible
 
 
 ||| "creature with power 2 or less and power 4 or greater"
@@ -391,14 +357,6 @@ badAnyTargetComparison : Unspellable (Predicate [] Object) (\ok =>
 badAnyTargetComparison Oh impossible
 
 
-||| "if you control attacking"
-||| A condition quantifies over a DESCRIPTION, so the phrase inside it has to name something.
-public export
-badExistsUnheaded : Unspellable (Condition []) (\ok =>
-  Exists Attacking {hd = ok})
-badExistsUnheaded Oh impossible
-
-
 ||| "if you control any target"
 ||| The class word names [CR#115.4]'s damage class and describes no object for an existential.
 public export
@@ -430,17 +388,6 @@ badMatchesNothing : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 If (Macros.gainsLife You (Lit 1)) (Matches It (And []) {sy = ok}) Nothing])
 badMatchesNothing Oh impossible
-
-
-||| "Tap target creature. You gain 1 life if it isn't a nonartifact."
-||| A condition negates a positive description; the predicate layer refuses doubled negation already.
-public export
-badNegatedNegativeMatch : Unspellable (Effect []) (\ok =>
-  Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                If (Macros.gainsLife You (Lit 1))
-                   (Macros.notSo (Matches It (Not Macros.artifact)) {ng = ok})
-                   Nothing])
-badNegatedNegativeMatch Oh impossible
 
 
 ||| "Destroy target creature if it's in a graveyard."
@@ -587,22 +534,6 @@ badBecomesNothing : Unspellable (Effect []) (\ok =>
 badBecomesNothing (Oh, _) impossible
 
 
-||| "Target creature card in your graveyard becomes an artifact in addition to its other types."
-||| A type change is a continuous effect on a permanent; a graveyard card has no types to add to.
-public export
-badBecomesInGraveyard : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) (Macros.typesOnly [Artifact]) Nothing {zn = ok})
-badBecomesInGraveyard Oh impossible
-
-
-||| "Zombie that isn't a creature"
-||| A subtype word PRESUPPOSES its set's card type [CR#205.1a], so the phrase describes nothing.
-public export
-badZombieNoncreature : Unspellable (Predicate [] Object) (\ok =>
-  And [HasSubtype Zombie, Not Macros.creature] {cf = ok})
-badZombieNoncreature Oh impossible
-
-
 ||| "Target creature becomes a creature in addition to its other types."
 ||| The clause retains what the object had and states what it gains [CR#205.1b]; this states nothing.
 public export
@@ -663,26 +594,6 @@ badReadsAfterModal : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.chooseOne [Macros.destroy (Macros.target Macros.artifact), Macros.destroy (Macros.target Macros.enchantment)],
                 SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badReadsAfterModal (_, OnField) impossible
-
-
-||| "Destroy target artifact if its mana value isn't 2 or less."
-||| Which condition frames take a "not" is a closed table, and the comparison frame does not.
-public export
-badNegatedComparisonCondition : Unspellable (Effect []) (\ok =>
-  If (Macros.destroy (Macros.target Macros.artifact))
-     (Macros.notSo (CompareAmt (Macros.manaValueOf It) AtMost (Lit 2)) {ng = ok})
-     Nothing)
-badNegatedComparisonCondition Oh impossible
-
-
-||| "Destroy target artifact if it isn't the case that you don't control a creature."
-||| Nor does a negation take one: English collapses the pair into the positive.
-public export
-badDoubleNegatedCondition : Unspellable (Effect []) (\ok =>
-  If (Macros.destroy (Macros.target Macros.artifact))
-     (Macros.notSo (Macros.notSo (Exists Macros.creatureYouControl)) {ng = ok})
-     Nothing)
-badDoubleNegatedCondition Oh impossible
 
 
 ||| "Draw a card. Exile that card."
@@ -790,14 +701,6 @@ public export
 badComplementInOr : Unspellable (Predicate [] Object) (\ok =>
   Or [And [Macros.creature, OtherThan Macros.thisCreature], Macros.land] {cd = ok})
 badComplementInOr Oh impossible
-
-
-||| "not other than this creature"
-||| "Non-other" is unwritten, in this spelling as in the bare one.
-public export
-badNegatedComplement : Unspellable (Predicate [] Object) (\ok =>
-  Not (OtherThan Macros.thisCreature) {ng = ok})
-badNegatedComplement Oh impossible
 
 
 ||| an empty batch

@@ -10,16 +10,9 @@ import public Experimental.Unspellable
 %unbound_implicits off
 
 
-||| "Choose a flying."
-||| A keyword is a modifier, never a noun head.
-public export
-badKeywordHead : Unspellable (Effect []) (\ok =>
-  Choose (Macros.a (HasKeyword Flying) {hd = ok}))
-badKeywordHead Oh impossible
-
-
 ||| "of the chosen number"
-||| A bound number reads back by numeric equality, never as a quality.
+||| [CR#109.3] lists an object's characteristics and no bare number is among them,
+||| so the read has no characteristic to match the chosen value against.
 public export
 badChosenNumberRead :
   Unspellable
@@ -47,7 +40,8 @@ badGroupOwner Refl impossible
 
 
 ||| "Two target creatures fight target creature."
-||| The binary fight frame takes singular combatants, not a group.
+||| [CR#701.14a] frames a fight as one creature against another, so the frame is
+||| binary by rule and takes no group in either slot.
 public export
 badFightGroup : Unspellable (Effect []) (\ok =>
   Fights (TargetGroup (Macros.exactly 2) Macros.creature) {pa = ok}
@@ -56,28 +50,11 @@ badFightGroup Refl impossible
 
 
 ||| "a creature two target opponents control"
-||| An object has one controller [CR#109.4], and a counted plural names no set.
+||| [CR#110.2] gives a permanent one controller, so a counted plural names no object.
 public export
 badControlledByGroup : Unspellable (Predicate [] Object) (\ok =>
   ControlledBy (TargetGroup (Macros.exactly 2) Opponent) {ps = ok})
 badControlledByGroup Oh impossible
-
-
-||| "two target opponents' graveyards"
-||| Graveyards are per-player zones [CR#400.1]; a counted plural names no one.
-public export
-badGraveyardOfGroup : Unspellable (ZoneExpr []) (\ok =>
-  Macros.graveyardOf (TargetGroup (Macros.exactly 2) Opponent) {pn = ok})
-badGraveyardOfGroup Oh impossible
-
-
-||| "When two target creatures die this turn, you gain 1 life."
-||| The minted dies-watcher is singular; plural watches are unminted.
-public export
-badDiesGroup : Unspellable (Effect []) (\ok =>
-  Delayed (Dies (TargetGroup (Macros.exactly 2) Macros.creature))
-          {span = Just ThisTurn} (Macros.gainsLife You (Lit 1)) {one = ok})
-badDiesGroup Refl impossible
 
 
 ||| "each of target creature"
@@ -86,14 +63,6 @@ public export
 badEachOfSingular : Unspellable (Noun [] Object) (\ok =>
   EachOf (Macros.target Macros.creature) {pl = ok})
 badEachOfSingular Refl impossible
-
-
-||| "This deals 2 damage divided as you choose among target creature."
-||| Damage division requires at least two objects to divide between.
-public export
-badDivideAmongSingular : Unspellable (Effect []) (\ok =>
-  Macros.dealsDivided This (Lit 2) (Macros.target Macros.creature) {pl = ok})
-badDivideAmongSingular Refl impossible
 
 
 ||| "Look at the top card of your opponents' library."
@@ -105,7 +74,8 @@ badSliceOfGroupPossessor Oh impossible
 
 
 ||| "Whenever you cast all spells, draw a card."
-||| Malformed trigger condition: Casts requires a singular spell.
+||| [CR#601.2a] moves ONE card to the stack per casting, so the process the watch
+||| names has a single spell and a plural complement names no casting.
 public export
 badCastsPluralComplement : Unspellable (Ability) (\ok =>
   Triggered Whenever (Casts You (AllOf Macros.spell) {one = ok})
@@ -121,15 +91,6 @@ badDisjunctAntecedent : Unspellable (Effect []) (\ok =>
                                         And [Macros.land, ControlledBy You]])),
                 Macros.losesLife (That PlayerW {ok}) (Lit 1)])
 badDisjunctAntecedent Refl impossible
-
-
-||| "Destroy target creature: Draw a card."
-||| Destroy is not a cost verb.
-public export
-badDestroyAsCost : Unspellable Ability (\ok =>
-  Activated (Do (Macros.destroy (Macros.a Macros.creature)) {ok})
-            Macros.drawACard)
-badDestroyAsCost Oh impossible
 
 
 ||| "Tap target creature with flying that doesn't have flying."
@@ -211,7 +172,8 @@ badStaleCarrier Refl impossible
 
 
 ||| "Return a creature to its owner's hand: Tap it."
-||| Hand is hidden [CR#400.2], so a cost mention there is unreadable past the colon.
+||| [CR#400.7] makes the moved card a new object with no relation to the old one,
+||| and [CR#400.7j] lets a cost's effects find it only in a PUBLIC zone.
 public export
 badHiddenCost : Unspellable Ability (\ok =>
   Activated (Do (Move (Macros.a Macros.creature) Macros.handZ))
@@ -322,14 +284,6 @@ badTapGraveyard : Unspellable (Effect []) (\ok =>
 badTapGraveyard OnField impossible
 
 
-||| "Destroy target tapped."
-||| A bare status word heads nothing; the modifier needs a head beside it.
-public export
-badBareTappedHead : Unspellable (Effect []) (\ok =>
-  Macros.destroy (Macros.target Macros.tapped {hd = ok}))
-badBareTappedHead Oh impossible
-
-
 ||| "Destroy target tapped creature card in your graveyard."
 ||| Status is only a battlefield permanent's [CR#110.5d], so this names two zones at once.
 public export
@@ -345,22 +299,6 @@ public export
 badTappedUntapped : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped, Macros.untapped] {cf = ok})))
 badTappedUntapped Oh impossible
-
-
-||| "nontapped"
-||| The status word does not negate; the opposite value is its own row.
-public export
-badNonTapped : Unspellable (Predicate [] Object) (\ok =>
-  Not Macros.tapped {ng = ok})
-badNonTapped Oh impossible
-
-
-||| "phased-in"
-||| The value exists in the closed product [CR#110.5], but its surface cell is unwritten.
-public export
-badPhasedInWord : Unspellable (Predicate [] Object) (\ok =>
-  HasStatus PhasedIn {at = ok})
-badPhasedInWord Oh impossible
 
 
 ||| "Untap target creature card in your graveyard."
@@ -472,11 +410,12 @@ badDamageArtifact : Unspellable (Effect []) (\ok =>
 badDamageArtifact ObjectTakes impossible
 
 
-||| "Choose a noncolor."
-||| A phrase needs a positive head [CR#105.1,608.2d]; Not is never one.
+||| "noncolor"
+||| [CR#105.1] closes the colour sort at five, and the quality noun names
+||| all five, so at kind `Quality Color` its complement is empty.
 public export
-badNegatedQualityHead : Unspellable (Effect []) (\ok =>
-  Choose (Macros.a (Not (QualityNoun Color)) {hd = ok}))
+badNegatedQualityHead : Unspellable (Predicate [] (Quality Color)) (\ok =>
+  Not (QualityNoun Color) {ng = ok})
 badNegatedQualityHead Oh impossible
 
 
@@ -498,7 +437,8 @@ badNegatedAntecedent Refl impossible
 
 
 ||| "Destroy target creature on the battlefield in a graveyard."
-||| An object is in ONE zone; the conjuncts refuse in either order.
+||| [CR#400.1] makes the zones distinct places and [CR#400.7] makes a move between
+||| them a new object, so no object is in both; the conjuncts refuse in either order.
 public export
 badConflictingZones : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.battlefieldZ, InZone Macros.graveyardZ] {zc = ok})))
@@ -514,7 +454,8 @@ badTargetColor ObjectTgt impossible
 
 
 ||| "Destroy target creature. It gets +3/+3 until end of turn."
-||| The one-shot stat modification takes a battlefield object.
+||| [CR#110.1] stops the destroyed card being a permanent as it leaves, and
+||| [CR#109.2] reads the bare type word onto the battlefield, so the pump has no subject.
 public export
 badGetsGraveyard : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
@@ -631,23 +572,6 @@ badThatMuchAmbig : Unspellable (Effect []) (\ok =>
 badThatMuchAmbig Refl impossible
 
 
-||| "Destroy target land. Destroy another target creature."
-||| "Other" needs a head-compatible anchor, and a land is none for "another creature" [CR#601.2c].
-public export
-badOtherCrossHead : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.destroy (Macros.target (HasType Land)),
-                Macros.destroy (Macros.target (And [Macros.creature, Other] {oa = ok}))])
-badOtherCrossHead Oh impossible
-
-
-||| "for each you control"
-||| Every for-each domain is noun-headed; this names no set to count.
-public export
-badForEachHeadless : Unspellable (Amount []) (\ok =>
-  Macros.forEach (ControlledBy You) {hd = ok})
-badForEachHeadless Oh impossible
-
-
 ||| "1 life for each 0 creatures"
 ||| A written numeral is at least one.
 public export
@@ -689,24 +613,9 @@ badAttackingInHand : Unspellable (Predicate [] Object) (\ok =>
 badAttackingInHand Oh impossible
 
 
-||| "Two target creatures deal 3 damage to target player."
-||| The damage frame names one source; a group subject distributes instead.
-public export
-badGroupDamageSource : Unspellable (Effect []) (\ok =>
-  DealDamage (TargetGroup (Macros.exactly 2) Macros.creature) (Lit 3) (Macros.target AnyPlayer) {ds = ok})
-badGroupDamageSource Oh impossible
-
-
-||| "non-any target"
-||| [CR#115.4] defines "any target" positively, so "non-" has no complement to take.
-public export
-badNegatedAnyTarget : Unspellable (Predicate [] Object) (\ok =>
-  Not AnyTarget {ng = ok})
-badNegatedAnyTarget Oh impossible
-
-
 ||| "any target in a graveyard"
-||| It takes no modifier but "other"; a restriction would make it a synonym for "any object".
+||| [CR#115.4] closes the class to creatures, players, planeswalkers and battles;
+||| none of them is in a graveyard, so the restricted phrase denotes nothing.
 public export
 badAnyTargetInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [AnyTarget, InZone Macros.graveyardZ] {at = ok})
@@ -714,19 +623,12 @@ badAnyTargetInGraveyard Oh impossible
 
 
 ||| "a any target" / "each any target"
-||| "Any target" is ITSELF the targeting form, so only the targeting determiners admit it.
+||| [CR#115.4] makes "any target" the whole target phrase, so a second determiner
+||| over it determines something already determined.
 public export
 badAnyTargetUnderA : Unspellable (Noun [] Object) (\ok =>
   Macros.a AnyTarget {af = ok})
 badAnyTargetUnderA Oh impossible
-
-
-||| "two any targets"
-||| The counted plural drops "any": oracle writes "two targets" [CR#115.4].
-public export
-badGroupAnyTarget : Unspellable (Noun [] Object) (\ok =>
-  TargetGroup (Macros.exactly 2) AnyTarget {af = ok})
-badGroupAnyTarget Oh impossible
 
 
 ||| "Discard this creature."
@@ -743,14 +645,6 @@ public export
 badAscribedTarget : Unspellable (Noun [] Object) (\ok =>
   AsType Creature (Macros.target Macros.creature) {asc = ok})
 badAscribedTarget AscribeThis impossible
-
-
-||| "non-" over a conjunction rather than a single modifier
-||| Negation is atomic: it attaches to one modifier, and a conjunction negates per-member.
-public export
-badNegatedConjunction : Unspellable (Predicate [] Object) (\ok =>
-  Not (And [Macros.creature]) {ng = ok})
-badNegatedConjunction Oh impossible
 
 
 ||| "creature you control that you don't control"

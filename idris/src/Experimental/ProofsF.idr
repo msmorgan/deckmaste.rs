@@ -27,24 +27,6 @@ badPreventDealtToArtifact : Unspellable (StaticEffect []) (\ok =>
 badPreventDealtToArtifact ObjectTakes impossible
 
 
-||| "If creatures would deal damage to you, prevent that damage."
-||| The event clause names one source: [CR#609.7] makes it the single object that dealt the damage.
-public export
-badPreventFromPluralSource : Unspellable (StaticEffect []) (\ok =>
-  PreventsFrom AnyDamage (DealtBy (AllOf Macros.creature) {ds = ok})
-               (Macros.shieldingIt You) CutAll Repeatedly Nothing)
-badPreventFromPluralSource Oh impossible
-
-
-||| "The next time creatures would deal damage to you this turn, that damage is dealt to this creature instead."
-||| The same gate at the second event-shaped row: a source is the one object that dealt the damage [CR#120.7].
-public export
-badRedirectFromPluralSource : Unspellable (StaticEffect []) (\ok =>
-  RedirectsFrom AnyDamage (DealtBy (AllOf Macros.creature) {ds = ok})
-                (Macros.shieldingIt You) Macros.thisCreature NextTimeOnly)
-badRedirectFromPluralSource Oh impossible
-
-
 ||| "All damage that would be dealt to you is dealt to target artifact instead."
 ||| [CR#120.1a] at the destination, which [CR#614.9] names from the same closed list.
 public export
@@ -114,7 +96,8 @@ badNonsource Oh impossible
 
 
 ||| "Tap target permanent or player."
-||| [CR#115.2] licenses the player as an exception, not a thing in a zone, so the union head is placeless.
+||| [CR#701.26a] taps only untapped permanents and [CR#110.5d] gives status to
+||| permanents alone, so a head that may denote a player is untappable.
 public export
 badTapKindJoin : Unspellable (Effect []) (\ok =>
   SetStatus Tapped (Macros.target (KindJoin JoinAnyPlayer JoinPermanent)) {ok})
@@ -122,7 +105,8 @@ badTapKindJoin OnField impossible
 
 
 ||| "Exile target permanent or player."
-||| Exile demands no zone, so what refuses is that the mention may denote a player [CR#115.2].
+||| [CR#400.1] makes a zone a place where OBJECTS can be and [CR#109.1] lists what
+||| an object is; a player is none of them, so a head that may denote one has no zone.
 public export
 badExileKindJoin : Unspellable (Effect []) (\ok =>
   Macros.exile (Macros.target (KindJoin JoinAnyPlayer JoinPermanent)) {na = ok})
@@ -138,7 +122,8 @@ badKindJoinInOr Oh impossible
 
 
 ||| "Tap you and permanents you control."
-||| A set with a player in it stands nowhere, so the battlefield verbs refuse it [CR#115.2].
+||| The same refusal through the joined subject: [CR#701.26a] taps permanents and
+||| [CR#110.5d] denies a non-permanent any status to change.
 public export
 badTapYouAnd : Unspellable (Effect []) (\ok =>
   SetStatus Tapped (YouAnd (AllOf (And [Permanent, ControlledBy You]))) {ok})
@@ -160,16 +145,6 @@ badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
   Redirects AnyDamage AllOfIt (Macros.shieldingIt You) Nothing
             (YouAnd (AllOf (And [Permanent, ControlledBy You]))) {one = ok})
 badRedirectToGroup Oh impossible
-
-
-||| "If creatures would deal damage to a permanent or player, they deal double that damage instead."
-||| [CR#120.7] makes the source one object, and the body reads the agent back with a singular pronoun.
-public export
-badScaleFromPluralSource : Unspellable (StaticEffect []) (\ok =>
-  Scales AnyDamage (AllOf Macros.creature)
-         (Macros.shieldingIt (Macros.a (KindJoin JoinAnyPlayer JoinPermanent)))
-         (Multiplied Doubled) Repeatedly {ds = ok})
-badScaleFromPluralSource Oh impossible
 
 
 ||| "… it deals that much damage plus 0 instead."
@@ -278,14 +253,6 @@ badYourChoiceNumber : Unspellable (Predicate [] Object) (\ok =>
 badYourChoiceNumber Oh impossible
 
 
-||| "Destroy one of the creature type of your choice."
-||| The choice determiner is a modifier and not a head: it says which ones, never what they are.
-public export
-badLoneYourChoice : Unspellable (Effect []) (\ok =>
-  Macros.destroy (Macros.a (OfYourChoice CreatureType) {hd = ok}))
-badLoneYourChoice Oh impossible
-
-
 ||| "Creatures you control of the chosen type get +1/+1. / As this enchantment enters, choose a creature type."
 ||| A line reads what its predecessors said; [CR#607.2d] links the reader to a choice already made.
 public export
@@ -352,16 +319,6 @@ badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
 badAscribedQualityBeforeChoice Refl impossible
 
 
-||| "Creatures you control get +1/+1. The same is true for creature spells you control and creature cards you own that aren't on the battlefield."
-||| The extension is an ascription's rider and nothing else's.
-public export
-badExtendedPump : Unspellable (StaticEffect []) (\ok =>
-  AlsoOffBattlefield
-    (Gets (AllOf (And [Macros.creature, ControlledBy You]))
-          (PtUp (Lit 1)) (PtUp (Lit 1))) {ex = ok})
-badExtendedPump Oh impossible
-
-
 ||| "Creatures you control are artifacts in addition to their other types. The same is true for … . The same is true for … ."
 ||| One extension per statement: the singleton discipline at a third site.
 public export
@@ -369,7 +326,7 @@ badDoubleExtension : Unspellable (StaticEffect []) (\ok =>
   AlsoOffBattlefield
     (AlsoOffBattlefield
        (BecomesAlso (AllOf (And [Macros.creature, ControlledBy You]))
-                    (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing))) {ex = ok})
+                    (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing))) {nx = ok})
 badDoubleExtension Oh impossible
 
 
@@ -544,14 +501,6 @@ badLookAtHandRider : Unspellable (StaticEffect []) (\ok =>
 badLookAtHandRider Oh impossible
 
 
-||| "You may play any number of additional lands on each of your turns."
-||| [CR#305.2] lets a continuous effect increase the number, and an unbounded top removes the limit instead.
-public export
-badAnyNumberOfAdditionalLands : Unspellable (StaticEffect []) (\ok =>
-  MayPlayAdditionalLands You Macros.anyNumber {bi = ok})
-badAnyNumberOfAdditionalLands Oh impossible
-
-
 ||| "Lands you control are every creature type."
 ||| [CR#205.3m] gives the creature types to creatures and kindreds, so the space demands its own host.
 public export
@@ -568,14 +517,6 @@ badEveryBasicLandTypeOnCreature : Unspellable (StaticEffect []) (\ok =>
   AddsEveryType (AllOf (And [Macros.creature, ControlledBy You])) BasicLandSpace
                 {sh = ok})
 badEveryBasicLandTypeOnCreature Oh impossible
-
-
-||| "Kindred permanents you control are every creature type."
-||| The space carries one host demand, and a kindred subject is not the creature host it names.
-public export
-badEveryCreatureTypeOnKindred : Unspellable (StaticEffect []) (\ok =>
-  AddsEveryType (AllOf (HasType Kindred)) CreatureSpace {sh = ok})
-badEveryCreatureTypeOnKindred Oh impossible
 
 
 ||| "Draw a card. At the beginning of that turn's end step, you lose the game."
@@ -639,24 +580,6 @@ badCastAbilityClass CastOnStack impossible
 badCastAbilityClass CopiedOnStack impossible
 badCastAbilityClass PlayedIsLand impossible
 badCastAbilityClass ActivatedIsAbility impossible
-
-
-||| "Mana abilities can't be activated."
-||| Mana-ability-ness is predicative and heads nothing.
-public export
-badManaAbilityClassSubject : Unspellable (StaticEffect []) (\ok =>
-  ObjectCant Activated (AllOf IsManaAbility {hd = ok}))
-badManaAbilityClassSubject Oh impossible
-
-
-||| "Activated abilities not of artifacts can't be activated."
-||| Neither anchor negates; the negation goes inside the anchor's own description.
-public export
-badNegatedAbilityAnchor : Unspellable (StaticEffect []) (\ok =>
-  ObjectCant Activated
-    (AllOf (And [ AbilityHead AnyActivated
-                , Not (AbilityOf (AllOf Macros.artifact)) {ng = ok} ])))
-badNegatedAbilityAnchor Oh impossible
 
 
 ||| "You may {T} rather than pay this spell's mana cost."

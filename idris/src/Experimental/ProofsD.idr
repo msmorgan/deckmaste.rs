@@ -18,14 +18,6 @@ badExiledWithAttacking : Unspellable (Predicate [] Object) (\ok =>
 badExiledWithAttacking Oh impossible
 
 
-||| "not exiled with this artifact"
-||| The linkage read does not negate: a source-keyed group is named to be acted on.
-public export
-badNegatedExiledWith : Unspellable (Predicate [] Object) (\ok =>
-  Not Macros.exiledWithThisArtifact {ng = ok})
-badNegatedExiledWith Oh impossible
-
-
 ||| "Draw a card." printed as a spell ability on a creature card
 ||| [CR#113.3a] defines the category by resolving as an instant or sorcery spell.
 public export
@@ -320,14 +312,6 @@ badBlockingGraveyardRelatum : Unspellable (Noun [] Object) (\ok =>
 badBlockingGraveyardRelatum Oh impossible
 
 
-||| "target creature not blocked by this creature"
-||| The relational row does not negate; the bare designation's negation is a different word.
-public export
-badNegatedBlockedBy : Unspellable (Predicate [] Object) (\ok =>
-  Not (BlockedBy Macros.thisCreature) {ng = ok})
-badNegatedBlockedBy Oh impossible
-
-
 ||| "Whenever a creature blocks this, draw a card."
 ||| A bare self offers no evidence of the battlefield [CR#109.2], so the partner is type-ascribed.
 public export
@@ -337,14 +321,6 @@ badBlocksBareThisPartner : Unspellable Ability (\ok =>
 badBlocksBareThisPartner Oh impossible
 
 
-||| "Your opponents can't untap more than three lands during their untap steps."
-||| The bound vocabulary is closed at one and two, so only the count refuses here.
-public export
-badUntapCapThree : Unspellable Ability (\ok =>
-  Static (CantUntapMoreThan (PlayerGroup YourOpponents) 3 Macros.land {bd = ok}))
-badUntapCapThree OneUntap impossible
-
-
 ||| "Players can't untap more than one creature card in your graveyard during their untap steps."
 ||| [CR#502.3] untaps the permanents a player controls, which a graveyard phrase contradicts.
 public export
@@ -352,14 +328,6 @@ badUntapCapGraveyardSet : Unspellable Ability (\ok =>
   Static (CantUntapMoreThan (PlayerGroup AllPlayers) 1
                             (And [Macros.creature, InZone (Macros.graveyardOf You)]) {zn = ok}))
 badUntapCapGraveyardSet Oh impossible
-
-
-||| "Players can't untap more than one tapped during their untap steps."
-||| The capped set writes a head noun, and a status word is a modifier that heads nothing.
-public export
-badUntapCapHeadless : Unspellable Ability (\ok =>
-  Static (CantUntapMoreThan (PlayerGroup AllPlayers) 1 Macros.tapped {hd = ok}))
-badUntapCapHeadless Oh impossible
 
 
 ||| "Put a poison counter on target creature."
@@ -466,14 +434,6 @@ badColorlessWhite : Unspellable (Noun [] Object) (\ok =>
 badColorlessWhite Oh impossible
 
 
-||| "target nonmulticolored permanent"
-||| The three colour-count words take no prefix negation, unlike the five colour words.
-public export
-badNonMulticolored : Unspellable (Predicate [] Object) (\ok =>
-  Not Multicolored {ng = ok})
-badNonMulticolored Oh impossible
-
-
 ||| "{2}: Draw a card. Activate only during that turn's end step."
 ||| An activation restriction introduces no turn, so the deictic possessor reaches no antecedent.
 public export
@@ -508,14 +468,6 @@ badItIsDay : Unspellable Ability (\ok =>
   Triggered At (BeginningOf EndStep (ByWord Yours)) Macros.drawACard
             {intervening = Just (GameIs Day {at = ok})})
 badItIsDay Oh impossible
-
-
-||| "if you aren't the monarch"
-||| The designation read does not negate; "there is no monarch" is another construction.
-public export
-badNegatedMonarch : Unspellable (Predicate [] Player) (\ok =>
-  Not (HasDesignation Monarch) {ng = ok})
-badNegatedMonarch Oh impossible
 
 
 ||| "target creature card in your graveyard that is your Ring-bearer"
@@ -589,36 +541,12 @@ badConcludesAsCost : Unspellable Ability (\ok =>
 badConcludesAsCost Oh impossible
 
 
-||| "Each player can't untap more than one creature during their untap step."
-||| The cap's subject is closed at the bare plural, "you" and "your opponents".
-public export
-badUntapCapEachPlayer : Unspellable Ability (\ok =>
-  Static (CantUntapMoreThan (Each AnyPlayer) 1 Macros.creature {cs = ok}))
-badUntapCapEachPlayer Oh impossible
-
-
 ||| "This creature deals 2 damage to your opponents."
 ||| One magnitude and one recipient phrase, and a bare plural says neither each member's nor the group's.
 public export
 badPluralPlayerDamageRecipient : Unspellable (Effect []) (\ok =>
   DealDamage Macros.thisCreature (Lit 2) (PlayerGroup YourOpponents) {pm = ok})
 badPluralPlayerDamageRecipient Oh impossible
-
-
-||| "creatures players control"
-||| The possessor set is written "your opponents", never as a bare plural.
-public export
-badControlledByAllPlayers : Unspellable (Predicate [] Object) (\ok =>
-  ControlledBy (PlayerGroup AllPlayers) {ps = ok})
-badControlledByAllPlayers Oh impossible
-
-
-||| "cards in players' graveyards"
-||| The possessive reader answers from the same table and refuses the bare plural too.
-public export
-badOwnedByAllPlayers : Unspellable (ZoneExpr []) (\ok =>
-  Macros.graveyardOf (PlayerGroup AllPlayers) {pn = ok})
-badOwnedByAllPlayers Oh impossible
 
 
 ||| "You gain life equal to your opponents' life totals."
@@ -792,10 +720,3 @@ badCastInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, CastBy You, InZone Macros.graveyardZ] {zc = ok})
 badCastInGraveyard Oh impossible
 
-
-||| "spells players cast"
-||| The cast clause answers the same possessor table and refuses the bare plural too.
-public export
-badCastByAllPlayers : Unspellable (Predicate [] Object) (\ok =>
-  CastBy (PlayerGroup AllPlayers) {ps = ok})
-badCastByAllPlayers Oh impossible

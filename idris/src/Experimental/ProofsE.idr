@@ -272,14 +272,6 @@ badRenownZero : Unspellable Ability (\ok =>
 badRenownZero Oh impossible
 
 
-||| "Enchant red"
-||| [CR#702.5a]'s "[object or player]" is a description, and descriptions here have head nouns.
-public export
-badHeadlessEnchant : Unspellable Ability (\ok =>
-  KeywordAbility Enchant {param = Just (ParamSubject (ColorIs Red) {hd = ok})})
-badHeadlessEnchant Oh impossible
-
-
 ||| "Protection from player"
 ||| [CR#702.5a] writes enchant's slot as "[object or player]" where [CR#702.16a] writes protection's as "[quality]".
 public export
@@ -321,15 +313,6 @@ badPartitiveOfCountedGroup : Unspellable (Noun [] Object) (\ok =>
   SomeOf (Macros.exactly 1) (CountedGroup (Macros.atLeast 1) Macros.creature)
          {gm = ok})
 badPartitiveOfCountedGroup Oh impossible
-
-
-||| "One or more opponents lose 1 life. Draw that many cards."
-||| The group anaphor counts objects, so a player group leaves no size to read back.
-public export
-badPlayerGroupSize : Unspellable (Effect []) (\ok =>
-  Sequentially [ Macros.losesLife (CountedGroup (Macros.atLeast 1) Opponent) (Lit 1)
-               , Draw You (GroupSize {ok}) ])
-badPlayerGroupSize Refl impossible
 
 
 ||| "Whenever a creature attacks your opponents, …"
@@ -777,15 +760,6 @@ public export
 badPurposelessSpend : Unspellable (Effect []) (\ok =>
   AddMana You (Lit 1) (Runs [[Colorless]]) [SpendOnly [] {ne = ok}])
 badPurposelessSpend MkSpendPurposes impossible
-
-||| "Add {C}. Spend this mana only to activate an ability of one you control."
-||| Where the restriction names the ability's source [CR#113.7] it describes it with a head noun.
-public export
-badHeadlessSpendSource : Unspellable (Effect []) (\ok =>
-  AddMana You (Lit 1) (Runs [[Colorless]])
-          [SpendOnly [ToActivate (Just (ControlledBy You)) {hd = ok}]])
-badHeadlessSpendSource MkMaybeHeaded impossible
-
 
 ||| "This artifact is a copy of target artifact." — as a card's own line.
 ||| [CR#707.4] is about an effect that causes a permanent to copy, and an effect wants a carrier.

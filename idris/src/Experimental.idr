@@ -12,7 +12,7 @@ mutual
   data ZoneScope : Bindings -> Zone -> Type where
     Bare : ZoneScope bs z
     OwnedBy : (n : Noun bs Player) -> {auto 0 ps : Possessable z} ->
-              {auto 0 pn : Possessor n} -> ZoneScope bs z
+              ZoneScope bs z
 
   ||| Where in a library a card lands: one end of the ordered pile
   ||| [CR#401.2], or the top-or-bottom disjunction. The chooser is a
@@ -179,8 +179,8 @@ mutual
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
     HasKeyword : (k : Keyword) -> {auto 0 np : KeywordParamless k} ->
                  Predicate bs Object
-    ControlledBy : (n : Noun bs Player) -> {auto 0 ps : Possessor n} -> Predicate bs Object
-    CastBy : (n : Noun bs Player) -> {auto 0 ps : Possessor n} -> Predicate bs Object
+    ControlledBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
+    CastBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
     CastFrom : (z : ZoneExpr bs) ->
                {auto 0 pf : So (playableFrom (Just (zoneSort z)))} ->
                {auto 0 wz : WholeZone z} -> Predicate bs Object
@@ -210,8 +210,7 @@ mutual
                  {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
     Permanent : Predicate bs Object
     IsToken : Predicate bs Object
-    HasStatus : {c : StatusCat} -> (v : StatusVal c) ->
-                {auto 0 at : StatusWord v} -> Predicate bs Object
+    HasStatus : {c : StatusCat} -> (v : StatusVal c) -> Predicate bs Object
     HasCounters : (kind : Maybe CounterKind) ->
                   {auto 0 kn : CounterKindNamed Object kind} ->
                   Predicate bs Object
@@ -221,7 +220,6 @@ mutual
                   (dom : Predicate bs k) ->
                   {auto 0 ex : IsExtremal op} ->
                   {auto 0 sc : projScope ax = k} ->
-                  {auto 0 hd : Headed dom} ->
                   {auto 0 af : AnyTargetFree dom} -> Predicate bs k
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
     ExiledWith : (src : Noun bs Object) ->
@@ -244,7 +242,7 @@ mutual
     AbilityHead : (cls : AbilityClass) -> Predicate bs Ability
     AbilityOf : (src : Noun bs Object) -> Predicate bs Ability
     ActivatedBy : (who : Noun bs Player) ->
-                  {auto 0 ps : Possessor who} -> Predicate bs Ability
+                  {auto 0 ps : SoleHolder who} -> Predicate bs Ability
     IsManaAbility : Predicate bs Ability
 
   ||| The head type a predicate projects onto its referent — what an
@@ -423,6 +421,12 @@ mutual
     Nothing => False
     Just u => t == u && allSeedType t ps
 
+  ||| Whether a description writes its own head noun. English word class
+  ||| only: the kind index, not the head word, supplies a description's
+  ||| domain, and [CR#109.2] assigns a default zone to a description that
+  ||| names a card type or subtype without saying anything about one that
+  ||| does not. No gate demands a head; the coordination and search-
+  ||| description gates read this to keep their own phrases parallel.
   public export
   hasHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   hasHead (HasType _) = True
@@ -482,10 +486,6 @@ mutual
   hasHeadAll : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
   hasHeadAll [] = True
   hasHeadAll (p :: ps) = hasHead p && hasHeadAll ps
-
-  public export
-  Headed : Predicate bs k -> Type
-  Headed {bs} {k} p = So (hasHead p)
 
   public export
   qualityReadOk : {0 bs : Bindings} -> Predicate bs Object -> Bool
@@ -758,23 +758,37 @@ mutual
   negTypes [] = []
   negTypes (p :: ps) = negTypesOf p ++ negTypes ps
 
+  ||| The card types a member is satisfiable under. [CR#205.3m] gives
+  ||| creatures and kindreds one shared subtype list, so a creature subtype
+  ||| word describes a Kindred as readily as a creature.
   public export
-  seedTypes : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> List CardType
-  seedTypes [] = []
-  seedTypes (p :: ps) = case seedType p of
-    Just t => t :: seedTypes ps
-    Nothing => seedTypes ps
+  seedTypeAlts : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List CardType
+  seedTypeAlts (HasSubtype s) =
+    if subtypeType s == Creature then [Creature, Kindred] else [subtypeType s]
+  seedTypeAlts p = case seedType p of
+    Just t => [t]
+    Nothing => []
 
   public export
-  anyTypeClash : List CardType -> List CardType -> Bool
-  anyTypeClash [] seeds = False
-  anyTypeClash (t :: ts) seeds = elem t seeds || anyTypeClash ts seeds
+  allNegated : List CardType -> List CardType -> Bool
+  allNegated negs [] = True
+  allNegated negs (t :: ts) = elem t negs && allNegated negs ts
+
+  ||| A conjunction is empty when a negated type word rules out EVERY card
+  ||| type one of its members could be satisfied under.
+  public export
+  anySeedEmptied : {0 bs : Bindings} -> {0 k : Kind} -> List CardType ->
+                   List (Predicate bs k) -> Bool
+  anySeedEmptied negs [] = False
+  anySeedEmptied negs (p :: ps) = case seedTypeAlts p of
+    [] => anySeedEmptied negs ps
+    ts => allNegated negs ts || anySeedEmptied negs ps
 
   public export
   contradictionFree : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
   contradictionFree ps = noNegatedPair (flattenPs ps) &&
-                         not (anyTypeClash (negTypes (flattenPs ps))
-                                           (seedTypes (flattenPs ps))) &&
+                         not (anySeedEmptied (negTypes (flattenPs ps))
+                                             (flattenPs ps)) &&
                          noStatusClash (flattenPs ps) &&
                          noColorClash (flattenPs ps) &&
                          not (anyPermanentHead (flattenPs ps) &&
@@ -797,13 +811,18 @@ mutual
   hasOtherAny [] = False
   hasOtherAny (p :: ps) = hasOther p || hasOtherAny ps
 
+  ||| [CR#601.2c] gives "another target" one job: to name a target other
+  ||| than one already chosen. It asks nothing of the two descriptions'
+  ||| head nouns, so any earlier target of the kind anchors the word. The
+  ||| named complement ("other than this creature") still has to name
+  ||| something the phrase could describe.
   public export
   otherAnchorOk : {bs : Bindings} -> (k : Kind) -> List CardType ->
                   List (Predicate bs k) -> Bool
   otherAnchorOk k ts ps =
     if atMostOne (countOthers (flattenPs ps))
       then (if hasBareOtherAny ps
-              then anchorFound k ts bs
+              then anyTargeted k bs
               else complementAnchorsOk ts (flattenPs ps))
       else False
 
@@ -1029,53 +1048,19 @@ mutual
   DistinctDisjuncts : List (Predicate bs k) -> Type
   DistinctDisjuncts {bs} {k} ps = So (noRepeatedPair ps)
 
+  ||| A "non-" prefix names the complement of one modifier inside its own
+  ||| kind. Refused only where the rules leave that complement empty: the
+  ||| universal player word covers every person in the game [CR#102.1]; a
+  ||| quality noun names its whole sort, which for colour is closed at five
+  ||| [CR#105.1]; and [CR#120.7] makes a source the object that dealt some
+  ||| damage, a position any object may occupy rather than a property it
+  ||| lacks. Every other modifier has something outside it.
   public export
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  negatable (HasType _) = True
-  negatable (HasSubtype _) = True
   negatable AnyPlayer = False
-  negatable Opponent = True
-  negatable (QualityNoun _) = True
-  negatable (OfChosen _) = True
-  negatable OfLastChosenColor = True
-  negatable (OfYourChoice _) = True
-  negatable (AbilityHead _) = False
-  negatable (AbilityOf _) = False
-  negatable (ActivatedBy _) = False
-  negatable IsManaAbility = True
+  negatable (QualityNoun _) = False
   negatable IsSource = False
-  negatable (HasKeyword _) = True
-  negatable (ControlledBy _) = True
-  negatable (CastBy _) = False
-  negatable (ExiledWith _) = False
-  negatable Attacking = True
-  negatable Blocking = True
-  negatable (BlockerOf _) = False
-  negatable (BlockedBy _) = False
-  negatable (HappenedTo _ _) = True
-  negatable (CastFrom _) = True
-  negatable (ColorIs _) = True
-  negatable IsColorless = False
-  negatable Multicolored = False
-  negatable Monocolored = False
-  negatable (HasSupertype _) = True
-  negatable (Named _) = True
-  negatable (HasDesignation _) = False
-  negatable (IsAttached _) = True
-  negatable Permanent = False
-  negatable IsToken = True
-  negatable (HasStatus _) = False
-  negatable (HasCounters _) = True
-  negatable (Compare _ _ _) = False
-  negatable (Superlative _ _ _) = False
-  negatable (InZone _) = True
-  negatable (And _) = False
-  negatable (Or _) = False
-  negatable (Not _) = False
-  negatable Other = False
-  negatable (OtherThan _) = False
-  negatable AnyTarget = False
-  negatable (KindJoin _ _) = False
+  negatable _ = True
 
   public export
   Negatable : Predicate bs k -> Type
@@ -1253,12 +1238,19 @@ mutual
   ZoneFree : Predicate bs k -> Type
   ZoneFree {bs} {k} p = seedZone p = Nothing
 
+  ||| [CR#115.4] writes the class word as the WHOLE target phrase — "any
+  ||| target", "another target", "two targets" — so a description either
+  ||| is that phrase or contains none of it. The count is free: the rule
+  ||| lists "two targets" itself.
   public export
+  ||| [CR#115.4] writes the class word as the WHOLE target phrase — "any
+  ||| target", "another target", "two targets" — so a description either is
+  ||| that phrase or contains none of it. The count is free: the rule lists
+  ||| "two targets" itself. The quantity stays in the signature so the
+  ||| obligation is stuck until a determiner is written.
   anyTargetOkAt : {0 bs : Bindings} -> {0 k : Kind} ->
                   Quantity -> Predicate bs k -> Bool
-  anyTargetOkAt (Range Nothing _) p = headIsAnyTarget p || anyTargetFree p
-  anyTargetOkAt (Range (Just (S Z)) _) p = headIsAnyTarget p || anyTargetFree p
-  anyTargetOkAt (Range (Just _) _) p = anyTargetFree p
+  anyTargetOkAt (Range _ _) p = headIsAnyTarget p || anyTargetFree p
 
   public export
   AnyTargetAtCount : Quantity -> Predicate bs k -> Type
@@ -1293,29 +1285,23 @@ mutual
     You : Noun bs Player        -- "you" [CR#109.5]
     PlayerGroup : (w : PlayerGroupWord) -> Noun bs Player
     Each : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-           {auto 0 hd : Headed p} ->
            {auto 0 af : AnyTargetFree p} -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
     Indefinite : (m : ChoiceMode bs) -> (p : Predicate bs k) ->
                  {auto ph : Phrasal k} ->
-                 {auto 0 hd : Headed p} ->
                  {auto 0 af : AnyTargetFree p} -> Noun bs k
     Definite : (p : Predicate bs k) ->
                {auto ph : Phrasal k} ->
-               {auto 0 hd : Headed p} ->
                {auto 0 af : AnyTargetFree p} ->
                {auto 0 uq : Uniquifying p} -> Noun bs k
     TargetGroup : (q : Quantity) -> (p : Predicate bs k) ->
                   {auto tk : Targetable k} -> {auto 0 nz : NonZeroQ q} ->
                   {auto 0 wf : WellFormedQ q} ->
-                  {auto 0 hd : Headed p} ->
                   {auto 0 af : AnyTargetAtCount q p} -> Noun bs k
     CountedGroup : (q : Quantity) -> (p : Predicate bs k) ->
                    {auto ph : Phrasal k} -> {auto 0 nz : NonZeroQ q} ->
                    {auto 0 wf : WellFormedQ q} ->
-                   {auto 0 hd : Headed p} ->
                    {auto 0 af : AnyTargetFree p} -> Noun bs k
     AllOf : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-            {auto 0 hd : Headed p} ->
             {auto 0 af : AnyTargetFree p} -> Noun bs k
     EachOf : (grp : Noun bs k) ->
              {auto 0 pl : nounPlur grp = ManyOf} ->
@@ -1352,8 +1338,7 @@ mutual
     ||| attribute of the card itself, so the possessed noun reads it in
     ||| every zone. The possessive is the only determiner written.
     Designated : (d : Designation) -> (whose : Noun bs Player) ->
-                 {auto 0 sc : designationScope d = HeldByCard} ->
-                 {auto 0 ps : Possessor whose} -> Noun bs Object
+                 {auto 0 sc : designationScope d = HeldByCard} -> Noun bs Object
 
   ||| Referent equality between two possessor nouns, deliberately the
   ||| smallest honest relation: `True` only for the atomic words whose
@@ -1557,8 +1542,7 @@ mutual
     OneZone : (z : ZoneExpr bs) ->
               {auto 0 sz : SearchableZone (zoneSort z)} ->
               {auto 0 wz : WholeZone z} -> SearchScope bs
-    GraveyardHandLibraryOf : (whose : Noun bs Player) ->
-                             {auto 0 pn : SweepPossessor whose} -> SearchScope bs
+    GraveyardHandLibraryOf : (whose : Noun bs Player) -> SearchScope bs
 
   ||| The sweep fixes no single zone for what it finds.
   public export
@@ -1609,12 +1593,10 @@ mutual
     StatOf : (c : Characteristic) -> (n : Noun bs Object) ->
              {auto 0 one : nounPlur n = OneOf} -> Amount bs
     CountOf : {k : Kind} -> (p : Predicate bs k) ->
-              {auto 0 hd : Headed p} ->
               {auto 0 af : AnyTargetFree p} -> Amount bs
     Aggregate : {k : Kind} -> (op : AggregateOp) -> (ax : ProjAxis) ->
                 (p : Predicate bs k) ->
                 {auto 0 sc : projScope ax = k} ->
-                {auto 0 hd : Headed p} ->
                 {auto 0 af : AnyTargetFree p} -> Amount bs
     CountersOn : {k : Kind} -> (kind : CounterKind) -> (holder : Noun bs k) ->
                  {auto 0 sc : counterScope kind = k} ->
@@ -1630,7 +1612,7 @@ mutual
     ThatMuch : {auto 0 ok : countOnes Outcome bs = 1} -> Amount bs
     PreventedThisWay : {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
                        Amount bs
-    GroupSize : {auto 0 ok : countManys Object bs = 1} -> Amount bs
+    GroupSize : {auto 0 ok : countManysAny bs = 1} -> Amount bs
     TheDifference : {auto 0 ok : countOnes Gap bs = 1} -> Amount bs
     DefinedLetter : (w : LetterWord) ->
                     {auto 0 ok : countLetter w bs = 1} -> Amount bs
@@ -1957,39 +1939,6 @@ mutual
   PerMember {bs} {k} n = So (perMemberOk n)
 
   public export
-  capSubjectOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  capSubjectOk You = True
-  capSubjectOk (PlayerGroup _) = True
-  capSubjectOk This = False
-  capSubjectOk (AsType _ _) = False
-  capSubjectOk (Each _) = False
-  capSubjectOk (Indefinite _ _) = False
-  capSubjectOk (Definite _) = False
-  capSubjectOk (TargetGroup _ _) = False
-  capSubjectOk (CountedGroup _ _) = False
-  capSubjectOk (AllOf _) = False
-  capSubjectOk (EachOf _) = False
-  capSubjectOk (YouAnd _) = False
-  capSubjectOk (LibrarySlice _ _ _) = False
-  capSubjectOk (SomeOf _ _) = False
-  capSubjectOk TheRest = False
-  capSubjectOk It = False
-  capSubjectOk They = False
-  capSubjectOk Them = False
-  capSubjectOk (Those _) = False
-  capSubjectOk (That _) = False
-  capSubjectOk (AttachHost _ _) = False
-  capSubjectOk (TheVerbed _ _) = False
-  capSubjectOk (ThoseVerbed _ _) = False
-  capSubjectOk (ControllerOf _) = False
-  capSubjectOk (OwnerOf _) = False
-  capSubjectOk (Designated _ _) = False
-
-  public export
-  CapSubject : Noun bs k -> Type
-  CapSubject {bs} {k} n = So (capSubjectOk n)
-
-  public export
   LandSubject : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
   LandSubject {bs} {k} n = So (tyIs Land (nounTy n))
 
@@ -2011,27 +1960,21 @@ mutual
                          {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                          ActSubject Regenerated n
 
+  ||| The possessor of a relation an object can hold to only ONE player:
+  ||| [CR#110.2] gives a permanent one controller, the player under whose
+  ||| control it entered, and [CR#601.2a] one caster. A group word
+  ||| distributes — each member holds the relation to its own objects — so
+  ||| "creatures players control" names a set. A counted plural does not
+  ||| distribute: it asks for the object all of a named two control at
+  ||| once, and [CR#110.2] leaves that empty.
   public export
-  possessorOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
-  possessorOk (PlayerGroup YourOpponents) = True
-  possessorOk (PlayerGroup AllPlayers) = False
-  possessorOk n = isOne (nounPlur n)
+  soleHolderOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
+  soleHolderOk (PlayerGroup _) = True
+  soleHolderOk n = isOne (nounPlur n)
 
   public export
-  Possessor : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
-  Possessor {bs} {k} n = So (possessorOk n)
-
-  ||| The sweep is anchored on one player. No line names the zones of a
-  ||| group, so a group word is refused here where `Possessor` admits
-  ||| "each opponent".
-  public export
-  sweepPossessorOk : {bs : Bindings} -> Noun bs Player -> Bool
-  sweepPossessorOk (PlayerGroup _) = False
-  sweepPossessorOk n = possessorOk n
-
-  public export
-  SweepPossessor : {bs : Bindings} -> Noun bs Player -> Type
-  SweepPossessor {bs} n = So (sweepPossessorOk n)
+  SoleHolder : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+  SoleHolder {bs} {k} n = So (soleHolderOk n)
 
   public export
   slicePossessorOk : {bs : Bindings} -> Noun bs Player -> Bool
@@ -2067,7 +2010,6 @@ mutual
   public export
   data Condition : Bindings -> Type where
     Exists : {k : Kind} -> (p : Predicate bs k) ->
-             {auto 0 hd : Headed p} ->
              {auto 0 af : AnyTargetFree p} -> Condition bs
     Happened : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
                (w : Lookback) ->
@@ -2093,25 +2035,10 @@ mutual
     CompareAmt : (subj : Amount bs) -> (r : Comparator) -> (bound : Amount bs) ->
                  {auto 0 rd : ReadAmount subj} ->
                  {auto 0 cb : ComparableBound bound} -> Condition bs
-    NotCond : (c : Condition bs) -> {auto 0 ng : CondNegatable c} -> Condition bs
+    NotCond : (c : Condition bs) -> Condition bs
     AndCond : (cs : List (Condition bs)) ->
               {auto 0 tw : TwoConjuncts cs} ->
               {auto 0 fl : FlatConjuncts cs} -> Condition bs
-
-  public export
-  condNegatable : {0 bs : Bindings} -> Condition bs -> Bool
-  condNegatable (Exists p) = predNegFree p
-  condNegatable (Happened _ _ _) = True
-  condNegatable (GameIs _) = False
-  condNegatable (NoHolder _) = False
-  condNegatable (Matches n p) = predNegFree p
-  condNegatable (CompareAmt subj r bound) = False
-  condNegatable (NotCond c) = False
-  condNegatable (AndCond _) = False
-
-  public export
-  CondNegatable : Condition bs -> Type
-  CondNegatable {bs} c = So (condNegatable c)
 
   public export
   atLeastTwoCs : {0 bs : Bindings} -> List (Condition bs) -> Bool
@@ -2221,15 +2148,13 @@ mutual
   data TokenPhrase : {0 bs : Bindings} -> Noun bs Object -> Type where
     CountedTokens : {0 q : Quantity} -> {0 p : Predicate bs Object} ->
                     {0 ph : Phrasal Object} -> {0 nz : NonZeroQ q} ->
-                    {0 wf : WellFormedQ q} -> {0 hd : Headed p} ->
-                    {0 af : AnyTargetFree p} ->
+                    {0 wf : WellFormedQ q} -> {0 af : AnyTargetFree p} ->
                     {auto 0 ok : So (seedsToken p)} ->
-                    TokenPhrase (CountedGroup q p {ph} {nz} {wf} {hd} {af})
+                    TokenPhrase (CountedGroup q p {ph} {nz} {wf} {af})
     OneToken : {0 m : ChoiceMode bs} -> {0 p : Predicate bs Object} ->
-               {0 ph : Phrasal Object} -> {0 hd : Headed p} ->
-               {0 af : AnyTargetFree p} ->
+               {0 ph : Phrasal Object} -> {0 af : AnyTargetFree p} ->
                {auto 0 ok : So (seedsToken p)} ->
-               TokenPhrase (Indefinite m p {ph} {hd} {af})
+               TokenPhrase (Indefinite m p {ph} {af})
 
   public export
   data EventSource : Bindings -> Type where
@@ -2802,14 +2727,10 @@ mutual
                   StaticEffect bs
     CantUntapMoreThan : (who : Noun bs Player) -> (k : Nat) ->
                         (p : Predicate bs Object) ->
-                        {auto 0 cs : CapSubject who} ->
-                        {auto 0 bd : CapBound k} ->
-                        {auto 0 hd : Headed p} ->
                         {auto 0 zn : ZoneFits (seedZone p) (Just Battlefield)} ->
                         {auto 0 af : AnyTargetFree p} -> StaticEffect bs
     Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticEffect bs
     BecomesAlso : (n : Noun bs Object) -> (added : TokenChars bs) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   {auto 0 ne : LineNonEmpty added.line} ->
                   {auto 0 nw : AddsSomething (nounTy n) added.line} ->
                   {auto 0 af : AddedFits (nounTy n) added.line} ->
@@ -2840,7 +2761,7 @@ mutual
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                      StaticEffect bs
     AlsoOffBattlefield : (se : StaticEffect bs) ->
-                         {auto 0 ex : ExtendableScope se} -> StaticEffect bs
+                         {auto 0 nx : NotExtended se} -> StaticEffect bs
     BecomesCopy : (n : Noun bs Object) -> (src : Noun (nomIntro n) Object) ->
                   (exc : List (CopyExcept (nomIntro src))) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -2881,8 +2802,7 @@ mutual
     Scales : (kind : DamageKind) -> (src : Noun bs Object) ->
              (scope : DamageScope (nomIntro src)) ->
              (op : DamageScale (scopeIntro scope)) ->
-             (use : ReplUse) ->
-             {auto 0 ds : DamageSource src} -> StaticEffect bs
+             (use : ReplUse) -> StaticEffect bs
     CantPrevent : (kind : DamageKind) -> (scope : DamageScope bs) ->
                   (by : Maybe (Noun (scopeIntro scope) Object)) -> StaticEffect bs
     Conditionally : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
@@ -2901,8 +2821,7 @@ mutual
                  {auto 0 vo : VisibilityOk v what} -> StaticEffect bs
     MayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity) ->
                              {auto 0 nz : NonZeroQ q} ->
-                             {auto 0 wf : WellFormedQ q} ->
-                             {auto 0 bi : BoundedIncrease q} -> StaticEffect bs
+                             {auto 0 wf : WellFormedQ q} -> StaticEffect bs
     EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   {auto 0 ro : EntryRiderOk rider} -> StaticEffect bs
@@ -2951,16 +2870,6 @@ mutual
   notConditional (Conditionally _ _) = False
   notConditional _ = True
 
-  public export
-  extendableScopeOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
-  extendableScopeOk (AddsChosenQuality _ _) = True
-  extendableScopeOk (SetsChosenQuality _ _) = True
-  extendableScopeOk (BecomesAlso _ _) = True
-  extendableScopeOk _ = False
-
-  public export
-  ExtendableScope : StaticEffect bs -> Type
-  ExtendableScope {bs} se = So (extendableScopeOk se)
 
   public export
   notLetterRider : {0 bs : Bindings} -> StaticEffect bs -> Bool
@@ -2999,8 +2908,7 @@ mutual
   public export
   data DamageAgent : Bindings -> Type where
     Unattributed : DamageAgent bs
-    DealtBy : (n : Noun bs Object) ->
-              {auto 0 ds : DamageSource n} -> DamageAgent bs
+    DealtBy : (n : Noun bs Object) -> DamageAgent bs
 
   public export
   agentIntro : {bs : Bindings} -> DamageAgent bs -> Bindings
@@ -3043,6 +2951,19 @@ mutual
   public export
   NotCoord : StaticEffect bs -> Type
   NotCoord {bs} se = So (not (isCoord se))
+
+  ||| "The same is true for …" is a rider on ONE statement, so a second
+  ||| extension repeats the first. Nothing else is refused: [CR#109.3] lists
+  ||| an object's characteristics and none of them is a zone, so a static
+  ||| effect may name the cards off the battlefield it also reaches.
+  public export
+  notExtended : {0 bs : Bindings} -> StaticEffect bs -> Bool
+  notExtended (AlsoOffBattlefield _) = False
+  notExtended _ = True
+
+  public export
+  NotExtended : StaticEffect bs -> Type
+  NotExtended {bs} se = So (notExtended se)
 
   public export
   staticKind : {0 bs : Bindings} -> StaticEffect bs -> StaticKind
@@ -3184,8 +3105,7 @@ mutual
 
   public export
   data DividedVerb : Bindings -> Type where
-    DividedDamage : (src : Noun bs Object) ->
-                    {auto 0 ds : DamageSource src} -> DividedVerb bs
+    DividedDamage : (src : Noun bs Object) -> DividedVerb bs
     DistributedCounters : (kind : CounterKind) -> DividedVerb bs
 
   public export
@@ -3324,20 +3244,19 @@ mutual
   public export
   data SpendPurpose : Bindings -> Type where
     ToCast : (p : Predicate bs Object) ->
-             {auto 0 hd : Headed p} ->
              {auto 0 af : AnyTargetFree p} -> SpendPurpose bs
     ToActivate : (src : Maybe (Predicate bs Object)) ->
-                 {auto 0 hd : MaybeHeaded src} -> SpendPurpose bs
+                 {auto 0 sf : SpendSourceOk src} -> SpendPurpose bs
 
   public export
-  maybeHeaded : {0 bs : Bindings} -> Maybe (Predicate bs Object) -> Bool
-  maybeHeaded Nothing = True
-  maybeHeaded (Just p) = hasHead p && anyTargetFree p
+  spendSourceOk : {0 bs : Bindings} -> Maybe (Predicate bs Object) -> Bool
+  spendSourceOk Nothing = True
+  spendSourceOk (Just p) = anyTargetFree p
 
   public export
-  data MaybeHeaded : {0 bs : Bindings} -> Maybe (Predicate bs Object) -> Type where
-    MkMaybeHeaded : {0 src : Maybe (Predicate bs Object)} ->
-                    {auto 0 ok : So (maybeHeaded src)} -> MaybeHeaded src
+  data SpendSourceOk : {0 bs : Bindings} -> Maybe (Predicate bs Object) -> Type where
+    MkSpendSourceOk : {0 src : Maybe (Predicate bs Object)} ->
+                      {auto 0 ok : So (spendSourceOk src)} -> SpendSourceOk src
 
   public export
   data ManaRider : Bindings -> Type where
@@ -3391,7 +3310,6 @@ mutual
   data Effect : Bindings -> Type where
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                  (to : Noun (amtIntro amt) k) ->
-                 {auto 0 ds : DamageSource src} ->
                  {auto 0 pm : PerMember to} ->
                  {auto 0 rk : DamageRecipient to} -> Effect bs
     Fights : (a : Noun bs Object) ->
@@ -3483,7 +3401,6 @@ mutual
                  (amt : Amount (divIntro v)) ->
                  (among : Noun (amtIntro amt) k) ->
                  {auto 0 wc : WrittenCount amt} ->
-                 {auto 0 pl : nounPlur among = ManyOf} ->
                  {auto 0 gm : GroupMention among} ->
                  {auto 0 tk : DividedTakes (divTag v) among} -> Effect bs
     RemoveCounters : (amt : Amount bs) -> (kind : CounterKind) ->
@@ -3532,9 +3449,8 @@ mutual
     Delayed : (ev : GameEvent bs) ->
               {default Nothing span : Maybe (Duration bs)} ->
               Effect (delayedCtx ev) ->
-              {auto 0 one : eventSubjectPlur ev = OneOf} ->
               {auto 0 so : DelaySpanOk span} -> Effect bs
-    InsteadOf : (replaced : Effect bs) -> (repl : Effect (annIntro replaced)) ->
+    InsteadOf : (replaced : Effect bs) -> (repl : Effect (replacedCtx replaced)) ->
                 {auto 0 na : NotInstead replaced} ->
                 {auto 0 nb : NotInstead repl} -> Effect bs
     HeldUntil : (e : Effect bs) -> (ev : GameEvent (annIntro e)) ->
@@ -3811,6 +3727,7 @@ mutual
   costActionOk (PutCounters _ _ on) = costNounOk on
   costActionOk (RemoveCounters _ _ from) = costNounOk from
   costActionOk (Composite Exile e) = costActionOk e
+  costActionOk (Composite Destroy e) = costActionOk e
   costActionOk (Composite _ _) = False
   costActionOk (Does _ Sacrifice e) = costActionOk e
   costActionOk (Does _ Discard e) = costActionOk e
@@ -4193,14 +4110,6 @@ mutual
   NonAgentive : VerbName -> Type
   NonAgentive v = So (not (verbAgentive v))
 
-  public export
-  damageSrcOk : {bs : Bindings} -> Noun bs Object -> Bool
-  damageSrcOk (Each p) = True
-  damageSrcOk n = isOne (nounPlur n)
-
-  public export
-  DamageSource : {bs : Bindings} -> Noun bs Object -> Type
-  DamageSource {bs} n = So (damageSrcOk n)
 
   public export
   setZone : Maybe VerbName -> Maybe Zone -> Binding -> Binding
@@ -4430,7 +4339,7 @@ mutual
   effIntro (Search who sc p) =
     MkBinding AD Object OneOf (ObjectP (seedTy p) (searchZone sc) Nothing Nothing)
       :: (predDelta p ++ searchDelta sc ++ nomIntro who)
-  effIntro (Shuffle whose) = shuffledAway (nomIntro whose)
+  effIntro (Shuffle whose) = nomIntro whose
   effIntro (Continuously se _) = staticIntro se
   effIntro (Create agent count spec riders) =
     MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
@@ -4579,6 +4488,25 @@ mutual
   annSims : {bs : Bindings} -> {0 n : Nat} -> SimEffects n bs -> Bindings
   annSims [] = bs
   annSims (e :: es) = annSims es
+
+  ||| What a replacement clause reads back. [CR#614.6] makes the replaced
+  ||| event never happen, but its announcement still names the quantity —
+  ||| "deals double THAT damage instead" — so the replaced deed's own
+  ||| outcome is in scope here. A simultaneous list keeps its own telescope
+  ||| [CR#608.2f] and is untouched.
+  public export
+  replacedCtx : {bs : Bindings} -> Effect bs -> Bindings
+  replacedCtx (Sequentially es) = annSeqs es
+  replacedCtx (May d body did notd) = replacedCtx body
+  replacedCtx (If e c oth) = condDelta c ++ replacedCtx e
+  replacedCtx e = deedDelta e ++ annIntro e
+
+  ||| A sequence announces every deed it strings together, so a replacement
+  ||| over the whole sequence reads the quantity any of them named.
+  public export
+  annSeqs : {bs : Bindings} -> {0 n : Nat} -> Effects n bs -> Bindings
+  annSeqs [] = bs
+  annSeqs (e :: es) = deedDelta e ++ annSeqs es
 
   ||| The per-deed delta a simultaneous list sums — not the whole
   ||| `effIntro` answer, since the announcement telescope already carries
@@ -4771,8 +4699,7 @@ mutual
   data KeywordParam : Bindings -> Type where
     ParamCost : Cost [] -> KeywordParam bs
     ParamQuality : Predicate bs Object -> KeywordParam bs
-    ParamSubject : {k : Kind} -> (p : Predicate [] k) ->
-                   {auto 0 hd : Headed p} -> KeywordParam bs
+    ParamSubject : {k : Kind} -> (p : Predicate [] k) -> KeywordParam bs
     ParamNumber : (amt : Amount []) -> {auto 0 wc : WrittenCount amt} ->
                   KeywordParam bs
 

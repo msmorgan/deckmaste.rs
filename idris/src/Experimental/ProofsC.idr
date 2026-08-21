@@ -164,14 +164,6 @@ badChooseSomeOf : Unspellable (Effect []) (\ok =>
 badChooseSomeOf BareChoice impossible
 
 
-||| "Search your library for a land card, shuffle, then put it into your hand."
-||| A shuffle destroys what the discourse knew of the library [CR#701.24a,701.20d].
-public export
-badReadAfterShuffle : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.searchLibraryFor Macros.land, Macros.shuffle, Move (It {ok}) Macros.handZ])
-badReadAfterShuffle Refl impossible
-
-
 ||| "Tap the top card of your library."
 ||| The slice is in a library, which every battlefield-demanding verb already refuses.
 public export
@@ -329,35 +321,6 @@ badNestedInstead : Unspellable (Effect []) (\ok =>
 badNestedInstead Oh impossible
 
 
-||| "If this would deal 3 damage to any target, you gain that much life instead."
-||| [CR#614.6] makes a replaced event never happen, so its outcome is not there to read.
-public export
-badInsteadReadsReplacedOutcome : Unspellable (Effect []) (\ok =>
-  Macros.insteadOf (DealDamage This (Lit 3) (Macros.target AnyTarget))
-            (Macros.gainsLife You (ThatMuch {ok})))
-badInsteadReadsReplacedOutcome Refl impossible
-
-
-||| "If this would deal 3 damage to target creature and draw a card, you gain that much life instead."
-||| The same refusal through a sequence: the announcement channel is a hole [CR#614.6].
-public export
-badInsteadReadsReplacedSequenceOutcome : Unspellable (Effect []) (\ok =>
-  Macros.insteadOf (Sequentially [DealDamage This (Lit 3) (Macros.target Macros.creature), Macros.drawACard])
-            (Macros.gainsLife You (ThatMuch {ok})))
-badInsteadReadsReplacedSequenceOutcome Refl impossible
-
-
-||| "…you gain that much life instead." over a conditional wrapping an optional clause
-||| And through that recursion too: the nested may's damage outcome is not there to read either.
-public export
-badConditionalInsteadReadsMayOutcome : Unspellable (Effect []) (\ok =>
-  Macros.insteadOf (If (Macros.may You (DealDamage This (Lit 2) (Macros.target Macros.creature)))
-                (Exists Macros.creature)
-                Nothing)
-            (Macros.gainsLife You (ThatMuch {ok})))
-badConditionalInsteadReadsMayOutcome Refl impossible
-
-
 ||| "Draw a card: Draw a card."
 ||| A draw is not a payment: [CR#602.1a] makes a cost what the ACTIVATOR pays.
 public export
@@ -498,7 +461,8 @@ badIfNotReadsMandatoryBody Refl impossible
 
 
 ||| "Tap target creature unless its controller pays {1}."
-||| [CR#118.12a]'s rewrite puts the may first, typing the payer phrase before its antecedent.
+||| [CR#118.12a] rewrites "unless" as an offer followed by an if-not arm, so the
+||| payer phrase is typed before the arm that names the creature it reads.
 public export
 badUnlessAnaphoricPayer : Unspellable (Effect []) (\ok =>
   Macros.mayElse (ControllerOf (It {ok})) (Pay You (Mana [Macros.generic 1])) (SetStatus Tapped (Macros.target Macros.creature)))

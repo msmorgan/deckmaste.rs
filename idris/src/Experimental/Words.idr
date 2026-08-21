@@ -710,14 +710,6 @@ public export
 WellFormedQ : Quantity -> Type
 WellFormedQ q = So (quantWellFormed q)
 
-public export
-boundedIncrease : Quantity -> Bool
-boundedIncrease (Range _ Nothing) = False
-boundedIncrease (Range _ (Just _)) = True
-
-public export
-BoundedIncrease : Quantity -> Type
-BoundedIncrease q = So (boundedIncrease q)
 
 public export
 quantPlur : Quantity -> Plurality
@@ -1008,6 +1000,42 @@ countLetter w (MkBinding _ k OneOf _ :: bs) =
 countLetter w (_ :: bs) = countLetter w bs
 
 public export
+boundedIncrease : Quantity -> Bool
+boundedIncrease (Range _ Nothing) = False
+boundedIncrease (Range _ (Just _)) = True
+
+public export
+BoundedIncrease : Quantity -> Type
+BoundedIncrease q = So (boundedIncrease q)
+
+public export
+notInLibrary : Binding -> Bool
+notInLibrary (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = not (z == Library)
+notInLibrary (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
+notInLibrary (MkBinding _ _ _ PlayerP) = True
+notInLibrary (MkBinding _ _ _ QualityP) = True
+notInLibrary (MkBinding _ _ _ (OutcomeP _)) = True
+notInLibrary (MkBinding _ _ _ GapP) = True
+notInLibrary (MkBinding _ _ _ LetterP) = True
+notInLibrary (MkBinding _ _ _ TurnRefP) = True
+notInLibrary (MkBinding _ _ _ AbilityP) = True
+notInLibrary (MkBinding _ _ _ UnionP) = True
+
+public export
+shuffledAway : Bindings -> Bindings
+shuffledAway [] = []
+shuffledAway (b :: bs) =
+  if notInLibrary b then b :: shuffledAway bs else shuffledAway bs
+
+||| Any group mention, whatever it is a group of: "one or more opponents"
+||| leaves a size to read back as surely as a group of objects does.
+public export
+countManysAny : Bindings -> Nat
+countManysAny [] = Z
+countManysAny (MkBinding _ _ ManyOf _ :: bs) = S (countManysAny bs)
+countManysAny (_ :: bs) = countManysAny bs
+
+public export
 countManys : Kind -> Bindings -> Nat
 countManys k [] = Z
 countManys k (MkBinding _ k' ManyOf _ :: bs) =
@@ -1075,22 +1103,6 @@ anyTargetedAt [] = False
 anyTargetedAt (MkBinding TargetD _ _ _ :: _) = True
 anyTargetedAt (_ :: bs) = anyTargetedAt bs
 
-public export
-anyTargetedTy : Kind -> CardType -> Bindings -> Bool
-anyTargetedTy k t [] = False
-anyTargetedTy k t (b@(MkBinding TargetD k' _ _) :: bs) =
-  if k == k' && anchorTyOk t (bindingTy b) then True else anyTargetedTy k t bs
-anyTargetedTy k t (_ :: bs) = anyTargetedTy k t bs
-
-public export
-anchorFoundSome : Kind -> List CardType -> Bindings -> Bool
-anchorFoundSome k [] ctx = False
-anchorFoundSome k (t :: ts) ctx = anyTargetedTy k t ctx || anchorFoundSome k ts ctx
-
-public export
-anchorFound : Kind -> List CardType -> Bindings -> Bool
-anchorFound k [] ctx = anyTargeted k ctx
-anchorFound k (t :: ts) ctx = anchorFoundSome k (t :: ts) ctx
 
 public export
 settleTargets : Bindings -> Bindings
@@ -1190,24 +1202,6 @@ publicOnly : Bindings -> Bindings
 publicOnly [] = []
 publicOnly (b :: bs) = if pubB b then b :: publicOnly bs else publicOnly bs
 
-public export
-notInLibrary : Binding -> Bool
-notInLibrary (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = not (z == Library)
-notInLibrary (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
-notInLibrary (MkBinding _ _ _ PlayerP) = True
-notInLibrary (MkBinding _ _ _ QualityP) = True
-notInLibrary (MkBinding _ _ _ (OutcomeP _)) = True
-notInLibrary (MkBinding _ _ _ GapP) = True
-notInLibrary (MkBinding _ _ _ LetterP) = True
-notInLibrary (MkBinding _ _ _ TurnRefP) = True
-notInLibrary (MkBinding _ _ _ AbilityP) = True
-notInLibrary (MkBinding _ _ _ UnionP) = True
-
-public export
-shuffledAway : Bindings -> Bindings
-shuffledAway [] = []
-shuffledAway (b :: bs) =
-  if notInLibrary b then b :: shuffledAway bs else shuffledAway bs
 
 public export
 zoneOfIt : Bindings -> Maybe Zone
@@ -1620,10 +1614,6 @@ Eq ShiftDir where
   (==) ShiftDown ShiftDown = True
   (==) ShiftDown _ = False
 
-public export
-data CapBound : Nat -> Type where
-  OneUntap : CapBound 1
-  TwoUntaps : CapBound 2
 
 namespace Lookback
   public export
@@ -2258,7 +2248,9 @@ public export
 spaceHosted : TypeSpace -> Maybe CardType -> Bool
 spaceHosted BasicLandSpace ty = tyIs Land ty
 spaceHosted LandSpace ty = tyIs Land ty
-spaceHosted CreatureSpace ty = tyIs Creature ty
+-- [CR#205.3m,308.2]: kindreds and creatures share one subtype list, so a
+-- creature-type space is a kindred's as much as a creature's.
+spaceHosted CreatureSpace ty = tyIs Creature ty || tyIs Kindred ty
 
 public export
 SpaceHosted : TypeSpace -> Maybe CardType -> Type
@@ -3013,6 +3005,7 @@ statusClash PhasedIn PhasedOut = True
 statusClash PhasedIn _ = False
 statusClash PhasedOut PhasedIn = True
 statusClash PhasedOut _ = False
+
 
 public export
 statusWordOk : {0 c : StatusCat} -> StatusVal c -> Bool

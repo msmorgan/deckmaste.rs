@@ -6952,3 +6952,41 @@ goadedAttacksOther =
   Continuously (Deontic (Macros.target Macros.creature) Require Attack Agent
                         (DefendingPlayer (Macros.a (And [AnyPlayer, OtherThan You]))))
                (Just Macros.untilYourNextTurn)
+
+
+||| Fastbond's land line: "You may play any number of lands on each of your
+||| turns." [CR#305.2] lets a continuous effect raise the number a player may
+||| play, and this one takes the ceiling off. Its damage trigger needs an
+||| ordinal read of the lands already played this turn.
+public export
+fastbondLands : Ability
+fastbondLands = Static (MayPlayAdditionalLands You Macros.anyNumber)
+
+||| Furious Reprisal: "Furious Reprisal deals 2 damage to each of two
+||| targets." The counted group over the class word, a form [CR#115.4]
+||| names itself. Pinnacle of Rage writes the same line at 3 damage.
+public export
+furiousReprisal : Effect []
+furiousReprisal =
+  DealDamage This (Lit 2) (EachOf (TargetGroup (Macros.exactly 2) AnyTarget))
+
+||| Maskwood Nexus's first line: "Creatures you control are every creature
+||| type. The same is true for creature spells you control and creature
+||| cards you own that aren't on the battlefield." The off-battlefield
+||| extension over a type addition, [CR#205.3m]'s shared subtype list.
+public export
+maskwoodNexusTypes : Ability
+maskwoodNexusTypes =
+  Static (AlsoOffBattlefield
+            (AddsEveryType (AllOf Macros.creatureYouControl) CreatureSpace))
+
+||| Mystical Tutor: "Search your library for an instant or sorcery card,
+||| reveal it, then shuffle and put that card on top." [CR#701.24b] keeps
+||| the found card out of the shuffle, so the discourse still holds it.
+public export
+mysticalTutor : Effect []
+mysticalTutor =
+  Sequentially [ Macros.searchLibraryFor Macros.instantOrSorcery
+               , Macros.revealCards It
+               , Macros.shuffle
+               , Move It (LibraryAt (OneEnd OnTop) Nothing Bare) ]

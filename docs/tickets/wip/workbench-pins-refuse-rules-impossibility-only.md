@@ -1002,3 +1002,147 @@ Summary
 - `CompTag`/`compulsionTag` deleted with `deonticPatientOk`, their only consumer.
 - `Macros.idr`: `ifWouldInstead`, `nextTimeWouldInstead`, `exileUntil`, `delayedWithin`, `triggeredIf`, `triggeredOr`, `triggeredOnlyDuring`, `triggeredOnlyOnce` shed the implicits whose gates were deleted.
 - Every `Deontic` call site (35) rewritten from `Maybe (Noun …)` to the `DeonticPatient` family.
+
+## Phase 2 round 3 — nouns, heads, negation, counts (2026-08-22)
+
+### Tables reshaped
+
+| was | now | admits / refuses |
+|---|---|---|
+| `Headed`/`hasHead` as a gate on `Each`/`Indefinite`/`Definite`/`TargetGroup`/`CountedGroup`/`AllOf`/`Superlative`/`CountOf`/`Search`/`ParamSubject`/`CantUntapMoreThan`/`Exists`/`ToActivate` | `Headed` deleted; `hasHead` survives as a spelling-side word-class classifier read only by `parallelDisjuncts` and `SearchDescribed` | every description denotes: the KIND index supplies the domain, and [CR#109.2] assigns a default zone to a description naming a card type or subtype while saying nothing about one that does not. A head noun is a spelling/lowering matter, not a rules one |
+| `maybeHeaded`/`MaybeHeaded` (`hasHead && anyTargetFree`) | `spendSourceOk`/`SpendSourceOk` (`anyTargetFree` alone) | a spend restriction may name its source by any description |
+| `negatable` (52 rows) | three refusals and a permissive default | "non-" is refused only where the rules empty the complement: `AnyPlayer` [CR#102.1], `QualityNoun` (the sort-naming noun; colour is closed at five [CR#105.1]), `IsSource` ([CR#120.7] makes a source a position any object may occupy). Status words, comparisons, conjunctions, disjunctions, complements, relations and designations all negate |
+| `condNegatable`/`CondNegatable` | deleted; `NotCond` ungated | no rule makes any condition frame unnegatable; `NotCond (AndCond …)` is de Morgan, not per-conjunct. `condNegated`/`markingOk Unless` untouched, so `badUnlessConjunction` stands |
+| `possessorOk`/`Possessor` on `OwnedBy`, `Designated`, `handOf`/`graveyardOf`/`libraryOf`/`lookAtHandOf` | ungated | [CR#400.1] gives each player their own library, hand and graveyard, so a group or counted possessor names one zone per member |
+| `possessorOk`/`Possessor` on `ControlledBy`/`CastBy`/`ActivatedBy` | `soleHolderOk`/`SoleHolder` | group words admitted (they distribute); a COUNTED plural still refused — [CR#110.2] gives a permanent one controller, so "a creature two target opponents control" names nothing |
+| `sweepPossessorOk`/`SweepPossessor` | deleted; `GraveyardHandLibraryOf` ungated | same [CR#400.1] distribution |
+| `capSubjectOk`/`CapSubject` | deleted | `CantUntapMoreThan`'s subject is already a `Noun bs Player`; no rule refuses one |
+| `CapBound` (closed at one and two) | deleted; the cap takes a bare `Nat` | no rule closes the cap's vocabulary |
+| `anyTargetOkAt` (three quantity rows) | one row, count-free | [CR#115.4] lists "two targets" itself, so any maximum admits the class word. The quantity stays in the signature so the obligation is stuck until a determiner is written |
+| `otherAnchorOk`'s `anchorFound`/`anchorFoundSome`/`anyTargetedTy` | `anyTargeted k bs` | [CR#601.2c] asks "another target" only to name a target other than one already chosen; it says nothing about the two descriptions' heads. The named complement (`OtherThan`) keeps its `anchorTyFits` check |
+| `contradictionFree`'s `anyTypeClash`/`seedTypes` | `seedTypeAlts`/`allNegated`/`anySeedEmptied` | a conjunction is empty only when a negated type word rules out EVERY card type a member could hold. [CR#205.3m,308.2] give creatures and kindreds one subtype list, so "Zombie that isn't a creature" is a Kindred. `badForestNonland` still refuses (Land is a land subtype's only host) |
+| `spaceHosted CreatureSpace` | admits `Kindred` | same shared list, the rule `subsFitLine` already applies |
+| `extendableScopeOk`/`ExtendableScope` | `notExtended`/`NotExtended` | no rule makes an off-battlefield extension meaningless — [CR#109.3] lists an object's characteristics and none of them is a zone — so only a second extension of an extension is refused |
+| `statusWordOk`/`StatusWord` | deleted; `HasStatus` ungated | [CR#110.5] gives every permanent one of two values in each of four categories, so every status word denotes |
+| `boundedIncrease`/`BoundedIncrease` | deleted | [CR#305.2] lets a continuous effect raise the number of lands a player may play and sets no ceiling |
+| `Delayed`'s `eventSubjectPlur ev = OneOf` | deleted | a plural watch ("when two target creatures die") names a real event |
+| `Distribute`'s `nounPlur among = ManyOf` | deleted | [CR#601.2d] divides "among one or more targets" |
+| `damageSrcOk`/`DamageSource` on `DealDamage`, `DealtBy`, `DividedDamage`, `PreventsFrom`/`RedirectsFrom`/`Scales` | deleted | [CR#609.7c] applies a static shield to every source with the named property; [CR#120.7] fixes the source of ONE damage event and does not forbid a plural subject |
+| `GroupSize`'s `countManys Object bs = 1` | `countManysAny bs = 1` (new, `Words.idr`) | a player group has a size to read back ("one or more opponents lose 1 life. Draw that many cards") |
+| `effIntro (Shuffle …)` via `shuffledAway`/`notInLibrary` | `nomIntro whose` | [CR#701.24b] keeps the cards a search found out of the shuffle, so a read after a shuffle is the rule's own case |
+| `InsteadOf`'s `annIntro replaced` | `replacedCtx` (new) folding `deedDelta`, sequences and conditionals | [CR#614.6] makes the replaced event never happen, but its announcement still names the quantity ("deals double that damage instead"). `SimEffects` keeps `annIntro`, so [CR#608.2f]'s simultaneous telescope is untouched |
+| `costActionOk (Composite Destroy _)` | `costActionOk e` | [CR#118.1] makes a cost any action necessary to take another; no rule bars destruction. The rest of `costActionOk` is another round's |
+
+### Pins deleted (57 in scope)
+
+- `Proofs.idr`: badKeywordHead, badBareTappedHead, badForEachHeadless, badNonTapped, badPhasedInWord, badNegatedAnyTarget, badNegatedConjunction, badGraveyardOfGroup, badDiesGroup, badGroupDamageSource, badGroupAnyTarget, badDivideAmongSingular, badOtherCrossHead, badDestroyAsCost
+- `ProofsB.idr`: badBareComparison, badExistsUnheaded, badNegatedComparison, badNegatedDisjunction, badNegatedComplement, badDoubleNegatedCondition, badNegatedComparisonCondition, badNegatedNegativeMatch, badZombieNoncreature, badBecomesInGraveyard, badDisjunctiveOtherCrossHead
+- `ProofsC.idr`: badReadAfterShuffle, badInsteadReadsReplacedOutcome, badInsteadReadsReplacedSequenceOutcome, badConditionalInsteadReadsMayOutcome
+- `ProofsD.idr`: badUntapCapHeadless, badUntapCapThree, badUntapCapEachPlayer, badNegatedExiledWith, badNegatedBlockedBy, badNonMulticolored, badNegatedMonarch, badCastByAllPlayers, badControlledByAllPlayers, badOwnedByAllPlayers
+- `ProofsE.idr`: badHeadlessSpendSource, badHeadlessEnchant, badPlayerGroupSize
+- `ProofsF.idr`: badManaAbilityClassSubject, badLoneYourChoice, badNegatedAbilityAnchor, badAnyNumberOfAdditionalLands, badExtendedPump, badEveryCreatureTypeOnKindred, badPreventFromPluralSource, badRedirectFromPluralSource, badScaleFromPluralSource
+- `ProofsG.idr`: badHeadlessCounterDescription, badGroupCommander, badSweepAcrossPlayers, badSweepAcrossOpponents, badNegatedCondConjunction, badNoHolderNegated
+
+Several of these were classified STRUCTURAL in Phase 1 and are deleted anyway,
+because the structure they invoked was English word class rather than the
+model's algebra: **badBareComparison**, **badExistsUnheaded**,
+**badHeadlessCounterDescription**, **badLoneYourChoice**,
+**badUntapCapHeadless** (all "a modifier heads nothing") and
+**badDisjunctiveOtherCrossHead** ("a land anchors none of the alternatives" —
+the same head-compatibility claim [CR#601.2c] does not make).
+**badScaleFromPluralSource**'s claim was that the printed line reads its agent
+back with a singular pronoun; the model writes no pronoun there, and
+[CR#609.7c] licenses the plural source. **badHeadlessEnchant** was classified
+RULES on [CR#702.5a]; the rule says "Enchant [object or player]" and calls the
+bracket a description, which a colour word is.
+
+### Pins re-grounded or re-cited (kept)
+
+- **badNegatedQualityHead** — re-homed from `hasHead` onto `negatable`, and
+  restated at kind `Quality Color`: [CR#105.1] closes the sort at five and the
+  quality noun names all five, so the complement is empty.
+- **badNonsource** — kept and its ground folded into `negatable`'s docstring
+  ([CR#120.7]).
+- **badChosenNumberRead** — reclassified from CORPUS to RULES: [CR#109.3]
+  lists an object's characteristics and no bare number is among them, so
+  "of the chosen number" has nothing to match against. `chosenQualityReadOk`
+  keeps its `Number` refusal on that ground.
+- **badHiddenCost** — reclassified from CORPUS to RULES: the ground is not
+  that a hand is hidden but that [CR#400.7] makes the moved card a new object
+  and [CR#400.7j] extends a cost's reach to PUBLIC zones only. `publicOnly`
+  stays.
+- **badControlledByGroup** — [CR#109.4] (which only says where a controller
+  exists) replaced by [CR#110.2] (a permanent has one controller).
+- **badAnyTargetInGraveyard**, **badAnyTargetUnderA** — [CR#115.4].
+- **badFightGroup** — [CR#701.14a]. **badCastsPluralComplement** — [CR#601.2a].
+- **badConflictingZones** — [CR#400.1] with [CR#400.7].
+- **badGetsGraveyard** — [CR#110.1] with [CR#109.2].
+- **badTapKindJoin**, **badTapYouAnd** — [CR#701.26a]/[CR#110.5d] replace the
+  [CR#115.2] cite, which was about targeting rather than tapping.
+- **badExileKindJoin** — [CR#400.1]/[CR#109.1] replace [CR#115.2].
+- **badDoubleExtension** — moved from `ExtendableScope` onto the new
+  `NotExtended`; the one-rider-per-statement claim is unchanged.
+- **badUnlessAnaphoricPayer** — kept STRUCTURAL, docstring sharpened (see gaps).
+
+### Cards benched
+
+- **Fastbond** — "You may play any number of lands on each of your turns."
+  The unbounded land allowance [CR#305.2]. Its damage trigger stays out: it
+  needs an ordinal read of the lands already played this turn.
+- **Furious Reprisal** — "Furious Reprisal deals 2 damage to each of two
+  targets." The counted group over the class word; Pinnacle of Rage writes the
+  same line at 3.
+- **Maskwood Nexus** (first line) — "Creatures you control are every creature
+  type. The same is true for creature spells you control and creature cards
+  you own that aren't on the battlefield."
+- **Mystical Tutor** — "Search your library for an instant or sorcery card,
+  reveal it, then shuffle and put that card on top." The read after the
+  shuffle [CR#701.24b].
+
+### Model gaps fixed or listed
+
+- **Fixed — `GroupSize`**: `countManysAny` minted in `Words.idr` so a player
+  group's size reads back.
+- **Fixed — replacement announcement**: `replacedCtx` gives an `InsteadOf`
+  replacement the replaced deed's own outcome, through sequences, `may`s and
+  conditionals. `Simultaneously` still types its members through `annIntro`,
+  so **badSimultaneousReadsOutcome** stands on [CR#608.2f].
+- **Listed — badUnlessAnaphoricPayer**: the field reorder round 2 proposed is
+  the wrong fix, not merely a costly one. [CR#118.12a] rewrites "unless" as an
+  offer with an if-not arm, and for every other `May` the declined arm must be
+  typed AFTER the offer; inverting `May`'s fields would misorder them all. The
+  right fix is a distinct "unless" node whose main effect precedes the payment
+  offer. **Mana Leak** ("Counter target spell unless its controller pays {3}")
+  stays unrepresentable until it exists.
+- **Listed — badCastFromBattlefield**: HELD, untouched. [CR#601.2a] moves a
+  CARD to the stack and a permanent is not a card, so the refusal may be
+  rules-shaped; it is left for the zone round to settle.
+- **Listed — set-aside stamp**: `shuffledAway` is gone wholesale, so a library
+  binding a search did NOT find also survives a shuffle. [CR#701.20d] says a
+  reordered revealed card becomes a new object, so the honest gate would key on
+  the set-aside marker [CR#701.24b] describes. `Binding`'s payload carries a
+  verb stamp but `VerbName` has no search verb, so distinguishing the two costs
+  a new constructor and its whole match cascade.
+- **Listed — kindred subject for "every creature type"**: `spaceHosted` now
+  admits a Kindred-typed subject, and nothing printed writes one — Maskwood
+  Nexus's line is creature-subjected and Nameless Inversion carries changeling
+  on its own Kindred line rather than describing one.
+- **Listed — the rest of `costActionOk`**: only the destroy row moved. The
+  draw, counter, emblem, life-gain, conclude, targeted and compound-cost rows
+  are all CORPUS in the Phase 1 tables and belong to a costs round.
+- **Listed — `anyTargetOkAt` keeps its quantity argument** even though every
+  count now answers alike: a proof obligation that reduces on the PREDICATE
+  alone forces the positivity checker through `flattenPs`, and `Noun` stops
+  being strictly positive. The same shape is a hazard for any gate moved off a
+  constructor index onto a predicate.
+
+### Changes outside this round's gates
+
+- `Macros.idr`: `searchLibraryFor` now names its own `So (hasHead p)`
+  obligation, which is what `SearchDescribed (OneZone yourLibrary) p` reduced
+  to when `Headed` supplied it. `becomesAs`/`becomes` shed the battlefield-zone
+  implicit with `BecomesAlso`.
+- `Words.idr`: `anchorFound`, `anchorFoundSome` and `anyTargetedTy` deleted
+  with the head-compatibility anchor they served.
+- `Experimental.idr`: `annSeqs` added beside `annSims`; `seedTypes` and
+  `anyTypeClash` replaced by the alternatives-aware trio.

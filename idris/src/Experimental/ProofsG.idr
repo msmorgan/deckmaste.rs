@@ -55,14 +55,6 @@ badPoisonCounterDescription : Unspellable (Predicate [] Object) (\ok =>
 badPoisonCounterDescription Refl impossible
 
 
-||| "each with a counter on it"
-||| The qualifier is never the head; a postnominal clause hangs on a noun already written.
-public export
-badHeadlessCounterDescription : Unspellable (Noun [] Object) (\ok =>
-  Each (HasCounters Nothing) {hd = ok})
-badHeadlessCounterDescription Oh impossible
-
-
 ||| "Cumulative upkeep"
 ||| [CR#702.24a] states the keyword as "Cumulative upkeep [cost]", so the parameter is never absent.
 public export
@@ -217,15 +209,6 @@ badNestedConjunction : Unspellable (Condition []) (\ok =>
 badNestedConjunction Oh impossible
 
 
-||| "If you don't control an artifact and an enchantment, …"
-||| The negation goes on the conjuncts and never on the coordination.
-public export
-badNegatedCondConjunction : Unspellable (Condition []) (\ok =>
-  NotCond (AndCond [ Exists (And [Macros.artifact, ControlledBy You])
-                   , Exists (And [Macros.enchantment, ControlledBy You]) ]) {ng = ok})
-badNegatedCondConjunction Oh impossible
-
-
 ||| "Unless you control an artifact and an enchantment, you may cast this spell without paying its mana cost."
 ||| "Unless" reads a negated condition, and a coordination is not negated at its own frame.
 public export
@@ -368,16 +351,6 @@ badNounPossessorYou : Unspellable Ability (\ok =>
 badNounPossessorYou AttachedPossessor impossible
 
 
-||| "Search each player's graveyard, hand, and library for a creature card."
-||| The sweep's possessor slot refuses every group word; no line names the
-||| zones of a group.
-public export
-badSweepAcrossPlayers : Unspellable (Effect []) (\ok =>
-  Search You (GraveyardHandLibraryOf (PlayerGroup AllPlayers) {pn = ok})
-         Macros.creature)
-badSweepAcrossPlayers Oh impossible
-
-
 ||| "Put target creature into its owner's hand." tagged as a placement.
 ||| The imperative spells the bare move and the agentive names its subject;
 ||| one event, so the tag has no subjectless frame.
@@ -394,15 +367,6 @@ public export
 badDisjunctionOrdered : Unspellable (ZoneExpr []) (\ok =>
   LibraryAt (EitherEnd Nothing) (Just AnyOrder) {af = ok} Bare)
 badDisjunctionOrdered Oh impossible
-
-
-||| "Search each opponent's graveyard, hand, and library for a creature card."
-||| The other group word, refused by the same gate where `Possessor` admits it.
-public export
-badSweepAcrossOpponents : Unspellable (Effect []) (\ok =>
-  Search You (GraveyardHandLibraryOf (PlayerGroup YourOpponents) {pn = ok})
-         Macros.creature)
-badSweepAcrossOpponents Oh impossible
 
 
 ||| "Target player puts that card into exile."
@@ -443,14 +407,6 @@ badNoHolderOnObject : Unspellable (Condition []) (\ok =>
 badNoHolderOnObject Refl impossible
 
 
-||| "if there is a monarch"
-||| The designation family writes the absence and never its negation.
-public export
-badNoHolderNegated : Unspellable (Condition []) (\ok =>
-  NotCond (NoHolder Monarch) {ng = ok})
-badNoHolderNegated Oh impossible
-
-
 ||| "your monarch"
 ||| Only the card-scope designation is a possessed noun [CR#903.3]; the
 ||| monarch is held by a player and read as a description.
@@ -459,11 +415,3 @@ badPossessedMonarch : Unspellable (Noun [] Object) (\ok =>
   Designated Monarch You {sc = ok})
 badPossessedMonarch Refl impossible
 
-
-||| "all players' commander"
-||| The possessive is anchored on one player, as everywhere else the
-||| grammar writes one.
-public export
-badGroupCommander : Unspellable (Noun [] Object) (\ok =>
-  Designated CommanderD (PlayerGroup AllPlayers) {ps = ok})
-badGroupCommander Oh impossible

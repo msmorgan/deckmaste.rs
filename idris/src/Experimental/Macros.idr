@@ -33,9 +33,8 @@ oneThrough n = Range (Just 1) (Just n)
 
 public export
 target : (p : Predicate bs k) -> {auto tk : Targetable k} ->
-         {auto 0 hd : Headed p} ->
          {auto 0 af : AnyTargetAtCount (exactly 1) p} -> Noun bs k
-target p = TargetGroup (exactly 1) p {tk} {hd} {af}
+target p = TargetGroup (exactly 1) p {tk} {af}
 
 
 public export
@@ -100,12 +99,12 @@ graveyardZ : ZoneExpr bs
 graveyardZ = ZoneAt Graveyard Bare
 
 public export
-handOf : (n : Noun bs Player) -> {auto 0 pn : Possessor n} -> ZoneExpr bs
-handOf n = ZoneAt Hand (OwnedBy n {ps = HandIsOwned} {pn})
+handOf : (n : Noun bs Player) -> ZoneExpr bs
+handOf n = ZoneAt Hand (OwnedBy n {ps = HandIsOwned})
 
 public export
-graveyardOf : (n : Noun bs Player) -> {auto 0 pn : Possessor n} -> ZoneExpr bs
-graveyardOf n = ZoneAt Graveyard (OwnedBy n {ps = GraveyardIsOwned} {pn})
+graveyardOf : (n : Noun bs Player) -> ZoneExpr bs
+graveyardOf n = ZoneAt Graveyard (OwnedBy n {ps = GraveyardIsOwned})
 
 
 public export
@@ -200,28 +199,24 @@ nontoken = Not IsToken
 
 public export
 a : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-    {auto 0 hd : Headed p} ->
     {auto 0 af : AnyTargetFree p} -> Noun bs k
-a p = Indefinite Unmarked p {ph} {hd} {af}
+a p = Indefinite Unmarked p {ph} {af}
 
 public export
 aTheirChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
                {auto 0 ch : countChoosers bs = 1} ->
-               {auto 0 hd : Headed p} ->
                {auto 0 af : AnyTargetFree p} -> Noun bs k
-aTheirChoice p = Indefinite (TheirChoice {ch}) p {ph} {hd} {af}
+aTheirChoice p = Indefinite (TheirChoice {ch}) p {ph} {af}
 
 public export
 aYourChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-              {auto 0 hd : Headed p} ->
               {auto 0 af : AnyTargetFree p} -> Noun bs k
-aYourChoice p = Indefinite YourChoice p {ph} {hd} {af}
+aYourChoice p = Indefinite YourChoice p {ph} {af}
 
 public export
 aAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-            {auto 0 hd : Headed p} ->
             {auto 0 af : AnyTargetFree p} -> Noun bs k
-aAtRandom p = Indefinite AtRandom p {ph} {hd} {af}
+aAtRandom p = Indefinite AtRandom p {ph} {af}
 
 public export
 anOpponent : Noun bs Player
@@ -264,15 +259,14 @@ manaValueOf n = StatOf ManaValue n {one}
 
 public export
 nForEach : {k : Kind} -> (n : Nat) -> (p : Predicate bs k) ->
-           {auto 0 hd : Headed p} -> {auto 0 nz : IsSucc n} ->
+           {auto 0 nz : IsSucc n} ->
            {auto 0 af : AnyTargetFree p} -> Amount bs
-nForEach n p = Times n (CountOf p {hd} {af}) {nz}
+nForEach n p = Times n (CountOf p {af}) {nz}
 
 public export
 forEach : {k : Kind} -> (p : Predicate bs k) ->
-          {auto 0 hd : Headed p} ->
           {auto 0 af : AnyTargetFree p} -> Amount bs
-forEach p = nForEach 1 p {hd} {af}
+forEach p = nForEach 1 p {af}
 
 public export
 destroy : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
@@ -371,24 +365,21 @@ discardsACard agent = discards agent (a (InZone handZ))
 public export
 dealsDivided : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                (among : Noun (amtIntro amt) k) ->
-               {auto 0 ds : DamageSource src} ->
                {auto 0 wc : WrittenCount amt} ->
-               {auto 0 pl : nounPlur among = ManyOf} ->
                {auto 0 gm : GroupMention among} ->
                {auto 0 rk : DamageRecipient among} -> Effect bs
 dealsDivided src amt among =
-  Distribute (DividedDamage src {ds}) amt among {wc} {pl} {gm}
+  Distribute (DividedDamage src) amt among {wc} {gm}
              {tk = DamageDivided {rk}}
 
 public export
 distributeCounters : (amt : Amount bs) -> (kind : CounterKind) ->
                      (among : Noun (amtIntro amt) Object) ->
                      {auto 0 wc : WrittenCount amt} ->
-                     {auto 0 pl : nounPlur among = ManyOf} ->
                      {auto 0 gm : GroupMention among} ->
                      {auto 0 zn : OnBattlefield (nounZone among)} -> Effect bs
 distributeCounters amt kind among =
-  Distribute (DistributedCounters kind) amt among {wc} {pl} {gm}
+  Distribute (DistributedCounters kind) amt among {wc} {gm}
              {tk = CountersDistributed {zn}}
 
 
@@ -423,7 +414,6 @@ asLongAs c se = Conditionally c se {nn}
 
 public export
 unlessSo : (c : Condition bs) -> (se : StaticEffect bs) ->
-           {auto 0 ng : CondNegatable c} ->
            {auto 0 nn : NotConditional se} -> StaticEffect bs
 unlessSo c se = Conditionally (NotCond c) se {marking = Unless} {nn}
 
@@ -587,7 +577,6 @@ createTappedAttacking count tok =
 public export
 becomesAs : (n : Noun bs Object) -> (added : TokenChars bs) ->
             (d : Maybe (Duration (selfSubjIntro n))) ->
-            {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
             {auto 0 ne : LineNonEmpty added.line} ->
             {auto 0 nw : AddsSomething (nounTy n) added.line} ->
             {auto 0 af : AddedFits (nounTy n) added.line} ->
@@ -596,17 +585,16 @@ becomesAs : (n : Noun bs Object) -> (added : TokenChars bs) ->
             {auto 0 un : AdditionUnnamed added} ->
             {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
 becomesAs n added d =
-  Continuously (BecomesAlso n added {zn} {ne} {nw} {af} {cd} {ta} {un}) d {sp}
+  Continuously (BecomesAlso n added {ne} {nw} {af} {cd} {ta} {un}) d {sp}
 
 public export
 becomes : (n : Noun bs Object) -> (added : TypeLine) ->
           (d : Maybe (Duration (selfSubjIntro n))) ->
-          {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
           {auto 0 ne : LineNonEmpty added} ->
           {auto 0 nw : AddsSomething (nounTy n) added} ->
           {auto 0 af : AddedFits (nounTy n) added} ->
           {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
-becomes n added d = becomesAs n (MkToken Nothing [] added [] Nothing) d {zn} {ne} {nw} {af} {sp}
+becomes n added d = becomesAs n (MkToken Nothing [] added [] Nothing) d {ne} {nw} {af} {sp}
 
 public export
 basicLandLine : (ss : List Subtype) -> {auto 0 bl : BasicLandTypes ss} -> TypeLine
@@ -667,8 +655,8 @@ chooseAnyNumber : (modes : List (Effect bs)) ->
 chooseAnyNumber modes = Modal Macros.anyNumber modes {wf = Oh} {tw} {mf} {mh} {dm = eqToSo dm}
 
 public export
-notSo : (c : Condition bs) -> {auto 0 ng : CondNegatable c} -> Condition bs
-notSo c = NotCond c {ng}
+notSo : (c : Condition bs) -> Condition bs
+notSo c = NotCond c
 
 public export
 itsA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
@@ -683,12 +671,12 @@ itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
           {auto 0 zc : ZoneFits (zoneOfIt bs) (seedZone p)} ->
           {auto 0 af : AnyTargetFree p} ->
           {auto 0 nf : predNegFree p = True} -> Condition bs
-itIsntA p = NotCond (itsA p {ok} {sy} {zc} {af}) {ng = eqToSo nf}
+itIsntA p = NotCond (itsA p {ok} {sy} {zc} {af})
 
 
 public export
-libraryOf : (n : Noun bs Player) -> {auto 0 pn : Possessor n} -> ZoneExpr bs
-libraryOf n = ZoneAt Library (OwnedBy n {ps = LibraryIsOwned} {pn})
+libraryOf : (n : Noun bs Player) -> ZoneExpr bs
+libraryOf n = ZoneAt Library (OwnedBy n {ps = LibraryIsOwned})
 
 public export
 yourLibrary : ZoneExpr bs
@@ -769,8 +757,8 @@ revealCards : (n : Noun bs Object) -> Effect bs
 revealCards n = Expose Reveal You (ExposedCards n)
 
 public export
-lookAtHandOf : (n : Noun bs Player) -> {auto 0 pn : Possessor n} -> Effect bs
-lookAtHandOf n = Expose LookAt You (ExposedZone (handOf n {pn}))
+lookAtHandOf : (n : Noun bs Player) -> Effect bs
+lookAtHandOf n = Expose LookAt You (ExposedZone (handOf n))
 
 public export
 revealsTheirHand : (who : Noun bs Player) ->
@@ -781,7 +769,7 @@ revealsTheirHand who = Expose Reveal who (ExposedZone (handOf (They {ok})))
 
 public export
 searchLibraryFor : (p : Predicate bs Object) ->
-                   {auto 0 hd : Headed p} ->
+                   {auto 0 hd : So (hasHead p)} ->
                    {auto 0 af : AnyTargetFree p} ->
                    {auto 0 zf : ZoneFree p} -> Effect bs
 searchLibraryFor p = Search You (OneZone yourLibrary) p {hd} {af} {zf}
@@ -790,10 +778,9 @@ searchLibraryFor p = Search You (OneZone yourLibrary) p {hd} {af} {zf}
 ||| sweep, possessor-anchored [CR#701.23a].
 public export
 searchZonesOf : (whose : Noun bs Player) -> (p : Predicate bs Object) ->
-                {auto 0 pn : SweepPossessor whose} ->
                 {auto 0 af : AnyTargetFree p} ->
                 {auto 0 zf : ZoneFree p} -> Effect bs
-searchZonesOf whose p = Search You (GraveyardHandLibraryOf whose {pn}) p {af} {zf}
+searchZonesOf whose p = Search You (GraveyardHandLibraryOf whose) p {af} {zf}
 
 ||| "<player> puts <it> into/onto <zone>": the agentive placement clause.
 public export
@@ -875,7 +862,7 @@ exileUntil : (n : Noun bs Object) -> {auto 0 na : NotPlayerSpanning n} ->
 exileUntil n ev = HeldUntil (exile n) ev {ok = Oh}
 
 public export
-insteadOf : (replaced : Effect bs) -> (repl : Effect (annIntro replaced)) ->
+insteadOf : (replaced : Effect bs) -> (repl : Effect (replacedCtx replaced)) ->
             {auto 0 na : NotInstead replaced} ->
             {auto 0 nb : NotInstead repl} -> Effect bs
 insteadOf replaced repl = InsteadOf replaced repl {na} {nb}
@@ -951,11 +938,10 @@ mills agent amt whose =
 public export
 keywordSubject : {0 bs : Bindings} -> {k : Kind} -> (kw : Keyword) ->
                  (p : Predicate [] k) ->
-                 {auto 0 hd : Headed p} ->
                  {auto 0 pf : KeywordParamFits {bs} kw
-                                (Just (ParamSubject {bs} p {hd}))} ->
+                                (Just (ParamSubject {bs} p))} ->
                  AbilityAt bs
-keywordSubject kw p = KeywordAbility kw {param = Just (ParamSubject p {hd})} {pf}
+keywordSubject kw p = KeywordAbility kw {param = Just (ParamSubject p)} {pf}
 
 ||| "Equip {2}", "Ward {2}": a keyword whose parameter is a cost.
 public export
@@ -1203,9 +1189,8 @@ additionalPartThen part anchor count next =
 public export
 delayedWithin : (ev : GameEvent bs) -> (span : Duration bs) ->
                 (eff : Effect (delayedCtx ev)) ->
-                {auto 0 one : eventSubjectPlur ev = OneOf} ->
                 {auto 0 so : DelaySpanOk (Just span)} -> Effect bs
-delayedWithin ev span eff = Delayed ev {span = Just span} eff {one} {so}
+delayedWithin ev span eff = Delayed ev {span = Just span} eff {so}
 
 ||| "a creature type other than Wall": a quality noun with a choice domain.
 public export
