@@ -206,3 +206,63 @@ cell and record the number here.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## As landed (2026-08-21)
+
+**Premise correction.** The docstrings this ticket quotes do not exist in the
+three sources — no revision in this repo's history carries "138 sentences",
+"156 supported", "the two composite rows" or the `annIntro` "exactly"
+sentence. Those numbers live only in `docs/idris-workbench-closure-tables.md`,
+whose header also states source sizes (~17.1k/6.5k/2.9k lines) two to three
+times the real files. Every site named below is real code; the evidence was
+measured fresh against the local oracle snapshot and written at the site.
+No cell was flipped.
+
+1. `riderAct Regenerated` — re-measured. 142 supported oracle lines write
+   "can't be regenerated": 124 carry no span and every one of them follows a
+   destruction clause (the rider population), 18 write "this turn". Neither
+   135 nor 138 reproduces; both superseded. `Countered` is 1 rider-shaped line
+   of 33; Cast/Played/Copied/Activated measure 0 in rider position.
+2. `Keyword` composite rows — re-measured against the CR keyword
+   classification: of 25 rows, 16 composite, 3 composite-given, 5 intrinsic,
+   1 marker. Any "two composite rows" reading is superseded.
+3. `PreventCut` arithmetic — re-measured. 464 supported oracle lines mention
+   prevention: 229 `CutAll`, 98 `CutSome`, 4 "all but", 2 "half", 131 residue.
+   88 = 60 + 21 does not reproduce and is superseded.
+4. `attachHeadOk Equipped PermanentW` — **DECIDE, unresolved.** Of 627 lines
+   writing "equipped": 615 "equipped creature(s)", 1 "equipped permanent"
+   (Luxior, Giada's Gift), 0 "equipped planeswalker". The cell refuses a
+   one-line attestation. Recommendation recorded at the site: flip it in the
+   ticket that owns the cell, or pin it as a deliberate single-witness refusal.
+5. `comparableBound` — **DECIDE, unresolved.** Of 36 lines writing "with
+   <characteristic> equal to …", 15 take "the number of" and 0 take a summed
+   bound; corpus-wide 24 lines write "equal to the total" and 0 write
+   "greater/less than the total" or "the total … or greater". A summed bound
+   is written only at equality. Recommendation recorded: gate it to the
+   equality relation in the ticket that owns `Compare`.
+6. `admitsSpan CostModification` — **DECIDE, unresolved.** 5 of 188 lines
+   writing a cost-modification clause carry a duration adverbial on the static
+   (4 "until your next turn", 1 trailing "this turn", Cheering Fanatic), not
+   one. The recorded "exactly one" understated it by four, so the naming
+   argument for holding the row False is weaker than recorded. Recommendation
+   recorded: flip and rename the row in the ticket that owns it.
+7. `annIntro` / `preIntro` — wording settled. Row-by-row diff of the two
+   52-row tables: 9 rows differ, 5 only in which function recurses, 4
+   substantive (`May`, `Sequentially`, `Simultaneously`, `ExtraTurn`). The
+   claim now reads "agree except where the clause MAKES its referent", and
+   `ExtraTurn` is justified at the site. Neither row is wrong.
+
+**Two measurements that refute a cell** (recorded, not fixed here — route to
+the tickets that own them):
+
+- `visibilityOk LookAt WholeHand = False`. 35 supported oracle lines write
+  "look at <someone>'s hand". The cell's [CR#402.3] reasoning is backwards —
+  the rule denies looking at ANOTHER player's hand, which is exactly what all
+  35 lines grant.
+- `admitsSpan CostModification` (item 6 above).
+
+**Part 2.** 56 sites audited. 50 end with a corpus count or a stated
+denominator; 6 end with an explicit "qualitative, not measured" marker and no
+count (`Phrasal`, `typePrintOrder`, `anchorPhrase`'s False cells, `If`,
+`WhereLetter`, the `Card` record's name field). 16 counted sites additionally
+carry a qualitative marker for the sub-claim no line regex can decide.
