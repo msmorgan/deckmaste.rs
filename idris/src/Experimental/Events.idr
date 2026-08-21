@@ -18,6 +18,7 @@ data EventName = Death | Departure | Destruction | DamageTaken
                | GameLoss
                | TokenCreation
                | ChapterArrival
+               | AbilityActivation
 
 public export
 statusEventName : StatusCat -> EventName
@@ -91,6 +92,8 @@ sameEventName TokenCreation TokenCreation = True
 sameEventName TokenCreation _ = False
 sameEventName ChapterArrival ChapterArrival = True
 sameEventName ChapterArrival _ = False
+sameEventName AbilityActivation AbilityActivation = True
+sameEventName AbilityActivation _ = False
 
 public export
 sameLookback : Lookback -> Lookback -> Bool
@@ -135,6 +138,11 @@ eventUse LifeLoss = EventUnclaimed
 eventUse TimeShift = TriggeredOnly
 eventUse TokenCreation = InterceptedAndTriggered
 eventUse ChapterArrival = TriggeredOnly
+-- the delayed form is written, but no line that writes it is spellable:
+-- three coordinate the activation with a cast or hang a payment rider,
+-- and the fourth's complement is an exhaust ability, which the ability
+-- vocabulary has no word for.
+eventUse AbilityActivation = TriggeredOnly
 
 public export
 admitsIntercept : EventUse -> Bool
@@ -203,6 +211,7 @@ eventSpan LifeLoss = Unattested
 eventSpan TimeShift = Unattested
 eventSpan TokenCreation = Unattested
 eventSpan ChapterArrival = Unattested
+eventSpan AbilityActivation = Unattested
 
 public export
 data ReplUse = Repeatedly | NextTimeOnly
@@ -259,6 +268,8 @@ replUseOk TokenCreation Repeatedly = True
 replUseOk TokenCreation NextTimeOnly = False
 replUseOk ChapterArrival Repeatedly = False
 replUseOk ChapterArrival NextTimeOnly = False
+replUseOk AbilityActivation Repeatedly = False
+replUseOk AbilityActivation NextTimeOnly = False
 
 
 public export
@@ -341,6 +352,9 @@ triggerWordOk TokenCreation At = False
 triggerWordOk ChapterArrival When = True
 triggerWordOk ChapterArrival Whenever = False
 triggerWordOk ChapterArrival At = False
+triggerWordOk AbilityActivation When = True
+triggerWordOk AbilityActivation Whenever = True
+triggerWordOk AbilityActivation At = False
 
 public export
 lookbackSubjectOk : EventName -> Kind -> Bool
@@ -394,6 +408,8 @@ lookbackSubjectOk TokenCreation Object = False
 lookbackSubjectOk TokenCreation Player = True
 lookbackSubjectOk ChapterArrival Object = False
 lookbackSubjectOk ChapterArrival Player = False
+lookbackSubjectOk AbilityActivation Object = False
+lookbackSubjectOk AbilityActivation Player = True
 lookbackSubjectOk _ (Quality _) = False
 lookbackSubjectOk _ Outcome = False
 lookbackSubjectOk _ Gap = False
@@ -438,6 +454,8 @@ lookbackComplementOk LifeLoss _ _ = False
 lookbackComplementOk Placement _ _ = False
 lookbackComplementOk CounterPlacement _ _ = False
 lookbackComplementOk CounterRemoval _ _ = False
+lookbackComplementOk AbilityActivation Player Ability = True
+lookbackComplementOk AbilityActivation _ _ = False
 lookbackComplementOk _ _ _ = False
 
 public export
@@ -459,6 +477,8 @@ bareLookbackOk LifeLoss Player = True
 bareLookbackOk CombatDamage Object = False
 -- the object cannot be omitted: a bare "created" names no event.
 bareLookbackOk TokenCreation Player = False
+-- the ability cannot be omitted: a bare "activated" names no event.
+bareLookbackOk AbilityActivation Player = False
 -- permissive default: a lookback's complement may be omitted unless
 -- naming the event requires it, as the two exceptions above do.
 bareLookbackOk _ _ = True
@@ -555,11 +575,38 @@ partUse MainPhase (Just EachYours) = PartTriggered
 partUse MainPhase (Just AnOpponents) = PartUnattested
 partUse MainPhase (Just ThatTurns) = PartUnattested
 
+||| Which turn part a trigger header writes a nominal possessor in front
+||| of. "Enchanted player's" is the corpus's only such possessive; the one
+||| postcombat-main line quantifies over it ("each of enchanted player's
+||| postcombat main phases"), which is a different determiner.
+public export
+nominalPartOk : TurnPart -> Bool
+nominalPartOk Turn = False
+nominalPartOk Upkeep = True
+nominalPartOk EndStep = True
+nominalPartOk Combat = False
+nominalPartOk UntapStep = False
+nominalPartOk EndOfCombat = False
+nominalPartOk FirstMain = False
+nominalPartOk PostcombatMain = False
+nominalPartOk DrawStep = True
+nominalPartOk MainPhase = False
+
 public export
 admitsPartTrigger : PartUse -> Bool
 admitsPartTrigger PartUnattested = False
 admitsPartTrigger PartUnclaimed = False
 admitsPartTrigger PartTriggered = True
+
+||| A trigger header's possessor as the part tables see it: the
+||| quantifier word (absent included), or the noun the Curses write.
+public export
+data PossessorForm = WordPossessor (Maybe Owner) | NounPossessor
+
+public export
+headerPossessorOk : TurnPart -> PossessorForm -> Bool
+headerPossessorOk p (WordPossessor w) = admitsPartTrigger (partUse p w)
+headerPossessorOk p NounPossessor = nominalPartOk p
 
 
 public export

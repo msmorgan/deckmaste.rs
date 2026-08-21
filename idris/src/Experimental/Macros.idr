@@ -1227,3 +1227,12 @@ eventCountInvolving : {k : Kind} -> {kc : Kind} -> (ev : EventName) ->
                       {auto 0 sb : LookbackSubject ev k} -> Amount bs
 eventCountInvolving ev who w what =
   EventCount ev who w {what = Just (Involving what {cp})} {cw} {sb}
+
+||| "At the beginning of enchanted player's upkeep, …": a turn part
+||| possessed by a noun rather than by a quantifier word.
+public export
+beginningOfPossessed : (part : TurnPart) -> (poss : Noun bs Player) ->
+                       {auto 0 pn : PossessorNoun poss} ->
+                       {auto 0 pu : PartTriggerable part (ByNoun poss {pn})} ->
+                       GameEvent bs
+beginningOfPossessed part poss = BeginningOf part (ByNoun poss {pn}) {pu}

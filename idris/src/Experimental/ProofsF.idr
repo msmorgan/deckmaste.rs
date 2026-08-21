@@ -698,7 +698,7 @@ badSkipUntilEndOfTurn SpanStated impossible
 public export
 badDeicticTurnWithoutIntroducer : Unspellable (Effect []) (\ok =>
   Sequentially [Draw You (Lit 1),
-                Delayed (BeginningOf EndStep (Just ThatTurns) {td = ok})
+                Delayed (BeginningOf EndStep (ByWord ThatTurns) {td = ok})
                         (Concludes LoseGame You)])
 badDeicticTurnWithoutIntroducer (NoTurnDeixis) impossible
 badDeicticTurnWithoutIntroducer (TurnInScope) impossible
@@ -709,7 +709,7 @@ badDeicticTurnWithoutIntroducer (TurnInScope) impossible
 public export
 badThatTurnsUpkeep : Unspellable (Effect []) (\ok =>
   Sequentially [ExtraTurn You 1,
-                Delayed (BeginningOf Upkeep (Just ThatTurns) {pu = ok})
+                Delayed (BeginningOf Upkeep (ByWord ThatTurns) {pu = ok})
                         Macros.drawACard])
 badThatTurnsUpkeep Oh impossible
 

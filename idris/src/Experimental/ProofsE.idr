@@ -432,7 +432,7 @@ badHeaderMainPhaseWindow Oh impossible
 public export
 badCoordinatedPartBeginning : Unspellable Ability (\ok =>
   Triggered Whenever (Enters (Macros.a Macros.creature))
-            {alt = Just (BeginningOf Upkeep (Just Yours))}
+            {alt = Just (BeginningOf Upkeep (ByWord Yours))}
             Macros.drawACard {ae = OneAlt {wo = ok}})
 badCoordinatedPartBeginning Oh impossible
 

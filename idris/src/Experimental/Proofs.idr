@@ -198,7 +198,7 @@ badTheyIt (Refl, _) impossible
 public export
 badStale : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-               Delayed (BeginningOf EndStep Nothing) (Macros.sacrifice You It {ok})])
+               Delayed (BeginningOf EndStep NoPossessor) (Macros.sacrifice You It {ok})])
 badStale OnField impossible
 
 
@@ -207,7 +207,7 @@ badStale OnField impossible
 public export
 badDelayedOther : Unspellable (Effect []) (\ok =>
   Sequentially [DealDamage This (Lit 2) (Macros.target AnyTarget),
-               Delayed (BeginningOf EndStep Nothing) (DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))])
+               Delayed (BeginningOf EndStep NoPossessor) (DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))])
 badDelayedOther Refl impossible
 
 
@@ -320,7 +320,7 @@ public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You Macros.thisArtifact))
             (Sequentially [Macros.exile (Macros.target Macros.creature),
-                           Delayed (BeginningOf EndStep Nothing) (Move (That CardW {ok}) Macros.battlefieldZ)]))
+                           Delayed (BeginningOf EndStep NoPossessor) (Move (That CardW {ok}) Macros.battlefieldZ)]))
 badBareCardRead Refl impossible
 
 

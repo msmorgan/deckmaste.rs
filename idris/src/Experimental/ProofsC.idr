@@ -639,7 +639,7 @@ badTargetedDeathHeader Oh impossible
 ||| The inverse half of the same table: a turn-part beginning takes neither English word [CR#603.2b].
 public export
 badWhenUpkeep : Unspellable Ability (\ok =>
-  Triggered When (BeginningOf Upkeep (Just Yours)) Macros.drawACard {wo = ok})
+  Triggered When (BeginningOf Upkeep (ByWord Yours)) Macros.drawACard {wo = ok})
 badWhenUpkeep Oh impossible
 
 
@@ -656,7 +656,7 @@ badTriggerOnDestruction (Oh, _) impossible
 ||| The untap step's beginning is not a row of the turn-part header grid.
 public export
 badTriggerAtUntapStep : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf UntapStep Nothing {pu = ok}) Macros.drawACard)
+  Triggered At (BeginningOf UntapStep NoPossessor {pu = ok}) Macros.drawACard)
 badTriggerAtUntapStep Oh impossible
 
 
@@ -664,7 +664,7 @@ badTriggerAtUntapStep Oh impossible
 ||| Nor the turn's own beginning: the UPKEEP is what English names there.
 public export
 badTriggerAtYourTurn : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Turn (Just Yours) {pu = ok}) Macros.drawACard)
+  Triggered At (BeginningOf Turn (ByWord Yours) {pu = ok}) Macros.drawACard)
 badTriggerAtYourTurn Oh impossible
 
 
@@ -672,7 +672,7 @@ badTriggerAtYourTurn Oh impossible
 ||| An unpossessed-looking header names a quantifier or nominal possessor; this one is pronominal.
 public export
 badTriggerAtTheUpkeep : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep Nothing {pu = ok}) Macros.drawACard)
+  Triggered At (BeginningOf Upkeep NoPossessor {pu = ok}) Macros.drawACard)
 badTriggerAtTheUpkeep Oh impossible
 
 
@@ -816,7 +816,7 @@ badHeldUntilEnters Oh impossible
 ||| One phrase, one slot: the duration adverbial already spells this endpoint.
 public export
 badUntilBeginningOfUpkeep : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf Upkeep (Just Yours)))) {sp = ok})
+  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf Upkeep (ByWord Yours)))) {sp = ok})
 badUntilBeginningOfUpkeep SpanStated impossible
 
 
@@ -848,7 +848,7 @@ badReflexiveOnSequence Oh impossible
 ||| A clause that schedules its action has not taken it [CR#603.12].
 public export
 badReflexiveOnDelayed : Unspellable (Effect []) (\ok =>
-  Reflexively (Delayed (BeginningOf EndStep (Just Yours)) Macros.drawACard) Macros.drawACard {en = ok})
+  Reflexively (Delayed (BeginningOf EndStep (ByWord Yours)) Macros.drawACard) Macros.drawACard {en = ok})
 badReflexiveOnDelayed Oh impossible
 
 

@@ -2204,9 +2204,9 @@ mutual
                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                         {auto 0 ss : SelfSorted n} ->
                         {auto 0 rk : DamageRecipient to} -> GameEvent bs
-    BeginningOf : (part : TurnPart) -> (whose : Maybe Owner) ->
+    BeginningOf : (part : TurnPart) -> (whose : HeaderPossessor bs) ->
                   {auto 0 pu : PartTriggerable part whose} ->
-                  {auto 0 td : TurnDeixis whose bs} -> GameEvent bs
+                  {auto 0 td : TurnDeixis (possessorWord whose) bs} -> GameEvent bs
     Casts : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
             {auto 0 zn : OnStack (nounZone what)} ->
             {auto 0 one : nounPlur what = OneOf} ->
@@ -2247,6 +2247,10 @@ mutual
                     {auto 0 vo : CreationVoice cause by under} -> GameEvent bs
     ChapterMark : (ns : List ChapterNumber) ->
                   {auto 0 cm : ChapterMarks ns} -> GameEvent bs
+    Activates : (who : Noun bs Player) ->
+                (what : Noun (nomIntro who) Ability) ->
+                {auto 0 one : nounPlur what = OneOf} ->
+                {auto 0 nt : Nontarget what} -> GameEvent bs
 
   public export
   eventName : {0 bs : Bindings} -> GameEvent bs -> EventName
@@ -2270,6 +2274,7 @@ mutual
   eventName (CounterEvent dir _ _) = counterEventName dir
   eventName (TokensCreated _) = TokenCreation
   eventName (ChapterMark _) = ChapterArrival
+  eventName (Activates _ _) = AbilityActivation
 
   ||| What an event pattern contributes before it happens — its announced
   ||| subject phrase [CR#601.2c]. Read by an interception's replacement,
@@ -2301,6 +2306,7 @@ mutual
     outcomeB CountersPut :: nomIntro n
   eventIntro (TokensCreated n) = nomIntro n
   eventIntro (ChapterMark _) = bs
+  eventIntro (Activates _ what) = nomIntro what
 
   public export
   selfSubjIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
@@ -2361,7 +2367,7 @@ mutual
   eventAfter (BecomesBlocked _ (Just by)) = nomIntro by
   eventAfter (DealsCombatDamage n to) = outcomeB DamageDealt :: nomIntro to
   eventAfter (Casts _ what) = nomIntro what
-  eventAfter (BeginningOf _ _) = bs
+  eventAfter (BeginningOf _ whose) = possessorIntro whose
   eventAfter (StatusEvent n _) = selfSubjIntro n
   eventAfter DayNightShift = bs
   eventAfter (LastCounterRemoved _ n) = selfSubjIntro n
@@ -2371,6 +2377,7 @@ mutual
     outcomeB CountersPut :: selfSubjIntro n
   eventAfter (TokensCreated n) = nomIntro n
   eventAfter (ChapterMark _) = bs
+  eventAfter (Activates _ what) = nomIntro what
 
   public export
   eventSubjectPlur : {bs : Bindings} -> GameEvent bs -> Plurality
@@ -2394,6 +2401,7 @@ mutual
   eventSubjectPlur (CounterEvent _ _ n) = nounPlur n
   eventSubjectPlur (TokensCreated n) = nounPlur n
   eventSubjectPlur (ChapterMark _) = OneOf
+  eventSubjectPlur (Activates who _) = nounPlur who
 
   ||| The context a delayed body reads: the event's own after-discourse
   ||| with the outer clause's targets settled [CR#603.7c,603.3d,601.2c].
@@ -2425,9 +2433,44 @@ mutual
   TriggerWordOk : GameEvent bs -> TriggerWord -> Type
   TriggerWordOk {bs} ev w = So (triggerWordOk (eventName ev) w)
 
+  ||| The nouns a trigger header writes as a possessive: the attachment
+  ||| anaphor the Curses print ("enchanted player's upkeep"), and no other.
   public export
-  PartTriggerable : TurnPart -> Maybe Owner -> Type
-  PartTriggerable p w = So (admitsPartTrigger (partUse p w))
+  data PossessorNoun : {0 bs : Bindings} -> Noun bs Player -> Type where
+    AttachedPossessor : {0 bs : Bindings} -> {0 w : AttachWord} ->
+                        {auto 0 ok : AttachHeadOk w PlayerW} ->
+                        PossessorNoun (AttachHost w PlayerW {ok})
+
+  ||| A header carries one possessor: a quantifier word, an anaphoric noun,
+  ||| or none.
+  public export
+  data HeaderPossessor : Bindings -> Type where
+    NoPossessor : HeaderPossessor bs
+    ByWord : (w : Owner) -> HeaderPossessor bs
+    ByNoun : (n : Noun bs Player) ->
+             {auto 0 pn : PossessorNoun n} -> HeaderPossessor bs
+
+  public export
+  possessorWord : {0 bs : Bindings} -> HeaderPossessor bs -> Maybe Owner
+  possessorWord NoPossessor = Nothing
+  possessorWord (ByWord w) = Just w
+  possessorWord (ByNoun _) = Nothing
+
+  public export
+  possessorForm : {0 bs : Bindings} -> HeaderPossessor bs -> PossessorForm
+  possessorForm NoPossessor = WordPossessor Nothing
+  possessorForm (ByWord w) = WordPossessor (Just w)
+  possessorForm (ByNoun _) = NounPossessor
+
+  public export
+  possessorIntro : {bs : Bindings} -> HeaderPossessor bs -> Bindings
+  possessorIntro NoPossessor = bs
+  possessorIntro (ByWord w) = possessorB (Just w) ++ bs
+  possessorIntro (ByNoun n) = MkBinding TheD Player OneOf PlayerP :: nomIntro n
+
+  public export
+  PartTriggerable : {0 bs : Bindings} -> TurnPart -> HeaderPossessor bs -> Type
+  PartTriggerable {bs} p h = So (headerPossessorOk p (possessorForm h))
 
   public export
   ScheduledSkip : TurnPart -> Type
@@ -4708,6 +4751,24 @@ mutual
   WindowOk : TurnPart -> Maybe Owner -> Type
   WindowOk p w = So (windowOk p w)
 
+  ||| Which possessor a boundary-relative window writes in front of the
+  ||| point. The corpus writes the bare form, "during your turn", and
+  ||| "during an opponent's turn"; no other possessor reaches this slot.
+  public export
+  pointWindowOk : TurnPoint -> Maybe Owner -> Bool
+  pointWindowOk AttackersDeclared Nothing = True
+  pointWindowOk AttackersDeclared (Just Yours) = True
+  pointWindowOk AttackersDeclared (Just ThatPlayers) = False
+  pointWindowOk AttackersDeclared (Just EachPlayers) = False
+  pointWindowOk AttackersDeclared (Just EachOpponents) = False
+  pointWindowOk AttackersDeclared (Just EachYours) = False
+  pointWindowOk AttackersDeclared (Just AnOpponents) = True
+  pointWindowOk AttackersDeclared (Just ThatTurns) = False
+
+  public export
+  PointWindowOk : TurnPoint -> Maybe Owner -> Type
+  PointWindowOk pt w = So (pointWindowOk pt w)
+
   public export
   headerWindowOk : TurnPart -> Maybe Owner -> Bool
   headerWindowOk Turn Nothing = False
@@ -4806,6 +4867,8 @@ mutual
     AsInstant : Timing
     DuringPart : (p : TurnPart) -> (w : Maybe Owner) ->
                  {auto 0 wk : WindowOk p w} -> Timing
+    BeforePoint : (pt : TurnPoint) -> (w : Maybe Owner) ->
+                  {auto 0 pk : PointWindowOk pt w} -> Timing
 
   public export
   data UsageLimit = OncePerTurn | OncePerGame

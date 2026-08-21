@@ -203,7 +203,7 @@ badUnlessOnPositive MkMarkingOk impossible
 ||| The end-of-combat header takes no possessor; the possessed phrase is [CR#511.2]'s duration reading.
 public export
 badTriggerAtYourEndOfCombat : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf EndOfCombat (Just Yours) {pu = ok}) Macros.drawACard)
+  Triggered At (BeginningOf EndOfCombat (ByWord Yours) {pu = ok}) Macros.drawACard)
 badTriggerAtYourEndOfCombat Oh impossible
 
 
@@ -608,7 +608,7 @@ badNonMulticolored Oh impossible
 ||| The trigger header's possessor table does not admit this possessor, though the activation window's does.
 public export
 badTriggerAtAnOpponentsUpkeep : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep (Just AnOpponents) {pu = ok}) Macros.drawACard)
+  Triggered At (BeginningOf Upkeep (ByWord AnOpponents) {pu = ok}) Macros.drawACard)
 badTriggerAtAnOpponentsUpkeep Oh impossible
 
 
@@ -616,7 +616,7 @@ badTriggerAtAnOpponentsUpkeep Oh impossible
 ||| A new turn part does not inherit a possessor's cells from the header table.
 public export
 badTriggerAtEachOpponentsFirstMain : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf FirstMain (Just EachOpponents) {pu = ok}) Macros.drawACard)
+  Triggered At (BeginningOf FirstMain (ByWord EachOpponents) {pu = ok}) Macros.drawACard)
 badTriggerAtEachOpponentsFirstMain Oh impossible
 
 
@@ -669,7 +669,7 @@ badDeclineUntapClause SpanUnstated impossible
 ||| The designation check writes only "it's night", where the transition writes both directions [CR#731.1].
 public export
 badItIsDay : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf EndStep (Just Yours)) Macros.drawACard
+  Triggered At (BeginningOf EndStep (ByWord Yours)) Macros.drawACard
             {intervening = Just (GameIs Day {at = ok})})
 badItIsDay Oh impossible
 
@@ -874,7 +874,7 @@ badNonComparisonDifference Refl impossible
 ||| The margin is a magnitude a clause reads, never a state a clause measures.
 public export
 badDifferenceSubject : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep (Just Yours))
+  Triggered At (BeginningOf Upkeep (ByWord Yours))
             (If Macros.drawACard
                 (CompareAmt (TheDifference {ok = Refl}) AtLeast (Lit 3) {rd = ok})
                 Nothing)

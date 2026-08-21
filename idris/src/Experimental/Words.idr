@@ -3157,6 +3157,11 @@ Eq TurnPart where
   (==) MainPhase MainPhase = True
   (==) MainPhase _ = False
 
+||| A turn-based action a window is written relative to, where
+||| `TurnPart` names a part to be inside [CR#508.1].
+public export
+data TurnPoint = AttackersDeclared
+
 public export
 data Whose = Yours | ThatPlayers
 
@@ -3182,6 +3187,22 @@ Eq Owner where
   (==) AnOpponents _ = False
   (==) ThatTurns ThatTurns = True
   (==) ThatTurns _ = False
+
+||| The possessor a turn part's header announces, read back by the
+||| effect as "that player". "Your" and "each of your" name the
+||| controller [CR#109.5], "that player's" reads an antecedent already
+||| made, and the deictic possessor names a turn rather than a player,
+||| so those four announce nothing.
+public export
+possessorB : Maybe Owner -> List Binding
+possessorB Nothing = []
+possessorB (Just Yours) = []
+possessorB (Just ThatPlayers) = []
+possessorB (Just EachPlayers) = [MkBinding EachD Player OneOf PlayerP]
+possessorB (Just EachOpponents) = [MkBinding EachD Player OneOf PlayerP]
+possessorB (Just EachYours) = []
+possessorB (Just AnOpponents) = [MkBinding AD Player OneOf PlayerP]
+possessorB (Just ThatTurns) = []
 
 public export
 data DurationEnd = StartOf TurnPart (Maybe Whose)

@@ -245,3 +245,108 @@ requires a crate change first.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## As landed (2026-08-21)
+
+Scope was pinned by triage to six deliverables. The named chapter, the printed
+loyalty and defense boxes, read ahead, the counter NAME tails and the two
+loyalty-symbol positions were not taken and are unchanged.
+
+### The loyalty activation as an event
+
+`EventName.AbilityActivation` (`Events.idr`) with its rows in `sameEventName`,
+`eventUse` (`TriggeredOnly`), `eventSpan` (`Unattested`), `replUseOk` (both
+cells refused), `triggerWordOk` (`When`/`Whenever`), `lookbackSubjectOk`
+(`Player`), `lookbackComplementOk` (`Player` × `Ability`) and `bareLookbackOk`
+(refused). `GameEvent.Activates : (who : Noun bs Player) -> (what : Noun
+(nomIntro who) Ability) -> GameEvent bs` (`Experimental.idr`), read by
+`eventName`, `eventIntro`, `eventAfter` and `eventSubjectPlur`.
+
+The row watches an activation generally, not a loyalty activation: the corpus
+writes "whenever an opponent activates an ability of an artifact", "whenever you
+activate an ability of a creature" and the like, so the loyalty restriction
+belongs to the ability noun (`AbilityHead LoyaltyClass`, `AbilityOf …`), which
+the vocabulary already carried.
+
+Witnesses: `elspethsTalent` (whole card) and `chainVeilEndStep` (The Chain
+Veil's first line, the event read as a negative lookback), with
+`loyaltyAbilityOfEnchanted` naming the complement. Pins:
+`badBareActivationLookback`, `badDelayedActivation` (`ProofsG`).
+
+**Rowan's Talent re-checked, still benched.** Its remaining gap is not the event
+row: "copy that ability" needs a copy verb that takes an ability — `CopyStack`
+takes an object on the stack — and an anaphor of the ability kind, which
+`NounWord` has no word for. Elspeth's Talent was the Talent cycle's whole-card
+witness and it lands.
+
+### The boundary-relative activation window
+
+`TurnPoint = AttackersDeclared` (`Words.idr`), `pointWindowOk` /
+`PointWindowOk` and `Timing.BeforePoint` (`Experimental.idr`) — its own slot,
+not a `DuringPart` cell. The possessor prefix is the same `Maybe Owner` the
+corpus writes in front of the point (bare, "during your turn", "during an
+opponent's turn"). Witness: `shuFarmer`. Pin:
+`badBeforeAttackersEachPlayers`.
+
+`TurnPoint` grows one witness at a time, so it has the one row.
+"Before blockers are declared" is attested at 5 lines and was NOT minted:
+four are cast restrictions and only one restricts an activation, which is
+the construction this slot serves.
+
+### The nominal possessor tier
+
+`possessorB` (`Words.idr`) makes a header's quantifier possessor an antecedent:
+"each player's" and "each opponent's" announce a player the effect reads back as
+"that player", while "your", "each of your", "that player's" and the deictic
+possessor announce nothing. `nominalPartOk` and `headerPossessorOk`
+(`Events.idr`) carry the noun possessor's own part table and the single
+gate, over `PossessorForm`.
+
+The possessor is ONE argument, a sum, so a header cannot carry two:
+`HeaderPossessor bs = NoPossessor | ByWord Owner | ByNoun (Noun bs Player)`
+(`Experimental.idr`), on the `ZoneScope` idiom, with `PossessorNoun`
+admitting the attachment anaphor inside `ByNoun`. `BeginningOf`'s
+`whose` takes it positionally, one gate (`PartTriggerable`) reads it
+through `possessorForm`, and `possessorIntro` mints the antecedent in
+`eventAfter`. Macro: `beginningOfPossessed`.
+
+Measurement correction: "its controller's end step" is zero in the corpus, and
+every "its controller's upkeep" line is cumulative-upkeep reminder text. The
+tier is carried by "enchanted player's", which reaches the upkeep, the draw step
+and the end step. The one postcombat-main line quantifies over the possessor
+("each of enchanted player's postcombat main phases") and is a different
+determiner, so that cell stays refused.
+
+Witnesses: `curseOfTheBloodyTome` (the nominal possessor) and
+`shriekingAffliction` (`EachOpponents`' bench positive, bought by the possessor
+becoming an antecedent — its intervening clause and its effect both read the
+opponent back). Pins: `badNounPossessorAtCombat`, `badTwoPossessors`,
+`badNounPossessorYou`. No pin forbids two possessors: the shape no longer
+writes one.
+
+### The four surfaces
+
+Nothing was added to the core for any of them.
+
+- **Clause ellipsis** — `galvanicBlastLine`: `InsteadOf` over the spell's own
+  clause, with the replacement reading the announced target back as `That
+  JoinW`. The elision is spelling; the semantics term was already there.
+- **Effect disjunction** — `cryptLurker` ("you may sacrifice a creature or
+  discard a creature card"), written with `Modal` at count one via
+  `Macros.chooseOne`. The inline "or" is a spelling of that term.
+- **The bare generic plural** — `peacekeeperCant`, `AllOf` over a head-only
+  predicate at a deontic subject. The surface already wrote (Humility's
+  `AllOf Macros.creature`); this benches it unambiguously. **The
+  identification rests on the ticket's phrase alone** — finding 223's own
+  text is not in the repo, so what was bought is the surface that phrase
+  names, not a verified match to the finding.
+- **The definite determiner over a description** — still refused, and the
+  refusal was already pinned as `badBareDefinite` (`ProofsE`). `uniquifies`
+  proves `Definite` from a superlative alone; a restrictive description is not
+  a licensor. "The card exiled with this artifact" is uniquified by the
+  named-source linkage, which this round did not buy, so finding 206's second
+  surface stays unwritable for that reason rather than for a determiner gap.
+
+### Saga
+
+Nothing Saga-shaped was taken and neither card-level law is gated.
