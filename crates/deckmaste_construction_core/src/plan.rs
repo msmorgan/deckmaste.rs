@@ -1631,10 +1631,18 @@ mod tests {
         for owner in [
             "Vocab { declaration : \"Words\" }",
             "Lexeme { declaration : \"Verbs\" , member : \"Act\" }",
+        ] {
+            assert!(rules.contains(owner), "missing owner `{owner}`: {rules}");
+        }
+        let root_adapter = generated_root_adapter(&expansion);
+        for owner in [
             "stable_id : \"root:Action/punctuation\"",
             "owner : LexicalOwnerTemplate :: None",
         ] {
-            assert!(rules.contains(owner), "missing owner `{owner}`: {rules}");
+            assert!(
+                root_adapter.contains(owner),
+                "missing root adapter owner `{owner}`: {root_adapter}"
+            );
         }
 
         for name in [
@@ -1931,6 +1939,24 @@ mod tests {
             .unwrap_or_else(|| panic!("generated type `{name}` exists"))
     }
 
+    fn generated_root_adapter(expansion: &crate::Expansion) -> String {
+        expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty,
+                    } if self_ty == "Category"
+                ) && item.tokens.to_string().contains("root_adapter")
+            })
+            .expect("generated root adapter")
+            .tokens
+            .to_string()
+    }
+
     fn enum_variants(item: &GeneratedItem) -> Vec<String> {
         let file = syn::parse2::<syn::File>(item.tokens.clone()).expect("generated item parses");
         let syn::Item::Enum(item) = &file.items[0] else {
@@ -2001,7 +2027,19 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 75);
+        assert_eq!(keys.len(), 78);
+        assert!(keys.contains(&&ItemKey::Named {
+            kind: NamedKind::Trait,
+            name: "GeneratedRoot".into(),
+        }));
+        assert!(keys.contains(&&ItemKey::Impl {
+            trait_name: Some("GeneratedRoot".into()),
+            self_ty: "Action".into(),
+        }));
+        assert!(keys.contains(&&ItemKey::Impl {
+            trait_name: None,
+            self_ty: "Category".into(),
+        }));
         assert!(keys.iter().any(|key| {
             matches!(
                 key,

@@ -97,11 +97,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             .map(|(_, members)| members.as_slice())
             .ok_or_else(|| internal("validated root category is absent"))?;
         let ty = ident(&category);
-        let punctuation = root
-            .punctuation()
-            .chars()
-            .next()
-            .ok_or_else(|| internal("validated root punctuation is absent"))?;
+        let punctuation = root.punctuation().chars().next();
         let render_body = if nested_categories.contains(&category) {
             let helper = render_category_name(&category, true);
             let capability = validated.category_render_capability(&category);
@@ -129,8 +125,19 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         let environment = takes_environment
             .then(|| quote! { , environment: &crate::environment::ParserEnvironment });
         let environment_argument = takes_environment.then(|| quote! { , environment });
-        let stable_id =
-            syn::LitStr::new(&format!("root:{category}/punctuation"), Span::call_site());
+        let punctuation_statement = punctuation.map(|punctuation| {
+            let stable_id =
+                syn::LitStr::new(&format!("root:{category}/punctuation"), Span::call_site());
+            quote! {
+                writer.claim(
+                    || LexicalOwner::static_owner(
+                        LexicalProvenanceKind::FormLiteral,
+                        #stable_id,
+                    ),
+                    |writer| writer.punctuation(#punctuation),
+                );
+            }
+        });
         let origin = DeclarationKey::new(DeclarationKind::Root, category.clone());
         items.push(GeneratedItem::new(
             ItemKey::Impl {
@@ -145,13 +152,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                     context: &ParseContext<'_> #environment,
                 ) {
                     #render_body
-                    writer.claim(
-                        || LexicalOwner::static_owner(
-                            LexicalProvenanceKind::FormLiteral,
-                            #stable_id,
-                        ),
-                        |writer| writer.punctuation(#punctuation),
-                    );
+                    #punctuation_statement
                 }
             }
             },

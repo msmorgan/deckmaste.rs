@@ -690,10 +690,20 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
         ])
     );
     let mut trace = IdentityTrace::default();
+    let adapter = Category::Homonym.root_adapter(<Homonym as GeneratedRoot>::EOI);
+    let content_length = text.len()
+        - adapter
+            .iter()
+            .map(|terminal| match terminal.matcher {
+                Lexical::Literal(literal) => literal.len(),
+                Lexical::EndOfInput => 0,
+                _ => unreachable!("generated root adapter is punctuation plus optional EOI"),
+            })
+            .sum::<usize>();
     let forest = parse_observed_with_state(
         RULES,
         Category::Homonym,
-        text.len(),
+        content_length,
         &ScanPosition {
             byte_offset: 0,
             case: CasePosition::DocumentInitial,
@@ -707,6 +717,23 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
         &mut trace,
     )
     .expect("both generated homonym rules parse");
+    let mut root_position = ScanPosition {
+        byte_offset: content_length,
+        case: CasePosition::Continuation,
+        prefix: PrefixPosition::WordOwnedSpace,
+    };
+    let root_values = adapter
+        .iter()
+        .map(|&terminal| {
+            let scanned = scan(text, root_position, terminal, &environment)
+                .into_iter()
+                .next()
+                .expect("the generated Homonym adapter consumes its declared suffix");
+            root_position = scanned.state;
+            scanned.lexical.value
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(root_position.byte_offset, text.len());
 
     assert_eq!(forest.accepted_roots().count(), 2);
     let traced_owners = trace.finish();
@@ -726,7 +753,20 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
         RuleId::public_construction,
         |terminal: LexicalTerminal| terminal.matcher,
         |leaf| BuildValue::Leaf(leaf.clone()),
-        |rule, children| build(rule, children, &context),
+        |rule, children| {
+            let extended;
+            let children = if RULES[rule.index()].lhs == Category::Homonym {
+                extended = children
+                    .iter()
+                    .cloned()
+                    .chain(root_values.iter().cloned().map(BuildValue::Leaf))
+                    .collect::<Vec<_>>();
+                &extended
+            } else {
+                children
+            };
+            build(rule, children, &context)
+        },
     );
     assert_eq!(built.len(), 2, "the kernel retains both accepted roots");
 

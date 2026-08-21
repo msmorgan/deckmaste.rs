@@ -11,8 +11,10 @@ use scan::parse_forest_observed;
 use selection::analyze_selection;
 
 use crate::ast::Ability;
+use crate::ast::Sentence;
 use crate::constructions::Category;
 use crate::constructions::FeatureConstraint;
+use crate::constructions::GeneratedRoot;
 use crate::constructions::REQUIRED_DECLARATIONS;
 use crate::context::ParseContext;
 use crate::environment::DeclarationId;
@@ -138,13 +140,14 @@ enum PipelineStage {
     Parse,
     Materialize,
     Specificity,
-    Ranking,
+    Selection,
+    Ownership,
 }
 
 #[cfg(test)]
 thread_local! {
-    static PIPELINE_COUNTS: std::cell::Cell<[usize; 4]> = const {
-        std::cell::Cell::new([0; 4])
+    static PIPELINE_COUNTS: std::cell::Cell<[usize; 5]> = const {
+        std::cell::Cell::new([0; 5])
     };
 }
 
@@ -239,18 +242,32 @@ impl Parser {
                 .borrow_mut()
                 .push((text.to_owned(), context.card_name().to_owned()));
         });
-        let grammar = self.grammar(context);
-        parse_forest(&grammar, text).map_or_else(
-            |failure| ParseAnalysis::from_result(Err(chart_failure(text, failure)), None),
-            |forest| {
-                analyze_materialized_with_ownership(
-                    text,
-                    materialize(&forest, context, &self.environment),
-                    context,
-                    &self.environment,
-                )
-            },
-        )
+        self.analyze_root::<Ability>(text, context)
+    }
+
+    /// Parses one focused sentence from exact rendered text.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the checked chart cannot consume the
+    /// input. Returns an ambiguity when structural selection cannot choose one
+    /// reading.
+    pub fn parse_sentence(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> Result<Sentence, ParseError> {
+        self.analyze_sentence(text, context).into_parse_result()
+    }
+
+    /// Parses one focused sentence and retains its complete selection decision.
+    #[must_use]
+    pub fn analyze_sentence(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> ParseAnalysis<Sentence> {
+        self.analyze_root::<Sentence>(text, context)
     }
 
     /// Parses once while retaining independently bounded diagnostic
@@ -262,7 +279,27 @@ impl Parser {
         context: &ParseContext<'_>,
         limits: TraceLimits,
     ) -> ParserTrace {
-        let (analysis, trace) = self.analyze_with_trace(text, context, limits);
+        let (analysis, trace) = self.analyze_root_with_trace::<Ability>(text, context, limits);
+        ParserTrace::from_parts(
+            analysis,
+            trace.structural,
+            trace.materialization,
+            limits,
+            context,
+            &self.environment,
+        )
+    }
+
+    /// Parses one focused sentence while retaining independently bounded
+    /// diagnostic projections.
+    #[must_use]
+    pub fn trace_sentence(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+        limits: TraceLimits,
+    ) -> ParserTrace<Sentence> {
+        let (analysis, trace) = self.analyze_root_with_trace::<Sentence>(text, context, limits);
         ParserTrace::from_parts(
             analysis,
             trace.structural,
@@ -285,7 +322,7 @@ impl Parser {
         limits: TraceLimits,
     ) -> ParserTrace {
         ownership::force_inspection_corruption(true);
-        let (analysis, trace) = self.analyze_with_trace(text, context, limits);
+        let (analysis, trace) = self.analyze_root_with_trace::<Ability>(text, context, limits);
         ownership::force_inspection_corruption(false);
         ParserTrace::from_parts(
             analysis,
@@ -309,7 +346,7 @@ impl Parser {
         limits: TraceLimits,
     ) -> ParserTrace {
         ownership::force_synthetic_failure(true);
-        let (analysis, trace) = self.analyze_with_trace(text, context, limits);
+        let (analysis, trace) = self.analyze_root_with_trace::<Ability>(text, context, limits);
         ownership::force_synthetic_failure(false);
         ParserTrace::from_parts(
             analysis,
@@ -328,24 +365,43 @@ impl Parser {
         context: &ParseContext<'_>,
         limits: TraceLimits,
     ) -> (ParseAnalysis, diagnostic::StructuralTrace) {
-        let (analysis, trace) = self.analyze_with_trace(text, context, limits);
+        let (analysis, trace) = self.analyze_root_with_trace::<Ability>(text, context, limits);
         (analysis, trace.structural)
     }
 
-    fn analyze_with_trace(
+    fn analyze_root<R: GeneratedRoot>(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> ParseAnalysis<R> {
+        let grammar = self.grammar(context);
+        parse_forest::<R>(&grammar, text).map_or_else(
+            |failure| ParseAnalysis::from_result(Err(chart_failure(text, failure)), None),
+            |forest| {
+                analyze_materialized_with_ownership::<R>(
+                    text,
+                    materialize::<R>(&forest, context, &self.environment),
+                    context,
+                    &self.environment,
+                )
+            },
+        )
+    }
+
+    fn analyze_root_with_trace<R: GeneratedRoot>(
         &self,
         text: &str,
         context: &ParseContext<'_>,
         limits: TraceLimits,
-    ) -> (ParseAnalysis, TraceParts) {
+    ) -> (ParseAnalysis<R>, TraceParts) {
         let grammar = self.grammar(context);
-        let (forest, structural) = parse_forest_observed(&grammar, text, limits);
+        let (forest, structural) = parse_forest_observed::<R>(&grammar, text, limits);
         let (analysis, materialization) = match forest {
             Ok(forest) => {
                 let (candidates, materialization) =
-                    materialize_observed(&forest, context, &self.environment, limits);
+                    materialize_observed::<R>(&forest, context, &self.environment, limits);
                 (
-                    analyze_materialized_with_ownership(
+                    analyze_materialized_with_ownership::<R>(
                         text,
                         candidates,
                         context,
@@ -437,22 +493,24 @@ pub(crate) fn analyze_materialized(candidates: Vec<materialize::Candidate>) -> P
     analyze_selected_candidate(candidates).map_or_else(
         |error| ParseAnalysis::from_result(Err(error), None),
         |(result, decision)| {
-            ParseAnalysis::from_result(result.map(|candidate| candidate.ability), decision)
+            ParseAnalysis::from_result(result.map(|candidate| candidate.value), decision)
         },
     )
 }
 
-fn analyze_selected_candidate(
-    candidates: Vec<materialize::Candidate>,
-) -> Result<
+type SelectedCandidate<V> = Result<
     (
-        Result<materialize::Candidate, ParseError>,
+        Result<materialize::Candidate<V>, ParseError>,
         Option<SelectionDecision>,
     ),
     ParseError,
-> {
+>;
+
+fn analyze_selected_candidate<V>(
+    candidates: Vec<materialize::Candidate<V>>,
+) -> SelectedCandidate<V> {
     #[cfg(test)]
-    count_pipeline_stage(PipelineStage::Ranking);
+    count_pipeline_stage(PipelineStage::Selection);
     analyze_selection(candidates).map(|selection| {
         let (result, decision) = selection.into_result_and_decision();
         let result = result
@@ -461,23 +519,22 @@ fn analyze_selected_candidate(
     })
 }
 
-fn analyze_materialized_with_ownership(
+fn analyze_materialized_with_ownership<R: GeneratedRoot>(
     text: &str,
-    candidates: Vec<materialize::Candidate>,
+    candidates: Vec<materialize::Candidate<R>>,
     context: &ParseContext<'_>,
     environment: &ParserEnvironment,
-) -> ParseAnalysis {
+) -> ParseAnalysis<R> {
     let (result, decision) = match analyze_selected_candidate(candidates) {
         Ok(selected) => selected,
         Err(error) => return ParseAnalysis::from_result(Err(error), None),
     };
     match result {
         Ok(candidate) => {
-            let (rendered_text, rendered_claims) = crate::constructions::render_ability_with_claims(
-                &candidate.ability,
-                context,
-                environment,
-            );
+            let (rendered_text, rendered_claims) =
+                R::render_with_claims(&candidate.value, context, environment);
+            #[cfg(test)]
+            count_pipeline_stage(PipelineStage::Ownership);
             let ownership = validate_ownership(
                 text,
                 &candidate.claims,
@@ -486,7 +543,7 @@ fn analyze_materialized_with_ownership(
                 &rendered_claims,
             );
             match ownership {
-                Ok(ownership) => ParseAnalysis::from_result(Ok(candidate.ability), decision)
+                Ok(ownership) => ParseAnalysis::from_result(Ok(candidate.value), decision)
                     .with_ownership(ownership),
                 Err(_) => {
                     ParseAnalysis::from_result(Err(ParseError::OwnershipInspection), decision)
@@ -510,11 +567,88 @@ mod structural_trace_tests {
         canonical_test_environment()
     }
 
+    fn assert_pipeline_once(run: impl FnOnce()) {
+        PIPELINE_COUNTS.with(|counts| counts.set([0; 5]));
+        run();
+        PIPELINE_COUNTS.with(|counts| {
+            assert_eq!(
+                counts.get(),
+                [1, 1, 1, 1, 1],
+                "scan/parse, materialize, specificity, selection, and ownership each run once",
+            );
+        });
+    }
+
+    #[test]
+    fn ability_and_sentence_public_calls_each_use_one_pipeline() {
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+        let text = "Destroy target creature.";
+
+        assert_pipeline_once(|| {
+            assert!(parser.analyze(text, &context).selected().is_some());
+        });
+        assert_pipeline_once(|| {
+            assert!(parser.analyze_sentence(text, &context).selected().is_some());
+        });
+        assert_pipeline_once(|| {
+            assert!(
+                parser
+                    .trace(text, &context, TraceLimits::new(0))
+                    .into_parse_result()
+                    .is_ok()
+            );
+        });
+        assert_pipeline_once(|| {
+            assert!(
+                parser
+                    .trace_sentence(text, &context, TraceLimits::new(0))
+                    .into_parse_result()
+                    .is_ok()
+            );
+        });
+    }
+
+    #[test]
+    fn generated_sentence_root_rejects_an_ability_build_value() {
+        use crate::constructions::BuildValue;
+        use crate::constructions::GeneratedRoot;
+        use crate::constructions::Sentence;
+
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+        let ability = parser
+            .parse("Destroy target creature.", &context)
+            .expect("fixture parses as an Ability");
+
+        assert_eq!(Sentence::from_build(BuildValue::Ability(ability)), None);
+    }
+
+    #[test]
+    fn sentence_internal_failure_names_its_generated_root() {
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+        super::ownership::force_inspection_corruption(true);
+
+        let trace = parser.trace_sentence(
+            "Destroy target creature.",
+            &context,
+            TraceLimits::new(usize::MAX),
+        );
+
+        super::ownership::force_inspection_corruption(false);
+        assert_eq!(trace.root_name(), "Sentence");
+        let super::BoundedParseOutcome::InternalFailure(failure) = trace.outcome() else {
+            panic!("forced ownership corruption is an internal failure");
+        };
+        assert!(failure.message().contains("Sentence"));
+    }
+
     #[test]
     fn selected_ownership_pipeline_runs_each_semantic_pass_once() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Context Card").unwrap();
-        PIPELINE_COUNTS.with(|counts| counts.set([0; 4]));
+        PIPELINE_COUNTS.with(|counts| counts.set([0; 5]));
         super::materialize::set_materialized_candidate_copies(3);
         super::materialize::reset_specificity_candidate_evaluations();
 
@@ -525,8 +659,8 @@ mod structural_trace_tests {
         PIPELINE_COUNTS.with(|counts| {
             assert_eq!(
                 counts.get(),
-                [1, 1, 1, 1],
-                "parse, materialize, specificity, and ranking each run once"
+                [1, 1, 1, 1, 1],
+                "parse, materialize, specificity, selection, and ownership each run once"
             );
         });
         assert_eq!(super::materialize::finalized_candidate_count(), 3);
@@ -807,9 +941,12 @@ mod structural_trace_tests {
                 environment: &environment,
                 context: &context,
             };
-            let ordinary = super::parse_forest(&grammar, text);
-            let (observed, trace) =
-                super::parse_forest_observed(&grammar, text, TraceLimits::new(usize::MAX));
+            let ordinary = super::parse_forest::<crate::ast::Ability>(&grammar, text);
+            let (observed, trace) = super::parse_forest_observed::<crate::ast::Ability>(
+                &grammar,
+                text,
+                TraceLimits::new(usize::MAX),
+            );
             assert_eq!(ordinary, observed);
             let (analysis, _) =
                 parser.observe_structural(text, &context, TraceLimits::new(usize::MAX));

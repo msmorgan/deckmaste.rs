@@ -9,9 +9,9 @@ use super::SelectedOwnership;
 use super::selection::construction_name_v1;
 use crate::ast::Ability;
 use crate::constructions::Construction;
+use crate::constructions::GeneratedRoot;
 use crate::constructions::RuleId;
 use crate::context::ParseContext;
-use crate::render::Render;
 
 /// The independent retention cap for each repeated diagnostic collection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -872,16 +872,16 @@ pub enum ParseAnalysisOutcome {
 
 /// A complete parser run with its nonmutating selection diagnostic.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParseAnalysis {
-    result: Result<Ability, ParseError>,
+pub struct ParseAnalysis<V = Ability> {
+    result: Result<V, ParseError>,
     outcome: ParseAnalysisOutcome,
     decision: Option<SelectionDecision>,
     ownership: Option<SelectedOwnership>,
 }
 
-impl ParseAnalysis {
+impl<V> ParseAnalysis<V> {
     pub(crate) fn from_result(
-        result: Result<Ability, ParseError>,
+        result: Result<V, ParseError>,
         decision: Option<SelectionDecision>,
     ) -> Self {
         let outcome = match &result {
@@ -924,7 +924,7 @@ impl ParseAnalysis {
     }
 
     #[must_use]
-    pub fn selected(&self) -> Option<&Ability> {
+    pub fn selected(&self) -> Option<&V> {
         self.result.as_ref().ok()
     }
 
@@ -936,7 +936,7 @@ impl ParseAnalysis {
     /// # Errors
     ///
     /// Returns the original parser error for an unselected analysis.
-    pub fn into_parse_result(self) -> Result<Ability, ParseError> {
+    pub fn into_parse_result(self) -> Result<V, ParseError> {
         self.result
     }
 }
@@ -1244,8 +1244,9 @@ pub enum BoundedParseOutcome {
 /// fn leak_error(trace: ParserTrace) { let _ = trace.parse_error(); }
 /// ```
 #[derive(Clone)]
-pub struct ParserTrace {
-    analysis: ParseAnalysis,
+pub struct ParserTrace<V = Ability> {
+    root_name: &'static str,
+    analysis: ParseAnalysis<V>,
     outcome: BoundedParseOutcome,
     structural: StructuralTrace,
     materialization: MaterializationTrace,
@@ -1254,9 +1255,10 @@ pub struct ParserTrace {
     ownership_failures: Vec<OwnershipFailure>,
 }
 
-impl PartialEq for ParserTrace {
+impl<V> PartialEq for ParserTrace<V> {
     fn eq(&self, other: &Self) -> bool {
         self.outcome() == other.outcome()
+            && self.root_name() == other.root_name()
             && self.scanner_matches() == other.scanner_matches()
             && self.chart() == other.chart()
             && self.forest() == other.forest()
@@ -1270,12 +1272,13 @@ impl PartialEq for ParserTrace {
     }
 }
 
-impl Eq for ParserTrace {}
+impl<V> Eq for ParserTrace<V> {}
 
-impl std::fmt::Debug for ParserTrace {
+impl<V> std::fmt::Debug for ParserTrace<V> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("ParserTrace")
+            .field("root_name", &self.root_name())
             .field("outcome", self.outcome())
             .field("scanner_matches", self.scanner_matches())
             .field("chart", self.chart())
@@ -1294,15 +1297,18 @@ impl std::fmt::Debug for ParserTrace {
     }
 }
 
-impl ParserTrace {
+impl<V> ParserTrace<V> {
     pub(crate) fn from_parts(
-        analysis: ParseAnalysis,
+        analysis: ParseAnalysis<V>,
         structural: StructuralTrace,
         materialization: MaterializationTrace,
         limits: TraceLimits,
         context: &ParseContext<'_>,
         environment: &crate::environment::ParserEnvironment,
-    ) -> Self {
+    ) -> Self
+    where
+        V: GeneratedRoot,
+    {
         let limit = limits.per_collection();
         let selected_ownership = analysis.ownership();
         let selected_lexical_claims = selected_ownership.map_or_else(
@@ -1314,7 +1320,7 @@ impl ParserTrace {
             .map(|ownership| ownership.failures().to_vec())
             .unwrap_or_default();
         let outcome = match &analysis.result {
-            Ok(ability) => {
+            Ok(value) => {
                 let decision = analysis
                     .decision()
                     .expect("a selected candidate has a selection decision");
@@ -1327,7 +1333,7 @@ impl ParserTrace {
                     .iter()
                     .find(|candidate| candidate.ordinal() == selected_ordinal)
                     .map_or_else(
-                        || ability.render(context, environment),
+                        || V::render_with_claims(value, context, environment).0,
                         |candidate| candidate.rendered.clone(),
                     );
                 BoundedParseOutcome::Selected(SelectedParseOutcome {
@@ -1356,23 +1362,24 @@ impl ParserTrace {
             Err(error @ ParseError::ValidatedRootDidNotMaterialize) => {
                 BoundedParseOutcome::InternalFailure(InternalFailureOutcome {
                     kind: InternalFailureKind::ValidatedRootDidNotMaterialize,
-                    message: error.to_string(),
+                    message: format!("{} root: {error}", V::NAME),
                 })
             }
             Err(error @ ParseError::InvalidSelectionExceptionConfiguration(_)) => {
                 BoundedParseOutcome::InternalFailure(InternalFailureOutcome {
                     kind: InternalFailureKind::SelectionConfiguration,
-                    message: error.to_string(),
+                    message: format!("{} root: {error}", V::NAME),
                 })
             }
             Err(error @ ParseError::OwnershipInspection) => {
                 BoundedParseOutcome::InternalFailure(InternalFailureOutcome {
                     kind: InternalFailureKind::OwnershipInspection,
-                    message: error.to_string(),
+                    message: format!("{} root: {error}", V::NAME),
                 })
             }
         };
         Self {
+            root_name: V::NAME,
             analysis,
             outcome,
             structural,
@@ -1381,6 +1388,13 @@ impl ParserTrace {
             ownership,
             ownership_failures,
         }
+    }
+}
+
+impl<V> ParserTrace<V> {
+    #[must_use]
+    pub const fn root_name(&self) -> &'static str {
+        self.root_name
     }
 
     #[must_use]
@@ -1431,7 +1445,7 @@ impl ParserTrace {
     /// # Errors
     ///
     /// Returns the complete original parser error, unaffected by public caps.
-    pub fn into_parse_result(self) -> Result<Ability, ParseError> {
+    pub fn into_parse_result(self) -> Result<V, ParseError> {
         self.analysis.into_parse_result()
     }
 }
@@ -1463,15 +1477,17 @@ mod tests {
 
     #[test]
     fn parser_analysis_keeps_internal_failure_kinds_distinct_from_parse_failure() {
-        let materialization =
-            ParseAnalysis::from_result(Err(ParseError::ValidatedRootDidNotMaterialize), None);
-        let selection = ParseAnalysis::from_result(
+        let materialization = ParseAnalysis::<crate::ast::Ability>::from_result(
+            Err(ParseError::ValidatedRootDidNotMaterialize),
+            None,
+        );
+        let selection = ParseAnalysis::<crate::ast::Ability>::from_result(
             Err(ParseError::InvalidSelectionExceptionConfiguration(
                 SelectionExceptionInventoryError::BlankId,
             )),
             None,
         );
-        let parse_failure = ParseAnalysis::from_result(
+        let parse_failure = ParseAnalysis::<crate::ast::Ability>::from_result(
             Err(ParseError::Failure {
                 span: TextSpan { start: 0, end: 0 },
                 expectations: BTreeSet::from([Expectation::Literal("synthetic")]),
@@ -1620,7 +1636,7 @@ mod tests {
         ];
         for (error, decision, expected_internal_kind) in cases {
             let trace = ParserTrace::from_parts(
-                ParseAnalysis::from_result(Err(error), decision),
+                ParseAnalysis::<crate::ast::Ability>::from_result(Err(error), decision),
                 StructuralTrace::empty(),
                 MaterializationTrace::empty(0),
                 TraceLimits::new(0),
@@ -1678,7 +1694,7 @@ mod tests {
         let context = ParseContext::new("Trace Card").expect("context");
         let environment = canonical_test_environment();
         let trace = ParserTrace::from_parts(
-            ParseAnalysis::from_result(
+            ParseAnalysis::<crate::ast::Ability>::from_result(
                 Err(ParseError::Failure {
                     span: TextSpan { start: 0, end: 0 },
                     expectations: BTreeSet::from([Expectation::Literal(PRIVATE_SENTINEL)]),
@@ -1712,7 +1728,7 @@ mod tests {
         let environment = canonical_test_environment();
         let make_trace = |sentinel| {
             ParserTrace::from_parts(
-                ParseAnalysis::from_result(
+                ParseAnalysis::<crate::ast::Ability>::from_result(
                     Err(ParseError::Failure {
                         span: TextSpan { start: 0, end: 0 },
                         expectations: BTreeSet::from([Expectation::Literal(sentinel)]),

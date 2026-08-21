@@ -22,6 +22,7 @@ use super::engine::Family;
 use super::engine::Forest;
 use super::engine::LexicalMatch;
 use super::engine::Observation;
+use super::engine::Rule;
 use super::engine::StatefulLexicalMatch;
 use super::engine::parse_observed_with_state;
 use super::engine::parse_with_state;
@@ -30,6 +31,7 @@ use crate::constructions::CasePosition;
 use crate::constructions::Category;
 use crate::constructions::DeclarationMatcher;
 use crate::constructions::FeatureConstraint;
+use crate::constructions::GeneratedRoot;
 use crate::constructions::Leaf;
 use crate::constructions::Lexical;
 use crate::constructions::LexicalOwner;
@@ -57,44 +59,90 @@ pub(crate) struct ScanInput<'a> {
     pub(crate) context: &'a ParseContext<'a>,
 }
 
-pub(crate) fn parse_forest(
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RootForest {
+    forest: Forest<RuleId, Leaf, LexicalOwner>,
+}
+
+impl RootForest {
+    pub(crate) fn forest(&self) -> &Forest<RuleId, Leaf, LexicalOwner> {
+        &self.forest
+    }
+
+    #[cfg(test)]
+    pub(crate) fn from_test_forest(forest: Forest<RuleId, Leaf, LexicalOwner>) -> Self {
+        Self { forest }
+    }
+}
+
+impl std::ops::Deref for RootForest {
+    type Target = Forest<RuleId, Leaf, LexicalOwner>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.forest
+    }
+}
+
+pub(crate) fn parse_forest<R: GeneratedRoot>(
     grammar: &SliceGrammar<'_>,
     text: &str,
-) -> Result<Forest<RuleId, Leaf, LexicalOwner>, ChartFailure<Category, Lexical>> {
+) -> Result<RootForest, ChartFailure<Category, Lexical>> {
     #[cfg(test)]
     super::count_pipeline_stage(super::PipelineStage::Parse);
-    parse_with_state(
-        RULES,
-        Category::Ability,
+    let rules = rules_for_root::<R>();
+    let forest = parse_with_state(
+        &rules,
+        R::CATEGORY,
         text.len(),
         &initial_scan_position(),
         |lexical, offset, position| grammar.scan_stateful(lexical, text, offset, *position),
-        |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),
+        |rule, family, forest| {
+            completion_has_checked_build::<R>(&rules, rule, family, forest, grammar.context)
+        },
     )
-    .map_err(project_failure)
+    .map_err(project_failure)?;
+    Ok(RootForest { forest })
 }
 
-type ObservedForestResult =
-    Result<Forest<RuleId, Leaf, LexicalOwner>, ChartFailure<Category, Lexical>>;
+type ObservedForestResult = Result<RootForest, ChartFailure<Category, Lexical>>;
 
-pub(crate) fn parse_forest_observed(
+pub(crate) fn parse_forest_observed<R: GeneratedRoot>(
     grammar: &SliceGrammar<'_>,
     text: &str,
     limits: TraceLimits,
 ) -> (ObservedForestResult, StructuralTrace) {
+    #[cfg(test)]
+    super::count_pipeline_stage(super::PipelineStage::Parse);
     let mut observation = StructuralObservation::new(limits);
+    let rules = rules_for_root::<R>();
     let result = parse_observed_with_state(
-        RULES,
-        Category::Ability,
+        &rules,
+        R::CATEGORY,
         text.len(),
         &initial_scan_position(),
         |lexical, offset, position| grammar.scan_stateful(lexical, text, offset, *position),
-        |rule, family, forest| completion_has_checked_build(rule, family, forest, grammar.context),
+        |rule, family, forest| {
+            completion_has_checked_build::<R>(&rules, rule, family, forest, grammar.context)
+        },
         &mut observation,
     )
+    .map(|forest| RootForest { forest })
     .map_err(project_failure);
     let trace = observation.finish();
     (result, trace)
+}
+
+pub(super) fn rules_for_root<R: GeneratedRoot>() -> Vec<Rule<Category, LexicalTerminal, RuleId>> {
+    RULES
+        .iter()
+        .map(|rule| Rule {
+            id: rule.id,
+            lhs: rule.lhs,
+            rhs: R::CATEGORY
+                .root_rule_rhs(R::EOI, rule.id)
+                .unwrap_or(rule.rhs),
+        })
+        .collect()
 }
 
 struct StructuralObservation {
@@ -794,7 +842,6 @@ mod tests {
     use super::super::engine::SpannedLexical;
     use super::Category;
     use super::ChartFailure;
-    use super::Forest;
     use super::Leaf;
     use super::Lexical;
     use super::LexicalMatch;
@@ -853,10 +900,7 @@ mod tests {
     fn slice_candidates(
         text: &str,
         card_name: &str,
-    ) -> Result<
-        Forest<RuleId, Leaf, crate::constructions::LexicalOwner>,
-        ChartFailure<Category, Lexical>,
-    > {
+    ) -> Result<super::RootForest, ChartFailure<Category, Lexical>> {
         let environment = canonical_test_environment();
         let context = context(card_name);
         let grammar = SliceGrammar {
@@ -864,7 +908,7 @@ mod tests {
             context: &context,
         };
 
-        parse_forest(&grammar, text)
+        parse_forest::<crate::ast::Ability>(&grammar, text)
     }
 
     fn context(card_name: &str) -> ParseContext<'_> {
@@ -2107,8 +2151,6 @@ mod tests {
         assert_eq!(
             terminals,
             [
-                "Literal(\".\")",
-                "EndOfInput",
                 "TriggerWord",
                 "Literal(\",\")",
                 "Literal(\"where\")",

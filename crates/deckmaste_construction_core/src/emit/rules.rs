@@ -242,6 +242,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         .zip(&rule_ids)
         .map(|(row, rule_id)| emit_rule(plan, row, rule_id))
         .collect::<syn::Result<Vec<_>>>()?;
+    let root_adapter = emit_root_adapter(plan, &lowered)?;
 
     let mut rule_origins = origins.clone();
     rule_origins.extend(
@@ -267,6 +268,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             },
             origins.clone(),
         ),
+        root_adapter,
         GeneratedItem::new(
             ItemKey::named_type(RULE_ID_TYPE),
             quote! {
@@ -313,39 +315,118 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     ])
 }
 
+fn emit_root_adapter(plan: &SemanticPlan, rows: &[RuleRowPlan]) -> syn::Result<GeneratedItem> {
+    let root_adapters = plan
+        .roots()
+        .iter()
+        .map(|root| {
+            let category = ident(root.category());
+            let eoi = root.is_parse_entry();
+            let mut terminals = Vec::new();
+            if !root.punctuation().is_empty() {
+                let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
+                let stable_id = syn::LitStr::new(
+                    &format!("root:{}/punctuation", root.category()),
+                    Span::call_site(),
+                );
+                terminals.push(quote! {
+                    LexicalTerminal {
+                        matcher: Lexical::Literal(#punctuation),
+                        owner:
+                        LexicalOwnerTemplate::Static {
+                            kind: LexicalProvenanceKind::FormLiteral,
+                            stable_id: #stable_id,
+                        },
+                    }
+                });
+            }
+            if eoi {
+                terminals.push(quote! {
+                    LexicalTerminal {
+                        matcher: Lexical::EndOfInput,
+                        owner: LexicalOwnerTemplate::None,
+                    }
+                });
+            }
+            (root, category, eoi, terminals)
+        })
+        .collect::<Vec<_>>();
+    let adapter_arms = root_adapters.iter().map(|(_, category, eoi, terminals)| {
+        quote! { (Self::#category, #eoi) => &[#(#terminals),*] }
+    });
+    let mut root_rule_arms = Vec::new();
+    for (root, category, eoi, terminals) in &root_adapters {
+        for row in rows.iter().filter(|row| row.lhs == root.category()) {
+            let rule_id = ident(&row.id);
+            let rhs = row
+                .rhs
+                .iter()
+                .map(|symbol| emit_rule_symbol(plan, symbol))
+                .collect::<syn::Result<Vec<_>>>()?;
+            let adapter = terminals.iter().map(|terminal| quote! { L(#terminal) });
+            root_rule_arms.push(quote! {
+                (Self::#category, #eoi, RuleId::#rule_id) => {
+                    Some(&[#(#rhs,)* #(#adapter),*])
+                }
+            });
+        }
+    }
+    let eoi_arms = plan.roots().iter().map(|root| {
+        let category = ident(root.category());
+        let eoi = root.is_parse_entry();
+        quote! { Self::#category => Some(#eoi) }
+    });
+    Ok(GeneratedItem::new(
+        ItemKey::Impl {
+            trait_name: None,
+            self_ty: RULE_CATEGORY_TYPE.to_owned(),
+        },
+        quote! {
+            impl Category {
+                pub(crate) const fn root_adapter(self, eoi: bool) -> &'static [LexicalTerminal] {
+                    match (self, eoi) {
+                        #(#adapter_arms,)*
+                        _ => &[],
+                    }
+                }
+
+                pub(crate) const fn root_rule_rhs(
+                    self,
+                    eoi: bool,
+                    rule: RuleId,
+                ) -> Option<&'static [RulePosition<Category, LexicalTerminal>]> {
+                    match (self, eoi, rule) {
+                        #(#root_rule_arms,)*
+                        _ => None,
+                    }
+                }
+
+                pub(crate) const fn root_eoi(self) -> Option<bool> {
+                    match self {
+                        #(#eoi_arms,)*
+                        _ => None,
+                    }
+                }
+            }
+        },
+        plan.roots()
+            .iter()
+            .map(|root| DeclarationKey::new(DeclarationKind::Root, root.category()))
+            .collect(),
+    ))
+}
+
 fn emit_rule(
     plan: &SemanticPlan,
     row: &RuleRowPlan,
     rule_id: &syn::Ident,
 ) -> syn::Result<TokenStream> {
     let lhs = ident(&row.lhs);
-    let mut rhs = row
+    let rhs = row
         .rhs
         .iter()
         .map(|symbol| emit_rule_symbol(plan, symbol))
         .collect::<syn::Result<Vec<_>>>()?;
-    if let Some(root) = plan.parse_root(&row.lhs) {
-        if !root.punctuation().is_empty() {
-            let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
-            let stable_id = syn::LitStr::new(
-                &format!("root:{}/punctuation", root.category()),
-                Span::call_site(),
-            );
-            rhs.push(lexical_terminal(
-                &quote! { Lexical::Literal(#punctuation) },
-                &quote! {
-                    LexicalOwnerTemplate::Static {
-                        kind: LexicalProvenanceKind::FormLiteral,
-                        stable_id: #stable_id,
-                    }
-                },
-            ));
-        }
-        rhs.push(lexical_terminal(
-            &quote! { Lexical::EndOfInput },
-            &quote! { LexicalOwnerTemplate::None },
-        ));
-    }
     Ok(quote! { Rule { id: RuleId::#rule_id, lhs: Category::#lhs, rhs: &[#(#rhs),*] } })
 }
 
@@ -2415,17 +2496,6 @@ mod tests {
                                 stable_id: "codec:Pair",
                             },
                         }),
-                        L(LexicalTerminal {
-                            matcher: Lexical::Literal("!"),
-                            owner: LexicalOwnerTemplate::Static {
-                                kind: LexicalProvenanceKind::FormLiteral,
-                                stable_id: "root:Document/punctuation",
-                            },
-                        }),
-                        L(LexicalTerminal {
-                            matcher: Lexical::EndOfInput,
-                            owner: LexicalOwnerTemplate::None,
-                        }),
                     ],
                 },
             ];
@@ -2439,7 +2509,7 @@ mod tests {
         )
         .unwrap();
         let generated = super::emit(validated.semantic()).unwrap();
-        assert_eq!(generated.len(), 5);
+        assert_eq!(generated.len(), 6);
         let actual = generated
             .iter()
             .map(|item| syn::parse2::<syn::Item>(item.tokens.clone()).unwrap())
@@ -2467,7 +2537,7 @@ mod tests {
             "DocumentDocument",
         ];
         assert_eq!(enum_variants(&actual[1]), ids);
-        assert_eq!(enum_variants(&actual[2]), ids);
+        assert_eq!(enum_variants(&actual[3]), ids);
 
         let normalize = |item: syn::Item| {
             prettyplease::unparse(&syn::File {
@@ -2477,15 +2547,16 @@ mod tests {
             })
         };
         assert_eq!(
-            normalize(actual[4].clone()),
+            normalize(actual[5].clone()),
             normalize(expected_synthetic_projection_rules())
         );
 
         let construction_origins = ["leaf", "nested", "action", "idle", "solo", "document"]
             .map(|name| (crate::DeclarationKind::Construction, name));
-        for item in &generated[..4] {
+        for &index in &[0, 1, 3, 4] {
             assert_eq!(
-                item.origins
+                generated[index]
+                    .origins
                     .iter()
                     .map(|origin| (origin.kind(), origin.name()))
                     .collect::<Vec<_>>(),
@@ -2493,7 +2564,15 @@ mod tests {
             );
         }
         assert_eq!(
-            generated[4]
+            generated[2]
+                .origins
+                .iter()
+                .map(|origin| (origin.kind(), origin.name()))
+                .collect::<Vec<_>>(),
+            [(crate::DeclarationKind::Root, "Document")],
+        );
+        assert_eq!(
+            generated[5]
                 .origins
                 .iter()
                 .map(|origin| (origin.kind(), origin.name()))
@@ -2547,9 +2626,12 @@ mod tests {
             }).unwrap(),
         ).unwrap();
         let items = super::emit(validated.semantic()).unwrap();
+        let adapter = items[2].tokens.to_string();
         let rules = items.last().unwrap().tokens.to_string();
         assert!(rules.contains("FeatureConstraint :: Exact (Number :: Singular)"));
-        assert!(rules.contains("Lexical :: Literal (\"!\")"));
-        assert!(rules.contains("Lexical :: EndOfInput"));
+        assert!(!rules.contains("Lexical :: Literal (\"!\")"));
+        assert!(!rules.contains("Lexical :: EndOfInput"));
+        assert!(adapter.contains("Lexical :: Literal (\"!\")"));
+        assert!(adapter.contains("Lexical :: EndOfInput"));
     }
 }

@@ -18,6 +18,7 @@ use crate::ast::Ability;
 use crate::constructions::BuildValue;
 use crate::constructions::Category;
 use crate::constructions::Construction;
+use crate::constructions::GeneratedRoot;
 use crate::constructions::Leaf;
 use crate::constructions::Lexical;
 use crate::constructions::LexicalOwner;
@@ -26,7 +27,8 @@ use crate::constructions::RULES;
 use crate::constructions::RuleId;
 use crate::constructions::build;
 use crate::context::ParseContext;
-use crate::render::Render;
+use crate::parser::scan::RootForest;
+use crate::parser::scan::rules_for_root;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct MaterializedCandidate<V, C, K = Category, M = Lexical, T = (), O = ()> {
@@ -73,8 +75,8 @@ fn count_specificity_candidate() {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Candidate {
-    pub ability: Ability,
+pub(crate) struct Candidate<V = Ability> {
+    pub value: V,
     pub constructions: Vec<Construction>,
     pub positions: Vec<RulePosition<Category, Lexical>>,
     pub specificity: Vec<super::SpecificityTier>,
@@ -409,42 +411,50 @@ where
     (values, builder.finish())
 }
 
-pub(crate) fn materialize(
-    forest: &Forest<RuleId, Leaf, LexicalOwner>,
+pub(crate) fn materialize<R: GeneratedRoot>(
+    forest: &RootForest,
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
-) -> Vec<Candidate> {
+) -> Vec<Candidate<R>> {
     #[cfg(test)]
     super::count_pipeline_stage(super::PipelineStage::Materialize);
+    let rules = rules_for_root::<R>();
     let built = MaterializationKernel {
-        rules: RULES,
+        rules: &rules,
         rule_index: RuleId::index,
         public_construction: RuleId::public_construction,
         lexical_matcher: |terminal: LexicalTerminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-        build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
+        build: |rule: RuleId, children: &[BuildValue]| {
+            build_for_selected_root::<R>(rule, children, context)
+        },
     }
-    .materialize(forest, &mut ());
-    finalize_candidates(built, context, environment, None)
+    .materialize(forest.forest(), &mut ());
+    finalize_candidates::<R>(built, context, environment, None)
 }
 
-pub(crate) fn materialize_observed(
-    forest: &Forest<RuleId, Leaf, LexicalOwner>,
+pub(crate) fn materialize_observed<R: GeneratedRoot>(
+    forest: &RootForest,
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
     limits: TraceLimits,
-) -> (Vec<Candidate>, MaterializationTrace) {
+) -> (Vec<Candidate<R>>, MaterializationTrace) {
+    #[cfg(test)]
+    super::count_pipeline_stage(super::PipelineStage::Materialize);
     let mut observation = MaterializationTraceBuilder::new(limits);
+    let rules = rules_for_root::<R>();
     let built = MaterializationKernel {
-        rules: RULES,
+        rules: &rules,
         rule_index: RuleId::index,
         public_construction: RuleId::public_construction,
         lexical_matcher: |terminal: LexicalTerminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-        build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
+        build: |rule: RuleId, children: &[BuildValue]| {
+            build_for_selected_root::<R>(rule, children, context)
+        },
     }
-    .materialize(forest, &mut observation);
-    let candidates = finalize_candidates(
+    .materialize(forest.forest(), &mut observation);
+    let candidates = finalize_candidates::<R>(
         built,
         context,
         environment,
@@ -453,14 +463,14 @@ pub(crate) fn materialize_observed(
     (candidates, observation.finish())
 }
 
-fn finalize_candidates(
+fn finalize_candidates<R: GeneratedRoot>(
     built_values: Vec<
         MaterializedCandidate<BuildValue, Construction, Category, Lexical, Leaf, LexicalOwner>,
     >,
     context: &ParseContext<'_>,
     environment: &crate::environment::ParserEnvironment,
     mut observation: Option<(&mut MaterializationTraceBuilder, TraceLimits)>,
-) -> Vec<Candidate> {
+) -> Vec<Candidate<R>> {
     #[cfg(test)]
     let built_values = MATERIALIZED_CANDIDATE_COPIES.with(|copies| {
         let copies = copies.get().max(1);
@@ -500,7 +510,7 @@ fn finalize_candidates(
     super::count_pipeline_stage(super::PipelineStage::Specificity);
     let mut candidates = Vec::new();
     for built in built_values {
-        if let BuildValue::Ability(ability) = built.value {
+        if let Some(value) = R::from_build(built.value) {
             let mut claims = Vec::new();
             let mut synthetic_claims = Vec::new();
             for claim in built.claims {
@@ -519,7 +529,7 @@ fn finalize_candidates(
             #[cfg(test)]
             count_specificity_candidate();
             let candidate = Candidate {
-                ability,
+                value,
                 constructions: built.constructions,
                 specificity: specificity_tiers(&built.positions),
                 positions: built.positions,
@@ -534,8 +544,8 @@ fn finalize_candidates(
                 trace.record_candidate_with(|| {
                     MaterializedCandidateInfo::new(
                         ordinal,
-                        candidate.ability.render(context, environment),
-                        format!("{:?}", candidate.ability),
+                        R::render_with_claims(&candidate.value, context, environment).0,
+                        format!("{:?}", candidate.value),
                         &candidate.constructions,
                         &candidate.specificity,
                         limits.per_collection(),
@@ -547,6 +557,44 @@ fn finalize_candidates(
     #[cfg(test)]
     FINALIZED_CANDIDATE_COUNT.with(|count| count.set(candidates.len()));
     candidates
+}
+
+fn build_with_root_sentinels(
+    rule: RuleId,
+    children: &[BuildValue],
+    context: &ParseContext<'_>,
+) -> Option<BuildValue> {
+    let category = RULES[rule.index()].lhs;
+    if category.root_eoi() != Some(true) {
+        return build(rule, children, context);
+    }
+    let mut adapted = Vec::with_capacity(children.len() + category.root_adapter(true).len());
+    adapted.extend_from_slice(children);
+    adapted.extend(category.root_adapter(true).iter().map(|terminal| {
+        BuildValue::Leaf(match terminal.matcher {
+            Lexical::Literal(literal) => Leaf::Literal(literal),
+            Lexical::EndOfInput => Leaf::EndOfInput,
+            _ => unreachable!("generated root adapters contain only punctuation and EOI"),
+        })
+    }));
+    build(rule, &adapted, context)
+}
+
+fn build_for_selected_root<R: GeneratedRoot>(
+    rule: RuleId,
+    children: &[BuildValue],
+    context: &ParseContext<'_>,
+) -> Option<BuildValue> {
+    if RULES[rule.index()].lhs != R::CATEGORY {
+        return build_with_root_sentinels(rule, children, context);
+    }
+    if R::EOI {
+        return build(rule, children, context);
+    }
+    let content_length = children
+        .len()
+        .checked_sub(R::CATEGORY.root_adapter(R::EOI).len())?;
+    build(rule, &children[..content_length], context)
 }
 
 #[cfg(test)]
@@ -572,12 +620,15 @@ fn materialize_node(
         public_construction: RuleId::public_construction,
         lexical_matcher: |terminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-        build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
+        build: |rule: RuleId, children: &[BuildValue]| {
+            build_with_root_sentinels(rule, children, context)
+        },
     };
     kernel.materialize_node(forest, node_id, state, &mut Vec::new(), &mut ())
 }
 
-pub(super) fn completion_has_checked_build(
+pub(super) fn completion_has_checked_build<R: GeneratedRoot>(
+    rules: &[Rule<Category, LexicalTerminal, RuleId>],
     rule: RuleId,
     family: &Family<Leaf, LexicalOwner>,
     forest: &Forest<RuleId, Leaf, LexicalOwner>,
@@ -594,12 +645,14 @@ pub(super) fn completion_has_checked_build(
         Lexical,
         _,
     > = MaterializationKernel {
-        rules: RULES,
+        rules,
         rule_index: RuleId::index,
         public_construction: RuleId::public_construction,
         lexical_matcher: |terminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-        build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
+        build: |rule: RuleId, children: &[BuildValue]| {
+            build_for_selected_root::<R>(rule, children, context)
+        },
     };
     !kernel
         .materialize_family(
@@ -682,6 +735,7 @@ mod tests {
     use crate::parser::engine::PackedNode;
     use crate::parser::engine::RulePosition;
     use crate::parser::engine::SpannedLexical;
+    use crate::parser::scan::RootForest;
     use crate::parser::scan::SliceGrammar;
     use crate::parser::scan::parse_forest;
     use crate::render::Render;
@@ -697,10 +751,7 @@ mod tests {
     fn slice_candidates(
         text: &str,
         card_name: &str,
-    ) -> Result<
-        Forest<RuleId, Leaf, crate::constructions::LexicalOwner>,
-        ChartFailure<Category, Lexical>,
-    > {
+    ) -> Result<RootForest, ChartFailure<Category, Lexical>> {
         let environment = canonical_test_environment();
         let context = context(card_name);
         let grammar = SliceGrammar {
@@ -708,7 +759,7 @@ mod tests {
             context: &context,
         };
 
-        parse_forest(&grammar, text)
+        parse_forest::<crate::ast::Ability>(&grammar, text)
     }
 
     fn context(card_name: &str) -> ParseContext<'_> {
@@ -966,9 +1017,9 @@ mod tests {
             let forest = slice_candidates(text, card_name).expect("scanner accepts rendered input");
             let context = context(card_name);
             let environment = canonical_test_environment();
-            let candidates = materialize(&forest, &context, &environment);
+            let candidates = materialize::<crate::ast::Ability>(&forest, &context, &environment);
             assert_eq!(candidates.len(), 1, "unexpected candidates for {text:?}");
-            assert_eq!(candidates[0].ability.render(&context, &environment), text);
+            assert_eq!(candidates[0].value.render(&context, &environment), text);
         }
     }
     #[test]
@@ -977,16 +1028,17 @@ mod tests {
         let forest = slice_candidates(text, "Context Card").expect("scanner accepts words");
         let context = context("Context Card");
         let environment = canonical_test_environment();
-        let candidates = materialize(&forest, &context, &environment);
+        let candidates = materialize::<crate::ast::Ability>(&forest, &context, &environment);
         assert_eq!(candidates.len(), 1);
-        assert_eq!(candidates[0].ability.render(&context, &environment), text);
+        assert_eq!(candidates[0].value.render(&context, &environment), text);
     }
 
     #[test]
     fn materialize_preserves_preorder_constructions_and_declared_positions() {
         let forest = slice_candidates("Destroy target creature.", "Context Card").unwrap();
         let environment = canonical_test_environment();
-        let candidates = materialize(&forest, &context("Context Card"), &environment);
+        let candidates =
+            materialize::<crate::ast::Ability>(&forest, &context("Context Card"), &environment);
 
         assert_eq!(candidates.len(), 1);
         assert_eq!(
@@ -1022,7 +1074,8 @@ mod tests {
     fn materialize_selected_provenance_is_surface_ordered() {
         let forest = slice_candidates("Destroy target creature.", "Context Card").unwrap();
         let environment = canonical_test_environment();
-        let candidates = materialize(&forest, &context("Context Card"), &environment);
+        let candidates =
+            materialize::<crate::ast::Ability>(&forest, &context("Context Card"), &environment);
 
         let claims = &candidates[0].claims;
         assert_eq!(
@@ -1077,10 +1130,10 @@ mod tests {
             }
         }
         let removed_span = removed_span.expect("real Destroy family child carried an owner");
-        let forest = Forest::from_test_parts(nodes, roots);
+        let forest = RootForest::from_test_forest(Forest::from_test_parts(nodes, roots));
         let context = context("Context Card");
         let environment = canonical_test_environment();
-        let candidates = materialize(&forest, &context, &environment);
+        let candidates = materialize::<crate::ast::Ability>(&forest, &context, &environment);
         let analysis = super::super::analyze_materialized_with_ownership(
             "Destroy target creature.",
             candidates,
@@ -1107,8 +1160,7 @@ mod tests {
         );
     }
 
-    fn ability_forest_with_duplicate_root_cycles()
-    -> Forest<RuleId, Leaf, crate::constructions::LexicalOwner> {
+    fn ability_forest_with_duplicate_root_cycles() -> RootForest {
         let forest = slice_candidates("Destroy target creature.", "Context Card")
             .expect("ordinary slice forest");
         let root = forest
@@ -1140,7 +1192,7 @@ mod tests {
                 children: vec![Child::Node(bridge)],
             },
         );
-        Forest::from_test_parts(nodes, vec![root, root])
+        RootForest::from_test_forest(Forest::from_test_parts(nodes, vec![root, root]))
     }
 
     #[test]
@@ -1149,7 +1201,8 @@ mod tests {
         let environment = canonical_test_environment();
         for limit in [0, 1, 8] {
             let forest = ability_forest_with_duplicate_root_cycles();
-            let ordinary_candidates = materialize(&forest, &context, &environment);
+            let ordinary_candidates =
+                materialize::<crate::ast::Ability>(&forest, &context, &environment);
             let (candidates, materialization) =
                 materialize_observed(&forest, &context, &environment, TraceLimits::new(limit));
             let (repeated_candidates, repeated_materialization) =
@@ -1157,7 +1210,7 @@ mod tests {
             assert_eq!(ordinary_candidates, candidates);
             assert_eq!(candidates, repeated_candidates);
             assert_eq!(materialization, repeated_materialization);
-            let expected_debug = format!("{:?}", candidates[0].ability);
+            let expected_debug = format!("{:?}", candidates[0].value);
             let analysis = crate::parser::analyze_materialized_with_ownership(
                 "Destroy target creature.",
                 candidates,
@@ -1207,7 +1260,7 @@ mod tests {
 
     #[test]
     fn parser_trace_internal_only_cycle_keeps_typed_materialization_failure() {
-        let forest = Forest::from_test_parts(
+        let forest = RootForest::from_test_forest(Forest::from_test_parts(
             vec![PackedNode {
                 rule: RuleId::AbilitySpell,
                 start: 0,
@@ -1217,7 +1270,7 @@ mod tests {
                 }],
             }],
             vec![NodeId(0)],
-        );
+        ));
         let context = context("Context Card");
         let environment = canonical_test_environment();
         let (candidates, materialization) =
@@ -1240,7 +1293,7 @@ mod tests {
         );
         assert_eq!(
             failure.message(),
-            "validated chart root did not materialize"
+            "Ability root: validated chart root did not materialize"
         );
         assert_eq!(trace.materialization_cycles().total(), 1);
         assert_eq!(

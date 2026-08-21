@@ -215,6 +215,35 @@ impl From<Category> for NonterminalCategory {
         value.nonterminal_category()
     }
 }
+pub(crate) trait GeneratedRoot: Clone + PartialEq + Eq + std::fmt::Debug {
+    const CATEGORY: Category;
+    const NAME: &'static str;
+    const EOI: bool;
+    fn from_build(value: BuildValue) -> Option<Self>;
+    fn render_with_claims(
+        &self,
+        context: &ParseContext<'_>,
+        environment: &crate::environment::ParserEnvironment,
+    ) -> (String, Vec<RawRenderedClaim>);
+}
+impl GeneratedRoot for Action {
+    const CATEGORY: Category = Category::Action;
+    const NAME: &'static str = "Action";
+    const EOI: bool = true;
+    fn from_build(value: BuildValue) -> Option<Self> {
+        match value {
+            BuildValue::Action(value, _) => Some(value),
+            _ => None,
+        }
+    }
+    fn render_with_claims(
+        &self,
+        context: &ParseContext<'_>,
+        environment: &crate::environment::ParserEnvironment,
+    ) -> (String, Vec<RawRenderedClaim>) {
+        render_action_with_claims(self, context)
+    }
+}
 impl StructuralTransition {
     pub(crate) const fn case_after(self, current: CasePosition) -> CasePosition {
         match self {
@@ -916,6 +945,71 @@ pub(crate) enum Construction {
     NodeChain,
     ActionAction,
 }
+impl Category {
+    pub(crate) const fn root_adapter(self, eoi: bool) -> &'static [LexicalTerminal] {
+        match (self, eoi) {
+            (Self::Action, true) => {
+                &[
+                    LexicalTerminal {
+                        matcher: Lexical::Literal("."),
+                        owner: LexicalOwnerTemplate::Static {
+                            kind: LexicalProvenanceKind::FormLiteral,
+                            stable_id: "root:Action/punctuation",
+                        },
+                    },
+                    LexicalTerminal {
+                        matcher: Lexical::EndOfInput,
+                        owner: LexicalOwnerTemplate::None,
+                    },
+                ]
+            }
+            _ => &[],
+        }
+    }
+    pub(crate) const fn root_rule_rhs(
+        self,
+        eoi: bool,
+        rule: RuleId,
+    ) -> Option<&'static [RulePosition<Category, LexicalTerminal>]> {
+        match (self, eoi, rule) {
+            (Self::Action, true, RuleId::ActionAction) => {
+                Some(
+                    &[
+                        L(LexicalTerminal {
+                            matcher: Lexical::Verb(
+                                Verbs::Act,
+                                FeatureConstraint::Exact(Agreement::Bare),
+                            ),
+                            owner: LexicalOwnerTemplate::Lexeme {
+                                declaration: "Verbs",
+                                member: "Act",
+                            },
+                        }),
+                        N(Category::Node),
+                        L(LexicalTerminal {
+                            matcher: Lexical::Literal("."),
+                            owner: LexicalOwnerTemplate::Static {
+                                kind: LexicalProvenanceKind::FormLiteral,
+                                stable_id: "root:Action/punctuation",
+                            },
+                        }),
+                        L(LexicalTerminal {
+                            matcher: Lexical::EndOfInput,
+                            owner: LexicalOwnerTemplate::None,
+                        }),
+                    ],
+                )
+            }
+            _ => None,
+        }
+    }
+    pub(crate) const fn root_eoi(self) -> Option<bool> {
+        match self {
+            Self::Action => Some(true),
+            _ => None,
+        }
+    }
+}
 #[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum RuleId {
@@ -999,17 +1093,6 @@ pub(crate) const RULES: &[Rule<Category, LexicalTerminal, RuleId>] = &[
                 },
             }),
             N(Category::Node),
-            L(LexicalTerminal {
-                matcher: Lexical::Literal("."),
-                owner: LexicalOwnerTemplate::Static {
-                    kind: LexicalProvenanceKind::FormLiteral,
-                    stable_id: "root:Action/punctuation",
-                },
-            }),
-            L(LexicalTerminal {
-                matcher: Lexical::EndOfInput,
-                owner: LexicalOwnerTemplate::None,
-            }),
         ],
     },
 ];

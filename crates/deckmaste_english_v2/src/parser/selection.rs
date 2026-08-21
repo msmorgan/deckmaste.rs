@@ -177,9 +177,9 @@ impl<T> SelectionAnalysis<T> {
     }
 }
 
-pub(crate) fn analyze_selection(
-    candidates: Vec<Candidate>,
-) -> Result<SelectionAnalysis<Candidate>, ParseError> {
+pub(crate) fn analyze_selection<V>(
+    candidates: Vec<Candidate<V>>,
+) -> Result<SelectionAnalysis<Candidate<V>>, ParseError> {
     selection_analysis_with_exceptions(
         candidates,
         |candidate| candidate.constructions.as_slice(),
@@ -612,7 +612,7 @@ mod tests {
             .parse("Destroy target creature.", &context)
             .unwrap();
         let candidate = |specificity, owner_id: &'static str| Candidate {
-            ability: ability.clone(),
+            value: ability.clone(),
             constructions: vec![Construction::AbilitySpell],
             positions: Vec::new(),
             specificity: vec![specificity],
@@ -1801,7 +1801,7 @@ mod tests {
         let context = ParseContext::new("Trace Card").expect("context");
         let environment = canonical_test_environment();
         let trace = ParserTrace::from_parts(
-            ParseAnalysis::from_result(
+            ParseAnalysis::<crate::ast::Ability>::from_result(
                 Err(ParseError::Ambiguous {
                     first: "TestLeft",
                     second: "TestRight",

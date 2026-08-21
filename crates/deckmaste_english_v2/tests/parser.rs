@@ -8,8 +8,10 @@ use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::BoundedParseOutcome;
 use deckmaste_english_v2::parser::Expectation;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
+use deckmaste_english_v2::parser::ParseAnalysis;
 use deckmaste_english_v2::parser::ParseError;
 use deckmaste_english_v2::parser::Parser;
+use deckmaste_english_v2::parser::ParserTrace;
 use deckmaste_english_v2::parser::SelectionLoserReason;
 use deckmaste_english_v2::parser::TerminalClass;
 use deckmaste_english_v2::parser::TextSpan;
@@ -464,6 +466,55 @@ fn triggered_gain_life() -> Ability {
         Triggered::new(TriggerWord::Whenever, connive_event(), gain_life_sentence())
             .expect("one effect is valid"),
     )
+}
+
+#[test]
+fn generic_root_api_preserves_types_and_sentence_root_metadata() {
+    let parser = parser();
+    let context = context("Context Card");
+    let text = "Destroy target creature.";
+
+    let ability: ParseAnalysis<Ability> = parser.analyze(text, &context);
+    let sentence: ParseAnalysis<Sentence> = parser.analyze_sentence(text, &context);
+    let trace: ParserTrace<Sentence> =
+        parser.trace_sentence(text, &context, TraceLimits::new(usize::MAX));
+
+    let Ability::Spell(expected) = destroy_target_creature() else {
+        panic!("the focused fixture is an ordinary spell");
+    };
+    assert_eq!(
+        ability.into_parse_result(),
+        Ok(Ability::Spell(expected.clone()))
+    );
+    assert_eq!(sentence.into_parse_result(), Ok(expected.effect.clone()));
+    assert_eq!(trace.root_name(), "Sentence");
+    assert_eq!(trace.clone().into_parse_result(), Ok(expected.effect));
+    assert!(
+        trace.scanner_matches().items().iter().any(|scanned| {
+            scanned.terminal_name_v1() == "Literal(\".\")"
+                && scanned.start() == text.len() - 1
+                && scanned.end() == text.len()
+        }),
+        "the focused Sentence root owns its declared period",
+    );
+    assert!(
+        trace
+            .scanner_matches()
+            .items()
+            .iter()
+            .all(|scanned| scanned.terminal_name_v1() != "EndOfInput"),
+        "Sentence uses its declared eoi = false metadata",
+    );
+    let ownership = trace.ownership().expect("Sentence ownership is selected");
+    assert!(ownership.covered());
+    assert!(trace.selected_lexical_claims().items().iter().any(|claim| {
+        claim.span()
+            == TextSpan {
+                start: text.len() - 1,
+                end: text.len(),
+            }
+            && claim.stable_owner_id() == "root:Sentence/punctuation"
+    }));
 }
 
 #[test]

@@ -133,7 +133,7 @@ impl<R, T, L, O> Observation<R, T, L, O> for () {}
     reason = "the stateless compatibility entry remains available to parser unit consumers"
 )]
 pub(crate) fn parse<N, L, R, T, O, Scan, ValidateCompletion>(
-    rules: &'static [Rule<N, L, R>],
+    rules: &[Rule<N, L, R>],
     start: N,
     input_length: usize,
     mut scan: Scan,
@@ -164,7 +164,7 @@ where
 }
 
 pub(crate) fn parse_with_state<N, L, R, T, O, S, Scan, ValidateCompletion>(
-    rules: &'static [Rule<N, L, R>],
+    rules: &[Rule<N, L, R>],
     start: N,
     input_length: usize,
     initial_state: &S,
@@ -197,7 +197,7 @@ where
     reason = "the stateless observed entry remains available to parser unit consumers"
 )]
 pub(crate) fn parse_observed<N, L, R, T, Owner, Scan, ValidateCompletion, Obs>(
-    rules: &'static [Rule<N, L, R>],
+    rules: &[Rule<N, L, R>],
     start: N,
     input_length: usize,
     mut scan: Scan,
@@ -231,7 +231,7 @@ where
 }
 
 pub(crate) fn parse_observed_with_state<N, L, R, T, Owner, S, Scan, ValidateCompletion, Obs>(
-    rules: &'static [Rule<N, L, R>],
+    rules: &[Rule<N, L, R>],
     start: N,
     input_length: usize,
     initial_state: &S,
