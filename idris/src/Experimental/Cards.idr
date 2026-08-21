@@ -6990,3 +6990,25 @@ mysticalTutor =
                , Macros.revealCards It
                , Macros.shuffle
                , Move It (LibraryAt (OneEnd OnTop) Nothing Bare) ]
+
+||| Demonic Tutor: "Search your library for a card, put that card into your
+||| hand, then shuffle." The bare description a single-zone search names.
+public export
+demonicTutor : Effect []
+demonicTutor =
+  Sequentially [ Macros.searchLibraryFor (And [])
+               , Move It Macros.handZ
+               , Macros.shuffle ]
+
+||| Thalia's Lancers' search line: "search your library for a legendary
+||| card, reveal it, put it into your hand, then shuffle." A supertype word
+||| heads nothing and still describes a set. Its printed trigger frame
+||| ("When this creature enters, you may …") is left off: the entering
+||| permanent is a second Object mention, and "it" then has two antecedents.
+public export
+thaliasLancersSearch : Effect []
+thaliasLancersSearch =
+  Sequentially [ Macros.searchLibraryFor (And [HasSupertype Legendary])
+               , Macros.revealCards It
+               , Move It Macros.handZ
+               , Macros.shuffle ]

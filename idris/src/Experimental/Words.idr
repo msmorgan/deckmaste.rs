@@ -88,9 +88,14 @@ Eq QualitySort where
   (==) Number Number = True
   (==) Number _ = False
 
-||| Whether `OfChosen` honestly reads a chosen sort back: colours,
-||| creature types and card names take "of the chosen ..." (Cheering
-||| Fanatic, Nevermore); a number uses its own equality surface instead.
+||| Whether `OfChosen` honestly reads a chosen sort back. Colour, creature
+||| type and card name are all characteristics [CR#109.3], so "of the
+||| chosen ..." has something on the object to match (Cheering Fanatic,
+||| Nevermore). A bare number is not among them, so the object-side read
+||| matches against nothing. Every printed use of "the chosen number"
+||| reads it as an amount or against a numeric characteristic instead
+||| ("mana value equal to the chosen number"); that amount-side read is a
+||| separate node and is not yet minted.
 public export
 chosenQualityReadOk : QualitySort -> Bool
 chosenQualityReadOk Color = True
@@ -998,34 +1003,6 @@ countLetter w [] = Z
 countLetter w (MkBinding _ k OneOf _ :: bs) =
   if Letter w == k then S (countLetter w bs) else countLetter w bs
 countLetter w (_ :: bs) = countLetter w bs
-
-public export
-boundedIncrease : Quantity -> Bool
-boundedIncrease (Range _ Nothing) = False
-boundedIncrease (Range _ (Just _)) = True
-
-public export
-BoundedIncrease : Quantity -> Type
-BoundedIncrease q = So (boundedIncrease q)
-
-public export
-notInLibrary : Binding -> Bool
-notInLibrary (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = not (z == Library)
-notInLibrary (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
-notInLibrary (MkBinding _ _ _ PlayerP) = True
-notInLibrary (MkBinding _ _ _ QualityP) = True
-notInLibrary (MkBinding _ _ _ (OutcomeP _)) = True
-notInLibrary (MkBinding _ _ _ GapP) = True
-notInLibrary (MkBinding _ _ _ LetterP) = True
-notInLibrary (MkBinding _ _ _ TurnRefP) = True
-notInLibrary (MkBinding _ _ _ AbilityP) = True
-notInLibrary (MkBinding _ _ _ UnionP) = True
-
-public export
-shuffledAway : Bindings -> Bindings
-shuffledAway [] = []
-shuffledAway (b :: bs) =
-  if notInLibrary b then b :: shuffledAway bs else shuffledAway bs
 
 ||| Any group mention, whatever it is a group of: "one or more opponents"
 ||| leaves a size to read back as surely as a group of objects does.

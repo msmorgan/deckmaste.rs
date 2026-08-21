@@ -1011,6 +1011,7 @@ Summary
 |---|---|---|
 | `Headed`/`hasHead` as a gate on `Each`/`Indefinite`/`Definite`/`TargetGroup`/`CountedGroup`/`AllOf`/`Superlative`/`CountOf`/`Search`/`ParamSubject`/`CantUntapMoreThan`/`Exists`/`ToActivate` | `Headed` deleted; `hasHead` survives as a spelling-side word-class classifier read only by `parallelDisjuncts` and `SearchDescribed` | every description denotes: the KIND index supplies the domain, and [CR#109.2] assigns a default zone to a description naming a card type or subtype while saying nothing about one that does not. A head noun is a spelling/lowering matter, not a rules one |
 | `maybeHeaded`/`MaybeHeaded` (`hasHead && anyTargetFree`) | `spendSourceOk`/`SpendSourceOk` (`anyTargetFree` alone) | a spend restriction may name its source by any description |
+| `searchHeadNeeded`/`SearchDescribed` on `Search`, and `searchLibraryFor`'s own `So (hasHead p)` | deleted; `Search` and `searchLibraryFor` ungated | the head requirement `Headed` was deleted for had survived here on no rule and refused printed lines — "Search your library for a card" (Demonic Tutor) and "for a legendary card" (Thalia's Lancers). `hasHead` now has one reader, `parallelDisjuncts` |
 | `negatable` (52 rows) | three refusals and a permissive default | "non-" is refused only where the rules empty the complement: `AnyPlayer` [CR#102.1], `QualityNoun` (the sort-naming noun; colour is closed at five [CR#105.1]), `IsSource` ([CR#120.7] makes a source a position any object may occupy). Status words, comparisons, conjunctions, disjunctions, complements, relations and designations all negate |
 | `condNegatable`/`CondNegatable` | deleted; `NotCond` ungated | no rule makes any condition frame unnegatable; `NotCond (AndCond …)` is de Morgan, not per-conjunct. `condNegated`/`markingOk Unless` untouched, so `badUnlessConjunction` stands |
 | `possessorOk`/`Possessor` on `OwnedBy`, `Designated`, `handOf`/`graveyardOf`/`libraryOf`/`lookAtHandOf` | ungated | [CR#400.1] gives each player their own library, hand and graveyard, so a group or counted possessor names one zone per member |
@@ -1022,7 +1023,7 @@ Summary
 | `otherAnchorOk`'s `anchorFound`/`anchorFoundSome`/`anyTargetedTy` | `anyTargeted k bs` | [CR#601.2c] asks "another target" only to name a target other than one already chosen; it says nothing about the two descriptions' heads. The named complement (`OtherThan`) keeps its `anchorTyFits` check |
 | `contradictionFree`'s `anyTypeClash`/`seedTypes` | `seedTypeAlts`/`allNegated`/`anySeedEmptied` | a conjunction is empty only when a negated type word rules out EVERY card type a member could hold. [CR#205.3m,308.2] give creatures and kindreds one subtype list, so "Zombie that isn't a creature" is a Kindred. `badForestNonland` still refuses (Land is a land subtype's only host) |
 | `spaceHosted CreatureSpace` | admits `Kindred` | same shared list, the rule `subsFitLine` already applies |
-| `extendableScopeOk`/`ExtendableScope` | `notExtended`/`NotExtended` | no rule makes an off-battlefield extension meaningless — [CR#109.3] lists an object's characteristics and none of them is a zone — so only a second extension of an extension is refused |
+| `extendableScopeOk`/`ExtendableScope` | `notExtended`/`NotExtended` | no rule forbids a static effect from naming the cards off the battlefield it also reaches, so only a second extension of an extension is refused |
 | `statusWordOk`/`StatusWord` | deleted; `HasStatus` ungated | [CR#110.5] gives every permanent one of two values in each of four categories, so every status word denotes |
 | `boundedIncrease`/`BoundedIncrease` | deleted | [CR#305.2] lets a continuous effect raise the number of lands a player may play and sets no ceiling |
 | `Delayed`'s `eventSubjectPlur ev = OneOf` | deleted | a plural watch ("when two target creatures die") names a real event |
@@ -1098,6 +1099,14 @@ bracket a description, which a colour word is.
 - **Mystical Tutor** — "Search your library for an instant or sorcery card,
   reveal it, then shuffle and put that card on top." The read after the
   shuffle [CR#701.24b].
+- **Demonic Tutor** — "Search your library for a card, put that card into
+  your hand, then shuffle." The bare description a single-zone search names.
+- **Thalia's Lancers** (search line) — "search your library for a legendary
+  card, reveal it, put it into your hand, then shuffle." A supertype word
+  heads nothing and still describes a set. Its printed trigger frame ("When
+  this creature enters, you may …") is left off: the entering permanent is a
+  second Object mention and "it" then has two antecedents — a separate
+  anaphora gap, not a search one.
 
 ### Model gaps fixed or listed
 
@@ -1117,12 +1126,29 @@ bracket a description, which a colour word is.
 - **Listed — badCastFromBattlefield**: HELD, untouched. [CR#601.2a] moves a
   CARD to the stack and a permanent is not a card, so the refusal may be
   rules-shaped; it is left for the zone round to settle.
-- **Listed — set-aside stamp**: `shuffledAway` is gone wholesale, so a library
-  binding a search did NOT find also survives a shuffle. [CR#701.20d] says a
-  reordered revealed card becomes a new object, so the honest gate would key on
-  the set-aside marker [CR#701.24b] describes. `Binding`'s payload carries a
-  verb stamp but `VerbName` has no search verb, so distinguishing the two costs
-  a new constructor and its whole match cascade.
+- **Listed — set-aside stamp (an acknowledged OVER-WIDENING)**: deleting
+  `shuffledAway` wholesale admits more than [CR#701.24b] licenses. That rule
+  keeps out of the shuffle only the cards a search FOUND; [CR#701.20d] makes any
+  other reordered library card a new object, so a binding the discourse held on
+  an unfound library card should not survive. The honest gate keys on the
+  set-aside marker, and `Binding`'s payload carries a verb stamp but `VerbName`
+  has no search verb — distinguishing the two costs a new constructor and its
+  whole match cascade (`verbAgentive`, `verbedWordOk`, `VerbedMarkingOk`,
+  `countVerbed`). Until then the gate is wider than the rule.
+- **Listed — `negatable (QualityNoun _)` over-reaches its cite**: [CR#105.1]
+  closes the colour sort at five, which empties the complement only for a
+  `QualityNoun` with `dom = Nothing`. A domain-restricted one — `dom = Just
+  (ColorOtherThan Red)`, the painland domain — names a proper subset, and its
+  complement is NOT empty. Nothing printed writes a negated domain-restricted
+  quality noun, so no card is lost, but the cell refuses more than the rule
+  does. Narrowing it to the domainless case is a one-clause change whenever a
+  line needs it.
+- **Listed — reciprocal fight has no node**: [CR#701.14a] licenses two forms,
+  "a creature to fight another creature" AND "two creatures to fight each
+  other". `Fights` is the directed form only. Eleven printed lines write the
+  reciprocal one (Ram Through, Domri's Ambush, …). **badFightGroup**'s
+  docstring was reworded so its [CR#701.14a] cite names the directed frame it
+  actually gates rather than reading as a licence for the missing node.
 - **Listed — kindred subject for "every creature type"**: `spaceHosted` now
   admits a Kindred-typed subject, and nothing printed writes one — Maskwood
   Nexus's line is creature-subjected and Nameless Inversion carries changeling

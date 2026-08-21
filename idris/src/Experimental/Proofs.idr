@@ -40,8 +40,9 @@ badGroupOwner Refl impossible
 
 
 ||| "Two target creatures fight target creature."
-||| [CR#701.14a] frames a fight as one creature against another, so the frame is
-||| binary by rule and takes no group in either slot.
+||| This node is [CR#701.14a]'s directed form, one creature against another, so a
+||| group in its subject slot names no such pair. The rule's other form — two
+||| creatures fighting each other — is a frame the grammar does not yet write.
 public export
 badFightGroup : Unspellable (Effect []) (\ok =>
   Fights (TargetGroup (Macros.exactly 2) Macros.creature) {pa = ok}

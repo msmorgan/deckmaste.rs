@@ -425,8 +425,9 @@ mutual
   ||| only: the kind index, not the head word, supplies a description's
   ||| domain, and [CR#109.2] assigns a default zone to a description that
   ||| names a card type or subtype without saying anything about one that
-  ||| does not. No gate demands a head; the coordination and search-
-  ||| description gates read this to keep their own phrases parallel.
+  ||| does not. No determiner demands a head, and no gate demands one. The
+  ||| word class is read by `parallelDisjuncts` alone, to keep the arms of
+  ||| one coordination alike.
   public export
   hasHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   hasHead (HasType _) = True
@@ -811,9 +812,12 @@ mutual
   hasOtherAny [] = False
   hasOtherAny (p :: ps) = hasOther p || hasOtherAny ps
 
-  ||| [CR#601.2c] gives "another target" one job: to name a target other
-  ||| than one already chosen. It asks nothing of the two descriptions'
-  ||| head nouns, so any earlier target of the kind anchors the word. The
+  ||| [CR#115.4] lists "another target" among the class words, and
+  ||| [CR#601.2c] is why it is written: without it the same object may be
+  ||| chosen once for each separate instance of "target". So the word has
+  ||| one job — to name a target other than one already chosen — and
+  ||| neither rule asks anything of the two descriptions' head nouns; any
+  ||| earlier target of the kind anchors it. The
   ||| named complement ("other than this creature") still has to name
   ||| something the phrase could describe.
   public export
@@ -1052,9 +1056,10 @@ mutual
   ||| kind. Refused only where the rules leave that complement empty: the
   ||| universal player word covers every person in the game [CR#102.1]; a
   ||| quality noun names its whole sort, which for colour is closed at five
-  ||| [CR#105.1]; and [CR#120.7] makes a source the object that dealt some
-  ||| damage, a position any object may occupy rather than a property it
-  ||| lacks. Every other modifier has something outside it.
+  ||| [CR#105.1] — the cell over-reaches a domain-restricted quality noun,
+  ||| whose complement is NOT empty; and [CR#120.7] makes a source the
+  ||| object that dealt some damage, a position any object may occupy rather
+  ||| than a property it lacks. Every other modifier has something outside it.
   public export
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable AnyPlayer = False
@@ -1239,15 +1244,13 @@ mutual
   ZoneFree {bs} {k} p = seedZone p = Nothing
 
   ||| [CR#115.4] writes the class word as the WHOLE target phrase — "any
-  ||| target", "another target", "two targets" — so a description either
-  ||| is that phrase or contains none of it. The count is free: the rule
-  ||| lists "two targets" itself.
-  public export
-  ||| [CR#115.4] writes the class word as the WHOLE target phrase — "any
   ||| target", "another target", "two targets" — so a description either is
   ||| that phrase or contains none of it. The count is free: the rule lists
-  ||| "two targets" itself. The quantity stays in the signature so the
-  ||| obligation is stuck until a determiner is written.
+  ||| "two targets" itself. The quantity stays in the signature and is
+  ||| matched on so the obligation is stuck until a determiner is written:
+  ||| reducing on the predicate alone drives the positivity checker through
+  ||| `flattenPs` and `Noun` stops being strictly positive.
+  public export
   anyTargetOkAt : {0 bs : Bindings} -> {0 k : Kind} ->
                   Quantity -> Predicate bs k -> Bool
   anyTargetOkAt (Range _ _) p = headIsAnyTarget p || anyTargetFree p
@@ -1549,18 +1552,6 @@ mutual
   searchZone : {0 bs : Bindings} -> SearchScope bs -> Maybe Zone
   searchZone (OneZone z) = Just (zoneSort z)
   searchZone (GraveyardHandLibraryOf _) = Nothing
-
-  ||| The sweep names cards itself, so its slot carries the modifier;
-  ||| only the single-zone form asks the description for a head.
-  public export
-  searchHeadNeeded : {0 bs : Bindings} -> SearchScope bs -> Bool
-  searchHeadNeeded (OneZone _) = True
-  searchHeadNeeded (GraveyardHandLibraryOf _) = False
-
-  public export
-  SearchDescribed : {0 bs : Bindings} -> SearchScope bs ->
-                    Predicate bs Object -> Type
-  SearchDescribed sc p = So (not (searchHeadNeeded sc) || hasHead p)
 
   public export
   searchDelta : {bs : Bindings} -> SearchScope bs -> List Binding
@@ -1962,7 +1953,9 @@ mutual
 
   ||| The possessor of a relation an object can hold to only ONE player:
   ||| [CR#110.2] gives a permanent one controller, the player under whose
-  ||| control it entered, and [CR#601.2a] one caster. A group word
+  ||| control it entered, [CR#601.2a] one caster, and [CR#602.2a] one
+  ||| activator ("its controller is the player who activated the
+  ||| ability"), which is the `ActivatedBy` row. A group word
   ||| distributes — each member holds the relation to its own objects — so
   ||| "creatures players control" names a set. A counted plural does not
   ||| distribute: it asks for the object all of a named two control at
@@ -2953,9 +2946,8 @@ mutual
   NotCoord {bs} se = So (not (isCoord se))
 
   ||| "The same is true for …" is a rider on ONE statement, so a second
-  ||| extension repeats the first. Nothing else is refused: [CR#109.3] lists
-  ||| an object's characteristics and none of them is a zone, so a static
-  ||| effect may name the cards off the battlefield it also reaches.
+  ||| extension repeats the first. Nothing else is refused: no rule forbids a
+  ||| static effect from naming the cards off the battlefield it also reaches.
   public export
   notExtended : {0 bs : Bindings} -> StaticEffect bs -> Bool
   notExtended (AlsoOffBattlefield _) = False
@@ -3377,7 +3369,6 @@ mutual
              (what : Exposed (nomIntro who)) -> Effect bs
     Search : (who : Noun bs Player) -> (sc : SearchScope (nomIntro who)) ->
              (p : Predicate (nomIntro who) Object) ->
-             {auto 0 hd : SearchDescribed sc p} ->
              {auto 0 af : AnyTargetFree p} ->
              {auto 0 zf : ZoneFree p} -> Effect bs
     Shuffle : (whose : Noun bs Player) -> Effect bs

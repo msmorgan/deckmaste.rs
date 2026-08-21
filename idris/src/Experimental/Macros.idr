@@ -769,10 +769,9 @@ revealsTheirHand who = Expose Reveal who (ExposedZone (handOf (They {ok})))
 
 public export
 searchLibraryFor : (p : Predicate bs Object) ->
-                   {auto 0 hd : So (hasHead p)} ->
                    {auto 0 af : AnyTargetFree p} ->
                    {auto 0 zf : ZoneFree p} -> Effect bs
-searchLibraryFor p = Search You (OneZone yourLibrary) p {hd} {af} {zf}
+searchLibraryFor p = Search You (OneZone yourLibrary) p {af} {zf}
 
 ||| "Search <player>'s graveyard, hand, and library for …": the three-zone
 ||| sweep, possessor-anchored [CR#701.23a].
