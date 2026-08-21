@@ -63,6 +63,14 @@ printed card the refusal had left out — Luxior first. Named first cases:
   be tapped (Brimaz). Re-ground `ridersOk` on the rules it actually has.
 - `DamageableTy` admits Battle ([CR#120.1a]) — a gate defect behind the
   legitimate `badDamageArtifact`, not a pin.
+- **Loyalty is a `CounterKind`** ([CR#122.1] defines every counter as a marker
+  modifying characteristics; [CR#122.1e] only says what the count indicates).
+  Finding 567's refusal ("a characteristic's value, not a marker") is a
+  modelling preference, not a rule. Mint `Loyalty` in `CounterKind` AND a
+  `Loyalty` characteristic read through the possessed-characteristic path —
+  Nahiri, the Unforgiving uses both ("enters with two fewer loyalty counters";
+  "mana value less than Nahiri's loyalty"); the count-equals-loyalty link is
+  lowering's. Re-bench Nahiri, Vivien's and Teferi's Talents, Bioessence Hydra.
 - `badPutIntoExile`, `badSweepAcrossPlayers`, `badSweepAcrossOpponents`,
   `badGroupCommander`, `badNoHolderNegated`, `badBeforeAttackersEachPlayers`
   → deleted with their gate cells admitted.
