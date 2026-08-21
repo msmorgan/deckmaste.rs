@@ -255,7 +255,10 @@ recorded as "not measured by this round's recon" and is
   postposed form is NOT a macro over the leading one: the expansion would have
   to relocate the target noun into the condition and pronominalize the hole,
   and the only single-constructor alternative introduces the target above both
-  clauses — the prenex lift the workbench exists to remove. Macros name the
+  clauses — the prenex lift the workbench exists to remove — or a binder with
+  cataphora (full endophora), rejected: oracle text is strictly anaphoric, so
+  a forward-only binder is true to the CNL and cataphora would be a miserable
+  refactor in service of nothing the corpus writes. Macros name the
   English over the two; the bench's leading-if cards move to `If`.
 - **`WhereLetter` / `WhereLetterStatic`** take the definition first where
   English postposes it ("…, where X is the number of …"); eight bench sites
