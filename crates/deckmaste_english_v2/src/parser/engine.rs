@@ -1036,14 +1036,7 @@ mod tests {
             &mut observed,
         )
         .expect("delayed growth succeeds");
-        assert_eq!(
-            forest
-                .accepted_roots()
-                .map(|root| root.families.len())
-                .collect::<Vec<_>>(),
-            [1, 1],
-            "each path-local state keeps only its compatible wrapper/child family",
-        );
+        assert_eq!(forest.accepted_roots().count(), 2);
         assert!(observed.checked.iter().enumerate().any(|(index, event)| {
             !event.4
                 && observed.checked[index + 1..].iter().any(|later| {
@@ -1198,6 +1191,36 @@ mod tests {
             },
         ];
 
+        fn lexical_inventories(
+            forest: &Forest<ToyRuleId, &'static str>,
+            family: &Family<&'static str>,
+        ) -> Vec<Vec<&'static str>> {
+            family
+                .children
+                .iter()
+                .fold(vec![Vec::new()], |prefixes, child| {
+                    let suffixes = match child {
+                        Child::Lexical(lexical) => vec![vec![lexical.value]],
+                        Child::Node(node_id) => forest
+                            .node(*node_id)
+                            .families
+                            .iter()
+                            .flat_map(|family| lexical_inventories(forest, family))
+                            .collect(),
+                    };
+                    prefixes
+                        .iter()
+                        .flat_map(|prefix| {
+                            suffixes.iter().map(|suffix| {
+                                let mut inventory = prefix.clone();
+                                inventory.extend(suffix);
+                                inventory
+                            })
+                        })
+                        .collect()
+                })
+        }
+
         let mut scans = Vec::new();
         let forest = parse_with_state(
             STATEFUL_RULES,
@@ -1206,29 +1229,47 @@ mod tests {
             &ScanState::Initial,
             |terminal, start, state| {
                 scans.push((terminal, start, *state));
-                let (end, state) = match (terminal, start, state) {
-                    ("left", 0, ScanState::Initial) => (1, ScanState::Left),
-                    ("right", 0, ScanState::Initial) => (1, ScanState::Right),
-                    ("shared", 1, ScanState::Left) => (2, ScanState::Left),
-                    ("shared", 1, ScanState::Right) => (2, ScanState::Right),
-                    ("finish", 2, ScanState::Left) => (3, ScanState::Left),
-                    ("finish", 2, ScanState::Right) => (3, ScanState::Right),
+                let (end, next_state, value) = match (terminal, start, state) {
+                    ("left", 0, ScanState::Initial) => (1, ScanState::Left, "left"),
+                    ("right", 0, ScanState::Initial) => (1, ScanState::Right, "right"),
+                    ("shared", 1, ScanState::Left) => (2, ScanState::Left, "shared-left"),
+                    ("shared", 1, ScanState::Right) => (2, ScanState::Right, "shared-right"),
+                    ("finish", 2, ScanState::Left) => (3, ScanState::Left, "finish-left"),
+                    ("finish", 2, ScanState::Right) => (3, ScanState::Right, "finish-right"),
                     _ => return Vec::new(),
                 };
                 vec![StatefulLexicalMatch {
                     lexical: LexicalMatch {
                         end,
-                        value: terminal,
+                        value,
                         owner: None::<()>,
                     },
-                    state,
+                    state: next_state,
                 }]
             },
             |_, _, _| true,
         )
         .expect("both state-compatible paths accept");
 
-        assert_eq!(forest.accepted_roots().count(), 2);
+        let complete_root_inventory = forest
+            .accepted_root_ids()
+            .map(|root_id| {
+                forest
+                    .node(root_id)
+                    .families
+                    .iter()
+                    .flat_map(|family| lexical_inventories(&forest, family))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            complete_root_inventory,
+            [
+                vec![vec!["left", "shared-left", "finish-left"]],
+                vec![vec!["right", "shared-right", "finish-right"]],
+            ],
+            "each root contains exactly its one state-compatible family",
+        );
         assert!(scans.contains(&("shared", 1, ScanState::Left)));
         assert!(scans.contains(&("shared", 1, ScanState::Right)));
         assert!(scans.contains(&("finish", 2, ScanState::Left)));

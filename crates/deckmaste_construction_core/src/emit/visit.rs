@@ -1216,18 +1216,48 @@ mod tests {
         let callbacks = visitor
             .items
             .iter()
-            .filter_map(|item| {
+            .map(|item| {
                 let syn::TraitItem::Fn(method) = item else {
-                    return None;
+                    panic!("Visitor contains only methods: {item:?}");
                 };
-                matches!(
-                    method.sig.ident.to_string().as_str(),
-                    "visit_branch" | "visit_holder"
-                )
-                .then(|| method.sig.ident.to_string())
+                method.sig.ident.to_string()
             })
             .collect::<Vec<_>>();
-        assert_eq!(callbacks, ["visit_branch", "visit_holder"]);
+        assert_eq!(
+            callbacks,
+            [
+                "visit_atom",
+                "visit_branch",
+                "visit_holder",
+                "visit_atom_value",
+                "visit_word",
+            ],
+            "the complete Visitor inventory contains semantic callbacks only",
+        );
+
+        let walkers = expansion
+            .items()
+            .iter()
+            .filter_map(|item| match &item.key {
+                crate::ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name,
+                } if name.starts_with("walk_") => Some(name.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            walkers,
+            [
+                "walk_atom",
+                "walk_branch",
+                "walk_holder_items_sequence",
+                "walk_holder",
+                "walk_atom_value",
+                "walk_word",
+            ],
+            "the complete walker inventory contains no helper-state or surface-policy walker",
+        );
 
         let syn::Item::Fn(holder) = named(&expansion, "walk_holder") else {
             panic!("Holder walker is a function")
