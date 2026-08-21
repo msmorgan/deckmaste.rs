@@ -2183,8 +2183,12 @@ mod tests {
         assert_eq!(
             rules,
             [
-                "AbilitySpell",
+                "AbilityParagraph",
+                "ParagraphSentencesSequenceSingleton",
+                "ParagraphSentencesSequenceRecursive",
                 "AbilityTriggered",
+                "TriggeredEffectsSequenceSingleton",
+                "TriggeredEffectsSequenceRecursive",
                 "SentenceImperative",
                 "SentenceDeclarative",
                 "SentenceWithWhere",
@@ -2201,7 +2205,11 @@ mod tests {
                 "VerbPhraseDealDamage",
                 "VerbPhraseGainLife",
                 "AmountNumber",
-                "AmountVariable"
+                "AmountVariable",
+                "OracleTextProduct",
+                "OracleTextBlocksSequenceSingleton",
+                "OracleTextBlocksSequenceRecursive",
+                "DocumentBlockAbility"
             ]
         );
         let mut seen_lexical = BTreeSet::new();
@@ -2218,6 +2226,8 @@ mod tests {
         assert_eq!(
             terminals,
             [
+                "Literal(\".\")",
+                "Literal(\" \")",
                 "TriggerWord",
                 "Literal(\",\")",
                 "Literal(\"where\")",
@@ -2246,7 +2256,8 @@ mod tests {
                 "Literal(\"damage\")",
                 "Literal(\"to\")",
                 "Verb(Gain, Any)",
-                "Literal(\"life\")"
+                "Literal(\"life\")",
+                "Literal(\"\\n\")"
             ]
         );
     }

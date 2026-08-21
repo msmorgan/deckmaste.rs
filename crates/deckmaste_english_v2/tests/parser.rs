@@ -37,6 +37,195 @@ fn context(card_name: &str) -> ParseContext<'_> {
     ParseContext::new(card_name).expect("test card name is a valid parse context")
 }
 
+fn single_paragraph(oracle_text: &OracleText) -> &Paragraph {
+    let [DocumentBlock::Ability(Ability::Paragraph(paragraph))] = oracle_text.blocks() else {
+        panic!("expected exactly one paragraph ability block: {oracle_text:?}");
+    };
+    paragraph
+}
+
+fn claims_overlap(left: TextSpan, right: TextSpan) -> bool {
+    left.start < right.end && right.start < left.end
+}
+
+fn assert_one_structural_claim(
+    claims: &[deckmaste_english_v2::parser::LexicalClaim],
+    span: TextSpan,
+    owner: &str,
+) {
+    let matching = claims
+        .iter()
+        .filter(|claim| claim.span() == span)
+        .collect::<Vec<_>>();
+    assert_eq!(matching.len(), 1, "exactly one claim must own {span:?}");
+    assert_eq!(matching[0].stable_owner_id(), owner);
+    assert!(
+        claims
+            .iter()
+            .filter(|claim| claim.span() != span)
+            .all(|claim| !claims_overlap(claim.span(), span)),
+        "no neighboring lexical claim may overlap {span:?}",
+    );
+}
+
+#[test]
+fn oracle_text_parses_all_eight_two_sentence_faces_as_one_ordered_paragraph() {
+    let parser = parser();
+    let environment = environment();
+    for (card_name, text, first_sentence, second_sentence) in [
+        (
+            "Cursebreak",
+            "Destroy target enchantment. You gain 2 life.",
+            "Destroy target enchantment.",
+            "You gain 2 life.",
+        ),
+        (
+            "Drain the Well",
+            "Destroy target land. You gain 2 life.",
+            "Destroy target land.",
+            "You gain 2 life.",
+        ),
+        (
+            "Into the Maw of Hell",
+            "Destroy target land. Into the Maw of Hell deals 13 damage to target creature.",
+            "Destroy target land.",
+            "Into the Maw of Hell deals 13 damage to target creature.",
+        ),
+        (
+            "Lich's Caress",
+            "Destroy target creature. You gain 3 life.",
+            "Destroy target creature.",
+            "You gain 3 life.",
+        ),
+        (
+            "Maw of the Mire",
+            "Destroy target land. You gain 4 life.",
+            "Destroy target land.",
+            "You gain 4 life.",
+        ),
+        (
+            "Ray of Dissolution",
+            "Destroy target enchantment. You gain 3 life.",
+            "Destroy target enchantment.",
+            "You gain 3 life.",
+        ),
+        (
+            "Sephiroth's Intervention",
+            "Destroy target creature. You gain 2 life.",
+            "Destroy target creature.",
+            "You gain 2 life.",
+        ),
+        (
+            "Winter's Intervention",
+            "Winter's Intervention deals 2 damage to target creature. You gain 2 life.",
+            "Winter's Intervention deals 2 damage to target creature.",
+            "You gain 2 life.",
+        ),
+    ] {
+        let context = context(card_name);
+        let parsed = parser
+            .parse_oracle_text(text, &context)
+            .unwrap_or_else(|error| panic!("{card_name} must parse: {error:?}"));
+        let paragraph = single_paragraph(&parsed);
+        assert_eq!(paragraph.sentences().len(), 2, "{card_name}");
+        assert_eq!(
+            paragraph.sentences()[0].render(&context, &environment),
+            first_sentence,
+            "{card_name} first sentence",
+        );
+        assert_eq!(
+            paragraph.sentences()[1].render(&context, &environment),
+            second_sentence,
+            "{card_name} second sentence",
+        );
+        assert_eq!(parsed.render(&context, &environment), text, "{card_name}");
+
+        let analysis: ParseAnalysis<OracleText> = parser.analyze_oracle_text(text, &context);
+        assert_eq!(analysis.selected(), Some(&parsed), "{card_name}");
+        let ownership = analysis
+            .ownership()
+            .unwrap_or_else(|| panic!("{card_name} has selected ownership"));
+        assert!(ownership.failures().is_empty(), "{card_name}");
+        assert!(ownership.summary().covered(), "{card_name}");
+    }
+}
+
+#[test]
+fn oracle_text_structural_boundaries_have_exact_generated_claims() {
+    let parser = parser();
+    let context = context("Sephiroth's Intervention");
+    let text = "Destroy target creature. You gain 2 life.";
+    let analysis = parser.analyze_oracle_text(text, &context);
+    let ownership = analysis.ownership().expect("OracleText is selected");
+    assert!(ownership.summary().covered());
+
+    assert_one_structural_claim(
+        ownership.parsed_claims(),
+        TextSpan { start: 23, end: 24 },
+        "structural:Paragraph/sentences/terminator/0",
+    );
+    assert_one_structural_claim(
+        ownership.parsed_claims(),
+        TextSpan { start: 24, end: 25 },
+        "structural:Paragraph/sentences/separator/uniform/0",
+    );
+    assert_one_structural_claim(
+        ownership.parsed_claims(),
+        TextSpan { start: 40, end: 41 },
+        "structural:Paragraph/sentences/terminator/0",
+    );
+}
+
+#[test]
+fn oracle_text_lf_separates_blocks_without_flattening_or_storage() {
+    let parser = parser();
+    let environment = environment();
+    let context = context("Sephiroth's Intervention");
+    let one_block_text = "Destroy target creature. You gain 2 life.";
+    let two_block_text = "Destroy target creature.\nYou gain 2 life.";
+    let one_block = parser
+        .parse_oracle_text(one_block_text, &context)
+        .expect("space-separated text parses as one block");
+    let two_blocks = parser
+        .parse_oracle_text(two_block_text, &context)
+        .expect("LF-separated text parses as two blocks");
+
+    assert_ne!(one_block, two_blocks);
+    let [
+        DocumentBlock::Ability(Ability::Paragraph(first)),
+        DocumentBlock::Ability(Ability::Paragraph(second)),
+    ] = two_blocks.blocks()
+    else {
+        panic!("LF must preserve two paragraph blocks: {two_blocks:?}");
+    };
+    assert_eq!(first.sentences().len(), 1);
+    assert_eq!(second.sentences().len(), 1);
+    assert_eq!(two_blocks.render(&context, &environment), two_block_text);
+
+    let analysis = parser.analyze_oracle_text(two_block_text, &context);
+    let ownership = analysis.ownership().expect("two blocks are selected");
+    assert!(ownership.summary().covered());
+    assert_one_structural_claim(
+        ownership.parsed_claims(),
+        TextSpan { start: 24, end: 25 },
+        "structural:OracleText/blocks/separator/uniform/0",
+    );
+}
+
+#[test]
+fn oracle_text_trace_retains_its_exact_value_type_and_root_name() {
+    let parser = parser();
+    let context = context("Sephiroth's Intervention");
+    let trace: ParserTrace<OracleText> = parser.trace_oracle_text(
+        "Destroy target creature. You gain 2 life.",
+        &context,
+        TraceLimits::new(usize::MAX),
+    );
+
+    assert_eq!(trace.root_name(), "OracleText");
+    assert!(trace.into_parse_result().is_ok());
+}
+
 fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SelfReferenceNp {
     let context = context(card_name);
     SelfReferenceNp::new(spelling, &context).expect("test spelling is valid for its context")
@@ -99,12 +288,13 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
 
     let event = connive_event();
     let effect = gain_life_sentence();
-    let triggered = Triggered::new(TriggerWord::Whenever, event.clone(), effect.clone())
+    let triggered = Triggered::new(TriggerWord::Whenever, event.clone(), vec![effect.clone()])
         .expect("an Event clause is valid for Triggered");
     let _: &TriggerWord = &triggered.trigger;
-    let _: &Sentence = &triggered.effect;
+    let _: &[Sentence] = triggered.effects();
     let _: &Clause = triggered.event();
     assert_eq!(triggered.event(), &event);
+    assert_eq!(triggered.effects(), std::slice::from_ref(&effect));
     assert!(
         Triggered::new(
             TriggerWord::Whenever,
@@ -112,7 +302,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
                 variable: Variable::X,
                 value: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
             }),
-            effect,
+            vec![effect],
         )
         .is_none(),
         "a Where clause is not a valid Triggered event",
@@ -142,9 +332,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         WithWhere::new(Box::new(body), connive_event()).is_none(),
         "an Event clause is not a valid WithWhere clause",
     );
-    let with_where = Ability::Spell(Spell {
-        effect: Sentence::WithWhere(with_where),
-    });
+    let with_where = paragraph(Sentence::WithWhere(with_where));
     let with_where_text = with_where.render(&plain_context, &environment);
     assert_eq!(
         parser.parse(&with_where_text, &plain_context),
@@ -172,14 +360,12 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         CountNp::new(creatures(), Pronoun::It, threshold).is_none(),
         "It is not a valid CountNp controller",
     );
-    let count = Ability::Spell(Spell {
-        effect: Sentence::Declarative(Declarative {
-            subject: NounPhrase::Count(count),
-            predicate: VerbPhrase::GainLife(GainLife {
-                amount: variable_x(),
-            }),
+    let count = paragraph(Sentence::Declarative(Declarative {
+        subject: NounPhrase::Count(count),
+        predicate: VerbPhrase::GainLife(GainLife {
+            amount: variable_x(),
         }),
-    });
+    }));
     let count_text = count.render(&plain_context, &environment);
     assert_eq!(parser.parse(&count_text, &plain_context), Ok(count));
     assert_eq!(
@@ -203,14 +389,12 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         self_reference.spelling(),
         SelfReferenceSpelling::Abbreviated
     );
-    let self_reference = Ability::Spell(Spell {
-        effect: Sentence::Declarative(Declarative {
-            subject: NounPhrase::SelfReference(self_reference),
-            predicate: VerbPhrase::GainLife(GainLife {
-                amount: variable_x(),
-            }),
+    let self_reference = paragraph(Sentence::Declarative(Declarative {
+        subject: NounPhrase::SelfReference(self_reference),
+        predicate: VerbPhrase::GainLife(GainLife {
+            amount: variable_x(),
         }),
-    });
+    }));
     let self_reference_text = self_reference.render(&abbreviated_context, &environment);
     assert_eq!(
         parser.parse(&self_reference_text, &abbreviated_context),
@@ -242,11 +426,80 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
         .expect("production construction inventory compiles");
     let file = syn::parse2::<syn::File>(expansion.tokens()).expect("generated Rust parses");
 
+    let public_types = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Enum(item) if matches!(item.vis, Visibility::Public(_)) => {
+                Some(item.ident.to_string())
+            }
+            Item::Struct(item) if matches!(item.vis, Visibility::Public(_)) => {
+                Some(item.ident.to_string())
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        public_types,
+        [
+            "Ability",
+            "Sentence",
+            "Clause",
+            "NounPhrase",
+            "VerbPhrase",
+            "Amount",
+            "DocumentBlock",
+            "OracleText",
+            "Paragraph",
+            "Triggered",
+            "Imperative",
+            "Declarative",
+            "WithWhere",
+            "EventClause",
+            "WhereClause",
+            "PronounNp",
+            "Common",
+            "DemonstrativeNp",
+            "TargetNp",
+            "SelfReferenceNp",
+            "CountNp",
+            "Destroy",
+            "Connive",
+            "DealDamage",
+            "GainLife",
+            "NumberAmount",
+            "VariableAmount",
+            "TriggerWord",
+            "Article",
+            "Demonstrative",
+            "Pronoun",
+            "Variable",
+            "NounLexeme",
+            "VerbLexeme",
+            "DeclarationNoun",
+            "Noun",
+            "SelfReferenceSpelling",
+            "Sign",
+            "SignedNumber",
+            "DeclarationClass",
+            "TerminalClass",
+            "LexicalProvenanceKind",
+            "LexicalOwner",
+            "NonterminalCategory",
+        ],
+        "the complete public generated type inventory is source ordered",
+    );
+
     for (product, expected_fields, expected_methods) in [
         (
+            "Paragraph",
+            &[("sentences", false)][..],
+            &["new", "sentences"][..],
+        ),
+        (
             "Triggered",
-            &[("trigger", true), ("event", false), ("effect", true)][..],
-            &["new", "event"][..],
+            &[("trigger", true), ("event", false), ("effects", false)][..],
+            &["new", "event", "effects"][..],
         ),
         (
             "WithWhere",
@@ -262,6 +515,11 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
             "SelfReferenceNp",
             &[("spelling", false)][..],
             &["new", "spelling"][..],
+        ),
+        (
+            "OracleText",
+            &[("blocks", false)][..],
+            &["new", "blocks"][..],
         ),
     ] {
         let structure = file
@@ -316,6 +574,28 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
             "{product} has no manufactured accessor or authored implementation",
         );
     }
+
+    for (enumeration, expected_variants) in [
+        ("Ability", &["Paragraph", "Triggered"][..]),
+        ("DocumentBlock", &["Ability"][..]),
+    ] {
+        let item = file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Enum(item) if item.ident == enumeration => Some(item),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("generated {enumeration} enum exists"));
+        assert_eq!(
+            item.variants
+                .iter()
+                .map(|variant| variant.ident.to_string())
+                .collect::<Vec<_>>(),
+            expected_variants,
+            "{enumeration} has the exact generated variant inventory",
+        );
+    }
 }
 
 #[test]
@@ -367,14 +647,16 @@ fn variable_x() -> Amount {
     })
 }
 
+fn paragraph(sentence: Sentence) -> Ability {
+    Ability::Paragraph(Paragraph::new(vec![sentence]).expect("one sentence constructs a paragraph"))
+}
+
 fn destroy_target_creature() -> Ability {
-    Ability::Spell(Spell {
-        effect: Sentence::Imperative(Imperative {
-            predicate: VerbPhrase::Destroy(Destroy {
-                object: target_creature(),
-            }),
+    paragraph(Sentence::Imperative(Imperative {
+        predicate: VerbPhrase::Destroy(Destroy {
+            object: target_creature(),
         }),
-    })
+    }))
 }
 
 fn connive_event() -> Clause {
@@ -392,7 +674,7 @@ fn triggered_damage() -> Ability {
         Triggered::new(
             TriggerWord::Whenever,
             connive_event(),
-            Sentence::Declarative(Declarative {
+            vec![Sentence::Declarative(Declarative {
                 subject: NounPhrase::Demonstrative(DemonstrativeNp {
                     word: Demonstrative::That,
                     head: creature(),
@@ -401,7 +683,7 @@ fn triggered_damage() -> Ability {
                     amount: variable_x(),
                     to: NounPhrase::Pronoun(PronounNp { word: Pronoun::It }),
                 }),
-            }),
+            })],
         )
         .expect("one effect is valid"),
     )
@@ -417,54 +699,54 @@ fn gain_life_sentence() -> Sentence {
 }
 
 fn gain_life_with_where() -> Ability {
-    Ability::Spell(Spell {
-        effect: Sentence::WithWhere(
-            WithWhere::new(
-                Box::new(gain_life_sentence()),
-                Clause::Where(WhereClause {
-                    variable: Variable::X,
-                    value: NounPhrase::Count(
-                        CountNp::new(
-                            creatures(),
-                            Pronoun::You,
-                            SignedNumber {
-                                sign: Sign::Positive,
-                                magnitude: 2,
-                            },
-                        )
-                        .expect("You is a valid count controller"),
-                    ),
-                }),
-            )
-            .expect("Where is a valid trailing clause"),
-        ),
-    })
+    paragraph(Sentence::WithWhere(
+        WithWhere::new(
+            Box::new(gain_life_sentence()),
+            Clause::Where(WhereClause {
+                variable: Variable::X,
+                value: NounPhrase::Count(
+                    CountNp::new(
+                        creatures(),
+                        Pronoun::You,
+                        SignedNumber {
+                            sign: Sign::Positive,
+                            magnitude: 2,
+                        },
+                    )
+                    .expect("You is a valid count controller"),
+                ),
+            }),
+        )
+        .expect("Where is a valid trailing clause"),
+    ))
 }
 
 fn zacama_deals_damage() -> Ability {
-    Ability::Spell(Spell {
-        effect: Sentence::Declarative(Declarative {
-            subject: NounPhrase::SelfReference(self_reference(
-                SelfReferenceSpelling::Abbreviated,
-                "Zacama, Primal Calamity",
-            )),
-            predicate: VerbPhrase::DealDamage(DealDamage {
-                amount: Amount::Number(NumberAmount {
-                    number: SignedNumber {
-                        sign: Sign::Positive,
-                        magnitude: 3,
-                    },
-                }),
-                to: target_creature(),
+    paragraph(Sentence::Declarative(Declarative {
+        subject: NounPhrase::SelfReference(self_reference(
+            SelfReferenceSpelling::Abbreviated,
+            "Zacama, Primal Calamity",
+        )),
+        predicate: VerbPhrase::DealDamage(DealDamage {
+            amount: Amount::Number(NumberAmount {
+                number: SignedNumber {
+                    sign: Sign::Positive,
+                    magnitude: 3,
+                },
             }),
+            to: target_creature(),
         }),
-    })
+    }))
 }
 
 fn triggered_gain_life() -> Ability {
     Ability::Triggered(
-        Triggered::new(TriggerWord::Whenever, connive_event(), gain_life_sentence())
-            .expect("one effect is valid"),
+        Triggered::new(
+            TriggerWord::Whenever,
+            connive_event(),
+            vec![gain_life_sentence()],
+        )
+        .expect("one effect is valid"),
     )
 }
 
@@ -479,16 +761,17 @@ fn generic_root_api_preserves_types_and_sentence_root_metadata() {
     let trace: ParserTrace<Sentence> =
         parser.trace_sentence(text, &context, TraceLimits::new(usize::MAX));
 
-    let Ability::Spell(expected) = destroy_target_creature() else {
-        panic!("the focused fixture is an ordinary spell");
+    let Ability::Paragraph(expected) = destroy_target_creature() else {
+        panic!("the focused fixture is an ordinary paragraph");
     };
+    let expected_sentence = expected.sentences()[0].clone();
     assert_eq!(
         ability.into_parse_result(),
-        Ok(Ability::Spell(expected.clone()))
+        Ok(Ability::Paragraph(expected.clone()))
     );
-    assert_eq!(sentence.into_parse_result(), Ok(expected.effect.clone()));
+    assert_eq!(sentence.into_parse_result(), Ok(expected_sentence.clone()));
     assert_eq!(trace.root_name(), "Sentence");
-    assert_eq!(trace.clone().into_parse_result(), Ok(expected.effect));
+    assert_eq!(trace.clone().into_parse_result(), Ok(expected_sentence));
     assert!(
         trace.scanner_matches().items().iter().any(|scanned| {
             scanned.terminal_name_v1() == "Literal(\".\")"
@@ -523,9 +806,10 @@ fn generic_root_adapter_is_only_applied_at_the_outer_recursive_sentence_boundary
     let context = context("Context Card");
     let text =
         "You gain X life, where X is the number of creatures you control with power 2 or less.";
-    let Ability::Spell(Spell { effect: expected }) = gain_life_with_where() else {
-        panic!("the recursive Sentence fixture is an ordinary spell");
+    let Ability::Paragraph(expected) = gain_life_with_where() else {
+        panic!("the recursive Sentence fixture is an ordinary paragraph");
     };
+    let expected = expected.sentences()[0].clone();
 
     let trace = parser.trace_sentence(text, &context, TraceLimits::new(usize::MAX));
 
@@ -610,7 +894,7 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
     assert_eq!(
         first.decision().unwrap().candidates()[0].construction_path(),
         [
-            "AbilitySpell".to_owned(),
+            "AbilityParagraph".to_owned(),
             "SentenceImperative".to_owned(),
             "VerbPhraseDestroy".to_owned(),
             "NounPhraseTarget".to_owned(),
@@ -834,7 +1118,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
             assert_eq!(
                 candidate.construction_path().items(),
                 [
-                    "AbilitySpell",
+                    "AbilityParagraph",
                     "SentenceImperative",
                     "VerbPhraseDestroy",
                     "NounPhraseTarget",
@@ -917,23 +1201,21 @@ fn parser_trace_public_loser_reason_spellings_are_stable() {
 fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
     let text = "Context Card deals 3 damage to target creature.";
     let context = context("Context Card");
-    let expected = Ability::Spell(Spell {
-        effect: Sentence::Declarative(Declarative {
-            subject: NounPhrase::SelfReference(self_reference(
-                SelfReferenceSpelling::Full,
-                "Context Card",
-            )),
-            predicate: VerbPhrase::DealDamage(DealDamage {
-                amount: Amount::Number(NumberAmount {
-                    number: SignedNumber {
-                        sign: Sign::Positive,
-                        magnitude: 3,
-                    },
-                }),
-                to: target_creature(),
+    let expected = paragraph(Sentence::Declarative(Declarative {
+        subject: NounPhrase::SelfReference(self_reference(
+            SelfReferenceSpelling::Full,
+            "Context Card",
+        )),
+        predicate: VerbPhrase::DealDamage(DealDamage {
+            amount: Amount::Number(NumberAmount {
+                number: SignedNumber {
+                    sign: Sign::Positive,
+                    magnitude: 3,
+                },
             }),
+            to: target_creature(),
         }),
-    });
+    }));
 
     assert_eq!(parser().parse(text, &context), Ok(expected.clone()));
     assert_eq!(expected.render(&context, &environment()), text);
@@ -943,20 +1225,18 @@ fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
 fn self_reference_identity_preserves_its_inherent_case() {
     let text = "eBay deals 3 damage to target creature.";
     let context = context("eBay");
-    let expected = Ability::Spell(Spell {
-        effect: Sentence::Declarative(Declarative {
-            subject: NounPhrase::SelfReference(self_reference(SelfReferenceSpelling::Full, "eBay")),
-            predicate: VerbPhrase::DealDamage(DealDamage {
-                amount: Amount::Number(NumberAmount {
-                    number: SignedNumber {
-                        sign: Sign::Positive,
-                        magnitude: 3,
-                    },
-                }),
-                to: target_creature(),
+    let expected = paragraph(Sentence::Declarative(Declarative {
+        subject: NounPhrase::SelfReference(self_reference(SelfReferenceSpelling::Full, "eBay")),
+        predicate: VerbPhrase::DealDamage(DealDamage {
+            amount: Amount::Number(NumberAmount {
+                number: SignedNumber {
+                    sign: Sign::Positive,
+                    magnitude: 3,
+                },
             }),
+            to: target_creature(),
         }),
-    });
+    }));
 
     assert_eq!(parser().parse(text, &context), Ok(expected.clone()));
     assert_eq!(expected.render(&context, &environment()), text);
@@ -1076,7 +1356,10 @@ fn doubled_period_reports_the_first_trailing_byte() {
                 start: trailing,
                 end: trailing + 1,
             },
-            expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::EndOfInput,)]),
+            expectations: BTreeSet::from([
+                Expectation::Terminal(TerminalClass::EndOfInput),
+                Expectation::Literal(" "),
+            ]),
         })
     );
 }

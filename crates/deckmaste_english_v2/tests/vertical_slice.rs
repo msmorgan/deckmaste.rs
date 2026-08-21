@@ -152,7 +152,7 @@ fn triggered_damage() -> Ability {
             variable: Variable::X,
         })),
     });
-    Ability::Triggered(Triggered::new(TriggerWord::Whenever, event, effect).unwrap())
+    Ability::Triggered(Triggered::new(TriggerWord::Whenever, event, vec![effect]).unwrap())
 }
 
 #[test]
@@ -208,15 +208,16 @@ fn signed_decimal_zero_signs_construct_render_scan_and_visit_distinctly() {
         let number = SignedNumber { sign, magnitude: 0 };
         assert_eq!(number.sign, sign);
         assert_eq!(number.magnitude, 0);
-        let ability = Ability::Spell(Spell {
-            effect: Sentence::Imperative(Imperative {
+        let ability = Ability::Paragraph(
+            Paragraph::new(vec![Sentence::Imperative(Imperative {
                 predicate: VerbPhrase::GainLife(GainLife {
                     amount: Amount::Number(NumberAmount {
                         number: number.clone(),
                     }),
                 }),
-            }),
-        });
+            })])
+            .expect("one sentence constructs a paragraph"),
+        );
         assert_eq!(ability.render(&context, &environment), expected);
         assert_eq!(parser.parse(expected, &context), Ok(ability));
     }
@@ -269,6 +270,128 @@ fn gain_life_with_where() -> Sentence {
 }
 
 #[test]
+fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_order() {
+    #[derive(Debug, PartialEq, Eq)]
+    enum Event {
+        Block,
+        Paragraph,
+        Triggered,
+        Sentence(&'static str),
+    }
+
+    #[derive(Default)]
+    struct StructuralVisitor(Vec<Event>);
+
+    impl Visitor for StructuralVisitor {
+        fn visit_document_block(&mut self, block: &DocumentBlock) {
+            self.0.push(Event::Block);
+            deckmaste_english_v2::visit::walk_document_block(self, block);
+        }
+
+        fn visit_paragraph(&mut self, paragraph: &Paragraph) {
+            self.0.push(Event::Paragraph);
+            deckmaste_english_v2::visit::walk_paragraph(self, paragraph);
+        }
+
+        fn visit_triggered(&mut self, triggered: &Triggered) {
+            self.0.push(Event::Triggered);
+            deckmaste_english_v2::visit::walk_triggered(self, triggered);
+        }
+
+        fn visit_sentence(&mut self, sentence: &Sentence) {
+            let label = match sentence {
+                Sentence::Imperative(Imperative {
+                    predicate: VerbPhrase::Destroy(_),
+                }) => "destroy",
+                Sentence::Imperative(Imperative {
+                    predicate: VerbPhrase::Connive(_),
+                }) => "connive",
+                Sentence::Declarative(_) => "gain",
+                Sentence::WithWhere(_) => "where",
+                Sentence::Imperative(_) => "other",
+            };
+            self.0.push(Event::Sentence(label));
+            deckmaste_english_v2::visit::walk_sentence(self, sentence);
+        }
+    }
+
+    let destroy = Sentence::Imperative(Imperative {
+        predicate: VerbPhrase::Destroy(Destroy {
+            object: target_creature(),
+        }),
+    });
+    let gain = Sentence::Declarative(Declarative {
+        subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+        predicate: VerbPhrase::GainLife(GainLife {
+            amount: Amount::Number(NumberAmount {
+                number: SignedNumber {
+                    sign: Sign::Positive,
+                    magnitude: 2,
+                },
+            }),
+        }),
+    });
+    let connive = Sentence::Imperative(Imperative {
+        predicate: VerbPhrase::Connive(Connive),
+    });
+
+    assert!(Paragraph::new(vec![]).is_none());
+    let paragraph_sentences = vec![destroy, gain.clone()];
+    let paragraph = Paragraph::new(paragraph_sentences.clone())
+        .expect("a paragraph accepts one or more sentences");
+    assert_eq!(paragraph.sentences(), paragraph_sentences.as_slice());
+
+    let event = Clause::Event(EventClause {
+        subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+        predicate: VerbPhrase::Connive(Connive),
+    });
+    assert!(
+        Triggered::new(TriggerWord::Whenever, event.clone(), vec![]).is_none(),
+        "the effects length invariant rejects an empty sequence independently",
+    );
+    assert!(
+        Triggered::new(
+            TriggerWord::Whenever,
+            Clause::Where(WhereClause {
+                variable: Variable::X,
+                value: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+            }),
+            vec![gain.clone()],
+        )
+        .is_none(),
+        "the event refinement rejects a non-Event with nonempty effects",
+    );
+    let triggered_effects = vec![connive, gain];
+    let triggered = Triggered::new(TriggerWord::Whenever, event, triggered_effects.clone())
+        .expect("an Event and nonempty effects construct Triggered");
+    assert_eq!(triggered.effects(), triggered_effects.as_slice());
+
+    assert!(OracleText::new(vec![]).is_none());
+    let blocks = vec![
+        DocumentBlock::Ability(Ability::Paragraph(paragraph)),
+        DocumentBlock::Ability(Ability::Triggered(triggered)),
+    ];
+    let oracle_text = OracleText::new(blocks.clone()).expect("one or more blocks are valid");
+    assert_eq!(oracle_text.blocks(), blocks.as_slice());
+
+    let mut visitor = StructuralVisitor::default();
+    deckmaste_english_v2::visit::walk_oracle_text(&mut visitor, &oracle_text);
+    assert_eq!(
+        visitor.0,
+        [
+            Event::Block,
+            Event::Paragraph,
+            Event::Sentence("destroy"),
+            Event::Sentence("gain"),
+            Event::Block,
+            Event::Triggered,
+            Event::Sentence("connive"),
+            Event::Sentence("gain"),
+        ],
+    );
+}
+
+#[test]
 fn declaration_noun_construction_requires_allowed_environment_membership() {
     let environment = environment();
     assert!(
@@ -299,8 +422,8 @@ fn declaration_noun_construction_requires_allowed_environment_membership() {
 }
 
 #[test]
-fn generated_invariant_triggered_compile_surface_stores_and_accepts_one_sentence() {
-    let constructor: fn(TriggerWord, Clause, Sentence) -> Option<Triggered> = Triggered::new;
+fn generated_invariant_triggered_compile_surface_stores_and_accepts_nonempty_effects() {
+    let constructor: fn(TriggerWord, Clause, Vec<Sentence>) -> Option<Triggered> = Triggered::new;
     let event = Clause::Event(EventClause {
         subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
         predicate: VerbPhrase::Connive(Connive),
@@ -308,21 +431,22 @@ fn generated_invariant_triggered_compile_surface_stores_and_accepts_one_sentence
     let effect = Sentence::Imperative(Imperative {
         predicate: VerbPhrase::Connive(Connive),
     });
-    let value = constructor(TriggerWord::Whenever, event, effect.clone())
+    let value = constructor(TriggerWord::Whenever, event, vec![effect.clone()])
         .expect("an Event clause and one Sentence construct Triggered");
-    let _: &Sentence = &value.effect;
-    assert_eq!(value.effect, effect);
+    let _: &[Sentence] = value.effects();
+    assert_eq!(value.effects(), [effect]);
 }
 
 #[test]
 fn renders_destroy_target_creature_exactly() {
-    let value = Ability::Spell(Spell {
-        effect: Sentence::Imperative(Imperative {
+    let value = Ability::Paragraph(
+        Paragraph::new(vec![Sentence::Imperative(Imperative {
             predicate: VerbPhrase::Destroy(Destroy {
                 object: target_creature(),
             }),
-        }),
-    });
+        })])
+        .expect("one sentence constructs a paragraph"),
+    );
     assert_eq!(
         value.render(&context("Context Card"), &environment()),
         "Destroy target creature."
@@ -486,13 +610,14 @@ fn renders_a_subtype_with_its_printed_case() {
 
 #[test]
 fn visitor_reaches_every_vertical_slice_leaf() {
-    let destroy = Ability::Spell(Spell {
-        effect: Sentence::Imperative(Imperative {
+    let destroy = Ability::Paragraph(
+        Paragraph::new(vec![Sentence::Imperative(Imperative {
             predicate: VerbPhrase::Destroy(Destroy {
                 object: target_creature(),
             }),
-        }),
-    });
+        })])
+        .expect("one sentence constructs a paragraph"),
+    );
     let self_reference = Sentence::Declarative(Declarative {
         subject: NounPhrase::SelfReference(self_reference(
             SelfReferenceSpelling::Abbreviated,

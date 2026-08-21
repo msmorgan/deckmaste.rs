@@ -6346,7 +6346,8 @@ fn validate_roots(
     let mut seen = HashSet::new();
     for root in &roots {
         let category = path_name(&root.category);
-        if !symbols.categories.contains(&category) {
+        if !symbols.categories.contains(&category) && !symbols.structural_types.contains(&category)
+        {
             combine(
                 &mut errors,
                 syn::Error::new_spanned(
@@ -10669,6 +10670,25 @@ pub(crate) mod tests {
             root B { punctuation = "."; eoi = false; standalone_render = false; }
         });
         assert!(coverage.contains("standalone render entry"), "{coverage}");
+    }
+
+    #[test]
+    fn roots_accept_declared_structural_types_but_reject_unknown_names() {
+        validate(quote! {
+            construction only: Cat { element Only {} form only = "only"; }
+            abstract product Document { child: Cat, }
+            root Document { eoi = true; standalone_render = true; }
+        })
+        .expect("a declared abstract product is a valid root type");
+
+        let unknown = error(quote! {
+            construction only: Cat { element Only {} form only = "only"; }
+            root Missing { eoi = true; standalone_render = true; }
+        });
+        assert!(
+            unknown.contains("unknown root category `Missing`"),
+            "{unknown}",
+        );
     }
 
     #[test]

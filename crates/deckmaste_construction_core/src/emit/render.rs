@@ -88,14 +88,18 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         let category = root.category().to_owned();
         let write_function = ident(&format!("write_{}_render", snake_case(&category)));
         let collecting_function = ident(&format!("render_{}_with_claims", snake_case(&category)));
-        let members = categories
-            .iter()
-            .find(|(name, _)| name == &category)
-            .map(|(_, members)| members.as_slice())
-            .ok_or_else(|| internal("validated root category is absent"))?;
         let ty = ident(&category);
         let punctuation = root.punctuation().chars().next();
-        let render_body = if nested_categories.contains(&category) {
+        let is_structural_root = validated
+            .products()
+            .iter()
+            .any(|product| product.name() == category)
+            || validated.sums().iter().any(|sum| sum.name() == category);
+        let render_body = if is_structural_root {
+            let helper = ident(&crate::identifier::prefixed("render_", &category));
+            let environment = takes_environment.then(|| quote! { , environment });
+            quote! { #helper(writer, value, context #environment); }
+        } else if nested_categories.contains(&category) {
             let helper = render_category_name(&category, true);
             let capability = validated.category_render_capability(&category);
             if capability.requires_external_agreement() {
@@ -108,6 +112,11 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             let tail = signature_tail(&[None, context, environment]);
             quote! { #helper(writer, self #tail); }
         } else {
+            let members = categories
+                .iter()
+                .find(|(name, _)| name == &category)
+                .map(|(_, members)| members.as_slice())
+                .ok_or_else(|| internal("validated root category is absent"))?;
             let allocator = render_allocator(validated, members, true, &root_names, false, true)?;
             let arms = render_arms(
                 validated,
@@ -136,25 +145,56 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             }
         });
         let origin = DeclarationKey::new(DeclarationKind::Root, category.clone());
-        items.push(GeneratedItem::new(
-            ItemKey::Impl {
-                trait_name: None,
-                self_ty: category.clone(),
-            },
-            quote! {
-            impl #ty {
+        let writer = if is_structural_root {
+            GeneratedItem::new(
+                ItemKey::Named {
+                    kind: NamedKind::Function,
+                    name: write_function.to_string(),
+                },
+                quote! {
                 fn #write_function(
-                    &self,
+                    value: &#ty,
                     writer: &mut Writer,
                     context: &ParseContext<'_> #environment,
                 ) {
                     #render_body
                     #punctuation_statement
                 }
-            }
-            },
-            vec![origin.clone()],
-        ));
+                },
+                vec![origin.clone()],
+            )
+        } else {
+            GeneratedItem::new(
+                ItemKey::Impl {
+                    trait_name: None,
+                    self_ty: category.clone(),
+                },
+                quote! {
+                impl #ty {
+                    fn #write_function(
+                        &self,
+                        writer: &mut Writer,
+                        context: &ParseContext<'_> #environment,
+                    ) {
+                        #render_body
+                        #punctuation_statement
+                    }
+                }
+                },
+                vec![origin.clone()],
+            )
+        };
+        items.push(writer);
+        let write_call = if is_structural_root {
+            quote! { #write_function(self, &mut writer, context #environment_argument); }
+        } else {
+            quote! { self.#write_function(&mut writer, context #environment_argument); }
+        };
+        let collecting_write_call = if is_structural_root {
+            quote! { #write_function(value, &mut writer, context #environment_argument); }
+        } else {
+            quote! { value.#write_function(&mut writer, context #environment_argument); }
+        };
         items.push(GeneratedItem::new(
             ItemKey::Impl {
                 trait_name: Some("Render".to_owned()),
@@ -164,7 +204,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                 impl Render for #ty {
                     fn render(&self, context: &ParseContext<'_> #environment) -> String {
                         let mut writer = Writer::new();
-                        self.#write_function(&mut writer, context #environment_argument);
+                        #write_call
                         writer.finish()
                     }
                 }
@@ -183,7 +223,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             ) -> (String, Vec<RawRenderedClaim>) {
                 let mut claims = Vec::new();
                 let mut writer = Writer::collecting(&mut claims);
-                value.#write_function(&mut writer, context #environment_argument);
+                #collecting_write_call
                 let rendered = writer.finish();
                 (rendered, claims)
             }
@@ -3186,6 +3226,46 @@ mod tests {
                 .to_string()
                 .contains("writer . punctuation ('.')")
         );
+    }
+
+    #[test]
+    fn standalone_abstract_product_root_uses_generated_structural_renderer_only_when_selected() {
+        let expansion = crate::generate(quote::quote! {
+            construction only: Cat { element Only {} form only = "only"; }
+            abstract product NestedOnly { child: Cat, }
+            abstract product Document { children: seq Cat, }
+            require len(Document.children) >= 1;
+            root NestedOnly { eoi = false; standalone_render = false; }
+            root Document { eoi = true; standalone_render = true; }
+        })
+        .expect("a standalone structural root reaches render emission");
+
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for required in [
+            "impl Document",
+            "impl Render for Document",
+            "fn write_document_render",
+            "render_document_with_claims",
+            "render_document (writer , value , context)",
+        ] {
+            assert!(source.contains(required), "missing `{required}`: {source}");
+        }
+        for forbidden in [
+            "impl NestedOnly",
+            "impl Render for NestedOnly",
+            "render_nested_only_with_claims",
+            "write_nested_only_render",
+        ] {
+            assert!(
+                !source.contains(forbidden),
+                "nested-only structural root acquired `{forbidden}`: {source}",
+            );
+        }
     }
 
     #[test]

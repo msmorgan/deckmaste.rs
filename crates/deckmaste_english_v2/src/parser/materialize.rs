@@ -1066,7 +1066,7 @@ mod tests {
         assert_eq!(
             candidates[0].constructions,
             vec![
-                Construction::AbilitySpell,
+                Construction::AbilityParagraph,
                 Construction::SentenceImperative,
                 Construction::VerbPhraseDestroy,
                 Construction::NounPhraseTarget,
@@ -1075,7 +1075,7 @@ mod tests {
         assert_eq!(
             candidates[0].positions,
             vec![
-                RulePosition::Nonterminal(Category::Sentence),
+                RulePosition::Nonterminal(Category::ParagraphSentencesSequenceCategory),
                 RulePosition::Nonterminal(Category::VerbPhrase),
                 RulePosition::Lexical(Lexical::Declaration(DeclarationMatcher {
                     kind: DeclarationKind::KeywordAction,
@@ -1118,7 +1118,7 @@ mod tests {
                 ),
                 (
                     crate::parser::TextSpan { start: 23, end: 24 },
-                    "root:Ability/punctuation",
+                    "structural:Paragraph/sentences/terminator/0",
                 ),
             ]
         );
@@ -1262,7 +1262,7 @@ mod tests {
             );
             if limit > 0 {
                 let cycle = &trace.materialization_cycles().items()[0];
-                assert_eq!(cycle.node_ordinal(), 4);
+                assert_eq!(cycle.node_ordinal(), 5);
                 assert_eq!(cycle.construction_path().total(), 2);
                 assert_eq!(cycle.construction_path().shown(), usize::min(limit, 2));
                 assert_eq!(
@@ -1282,7 +1282,7 @@ mod tests {
     fn parser_trace_internal_only_cycle_keeps_typed_materialization_failure() {
         let forest = RootForest::from_test_forest(Forest::from_test_parts(
             vec![PackedNode {
-                rule: RootRuleId::Grammar(RuleId::AbilitySpell),
+                rule: RootRuleId::Grammar(RuleId::AbilityParagraph),
                 start: 0,
                 end: 0,
                 families: vec![Family {

@@ -530,7 +530,7 @@ fn generated_constructions_v1() -> Vec<Construction> {
 
 const fn construction_name(construction: Construction) -> &'static str {
     match construction {
-        Construction::AbilitySpell => "AbilitySpell",
+        Construction::AbilityParagraph => "AbilityParagraph",
         Construction::AbilityTriggered => "AbilityTriggered",
         Construction::SentenceImperative => "SentenceImperative",
         Construction::SentenceDeclarative => "SentenceDeclarative",
@@ -613,7 +613,7 @@ mod tests {
             .unwrap();
         let candidate = |specificity, owner_id: &'static str| Candidate {
             value: ability.clone(),
-            constructions: vec![Construction::AbilitySpell],
+            constructions: vec![Construction::AbilityParagraph],
             positions: Vec::new(),
             specificity: vec![specificity],
             claims: vec![RawLexicalClaim {
@@ -1013,7 +1013,7 @@ mod tests {
         assert_eq!(
             names,
             vec![
-                "AbilitySpell",
+                "AbilityParagraph",
                 "AbilityTriggered",
                 "SentenceImperative",
                 "SentenceDeclarative",

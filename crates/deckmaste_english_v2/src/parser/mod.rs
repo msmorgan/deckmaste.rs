@@ -11,6 +11,7 @@ use scan::parse_forest_observed;
 use selection::analyze_selection;
 
 use crate::ast::Ability;
+use crate::ast::OracleText;
 use crate::ast::Sentence;
 use crate::constructions::Category;
 use crate::constructions::FeatureConstraint;
@@ -270,6 +271,32 @@ impl Parser {
         self.analyze_root::<Sentence>(text, context)
     }
 
+    /// Parses one complete normalized Oracle-text document.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the checked chart cannot consume the
+    /// input. Returns an ambiguity when structural selection cannot choose one
+    /// reading.
+    pub fn parse_oracle_text(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> Result<OracleText, ParseError> {
+        self.analyze_oracle_text(text, context).into_parse_result()
+    }
+
+    /// Parses one complete normalized Oracle-text document and retains its
+    /// complete selection decision.
+    #[must_use]
+    pub fn analyze_oracle_text(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> ParseAnalysis<OracleText> {
+        self.analyze_root::<OracleText>(text, context)
+    }
+
     /// Parses once while retaining independently bounded diagnostic
     /// projections.
     #[must_use]
@@ -300,6 +327,26 @@ impl Parser {
         limits: TraceLimits,
     ) -> ParserTrace<Sentence> {
         let (analysis, trace) = self.analyze_root_with_trace::<Sentence>(text, context, limits);
+        ParserTrace::from_parts(
+            analysis,
+            trace.structural,
+            trace.materialization,
+            limits,
+            context,
+            &self.environment,
+        )
+    }
+
+    /// Parses one complete normalized Oracle-text document while retaining
+    /// independently bounded diagnostic projections.
+    #[must_use]
+    pub fn trace_oracle_text(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+        limits: TraceLimits,
+    ) -> ParserTrace<OracleText> {
+        let (analysis, trace) = self.analyze_root_with_trace::<OracleText>(text, context, limits);
         ParserTrace::from_parts(
             analysis,
             trace.structural,
@@ -607,6 +654,49 @@ mod structural_trace_tests {
                     .is_ok()
             );
         });
+    }
+
+    #[test]
+    fn oracle_text_public_calls_each_use_one_pipeline() {
+        use crate::constructions::OracleText;
+
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+        let text = "Destroy target creature. You gain 2 life.";
+
+        assert_pipeline_once(|| {
+            assert!(parser.parse_oracle_text(text, &context).is_ok());
+        });
+        assert_pipeline_once(|| {
+            let analysis: super::ParseAnalysis<OracleText> =
+                parser.analyze_oracle_text(text, &context);
+            assert!(analysis.selected().is_some());
+        });
+        assert_pipeline_once(|| {
+            let trace: super::ParserTrace<OracleText> =
+                parser.trace_oracle_text(text, &context, TraceLimits::new(0));
+            assert!(trace.into_parse_result().is_ok());
+        });
+    }
+
+    #[test]
+    fn oracle_text_internal_failure_names_its_generated_root() {
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new("Context Card").unwrap();
+        super::ownership::force_inspection_corruption(true);
+
+        let trace = parser.trace_oracle_text(
+            "Destroy target creature. You gain 2 life.",
+            &context,
+            TraceLimits::new(usize::MAX),
+        );
+
+        super::ownership::force_inspection_corruption(false);
+        assert_eq!(trace.root_name(), "OracleText");
+        let super::BoundedParseOutcome::InternalFailure(failure) = trace.outcome() else {
+            panic!("forced ownership corruption is an internal failure");
+        };
+        assert!(failure.message().contains("OracleText"));
     }
 
     #[test]

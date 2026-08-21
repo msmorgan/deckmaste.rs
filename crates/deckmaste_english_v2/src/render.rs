@@ -157,7 +157,7 @@ mod tests {
                 (0, 7, "lexeme:keyword_action/Destroy/bare"),
                 (7, 14, "form:target/target/0"),
                 (14, 23, "lexeme:type/Creature/singular"),
-                (23, 24, "root:Ability/punctuation"),
+                (23, 24, "structural:Paragraph/sentences/terminator/0"),
             ]
         );
     }

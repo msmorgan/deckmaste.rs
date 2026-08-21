@@ -63,18 +63,22 @@ constructions! {
             };
         }
     }
-    construction spell: Ability {
-        element Spell { effect: Sentence, }
-        form spell = effect;
+    construction paragraph: Ability {
+        element Paragraph {
+            sentences: seq Sentence separated by " " terminated by ".",
+        }
+        require len(sentences) >= 1;
+        form paragraph = sentences;
     }
     construction triggered: Ability {
         element Triggered {
             trigger: lex TriggerWord,
             event: Clause,
-            effect: Sentence,
+            effects: seq Sentence separated by " " terminated by ".",
         }
         require event is Event;
-        form triggered = lex(trigger) event "," effect;
+        require len(effects) >= 1;
+        form triggered = lex(trigger) event "," effects;
     }
     construction imperative: Sentence {
         element Imperative { predicate: VerbPhrase, }
@@ -188,6 +192,13 @@ constructions! {
         form variable = lex(variable);
     }
 
-    root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+    abstract sum DocumentBlock { Ability, }
+    abstract product OracleText {
+        blocks: seq DocumentBlock separated by "\n",
+    }
+    require len(OracleText.blocks) >= 1;
+
+    root Ability { eoi = true; standalone_render = true; }
     root Sentence { punctuation = "."; eoi = false; standalone_render = true; }
+    root OracleText { eoi = true; standalone_render = true; }
 }
