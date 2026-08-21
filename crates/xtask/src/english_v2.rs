@@ -757,12 +757,105 @@ mod tests {
         (format!("file:{}", relative.display()), Vec::new())
     }
 
-    fn plan04_qualified_alias_graphs(
+    struct Plan04QualifiedAliasSurfaces {
+        graphs: std::collections::BTreeMap<String, QualifiedAliasGraph>,
+        memberships: std::collections::BTreeMap<PathBuf, Vec<(String, Vec<String>)>>,
+    }
+
+    fn plan04_path_attribute(item: &syn::ItemMod) -> Option<PathBuf> {
+        item.attrs.iter().find_map(|attribute| {
+            if !attribute.path().is_ident("path") {
+                return None;
+            }
+            let syn::Meta::NameValue(value) = &attribute.meta else {
+                return None;
+            };
+            let syn::Expr::Lit(value) = &value.value else {
+                return None;
+            };
+            let syn::Lit::Str(value) = &value.lit else {
+                return None;
+            };
+            Some(PathBuf::from(value.value()))
+        })
+    }
+
+    fn plan04_discover_modules(
+        source_path: &Path,
+        items: &[syn::Item],
+        module: &[String],
+        search_dir: &Path,
+        parsed: &std::collections::BTreeMap<PathBuf, syn::File>,
+        found: &mut Vec<(PathBuf, Vec<String>)>,
+        visited: &mut std::collections::BTreeSet<(PathBuf, Vec<String>)>,
+    ) {
+        for item in items {
+            let syn::Item::Mod(item) = item else {
+                continue;
+            };
+            let mut child_module = module.to_vec();
+            child_module.push(item.ident.to_string());
+            if let Some((_, items)) = &item.content {
+                plan04_discover_modules(
+                    source_path,
+                    items,
+                    &child_module,
+                    &search_dir.join(item.ident.to_string()),
+                    parsed,
+                    found,
+                    visited,
+                );
+                continue;
+            }
+            let candidates = if let Some(path) = plan04_path_attribute(item) {
+                vec![
+                    source_path
+                        .parent()
+                        .expect("module source has a parent")
+                        .join(path),
+                ]
+            } else {
+                vec![
+                    search_dir.join(format!("{}.rs", item.ident)),
+                    search_dir.join(item.ident.to_string()).join("mod.rs"),
+                ]
+            };
+            for candidate in candidates {
+                let Some(file) = parsed.get(&candidate) else {
+                    continue;
+                };
+                let identity = (candidate.clone(), child_module.clone());
+                if !visited.insert(identity.clone()) {
+                    continue;
+                }
+                found.push(identity);
+                let child_search_dir = if candidate.file_name().is_some_and(|name| name == "mod.rs")
+                {
+                    candidate.parent().expect("mod.rs has a parent").to_owned()
+                } else {
+                    candidate
+                        .parent()
+                        .expect("module source has a parent")
+                        .join(candidate.file_stem().expect("module source has a stem"))
+                };
+                plan04_discover_modules(
+                    &candidate,
+                    &file.items,
+                    &child_module,
+                    &child_search_dir,
+                    parsed,
+                    found,
+                    visited,
+                );
+            }
+        }
+    }
+
+    fn plan04_qualified_alias_surfaces(
         workspace_root: &Path,
         paths: &[PathBuf],
-    ) -> std::collections::BTreeMap<String, QualifiedAliasGraph> {
-        let mut grouped =
-            std::collections::BTreeMap::<String, Vec<(syn::File, Vec<String>)>>::new();
+    ) -> Plan04QualifiedAliasSurfaces {
+        let mut parsed = std::collections::BTreeMap::new();
         for path in paths {
             if path.extension().is_none_or(|extension| extension != "rs") {
                 continue;
@@ -771,19 +864,95 @@ mod tests {
                 .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
             let file = syn::parse_file(&source)
                 .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-            let (key, module) = plan04_module_location(workspace_root, path);
-            grouped.entry(key).or_default().push((file, module));
+            parsed.insert(path.clone(), file);
         }
-        grouped
+
+        let mut grouped = std::collections::BTreeMap::<String, Vec<(PathBuf, Vec<String>)>>::new();
+        for path in parsed.keys() {
+            let relative = path
+                .strip_prefix(workspace_root)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            let components = relative.components().collect::<Vec<_>>();
+            let is_integration = components.len() >= 4
+                && components[0].as_os_str() == "crates"
+                && components[2].as_os_str() == "tests";
+            if !is_integration {
+                let (key, module) = plan04_module_location(workspace_root, path);
+                grouped.entry(key).or_default().push((path.clone(), module));
+            }
+        }
+
+        for root in parsed.keys() {
+            let relative = root
+                .strip_prefix(workspace_root)
+                .unwrap_or_else(|error| panic!("{}: {error}", root.display()));
+            let components = relative.components().collect::<Vec<_>>();
+            if components.len() != 4
+                || components[0].as_os_str() != "crates"
+                || components[2].as_os_str() != "tests"
+            {
+                continue;
+            }
+            let Some(stem) = root.file_stem() else {
+                continue;
+            };
+            let key = format!(
+                "test:{}:{}",
+                components[1].as_os_str().to_string_lossy(),
+                stem.to_string_lossy()
+            );
+            let mut found = vec![(root.clone(), Vec::new())];
+            let mut visited = found.iter().cloned().collect();
+            plan04_discover_modules(
+                root,
+                &parsed[root].items,
+                &[],
+                root.parent().expect("integration root has a parent"),
+                &parsed,
+                &mut found,
+                &mut visited,
+            );
+            grouped.insert(key, found);
+        }
+
+        let assigned = grouped
+            .values()
+            .flat_map(|files| files.iter().map(|(path, _)| path.clone()))
+            .collect::<std::collections::BTreeSet<_>>();
+        for path in parsed.keys().filter(|path| !assigned.contains(*path)) {
+            let relative = path
+                .strip_prefix(workspace_root)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            grouped.insert(
+                format!("integration-file:{}", relative.display()),
+                vec![(path.clone(), Vec::new())],
+            );
+        }
+
+        let mut memberships =
+            std::collections::BTreeMap::<PathBuf, Vec<(String, Vec<String>)>>::new();
+        let graphs = grouped
             .into_iter()
             .map(|(key, files)| {
                 let graph = QualifiedAliasGraph::from_files(
-                    files.iter().map(|(file, module)| (file, module.as_slice())),
+                    files
+                        .iter()
+                        .map(|(path, module)| (&parsed[path], module.as_slice())),
                     false,
                 );
+                for (path, module) in files {
+                    memberships
+                        .entry(path)
+                        .or_default()
+                        .push((key.clone(), module));
+                }
                 (key, graph)
             })
-            .collect()
+            .collect();
+        Plan04QualifiedAliasSurfaces {
+            graphs,
+            memberships,
+        }
     }
 
     #[derive(Default)]
@@ -1061,15 +1230,28 @@ mod tests {
                     self.collect_use_tree(&path.tree, module, &next);
                 }
                 syn::UseTree::Name(name) => {
+                    let is_self = name.ident == "self";
                     let mut source = prefix.to_vec();
-                    source.push(name.ident.to_string());
+                    if !is_self {
+                        source.push(name.ident.to_string());
+                    }
                     let source = normalize_qualified_segments(&source, module).join("::");
-                    self.bindings
-                        .insert(qualified_name(module, &name.ident.to_string()), source);
+                    let local = if is_self {
+                        source
+                            .rsplit("::")
+                            .next()
+                            .expect("a grouped self import has a containing path")
+                            .to_owned()
+                    } else {
+                        name.ident.to_string()
+                    };
+                    self.bindings.insert(qualified_name(module, &local), source);
                 }
                 syn::UseTree::Rename(rename) => {
                     let mut source = prefix.to_vec();
-                    source.push(rename.ident.to_string());
+                    if rename.ident != "self" {
+                        source.push(rename.ident.to_string());
+                    }
                     let source = normalize_qualified_segments(&source, module).join("::");
                     self.bindings
                         .insert(qualified_name(module, &rename.rename.to_string()), source);
@@ -1165,21 +1347,46 @@ mod tests {
         tree: &syn::UseTree,
         aliases: &mut std::collections::BTreeMap<String, String>,
     ) {
-        match tree {
-            syn::UseTree::Path(path) => collect_use_aliases(&path.tree, aliases),
-            syn::UseTree::Name(name) => {
-                aliases.insert(name.ident.to_string(), name.ident.to_string());
-            }
-            syn::UseTree::Rename(rename) => {
-                aliases.insert(rename.rename.to_string(), rename.ident.to_string());
-            }
-            syn::UseTree::Group(group) => {
-                for item in &group.items {
-                    collect_use_aliases(item, aliases);
+        fn collect(
+            tree: &syn::UseTree,
+            aliases: &mut std::collections::BTreeMap<String, String>,
+            prefix: &[String],
+        ) {
+            match tree {
+                syn::UseTree::Path(path) => {
+                    let mut next = prefix.to_vec();
+                    next.push(path.ident.to_string());
+                    collect(&path.tree, aliases, &next);
                 }
+                syn::UseTree::Name(name) => {
+                    let is_self = name.ident == "self";
+                    let mut source = prefix.to_vec();
+                    if !is_self {
+                        source.push(name.ident.to_string());
+                    }
+                    let local = if is_self {
+                        prefix.last().cloned().unwrap_or_else(|| "self".to_owned())
+                    } else {
+                        name.ident.to_string()
+                    };
+                    aliases.insert(local, source.join("::"));
+                }
+                syn::UseTree::Rename(rename) => {
+                    let mut source = prefix.to_vec();
+                    if rename.ident != "self" {
+                        source.push(rename.ident.to_string());
+                    }
+                    aliases.insert(rename.rename.to_string(), source.join("::"));
+                }
+                syn::UseTree::Group(group) => {
+                    for item in &group.items {
+                        collect(item, aliases, prefix);
+                    }
+                }
+                syn::UseTree::Glob(_) => {}
             }
-            syn::UseTree::Glob(_) => {}
         }
+        collect(tree, aliases, &[]);
     }
 
     fn collect_item_aliases(
@@ -1280,6 +1487,112 @@ mod tests {
         normalized
     }
 
+    #[derive(Clone, Copy, Eq, PartialEq)]
+    enum StandardStringMacro {
+        Concat,
+        Stringify,
+    }
+
+    fn standard_string_macro(path: &syn::Path) -> Option<StandardStringMacro> {
+        let segments = path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>();
+        let name = match segments.as_slice() {
+            [name] if path.leading_colon.is_none() => name.as_str(),
+            [standard, name] if standard == "std" || standard == "core" => name.as_str(),
+            _ => return None,
+        };
+        match name {
+            "concat" => Some(StandardStringMacro::Concat),
+            "stringify" => Some(StandardStringMacro::Stringify),
+            _ => None,
+        }
+    }
+
+    fn standard_string_macro_tokens_at(
+        tokens: &[proc_macro2::TokenTree],
+        index: usize,
+    ) -> Option<(StandardStringMacro, usize)> {
+        fn ident(token: Option<&proc_macro2::TokenTree>, expected: &str) -> bool {
+            matches!(token, Some(proc_macro2::TokenTree::Ident(ident)) if ident == expected)
+        }
+        fn punct(token: Option<&proc_macro2::TokenTree>, expected: char) -> bool {
+            matches!(token, Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == expected)
+        }
+        fn kind(token: Option<&proc_macro2::TokenTree>) -> Option<StandardStringMacro> {
+            match token {
+                Some(proc_macro2::TokenTree::Ident(ident)) if ident == "concat" => {
+                    Some(StandardStringMacro::Concat)
+                }
+                Some(proc_macro2::TokenTree::Ident(ident)) if ident == "stringify" => {
+                    Some(StandardStringMacro::Stringify)
+                }
+                _ => None,
+            }
+        }
+        fn invocation_tail(tokens: &[proc_macro2::TokenTree], name: usize) -> Option<usize> {
+            (punct(tokens.get(name + 1), '!')
+                && matches!(tokens.get(name + 2), Some(proc_macro2::TokenTree::Group(_))))
+            .then_some(name + 2)
+        }
+        fn begins_absolute_path(tokens: &[proc_macro2::TokenTree], index: usize) -> bool {
+            match index
+                .checked_sub(1)
+                .and_then(|previous| tokens.get(previous))
+            {
+                None => true,
+                Some(proc_macro2::TokenTree::Punct(punct))
+                    if matches!(punct.as_char(), '=' | ',' | ';') =>
+                {
+                    true
+                }
+                Some(proc_macro2::TokenTree::Punct(previous)) if previous.as_char() == '>' => {
+                    index >= 2 && punct(tokens.get(index - 2), '=')
+                }
+                Some(proc_macro2::TokenTree::Ident(ident))
+                    if matches!(ident.to_string().as_str(), "break" | "return" | "yield") =>
+                {
+                    true
+                }
+                _ => false,
+            }
+        }
+
+        if begins_absolute_path(tokens, index)
+            && punct(tokens.get(index), ':')
+            && punct(tokens.get(index + 1), ':')
+            && (ident(tokens.get(index + 2), "std") || ident(tokens.get(index + 2), "core"))
+            && punct(tokens.get(index + 3), ':')
+            && punct(tokens.get(index + 4), ':')
+            && let Some(kind) = kind(tokens.get(index + 5))
+            && let Some(group) = invocation_tail(tokens, index + 5)
+        {
+            return Some((kind, group));
+        }
+        if (ident(tokens.get(index), "std") || ident(tokens.get(index), "core"))
+            && !matches!(
+                tokens.get(index.wrapping_sub(1)),
+                Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == ':'
+            )
+            && punct(tokens.get(index + 1), ':')
+            && punct(tokens.get(index + 2), ':')
+            && let Some(kind) = kind(tokens.get(index + 3))
+            && let Some(group) = invocation_tail(tokens, index + 3)
+        {
+            return Some((kind, group));
+        }
+        let kind = kind(tokens.get(index))?;
+        if matches!(
+            tokens.get(index.wrapping_sub(1)),
+            Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == ':'
+        ) {
+            return None;
+        }
+        invocation_tail(tokens, index).map(|group| (kind, group))
+    }
+
     fn macro_rules_transcribers(
         tokens: proc_macro2::TokenStream,
     ) -> Option<Vec<proc_macro2::TokenStream>> {
@@ -1323,25 +1636,14 @@ mod tests {
         let mut production = proc_macro2::TokenStream::new();
         let mut index = 0;
         while index < tokens.len() {
+            if let Some((_, group)) = standard_string_macro_tokens_at(&tokens, index) {
+                index = group + 1;
+                continue;
+            }
             let macro_name = match tokens.get(index) {
                 Some(proc_macro2::TokenTree::Ident(ident)) => Some(ident.to_string()),
                 _ => None,
             };
-            if macro_name
-                .as_deref()
-                .is_some_and(|name| name == "concat" || name == "stringify")
-                && matches!(
-                    tokens.get(index + 1),
-                    Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '!'
-                )
-                && matches!(
-                    tokens.get(index + 2),
-                    Some(proc_macro2::TokenTree::Group(_))
-                )
-            {
-                index += 3;
-                continue;
-            }
             if macro_name.as_deref() == Some("macro_rules")
                 && matches!(
                     tokens.get(index + 1),
@@ -1377,7 +1679,7 @@ mod tests {
     }
 
     fn macro_production_streams(mac: &syn::Macro) -> Vec<proc_macro2::TokenStream> {
-        if mac.path.is_ident("concat") || mac.path.is_ident("stringify") {
+        if standard_string_macro(&mac.path).is_some() {
             return Vec::new();
         }
         if mac.path.is_ident("macro_rules") {
@@ -1407,24 +1709,11 @@ mod tests {
         )
     }
 
-    fn macro_type_resolves_to(
+    fn macro_type_candidate(
         ty: &syn::Type,
-        target: &str,
         aliases: &std::collections::BTreeMap<String, String>,
-        qualified_aliases: &QualifiedAliasGraph,
-        module: &[String],
-    ) -> bool {
-        let Some(path) = type_path(ty) else {
-            return false;
-        };
-        if path
-            .path
-            .segments
-            .last()
-            .is_some_and(|segment| segment.ident == target)
-        {
-            return true;
-        }
+    ) -> Option<String> {
+        let path = type_path(ty)?;
         let mut candidate = syn_path_segments(&path.path).join("::");
         let mut seen = std::collections::BTreeSet::new();
         while seen.insert(candidate.clone()) {
@@ -1450,6 +1739,30 @@ mod tests {
             };
             candidate = next;
         }
+        Some(candidate)
+    }
+
+    fn macro_type_resolves_to(
+        ty: &syn::Type,
+        target: &str,
+        aliases: &std::collections::BTreeMap<String, String>,
+        qualified_aliases: &QualifiedAliasGraph,
+        module: &[String],
+    ) -> bool {
+        let Some(path) = type_path(ty) else {
+            return false;
+        };
+        if path
+            .path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == target)
+        {
+            return true;
+        }
+        let Some(candidate) = macro_type_candidate(ty, aliases) else {
+            return false;
+        };
         syn::parse_str::<syn::Type>(&candidate)
             .ok()
             .and_then(|ty| type_path(&ty).cloned())
@@ -1502,6 +1815,57 @@ mod tests {
                     &scoped_aliases,
                     qualified_aliases,
                     module,
+                )
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn macro_tokens_contain_unresolved_inherent_impl(
+        tokens: proc_macro2::TokenStream,
+        outer_aliases: &std::collections::BTreeMap<String, String>,
+    ) -> bool {
+        let tokens = normalize_macro_metavariables(tokens);
+        macro_tokens_contain_unresolved_inherent_impl_with_aliases(tokens, outer_aliases)
+    }
+
+    fn macro_tokens_contain_unresolved_inherent_impl_with_aliases(
+        tokens: proc_macro2::TokenStream,
+        aliases: &std::collections::BTreeMap<String, String>,
+    ) -> bool {
+        let mut scoped_aliases = aliases.clone();
+        collect_macro_aliases(tokens.clone(), &mut scoped_aliases);
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        for (start, token) in tokens.iter().enumerate() {
+            if matches!(token, proc_macro2::TokenTree::Ident(ident) if ident == "impl") {
+                for (end, candidate) in tokens.iter().enumerate().skip(start + 1) {
+                    if !matches!(candidate, proc_macro2::TokenTree::Group(group) if group.delimiter() == proc_macro2::Delimiter::Brace)
+                    {
+                        continue;
+                    }
+                    let mut candidate = tokens[start..end]
+                        .iter()
+                        .cloned()
+                        .collect::<proc_macro2::TokenStream>();
+                    candidate.extend([proc_macro2::TokenTree::Group(proc_macro2::Group::new(
+                        proc_macro2::Delimiter::Brace,
+                        proc_macro2::TokenStream::new(),
+                    ))]);
+                    if let Ok(item) = syn::parse2::<syn::ItemImpl>(candidate)
+                        && item.trait_.is_none()
+                        && macro_type_candidate(&item.self_ty, &scoped_aliases)
+                            .is_none_or(|candidate| candidate.contains("__plan04_macro_"))
+                    {
+                        return true;
+                    }
+                }
+            }
+            if let proc_macro2::TokenTree::Group(group) = token
+                && macro_tokens_contain_unresolved_inherent_impl_with_aliases(
+                    group.stream(),
+                    &scoped_aliases,
                 )
             {
                 return true;
@@ -1617,6 +1981,14 @@ mod tests {
                     self.record(authority);
                 }
             }
+            if production_streams.iter().any(|tokens| {
+                macro_tokens_contain_unresolved_inherent_impl(
+                    tokens.clone(),
+                    &self.visible_aliases(),
+                )
+            }) {
+                self.record("unresolved inherent impl transcriber");
+            }
             for (kind, name, authority) in [
                 (ProductionAuthorityKind::Struct, "Checked", "struct Checked"),
                 (
@@ -1684,52 +2056,6 @@ mod tests {
         }
     }
 
-    fn string_composition_could_contain_checked(tokens: proc_macro2::TokenStream) -> bool {
-        fn collect_fragments(tokens: proc_macro2::TokenStream, fragments: &mut Vec<String>) {
-            for token in tokens {
-                match token {
-                    proc_macro2::TokenTree::Group(group) => {
-                        let delimiters = match group.delimiter() {
-                            proc_macro2::Delimiter::Brace => Some(("{", "}")),
-                            proc_macro2::Delimiter::Bracket => Some(("[", "]")),
-                            proc_macro2::Delimiter::Parenthesis | proc_macro2::Delimiter::None => {
-                                None
-                            }
-                        };
-                        if let Some((open, _)) = delimiters {
-                            fragments.push(open.to_owned());
-                        }
-                        collect_fragments(group.stream(), fragments);
-                        if let Some((_, close)) = delimiters {
-                            fragments.push(close.to_owned());
-                        }
-                    }
-                    proc_macro2::TokenTree::Ident(ident) => {
-                        fragments.push(ident.to_string());
-                    }
-                    proc_macro2::TokenTree::Literal(literal) => {
-                        let spelling = syn::parse_str::<syn::Lit>(&literal.to_string())
-                            .ok()
-                            .and_then(|literal| literal_constant_string(&literal))
-                            .unwrap_or_else(|| literal.to_string());
-                        fragments.push(spelling);
-                    }
-                    proc_macro2::TokenTree::Punct(_) => {}
-                }
-            }
-        }
-
-        let mut fragments = Vec::new();
-        collect_fragments(tokens, &mut fragments);
-        (0..fragments.len()).any(|start| {
-            let mut candidate = String::new();
-            fragments[start..].iter().any(|fragment| {
-                candidate.push_str(fragment);
-                checked_text_block_pattern().is_match(&candidate)
-            })
-        })
-    }
-
     fn collect_macro_fixture_strings(
         tokens: proc_macro2::TokenStream,
         fixtures: &mut Vec<String>,
@@ -1753,36 +2079,25 @@ mod tests {
                 index += 4;
                 continue;
             }
-            let string_macro = match &tokens[index] {
-                proc_macro2::TokenTree::Ident(ident) if ident == "concat" => Some("concat"),
-                proc_macro2::TokenTree::Ident(ident) if ident == "stringify" => Some("stringify"),
-                _ => None,
-            };
-            if let Some(string_macro) = string_macro
-                && matches!(
-                    tokens.get(index + 1),
-                    Some(proc_macro2::TokenTree::Punct(punct)) if punct.as_char() == '!'
-                )
-                && let Some(proc_macro2::TokenTree::Group(group)) = tokens.get(index + 2)
+            if let Some((string_macro, group_index)) =
+                standard_string_macro_tokens_at(&tokens, index)
+                && let Some(proc_macro2::TokenTree::Group(group)) = tokens.get(group_index)
             {
-                let fixture = if string_macro == "concat" {
-                    constant_concat_tokens(group.stream())
-                } else {
-                    Some(group.stream().to_string())
+                let fixture = match string_macro {
+                    StandardStringMacro::Concat => constant_concat_tokens(group.stream()),
+                    StandardStringMacro::Stringify => Some(group.stream().to_string()),
                 };
                 if let Some(fixture) = fixture {
                     fixtures.push(fixture);
                 } else {
-                    if string_composition_could_contain_checked(group.stream()) {
-                        *unresolved_compositions += 1;
-                    }
+                    *unresolved_compositions += 1;
                     collect_macro_fixture_strings(
                         group.stream(),
                         fixtures,
                         unresolved_compositions,
                     );
                 }
-                index += 3;
+                index = group_index + 1;
                 continue;
             }
             match &tokens[index] {
@@ -1834,37 +2149,38 @@ mod tests {
                 collect_checked_blocks(tokens, &mut self.empty_blocks);
             }
             let mut fixtures = Vec::new();
-            if mac.path.is_ident("concat") {
-                if let Some(fixture) = constant_concat_tokens(mac.tokens.clone()) {
-                    fixtures.push(fixture);
-                } else {
-                    if string_composition_could_contain_checked(mac.tokens.clone()) {
+            match standard_string_macro(&mac.path) {
+                Some(StandardStringMacro::Concat) => {
+                    if let Some(fixture) = constant_concat_tokens(mac.tokens.clone()) {
+                        fixtures.push(fixture);
+                    } else {
                         self.unresolved_compositions += 1;
+                        collect_macro_fixture_strings(
+                            mac.tokens.clone(),
+                            &mut fixtures,
+                            &mut self.unresolved_compositions,
+                        );
                     }
+                }
+                Some(StandardStringMacro::Stringify) => fixtures.push(mac.tokens.to_string()),
+                None if mac.path.is_ident("macro_rules") => {
+                    for transcriber in macro_rules_transcribers(mac.tokens.clone())
+                        .unwrap_or_else(|| vec![mac.tokens.clone()])
+                    {
+                        collect_macro_fixture_strings(
+                            transcriber,
+                            &mut fixtures,
+                            &mut self.unresolved_compositions,
+                        );
+                    }
+                }
+                None => {
                     collect_macro_fixture_strings(
                         mac.tokens.clone(),
                         &mut fixtures,
                         &mut self.unresolved_compositions,
                     );
                 }
-            } else if mac.path.is_ident("stringify") {
-                fixtures.push(mac.tokens.to_string());
-            } else if mac.path.is_ident("macro_rules") {
-                for transcriber in macro_rules_transcribers(mac.tokens.clone())
-                    .unwrap_or_else(|| vec![mac.tokens.clone()])
-                {
-                    collect_macro_fixture_strings(
-                        transcriber,
-                        &mut fixtures,
-                        &mut self.unresolved_compositions,
-                    );
-                }
-            } else {
-                collect_macro_fixture_strings(
-                    mac.tokens.clone(),
-                    &mut fixtures,
-                    &mut self.unresolved_compositions,
-                );
             }
             for fixture in fixtures {
                 self.record_string_fixture(&fixture);
@@ -2199,10 +2515,16 @@ mod tests {
     fn constant_string_expression(expression: &syn::Expr) -> Option<String> {
         match expression {
             syn::Expr::Lit(expression) => literal_constant_string(&expression.lit),
-            syn::Expr::Macro(expression) if expression.mac.path.is_ident("concat") => {
+            syn::Expr::Macro(expression)
+                if standard_string_macro(&expression.mac.path)
+                    == Some(StandardStringMacro::Concat) =>
+            {
                 constant_concat_tokens(expression.mac.tokens.clone())
             }
-            syn::Expr::Macro(expression) if expression.mac.path.is_ident("stringify") => {
+            syn::Expr::Macro(expression)
+                if standard_string_macro(&expression.mac.path)
+                    == Some(StandardStringMacro::Stringify) =>
+            {
                 Some(expression.mac.tokens.to_string())
             }
             syn::Expr::Group(expression) => constant_string_expression(&expression.expr),
@@ -2372,7 +2694,7 @@ mod tests {
         }
 
         fn visit_macro(&mut self, mac: &'ast syn::Macro) {
-            if mac.path.is_ident("concat")
+            if standard_string_macro(&mac.path) == Some(StandardStringMacro::Concat)
                 && let Some(spelling) = constant_concat_tokens(mac.tokens.clone())
             {
                 self.found.push(spelling);
@@ -3575,6 +3897,104 @@ mod tests {
     }
 
     #[test]
+    fn plan04_integration_graphs_follow_real_module_edges() {
+        use syn::visit::Visit as _;
+
+        let temp = tempfile::tempdir().expect("temporary module workspace is created");
+        let workspace_root = temp.path();
+        let nested_tests = workspace_root.join("crates/nested/tests");
+        fs::create_dir_all(nested_tests.join("common"))
+            .expect("nested integration module directory is created");
+        let nested_case = nested_tests.join("case.rs");
+        let nested_common = nested_tests.join("common/mod.rs");
+        let nested_leaf = nested_tests.join("common/nested.rs");
+        fs::write(
+            &nested_case,
+            "struct Triggered; mod common; impl common::nested::Deep {}",
+        )
+        .expect("nested integration root is written");
+        fs::write(
+            &nested_common,
+            "pub mod nested; pub type Alias = super::Triggered;",
+        )
+        .expect("nested common module is written");
+        fs::write(&nested_leaf, "pub type Deep = super::Alias;")
+            .expect("nested leaf module is written");
+
+        let flat_tests = workspace_root.join("crates/flat/tests");
+        fs::create_dir_all(flat_tests.join("shared"))
+            .expect("flat integration module directory is created");
+        let flat_case = flat_tests.join("case.rs");
+        let flat_other = flat_tests.join("other.rs");
+        let flat_common = flat_tests.join("common.rs");
+        let path_case = flat_tests.join("path_case.rs");
+        let path_common = flat_tests.join("shared/renamed.rs");
+        fs::write(
+            &flat_case,
+            "struct Triggered; mod common; impl common::Alias {}",
+        )
+        .expect("flat integration root is written");
+        fs::write(
+            &flat_other,
+            "struct Triggered; mod common; impl common::Alias {}",
+        )
+        .expect("second flat integration root is written");
+        fs::write(&flat_common, "pub type Alias = super::Triggered;")
+            .expect("shared flat module is written");
+        fs::write(
+            &path_case,
+            "struct Triggered; #[path = \"shared/renamed.rs\"] mod local; \
+             impl local::Alias {}",
+        )
+        .expect("path-qualified integration root is written");
+        fs::write(&path_common, "pub type Alias = super::Triggered;")
+            .expect("path-qualified shared module is written");
+
+        let paths = [
+            nested_case,
+            nested_common,
+            nested_leaf,
+            flat_case,
+            flat_other,
+            flat_common,
+            path_case,
+            path_common,
+        ];
+        let surfaces = plan04_qualified_alias_surfaces(workspace_root, &paths);
+        for root in [&paths[0], &paths[3], &paths[4], &paths[6]] {
+            let source = fs::read_to_string(root).expect("integration root is readable");
+            let file = syn::parse_file(&source).expect("integration root reparses");
+            let memberships = surfaces
+                .memberships
+                .get(root)
+                .expect("integration root belongs to an audit graph");
+            assert!(
+                memberships.iter().any(|(key, module_path)| {
+                    let mut finder = Plan04RetiredAuthorityFinder {
+                        qualified_aliases: surfaces.graphs[key].clone(),
+                        module_path: module_path.clone(),
+                        qualified_aliases_initialized: true,
+                        ..Plan04RetiredAuthorityFinder::default()
+                    };
+                    finder.visit_file(&file);
+                    finder.violations.contains(&"impl Triggered")
+                }),
+                "{}",
+                root.display()
+            );
+        }
+        assert_eq!(
+            surfaces
+                .memberships
+                .get(&paths[5])
+                .expect("shared common module has memberships")
+                .len(),
+            3,
+            "common.rs is its own integration root and is shared by case.rs and other.rs"
+        );
+    }
+
+    #[test]
     fn plan04_checked_blocks_are_detected_as_comment_insensitive_macro_tokens() {
         for source in [
             "fn fixture() { constructions! { checked /* legacy */ { constructor = old; } } }",
@@ -3654,13 +4074,16 @@ mod tests {
         let fixtures = r#"
             const TOKEN: &str = concat!(unknown!(checked), "{}");
             const FRAGMENTS: &str = concat!(unknown!("check"), "ed{}");
+            const BETWEEN: &str = concat!("check", unknown!(), stringify!(ed), "{}");
+            const BEFORE: &str = concat!(unknown!(), "check", stringify!(ed), "{}");
+            const AFTER: &str = concat!("check", stringify!(ed), "{}", unknown!());
         "#;
         let fixture_census = checked_block_census_in_rust_source(fixtures);
-        assert_eq!(fixture_census.unresolved_compositions, 2);
+        assert_eq!(fixture_census.unresolved_compositions, 5);
 
         let parser_like = r##"
             const ALLOWED: &str = r#"checked {}"#;
-            const UNKNOWN: &str = concat!(unknown!(checked), "{}");
+            const UNKNOWN: &str = concat!("check", unknown!(), stringify!(ed), "{}");
         "##;
         let parser_census = checked_block_census_in_rust_source(parser_like);
         assert_eq!(parser_census.strings, 1);
@@ -3864,6 +4287,40 @@ mod tests {
     }
 
     #[test]
+    fn plan04_qualified_alias_graph_handles_grouped_self_imports() {
+        use syn::visit::Visit as _;
+
+        for source in [
+            "struct Triggered; mod aliases { pub type Alias = super::Triggered; } \
+             use crate::aliases::{self as local}; impl local::Alias {}",
+            "struct Triggered; mod aliases { pub type Alias = super::Triggered; } \
+             use crate::aliases::{self}; impl aliases::Alias {}",
+            "struct Triggered; mod aliases { pub type Alias = super::Triggered; } \
+             use crate::{aliases::{self as local}}; impl local::Alias {}",
+            "struct Triggered; mod aliases { pub type Alias = super::Triggered; } \
+             use self::aliases::{self as local, Alias as Imported}; \
+             impl local::Alias {} impl Imported {}",
+            "struct Triggered; mod aliases { pub type Alias = super::Triggered; } \
+             mod nested { use super::aliases::{self as local}; impl local::Alias {} }",
+        ] {
+            let file = syn::parse_file(source).expect("grouped-self authority reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+
+        let unrelated = syn::parse_file(
+            "struct Triggered; mod target { pub type Alias = super::Triggered; } \
+             mod unrelated { pub struct Alias; } \
+             use crate::unrelated::{self as local}; impl local::Alias {}",
+        )
+        .expect("grouped-self shadow source reparses");
+        let mut finder = Plan04RetiredAuthorityFinder::default();
+        finder.visit_file(&unrelated);
+        assert!(!finder.violations.contains(&"impl Triggered"));
+    }
+
+    #[test]
     fn plan04_impl_authority_scans_macro_transcribers_not_matchers_or_strings() {
         use syn::visit::Visit as _;
 
@@ -3905,6 +4362,90 @@ mod tests {
     }
 
     #[test]
+    fn plan04_macro_transcribers_fail_closed_on_unresolved_inherent_impls() {
+        use syn::visit::Visit as _;
+
+        for source in [
+            "macro_rules! emits { ($ty:ty) => { impl $ty {} }; }",
+            "macro_rules! emits { ($ty:ty) => { impl $ty {} }; } emits!(Triggered);",
+            "macro_rules! emits { ($module:ident, $ty:ident) => { \
+                 impl $module::$ty {} \
+             }; }",
+            "macro_rules! emits { ($($ty:ty),*) => { $(impl $ty {})* }; }",
+            "macro_rules! outer { ($ty:ty) => {{ impl $ty {} }}; }",
+        ] {
+            let file = syn::parse_file(source).expect("generic transcriber source reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(
+                finder
+                    .violations
+                    .contains(&"unresolved inherent impl transcriber"),
+                "{source}"
+            );
+        }
+
+        for source in [
+            "macro_rules! emits { () => { impl Unrelated {} }; }",
+            "macro_rules! emits { ($ty:ty) => { impl Render for $ty {} }; }",
+            "macro_rules! recognizes { (impl $ty:ty {}) => { impl Unrelated {} }; }",
+        ] {
+            let file = syn::parse_file(source).expect("resolved transcriber source reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(
+                !finder
+                    .violations
+                    .contains(&"unresolved inherent impl transcriber"),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn plan04_standard_string_macro_paths_are_text_only() {
+        use syn::visit::Visit as _;
+
+        for source in [
+            "const TEXT: &str = stringify!(impl Triggered {});",
+            "const TEXT: &str = std::stringify!(impl Triggered {});",
+            "const TEXT: &str = core::stringify!(impl Triggered {});",
+            "const TEXT: &str = ::std::stringify!(impl Triggered {});",
+            "const TEXT: &str = std::concat!(std::stringify!(impl Triggered {}), \"\");",
+            "const TEXT: &str = ::core::concat!(core::stringify!(impl Triggered {}), \"\");",
+            "macro_rules! emits { () => { const TEXT: &str = \
+             ::std::stringify!(impl Triggered {}); }; }",
+        ] {
+            let file = syn::parse_file(source).expect("standard string macro source reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(!finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+
+        for source in [
+            "const TEXT: &str = custom::stringify!(impl Triggered {});",
+            "const TEXT: &str = custom::concat!(impl Triggered {});",
+            "macro_rules! emits { () => { custom::std::stringify!(impl Triggered {}) }; }",
+            "macro_rules! emits { () => { custom::core::concat!(impl Triggered {}) }; }",
+        ] {
+            let file = syn::parse_file(source).expect("custom macro source reparses");
+            let mut finder = Plan04RetiredAuthorityFinder::default();
+            finder.visit_file(&file);
+            assert!(finder.violations.contains(&"impl Triggered"), "{source}");
+        }
+
+        let census = checked_block_census_in_rust_source(
+            "const ONE: &str = std::stringify!(checked {}); \
+             const TWO: &str = core::concat!(core::stringify!(checked), \"{}\"); \
+             const THREE: &str = ::std::concat!(\"check\", stringify!(ed), \" {}\");",
+        );
+        assert!(census.structural.is_empty());
+        assert_eq!(census.strings, 3);
+        assert_eq!(census.exact_empty_strings, 1);
+        assert_eq!(census.unresolved_compositions, 0);
+    }
+
+    #[test]
     fn plan04_generated_invariants_are_single_authority() {
         use syn::visit::Visit as _;
 
@@ -3916,7 +4457,8 @@ mod tests {
         let checked_text_block = checked_text_block_pattern();
         let mut parser_checked_census = None;
         let source_paths = plan04_source_fixture_paths(&workspace_root);
-        let qualified_alias_graphs = plan04_qualified_alias_graphs(&workspace_root, &source_paths);
+        let qualified_alias_surfaces =
+            plan04_qualified_alias_surfaces(&workspace_root, &source_paths);
 
         for path in source_paths {
             let relative = path
@@ -3944,24 +4486,26 @@ mod tests {
                         relative.display()
                     ));
                 }
-                let (module_key, module_path) = plan04_module_location(&workspace_root, &path);
-                let mut finder = Plan04RetiredAuthorityFinder {
-                    allow_report_schema_field: path == report_path,
-                    qualified_aliases: qualified_alias_graphs
-                        .get(&module_key)
-                        .unwrap_or_else(|| panic!("{} has an alias graph", path.display()))
-                        .clone(),
-                    module_path,
-                    qualified_aliases_initialized: true,
-                    ..Plan04RetiredAuthorityFinder::default()
-                };
-                finder.visit_file(&file);
-                violations.extend(
-                    finder
-                        .violations
-                        .into_iter()
-                        .map(|authority| format!("{} retains {authority}", relative.display())),
-                );
+                for (module_key, module_path) in qualified_alias_surfaces
+                    .memberships
+                    .get(&path)
+                    .unwrap_or_else(|| panic!("{} has an alias-graph membership", path.display()))
+                {
+                    let mut finder = Plan04RetiredAuthorityFinder {
+                        allow_report_schema_field: path == report_path,
+                        qualified_aliases: qualified_alias_surfaces.graphs[module_key].clone(),
+                        module_path: module_path.clone(),
+                        qualified_aliases_initialized: true,
+                        ..Plan04RetiredAuthorityFinder::default()
+                    };
+                    finder.visit_file(&file);
+                    violations.extend(
+                        finder
+                            .violations
+                            .into_iter()
+                            .map(|authority| format!("{} retains {authority}", relative.display())),
+                    );
+                }
             } else if checked_text_block.is_match(&source) {
                 violations.push(format!(
                     "{} retains checked metadata block",
