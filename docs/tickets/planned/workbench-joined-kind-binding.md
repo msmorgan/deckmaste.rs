@@ -1,5 +1,5 @@
 ---
-needs: [workbench-join-shape-flat-or-pair]
+needs: [workbench-join-is-a-constructor]
 ---
 # Re-derive the kind-indexed `Binding` under a joined kind
 
@@ -13,6 +13,13 @@ Authority:
 [The kind index joins; union marking is spelling](../../decisions/kind-index-joins-union-marking-is-spelling.md)
 — the second of its three pinned execution questions. Every measured fact this
 round must preserve is inlined below.
+
+> **Superseded in part (2026-08-22):** `workbench-join-is-a-constructor`
+> makes `\/` a `Kind` constructor and mints `JoinP : Payload a -> Payload b
+> -> Payload (a \/ b)`, which is the joined payload this ticket was to
+> design. What remains here is re-deriving the named witnesses below under
+> that shape (`bindsNothing`, the `KindJoin`/`YouAnd` asymmetry, the
+> union-narrowing container).
 
 ## What is lost and must be re-homed
 
