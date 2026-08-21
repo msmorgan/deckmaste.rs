@@ -152,8 +152,8 @@ lookbackSubjectOk BlockDeclaration Object = True
 lookbackSubjectOk BlockDeclaration Player = False
 lookbackSubjectOk CombatDamage Object = True
 lookbackSubjectOk CombatDamage Player = False
-lookbackSubjectOk PartBeginning Object = False
-lookbackSubjectOk PartBeginning Player = False
+lookbackSubjectOk PartBeginning Object = True
+lookbackSubjectOk PartBeginning Player = True
 lookbackSubjectOk SpellCast Object = False
 lookbackSubjectOk SpellCast Player = True
 lookbackSubjectOk StatusChange Object = False
@@ -379,12 +379,12 @@ castableTy Cast (Just Kindred) = True
 
 public export
 staticAsAbility : StaticKind -> Bool
-staticAsAbility CopyEffect = False
+staticAsAbility CopyEffect = True
 staticAsAbility PtDelta = True
 staticAsAbility KeywordGrant = True
 staticAsAbility DeedRestriction = True
 staticAsAbility TypeAddition = True
-staticAsAbility ControlGrant = False
+staticAsAbility ControlGrant = True
 staticAsAbility Replacement = True
 staticAsAbility Prevention = True
 staticAsAbility Conditional = True
@@ -396,7 +396,7 @@ staticAsAbility EntryRider = True
 staticAsAbility CostModification = True
 staticAsAbility PtDefinition = True
 staticAsAbility BasePtSet = True
-staticAsAbility PtSwitch = False
+staticAsAbility PtSwitch = True
 staticAsAbility TypeSet = True
 staticAsAbility AbilityLoss = True
 staticAsAbility Coordination = True

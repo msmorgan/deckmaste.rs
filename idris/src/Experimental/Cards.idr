@@ -7012,3 +7012,82 @@ thaliasLancersSearch =
                , Macros.revealCards It
                , Move It Macros.handZ
                , Macros.shuffle ]
+
+||| Brimaz, King of Oreskos' attack trigger: "Whenever Brimaz attacks,
+||| create a 1/1 white Cat Soldier creature token with vigilance that's
+||| attacking." [CR#508.4] designates the token attacking and taps
+||| nothing, so the attacking rider stands alone.
+public export
+brimazAttackToken : Ability
+brimazAttackToken =
+  Triggered Whenever (Attacks Macros.thisCreature)
+    (Create You (Lit 1)
+            (TokenWritten (MkToken (Just (Lit 1, Lit 1)) [White]
+                                   (MkTypeLine [Cat, Soldier] [Creature])
+                                   [KeywordAbility Vigilance] Nothing))
+            [EntersAttacking])
+
+||| Luxior, Giada's Gift's second line: "Equipped permanent … is a
+||| creature in addition to its other types." [CR#301.5f] lets the word
+||| "equipped" name whatever the permanent is attached to, so the host
+||| word is the host's own.
+public export
+luxiorEquippedPermanent : Ability
+luxiorEquippedPermanent =
+  Static (BecomesAlso (AttachHost Equipped PermanentW)
+                      (MkToken Nothing [] (MkTypeLine [] [Creature]) [] Nothing))
+
+||| Nahiri, the Unforgiving's [0] read: "creature card with mana value
+||| less than Nahiri's loyalty from your graveyard". [CR#109.3] lists
+||| loyalty among an object's characteristics and [CR#306.5] gives it to
+||| planeswalkers alone.
+public export
+nahiriLoyaltyRead : Predicate [] Object
+nahiriLoyaltyRead =
+  And [ Macros.creature, InZone (Macros.graveyardOf You)
+      , Compare ManaValue Less (StatOf Loyalty This) ]
+
+||| Vivien's Talent: "Whenever a nontoken creature you control enters, put
+||| a loyalty counter on enchanted planeswalker." [CR#122.1] makes a
+||| loyalty counter a marker like any other.
+public export
+viviensTalentTrigger : Ability
+viviensTalentTrigger =
+  Triggered Whenever (Enters (Macros.a (And [Macros.nontoken,
+                                             Macros.creatureYouControl])))
+    (PutCounters (Lit 1) LoyaltyCounter
+                 (AttachHost Enchanted (TypeW Planeswalker)))
+
+||| "Put a +1/+1 counter on target creature card in your graveyard."
+||| [CR#122.1a] counts a +X/+Y counter on a creature card in a zone other
+||| than the battlefield.
+public export
+counterOnGraveyardCard : Effect []
+counterOnGraveyardCard =
+  PutCounters (Lit 1) Macros.plusOnePlusOne
+              (Macros.target (And [Macros.creature,
+                                   InZone (Macros.graveyardOf You)]))
+
+||| Ascend's own reminder text: "you get the city's blessing for the rest
+||| of the game" [CR#702.131a].
+public export
+ascendConferral : Effect []
+ascendConferral = Macros.getsCitysBlessing
+
+||| Saddle's expansion body: "This permanent becomes saddled until end of
+||| turn" [CR#702.171a].
+public export
+saddleConferral : Effect []
+saddleConferral = Macros.becomesSaddled
+
+||| Bioessence Hydra's second line: "Whenever one or more loyalty counters
+||| are put on planeswalkers you control, put that many +1/+1 counters on
+||| this creature." The loyalty counter read as the marker [CR#122.1] it
+||| is, on the plural subject the line names.
+public export
+bioessenceHydraTrigger : Ability
+bioessenceHydraTrigger =
+  Triggered Whenever
+    (CounterEvent CounterPut LoyaltyCounter
+                  (AllOf (And [HasType Planeswalker, ControlledBy You])))
+    (PutCounters ThatMuch Macros.plusOnePlusOne Macros.thisCreature)

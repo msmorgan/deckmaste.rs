@@ -147,16 +147,6 @@ badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
 badRedirectToGroup Oh impossible
 
 
-||| "… it deals that much damage plus 0 instead."
-||| A written zero is not a count, where [CR#107.1b]'s computed one is ordinary.
-public export
-badScaleShiftByZero : Unspellable (StaticEffect []) (\ok =>
-  Scales AnyDamage (Macros.a Macros.source)
-         (Macros.shieldingIt (Macros.a (KindJoin JoinAnyPlayer JoinPermanent)))
-         (Shifted ShiftUp (Lit 0) {wc = ok}) Repeatedly)
-badScaleShiftByZero Oh impossible
-
-
 ||| "… it deals that much damage plus that much instead."
 ||| This row announces no outcome, so the anaphor finds nothing in scope [CR#614.6].
 public export
@@ -223,18 +213,6 @@ badChosenBasicTypeOnCreature : Unspellable (Effect []) (\ok =>
 badChosenBasicTypeOnCreature Oh impossible
 
 
-||| "Target land card in your graveyard becomes the basic land type of your choice until end of turn."
-||| A land type is what a land has on the battlefield [CR#305.6].
-public export
-badChosenBasicTypeInGraveyard : Unspellable (Effect []) (\ok =>
-  Continuously (SetsChosenBasicType
-                  (Macros.target (And [Macros.land,
-                                       InZone (Macros.graveyardOf You)]))
-                  {zn = ok})
-               (Just Macros.untilEndOfTurn))
-badChosenBasicTypeInGraveyard Oh impossible
-
-
 ||| "Creatures are Mountains."
 ||| A subtype-only line carries no card type, and [CR#205.3i] puts Mountain in the land set.
 public export
@@ -254,7 +232,7 @@ badYourChoiceNumber Oh impossible
 
 
 ||| "Creatures you control of the chosen type get +1/+1. / As this enchantment enters, choose a creature type."
-||| A line reads what its predecessors said; [CR#607.2d] links the reader to a choice already made.
+||| [CR#608.2c] carries out the instructions in the order written, so a choice a later line makes has not been made.
 public export
 badReaderBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
@@ -294,7 +272,7 @@ badChosenReadWrongSort Refl impossible
 
 
 ||| "This creature has protection from the chosen color. / As this creature enters, choose a color."
-||| The keyword parameter reads the card's discourse, so it reads nothing a later line chose [CR#702.16a].
+||| [CR#608.2c] runs the lines in the order written, so the parameter reads a colour nobody has chosen yet.
 public export
 badChosenProtectionBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [Angel] [Creature])
@@ -307,7 +285,7 @@ badChosenProtectionBeforeChoice Refl impossible
 
 
 ||| "Creatures you control are the chosen type in addition to their other types. / As this enchantment enters, choose a creature type."
-||| The same demand at the ascribed quality: the ordering rule is the container's [CR#607.2d].
+||| The same refusal at the ascribed quality: [CR#608.2c] has not reached the choosing line yet.
 public export
 badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
@@ -331,7 +309,7 @@ badDoubleExtension Oh impossible
 
 
 ||| "{U}: Counter target spell with the chosen name. / As this enchantment enters, choose a card name."
-||| [CR#607.2d] links the reader to the choice the first ability made, which a later line has not made.
+||| [CR#607.2d] links the reader to the choice the first ability made; [CR#608.2c] has not run the later line.
 public export
 badNameMatchBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
@@ -356,17 +334,6 @@ badNameMatchWrongSort : Unspellable Card (\ok =>
                                            Named (ChosenName {ok = ok})]))) ]
        Nothing)
 badNameMatchWrongSort Refl impossible
-
-
-||| "Creatures you control are the chosen name."
-||| A name is matched and never ascribed: the ascription rows take a quality read, which a match is not.
-public export
-badAscribedName :
-  Unspellable
-    (StaticEffect [MkBinding AD (Quality CardName) OneOf QualityP])
-    (\ok => SetsChosenQuality (AllOf (And [Macros.creature, ControlledBy You]))
-                              (Named ChosenName) {qr = ok})
-badAscribedName Oh impossible
 
 
 ||| "Choose a creature type other than Equipment."
@@ -394,25 +361,6 @@ badCounteredInGraveyard : Unspellable (StaticEffect []) (\ok =>
 badCounteredInGraveyard Oh impossible
 
 
-||| "Creatures can't be played."
-||| A spell is cast and a land is played [CR#305.1,601.1a].
-public export
-badPlayedNonland : Unspellable (StaticEffect []) (\ok =>
-  ObjectCant Played (AllOf Macros.creature) {sub = PlayedIsLand {ld = ok}})
-badPlayedNonland Oh impossible
-
-
-||| an instant printing "Spells you control can't be countered" as a standing line
-||| [CR#113.6g] licenses a standing line about the object itself, not one describing a class.
-public export
-badStaticClassCounterOnInstant : Unspellable Card (\ok =>
-  Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
-       [ Static (ObjectCant Countered
-                   (AllOf (And [Macros.spell, ControlledBy You]))) ]
-       Nothing {tx = ok})
-badStaticClassCounterOnInstant Oh impossible
-
-
 ||| a plain enchantment printing "I — Draw a card."
 ||| [CR#714.1] makes the striated text box with chapter symbols part of the Saga frame.
 public export
@@ -429,14 +377,6 @@ public export
 badEmptyChapterMark : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [] {cm = ok}) Macros.drawACard)
 badEmptyChapterMark Oh impossible
-
-
-||| "III, II — Draw a card."
-||| The comma-joined marker ascends, [CR#107.15b] expanding it into one ability per numeral.
-public export
-badDescendingChapterMark : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterIII, ChapterII] {cm = ok}) Macros.drawACard)
-badDescendingChapterMark Oh impossible
 
 
 ||| "II, II — Draw a card."
@@ -473,15 +413,6 @@ public export
 badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
   Intercepts (ChapterMark [ChapterI]) Macros.drawACard Repeatedly {ok})
 badChapterReplacement Oh impossible
-
-
-||| "You may cast this card from your graveyard as though it had flash."
-||| A permission widens where a card may be cast from or when, never both in one clause.
-public export
-badZonedFlashPermission : Unspellable (StaticEffect []) (\ok =>
-  MayPlay You This {verb = Cast} {from = Just (Macros.graveyardOf You)}
-          {asThough = Just HadFlash} {pz = ok})
-badZonedFlashPermission MkPlaySource impossible
 
 
 ||| "You may cast creatures you control as though they had flash."
@@ -536,23 +467,6 @@ public export
 badAdditionalTurn : Unspellable (Effect []) (\ok =>
   AdditionalPart Turn (Just Combat) (Lit 1) {ad = ok})
 badAdditionalTurn Oh impossible
-
-
-||| "This creature enters with 0 +1/+1 counters on it."
-||| A written zero is not a count; where none is possible the line writes a variable instead.
-public export
-badEntersZeroCounters : Unspellable (StaticEffect []) (\ok =>
-  EntersWithCounters Macros.thisCreature (Lit 0) Macros.plusOnePlusOne {wc = ok})
-badEntersZeroCounters Oh impossible
-
-
-||| "A creature in your graveyard enters with an additional +1/+1 counter on it."
-||| [CR#614.1c] replaces an event ending on the battlefield, so the subject is described there.
-public export
-badEntersCountersInGraveyard : Unspellable (StaticEffect []) (\ok =>
-  EntersWithCounters (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
-                     (Lit 1) Macros.plusOnePlusOne {mark = Additional} {zn = ok})
-badEntersCountersInGraveyard Oh impossible
 
 
 ||| "Spells with the chosen name can't be activated."
@@ -629,37 +543,6 @@ badRegeneratedInGraveyard : Unspellable (StaticEffect []) (\ok =>
 badRegeneratedInGraveyard (RegeneratedOnField {zn = Oh}) impossible
 
 
-||| "Destroy target creature. Target creature can't be regenerated."
-||| A rider modifies the instruction it follows, so its subject reads back what that instruction named.
-public export
-badRiderAnnouncesTarget : Unspellable (Effect []) (\ok =>
-  CantBe (Macros.destroy (Macros.target Macros.creature)) Regenerated
-         (Macros.target Macros.creature) {bl = ok})
-badRiderAnnouncesTarget Refl impossible
-
-
-||| "Destroy target creature. It can't be cast."
-||| No preceding clause can have caused the event these prohibitions deny, so they never ride an instruction.
-public export
-badCastRider : Unspellable (Effect []) (\ok =>
-  CantBe (Macros.destroy (Macros.target Macros.creature)) Cast It {rd = ok})
-badCastRider Oh impossible
-
-
-||| "{T}: Add {R}{G} or one mana of the chosen color."
-||| This reader takes a single symbol beside the chosen colour, not a multi-symbol run.
-public export
-badMultiSymbolBesideChosen : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Land])
-       [ Static (EntersChoice Macros.thisLand Color)
-       , Activated TapSymbol
-           (AddMana You (Lit 1)
-                    (OfChosenColor (Just [OfColor Red, OfColor Green])
-                                   {ar = ok}) []) ]
-       Nothing)
-badMultiSymbolBesideChosen Oh impossible
-
-
 ||| "{T}: Add one mana of the chosen color." (on a card that chooses nothing)
 ||| The production reads a binding, and a card that made no choice has none to read [CR#607.2d].
 public export
@@ -680,7 +563,7 @@ badLastChosenColorNoChooser ChoiceMade impossible
 
 
 ||| "Prevent all damage that would be dealt to you by sources of the last chosen color. / As this enchantment enters, choose a color."
-||| A line reads what its predecessors said and nothing that comes later [CR#607.2d].
+||| [CR#608.2c] follows the instructions in the order written, so the last chosen colour is not yet chosen.
 public export
 badLastChosenBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])

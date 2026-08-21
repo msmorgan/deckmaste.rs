@@ -120,14 +120,6 @@ badCounterPermanent : Unspellable (Effect []) (\ok =>
 badCounterPermanent OnTheStack impossible
 
 
-||| "Counter target spell: Draw a card."
-||| Cancelling another's spell is no payment: an activation cost is what the activator pays [CR#602.1a].
-public export
-badCounterAsCost : Unspellable Ability (\ok =>
-  Activated (Do (Macros.counterSpell (Macros.target Macros.spell)) {ok}) Macros.drawACard)
-badCounterAsCost Oh impossible
-
-
 ||| "You may play a spell this turn." of an object on the stack
 ||| [CR#112.1] makes an object on the stack a spell, and a spell has already been cast.
 public export
@@ -172,15 +164,6 @@ badInstantOntoBattlefield : Unspellable (Effect []) (\ok =>
 badInstantOntoBattlefield Oh impossible
 
 
-||| "Put a creature card from your graveyard onto the battlefield: Draw a card."
-||| [CR#601.2h] pays the cost to activate; a battlefield placement is what the ability buys.
-public export
-badMoveOntoBattlefieldAsCost : Unspellable Ability (\ok =>
-  Activated (Do (Macros.putOntoBattlefield (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)]))) {ok})
-            Macros.drawACard)
-badMoveOntoBattlefieldAsCost Oh impossible
-
-
 ||| "unless" written over a positive condition
 ||| "Unless" is the negation, so a positive condition under the word negates twice.
 public export
@@ -189,23 +172,6 @@ badUnlessOnPositive : Unspellable Ability (\ok =>
                         (Deontic Macros.thisCreature Forbid Attack Agent NoDeonticPatient)
                         {marking = Unless} {mk = ok}))
 badUnlessOnPositive MkMarkingOk impossible
-
-
-||| "Destroy target creature. Exile the destroyed card."
-||| The destroy row writes the deictic only, "destroyed this way".
-public export
-badDestroyedAttributive : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.destroy (Macros.target Macros.creature),
-                Macros.exile (TheVerbed Destroy CardW {marking = Attributive} {mk = ok})])
-badDestroyedAttributive Oh impossible
-
-
-||| a trigger header watching a permanent flip
-||| The flip category has an effect frame and no event frame [CR#710.1a].
-public export
-badFlipEvent : Unspellable Ability (\ok =>
-  Triggered Whenever (StatusEvent (Macros.a Permanent) Flipped {at = ok}) Macros.drawACard)
-badFlipEvent Oh impossible
 
 
 ||| a trigger header watching a permanent become unflipped
@@ -271,7 +237,7 @@ badExileTapped (Oh ** _) impossible
 
 
 ||| "Turn target creature card in your graveyard face down."
-||| The face verb takes a permanent [CR#708.7], which a graveyard phrase contradicts.
+||| [CR#110.5d]: only permanents have status, so a graveyard card is neither face up nor face down.
 public export
 badTurnFaceDownGraveyard : Unspellable (Effect []) (\ok =>
   SetStatus FaceDown (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok = ok})
@@ -284,14 +250,6 @@ public export
 badPhasesOutInHand : Unspellable (Effect []) (\ok =>
   SetStatus PhasedOut (Macros.target (And [Macros.creature, InZone (Macros.handOf You)])) {ok = ok})
 badPhasesOutInHand OnField impossible
-
-
-||| "Whenever a permanent is turned face down, draw a card."
-||| The turning is rules-legal [CR#708.2a], but this table has no trigger-header row over it.
-public export
-badTurnedFaceDownEvent : Unspellable Ability (\ok =>
-  Triggered Whenever (StatusEvent (Macros.a Permanent) FaceDown {at = ok}) Macros.drawACard)
-badTurnedFaceDownEvent Oh impossible
 
 
 ||| "Remove target creature card in your graveyard from combat."
@@ -310,15 +268,6 @@ badBlockingGraveyardRelatum : Unspellable (Noun [] Object) (\ok =>
                       BlockerOf (Macros.target (And [Macros.creature,
                                                      InZone (Macros.graveyardOf You)])) {zn = ok}]))
 badBlockingGraveyardRelatum Oh impossible
-
-
-||| "Whenever a creature blocks this, draw a card."
-||| A bare self offers no evidence of the battlefield [CR#109.2], so the partner is type-ascribed.
-public export
-badBlocksBareThisPartner : Unspellable Ability (\ok =>
-  Triggered Whenever (Blocks (Macros.a Macros.creature) (Just This)
-                             {bp = OnePartner {ss = ok}}) Macros.drawACard)
-badBlocksBareThisPartner Oh impossible
 
 
 ||| "Players can't untap more than one creature card in your graveyard during their untap steps."
@@ -400,16 +349,6 @@ badLookbackObjectCast : Unspellable Ability (\ok =>
 badLookbackObjectCast MkLookbackSubject impossible
 
 
-||| "When this creature enters, if an upkeep began this turn, draw a card."
-||| A turn-part beginning takes a trigger header [CR#603.2b] and is not read as history.
-public export
-badLookbackPartBeginning : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature) Macros.drawACard
-            {intervening = Just (Happened PartBeginning (Macros.a Macros.creature)
-                                          Lookback.ThisTurn {sb = ok})})
-badLookbackPartBeginning MkLookbackSubject impossible
-
-
 ||| "target creature who cast a spell this turn"
 ||| The head noun is the history read's subject, and casting is a player's event [CR#601.2].
 public export
@@ -459,15 +398,6 @@ badMustAttackLand : Unspellable (Effect []) (\ok =>
   Continuously (Deontic (Macros.target Macros.land) Require Attack Agent NoDeonticPatient {dp = ok})
                (Just Macros.thisTurn))
 badMustAttackLand Participant impossible
-
-
-||| "At the beginning of your end step, if it's day, draw a card."
-||| The designation check writes only "it's night", where the transition writes both directions [CR#731.1].
-public export
-badItIsDay : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf EndStep (ByWord Yours)) Macros.drawACard
-            {intervening = Just (GameIs Day {at = ok})})
-badItIsDay Oh impossible
 
 
 ||| "target creature card in your graveyard that is your Ring-bearer"
@@ -533,14 +463,6 @@ badTargetedOutcomeGate : Unspellable Ability (\ok =>
 badTargetedOutcomeGate Oh impossible
 
 
-||| "You lose the game: Draw a card."
-||| [CR#104.3e] has an effect state that a player loses; the outcome is never a cost.
-public export
-badConcludesAsCost : Unspellable Ability (\ok =>
-  Activated (Do (Concludes LoseGame You) {ok = ok}) Macros.drawACard)
-badConcludesAsCost Oh impossible
-
-
 ||| "This creature deals 2 damage to your opponents."
 ||| One magnitude and one recipient phrase, and a bare plural says neither each member's nor the group's.
 public export
@@ -565,23 +487,6 @@ badDistributiveLifeTotalRead : Unspellable (Amount []) (\ok =>
 badDistributiveLifeTotalRead Refl impossible
 
 
-||| "with power less than or equal to twice this creature's power"
-||| A comparison's standard is something already there to point at, not an amount a clause computes.
-public export
-badScaledBound : Unspellable (Predicate [] Object) (\ok =>
-  Compare Power AtMost (Times 2 (Macros.powerOf This)) {cb = ok})
-badScaledBound Oh impossible
-
-
-||| "if your life total is less than or equal to twice an opponent's life total"
-||| The same refusal at the condition frame, which reads the one bound table.
-public export
-badScaledConditionBound : Unspellable (Condition []) (\ok =>
-  CompareAmt (PlayerStatOf LifeTotal You) AtMost
-             (Times 2 (PlayerStatOf LifeTotal Macros.anOpponent)) {cb = ok})
-badScaledConditionBound Oh impossible
-
-
 ||| "Draw cards equal to the difference."
 ||| The margin is read off a comparison, and a sentence that made none has no difference to name.
 public export
@@ -600,33 +505,12 @@ badNonComparisonDifference : Unspellable Ability (\ok =>
 badNonComparisonDifference Refl impossible
 
 
-||| "At the beginning of your upkeep, if you have fewer than seven cards in hand, draw a card if the difference is 3 or greater."
-||| The margin is a magnitude a clause reads, never a state a clause measures.
-public export
-badDifferenceSubject : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep (ByWord Yours))
-            (If Macros.drawACard
-                (CompareAmt (TheDifference {ok = Refl}) AtLeast (Lit 3) {rd = ok})
-                Nothing)
-            {intervening = Just (CompareAmt (CountOf (InZone (Macros.handOf You)))
-                                            Less (Lit 7))})
-badDifferenceSubject Oh impossible
-
-
 ||| "Draw X cards."
 ||| The letter is a name the sentence introduced [CR#107.3c]; this one defined none.
 public export
 badUnlicensedX : Unspellable (Effect []) (\ok =>
   Draw You (DefinedLetter LetterX {ok}))
 badUnlicensedX Refl impossible
-
-
-||| "Draw X cards, where X is 4."
-||| A rider is for a value that must be worked out; a written value is written as the numeral.
-public export
-badWrittenXDef : Unspellable (Effect []) (\ok =>
-  WhereLetter LetterX (Lit 4) {xd = ok} (Draw You (DefinedLetter LetterX {ok = Refl})))
-badWrittenXDef Oh impossible
 
 
 ||| "Draw X cards, where X is the number of creatures you control, where X is the number of creatures on the battlefield."
@@ -637,15 +521,6 @@ badDoubleXRider : Unspellable (Effect []) (\ok =>
               (WhereLetter LetterX (CountOf Macros.creature)
                            (Draw You (DefinedLetter LetterX {ok}))))
 badDoubleXRider Refl impossible
-
-
-||| "Target creature gets +0/-2 until end of turn."
-||| A written zero is signless, so the slot takes its partner's sign [CR#613.4c].
-public export
-badDisagreeingZeroPump : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 0)) (PtDown (Lit 2))
-       (Just Macros.untilEndOfTurn) {ps = ok})
-badDisagreeingZeroPump Oh impossible
 
 
 ||| "Draw Y cards, where X is the number of creatures you control."
@@ -705,16 +580,8 @@ badCostSubjectOnBattlefield : Unspellable (StaticEffect []) (\ok =>
 badCostSubjectOnBattlefield MkCostSubject impossible
 
 
-||| "This spell costs {0} less to cast."
-||| "{0}" is the payment of nothing [CR#118.5], and a reduction of it moves no cost.
-public export
-badZeroCostShift : Unspellable (StaticEffect []) (\ok =>
-  CostsToCast This (CostLess (Lit 0)) {wc = ok})
-badZeroCostShift Oh impossible
-
-
 ||| "a creature card you cast in your graveyard"
-||| The cast relation puts its referent on the stack [CR#601.2a,112.1]; the origin zone is another qualifier.
+||| HELD: [CR#601.2a] puts the cast card on the stack, so whether `CastBy` seeds Stack at all is a zone-model question, not a widening.
 public export
 badCastInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, CastBy You, InZone Macros.graveyardZ] {zc = ok})

@@ -38,15 +38,6 @@ badDestroyUnionAnaphor : Unspellable (Effect []) (\ok =>
 badDestroyUnionAnaphor (OnField, _) impossible
 
 
-||| "each creature card in your graveyard with a +1/+1 counter on it"
-||| Counters cease to exist when their object changes zones [CR#122.2], so a counter row admits no graveyard.
-public export
-badCounterDescriptionInGraveyard : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, InZone (Macros.graveyardOf You),
-       HasCounters (Just Macros.plusOnePlusOne)] {zc = ok})
-badCounterDescriptionInGraveyard Oh impossible
-
-
 ||| "each creature with a poison counter on it"
 ||| [CR#122.1] places a counter on an object or a player, and poison is a player's kind.
 public export
@@ -143,7 +134,7 @@ badPlayerCastComplement MkLookbackComplement impossible
 
 
 ||| "Counter target spell cast from the battlefield."
-||| [CR#601.2a] moves a card from where it is to the stack, and a permanent got there by being cast.
+||| HELD: [CR#601.2a] moves the card "from where it is" and names no excluded zone, so this row is left for the zone round.
 public export
 badCastFromBattlefield : Unspellable (Predicate [] Object) (\ok =>
   CastFrom Macros.battlefieldZ {pf = ok})
@@ -156,39 +147,6 @@ public export
 badCastFromStack : Unspellable (Predicate [] Object) (\ok =>
   CastFrom Macros.stackZ {pf = ok})
 badCastFromStack Oh impossible
-
-
-||| "Counter target spell cast from the top of your library."
-||| The origin names a whole zone, never a position inside one.
-public export
-badCastFromLibraryTop : Unspellable (Predicate [] Object) (\ok =>
-  CastFrom (LibraryAt (OneEnd OnTop) Nothing (OwnedBy You)) {wz = ok})
-badCastFromLibraryTop Oh impossible
-
-
-||| "Put target creature into its owner's library second from the bottom."
-||| [CR#401.7] states the construction as "Nth from the top".
-public export
-badBottomOrdinal : Unspellable (ZoneExpr []) (\ok =>
-  LibraryAt (OneEnd OnBottom) Nothing {off = Just Second} {ofit = ok} Bare)
-badBottomOrdinal Oh impossible
-
-
-||| "Put those cards into their owner's library third from the top in any order."
-||| One place holds one card [CR#401.7], so there is no order to state [CR#401.4].
-public export
-badOrdinalOrderRider : Unspellable (ZoneExpr []) (\ok =>
-  LibraryAt (OneEnd OnTop) (Just AnyOrder) {off = Just Third} {ofit = ok} Bare)
-badOrdinalOrderRider Oh impossible
-
-
-||| "Put two target creatures into their owners' libraries third from the top."
-||| The same fact asked of the patient: [CR#401.7]'s ordinal wants one card.
-public export
-badPluralOrdinalPlacement : Unspellable (Effect []) (\ok =>
-  Move (TargetGroup (Macros.exactly 2) Macros.creature)
-       (Macros.nthFromTop Third) {arr = ok})
-badPluralOrdinalPlacement Oh impossible
 
 
 ||| "If you control an artifact, create a token."
@@ -261,34 +219,6 @@ public export
 badSingletonForEach : Unspellable (Effect []) (\ok =>
   ForEachOf (Macros.target Macros.creature) (Draw You (Lit 1)) {pl = ok})
 badSingletonForEach Refl impossible
-
-
-||| "For each of them, for each creature, draw a card."
-||| The binder refuses a second binding in its own body, though the body may be a sequence.
-public export
-badNestedForEach : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup Macros.anyNumber Macros.creatureYouControl),
-                ForEachOf Them (ForEachOf (Each Macros.creature) (Draw You (Lit 1)))
-                          {nf = ok}])
-badNestedForEach Oh impossible
-
-
-||| "Draw a card. Repeat this process a number of times equal to the number of creatures you control."
-||| A repetition's count is written, never computed off the board.
-public export
-badCountedRepeat : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.drawACard,
-                Repeat (MoreTimes (Macros.forEach Macros.creatureYouControl)
-                                  {rc = ok})])
-badCountedRepeat Oh impossible
-
-
-||| "Draw a card. Repeat this process zero more times."
-||| A repetition spelled zero times is no instruction [CR#107.1b].
-public export
-badZeroRepeat : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.drawACard, Repeat (MoreTimes (Lit 0) {rc = ok})])
-badZeroRepeat Oh impossible
 
 
 ||| "of the chosen colour or outcome"
@@ -367,35 +297,6 @@ public export
 badDisjunctionOrdered : Unspellable (ZoneExpr []) (\ok =>
   LibraryAt (EitherEnd Nothing) (Just AnyOrder) {af = ok} Bare)
 badDisjunctionOrdered Oh impossible
-
-
-||| "Target player puts that card into exile."
-||| The exile tag owns that destination; no line writes a placement into it.
-public export
-badPutIntoExile : Unspellable (Effect []) (\ok =>
-  Does (Macros.target AnyPlayer) Put
-       (Move (Macros.target Macros.creature) Macros.exileZ)
-       {tb = PutB {pz = ok}})
-badPutIntoExile Oh impossible
-
-
-||| "This creature becomes monstrous."
-||| Monstrous is conferred only inside monstrosity's expansion body
-||| [CR#701.37a]; no card writes the bare instruction.
-public export
-badMonstrousInstruction : Unspellable (Effect []) (\ok =>
-  GainsDesignation Macros.thisCreature Monstrous (Instructed {at = ok}))
-badMonstrousInstruction Oh impossible
-
-
-||| "You get the city's blessing."
-||| Ascend's own expansion is the only conferral [CR#702.131a]; the
-||| player-held cell refuses the bare instruction as the object-held one
-||| does.
-public export
-badBlessingInstruction : Unspellable (Effect []) (\ok =>
-  GainsDesignation You CitysBlessing (Instructed {at = ok}))
-badBlessingInstruction Oh impossible
 
 
 ||| "if there is no monstrous creature"

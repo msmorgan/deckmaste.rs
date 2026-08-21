@@ -31,7 +31,7 @@ data FightParticipant : Maybe CardType -> Type where
   Fighter : {auto 0 ok : So (combatant t)} -> FightParticipant (Just t)
 
 public export
-data Characteristic = Power | Toughness | ManaValue
+data Characteristic = Power | Toughness | ManaValue | Loyalty
 
 public export
 Eq Characteristic where
@@ -41,6 +41,8 @@ Eq Characteristic where
   (==) Toughness _ = False
   (==) ManaValue ManaValue = True
   (==) ManaValue _ = False
+  (==) Loyalty Loyalty = True
+  (==) Loyalty _ = False
 
 public export
 data PlayerStat = LifeTotal | StartingLifeTotal
@@ -73,6 +75,8 @@ comparedType : Characteristic -> Maybe CardType
 comparedType Power = Just Creature
 comparedType Toughness = Just Creature
 comparedType ManaValue = Nothing
+-- [CR#306.5]: loyalty is a characteristic only planeswalkers have.
+comparedType Loyalty = Just Planeswalker
 
 public export
 data QualitySort = Color | CreatureType | CardName | Number
@@ -705,11 +709,13 @@ data NonZeroQ : Quantity -> Type where
   MaxAtLeastOne : NonZeroQ (Range lo (Just (S n)))
 
 public export
+||| A range whose floor is above its ceiling picks out nothing;
+||| [CR#107.1c] otherwise leaves the vocabulary open, and a written zero
+||| floor is a second spelling of "any number of".
 quantWellFormed : Quantity -> Bool
 quantWellFormed (Range Nothing _) = True
-quantWellFormed (Range (Just Z) _) = False
-quantWellFormed (Range (Just (S n)) Nothing) = True
-quantWellFormed (Range (Just (S n)) (Just hi)) = lte (S n) hi
+quantWellFormed (Range (Just _) Nothing) = True
+quantWellFormed (Range (Just lo) (Just hi)) = lte lo hi
 
 public export
 WellFormedQ : Quantity -> Type
@@ -722,32 +728,20 @@ quantPlur (Range _ (Just (S Z))) = OneOf
 quantPlur (Range _ _) = ManyOf
 
 public export
+||| [CR#700.2]: a mode is chosen from the list printed on the card, so a
+||| headcount reaching past the list names modes that are not there.
 modesFit : Quantity -> Nat -> Bool
 modesFit (Range Nothing Nothing) n = True
 modesFit (Range Nothing (Just hi)) n = lte hi n
 modesFit (Range (Just lo) Nothing) n = lte lo n
--- [CR#700.2]: a modal spell offers a choice among its modes, so a
--- headcount that fixes the whole list instructs nothing.
-modesFit (Range (Just lo) (Just hi)) n = lte hi n && not (lo == hi && hi == n)
+modesFit (Range (Just lo) (Just hi)) n = lte hi n
 
 public export
 ModesFit : Quantity -> Nat -> Type
 ModesFit q n = So (modesFit q n)
 
-public export
-modalHead : Quantity -> Nat -> Bool
-modalHead (Range Nothing Nothing) n = True
-modalHead (Range Nothing (Just (S Z))) n = True
-modalHead (Range Nothing (Just _)) n = False
-modalHead (Range (Just (S Z)) Nothing) n = True
-modalHead (Range (Just _) Nothing) n = False
-modalHead (Range (Just lo) (Just hi)) n =
-  (lo == hi && lte lo 3) || (lo == 1 && hi == n)
-
-public export
-ModalHead : Quantity -> Nat -> Type
-ModalHead q n = So (modalHead q n)
-
+||| [CR#700.2]: a spell or ability is modal only if it has two or more
+||| instructions to choose among, so a one-mode list offers no choice.
 public export
 data AtLeastTwo : Nat -> Type where
   TwoUp : AtLeastTwo (S (S n))
@@ -782,34 +776,7 @@ public export
 data Arrangement = AnyOrder | RandomOrder
 
 public export
-arrangementFits : LibPos -> Maybe Arrangement -> Bool
-arrangementFits _ Nothing = True
-arrangementFits _ (Just AnyOrder) = True
-arrangementFits OnBottom (Just RandomOrder) = True
--- [CR#401.4] already grants the owner any-order arrangement, so "in a
--- random order" only means something where the order is hidden; a
--- library's top is the next draw, not hidden.
-arrangementFits OnTop (Just RandomOrder) = False
-
-public export
-ArrangementFits : LibPos -> Maybe Arrangement -> Type
-ArrangementFits p o = So (arrangementFits p o)
-
-public export
 data LibOrdinal = Second | Third | Fourth | Fifth | Seventh
-
--- [CR#401.7] states the ordinal-position construction naming only the
--- top of a library, with the bottom as fallback when it is too short.
-public export
-ordinalFits : LibPos -> Maybe Arrangement -> Maybe LibOrdinal -> Bool
-ordinalFits _ _ Nothing = True
-ordinalFits OnTop Nothing (Just _) = True
-ordinalFits OnTop (Just _) (Just _) = False
-ordinalFits OnBottom _ (Just _) = False
-
-public export
-OrdinalFits : LibPos -> Maybe Arrangement -> Maybe LibOrdinal -> Type
-OrdinalFits p o n = So (ordinalFits p o n)
 
 namespace Verb
   public export
@@ -826,6 +793,19 @@ verbAgentive Mill = True
 verbAgentive Scry = True
 verbAgentive Surveil = True
 verbAgentive Put = True
+
+||| [CR#400.7]: which verbs move their patient to another zone, so the
+||| object the next clause reads is a new one.
+public export
+verbMoves : VerbName -> Bool
+verbMoves Destroy = True
+verbMoves Sacrifice = True
+verbMoves Exile = True
+verbMoves Discard = True
+verbMoves Mill = True
+verbMoves Surveil = True
+verbMoves Put = True
+verbMoves Scry = False
 
 public export
 Eq VerbName where
@@ -1108,7 +1088,7 @@ exposableZone Hand = True
 exposableZone Battlefield = False
 exposableZone Graveyard = False
 exposableZone Exile = False
-exposableZone Library = False
+exposableZone Library = True
 exposableZone Stack = False
 
 public export
@@ -1133,35 +1113,6 @@ VisibilityOk : ExposeVerb -> VisibleThing -> Type
 VisibilityOk v w = So (visibilityOk v w)
 
 public export
-searchableZone : Zone -> Bool
-searchableZone Library = True
-searchableZone Graveyard = True
-searchableZone Hand = True
-searchableZone Battlefield = False
-searchableZone Exile = False
-searchableZone Stack = False
-
-public export
-SearchableZone : Zone -> Type
-SearchableZone z = So (searchableZone z)
-
-||| Where the agentive placement clause lands a card. No line writes a
-||| placement into exile — the exile tag owns that destination — and the
-||| stack is never written as one.
-public export
-putAgentiveZoneOk : Zone -> Bool
-putAgentiveZoneOk Library = True
-putAgentiveZoneOk Hand = True
-putAgentiveZoneOk Battlefield = True
-putAgentiveZoneOk Graveyard = True
-putAgentiveZoneOk Exile = False
-putAgentiveZoneOk Stack = False
-
-public export
-PutAgentiveZone : Zone -> Type
-PutAgentiveZone z = So (putAgentiveZoneOk z)
-
-public export
 pubB : Binding -> Bool
 pubB (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = publicZone z
 pubB (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
@@ -1179,6 +1130,28 @@ publicOnly : Bindings -> Bindings
 publicOnly [] = []
 publicOnly (b :: bs) = if pubB b then b :: publicOnly bs else publicOnly bs
 
+
+||| [CR#122.2]: counters on an object cease to exist when it moves from
+||| one zone to another, so a clause that reads counters off a referent an
+||| earlier clause moved names none [CR#400.7].
+public export
+stampMoves : Maybe Stamp -> Bool
+stampMoves Nothing = False
+stampMoves (Just (MkStamp v _)) = verbMoves v
+
+public export
+provOfIt : Bindings -> Maybe Stamp
+provOfIt [] = Nothing
+provOfIt (MkBinding det Object OneOf (ObjectP _ _ pv _) :: bs) = pv
+provOfIt (MkBinding det Object OneOf UnionP :: bs) = Nothing
+provOfIt (b :: bs) = provOfIt bs
+
+public export
+provOfThem : Bindings -> Maybe Stamp
+provOfThem [] = Nothing
+provOfThem (MkBinding det Object ManyOf (ObjectP _ _ pv _) :: bs) = pv
+provOfThem (MkBinding det Object ManyOf UnionP :: bs) = Nothing
+provOfThem (b :: bs) = provOfThem bs
 
 public export
 zoneOfIt : Bindings -> Maybe Zone
@@ -1203,7 +1176,7 @@ data VerbedMarking = Attributive | ThisWay
 
 public export
 verbedMarkingOk : VerbName -> VerbedMarking -> Bool
-verbedMarkingOk Destroy Attributive = False
+verbedMarkingOk Destroy Attributive = True
 verbedMarkingOk Destroy ThisWay = True
 verbedMarkingOk Sacrifice Attributive = True
 verbedMarkingOk Sacrifice ThisWay = True
@@ -1449,6 +1422,17 @@ countWord w (b :: bs) =
     (OneOf, True) => S (countWord w bs)
     _ => countWord w bs
 
+||| "those tokens" names the characteristics definition a create clause
+||| wrote [CR#111.3], not the objects; [CR#111.7] ends the objects when
+||| they leave the battlefield and leaves that definition standing.
+public export
+countTokenSpecs : Bindings -> Nat
+countTokenSpecs [] = Z
+countTokenSpecs (MkBinding SelfD _ _ _ :: bs) = countTokenSpecs bs
+countTokenSpecs (MkBinding _ _ ManyOf (ObjectP _ _ _ og) :: bs) =
+  if isTokenOrigin og then S (countTokenSpecs bs) else countTokenSpecs bs
+countTokenSpecs (_ :: bs) = countTokenSpecs bs
+
 public export
 countManyWord : NounWord -> Bindings -> Nat
 countManyWord w [] = Z
@@ -1601,20 +1585,6 @@ data OnStack : Maybe Zone -> Type where
   OnTheStack : OnStack (Just Stack)
 
 public export
-counterZone : Maybe Zone -> Bool
-counterZone Nothing = False
-counterZone (Just Battlefield) = True
-counterZone (Just Graveyard) = False
-counterZone (Just Exile) = True
-counterZone (Just Hand) = False
-counterZone (Just Library) = False
-counterZone (Just Stack) = False
-
-public export
-CounterHolder : Maybe Zone -> Type
-CounterHolder z = So (counterZone z)
-
-public export
 zoneFits : Maybe Zone -> Maybe Zone -> Bool
 zoneFits Nothing _ = True
 zoneFits (Just _) Nothing = True
@@ -1629,10 +1599,14 @@ data Targetable : Kind -> Type where
   ObjectTgt : Targetable Object
   PlayerTgt : Targetable Player
 
+||| [CR#120.1a]: damage can be dealt to a battle, a creature or a
+||| planeswalker and to nothing else. [CR#115.4] names the same three
+||| object types beside players.
 public export
 data DamageableTy : Maybe CardType -> Type where
   DamCreature : DamageableTy (Just Creature)
   DamPlaneswalker : DamageableTy (Just Planeswalker)
+  DamBattle : DamageableTy (Just Battle)
 
 public export
 data Phrasal : Kind -> Type where
@@ -1705,10 +1679,6 @@ Eq KeywordParamShape where
 public export
 keywordParamless : Keyword -> Bool
 keywordParamless k = keywordParamShape k == NoParam
-
-public export
-KeywordParamless : Keyword -> Type
-KeywordParamless k = So (keywordParamless k)
 
 public export
 Eq Keyword where
@@ -1861,8 +1831,7 @@ ProducedRuns rs = So (producedRunsWritten rs)
 public export
 altRunWritten : Maybe ProducedRun -> Bool
 altRunWritten Nothing = True
-altRunWritten (Just [_]) = True
-altRunWritten (Just _) = False
+altRunWritten (Just _) = True
 
 public export
 AltRunWritten : Maybe ProducedRun -> Type
@@ -1872,13 +1841,9 @@ public export
 data ColorFreedom = SameColor | EachColor
 
 public export
-LoyaltyStep : Nat -> Type
-LoyaltyStep n = IsSucc n
-
-public export
 data LoyaltyCost : Type where
-  LoyaltyUp : (n : Nat) -> {auto 0 nz : LoyaltyStep n} -> LoyaltyCost
-  LoyaltyDown : (n : Nat) -> {auto 0 nz : LoyaltyStep n} -> LoyaltyCost
+  LoyaltyUp : (n : Nat) -> LoyaltyCost
+  LoyaltyDown : (n : Nat) -> LoyaltyCost
   LoyaltyDownX : LoyaltyCost
   LoyaltyZero : LoyaltyCost
 
@@ -2240,8 +2205,10 @@ data BasicLandTypes : List Subtype -> Type where
                    BasicLandType s -> BasicLandTypes ss ->
                    BasicLandTypes (s :: ss)
 
--- [CR#109.2]: a bare type word with no zone reads onto the battlefield,
--- so only a word naming a permanent type can be self-ascribed this way.
+-- [CR#109.2] admits a description that includes "a card type or
+-- subtype", and reads a bare one onto the battlefield, so any permanent
+-- type [CR#110.4] is a word a card may name itself by; a subtype rides
+-- its own parent type through `ascriptionOk`.
 public export
 ascribesAsType : CardType -> Bool
 ascribesAsType Creature = True
@@ -2249,7 +2216,7 @@ ascribesAsType Artifact = True
 ascribesAsType Land = True
 ascribesAsType Enchantment = True
 ascribesAsType Planeswalker = True
-ascribesAsType Battle = False
+ascribesAsType Battle = True
 -- [CR#308.1]: a kindred card always has another card type, so it is
 -- never the word such a card names itself by.
 ascribesAsType Kindred = False
@@ -2257,103 +2224,9 @@ ascribesAsType Instant = False
 ascribesAsType Sorcery = False
 
 public export
-ascribesAsSubtype : Subtype -> Bool
-ascribesAsSubtype Aura = True
-ascribesAsSubtype Equipment = True
-ascribesAsSubtype Curse = False
-ascribesAsSubtype Tiefling = False
-ascribesAsSubtype Warlock = False
-ascribesAsSubtype Pirate = False
-ascribesAsSubtype Cat = False
-ascribesAsSubtype Beast = False
-ascribesAsSubtype Dwarf = False
-ascribesAsSubtype Bard = False
-ascribesAsSubtype Hero = False
-ascribesAsSubtype Elf = False
-ascribesAsSubtype Scout = False
-ascribesAsSubtype Rogue = False
-ascribesAsSubtype Druid = False
-ascribesAsSubtype Alien = False
-ascribesAsSubtype Warrior = False
-ascribesAsSubtype Vampire = False
-ascribesAsSubtype AssemblyWorker = False
-ascribesAsSubtype Ooze = False
-ascribesAsSubtype Frog = False
-ascribesAsSubtype Horse = False
-ascribesAsSubtype Bird = False
-ascribesAsSubtype Ally = False
-ascribesAsSubtype Gideon = False
-ascribesAsSubtype Mutant = False
-ascribesAsSubtype Arcane = False
-ascribesAsSubtype Zombie = False
-ascribesAsSubtype Army = False
-ascribesAsSubtype Soldier = False
-ascribesAsSubtype Thopter = False
-ascribesAsSubtype Construct = False
-ascribesAsSubtype Fractal = False
-ascribesAsSubtype Coward = False
-ascribesAsSubtype Demon = False
-ascribesAsSubtype Illusion = False
-ascribesAsSubtype Sliver = False
-ascribesAsSubtype Wall = False
-ascribesAsSubtype Cleric = False
-ascribesAsSubtype Angel = False
-ascribesAsSubtype Elemental = False
-ascribesAsSubtype Plant = False
-ascribesAsSubtype Dragon = False
-ascribesAsSubtype Plains = False
-ascribesAsSubtype Island = False
-ascribesAsSubtype Swamp = False
-ascribesAsSubtype Mountain = False
-ascribesAsSubtype Forest = False
-ascribesAsSubtype Goblin = False
-ascribesAsSubtype Avatar = False
-ascribesAsSubtype Insect = False
-ascribesAsSubtype Elder = False
-ascribesAsSubtype Dinosaur = False
-ascribesAsSubtype Horror = False
-ascribesAsSubtype Gargoyle = False
-ascribesAsSubtype Assassin = False
-ascribesAsSubtype Skeleton = False
-ascribesAsSubtype Town = False
-ascribesAsSubtype Desert = False
-ascribesAsSubtype Pegasus = False
-ascribesAsSubtype Faerie = False
-ascribesAsSubtype Kraken = False
-ascribesAsSubtype Sphinx = False
-ascribesAsSubtype Werewolf = False
-ascribesAsSubtype Eldrazi = False
-ascribesAsSubtype Goat = False
-ascribesAsSubtype Spirit = False
-ascribesAsSubtype Shapeshifter = False
-ascribesAsSubtype Centaur = False
-ascribesAsSubtype Monk = False
-ascribesAsSubtype Nymph = False
-ascribesAsSubtype Dryad = False
-ascribesAsSubtype Nightmare = False
-ascribesAsSubtype Fish = False
-ascribesAsSubtype Saga = True
-ascribesAsSubtype Human = False
-ascribesAsSubtype Advisor = False
-ascribesAsSubtype Wizard = False
-ascribesAsSubtype Merfolk = False
-ascribesAsSubtype Shaman = False
-ascribesAsSubtype Vedalken = False
-ascribesAsSubtype Artificer = False
-ascribesAsSubtype Knight = False
-ascribesAsSubtype Myr = False
-ascribesAsSubtype Elk = False
-ascribesAsSubtype Treefolk = False
-ascribesAsSubtype Siege = True
-ascribesAsSubtype Imp = False
-ascribesAsSubtype Saheeli = False
-ascribesAsSubtype Jace = False
-ascribesAsSubtype Elspeth = False
-
-public export
 ascriptionOk : CardType -> Maybe Subtype -> Bool
 ascriptionOk t Nothing = ascribesAsType t
-ascriptionOk t (Just s) = ascribesAsSubtype s && subtypeType s == t
+ascriptionOk t (Just s) = ascribesAsType t && subtypeType s == t
 
 namespace Counter
   public export
@@ -2368,6 +2241,10 @@ namespace Counter
     (==) (Down a) (Down b) = a == b
     (==) (Down _) _ = False
 
+||| [CR#122.1b] closes the keyword-counter list by enumeration — flying,
+||| first strike, double strike, deathtouch, decayed, exalted, haste,
+||| hexproof, indestructible, lifelink, menace, reach, shadow, trample and
+||| vigilance, and variants of those — so every zero here is that rule's.
 public export
 keywordCounterOk : Keyword -> Bool
 keywordCounterOk Haste = True
@@ -2527,21 +2404,21 @@ designationChecked Suspected = True
 designationChecked Saddled = True
 designationChecked Prepared = True
 designationChecked CommanderD = False
-designationChecked Day = False
+designationChecked Day = True
 designationChecked Night = True
 
 public export
 designationGiven : Designation -> Bool
 designationGiven Monarch = True
 designationGiven TheInitiative = True
-designationGiven CitysBlessing = False
-designationGiven EnduringStory = False
+designationGiven CitysBlessing = True
+designationGiven EnduringStory = True
 designationGiven Goaded = True
-designationGiven RingBearer = False
-designationGiven Monstrous = False
-designationGiven Renowned = False
+designationGiven RingBearer = True
+designationGiven Monstrous = True
+designationGiven Renowned = True
 designationGiven Suspected = True
-designationGiven Saddled = False
+designationGiven Saddled = True
 designationGiven Prepared = True
 designationGiven CommanderD = False
 designationGiven Day = True
@@ -2551,11 +2428,15 @@ designationGiven Night = True
 ||| expansion this grammar can write. One arm, bought by monstrosity's
 ||| expansion [CR#701.37a] and Chillerpillar.
 public export
-data ConferringWord = MonstrosityW
+data ConferringWord = MonstrosityW | SaddleW | AscendW | StoriedW | RenownW
 
 public export
 conferredDesignation : ConferringWord -> Designation
 conferredDesignation MonstrosityW = Monstrous
+conferredDesignation SaddleW = Saddled
+conferredDesignation AscendW = CitysBlessing
+conferredDesignation StoriedW = EnduringStory
+conferredDesignation RenownW = Renowned
 
 ||| Why a line may confer a designation. `Instructed` is the bare
 ||| sentence, which needs the designation's own giving cell.
@@ -2624,6 +2505,13 @@ Eq AttachWord where
   (==) Fortified Fortified = True
   (==) Fortified _ = False
 
+||| Which host word an attachment word may call its host by.
+||| [CR#301.5f] and [CR#303.4m] both let the word name whatever the
+||| permanent is attached to, so a broader permanent word is the host's
+||| own — Luxior, Giada's Gift writes "equipped permanent". The zeros are
+||| the attachment rules themselves: an Equipment attaches to a creature
+||| [CR#301.5] and a Fortification to a land [CR#301.6], while an Aura
+||| attaches to an object or player [CR#303.4].
 public export
 attachHeadOk : AttachWord -> NounWord -> Bool
 attachHeadOk Enchanted (TypeW Creature) = True
@@ -2654,7 +2542,7 @@ attachHeadOk Equipped (TypeW Sorcery) = False
 attachHeadOk Equipped CardW = False
 attachHeadOk Equipped SpellW = False
 attachHeadOk Equipped PlayerW = False
-attachHeadOk Equipped PermanentW = False
+attachHeadOk Equipped PermanentW = True
 attachHeadOk Equipped TokenW = False
 attachHeadOk Equipped CopyW = False
 attachHeadOk Equipped JoinW = False
@@ -2679,7 +2567,7 @@ public export
 attachedCheckOk : AttachWord -> Bool
 attachedCheckOk Enchanted = True
 attachedCheckOk Equipped = True
-attachedCheckOk Fortified = False
+attachedCheckOk Fortified = True
 
 public export
 AttachHeadOk : AttachWord -> NounWord -> Type
@@ -2732,8 +2620,8 @@ public export
 riderAct : ObjectAct -> Bool
 riderAct Regenerated = True
 riderAct Countered = True
-riderAct Cast = False
-riderAct Played = False
+riderAct Cast = True
+riderAct Played = True
 riderAct Copied = False
 riderAct Activated = False
 
@@ -2768,6 +2656,11 @@ data CounterKind : Type where
   Experience : CounterKind
   Lore : CounterKind
   Age : CounterKind
+  ||| [CR#122.1] makes every counter a marker on an object; [CR#122.1e]
+  ||| only says what the loyalty count indicates, and [CR#606.4] moves
+  ||| loyalty counters as a cost. The count-equals-loyalty link
+  ||| [CR#306.5c] is lowering's, not this layer's.
+  LoyaltyCounter : CounterKind
 
 public export
 counterScope : CounterKind -> Kind
@@ -2785,6 +2678,7 @@ counterScope Rad = Player
 counterScope Experience = Player
 counterScope Lore = Object
 counterScope Age = Object
+counterScope LoyaltyCounter = Object
 
 public export
 Eq CounterKind where
@@ -2817,6 +2711,8 @@ Eq CounterKind where
   (==) Lore _ = False
   (==) Age Age = True
   (==) Age _ = False
+  (==) LoyaltyCounter LoyaltyCounter = True
+  (==) LoyaltyCounter _ = False
 
 public export
 data CounterKindNamed : Kind -> Maybe CounterKind -> Type where
@@ -2839,11 +2735,18 @@ chapterOrd ChapterV = 5
 chapterOrd ChapterVI = 6
 
 public export
+||| [CR#107.15b] makes "{rN1}, {rN2}—" shorthand for two independent
+||| abilities, so the marks carry no order; one number twice would name
+||| one ability twice.
+chapterMarksDistinct : List ChapterNumber -> Bool
+chapterMarksDistinct [] = True
+chapterMarksDistinct (a :: rest) =
+  not (any (\b => chapterOrd a == chapterOrd b) rest) && chapterMarksDistinct rest
+
+public export
 chapterMarksOk : List ChapterNumber -> Bool
 chapterMarksOk [] = False
-chapterMarksOk [_] = True
-chapterMarksOk (a :: b :: rest) =
-  chapterOrd a < chapterOrd b && chapterMarksOk (b :: rest)
+chapterMarksOk ns@(_ :: _) = chapterMarksDistinct ns
 
 public export
 ChapterMarks : List ChapterNumber -> Type
@@ -3003,10 +2906,12 @@ public export
 statusEventOk : {0 c : StatusCat} -> StatusVal c -> Bool
 statusEventOk Tapped = True
 statusEventOk Untapped = True
-statusEventOk Flipped = False
+statusEventOk Flipped = True
+-- [CR#710.4]: flipping is a one-way process, so nothing ever becomes
+-- unflipped and there is no transition to watch.
 statusEventOk Unflipped = False
 statusEventOk FaceUp = True
-statusEventOk FaceDown = False
+statusEventOk FaceDown = True
 statusEventOk PhasedIn = True
 statusEventOk PhasedOut = True
 
@@ -3084,11 +2989,11 @@ public export
 retainable : CardType -> Bool
 retainable Land = True
 retainable Enchantment = True
-retainable Creature = False
-retainable Artifact = False
+retainable Creature = True
+retainable Artifact = True
 retainable Planeswalker = True
-retainable Battle = False
-retainable Kindred = False
+retainable Battle = True
+retainable Kindred = True
 -- [CR#205.1a]: instant and sorcery retain their card type automatically,
 -- so no retention rider is needed for either.
 retainable Instant = False
@@ -3106,19 +3011,6 @@ RetentionOk tl ret = So (retentionOk tl ret)
 
 public export
 data TokenRider = EntersTapped | EntersAttacking
-
--- [CR#508.4]: an attacking creature is tapped, so EntersAttacking
--- requires EntersTapped and never precedes it.
-public export
-ridersOk : List TokenRider -> Bool
-ridersOk [] = True
-ridersOk [EntersTapped] = True
-ridersOk [EntersTapped, EntersAttacking] = True
-ridersOk _ = False
-
-public export
-RidersOk : List TokenRider -> Type
-RidersOk rs = So (ridersOk rs)
 
 public export
 lastType : List CardType -> Maybe CardType

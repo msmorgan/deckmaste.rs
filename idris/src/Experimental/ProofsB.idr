@@ -65,16 +65,8 @@ badControlledInGraveyard Oh impossible
 ||| A sequence of no clauses is no instruction.
 public export
 badEmptySequence : Unspellable (Effect []) (\ok =>
-  Sequentially [] {ok})
-badEmptySequence TwoUp impossible
-
-
-||| "Destroy target creature." written as a one-element sequence
-||| A sequence of one spells what the clause alone spells, and one meaning gets one spelling.
-public export
-badSingletonSequence : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.destroy (Macros.target Macros.creature)] {ok})
-badSingletonSequence TwoUp impossible
+  Sequentially [] {ne = ok})
+badEmptySequence ItIsSucc impossible
 
 
 ||| "Destroy any target."
@@ -130,16 +122,8 @@ badDamageThis ObjectTakes impossible
 ||| A coordination offers alternatives, so it needs two; at zero it spells nothing.
 public export
 badEmptyOr : Unspellable (Predicate [] Object) (\ok =>
-  Or [] {tw = ok})
-badEmptyOr Oh impossible
-
-
-||| "creature" written as a one-alternative coordination
-||| At one alternative a coordination offers none and spells what the bare alternative spells.
-public export
-badSingletonOr : Unspellable (Predicate [] Object) (\ok =>
-  Or [Macros.creature] {tw = ok})
-badSingletonOr Oh impossible
+  Or [] {ne = ok})
+badEmptyOr IsNonEmpty impossible
 
 
 ||| "artifact or artifact"
@@ -192,14 +176,6 @@ badOtherInOr : Unspellable
 badOtherInOr Oh impossible
 
 
-||| "(creature or land) or artifact"
-||| Nesting is the flat coordination written with brackets oracle has no way to print.
-public export
-badNestedOr : Unspellable (Predicate [] Object) (\ok =>
-  Or [Or [Macros.creature, Macros.land], Macros.artifact] {cd = ok})
-badNestedOr Oh impossible
-
-
 ||| "This deals 2 damage to target artifact or enchantment."
 ||| A disjunctive head fixes no type, and damage reaches only a battle, creature, or planeswalker [CR#120.1a].
 public export
@@ -248,30 +224,12 @@ badPartialZoneJoin : Unspellable (Predicate [] Object) (\ok =>
 badPartialZoneJoin Oh impossible
 
 
-||| "zero or more target creatures"
-||| A second spelling of "any number of target creatures", which already permits zero [CR#107.1c].
-public export
-badZeroLowerRange : Unspellable (Noun [] Object) (\ok =>
-  TargetGroup (Range (Just 0) Nothing) Macros.creature {wf = ok})
-badZeroLowerRange Oh impossible
-
-
 ||| "creature you control or creature you control"
 ||| The same repetition spelled with a modifier: member equality looks inside the conjunction too.
 public export
 badRepeatedStructuredDisjunct : Unspellable (Predicate [] Object) (\ok =>
   Or [And [Macros.creature, ControlledBy You], And [Macros.creature, ControlledBy You]] {dd = ok})
 badRepeatedStructuredDisjunct Oh impossible
-
-
-||| a sequence written as one element of a sequence
-||| A sequence's elements are clauses; nesting re-mints the tree the n-ary list replaced.
-public export
-badNestedSequence : Unspellable (Effect []) (\ok =>
-  Sequentially
-    ((Sequentially [Macros.destroy (Macros.target Macros.creature), Macros.exile (Macros.target Macros.creature)]
-      :: (Macros.destroy (Macros.target Macros.land) :: Nil)) {ns = ok}))
-badNestedSequence Oh impossible
 
 
 ||| "Target land can't attack this turn."
@@ -322,15 +280,6 @@ badNoncreaturePower : Unspellable (Predicate [] Object) (\ok =>
 badNoncreaturePower Oh impossible
 
 
-||| "creature with power 2 or less and power 4 or greater"
-||| One phrase, one bound: an interval is its own construction, not two stacked qualifiers.
-public export
-badDoubleComparison : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, Compare Power AtMost (Lit 2),
-       Compare Power AtLeast (Lit 4)] {lc = ok})
-badDoubleComparison Oh impossible
-
-
 ||| "with power 2 or less or with power 2 or less"
 ||| An alternative repeated word for word is no alternative.
 public export
@@ -347,14 +296,6 @@ badMixedCharacteristicDisjunct : Unspellable (Predicate [] Object) (\ok =>
   Or [Compare Power AtMost (Lit 2),
       Compare ManaValue AtMost (Lit 3)] {pd = ok})
 badMixedCharacteristicDisjunct Oh impossible
-
-
-||| "any target with power 2 or less"
-||| [CR#115.4] fixes the class by rule, so the class word takes no qualifier but "other".
-public export
-badAnyTargetComparison : Unspellable (Predicate [] Object) (\ok =>
-  And [AnyTarget, Compare Power AtMost (Lit 2)] {at = ok})
-badAnyTargetComparison Oh impossible
 
 
 ||| "if you control any target"
@@ -450,29 +391,12 @@ badTypelessToken : Unspellable (Effect []) (\ok =>
 badTypelessToken Oh impossible
 
 
-||| "Create a 1/1 red Soldier creature token that's attacking."
-||| [CR#508.4] designates it attacking and taps nothing; the tap is declare-attackers' [CR#508.1f].
-public export
-badAttackingUntapped : Unspellable (Effect []) (\ok =>
-  Create You (Lit 1) (TokenWritten (Macros.creatureTok 1 1 [Red] [Soldier]))
-             [EntersAttacking] {rr = ok})
-badAttackingUntapped Oh impossible
-
-
-||| "Put a +1/+1 counter on target creature card in your graveyard."
-||| The counter row's zones are battlefield objects; a graveyard card is not one.
-public export
-badPutCountersGraveyard : Unspellable (Effect []) (\ok =>
-  PutCounters (Lit 1) Macros.plusOnePlusOne (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok})
-badPutCountersGraveyard Oh impossible
-
-
 ||| "Destroy target creature. Remove a +1/+1 counter from it."
-||| The removal twin reads the same fold-state: a destroyed referent has no counters to take off.
+||| [CR#122.2]: the counters ceased to exist as the creature moved, and the graveyard card is a new object [CR#400.7].
 public export
 badRemoveCountersDead : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-                RemoveCounters (Lit 1) Macros.plusOnePlusOne It {zn = ok}])
+                RemoveCounters (Lit 1) Macros.plusOnePlusOne It {cm = ok}])
 badRemoveCountersDead Oh impossible
 
 
@@ -491,30 +415,6 @@ public export
 badTokenDuplicateColor : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [Soldier]) {tc = ok})
 badTokenDuplicateColor Oh impossible
-
-
-||| "Draw zero cards."
-||| A written action count is at least one: a draw moves a card [CR#121.1], and zero instructs nothing.
-public export
-badDrawZero : Unspellable (Effect []) (\ok =>
-  Macros.drawCards 0 {wc = ok})
-badDrawZero Oh impossible
-
-
-||| "Create zero 1/1 white Soldier creature tokens."
-||| A token is a marker put onto the battlefield [CR#111.1], and a zero of one instructs nothing.
-public export
-badCreateZero : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 0) (Macros.creatureTok 1 1 [White] [Soldier]) {wc = ok})
-badCreateZero Oh impossible
-
-
-||| "Put zero +1/+1 counters on target creature."
-||| A counter is a marker placed on something [CR#122.1], and a zero of one instructs nothing.
-public export
-badPutZeroCounters : Unspellable (Effect []) (\ok =>
-  PutCounters (Lit 0) Macros.plusOnePlusOne (Macros.target Macros.creature) {wc = ok})
-badPutZeroCounters Oh impossible
 
 
 ||| "Target land becomes a Zombie in addition to its other types."
@@ -560,15 +460,6 @@ badModalOneMode : Unspellable (Effect []) (\ok =>
 badModalOneMode TwoUp impossible
 
 
-||| "Choose two — Destroy target artifact; or destroy target enchantment."
-||| A headcount that fixes the whole list instructs no choice, and [CR#700.2] requires choosing.
-public export
-badModalFixedWhole : Unspellable (Effect []) (\ok =>
-  Macros.chooseTwo [Macros.destroy (Macros.target Macros.artifact),
-                    Macros.destroy (Macros.target Macros.enchantment)] {mf = ok})
-badModalFixedWhole Oh impossible
-
-
 ||| "Choose three — Destroy target artifact; or destroy target enchantment."
 ||| Nor may a headcount reach PAST the list: three of two options names nothing at all.
 public export
@@ -604,16 +495,6 @@ badDrawnCardRemention : Unspellable (Effect []) (\ok =>
 badDrawnCardRemention Refl impossible
 
 
-||| "Choose up to two — Destroy target artifact; or destroy target enchantment; or draw a card."
-||| The "up to" modal headcount is capped at one in this vocabulary.
-public export
-badModalUpToTwo : Unspellable (Effect []) (\ok =>
-  Modal (Macros.upTo 2) [Macros.destroy (Macros.target Macros.artifact),
-                        Macros.destroy (Macros.target Macros.enchantment),
-                        Macros.drawACard] {mh = ok})
-badModalUpToTwo Oh impossible
-
-
 ||| "Choose one — Draw a card; or draw a card."
 ||| A player normally cannot choose the same mode more than once [CR#700.2,700.2d].
 public export
@@ -637,8 +518,8 @@ badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [If (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier]))
                    (Exists Macros.creatureYouControl)
                    Nothing,
-                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
-badConditionalArmAntecedent (_, Oh) impossible
+                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
+badConditionalArmAntecedent Refl impossible
 
 
 ||| "You may gain 1 life. If you do, create a token. If you don't, create two. Put a +1/+1 counter on it."
@@ -648,8 +529,8 @@ badBothArmsAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [May (Just You) (Macros.gainsLife You (Lit 1))
                      (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier])))
                      (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [Soldier]))),
-                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
-badBothArmsAntecedent (_, Oh) impossible
+                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
+badBothArmsAntecedent Refl impossible
 
 
 ||| "other than a creature"
@@ -707,36 +588,8 @@ badComplementInOr Oh impossible
 ||| A batch is at least two parts, and nothing at all instructs nothing.
 public export
 badEmptySimultaneous : Unspellable (Effect []) (\ok =>
-  Simultaneously [] {ok})
-badEmptySimultaneous TwoUp impossible
-
-
-||| "Destroy target creature." written as a one-element batch
-||| The same arity demand at one: a second spelling of the bare clause.
-public export
-badSingletonSimultaneous : Unspellable (Effect []) (\ok =>
-  Simultaneously [Macros.destroy (Macros.target Macros.creature)] {ok})
-badSingletonSimultaneous TwoUp impossible
-
-
-||| a batch written as one element of a batch
-||| A batch's elements are clauses, not batches.
-public export
-badNestedSimultaneous : Unspellable (Effect []) (\ok =>
-  Simultaneously
-    ((Simultaneously [Macros.destroy (Macros.target Macros.creature), Macros.destroy (Macros.target Macros.artifact)]
-      :: (Macros.destroy (Macros.target Macros.land) :: Nil)) {ns = ok}))
-badNestedSimultaneous Oh impossible
-
-
-||| a sequence written as one element of a batch
-||| An ordered list inside an unordered one contradicts its container.
-public export
-badSequenceInsideSimultaneous : Unspellable (Effect []) (\ok =>
-  Simultaneously
-    ((Sequentially [Macros.destroy (Macros.target Macros.creature), Macros.destroy (Macros.target Macros.artifact)]
-      :: (Macros.destroy (Macros.target Macros.land) :: Nil)) {nq = ok}))
-badSequenceInsideSimultaneous Oh impossible
+  Simultaneously [] {ne = ok})
+badEmptySimultaneous ItIsSucc impossible
 
 
 ||| "Exile target creature and destroy that card." as one instruction
@@ -762,8 +615,8 @@ badSimultaneousReadsOutcome Refl impossible
 public export
 badSimultaneousReadsMayDeed : Unspellable (Effect []) (\ok =>
   Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Plant])),
-                  PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
-badSimultaneousReadsMayDeed (_, Oh) impossible
+                  PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
+badSimultaneousReadsMayDeed Refl impossible
 
 
 ||| "You may have this deal 2 damage and you gain that much life." as one instruction

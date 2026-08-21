@@ -24,10 +24,11 @@ mutual
     EitherEnd : (chooser : Maybe (Noun bs Player)) ->
                 {auto 0 ag : EventAgent chooser} -> LibPlace bs
 
-  ||| One card goes to one end, so a disjunction states no order [CR#401.4].
+  ||| One card goes to one end, so a disjunction over the two ends states
+  ||| no order [CR#401.4].
   public export
   placeArrangementOk : {0 bs : Bindings} -> LibPlace bs -> Maybe Arrangement -> Bool
-  placeArrangementOk (OneEnd pos) ord = arrangementFits pos ord
+  placeArrangementOk (OneEnd _) _ = True
   placeArrangementOk (EitherEnd _) Nothing = True
   placeArrangementOk (EitherEnd _) (Just _) = False
 
@@ -35,41 +36,18 @@ mutual
   PlaceArrangementFits : {0 bs : Bindings} -> LibPlace bs -> Maybe Arrangement -> Type
   PlaceArrangementFits pl ord = So (placeArrangementOk pl ord)
 
-  ||| The offset rides the top alternative: "second from the top or on the
-  ||| bottom" [CR#401.7].
-  public export
-  placeOrdinalOk : {0 bs : Bindings} -> LibPlace bs -> Maybe Arrangement ->
-                   Maybe LibOrdinal -> Bool
-  placeOrdinalOk (OneEnd pos) ord off = ordinalFits pos ord off
-  placeOrdinalOk (EitherEnd _) ord off = ordinalFits OnTop ord off
-
-  public export
-  PlaceOrdinalFits : {0 bs : Bindings} -> LibPlace bs -> Maybe Arrangement ->
-                     Maybe LibOrdinal -> Type
-  PlaceOrdinalFits pl ord off = So (placeOrdinalOk pl ord off)
-
   public export
   data ZoneExpr : Bindings -> Type where
     ZoneAt : (z : Zone) -> ZoneScope bs z -> ZoneExpr bs
     LibraryAt : (place : LibPlace bs) -> (ord : Maybe Arrangement) ->
                 {default Nothing off : Maybe LibOrdinal} ->
                 {auto 0 af : PlaceArrangementFits place ord} ->
-                {auto 0 ofit : PlaceOrdinalFits place ord off} ->
                 ZoneScope bs Library -> ZoneExpr bs
 
   public export
   zoneSort : ZoneExpr bs -> Zone
   zoneSort (ZoneAt z _) = z
   zoneSort (LibraryAt _ _ _) = Library
-
-  public export
-  wholeZone : ZoneExpr bs -> Bool
-  wholeZone (ZoneAt _ _) = True
-  wholeZone (LibraryAt _ _ _) = False
-
-  public export
-  WholeZone : ZoneExpr bs -> Type
-  WholeZone {bs} z = So (wholeZone z)
 
   public export
   zoneArrangement : ZoneExpr bs -> Maybe Arrangement
@@ -177,13 +155,13 @@ mutual
     -- no first ability for this one to be linked to.
     OfYourChoice : (q : QualitySort) ->
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
-    HasKeyword : (k : Keyword) -> {auto 0 np : KeywordParamless k} ->
+    HasKeyword : (k : Keyword) -> 
                  Predicate bs Object
     ControlledBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
     CastBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
     CastFrom : (z : ZoneExpr bs) ->
                {auto 0 pf : So (playableFrom (Just (zoneSort z)))} ->
-               {auto 0 wz : WholeZone z} -> Predicate bs Object
+               Predicate bs Object
     Attacking : Predicate bs Object
     Blocking : Predicate bs Object
     BlockerOf : (m : Noun bs Object) ->
@@ -215,7 +193,7 @@ mutual
                   {auto 0 kn : CounterKindNamed Object kind} ->
                   Predicate bs Object
     Compare : (c : Characteristic) -> (r : Comparator) -> (bound : Amount bs) ->
-              {auto 0 cb : ComparableBound bound} -> Predicate bs Object
+              Predicate bs Object
     Superlative : {k : Kind} -> (op : AggregateOp) -> (ax : ProjAxis) ->
                   (dom : Predicate bs k) ->
                   {auto 0 ex : IsExtremal op} ->
@@ -226,9 +204,9 @@ mutual
                  {auto 0 ls : LinkSource src} -> Predicate bs Object
     And : (ps : List (Predicate bs k)) -> {auto 0 zc : ZoneCoherent ps} ->
           {auto 0 cf : ContradictionFree ps} -> {auto 0 oa : OtherAnchored ps} ->
-          {auto 0 at : AnyTargetLone ps} -> {auto 0 lc : LoneComparison ps} ->
+          {auto 0 at : AnyTargetLone ps} -> 
           Predicate bs k
-    Or : (ps : List (Predicate bs k)) -> {auto 0 tw : TwoDisjuncts ps} ->
+    Or : (ps : List (Predicate bs k)) -> {auto 0 ne : NonEmpty ps} ->
          {auto 0 pd : ParallelDisjuncts ps} ->
          {auto 0 cd : CoordinableDisjuncts ps} ->
          {auto 0 dd : DistinctDisjuncts ps} -> Predicate bs k
@@ -369,7 +347,6 @@ mutual
   public export
   zoneAdmit : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List Zone
   zoneAdmit (ControlledBy _) = [Battlefield, Stack]
-  zoneAdmit (HasCounters _) = [Battlefield, Exile]
   zoneAdmit _ = []
 
   ||| The card type a predicate presupposes of its referent — distinct
@@ -493,6 +470,7 @@ mutual
   qualityReadOk (OfChosen _) = True
   qualityReadOk OfLastChosenColor = True
   qualityReadOk (OfYourChoice _) = True
+  qualityReadOk (Named _) = True
   qualityReadOk _ = False
 
   public export
@@ -913,9 +891,20 @@ mutual
                       headIsKindJoin p
 
   public export
+  ||| [CR#115.4] closes the class word's target set to creatures,
+  ||| players, planeswalkers and battles, all of them on the battlefield
+  ||| or in no zone at all, so a modifier that places the target
+  ||| elsewhere names nothing. Every other qualifier merely restricts the
+  ||| set and is the phrase's own business.
   allLoneOk : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
   allLoneOk [] = True
-  allLoneOk (p :: ps) = (isAnyTarget p || isOther p) && allLoneOk ps
+  allLoneOk (p :: ps) = anyTargetZoneOk (seedZone p) && allLoneOk ps
+
+  public export
+  anyTargetZoneOk : Maybe Zone -> Bool
+  anyTargetZoneOk Nothing = True
+  anyTargetZoneOk (Just Battlefield) = True
+  anyTargetZoneOk (Just _) = False
 
   public export
   countAnyTargets : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Nat
@@ -966,25 +955,6 @@ mutual
     if isComparison p then S (countComparisons ps) else countComparisons ps
 
   public export
-  loneComparison : {0 bs : Bindings} -> {0 k : Kind} ->
-                   List (Predicate bs k) -> Bool
-  loneComparison ps = atMostOne (countComparisons (flattenPs ps))
-
-  public export
-  LoneComparison : List (Predicate bs k) -> Type
-  LoneComparison {bs} {k} ps = So (loneComparison ps)
-
-  public export
-  atLeastTwoPs : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  atLeastTwoPs [] = False
-  atLeastTwoPs (_ :: []) = False
-  atLeastTwoPs (_ :: _ :: _) = True
-
-  public export
-  TwoDisjuncts : List (Predicate bs k) -> Type
-  TwoDisjuncts {bs} {k} ps = So (atLeastTwoPs ps)
-
-  public export
   headsUniform : {0 bs : Bindings} -> {0 k : Kind} ->
                  Bool -> List (Predicate bs k) -> Bool
   headsUniform b [] = True
@@ -1023,8 +993,7 @@ mutual
   coordinable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   coordinable p = not (headIsAnyTarget p) &&
                   not (headIsKindJoin p) &&
-                  not (hasOther p) &&
-                  not (anyIsOr (flattenPs [p]))
+                  not (hasOther p)
 
   public export
   coordinableAll : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -1314,7 +1283,7 @@ mutual
     LibrarySlice : (pos : LibPos) -> (amt : Amount bs) ->
                    (whose : Noun bs Player) ->
                    {auto 0 sp : SlicePossessor whose} ->
-                   {auto 0 wc : WrittenCount amt} -> Noun bs Object
+                   Noun bs Object
     SomeOf : (q : Quantity) -> (grp : Noun bs Object) ->
              {auto 0 gm : GroupMention grp} ->
              {auto 0 nz : NonZeroQ q} ->
@@ -1437,16 +1406,13 @@ mutual
     HandOkBare : DestOk (ZoneAt Hand Bare)
     GraveyardOkBare : DestOk (ZoneAt Graveyard Bare)
     LibraryPosOk : {auto 0 af : PlaceArrangementFits place arrg} ->
-                   {auto 0 ofit : PlaceOrdinalFits place arrg offs} ->
-                   DestOk (LibraryAt place arrg {off = offs} {af} {ofit} Bare)
+                   DestOk (LibraryAt place arrg {off = offs} {af} Bare)
 
   public export
   orderOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Bool
-  orderOk pl z = case zoneOrdinal z of
-                   Just _ => isOne pl
-                   Nothing => case zoneArrangement z of
-                                Nothing => True
-                                Just _ => not (isOne pl)
+  orderOk pl z = case zoneArrangement z of
+                   Nothing => True
+                   Just _ => not (isOne pl)
 
   public export
   ArrangementOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Type
@@ -1466,7 +1432,7 @@ mutual
   nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
   nounDelta (EachOf grp) = nounDelta grp
   nounDelta (YouAnd n) = nounDelta n
-  nounDelta (LibrarySlice pos amt whose {wc}) =
+  nounDelta (LibrarySlice pos amt whose) =
     MkBinding TheD Object (outputPlur (nounPlur whose) (amtPlur amt))
               (ObjectP Nothing (Just Library) Nothing Nothing)
       :: nounDelta whose
@@ -1542,9 +1508,7 @@ mutual
   ||| families. Each named zone is searched per [CR#701.23a].
   public export
   data SearchScope : Bindings -> Type where
-    OneZone : (z : ZoneExpr bs) ->
-              {auto 0 sz : SearchableZone (zoneSort z)} ->
-              {auto 0 wz : WholeZone z} -> SearchScope bs
+    OneZone : (z : ZoneExpr bs) -> SearchScope bs
     GraveyardHandLibraryOf : (whose : Noun bs Player) -> SearchScope bs
 
   ||| The sweep fixes no single zone for what it finds.
@@ -1709,30 +1673,6 @@ mutual
   writtenBound (Minus _ _) = False
 
   public export
-  writtenCount : {0 bs : Bindings} -> Amount bs -> Bool
-  writtenCount (Lit Z) = False
-  writtenCount (Lit (S _)) = True
-  writtenCount (StatOf _ _) = True
-  writtenCount (PlayerStatOf _ _) = True
-  writtenCount (CountersOn _ _) = True
-  writtenCount (EventCount _ _ _) = True
-  writtenCount (CountOf _) = True
-  writtenCount (Aggregate _ _ _) = True
-  writtenCount (Times _ a) = writtenCount a
-  writtenCount ThatMuch = True
-  writtenCount PreventedThisWay = True
-  writtenCount GroupSize = True
-  writtenCount TheDifference = True
-  writtenCount (DefinedLetter _) = True
-  writtenCount XVal = True
-  writtenCount (Plus a b) = writtenCount a && writtenCount b
-  writtenCount (Minus a b) = writtenCount a && writtenCount b
-
-  public export
-  WrittenCount : Amount bs -> Type
-  WrittenCount {bs} a = So (writtenCount a)
-
-  public export
   boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
   boundEq (Lit a) (Lit b) = a == b
   boundEq XVal XVal = True
@@ -1763,7 +1703,7 @@ mutual
   readAmount ThatMuch = False
   readAmount PreventedThisWay = False
   readAmount GroupSize = False
-  readAmount TheDifference = False
+  readAmount TheDifference = True
   readAmount (DefinedLetter _) = False
   readAmount XVal = False
   readAmount (Plus _ _) = False
@@ -1772,26 +1712,6 @@ mutual
   public export
   ReadAmount : Amount bs -> Type
   ReadAmount {bs} a = So (readAmount a)
-
-  public export
-  comparableBound : {0 bs : Bindings} -> Amount bs -> Bool
-  comparableBound a = writtenBound a || readAmount a
-
-  public export
-  ComparableBound : Amount bs -> Type
-  ComparableBound {bs} b = So (comparableBound b)
-
-  public export
-  letterDefines : {0 bs : Bindings} -> Amount bs -> Bool
-  letterDefines d = not (writtenBound d)
-
-  public export
-  LetterDefinition : Amount bs -> Type
-  LetterDefinition {bs} d = So (letterDefines d)
-
-  public export
-  DefiningValue : Amount bs -> Type
-  DefiningValue {bs} d = So (letterDefines d)
 
   public export
   Bindingless : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
@@ -1849,7 +1769,7 @@ mutual
   choosable (Indefinite _ _) = True
   choosable (Definite _) = False
   choosable (TargetGroup _ _) = True
-  choosable (CountedGroup _ _) = False
+  choosable (CountedGroup _ _) = True
   choosable (AllOf _) = False
   choosable (EachOf _) = False
   choosable (YouAnd _) = False
@@ -1923,6 +1843,7 @@ mutual
   perMemberOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
   perMemberOk (Each _) = True
   perMemberOk (EachOf _) = True
+  perMemberOk (AllOf _) = True
   perMemberOk n = isOne (nounPlur n)
 
   public export
@@ -1944,8 +1865,7 @@ mutual
     CopiedOnStack : {0 n : Noun bs Object} ->
                     {auto 0 zn : ZoneFits (nounZone n) (Just Stack)} ->
                     ActSubject Copied n
-    PlayedIsLand : {0 n : Noun bs Object} ->
-                   {auto 0 ld : LandSubject n} -> ActSubject Played n
+    PlayedIsLand : {0 n : Noun bs Object} -> ActSubject Played n
     ActivatedIsAbility : {0 n : Noun bs Ability} -> ActSubject Activated n
     RegeneratedOnField : {0 n : Noun bs Object} ->
                          {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -2027,7 +1947,7 @@ mutual
               {auto 0 af : AnyTargetFree p} -> Condition bs
     CompareAmt : (subj : Amount bs) -> (r : Comparator) -> (bound : Amount bs) ->
                  {auto 0 rd : ReadAmount subj} ->
-                 {auto 0 cb : ComparableBound bound} -> Condition bs
+                 Condition bs
     NotCond : (c : Condition bs) -> Condition bs
     AndCond : (cs : List (Condition bs)) ->
               {auto 0 tw : TwoConjuncts cs} ->
@@ -2094,6 +2014,9 @@ mutual
   public export
   data Duration : Bindings -> Type where
     ThisTurn : Duration bs
+    ||| [CR#702.131a] and [CR#702.195a] both write "for the rest of the
+    ||| game", which no turn-part endpoint spells.
+    RestOfGame : Duration bs
     Until : DurationEnd -> Duration bs
     ForAsLongAs : Condition bs -> Duration bs
     UntilEvent : GameEvent bs -> Duration bs
@@ -2108,8 +2031,7 @@ mutual
   data BlockPartner : {0 bs : Bindings} -> Maybe (Noun bs Object) -> Type where
     NoPartner : BlockPartner Nothing
     OnePartner : {0 m : Noun bs Object} ->
-                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
-                 {auto 0 ss : SelfSorted m} -> BlockPartner (Just m)
+                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} -> BlockPartner (Just m)
 
   public export
   data EventAgent : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
@@ -2126,10 +2048,20 @@ mutual
     CreatedUnder : {0 u : Noun bs Player} ->
                    {auto 0 one : nounPlur u = OneOf} ->
                    {auto 0 bl : Bindingless u} -> CreationVoice Nothing Nothing (Just u)
+    ||| [CR#111.2] makes the creator the token's controller, so naming
+    ||| both says one thing twice — redundant, not meaningless.
+    CreatedByUnder : {0 w, u : Noun bs Player} ->
+                     {auto 0 one : nounPlur u = OneOf} ->
+                     {auto 0 bw : Bindingless w} ->
+                     {auto 0 bu : Bindingless u} ->
+                     CreationVoice Nothing (Just w) (Just u)
     CreatedByCauser : {0 c : Causer} -> {0 u : Noun bs Player} ->
                       {auto 0 one : nounPlur u = OneOf} ->
                       {auto 0 bl : Bindingless u} ->
                       CreationVoice (Just c) Nothing (Just u)
+    ||| A causer with no stated controller: [CR#111.2] supplies one.
+    CreatedByCauserPlain : {0 c : Causer} ->
+                           CreationVoice (Just c) Nothing Nothing
 
   public export
   data CausedBy : {0 bs : Bindings} ->
@@ -2172,12 +2104,12 @@ mutual
   putDestZoneOk Exile = True
   putDestZoneOk Library = True
   putDestZoneOk Hand = True
-  putDestZoneOk Battlefield = False
+  putDestZoneOk Battlefield = True
   putDestZoneOk Stack = False
 
   public export
   putDestOk : {0 bs : Bindings} -> ZoneExpr bs -> Bool
-  putDestOk z = wholeZone z && putDestZoneOk (zoneSort z)
+  putDestOk z = putDestZoneOk (zoneSort z)
 
   public export
   PutDest : {0 bs : Bindings} -> ZoneExpr bs -> Type
@@ -2188,7 +2120,7 @@ mutual
   putSourceZoneOk Battlefield = True
   putSourceZoneOk Graveyard = True
   putSourceZoneOk Library = True
-  putSourceZoneOk Exile = False
+  putSourceZoneOk Exile = True
   putSourceZoneOk Hand = False
   putSourceZoneOk Stack = False
 
@@ -2196,7 +2128,7 @@ mutual
   putSourceOk : {0 bs : Bindings} -> Maybe (EventSource bs) -> Bool
   putSourceOk Nothing = True
   putSourceOk (Just FromAnywhere) = True
-  putSourceOk (Just (FromZone z)) = wholeZone z && putSourceZoneOk (zoneSort z)
+  putSourceOk (Just (FromZone z)) = putSourceZoneOk (zoneSort z)
 
   public export
   PutSource : {0 bs : Bindings} -> Maybe (EventSource bs) -> Type
@@ -2205,40 +2137,32 @@ mutual
   public export
   data GameEvent : Bindings -> Type where
     Dies : (n : Noun bs Object) ->
-           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-           {auto 0 ss : SelfSorted n} -> GameEvent bs
+           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     Leaves : (n : Noun bs Object) ->
-             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-             {auto 0 ss : SelfSorted n} -> GameEvent bs
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     IsDestroyed : (n : Noun bs Object) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                  {auto 0 ss : SelfSorted n} -> GameEvent bs
+                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     IsDealtDamage : {k : Kind} -> (to : Noun bs k) ->
                     {auto 0 rk : DamageRecipient to} -> GameEvent bs
     Draws : (who : Noun bs Player) -> GameEvent bs
     LosesGame : (who : Noun bs Player) -> GameEvent bs
     Enters : (n : Noun bs Object) ->
-             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-             {auto 0 ss : SelfSorted n} -> GameEvent bs
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     Attacks : (n : Noun bs Object) ->
               {default Nothing whom : Maybe (Noun (nomIntro n) Player)} ->
               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-              {auto 0 ss : SelfSorted n} ->
               {auto 0 df : AttackDefender whom} -> GameEvent bs
     Blocks : (n : Noun bs Object) ->
              (what : Maybe (Noun (nomIntro n) Object)) ->
              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-             {auto 0 ss : SelfSorted n} ->
              {auto 0 bp : BlockPartner what} -> GameEvent bs
     BecomesBlocked : (n : Noun bs Object) ->
                      (by : Maybe (Noun (nomIntro n) Object)) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                     {auto 0 ss : SelfSorted n} ->
                      {auto 0 bp : BlockPartner by} -> GameEvent bs
     DealsCombatDamage : {k : Kind} -> (n : Noun bs Object) ->
                         (to : Noun (nomIntro n) k) ->
                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                        {auto 0 ss : SelfSorted n} ->
                         {auto 0 rk : DamageRecipient to} -> GameEvent bs
     BeginningOf : (part : TurnPart) -> (whose : HeaderPossessor bs) ->
                   {auto 0 pu : PartTriggerable part whose} ->
@@ -2250,29 +2174,23 @@ mutual
     StatusEvent : {c : StatusCat} -> (n : Noun bs Object) ->
                   (v : StatusVal c) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                  {auto 0 ss : SelfSorted n} ->
                   {auto 0 at : StatusEventVal v} -> GameEvent bs
     DayNightShift : GameEvent bs
     LastCounterRemoved : (kind : CounterKind) -> (n : Noun bs Object) ->
                          {default Nothing by : Maybe (Noun bs Player)} ->
                          {auto 0 sc : counterScope kind = Object} ->
-                         {auto 0 zn : CounterHolder (nounZone n)} ->
-                         {auto 0 ss : SelfSorted n} ->
                          {auto 0 ag : EventAgent by} -> GameEvent bs
     PutInto : (n : Noun bs Object) -> (to : ZoneExpr bs) ->
               {default Nothing from : Maybe (EventSource bs)} ->
               {auto 0 dk : PutDest to} ->
               {auto 0 sk : PutSource from} ->
-              {auto 0 zn : ZoneFits (nounZone n) (sourceZone from)} ->
-              {auto 0 ss : SelfSorted n} -> GameEvent bs
+              {auto 0 zn : ZoneFits (nounZone n) (sourceZone from)} -> GameEvent bs
     CounterEvent : (dir : CounterMove) -> (kind : CounterKind) ->
                    (n : Noun bs Object) ->
                    {default ManyCounters many : CounterBatch} ->
                    {default Nothing by : Maybe (Noun bs Player)} ->
                    {default Nothing cause : Maybe Causer} ->
                    {auto 0 sc : counterScope kind = Object} ->
-                   {auto 0 zn : CounterHolder (nounZone n)} ->
-                   {auto 0 ss : SelfSorted n} ->
                    {auto 0 ag : EventAgent by} ->
                    {auto 0 cz : CausedBy cause by} -> GameEvent bs
     TokensCreated : (n : Noun bs Object) ->
@@ -2546,7 +2464,8 @@ mutual
     playableFrom (Just (zoneSort z)) &&
     (not (complementLocates zn) || zoneFits zn (Just (zoneSort z)))
   playSourceOk zn Nothing (Just HadFlash) = castComplementOk zn
-  playSourceOk zn (Just _) (Just HadFlash) = False
+  playSourceOk zn (Just z) (Just HadFlash) =
+    castComplementOk zn && playableFrom (Just (zoneSort z))
 
   public export
   data PlaySource : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
@@ -2617,7 +2536,7 @@ mutual
                    {auto 0 sf : SubtypesFit t} ->
                    {auto 0 ta : TokenAbilities t} ->
                    {auto 0 tc : TokenCanonical t} -> TokenSpec bs
-    TokenAsThose : {auto 0 ok : countManyWord TokenW bs = 1} -> TokenSpec bs
+    TokenAsThose : {auto 0 ok : countTokenSpecs bs = 1} -> TokenSpec bs
     TokenCopyOf : (src : Noun bs Object) -> (exc : List (CopyExcept bs)) ->
                   {auto 0 pm : PerMember src} -> TokenSpec bs
 
@@ -2653,17 +2572,6 @@ mutual
   sameDirection p t = if shiftRises p then shiftRises t else not (shiftRises t)
 
   public export
-  pumpSignsOk : {0 bs : Bindings} -> PtShift bs -> PtShift bs -> Bool
-  pumpSignsOk p t =
-    if writtenZero (shiftAmount p) || writtenZero (shiftAmount t)
-       then sameDirection p t
-       else True
-
-  public export
-  PumpSigns : PtShift bs -> PtShift bs -> Type
-  PumpSigns {bs} p t = So (pumpSignsOk p t)
-
-  public export
   data CostShift : Bindings -> Type where
     CostLess : (amt : Amount bs) -> CostShift bs
     CostMore : (amt : Amount bs) -> CostShift bs
@@ -2678,24 +2586,22 @@ mutual
     Gets : (n : Noun bs Object) -> (pow : PtShift (nomIntro n)) ->
            (tou : PtShift (nomIntro n)) ->
            {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
-           {auto 0 ps : PumpSigns pow tou} -> StaticEffect bs
+           StaticEffect bs
     DefinesPt : (n : Noun bs Object) -> (sl : DefinedSlots) ->
                 (amt : Amount (nomIntro n)) ->
                 {auto 0 sd : SelfDefined n} ->
-                {auto 0 dv : DefiningValue amt} -> StaticEffect bs
+                StaticEffect bs
     HasBasePt : (n : Noun bs Object) -> (pow : Amount bs) -> (tou : Amount bs) ->
-                {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                 StaticEffect bs
     SwitchesPt : (n : Noun bs Object) ->
                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                  StaticEffect bs
     CostsToCast : {k : Kind} -> (n : Noun bs k) -> (sh : CostShift bs) ->
                   {auto 0 cs : CostSubject n} ->
-                  {auto 0 wc : WrittenCount (costAmount sh)} -> StaticEffect bs
+                  StaticEffect bs
     AltCost : (c : Maybe (Cost bs)) ->
               {auto 0 ap : AltPayment c} -> StaticEffect bs
     WhereLetterStatic : (w : LetterWord) -> (def : Amount bs) ->
-                        {auto 0 xd : LetterDefinition def} ->
                         (se : StaticEffect (Experimental.Words.letterB w :: bs)) ->
                         StaticEffect bs
     Gains : (n : Noun bs Object) -> (ab : AbilityAt bs) ->
@@ -2757,7 +2663,6 @@ mutual
                          {auto 0 nx : NotExtended se} -> StaticEffect bs
     BecomesCopy : (n : Noun bs Object) -> (src : Noun (nomIntro n) Object) ->
                   (exc : List (CopyExcept (nomIntro src))) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   {auto 0 pm : PerMember src} -> StaticEffect bs
     LosesAllAbilities : (n : Noun bs Object) ->
                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -2815,29 +2720,21 @@ mutual
     MayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity) ->
                              {auto 0 nz : NonZeroQ q} ->
                              {auto 0 wf : WellFormedQ q} -> StaticEffect bs
+    ||| [CR#506.3a] and [CR#508.4d] both say what happens when a
+    ||| permanent enters attacking, so either rider is a real entry.
     EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                  {auto 0 ro : EntryRiderOk rider} -> StaticEffect bs
+                  StaticEffect bs
     EntersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
                          (kind : CounterKind) ->
                          {default Fresh mark : EntryCounterMark} ->
-                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                         {auto 0 wc : WrittenCount amt} -> StaticEffect bs
+                         StaticEffect bs
     EntersChoice : (n : Noun bs Object) -> (q : QualitySort) ->
                    {default Nothing dom : Maybe (ChoiceDomain q)} ->
                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                    StaticEffect bs
     AndAlso : {0 n : Nat} -> StaticParts n bs ->
-              {auto 0 ok : AtLeastTwo n} -> StaticEffect bs
-
-  public export
-  entryRiderOk : TokenRider -> Bool
-  entryRiderOk EntersTapped = True
-  entryRiderOk EntersAttacking = False
-
-  public export
-  EntryRiderOk : TokenRider -> Type
-  EntryRiderOk r = So (entryRiderOk r)
+              {auto 0 ne : IsSucc n} -> StaticEffect bs
 
   public export
   data Compulsion : Bindings -> Type where
@@ -2880,7 +2777,7 @@ mutual
   public export
   data Shield : Bindings -> Type where
     AllOfIt : Shield bs
-    TheNext : (amt : Amount bs) -> {auto 0 wc : WrittenCount amt} -> Shield bs
+    TheNext : (amt : Amount bs) -> Shield bs
 
   public export
   shieldIntro : {bs : Bindings} -> Shield bs -> Bindings
@@ -2916,7 +2813,7 @@ mutual
   public export
   data PreventCut : Bindings -> Type where
     CutAll : PreventCut bs
-    CutSome : (amt : Amount bs) -> {auto 0 wc : WrittenCount amt} -> PreventCut bs
+    CutSome : (amt : Amount bs) -> PreventCut bs
 
   public export
   cutIntro : {bs : Bindings} -> PreventCut bs -> Bindings
@@ -2928,7 +2825,7 @@ mutual
     Multiplied : (f : ScaleFactor) -> DamageScale bs
     Halved : (r : RoundMode) -> DamageScale bs
     Shifted : (d : ShiftDir) -> (amt : Amount bs) ->
-              {auto 0 wc : WrittenCount amt} -> DamageScale bs
+              DamageScale bs
 
   public export
   scaleIntro : {bs : Bindings} -> DamageScale bs -> Bindings
@@ -3116,8 +3013,7 @@ mutual
   public export
   data DividedTakes : DivTag -> Noun bs k -> Type where
     DamageDivided : {auto 0 rk : DamageRecipient n} -> DividedTakes DivDamage n
-    CountersDistributed : {auto 0 zn : OnBattlefield (nounZone n)} ->
-                          DividedTakes DivCounters {k = Object} n
+    CountersDistributed : DividedTakes DivCounters {k = Object} n
 
   public export
   data Exposed : Bindings -> Type where
@@ -3133,14 +3029,13 @@ mutual
   public export
   data CounterRider : Bindings -> Type where
     MkCounterRider : (amt : Amount bs) -> (kind : CounterKind) ->
-                     {auto 0 wc : WrittenCount amt} -> CounterRider bs
+                     CounterRider bs
 
   public export
   data MoveRiders : Bindings -> Type where
     MkMoveRiders : (entry : List TokenRider) ->
                    (ctrl : Maybe (Noun bs Player)) ->
                    {default Nothing counters : Maybe (CounterRider bs)} ->
-                   {auto 0 ro : RidersOk entry} ->
                    {auto 0 one : CtrlSingular ctrl} -> MoveRiders bs
 
   public export
@@ -3166,8 +3061,7 @@ mutual
   public export
   ridersFitZone : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Bool
   ridersFitZone r z =
-    (not (fieldRidersWritten r) || z == Battlefield) &&
-    (not (counterRiderWritten r) || counterZone (Just z))
+    not (fieldRidersWritten r) || z == Battlefield
 
   public export
   RidersFit : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Type
@@ -3183,7 +3077,7 @@ mutual
     LoyaltySymbol : (s : LoyaltyCost) -> Cost bs
     Do : (e : Effect bs) -> {auto 0 ok : CostAction e} -> Cost bs
     Compound : {0 n : Nat} -> CostSeq n bs ->
-               {auto 0 two : AtLeastTwo n} -> Cost bs
+               {auto 0 ne : IsSucc n} -> Cost bs
 
   public export
   forEachAmount : {0 bs : Bindings} -> Amount bs -> Bool
@@ -3218,10 +3112,6 @@ mutual
   isLoyalty : {0 bs : Bindings} -> Cost bs -> Bool
   isLoyalty (LoyaltySymbol _) = True
   isLoyalty _ = False
-
-  public export
-  NotLoyalty : Cost bs -> Type
-  NotLoyalty {bs} c = So (not (isLoyalty c))
 
   public export
   data ProducedMana : Bindings -> Type where
@@ -3261,18 +3151,6 @@ mutual
                       SpendPurposes (p :: ps)
 
   public export
-  freedomFits : {0 bs, cs : Bindings} -> Amount bs -> ProducedMana cs -> Bool
-  freedomFits (Lit 1) (AnyColor EachColor) = False
-  freedomFits _ _ = True
-
-  public export
-  data FreedomFits : {0 bs, cs : Bindings} ->
-                     Amount bs -> ProducedMana cs -> Type where
-    MkFreedomFits : {0 a : Amount bs} -> {0 p : ProducedMana cs} ->
-                    {auto 0 ok : So (freedomFits a p)} -> FreedomFits a p
-
-
-  public export
   data CopyExcept : Bindings -> Type where
     ExceptTypes : (added : TypeLine) ->
                   {auto 0 ne : LineNonEmpty added} -> CopyExcept bs
@@ -3284,18 +3162,10 @@ mutual
     ExceptColor : (c : Chroma.Color) -> CopyExcept bs
 
   public export
-  repeatCount : {0 bs : Bindings} -> Amount bs -> Bool
-  repeatCount a = writtenCount a && writtenBound a
-
-  public export
-  RepeatCount : Amount bs -> Type
-  RepeatCount {bs} a = So (repeatCount a)
-
-  public export
   data Repetition : Bindings -> Type where
     Again : Repetition bs
     MoreTimes : (n : Amount bs) ->
-                {auto 0 rc : RepeatCount n} -> Repetition bs
+                Repetition bs
     AnyNumber : Repetition bs
 
   public export
@@ -3323,13 +3193,16 @@ mutual
     CantBe : {k : Kind} -> (e : Effect bs) -> (act : ObjectAct) ->
              (what : Noun (preIntro e) k) ->
              {auto 0 rd : So (riderAct act)} ->
-             {auto 0 bl : Bindingless what} ->
              {auto 0 sub : ActSubject act what} -> Effect bs
     ||| The warrant tells the bare instruction from a keyword's expansion
-    ||| body, which is the only place the five keyword-conferred
-    ||| designations are given [CR#701.37a].
+    ||| body. A conferral may state how long it lasts: saddle's expansion
+    ||| writes "until end of turn" [CR#702.171a] and ascend's and
+    ||| storied's write "for the rest of the game"
+    ||| [CR#702.131a,702.195a], while monstrosity and renown write none
+    ||| [CR#701.37a,702.112a].
     GainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->
                        (w : GivingWarrant d) ->
+                       {default Nothing span : Maybe (Duration (nomIntro n))} ->
                        {auto 0 sc : designationScope d = HeldBy k} ->
                        {auto 0 zn : DesignationHolder d (nounZone n)} -> Effect bs
     GameBecomes : (d : Designation) ->
@@ -3354,17 +3227,16 @@ mutual
                 (times : Amount (nomIntro what)) ->
                 (exc : List (CopyExcept (amtIntro times))) ->
                 {auto 0 zn : OnStack (nounZone what)} ->
-                {auto 0 wc : WrittenCount times} -> Effect bs
+                Effect bs
     ChooseNewTargets : (what : Noun bs Object) ->
                        {auto 0 zn : OnStack (nounZone what)} -> Effect bs
     ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Effect bs
     AddMana : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
               (prod : ProducedMana (amtIntro amt)) ->
               (riders : List (ManaRider (amtIntro amt))) ->
-              {auto 0 wc : WrittenCount amt} ->
-              {auto 0 ff : FreedomFits amt prod} -> Effect bs
+              Effect bs
     Draw : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
-           {auto 0 wc : WrittenCount amt} -> Effect bs
+           Effect bs
     Expose : (v : ExposeVerb) -> (who : Noun bs Player) ->
              (what : Exposed (nomIntro who)) -> Effect bs
     Search : (who : Noun bs Player) -> (sc : SearchScope (nomIntro who)) ->
@@ -3378,30 +3250,24 @@ mutual
                    {auto 0 cl : ClauseStatic se} -> Effect bs
     Create : (agent : Noun bs Player) -> (count : Amount (nomIntro agent)) ->
              (spec : TokenSpec (amtIntro count)) -> (riders : List TokenRider) ->
-             {auto 0 wc : WrittenCount count} ->
-             {auto 0 rr : RidersOk riders} -> Effect bs
+             Effect bs
     GetsEmblem : (who : Noun bs Player) -> (abl : List (AbilityAt [])) ->
                  {auto 0 ea : EmblemAbilities abl} -> Effect bs
     PutCounters : (amt : Amount bs) -> (kind : CounterKind) ->
                   (on : Noun (amtIntro amt) Object) ->
-                  {auto 0 wc : WrittenCount amt} ->
                   {auto 0 pm : PerMember on} ->
-                  {auto 0 sc : counterScope kind = Object} ->
-                  {auto 0 zn : CounterHolder (nounZone on)} -> Effect bs
+                  {auto 0 sc : counterScope kind = Object} -> Effect bs
     Distribute : {k : Kind} -> (v : DividedVerb bs) ->
                  (amt : Amount (divIntro v)) ->
                  (among : Noun (amtIntro amt) k) ->
-                 {auto 0 wc : WrittenCount amt} ->
                  {auto 0 gm : GroupMention among} ->
                  {auto 0 tk : DividedTakes (divTag v) among} -> Effect bs
     RemoveCounters : (amt : Amount bs) -> (kind : CounterKind) ->
                      (from : Noun (amtIntro amt) Object) ->
-                     {auto 0 wc : WrittenCount amt} ->
                      {auto 0 sc : counterScope kind = Object} ->
-                     {auto 0 zn : CounterHolder (nounZone from)} -> Effect bs
+                     {auto 0 cm : CounterMemory from} -> Effect bs
     GetsCounters : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
                    (kind : CounterKind) ->
-                   {auto 0 wc : WrittenCount amt} ->
                    {auto 0 sc : counterScope kind = Player} -> Effect bs
     LosesAllCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
                        {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
@@ -3419,23 +3285,23 @@ mutual
     If : (e : Effect bs) -> (c : Condition (preIntro e)) ->
          (otherwise : Maybe (Effect bs)) -> Effect bs
     WhereLetter : (w : LetterWord) -> (def : Amount bs) ->
-                  {auto 0 xd : LetterDefinition def} ->
                   (body : Effect (Experimental.Words.letterB w :: bs)) -> Effect bs
     ForEachOf : (grp : Noun bs Object) ->
                 (body : Effect (elemIntro grp)) ->
                 {auto 0 pl : nounPlur grp = ManyOf} ->
-                {auto 0 nf : NotForEach body} -> Effect bs
+                Effect bs
     Repeat : (rep : Repetition bs) -> Effect bs
+    ||| A coordination of one member denotes that member, so only the
+    ||| empty list is refused: it instructs nothing.
     Sequentially : {0 n : Nat} -> Effects n bs ->
-                   {auto 0 ok : AtLeastTwo n} -> Effect bs
+                   {auto 0 ne : IsSucc n} -> Effect bs
     Simultaneously : {0 n : Nat} -> SimEffects n bs ->
-                     {auto 0 ok : AtLeastTwo n} -> Effect bs
+                     {auto 0 ne : IsSucc n} -> Effect bs
     Modal : (q : Quantity) -> (modes : List (Effect bs)) ->
             {auto 0 nz : NonZeroQ q} ->
             {auto 0 wf : WellFormedQ q} ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
             {auto 0 mf : ModesFit q (modeCount modes)} ->
-            {auto 0 mh : ModalHead q (modeCount modes)} ->
             {auto 0 dm : So (distinctModes modes)} -> Effect bs
     Delayed : (ev : GameEvent bs) ->
               {default Nothing span : Maybe (Duration bs)} ->
@@ -3606,9 +3472,8 @@ mutual
   payableOk TapSymbol = False
   payableOk UntapSymbol = False
   payableOk (LoyaltySymbol _) = False
-  payableOk (Do (ChangeLife _ (Down _))) = True
-  payableOk (Do _) = False
-  payableOk (Compound _) = False
+  payableOk (Do _) = True
+  payableOk (Compound _) = True
 
   public export
   Payable : Cost bs -> Type
@@ -3623,7 +3488,7 @@ mutual
   costNounOk (Each _) = True
   costNounOk (Indefinite _ _) = True
   costNounOk (Definite _) = True
-  costNounOk (TargetGroup _ _) = False
+  costNounOk (TargetGroup _ _) = True
   costNounOk (CountedGroup _ _) = True
   costNounOk (AllOf _) = True
   costNounOk (EachOf grp) = costNounOk grp
@@ -3696,25 +3561,23 @@ mutual
   costActionOk (CantBe _ _ _) = False
   costActionOk (GainsDesignation _ _ _) = False
   costActionOk (GameBecomes _) = False
-  costActionOk (Concludes _ _) = False
+  costActionOk (Concludes _ _) = True
   costActionOk GameDrawn = False
-  costActionOk (CounterSpell _) = False
+  costActionOk (CounterSpell _) = True
   costActionOk (CopyStack _ _ _ _) = False
   costActionOk (ChooseNewTargets _) = False
   costActionOk (Choose _) = False
-  costActionOk (Move what to) =
-    costNounOk what && not (zoneSort to == Battlefield)
-  costActionOk (ChangeLife _ (Down _)) = True
-  costActionOk (ChangeLife _ _) = False
+  costActionOk (Move what _) = costNounOk what
+  costActionOk (ChangeLife _ _) = True
   costActionOk (AddMana _ _ _ _) = False
-  costActionOk (Draw _ _) = False
+  costActionOk (Draw _ _) = True
   costActionOk (Expose Reveal _ _) = True
   costActionOk (Expose _ _ _) = False
   costActionOk (Search _ _ _) = False
   costActionOk (Shuffle _) = False
   costActionOk (Continuously _ _) = False
   costActionOk (Create _ _ _ _) = False
-  costActionOk (GetsEmblem _ _) = False
+  costActionOk (GetsEmblem _ _) = True
   costActionOk (PutCounters _ _ on) = costNounOk on
   costActionOk (RemoveCounters _ _ from) = costNounOk from
   costActionOk (Composite Exile e) = costActionOk e
@@ -3844,42 +3707,15 @@ mutual
   public export
   data Effects : Nat -> Bindings -> Type where
     Nil : Effects Z bs
-    (::) : (e : Effect bs) -> {auto 0 ns : NotSeq e} ->
+    (::) : (e : Effect bs) ->
            Effects n (effIntro e) -> Effects (S n) bs
-
-  public export
-  isSeq : {0 bs : Bindings} -> Effect bs -> Bool
-  isSeq (Sequentially _) = True
-  isSeq _ = False
-
-  public export
-  NotSeq : Effect bs -> Type
-  NotSeq {bs} e = So (not (isSeq e))
-
-  public export
-  isForEach : {0 bs : Bindings} -> Effect bs -> Bool
-  isForEach (ForEachOf _ _) = True
-  isForEach _ = False
-
-  public export
-  NotForEach : Effect bs -> Type
-  NotForEach {bs} e = So (not (isForEach e))
 
   namespace Sim
     public export
     data SimEffects : Nat -> Bindings -> Type where
       Nil : SimEffects Z bs
-      (::) : (e : Effect bs) -> {auto 0 ns : NotSim e} -> {auto 0 nq : NotSeq e} ->
+      (::) : (e : Effect bs) ->
              SimEffects n (annIntro e) -> SimEffects (S n) bs
-
-  public export
-  isSim : {0 bs : Bindings} -> Effect bs -> Bool
-  isSim (Simultaneously _) = True
-  isSim _ = False
-
-  public export
-  NotSim : Effect bs -> Type
-  NotSim {bs} e = So (not (isSim e))
 
   public export
   nounIsAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -3992,38 +3828,22 @@ mutual
   Nontarget : Noun bs k -> Type
   Nontarget {bs} {k} n = So (not (nounTargeted n))
 
+  ||| [CR#122.2]: counters on an object cease to exist when it moves from
+  ||| one zone to another, so a clause that takes counters off a referent
+  ||| an earlier clause moved names none — the object it reads is a new
+  ||| one [CR#400.7]. Only the anaphors that can name a moved referent
+  ||| carry the check; a description names its own.
   public export
-  selfSortedOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  selfSortedOk This = False
-  selfSortedOk (AsType _ _) = True
-  selfSortedOk You = True
-  selfSortedOk (PlayerGroup _) = True
-  selfSortedOk (Each _) = True
-  selfSortedOk (Indefinite _ _) = True
-  selfSortedOk (Definite _) = True
-  selfSortedOk (TargetGroup _ _) = True
-  selfSortedOk (CountedGroup _ _) = True
-  selfSortedOk (AllOf _) = True
-  selfSortedOk (EachOf _) = True
-  selfSortedOk (YouAnd _) = True
-  selfSortedOk (LibrarySlice _ _ _) = True
-  selfSortedOk (SomeOf _ _) = True
-  selfSortedOk TheRest = True
-  selfSortedOk It = True
-  selfSortedOk They = True
-  selfSortedOk Them = True
-  selfSortedOk (Those _) = True
-  selfSortedOk (That _) = True
-  selfSortedOk (AttachHost _ _) = True
-  selfSortedOk (TheVerbed _ _) = True
-  selfSortedOk (ThoseVerbed _ _) = True
-  selfSortedOk (ControllerOf _) = True
-  selfSortedOk (OwnerOf _) = True
-  selfSortedOk (Designated _ _) = True
+  counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  counterMemoryOk It = not (stampMoves (provOfIt bs))
+  counterMemoryOk Them = not (stampMoves (provOfThem bs))
+  counterMemoryOk (TheVerbed v _) = not (verbMoves v)
+  counterMemoryOk (ThoseVerbed v _) = not (verbMoves v)
+  counterMemoryOk _ = True
 
   public export
-  SelfSorted : Noun bs k -> Type
-  SelfSorted {bs} {k} n = So (selfSortedOk n)
+  CounterMemory : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Type
+  CounterMemory {bs} n = So (counterMemoryOk n)
 
   public export
   data DamageRecipient : Noun bs k -> Type where
@@ -4063,38 +3883,34 @@ mutual
              TagBody Exile (Move n (ZoneAt Exile Bare) {na})
     ExileWithCountersB : {0 amt : Amount (nomIntro n)} ->
                          {0 kind : CounterKind} ->
-                         {0 wc : WrittenCount amt} ->
                          {auto 0 na : NotPlayerSpanning n} ->
                          TagBody Exile
                                  (Move n (ZoneAt Exile Bare) {na}
                                        {riders = MkMoveRiders [] Nothing
-                                          {counters = Just (MkCounterRider amt kind {wc})}})
+                                          {counters = Just (MkCounterRider amt kind)}})
     DiscardB : {auto 0 d : DiscardOk n} ->
                {auto 0 na : NotPlayerSpanning n} ->
                TagBody Discard (Move n (ZoneAt Graveyard Bare) {na})
     MillB : {0 amt : Amount bs} -> {0 whose : Noun bs Player} ->
             {auto 0 sp : SlicePossessor whose} ->
-            {auto 0 wc : WrittenCount amt} ->
-            {auto 0 na : NotPlayerSpanning (LibrarySlice OnTop amt whose {sp} {wc})} ->
-            TagBody Mill (Move (LibrarySlice OnTop amt whose {sp} {wc})
+            {auto 0 na : NotPlayerSpanning (LibrarySlice OnTop amt whose {sp})} ->
+            TagBody Mill (Move (LibrarySlice OnTop amt whose {sp})
                                (ZoneAt Graveyard Bare) {na})
     ScryB : {0 amt : Amount bs} ->
             {auto 0 sp : SlicePossessor {bs} You} ->
-            {auto 0 wc : WrittenCount amt} ->
             TagBody Scry
                     (Expose LookAt You
-                            (ExposedCards (LibrarySlice OnTop amt You {sp} {wc})))
+                            (ExposedCards (LibrarySlice OnTop amt You {sp})))
     SurveilB : {0 amt : Amount bs} ->
                {auto 0 sp : SlicePossessor {bs} You} ->
-               {auto 0 wc : WrittenCount amt} ->
                TagBody Surveil
                        (Expose LookAt You
-                               (ExposedCards (LibrarySlice OnTop amt You {sp} {wc})))
+                               (ExposedCards (LibrarySlice OnTop amt You {sp})))
     ||| The agentive placement clause: the imperative and "<player> puts it
     ||| into/onto <zone>" spell one event, so the tag rides the same Move.
     ||| Every Move admits: its own gates already bound the destination, and
     ||| the destination's possessive is rendering's business [CR#400.3].
-    PutB : {auto 0 pz : PutAgentiveZone (zoneSort to)} ->
+    PutB : 
            TagBody Put (Move n to {riders} {ok} {arr} {na} {pl} {rf})
 
   public export
@@ -4653,17 +4469,6 @@ mutual
   data UsageLimit = OncePerTurn | OncePerGame
 
   public export
-  loyaltyDefaultsOk : {0 bs : Bindings} -> Cost bs -> Maybe Timing ->
-                      Maybe UsageLimit -> Maybe (Condition bs) -> Bool
-  loyaltyDefaultsOk (LoyaltySymbol _) Nothing Nothing Nothing = True
-  loyaltyDefaultsOk (LoyaltySymbol _) _ _ _ = False
-  loyaltyDefaultsOk _ _ _ _ = True
-
-  public export
-  LoyaltyDefaults : Cost bs -> Maybe Timing -> Maybe UsageLimit -> Maybe (Condition bs) -> Type
-  LoyaltyDefaults {bs} c w l g = So (loyaltyDefaultsOk c w l g)
-
-  public export
   data AltEvent : TriggerWord -> Maybe (GameEvent bs) -> Type where
     NoAlt : AltEvent w Nothing
     OneAlt : {0 e : GameEvent bs} ->
@@ -4691,7 +4496,7 @@ mutual
     ParamCost : Cost [] -> KeywordParam bs
     ParamQuality : Predicate bs Object -> KeywordParam bs
     ParamSubject : {k : Kind} -> (p : Predicate [] k) -> KeywordParam bs
-    ParamNumber : (amt : Amount []) -> {auto 0 wc : WrittenCount amt} ->
+    ParamNumber : (amt : Amount []) -> 
                   KeywordParam bs
 
   public export
@@ -4722,7 +4527,7 @@ mutual
                 {default Nothing window : Maybe Timing} ->
                 {default Nothing limit : Maybe UsageLimit} ->
                 {default Nothing guard : Maybe (Condition bs)} ->
-                {auto 0 ld : LoyaltyDefaults cost window limit guard} -> AbilityAt bs
+                AbilityAt bs
     Triggered : (word : TriggerWord) -> (ev : GameEvent bs) ->
                 {default Nothing alt : Maybe (GameEvent bs)} ->
                 {default Nothing window : Maybe TriggerWindow} ->
@@ -4936,7 +4741,6 @@ mutual
     data CostSeq : Nat -> Bindings -> Type where
       Nil : CostSeq Z bs
       (::) : (c : Cost bs) -> {auto 0 nc : NotCompound c} ->
-             {auto 0 nl : NotLoyalty c} ->
              CostSeq n (costIntro c) -> CostSeq (S n) bs
 
   namespace Text
@@ -5152,7 +4956,7 @@ keywordCardOk SpellCard Renown = False
 keywordCardOk PermanentCard Indestructible = True
 keywordCardOk SpellCard Indestructible = False
 keywordCardOk PermanentCard Flash = True
-keywordCardOk SpellCard Flash = False
+keywordCardOk SpellCard Flash = True
 keywordCardOk PermanentCard Ascend = True
 keywordCardOk SpellCard Ascend = True
 keywordCardOk PermanentCard CumulativeUpkeep = True
@@ -5166,8 +4970,10 @@ keywordCardOk SpellCard Skulk = False
 
 public export
 staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
-staticOnSpellCardOk (ObjectCant Countered what) = not (selfSortedOk what)
-staticOnSpellCardOk (ObjectCant Copied what) = not (selfSortedOk what)
+-- [CR#113.6g] licenses a "can't be countered" static on any object and
+-- says nothing about how broadly its subject may be described.
+staticOnSpellCardOk (ObjectCant Countered _) = True
+staticOnSpellCardOk (ObjectCant Copied _) = True
 staticOnSpellCardOk (AltCost _) = True
 staticOnSpellCardOk (Conditionally _ se) = staticOnSpellCardOk se
 staticOnSpellCardOk _ = False

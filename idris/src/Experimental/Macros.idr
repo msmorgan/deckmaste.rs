@@ -280,13 +280,12 @@ exile n = Composite Exile (Move n exileZ {na}) {ok = ExileB {na}}
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                     (kind : CounterKind) ->
-                    {auto 0 wc : WrittenCount amt} ->
                     {auto 0 na : NotPlayerSpanning n} -> Effect bs
 exileWithCounters n amt kind =
   Composite Exile
             (Move n exileZ
                   {riders = MkMoveRiders [] Nothing
-                                         {counters = Just (MkCounterRider amt kind {wc})}})
+                                         {counters = Just (MkCounterRider amt kind)}})
             {ok = ExileWithCountersB}
 
 public export
@@ -294,7 +293,6 @@ returnToBattlefieldWithCounters :
   (n : Noun bs Object) -> (who : Noun (nomIntro n) Player) ->
   (amt : Amount (nomIntro n)) -> (kind : CounterKind) ->
   {auto 0 one : nounPlur who = OneOf} ->
-  {auto 0 wc : WrittenCount amt} ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
   {auto 0 na : NotPlayerSpanning n} ->
@@ -302,7 +300,7 @@ returnToBattlefieldWithCounters :
 returnToBattlefieldWithCounters n who amt kind =
   Move n battlefieldZ {pl} {na}
        {riders = MkMoveRiders [] (Just who) {one = OneController {one}}
-                              {counters = Just (MkCounterRider amt kind {wc})}}
+                              {counters = Just (MkCounterRider amt kind)}}
 
 public export
 putOntoBattlefield : (n : Noun bs Object) ->
@@ -365,22 +363,19 @@ discardsACard agent = discards agent (a (InZone handZ))
 public export
 dealsDivided : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                (among : Noun (amtIntro amt) k) ->
-               {auto 0 wc : WrittenCount amt} ->
                {auto 0 gm : GroupMention among} ->
                {auto 0 rk : DamageRecipient among} -> Effect bs
 dealsDivided src amt among =
-  Distribute (DividedDamage src) amt among {wc} {gm}
+  Distribute (DividedDamage src) amt among {gm}
              {tk = DamageDivided {rk}}
 
 public export
 distributeCounters : (amt : Amount bs) -> (kind : CounterKind) ->
                      (among : Noun (amtIntro amt) Object) ->
-                     {auto 0 wc : WrittenCount amt} ->
-                     {auto 0 gm : GroupMention among} ->
-                     {auto 0 zn : OnBattlefield (nounZone among)} -> Effect bs
+                     {auto 0 gm : GroupMention among} -> Effect bs
 distributeCounters amt kind among =
-  Distribute (DistributedCounters kind) amt among {wc} {gm}
-             {tk = CountersDistributed {zn}}
+  Distribute (DistributedCounters kind) amt among {gm}
+             {tk = CountersDistributed}
 
 
 public export
@@ -425,19 +420,16 @@ entersTapped n = EntersRider n EntersTapped {zn}
 
 public export
 entersWithCounters : (n : Noun bs Object) -> (k : Nat) -> (kind : CounterKind) ->
-                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                     {auto 0 wc : WrittenCount {bs} (Lit k)} ->
                      StaticEffect bs
-entersWithCounters n k kind = EntersWithCounters n (Lit k) kind {zn}
+entersWithCounters n k kind = EntersWithCounters n (Lit k) kind
 
 public export
 gets : (n : Noun bs Object) -> (pow : PtShift (nomIntro n)) ->
        (tou : PtShift (nomIntro n)) ->
        (d : Maybe (Duration (selfSubjIntro n))) ->
        {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
-       {auto 0 ps : PumpSigns pow tou} ->
        {auto 0 sp : SpanOk PtDelta d} -> Effect bs
-gets n pow tou d = Continuously (Gets n pow tou {ps}) d
+gets n pow tou d = Continuously (Gets n pow tou) d
 
 public export
 gains : (n : Noun bs Object) -> (a : AbilityAt bs) ->
@@ -557,9 +549,8 @@ create : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
          {auto 0 sf : SubtypesFit tok} ->
          {auto 0 ta : TokenAbilities tok} ->
          {auto 0 tc : TokenCanonical tok} ->
-         {auto 0 wc : WrittenCount count} -> Effect bs
-create count tok = Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc}) [] {wc}
-                          {rr = Oh}
+         Effect bs
+create count tok = Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc}) []
 
 public export
 createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
@@ -568,11 +559,10 @@ createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count
                         {auto 0 sf : SubtypesFit tok} ->
                         {auto 0 ta : TokenAbilities tok} ->
                         {auto 0 tc : TokenCanonical tok} ->
-                        {auto 0 wc : WrittenCount count} -> Effect bs
+                        Effect bs
 createTappedAttacking count tok =
   Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc})
-         [EntersTapped, EntersAttacking] {wc}
-         {rr = Oh}
+         [EntersTapped, EntersAttacking]
 
 public export
 becomesAs : (n : Noun bs Object) -> (added : TokenChars bs) ->
@@ -606,8 +596,8 @@ drawACard : Effect bs
 drawACard = Draw You (Lit 1)
 
 public export
-drawCards : (n : Nat) -> {auto 0 wc : WrittenCount {bs} (Lit n)} -> Effect bs
-drawCards n = Draw You (Lit n) {wc}
+drawCards : (n : Nat) -> Effect bs
+drawCards n = Draw You (Lit n)
 
 public export
 drawsACard : (who : Noun bs Player) -> Effect bs
@@ -618,41 +608,36 @@ public export
 chooseOne : (modes : List (Effect bs)) ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
             {auto 0 mf : ModesFit (exactly 1) (modeCount modes)} ->
-            {auto 0 mh : ModalHead (exactly 1) (modeCount modes)} ->
             {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseOne modes = Modal (exactly 1) modes {tw} {mf} {mh} {dm = eqToSo dm}
+chooseOne modes = Modal (exactly 1) modes {tw} {mf} {dm = eqToSo dm}
 
 public export
 chooseTwo : (modes : List (Effect bs)) ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
             {auto 0 mf : ModesFit (exactly 2) (modeCount modes)} ->
-            {auto 0 mh : ModalHead (exactly 2) (modeCount modes)} ->
             {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseTwo modes = Modal (exactly 2) modes {tw} {mf} {mh} {dm = eqToSo dm}
+chooseTwo modes = Modal (exactly 2) modes {tw} {mf} {dm = eqToSo dm}
 
 public export
 chooseOneOrBoth : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
                   {auto 0 mf : ModesFit Macros.oneOrBoth (modeCount modes)} ->
-                  {auto 0 mh : ModalHead Macros.oneOrBoth (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseOneOrBoth modes = Modal Macros.oneOrBoth modes {tw} {mf} {mh} {dm = eqToSo dm}
+chooseOneOrBoth modes = Modal Macros.oneOrBoth modes {tw} {mf} {dm = eqToSo dm}
 
 public export
 chooseOneOrMore : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
                   {auto 0 mf : ModesFit (atLeast 1) (modeCount modes)} ->
-                  {auto 0 mh : ModalHead (atLeast 1) (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf} {mh} {dm = eqToSo dm}
+chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf} {dm = eqToSo dm}
 
 public export
 chooseAnyNumber : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
                   {auto 0 mf : ModesFit Macros.anyNumber (modeCount modes)} ->
-                  {auto 0 mh : ModalHead Macros.anyNumber (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseAnyNumber modes = Modal Macros.anyNumber modes {wf = Oh} {tw} {mf} {mh} {dm = eqToSo dm}
+chooseAnyNumber modes = Modal Macros.anyNumber modes {wf = Oh} {tw} {mf} {dm = eqToSo dm}
 
 public export
 notSo : (c : Condition bs) -> Condition bs
@@ -726,8 +711,8 @@ nthFromTopOrBottomZ : (n : LibOrdinal) -> ZoneExpr bs
 nthFromTopOrBottomZ n = LibraryAt (EitherEnd Nothing) Nothing {off = Just n} Bare
 
 public export
-topCards : (n : Nat) -> {auto 0 wc : WrittenCount {bs} (Lit n)} -> Noun bs Object
-topCards n = LibrarySlice OnTop (Lit n) You {wc}
+topCards : (n : Nat) -> Noun bs Object
+topCards n = LibrarySlice OnTop (Lit n) You
 
 public export
 topCard : Noun bs Object
@@ -789,8 +774,8 @@ puts : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
        {auto 0 arr : ArrangementOk (nounPlur n) to} ->
        {auto 0 na : NotPlayerSpanning n} ->
        {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
-       {auto 0 pz : PutAgentiveZone (zoneSort to)} -> Effect bs
-puts agent n to = Does agent Put (Move n to {ok} {arr} {na} {pl}) {tb = PutB {pz}}
+       Effect bs
+puts agent n to = Does agent Put (Move n to {ok} {arr} {na} {pl}) {tb = PutB}
 
 public export
 shuffle : Effect bs
@@ -826,10 +811,9 @@ public export
 preventNext : (kind : DamageKind) -> (amt : Amount bs) ->
               (scope : DamageScope (amtIntro amt)) ->
               (d : Maybe (Duration (scopeIntro scope))) ->
-              {auto 0 wc : WrittenCount amt} ->
               {auto 0 sp : SpanOk Prevention d} -> Effect bs
 preventNext kind amt scope d =
-  Continuously (Prevents kind (TheNext amt {wc}) scope Nothing Nothing) d {sp}
+  Continuously (Prevents kind (TheNext amt) scope Nothing Nothing) d {sp}
 
 public export
 preventAllBy : (kind : DamageKind) -> (scope : DamageScope bs) ->
@@ -844,10 +828,9 @@ preventNextBy : (kind : DamageKind) -> (amt : Amount bs) ->
                 (scope : DamageScope (amtIntro amt)) ->
                 (src : Noun (scopeIntro scope) Object) ->
                 (d : Maybe (Duration (nomIntro src))) ->
-                {auto 0 wc : WrittenCount amt} ->
                 {auto 0 sp : SpanOk Prevention d} -> Effect bs
 preventNextBy kind amt scope src d =
-  Continuously (Prevents kind (TheNext amt {wc}) scope (Just src) Nothing) d {sp}
+  Continuously (Prevents kind (TheNext amt) scope (Just src) Nothing) d {sp}
 
 public export
 shieldingIt : {k : Kind} -> (n : Noun bs k) ->
@@ -925,13 +908,12 @@ public export
 mills : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
         (whose : Noun (nomIntro agent) Player) ->
         {auto 0 sp : SlicePossessor whose} ->
-        {auto 0 wc : WrittenCount amt} ->
-        {auto 0 na : NotPlayerSpanning (LibrarySlice OnTop amt whose {sp} {wc})} ->
+        {auto 0 na : NotPlayerSpanning (LibrarySlice OnTop amt whose {sp})} ->
         Effect bs
 mills agent amt whose =
   Does agent Mill
-       (Move (LibrarySlice OnTop amt whose {sp} {wc}) graveyardZ {na})
-       {tb = MillB {sp} {wc} {na}}
+       (Move (LibrarySlice OnTop amt whose {sp}) graveyardZ {na})
+       {tb = MillB {sp} {na}}
 
 ||| "Enchant creature": a keyword whose parameter is a subject phrase.
 public export
@@ -960,11 +942,10 @@ keywordQuality kw q = KeywordAbility kw {param = Just (ParamQuality q)} {pf}
 ||| "Renown 1": a keyword whose parameter is a written number.
 public export
 keywordNumber : {0 bs : Bindings} -> (kw : Keyword) -> (amt : Amount []) ->
-                {auto 0 wc : WrittenCount amt} ->
                 {auto 0 pf : KeywordParamFits {bs} kw
-                               (Just (ParamNumber {bs} amt {wc}))} ->
+                               (Just (ParamNumber {bs} amt))} ->
                 AbilityAt bs
-keywordNumber kw amt = KeywordAbility kw {param = Just (ParamNumber amt {wc})} {pf}
+keywordNumber kw amt = KeywordAbility kw {param = Just (ParamNumber amt)} {pf}
 
 ||| "Whenever …, if <condition>, …": a trigger with an intervening-if clause.
 public export
@@ -1020,9 +1001,8 @@ activatedOnlyDuring : (cost : Cost bs) ->
                       (w : Timing) ->
                       {auto 0 tp : CostTapOnce cost} ->
                       {auto 0 py : CostPaidByYou cost} ->
-                      {auto 0 ld : LoyaltyDefaults cost (Just w) Nothing Nothing} ->
                       AbilityAt bs
-activatedOnlyDuring cost eff w = Activated cost eff {window = Just w} {tp} {py} {ld}
+activatedOnlyDuring cost eff w = Activated cost eff {window = Just w} {tp} {py}
 
 ||| "Activate only once each turn" (or once each game).
 public export
@@ -1031,9 +1011,8 @@ activatedOnlyOnce : (cost : Cost bs) ->
                     (lim : UsageLimit) ->
                     {auto 0 tp : CostTapOnce cost} ->
                     {auto 0 py : CostPaidByYou cost} ->
-                    {auto 0 ld : LoyaltyDefaults cost Nothing (Just lim) Nothing} ->
                     AbilityAt bs
-activatedOnlyOnce cost eff lim = Activated cost eff {limit = Just lim} {tp} {py} {ld}
+activatedOnlyOnce cost eff lim = Activated cost eff {limit = Just lim} {tp} {py}
 
 ||| "Activate only if <condition>."
 public export
@@ -1042,9 +1021,8 @@ activatedOnlyIf : (cost : Cost bs) ->
                   (g : Condition bs) ->
                   {auto 0 tp : CostTapOnce cost} ->
                   {auto 0 py : CostPaidByYou cost} ->
-                  {auto 0 ld : LoyaltyDefaults cost Nothing Nothing (Just g)} ->
                   AbilityAt bs
-activatedOnlyIf cost eff g = Activated cost eff {guard = Just g} {tp} {py} {ld}
+activatedOnlyIf cost eff g = Activated cost eff {guard = Just g} {tp} {py}
 
 ||| "Activate only once each turn and only if <condition>."
 public export
@@ -1053,10 +1031,9 @@ activatedOnlyOnceIf : (cost : Cost bs) ->
                       (lim : UsageLimit) -> (g : Condition bs) ->
                       {auto 0 tp : CostTapOnce cost} ->
                       {auto 0 py : CostPaidByYou cost} ->
-                      {auto 0 ld : LoyaltyDefaults cost Nothing (Just lim) (Just g)} ->
                       AbilityAt bs
 activatedOnlyOnceIf cost eff lim g =
-  Activated cost eff {limit = Just lim} {guard = Just g} {tp} {py} {ld}
+  Activated cost eff {limit = Just lim} {guard = Just g} {tp} {py}
 
 ||| "You may cast <what> from <zone>."
 public export
@@ -1101,26 +1078,22 @@ public export
 putIntoFrom : (n : Noun bs Object) -> (to : ZoneExpr bs) -> (src : EventSource bs) ->
               {auto 0 dk : PutDest to} ->
               {auto 0 sk : PutSource (Just src)} ->
-              {auto 0 zn : ZoneFits (nounZone n) (sourceZone (Just src))} ->
-              {auto 0 ss : SelfSorted n} -> GameEvent bs
-putIntoFrom n to src = PutInto n to {from = Just src} {dk} {sk} {zn} {ss}
+              {auto 0 zn : ZoneFits (nounZone n) (sourceZone (Just src))} -> GameEvent bs
+putIntoFrom n to src = PutInto n to {from = Just src} {dk} {sk} {zn}
 
 ||| "… enters with an additional counter on it."
 public export
 entersWithAdditionalCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
-                               (kind : CounterKind) ->
-                               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                               {auto 0 wc : WrittenCount amt} -> StaticEffect bs
+                               (kind : CounterKind) -> StaticEffect bs
 entersWithAdditionalCounters n amt kind =
-  EntersWithCounters n amt kind {mark = Additional} {zn} {wc}
+  EntersWithCounters n amt kind {mark = Additional}
 
 ||| "Whenever <creature> attacks <player>."
 public export
 attacksPlayer : (n : Noun bs Object) -> (whom : Noun (nomIntro n) Player) ->
                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                {auto 0 ss : SelfSorted n} ->
                 {auto 0 df : AttackDefender (Just whom)} -> GameEvent bs
-attacksPlayer n whom = Attacks n {whom = Just whom} {zn} {ss} {df}
+attacksPlayer n whom = Attacks n {whom = Just whom} {zn} {df}
 
 ||| "Whenever one or more tokens are created under <player>'s control."
 public export
@@ -1144,22 +1117,18 @@ tokensCreatedByEffectUnder n under =
 public export
 singleCounterEvent : (dir : CounterMove) -> (kind : CounterKind) ->
                      (n : Noun bs Object) ->
-                     {auto 0 sc : counterScope kind = Object} ->
-                     {auto 0 zn : CounterHolder (nounZone n)} ->
-                     {auto 0 ss : SelfSorted n} -> GameEvent bs
+                     {auto 0 sc : counterScope kind = Object} -> GameEvent bs
 singleCounterEvent dir kind n =
-  CounterEvent dir kind n {many = OneCounter} {sc} {zn} {ss}
+  CounterEvent dir kind n {many = OneCounter} {sc}
 
 ||| "When the last <kind> counter is removed from … by <player>."
 public export
 lastCounterRemovedBy : (kind : CounterKind) -> (n : Noun bs Object) ->
                        (who : Noun bs Player) ->
                        {auto 0 sc : counterScope kind = Object} ->
-                       {auto 0 zn : CounterHolder (nounZone n)} ->
-                       {auto 0 ss : SelfSorted n} ->
                        {auto 0 ag : EventAgent (Just who)} -> GameEvent bs
 lastCounterRemovedBy kind n who =
-  LastCounterRemoved kind n {by = Just who} {sc} {zn} {ss} {ag}
+  LastCounterRemoved kind n {by = Just who} {sc} {ag}
 
 ||| "<player> chooses …": a choice made by someone other than you.
 public export
@@ -1255,13 +1224,29 @@ beginningOfPossessed part poss = BeginningOf part (ByNoun poss {pn}) {pu}
 ||| conferred.
 public export
 monstrosity : {bs : Bindings} -> (amt : Amount bs) ->
-              {auto 0 wc : WrittenCount amt} -> Effect bs
+              Effect bs
 monstrosity amt =
   If (Sequentially [ PutCounters amt plusOnePlusOne thisCreature
                    , GainsDesignation thisCreature Monstrous
                                       (InExpansionOf MonstrosityW) ])
      (notSo (Matches thisCreature (HasDesignation Monstrous)))
      Nothing
+
+||| Ascend's expansion body [CR#702.131a]: "you get the city's blessing
+||| for the rest of the game."
+public export
+getsCitysBlessing : Effect bs
+getsCitysBlessing =
+  GainsDesignation You CitysBlessing (InExpansionOf AscendW)
+                   {span = Just RestOfGame}
+
+||| Saddle's expansion body [CR#702.171a]: "This permanent becomes
+||| saddled until end of turn."
+public export
+becomesSaddled : Effect bs
+becomesSaddled =
+  GainsDesignation (AsType Artifact This) Saddled (InExpansionOf SaddleW)
+                   {span = Just untilEndOfTurn}
 
 ||| "your commander" [CR#903.3]: the card-scope designation read as a
 ||| possessed noun.

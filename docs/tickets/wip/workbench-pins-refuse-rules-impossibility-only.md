@@ -1172,3 +1172,205 @@ bracket a description, which a colour word is.
   with the head-compatibility anchor they served.
 - `Experimental.idr`: `annSeqs` added beside `annSims`; `seedTypes` and
   `anyTypeClash` replaced by the alternatives-aware trio.
+
+## Phase 2 round 4 — counters, damage, ascription, singletons (2026-08-22)
+
+### Tables reshaped
+
+| was | now | admits / refuses |
+|---|---|---|
+| `counterZone`/`CounterHolder` (Words.idr) on `PutCounters`, `RemoveCounters`, `CounterEvent`, `LastCounterRemoved` and the move rider | deleted | [CR#122.1a] counts a +X/+Y counter on "a creature card in a zone other than the battlefield" and [CR#122.1b] a keyword counter on "a card in a zone other than the battlefield"; no zone is closed to counters |
+| `zoneAdmit (HasCounters _) = [Battlefield, Exile]` | row deleted | same rules; the description-side twin of the row above |
+| `CountersDistributed`'s `OnBattlefield` | deleted | the divided half now carries what its undivided twin carries: nothing |
+| — | `counterMemoryOk`/`CounterMemory` (Experimental.idr) on `RemoveCounters`, over `verbMoves`/`stampMoves`/`provOfIt`/`provOfThem` (Words.idr) | [CR#122.2]: counters cease to exist as an object changes zones, so a removal reading a referent an earlier clause MOVED names none [CR#400.7]. `badRemoveCountersDead` re-grounded here off the zone table |
+| `CounterKind` | gained `LoyaltyCounter` | [CR#122.1] makes every counter a marker; [CR#122.1e] only says what the loyalty count indicates and [CR#606.4] moves loyalty counters as a cost. Named `LoyaltyCounter`, not `Loyalty`, so it does not collide with the characteristic below |
+| `Characteristic = Power \| Toughness \| ManaValue` | `\| Loyalty`, `comparedType Loyalty = Just Planeswalker` | [CR#109.3] lists loyalty among an object's characteristics; [CR#306.5] gives it to planeswalkers alone. The possessed read is `StatOf Loyalty …` — Nahiri's "mana value less than Nahiri's loyalty" |
+| `keywordCounterOk` | unchanged, re-cited | its zeros ARE [CR#122.1b]'s closed enumeration; the table was already rules-shaped and only lacked the cite |
+| `LoyaltyStep`/`IsSucc` on `LoyaltyUp`/`LoyaltyDown` | deleted | "[+0]" and "[0]" are one cost printed two ways; [CR#606.4] fixes no minimum |
+| `NotLoyalty` on `CostSeq (::)` | deleted | [CR#606.5] presupposes that loyalty costs COMBINE within one total cost |
+| `loyaltyDefaultsOk`/`LoyaltyDefaults` | deleted | [CR#606.3] grants the loyalty permission; restating it longhand, or conditioning it further, is redundant rather than meaningless |
+| `DamageableTy` (Creature, Planeswalker) | `DamBattle` added | [CR#120.1a] names battles, creatures and planeswalkers; [CR#115.4] the same three beside players |
+| `ascribesAsType Battle = False` | `True`; `ascribesAsSubtype` (a ~200-row subtype table) deleted, `ascriptionOk t (Just s) = ascribesAsType t && subtypeType s == t` | [CR#109.2] admits a description including "a card type **or subtype**", so a subtype rides its parent type; the surviving zeros are Instant/Sorcery ([CR#110.4]: never permanents) and Kindred ([CR#308.1]) |
+| `attachHeadOk Equipped PermanentW = False` | `True` | [CR#301.5f] lets "equipped" name whatever the permanent is attached to — Luxior, Giada's Gift. The other zeros keep [CR#301.5]/[CR#301.6]/[CR#303.4] |
+| `attachedCheckOk Fortified = False` | `True` | fortify is real [CR#301.6]; the head reader already admitted the word |
+| `comparableBound`/`ComparableBound` | deleted | no rule restricts what a comparison's standard may be; a summed or scaled bound is a magnitude |
+| `writtenCount`/`WrittenCount` (23 sites) | deleted | [CR#107.1b]/[CR#107.1c] use zero routinely; a literal `0` is vacuous, never meaningless |
+| `letterDefines`/`LetterDefinition`/`DefiningValue` | deleted | a numeral may stand where the star stands |
+| `pumpSignsOk`/`PumpSigns` | deleted | [CR#613.4c] is the layer rule and says nothing about how a zero is signed |
+| `loneComparison`/`LoneComparison` | deleted | one bound per phrase was house discipline; the gate could not tell a contradiction from "power 2 or less and toughness 3 or greater" |
+| `allLoneOk` ("any target" takes no qualifier but "other") | `anyTargetZoneOk (seedZone p)` | [CR#115.4] closes the class to creatures, players, planeswalkers and battles — all on the battlefield or in no zone — so only a zone modifier is refused. `badAnyTargetInGraveyard` re-homed here |
+| `AtLeastTwo` on `Sequentially`/`Simultaneously`/`AndAlso`/`Compound`; `TwoDisjuncts` on `Or`; `NotSeq`/`NotSim` | non-empty guards (`IsSucc`, `NonEmpty`); nesting ungated | a coordination of one denotes its member and a nested one the flat list — canonicalisation. Empty stays refused and now has its own pins. `AtLeastTwo` survives on `Modal` alone, where [CR#700.2] defines modal as two or more options |
+| `quantWellFormed (Range (Just Z) _) = False` | `lte lo hi` only | [CR#107.1c] lets a player choose zero; an inverted range still picks out nothing |
+| `modesFit`'s "headcount that fixes the whole list" clause | deleted | [CR#700.2] does not forbid choose-two-of-two; the surviving `lte hi n` keeps the headcount inside the printed list |
+| `modalHead`/`ModalHead` | deleted | nothing in [CR#700.2] caps an "up to" headcount at one |
+| `ridersOk`/`RidersOk` (EntersAttacking needs EntersTapped) | deleted | [CR#508.4] designates a creature attacking and taps nothing; Brimaz, King of Oreskos prints an untapped attacking token |
+| `entryRiderOk`/`EntryRiderOk` | deleted | [CR#506.3a] and [CR#508.4d] both state what happens when a permanent enters attacking |
+| `selfSortedOk`/`SelfSorted` (19 sites) | deleted | which word the host is called by ("this" vs "this creature") is spelling |
+| `searchableZone`/`SearchableZone` | deleted | [CR#701.23a] looks through all cards in a zone "even if it's a hidden zone" |
+| `wholeZone`/`WholeZone` on `Search`'s `OneZone` and on `CastFrom` | deleted | [CR#701.23f] contemplates searching a PORTION of a library (Aven Mindcensor); "cast spells from the top of your library" is printed |
+| `putSourceZoneOk Exile = False` | `True` | "Put a card an opponent owns from exile into that player's graveyard" is printed |
+| `putDestZoneOk Battlefield = False` | `True` | "put onto the battlefield" is the same arrival `Enters` names |
+| `putAgentiveZoneOk`/`PutAgentiveZone` | deleted | which verb names a move into exile is spelling |
+| `exposableZone Library = False` | `True` | a library is hidden [CR#400.2], and [CR#701.23a] already looks through all of it |
+| `ordinalFits`/`OrdinalFits`/`PlaceOrdinalFits`; `arrangementFits`/`ArrangementFits`; `orderOk`'s ordinal clause | deleted / reduced to the `EitherEnd` case | [CR#401.7] only handles a short library; [CR#401.4] hands the owner an order precisely when two or more cards go to one specific position. Bottom-relative ordinals, ordinal-plus-order and plural-plus-ordinal all admit |
+| `costActionOk` rows Draw, `ChangeLife _ Up`, `CounterSpell`, `Concludes`, `GetsEmblem`, and the battlefield bar on `Move` | admitted | [CR#118.1] makes a cost any action necessary to take another; [CR#119.7] presupposes that gain-life costs exist |
+| `payableOk (Do _)`/`(Compound _)` | admitted | [CR#118.1]/[CR#601.2h] call every cost "paid"; the surviving zeros are `TapSymbol`, `UntapSymbol` and `LoyaltySymbol` [CR#606.4] |
+| `costNounOk (TargetGroup _ _) = False` | `True` | [CR#601.2c] announces targets before [CR#601.2h] pays costs |
+| `staticAsAbility` rows `CopyEffect`, `ControlGrant`, `PtSwitch` | admitted | [CR#604.1]/[CR#611.2] make each a continuous effect like any other. `badStandingCopy`'s term stays unspellable through `Untargeting` [CR#115.1a..115.1e], which `badStaticTargets` owns |
+| `ZoneFits … Battlefield` on `HasBasePt`, `BecomesCopy`, `EntersWithCounters` | deleted | [CR#613.4b]/[CR#611.2]/[CR#614.1c] are layer and replacement rules and fix no zone for the subject a continuous effect names |
+| `retainable` (type-keyed) | every type admitted; `retentionOk`'s empty-added-line refusal kept | the rider names the type the setting took away, which the type alone cannot tell |
+| `statusEventOk Flipped`/`FaceDown` | `True`; `Unflipped` kept `False` | flipping and turning face down are real events [CR#710.1a,708.2a]; [CR#710.4] makes flipping one-way, so nothing becomes unflipped (`badUnflipEvent` keeps that cell) |
+| `verbedMarkingOk Destroy Attributive = False` | `True` | which participle a marking spells is spelling |
+| `chapterMarksOk` (ascending) | `chapterMarksDistinct` | [CR#107.15b] makes "{rN1}, {rN2}—" shorthand for two independent abilities, so the marks carry no order; one number twice still names one ability twice (`badRepeatedChapterMark`) |
+| `riderAct Cast`/`Played = False` | `True` | [CR#601.1a]: "playing a card" means playing it as a land OR casting it as a spell |
+| `PlayedIsLand`'s `LandSubject` | deleted | same rule; "you may play that card" is printed of nonlands |
+| `playSourceOk zn (Just _) (Just HadFlash) = False` | composed | both widenings are independently meaningful under [CR#601.1a] |
+| `staticOnSpellCardOk (ObjectCant …)`'s self-subject demand | `True` | [CR#113.6g] licenses the static on any object and says nothing about the subject's breadth |
+| `qualityReadOk` | `Named _` admitted | [CR#109.3] lists a name among an object's characteristics |
+| `keywordParamless`/`KeywordParamless` on `HasKeyword` | gate deleted (the classifier survives for `grantedKeyword`) | "creature with ward" names a set |
+| `Bindingless` on `CantBe`'s subject | deleted | [CR#115.1]: a second "target" names a second target |
+| `TokenAsThose`'s `countManyWord TokenW` | `countTokenSpecs` (new, Words.idr) | [CR#111.7] ends the token OBJECTS; [CR#111.3] leaves the characteristics definition "those tokens" names. A no-token-mention line is still refused (`badAnaphoricTokenAfterNonToken`) |
+| `CreationVoice` | `CreatedByUnder` and `CreatedByCauserPlain` added | [CR#111.2] makes creator and controller redundant, not contradictory |
+| `choosable (CountedGroup _ _) = False` | `True` | a counted group is as choosable as a target one |
+| `perMemberOk (AllOf _)` | `True` | `AllOf` and `Each` denote the same sweep |
+| `freedomFits (Lit 1) (AnyColor EachColor) = False` | deleted | [CR#106.1a] lists the colours; one mana of each colour is vacuous |
+| `repeatCount` (written bound only) | `writtenCount` (now vacuous) → deleted | [CR#107.1] arithmetic: a repetition count may be read off the board |
+| `isForEach`/`NotForEach` | deleted | nested distribution is well scoped |
+| `designationGiven` zeros for CitysBlessing, EnduringStory, RingBearer, Monstrous, Renowned, Saddled | admitted | [CR#701.37b,702.112b,702.131c,702.171b,702.195b] define each marker without reserving its conferral to one keyword's expansion. `CommanderD` stays refused [CR#903.3] |
+| `designationChecked Day = False` | `True` | [CR#731.1] gives the game exactly one of day and night |
+| `ConferringWord = MonstrosityW` | `\| SaddleW \| AscendW \| StoriedW \| RenownW` | the four keywords whose expansion body this grammar can now write |
+| `GainsDesignation` | gained `{default Nothing span}`; `Duration` gained `RestOfGame` | saddle's expansion writes "until end of turn" [CR#702.171a] and ascend's and storied's "for the rest of the game" [CR#702.131a,702.195a]; monstrosity and renown write none [CR#701.37a,702.112a] |
+| `lookbackSubjectOk PartBeginning` | `True` for both kinds | [CR#603.10] looks back at any event |
+| `altRunWritten (Just [_])` only | any run | table symmetry, no rule |
+| `keywordCardOk SpellCard Flash = False` | `True` | [CR#702.8a] grants flash to a card of any type; on an instant it is redundant |
+| `grantSubjectOk`/`regimeMatches` | untouched | see gaps: the two grant-regime pins were deleted with the idiom map, not with a rule |
+
+### Pins deleted (110 in scope)
+
+- `ProofsB.idr` (17): badSingletonSequence, badSingletonOr, badNestedOr, badZeroLowerRange, badNestedSequence, badDoubleComparison, badAnyTargetComparison, badAttackingUntapped, badPutCountersGraveyard, badDrawZero, badCreateZero, badPutZeroCounters, badModalFixedWhole, badModalUpToTwo, badSingletonSimultaneous, badNestedSimultaneous, badSequenceInsideSimultaneous
+- `ProofsC.idr` (23): badAllOfDamageRecipient, badDivideZero, badDistributeCountersGraveyard, badRevealWholeLibrary, badSearchBattlefield, badSearchLibraryPosition, badSearchLibraryPositionOrdered, badZeroSlice, badMillZero, badDrawAsCost, badGainLifeCost, badTargetedCost, badPayBySacrificing, badPayCompound, badSingletonCompound, badEntersBareThis, badStaticGainsControl, badConditionalGainControl, badEntersAttackingLine, badMoveAttackingUntapped, badMoveRidersReversed, badMoveCountersToGraveyard, badExileZeroCounters
+- `ProofsD.idr` (15): badCounterAsCost, badMoveOntoBattlefieldAsCost, badDestroyedAttributive, badFlipEvent, badTurnedFaceDownEvent, badBlocksBareThisPartner, badLookbackPartBeginning, badItIsDay, badConcludesAsCost, badScaledBound, badScaledConditionBound, badDifferenceSubject, badWrittenXDef, badDisagreeingZeroPump, badZeroCostShift
+- `ProofsE.idr` (32): badCastGrantAtResolution, badControlGrantAtCasting, badWrittenPtDefinition, badSwitchLine, badBasePtInGraveyard, badSuperlativeAndBound, badAscribeCreatureType, badAscribeCurse, badIsFortified, badWardDescription, badRenownZero, badChooseCountedGroup, badPutIntoBattlefield, badPutFromExile, badCreatedByYouUnderYourControl, badCausedCreationBareControl, badAnaphoricTokenOffBattlefield, badStillACreature, badCoordinatedGainsControl, badFlashOnInstant, badAscribeBattle, badEmblemAsCost, badLoyaltyUpZero, badLoyaltyDownZero, badCompoundLoyalty, badLoyaltyOncePerTurn, badLoyaltySorceryWindow, badLoyaltyGuard, badRandomOnTop, badLoneCombination, badStandingCopy, badGraveyardBecomesCopy
+- `ProofsF.idr` (12): badScaleShiftByZero, badChosenBasicTypeInGraveyard, badAscribedName, badPlayedNonland, badStaticClassCounterOnInstant, badDescendingChapterMark, badZonedFlashPermission, badEntersZeroCounters, badEntersCountersInGraveyard, badRiderAnnouncesTarget, badCastRider, badMultiSymbolBesideChosen
+- `ProofsG.idr` (11): badCounterDescriptionInGraveyard, badCastFromLibraryTop, badBottomOrdinal, badOrdinalOrderRider, badPluralOrdinalPlacement, badNestedForEach, badCountedRepeat, badZeroRepeat, badPutIntoExile, badMonstrousInstruction, badBlessingInstruction
+
+Four of these were not CORPUS in the Phase 1 tables and are deleted anyway
+because the gate under them went: **badZeroRepeat**, **badDivideZero**,
+**badSingletonCompound** and **badSequenceInsideSimultaneous** are the
+literal-zero and coordination-arity families under other names, and
+**badCoordinatedGainsControl** rested on `staticAsAbility ControlGrant`.
+
+### Pins added or re-grounded (kept)
+
+- **badEmptyCompound** (new, `ProofsC.idr`) — "a compound cost of no components". The non-empty half of the arity gate needed its own owner once singleton compounds were admitted.
+- **badEmptyCoordination** (new, `ProofsE.idr`) — `AndAlso []`, the same for the static coordination.
+- **badRemoveCountersDead** — moved off `counterZone` onto `CounterMemory`; the ground is now [CR#122.2] (counters cease to exist as the object moves) with [CR#400.7], not a zone table.
+- **badAnyTargetInGraveyard** — moved off `allLoneOk`'s "no qualifier but other" onto `anyTargetZoneOk`; [CR#115.4] unchanged.
+- **badRepeatedChapterMark** — moved off `chapterMarksOk`'s ascending check onto `chapterMarksDistinct`; [CR#107.15b].
+- **badUnflipEvent** — kept; `statusEventOk Unflipped` re-cited to [CR#710.4], which makes flipping one-way.
+- **badTurnFaceDownGraveyard** — re-cited from [CR#708.7] to [CR#110.5d] ("only permanents have status").
+- **badAnaphoricTokenAfterNonToken** — moved onto `countTokenSpecs`; the claim (no token mention precedes "those tokens") is unchanged.
+- **badReaderBeforeChooser**, **badChosenProtectionBeforeChoice**, **badAscribedQualityBeforeChoice**, **badNameMatchBeforeChooser**, **badLastChosenBeforeChooser** — reclassified CORPUS → RULES on [CR#608.2c]: the controller follows the instructions IN THE ORDER WRITTEN, so a line reading a choice a later line makes reads a choice nobody has made. [CR#607.2d] links by role and was the wrong cite for the ordering claim.
+- **badCastInGraveyard**, **badCastFromBattlefield** — HELD, docstrings marked; see gaps.
+- **badStaticTargets** — untouched, and now the sole owner of the target-in-a-static refusal that `badStandingCopy` had duplicated.
+
+### Cards benched
+
+- **Brimaz, King of Oreskos** (attack trigger) — "Whenever Brimaz attacks, create a 1/1 white Cat Soldier creature token with vigilance that's attacking." The attacking rider with no tapped rider beside it.
+- **Luxior, Giada's Gift** (second line) — "Equipped permanent … is a creature in addition to its other types." `AttachHost Equipped PermanentW`.
+- **Nahiri, the Unforgiving** ([0] subject) — "creature card with mana value less than Nahiri's loyalty from your graveyard." The `Loyalty` characteristic through the possessed-characteristic path. Her Compleated reminder ("enters with two fewer loyalty counters") stays out — `EntryCounterMark` has `Fresh` and `Additional` and no "fewer".
+- **Vivien's Talent** (trigger) — "Whenever a nontoken creature you control enters, put a loyalty counter on enchanted planeswalker." The `LoyaltyCounter` kind on an enchanted-planeswalker host.
+- **Bioessence Hydra** (second line) — "Whenever one or more loyalty counters are put on planeswalkers you control, put that many +1/+1 counters on this creature."
+- **counter on a graveyard card** — "Put a +1/+1 counter on target creature card in your graveyard", the [CR#122.1a] cell the zone table had closed.
+- **ascend's own reminder** — "you get the city's blessing for the rest of the game" [CR#702.131a], through `AscendW` and the new `RestOfGame`.
+- **saddle's expansion body** — "This permanent becomes saddled until end of turn" [CR#702.171a], through `SaddleW` and the duration slot.
+
+Teferi's Talent is Vivien's Talent's line with a draw trigger and is left off as
+a duplicate. Pithing Needle is not benched: see gaps.
+
+### Model gaps fixed or listed
+
+- **Fixed — counter provenance**: `verbMoves`, `stampMoves`, `provOfIt` and `provOfThem` (Words.idr) give `counterMemoryOk` the [CR#122.2] fact off the binding's own stamp rather than off its zone.
+- **Fixed — token characteristics anaphor**: `countTokenSpecs` reads "those tokens" as [CR#111.3]'s definition, which [CR#111.7] does not end.
+- **Listed — the rest of `costActionOk`**: only the six pinned rows moved. `DealDamage`, `Fights`, `Distribute`, the four turn-structure rows, the non-tap `SetStatus` rows, `GetsCounters`, `LosesAllCounters`, `RemoveFromCombat`, `Regenerate`, `CantBe`, `GainsDesignation`, `GameBecomes`, `GameDrawn`, `CopyStack`, `ChooseNewTargets`, `Choose`, `AddMana`, `Expose LookAt`, `Search`, `Shuffle`, `Continuously`, `Create`, the non-Exile/Destroy `Composite` tags and the non-Sacrifice/Discard/Mill `Does` tags all still refuse on attestation and carry no pin. [CR#118.1] does not distinguish them; a costs round should either widen or pin each.
+- **Listed — `grantSubjectOk`/`regimeMatches`**: `badCastGrantAtResolution` and `badControlGrantAtCasting` are deleted as CORPUS, but the gate is untouched — the two terms are still refused, now with no pin. The honest fix is to key the regime off what the keyword reads rather than off the subject's determiner; that is a keyword-regime question, not a zone one.
+- **Listed — Pithing Needle**: "Activated abilities of sources with the chosen name can't be activated unless they're mana abilities" needs an ability-class subject under a deontic with an unless-arm. `chosenQualityReadOk CardName` (round 1) covers the name half; the ability-class deontic does not exist.
+- **Listed — Nahiri's Compleated reminder**: `EntryCounterMark` has no "fewer" arm, so "enters with two fewer loyalty counters" has no shape. One constructor plus its lowering.
+- **Listed — `DamageRecipient`/`DeedParticipant` disjunctive heads**: NOT delivered. `DamageableTy` gained `DamBattle`, so "target creature or planeswalker" is still refused at the head, and "can't attack you or planeswalkers you control" still has no patient spanning `DefendingPlayer` and `DeonticCounterpart`. Both need a disjunctive noun head, which is the union-family redesign this ticket was sequenced before; the round did not open it.
+- **Listed — badCastInGraveyard, badCastFromBattlefield**: both HELD. [CR#601.2a] moves the card "from where it is" and excludes no zone, so neither refusal is grounded; whether `CastBy` and `playableFrom` should seed the Stack at all is a zone-model decision, not a table cell.
+- **Listed — `staticAsAbility` is now vacuous**: every row returns `True`. The gate is left in place because `staticLineOk` still threads it through the conditional and coordination cases; deleting it is a mechanical follow-up.
+- **Listed — the five binding-order pins are a real model limit as well as a rule**: [CR#608.2c] grounds them, but the same shape blocks the "unless" node `badUnlessAnaphoricPayer` records. If a future round mints a joint-typing container, all six move together.
+
+### Changes outside this round's gates
+
+- `Words.idr`: the `ascribesAsSubtype` subtype table (one row per subtype) deleted with `ascriptionOk`'s rewrite; `arrangementFits`/`ArrangementFits` deleted; `AtLeastTwo` re-homed beside `Determiner` with the [CR#700.2] docstring it now needs.
+- `Experimental.idr`: `wholeZone`/`WholeZone`, `isSeq`/`NotSeq`, `isSim`/`NotSim`, `isForEach`/`NotForEach`, `atLeastTwoPs`/`TwoDisjuncts`, `selfSortedOk`/`SelfSorted`, `entryRiderOk`/`EntryRiderOk` all deleted with their last reader.
+- `Macros.idr`: `distributeCounters`, `entersWithCounters`, `entersWithAdditionalCounters`, `singleCounterEvent`, `lastCounterRemovedBy`, `create`, `createTappedAttacking`, `drawCards`, `topCards`, `puts`, `gets`, the five modal helpers and the four loyalty-ability helpers shed the implicits whose gates were deleted; `getsCitysBlessing` and `becomesSaddled` added so `Cards.idr` binds no implicits.
+- `DestOk`'s `LibraryPosOk` lost its ordinal obligation and keeps the arrangement one.
+
+## Final state
+
+### Pins remaining per class
+
+| class | count |
+|---|---|
+| RULES | 231 |
+| STRUCTURAL | 182 |
+| CORPUS (kept, each with its rule — below) | 11 |
+| added by rounds 2–4, unclassified in the Phase 1 tables | 5 |
+| **total distinct pins** | **429** |
+
+`grep -c 'impossible$'` per file (clauses, not pins — several pins have more
+than one): `Proofs.idr` 75, `ProofsB.idr` 76, `ProofsC.idr` 61, `ProofsD.idr`
+65, `ProofsE.idr` 63, `ProofsF.idr` 70, `ProofsG.idr` 32 — 442 in all, from
+~717 at the ticket's start.
+
+### CORPUS-classified pins deliberately kept, with their rule
+
+| pin | file | why it stays |
+|---|---|---|
+| badChosenNumberRead | Proofs.idr | reclassified RULES in round 3: [CR#109.3] lists an object's characteristics and no bare number is among them |
+| badHiddenCost | Proofs.idr | reclassified RULES in round 3: [CR#400.7] makes the moved card a new object and [CR#400.7j] reaches public zones only |
+| badTriggerAtYourTurn | ProofsC.idr | re-grounded in round 1: [CR#603.2b] gives a triggering beginning to a phase or step, and [CR#500.1] makes a turn neither |
+| badAltCostClause | ProofsF.idr | re-grounded in round 1: `AltCost` names no object, and [CR#113.6d] prices one |
+| badReaderBeforeChooser | ProofsF.idr | [CR#608.2c] — instructions run in the order written |
+| badChosenProtectionBeforeChoice | ProofsF.idr | [CR#608.2c] |
+| badAscribedQualityBeforeChoice | ProofsF.idr | [CR#608.2c] |
+| badNameMatchBeforeChooser | ProofsF.idr | [CR#607.2d] with [CR#608.2c] |
+| badLastChosenBeforeChooser | ProofsF.idr | [CR#608.2c] |
+| badCastInGraveyard | ProofsD.idr | **HELD**, not defended: [CR#601.2a] excludes no origin zone. A zone-model decision |
+| badCastFromBattlefield | ProofsG.idr | **HELD**, not defended: same rule, same decision |
+
+### Cards benched across all four rounds
+
+Round 1 — Cheering Fanatic. Round 2 — Culling Mark, Blazing Archon, goad's own
+reminder, Clergy of the Holy Nimbus (also the totem-armor/regeneration
+replacement witness), Rampant Frogantua. Round 3 — Fastbond, Furious Reprisal,
+Maskwood Nexus, Mystical Tutor, Demonic Tutor, Thalia's Lancers. Round 4 —
+Brimaz King of Oreskos, Luxior Giada's Gift, Nahiri the Unforgiving, Vivien's
+Talent, Bioessence Hydra, ascend's reminder, saddle's expansion body, and the
+graveyard-counter line.
+
+### Open gaps, consolidated
+
+1. **Disjunctive heads** — `DamageRecipient` ("target creature or planeswalker") and `DeedParticipant`/`Deontic` ("can't attack you or planeswalkers you control"). The union-family redesign this ticket preceded.
+2. **No agentless "this way" reflexive node** — [CR#603.12]'s second form; Inferno of the Star Mounts and the regenerate lines.
+3. **No "unless" node** — [CR#118.12a]'s offer-with-if-not-arm ordering; Mana Leak (`badUnlessAnaphoricPayer`).
+4. **No cast-timing restriction node** — `Timing` attaches to `Activated` only; Necrologia.
+5. **No coin-flip node** — Ral Zarek's X.
+6. **No reciprocal fight node** — [CR#701.14a]'s "two creatures fight each other"; eleven printed lines.
+7. **Replacement-event anaphora** — `eventIntro` mints no subject binding for the event's own noun; Clergy's printed "it".
+8. **Set-aside stamp** — deleting `shuffledAway` admits more than [CR#701.24b] licenses; needs a search verb in `VerbName`.
+9. **`negatable (QualityNoun _)` over-reaches** — [CR#105.1] empties the complement only for the domainless quality noun.
+10. **The rest of `costActionOk`** — ~25 unpinned attestation rows.
+11. **`grantSubjectOk`/`regimeMatches`** — two now-pinless refusals.
+12. **`EntryCounterMark` has no "fewer" arm** — Nahiri's Compleated reminder.
+13. **No ability-class deontic** — Pithing Needle.
+14. **`staticAsAbility` is vacuous** — mechanical deletion pending.
+15. **Joint-typing container for cross-line choices** — would move the five [CR#608.2c] pins and the "unless" node together.
+
+### Acceptance
+
+- [x] Every surviving pin is RULES or STRUCTURAL and its docstring names why; no pin's justification is a count — with the two documented exceptions **badCastInGraveyard** and **badCastFromBattlefield**, held rather than defended, and marked HELD in their own docstrings.
+- [x] Every CORPUS pin's gate admits; Luxior and the other newly representable printed cards are benched.
+- [x] `idris/scripts/build` PASS (18/18, exit 0 from a clean `build/`); `Cards.idr` binds no implicits (0); cites 0 non-compliant / 0 stale.

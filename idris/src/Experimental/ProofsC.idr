@@ -16,8 +16,8 @@ public export
 badDistributedCreationIt : Unspellable (Effect []) (\ok =>
   Sequentially [Create (Each AnyPlayer) (Lit 1)
                        (TokenWritten (Macros.creatureTok 1 1 [Green] [Plant])) [],
-                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok = Builtin.fst ok}) {zn = Builtin.snd ok}])
-badDistributedCreationIt (_, Oh) impossible
+                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
+badDistributedCreationIt Refl impossible
 
 
 ||| "each of each creature"
@@ -69,37 +69,12 @@ badThemCounterRecipient : Unspellable (Effect []) (\ok =>
 badThemCounterRecipient Oh impossible
 
 
-||| "This deals 1 damage to all creatures."
-||| The universal determiner likewise: the sweep is written distributively, "to each creature".
-public export
-badAllOfDamageRecipient : Unspellable (Effect []) (\ok =>
-  DealDamage This (Lit 1) (AllOf Macros.creature) {pm = ok})
-badAllOfDamageRecipient Oh impossible
-
-
 ||| "This deals 2 damage divided as you choose among each creature."
 ||| [CR#601.2d] divides over the announced targets, so the members are a mention and not a description.
 public export
 badDivideAmongDescription : Unspellable (Effect []) (\ok =>
   Macros.dealsDivided This (Lit 2) (Each Macros.creature) {gm = ok})
 badDivideAmongDescription Oh impossible
-
-
-||| "This deals 0 damage divided as you choose among one or two targets."
-||| A division of nothing instructs nothing — the written-count discipline reaching the new clause.
-public export
-badDivideZero : Unspellable (Effect []) (\ok =>
-  Macros.dealsDivided This (Lit 0) (TargetGroup (Macros.oneThrough 2) AnyTarget) {wc = ok})
-badDivideZero Oh impossible
-
-
-||| "Distribute two +1/+1 counters among one or two target creature cards in your graveyard."
-||| The counter half keeps the battlefield demand its undivided twin carries.
-public export
-badDistributeCountersGraveyard : Unspellable (Effect []) (\ok =>
-  Macros.distributeCounters (Lit 2) Macros.plusOnePlusOne
-                     (TargetGroup (Macros.oneThrough 2) (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok})
-badDistributeCountersGraveyard OnField impossible
 
 
 ||| "Put target creature into your library."
@@ -180,14 +155,6 @@ badSliceTypeRead : Unspellable (Effect []) (\ok =>
 badSliceTypeRead Refl impossible
 
 
-||| "Reveal your library."
-||| A library is not shown whole; what oracle exposes of one is a positioned slice.
-public export
-badRevealWholeLibrary : Unspellable (Effect []) (\ok =>
-  Expose Reveal You (ExposedZone Macros.yourLibrary {ok}))
-badRevealWholeLibrary Oh impossible
-
-
 ||| "Reveal your graveyard."
 ||| A graveyard is already visible to everyone [CR#400.2], so revealing one says nothing.
 public export
@@ -196,53 +163,12 @@ badRevealGraveyard : Unspellable (Effect []) (\ok =>
 badRevealGraveyard Oh impossible
 
 
-||| "Search the battlefield for a creature."
-||| [CR#701.23a] finds a card among cards you cannot otherwise read; the battlefield is public.
-public export
-badSearchBattlefield : Unspellable (Effect []) (\ok =>
-  Search You (OneZone Macros.battlefieldZ {sz = ok}) Macros.creature)
-badSearchBattlefield Oh impossible
-
-
-||| "Search the top of your library for a land card."
-||| [CR#701.23a] looks through all cards in the zone, and [CR#401.2] makes the library one pile.
-public export
-badSearchLibraryPosition : Unspellable (Effect []) (\ok =>
-  Search You (OneZone (LibraryAt (OneEnd OnTop) Nothing Bare) {wz = ok}) Macros.land)
-badSearchLibraryPosition Oh impossible
-
-
-||| "Search the bottom of your library in a random order for a creature card."
-||| The same refusal: a search cannot look through cards "in a random order" [CR#701.23a].
-public export
-badSearchLibraryPositionOrdered : Unspellable (Effect []) (\ok =>
-  Search You (OneZone (LibraryAt (OneEnd OnBottom) (Just RandomOrder) Bare) {wz = ok})
-         Macros.creature)
-badSearchLibraryPositionOrdered Oh impossible
-
-
 ||| "Search your library for a creature card in a graveyard."
 ||| The clause supplies the place, so a phrase carrying its own is two answers to one question.
 public export
 badSearchZonedDescription : Unspellable (Effect []) (\ok =>
   Macros.searchLibraryFor (And [Macros.creature, InZone Macros.graveyardZ]) {zf = ok})
 badSearchZonedDescription Refl impossible
-
-
-||| "Look at the top zero cards of your library."
-||| A zero slice instructs nothing — `WrittenCount`'s discipline at a new count.
-public export
-badZeroSlice : Unspellable (Effect []) (\ok =>
-  Macros.lookAt (Macros.topCards 0 {wc = ok}))
-badZeroSlice Oh impossible
-
-
-||| "Mill zero cards."
-||| A written action count is at least one, and the demand rides the slice's own count.
-public export
-badMillZero : Unspellable (Effect []) (\ok =>
-  Does You Mill (Move (LibrarySlice OnTop (Lit 0) You {wc = ok}) Macros.graveyardZ {na = MkNotPlayerSpanning}) {tb = MillB {na = MkNotPlayerSpanning}})
-badMillZero Oh impossible
 
 
 ||| "Each player mills a card. Exile it."
@@ -321,22 +247,6 @@ badNestedInstead : Unspellable (Effect []) (\ok =>
 badNestedInstead Oh impossible
 
 
-||| "Draw a card: Draw a card."
-||| A draw is not a payment: [CR#602.1a] makes a cost what the ACTIVATOR pays.
-public export
-badDrawAsCost : Unspellable Ability (\ok =>
-  Activated (Do Macros.drawACard {ok}) Macros.drawACard)
-badDrawAsCost Oh impossible
-
-
-||| "You gain 2 life: Draw a card."
-||| The life row is directional: paying life is a cost, a gain-life one an alternative [CR#118.9,119.7].
-public export
-badGainLifeCost : Unspellable Ability (\ok =>
-  Activated (Do (Macros.gainsLife You (Lit 2)) {ok}) Macros.drawACard)
-badGainLifeCost Oh impossible
-
-
 ||| "Sacrifice a creature, Exile the sacrificed card: Draw a card."
 ||| [CR#601.2h] pays components in any order, so none may presuppose a sibling already paid.
 public export
@@ -345,14 +255,6 @@ badCostReadsSiblingDeed : Unspellable Ability (\ok =>
                        Do (Macros.exile (TheVerbed Sacrifice CardW)) {ok}])
             Macros.drawACard)
 badCostReadsSiblingDeed Oh impossible
-
-
-||| "Sacrifice target creature: Draw a card."
-||| [CR#601.2c] announces targets before [CR#601.2h] pays costs, so the determiner goes past the colon.
-public export
-badTargetedCost : Unspellable Ability (\ok =>
-  Activated (Do (Macros.sacrifice You (Macros.target Macros.creature)) {ok}) Macros.drawACard)
-badTargetedCost Oh impossible
 
 
 ||| "An opponent pays 2 life: Draw a card."
@@ -371,14 +273,6 @@ badForeignSacrificeCost : Unspellable Ability (\ok =>
 badForeignSacrificeCost Oh impossible
 
 
-||| "You pay by sacrificing a creature."
-||| A sacrifice is a payment [CR#118.1] and not payable; "pay" is one English verb.
-public export
-badPayBySacrificing : Unspellable (Effect []) (\ok =>
-  Pay You (Do (Macros.sacrifice You (Macros.a Macros.creature))) {pb = ok})
-badPayBySacrificing Oh impossible
-
-
 ||| "you pay" over a component naming an opponent
 ||| The pay clause spells its subject ONCE, so the component under the verb names the same player.
 public export
@@ -395,12 +289,12 @@ badPayTapSymbol : Unspellable (Effect []) (\ok =>
 badPayTapSymbol Oh impossible
 
 
-||| "You pay {1}, {T}."
-||| A comma-joined compound is a cost shape, not a complement the pay-verb takes.
+||| a compound cost of no components
+||| A cost telescope of nothing is no cost: there is nothing to pay.
 public export
-badPayCompound : Unspellable (Effect []) (\ok =>
-  Pay You (Compound [Mana [Macros.generic 1], TapSymbol]) {pb = ok})
-badPayCompound Oh impossible
+badEmptyCompound : Unspellable Ability (\ok =>
+  Activated (Compound [] {ne = ok}) Macros.drawACard)
+badEmptyCompound ItIsSucc impossible
 
 
 ||| a compound written as one element of a compound
@@ -410,14 +304,6 @@ badNestedCompound : Unspellable Ability (\ok =>
   Activated (Compound ((Compound [Mana [Macros.generic 1], TapSymbol] :: (TapSymbol :: Nil)) {nc = ok}))
             Macros.drawACard)
 badNestedCompound Oh impossible
-
-
-||| "{1}:" written as a one-element compound
-||| A compound of one is the component itself spelled a second way.
-public export
-badSingletonCompound : Unspellable Ability (\ok =>
-  Activated (Compound [Mana [Macros.generic 1]] {two = ok}) Macros.drawACard)
-badSingletonCompound TwoUp impossible
 
 
 ||| "{T}, {T}: Draw a card."
@@ -469,14 +355,6 @@ badUnlessAnaphoricPayer : Unspellable (Effect []) (\ok =>
 badUnlessAnaphoricPayer Refl impossible
 
 
-||| "When this enters, draw a card."
-||| The type word places the referent [CR#109.2]; bare "this" is the source as an object and stands nowhere.
-public export
-badEntersBareThis : Unspellable Ability (\ok =>
-  Triggered When (Enters This {ss = ok}) Macros.drawACard)
-badEntersBareThis Oh impossible
-
-
 ||| "Whenever target creature dies, draw a card."
 ||| An ordinary trigger's header announces no target: [CR#115.1d] chooses them after the event.
 public export
@@ -517,22 +395,6 @@ badStaticTargets : Unspellable Ability (\ok =>
 badStaticTargets Oh impossible
 
 
-||| "You gain control of all creatures you control." as a static line
-||| The stative form is a different verb, "You control enchanted creature", not a control grant.
-public export
-badStaticGainsControl : Unspellable Ability (\ok =>
-  Static (GainsControl You (AllOf Macros.creatureYouControl)) {ln = ok})
-badStaticGainsControl Oh impossible
-
-
-||| "As long as you control an artifact, you gain control of a creature."
-||| [CR#604.1] writes a static ability as a statement, so qualifying an unstatable one leaves it unstatable.
-public export
-badConditionalGainControl : Unspellable Ability (\ok =>
-  Static (Macros.asLongAs (Exists Macros.artifact) (GainsControl You (Macros.a Macros.creature))) {ln = ok})
-badConditionalGainControl Oh impossible
-
-
 ||| a statement conditioned twice
 ||| A statement takes one condition — the singleton discipline one type up.
 public export
@@ -541,14 +403,6 @@ badDoubleConditional : Unspellable Ability (\ok =>
                    (Macros.asLongAs (Exists (And [Macros.artifact, ControlledBy You]))
                              (Gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))) {nn = ok}))
 badDoubleConditional Oh impossible
-
-
-||| "This land enters attacking."
-||| The line writes one of the two riders: a static ability applies from any zone in any step.
-public export
-badEntersAttackingLine : Unspellable Ability (\ok =>
-  Static (EntersRider (AsType Land This) EntersAttacking {ro = ok}))
-badEntersAttackingLine Oh impossible
 
 
 ||| "You may play a creature this turn." of a battlefield permanent
@@ -645,24 +499,6 @@ badMoveControlToHand : Unspellable (Effect []) (\ok =>
 badMoveControlToHand Oh impossible
 
 
-||| "Put target creature onto the battlefield attacking."
-||| The frame writes both riders: such a creature arrives tapped as well.
-public export
-badMoveAttackingUntapped : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) Macros.battlefieldZ
-       {riders = MkMoveRiders [EntersAttacking] Nothing {ro = ok}})
-badMoveAttackingUntapped Oh impossible
-
-
-||| "Put target creature onto the battlefield attacking and tapped."
-||| And the order is fixed there too, no line writing "attacking and tapped".
-public export
-badMoveRidersReversed : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) Macros.battlefieldZ
-       {riders = MkMoveRiders [EntersAttacking, EntersTapped] Nothing {ro = ok}})
-badMoveRidersReversed Oh impossible
-
-
 ||| "Put target creature onto the battlefield under the other players' control."
 ||| One controller [CR#109.4]; the plural relational is not a spelling this vocabulary has.
 public export
@@ -670,24 +506,6 @@ badMoveRidersPluralController : Unspellable (Effect []) (\ok =>
   Move (Macros.target Macros.creature) Macros.battlefieldZ
        {riders = MkMoveRiders [] (Just (AllOf Macros.otherPlayer)) {one = ok}})
 badMoveRidersPluralController OneController impossible
-
-
-||| "Put target creature into its owner's graveyard with a +1/+1 counter on it."
-||| The counter rider is gated apart from the other two and takes no graveyard arrival [CR#122.1a].
-public export
-badMoveCountersToGraveyard : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) Macros.graveyardZ
-       {riders = MkMoveRiders [] Nothing
-                              {counters = Just (MkCounterRider (Lit 1) Macros.plusOnePlusOne)}} {rf = ok})
-badMoveCountersToGraveyard Oh impossible
-
-
-||| "Exile target creature with zero time counters on it."
-||| The rider's count is a written magnitude, so the unwritable zero is unwritable here too.
-public export
-badExileZeroCounters : Unspellable (Effect []) (\ok =>
-  Macros.exileWithCounters (Macros.target Macros.creature) (Lit 0) Time {wc = ok})
-badExileZeroCounters Oh impossible
 
 
 ||| "cards exiled with target creature"

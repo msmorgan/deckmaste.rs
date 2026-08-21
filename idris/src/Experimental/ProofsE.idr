@@ -10,24 +10,6 @@ import Experimental.Unspellable
 %unbound_implicits off
 
 
-||| "Instant and sorcery spells you cast have lifelink."
-||| Lifelink is read when the spell deals damage [CR#702.15d], so control fixes the class then.
-public export
-badCastGrantAtResolution : Unspellable (StaticEffect []) (\ok =>
-  Gains (AllOf (And [Macros.instantOrSorcery, Macros.spell, CastBy You]))
-        (KeywordAbility Lifelink) {ok})
-badCastGrantAtResolution Oh impossible
-
-
-||| "Artifact spells you control have convoke."
-||| Convoke functions while the spell is cast [CR#702.51a], the moment [CR#601.2a] applies the grant.
-public export
-badControlGrantAtCasting : Unspellable (StaticEffect []) (\ok =>
-  Gains (AllOf (And [Macros.artifact, Macros.spell, ControlledBy You]))
-        (KeywordAbility Convoke) {ok})
-badControlGrantAtCasting Oh impossible
-
-
 ||| "Creatures you control have convoke."
 ||| Convoke functions only while the spell is on the stack [CR#702.51a], so a permanent grant does nothing.
 public export
@@ -42,14 +24,6 @@ badGrantedPtDefinition : Unspellable (StaticEffect []) (\ok =>
   DefinesPt (AttachHost Enchanted (TypeW Creature)) BothEach
             (PlayerStatOf LifeTotal You) {sd = ok})
 badGrantedPtDefinition Oh impossible
-
-
-||| "This creature's power and toughness are each equal to 3."
-||| The star stands where a fixed number would be printed [CR#208.2], so a written value prints twice.
-public export
-badWrittenPtDefinition : Unspellable (StaticEffect []) (\ok =>
-  DefinesPt Macros.thisCreature BothEach (Lit 3) {dv = ok})
-badWrittenPtDefinition Oh impossible
 
 
 ||| a creature card printing "2/2" whose own text defines its power and toughness
@@ -71,23 +45,6 @@ badPtDefinitionClause : Unspellable (Effect []) (\ok =>
                           (CountOf Macros.creatureYouControl))
                Nothing {cl = ok})
 badPtDefinitionClause Oh impossible
-
-
-||| "This creature's power and toughness are switched." as a printed line.
-||| The switch is written as an instruction with a duration, not as a standing statement [CR#613.4d].
-public export
-badSwitchLine : Unspellable Ability (\ok =>
-  Static (SwitchesPt Macros.thisCreature) {ln = ok})
-badSwitchLine Oh impossible
-
-
-||| "Target creature card in a graveyard has base power and toughness 1/1."
-||| Setting base power and toughness is a continuous effect on a permanent [CR#613.4b].
-public export
-badBasePtInGraveyard : Unspellable (StaticEffect []) (\ok =>
-  HasBasePt (Macros.target (And [Macros.creature, InZone Macros.graveyardZ]))
-            (Lit 1) (Lit 1) {zn = ok})
-badBasePtInGraveyard Oh impossible
 
 
 ||| "the creature with the total power among creatures you control"
@@ -114,15 +71,6 @@ badChooseDefinite : Unspellable (Effect []) (\ok =>
                          Superlative MinOf (CharAxis Toughness)
                                      Macros.creatureYouControl])) {ch = ok})
 badChooseDefinite BareChoice impossible
-
-
-||| "creature with power 4 or greater with the greatest power among creatures"
-||| The superlative is a comparison, so it takes the one-bound-per-phrase discipline.
-public export
-badSuperlativeAndBound : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, Compare Power AtLeast (Lit 4),
-       Superlative MaxOf (CharAxis Power) Macros.creature] {lc = ok})
-badSuperlativeAndBound Oh impossible
 
 
 ||| "the creature with the highest life total among creatures you control"
@@ -157,30 +105,6 @@ public export
 badAscribeInstant : Unspellable (Noun [] Object) (\ok =>
   AsType Instant This {way = ok})
 badAscribeInstant Oh impossible
-
-
-||| "this Zombie"
-||| A creature type is never a self-name; the ascription reads its own table, not the subtype catalog.
-public export
-badAscribeCreatureType : Unspellable (Noun [] Object) (\ok =>
-  AsType Creature This {sub = Just Zombie} {way = ok})
-badAscribeCreatureType Oh impossible
-
-
-||| "this Curse"
-||| A card with two enchantment types self-names by the one whose rules the sentence reaches [CR#303.4].
-public export
-badAscribeCurse : Unspellable (Noun [] Object) (\ok =>
-  AsType Enchantment This {sub = Just Curse} {way = ok})
-badAscribeCurse Oh impossible
-
-
-||| "target creature that is fortified"
-||| The participle catalog admits "fortified" at the head reader [CR#301.6] and not at the presence check.
-public export
-badIsFortified : Unspellable (Predicate [] Object) (\ok =>
-  IsAttached Fortified {ok})
-badIsFortified Oh impossible
 
 
 ||| "target creature that is the monarch"
@@ -248,13 +172,6 @@ badParamOnNullaryKeyword : Unspellable Ability (\ok =>
 badParamOnNullaryKeyword Oh impossible
 
 
-||| "creatures with ward"
-||| The description position refuses the parameterized rows the ability position demands a parameter for.
-public export
-badWardDescription : Unspellable (Predicate [] Object) (\ok => HasKeyword Ward {np = ok})
-badWardDescription Oh impossible
-
-
 ||| "Protection from red" printed as a line on an instant card
 ||| [CR#702.16b] gives protection to a permanent or player, which an instant card's line never is.
 public export
@@ -262,14 +179,6 @@ badProtectionOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Instant])
        [KeywordAbility Protection {param = Just (ParamQuality (ColorIs Red))}] Nothing {tx = ok})
 badProtectionOnInstant Oh impossible
-
-
-||| "Renown 0"
-||| [CR#702.112a] puts N counters on the creature, and a zero-count keyword instructs nothing.
-public export
-badRenownZero : Unspellable Ability (\ok =>
-  KeywordAbility Renown {param = Just (ParamNumber (Lit 0) {wc = ok})})
-badRenownZero Oh impossible
 
 
 ||| "Protection from player"
@@ -288,14 +197,6 @@ badEquipOnSorcery : Unspellable Card (\ok =>
        [KeywordAbility Equip {param = Just (ParamCost (Mana [Macros.generic 2]))}]
        Nothing {tx = ok})
 badEquipOnSorcery Oh impossible
-
-
-||| "Choose one or more creatures."
-||| The counted untargeted group is not a choice complement; "choose one or more" is the modal headcount.
-public export
-badChooseCountedGroup : Unspellable (Effect []) (\ok =>
-  Choose (CountedGroup (Macros.atLeast 1) Macros.creature) {ch = ok})
-badChooseCountedGroup BareChoice impossible
 
 
 ||| "each of one or more creatures"
@@ -333,23 +234,6 @@ badAgentChooseTheRest : Unspellable (Effect []) (\ok =>
 badAgentChooseTheRest AgentChoice impossible
 
 
-||| "Whenever a creature is put into the battlefield, draw a card."
-||| English writes "put onto the battlefield"; the battlefield's arrival is its own event [CR#603.6a].
-public export
-badPutIntoBattlefield : Unspellable (GameEvent []) (\ok =>
-  PutInto (Macros.a Macros.creature) Macros.battlefieldZ {dk = ok})
-badPutIntoBattlefield Oh impossible
-
-
-||| "Whenever a card in exile is put into a graveyard from exile, …"
-||| The source axis names what a card leaves [CR#603.6c], and nothing is put somewhere out of exile.
-public export
-badPutFromExile : Unspellable (GameEvent []) (\ok =>
-  PutInto (Macros.a (InZone Macros.exileZ)) Macros.graveyardZ
-          {from = Just (FromZone Macros.exileZ)} {sk = ok})
-badPutFromExile Oh impossible
-
-
 ||| "… if a creature was put into a zone this turn, …"
 ||| The history read names its destination, for which a subject-event-window query has no slot.
 public export
@@ -368,17 +252,6 @@ badHeaderBareTurnWindow : Unspellable Ability (\ok =>
 badHeaderBareTurnWindow Oh impossible
 
 
-||| "If you would create one or more tokens under your control, …"
-||| [CR#111.2] makes the creator the controller, so naming both says one thing twice.
-public export
-badCreatedByYouUnderYourControl : Unspellable (GameEvent []) (\ok =>
-  TokensCreated (CountedGroup (Macros.atLeast 1) IsToken)
-                {by = Just You} {under = Just You} {vo = ok})
-badCreatedByYouUnderYourControl CreatedPlain impossible
-badCreatedByYouUnderYourControl CreatedBy impossible
-badCreatedByYouUnderYourControl CreatedUnder impossible
-
-
 ||| "If one or more creatures would be created under your control, …"
 ||| Only a token is ever created [CR#111.1]; the head word may be added to and never replaced.
 public export
@@ -387,8 +260,6 @@ badNonTokenCreationSubject : Unspellable (GameEvent []) (\ok =>
                 {under = Just You} {tk = ok})
 badNonTokenCreationSubject CountedTokens impossible
 badNonTokenCreationSubject OneToken impossible
-
-
 
 
 ||| "If a +1/+1 counter would be put on a creature you control, that many plus one +1/+1 counters are put on it instead."
@@ -401,18 +272,6 @@ badSingularCounterBatchSize : Unspellable (StaticEffect []) (\ok =>
                           Macros.plusOnePlusOne It)
              Repeatedly)
 badSingularCounterBatchSize Refl impossible
-
-
-||| "If an effect would create one or more tokens, it creates twice that many of those tokens instead."
-||| [CR#111.2] fixes the controller by naming the creator, so an abstract-effect creator must state one.
-public export
-badCausedCreationBareControl : Unspellable (GameEvent []) (\ok =>
-  TokensCreated (CountedGroup (Macros.atLeast 1) IsToken)
-                {cause = Just AnEffect} {vo = ok})
-badCausedCreationBareControl CreatedPlain impossible
-badCausedCreationBareControl CreatedBy impossible
-badCausedCreationBareControl CreatedUnder impossible
-badCausedCreationBareControl CreatedByCauser impossible
 
 
 ||| "If you and an effect would put one or more +1/+1 counters on a creature you control, …"
@@ -435,15 +294,6 @@ badAnaphoricTokenAfterNonToken : Unspellable (Effect []) (\ok =>
 badAnaphoricTokenAfterNonToken Refl impossible
 
 
-||| "Create two 1/1 white Soldier creature tokens. Exile them. Create one of those tokens."
-||| A token off the battlefield ceases to exist [CR#111.7], so the word reaches nothing.
-public export
-badAnaphoricTokenOffBattlefield : Unspellable (Effect []) (\ok =>
-  Sequentially [ Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [Soldier])
-               , Macros.exile Them
-               , Create You (Lit 1) (TokenAsThose {ok}) [] ])
-badAnaphoricTokenOffBattlefield Refl impossible
-
 ||| "Target creature becomes a Coward until end of turn. It's still a land."
 ||| Removing a subtype does not affect card types [CR#205.1a], so a retention rider puts nothing back.
 public export
@@ -452,16 +302,6 @@ badStillOnSubtypeSet : Unspellable (StaticEffect []) (\ok =>
            (MkToken Nothing [] (MkTypeLine [Coward] []) [] Nothing)
            (Just Land) {ro = ok})
 badStillOnSubtypeSet Oh impossible
-
-
-||| "This land becomes an artifact until end of turn. It's still a creature."
-||| The retention rider names the type the setting took away, which here it never does.
-public export
-badStillACreature : Unspellable (StaticEffect []) (\ok =>
-  SetsType Macros.thisLand
-           (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing)
-           (Just Creature) {ro = ok})
-badStillACreature Oh impossible
 
 
 ||| "Target creature becomes an artifact until end of turn. It's still an instant."
@@ -486,13 +326,12 @@ badNestedCoordination : Unspellable (StaticEffect []) (\ok =>
 badNestedCoordination Oh impossible
 
 
-||| "Creatures you control get +1/+1 and you gain control of them."
-||| A coordination states whatever its parts state, and the control grant is no statement [CR#604.1].
+||| a coordination of no statements
+||| A coordination states whatever its parts state, and nothing states nothing.
 public export
-badCoordinatedGainsControl : Unspellable Ability (\ok =>
-  Static (AndAlso [ Gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , GainsControl You Them ]) {ln = ok})
-badCoordinatedGainsControl Oh impossible
+badEmptyCoordination : Unspellable (StaticEffect []) (\ok =>
+  AndAlso [] {ne = ok})
+badEmptyCoordination ItIsSucc impossible
 
 
 ||| "This creature gets +1/+1 and that creature has flying."
@@ -524,15 +363,6 @@ badCoordinatedLandHostBlocks : Unspellable Ability (\ok =>
 badCoordinatedLandHostBlocks Participant impossible
 
 
-||| "Flash" printed as a bare line on an instant card.
-||| [CR#702.8a] grants exactly the timing an instant already has; the line is a permanent's.
-public export
-badFlashOnInstant : Unspellable Card (\ok =>
-  Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility Flash] Nothing {tx = ok})
-badFlashOnInstant Oh impossible
-
-
 ||| "Target creature gains flash."
 ||| Flash functions where the card is played from and on the stack [CR#702.8a,113.6e], never on the battlefield.
 public export
@@ -547,14 +377,6 @@ public export
 badSpellIndestructible : Unspellable (StaticEffect []) (\ok =>
   Gains (Macros.target Macros.spell) (KeywordAbility Indestructible) {ok})
 badSpellIndestructible Oh impossible
-
-
-||| "this battle"
-||| The ascription table answers by subtype here, [CR#109.2] admitting a card type or a subtype.
-public export
-badAscribeBattle : Unspellable (Noun [] Object) (\ok =>
-  AsType Battle This {way = ok})
-badAscribeBattle Oh impossible
 
 
 ||| a "Kindred Enchantment — Siege" card
@@ -621,68 +443,6 @@ badEmptyEmblem : Unspellable (Effect []) (\ok =>
 badEmptyEmblem Oh impossible
 
 
-||| "You get an emblem with 'Draw a card': Draw a card."
-||| A cost is what the activator pays [CR#602.1a]; the emblem is the ability's payoff.
-public export
-badEmblemAsCost : Unspellable Ability (\ok =>
-  Activated (Do (GetsEmblem You [Static (Gets (AllOf Macros.creatureYouControl)
-                                              (PtUp (Lit 1)) (PtUp (Lit 1)))]) {ok})
-            Macros.drawACard)
-badEmblemAsCost Oh impossible
-
-
-||| "[+0]: Draw a card."
-||| [CR#606.4] shows the direction by the symbol, and at zero both directions show the bare "[0]".
-public export
-badLoyaltyUpZero : Unspellable Ability (\ok =>
-  Activated (LoyaltySymbol (LoyaltyUp 0 {nz = ok})) Macros.drawACard)
-badLoyaltyUpZero ItIsSucc impossible
-
-
-||| "[−0]: Draw a card."
-||| The other direction of the same refusal, sharing one gate [CR#606.4].
-public export
-badLoyaltyDownZero : Unspellable Ability (\ok =>
-  Activated (LoyaltySymbol (LoyaltyDown 0 {nz = ok})) Macros.drawACard)
-badLoyaltyDownZero ItIsSucc impossible
-
-
-||| "[+1], {T}: Draw a card."
-||| A loyalty symbol is a whole cost, never one component among several [CR#606.5].
-public export
-badCompoundLoyalty : Unspellable Ability (\ok =>
-  Activated (Compound ((LoyaltySymbol (LoyaltyUp 1) :: (TapSymbol :: Nil)) {nl = ok}))
-            Macros.drawACard)
-badCompoundLoyalty Oh impossible
-
-
-||| "[+1]: Draw a card. Activate only once each turn."
-||| [CR#606.3] already caps every loyalty ability, keyed to the permanent rather than the ability.
-public export
-badLoyaltyOncePerTurn : Unspellable Ability (\ok =>
-  Activated (LoyaltySymbol (LoyaltyUp 1)) Macros.drawACard
-            {limit = Just OncePerTurn} {ld = ok})
-badLoyaltyOncePerTurn Oh impossible
-
-
-||| "[+1]: Draw a card. Activate only as a sorcery."
-||| [CR#606.3] gives a loyalty ability its whole window, which is sorcery timing said longhand.
-public export
-badLoyaltySorceryWindow : Unspellable Ability (\ok =>
-  Activated (LoyaltySymbol (LoyaltyUp 1)) Macros.drawACard
-            {window = Just AsSorcery} {ld = ok})
-badLoyaltySorceryWindow Oh impossible
-
-
-||| "[+1]: Draw a card. Activate only if you control a creature."
-||| [CR#606.3] states the permission in full and conditions it on nothing but the once-per-turn cap.
-public export
-badLoyaltyGuard : Unspellable Ability (\ok =>
-  Activated (LoyaltySymbol (LoyaltyUp 1)) Macros.drawACard
-            {guard = Just (Exists Macros.creatureYouControl)} {ld = ok})
-badLoyaltyGuard Oh impossible
-
-
 ||| "you pay [+1]"
 ||| The pay clause names its payer, and [CR#606.4] moves counters on the permanent instead.
 public export
@@ -699,14 +459,6 @@ badLoyaltySorcery : Unspellable Card (\ok =>
        (MkTypeLine [] [Sorcery])
        [Activated (LoyaltySymbol (LoyaltyUp 1)) Macros.drawACard] Nothing {tx = ok})
 badLoyaltySorcery Oh impossible
-
-
-||| "put them on top of your library in a random order"
-||| [CR#401.4] grants the arrangement to the owner, so an override is written only where the order is hidden.
-public export
-badRandomOnTop : Unspellable (ZoneExpr []) (\ok =>
-  LibraryAt (OneEnd OnTop) (Just RandomOrder) {af = ok} Bare)
-badRandomOnTop Oh impossible
 
 
 ||| "Scry 1." with no one scrying
@@ -747,12 +499,6 @@ badEmptyAlternative : Unspellable (Effect []) (\ok =>
   AddMana You (Lit 1) (Runs [[OfColor Red], []] {ok}) [])
 badEmptyAlternative Oh impossible
 
-||| "Add one mana in any combination of colors."
-||| At one mana the freedom axis is vacuous: one unit takes one color either way [CR#106.1a].
-public export
-badLoneCombination : Unspellable (Effect []) (\ok =>
-  AddMana You (Lit 1) (AnyColor EachColor) [] {ff = ok})
-badLoneCombination MkFreedomFits impossible
 
 ||| "Add {C}. Spend this mana only."
 ||| [CR#106.6] makes the rider a restriction on how the mana can be spent, which needs a purpose.
@@ -761,20 +507,6 @@ badPurposelessSpend : Unspellable (Effect []) (\ok =>
   AddMana You (Lit 1) (Runs [[Colorless]]) [SpendOnly [] {ne = ok}])
 badPurposelessSpend MkSpendPurposes impossible
 
-||| "This artifact is a copy of target artifact." — as a card's own line.
-||| [CR#707.4] is about an effect that causes a permanent to copy, and an effect wants a carrier.
-public export
-badStandingCopy : Unspellable Ability (\ok =>
-  Static (BecomesCopy Macros.thisArtifact (Macros.target Macros.artifact) []) {ln = ok})
-badStandingCopy Oh impossible
-
-||| "Target creature card in your graveyard becomes a copy of target creature."
-||| [CR#707.4] keeps the copying permanent on the battlefield.
-public export
-badGraveyardBecomesCopy : Unspellable (StaticEffect []) (\ok =>
-  BecomesCopy (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
-              (Macros.target Macros.creature) [] {zn = ok})
-badGraveyardBecomesCopy Oh impossible
 
 ||| "Create a token that's a copy of it, except it's in addition to its other types."
 ||| An exception that adds no word is not an exception; the tail names at least one type.
