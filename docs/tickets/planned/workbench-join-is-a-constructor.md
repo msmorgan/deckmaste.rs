@@ -21,11 +21,23 @@ semantics accepts anything rules-meaningful
   the demonstrative echo reads back (33 of 33). `UnionP` is deleted and its
   readers (`bindingZone`/`bindingTy`, `bindFor`'s union branch) read `JoinP`.
 - The join is a free term, so the laws move from the function to a **lattice
-  order** `kindLe : Kind -> Kind -> Bool` (atom containment after flattening):
+  order**, pinned (2026-08-22) as
+
+  ```idris
+  kindLte : Kind -> Kind -> Bool
+  kindLte (a \/ b) y = kindLte a y && kindLte b y
+  kindLte x (a \/ b) = kindLte x a || kindLte x b
+  kindLte x y = x == y
+  ```
+
+  (left-join clause first; `&&`/`||` laziness is harmless at concrete kinds,
+  which is all a `So` gate reduces). An inductive `KindLte` with
+  `Same/JoinL/InL/InR` is the documented upgrade if a reader ever needs the
+  witness (which half an anaphor resolved to); not minted now. Laws:
   `a ≤ a \/ b`, `a \/ b ≤ b \/ a`, `(a \/ b) \/ c ≤ a \/ (b \/ c)` and their
   converses, proved by case. Every reader that asks "is this binding of kind
   k" — the antecedent counting under `It`/`They`/`That` (`countOnes` and
-  kin), `lookbackSubjectOk`, `Targetable` — asks `kindLe` instead, which also
+  kin), `lookbackSubjectOk`, `Targetable` — asks `kindLte` instead, which also
   answers whether an `Object` anaphor may resolve to an `Object \/ Player`
   antecedent (it may). `Eq Kind` stays structural.
 - Every exhaustive `Kind` match gains one `\/` clause, generically (recurse
@@ -43,7 +55,7 @@ semantics accepts anything rules-meaningful
 
 ## Acceptance
 
-- No `ObjectOrPlayer`, `joinable`, `UnionP` or `badJoin*` remains; `kindLe`
+- No `ObjectOrPlayer`, `joinable`, `UnionP` or `badJoin*` remains; `kindLte`
   and its laws exist; `JoinP` carries the pair and a witness reads it back.
 - `idris/scripts/build` PASS; `Cards.idr` binds no implicits; cites 0/0.
 
