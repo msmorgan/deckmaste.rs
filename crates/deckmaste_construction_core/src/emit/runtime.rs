@@ -147,6 +147,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
 
     items.extend(emit_lexical_types(&inventory));
     items.extend(emit_owner_types(&inventory));
+    items.extend(emit_semantic_runtime_types(plan));
     items.extend(emit_runtime_impls(&inventory));
     if plan.has_open_declarations() {
         items.push(emit_required_declarations(plan));
@@ -156,6 +157,119 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         item.origins.clone_from(&origins);
     }
     items
+}
+
+fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
+    let semantic_types = super::semantic_types(plan);
+    let build_variants = semantic_types.iter().map(|item| {
+        let name = emitted_ident(item.name, Span::call_site());
+        match item.kind {
+            super::SemanticTypeKind::Category => {
+                let agreement = plan
+                    .category_carries_agreement(item.name)
+                    .then(|| quote! { , Agreement });
+                let number = plan
+                    .category_carries_number(item.name)
+                    .then(|| quote! { , Number });
+                quote! { #name(#name #agreement #number) }
+            }
+            super::SemanticTypeKind::Product | super::SemanticTypeKind::Sum => {
+                quote! { #name(#name) }
+            }
+        }
+    });
+    let helper_variants = super::structural_carriers(plan).into_iter().map(|carrier| {
+        let name = emitted_ident(&carrier.value_variant(), Span::call_site());
+        let ty = super::structural_carrier_type(carrier.field.kind());
+        quote! { #name(#ty) }
+    });
+    let nonterminal_variants = semantic_types
+        .iter()
+        .map(|item| emitted_ident(item.name, Span::call_site()));
+    let labels = semantic_types.iter().map(|item| {
+        let name = emitted_ident(item.name, Span::call_site());
+        let label = syn::LitStr::new(&snake_case(item.name).replace('_', " "), Span::call_site());
+        quote! { Self::#name => #label }
+    });
+    let public_category_mappings = semantic_types.iter().map(|item| {
+        let name = emitted_ident(item.name, Span::call_site());
+        quote! { Category::#name => NonterminalCategory::#name }
+    });
+    let helper_category_mappings = super::structural_carriers(plan).into_iter().map(|carrier| {
+        let helper = emitted_ident(&carrier.category_variant(), Span::call_site());
+        let owner = emitted_ident(carrier.diagnostic_owner, Span::call_site());
+        quote! { Category::#helper => NonterminalCategory::#owner }
+    });
+
+    vec![
+        named_type(
+            "BuildValue",
+            quote! {
+                #[derive(Debug, Clone, PartialEq, Eq)]
+                pub(crate) enum BuildValue {
+                    #(#build_variants,)*
+                    #(#helper_variants,)*
+                    Leaf(Leaf),
+                }
+            },
+        ),
+        named_type(
+            "NonterminalCategory",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub enum NonterminalCategory {
+                    #(#nonterminal_variants),*
+                }
+            },
+        ),
+        impl_item(
+            Some("NonterminalCategory"),
+            "NonterminalCategory",
+            quote! {
+                impl NonterminalCategory {
+                    pub const fn label(self) -> &'static str {
+                        match self { #(#labels,)* }
+                    }
+                }
+            },
+        ),
+        impl_item(
+            Some("std::fmt::Display"),
+            "NonterminalCategory",
+            quote! {
+                impl std::fmt::Display for NonterminalCategory {
+                    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        formatter.write_str(self.label())
+                    }
+                }
+            },
+        ),
+        impl_item(
+            Some("Category"),
+            "Category",
+            quote! {
+                impl Category {
+                    pub(crate) const fn nonterminal_category(self) -> NonterminalCategory {
+                        match self {
+                            #(#public_category_mappings,)*
+                            #(#helper_category_mappings,)*
+                        }
+                    }
+                }
+            },
+        ),
+        impl_item(
+            Some("From<Category>"),
+            "NonterminalCategory",
+            quote! {
+                impl From<Category> for NonterminalCategory {
+                    fn from(value: Category) -> Self {
+                        value.nonterminal_category()
+                    }
+                }
+            },
+        ),
+    ]
 }
 
 fn emit_required_declarations(plan: &SemanticPlan) -> GeneratedItem {
@@ -994,4 +1108,172 @@ fn impl_item(trait_name: Option<&str>, self_ty: &str, tokens: TokenStream) -> Ge
         tokens,
         Vec::new(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use quote::ToTokens;
+    use syn::Fields;
+    use syn::Item;
+
+    #[test]
+    fn structural_build_and_diagnostic_inventories_are_generated_from_one_plan() {
+        let plan = structural_semantic_plan();
+        let runtime = super::emit(&plan);
+
+        let Item::Enum(build_value) = parse_named(&runtime, "BuildValue") else {
+            panic!("BuildValue is an enum");
+        };
+        let variants = build_value
+            .variants
+            .iter()
+            .map(|variant| {
+                let Fields::Unnamed(fields) = &variant.fields else {
+                    panic!("BuildValue variants are tuple carriers");
+                };
+                (
+                    variant.ident.to_string(),
+                    fields
+                        .unnamed
+                        .iter()
+                        .map(|field| field.ty.to_token_stream().to_string())
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            variants,
+            [
+                ("Choice".to_owned(), vec!["Choice".to_owned()]),
+                ("Holder".to_owned(), vec!["Holder".to_owned()]),
+                (
+                    "RecursiveChoice".to_owned(),
+                    vec!["RecursiveChoice".to_owned()],
+                ),
+                (
+                    "RecursiveBranch".to_owned(),
+                    vec!["RecursiveBranch".to_owned()],
+                ),
+                ("LeftNode".to_owned(), vec!["LeftNode".to_owned()]),
+                ("RightNode".to_owned(), vec!["RightNode".to_owned()]),
+                (
+                    "HolderMaybeOptional".to_owned(),
+                    vec!["Option < LeftNode >".to_owned()],
+                ),
+                (
+                    "HolderItemsSequence".to_owned(),
+                    vec!["Vec < Choice >".to_owned()],
+                ),
+                (
+                    "RecursiveBranchChoicesSequence".to_owned(),
+                    vec!["Vec < RecursiveChoice >".to_owned()],
+                ),
+                (
+                    "LeftValueMaybeOptional".to_owned(),
+                    vec!["Option < RightNode >".to_owned()],
+                ),
+                ("Leaf".to_owned(), vec!["Leaf".to_owned()]),
+            ],
+            "the generated carrier inventory is complete, ordered, and uses raw helper payloads",
+        );
+
+        let Item::Enum(nonterminal) = parse_named(&runtime, "NonterminalCategory") else {
+            panic!("NonterminalCategory is an enum");
+        };
+        assert_eq!(
+            nonterminal
+                .variants
+                .iter()
+                .map(|variant| variant.ident.to_string())
+                .collect::<Vec<_>>(),
+            [
+                "Choice",
+                "Holder",
+                "RecursiveChoice",
+                "RecursiveBranch",
+                "LeftNode",
+                "RightNode"
+            ]
+        );
+        assert!(nonterminal.variants.iter().all(|variant| {
+            !variant.ident.to_string().contains("Optional")
+                && !variant.ident.to_string().contains("Sequence")
+        }));
+
+        let category_impl = runtime
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Impl { trait_name: Some(name), self_ty } if name == "Category" && self_ty == "Category"))
+            .expect("generated exhaustive Category mapping");
+        let conversion = category_impl.tokens.to_string();
+        for mapping in [
+            "Category :: Choice => NonterminalCategory :: Choice",
+            "Category :: Holder => NonterminalCategory :: Holder",
+            "Category :: RecursiveChoice => NonterminalCategory :: RecursiveChoice",
+            "Category :: RecursiveBranch => NonterminalCategory :: RecursiveBranch",
+            "Category :: LeftNode => NonterminalCategory :: LeftNode",
+            "Category :: RightNode => NonterminalCategory :: RightNode",
+            "Category :: HolderMaybeOptionalCategory => NonterminalCategory :: Holder",
+            "Category :: HolderItemsSequenceCategory => NonterminalCategory :: Holder",
+            "Category :: RecursiveBranchChoicesSequenceCategory => NonterminalCategory :: RecursiveBranch",
+            "Category :: LeftValueMaybeOptionalCategory => NonterminalCategory :: LeftNode",
+        ] {
+            assert!(
+                conversion.contains(mapping),
+                "missing `{mapping}`: {conversion}"
+            );
+        }
+
+        let label_impl = runtime
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Impl { trait_name: Some(name), self_ty } if name == "NonterminalCategory" && self_ty == "NonterminalCategory"))
+            .expect("generated diagnostic labels")
+            .tokens
+            .to_string();
+        assert!(
+            label_impl.contains("Self :: RecursiveChoice => \"recursive choice\""),
+            "labels derive from the same public inventory: {label_impl}",
+        );
+        assert!(runtime.iter().any(|item| {
+            matches!(&item.key, crate::ItemKey::Impl { trait_name: Some(name), self_ty } if name == "From<Category>" && self_ty == "NonterminalCategory")
+        }));
+    }
+
+    fn structural_semantic_plan() -> crate::semantic::SemanticPlan {
+        crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                abstract sum Choice { Left: LeftNode, Right: RightNode, }
+                abstract product Holder {
+                    maybe: opt LeftNode,
+                    items: seq Choice terminated by ",",
+                }
+                require len(Holder.items) >= 1;
+                abstract sum RecursiveChoice { Branch: RecursiveBranch, }
+                abstract product RecursiveBranch {
+                    choices: seq RecursiveChoice terminated by ".",
+                }
+                require len(RecursiveBranch.choices) = 1;
+                construction left: LeftNode {
+                    element LeftValue { maybe: opt RightNode, }
+                    form left = maybe "left";
+                }
+                construction right: RightNode {
+                    element RightValue {}
+                    form right = "right";
+                }
+                root LeftNode { punctuation = "."; eoi = true; standalone_render = true; }
+                root RightNode { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("structural runtime fixture parses"),
+        )
+        .expect("structural runtime fixture validates")
+        .into_semantic()
+    }
+
+    fn parse_named(items: &[crate::GeneratedItem], name: &str) -> Item {
+        let item = items
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { name: actual, .. } if actual == name))
+            .unwrap_or_else(|| panic!("missing generated item {name}"));
+        syn::parse2(item.tokens.clone()).expect("generated tokens parse as one item")
+    }
 }

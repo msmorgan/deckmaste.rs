@@ -30,9 +30,13 @@ mod selection;
 pub(crate) use engine::LexicalMatch;
 pub(crate) use engine::Rule;
 pub(crate) use engine::RulePosition;
-pub(crate) use materialize::BuildValue;
 pub(crate) use scan::ScanInput;
 
+#[allow(
+    unused_imports,
+    reason = "the parser module preserves the generated materialization carrier import boundary"
+)]
+pub(crate) use crate::constructions::BuildValue;
 pub(crate) use crate::constructions::Lexical;
 
 #[cfg(test)]
@@ -86,7 +90,6 @@ pub use diagnostic::TraceLimits;
 pub use diagnostic::UnresolvedAmbiguityOutcome;
 pub use diagnostic::UnselectedCandidate;
 pub use error::Expectation;
-pub use error::NonterminalCategory;
 pub use error::ParseError;
 pub use error::TextSpan;
 pub use ownership::ByteMismatchScope;
@@ -100,6 +103,7 @@ pub use selection::SelectionExceptionInventoryError;
 pub use selection::selection_exception_inventory;
 
 pub use crate::constructions::LexicalProvenanceKind;
+pub use crate::constructions::NonterminalCategory;
 pub use crate::constructions::TerminalClass;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -854,21 +858,10 @@ fn failure_span(text: &str, offset: usize) -> TextSpan {
 const fn expectation(position: RulePosition<Category, Lexical>) -> Expectation {
     match position {
         RulePosition::Nonterminal(category) => {
-            Expectation::Nonterminal(nonterminal_category(category))
+            Expectation::Nonterminal(category.nonterminal_category())
         }
         RulePosition::Lexical(Lexical::Literal(literal)) => Expectation::Literal(literal),
         RulePosition::Lexical(lexical) => Expectation::Terminal(terminal_class(lexical)),
-    }
-}
-
-const fn nonterminal_category(category: Category) -> NonterminalCategory {
-    match category {
-        Category::Ability => NonterminalCategory::Ability,
-        Category::Sentence => NonterminalCategory::Sentence,
-        Category::Clause => NonterminalCategory::Clause,
-        Category::NounPhrase => NonterminalCategory::NounPhrase,
-        Category::VerbPhrase => NonterminalCategory::VerbPhrase,
-        Category::Amount => NonterminalCategory::Amount,
     }
 }
 

@@ -164,6 +164,43 @@ pub(crate) enum LexicalOwnerIdentity {
 pub struct LexicalOwner {
     identity: LexicalOwnerIdentity,
 }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum BuildValue {
+    Node(Node),
+    Action(Action, Agreement),
+    Leaf(Leaf),
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub enum NonterminalCategory {
+    Node,
+    Action,
+}
+impl NonterminalCategory {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Node => "node",
+            Self::Action => "action",
+        }
+    }
+}
+impl std::fmt::Display for NonterminalCategory {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.label())
+    }
+}
+impl Category {
+    pub(crate) const fn nonterminal_category(self) -> NonterminalCategory {
+        match self {
+            Category::Node => NonterminalCategory::Node,
+            Category::Action => NonterminalCategory::Action,
+        }
+    }
+}
+impl From<Category> for NonterminalCategory {
+    fn from(value: Category) -> Self {
+        value.nonterminal_category()
+    }
+}
 impl Lexical {
     pub(crate) const fn class(self) -> TerminalClass {
         match self {

@@ -35,7 +35,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let rules_constant = ident(RULES_CONSTANT);
     let constructions = plan.constructions();
     let origins = construction_origins(constructions);
-    let categories = category_names(constructions);
+    let categories = category_names(plan);
     let rule_ids = constructions
         .iter()
         .map(|construction| ident(construction.rule_id()))
@@ -64,7 +64,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum #category_type { #(#categories),* }
             },
-            origins.clone(),
+            category_origins(plan),
         ),
         GeneratedItem::new(
             ItemKey::named_type(RULE_CONSTRUCTION_TYPE),
@@ -382,15 +382,31 @@ fn construction_origins(constructions: &[ConstructionPlan]) -> Vec<DeclarationKe
         .collect()
 }
 
-fn category_names(constructions: &[ConstructionPlan]) -> Vec<syn::Ident> {
-    let mut names = Vec::<String>::new();
-    for construction in constructions {
-        let name = construction.category().to_owned();
-        if !names.contains(&name) {
-            names.push(name);
-        }
-    }
-    names.into_iter().map(|name| ident(&name)).collect()
+fn category_names(plan: &SemanticPlan) -> Vec<syn::Ident> {
+    super::semantic_types(plan)
+        .into_iter()
+        .map(|item| ident(item.name))
+        .chain(
+            super::structural_carriers(plan)
+                .into_iter()
+                .map(|carrier| ident(&carrier.category_variant())),
+        )
+        .collect()
+}
+
+fn category_origins(plan: &SemanticPlan) -> Vec<DeclarationKey> {
+    plan.declaration_keys()
+        .iter()
+        .filter(|origin| {
+            matches!(
+                origin.kind(),
+                DeclarationKind::Construction
+                    | DeclarationKind::AbstractProduct
+                    | DeclarationKind::AbstractSum
+            )
+        })
+        .cloned()
+        .collect()
 }
 
 fn ident(name: &str) -> syn::Ident {

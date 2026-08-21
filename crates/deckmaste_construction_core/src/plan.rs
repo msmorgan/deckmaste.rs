@@ -391,7 +391,7 @@ mod tests {
     use crate::test_support::representative_expansion;
 
     #[test]
-    fn structural_planning_keeps_abstract_rows_semantic_and_defers_structural_constructions() {
+    fn structural_planning_emits_abstract_rows_and_defers_structural_construction_bnf() {
         let abstract_semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
                 construction node: Node { element NodeValue {} form node = "node"; }
@@ -404,11 +404,15 @@ mod tests {
         .expect("abstract planning fixture validates")
         .into_semantic();
         let emission = super::plan_emission(&abstract_semantic)
-            .expect("abstract rows do not emit before the structural AST task");
-        assert!(emission.items().iter().all(|item| match &item.key {
-            crate::ItemKey::Named { name, .. } => name != "Holder" && name != "Choice",
-            crate::ItemKey::Impl { self_ty, .. } => self_ty != "Holder" && self_ty != "Choice",
-        }));
+            .expect("abstract structural AST/runtime rows emit before BNF helpers");
+        for name in ["Holder", "Choice", "BuildValue", "NonterminalCategory"] {
+            assert!(
+                emission.items().iter().any(|item| {
+                    matches!(&item.key, crate::ItemKey::Named { name: actual, .. } if actual == name)
+                }),
+                "Task 3 emits {name}",
+            );
+        }
 
         let construction_semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
@@ -1966,7 +1970,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 66);
+        assert_eq!(keys.len(), 72);
         assert!(keys.iter().any(|key| {
             matches!(
                 key,

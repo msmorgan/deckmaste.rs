@@ -10,6 +10,10 @@ use crate::identifier::spelling_key;
 use crate::semantic::InvariantPlan;
 use crate::semantic::PredicateMemberPlan;
 use crate::semantic::PredicateSubjectPlan;
+use crate::semantic::SemanticPlan;
+use crate::semantic::StructuralFieldKindPlan;
+use crate::semantic::StructuralFieldPlan;
+use crate::semantic::ValueKindPlan;
 
 pub(crate) mod ast;
 pub(crate) mod build;
@@ -21,6 +25,172 @@ pub(crate) mod terminal;
 pub(crate) mod visit;
 
 const RUST_SOURCE_MARGIN: usize = 100;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum SemanticTypeKind {
+    Category,
+    Product,
+    Sum,
+}
+
+pub(super) struct SemanticType<'a> {
+    pub(super) name: &'a str,
+    pub(super) kind: SemanticTypeKind,
+    source_index: usize,
+}
+
+pub(super) fn semantic_types(plan: &SemanticPlan) -> Vec<SemanticType<'_>> {
+    let mut seen_categories = HashSet::new();
+    let mut types = plan
+        .constructions()
+        .iter()
+        .filter_map(|construction| {
+            seen_categories
+                .insert(construction.category())
+                .then_some(SemanticType {
+                    name: construction.category(),
+                    kind: SemanticTypeKind::Category,
+                    source_index: construction.source_index(),
+                })
+        })
+        .chain(plan.products().iter().map(|product| SemanticType {
+            name: product.name(),
+            kind: SemanticTypeKind::Product,
+            source_index: product.source_index(),
+        }))
+        .chain(plan.sums().iter().map(|sum| SemanticType {
+            name: sum.name(),
+            kind: SemanticTypeKind::Sum,
+            source_index: sum.source_index(),
+        }))
+        .collect::<Vec<_>>();
+    types.sort_by_key(|item| item.source_index);
+    types
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum StructuralCarrierKind {
+    Optional,
+    Sequence,
+}
+
+pub(super) struct StructuralCarrier<'a> {
+    pub(super) owner: &'a str,
+    pub(super) diagnostic_owner: &'a str,
+    pub(super) field: &'a StructuralFieldPlan,
+    pub(super) kind: StructuralCarrierKind,
+    source_index: usize,
+    field_index: usize,
+}
+
+impl StructuralCarrier<'_> {
+    pub(super) fn value_variant(&self) -> String {
+        match self.kind {
+            StructuralCarrierKind::Optional => format!(
+                "{}{}Optional",
+                crate::identifier::pascal_case(self.owner),
+                crate::identifier::pascal_case(self.field.name()),
+            ),
+            StructuralCarrierKind::Sequence => self
+                .field
+                .helper_names()
+                .expect("sealed sequence helper inventory")
+                .all()[0]
+                .to_owned(),
+        }
+    }
+
+    pub(super) fn category_variant(&self) -> String {
+        match self.kind {
+            StructuralCarrierKind::Optional => format!("{}Category", self.value_variant()),
+            StructuralCarrierKind::Sequence => self
+                .field
+                .helper_names()
+                .expect("sealed sequence helper inventory")
+                .all()[1]
+                .to_owned(),
+        }
+    }
+}
+
+pub(super) fn structural_carriers(plan: &SemanticPlan) -> Vec<StructuralCarrier<'_>> {
+    let mut carriers = plan
+        .products()
+        .iter()
+        .flat_map(|product| {
+            product
+                .fields()
+                .iter()
+                .enumerate()
+                .filter_map(move |(field_index, field)| {
+                    structural_carrier_kind(field.kind()).map(|kind| StructuralCarrier {
+                        owner: product.name(),
+                        diagnostic_owner: product.name(),
+                        field,
+                        kind,
+                        source_index: product.source_index(),
+                        field_index,
+                    })
+                })
+        })
+        .chain(plan.constructions().iter().flat_map(|construction| {
+            construction
+                .fields()
+                .iter()
+                .enumerate()
+                .filter_map(move |(field_index, field)| {
+                    let field = field.structural_plan()?;
+                    structural_carrier_kind(field.kind()).map(|kind| StructuralCarrier {
+                        owner: construction.element_type(),
+                        diagnostic_owner: construction.category(),
+                        field,
+                        kind,
+                        source_index: construction.source_index(),
+                        field_index,
+                    })
+                })
+        }))
+        .collect::<Vec<_>>();
+    carriers.sort_by_key(|carrier| (carrier.source_index, carrier.field_index));
+    carriers
+}
+
+fn structural_carrier_kind(kind: &StructuralFieldKindPlan) -> Option<StructuralCarrierKind> {
+    match kind {
+        StructuralFieldKindPlan::Required(_) => None,
+        StructuralFieldKindPlan::Optional(_) => Some(StructuralCarrierKind::Optional),
+        StructuralFieldKindPlan::Sequence { .. } => Some(StructuralCarrierKind::Sequence),
+    }
+}
+
+pub(super) fn value_kind_type(value: &ValueKindPlan) -> syn::Ident {
+    let name = match value {
+        ValueKindPlan::Category(name)
+        | ValueKindPlan::Lex(name)
+        | ValueKindPlan::Identity(name)
+        | ValueKindPlan::Product(name)
+        | ValueKindPlan::Sum(name) => name,
+    };
+    crate::identifier::emitted_ident(name, proc_macro2::Span::call_site())
+}
+
+pub(super) fn structural_field_type(field: &StructuralFieldPlan) -> TokenStream {
+    let ty = structural_carrier_type(field.kind());
+    if field.is_recursive() {
+        quote! { Box<#ty> }
+    } else {
+        ty
+    }
+}
+
+pub(super) fn structural_carrier_type(kind: &StructuralFieldKindPlan) -> TokenStream {
+    let value = value_kind_type(kind.value());
+    match kind {
+        StructuralFieldKindPlan::Required(_) => quote! { #value },
+        StructuralFieldKindPlan::Optional(_) => quote! { Option<#value> },
+        StructuralFieldKindPlan::Sequence { .. } => quote! { Vec<#value> },
+    }
+}
 
 pub(super) fn emit_invariant_expression(
     invariant: &InvariantPlan,

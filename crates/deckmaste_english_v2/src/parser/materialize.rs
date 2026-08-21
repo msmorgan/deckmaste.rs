@@ -15,12 +15,7 @@ use super::engine::SpannedLexical;
 use super::ownership::RawLexicalClaim;
 use super::selection::specificity_tiers;
 use crate::ast::Ability;
-use crate::ast::Amount;
-use crate::ast::Clause;
-use crate::ast::NounPhrase;
-use crate::ast::Sentence;
-use crate::ast::VerbPhrase;
-use crate::constructions::Agreement;
+use crate::constructions::BuildValue;
 use crate::constructions::Category;
 use crate::constructions::Construction;
 use crate::constructions::Leaf;
@@ -32,17 +27,6 @@ use crate::constructions::RuleId;
 use crate::constructions::build;
 use crate::context::ParseContext;
 use crate::render::Render;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum BuildValue {
-    Ability(Ability),
-    Sentence(Sentence),
-    Clause(Clause),
-    NounPhrase(NounPhrase, Agreement),
-    VerbPhrase(VerbPhrase, Agreement),
-    Amount(Amount),
-    Leaf(Leaf),
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct MaterializedCandidate<V, C, K = Category, M = Lexical, T = (), O = ()> {

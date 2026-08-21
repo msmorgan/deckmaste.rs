@@ -5,7 +5,7 @@
 
 use deckmaste_construction::constructions;
 
-mod environment {
+pub mod environment {
     use macro_ron::v2::DeclarationIdentity;
     use macro_ron::v2::GrammarRecipe;
     use macro_ron::v2::NormalizedDeclaration;
@@ -159,13 +159,6 @@ mod declaration_noun_fixture {
         fn finish(self) -> String {
             self.output
         }
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    enum BuildValue {
-        Phrase(Phrase),
-        PluralPhrase(PluralPhrase),
-        Leaf(Leaf),
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -580,7 +573,7 @@ mod declaration_noun_fixture {
     }
 }
 
-mod fixture {
+pub mod fixture {
     #![allow(
         clippy::too_many_arguments,
         reason = "the dense hygiene fixture deliberately exercises seven stored fields plus one derived field"
@@ -750,31 +743,6 @@ mod fixture {
     #[derive(Debug, Clone, PartialEq, Eq)]
     enum BoundLeaf {
         Pair(u8, u8, u8),
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    enum BuildValue {
-        Source(Source, Number),
-        Phrase(Phrase),
-        PairPhrase(PairPhrase),
-        Child(Child, Agreement),
-        Parent(Parent, Agreement),
-        Action(Action, Agreement),
-        BeSentence(BeSentence, Agreement),
-        Predicate(Predicate, Agreement),
-        Container(Container),
-        ContextBound(ContextBound),
-        FeatureBound(FeatureBound, Agreement),
-        Collision(Collision),
-        RenderChild(RenderChild),
-        RawPayload(RawPayload),
-        Keyword(Keyword, Agreement),
-        HygieneRoot(HygieneRoot),
-        ContextEnvelope(ContextEnvelope),
-        VisitCategory(VisitCategory),
-        MarkerCategory(MarkerCategory),
-        RawCategory(RawCategory),
-        Leaf(Leaf),
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1122,6 +1090,13 @@ mod fixture {
             form raw_leaf = "raw";
         }
 
+        abstract sum Choice { Child, MarkerCategory, }
+        abstract product Holder {
+            maybe: opt Child,
+            items: seq Choice terminated by ",",
+        }
+        require len(Holder.items) >= 1;
+
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         root BeSentence { punctuation = "."; eoi = true; standalone_render = true; }
         root RenderChild { punctuation = "."; eoi = false; standalone_render = true; }
@@ -1274,6 +1249,7 @@ mod fixture {
         );
         let shared_clone = shared_declaration.clone();
         let second_shared_clone = shared_declaration.clone();
+        #[cfg(test)]
         LexicalOwner::reset_label_constructions();
         assert_eq!(
             shared_declaration.stable_id(),
@@ -1284,6 +1260,7 @@ mod fixture {
             second_shared_clone.stable_id(),
             shared_declaration.stable_id()
         );
+        #[cfg(test)]
         assert_eq!(
             LexicalOwner::label_constructions(),
             1,
@@ -1665,6 +1642,21 @@ mod fixture {
         assert!(
             IdentityGuard::new(SelfRef::Abbreviated, &context).is_none(),
             "a colliding noncanonical context identity is rejected",
+        );
+    }
+
+    pub(super) fn assert_structural_product_public_boundary() {
+        assert!(
+            Holder::new(None, vec![]).is_none(),
+            "the normalized nonempty bound rejects an empty structural sequence",
+        );
+        let expected = Choice::Child(Child::Bare(BareChild));
+        let holder = Holder::new(None, vec![expected.clone()])
+            .expect("one structural member satisfies the normalized bound");
+        assert_eq!(
+            holder.items(),
+            std::slice::from_ref(&expected),
+            "the borrowed slice retains source order",
         );
     }
 
@@ -2094,4 +2086,9 @@ fn generated_morphology_output_is_type_correct_and_executes_every_boundary_case(
 #[test]
 fn invariant_constructors_enforce_the_compiled_public_boundary() {
     fixture::assert_invariant_public_boundary();
+}
+
+#[test]
+fn structural_constructors_enforce_the_compiled_public_boundary() {
+    fixture::assert_structural_product_public_boundary();
 }

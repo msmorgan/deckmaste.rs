@@ -15,12 +15,6 @@ use super::engine::parse_observed;
 use super::materialize::materialize_with;
 use crate::environment::ParserEnvironment;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum BuildValue {
-    Homonym(Homonym, Agreement),
-    Leaf(Leaf),
-}
-
 #[derive(Debug, Default)]
 struct ParseContext<'a>(std::marker::PhantomData<&'a ()>);
 

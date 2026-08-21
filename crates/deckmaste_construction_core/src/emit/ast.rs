@@ -47,6 +47,50 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         .into_iter()
         .map(CategoryItem::finish)
         .collect::<Vec<_>>();
+    let mut structural_items = plan
+        .products()
+        .iter()
+        .map(|product| {
+            let origin = DeclarationKey::new(DeclarationKind::AbstractProduct, product.name());
+            let ident = emitted_ident(product.name(), Span::call_site());
+            let mut emitted = vec![GeneratedItem::new(
+                ItemKey::named_type(product.name()),
+                emit_structural_product(product, &ident),
+                vec![origin.clone()],
+            )];
+            if structural_product_requires_constructor(product) {
+                emitted.push(GeneratedItem::new(
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty: product.name().to_owned(),
+                    },
+                    emit_structural_product_impl(product, &ident),
+                    vec![origin],
+                ));
+            }
+            (product.source_index(), emitted)
+        })
+        .chain(plan.sums().iter().map(|sum| {
+            let ident = emitted_ident(sum.name(), Span::call_site());
+            (
+                sum.source_index(),
+                vec![GeneratedItem::new(
+                    ItemKey::named_type(sum.name()),
+                    emit_structural_sum(sum, &ident),
+                    vec![DeclarationKey::new(
+                        DeclarationKind::AbstractSum,
+                        sum.name(),
+                    )],
+                )],
+            )
+        }))
+        .collect::<Vec<_>>();
+    structural_items.sort_by_key(|(source_index, _)| *source_index);
+    items.extend(
+        structural_items
+            .into_iter()
+            .flat_map(|(_, emitted)| emitted),
+    );
     for construction in plan.constructions() {
         let ident = emitted_ident(construction.element_type(), construction.origin_span());
         let origins = vec![DeclarationKey::new(
@@ -59,7 +103,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             tokens,
             origins.clone(),
         ));
-        if !construction.fields().is_empty() && construction.invariant().requires_constructor() {
+        if !construction.fields().is_empty() && construction_requires_constructor(construction) {
             items.push(GeneratedItem::new(
                 ItemKey::Impl {
                     trait_name: None,
@@ -71,6 +115,142 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         }
     }
     Ok(items)
+}
+
+fn emit_structural_sum(sum: &crate::semantic::SumPlan, ident: &syn::Ident) -> TokenStream {
+    let alternatives = sum.alternatives().iter().map(|alternative| {
+        let name = emitted_ident(alternative.name(), Span::call_site());
+        let value = super::value_kind_type(alternative.value());
+        if alternative.is_recursive() {
+            quote! { #name(Box<#value>) }
+        } else {
+            quote! { #name(#value) }
+        }
+    });
+    quote! {
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        pub enum #ident {
+            #(#alternatives),*
+        }
+    }
+}
+
+fn emit_structural_product(
+    product: &crate::semantic::ProductPlan,
+    ident: &syn::Ident,
+) -> TokenStream {
+    if product.fields().is_empty() {
+        return quote! {
+            #[derive(Debug, Clone, PartialEq, Eq)]
+            pub struct #ident;
+        };
+    }
+    let fields = product.fields().iter().map(|field| {
+        let name = emitted_ident(field.name(), Span::call_site());
+        let visibility = (!structural_field_is_constrained(field)).then(|| quote! { pub });
+        let ty = super::structural_field_type(field);
+        quote! { #visibility #name: #ty }
+    });
+    quote! {
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        pub struct #ident {
+            #(#fields),*
+        }
+    }
+}
+
+fn emit_structural_product_impl(
+    product: &crate::semantic::ProductPlan,
+    ident: &syn::Ident,
+) -> TokenStream {
+    let fields = product.fields().iter().map(|field| {
+        let name = emitted_ident(field.name(), Span::call_site());
+        let ty = super::structural_field_type(field);
+        quote! { #name: #ty }
+    });
+    let initializers = product
+        .fields()
+        .iter()
+        .map(|field| emitted_ident(field.name(), Span::call_site()));
+    let guards = product.fields().iter().filter_map(|field| {
+        let crate::semantic::StructuralFieldKindPlan::Sequence { bounds, .. } = field.kind() else {
+            return None;
+        };
+        structural_bounds_are_constrained(*bounds).then(|| {
+            let name = emitted_ident(field.name(), Span::call_site());
+            emit_length_guard(&name, *bounds)
+        })
+    });
+    let accessors = product
+        .fields()
+        .iter()
+        .filter(|field| structural_field_is_constrained(field))
+        .map(emit_structural_accessor);
+    quote! {
+        impl #ident {
+            pub fn new(#(#fields),*) -> Option<Self> {
+                if #(#guards)&&* {
+                    Some(Self { #(#initializers),* })
+                } else {
+                    None
+                }
+            }
+
+            #(#accessors)*
+        }
+    }
+}
+
+fn structural_product_requires_constructor(product: &crate::semantic::ProductPlan) -> bool {
+    product.fields().iter().any(structural_field_is_constrained)
+}
+
+fn structural_field_is_constrained(field: &crate::semantic::StructuralFieldPlan) -> bool {
+    matches!(
+        field.kind(),
+        crate::semantic::StructuralFieldKindPlan::Sequence { bounds, .. }
+            if structural_bounds_are_constrained(*bounds)
+    )
+}
+
+fn structural_bounds_are_constrained(bounds: crate::semantic::LengthBounds) -> bool {
+    bounds.min() != 0 || bounds.max().is_some()
+}
+
+fn emit_length_guard(name: &syn::Ident, bounds: crate::semantic::LengthBounds) -> TokenStream {
+    let min = syn::LitInt::new(&bounds.min().to_string(), Span::call_site());
+    let lower = quote! { #name.len() >= #min };
+    bounds.max().map_or(lower.clone(), |max| {
+        let max = syn::LitInt::new(&max.to_string(), Span::call_site());
+        quote! { (#lower) && (#name.len() <= #max) }
+    })
+}
+
+fn emit_structural_accessor(field: &crate::semantic::StructuralFieldPlan) -> TokenStream {
+    let name = emitted_ident(field.name(), Span::call_site());
+    let value = super::value_kind_type(field.kind().value());
+    match field.kind() {
+        crate::semantic::StructuralFieldKindPlan::Required(_) if field.is_recursive() => quote! {
+            pub fn #name(&self) -> &#value { self.#name.as_ref() }
+        },
+        crate::semantic::StructuralFieldKindPlan::Required(_) => quote! {
+            pub const fn #name(&self) -> &#value { &self.#name }
+        },
+        crate::semantic::StructuralFieldKindPlan::Optional(_) if field.is_recursive() => quote! {
+            pub fn #name(&self) -> Option<&#value> { self.#name.as_ref().as_ref() }
+        },
+        crate::semantic::StructuralFieldKindPlan::Optional(_) => quote! {
+            pub const fn #name(&self) -> Option<&#value> { self.#name.as_ref() }
+        },
+        crate::semantic::StructuralFieldKindPlan::Sequence { .. } if field.is_recursive() => {
+            quote! {
+                pub fn #name(&self) -> &[#value] { self.#name.as_slice() }
+            }
+        }
+        crate::semantic::StructuralFieldKindPlan::Sequence { .. } => quote! {
+            pub const fn #name(&self) -> &[#value] { self.#name.as_slice() }
+        },
+    }
 }
 
 struct CategoryItem {
@@ -116,15 +296,24 @@ fn emit_product(
         .iter()
         .map(|field| {
             let name = field.name();
-            let visibility = field.accessor_mode().is_none().then(|| quote! { pub });
-            let ty = field.value_type();
-            let boxed = plan
-                .boxed_fields()
-                .contains(&(construction_name.to_owned(), field.name_key()));
-            Ok(if boxed {
-                quote! { #visibility #name: Box<#ty> }
-            } else {
+            let structural_constraint = field
+                .structural_plan()
+                .is_some_and(structural_field_is_constrained);
+            let visibility =
+                (field.accessor_mode().is_none() && !structural_constraint).then(|| quote! { pub });
+            Ok(if let Some(structural) = field.structural_plan() {
+                let ty = super::structural_field_type(structural);
                 quote! { #visibility #name: #ty }
+            } else {
+                let ty = field.value_type();
+                let boxed = plan
+                    .boxed_fields()
+                    .contains(&(construction_name.to_owned(), field.name_key()));
+                if boxed {
+                    quote! { #visibility #name: Box<#ty> }
+                } else {
+                    quote! { #visibility #name: #ty }
+                }
             })
         })
         .collect::<syn::Result<Vec<_>>>()?;
@@ -134,6 +323,15 @@ fn emit_product(
             #(#fields),*
         }
     })
+}
+
+fn construction_requires_constructor(construction: &ConstructionPlan) -> bool {
+    construction.invariant().requires_constructor()
+        || construction.fields().iter().any(|field| {
+            field
+                .structural_plan()
+                .is_some_and(structural_field_is_constrained)
+        })
 }
 
 fn emit_invariant_impl(
@@ -180,8 +378,11 @@ fn emit_invariant_impl(
             );
         }
     }
-    let predicate =
-        super::emit_invariant_expression(construction.invariant(), &subject_expressions)?;
+    let predicate = if construction.invariant().requires_constructor() {
+        super::emit_invariant_expression(construction.invariant(), &subject_expressions)?
+    } else {
+        quote! { true }
+    };
     let context_guards = construction
         .invariant()
         .context_identity_fields()
@@ -191,6 +392,21 @@ fn emit_invariant_impl(
                 .get(&identifier_key(field))
                 .ok_or_else(|| internal("context identity field has no constructor local"))?;
             Ok(quote! { #local.valid_in(context) })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let length_guards = construction
+        .fields()
+        .iter()
+        .filter_map(|field| {
+            let crate::semantic::StructuralFieldKindPlan::Sequence { bounds, .. } =
+                field.structural_kind()?
+            else {
+                return None;
+            };
+            structural_bounds_are_constrained(*bounds).then(|| {
+                let name = field_local(&locals, field)?;
+                Ok(emit_length_guard(name, *bounds))
+            })
         })
         .collect::<syn::Result<Vec<_>>>()?;
     let initializers = construction
@@ -207,7 +423,18 @@ fn emit_invariant_impl(
         })
         .collect::<syn::Result<Vec<_>>>()?;
     let accessors = construction.fields().iter().filter_map(|field| {
-        let mode = field.accessor_mode()?;
+        let structural_constraint = field
+            .structural_plan()
+            .is_some_and(structural_field_is_constrained);
+        if field.accessor_mode().is_none() && !structural_constraint {
+            return None;
+        }
+        if let Some(structural) = field.structural_plan() {
+            return Some(emit_structural_accessor(structural));
+        }
+        let mode = field
+            .accessor_mode()
+            .expect("non-structural private fields have a sealed accessor mode");
         let name = field.name();
         let ty = field.value_type();
         Some(match mode {
@@ -229,7 +456,7 @@ fn emit_invariant_impl(
             pub fn new(
                 #(#parameters),*
             ) -> Option<Self> {
-                if (#predicate) #(&& (#context_guards))* {
+                if (#predicate) #(&& (#context_guards))* #(&& (#length_guards))* {
                     Some(Self { #(#initializers),* })
                 } else {
                     None
@@ -415,6 +642,9 @@ fn stored_field_type(
     construction: &ConstructionPlan,
     field: &crate::semantic::ConstructionFieldPlan,
 ) -> TokenStream {
+    if let Some(structural) = field.structural_plan() {
+        return super::structural_field_type(structural);
+    }
     let ty = field.value_type();
     if is_boxed(plan, construction, field) {
         quote! { Box<#ty> }
@@ -459,6 +689,118 @@ mod tests {
     use crate::DeclarationKind;
     use crate::ItemKey;
     use crate::test_support::representative_expansion;
+
+    #[test]
+    fn structural_products_sums_bounds_accessors_and_recursive_edges_are_exact() {
+        let plan = structural_semantic_plan();
+        let items = super::emit(&plan).expect("structural AST fixture emits");
+
+        let Item::Enum(choice) = parse_named(&items, "Choice") else {
+            panic!("Choice is an enum");
+        };
+        assert_public(&choice.vis, "Choice");
+        assert_common_derives(&choice.attrs, "Choice");
+        assert_eq!(
+            choice
+                .variants
+                .iter()
+                .map(|variant| {
+                    let Fields::Unnamed(fields) = &variant.fields else {
+                        panic!("structural sum alternatives have tuple payloads");
+                    };
+                    assert_eq!(fields.unnamed.len(), 1);
+                    (
+                        variant.ident.to_string(),
+                        fields.unnamed[0].ty.to_token_stream().to_string(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                ("Left".to_owned(), "LeftNode".to_owned()),
+                ("Right".to_owned(), "RightNode".to_owned()),
+            ]
+        );
+
+        let Item::Struct(holder) = parse_named(&items, "Holder") else {
+            panic!("Holder is a struct");
+        };
+        assert_public(&holder.vis, "Holder");
+        assert_common_derives(&holder.attrs, "Holder");
+        let Fields::Named(fields) = holder.fields else {
+            panic!("Holder has named fields");
+        };
+        assert_eq!(
+            fields
+                .named
+                .iter()
+                .map(|field| (
+                    field.ident.as_ref().unwrap().to_string(),
+                    field.ty.to_token_stream().to_string(),
+                    field_visibility(&field.vis),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "maybe".to_owned(),
+                    quote::quote!(Option<LeftNode>).to_string(),
+                    FieldVisibility::Public,
+                ),
+                (
+                    "items".to_owned(),
+                    quote::quote!(Vec<Choice>).to_string(),
+                    FieldVisibility::Private,
+                ),
+            ]
+        );
+        assert_eq!(
+            method_headers(&inherent_impl(&items, "Holder")),
+            [
+                quote::quote! {
+                    pub fn new(maybe: Option<LeftNode>, items: Vec<Choice>) -> Option<Self>
+                }
+                .to_string(),
+                quote::quote! { pub const fn items(&self) -> &[Choice] }.to_string(),
+            ]
+        );
+        let body = method(&inherent_impl(&items, "Holder"), "new")
+            .block
+            .to_token_stream()
+            .to_string();
+        assert!(body.contains("items . len () >= 1"), "{body}");
+        assert!(body.contains("Some (Self { maybe , items })"), "{body}");
+
+        let Item::Enum(recursive_choice) = parse_named(&items, "RecursiveChoice") else {
+            panic!("RecursiveChoice is an enum");
+        };
+        let Fields::Unnamed(branch) = &recursive_choice.variants[0].fields else {
+            panic!("recursive sum alternative has one payload");
+        };
+        assert_eq!(
+            branch.unnamed[0].ty.to_token_stream().to_string(),
+            quote::quote!(Box<RecursiveBranch>).to_string(),
+            "the sealed recursive sum edge receives an explicit box",
+        );
+        let Item::Struct(recursive_branch) = parse_named(&items, "RecursiveBranch") else {
+            panic!("RecursiveBranch is a struct");
+        };
+        let Fields::Named(recursive_fields) = recursive_branch.fields else {
+            panic!("RecursiveBranch has named fields");
+        };
+        assert_eq!(
+            recursive_fields.named[0].ty.to_token_stream().to_string(),
+            {
+                let expected: Type = syn::parse_quote!(Box<Vec<RecursiveChoice>>);
+                expected.to_token_stream().to_string()
+            },
+            "the sealed recursive product edge receives an explicit box",
+        );
+        assert!(
+            choice
+                .variants
+                .iter()
+                .all(|variant| { !variant.fields.to_token_stream().to_string().contains("Box") })
+        );
+    }
 
     #[test]
     fn invariant_products_emit_exact_constructor_and_accessor_surface() {
@@ -1111,6 +1453,8 @@ mod tests {
                 "LexicalOwnerTemplate",
                 "LexicalOwnerIdentity",
                 "LexicalOwner",
+                "BuildValue",
+                "NonterminalCategory",
                 "Category",
                 "Construction",
                 "RuleId",
@@ -1178,6 +1522,37 @@ mod tests {
     fn invariant_ast_items() -> Vec<crate::GeneratedItem> {
         let plan = invariant_semantic_plan();
         super::emit(&plan).expect("invariant AST fixture emits")
+    }
+
+    fn structural_semantic_plan() -> crate::semantic::SemanticPlan {
+        crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                abstract sum Choice { Left: LeftNode, Right: RightNode, }
+                abstract product Holder {
+                    maybe: opt LeftNode,
+                    items: seq Choice terminated by ",",
+                }
+                require len(Holder.items) >= 1;
+                abstract sum RecursiveChoice { Branch: RecursiveBranch, }
+                abstract product RecursiveBranch {
+                    choices: seq RecursiveChoice terminated by ".",
+                }
+                require len(RecursiveBranch.choices) = 1;
+                construction left: LeftNode {
+                    element LeftValue {}
+                    form left = "left";
+                }
+                construction right: RightNode {
+                    element RightValue {}
+                    form right = "right";
+                }
+                root LeftNode { punctuation = "."; eoi = true; standalone_render = true; }
+                root RightNode { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("structural AST fixture parses"),
+        )
+        .expect("structural AST fixture validates")
+        .into_semantic()
     }
 
     fn invariant_semantic_plan() -> crate::semantic::SemanticPlan {

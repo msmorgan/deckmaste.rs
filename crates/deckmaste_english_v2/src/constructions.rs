@@ -3,7 +3,6 @@ use RulePosition::Nonterminal as N;
 use deckmaste_construction::constructions;
 
 use crate::context::ParseContext;
-use crate::parser::BuildValue;
 use crate::parser::LexicalMatch;
 use crate::parser::Rule;
 use crate::parser::RulePosition;

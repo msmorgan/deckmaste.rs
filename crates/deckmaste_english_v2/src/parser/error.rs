@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use super::SelectionExceptionInventoryError;
+use crate::constructions::NonterminalCategory;
 use crate::constructions::TerminalClass;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -10,35 +11,11 @@ pub struct TextSpan {
     pub end: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-pub enum NonterminalCategory {
-    Ability,
-    Sentence,
-    Clause,
-    NounPhrase,
-    VerbPhrase,
-    Amount,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Expectation {
     Nonterminal(NonterminalCategory),
     Terminal(TerminalClass),
     Literal(&'static str),
-}
-
-impl fmt::Display for NonterminalCategory {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let label = match self {
-            Self::Ability => "ability",
-            Self::Sentence => "sentence",
-            Self::Clause => "clause",
-            Self::NounPhrase => "noun phrase",
-            Self::VerbPhrase => "verb phrase",
-            Self::Amount => "amount",
-        };
-        formatter.write_str(label)
-    }
 }
 
 impl fmt::Display for Expectation {
