@@ -5248,8 +5248,9 @@ mutual
 
   ||| Which continuous effects a resolving clause can establish. A
   ||| characteristic-defining ability is printed on the card it affects
-  ||| [CR#604.3a], and an alternative cost is that object's own ability
-  ||| [CR#113.6d] while `AltCost` names no object.
+  ||| [CR#604.3a], so no resolution establishes one. An alternative cost
+  ||| modifies what one particular object costs to cast [CR#113.6d], and
+  ||| `AltCost` names no object for the clause to price.
   public export
   clauseStaticOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
   clauseStaticOk (DefinesPt _ _ _) = False

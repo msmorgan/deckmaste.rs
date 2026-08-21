@@ -597,6 +597,14 @@ badDeicticTurnWithoutIntroducer (NoTurnDeixis) impossible
 badDeicticTurnWithoutIntroducer (TurnInScope) impossible
 
 
+||| "After this combat phase, there is an additional turn."
+||| [CR#500.8] adds a phase to a turn and [CR#500.9] a step to a phase; a turn is neither [CR#500.1].
+public export
+badAdditionalTurn : Unspellable (Effect []) (\ok =>
+  AdditionalPart Turn (Just Combat) (Lit 1) {ad = ok})
+badAdditionalTurn Oh impossible
+
+
 ||| "This creature enters with 0 +1/+1 counters on it."
 ||| A written zero is not a count; where none is possible the line writes a variable instead.
 public export

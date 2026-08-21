@@ -571,6 +571,15 @@ badWindowDuringYourEndStep : Unspellable Ability (\ok =>
 badWindowDuringYourEndStep Oh impossible
 
 
+||| "{2}: Draw a card. Activate only before that turn's attackers are declared."
+||| An activation restriction introduces no turn, so the deictic possessor reaches no antecedent.
+public export
+badThatTurnsAttackWindow : Unspellable Ability (\ok =>
+  Activated (Mana [Macros.generic 2]) Macros.drawACard
+            {window = Just (BeforePoint AttackersDeclared (Just ThatTurns) {pk = ok})})
+badThatTurnsAttackWindow Oh impossible
+
+
 ||| "Target land attacks each combat if able."
 ||| Only a creature attacks [CR#506.3], and the requirement reads the restriction's own grid.
 public export
