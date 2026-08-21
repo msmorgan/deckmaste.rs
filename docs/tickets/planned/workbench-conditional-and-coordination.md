@@ -234,7 +234,7 @@ says whether a rule or a count is closing it. Rows, evidence and widening costs:
 `negatable`'s full-row census over every `Predicate` constructor
 (`Experimental.idr:1024`). One row of it — `negatable` at `Permanent` — is
 recorded as "not measured by this round's recon" and is
-`workbench-docstring-evidence-audit`'s to count.
+not counted here (the docstring-audit ticket was deleted 2026-08-21).
 
 ## Reading-order inversions this ticket owns (added 2026-08-21)
 

@@ -290,7 +290,7 @@ says whether a rule or a count is closing it. Rows, evidence and widening costs:
 `attachHeadOk`'s participle × head grid (`Words.idr:2211`). One of its cells —
 `Equipped` × `PermanentW`, coded False beside a comment citing Luxior's printed
 "equipped permanent" — is a live discrepancy carried by
-`workbench-docstring-evidence-audit`; settle it there, not here.
+the `Measured cell` ledger on `workbench-static-frame-and-ability-values` (the docstring-audit ticket was deleted 2026-08-21); settle it there, not here.
 
 ## Consumption boundary
 

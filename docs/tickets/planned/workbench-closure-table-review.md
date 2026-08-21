@@ -90,7 +90,7 @@ region with a full per-kind tally is `Experimental.idr` 1–4040 — slot 46, ta
   verbatim under `workbench-union-gate-spelling-rehome`. A verdict here would
   pre-empt that move.
 - Claims with **no count behind them at all**, and the **seven live
-  discrepancies**, are `workbench-docstring-evidence-audit`'s. Where this review
+  discrepancies**, were `workbench-docstring-evidence-audit`'s (deleted 2026-08-21: no docstring audits; its measured cells sit on their owning tickets). Where this review
   finds a row whose evidence is missing rather than stale, route it there and
   record the routing.
 - A verdict that **refutes a cell** is not this ticket's to fix. Route it to the
