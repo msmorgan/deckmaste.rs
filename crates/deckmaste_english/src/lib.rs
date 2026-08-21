@@ -1,4 +1,4 @@
-//! **PRE-CUTOVER v1 — this crate is deleted at the english_v2 cutover.**
+//! **PRE-CUTOVER v1 — this crate is deleted at the `english_v2` cutover.**
 //!
 //! `deckmaste_english_v2` takes this crate's name at cutover. Put new
 //! architecture and features there; touch this crate only to keep current
