@@ -9,6 +9,12 @@ counted mention instead of the member description. They meet at the same pin
 (`badGroupNameRelatum`), the same `NameSource`, and the same six elliptical
 lines, so the co-referential row and the group row have to be decided together.
 
+> **Ruling 2026-08-22:** the group relatum is admitted. "Cards with the same
+> name as those creatures" is rules-meaningful (names are strings; the relation
+> lifts pointwise), so `badGroupNameRelatum` is deleted under
+> `workbench-pins-refuse-rules-impossibility-only`'s doctrine and the internal
+> disagreement below dissolves: both shapes are rows.
+
 ## The name match's counted residues
 
 `Predicate.Named` takes a `NameSource bs` (`PrintedName` / `ChosenName`), one
