@@ -39,6 +39,12 @@ widens must move the measurement into a table, never delete it.
 > three of the four regions no longer exist, and the tables' §7 line refs
 > exceed every file. Re-anchor against the tree before partitioning the sweep.
 
+> **Ruling 2026-08-22 — re-measure, then decide.** The closure tables this
+> ticket reads are a demoted snapshot (`docs/memory/rulings/measurements-live-
+> in-pins.md`). Every "N of M" below is a claim to re-measure with the
+> mtg-rules `corpus` script before acting; a measured zero lands as a pin, a
+> flip records its count in this ticket's `## As landed`, never in a docstring.
+
 ## Do not drop a measured zero
 
 The tables' rows exist because a zero was counted. Carrying a row forward without

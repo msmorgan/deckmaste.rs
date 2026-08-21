@@ -29,6 +29,12 @@ those is a **recorded decision** at the site — widen, bless-as-permanent with 
 rule (not a count) doing the closing, or re-measure — written into the
 docstring, not a note elsewhere.
 
+> **Ruling 2026-08-22 — re-measure, then decide.** The closure tables this
+> ticket reads are a demoted snapshot (`docs/memory/rulings/measurements-live-
+> in-pins.md`). Every "N of M" below is a claim to re-measure with the
+> mtg-rules `corpus` script before acting; a measured zero lands as a pin, a
+> flip records its count in this ticket's `## As landed`, never in a docstring.
+
 ## The five hard-fixed value slots
 
 - **`heldUntilOk` — the until-rider's single True cell** (Experimental.idr:3538).

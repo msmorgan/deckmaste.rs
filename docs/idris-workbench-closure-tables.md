@@ -1,5 +1,13 @@
 # Idris workbench closure tables
 
+> **Historical snapshot (demoted 2026-08-22).** The docstrings this document
+> quotes no longer exist in the sources, and its header totals and §7 anchors
+> predate a large shrink. It is not maintained. The record of a measured zero
+> is the **pin** that refuses it (`idris/src/Experimental/Proofs*.idr`); the
+> measured non-zero that decided a cell is recorded on the ticket that decided
+> it. Re-measure with the mtg-rules `corpus` script before relying on any
+> number here.
+
 Every closed catalog, measured-zero gate, closed-count table, single-value slot,
 canonicality gate and marked union construction in the Idris grammar workbench,
 each row tagged by **what closes it** — a rule, a rule read as a gate, a printing
