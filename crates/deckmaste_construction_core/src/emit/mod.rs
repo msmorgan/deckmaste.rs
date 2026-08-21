@@ -83,13 +83,7 @@ pub(super) struct StructuralCarrier<'a> {
     field_index: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) enum StructuralHelperCategoryState {
-    Optional,
-    UnboundedSequence,
-    UniformCount(usize),
-    PositionalCount(usize),
-}
+pub(super) use crate::identifier::StructuralHelperCategoryState;
 
 pub(super) struct StructuralHelperCategory<'a> {
     pub(super) owner: &'a str,
@@ -184,47 +178,19 @@ pub(super) fn structural_helper_categories(
                 }
                 StructuralFieldKindPlan::Sequence {
                     bounds, surface, ..
-                } => match bounds.max() {
-                    None => vec![(StructuralHelperCategoryState::UnboundedSequence, base)],
-                    Some(maximum)
-                        if matches!(
-                            surface.separator(),
-                            Some(crate::semantic::SeparatorPlan::Positional(_))
-                        ) =>
-                    {
-                        (2..maximum)
-                            .map(|position| {
-                                let name = if position == 2 {
-                                    base.clone()
-                                } else {
-                                    crate::identifier::structural_sequence_counted_category(
-                                        carrier.owner,
-                                        carrier.field.name(),
-                                        position,
-                                    )
-                                };
-                                (
-                                    StructuralHelperCategoryState::PositionalCount(position),
-                                    name,
-                                )
-                            })
-                            .collect()
-                    }
-                    Some(maximum) => (1..=maximum)
-                        .map(|count| {
-                            let name = if count == 1 {
-                                base.clone()
-                            } else {
-                                crate::identifier::structural_sequence_counted_category(
-                                    carrier.owner,
-                                    carrier.field.name(),
-                                    count,
-                                )
-                            };
-                            (StructuralHelperCategoryState::UniformCount(count), name)
-                        })
-                        .collect(),
-                },
+                } => crate::identifier::structural_sequence_helper_categories(
+                    carrier.owner,
+                    carrier.field.name(),
+                    bounds.max(),
+                    if matches!(
+                        surface.separator(),
+                        Some(crate::semantic::SeparatorPlan::Positional(_))
+                    ) {
+                        crate::identifier::StructuralSequenceStyle::Positional
+                    } else {
+                        crate::identifier::StructuralSequenceStyle::Uniform
+                    },
+                ),
                 StructuralFieldKindPlan::Required(_) => Vec::new(),
             };
             states

@@ -162,6 +162,55 @@ pub(crate) fn structural_sequence_counted_category(
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum StructuralHelperCategoryState {
+    Optional,
+    UnboundedSequence,
+    UniformCount(usize),
+    PositionalCount(usize),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum StructuralSequenceStyle {
+    Uniform,
+    Positional,
+}
+
+pub(crate) fn structural_sequence_helper_categories(
+    owner: &str,
+    role: &str,
+    maximum: Option<usize>,
+    style: StructuralSequenceStyle,
+) -> Vec<(StructuralHelperCategoryState, String)> {
+    let base = structural_sequence_category(owner, role);
+    match (maximum, style) {
+        (None, _) => vec![(StructuralHelperCategoryState::UnboundedSequence, base)],
+        (Some(maximum), StructuralSequenceStyle::Uniform) => (1..=maximum)
+            .map(|count| {
+                let name = if count == 1 {
+                    base.clone()
+                } else {
+                    structural_sequence_counted_category(owner, role, count)
+                };
+                (StructuralHelperCategoryState::UniformCount(count), name)
+            })
+            .collect(),
+        (Some(maximum), StructuralSequenceStyle::Positional) => (2..maximum)
+            .map(|position| {
+                let name = if position == 2 {
+                    base.clone()
+                } else {
+                    structural_sequence_counted_category(owner, role, position)
+                };
+                (
+                    StructuralHelperCategoryState::PositionalCount(position),
+                    name,
+                )
+            })
+            .collect(),
+    }
+}
+
 pub(crate) fn structural_sequence_rule(owner: &str, role: &str) -> String {
     format!("{}Rule", structural_sequence_aggregate(owner, role))
 }

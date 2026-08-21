@@ -15,6 +15,7 @@ use crate::identifier::RULE_ID_INDEX;
 use crate::identifier::RULE_ID_PUBLIC_CONSTRUCTION;
 use crate::identifier::RULE_ID_TYPE;
 use crate::identifier::RULES_CONSTANT;
+use crate::identifier::StructuralSequenceStyle;
 use crate::identifier::VISITOR_TRAIT;
 use crate::identifier::category_renderer;
 use crate::identifier::feature_helper;
@@ -30,7 +31,7 @@ use crate::identifier::spelling_key;
 use crate::identifier::structural_sequence_aggregate;
 use crate::identifier::structural_sequence_builder;
 use crate::identifier::structural_sequence_category;
-use crate::identifier::structural_sequence_counted_category;
+use crate::identifier::structural_sequence_helper_categories;
 use crate::identifier::structural_sequence_renderer;
 use crate::identifier::structural_sequence_rule;
 use crate::identifier::structural_sequence_walker;
@@ -3159,11 +3160,7 @@ fn register_structural_field_names(
             }
             FieldKind::Sequence { surface, .. } => {
                 let aggregate = structural_sequence_aggregate(owner, &role);
-                for generated in [
-                    aggregate.clone(),
-                    structural_sequence_category(owner, &role),
-                    structural_sequence_rule(owner, &role),
-                ] {
+                for generated in [aggregate.clone(), structural_sequence_rule(owner, &role)] {
                     names.register_type(&generated, &collision_role, field.name.span(), errors);
                 }
                 for generated in [
@@ -3183,8 +3180,16 @@ fn register_structural_field_names(
                     .get(&role)
                     .copied()
                     .unwrap_or_else(|| LengthBounds::new(0, None));
-                for generated in
-                    sequence_counted_category_names(owner, &role, surface, field_bounds)
+                let style = if matches!(
+                    &surface.separator,
+                    Some(crate::model::SeparatorSource::Positional(_))
+                ) {
+                    StructuralSequenceStyle::Positional
+                } else {
+                    StructuralSequenceStyle::Uniform
+                };
+                for (_, generated) in
+                    structural_sequence_helper_categories(owner, &role, field_bounds.max(), style)
                 {
                     names.register_type(&generated, &collision_role, field.name.span(), errors);
                 }
@@ -3199,25 +3204,6 @@ fn register_structural_field_names(
             }
             FieldKind::Category(_) | FieldKind::Lex(_) | FieldKind::Identity(_) => {}
         }
-    }
-}
-
-fn sequence_counted_category_names(
-    owner: &str,
-    role: &str,
-    surface: &crate::model::SequenceSurfaceSource,
-    bounds: LengthBounds,
-) -> Vec<String> {
-    let Some(maximum) = bounds.max() else {
-        return Vec::new();
-    };
-    match &surface.separator {
-        Some(crate::model::SeparatorSource::Positional(_)) => (3..maximum)
-            .map(|position| structural_sequence_counted_category(owner, role, position))
-            .collect(),
-        Some(crate::model::SeparatorSource::Uniform(_)) | None => (2..=maximum)
-            .map(|count| structural_sequence_counted_category(owner, role, count))
-            .collect(),
     }
 }
 
@@ -6785,6 +6771,7 @@ pub(crate) mod tests {
         clippy::too_many_lines,
         reason = "validation fixtures pin complete closed-schema diagnostics and golden input"
     )]
+    use std::collections::BTreeSet;
     use std::collections::HashSet;
 
     use quote::quote;
@@ -7955,6 +7942,111 @@ pub(crate) mod tests {
                 && message.contains("generated helper name collision"),
             "the collision must identify the exact counted category family: {message}",
         );
+    }
+
+    #[test]
+    fn accepts_authored_base_category_when_a_sequence_has_no_reachable_helper_state() {
+        for source in [
+            quote! {
+                construction item: Item { element ItemValue {} form item = "item"; }
+                abstract product Holder { items: seq Item separated by ", ", }
+                require len(Holder.items) = 0;
+                abstract product HolderItemsSequenceCategory {}
+                root Item { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+            quote! {
+                construction item: Item { element ItemValue {} form item = "item"; }
+                abstract product Holder {
+                    items: seq Item separated by position { pair = " and "; },
+                }
+                require len(Holder.items) = 2;
+                abstract product HolderItemsSequenceCategory {}
+                root Item { punctuation = "."; eoi = true; standalone_render = true; }
+            },
+        ] {
+            validate(source)
+                .expect("an authored type may use a sequence category name that is not emitted");
+        }
+    }
+
+    #[test]
+    fn raw_validation_and_sealed_emission_have_exact_helper_category_set_parity() {
+        let source = quote! {
+            construction item: Item { element ItemValue {} form item = "item"; }
+            abstract product UniformZero { items: seq Item separated by ", ", }
+            require len(UniformZero.items) = 0;
+            abstract product PositionalTwo {
+                items: seq Item separated by position { pair = " and "; },
+            }
+            require len(PositionalTwo.items) = 2;
+            abstract product UniformFinite { items: seq Item separated by ", ", }
+            require len(UniformFinite.items) >= 2;
+            require len(UniformFinite.items) <= 4;
+            abstract product PositionalFinite {
+                items: seq Item separated by position {
+                    pair = " and ";
+                    first = ", ";
+                    middle = ", ";
+                    last = ", and ";
+                },
+            }
+            require len(PositionalFinite.items) >= 2;
+            require len(PositionalFinite.items) <= 4;
+            abstract product Unbounded { items: seq Item separated by ", ", }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        };
+        let raw = crate::parse_declarations(source.clone()).expect("parity fixture parses");
+        let mut errors = None;
+        let inventory = super::generated_name_inventory(&raw, &mut errors);
+        assert!(errors.is_none(), "raw parity inventory is collision-free");
+        let semantic = validate(source)
+            .expect("parity fixture validates")
+            .into_semantic();
+
+        for (owner, expected) in [
+            ("UniformZero", Vec::<&str>::new()),
+            ("PositionalTwo", Vec::new()),
+            (
+                "UniformFinite",
+                vec![
+                    "UniformFiniteItemsSequenceCategory",
+                    "UniformFiniteItemsSequenceCount2Category",
+                    "UniformFiniteItemsSequenceCount3Category",
+                    "UniformFiniteItemsSequenceCount4Category",
+                ],
+            ),
+            (
+                "PositionalFinite",
+                vec![
+                    "PositionalFiniteItemsSequenceCategory",
+                    "PositionalFiniteItemsSequenceCount3Category",
+                ],
+            ),
+            ("Unbounded", vec!["UnboundedItemsSequenceCategory"]),
+        ] {
+            let collision_role = format!("{owner}.items: generated helper name collision");
+            let raw_names = inventory
+                .type_names
+                .iter()
+                .filter(|&(name, role)| role == &collision_role && name.ends_with("Category"))
+                .map(|(name, _)| name.clone())
+                .collect::<BTreeSet<_>>();
+            let emitted_names = crate::emit::structural_helper_categories(&semantic)
+                .into_iter()
+                .filter(|category| category.owner == owner && category.field.name() == "items")
+                .map(|category| category.name)
+                .collect::<BTreeSet<_>>();
+            let expected = expected
+                .into_iter()
+                .map(str::to_owned)
+                .collect::<BTreeSet<_>>();
+
+            assert_eq!(raw_names, expected, "raw helper categories for {owner}");
+            assert_eq!(
+                emitted_names, expected,
+                "sealed emitted helper categories for {owner}"
+            );
+        }
     }
 
     fn counted_inventory_size(maximum: usize) -> (usize, usize) {
