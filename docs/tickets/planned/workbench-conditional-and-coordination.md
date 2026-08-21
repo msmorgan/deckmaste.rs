@@ -236,6 +236,25 @@ says whether a rule or a count is closing it. Rows, evidence and widening costs:
 recorded as "not measured by this round's recon" and is
 `workbench-docstring-evidence-audit`'s to count.
 
+## Reading-order inversions this ticket owns (added 2026-08-21)
+
+- **`Effect.If` is oriented to the postposed sentence.** `If (e) (c : Condition
+  (preIntro e)) otherwise` lets the condition read the effect's mentions —
+  "Counter target spell if it's red" — and that is reading order for that shape.
+  The bench uses it for leading-if sentences authored backwards (Tezzeret,
+  `Experimental/Cards.idr` ~592, ~601, ~2140), and a leading condition's own
+  mentions are unreadable because `condDelta` is `[]` for every `Condition`.
+  Split it: a leading `If : (c : Condition bs) -> (e : Effect (condIntro c))
+  -> Maybe (Effect bs) -> Effect bs` whose effect reads the condition (give
+  `condDelta` the mentions English binds through a condition), and a postposed
+  `OnlyIf`-shaped constructor keeping today's orientation under a name that
+  cannot be mistaken for the leading one. Both stay in core — they differ in
+  binding direction — and the card language names the English over them.
+- **`WhereLetter` / `WhereLetterStatic`** take the definition first where
+  English postposes it ("…, where X is the number of …"); eight bench sites
+  author backwards and `DefinedLetter` is the largest family. Same treatment:
+  reading-order shape in core, or a macro that restores it — record which.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`Effect.If`, `Conditionally`, `condIntro`,
