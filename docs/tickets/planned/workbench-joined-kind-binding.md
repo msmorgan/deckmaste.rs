@@ -42,6 +42,18 @@ spanning both kinds and the container picks out the player case and binds it for
 is exactly this ticket's machinery; land the cell here or record why it does not
 fall in.
 
+## Ledger from `workbench-join-shape-flat-or-pair`
+
+- The kind index landed flat: `ObjectOrPlayer`, joined by `\/` under
+  `So (joinable a b)`. It has **no `Payload` constructor yet** — that is this
+  ticket's `Payload ObjectOrPlayer`, carrying the Object-half type the 33/33
+  echo reads and the player-side restriction; `UnionP` retires with it.
+- `lookbackSubjectOk _ ObjectOrPlayer = False` (`Events.idr`) was forced by
+  coverage and is deferred, not decided; revisit once the payload exists.
+- `joinAssoc` states associativity given all four gates; definedness closure
+  (`ab ∧ abc ⟹ bc ∧ a_bc`) is unstated. Harmless while `joinable` is fixed;
+  any gate widening must add it.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`Binding`, `bindFor`, `ForEachOf`, the noun

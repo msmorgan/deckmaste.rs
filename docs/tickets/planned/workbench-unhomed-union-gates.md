@@ -58,6 +58,16 @@ Gates that must survive with it: `negatable AnyTarget = False`,
 `complementAnyTargetFree`, `nameSrcAnyTargetFree`), every one of which exists
 solely to find this word in a subterm.
 
+## 3. Ledger from `workbench-join-shape-flat-or-pair`
+
+- `Object \/ Ability` is `joinable = False` as **unsurveyed**, not refused, and
+  carries no pin: "target spell or ability" is attested (155 oracle lines) and
+  would be that join once `Targetable` admits `Ability`. Measure and admit it
+  here, or record why it is not a kind join.
+- `bareLookbackOk _ _ = True` (`Events.idr`) silently admits `ObjectOrPlayer`
+  for every event; unreachable today because `lookbackSubjectOk _ ObjectOrPlayer
+  = False`, but a joined-kind lookback subject must not inherit that silent yes.
+
 ## Consumption boundary
 
 The collapse table is spelling-boundary content and lands with
