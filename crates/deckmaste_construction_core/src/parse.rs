@@ -14,6 +14,9 @@ use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 
+use crate::model::AbstractAlternative;
+use crate::model::AbstractProduct;
+use crate::model::AbstractSum;
 use crate::model::BuildLeaf;
 use crate::model::CodecAtomClass;
 use crate::model::Construction;
@@ -32,20 +35,26 @@ use crate::model::FeatureSlot;
 use crate::model::FeatureValue;
 use crate::model::Field;
 use crate::model::FieldKind;
+use crate::model::FixedSurfaceAtomSource;
+use crate::model::FixedSurfaceSource;
 use crate::model::Form;
 use crate::model::FormAtom;
 use crate::model::GeneratedCodecRecipe;
 use crate::model::GeneratedIdentityRecipe;
 use crate::model::LeafCallback;
+use crate::model::LengthComparison;
 use crate::model::Lexeme;
 use crate::model::LexemeMember;
 use crate::model::LexemeOverride;
 use crate::model::Morphology;
 use crate::model::OpenDeclarationAtom;
+use crate::model::PositionalSeparatorSource;
 use crate::model::RenderBinding;
 use crate::model::RequireExprSource;
 use crate::model::RequireSubjectSource;
 use crate::model::Root;
+use crate::model::SeparatorSource;
+use crate::model::SequenceSurfaceSource;
 use crate::model::SignedDecimalSignRoleSource;
 use crate::model::SignedDecimalSignSpelling;
 use crate::model::SignedDecimalSignTypeSource;
@@ -89,6 +98,7 @@ mod keyword {
     syn::custom_keyword!(is);
     syn::custom_keyword!(lex);
     syn::custom_keyword!(lexeme);
+    syn::custom_keyword!(len);
     syn::custom_keyword!(leaf);
     syn::custom_keyword!(morphology);
     syn::custom_keyword!(noun);
@@ -96,12 +106,20 @@ mod keyword {
     syn::custom_keyword!(part);
     syn::custom_keyword!(pattern);
     syn::custom_keyword!(punctuation);
+    syn::custom_keyword!(product);
     syn::custom_keyword!(render);
     syn::custom_keyword!(recipe);
     syn::custom_keyword!(require);
     syn::custom_keyword!(root);
     syn::custom_keyword!(scanner);
     syn::custom_keyword!(standalone_render);
+    syn::custom_keyword!(sum);
+    syn::custom_keyword!(separated);
+    syn::custom_keyword!(terminated);
+    syn::custom_keyword!(by);
+    syn::custom_keyword!(position);
+    syn::custom_keyword!(opt);
+    syn::custom_keyword!(seq);
     syn::custom_keyword!(traversal);
     syn::custom_keyword!(using);
     syn::custom_keyword!(value_type);
@@ -125,6 +143,8 @@ impl Parse for Declarations {
             }
             if input.peek(keyword::construction) {
                 declarations.push(Declaration::Construction(parse_construction(input)?));
+            } else if peek_ident(input, "abstract") {
+                declarations.push(parse_abstract_declaration(input)?);
             } else if input.peek(keyword::vocab) {
                 declarations.push(Declaration::Vocab(parse_vocab(input)?));
             } else if input.peek(keyword::morphology) {
@@ -147,12 +167,66 @@ impl Parse for Declarations {
                 return Err(deferred(input.span(), "scanner"));
             } else {
                 return Err(input.error(
-                    "expected construction, vocab, morphology, lexeme, codec, identity, or root declaration",
+                    "expected construction, abstract, vocab, morphology, lexeme, codec, identity, or root declaration",
                 ));
             }
         }
         Ok(Self { declarations })
     }
+}
+
+fn parse_abstract_declaration(input: ParseStream<'_>) -> syn::Result<Declaration> {
+    let abstract_keyword = input.call(Ident::parse_any)?;
+    debug_assert_eq!(abstract_keyword, "abstract");
+    if input.peek(keyword::product) {
+        return Ok(Declaration::AbstractProduct(parse_abstract_product(input)?));
+    }
+    if input.peek(keyword::sum) {
+        return Ok(Declaration::AbstractSum(parse_abstract_sum(input)?));
+    }
+    Err(input.error("abstract declaration requires product or sum"))
+}
+
+fn parse_abstract_product(input: ParseStream<'_>) -> syn::Result<AbstractProduct> {
+    input.parse::<keyword::product>()?;
+    let name = input.call(Ident::parse_any)?;
+    let content;
+    braced!(content in input);
+    let fields = parse_fields(&content)?;
+
+    let mut requirements = Vec::new();
+    while input.peek(keyword::require) {
+        requirements.push(parse_requirement(input)?);
+    }
+    Ok(AbstractProduct {
+        name,
+        fields,
+        requirements,
+    })
+}
+
+fn parse_abstract_sum(input: ParseStream<'_>) -> syn::Result<AbstractSum> {
+    input.parse::<keyword::sum>()?;
+    let name = input.call(Ident::parse_any)?;
+    let content;
+    braced!(content in input);
+    let mut alternatives = Vec::new();
+    while !content.is_empty() {
+        reject_doc_comment(&content)?;
+        let alternative_name = content.call(Ident::parse_any)?;
+        let value_type = if content.peek(Token![:]) {
+            content.parse::<Token![:]>()?;
+            parse_generated_owned_path(&content)?
+        } else {
+            syn::parse_quote_spanned!(alternative_name.span()=> #alternative_name)
+        };
+        alternatives.push(AbstractAlternative {
+            name: alternative_name,
+            value_type,
+        });
+        content.parse::<Token![,]>()?;
+    }
+    Ok(AbstractSum { name, alternatives })
 }
 
 fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
@@ -215,38 +289,174 @@ fn parse_element(input: ParseStream<'_>) -> syn::Result<Element> {
     let name = input.parse()?;
     let content;
     braced!(content in input);
-    let mut fields = Vec::new();
-    while !content.is_empty() {
-        reject_doc_comment(&content)?;
-        fields.push(parse_field(&content)?);
-    }
+    let fields = parse_fields(&content)?;
     Ok(Element { name, fields })
+}
+
+fn parse_fields(input: ParseStream<'_>) -> syn::Result<Vec<Field>> {
+    let mut fields = Vec::new();
+    let mut errors = None;
+    while !input.is_empty() {
+        reject_doc_comment(input)?;
+        match parse_field(input) {
+            Ok(field) => fields.push(field),
+            Err(error) => {
+                combine(&mut errors, error);
+                if !input.peek(Token![,]) {
+                    break;
+                }
+                input.parse::<Token![,]>()?;
+            }
+        }
+    }
+    errors.map_or(Ok(fields), Err)
 }
 
 fn parse_field(input: ParseStream<'_>) -> syn::Result<Field> {
     let name = input.parse()?;
     input.parse::<Token![:]>()?;
-    let kind = if input.peek(keyword::lex) {
-        input.parse::<keyword::lex>()?;
-        FieldKind::Lex(parse_generated_owned_path(input)?)
-    } else if input.peek(keyword::identity) {
-        input.parse::<keyword::identity>()?;
-        FieldKind::Identity(parse_generated_owned_path(input)?)
-    } else if input.peek(Ident) {
-        let fork = input.fork();
-        let possible_deferred: Ident = fork.parse()?;
-        match possible_deferred.to_string().as_str() {
-            "opt" => return Err(deferred(input.span(), "opt")),
-            "seq" => return Err(deferred(input.span(), "seq")),
-            _ => FieldKind::Category(parse_generated_owned_path(input)?),
-        }
-    } else if input.peek(Token![<]) {
-        return Err(generated_owned_path_error(input.span()));
-    } else {
-        return Err(input.error("expected a category, lex terminal, or identity terminal field"));
-    };
+    let kind = parse_field_kind(input, &name)?;
     input.parse::<Token![,]>()?;
     Ok(Field { name, kind })
+}
+
+fn parse_field_kind(input: ParseStream<'_>, role: &Ident) -> syn::Result<FieldKind> {
+    if input.peek(keyword::opt) {
+        input.parse::<keyword::opt>()?;
+        return parse_cardinality_inner(input, role, "opt")
+            .map(|item| FieldKind::Optional(Box::new(item)));
+    }
+    if input.peek(keyword::seq) {
+        input.parse::<keyword::seq>()?;
+        let item = parse_cardinality_inner(input, role, "seq")?;
+        let mut separator = None;
+        let mut terminator = None;
+        while input.peek(keyword::separated) || input.peek(keyword::terminated) {
+            if input.peek(keyword::separated) {
+                let policy = input.parse::<keyword::separated>()?;
+                if separator.is_some() {
+                    return Err(syn::Error::new(
+                        policy.span(),
+                        "duplicate sequence separator policy",
+                    ));
+                }
+                input.parse::<keyword::by>()?;
+                separator = Some(parse_separator_source(input)?);
+            } else {
+                let policy = input.parse::<keyword::terminated>()?;
+                if terminator.is_some() {
+                    return Err(syn::Error::new(
+                        policy.span(),
+                        "duplicate sequence terminator policy",
+                    ));
+                }
+                input.parse::<keyword::by>()?;
+                terminator = Some(parse_fixed_surface_source(input)?);
+            }
+        }
+        return Ok(FieldKind::Sequence {
+            item: Box::new(item),
+            surface: SequenceSurfaceSource {
+                separator,
+                terminator,
+            },
+        });
+    }
+    parse_atomic_field_kind(input)
+}
+
+fn parse_cardinality_inner(
+    input: ParseStream<'_>,
+    role: &Ident,
+    outer: &str,
+) -> syn::Result<FieldKind> {
+    let nested = if input.peek(keyword::opt) {
+        input.parse::<keyword::opt>()?;
+        Some("opt")
+    } else if input.peek(keyword::seq) {
+        input.parse::<keyword::seq>()?;
+        Some("seq")
+    } else {
+        None
+    };
+    if let Some(nested) = nested {
+        let item = parse_atomic_field_kind(input)?;
+        let spelling = match item {
+            FieldKind::Category(path) | FieldKind::Lex(path) | FieldKind::Identity(path) => path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::"),
+            FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
+                unreachable!("atomic field kind")
+            }
+        };
+        return Err(syn::Error::new(
+            role.span(),
+            format!("field `{role}`: {outer} {nested} {spelling}"),
+        ));
+    }
+    parse_atomic_field_kind(input)
+}
+
+fn parse_atomic_field_kind(input: ParseStream<'_>) -> syn::Result<FieldKind> {
+    if input.peek(keyword::lex) {
+        input.parse::<keyword::lex>()?;
+        return Ok(FieldKind::Lex(parse_generated_owned_path(input)?));
+    }
+    if input.peek(keyword::identity) {
+        input.parse::<keyword::identity>()?;
+        return Ok(FieldKind::Identity(parse_generated_owned_path(input)?));
+    }
+    if input.peek(Token![<]) {
+        return Err(generated_owned_path_error(input.span()));
+    }
+    if input.peek(Ident) {
+        return Ok(FieldKind::Category(parse_generated_owned_path(input)?));
+    }
+    Err(input.error("expected a category, lex terminal, or identity terminal field"))
+}
+
+fn parse_separator_source(input: ParseStream<'_>) -> syn::Result<SeparatorSource> {
+    if input.peek(keyword::position) {
+        input.parse::<keyword::position>()?;
+        let content;
+        braced!(content in input);
+        let mut rows = Vec::new();
+        while !content.is_empty() {
+            let class = content.call(Ident::parse_any)?;
+            content.parse::<Token![=]>()?;
+            let surface = parse_fixed_surface_source(&content)?;
+            content.parse::<Token![;]>()?;
+            rows.push(PositionalSeparatorSource { class, surface });
+        }
+        Ok(SeparatorSource::Positional(rows))
+    } else {
+        Ok(SeparatorSource::Uniform(parse_fixed_surface_source(input)?))
+    }
+}
+
+fn parse_fixed_surface_source(input: ParseStream<'_>) -> syn::Result<FixedSurfaceSource> {
+    let mut atoms = Vec::new();
+    while input.peek(LitStr) || input.peek(keyword::lex) {
+        if input.peek(LitStr) {
+            atoms.push(FixedSurfaceAtomSource::Literal(input.parse()?));
+        } else {
+            input.parse::<keyword::lex>()?;
+            let content;
+            parenthesized!(content in input);
+            let path = parse_generated_owned_path(&content)?;
+            if !content.is_empty() {
+                return Err(content.error("fixed lex surface atom accepts one path"));
+            }
+            atoms.push(FixedSurfaceAtomSource::Lex(path));
+        }
+    }
+    if atoms.is_empty() {
+        return Err(input.error("fixed surface requires a literal or lex(path) atom"));
+    }
+    Ok(FixedSurfaceSource { atoms })
 }
 
 fn parse_requirement(input: ParseStream<'_>) -> syn::Result<RequireExprSource> {
@@ -267,6 +477,10 @@ fn parse_require_expr(input: ParseStream<'_>) -> syn::Result<RequireExprSource> 
     }
     if input.peek(Token![!]) {
         return Err(deferred(input.span(), "Plan 05 structural declarations"));
+    }
+
+    if input.peek(keyword::len) {
+        return parse_length_requirement(input);
     }
 
     let first = input.call(Ident::parse_any)?;
@@ -307,6 +521,52 @@ fn parse_require_expr(input: ParseStream<'_>) -> syn::Result<RequireExprSource> 
         return Err(deferred(input.span(), "Plan 05 structural declarations"));
     };
     Ok(RequireExprSource::In { subject, members })
+}
+
+fn parse_length_requirement(input: ParseStream<'_>) -> syn::Result<RequireExprSource> {
+    input.parse::<keyword::len>()?;
+    let content;
+    parenthesized!(content in input);
+    let subject: Path = parse_generated_owned_path(&content)?;
+    let (owner, role) = if content.peek(Token![.]) {
+        content.parse::<Token![.]>()?;
+        (Some(subject), content.call(Ident::parse_any)?)
+    } else {
+        let Some(role) = subject.get_ident() else {
+            return Err(syn::Error::new(
+                subject.span(),
+                "len subject requires a role or Type.role",
+            ));
+        };
+        (None, role.clone())
+    };
+    if !content.is_empty() {
+        return Err(content.error("len subject accepts one role"));
+    }
+    let comparison = if input.peek(Token![>=]) {
+        input.parse::<Token![>=]>()?;
+        LengthComparison::GreaterThanOrEqual
+    } else if input.peek(Token![<=]) {
+        input.parse::<Token![<=]>()?;
+        LengthComparison::LessThanOrEqual
+    } else if input.peek(Token![>]) {
+        input.parse::<Token![>]>()?;
+        LengthComparison::GreaterThan
+    } else if input.peek(Token![<]) {
+        input.parse::<Token![<]>()?;
+        LengthComparison::LessThan
+    } else if input.peek(Token![=]) {
+        input.parse::<Token![=]>()?;
+        LengthComparison::Equal
+    } else {
+        return Err(input.error("len requirement requires a comparison"));
+    };
+    Ok(RequireExprSource::Length {
+        owner,
+        role,
+        comparison,
+        value: input.parse()?,
+    })
 }
 
 fn parse_require_group(
@@ -1251,8 +1511,7 @@ fn parse_root(input: ParseStream<'_>) -> syn::Result<Root> {
     let span = category.span();
     Ok(Root {
         category,
-        punctuation: punctuation
-            .ok_or_else(|| syn::Error::new(span, "root requires punctuation"))?,
+        punctuation,
         eoi: eoi.ok_or_else(|| syn::Error::new(span, "root requires eoi"))?,
         standalone_render: standalone_render
             .ok_or_else(|| syn::Error::new(span, "root requires standalone_render"))?,
@@ -1268,6 +1527,12 @@ fn parse_generated_owned_path(input: ParseStream<'_>) -> syn::Result<Path> {
         return Err(generated_owned_path_error(input.span()));
     }
     Ok(path)
+}
+
+fn peek_ident(input: ParseStream<'_>, expected: &str) -> bool {
+    let fork = input.fork();
+    fork.call(Ident::parse_any)
+        .is_ok_and(|ident| ident == expected)
 }
 
 fn parse_generated_owned_callback_path(input: ParseStream<'_>) -> syn::Result<Path> {
@@ -1292,6 +1557,14 @@ fn reject_duplicate<T>(slot: Option<&T>, name: &Ident) -> syn::Result<()> {
         ))
     } else {
         Ok(())
+    }
+}
+
+fn combine(errors: &mut Option<syn::Error>, error: syn::Error) {
+    if let Some(existing) = errors {
+        existing.combine(error);
+    } else {
+        *errors = Some(error);
     }
 }
 
@@ -1455,6 +1728,178 @@ mod tests {
         format!(
             "construction predicate: Predicate {{ element PredicateNode {{ subject: Subject, }} {requirement} form predicate = subject; }}"
         )
+    }
+
+    #[test]
+    fn parses_structural_declarations() {
+        let declarations = parse(
+            r#"
+                abstract sum Choice { Left: LeftNode, Right: RightNode, }
+                abstract product Holder {
+                    maybe: opt LeftNode,
+                    items: seq Choice
+                        separated by position {
+                            pair = " and ";
+                            first = ", ";
+                            middle = ", ";
+                            last = ", and ";
+                        }
+                        terminated by ".",
+                }
+                require len(Holder.items) >= 1;
+
+                construction sentence: Sentence {
+                    element SentenceNode {
+                        words: seq Sentence separated by " " terminated by ".",
+                    }
+                    form sentence = words;
+                }
+
+                abstract product SurfaceAtoms {
+                    items: seq Choice separated by " " lex(Article::A),
+                }
+                abstract sum DocumentBlock { Ability, }
+            "#,
+        )
+        .expect("structural declaration source parses");
+
+        assert_eq!(declarations.declarations.len(), 5);
+        let Declaration::AbstractSum(choice) = &declarations.declarations[0] else {
+            panic!("first declaration is Choice");
+        };
+        assert_eq!(choice.name, "Choice");
+        assert!(matches!(
+            choice.alternatives.as_slice(),
+            [crate::AbstractAlternative { name, value_type }, crate::AbstractAlternative { name: right_name, value_type: right_type }]
+                if name == "Left" && value_type.is_ident("LeftNode")
+                    && right_name == "Right" && right_type.is_ident("RightNode")
+        ));
+
+        let Declaration::AbstractProduct(holder) = &declarations.declarations[1] else {
+            panic!("second declaration is Holder");
+        };
+        assert_eq!(holder.name, "Holder");
+        assert!(matches!(
+            &holder.fields[0],
+            crate::Field { name, kind: crate::FieldKind::Optional(item) }
+                if name == "maybe"
+                    && matches!(item.as_ref(), crate::FieldKind::Category(path) if path.is_ident("LeftNode"))
+        ));
+        let crate::FieldKind::Sequence { item, surface } = &holder.fields[1].kind else {
+            panic!("Holder.items is a sequence");
+        };
+        assert_eq!(holder.fields[1].name, "items");
+        assert!(
+            matches!(item.as_ref(), crate::FieldKind::Category(path) if path.is_ident("Choice"))
+        );
+        let Some(crate::SeparatorSource::Positional(rows)) = &surface.separator else {
+            panic!("Holder.items has positional separators");
+        };
+        assert_eq!(rows.len(), 4);
+        for ((row, class), literal) in rows
+            .iter()
+            .zip(["pair", "first", "middle", "last"])
+            .zip([" and ", ", ", ", ", ", and "])
+        {
+            assert_eq!(row.class, class);
+            assert!(
+                matches!(row.surface.atoms.as_slice(), [crate::FixedSurfaceAtomSource::Literal(value)] if value.value() == literal)
+            );
+        }
+        assert!(
+            matches!(surface.terminator.as_ref(), Some(crate::FixedSurfaceSource { atoms }) if matches!(atoms.as_slice(), [crate::FixedSurfaceAtomSource::Literal(value)] if value.value() == "."))
+        );
+        assert!(matches!(
+            holder.requirements.as_slice(),
+            [RequireExprSource::Length { owner: Some(owner), role, comparison: crate::LengthComparison::GreaterThanOrEqual, value }]
+                if owner.is_ident("Holder") && role == "items" && value.base10_parse::<u8>().is_ok_and(|number| number == 1)
+        ));
+
+        let Declaration::Construction(sentence) = &declarations.declarations[2] else {
+            panic!("third declaration is sentence");
+        };
+        assert!(matches!(
+            sentence.element.fields.as_slice(),
+            [crate::Field { name, kind: crate::FieldKind::Sequence { item, surface } }]
+                if name == "words"
+                    && matches!(item.as_ref(), crate::FieldKind::Category(path) if path.is_ident("Sentence"))
+                    && matches!(surface.separator.as_ref(), Some(crate::SeparatorSource::Uniform(crate::FixedSurfaceSource { atoms }))
+                        if matches!(atoms.as_slice(), [crate::FixedSurfaceAtomSource::Literal(value)] if value.value() == " "))
+                    && matches!(surface.terminator.as_ref(), Some(crate::FixedSurfaceSource { atoms })
+                        if matches!(atoms.as_slice(), [crate::FixedSurfaceAtomSource::Literal(value)] if value.value() == "."))
+        ));
+
+        let Declaration::AbstractProduct(surface_atoms) = &declarations.declarations[3] else {
+            panic!("fourth declaration is SurfaceAtoms");
+        };
+        let crate::FieldKind::Sequence { surface, .. } = &surface_atoms.fields[0].kind else {
+            panic!("SurfaceAtoms.items is a sequence");
+        };
+        let Some(crate::SeparatorSource::Uniform(crate::FixedSurfaceSource { atoms })) =
+            &surface.separator
+        else {
+            panic!("SurfaceAtoms.items has a uniform separator");
+        };
+        let [
+            crate::FixedSurfaceAtomSource::Literal(space),
+            crate::FixedSurfaceAtomSource::Lex(article),
+        ] = atoms.as_slice()
+        else {
+            panic!("separator retains its literal and fixed terminal atoms");
+        };
+        assert_eq!(space.value(), " ");
+        assert_eq!(article.segments.len(), 2);
+        assert_eq!(article.segments[0].ident, "Article");
+        assert_eq!(article.segments[1].ident, "A");
+
+        let Declaration::AbstractSum(document_block) = &declarations.declarations[4] else {
+            panic!("fifth declaration is DocumentBlock");
+        };
+        assert!(matches!(
+            document_block.alternatives.as_slice(),
+            [crate::AbstractAlternative { name, value_type }]
+                if name == "Ability" && value_type.is_ident("Ability")
+        ));
+    }
+
+    #[test]
+    fn parses_structural_rejects_nested_cardinality() {
+        for (spelling, expected) in [
+            ("opt opt Node", "field `value`: opt opt Node"),
+            ("seq opt Node", "field `value`: seq opt Node"),
+            ("seq seq Node", "field `value`: seq seq Node"),
+        ] {
+            let source = format!("abstract product Holder {{ value: {spelling}, }}");
+            let error = parse(&source)
+                .expect_err("nested cardinality must be rejected by the parser")
+                .to_string();
+            assert!(error.contains(expected), "{spelling}: {error}");
+        }
+    }
+
+    #[test]
+    fn parses_unqualified_length_and_root_without_punctuation() {
+        let declarations = parse(
+            r#"
+                abstract product Holder { items: seq Node, }
+                require len(items) = 0;
+                root Sentence { eoi = true; standalone_render = true; }
+            "#,
+        )
+        .expect("source-level structural rows parse before semantic validation");
+
+        let Declaration::AbstractProduct(holder) = &declarations.declarations[0] else {
+            panic!("first declaration is Holder");
+        };
+        assert!(matches!(
+            holder.requirements.as_slice(),
+            [RequireExprSource::Length { owner: None, role, comparison: crate::LengthComparison::Equal, value }]
+                if role == "items" && value.base10_parse::<u8>().is_ok_and(|number| number == 0)
+        ));
+        let Declaration::Root(root) = &declarations.declarations[1] else {
+            panic!("second declaration is root");
+        };
+        assert!(root.punctuation.is_none());
     }
 
     #[test]
@@ -1716,7 +2161,7 @@ mod tests {
 
         assert_eq!(
             error,
-            "expected construction, vocab, morphology, lexeme, codec, identity, or root declaration"
+            "expected construction, abstract, vocab, morphology, lexeme, codec, identity, or root declaration"
         );
     }
 
@@ -1923,7 +2368,10 @@ mod tests {
             panic!("root should retain its source position");
         };
         assert_eq!(path(&root.category), "crate :: ast :: Ability");
-        assert_eq!(root.punctuation.value(), ".");
+        assert_eq!(
+            root.punctuation.as_ref().map(syn::LitStr::value).as_deref(),
+            Some(".")
+        );
         assert!(root.eoi);
         assert!(root.standalone_render);
     }
@@ -2143,16 +2591,8 @@ mod tests {
     }
 
     #[test]
-    fn rejects_deferred_declaration_forms_by_name() {
+    fn rejects_remaining_deferred_declaration_forms_by_name() {
         let cases = [
-            (
-                "construction x: X { element XNode { xs: opt X, } form x = xs; }",
-                "opt",
-            ),
-            (
-                "construction x: X { element XNode { xs: seq X, } form x = xs; }",
-                "seq",
-            ),
             (
                 "construction x: X { element XNode { value: X, } require value != None; form x = value; }",
                 "Plan 05 structural declarations",

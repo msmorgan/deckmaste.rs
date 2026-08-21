@@ -2,6 +2,7 @@ use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use syn::Expr;
 use syn::Ident;
+use syn::LitInt;
 use syn::LitStr;
 use syn::Pat;
 use syn::Path;
@@ -24,6 +25,8 @@ impl Declarations {
 #[derive(Debug)]
 pub enum Declaration {
     Construction(Construction),
+    AbstractProduct(AbstractProduct),
+    AbstractSum(AbstractSum),
     Vocab(Vocab),
     Morphology(Morphology),
     Lexeme(Lexeme),
@@ -50,6 +53,25 @@ pub struct Construction {
 }
 
 #[derive(Debug)]
+pub struct AbstractProduct {
+    pub name: Ident,
+    pub fields: Vec<Field>,
+    pub requirements: Vec<RequireExprSource>,
+}
+
+#[derive(Debug)]
+pub struct AbstractSum {
+    pub name: Ident,
+    pub alternatives: Vec<AbstractAlternative>,
+}
+
+#[derive(Debug)]
+pub struct AbstractAlternative {
+    pub name: Ident,
+    pub value_type: Path,
+}
+
+#[derive(Debug)]
 pub struct Element {
     pub name: Ident,
     pub fields: Vec<Field>,
@@ -66,10 +88,59 @@ pub enum FieldKind {
     Category(Path),
     Lex(Path),
     Identity(Path),
+    Optional(Box<FieldKind>),
+    Sequence {
+        item: Box<FieldKind>,
+        surface: SequenceSurfaceSource,
+    },
+}
+
+#[derive(Debug)]
+pub struct SequenceSurfaceSource {
+    pub separator: Option<SeparatorSource>,
+    pub terminator: Option<FixedSurfaceSource>,
+}
+
+#[derive(Debug)]
+pub enum SeparatorSource {
+    Uniform(FixedSurfaceSource),
+    Positional(Vec<PositionalSeparatorSource>),
+}
+
+#[derive(Debug)]
+pub struct PositionalSeparatorSource {
+    pub class: Ident,
+    pub surface: FixedSurfaceSource,
+}
+
+#[derive(Debug)]
+pub struct FixedSurfaceSource {
+    pub atoms: Vec<FixedSurfaceAtomSource>,
+}
+
+#[derive(Debug)]
+pub enum FixedSurfaceAtomSource {
+    Literal(LitStr),
+    Lex(Path),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LengthComparison {
+    Equal,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
 }
 
 #[derive(Debug)]
 pub enum RequireExprSource {
+    Length {
+        owner: Option<Path>,
+        role: Ident,
+        comparison: LengthComparison,
+        value: LitInt,
+    },
     In {
         subject: RequireSubjectSource,
         members: Vec<Ident>,
@@ -402,7 +473,7 @@ pub enum TraversalKind {
 #[derive(Debug)]
 pub struct Root {
     pub category: Path,
-    pub punctuation: LitStr,
+    pub punctuation: Option<LitStr>,
     pub eoi: bool,
     pub standalone_render: bool,
 }

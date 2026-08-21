@@ -646,9 +646,11 @@ fn seal_terminals(
             Declaration::Codec(binding) | Declaration::Identity(binding) => {
                 Some(BindingPlan::from_source(source_index, binding).map(TerminalPlan::Binding))
             }
-            Declaration::Construction(_) | Declaration::Morphology(_) | Declaration::Root(_) => {
-                None
-            }
+            Declaration::Construction(_)
+            | Declaration::AbstractProduct(_)
+            | Declaration::AbstractSum(_)
+            | Declaration::Morphology(_)
+            | Declaration::Root(_) => None,
         })
         .collect()
 }
@@ -696,6 +698,7 @@ impl SemanticPlan {
                 .enumerate()
                 .filter_map(|(source_index, declaration)| match declaration {
                     Declaration::Construction(construction) => Some((source_index, construction)),
+                    Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => None,
                     Declaration::Vocab(_)
                     | Declaration::Morphology(_)
                     | Declaration::Lexeme(_)
@@ -757,11 +760,17 @@ impl SemanticPlan {
                 Declaration::Root(root) => Some(RootPlan {
                     source_index,
                     category: crate::identifier::path_key(&root.category),
-                    punctuation: root.punctuation.value(),
+                    punctuation: root
+                        .punctuation
+                        .as_ref()
+                        .expect("structural root punctuation is deferred before semantic lowering")
+                        .value(),
                     parse_entry: root.eoi,
                     render_entry: root.standalone_render,
                 }),
                 Declaration::Construction(_)
+                | Declaration::AbstractProduct(_)
+                | Declaration::AbstractSum(_)
                 | Declaration::Vocab(_)
                 | Declaration::Morphology(_)
                 | Declaration::Lexeme(_)
@@ -1767,6 +1776,10 @@ impl ConstructionPlan {
                         path_key(path),
                         path.clone(),
                     ),
+                    crate::model::FieldKind::Optional(_)
+                    | crate::model::FieldKind::Sequence { .. } => {
+                        unreachable!("structural fields are rejected before semantic lowering")
+                    }
                 };
                 Ok(ConstructionFieldPlan {
                     name: field.name.clone(),

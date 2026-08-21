@@ -309,6 +309,19 @@ struct ResolvedGrammar {
     reason = "the validation boundary consumes the unsealed declaration graph"
 )]
 pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedDeclarations> {
+    if raw.declarations.iter().any(|declaration| {
+        matches!(declaration, Declaration::AbstractProduct(_) | Declaration::AbstractSum(_))
+            || matches!(
+                declaration,
+                Declaration::Construction(construction)
+                    if construction.element.fields.iter().any(|field| matches!(field.kind, FieldKind::Optional(_) | FieldKind::Sequence { .. }))
+            )
+    }) {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "structural declaration semantic validation is not implemented",
+        ));
+    }
     validate_generated_codecs(&raw)?;
     validate_generated_identities(&raw)?;
     validate_morphology(&raw)?;
@@ -386,6 +399,8 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
                 validate_lexeme_declaration_shape(lexeme, &mut independent_errors);
             }
             Declaration::Construction(_)
+            | Declaration::AbstractProduct(_)
+            | Declaration::AbstractSum(_)
             | Declaration::Vocab(_)
             | Declaration::Codec(_)
             | Declaration::Identity(_)
@@ -886,6 +901,8 @@ fn validate_declaration_noun_source(
                     Some(lexeme)
                 }
                 Declaration::Construction(_)
+                | Declaration::AbstractProduct(_)
+                | Declaration::AbstractSum(_)
                 | Declaration::Vocab(_)
                 | Declaration::Morphology(_)
                 | Declaration::Lexeme(_)
@@ -1007,6 +1024,7 @@ fn seal_category_feature_reads(raw: &Declarations) -> HashMap<String, HashSet<Fe
         .iter()
         .filter_map(|declaration| match declaration {
             Declaration::Construction(construction) => Some(path_name(&construction.category)),
+            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => None,
             Declaration::Vocab(_)
             | Declaration::Morphology(_)
             | Declaration::Lexeme(_)
@@ -1038,6 +1056,9 @@ fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
                         FieldKind::Category(path)
                         | FieldKind::Lex(path)
                         | FieldKind::Identity(path) => path,
+                        FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
+                            unreachable!("structural fields are rejected before validation")
+                        }
                     };
                     validate_generated_owned_path(path, &mut errors);
                 }
@@ -1073,6 +1094,7 @@ fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
                     }
                 }
             }
+            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => {}
             Declaration::Vocab(_) | Declaration::Morphology(_) | Declaration::Lexeme(_) => {}
         }
     }
@@ -1303,6 +1325,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 });
             }
             Declaration::Root(root) => declaration_names.push(path_name(&root.category)),
+            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => {}
         }
     }
 
@@ -1654,6 +1677,7 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
         .filter_map(|field| match &field.kind {
             FieldKind::Category(path) => Some(path_name(path)),
             FieldKind::Lex(_) | FieldKind::Identity(_) => None,
+            FieldKind::Optional(_) | FieldKind::Sequence { .. } => None,
         })
         .collect::<HashSet<_>>();
     let standalone_roots = raw
@@ -1773,6 +1797,7 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                             .and_then(|kind| match kind {
                                 FieldKind::Lex(path) => Some(path_name(path)),
                                 FieldKind::Category(_) | FieldKind::Identity(_) => None,
+                                FieldKind::Optional(_) | FieldKind::Sequence { .. } => None,
                             })
                     }) else {
                         continue;
@@ -1905,6 +1930,7 @@ fn validate_generated_name_inventory(raw: &Declarations, errors: &mut Option<syn
                     );
                 }
             }
+            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => {}
             Declaration::Root(_) | Declaration::Morphology(_) => {}
         }
     }
@@ -2038,6 +2064,9 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     continue;
                 }
                 FieldKind::Lex(path) | FieldKind::Identity(path) => path,
+                FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
+                    unreachable!("structural fields are rejected before validation")
+                }
             };
             let name = path_name(ty);
             let expected = if matches!(field.kind, FieldKind::Identity(_)) {
@@ -2368,7 +2397,8 @@ fn check_noun_role(
             info.kind == TerminalKind::Codec && info.codec_atom == Some(CodecAtomClass::Noun)
         }),
         Some(FieldKind::Identity(_)) => false,
-        Some(FieldKind::Category(_)) | None => return,
+        Some(FieldKind::Category(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
+        | None => return,
     };
     if !supported {
         let declared = match fields.get(&identifier_key(role)) {
@@ -2566,7 +2596,8 @@ fn check_verb_role(
             .get(&path_name(path))
             .is_some_and(|info| info.kind == TerminalKind::Lexeme),
         Some(FieldKind::Identity(_)) => false,
-        Some(FieldKind::Category(_)) | None => return,
+        Some(FieldKind::Category(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
+        | None => return,
     };
     if !supported {
         combine(
@@ -2701,6 +2732,8 @@ fn validate_bindings(raw: &Declarations) -> syn::Result<()> {
                 validate_binding(binding, &callbacks, &mut errors);
             }
             Declaration::Construction(_)
+            | Declaration::AbstractProduct(_)
+            | Declaration::AbstractSum(_)
             | Declaration::Vocab(_)
             | Declaration::Morphology(_)
             | Declaration::Lexeme(_)
@@ -2822,6 +2855,7 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
                     );
                 }
             }
+            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => {}
             Declaration::Root(_) | Declaration::Morphology(_) => {}
         }
     }
@@ -3687,6 +3721,9 @@ fn normalize_predicate(
             deduplicate_alternatives(&mut alternatives);
             errors.map_or(Ok(alternatives), Err)
         }
+        crate::RequireExprSource::Length { .. } => {
+            unreachable!("structural requirements are rejected before validation")
+        }
     }
 }
 
@@ -3744,6 +3781,9 @@ fn resolve_predicate_atom(
                             "predicate subject `{role_name}` is not a category or vocab predicate domain"
                         ),
                     ));
+                }
+                Some(FieldKind::Optional(_) | FieldKind::Sequence { .. }) => {
+                    unreachable!("structural fields are rejected before validation")
                 }
                 None => {
                     return Err(syn::Error::new(
@@ -4399,6 +4439,7 @@ fn seal_category_render_capabilities(
                         .and_then(|kind| match kind {
                             FieldKind::Category(category) => Some(path_name(category)),
                             FieldKind::Lex(_) | FieldKind::Identity(_) => None,
+                            FieldKind::Optional(_) | FieldKind::Sequence { .. } => None,
                         })
                 }) else {
                     return false;
@@ -4580,6 +4621,7 @@ fn validate_contextual_agreement_uses(
                     .and_then(|kind| match kind {
                         FieldKind::Category(category) => Some(path_name(category)),
                         FieldKind::Lex(_) | FieldKind::Identity(_) => None,
+                        FieldKind::Optional(_) | FieldKind::Sequence { .. } => None,
                     })
             }) else {
                 continue;
@@ -4775,11 +4817,14 @@ fn validate_roots(
                 ),
             );
         }
-        if root.punctuation.value().chars().count() != 1 {
+        let Some(punctuation) = root.punctuation.as_ref() else {
+            continue;
+        };
+        if punctuation.value().chars().count() != 1 {
             combine(
                 &mut errors,
                 syn::Error::new(
-                    root.punctuation.span(),
+                    punctuation.span(),
                     "root punctuation must be exactly one Unicode scalar",
                 ),
             );
@@ -4830,7 +4875,11 @@ fn validate_backend_completeness(
 
     for declaration in &raw.declarations {
         match declaration {
-            Declaration::Construction(_) | Declaration::Morphology(_) | Declaration::Root(_) => {}
+            Declaration::Construction(_)
+            | Declaration::AbstractProduct(_)
+            | Declaration::AbstractSum(_)
+            | Declaration::Morphology(_)
+            | Declaration::Root(_) => {}
             Declaration::Vocab(vocab) => terminals.push(TerminalCapabilities {
                 name: identifier_key(&vocab.name),
                 lex_atom: true,
@@ -4967,13 +5016,19 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
                 }
             }
             Declaration::Root(root) => {
-                let punctuation = root.punctuation.value();
+                let Some(punctuation) = root.punctuation.as_ref() else {
+                    continue;
+                };
+                let punctuation = punctuation.value();
                 let mut characters = punctuation.chars();
                 match (characters.next(), characters.next()) {
                     (Some(character), None) if character.is_alphanumeric() => combine(
                         &mut errors,
                         syn::Error::new(
-                            root.punctuation.span(),
+                            root.punctuation
+                                .as_ref()
+                                .expect("root punctuation checked")
+                                .span(),
                             "root punctuation must not be alphanumeric",
                         ),
                     ),
@@ -4981,12 +5036,16 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
                     _ => combine(
                         &mut errors,
                         syn::Error::new(
-                            root.punctuation.span(),
+                            root.punctuation
+                                .as_ref()
+                                .expect("root punctuation checked")
+                                .span(),
                             "root punctuation must be exactly one Unicode scalar",
                         ),
                     ),
                 }
             }
+            Declaration::AbstractProduct(_) | Declaration::AbstractSum(_) => {}
             Declaration::Vocab(_) | Declaration::Morphology(_) | Declaration::Lexeme(_) => {}
         }
     }

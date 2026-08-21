@@ -37,6 +37,8 @@ impl ItemKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DeclarationKind {
     Construction,
+    AbstractProduct,
+    AbstractSum,
     Vocab,
     Morphology,
     Lexeme,
@@ -73,6 +75,12 @@ impl DeclarationKey {
         match declaration {
             Declaration::Construction(value) => {
                 Self::new(DeclarationKind::Construction, value.name.to_string())
+            }
+            Declaration::AbstractProduct(value) => {
+                Self::new(DeclarationKind::AbstractProduct, value.name.to_string())
+            }
+            Declaration::AbstractSum(value) => {
+                Self::new(DeclarationKind::AbstractSum, value.name.to_string())
             }
             Declaration::Vocab(value) => Self::new(DeclarationKind::Vocab, value.name.to_string()),
             Declaration::Morphology(value) => {
@@ -1578,6 +1586,7 @@ mod tests {
             .iter()
             .find_map(|declaration| match declaration {
                 crate::Declaration::Construction(construction) => Some(construction),
+                crate::Declaration::AbstractProduct(_) | crate::Declaration::AbstractSum(_) => None,
                 crate::Declaration::Vocab(_)
                 | crate::Declaration::Morphology(_)
                 | crate::Declaration::Lexeme(_)
@@ -1719,6 +1728,7 @@ mod tests {
             .into_iter()
             .find_map(|declaration| match declaration {
                 crate::Declaration::Construction(construction) => Some(construction.form),
+                crate::Declaration::AbstractProduct(_) | crate::Declaration::AbstractSum(_) => None,
                 crate::Declaration::Vocab(_)
                 | crate::Declaration::Morphology(_)
                 | crate::Declaration::Lexeme(_)
