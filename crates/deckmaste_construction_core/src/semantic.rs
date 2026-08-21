@@ -252,6 +252,16 @@ impl ProductPlan {
     pub(crate) const fn is_nullable(&self) -> bool {
         self.nullable
     }
+
+    pub(crate) fn requires_constructor(&self) -> bool {
+        self.fields.iter().any(|field| {
+            matches!(
+                field.kind(),
+                StructuralFieldKindPlan::Sequence { bounds, .. }
+                    if bounds.min() != 0 || bounds.max().is_some()
+            )
+        })
+    }
 }
 
 #[allow(
@@ -473,7 +483,6 @@ pub(crate) struct ConstructionPlan {
     element_type: String,
     form: String,
     rule_id: String,
-    build_arm: String,
     render_arm: String,
     visitor_method: String,
     walker: String,
@@ -1294,16 +1303,6 @@ impl SemanticPlan {
     )]
     pub(crate) fn is_nullable(&self, name: &str) -> bool {
         self.nullable_types.contains(name)
-    }
-
-    pub(crate) fn has_deferred_structural_emission(&self) -> bool {
-        self.roots.iter().any(|root| root.punctuation.is_empty())
-            || self.constructions.iter().any(|construction| {
-                construction
-                    .fields
-                    .iter()
-                    .any(|field| field.structural.is_some())
-            })
     }
 
     pub(crate) fn required_open_declarations(
@@ -2302,7 +2301,6 @@ impl ConstructionPlan {
             element_type: element_type.clone(),
             form: identifier_key(&source.form.name),
             rule_id: rule_id.clone(),
-            build_arm: rule_id,
             render_arm: element_type.clone(),
             visitor_method: format!("visit_{}", snake_case(&element_type)),
             walker: format!("walk_{}", snake_case(&element_type)),
@@ -2345,10 +2343,6 @@ impl ConstructionPlan {
         &self.rule_id
     }
 
-    pub(crate) fn build_arm(&self) -> &str {
-        &self.build_arm
-    }
-
     pub(crate) fn atoms(&self) -> &[AtomPlan] {
         &self.atoms
     }
@@ -2363,6 +2357,17 @@ impl ConstructionPlan {
 
     pub(crate) fn fields(&self) -> &[ConstructionFieldPlan] {
         &self.fields
+    }
+
+    pub(crate) fn requires_constructor(&self) -> bool {
+        self.invariant.requires_constructor()
+            || self.fields.iter().any(|field| {
+                matches!(
+                    field.structural_kind(),
+                    Some(StructuralFieldKindPlan::Sequence { bounds, .. })
+                        if bounds.min() != 0 || bounds.max().is_some()
+                )
+            })
     }
 
     #[allow(

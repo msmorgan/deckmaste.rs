@@ -26,13 +26,17 @@ use crate::semantic::AtomTerminal;
 use crate::semantic::BindingBuildExprPlan;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::SemanticPlan;
+use crate::semantic::StructuralFieldKindPlan;
+use crate::semantic::StructuralFieldPlan;
+use crate::semantic::ValueKindPlan;
 
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let build_function = ident(BUILD_FUNCTION);
     let constructions = plan.constructions();
-    let arms = constructions
+    let lowered = super::rules::lowered_rows(plan)?;
+    let arms = lowered
         .iter()
-        .map(|construction| emit_arm(plan, construction))
+        .map(|row| emit_rule_arm(plan, row))
         .collect::<syn::Result<Vec<_>>>()?;
     let mut origins = constructions
         .iter()
@@ -116,20 +120,65 @@ enum ResolvedFeatureValue {
     Computed(TokenStream),
 }
 
-fn emit_arm(plan: &SemanticPlan, row: &ConstructionPlan) -> syn::Result<TokenStream> {
-    emit_arm_from_plan(plan, row)
+fn emit_rule_arm(plan: &SemanticPlan, row: &super::rules::RuleRowPlan) -> syn::Result<TokenStream> {
+    match &row.build {
+        super::rules::RuleBuildPlan::Construction { index, positional } => {
+            emit_arm_from_plan(plan, row, &plan.constructions()[*index], positional)
+        }
+        super::rules::RuleBuildPlan::Product { index, positional } => {
+            emit_product_arm(plan, row, &plan.products()[*index], positional)
+        }
+        super::rules::RuleBuildPlan::Sum {
+            sum_index,
+            alternative_index,
+        } => emit_sum_arm(plan, row, *sum_index, *alternative_index),
+        super::rules::RuleBuildPlan::Optional {
+            owner,
+            field_index,
+            present,
+        } => emit_optional_arm(plan, row, *owner, *field_index, *present),
+        super::rules::RuleBuildPlan::Sequence {
+            owner,
+            field_index,
+            state,
+        } => emit_sequence_arm(plan, row, *owner, *field_index, *state),
+    }
 }
 
-fn emit_arm_from_plan(plan: &SemanticPlan, row: &ConstructionPlan) -> syn::Result<TokenStream> {
+fn emit_arm_from_plan(
+    plan: &SemanticPlan,
+    rule: &super::rules::RuleRowPlan,
+    row: &ConstructionPlan,
+    positional: &[(String, super::rules::PositionalOwnerState)],
+) -> syn::Result<TokenStream> {
     let mut lowering = Lowering::default();
     for atom in row.atoms() {
-        lower_atom(plan, row, atom, &mut lowering)?;
+        let state = atom_role(atom).and_then(|role| {
+            positional
+                .iter()
+                .find(|(candidate, _)| candidate == role)
+                .map(|(_, state)| *state)
+        });
+        if let Some(state) = state {
+            let role = atom_role(atom).ok_or_else(|| internal("positional atom has no role"))?;
+            let field = row
+                .fields()
+                .iter()
+                .find(|field| field.name_key() == role)
+                .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
+                .ok_or_else(|| internal("positional atom has no structural plan"))?;
+            lower_positional_owner_field(plan, row.element_type(), field, state, &mut lowering)?;
+        } else {
+            lower_atom(plan, row, atom, &mut lowering)?;
+        }
     }
     if let Some(root) = plan.parse_root(row.category()) {
-        let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
-        lowering
-            .patterns
-            .push(quote! { BuildValue::Leaf(Leaf::Literal(#punctuation)) });
+        if !root.punctuation().is_empty() {
+            let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
+            lowering
+                .patterns
+                .push(quote! { BuildValue::Leaf(Leaf::Literal(#punctuation)) });
+        }
         lowering
             .patterns
             .push(quote! { BuildValue::Leaf(Leaf::EndOfInput) });
@@ -140,7 +189,7 @@ fn emit_arm_from_plan(plan: &SemanticPlan, row: &ConstructionPlan) -> syn::Resul
     } else {
         emit_success(plan, row, &mut lowering, None, None, None)?
     };
-    let rule_id = ident(row.build_arm());
+    let rule_id = ident(&rule.id);
     let patterns = &lowering.patterns;
     let guard = if lowering.guards.is_empty() {
         TokenStream::new()
@@ -156,12 +205,620 @@ fn emit_arm_from_plan(plan: &SemanticPlan, row: &ConstructionPlan) -> syn::Resul
     })
 }
 
+fn emit_product_arm(
+    plan: &SemanticPlan,
+    rule: &super::rules::RuleRowPlan,
+    product: &crate::semantic::ProductPlan,
+    positional: &[(String, super::rules::PositionalOwnerState)],
+) -> syn::Result<TokenStream> {
+    let mut binders = LocalAllocator::default();
+    for name in ["rule", "children", "context"] {
+        binders.reserve(name);
+    }
+    let mut patterns = Vec::new();
+    let mut values = Vec::new();
+    for field in product.fields() {
+        let state = positional
+            .iter()
+            .find(|(role, _)| role == field.name())
+            .map(|(_, state)| *state);
+        let (mut field_patterns, mut value) = if let Some(state) = state {
+            lower_positional_field(plan, product.name(), field, state, &mut binders)?
+        } else {
+            lower_product_field(plan, product.name(), field, &mut binders)?
+        };
+        patterns.append(&mut field_patterns);
+        if field.is_recursive() {
+            value = quote! { Box::new(#value) };
+        }
+        values.push((ident(field.name()), value));
+    }
+    append_root_patterns(plan, product.name(), &mut patterns);
+    let product_type = ident(product.name());
+    let success = if product.requires_constructor() {
+        let arguments = values.iter().map(|(_, value)| value);
+        quote! { #product_type::new(#(#arguments),*).map(BuildValue::#product_type) }
+    } else if values.is_empty() {
+        quote! { Some(BuildValue::#product_type(#product_type)) }
+    } else {
+        let fields = values.iter().map(|(name, value)| quote! { #name: #value });
+        quote! { Some(BuildValue::#product_type(#product_type { #(#fields),* })) }
+    };
+    let rule_id = ident(&rule.id);
+    Ok(quote! {
+        RuleId::#rule_id => match children {
+            [#(#patterns),*] => #success,
+            _ => None,
+        },
+    })
+}
+
+fn emit_sum_arm(
+    plan: &SemanticPlan,
+    rule: &super::rules::RuleRowPlan,
+    sum_index: usize,
+    alternative_index: usize,
+) -> syn::Result<TokenStream> {
+    let sum = &plan.sums()[sum_index];
+    let alternative = &sum.alternatives()[alternative_index];
+    let mut binders = LocalAllocator::default();
+    for name in ["rule", "children", "context"] {
+        binders.reserve(name);
+    }
+    let value = lower_value(plan, alternative.value(), "value", &mut binders)?;
+    let payload = if alternative.is_recursive() {
+        let expression = value.expression;
+        quote! { Box::new(#expression) }
+    } else {
+        value.expression
+    };
+    let sum_type = ident(sum.name());
+    let variant = ident(alternative.name());
+    let mut patterns = vec![value.pattern];
+    append_root_patterns(plan, sum.name(), &mut patterns);
+    let rule_id = ident(&rule.id);
+    Ok(quote! {
+        RuleId::#rule_id => match children {
+            [#(#patterns),*] => Some(BuildValue::#sum_type(#sum_type::#variant(#payload))),
+            _ => None,
+        },
+    })
+}
+
+fn append_root_patterns(plan: &SemanticPlan, category: &str, patterns: &mut Vec<TokenStream>) {
+    let Some(root) = plan.parse_root(category) else {
+        return;
+    };
+    if !root.punctuation().is_empty() {
+        let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
+        patterns.push(quote! { BuildValue::Leaf(Leaf::Literal(#punctuation)) });
+    }
+    patterns.push(quote! { BuildValue::Leaf(Leaf::EndOfInput) });
+}
+
+fn emit_optional_arm(
+    plan: &SemanticPlan,
+    rule: &super::rules::RuleRowPlan,
+    owner: super::rules::StructuralOwner,
+    field_index: usize,
+    present: bool,
+) -> syn::Result<TokenStream> {
+    let (owner_name, field) = structural_owner_field(plan, owner, field_index);
+    let StructuralFieldKindPlan::Optional(value) = field.kind() else {
+        return Err(internal(
+            "optional build row does not name an optional field",
+        ));
+    };
+    let carrier = ident(&carrier_variant(owner_name, field)?);
+    let rule_id = ident(&rule.id);
+    if !present {
+        return Ok(quote! {
+            RuleId::#rule_id => match children {
+                [] => Some(BuildValue::#carrier(None)),
+                _ => None,
+            },
+        });
+    }
+    let mut binders = LocalAllocator::default();
+    for name in ["rule", "children", "context"] {
+        binders.reserve(name);
+    }
+    let value = lower_value(plan, value, "item", &mut binders)?;
+    let pattern = value.pattern;
+    let expression = value.expression;
+    Ok(quote! {
+        RuleId::#rule_id => match children {
+            [#pattern] => Some(BuildValue::#carrier(Some(#expression))),
+            _ => None,
+        },
+    })
+}
+
+fn emit_sequence_arm(
+    plan: &SemanticPlan,
+    rule: &super::rules::RuleRowPlan,
+    owner: super::rules::StructuralOwner,
+    field_index: usize,
+    state: super::rules::SequenceBuildState,
+) -> syn::Result<TokenStream> {
+    let (owner_name, field) = structural_owner_field(plan, owner, field_index);
+    let StructuralFieldKindPlan::Sequence { item, surface, .. } = field.kind() else {
+        return Err(internal(
+            "sequence build row does not name a sequence field",
+        ));
+    };
+    let carrier = ident(&carrier_variant(owner_name, field)?);
+    let rule_id = ident(&rule.id);
+    if state == super::rules::SequenceBuildState::Empty {
+        return Ok(quote! {
+            RuleId::#rule_id => match children {
+                [] => Some(BuildValue::#carrier(Vec::new())),
+                _ => None,
+            },
+        });
+    }
+    let mut binders = LocalAllocator::default();
+    for name in ["rule", "children", "context"] {
+        binders.reserve(name);
+    }
+    let first = lower_value(plan, item, "item", &mut binders)?;
+    let mut patterns = vec![first.pattern];
+    patterns.extend(surface_patterns(plan, surface.terminator())?);
+    let success = match state {
+        super::rules::SequenceBuildState::Singleton => {
+            let item = first.expression;
+            quote! { Some(BuildValue::#carrier(vec![#item])) }
+        }
+        super::rules::SequenceBuildState::Recursive => {
+            if let Some(crate::semantic::SeparatorPlan::Uniform(separator)) = surface.separator() {
+                patterns.extend(surface_patterns(plan, Some(separator))?);
+            }
+            let tail = binders.allocate("tail");
+            patterns.push(quote! { BuildValue::#carrier(#tail) });
+            let item = first.expression;
+            quote! {{
+                let mut values = Vec::with_capacity(1 + #tail.len());
+                values.push(#item);
+                values.extend(#tail.iter().cloned());
+                Some(BuildValue::#carrier(values))
+            }}
+        }
+        super::rules::SequenceBuildState::Last => {
+            let positional = positional_separator(surface)?;
+            patterns.extend(surface_patterns(
+                plan,
+                Some(positional_surface(
+                    positional,
+                    crate::semantic::EdgeClass::Last,
+                )?),
+            )?);
+            let second = lower_value(plan, item, "last", &mut binders)?;
+            patterns.push(second.pattern);
+            patterns.extend(surface_patterns(plan, surface.terminator())?);
+            let first = first.expression;
+            let second = second.expression;
+            quote! { Some(BuildValue::#carrier(vec![#first, #second])) }
+        }
+        super::rules::SequenceBuildState::Middle => {
+            let positional = positional_separator(surface)?;
+            patterns.extend(surface_patterns(
+                plan,
+                Some(positional_surface(
+                    positional,
+                    crate::semantic::EdgeClass::Middle,
+                )?),
+            )?);
+            let tail = binders.allocate("tail");
+            patterns.push(quote! { BuildValue::#carrier(#tail) });
+            let item = first.expression;
+            quote! {{
+                let mut values = Vec::with_capacity(1 + #tail.len());
+                values.push(#item);
+                values.extend(#tail.iter().cloned());
+                Some(BuildValue::#carrier(values))
+            }}
+        }
+        super::rules::SequenceBuildState::Empty => unreachable!(),
+    };
+    Ok(quote! {
+        RuleId::#rule_id => match children {
+            [#(#patterns),*] => #success,
+            _ => None,
+        },
+    })
+}
+
+struct LoweredValue {
+    pattern: TokenStream,
+    expression: TokenStream,
+}
+
+fn lower_value(
+    plan: &SemanticPlan,
+    value: &ValueKindPlan,
+    preferred: &str,
+    binders: &mut LocalAllocator,
+) -> syn::Result<LoweredValue> {
+    match value {
+        ValueKindPlan::Category(name) => {
+            let variant = ident(name);
+            let binding = binders.allocate(preferred);
+            let agreement = plan
+                .category_carries_agreement(name)
+                .then(|| quote! { , _ });
+            let number = plan.category_carries_number(name).then(|| quote! { , _ });
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::#variant(#binding #agreement #number) },
+                expression: quote! { #binding.clone() },
+            })
+        }
+        ValueKindPlan::Product(name) | ValueKindPlan::Sum(name) => {
+            let variant = ident(name);
+            let binding = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::#variant(#binding) },
+                expression: quote! { #binding.clone() },
+            })
+        }
+        ValueKindPlan::Lex(name) | ValueKindPlan::Identity(name) => {
+            lower_terminal_value(plan, name, preferred, binders)
+        }
+    }
+}
+
+fn lower_terminal_value(
+    plan: &SemanticPlan,
+    terminal_name: &str,
+    preferred: &str,
+    binders: &mut LocalAllocator,
+) -> syn::Result<LoweredValue> {
+    match plan.atom_terminal(terminal_name)? {
+        AtomTerminal::Vocab(vocab) => {
+            let leaf = ident(vocab.name());
+            let binding = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) },
+                expression: quote! { *#binding },
+            })
+        }
+        AtomTerminal::ContextIdentity(identity) => {
+            let leaf = identity.aggregate_ident();
+            let binding = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) },
+                expression: quote! { *#binding },
+            })
+        }
+        AtomTerminal::SignedDecimal(codec) => {
+            let leaf = codec.codec_ident();
+            let binding = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) },
+                expression: quote! { #binding.clone() },
+            })
+        }
+        AtomTerminal::DeclarationNoun(_) => {
+            let binding = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::Leaf(Leaf::Noun { noun: #binding, number: _ }) },
+                expression: quote! { #binding.clone() },
+            })
+        }
+        AtomTerminal::Binding(binding) => {
+            let build = binding
+                .build()
+                .ok_or_else(|| internal("atom-capable binding has no build metadata"))?;
+            let variant = build.variant();
+            let slots = build.slots();
+            let pattern_names = slots
+                .iter()
+                .enumerate()
+                .map(|(index, _)| {
+                    let name = if slots.len() == 1 {
+                        preferred.to_owned()
+                    } else {
+                        format!("{preferred}_{index}")
+                    };
+                    binders.allocate(&name)
+                })
+                .collect::<Vec<_>>();
+            let substitutions = slots
+                .iter()
+                .zip(&pattern_names)
+                .map(|(declared, emitted)| (identifier_key(declared), quote! { #emitted }))
+                .collect::<HashMap<_, _>>();
+            let inner = if build.construct_is_direct_slot() {
+                quote! { Leaf::#variant(#(#pattern_names),*) }
+            } else {
+                quote! { Leaf::#variant(BoundLeaf::#variant(#(#pattern_names),*)) }
+            };
+            let construct = lower_build_recipe(build.recipe(), &substitutions)?;
+            let expression = if build.construct_is_direct_slot() {
+                match binding.kind() {
+                    TerminalBindingKind::Codec => quote! { #construct.clone() },
+                    TerminalBindingKind::Identity => quote! { *#construct },
+                }
+            } else {
+                construct
+            };
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::Leaf(#inner) },
+                expression,
+            })
+        }
+    }
+}
+
+fn lower_product_field(
+    plan: &SemanticPlan,
+    owner: &str,
+    field: &StructuralFieldPlan,
+    binders: &mut LocalAllocator,
+) -> syn::Result<(Vec<TokenStream>, TokenStream)> {
+    match field.kind() {
+        StructuralFieldKindPlan::Required(value) => {
+            let value = lower_value(plan, value, field.name(), binders)?;
+            Ok((vec![value.pattern], value.expression))
+        }
+        StructuralFieldKindPlan::Optional(_)
+        | StructuralFieldKindPlan::Sequence { surface: _, .. } => {
+            if matches!(
+                field.kind(),
+                StructuralFieldKindPlan::Sequence {
+                    surface,
+                    ..
+                } if matches!(
+                    surface.separator(),
+                    Some(crate::semantic::SeparatorPlan::Positional(_))
+                )
+            ) {
+                return Err(internal(
+                    "positional product field reached the unexpanded build path",
+                ));
+            }
+            let carrier = ident(&carrier_variant(owner, field)?);
+            let binding = binders.allocate(field.name());
+            Ok((
+                vec![quote! { BuildValue::#carrier(#binding) }],
+                quote! { #binding.clone() },
+            ))
+        }
+    }
+}
+
+fn lower_positional_owner_field(
+    plan: &SemanticPlan,
+    owner: &str,
+    field: &StructuralFieldPlan,
+    state: super::rules::PositionalOwnerState,
+    lowering: &mut Lowering,
+) -> syn::Result<()> {
+    let (patterns, value) =
+        lower_positional_field(plan, owner, field, state, &mut lowering.binders)?;
+    lowering.patterns.extend(patterns);
+    lowering.field_values.insert(field.name().to_owned(), value);
+    Ok(())
+}
+
+fn lower_positional_field(
+    plan: &SemanticPlan,
+    owner: &str,
+    field: &StructuralFieldPlan,
+    state: super::rules::PositionalOwnerState,
+    binders: &mut LocalAllocator,
+) -> syn::Result<(Vec<TokenStream>, TokenStream)> {
+    let StructuralFieldKindPlan::Sequence { item, surface, .. } = field.kind() else {
+        return Err(internal("positional state does not name a sequence field"));
+    };
+    let positional = positional_separator(surface)?;
+    match state {
+        super::rules::PositionalOwnerState::Empty => Ok((Vec::new(), quote! { Vec::new() })),
+        super::rules::PositionalOwnerState::Singleton => {
+            let item = lower_value(plan, item, "item", binders)?;
+            let mut patterns = vec![item.pattern];
+            patterns.extend(surface_patterns(plan, surface.terminator())?);
+            let item = item.expression;
+            Ok((patterns, quote! { vec![#item] }))
+        }
+        super::rules::PositionalOwnerState::Pair => {
+            let first = lower_value(plan, item, "first", binders)?;
+            let mut patterns = vec![first.pattern];
+            patterns.extend(surface_patterns(plan, surface.terminator())?);
+            patterns.extend(surface_patterns(
+                plan,
+                Some(positional_surface(
+                    positional,
+                    crate::semantic::EdgeClass::Pair,
+                )?),
+            )?);
+            let second = lower_value(plan, item, "second", binders)?;
+            patterns.push(second.pattern);
+            patterns.extend(surface_patterns(plan, surface.terminator())?);
+            let first = first.expression;
+            let second = second.expression;
+            Ok((patterns, quote! { vec![#first, #second] }))
+        }
+        super::rules::PositionalOwnerState::ThreePlus => {
+            let first = lower_value(plan, item, "first", binders)?;
+            let mut patterns = vec![first.pattern];
+            patterns.extend(surface_patterns(plan, surface.terminator())?);
+            patterns.extend(surface_patterns(
+                plan,
+                Some(positional_surface(
+                    positional,
+                    crate::semantic::EdgeClass::First,
+                )?),
+            )?);
+            let carrier = ident(&carrier_variant(owner, field)?);
+            let tail = binders.allocate("tail");
+            patterns.push(quote! { BuildValue::#carrier(#tail) });
+            let first = first.expression;
+            Ok((
+                patterns,
+                quote! {{
+                    let mut values = Vec::with_capacity(1 + #tail.len());
+                    values.push(#first);
+                    values.extend(#tail.iter().cloned());
+                    values
+                }},
+            ))
+        }
+    }
+}
+
+fn surface_patterns(
+    plan: &SemanticPlan,
+    surface: Option<&crate::semantic::FixedSurfacePlan>,
+) -> syn::Result<Vec<TokenStream>> {
+    surface
+        .into_iter()
+        .flat_map(crate::semantic::FixedSurfacePlan::atoms)
+        .map(|atom| match atom {
+            crate::semantic::FixedSurfaceAtomPlan::Literal(value) => {
+                let value = syn::LitStr::new(value, Span::call_site());
+                Ok(quote! { BuildValue::Leaf(Leaf::Literal(#value)) })
+            }
+            crate::semantic::FixedSurfaceAtomPlan::Lex { terminal, variant } => {
+                fixed_lex_pattern(plan, terminal, variant)
+            }
+        })
+        .collect()
+}
+
+fn fixed_lex_pattern(
+    plan: &SemanticPlan,
+    terminal: &str,
+    variant: &str,
+) -> syn::Result<TokenStream> {
+    match plan.atom_terminal(terminal)? {
+        AtomTerminal::Vocab(vocab) => {
+            let leaf = ident(vocab.name());
+            let value = ident(variant);
+            Ok(quote! { BuildValue::Leaf(Leaf::#leaf(#leaf::#value)) })
+        }
+        _ => Err(internal(
+            "fixed structural lexeme lowering currently requires a vocabulary terminal",
+        )),
+    }
+}
+
+fn positional_separator(
+    surface: &crate::semantic::SequenceSurfacePlan,
+) -> syn::Result<&[crate::semantic::PositionalSeparatorPlan]> {
+    match surface.separator() {
+        Some(crate::semantic::SeparatorPlan::Positional(rows)) => Ok(rows),
+        Some(crate::semantic::SeparatorPlan::Uniform(_)) | None => {
+            Err(internal("positional build row has no positional separator"))
+        }
+    }
+}
+
+fn positional_surface(
+    rows: &[crate::semantic::PositionalSeparatorPlan],
+    class: crate::semantic::EdgeClass,
+) -> syn::Result<&crate::semantic::FixedSurfacePlan> {
+    rows.iter()
+        .find(|row| row.class() == class)
+        .map(crate::semantic::PositionalSeparatorPlan::surface)
+        .ok_or_else(|| internal("reachable positional class has no surface"))
+}
+
+fn structural_owner_field(
+    plan: &SemanticPlan,
+    owner: super::rules::StructuralOwner,
+    field_index: usize,
+) -> (&str, &StructuralFieldPlan) {
+    match owner {
+        super::rules::StructuralOwner::Construction(index) => {
+            let construction = &plan.constructions()[index];
+            (
+                construction.element_type(),
+                construction.fields()[field_index]
+                    .structural_plan()
+                    .expect("helper owner is a structural construction field"),
+            )
+        }
+        super::rules::StructuralOwner::Product(index) => {
+            let product = &plan.products()[index];
+            (product.name(), &product.fields()[field_index])
+        }
+    }
+}
+
+fn carrier_variant(owner: &str, field: &StructuralFieldPlan) -> syn::Result<String> {
+    match field.kind() {
+        StructuralFieldKindPlan::Optional(_) => Ok(format!(
+            "{}{}Optional",
+            crate::identifier::pascal_case(owner),
+            crate::identifier::pascal_case(field.name()),
+        )),
+        StructuralFieldKindPlan::Sequence { .. } => field
+            .helper_names()
+            .map(|names| names.all()[0].to_owned())
+            .ok_or_else(|| internal("sequence field has no helper carrier inventory")),
+        StructuralFieldKindPlan::Required(_) => {
+            Err(internal("required field has no helper carrier"))
+        }
+    }
+}
+
+fn atom_role(atom: &AtomPlan) -> Option<&str> {
+    match atom {
+        AtomPlan::Category { role, .. }
+        | AtomPlan::Lex { role, .. }
+        | AtomPlan::Identity { role, .. }
+        | AtomPlan::Noun { role, .. } => Some(role),
+        AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
+    }
+}
+
 fn lower_atom(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
     atom: &AtomPlan,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
+    if let Some(role) = atom_role(atom)
+        && let Some(structural) = row
+            .fields()
+            .iter()
+            .find(|field| field.name_key() == role)
+            .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
+    {
+        match structural.kind() {
+            StructuralFieldKindPlan::Optional(_) => {
+                let variant = ident(&carrier_variant(row.element_type(), structural)?);
+                let binding = lowering.binders.allocate(role);
+                lowering
+                    .patterns
+                    .push(quote! { BuildValue::#variant(#binding) });
+                lowering
+                    .field_values
+                    .insert(role.to_owned(), quote! { #binding.clone() });
+                return Ok(());
+            }
+            StructuralFieldKindPlan::Sequence { surface, .. } => {
+                if matches!(
+                    surface.separator(),
+                    Some(crate::semantic::SeparatorPlan::Positional(_))
+                ) {
+                    return Err(internal(
+                        "positional sequence reached the unexpanded construction build arm",
+                    ));
+                }
+                let variant = ident(&carrier_variant(row.element_type(), structural)?);
+                let binding = lowering.binders.allocate(role);
+                lowering
+                    .patterns
+                    .push(quote! { BuildValue::#variant(#binding) });
+                lowering
+                    .field_values
+                    .insert(role.to_owned(), quote! { #binding.clone() });
+                return Ok(());
+            }
+            StructuralFieldKindPlan::Required(_) => {}
+        }
+    }
     match atom {
         AtomPlan::Literal(literal) => {
             let literal = syn::LitStr::new(literal, Span::call_site());
@@ -644,7 +1301,7 @@ fn emit_success(
     let element = ident(row.element_type());
     let category = ident(row.category());
     let variant = ident(row.category_variant());
-    if !row.fields().is_empty() && row.invariant().requires_constructor() {
+    if !row.fields().is_empty() && row.requires_constructor() {
         let mut arguments = row
             .fields()
             .iter()
@@ -1100,6 +1757,122 @@ mod tests {
     use syn::visit::Visit;
 
     struct Binders(Vec<String>);
+
+    #[test]
+    fn structural_helper_folds_are_tag_free_bounded_and_source_ordered() {
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Marker { Alpha = "alpha", Beta = "beta", }
+                construction item: Item {
+                    element ItemValue { marker: lex Marker, }
+                    form item = lex(marker);
+                }
+                construction uniform: Uniform {
+                    element UniformValue {
+                        maybe: opt Item,
+                        items: seq Item separated by "<S>" terminated by "<T>",
+                    }
+                    require len(items) >= 2;
+                    form uniform = maybe items;
+                }
+                construction positional: Positional {
+                    element PositionalValue {
+                        items: seq Item separated by position {
+                            pair = "<P>";
+                            first = "<F>";
+                            middle = "<M>";
+                            last = "<L>";
+                        } terminated by "<T>",
+                    }
+                    require len(items) >= 1;
+                    form positional = items;
+                }
+                root Item { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("structural build fixture parses"),
+        )
+        .expect("structural build fixture validates")
+        .into_semantic();
+        let item = super::emit(&plan)
+            .expect("structural build fixture lowers")
+            .remove(0);
+        let syn::Item::Fn(function) = syn::parse2(item.tokens).expect("build item parses") else {
+            panic!("build is a function")
+        };
+        let syn::Stmt::Expr(syn::Expr::Match(dispatch), None) = &function.block.stmts[0] else {
+            panic!("build is a flat rule dispatch")
+        };
+        let arms = dispatch
+            .arms
+            .iter()
+            .map(|arm| {
+                let id = arm.pat.to_token_stream().to_string();
+                (id, arm.to_token_stream().to_string())
+            })
+            .collect::<Vec<_>>();
+        let arm = |name: &str| {
+            &arms
+                .iter()
+                .find(|(id, _)| id == &format!("RuleId :: {name}"))
+                .unwrap_or_else(|| panic!("missing structural build arm {name}"))
+                .1
+        };
+
+        assert!(
+            arm("UniformValueMaybeOptionalAbsent")
+                .contains("BuildValue :: UniformValueMaybeOptional (None)"),
+        );
+        assert!(
+            arm("UniformValueMaybeOptionalPresent")
+                .contains("BuildValue :: UniformValueMaybeOptional (Some (item . clone ()))"),
+        );
+        assert!(
+            arm("UniformValueItemsSequenceEmpty")
+                .contains("BuildValue :: UniformValueItemsSequence (Vec :: new ())"),
+        );
+        let recursive = arm("UniformValueItemsSequenceRecursive");
+        assert!(
+            recursive.contains("values . push (item . clone ())"),
+            "{recursive}"
+        );
+        assert!(
+            recursive.contains("values . extend (tail . iter () . cloned ())"),
+            "{recursive}",
+        );
+        assert!(
+            !recursive.contains("reverse") && !recursive.contains("insert"),
+            "the fold is source ordered without later repair: {recursive}",
+        );
+
+        let owner = arm("UniformUniform");
+        assert!(
+            owner.contains("UniformValue :: new")
+                && owner.contains("BuildValue :: UniformValueItemsSequence (items)"),
+            "the public owner validates bounds through its constructor: {owner}",
+        );
+        let positional = arm("PositionalValueItemsSequenceThreePlus");
+        assert!(
+            positional.contains("values . push (first . clone ())")
+                && positional.contains("values . extend (tail . iter () . cloned ())")
+                && positional.contains("PositionalValue :: new"),
+            "the owner folds first + ordered tail and applies bounds: {positional}",
+        );
+        for helper in [
+            "UniformValueMaybeOptionalAbsent",
+            "UniformValueMaybeOptionalPresent",
+            "UniformValueItemsSequenceEmpty",
+            "UniformValueItemsSequenceSingleton",
+            "UniformValueItemsSequenceRecursive",
+            "PositionalValueItemsSequenceLast",
+            "PositionalValueItemsSequenceMiddle",
+        ] {
+            let source = arm(helper);
+            assert!(
+                !source.contains("Form") && !source.contains("Separator"),
+                "helper carrier stores neither a form nor separator tag: {source}",
+            );
+        }
+    }
 
     impl<'ast> Visit<'ast> for Binders {
         fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {

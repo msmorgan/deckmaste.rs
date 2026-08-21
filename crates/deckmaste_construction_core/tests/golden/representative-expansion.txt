@@ -849,11 +849,32 @@ pub(crate) enum RuleId {
 impl RuleId {
     #[cfg(test)]
     pub(crate) const COUNT: usize = 3;
-    pub(crate) const fn construction(self) -> Construction {
+    pub(crate) const fn public_construction(self) -> Option<Construction> {
         match self {
-            Self::NodeLeaf => Construction::NodeLeaf,
-            Self::NodeChain => Construction::NodeChain,
-            Self::ActionAction => Construction::ActionAction,
+            Self::NodeLeaf => Some(Construction::NodeLeaf),
+            Self::NodeChain => Some(Construction::NodeChain),
+            Self::ActionAction => Some(Construction::ActionAction),
+        }
+    }
+    pub(crate) const fn owner(self) -> &'static str {
+        match self {
+            Self::NodeLeaf => "WordLeaf",
+            Self::NodeChain => "Chain",
+            Self::ActionAction => "ActionElement",
+        }
+    }
+    pub(crate) const fn role(self) -> Option<&'static str> {
+        match self {
+            Self::NodeLeaf => None,
+            Self::NodeChain => None,
+            Self::ActionAction => None,
+        }
+    }
+    pub(crate) const fn state(self) -> &'static str {
+        match self {
+            Self::NodeLeaf => "public",
+            Self::NodeChain => "public",
+            Self::ActionAction => "public",
         }
     }
     pub(crate) const fn index(self) -> usize {

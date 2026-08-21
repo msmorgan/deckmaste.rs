@@ -518,7 +518,9 @@ pub(crate) fn construction_name_v1(construction: Construction) -> String {
 fn generated_constructions_v1() -> Vec<Construction> {
     let mut constructions = Vec::new();
     for rule in crate::constructions::RULES {
-        let construction = rule.id.construction();
+        let Some(construction) = rule.id.public_construction() else {
+            continue;
+        };
         if !constructions.contains(&construction) {
             constructions.push(construction);
         }
@@ -878,7 +880,7 @@ mod tests {
             &forest,
             SHARED_FORM_RULES,
             TestRuleId::index,
-            |_| Construction::AmountNumber,
+            |_| Some(Construction::AmountNumber),
             std::convert::identity,
             |leaf| TestBuildValue::Leaf(*leaf),
             |rule, children| match (rule, children) {
@@ -1158,7 +1160,7 @@ mod tests {
                 SegRule::Whole => 0,
                 SegRule::Parts => 1,
             },
-            |_| "same-construction",
+            |_| Some("same-construction"),
             std::convert::identity,
             |_| SegValue::Leaf,
             |_, _| Some(SegValue::Same),

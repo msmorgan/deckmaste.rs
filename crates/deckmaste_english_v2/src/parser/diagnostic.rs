@@ -9,6 +9,7 @@ use super::SelectedOwnership;
 use super::selection::construction_name_v1;
 use crate::ast::Ability;
 use crate::constructions::Construction;
+use crate::constructions::RuleId;
 use crate::context::ParseContext;
 use crate::render::Render;
 
@@ -1047,7 +1048,7 @@ pub(crate) struct MaterializationTraceBuilder {
     limit: usize,
     candidates: Bounded<MaterializedCandidateInfo>,
     cycles: Bounded<MaterializationCycle>,
-    cycle_identities: Vec<(usize, Vec<Construction>)>,
+    cycle_identities: Vec<(usize, Vec<RuleId>)>,
 }
 
 impl MaterializationTraceBuilder {
@@ -1068,19 +1069,19 @@ impl MaterializationTraceBuilder {
         self.candidates.push_with(make_candidate);
     }
 
-    pub(crate) fn record_cycle(&mut self, node_ordinal: usize, construction_path: &[Construction]) {
-        if self.cycle_identities.iter().any(|(seen_node, seen_path)| {
-            *seen_node == node_ordinal && seen_path == construction_path
-        }) {
+    pub(crate) fn record_cycle(&mut self, node_ordinal: usize, rule_path: &[RuleId]) {
+        if self
+            .cycle_identities
+            .iter()
+            .any(|(seen_node, seen_path)| *seen_node == node_ordinal && seen_path == rule_path)
+        {
             return;
         }
         self.cycle_identities
-            .push((node_ordinal, construction_path.to_vec()));
+            .push((node_ordinal, rule_path.to_vec()));
         self.cycles.push_with(|| MaterializationCycle {
             node_ordinal,
-            construction_path: bounded_copy(construction_path, self.limit, |construction| {
-                construction_name_v1(*construction)
-            }),
+            construction_path: bounded_copy(rule_path, self.limit, |rule| rule_label_v1(*rule)),
         });
     }
 
@@ -1090,6 +1091,16 @@ impl MaterializationTraceBuilder {
             cycles: self.cycles,
         }
     }
+}
+
+fn rule_label_v1(rule: RuleId) -> String {
+    if let Some(construction) = rule.public_construction() {
+        return construction_name_v1(construction);
+    }
+    rule.role().map_or_else(
+        || format!("{} [{}]", rule.owner(), rule.state()),
+        |role| format!("{}.{role} [{}]", rule.owner(), rule.state()),
+    )
 }
 
 /// Stable trace projection of a parse expectation.

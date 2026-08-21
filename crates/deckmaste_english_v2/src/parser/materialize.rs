@@ -82,20 +82,20 @@ pub(crate) struct Candidate {
     pub synthetic_claims: Vec<crate::parser::TextSpan>,
 }
 
-trait MaterializationObservation<C> {
+trait MaterializationObservation<R> {
     const ENABLED: bool;
-    fn cycle_pruned(&mut self, _node_id: NodeId, _construction_path: &[C]) {}
+    fn cycle_pruned(&mut self, _node_id: NodeId, _rule_path: &[R]) {}
 }
 
-impl<C> MaterializationObservation<C> for () {
+impl<R> MaterializationObservation<R> for () {
     const ENABLED: bool = false;
 }
 
-impl MaterializationObservation<Construction> for MaterializationTraceBuilder {
+impl MaterializationObservation<RuleId> for MaterializationTraceBuilder {
     const ENABLED: bool = true;
 
-    fn cycle_pruned(&mut self, node_id: NodeId, construction_path: &[Construction]) {
-        self.record_cycle(node_id.0, construction_path);
+    fn cycle_pruned(&mut self, node_id: NodeId, rule_path: &[RuleId]) {
+        self.record_cycle(node_id.0, rule_path);
     }
 }
 
@@ -121,7 +121,7 @@ struct MaterializationOutcomeFor<V, C, K = Category, M = Lexical, T = (), O = ()
 struct MaterializationKernel<'a, R, T, V, C, K: 'static, L: 'static, M, Build> {
     rules: &'a [Rule<K, L, R>],
     rule_index: fn(R) -> usize,
-    construction: fn(R) -> C,
+    public_construction: fn(R) -> Option<C>,
     lexical_matcher: fn(L) -> M,
     build_leaf: fn(&T) -> V,
     build: Build,
@@ -144,21 +144,15 @@ where
         observation: &mut O,
     ) -> Vec<MaterializedCandidate<V, C, K, M, T, Owner>>
     where
-        O: MaterializationObservation<C>,
+        O: MaterializationObservation<R>,
         Owner: Clone + PartialEq,
     {
         let mut candidates = Vec::new();
         let mut state = MaterializationStateFor::default();
-        let mut construction_path = Vec::new();
+        let mut rule_path = Vec::new();
         for root in forest.accepted_root_ids() {
             for built in self
-                .materialize_node(
-                    forest,
-                    root,
-                    &mut state,
-                    &mut construction_path,
-                    observation,
-                )
+                .materialize_node(forest, root, &mut state, &mut rule_path, observation)
                 .values
             {
                 push_unique(&mut candidates, built);
@@ -172,11 +166,11 @@ where
         forest: &Forest<R, T, Owner>,
         node_id: NodeId,
         state: &mut MaterializationStateFor<V, C, K, M, T, Owner>,
-        construction_path: &mut Vec<C>,
+        rule_path: &mut Vec<R>,
         observation: &mut O,
     ) -> MaterializationOutcomeFor<V, C, K, M, T, Owner>
     where
-        O: MaterializationObservation<C>,
+        O: MaterializationObservation<R>,
         Owner: Clone + PartialEq,
     {
         if let Some(values) = state.memo.get(&node_id) {
@@ -186,7 +180,7 @@ where
             };
         }
         if !state.in_progress.insert(node_id) {
-            observation.cycle_pruned(node_id, construction_path);
+            observation.cycle_pruned(node_id, rule_path);
             return MaterializationOutcomeFor {
                 values: Vec::new(),
                 cycle_pruned: true,
@@ -197,14 +191,8 @@ where
         let mut values = Vec::new();
         let mut cycle_pruned = false;
         for family in &node.families {
-            let outcome = self.materialize_family(
-                forest,
-                node.rule,
-                family,
-                state,
-                construction_path,
-                observation,
-            );
+            let outcome =
+                self.materialize_family(forest, node.rule, family, state, rule_path, observation);
             cycle_pruned |= outcome.cycle_pruned;
             for built in outcome.values {
                 push_unique(&mut values, built);
@@ -226,25 +214,24 @@ where
         rule_id: R,
         family: &Family<T, Owner>,
         state: &mut MaterializationStateFor<V, C, K, M, T, Owner>,
-        construction_path: &mut Vec<C>,
+        rule_path: &mut Vec<R>,
         observation: &mut O,
     ) -> MaterializationOutcomeFor<V, C, K, M, T, Owner>
     where
-        O: MaterializationObservation<C>,
+        O: MaterializationObservation<R>,
         Owner: Clone + PartialEq,
     {
         let rule = &self.rules[(self.rule_index)(rule_id)];
-        let construction = (self.construction)(rule_id);
+        let public_construction = (self.public_construction)(rule_id);
         if O::ENABLED {
-            construction_path.push(construction);
+            rule_path.push(rule_id);
         }
         let mut combinations = vec![Vec::new()];
         let mut cycle_pruned = false;
         for child in &family.children {
             let child_values = match child {
                 Child::Node(id) => {
-                    let outcome =
-                        self.materialize_node(forest, *id, state, construction_path, observation);
+                    let outcome = self.materialize_node(forest, *id, state, rule_path, observation);
                     cycle_pruned |= outcome.cycle_pruned;
                     outcome.values
                 }
@@ -272,17 +259,22 @@ where
                 .map(|child| child.value.clone())
                 .collect::<Vec<_>>();
             if let Some(value) = (self.build)(rule_id, &child_values) {
-                let mut constructions = vec![construction];
-                let mut positions = rule
-                    .rhs
-                    .iter()
-                    .map(|position| match *position {
-                        RulePosition::Nonterminal(category) => RulePosition::Nonterminal(category),
-                        RulePosition::Lexical(lexical) => {
-                            RulePosition::Lexical((self.lexical_matcher)(lexical))
-                        }
-                    })
-                    .collect::<Vec<_>>();
+                let mut constructions = public_construction.into_iter().collect::<Vec<_>>();
+                let mut positions = if public_construction.is_some() {
+                    rule.rhs
+                        .iter()
+                        .map(|position| match *position {
+                            RulePosition::Nonterminal(category) => {
+                                RulePosition::Nonterminal(category)
+                            }
+                            RulePosition::Lexical(lexical) => {
+                                RulePosition::Lexical((self.lexical_matcher)(lexical))
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                };
                 let mut claims = Vec::new();
                 for child in children {
                     constructions.extend(child.constructions);
@@ -302,7 +294,7 @@ where
             }
         }
         if O::ENABLED {
-            construction_path.pop();
+            rule_path.pop();
         }
         MaterializationOutcomeFor {
             values,
@@ -316,7 +308,7 @@ pub(super) fn materialize_with<R, T, O, V, C, K, L, M, Build>(
     forest: &Forest<R, T, O>,
     rules: &[Rule<K, L, R>],
     rule_index: fn(R) -> usize,
-    construction: fn(R) -> C,
+    public_construction: fn(R) -> Option<C>,
     lexical_matcher: fn(L) -> M,
     build_leaf: fn(&T) -> V,
     build: Build,
@@ -335,7 +327,7 @@ where
     MaterializationKernel {
         rules,
         rule_index,
-        construction,
+        public_construction,
         lexical_matcher,
         build_leaf,
         build,
@@ -353,7 +345,7 @@ pub(crate) fn materialize(
     let built = MaterializationKernel {
         rules: RULES,
         rule_index: RuleId::index,
-        construction: RuleId::construction,
+        public_construction: RuleId::public_construction,
         lexical_matcher: |terminal: LexicalTerminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
         build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
@@ -372,7 +364,7 @@ pub(crate) fn materialize_observed(
     let built = MaterializationKernel {
         rules: RULES,
         rule_index: RuleId::index,
-        construction: RuleId::construction,
+        public_construction: RuleId::public_construction,
         lexical_matcher: |terminal: LexicalTerminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
         build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
@@ -503,7 +495,7 @@ fn materialize_node(
     > = MaterializationKernel {
         rules: RULES,
         rule_index: RuleId::index,
-        construction: RuleId::construction,
+        public_construction: RuleId::public_construction,
         lexical_matcher: |terminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
         build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),
@@ -530,7 +522,7 @@ pub(super) fn completion_has_checked_build(
     > = MaterializationKernel {
         rules: RULES,
         rule_index: RuleId::index,
-        construction: RuleId::construction,
+        public_construction: RuleId::public_construction,
         lexical_matcher: |terminal| terminal.matcher,
         build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
         build: |rule: RuleId, children: &[BuildValue]| build(rule, children, context),

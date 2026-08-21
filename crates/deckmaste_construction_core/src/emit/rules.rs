@@ -8,7 +8,6 @@ use crate::feature::FeaturePlace;
 use crate::feature::FeatureValue;
 use crate::identifier::RULE_CATEGORY_TYPE;
 use crate::identifier::RULE_CONSTRUCTION_TYPE;
-use crate::identifier::RULE_ID_CONSTRUCTION;
 use crate::identifier::RULE_ID_COUNT;
 use crate::identifier::RULE_ID_INDEX;
 use crate::identifier::RULE_ID_TYPE;
@@ -23,31 +22,173 @@ use crate::plan::NamedKind;
 use crate::semantic::AtomPlan;
 use crate::semantic::AtomTerminal;
 use crate::semantic::ConstructionPlan;
+use crate::semantic::EdgeClass;
+use crate::semantic::FixedSurfaceAtomPlan;
+use crate::semantic::FixedSurfacePlan;
 use crate::semantic::SemanticPlan;
+use crate::semantic::SeparatorPlan;
+use crate::semantic::StructuralFieldKindPlan;
+use crate::semantic::StructuralFieldPlan;
+use crate::semantic::ValueKindPlan;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum PositionalOwnerState {
+    Empty,
+    Singleton,
+    Pair,
+    ThreePlus,
+}
+
+impl PositionalOwnerState {
+    pub(super) const fn spelling(self) -> &'static str {
+        match self {
+            Self::Empty => "positional_empty",
+            Self::Singleton => "positional_singleton",
+            Self::Pair => "positional_pair",
+            Self::ThreePlus => "positional_three_plus",
+        }
+    }
+
+    fn suffix(self) -> &'static str {
+        match self {
+            Self::Empty => "Empty",
+            Self::Singleton => "Singleton",
+            Self::Pair => "Pair",
+            Self::ThreePlus => "ThreePlus",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(super) enum RuleSymbolPlan {
+    Authored {
+        construction_index: usize,
+        atom_index: usize,
+    },
+    Value(ValueKindPlan),
+    Helper(String),
+    Surface(FixedSurfaceAtomPlan),
+}
+
+impl RuleSymbolPlan {
+    #[cfg(test)]
+    fn test_label(&self) -> String {
+        match self {
+            Self::Authored { .. } => "authored".to_owned(),
+            Self::Value(value) => format!("value:{}", value_name(value)),
+            Self::Helper(category) => format!("helper:{category}"),
+            Self::Surface(FixedSurfaceAtomPlan::Literal(value)) => {
+                format!("literal:{value}")
+            }
+            Self::Surface(FixedSurfaceAtomPlan::Lex { terminal, variant }) => {
+                format!("lex:{terminal}::{variant}")
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(super) enum RuleBuildPlan {
+    Construction {
+        index: usize,
+        positional: Vec<(String, PositionalOwnerState)>,
+    },
+    Product {
+        index: usize,
+        positional: Vec<(String, PositionalOwnerState)>,
+    },
+    Sum {
+        sum_index: usize,
+        alternative_index: usize,
+    },
+    Optional {
+        owner: StructuralOwner,
+        field_index: usize,
+        present: bool,
+    },
+    Sequence {
+        owner: StructuralOwner,
+        field_index: usize,
+        state: SequenceBuildState,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum StructuralOwner {
+    Construction(usize),
+    Product(usize),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum SequenceBuildState {
+    Empty,
+    Singleton,
+    Recursive,
+    Last,
+    Middle,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct RuleRowPlan {
+    pub(super) id: String,
+    pub(super) lhs: String,
+    pub(super) owner: String,
+    pub(super) role: Option<String>,
+    pub(super) state: String,
+    pub(super) public_construction: Option<String>,
+    pub(super) rhs: Vec<RuleSymbolPlan>,
+    pub(super) build: RuleBuildPlan,
+}
 
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let category_type = ident(RULE_CATEGORY_TYPE);
     let construction_type = ident(RULE_CONSTRUCTION_TYPE);
     let rule_id_type = ident(RULE_ID_TYPE);
     let rule_id_count = ident(RULE_ID_COUNT);
-    let rule_id_construction = ident(RULE_ID_CONSTRUCTION);
+    let rule_id_public_construction = ident("public_construction");
     let rule_id_index = ident(RULE_ID_INDEX);
     let rules_constant = ident(RULES_CONSTANT);
     let constructions = plan.constructions();
     let origins = construction_origins(constructions);
     let categories = category_names(plan);
-    let rule_ids = constructions
+    let lowered = lowered_rows(plan)?;
+    let construction_ids = constructions
         .iter()
         .map(|construction| ident(construction.rule_id()))
         .collect::<Vec<_>>();
-    let count = syn::LitInt::new(&constructions.len().to_string(), Span::call_site());
-    let construction_matches = rule_ids.iter().map(|rule_id| {
-        quote! { Self::#rule_id => Construction::#rule_id }
+    let rule_ids = lowered.iter().map(|row| ident(&row.id)).collect::<Vec<_>>();
+    let count = syn::LitInt::new(&lowered.len().to_string(), Span::call_site());
+    let construction_matches = lowered.iter().zip(&rule_ids).map(|(row, rule_id)| {
+        row.public_construction.as_ref().map_or_else(
+            || quote! { Self::#rule_id => None },
+            |construction| {
+                let construction = ident(construction);
+                quote! { Self::#rule_id => Some(Construction::#construction) }
+            },
+        )
     });
-    let rows = constructions
+    let owner_matches = lowered.iter().zip(&rule_ids).map(|(row, rule_id)| {
+        let owner = syn::LitStr::new(&row.owner, Span::call_site());
+        quote! { Self::#rule_id => #owner }
+    });
+    let role_matches = lowered.iter().zip(&rule_ids).map(|(row, rule_id)| {
+        let role = row.role.as_ref().map_or_else(
+            || quote! { None },
+            |role| {
+                let role = syn::LitStr::new(role, Span::call_site());
+                quote! { Some(#role) }
+            },
+        );
+        quote! { Self::#rule_id => #role }
+    });
+    let state_matches = lowered.iter().zip(&rule_ids).map(|(row, rule_id)| {
+        let state = syn::LitStr::new(&row.state, Span::call_site());
+        quote! { Self::#rule_id => #state }
+    });
+    let rows = lowered
         .iter()
         .zip(&rule_ids)
-        .map(|(construction, rule_id)| emit_rule(plan, construction, rule_id))
+        .map(|(row, rule_id)| emit_rule(plan, row, rule_id))
         .collect::<syn::Result<Vec<_>>>()?;
 
     let mut rule_origins = origins.clone();
@@ -70,7 +211,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             ItemKey::named_type(RULE_CONSTRUCTION_TYPE),
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum #construction_type { #(#rule_ids),* }
+                pub(crate) enum #construction_type { #(#construction_ids),* }
             },
             origins.clone(),
         ),
@@ -92,8 +233,17 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
                 impl RuleId {
                     #[cfg(test)]
                     pub(crate) const #rule_id_count: usize = #count;
-                    pub(crate) const fn #rule_id_construction(self) -> Construction {
+                    pub(crate) const fn #rule_id_public_construction(self) -> Option<Construction> {
                         match self { #(#construction_matches,)* }
+                    }
+                    pub(crate) const fn owner(self) -> &'static str {
+                        match self { #(#owner_matches,)* }
+                    }
+                    pub(crate) const fn role(self) -> Option<&'static str> {
+                        match self { #(#role_matches,)* }
+                    }
+                    pub(crate) const fn state(self) -> &'static str {
+                        match self { #(#state_matches,)* }
                     }
                     pub(crate) const fn #rule_id_index(self) -> usize { self as usize }
                 }
@@ -113,31 +263,32 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
 
 fn emit_rule(
     plan: &SemanticPlan,
-    construction: &ConstructionPlan,
+    row: &RuleRowPlan,
     rule_id: &syn::Ident,
 ) -> syn::Result<TokenStream> {
-    let lhs = ident(construction.category());
-    let mut rhs = construction
-        .atoms()
+    let lhs = ident(&row.lhs);
+    let mut rhs = row
+        .rhs
         .iter()
-        .enumerate()
-        .map(|(index, atom)| emit_position(plan, construction, index, atom))
+        .map(|symbol| emit_rule_symbol(plan, symbol))
         .collect::<syn::Result<Vec<_>>>()?;
-    if let Some(root) = plan.parse_root(construction.category()) {
-        let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
-        let stable_id = syn::LitStr::new(
-            &format!("root:{}/punctuation", root.category()),
-            Span::call_site(),
-        );
-        rhs.push(lexical_terminal(
-            &quote! { Lexical::Literal(#punctuation) },
-            &quote! {
-                LexicalOwnerTemplate::Static {
-                    kind: LexicalProvenanceKind::FormLiteral,
-                    stable_id: #stable_id,
-                }
-            },
-        ));
+    if let Some(root) = plan.parse_root(&row.lhs) {
+        if !root.punctuation().is_empty() {
+            let punctuation = syn::LitStr::new(root.punctuation(), Span::call_site());
+            let stable_id = syn::LitStr::new(
+                &format!("root:{}/punctuation", root.category()),
+                Span::call_site(),
+            );
+            rhs.push(lexical_terminal(
+                &quote! { Lexical::Literal(#punctuation) },
+                &quote! {
+                    LexicalOwnerTemplate::Static {
+                        kind: LexicalProvenanceKind::FormLiteral,
+                        stable_id: #stable_id,
+                    }
+                },
+            ));
+        }
         rhs.push(lexical_terminal(
             &quote! { Lexical::EndOfInput },
             &quote! { LexicalOwnerTemplate::None },
@@ -146,12 +297,579 @@ fn emit_rule(
     Ok(quote! { Rule { id: RuleId::#rule_id, lhs: Category::#lhs, rhs: &[#(#rhs),*] } })
 }
 
+fn emit_rule_symbol(plan: &SemanticPlan, symbol: &RuleSymbolPlan) -> syn::Result<TokenStream> {
+    match symbol {
+        RuleSymbolPlan::Authored {
+            construction_index,
+            atom_index,
+        } => {
+            let construction = &plan.constructions()[*construction_index];
+            emit_position(
+                plan,
+                construction,
+                *atom_index,
+                &construction.atoms()[*atom_index],
+            )
+        }
+        RuleSymbolPlan::Value(value) => emit_value_position(plan, value),
+        RuleSymbolPlan::Helper(category) => {
+            let category = ident(category);
+            Ok(quote! { N(Category::#category) })
+        }
+        RuleSymbolPlan::Surface(FixedSurfaceAtomPlan::Literal(value)) => {
+            let value = syn::LitStr::new(value, Span::call_site());
+            Ok(lexical_terminal(
+                &quote! { Lexical::Literal(#value) },
+                &quote! { LexicalOwnerTemplate::None },
+            ))
+        }
+        RuleSymbolPlan::Surface(FixedSurfaceAtomPlan::Lex { terminal, .. }) => {
+            let lexical = lexical_variant(plan, terminal)?;
+            Ok(lexical_terminal(
+                &lexical,
+                &quote! { LexicalOwnerTemplate::None },
+            ))
+        }
+    }
+}
+
+fn emit_value_position(plan: &SemanticPlan, value: &ValueKindPlan) -> syn::Result<TokenStream> {
+    match value {
+        ValueKindPlan::Category(name) | ValueKindPlan::Product(name) | ValueKindPlan::Sum(name) => {
+            let name = ident(name);
+            Ok(quote! { N(Category::#name) })
+        }
+        ValueKindPlan::Lex(name) | ValueKindPlan::Identity(name) => {
+            let lexical = lexical_variant(plan, name)?;
+            let owner = owner_template(plan, name)?;
+            Ok(lexical_terminal(&lexical, &owner))
+        }
+    }
+}
+
+pub(super) fn lowered_rows(plan: &SemanticPlan) -> syn::Result<Vec<RuleRowPlan>> {
+    let mut rows = Vec::new();
+    for (index, construction) in plan.constructions().iter().enumerate() {
+        rows.extend(lower_construction_rows(index, construction)?);
+        rows.extend(lower_helper_rows(
+            StructuralOwner::Construction(index),
+            construction.element_type(),
+            construction
+                .fields()
+                .iter()
+                .enumerate()
+                .filter_map(|(index, field)| field.structural_plan().map(|field| (index, field))),
+        )?);
+    }
+    for (index, product) in plan.products().iter().enumerate() {
+        rows.extend(lower_product_rows(index, product)?);
+        rows.extend(lower_helper_rows(
+            StructuralOwner::Product(index),
+            product.name(),
+            product.fields().iter().enumerate(),
+        )?);
+    }
+    for (sum_index, sum) in plan.sums().iter().enumerate() {
+        for (alternative_index, alternative) in sum.alternatives().iter().enumerate() {
+            rows.push(RuleRowPlan {
+                id: format!(
+                    "{}{}",
+                    crate::identifier::pascal_case(sum.name()),
+                    crate::identifier::pascal_case(alternative.name()),
+                ),
+                lhs: sum.name().to_owned(),
+                owner: sum.name().to_owned(),
+                role: Some(alternative.name().to_owned()),
+                state: "sum_alternative".to_owned(),
+                public_construction: None,
+                rhs: vec![RuleSymbolPlan::Value(alternative.value().clone())],
+                build: RuleBuildPlan::Sum {
+                    sum_index,
+                    alternative_index,
+                },
+            });
+        }
+    }
+    Ok(rows)
+}
+
+fn lower_construction_rows(
+    construction_index: usize,
+    construction: &ConstructionPlan,
+) -> syn::Result<Vec<RuleRowPlan>> {
+    let mut variants = vec![(
+        Vec::<(String, PositionalOwnerState)>::new(),
+        Vec::<RuleSymbolPlan>::new(),
+    )];
+    for (atom_index, atom) in construction.atoms().iter().enumerate() {
+        let structural = atom_role(atom).and_then(|role| {
+            construction
+                .fields()
+                .iter()
+                .find(|field| field.name_key() == role)
+                .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
+        });
+        let Some(field) = structural else {
+            for (_, rhs) in &mut variants {
+                rhs.push(RuleSymbolPlan::Authored {
+                    construction_index,
+                    atom_index,
+                });
+            }
+            continue;
+        };
+        let field_variants = owner_field_variants(construction.element_type(), field)?;
+        variants = combine_owner_variants(variants, field, &field_variants);
+    }
+    variants
+        .into_iter()
+        .map(|(positional, rhs)| {
+            let (id, role, state) = public_variant_metadata(
+                construction.rule_id(),
+                construction.element_type(),
+                construction.fields().iter().filter_map(|field| {
+                    field
+                        .structural_plan()
+                        .map(|structural| (field.name_key(), structural))
+                }),
+                &positional,
+            )?;
+            Ok(RuleRowPlan {
+                id,
+                lhs: construction.category().to_owned(),
+                owner: construction.element_type().to_owned(),
+                role,
+                state,
+                public_construction: Some(construction.rule_id().to_owned()),
+                rhs,
+                build: RuleBuildPlan::Construction {
+                    index: construction_index,
+                    positional,
+                },
+            })
+        })
+        .collect()
+}
+
+fn lower_product_rows(
+    product_index: usize,
+    product: &crate::semantic::ProductPlan,
+) -> syn::Result<Vec<RuleRowPlan>> {
+    let mut variants = vec![(
+        Vec::<(String, PositionalOwnerState)>::new(),
+        Vec::<RuleSymbolPlan>::new(),
+    )];
+    for field in product.fields() {
+        let field_variants = owner_field_variants(product.name(), field)?;
+        variants = combine_owner_variants(variants, field, &field_variants);
+    }
+    variants
+        .into_iter()
+        .map(|(positional, rhs)| {
+            let base = format!("{}Product", crate::identifier::pascal_case(product.name()));
+            let (id, role, state) = public_variant_metadata(
+                &base,
+                product.name(),
+                product
+                    .fields()
+                    .iter()
+                    .map(|field| (field.name().to_owned(), field)),
+                &positional,
+            )?;
+            Ok(RuleRowPlan {
+                id,
+                lhs: product.name().to_owned(),
+                owner: product.name().to_owned(),
+                role,
+                state,
+                public_construction: None,
+                rhs,
+                build: RuleBuildPlan::Product {
+                    index: product_index,
+                    positional,
+                },
+            })
+        })
+        .collect()
+}
+
+fn public_variant_metadata<'a>(
+    base: &str,
+    _owner: &str,
+    fields: impl Iterator<Item = (String, &'a StructuralFieldPlan)>,
+    positional: &[(String, PositionalOwnerState)],
+) -> syn::Result<(String, Option<String>, String)> {
+    if positional.is_empty() {
+        return Ok((base.to_owned(), None, "public".to_owned()));
+    }
+    if positional.len() == 1 {
+        let (role, state) = &positional[0];
+        let field = fields
+            .into_iter()
+            .find(|(candidate, _)| candidate == role)
+            .map(|(_, field)| field)
+            .ok_or_else(|| internal("positional owner state has no structural field"))?;
+        let aggregate = field
+            .helper_names()
+            .ok_or_else(|| internal("positional sequence has no helper inventory"))?
+            .all()[0];
+        return Ok((
+            format!("{aggregate}{}", state.suffix()),
+            Some(role.clone()),
+            state.spelling().to_owned(),
+        ));
+    }
+    let suffix = positional
+        .iter()
+        .map(|(role, state)| format!("{}{}", crate::identifier::pascal_case(role), state.suffix()))
+        .collect::<String>();
+    Ok((
+        format!("{base}{suffix}"),
+        None,
+        "positional_product".to_owned(),
+    ))
+}
+
+fn combine_owner_variants(
+    current: Vec<(Vec<(String, PositionalOwnerState)>, Vec<RuleSymbolPlan>)>,
+    field: &StructuralFieldPlan,
+    field_variants: &[(Option<PositionalOwnerState>, Vec<RuleSymbolPlan>)],
+) -> Vec<(Vec<(String, PositionalOwnerState)>, Vec<RuleSymbolPlan>)> {
+    current
+        .into_iter()
+        .flat_map(|(states, rhs)| {
+            field_variants.iter().map(move |(state, field_rhs)| {
+                let mut states = states.clone();
+                if let Some(state) = state {
+                    states.push((field.name().to_owned(), *state));
+                }
+                let mut combined = rhs.clone();
+                combined.extend(field_rhs.iter().cloned());
+                (states, combined)
+            })
+        })
+        .collect()
+}
+
+fn owner_field_variants(
+    owner: &str,
+    field: &StructuralFieldPlan,
+) -> syn::Result<Vec<(Option<PositionalOwnerState>, Vec<RuleSymbolPlan>)>> {
+    match field.kind() {
+        StructuralFieldKindPlan::Required(value) => {
+            Ok(vec![(None, vec![RuleSymbolPlan::Value(value.clone())])])
+        }
+        StructuralFieldKindPlan::Optional(_) => Ok(vec![(
+            None,
+            vec![RuleSymbolPlan::Helper(helper_category(owner, field)?)],
+        )]),
+        StructuralFieldKindPlan::Sequence {
+            item,
+            bounds,
+            surface,
+        } => match surface.separator() {
+            Some(SeparatorPlan::Positional(rows)) => {
+                let mut variants = Vec::new();
+                if bounds.allows(0) {
+                    variants.push((Some(PositionalOwnerState::Empty), Vec::new()));
+                }
+                if bounds.allows(1) {
+                    variants.push((
+                        Some(PositionalOwnerState::Singleton),
+                        item_with_terminator(item, surface.terminator()),
+                    ));
+                }
+                if bounds.allows(2) {
+                    let mut rhs = item_with_terminator(item, surface.terminator());
+                    rhs.extend(surface_symbols(positional_surface(rows, EdgeClass::Pair)?));
+                    rhs.extend(item_with_terminator(item, surface.terminator()));
+                    variants.push((Some(PositionalOwnerState::Pair), rhs));
+                }
+                if bounds.allows_at_least(3) {
+                    let mut rhs = item_with_terminator(item, surface.terminator());
+                    rhs.extend(surface_symbols(positional_surface(rows, EdgeClass::First)?));
+                    rhs.push(RuleSymbolPlan::Helper(helper_category(owner, field)?));
+                    variants.push((Some(PositionalOwnerState::ThreePlus), rhs));
+                }
+                Ok(variants)
+            }
+            Some(SeparatorPlan::Uniform(_)) | None => Ok(vec![(
+                None,
+                vec![RuleSymbolPlan::Helper(helper_category(owner, field)?)],
+            )]),
+        },
+    }
+}
+
+fn lower_helper_rows<'a>(
+    owner_key: StructuralOwner,
+    owner: &str,
+    fields: impl Iterator<Item = (usize, &'a StructuralFieldPlan)>,
+) -> syn::Result<Vec<RuleRowPlan>> {
+    let mut rows = Vec::new();
+    for (field_index, field) in fields {
+        if matches!(field.kind(), StructuralFieldKindPlan::Required(_)) {
+            continue;
+        }
+        let aggregate = field.helper_names().map_or_else(
+            || {
+                format!(
+                    "{}{}Optional",
+                    crate::identifier::pascal_case(owner),
+                    crate::identifier::pascal_case(field.name()),
+                )
+            },
+            |names| names.all()[0].to_owned(),
+        );
+        let category = helper_category(owner, field)?;
+        let role = Some(field.name().to_owned());
+        match field.kind() {
+            StructuralFieldKindPlan::Required(_) => {}
+            StructuralFieldKindPlan::Optional(value) => {
+                for (suffix, state, present, rhs) in [
+                    ("Absent", "optional_absent", false, Vec::new()),
+                    (
+                        "Present",
+                        "optional_present",
+                        true,
+                        vec![RuleSymbolPlan::Value(value.clone())],
+                    ),
+                ] {
+                    rows.push(RuleRowPlan {
+                        id: format!("{aggregate}{suffix}"),
+                        lhs: category.clone(),
+                        owner: owner.to_owned(),
+                        role: role.clone(),
+                        state: state.to_owned(),
+                        public_construction: None,
+                        rhs,
+                        build: RuleBuildPlan::Optional {
+                            owner: owner_key,
+                            field_index,
+                            present,
+                        },
+                    });
+                }
+            }
+            StructuralFieldKindPlan::Sequence { item, surface, .. } => match surface.separator() {
+                Some(SeparatorPlan::Positional(positional)) => {
+                    let mut last = item_with_terminator(item, surface.terminator());
+                    last.extend(surface_symbols(positional_surface(
+                        positional,
+                        EdgeClass::Last,
+                    )?));
+                    last.extend(item_with_terminator(item, surface.terminator()));
+                    rows.push(sequence_helper_row(
+                        owner_key,
+                        field_index,
+                        owner,
+                        field.name(),
+                        &aggregate,
+                        &category,
+                        "Last",
+                        "positional_last",
+                        SequenceBuildState::Last,
+                        last,
+                    ));
+                    if positional
+                        .iter()
+                        .any(|row| row.class() == EdgeClass::Middle)
+                    {
+                        let mut middle = item_with_terminator(item, surface.terminator());
+                        middle.extend(surface_symbols(positional_surface(
+                            positional,
+                            EdgeClass::Middle,
+                        )?));
+                        middle.push(RuleSymbolPlan::Helper(category.clone()));
+                        rows.push(sequence_helper_row(
+                            owner_key,
+                            field_index,
+                            owner,
+                            field.name(),
+                            &aggregate,
+                            &category,
+                            "Middle",
+                            "positional_middle",
+                            SequenceBuildState::Middle,
+                            middle,
+                        ));
+                    }
+                }
+                uniform => {
+                    rows.push(sequence_helper_row(
+                        owner_key,
+                        field_index,
+                        owner,
+                        field.name(),
+                        &aggregate,
+                        &category,
+                        "Empty",
+                        "sequence_empty",
+                        SequenceBuildState::Empty,
+                        Vec::new(),
+                    ));
+                    rows.push(sequence_helper_row(
+                        owner_key,
+                        field_index,
+                        owner,
+                        field.name(),
+                        &aggregate,
+                        &category,
+                        "Singleton",
+                        "sequence_singleton",
+                        SequenceBuildState::Singleton,
+                        item_with_terminator(item, surface.terminator()),
+                    ));
+                    let mut recursive = item_with_terminator(item, surface.terminator());
+                    if let Some(SeparatorPlan::Uniform(separator)) = uniform {
+                        recursive.extend(surface_symbols(separator));
+                    }
+                    recursive.push(RuleSymbolPlan::Helper(category.clone()));
+                    rows.push(sequence_helper_row(
+                        owner_key,
+                        field_index,
+                        owner,
+                        field.name(),
+                        &aggregate,
+                        &category,
+                        "Recursive",
+                        "sequence_recursive",
+                        SequenceBuildState::Recursive,
+                        recursive,
+                    ));
+                }
+            },
+        }
+    }
+    Ok(rows)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sequence_helper_row(
+    owner_key: StructuralOwner,
+    field_index: usize,
+    owner: &str,
+    role: &str,
+    aggregate: &str,
+    category: &str,
+    suffix: &str,
+    state: &str,
+    build_state: SequenceBuildState,
+    rhs: Vec<RuleSymbolPlan>,
+) -> RuleRowPlan {
+    RuleRowPlan {
+        id: format!("{aggregate}{suffix}"),
+        lhs: category.to_owned(),
+        owner: owner.to_owned(),
+        role: Some(role.to_owned()),
+        state: state.to_owned(),
+        public_construction: None,
+        rhs,
+        build: RuleBuildPlan::Sequence {
+            owner: owner_key,
+            field_index,
+            state: build_state,
+        },
+    }
+}
+
+fn item_with_terminator(
+    item: &ValueKindPlan,
+    terminator: Option<&FixedSurfacePlan>,
+) -> Vec<RuleSymbolPlan> {
+    let mut symbols = vec![RuleSymbolPlan::Value(item.clone())];
+    if let Some(terminator) = terminator {
+        symbols.extend(surface_symbols(terminator));
+    }
+    symbols
+}
+
+fn surface_symbols(surface: &FixedSurfacePlan) -> Vec<RuleSymbolPlan> {
+    surface
+        .atoms()
+        .iter()
+        .cloned()
+        .map(RuleSymbolPlan::Surface)
+        .collect()
+}
+
+fn positional_surface(
+    rows: &[crate::semantic::PositionalSeparatorPlan],
+    class: EdgeClass,
+) -> syn::Result<&FixedSurfacePlan> {
+    rows.iter()
+        .find(|row| row.class() == class)
+        .map(crate::semantic::PositionalSeparatorPlan::surface)
+        .ok_or_else(|| internal("reachable positional class has no sealed surface"))
+}
+
+fn helper_category(owner: &str, field: &StructuralFieldPlan) -> syn::Result<String> {
+    if let Some(names) = field.helper_names() {
+        return Ok(names.all()[1].to_owned());
+    }
+    if matches!(field.kind(), StructuralFieldKindPlan::Optional(_)) {
+        return Ok(format!(
+            "{}{}OptionalCategory",
+            crate::identifier::pascal_case(owner),
+            crate::identifier::pascal_case(field.name()),
+        ));
+    }
+    Err(internal(
+        "structural cardinality field has no helper inventory",
+    ))
+}
+
+fn atom_role(atom: &AtomPlan) -> Option<&str> {
+    match atom {
+        AtomPlan::Category { role, .. }
+        | AtomPlan::Lex { role, .. }
+        | AtomPlan::Identity { role, .. }
+        | AtomPlan::Noun { role, .. } => Some(role),
+        AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
+    }
+}
+
+#[cfg(test)]
+fn value_name(value: &ValueKindPlan) -> &str {
+    match value {
+        ValueKindPlan::Category(name)
+        | ValueKindPlan::Lex(name)
+        | ValueKindPlan::Identity(name)
+        | ValueKindPlan::Product(name)
+        | ValueKindPlan::Sum(name) => name,
+    }
+}
+
 fn emit_position(
     plan: &SemanticPlan,
     construction: &ConstructionPlan,
     atom_index: usize,
     atom: &AtomPlan,
 ) -> syn::Result<TokenStream> {
+    if let Some(role) = atom_role(atom)
+        && let Some(structural) = construction
+            .fields()
+            .iter()
+            .find(|field| field.name_key() == role)
+            .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
+    {
+        match structural.kind() {
+            StructuralFieldKindPlan::Optional(_) => {
+                let category = ident(&helper_category(construction.element_type(), structural)?);
+                return Ok(quote! { N(Category::#category) });
+            }
+            StructuralFieldKindPlan::Sequence { surface, .. } => {
+                if matches!(surface.separator(), Some(SeparatorPlan::Positional(_))) {
+                    return Err(internal(
+                        "positional sequence atom reached the unexpanded public rule",
+                    ));
+                }
+                let category = ident(&helper_category(construction.element_type(), structural)?);
+                return Ok(quote! { N(Category::#category) });
+            }
+            StructuralFieldKindPlan::Required(_) => {}
+        }
+    }
     match atom {
         AtomPlan::Literal(literal) => {
             let literal = syn::LitStr::new(literal, Span::call_site());
@@ -419,6 +1137,217 @@ fn internal(message: &str) -> syn::Error {
 #[cfg(test)]
 mod tests {
     use quote::quote;
+
+    fn structural_semantic_plan() -> crate::semantic::SemanticPlan {
+        crate::validate_declarations(
+            crate::parse_declarations(quote! {
+                vocab Marker { Alpha = "alpha", Beta = "beta", }
+                construction item: Item {
+                    element ItemValue { marker: lex Marker, }
+                    form item = lex(marker);
+                }
+                construction uniform: Uniform {
+                    element UniformValue {
+                        maybe: opt Item,
+                        items: seq Item separated by "<S>" terminated by "<T>",
+                    }
+                    require len(items) >= 1;
+                    form uniform = maybe items;
+                }
+                construction positional: Positional {
+                    element PositionalValue {
+                        items: seq Item separated by position {
+                            pair = "<P>";
+                            first = "<F>";
+                            middle = "<M>";
+                            last = "<L>";
+                        } terminated by "<T>",
+                    }
+                    require len(items) >= 1;
+                    form positional = items;
+                }
+                root Item { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("structural rule fixture parses"),
+        )
+        .expect("structural rule fixture validates")
+        .into_semantic()
+    }
+
+    #[test]
+    fn structural_optional_and_uniform_rows_have_exact_metadata_and_surface_order() {
+        let plan = structural_semantic_plan();
+        let rows = super::lowered_rows(&plan).expect("structural rows lower");
+        let rows = rows
+            .iter()
+            .filter(|row| {
+                row.owner == "UniformValue"
+                    && matches!(row.role.as_deref(), Some("maybe" | "items"))
+            })
+            .map(|row| {
+                (
+                    row.id.as_str(),
+                    row.lhs.as_str(),
+                    row.owner.as_str(),
+                    row.role.as_deref(),
+                    row.state.as_str(),
+                    row.public_construction.as_deref(),
+                    row.rhs
+                        .iter()
+                        .map(super::RuleSymbolPlan::test_label)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            rows,
+            [
+                (
+                    "UniformValueMaybeOptionalAbsent",
+                    "UniformValueMaybeOptionalCategory",
+                    "UniformValue",
+                    Some("maybe"),
+                    "optional_absent",
+                    None,
+                    vec![],
+                ),
+                (
+                    "UniformValueMaybeOptionalPresent",
+                    "UniformValueMaybeOptionalCategory",
+                    "UniformValue",
+                    Some("maybe"),
+                    "optional_present",
+                    None,
+                    vec!["value:Item".to_owned()],
+                ),
+                (
+                    "UniformValueItemsSequenceEmpty",
+                    "UniformValueItemsSequenceCategory",
+                    "UniformValue",
+                    Some("items"),
+                    "sequence_empty",
+                    None,
+                    vec![],
+                ),
+                (
+                    "UniformValueItemsSequenceSingleton",
+                    "UniformValueItemsSequenceCategory",
+                    "UniformValue",
+                    Some("items"),
+                    "sequence_singleton",
+                    None,
+                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                ),
+                (
+                    "UniformValueItemsSequenceRecursive",
+                    "UniformValueItemsSequenceCategory",
+                    "UniformValue",
+                    Some("items"),
+                    "sequence_recursive",
+                    None,
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<S>".to_owned(),
+                        "helper:UniformValueItemsSequenceCategory".to_owned(),
+                    ],
+                ),
+            ],
+            "the recursive row authenticates item, terminator, separator, tail order",
+        );
+    }
+
+    #[test]
+    fn structural_positional_rows_distinguish_owner_entry_families_and_tail_states() {
+        let plan = structural_semantic_plan();
+        let rows = super::lowered_rows(&plan).expect("positional rows lower");
+        let rows = rows
+            .iter()
+            .filter(|row| row.owner == "PositionalValue")
+            .map(|row| {
+                (
+                    row.id.as_str(),
+                    row.lhs.as_str(),
+                    row.role.as_deref(),
+                    row.state.as_str(),
+                    row.public_construction.as_deref(),
+                    row.rhs
+                        .iter()
+                        .map(super::RuleSymbolPlan::test_label)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            rows,
+            [
+                (
+                    "PositionalValueItemsSequenceSingleton",
+                    "Positional",
+                    Some("items"),
+                    "positional_singleton",
+                    Some("PositionalPositional"),
+                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                ),
+                (
+                    "PositionalValueItemsSequencePair",
+                    "Positional",
+                    Some("items"),
+                    "positional_pair",
+                    Some("PositionalPositional"),
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<P>".to_owned(),
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                    ],
+                ),
+                (
+                    "PositionalValueItemsSequenceThreePlus",
+                    "Positional",
+                    Some("items"),
+                    "positional_three_plus",
+                    Some("PositionalPositional"),
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<F>".to_owned(),
+                        "helper:PositionalValueItemsSequenceCategory".to_owned(),
+                    ],
+                ),
+                (
+                    "PositionalValueItemsSequenceLast",
+                    "PositionalValueItemsSequenceCategory",
+                    Some("items"),
+                    "positional_last",
+                    None,
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<L>".to_owned(),
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                    ],
+                ),
+                (
+                    "PositionalValueItemsSequenceMiddle",
+                    "PositionalValueItemsSequenceCategory",
+                    Some("items"),
+                    "positional_middle",
+                    None,
+                    vec![
+                        "value:Item".to_owned(),
+                        "literal:<T>".to_owned(),
+                        "literal:<M>".to_owned(),
+                        "helper:PositionalValueItemsSequenceCategory".to_owned(),
+                    ],
+                ),
+            ],
+        );
+    }
 
     #[test]
     fn generated_morphology_rules_keep_lexeme_identity_for_feature_instantiation() {

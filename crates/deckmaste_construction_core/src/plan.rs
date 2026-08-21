@@ -292,12 +292,6 @@ impl EmissionPlan {
 }
 
 pub(crate) fn plan_emission(plan: &SemanticPlan) -> syn::Result<EmissionPlan> {
-    if plan.has_deferred_structural_emission() {
-        return Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
-            "structural declaration emission is deferred until the structural emitters are installed",
-        ));
-    }
     let mut items = crate::emit::ast::emit(plan)?;
     let (terminal_items, mut terminal_contributions) = crate::emit::terminal::emit(plan)?;
     seal_terminal_contribution_projection(plan, &mut terminal_contributions)?;
@@ -391,7 +385,7 @@ mod tests {
     use crate::test_support::representative_expansion;
 
     #[test]
-    fn structural_planning_emits_abstract_rows_and_defers_structural_construction_bnf() {
+    fn structural_planning_emits_abstract_rows_and_structural_construction_bnf() {
         let abstract_semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
                 construction node: Node { element NodeValue {} form node = "node"; }
@@ -428,12 +422,19 @@ mod tests {
         )
         .expect("structural construction fixture validates")
         .into_semantic();
-        let error = super::plan_emission(&construction_semantic)
-            .expect_err("Task 2 must not emit structural construction fields")
+        let emission = super::plan_emission(&construction_semantic)
+            .expect("Task 4 emits structural construction fields");
+        let rules = emission
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { name, .. } if name == "RULES"))
+            .expect("structural rules item")
+            .tokens
             .to_string();
         assert!(
-            error.contains("structural declaration emission is deferred"),
-            "{error}"
+            rules.contains("DocumentValueNodesSequenceSingleton")
+                && rules.contains("DocumentValueNodesSequenceRecursive"),
+            "{rules}"
         );
     }
 
@@ -463,14 +464,20 @@ mod tests {
         .expect("wrapped terminal fixture validates")
         .into_semantic();
 
-        let error = super::plan_emission(&semantic)
-            .expect_err("Task 2 intentionally defers structural field emission")
+        let emission =
+            super::plan_emission(&semantic).expect("Task 4 emits wrapped structural fields");
+        let rules = emission
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { name, .. } if name == "RULES"))
+            .expect("wrapped structural rules")
+            .tokens
             .to_string();
         assert!(
-            error.contains("structural declaration emission is deferred"),
-            "{error}"
+            rules.contains("WrappedMaybeOptionalAbsent")
+                && rules.contains("WrappedHandlesSequenceEmpty"),
+            "{rules}"
         );
-        assert!(!error.contains("inconsistent"), "{error}");
     }
 
     #[test]

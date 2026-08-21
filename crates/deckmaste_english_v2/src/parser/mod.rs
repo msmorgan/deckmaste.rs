@@ -19,6 +19,11 @@ use crate::environment::DeclarationId;
 use crate::environment::ParserEnvironment;
 
 mod diagnostic;
+macro_rules! engine_unit_tests {
+    ($tests:item) => {
+        $tests
+    };
+}
 mod engine;
 #[cfg(test)]
 mod homonym_pipeline;

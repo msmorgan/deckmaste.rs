@@ -303,7 +303,7 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
         &forest,
         RULES,
         RuleId::index,
-        RuleId::construction,
+        RuleId::public_construction,
         |terminal: LexicalTerminal| terminal.matcher,
         |leaf| BuildValue::Leaf(leaf.clone()),
         |rule, children| build(rule, children, &context),

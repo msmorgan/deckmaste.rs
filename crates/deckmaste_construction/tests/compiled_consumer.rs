@@ -579,23 +579,30 @@ pub mod fixture {
         reason = "the dense hygiene fixture deliberately exercises seven stored fields plus one derived field"
     )]
 
-    use RulePosition::Lexical as L;
-    use RulePosition::Nonterminal as N;
-
     use super::constructions;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum RulePosition<Category, Lexical> {
-        Nonterminal(Category),
-        Lexical(Lexical),
+    struct TextSpan {
+        start: usize,
+        end: usize,
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    struct Rule<Category: 'static, Lexical: 'static, RuleId> {
-        id: RuleId,
-        lhs: Category,
-        rhs: &'static [RulePosition<Category, Lexical>],
+    macro_rules! engine_unit_tests {
+        ($tests:item) => {};
     }
+
+    mod engine {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../deckmaste_english_v2/src/parser/engine.rs"
+        ));
+    }
+
+    use RulePosition::Lexical as L;
+    use RulePosition::Nonterminal as N;
+    use engine::LexicalMatch as EngineLexicalMatch;
+    use engine::Rule;
+    use engine::RulePosition;
 
     #[derive(Default)]
     struct ParseContext<'a> {
@@ -834,6 +841,12 @@ pub mod fixture {
         vocab Mode { One = "one", Many = "many", }
         vocab r#Marker { One = "marker", }
         vocab WriterWord { One = "writer", }
+        vocab StructuralWord {
+            Alpha = "alpha",
+            Beta = "beta",
+            Gamma = "gamma",
+            Delta = "delta",
+        }
         morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
         lexeme VerbLexeme using EnglishVerb {
             Act = "act",
@@ -1090,12 +1103,36 @@ pub mod fixture {
             form raw_leaf = "raw";
         }
 
+        construction structural_atom: StructuralAtom {
+            element StructuralAtomValue { marker: lex StructuralWord, }
+            form structural_atom = lex(marker);
+        }
+
         abstract sum Choice { Child, MarkerCategory, }
         abstract product Holder {
             maybe: opt Child,
             items: seq Choice terminated by ",",
         }
         require len(Holder.items) >= 1;
+        abstract product OptionalStructural { maybe: opt StructuralAtom, }
+        abstract product TerminatedStructural {
+            items: seq StructuralAtom terminated by "<T>",
+        }
+        abstract product SeparatedStructural {
+            items: seq StructuralAtom separated by "<S>",
+        }
+        abstract product CombinedStructural {
+            items: seq StructuralAtom separated by "<S>" terminated by "<T>",
+        }
+        abstract product PositionalStructural {
+            items: seq StructuralAtom separated by position {
+                pair = "<P>";
+                first = "<F>";
+                middle = "<M>";
+                last = "<L>";
+            } terminated by "<T>",
+        }
+        require len(PositionalStructural.items) >= 1;
 
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         root BeSentence { punctuation = "."; eoi = true; standalone_render = true; }
@@ -1660,6 +1697,167 @@ pub mod fixture {
         );
     }
 
+    fn parse_structural(
+        category: Category,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> engine::Forest<RuleId, Leaf, LexicalOwner> {
+        engine::parse(
+            RULES,
+            category,
+            text.len(),
+            |terminal, offset| {
+                scan_lexical(
+                    &ScanInput {
+                        text,
+                        position: ScanPosition {
+                            byte_offset: offset,
+                            case: if offset == 0 {
+                                CasePosition::DocumentInitial
+                            } else {
+                                CasePosition::Continuation
+                            },
+                        },
+                        context,
+                    },
+                    terminal,
+                )
+                .into_iter()
+                .map(|lexical_match| EngineLexicalMatch {
+                    end: lexical_match.end,
+                    value: lexical_match.value,
+                    owner: lexical_match.owner,
+                })
+                .collect()
+            },
+            |_, _, _| true,
+        )
+        .unwrap_or_else(|failure| {
+            panic!(
+                "structural grammar failed at {} for {category:?} on {text:?}",
+                failure.offset
+            )
+        })
+    }
+
+    fn assert_structural_accepts(category: Category, texts: &[&str]) {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+        };
+        for text in texts {
+            let forest = parse_structural(category, text, &context);
+            assert!(
+                forest.accepted_root_ids().next().is_some(),
+                "{category:?} accepts {text:?} through the actual Earley chart",
+            );
+        }
+    }
+
+    pub(super) fn assert_structural_bnf_boundaries() {
+        let helper_rule = RuleId::OptionalStructuralMaybeOptionalAbsent;
+        assert_eq!(helper_rule.public_construction(), None);
+        assert_eq!(helper_rule.owner(), "OptionalStructural");
+        assert_eq!(helper_rule.role(), Some("maybe"));
+        assert_eq!(helper_rule.state(), "optional_absent");
+
+        assert_structural_accepts(Category::OptionalStructural, &["", "Alpha"]);
+        assert_structural_accepts(
+            Category::TerminatedStructural,
+            &[
+                "",
+                "Alpha <T>",
+                "Alpha <T> beta <T>",
+                "Alpha <T> beta <T> gamma <T> delta <T>",
+            ],
+        );
+        assert_structural_accepts(
+            Category::SeparatedStructural,
+            &[
+                "",
+                "Alpha",
+                "Alpha <S> beta",
+                "Alpha <S> beta <S> gamma <S> delta",
+            ],
+        );
+        assert_structural_accepts(
+            Category::CombinedStructural,
+            &[
+                "",
+                "Alpha <T>",
+                "Alpha <T> <S> beta <T>",
+                "Alpha <T> <S> beta <T> <S> gamma <T> <S> delta <T>",
+            ],
+        );
+        assert_structural_accepts(
+            Category::PositionalStructural,
+            &[
+                "Alpha <T>",
+                "Alpha <T> <P> beta <T>",
+                "Alpha <T> <F> beta <T> <L> gamma <T>",
+                "Alpha <T> <F> beta <T> <M> gamma <T> <L> delta <T>",
+            ],
+        );
+
+        let atom = |marker| StructuralAtom::StructuralAtom(StructuralAtomValue { marker });
+        let alpha = atom(StructuralWord::Alpha);
+        let absent = build(
+            RuleId::OptionalStructuralMaybeOptionalAbsent,
+            &[],
+            &ParseContext::default(),
+        )
+        .expect("optional absent helper folds");
+        assert!(matches!(
+            absent,
+            BuildValue::OptionalStructuralMaybeOptional(None)
+        ));
+        let present = build(
+            RuleId::OptionalStructuralMaybeOptionalPresent,
+            &[BuildValue::StructuralAtom(alpha.clone())],
+            &ParseContext::default(),
+        )
+        .expect("optional present helper folds");
+        assert!(matches!(
+            present,
+            BuildValue::OptionalStructuralMaybeOptional(Some(_))
+        ));
+
+        let four = [
+            alpha,
+            atom(StructuralWord::Beta),
+            atom(StructuralWord::Gamma),
+            atom(StructuralWord::Delta),
+        ];
+        let tail = build(
+            RuleId::CombinedStructuralItemsSequenceSingleton,
+            &[
+                BuildValue::StructuralAtom(four[3].clone()),
+                BuildValue::Leaf(Leaf::Literal("<T>")),
+            ],
+            &ParseContext::default(),
+        )
+        .expect("singleton sequence helper folds");
+        let mut built = tail;
+        for item in four[..3].iter().rev() {
+            built = build(
+                RuleId::CombinedStructuralItemsSequenceRecursive,
+                &[
+                    BuildValue::StructuralAtom(item.clone()),
+                    BuildValue::Leaf(Leaf::Literal("<T>")),
+                    BuildValue::Leaf(Leaf::Literal("<S>")),
+                    built,
+                ],
+                &ParseContext::default(),
+            )
+            .expect("recursive sequence helper folds");
+        }
+        let BuildValue::CombinedStructuralItemsSequence(values) = built else {
+            panic!("recursive fold returns the one role-keyed carrier")
+        };
+        assert_eq!(values, four, "recursive folds preserve source order");
+    }
+
     #[allow(
         clippy::too_many_lines,
         reason = "one authentic compiled consumer executes the complete boundary matrix"
@@ -2091,4 +2289,9 @@ fn invariant_constructors_enforce_the_compiled_public_boundary() {
 #[test]
 fn structural_constructors_enforce_the_compiled_public_boundary() {
     fixture::assert_structural_product_public_boundary();
+}
+
+#[test]
+fn structural_helpers_parse_and_fold_through_ordinary_bnf() {
+    fixture::assert_structural_bnf_boundaries();
 }

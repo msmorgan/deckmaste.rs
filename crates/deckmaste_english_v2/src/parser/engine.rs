@@ -440,6 +440,7 @@ where
         .collect()
 }
 
+engine_unit_tests! {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
@@ -907,4 +908,5 @@ mod tests {
             );
         }
     }
+}
 }
