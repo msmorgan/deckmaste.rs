@@ -2955,6 +2955,11 @@ fn generated_name_inventory(
                     errors,
                 );
                 for form in &construction.forms {
+                    let rule_span = if construction.forms.len() == 1 {
+                        construction.name.span()
+                    } else {
+                        form.name.span()
+                    };
                     let form_rule = if construction.forms.len() == 1 {
                         format!("{}{category_variant}", pascal_case(&category))
                     } else {
@@ -2979,7 +2984,7 @@ fn generated_name_inventory(
                         &construction.element.fields,
                         &construction.requirements,
                         &rule_role,
-                        form.name.span(),
+                        rule_span,
                         errors,
                     );
                 }
@@ -8100,6 +8105,40 @@ pub(crate) mod tests {
             "{message}"
         );
         assert!(!message.contains("internal"), "{message}");
+    }
+
+    #[test]
+    fn multi_form_rule_id_collisions_point_at_each_authored_form() {
+        for (first_form, second_form) in [("foo_bar", "FooBar"), ("FooBar", "foo_bar")] {
+            let source: proc_macro2::TokenStream = format!(
+                r#"
+                    vocab Word {{ One = "one", }}
+                    construction guarded: Cat {{
+                        element Guarded {{ word: lex Word, }}
+                        form {first_form} when word is One = lex(word);
+                        form {second_form} otherwise = lex(word);
+                    }}
+                    root Cat {{ punctuation = "."; eoi = true; standalone_render = true; }}
+                "#,
+            )
+            .parse()
+            .expect("multi-form RuleId collision declaration syntax");
+            let parsed = crate::parse_declarations(source.clone())
+                .expect("multi-form collision syntax parses");
+            let Declaration::Construction(construction) = &parsed.declarations[1] else {
+                panic!("second declaration is the colliding construction")
+            };
+            let expected_span = construction.forms[1].name.span();
+            let error = crate::generate(source)
+                .expect_err("case-converted multi-form RuleId variants cannot collide");
+            assert_same_span(error.span(), expected_span);
+            let message = error.to_string();
+            assert!(
+                message.contains("RuleId for construction form guarded.foo_bar")
+                    && message.contains("RuleId for construction form guarded.FooBar"),
+                "{message}"
+            );
+        }
     }
 
     #[test]
