@@ -310,7 +310,7 @@ badExistsAnyTarget Oh impossible
 ||| The class word fixes its class by rule [CR#115.4] rather than describing the referent.
 public export
 badMatchesAnyTarget : Unspellable (Effect []) (\ok =>
-  If (Macros.destroy (Macros.target Macros.artifact)) (Macros.itsA AnyTarget {af = ok}) Nothing)
+  OnlyIf (Macros.destroy (Macros.target Macros.artifact)) (Macros.itsA AnyTarget {af = ok}) Nothing)
 badMatchesAnyTarget Oh impossible
 
 
@@ -327,15 +327,15 @@ badMatchesTargetSubject Refl impossible
 public export
 badMatchesNothing : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                If (Macros.gainsLife You (Lit 1)) (Matches It (And []) {sy = ok}) Nothing])
+                OnlyIf (Macros.gainsLife You (Lit 1)) (Matches It (And []) {sy = ok}) Nothing])
 badMatchesNothing Oh impossible
 
 
 ||| "Destroy target creature if it's in a graveyard."
-||| A trailing condition reads the announced subject, which stands on the battlefield [CR#109.2a].
+||| A postposed condition is checked as the clause resolves, before the deed, so it reads the announced subject, which stands on the battlefield [CR#109.2].
 public export
 badTrailingPostStateZone : Unspellable (Effect []) (\ok =>
-  If (Macros.destroy (Macros.target Macros.creature)) (Matches It (InZone Macros.graveyardZ) {zc = ok}) Nothing)
+  OnlyIf (Macros.destroy (Macros.target Macros.creature)) (Matches It (InZone Macros.graveyardZ) {zc = ok}) Nothing)
 badTrailingPostStateZone Oh impossible
 
 
@@ -353,7 +353,7 @@ badCompareLiteralSubject Oh impossible
 ||| A condition introduces nothing: it may have been false, leaving no referent to speak of.
 public export
 badConditionAntecedent : Unspellable (Effect []) (\ok =>
-  Sequentially [If (Macros.gainsLife You (Lit 2)) (Exists Macros.creatureYouControl) Nothing,
+  Sequentially [OnlyIf (Macros.gainsLife You (Lit 2)) (Exists Macros.creatureYouControl) Nothing,
                 SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badConditionAntecedent (Refl, _) impossible
 
@@ -446,7 +446,7 @@ badBecomesOwnType Oh impossible
 ||| The "Otherwise" arm runs when the condition was false, so the clause it replaces never happened.
 public export
 badOtherwiseReadsIfArm : Unspellable (Effect []) (\ok =>
-  If (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [Zombie]))
+  OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [Zombie]))
      (Exists Macros.creatureYouControl)
      (Just (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
 badOtherwiseReadsIfArm (Refl, _) impossible
@@ -515,7 +515,7 @@ badChooseYou BareChoice impossible
 ||| A conditioned clause is a hole: the condition may be false, and then its phrase named nothing.
 public export
 badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
-  Sequentially [If (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier]))
+  Sequentially [OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier]))
                    (Exists Macros.creatureYouControl)
                    Nothing,
                 PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])

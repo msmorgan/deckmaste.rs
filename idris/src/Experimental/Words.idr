@@ -953,6 +953,14 @@ settleTargets (MkBinding TargetD k plur payload :: bs) =
   MkBinding TheD k plur payload :: settleTargets bs
 settleTargets (b :: bs) = b :: settleTargets bs
 
+||| The bindings of kind `Outcome` alone: the quantities a clause wrote,
+||| which an alternative arm may still name as "that much".
+public export
+outcomesOnly : Bindings -> Bindings
+outcomesOnly [] = []
+outcomesOnly (b@(MkBinding _ Outcome _ _) :: bs) = b :: outcomesOnly bs
+outcomesOnly (_ :: bs) = outcomesOnly bs
+
 public export
 publicZone : Zone -> Bool
 publicZone Battlefield = True

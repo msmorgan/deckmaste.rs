@@ -226,25 +226,25 @@ luckyOffering =
 
 
 overload : Effect []
-overload = If (Macros.destroy (Macros.target Macros.artifact))
-              (CompareAmt (Macros.manaValueOf It) AtMost (Lit 2))
-              Nothing
+overload = OnlyIf (Macros.destroy (Macros.target Macros.artifact))
+                  (CompareAmt (Macros.manaValueOf It) AtMost (Lit 2))
+                  Nothing
 
 builtToSmash : Effect []
 builtToSmash =
   Sequentially [Macros.gets (Macros.target (And [Macros.creature, Attacking])) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn),
-                If (Macros.gains It (KeywordAbility Trample) (Just Macros.untilEndOfTurn))
-                   (Macros.itsA (And [Macros.artifact, Macros.creature]))
+                If (Macros.itsA (And [Macros.artifact, Macros.creature]))
+                   (Macros.gains It (KeywordAbility Trample) (Just Macros.untilEndOfTurn))
                    Nothing]
 
 flamesOfTheRazeBoar : Effect []
 flamesOfTheRazeBoar =
   Sequentially [DealDamage This (Lit 4) (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent])),
-                If (DealDamage This (Lit 2)
-                               (Each (And [Macros.creature, Other, ControlledBy (That PlayerW)])))
-                   (Exists (And [Macros.creature, ControlledBy You,
-                                 Compare Power AtLeast (Lit 4)]))
-                   Nothing]
+                OnlyIf (DealDamage This (Lit 2)
+                                   (Each (And [Macros.creature, Other, ControlledBy (That PlayerW)])))
+                       (Exists (And [Macros.creature, ControlledBy You,
+                                     Compare Power AtLeast (Lit 4)]))
+                       Nothing]
 
 ||| Braids's Frightful Return
 braidsFrightfulReturn : Effect []
@@ -290,13 +290,13 @@ fireNavyTrebuchet =
 
 amassZombiesTwo : Effect []
 amassZombiesTwo =
-  Sequentially [If (Macros.create (Lit 1) (Macros.creatureTok 0 0 [Black] [Zombie, Army]))
-                   (Macros.notSo (Exists (And [HasSubtype Army, Macros.creature, ControlledBy You])))
+  Sequentially [If (Macros.notSo (Exists (And [HasSubtype Army, Macros.creature, ControlledBy You])))
+                   (Macros.create (Lit 1) (Macros.creatureTok 0 0 [Black] [Zombie, Army]))
                    Nothing,
                 Choose (Macros.a (And [HasSubtype Army, Macros.creature, ControlledBy You])),
                 PutCounters (Lit 2) Macros.plusOnePlusOne (That (TypeW Creature)),
-                If (Macros.becomes It (Macros.subtypesOnly [Zombie]) Nothing)
-                   (Macros.itIsntA (HasSubtype Zombie))
+                If (Macros.itIsntA (HasSubtype Zombie))
+                   (Macros.becomes It (Macros.subtypesOnly [Zombie]) Nothing)
                    Nothing]
 
 battlegrowth : Effect []
@@ -352,9 +352,9 @@ clavilenoPhrase = And [Macros.creature, Attacking, Not (HasSubtype Demon)]
 unholyAnnex : Effect []
 unholyAnnex =
   Sequentially [Macros.drawACard,
-                If (Sequentially [Macros.losesLife (Each Opponent) (Lit 2),
+                If (Exists (And [HasSubtype Demon, ControlledBy You]))
+                   (Sequentially [Macros.losesLife (Each Opponent) (Lit 2),
                                   Macros.gainsLife You (Lit 2)])
-                   (Exists (And [HasSubtype Demon, ControlledBy You]))
                    (Just (Macros.losesLife You (Lit 2)))]
 
 
@@ -606,18 +606,18 @@ banisherPriest = Macros.exileUntil (Macros.target (And [Macros.creature, Control
 tezzeretDrawTwo : Effect []
 tezzeretDrawTwo =
   Macros.insteadOf Macros.drawACard
-            (If (Macros.drawCards 2)
-                (CompareAmt (CountOf (And [Macros.artifact, ControlledBy You]))
+            (If (CompareAmt (CountOf (And [Macros.artifact, ControlledBy You]))
                             AtLeast (Lit 3))
+                (Macros.drawCards 2)
                 Nothing)
 
 ||| Zimone, Quandrix Prodigy
 zimoneDrawTwo : Effect []
 zimoneDrawTwo =
   Macros.insteadOf Macros.drawACard
-            (If (Macros.drawCards 2)
-                (CompareAmt (CountOf (And [Macros.land, ControlledBy You]))
+            (If (CompareAmt (CountOf (And [Macros.land, ControlledBy You]))
                             AtLeast (Lit 8))
+                (Macros.drawCards 2)
                 Nothing)
 
 
@@ -1526,23 +1526,23 @@ timelyReinforcements =
        (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
-                  [ If (Macros.gainsLife You (Lit 6))
-                       (CompareAmt (PlayerStatOf LifeTotal You) Less
+                  [ If (CompareAmt (PlayerStatOf LifeTotal You) Less
                                    (PlayerStatOf LifeTotal Macros.anOpponent))
+                       (Macros.gainsLife You (Lit 6))
                        Nothing
-                  , If (Macros.create (Lit 3) (Macros.creatureTok 1 1 [White] [Soldier]))
-                       (CompareAmt (CountOf Macros.creatureYouControl) Less
+                  , If (CompareAmt (CountOf Macros.creatureYouControl) Less
                                    (CountOf (And [Macros.creature,
                                                   ControlledBy Macros.anOpponent])))
+                       (Macros.create (Lit 3) (Macros.creatureTok 1 1 [White] [Soldier]))
                        Nothing ]) ]
        Nothing
 
 survivalCache : Effect []
 survivalCache =
   Sequentially [ Macros.gainsLife You (Lit 2)
-               , If Macros.drawACard
-                    (CompareAmt (PlayerStatOf LifeTotal You) Greater
+               , If (CompareAmt (PlayerStatOf LifeTotal You) Greater
                                 (PlayerStatOf LifeTotal Macros.anOpponent))
+                    Macros.drawACard
                     Nothing ]
 
 pathOfBravery : Ability
@@ -1607,9 +1607,10 @@ krang =
 krenko : Ability
 krenko =
   Activated TapSymbol
-            (WhereLetter LetterX (CountOf (And [HasSubtype Goblin, ControlledBy You]))
-                         (Create You (DefinedLetter LetterX)
-                            (TokenWritten (Macros.creatureTok 1 1 [Red] [Goblin])) []))
+            (Macros.whereLetter LetterX
+               (Create You (DefinedLetter LetterX)
+                  (TokenWritten (Macros.creatureTok 1 1 [Red] [Goblin])) [])
+               (CountOf (And [HasSubtype Goblin, ControlledBy You])))
 
 chainReaction : Card
 chainReaction =
@@ -2102,19 +2103,19 @@ celestialConvergence =
        , Triggered At (BeginningOf Upkeep (ByWord Yours))
            (Sequentially
               [ RemoveCounters (Lit 1) Omen Macros.thisEnchantment
-              , If (Concludes WinGame
+              , If (CompareAmt (CountersOn Omen Macros.thisEnchantment)
+                               AtMost (Lit 0))
+                   (Concludes WinGame
                       (Definite (And [AnyPlayer,
                                       Superlative MaxOf (PlayerStatAxis LifeTotal)
                                                   AnyPlayer])))
-                   (CompareAmt (CountersOn Omen Macros.thisEnchantment)
-                               AtMost (Lit 0))
                    Nothing
-              , If GameDrawn
-                   (CompareAmt (CountOf (And [AnyPlayer,
+              , If (CompareAmt (CountOf (And [AnyPlayer,
                                               Superlative MaxOf
                                                 (PlayerStatAxis LifeTotal)
                                                 AnyPlayer]))
                                AtLeast (Lit 2))
+                   GameDrawn
                    Nothing ]) ]
        Nothing
 
@@ -2180,8 +2181,8 @@ secretsOfTheGoldenCity =
        (MkTypeLine [] [Sorcery])
        [ KeywordAbility Ascend
        , Spell (InsteadOf (Draw You (Lit 2))
-                          (If (Draw You (Lit 3))
-                              (Matches You (HasDesignation CitysBlessing))
+                          (If (Matches You (HasDesignation CitysBlessing))
+                              (Draw You (Lit 3))
                               Nothing)) ]
        Nothing
 
@@ -2245,9 +2246,9 @@ jushiApprentice =
   Activated (Compound [Mana [Macros.generic 2, Macros.pip Blue], TapSymbol])
             (Sequentially
                [ Macros.drawACard
-               , If (SetStatus Flipped Macros.thisCreature)
-                    (CompareAmt (CountOf (InZone (Macros.handOf You)))
+               , If (CompareAmt (CountOf (InZone (Macros.handOf You)))
                                 AtLeast (Lit 9))
+                    (SetStatus Flipped Macros.thisCreature)
                     Nothing ])
 
 
@@ -4322,9 +4323,9 @@ cursedScroll =
                       [ Choose (Macros.a (QualityNoun CardName))
                       , Macros.revealCards
                           (Macros.aAtRandom (InZone (Macros.handOf You)))
-                      , If (DealDamage Macros.thisArtifact (Lit 2)
+                      , If (Matches (That CardW) (Named ChosenName))
+                           (DealDamage Macros.thisArtifact (Lit 2)
                               (Macros.target AnyTarget))
-                           (Matches (That CardW) (Named ChosenName))
                            Nothing ]) ]
        Nothing
 
@@ -4338,9 +4339,9 @@ magusOfTheScroll =
                       [ Choose (Macros.a (QualityNoun CardName))
                       , Macros.revealCards
                           (Macros.aAtRandom (InZone (Macros.handOf You)))
-                      , If (DealDamage Macros.thisCreature (Lit 2)
+                      , If (Matches (That CardW) (Named ChosenName))
+                           (DealDamage Macros.thisCreature (Lit 2)
                               (Macros.target AnyTarget))
-                           (Matches (That CardW) (Named ChosenName))
                            Nothing ]) ]
        (Just (1, 1))
 
@@ -4404,9 +4405,9 @@ candlesOfLeng =
        [ Activated (Compound [Mana [Macros.generic 4], TapSymbol])
            (Sequentially
               [ Macros.revealCards Macros.topCard
-              , If (Move It Macros.graveyardZ)
-                   (Matches It (Named (SameNameAs
+              , If (Matches It (Named (SameNameAs
                                   (Macros.a (InZone (Macros.graveyardOf You))))))
+                   (Move It Macros.graveyardZ)
                    (Just Macros.drawACard) ]) ]
        Nothing
 
@@ -5623,8 +5624,8 @@ disruptingShoal =
                    (Macros.a (And [ColorIs Blue,
                                    Compare ManaValue Eq XVal,
                                    InZone (Macros.handOf You)]))))))
-       , Spell (If (Macros.counterSpell (Macros.target Macros.spell))
-                   (CompareAmt (Macros.manaValueOf It) Eq XVal) Nothing) ]
+       , Spell (OnlyIf (Macros.counterSpell (Macros.target Macros.spell))
+                       (CompareAmt (Macros.manaValueOf It) Eq XVal) Nothing) ]
        Nothing
 
 ||| Mana Leak: "Counter target spell unless its controller pays {3}."
@@ -5785,9 +5786,9 @@ sarkhansUnsealingLine =
 public export
 savageSwipeLine : Effect []
 savageSwipeLine =
-  If (Macros.gets (Macros.target Macros.creatureYouControl) (PtUp (Lit 2))
-                  (PtUp (Lit 2)) (Just Macros.untilEndOfTurn))
-     (CompareAmt (Macros.powerOf It) Eq (Lit 2)) Nothing
+  OnlyIf (Macros.gets (Macros.target Macros.creatureYouControl) (PtUp (Lit 2))
+                      (PtUp (Lit 2)) (Just Macros.untilEndOfTurn))
+         (CompareAmt (Macros.powerOf It) Eq (Lit 2)) Nothing
 
 public export
 drudgeSkeletons : Card
@@ -6304,11 +6305,11 @@ dreamThief =
        (MkTypeLine [Faerie, Rogue] [Creature])
        [ KeywordAbility Flying
        , Triggered When (Enters Macros.thisCreature)
-           (If Macros.drawACard
-               (Macros.happenedInvolving SpellCast You Lookback.ThisTurn
-                                         (Macros.a (And [Macros.spell, ColorIs Blue,
-                                                         OtherThan This])))
-               Nothing) ]
+           (OnlyIf Macros.drawACard
+                   (Macros.happenedInvolving SpellCast You Lookback.ThisTurn
+                                             (Macros.a (And [Macros.spell, ColorIs Blue,
+                                                             OtherThan This])))
+                   Nothing) ]
        (Just (2, 1))
 
 public export
@@ -6506,8 +6507,7 @@ approachOfTheSecondSun : Card
 approachOfTheSecondSun =
   Macros.card "Approach of the Second Sun"
        (Just [Macros.generic 6, Macros.pip White]) [] (MkTypeLine [] [Sorcery])
-       [ Spell (If (Concludes WinGame You)
-                   (AndCond
+       [ Spell (If (AndCond
                       [ Matches This (CastFrom (Macros.handOf You))
                       , Macros.happenedInvolving SpellCast
                                                  You
@@ -6515,6 +6515,7 @@ approachOfTheSecondSun =
                                                  (Macros.a (And [Macros.spell, OtherThan This,
                                                                  Named (PrintedName
                                                                           "Approach of the Second Sun")])) ])
+                   (Concludes WinGame You)
                    (Just (Sequentially
                             [ Move This (Macros.nthFromTop Seventh)
                             , Macros.gainsLife You (Lit 7) ]))) ]
@@ -6676,12 +6677,12 @@ answeredPrayers =
        (MkTypeLine [] [Enchantment])
        [ Triggered When (Enters (Macros.a Macros.creatureYouControl))
            (Sequentially [Macros.gainsLife You (Lit 1),
-                          If (Macros.becomesAs Macros.thisEnchantment
+                          If (NotCond (Matches Macros.thisEnchantment Macros.creature))
+                             (Macros.becomesAs Macros.thisEnchantment
                                                (MkToken (Just (Lit 3, Lit 3)) []
                                                         (MkTypeLine [Angel] [Creature])
                                                         [KeywordAbility Flying] Nothing)
                                                (Just Macros.untilEndOfTurn))
-                             (NotCond (Matches Macros.thisEnchantment Macros.creature))
                              Nothing]) ]
        Nothing
 
@@ -6761,9 +6762,9 @@ primalSurge =
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
               [ Macros.exile Macros.topCard
-              , If (Macros.mayThen You (Macros.putOntoBattlefield It)
+              , If (Macros.itsA Permanent)
+                   (Macros.mayThen You (Macros.putOntoBattlefield It)
                                        (Repeat Again))
-                   (Macros.itsA Permanent)
                    Nothing ]) ]
        Nothing
 
@@ -6795,9 +6796,9 @@ zimoneAndDina =
        , Macros.may You (Macros.putOntoBattlefieldTapped
                            (Macros.a (And [Macros.land,
                                            InZone (Macros.handOf You)])))
-       , If (Repeat (MoreTimes (Lit 1)))
-            (CompareAmt (CountOf (And [Macros.land, ControlledBy You]))
+       , If (CompareAmt (CountOf (And [Macros.land, ControlledBy You]))
                         AtLeast (Lit 8))
+            (Repeat (MoreTimes (Lit 1)))
             Nothing ])
 
 public export
@@ -6889,10 +6890,10 @@ public export
 galvanicBlastLine : Effect []
 galvanicBlastLine =
   InsteadOf (DealDamage This (Lit 2) (Macros.target AnyTarget))
-            (If (DealDamage This (Lit 4) (That JoinW))
-                (CompareAmt (CountOf (And [Macros.artifact, ControlledBy You]))
-                            AtLeast (Lit 3))
-                Nothing)
+            (OnlyIf (DealDamage This (Lit 4) (That JoinW))
+                    (CompareAmt (CountOf (And [Macros.artifact, ControlledBy You]))
+                                AtLeast (Lit 3))
+                    Nothing)
 
 public export
 cryptLurker : Card
@@ -7296,9 +7297,9 @@ public export
 nimbleMongoose : Ability
 nimbleMongoose =
   AbilityWord Threshold
-    (Static (Macros.asLongAs (CompareAmt (CountOf (InZone (Macros.graveyardOf You)))
-                                         AtLeast (Lit 7))
-                             (Gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)))))
+    (Static (Macros.onlyWhile (Gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)))
+                              (CompareAmt (CountOf (InZone (Macros.graveyardOf You)))
+                                          AtLeast (Lit 7))))
 
 ||| Ghor-Clan Rampager: "Bloodrush — {R}{G}, Discard this card: Target
 ||| attacking creature gets +4/+4 and gains trample until end of turn." An
@@ -7313,3 +7314,82 @@ ghorClanRampager =
                   [Macros.gets (Macros.target (And [Macros.creature, Attacking]))
                                (PtUp (Lit 4)) (PtUp (Lit 4)) (Just Macros.untilEndOfTurn),
                    Macros.gains It (KeywordAbility Trample) (Just Macros.untilEndOfTurn)]))
+
+
+||| Balance of Power: "If target opponent has more cards in hand than you,
+||| draw cards equal to the difference." The leading condition hands its
+||| consequent the margin; the target written inside the condition is
+||| announced at casting like any other [CR#601.2c].
+public export
+balanceOfPower : Effect []
+balanceOfPower =
+  If (CompareAmt (CountOf (InZone (Macros.handOf (Macros.target Opponent))))
+                 Greater
+                 (CountOf (InZone (Macros.handOf You))))
+     (Draw You TheDifference)
+     Nothing
+
+||| Vraska, Betrayal's Sting: "[-9]: If target player has fewer than nine
+||| poison counters, they get a number of poison counters equal to the
+||| difference." The second leading-condition margin read, with the target
+||| inside the condition.
+public export
+vraskaBetrayalsStingUltimate : Effect []
+vraskaBetrayalsStingUltimate =
+  If (CompareAmt (CountersOn Poison (Macros.target AnyPlayer)) Less (Lit 9))
+     (GetsCounters They TheDifference Poison)
+     Nothing
+
+||| Iymrith, Desert Doom's draw line: "Draw a card. Then if you have fewer
+||| than three cards in hand, draw cards equal to the difference."
+public export
+iymrithGapDraw : Effect []
+iymrithGapDraw =
+  Sequentially [ Macros.drawACard
+               , If (CompareAmt (CountOf (InZone (Macros.handOf You)))
+                                Less (Lit 3))
+                    (Draw You TheDifference)
+                    Nothing ]
+
+||| Iymrith, Desert Doom's static: "Iymrith has ward {4} as long as it's
+||| untapped." Benched at Dragonlord Ojutai's simpler spelling of the same
+||| shape, "has hexproof as long as it's untapped": the condition is written
+||| after the statement and pronominalises the statement's own subject, which
+||| only the postposed orientation can read.
+public export
+dragonlordOjutaiHexproof : Ability
+dragonlordOjutaiHexproof =
+  Static (Macros.onlyWhile (Gains Macros.thisCreature (KeywordAbility Hexproof))
+                           (Matches It (HasStatus Untapped)))
+
+||| Caustic Bronco's loss line: "You lose life equal to that card's mana
+||| value if this creature isn't saddled. Otherwise, each opponent loses that
+||| much life." The arm reads the quantity the then-branch wrote, not a deed
+||| that happened.
+public export
+causticBroncoLoss : Effect []
+causticBroncoLoss =
+  Sequentially [ Macros.revealCards Macros.topCard
+               , Move (That CardW) Macros.handZ
+               , OnlyIf (Macros.losesLife You (Macros.manaValueOf It))
+                        (NotCond (Matches Macros.thisCreature (HasDesignation Saddled)))
+                        (Just (Macros.losesLife (Each Opponent) ThatMuch)) ]
+
+||| Gadrak, the Crown-Scourge: "Gadrak can't attack unless you control four
+||| or more artifacts." The counted "unless" on the postposed static.
+public export
+gadrakCantAttack : Ability
+gadrakCantAttack =
+  Static (Macros.onlyUnless (Deontic Macros.thisCreature Forbid Attack Agent
+                                     NoDeonticPatient)
+                            (CompareAmt (CountOf (And [Macros.artifact, ControlledBy You]))
+                                        AtLeast (Lit 4)))
+
+||| Panglacial Wurm: "While you're searching your library, you may cast this
+||| card from your library." A static permission that functions from the
+||| library [CR#113.6b], confined to the search action [CR#701.23a].
+public export
+panglacialWurmCast : Ability
+panglacialWurmCast =
+  Static (Macros.mayCastFromWhileSearching You This Macros.yourLibrary)
+

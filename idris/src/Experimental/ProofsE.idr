@@ -590,3 +590,26 @@ badTokenCopyAsCopyMention : Unspellable (Effect []) (\ok =>
   Sequentially [Create You (Lit 1) (TokenCopyOf (Macros.target Macros.creature) []) [],
                 SetStatus Untapped (That CopyW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badTokenCopyAsCopyMention (Refl, _) impossible
+
+
+||| "If you control a creature, create a 1/1 black Zombie creature token. Otherwise, tap it."
+||| The "Otherwise" arm runs when the condition was false, so the clause it replaces never happened: the leading twin of `badOtherwiseReadsIfArm`.
+public export
+badOtherwiseReadsLeadingArm : Unspellable (Effect []) (\ok =>
+  If (Exists Macros.creatureYouControl)
+     (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [Zombie]))
+     (Just (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
+badOtherwiseReadsLeadingArm (Refl, _) impossible
+
+
+||| "If you have less life than an opponent, you gain 6 life. That player loses 1 life."
+||| A condition holds or fails; a player it named is a referent only inside the clause it governs, and the clause exports nothing.
+public export
+badLeadingConditionAntecedent : Unspellable (Effect []) (\ok =>
+  Sequentially [If (CompareAmt (PlayerStatOf LifeTotal You) Less
+                               (PlayerStatOf LifeTotal Macros.anOpponent))
+                   (Macros.gainsLife You (Lit 6))
+                   Nothing,
+                Macros.losesLife (That PlayerW {ok}) (Lit 1)])
+badLeadingConditionAntecedent Refl impossible
+

@@ -361,6 +361,15 @@ data PlayAsThough = HadFlash
 public export
 data PlayLimit = OnceEachYourTurn | OnceEachTurn
 
+||| A moment a static play permission is confined to. The one arm is a
+||| library search [CR#701.23a], during which a card in that library may be
+||| cast by a permission that functions from the library [CR#113.6b]
+||| (Panglacial Wurm). No subrule of [CR#701.23] states that a player may
+||| cast a spell mid-search; the search action itself is what the window
+||| names.
+public export
+data PlayWindow = WhileSearchingLibrary
+
 
 public export
 castComplementOk : Maybe Zone -> Bool

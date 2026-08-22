@@ -2020,16 +2020,34 @@ mutual
     MkMarkingOk : {0 c : Condition bs} ->
                   {auto 0 ok : So (markingOk m c)} -> MarkingOk m c
 
+  ||| What a condition introduces for the clause it governs to read: the
+  ||| statement's own subject re-mentioned, so the body may say "it"
+  ||| (Adanto Vanguard); a comparison's margin, "the difference"; and the
+  ||| phrases a comparison's two amounts name — a target inside a
+  ||| condition is announced at casting like any other [CR#601.2c]. A
+  ||| described set, a lookback, a designation check and a negation
+  ||| introduce nothing: they test, and name no referent.
   public export
   condDelta : {bs : Bindings} -> Condition bs -> List Binding
-  condDelta (Exists p) = []
+  condDelta (Exists _) = []
   condDelta (Happened _ _ _) = []
   condDelta (GameIs _) = []
   condDelta (NoHolder _) = []
-  condDelta (Matches n p) = []
-  condDelta (CompareAmt subj r bound) = []
-  condDelta (NotCond c) = []
-  condDelta (AndCond cs) = []
+  condDelta (Matches (AsType t This) _) =
+    [MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
+  condDelta (Matches (AttachHost _ (TypeW t)) _) =
+    [MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
+  condDelta (Matches (AttachHost _ PermanentW) _) =
+    [MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing)]
+  condDelta (Matches _ _) = []
+  condDelta (CompareAmt subj _ bound) = gapB :: (amtDelta bound ++ amtDelta subj)
+  condDelta (NotCond _) = []
+  condDelta (AndCond cs) = condDeltaAll cs
+
+  public export
+  condDeltaAll : {bs : Bindings} -> List (Condition bs) -> List Binding
+  condDeltaAll [] = []
+  condDeltaAll (c :: cs) = condDelta c ++ condDeltaAll cs
 
   public export
   data Duration : Bindings -> Type where
@@ -2309,25 +2327,8 @@ mutual
   selfSubjIntro n = nomIntro n
 
   public export
-  condMint : {bs : Bindings} -> Condition bs -> List Binding
-  condMint (Matches (AsType t This) _) =
-    [MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
-  condMint (Matches (AttachHost _ (TypeW t)) _) =
-    [MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
-  condMint (Matches (AttachHost _ PermanentW) _) =
-    [MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing)]
-  condMint (CompareAmt _ _ _) = [gapB]
-  condMint (AndCond cs) = condMintAll cs
-  condMint _ = []
-
-  public export
-  condMintAll : {bs : Bindings} -> List (Condition bs) -> List Binding
-  condMintAll [] = []
-  condMintAll (c :: cs) = condMint c ++ condMintAll cs
-
-  public export
   condIntro : {bs : Bindings} -> Condition bs -> Bindings
-  condIntro c = condMint c ++ bs
+  condIntro c = condDelta c ++ bs
 
   public export
   interveningIntro : {bs : Bindings} -> Maybe (Condition bs) -> Bindings
@@ -2746,11 +2747,24 @@ mutual
                     {default AsLongAs marking : CondMarking} ->
                     {auto 0 nn : NotConditional se} ->
                     {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
+    ||| The postposed static conditional, "[se] as long as [c]" / "[se]
+    ||| unless [c]": the condition is written after the statement and reads
+    ||| the statement's own subject ("has hexproof as long as IT's
+    ||| untapped"), so it sits at `staticIntro se`. `Conditionally` is the
+    ||| leading twin, whose statement reads the condition; neither is a
+    ||| macro over the other and neither reads forward.
+    ||| -- spelling: "[se] as long as [c]"; under `NotCond` with `Unless`,
+    ||| "[se] unless [c]".
+    OnlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
+                {default AsLongAs marking : CondMarking} ->
+                {auto 0 nn : NotConditional se} ->
+                {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
     MayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               {default Play verb : PlayVerb} ->
               {default Nothing from : Maybe (ZoneExpr (nomIntro what))} ->
               {default Nothing asThough : Maybe PlayAsThough} ->
               {default Nothing limit : Maybe PlayLimit} ->
+              {default Nothing window : Maybe PlayWindow} ->
               {auto 0 pz : PlaySource (nounZone what) from asThough} ->
               {auto 0 cv : CastableTy verb (nounTy what)} -> StaticEffect bs
     Visibility : (v : ExposeVerb) -> (who : Noun bs Player) ->
@@ -2797,6 +2811,7 @@ mutual
   public export
   notConditional : {0 bs : Bindings} -> StaticEffect bs -> Bool
   notConditional (Conditionally _ _) = False
+  notConditional (OnlyWhile _ _) = False
   notConditional _ = True
 
 
@@ -2928,6 +2943,7 @@ mutual
   staticKind (RedirectsFrom _ _ _ _ _) = Replacement
   staticKind (Scales _ _ _ _ _) = Replacement
   staticKind (Conditionally _ _) = Conditional
+  staticKind (OnlyWhile _ _) = Conditional
   staticKind (AlsoOffBattlefield se) = staticKind se
   staticKind (MayPlay _ _) = PlayPermission
   staticKind (Visibility _ _ _) = VisibilityRider
@@ -2973,6 +2989,7 @@ mutual
   staticIntro (RedirectsFrom kind src scope to use) = nomIntro to
   staticIntro (Scales kind src scope op use) = scaleIntro op
   staticIntro (Conditionally c se) = staticIntro se
+  staticIntro (OnlyWhile se c) = staticIntro se
   staticIntro (AlsoOffBattlefield se) = staticIntro se
   staticIntro (MayPlay who what) = selfSubjIntro what
   staticIntro (Visibility _ who _) = nomIntro who
@@ -3281,8 +3298,22 @@ mutual
     May : (offer : Maybe (Noun bs Player)) -> (body : Effect (mayCtx offer)) ->
           (ifDid : Maybe (Effect (effIntro body))) ->
           (ifNot : Maybe (Effect (mayCtx offer))) -> Effect bs
-    If : (e : Effect bs) -> (c : Condition (preIntro e)) ->
-         (otherwise : Maybe (Effect bs)) -> Effect bs
+    ||| The postposed conditional, "[e] if [c]" / "[e] unless [c]": the
+    ||| condition is written after the clause and reads what the clause has
+    ||| announced — "Counter target spell if it's red" — and is checked as
+    ||| the clause resolves, before the deed, so it sits at `preIntro e`.
+    ||| Not a macro over `If`: the two introduce mentions in different
+    ||| places, and oracle text reads backward only.
+    ||| -- spelling: "[e] if [c]"; under `NotCond`, "[e] unless [c]".
+    OnlyIf : (e : Effect bs) -> (c : Condition (preIntro e)) ->
+             (otherwise : Maybe (Effect (otherwiseCtx e))) -> Effect bs
+    ||| The leading conditional, "If [c], [e]. Otherwise, [o].": the
+    ||| consequent reads what the condition introduced (`condDelta`) — a
+    ||| comparison's margin, a phrase a comparison named. The otherwise
+    ||| arm reads `otherwiseCtx e`.
+    ||| -- spelling: "If [c], [e]."; with the arm, "… Otherwise, [o]."
+    If : (c : Condition bs) -> (e : Effect (condIntro c)) ->
+         (otherwise : Maybe (Effect (otherwiseCtx e))) -> Effect bs
     ||| "[Do something] unless [a player does something else]" [CR#118.12a],
     ||| carried for the cost arm: the offer is written after the effect, so
     ||| the payer reads what the effect has already named. A conditional
@@ -3386,6 +3417,7 @@ mutual
   heldUntilOk (Does _ _ _) = False
   heldUntilOk (Pay _ _) = False
   heldUntilOk (May _ _ _ _) = False
+  heldUntilOk (OnlyIf _ _ _) = False
   heldUntilOk (If _ _ _) = False
   heldUntilOk (Unless _ _ _) = False
   heldUntilOk (WhereLetter _ _ _) = False
@@ -3461,6 +3493,7 @@ mutual
   -- do, so a declined arm leaves one offered action to inflect.
   reflexEncloseUse (May _ body Nothing _) = reflexEncloseUse body
   reflexEncloseUse (May _ _ _ _) = EncNotOneAction
+  reflexEncloseUse (OnlyIf _ _ _) = EncNotOneAction
   reflexEncloseUse (If _ _ _) = EncNotOneAction
   reflexEncloseUse (Unless _ _ _) = EncNotOneAction
   reflexEncloseUse (WhereLetter _ _ _) = EncNotOneAction
@@ -3537,6 +3570,7 @@ mutual
   thisWayOutcomeOk (Composite _ _) = True
   thisWayOutcomeOk (Does _ _ _) = True
   thisWayOutcomeOk (Pay _ _) = True
+  thisWayOutcomeOk (OnlyIf _ _ _) = True
   thisWayOutcomeOk (If _ _ _) = True
   thisWayOutcomeOk (Unless _ _ _) = True
   thisWayOutcomeOk (WhereLetter _ _ _) = True
@@ -3673,7 +3707,8 @@ mutual
   costActionOk (Pay _ _) = False
   costActionOk (May _ body ifDid ifNot) =
     costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
-  costActionOk (If e _ otherwise) = costActionOk e && costActionOkOpt otherwise
+  costActionOk (OnlyIf e _ otherwise) = costActionOk e && costActionOkOpt otherwise
+  costActionOk (If _ e otherwise) = costActionOk e && costActionOkOpt otherwise
   -- an offer another player answers at resolution [CR#118.12a]
   costActionOk (Unless _ _ _) = False
   costActionOk (WhereLetter _ _ body) = costActionOk body
@@ -3779,6 +3814,7 @@ mutual
   effEq (Does _ _ _) _ = False
   effEq (Pay _ _) _ = False
   effEq (May _ _ _ _) _ = False
+  effEq (OnlyIf _ _ _) _ = False
   effEq (If _ _ _) _ = False
   effEq (Unless _ _ _) _ = False
   effEq (WhereLetter _ _ _) _ = False
@@ -4262,7 +4298,9 @@ mutual
   effIntro (Does s v e) = effIntro e
   effIntro (Pay who c) = costIntro c
   effIntro (May d body did notd) = mayIntro body did notd
-  effIntro (If e c oth) = condDelta c ++ bs
+  -- a conditioned clause exports nothing: the condition may have failed.
+  effIntro (OnlyIf e c oth) = bs
+  effIntro (If c e oth) = bs
   effIntro (Unless e who c) = bs
   effIntro (WhereLetter _ def body) = effIntro body
   effIntro (ForEachOf _ _) = bs
@@ -4322,7 +4360,8 @@ mutual
   preIntro (Does s v e) = preIntro e
   preIntro (Pay who c) = nomIntro who
   preIntro (May d body did notd) = mayIntro body did notd
-  preIntro (If e c oth) = condDelta c ++ annIntro e
+  preIntro (OnlyIf e c oth) = annIntro e
+  preIntro (If c e oth) = bs
   preIntro (Unless e who c) = annIntro e
   preIntro (WhereLetter _ def body) = preIntro body
   preIntro (ForEachOf _ _) = bs
@@ -4382,7 +4421,8 @@ mutual
   annIntro (Does s v e) = annIntro e
   annIntro (Pay who c) = nomIntro who
   annIntro (May d body did notd) = annIntro body
-  annIntro (If e c oth) = condDelta c ++ annIntro e
+  annIntro (OnlyIf e c oth) = annIntro e
+  annIntro (If c e oth) = bs
   annIntro (Unless e who c) = annIntro e
   annIntro (WhereLetter _ def body) = annIntro body
   annIntro (ForEachOf _ _) = bs
@@ -4410,9 +4450,20 @@ mutual
   replacedCtx : {bs : Bindings} -> Effect bs -> Bindings
   replacedCtx (Sequentially es) = annSeqs es
   replacedCtx (May d body did notd) = replacedCtx body
-  replacedCtx (If e c oth) = condDelta c ++ replacedCtx e
+  replacedCtx (OnlyIf e c oth) = replacedCtx e
+  replacedCtx (If c e oth) = bs
   replacedCtx (Unless e who c) = replacedCtx e
   replacedCtx e = deedDelta e ++ annIntro e
+
+  ||| The context an "otherwise" arm reads. It is the same ability's
+  ||| alternative and runs when the condition failed, so it is typed as if
+  ||| the branch it replaces were a deed that never happened: the phrases
+  ||| that branch announced at casting [CR#601.2c] and the quantity it
+  ||| wrote ("that much"), but none of the referents the deed would have
+  ||| made — a token it would have created names nothing here.
+  public export
+  otherwiseCtx : {bs : Bindings} -> Effect bs -> Bindings
+  otherwiseCtx e = outcomesOnly (deedDelta e) ++ annIntro e
 
   ||| A sequence announces every deed it strings together, so a replacement
   ||| over the whole sequence reads the quantity any of them named.
@@ -4474,7 +4525,8 @@ mutual
   deedDelta (Does s v e) = deedDelta e
   deedDelta (Pay who c) = []
   deedDelta (May d body did notd) = []
-  deedDelta (If e c oth) = []
+  deedDelta (OnlyIf e c oth) = []
+  deedDelta (If c e oth) = []
   deedDelta (Unless e who c) = []
   deedDelta (WhereLetter _ _ _) = []
   deedDelta (ForEachOf _ _) = []
@@ -4704,6 +4756,7 @@ mutual
   public export
   statKeyword : {0 bs : Bindings} -> StaticEffect bs -> Maybe Keyword
   statKeyword (Conditionally _ se) = statKeyword se
+  statKeyword (OnlyWhile se _) = statKeyword se
   statKeyword (Gains _ ab) = grantedKeyword ab
   statKeyword _ = Nothing
 
@@ -5141,6 +5194,7 @@ staticOnSpellCardOk (ObjectCant Countered _) = True
 staticOnSpellCardOk (ObjectCant Copied _) = True
 staticOnSpellCardOk (AltCost _) = True
 staticOnSpellCardOk (Conditionally _ se) = staticOnSpellCardOk se
+staticOnSpellCardOk (OnlyWhile se _) = staticOnSpellCardOk se
 staticOnSpellCardOk _ = False
 
 public export
@@ -5191,6 +5245,7 @@ staticDefinesPt : {0 bs : Bindings} -> StaticEffect bs -> Maybe DefinedSlots
 staticDefinesPt (DefinesPt _ sl _) = Just sl
 staticDefinesPt (WhereLetterStatic _ _ se) = staticDefinesPt se
 staticDefinesPt (Conditionally _ se) = staticDefinesPt se
+staticDefinesPt (OnlyWhile se _) = staticDefinesPt se
 staticDefinesPt _ = Nothing
 
 ||| [CR#207.2c] gives the ability word no rules meaning, so a characteristic-

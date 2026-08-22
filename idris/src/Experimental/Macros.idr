@@ -1226,10 +1226,10 @@ public export
 monstrosity : {bs : Bindings} -> (amt : Amount bs) ->
               Effect bs
 monstrosity amt =
-  If (Sequentially [ PutCounters amt plusOnePlusOne thisCreature
+  If (notSo (Matches thisCreature (HasDesignation Monstrous)))
+     (Sequentially [ PutCounters amt plusOnePlusOne thisCreature
                    , GainsDesignation thisCreature Monstrous
                                       (InExpansionOf MonstrosityW) ])
-     (notSo (Matches thisCreature (HasDesignation Monstrous)))
      Nothing
 
 ||| Ascend's expansion body [CR#702.131a]: "you get the city's blessing
@@ -1260,3 +1260,62 @@ thereIsNo : (d : Designation) ->
             {auto 0 sc : designationScope d = HeldBy Player} ->
             {auto 0 at : So (designationChecked d)} -> Condition bs
 thereIsNo d = NoHolder d {sc} {at}
+
+||| "If [c], [e]."
+public export
+ifThen : (c : Condition bs) -> Effect (condIntro c) -> Effect bs
+ifThen c e = If c e Nothing
+
+||| "If [c], [e]. Otherwise, [o]."
+public export
+ifThenElse : (c : Condition bs) -> (e : Effect (condIntro c)) ->
+             Effect (otherwiseCtx e) -> Effect bs
+ifThenElse c e o = If c e (Just o)
+
+||| "[e] if [c]."
+public export
+onlyIf : (e : Effect bs) -> Condition (preIntro e) -> Effect bs
+onlyIf e c = OnlyIf e c Nothing
+
+||| "[e] unless [c]." — the conditional unless, beside the cost arm `Unless`.
+public export
+onlyIfNot : (e : Effect bs) -> Condition (preIntro e) -> Effect bs
+onlyIfNot e c = OnlyIf e (NotCond c) Nothing
+
+||| "[se] as long as [c]."
+public export
+onlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
+            {auto 0 nn : NotConditional se} -> StaticEffect bs
+onlyWhile se c = OnlyWhile se c {nn}
+
+||| "[se] unless [c]."
+public export
+onlyUnless : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
+             {auto 0 nn : NotConditional se} -> StaticEffect bs
+onlyUnless se c = OnlyWhile se (NotCond c) {marking = Unless} {nn}
+
+||| "[body], where [w] is [def]": the letter's definition written after the
+||| clause it scopes over, as English postposes it. The letter is a name the
+||| ability defines once [CR#107.3], so the core keeps the binder first and
+||| this macro restores the English order.
+public export
+whereLetter : (w : LetterWord) -> (body : Effect (Experimental.Words.letterB w :: bs)) ->
+              (def : Amount bs) -> Effect bs
+whereLetter w body def = WhereLetter w def body
+
+||| "[se], where [w] is [def]": the static twin.
+public export
+whereLetterStatic : (w : LetterWord) ->
+                    (se : StaticEffect (Experimental.Words.letterB w :: bs)) ->
+                    (def : Amount bs) -> StaticEffect bs
+whereLetterStatic w se def = WhereLetterStatic w def se
+
+||| "While you're searching your library, you may cast <what> from <zone>."
+public export
+mayCastFromWhileSearching : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+                            (from : ZoneExpr (nomIntro what)) ->
+                            {auto 0 pz : PlaySource (nounZone what) (Just from) Nothing} ->
+                            {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+mayCastFromWhileSearching who what from =
+  MayPlay who what {verb = Cast} {from = Just from}
+          {window = Just WhileSearchingLibrary} {pz} {cv}

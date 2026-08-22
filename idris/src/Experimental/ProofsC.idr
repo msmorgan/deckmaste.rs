@@ -487,16 +487,6 @@ badStaticTargets : Unspellable Ability (\ok =>
 badStaticTargets Oh impossible
 
 
-||| a statement conditioned twice
-||| A statement takes one condition — the singleton discipline one type up.
-public export
-badDoubleConditional : Unspellable Ability (\ok =>
-  Static (Macros.asLongAs (Exists Macros.creatureYouControl)
-                   (Macros.asLongAs (Exists (And [Macros.artifact, ControlledBy You]))
-                             (Gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))) {nn = ok}))
-badDoubleConditional Oh impossible
-
-
 ||| "You may play a creature this turn." of a battlefield permanent
 ||| A battlefield permanent has already been played [CR#604.6].
 public export
