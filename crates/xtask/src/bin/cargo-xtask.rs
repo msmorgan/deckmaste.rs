@@ -135,6 +135,56 @@ mod tests {
     }
 
     #[test]
+    fn english_v2_plan_gate_requires_exact_profile_and_gate_names() {
+        for gate in [
+            "expand",
+            "report",
+            "parse",
+            "roundtrip",
+            "ambiguity",
+            "coverage",
+            "require-complete",
+        ] {
+            let cli = Cli::try_parse_from([
+                "cargo xtask",
+                "english_v2",
+                "plan-gate",
+                "--profile",
+                "07",
+                "--gate",
+                gate,
+            ])
+            .expect("Plan 07 accepts each exact named timing gate");
+            assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+        }
+
+        for args in [
+            vec!["cargo xtask", "english_v2", "plan-gate"],
+            vec![
+                "cargo xtask",
+                "english_v2",
+                "plan-gate",
+                "--profile",
+                "7",
+                "--gate",
+                "expand",
+            ],
+            vec!["cargo xtask", "english_v2", "plan-gate", "--profile", "07"],
+            vec![
+                "cargo xtask",
+                "english_v2",
+                "plan-gate",
+                "--profile",
+                "07",
+                "--gate",
+                "complete",
+            ],
+        ] {
+            assert!(Cli::try_parse_from(args).is_err());
+        }
+    }
+
+    #[test]
     fn english_v2_commands_coverage_accepts_only_its_exact_flags() {
         for args in [
             vec!["cargo xtask", "english_v2", "coverage"],

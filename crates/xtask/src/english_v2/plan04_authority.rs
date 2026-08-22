@@ -70,6 +70,7 @@ const INVENTORY_FILES: &[&str] = &[
     "crates/xtask/src/english_v2/probe.rs",
     "crates/xtask/src/english_v2/report.rs",
     "crates/xtask/src/english_v2/roundtrip.rs",
+    "crates/xtask/src/english_v2/timing.rs",
 ];
 
 const CONSTRUCTIONS_PATH: &str = "crates/deckmaste_english_v2/src/constructions.rs";

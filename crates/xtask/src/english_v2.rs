@@ -13,6 +13,7 @@ mod plan04_authority;
 mod probe;
 mod report;
 mod roundtrip;
+mod timing;
 
 use std::fmt::Write as _;
 use std::fs;
@@ -62,6 +63,8 @@ enum EnglishV2Command {
     Ambiguity(AmbiguityArgs),
     /// Report and gate full-corpus lexical ownership coverage.
     Coverage(CoverageArgs),
+    /// Run one named Plan-boundary command under its elapsed-time gate.
+    PlanGate(timing::PlanGateArgs),
     /// Trace one explicit input through the bounded parser diagnostics.
     Probe(ProbeArgs),
     /// Trace one exact corpus unit through the bounded parser diagnostics.
@@ -184,6 +187,10 @@ pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
         EnglishV2Command::Coverage(args) => {
             let mut stdout = std::io::stdout().lock();
             coverage::run(args, &mut stdout)
+        }
+        EnglishV2Command::PlanGate(args) => {
+            let mut stdout = std::io::stdout().lock();
+            timing::run(args, &mut stdout)
         }
         EnglishV2Command::Probe(args) => {
             let mut stdout = std::io::stdout().lock();
@@ -329,7 +336,168 @@ mod tests {
     }
 
     const PRODUCTION_SOURCE: &str = include_str!("../../deckmaste_english_v2/src/constructions.rs");
+    const PLAN06_COVERED_IDS: &str = include_str!("english_v2/plan06_covered_ids.txt");
+    const PLAN07_TARGETS: &str = include_str!("english_v2/plan07_targets.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
+
+    fn sha256_hex(bytes: &[u8]) -> String {
+        use std::fmt::Write as _;
+
+        use sha2::Digest as _;
+
+        sha2::Sha256::digest(bytes)
+            .iter()
+            .fold(String::new(), |mut hexadecimal, byte| {
+                write!(&mut hexadecimal, "{byte:02x}").expect("writing to String cannot fail");
+                hexadecimal
+            })
+    }
+
+    #[test]
+    fn plan07_target_manifest_authenticates_frozen_classifier_evidence() {
+        const EXPECTED_HEADERS: [&str; 7] = [
+            "# English v2 Plan 07 frozen corpus target manifest",
+            "# classifier_schema=1",
+            "# source_fingerprint=e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
+            "# baseline_covered=412",
+            "# classified=145",
+            "# baseline_status=parse_failure",
+            "# columns=category\\tid\\tcard_name\\tface_name\\tside\\tcontext_name\\ttext",
+        ];
+        const EXPECTED_COUNTS: [(&str, usize); 13] = [
+            ("damage.any-target", 25),
+            ("damage.binary-target-coordination", 8),
+            ("damage.each-bare-head", 7),
+            ("damage.one-prenominal-modifier", 2),
+            ("destroy.all-bare-plural", 16),
+            ("destroy.all-binary-coordination", 4),
+            ("destroy.all-one-modifier", 12),
+            ("destroy.binary-target-coordination", 17),
+            ("destroy.fixed-or-x-target-count", 7),
+            ("destroy.one-prenominal-modifier", 31),
+            ("destroy.oxford-target-list", 5),
+            ("destroy.simple-power-toughness-comparison", 9),
+            ("destroy.target-bare-carrier", 2),
+        ];
+
+        assert!(PLAN07_TARGETS.ends_with("\n\n"));
+        assert_eq!(
+            PLAN07_TARGETS.lines().take(7).collect::<Vec<_>>(),
+            EXPECTED_HEADERS,
+        );
+        assert_eq!(
+            sha256_hex(PLAN07_TARGETS.as_bytes()),
+            "3535a10fd5bcecc86dee14c1df28d4f66478f724b0dc465945063a6efb01723d",
+        );
+
+        let rows = PLAN07_TARGETS
+            .lines()
+            .skip(7)
+            .filter(|line| !line.is_empty())
+            .map(|line| line.split('\t').collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        assert_eq!(rows.len(), 145);
+
+        assert_eq!(
+            sha256_hex(PLAN06_COVERED_IDS.as_bytes()),
+            "b611c795eb5dd6ede2c4dd9394e0dbed6154258992e72f6f618b12ffd6dace01",
+        );
+        assert_eq!(
+            PLAN06_COVERED_IDS.lines().take(5).collect::<Vec<_>>(),
+            [
+                "# English v2 Plan 06 frozen covered-ID membership",
+                "# fixture_schema=1",
+                "# source_fingerprint=e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
+                "# covered=412",
+                "# columns=id",
+            ],
+        );
+        assert!(PLAN06_COVERED_IDS.ends_with("\n\n"));
+        let baseline_ids = PLAN06_COVERED_IDS
+            .lines()
+            .skip(6)
+            .filter(|line| !line.is_empty())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(baseline_ids.len(), 412);
+        assert!(baseline_ids.iter().all(|id| {
+            id.len() == 64
+                && id
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        }));
+        assert_eq!(
+            baseline_ids.iter().copied().collect::<Vec<_>>(),
+            PLAN06_COVERED_IDS
+                .lines()
+                .skip(6)
+                .filter(|line| !line.is_empty())
+                .collect::<Vec<_>>(),
+            "frozen Plan 06 IDs must be strictly sorted and unique",
+        );
+
+        let mut previous_id: Option<&str> = None;
+        let mut counts = std::collections::BTreeMap::new();
+        let mut destroy = 0;
+        let mut damage = 0;
+        let lock: serde_json::Value =
+            serde_json::from_str(include_str!("../../../english-v2-coverage.lock"))
+                .expect("the integrated coverage lock parses");
+        let covered = lock["covered"]
+            .as_array()
+            .expect("schema-2 coverage lock has covered identities")
+            .iter()
+            .map(|id| id.as_str().expect("covered identity is a string"))
+            .collect::<std::collections::BTreeSet<_>>();
+        assert!(covered.len() >= 412);
+        assert!(
+            baseline_ids.is_subset(&covered),
+            "the evolving coverage lock must retain every frozen Plan 06 identity",
+        );
+
+        for fields in rows {
+            assert_eq!(fields.len(), 7, "manifest row has complete metadata");
+            let [
+                category,
+                id,
+                card_name,
+                _face_name,
+                _side,
+                context_name,
+                text,
+            ] = fields.as_slice()
+            else {
+                unreachable!("the seven-column assertion just succeeded")
+            };
+            assert_eq!(id.len(), 64);
+            assert!(
+                id.bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+            );
+            if let Some(previous) = previous_id {
+                assert!(
+                    previous < *id,
+                    "manifest IDs must be strictly sorted and unique"
+                );
+            }
+            previous_id = Some(id);
+            assert!(!card_name.is_empty());
+            assert!(!context_name.is_empty());
+            assert!(!text.is_empty());
+            assert!(
+                !baseline_ids.contains(id),
+                "Plan 07 target overlaps Plan 06"
+            );
+            *counts.entry(*category).or_insert(0usize) += 1;
+            if category.starts_with("destroy.") {
+                destroy += 1;
+            } else if category.starts_with("damage.") {
+                damage += 1;
+            }
+        }
+
+        assert_eq!(counts.into_iter().collect::<Vec<_>>(), EXPECTED_COUNTS);
+        assert_eq!((destroy, damage), (103, 42));
+    }
 
     fn parse_probe_args(root: Option<&str>, json: bool, text: &str) -> ProbeArgs {
         use clap::Parser as _;
