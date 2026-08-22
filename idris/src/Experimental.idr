@@ -4660,7 +4660,32 @@ mutual
     AlsoForKeywords : (ab : AbilityAt bs) -> (ks : List Keyword) ->
                       {auto 0 ex : KeywordExtendable ab} ->
                       {auto 0 lk : KeywordListOk ab ks} -> AbilityAt bs
+    ||| [CR#207.2c]: an ability word prefixes an ability of any kind and has
+    ||| no special rules meaning, so it wraps `AbilityAt` — the type
+    ||| enclosing every ability kind — rather than any one of them, and the
+    ||| rules-facing functions below read straight through it. Homed in this
+    ||| grammar by user ruling: with no rules meaning there is nothing for
+    ||| the core ability model or its `.ron` kinds to carry, and the word is
+    ||| printed text the spelling layer must still be able to write.
+    ||| The rule puts the word at the *beginning* of the ability, so it is
+    ||| the outermost wrapper: `lineKeyword` reads no keyword through it,
+    ||| which keeps `AlsoForKeywords` inside the word rather than outside.
+    AbilityWord : (word : AbilityWordName) -> (ab : AbilityAt bs) ->
+                  {auto 0 nw : NotAbilityWorded ab} -> AbilityAt bs
 
+
+  ||| One word per ability: [CR#207.2c] gives the word the beginning of an
+  ||| ability, and a word wrapping a worded ability spells no second
+  ||| beginning — the inner ability is the same ability. Mirrors the
+  ||| no-nesting gate `AlsoForKeywords` gets from `lineKeyword`.
+  public export
+  notAbilityWorded : {0 bs : Bindings} -> AbilityAt bs -> Bool
+  notAbilityWorded (AbilityWord _ _) = False
+  notAbilityWorded _ = True
+
+  public export
+  NotAbilityWorded : AbilityAt bs -> Type
+  NotAbilityWorded {bs} ab = So (notAbilityWorded ab)
 
   public export
   Untargeting : {bs : Bindings} -> StaticEffect bs -> Type
@@ -4733,6 +4758,7 @@ mutual
   grantableAb (Static _) = True
   grantableAb (Spell _) = False
   grantableAb (AlsoForKeywords _ _) = False
+  grantableAb (AbilityWord _ ab) = grantableAb ab
 
   public export
   Grantable : AbilityAt bs -> Type
@@ -4745,6 +4771,7 @@ mutual
   emblemAbilityOk (Triggered _ _ _) = True
   emblemAbilityOk (Static _) = True
   emblemAbilityOk (AlsoForKeywords _ _) = False
+  emblemAbilityOk (AbilityWord _ ab) = emblemAbilityOk ab
   emblemAbilityOk (Spell _) = False
 
   public export
@@ -4809,6 +4836,7 @@ mutual
   abRegime (Triggered _ _ _) = Nothing
   abRegime (Static _) = Nothing
   abRegime (AlsoForKeywords ab _) = abRegime ab
+  abRegime (AbilityWord _ ab) = abRegime ab
   abRegime (Spell _) = Nothing
 
   public export
@@ -4844,6 +4872,7 @@ mutual
   abIntro (Triggered _ _ _) = bs
   abIntro (Static se) = staticChoiceIntro se
   abIntro (AlsoForKeywords ab _) = abIntro ab
+  abIntro (AbilityWord _ ab) = abIntro ab
   abIntro (Spell _) = bs
 
   namespace Coord
@@ -5122,12 +5151,14 @@ cardAbilityOk PermanentCard (Triggered _ _ _) = True
 cardAbilityOk PermanentCard (Static _) = True
 cardAbilityOk PermanentCard (AlsoForKeywords ab _) = cardAbilityOk PermanentCard ab
 cardAbilityOk PermanentCard (Spell _) = False
+cardAbilityOk PermanentCard (AbilityWord _ ab) = cardAbilityOk PermanentCard ab
 cardAbilityOk SpellCard (KeywordAbility k) = keywordCardOk SpellCard k
 cardAbilityOk SpellCard (Activated c _) = costOffBattlefield c
 cardAbilityOk SpellCard (Triggered _ _ _) = True
 cardAbilityOk SpellCard (Static se) = staticOnSpellCardOk se
 cardAbilityOk SpellCard (AlsoForKeywords ab _) = cardAbilityOk SpellCard ab
 cardAbilityOk SpellCard (Spell _) = True
+cardAbilityOk SpellCard (AbilityWord _ ab) = cardAbilityOk SpellCard ab
 
 public export
 cardTextOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs -> Bool
@@ -5137,6 +5168,8 @@ cardTextOk tys (a :: as) = cardAbilityOk (cardClassOf tys) a && cardTextOk tys a
 public export
 chapterLineOk : {0 bs : Bindings} -> List Subtype -> AbilityAt bs -> Bool
 chapterLineOk subs (Triggered _ (ChapterMark _) _) = elem Saga subs
+chapterLineOk subs (AbilityWord _ ab) = chapterLineOk subs ab
+chapterLineOk subs (AlsoForKeywords ab _) = chapterLineOk subs ab
 chapterLineOk _ _ = True
 
 public export
@@ -5160,14 +5193,22 @@ staticDefinesPt (WhereLetterStatic _ _ se) = staticDefinesPt se
 staticDefinesPt (Conditionally _ se) = staticDefinesPt se
 staticDefinesPt _ = Nothing
 
+||| [CR#207.2c] gives the ability word no rules meaning, so a characteristic-
+||| defining line is still one when a word prefixes it: the starred-print gate
+||| reads through the wrapper.
+public export
+abDefinesPt : {0 bs : Bindings} -> AbilityAt bs -> Maybe DefinedSlots
+abDefinesPt (Static se) = staticDefinesPt se
+abDefinesPt (AbilityWord _ ab) = abDefinesPt ab
+abDefinesPt _ = Nothing
+
 public export
 textDefines : {0 bs : Bindings} -> (DefinedSlots -> Bool) -> AbilitySeq bs -> Bool
 textDefines f [] = False
-textDefines f (Static se :: as) =
-  (case staticDefinesPt se of
+textDefines f (a :: as) =
+  (case abDefinesPt a of
      Just sl => f sl
      Nothing => False) || textDefines f as
-textDefines f (_ :: as) = textDefines f as
 
 public export
 definedSlotsStarred : Maybe (PrintedStat, PrintedStat) -> Bool -> Bool -> Bool

@@ -1688,6 +1688,28 @@ Eq AbilityClass where
   (==) (KeywordClass _) _ = False
 
 
+||| [CR#207.2c]: an ability word appears in italics at the beginning of some
+||| abilities. The words tie together cards with similar functionality but
+||| have no special rules meaning and no individual entries in the rules, so
+||| this sum carries names only. The list is closed: these are exactly the
+||| words [CR#207.2c] enumerates, in its order. A label Scryfall files as an
+||| ability word but [CR#207.2c] omits is not one here — Corrupted and Will
+||| of the Planeswalkers print in italics and are absent from the rule.
+public export
+data AbilityWordName = Adamant | Addendum | Alliance | Battalion | Bloodrush
+                     | Celebration | Channel | Chroma | Cohort | Constellation
+                     | Converge | CouncilsDilemma | Coven | Delirium
+                     | Descend4 | Descend8 | Disappear | Domain | Eerie
+                     | Eminence | Enrage | FatefulHour | FathomlessDescent
+                     | Ferocious | Flurry | Formidable | Grandeur | Hellbent
+                     | Heroic | Imprint | Infusion | Inspired | JoinForces
+                     | Kinship | Landfall | Lieutenant | Magecraft
+                     | Metalcraft | Morbid | Opus | PackTactics | Paradox
+                     | Parley | Radiance | Raid | Rally | Renew | Repartee
+                     | Revolt | SecretCouncil | SpellMastery | Strive
+                     | Survival | Sweep | TemptingOffer | Threshold
+                     | Undergrowth | Valiant | Vivid | Void | WillOfTheCouncil
+
 
 namespace Chroma
   public export

@@ -7277,3 +7277,39 @@ thunderousWrath = Macros.keywordCosting Miracle (Mana [Macros.pip Red])
 public export
 bygoneColossus : Ability
 bygoneColossus = Macros.keywordCosting Warp (Mana [Macros.generic 3])
+
+||| Steppe Lynx: "Landfall — Whenever a land you control enters, this
+||| creature gets +2/+2 until end of turn." An ability word over a triggered
+||| ability [CR#207.2c].
+public export
+steppeLynx : Ability
+steppeLynx =
+  AbilityWord Landfall
+    (Triggered Whenever (Enters (Macros.a (And [Macros.land, ControlledBy You])))
+               (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2))
+                            (Just Macros.untilEndOfTurn)))
+
+||| Nimble Mongoose: "Threshold — This creature gets +2/+2 as long as there
+||| are seven or more cards in your graveyard." An ability word over a
+||| static ability [CR#207.2c].
+public export
+nimbleMongoose : Ability
+nimbleMongoose =
+  AbilityWord Threshold
+    (Static (Macros.asLongAs (CompareAmt (CountOf (InZone (Macros.graveyardOf You)))
+                                         AtLeast (Lit 7))
+                             (Gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)))))
+
+||| Ghor-Clan Rampager: "Bloodrush — {R}{G}, Discard this card: Target
+||| attacking creature gets +4/+4 and gains trample until end of turn." An
+||| ability word over an activated ability [CR#207.2c].
+public export
+ghorClanRampager : Ability
+ghorClanRampager =
+  AbilityWord Bloodrush
+    (Activated (Compound [Mana [Macros.pip Red, Macros.pip Green],
+                          Do (Macros.discards You This)])
+               (Sequentially
+                  [Macros.gets (Macros.target (And [Macros.creature, Attacking]))
+                               (PtUp (Lit 4)) (PtUp (Lit 4)) (Just Macros.untilEndOfTurn),
+                   Macros.gains It (KeywordAbility Trample) (Just Macros.untilEndOfTurn)]))
