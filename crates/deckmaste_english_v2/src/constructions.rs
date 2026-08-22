@@ -132,7 +132,8 @@ constructions! {
             That => Values::Singular,
             Those => Values::Plural,
         };
-        form demonstrative = lex(word) noun(head);
+        form that when word is That = lex(word) noun(head);
+        form those otherwise = lex(word) noun(head);
     }
     construction target: NounPhrase {
         element TargetNp { head: lex Noun, }

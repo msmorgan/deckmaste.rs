@@ -14,6 +14,15 @@ use crate::constructions::GeneratedParseRoot;
 use crate::constructions::RuleId;
 use crate::context::ParseContext;
 
+pub(crate) fn grammar_rule_name_v1(rule: RuleId) -> String {
+    match (rule.public_construction(), rule.form_name()) {
+        (Some(construction), Some(form)) => {
+            format!("{} [form {form}]", construction.name())
+        }
+        _ => format!("{rule:?}"),
+    }
+}
+
 /// The independent retention cap for each repeated diagnostic collection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TraceLimits {

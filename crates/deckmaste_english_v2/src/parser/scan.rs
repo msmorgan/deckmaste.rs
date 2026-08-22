@@ -15,6 +15,7 @@ use super::diagnostic::ForestNode;
 use super::diagnostic::SemanticScannerMatchInventory;
 use super::diagnostic::StructuralTrace;
 use super::diagnostic::TraceLimits;
+use super::diagnostic::grammar_rule_name_v1;
 use super::diagnostic::order_bounded_prefix;
 use super::engine::ChartFailure;
 use super::engine::Child;
@@ -427,7 +428,7 @@ fn rule_name_v1(rule: RootRuleId) -> String {
         counts.set(current);
     });
     match rule {
-        RootRuleId::Grammar(rule) => format!("{rule:?}"),
+        RootRuleId::Grammar(rule) => grammar_rule_name_v1(rule),
         RootRuleId::Adapter => "RootAdapter".to_owned(),
     }
 }
@@ -2346,7 +2347,7 @@ mod tests {
     }
 
     #[test]
-    fn structural_trace_generated_rule_and_terminal_names_are_pinned() {
+    fn structural_trace_generated_demonstrative_rule_and_terminal_names_are_pinned() {
         let mut seen_rules = BTreeSet::new();
         let rules = RULES
             .iter()
@@ -2372,7 +2373,8 @@ mod tests {
                 "ClauseWhere",
                 "NounPhrasePronoun",
                 "NounPhraseCommon",
-                "NounPhraseDemonstrative",
+                "NounPhraseDemonstrative [form that]",
+                "NounPhraseDemonstrative [form those]",
                 "NounPhraseTarget",
                 "NounPhraseSelfReference",
                 "NounPhraseCount",

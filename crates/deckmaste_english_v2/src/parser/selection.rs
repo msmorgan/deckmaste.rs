@@ -79,7 +79,7 @@ struct SelectionException<C> {
 /// Returns an error when the internal selection exception registry is invalid.
 pub fn selection_exception_inventory()
 -> Result<Vec<SelectionExceptionInfo>, SelectionExceptionInventoryError> {
-    selection_exception_inventory_for(SELECTION_EXCEPTIONS, construction_name)
+    selection_exception_inventory_for(SELECTION_EXCEPTIONS, Construction::name)
 }
 
 fn selection_exception_inventory_for<C>(
@@ -185,7 +185,7 @@ pub(crate) fn analyze_selection<V>(
         |candidate| candidate.constructions.as_slice(),
         |candidate| Specificity(candidate.specificity.clone()),
         construction_name_v1,
-        construction_name,
+        Construction::name,
         SELECTION_EXCEPTIONS,
     )
 }
@@ -511,7 +511,7 @@ fn ambiguity_names<'a, C: Copy + Eq + 'a>(
 }
 
 pub(crate) fn construction_name_v1(construction: Construction) -> String {
-    format!("{construction:?}")
+    construction.name().to_owned()
 }
 
 #[cfg(test)]
@@ -526,30 +526,6 @@ fn generated_constructions_v1() -> Vec<Construction> {
         }
     }
     constructions
-}
-
-const fn construction_name(construction: Construction) -> &'static str {
-    match construction {
-        Construction::AbilityParagraph => "AbilityParagraph",
-        Construction::AbilityTriggered => "AbilityTriggered",
-        Construction::SentenceImperative => "SentenceImperative",
-        Construction::SentenceDeclarative => "SentenceDeclarative",
-        Construction::SentenceWithWhere => "SentenceWithWhere",
-        Construction::ClauseEvent => "ClauseEvent",
-        Construction::ClauseWhere => "ClauseWhere",
-        Construction::NounPhrasePronoun => "NounPhrasePronoun",
-        Construction::NounPhraseCommon => "NounPhraseCommon",
-        Construction::NounPhraseDemonstrative => "NounPhraseDemonstrative",
-        Construction::NounPhraseTarget => "NounPhraseTarget",
-        Construction::NounPhraseSelfReference => "NounPhraseSelfReference",
-        Construction::NounPhraseCount => "NounPhraseCount",
-        Construction::VerbPhraseDestroy => "VerbPhraseDestroy",
-        Construction::VerbPhraseConnive => "VerbPhraseConnive",
-        Construction::VerbPhraseDealDamage => "VerbPhraseDealDamage",
-        Construction::VerbPhraseGainLife => "VerbPhraseGainLife",
-        Construction::AmountNumber => "AmountNumber",
-        Construction::AmountVariable => "AmountVariable",
-    }
 }
 
 #[cfg(test)]
@@ -573,7 +549,6 @@ mod tests {
     use super::SelectionResolution;
     use super::SpecificityTier;
     use super::analyze_selection;
-    use super::construction_name_v1;
     use super::generated_constructions_v1;
     use super::select_ranked;
     use super::select_with_exceptions;
@@ -1004,10 +979,10 @@ mod tests {
     }
 
     #[test]
-    fn selection_diagnostic_pins_every_generated_construction_name_v1() {
+    fn demonstrative_selection_diagnostic_uses_every_generated_construction_name() {
         let names = generated_constructions_v1()
             .into_iter()
-            .map(construction_name_v1)
+            .map(Construction::name)
             .collect::<Vec<_>>();
 
         assert_eq!(

@@ -569,6 +569,83 @@ fn renders_those_with_a_plural_noun_and_bare_verb() {
 }
 
 #[test]
+fn demonstrative_form_selection_adds_no_ast_or_visitor_tag() {
+    #[derive(Debug, PartialEq, Eq)]
+    enum Event {
+        DemonstrativeNp,
+        Word(Demonstrative),
+        Head(DeclarationKind, String, SurfaceFeature),
+    }
+
+    #[derive(Default)]
+    struct DemonstrativeVisitor(Vec<Event>);
+
+    impl Visitor for DemonstrativeVisitor {
+        fn visit_demonstrative_np(&mut self, demonstrative: &DemonstrativeNp) {
+            self.0.push(Event::DemonstrativeNp);
+            deckmaste_english_v2::visit::walk_demonstrative_np(self, demonstrative);
+        }
+
+        fn visit_demonstrative(&mut self, word: Demonstrative) {
+            self.0.push(Event::Word(word));
+        }
+
+        fn visit_declaration_noun(&mut self, noun: &DeclarationNoun) {
+            self.0.push(Event::Head(
+                noun.id().kind(),
+                noun.id().name().to_owned(),
+                noun.feature(),
+            ));
+        }
+    }
+
+    for (word, head, expected_feature, expected) in [
+        (
+            Demonstrative::That,
+            creature(),
+            SurfaceFeature::Singular,
+            "That creature deals 3 damage to it.",
+        ),
+        (
+            Demonstrative::Those,
+            creatures(),
+            SurfaceFeature::Plural,
+            "Those creatures deal 3 damage to it.",
+        ),
+    ] {
+        let value = NounPhrase::Demonstrative(DemonstrativeNp { word, head });
+        let sentence = Sentence::Declarative(Declarative {
+            subject: value.clone(),
+            predicate: damage(Amount::Number(NumberAmount {
+                number: SignedNumber {
+                    sign: Sign::Positive,
+                    magnitude: 3,
+                },
+            })),
+        });
+        assert_eq!(
+            sentence.render(&context("Context Card"), &environment()),
+            expected,
+        );
+
+        let mut visitor = DemonstrativeVisitor::default();
+        deckmaste_english_v2::visit::walk_noun_phrase(&mut visitor, &value);
+        assert_eq!(
+            visitor.0,
+            [
+                Event::DemonstrativeNp,
+                Event::Word(word),
+                Event::Head(
+                    DeclarationKind::Type,
+                    "Creature".to_owned(),
+                    expected_feature,
+                ),
+            ],
+        );
+    }
+}
+
+#[test]
 fn renders_an_with_a_singular_noun_and_third_person_verb() {
     let value = Sentence::Declarative(Declarative {
         subject: NounPhrase::Common(Common {

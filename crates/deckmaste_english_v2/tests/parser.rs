@@ -246,7 +246,8 @@ fn ast_re_exports_keep_the_retired_spell_audit_line_local() {
 
 #[test]
 fn self_reference_spelling_variants_remain_publicly_importable() {
-    use deckmaste_english_v2::ast::SelfReferenceSpelling::{Abbreviated, Full};
+    use deckmaste_english_v2::ast::SelfReferenceSpelling::Abbreviated;
+    use deckmaste_english_v2::ast::SelfReferenceSpelling::Full;
 
     let _: SelfReferenceSpelling = Full;
     let _: SelfReferenceSpelling = Abbreviated;
@@ -493,6 +494,71 @@ fn authored_invariant_rejection_is_typed_parse_failure_not_chart_or_internal_fai
             .build_rejection()
             .is_none()
     );
+}
+
+#[test]
+fn demonstrative_forms_select_distinct_rules_and_reject_the_same_rhs_wrong_guard() {
+    let parser = parser();
+    let environment = environment();
+    let context = context("Context Card");
+
+    for (text, word, head, selected_rule, rejected_rule) in [
+        (
+            "That creature deals 3 damage to it.",
+            Demonstrative::That,
+            creature(),
+            "NounPhraseDemonstrative [form that]",
+            "NounPhraseDemonstrative [form those]",
+        ),
+        (
+            "Those creatures deal 3 damage to it.",
+            Demonstrative::Those,
+            creatures(),
+            "NounPhraseDemonstrative [form those]",
+            "NounPhraseDemonstrative [form that]",
+        ),
+    ] {
+        let expected = Sentence::Declarative(Declarative {
+            subject: NounPhrase::Demonstrative(DemonstrativeNp { word, head }),
+            predicate: VerbPhrase::DealDamage(DealDamage {
+                amount: Amount::Number(NumberAmount {
+                    number: SignedNumber {
+                        sign: Sign::Positive,
+                        magnitude: 3,
+                    },
+                }),
+                to: NounPhrase::Pronoun(PronounNp { word: Pronoun::It }),
+            }),
+        });
+
+        let trace = parser.trace_sentence(text, &context, TraceLimits::new(usize::MAX));
+        assert_eq!(trace.clone().into_parse_result(), Ok(expected.clone()));
+        assert_eq!(expected.render(&context, &environment), text);
+        assert_eq!(trace.materialized_candidates().total(), 1);
+
+        let forest_rules = trace
+            .forest()
+            .items()
+            .iter()
+            .map(deckmaste_english_v2::parser::ForestNode::rule_name_v1)
+            .collect::<BTreeSet<_>>();
+        assert!(
+            forest_rules.contains(selected_rule),
+            "{text}: {forest_rules:?}"
+        );
+        assert!(
+            !forest_rules.contains(rejected_rule),
+            "{text}: wrong guarded form reached the forest: {forest_rules:?}",
+        );
+        assert!(
+            trace
+                .checked_completion_rejections()
+                .items()
+                .iter()
+                .any(|rejection| rejection.rule_name_v1() == rejected_rule),
+            "{text}: the identical RHS must be rejected by its nonmatching guard",
+        );
+    }
 }
 
 fn assert_complete_public_generated_type_inventory(file: &syn::File) {

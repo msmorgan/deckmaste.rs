@@ -737,6 +737,14 @@ mod tests {
             "categories intentionally overlap and have no unique total"
         );
         assert!(report.handwritten_codecs.is_empty());
+        assert!(
+            report.stored_form_tags.is_empty(),
+            "guarded demonstrative selection derives its form from stored words",
+        );
+        assert!(
+            report.selection_exceptions.is_empty(),
+            "guarded demonstrative selection does not alter specificity",
+        );
         assert_eq!(
             identities(&report.stored_spelling_codecs),
             ["SelfReferenceSpelling"]
