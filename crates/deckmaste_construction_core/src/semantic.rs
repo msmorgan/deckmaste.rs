@@ -2462,13 +2462,6 @@ impl ConstructionPlan {
         &self.rule_id
     }
 
-    pub(crate) fn atoms(&self) -> &[AtomPlan] {
-        self.forms
-            .first()
-            .expect("sealed construction has at least one form")
-            .atoms()
-    }
-
     pub(crate) fn forms(&self) -> &[FormPlan] {
         &self.forms
     }
@@ -2669,6 +2662,7 @@ fn seal_forms(
         ));
     }
     reject_guard_overlaps(&forms, fields)?;
+    reject_unreachable_fallback(&forms, fields, construction)?;
     Ok(forms)
 }
 
@@ -2970,12 +2964,7 @@ fn form_guard_accepts(
 }
 
 fn reject_guard_overlaps(forms: &[FormPlan], fields: &[ConstructionFieldPlan]) -> syn::Result<()> {
-    let mut domains = combined_form_domains(forms);
-    domains.sort_by_key(|domain| {
-        fields
-            .iter()
-            .position(|field| field.name_key() == domain.role)
-    });
+    let domains = ordered_combined_form_domains(forms, fields);
     let assignments = enumerate_assignments(&domains);
     let guarded = forms
         .iter()
@@ -3003,6 +2992,48 @@ fn reject_guard_overlaps(forms: &[FormPlan], fields: &[ConstructionFieldPlan]) -
         }
     }
     Ok(())
+}
+
+fn reject_unreachable_fallback(
+    forms: &[FormPlan],
+    fields: &[ConstructionFieldPlan],
+    construction: &crate::Construction,
+) -> syn::Result<()> {
+    let domains = ordered_combined_form_domains(forms, fields);
+    let assignments = enumerate_assignments(&domains);
+    for (index, form) in forms.iter().enumerate() {
+        if matches!(form.guard, FormGuardPlan::Otherwise { .. })
+            && !assignments
+                .iter()
+                .any(|assignment| form_guard_accepts(&form.guard, forms, &domains, assignment))
+        {
+            let span = construction
+                .forms
+                .get(index)
+                .map_or_else(Span::call_site, |source| source.name.span());
+            return Err(syn::Error::new(
+                span,
+                format!(
+                    "fallback form `{}` is unreachable because prior guards exhaust its finite domain",
+                    form.name,
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn ordered_combined_form_domains(
+    forms: &[FormPlan],
+    fields: &[ConstructionFieldPlan],
+) -> Vec<FiniteDomainPlan> {
+    let mut domains = combined_form_domains(forms);
+    domains.sort_by_key(|domain| {
+        fields
+            .iter()
+            .position(|field| field.name_key() == domain.role)
+    });
+    domains
 }
 
 fn assignment_witness(domains: &[FiniteDomainPlan], assignment: &FiniteAssignmentPlan) -> String {
@@ -4876,6 +4907,27 @@ mod tests {
         assert!(error.contains("broad"), "{error}");
         assert!(error.contains("narrow"), "{error}");
         assert!(error.contains("word=Those"), "{error}");
+    }
+
+    #[test]
+    fn guarded_forms_reject_an_unreachable_fallback() {
+        let error = guarded_form_result(quote::quote! {
+            vocab Word { That = "that", Those = "those", }
+            construction demonstrative: NounPhrase {
+                element Demonstrative { word: lex Word, }
+                form that when word is That = lex(word);
+                form those when word is Those = lex(word);
+                form fallback otherwise = lex(word);
+            }
+            root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("a fallback outside an exhaustive prior partition is unreachable")
+        .to_string();
+
+        assert_eq!(
+            error,
+            "fallback form `fallback` is unreachable because prior guards exhaust its finite domain",
+        );
     }
 
     #[test]

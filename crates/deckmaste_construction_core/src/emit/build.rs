@@ -182,7 +182,8 @@ fn emit_arm_from_plan(
     let form_index = rule
         .form_index
         .ok_or_else(|| internal("construction rule has no form index"))?;
-    for atom in row.forms()[form_index].atoms() {
+    let form = &row.forms()[form_index];
+    for atom in form.atoms() {
         let state = atom_role(atom)
             .and_then(|role| sequence_states.iter().find(|field| field.role == role));
         if let Some(state) = state {
@@ -203,10 +204,10 @@ fn emit_arm_from_plan(
                 &mut lowering,
             )?;
         } else {
-            lower_atom(plan, row, atom, &mut lowering)?;
+            lower_atom(plan, row, form, atom, &mut lowering)?;
         }
     }
-    lower_feature_guards(plan, row, &mut lowering)?;
+    lower_feature_guards(plan, row, form, &mut lowering)?;
     if let Some(guard) = super::emit_form_guard_expression(row, form_index, |domain, value| {
         let guard_role = domain.role();
         let field_value = lowering
@@ -835,6 +836,7 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
 fn lower_atom(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
+    form: &crate::semantic::FormPlan,
     atom: &AtomPlan,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
@@ -887,13 +889,13 @@ fn lower_atom(
                 .push(quote! { BuildValue::Leaf(Leaf::Literal(#literal)) });
         }
         AtomPlan::Category { role, category } => {
-            lower_category_role(validated, row, role, category, lowering)?;
+            lower_category_role(validated, row, form, role, category, lowering)?;
         }
         AtomPlan::Lex { role, terminal } | AtomPlan::Identity { role, terminal } => {
-            lower_terminal_role(validated, row, role, terminal, false, lowering)?;
+            lower_terminal_role(validated, row, form, role, terminal, false, lowering)?;
         }
         AtomPlan::Noun { role, terminal } => {
-            lower_terminal_role(validated, row, role, terminal, true, lowering)?;
+            lower_terminal_role(validated, row, form, role, terminal, true, lowering)?;
         }
         AtomPlan::VerbFixed {
             terminal, variant, ..
@@ -951,6 +953,7 @@ fn lower_atom(
 fn lower_category_role(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
+    form: &crate::semantic::FormPlan,
     role: &str,
     category_name: &str,
     lowering: &mut Lowering,
@@ -968,7 +971,7 @@ fn lower_category_role(
     let agreement = carries_agreement
         .then(|| role_agreement_pattern(validated, row, &role, category_name, lowering))
         .transpose()?;
-    let number = carries_number.then(|| role_number_pattern(validated, row, &role, lowering));
+    let number = carries_number.then(|| role_number_pattern(validated, row, form, &role, lowering));
     match (agreement, number) {
         (Some(agreement), Some(number)) => lowering
             .patterns
@@ -1037,10 +1040,11 @@ fn role_agreement_pattern(
 fn role_number_pattern(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
+    form: &crate::semantic::FormPlan,
     role: &syn::Ident,
     lowering: &mut Lowering,
 ) -> TokenStream {
-    if role_number_is_needed_in_build(validated, row, role) {
+    if role_number_is_needed_in_build(validated, row, form, role) {
         let name = lowering
             .binders
             .allocate(&format!("{}_number", identifier_key(role)));
@@ -1057,6 +1061,7 @@ fn role_number_pattern(
 fn lower_terminal_role(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
+    form: &crate::semantic::FormPlan,
     role: &str,
     terminal_name: &str,
     noun: bool,
@@ -1123,7 +1128,7 @@ fn lower_terminal_role(
         .ok_or_else(|| internal("atom-capable binding has no build metadata"))?;
     let variant = build.variant();
     let names = build.slots();
-    let noun_count = row
+    let noun_count = form
         .atoms()
         .iter()
         .filter(|atom| matches!(atom, AtomPlan::Noun { .. }))
@@ -1280,6 +1285,7 @@ fn verb_agreement_pattern(
 fn lower_feature_guards(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
+    form: &crate::semantic::FormPlan,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
     for equation in validated.feature_equations(row.construction_id()) {
@@ -1291,7 +1297,7 @@ fn lower_feature_guards(
             },
         ) = (equation.target(), equation.value())
         {
-            if row
+            if form
                 .atoms()
                 .iter()
                 .any(|atom| matches!(atom, AtomPlan::Noun { .. }))
@@ -1751,9 +1757,10 @@ fn feature_is_read(
 fn role_number_is_needed_in_build(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
+    form: &crate::semantic::FormPlan,
     role: &syn::Ident,
 ) -> bool {
-    let output_needs_number = row
+    let output_needs_number = form
         .atoms()
         .iter()
         .any(|atom| matches!(atom, AtomPlan::Noun { .. }))
@@ -1774,30 +1781,8 @@ fn role_number_is_needed_in_build(
 }
 
 fn terminal_for_role<'a>(row: &'a ConstructionPlan, role: &syn::Ident) -> syn::Result<&'a str> {
-    row.atoms()
-        .iter()
-        .find_map(|atom| match atom {
-            AtomPlan::Lex {
-                role: found,
-                terminal,
-            }
-            | AtomPlan::Identity {
-                role: found,
-                terminal,
-            }
-            | AtomPlan::Noun {
-                role: found,
-                terminal,
-            } if found == &identifier_key(role) => Some(terminal.as_str()),
-            AtomPlan::Literal(_)
-            | AtomPlan::Category { .. }
-            | AtomPlan::VerbFixed { .. }
-            | AtomPlan::OpenDeclaration(_)
-            | AtomPlan::Lex { .. }
-            | AtomPlan::Identity { .. }
-            | AtomPlan::Noun { .. } => None,
-        })
-        .ok_or_else(|| internal("resolved terminal role is absent from the semantic plan"))
+    row.field(&identifier_key(role))
+        .map(crate::semantic::ConstructionFieldPlan::terminal)
 }
 fn feature_value(value: FeatureValue) -> TokenStream {
     match value {

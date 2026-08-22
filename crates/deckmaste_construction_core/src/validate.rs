@@ -7049,7 +7049,7 @@ pub(crate) mod tests {
     #[test]
     fn guarded_forms_validate_each_form_and_reserve_each_rule_name() {
         validate(quote! {
-            vocab Word { One = "one", }
+            vocab Word { One = "one", Two = "two", }
             construction guarded: Cat {
                 element Guarded { word: lex Word, }
                 form selected when word is One = lex(word);

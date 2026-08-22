@@ -25,6 +25,9 @@ use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionFieldPlan;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::DeclarationNounPlan;
+use crate::semantic::FiniteDomainKindPlan;
+use crate::semantic::FiniteValuePlan;
+use crate::semantic::FormPlan;
 use crate::semantic::LexemePlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::SignedDecimalPlan;
@@ -323,8 +326,9 @@ fn visitor_methods(
     if terminals.declaration_noun.is_some()
         || constructions.iter().any(|construction| {
             construction
-                .atoms()
+                .forms()
                 .iter()
+                .flat_map(FormPlan::atoms)
                 .any(|atom| matches!(atom, AtomPlan::OpenDeclaration(_)))
         })
     {
@@ -675,7 +679,7 @@ fn emit_construction_walker(
     let function = ident(&format!("walk_{}", snake_case(&type_name)));
     let mut allocator = LocalAllocator::default();
     allocator.reserve("visitor");
-    for atom in construction.atoms() {
+    for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
         let terminal = match atom {
             AtomPlan::Lex { terminal, .. }
             | AtomPlan::Identity { terminal, .. }
@@ -718,13 +722,79 @@ fn emit_construction_walker(
         .iter()
         .map(|field| (field.name_key(), field))
         .collect::<HashMap<_, _>>();
+    let form_bodies = construction
+        .forms()
+        .iter()
+        .enumerate()
+        .map(|(form_index, form)| {
+            let calls = emit_construction_form_walker_calls(
+                validated,
+                construction,
+                form,
+                &argument,
+                &field_locals,
+                &fields,
+            )?;
+            let guard =
+                super::emit_form_guard_expression(construction, form_index, |domain, value| {
+                    let field = construction.field(domain.role())?;
+                    let field_value =
+                        field_value(construction, domain.role(), &argument, &field_locals)?;
+                    match (domain.kind(), value) {
+                        (
+                            FiniteDomainKindPlan::Vocab { terminal, .. },
+                            FiniteValuePlan::Vocab(variant),
+                        ) => {
+                            let terminal = ident(terminal);
+                            let variant = ident(variant);
+                            let value = copy_value(field, field_value);
+                            Ok(quote! { matches!(#value, #terminal::#variant) })
+                        }
+                        (
+                            FiniteDomainKindPlan::OptionalPresence,
+                            FiniteValuePlan::OptionalPresence(present),
+                        ) => Ok(quote! { #field_value.is_some() == #present }),
+                        _ => Err(internal("form guard domain and assignment value disagree")),
+                    }
+                })?;
+            Ok(if let Some(guard) = guard {
+                quote! { if #guard { #(#calls)* return; } }
+            } else {
+                quote! { #(#calls)* }
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let exhaustiveness = (construction.forms().len() > 1).then(|| {
+        quote! { unreachable!("sealed guarded forms are exhaustive"); }
+    });
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function.to_string(),
+        },
+        quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) { #destructure #(#form_bodies)* #exhaustiveness } },
+        vec![DeclarationKey::new(
+            DeclarationKind::Construction,
+            construction.construction_id(),
+        )],
+    ))
+}
+
+fn emit_construction_form_walker_calls(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    form: &FormPlan,
+    argument: &syn::Ident,
+    field_locals: &HashMap<String, syn::Ident>,
+    fields: &HashMap<String, &ConstructionFieldPlan>,
+) -> syn::Result<Vec<TokenStream>> {
     let mut calls = Vec::new();
-    for atom in construction.atoms() {
+    for atom in form.atoms() {
         if let Some(role) = visit_atom_role(atom)
             && let Some(field) = fields.get(role)
             && let Some(structural) = field.structural_plan()
         {
-            let value = field_value(construction, role, &argument, &field_locals)?;
+            let value = field_value(construction, role, argument, field_locals)?;
             let call = match structural.kind() {
                 StructuralFieldKindPlan::Required(kind) => {
                     walk_structural_value(validated, kind, value)?
@@ -754,7 +824,7 @@ fn emit_construction_walker(
                     return Err(internal("walker bare role is not category"));
                 }
                 let callback = ident(&format!("visit_{}", snake_case(category)));
-                let value = field_value(construction, role, &argument, &field_locals)?;
+                let value = field_value(construction, role, argument, field_locals)?;
                 Some(quote! { visitor.#callback(#value); })
             }
             AtomPlan::Lex { role, terminal } => {
@@ -762,7 +832,7 @@ fn emit_construction_walker(
                     .get(role)
                     .ok_or_else(|| internal("walker lex role absent"))?;
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));
-                let value = field_value(construction, role, &argument, &field_locals)?;
+                let value = field_value(construction, role, argument, field_locals)?;
                 let copy = terminal_mode(validated, terminal)? == VisitMode::Copy;
                 Some(if copy {
                     let value = copy_value(field, value);
@@ -776,7 +846,7 @@ fn emit_construction_walker(
                     .get(role)
                     .ok_or_else(|| internal("walker identity role absent"))?;
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));
-                let value = field_value(construction, role, &argument, &field_locals)?;
+                let value = field_value(construction, role, argument, field_locals)?;
                 let copy = terminal_mode(validated, terminal)? == VisitMode::Copy;
                 Some(if copy {
                     let value = copy_value(field, value);
@@ -790,7 +860,7 @@ fn emit_construction_walker(
                     .get(role)
                     .ok_or_else(|| internal("walker noun role absent"))?;
                 let callback = ident(&format!("visit_{}", snake_case(terminal)));
-                let value = field_value(construction, role, &argument, &field_locals)?;
+                let value = field_value(construction, role, argument, field_locals)?;
                 Some(quote! { visitor.#callback(#value); })
             }
             AtomPlan::VerbFixed { terminal, path, .. } => {
@@ -811,17 +881,7 @@ fn emit_construction_walker(
             calls.push(call);
         }
     }
-    Ok(GeneratedItem::new(
-        ItemKey::Named {
-            kind: NamedKind::Function,
-            name: function.to_string(),
-        },
-        quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) { #destructure #(#calls)* } },
-        vec![DeclarationKey::new(
-            DeclarationKind::Construction,
-            construction.construction_id(),
-        )],
-    ))
+    Ok(calls)
 }
 
 fn visit_atom_role(atom: &AtomPlan) -> Option<&str> {
@@ -1192,6 +1252,174 @@ mod tests {
     )]
     use quote::ToTokens;
     use syn::visit::Visit;
+
+    #[test]
+    fn guarded_walkers_execute_the_selected_forms_complete_traversal() {
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Mode { One = "one", Many = "many", }
+                vocab Marker { Alpha = "alpha", Beta = "beta", }
+                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                lexeme VerbLexeme using EnglishVerb { Act = "act", }
+                construction child: Child {
+                    element ChildNode {}
+                    form child = "child";
+                }
+                construction guarded_visit: Root {
+                    element GuardedVisit { mode: lex Mode, marker: lex Marker, child: Child, }
+                    derive verb.agreement = Values::Bare;
+                    form one when mode is One = lex(mode) child lex(marker);
+                    form many otherwise = lex(marker) open_verb(KeywordAction, "Draw") child lex(mode);
+                }
+                construction guarded_fixed: FixedRoot {
+                    element GuardedFixed { mode: lex Mode, marker: lex Marker, }
+                    derive agreement = verb.agreement;
+                    derive verb.agreement = Values::Bare;
+                    form one when mode is One = lex(mode) lex(marker);
+                    form many otherwise = lex(marker) verb(VerbLexeme::Act) lex(mode);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("guarded visitor fixture parses"),
+        )
+        .expect("guarded visitor fixture validates")
+        .into_semantic();
+        let ast = super::super::ast::emit(&plan).expect("guarded visitor AST emits");
+        let visitors = super::emit(&plan).expect("guarded visitors emit");
+        let ast = ast.iter().map(|item| &item.tokens);
+        let visitors = visitors.iter().map(|item| &item.tokens);
+        let source = quote::quote! {
+            #![allow(dead_code)]
+            extern crate self as macro_ron;
+
+            pub mod v2 {
+                #[derive(Debug, Clone, PartialEq, Eq)]
+                pub enum DeclarationKind { KeywordAction }
+
+                #[derive(Debug, Clone, PartialEq, Eq)]
+                pub struct DeclarationIdentity(DeclarationKind, String);
+
+                impl DeclarationIdentity {
+                    pub fn new(kind: DeclarationKind, name: &str) -> Self {
+                        Self(kind, name.to_owned())
+                    }
+
+                    pub fn name(&self) -> &str { &self.1 }
+                }
+            }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum Agreement { Bare, ThirdPersonSingular }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum Mode { One, Many }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum Marker { Alpha, Beta }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum VerbLexeme { Act }
+
+            struct ParseContext<'a>(std::marker::PhantomData<&'a ()>);
+
+            #(#ast)*
+            #(#visitors)*
+
+            #[derive(Default)]
+            struct Recorder(Vec<String>);
+
+            impl Visitor for Recorder {
+                fn visit_mode(&mut self, value: Mode) {
+                    self.0.push(format!("mode:{value:?}"));
+                }
+
+                fn visit_marker(&mut self, value: Marker) {
+                    self.0.push(format!("marker:{value:?}"));
+                }
+
+                fn visit_child(&mut self, _value: &Child) {
+                    self.0.push("child".to_owned());
+                }
+
+                fn visit_verb_lexeme(&mut self, value: VerbLexeme) {
+                    self.0.push(format!("verb:{value:?}"));
+                }
+
+                fn visit_declaration(&mut self, value: &v2::DeclarationIdentity) {
+                    self.0.push(format!("declaration:{}", value.name()));
+                }
+            }
+
+            fn main() {
+                for (value, expected) in [
+                    (
+                        GuardedVisit {
+                            mode: Mode::One,
+                            marker: Marker::Alpha,
+                            child: Child::Child(ChildNode),
+                        },
+                        ["mode:One", "child", "marker:Alpha"].as_slice(),
+                    ),
+                    (
+                        GuardedVisit {
+                            mode: Mode::Many,
+                            marker: Marker::Beta,
+                            child: Child::Child(ChildNode),
+                        },
+                        ["marker:Beta", "declaration:Draw", "child", "mode:Many"].as_slice(),
+                    ),
+                ] {
+                    let mut recorder = Recorder::default();
+                    walk_guarded_visit(&mut recorder, &value);
+                    assert_eq!(recorder.0, expected);
+                }
+
+                for (value, expected) in [
+                    (
+                        GuardedFixed { mode: Mode::One, marker: Marker::Alpha },
+                        ["mode:One", "marker:Alpha"].as_slice(),
+                    ),
+                    (
+                        GuardedFixed { mode: Mode::Many, marker: Marker::Beta },
+                        ["marker:Beta", "verb:Act", "mode:Many"].as_slice(),
+                    ),
+                ] {
+                    let mut recorder = Recorder::default();
+                    walk_guarded_fixed(&mut recorder, &value);
+                    assert_eq!(recorder.0, expected);
+                }
+            }
+        }
+        .to_string();
+
+        let directory = tempfile::tempdir().expect("temporary visitor harness directory");
+        let source_path = directory.path().join("guarded_visitor_harness.rs");
+        let binary_path = directory.path().join("guarded_visitor_harness");
+        std::fs::write(&source_path, &source).expect("write deterministic visitor harness");
+        let compiler = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+        let compilation = std::process::Command::new(compiler)
+            .arg("--edition=2024")
+            .arg(&source_path)
+            .arg("-o")
+            .arg(&binary_path)
+            .output()
+            .expect("run active Rust compiler");
+        assert!(
+            compilation.status.success(),
+            "visitor harness compilation failed\nstdout:\n{}\nstderr:\n{}\nsource:\n{source}",
+            String::from_utf8_lossy(&compilation.stdout),
+            String::from_utf8_lossy(&compilation.stderr),
+        );
+        let execution = std::process::Command::new(&binary_path)
+            .output()
+            .expect("execute compiled guarded visitor harness");
+        assert!(
+            execution.status.success(),
+            "visitor harness execution failed\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&execution.stdout),
+            String::from_utf8_lossy(&execution.stderr),
+        );
+    }
 
     #[test]
     fn structural_optional_sum_and_sequence_walkers_preserve_stored_source_order() {

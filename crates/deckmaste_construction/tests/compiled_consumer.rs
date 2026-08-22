@@ -918,6 +918,7 @@ pub mod fixture {
 
     constructions! {
         vocab Mode { One = "one", Many = "many", }
+        vocab Partition { First = "first", Second = "second", Other = "other", }
         vocab r#Marker { One = "marker", }
         vocab WriterWord { One = "writer", }
         vocab StructuralWord {
@@ -1045,6 +1046,12 @@ pub mod fixture {
             derive agreement = Values::Bare;
             derive child.agreement = Values::Bare;
             form guarded = lex(mode) child;
+        }
+        construction partitioned: PartitionRoot {
+            element Partitioned { word: lex Partition, }
+            form first when word is First = "alpha" lex(word);
+            form second when word is Second = "beta" lex(word);
+            form fallback otherwise = "omega" lex(word);
         }
         construction refined: Parent {
             element RefinedParent { mode: lex Mode, child: Child, }
@@ -1276,6 +1283,7 @@ pub mod fixture {
         }
 
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root BeSentence { punctuation = "."; eoi = true; standalone_render = true; }
         root RenderChild { punctuation = "."; eoi = false; standalone_render = true; }
         root HygieneRoot { punctuation = "!"; eoi = true; standalone_render = true; }
@@ -1869,6 +1877,48 @@ pub mod fixture {
                 identity: "spelling valid in context",
             },
         );
+    }
+
+    pub(super) fn assert_guarded_form_partition_boundaries() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+        };
+        let rules = [
+            RuleId::PartitionRootPartitionedFirst,
+            RuleId::PartitionRootPartitionedSecond,
+            RuleId::PartitionRootPartitionedFallback,
+        ];
+        let values = [Partition::First, Partition::Second, Partition::Other];
+        let literals = ["alpha", "beta", "omega"];
+        let expected = ["Alpha first.", "Beta second.", "Omega other."];
+
+        for (rule_index, rule) in rules.into_iter().enumerate() {
+            for (value_index, value) in values.into_iter().enumerate() {
+                let built = build(
+                    rule,
+                    &[
+                        BuildValue::Leaf(Leaf::Literal(literals[rule_index])),
+                        BuildValue::Leaf(Leaf::Partition(value)),
+                    ],
+                    &context,
+                );
+                if rule_index == value_index {
+                    let BuildValue::PartitionRoot(root) =
+                        built.expect("the rule accepts its exact finite partition")
+                    else {
+                        panic!("the selected rule builds its declared category")
+                    };
+                    assert_eq!(Render::render(&root, &context), expected[value_index]);
+                } else {
+                    assert!(
+                        built.is_none(),
+                        "rule {rule_index} accepted same-shape partition value {value_index}",
+                    );
+                }
+            }
+        }
     }
 
     pub(super) fn assert_structural_product_public_boundary() {
@@ -3001,6 +3051,11 @@ fn generated_morphology_output_is_type_correct_and_executes_every_boundary_case(
 #[test]
 fn invariant_constructors_enforce_the_compiled_public_boundary() {
     fixture::assert_invariant_public_boundary();
+}
+
+#[test]
+fn guarded_forms_build_and_render_their_exact_finite_partitions() {
+    fixture::assert_guarded_form_partition_boundaries();
 }
 
 #[test]
