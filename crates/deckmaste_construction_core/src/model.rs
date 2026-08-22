@@ -49,7 +49,7 @@ pub struct Construction {
     pub element: Element,
     pub requirements: Vec<RequireExprSource>,
     pub equations: Vec<FeatureEquation>,
-    pub form: Form,
+    pub forms: Vec<Form>,
 }
 
 #[derive(Debug)]
@@ -135,6 +135,10 @@ pub enum LengthComparison {
 
 #[derive(Debug)]
 pub enum RequireExprSource {
+    OptionalPresence {
+        role: Ident,
+        present: bool,
+    },
     Length {
         owner: Option<Path>,
         role: Ident,
@@ -163,6 +167,20 @@ impl RequireExprSource {
             return None;
         };
         Some((role, variant))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RequireExprSource;
+
+    #[test]
+    fn optional_presence_is_not_a_role_refinement() {
+        let expression = RequireExprSource::OptionalPresence {
+            role: syn::parse_str("optional").expect("test role parses"),
+            present: true,
+        };
+        assert!(expression.as_role_refinement().is_none());
     }
 }
 
@@ -216,7 +234,15 @@ pub struct FeatureMatchArm {
 #[derive(Debug)]
 pub struct Form {
     pub name: Ident,
+    pub guard: FormGuardSource,
     pub atoms: Vec<FormAtom>,
+}
+
+#[derive(Debug)]
+pub enum FormGuardSource {
+    Unguarded,
+    When(RequireExprSource),
+    Otherwise,
 }
 
 #[derive(Debug)]

@@ -2321,7 +2321,8 @@ impl ConstructionPlan {
                 })
             })
             .collect::<syn::Result<Vec<_>>>()?;
-        let atoms = seal_atoms(&source.form, resolved_atoms)?;
+        let form = source.forms.first().expect("parser requires one form");
+        let atoms = seal_atoms(form, &resolved_atoms[..form.atoms.len()])?;
         Ok(Self {
             source_index,
             origin_span: source.name.span(),
@@ -2334,7 +2335,7 @@ impl ConstructionPlan {
             category,
             category_variant,
             element_type: element_type.clone(),
-            form: identifier_key(&source.form.name),
+            form: identifier_key(&form.name),
             rule_id: rule_id.clone(),
             render_arm: element_type.clone(),
             visitor_method: format!("visit_{}", snake_case(&element_type)),

@@ -1725,12 +1725,13 @@ mod tests {
             })
             .expect("representative source has a construction");
 
-        let count_error = SemanticPlan::test_only_seal_construction_atoms(&construction.form, &[])
-            .expect_err("a sealed atom list cannot silently truncate");
+        let count_error =
+            SemanticPlan::test_only_seal_construction_atoms(&construction.forms[0], &[])
+                .expect_err("a sealed atom list cannot silently truncate");
         assert!(count_error.to_string().contains("atom count"));
 
         let kind_error = SemanticPlan::test_only_seal_construction_atoms(
-            &construction.form,
+            &construction.forms[0],
             &[crate::validate::AtomContribution::Category {
                 role: "ignored".to_owned(),
                 category: "Node".to_owned(),
@@ -1856,7 +1857,9 @@ mod tests {
             .declarations
             .into_iter()
             .find_map(|declaration| match declaration {
-                crate::Declaration::Construction(construction) => Some(construction.form),
+                crate::Declaration::Construction(construction) => {
+                    construction.forms.into_iter().next()
+                }
                 crate::Declaration::AbstractProduct(_)
                 | crate::Declaration::AbstractSum(_)
                 | crate::Declaration::Vocab(_)

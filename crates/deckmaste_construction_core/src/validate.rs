@@ -46,6 +46,7 @@ use crate::model::FeaturePlace as ParsedFeaturePlace;
 use crate::model::FeatureValue as ParsedFeatureValue;
 use crate::model::FieldKind;
 use crate::model::FormAtom;
+use crate::model::FormGuardSource;
 use crate::model::RequireExprSource;
 use crate::model::TerminalBinding;
 use crate::model::TraversalKind;
@@ -679,16 +680,20 @@ fn construction_has_fixed_width(construction: &crate::Construction) -> bool {
         .iter()
         .map(|field| (identifier_key(&field.name), &field.kind))
         .collect::<HashMap<_, _>>();
-    construction.form.atoms.iter().any(|atom| match atom {
-        FormAtom::Literal(value) => !value.value().is_empty(),
-        FormAtom::Lex(role) | FormAtom::Identity(role) | FormAtom::Noun(role) => {
-            fields.get(&identifier_key(role)).is_some_and(|kind| {
-                !matches!(kind, FieldKind::Optional(_) | FieldKind::Sequence { .. })
-            })
-        }
-        FormAtom::Verb(_) | FormAtom::OpenVerb(_) => true,
-        FormAtom::Role(_) => false,
-    })
+    construction
+        .forms
+        .iter()
+        .flat_map(|form| &form.atoms)
+        .any(|atom| match atom {
+            FormAtom::Literal(value) => !value.value().is_empty(),
+            FormAtom::Lex(role) | FormAtom::Identity(role) | FormAtom::Noun(role) => {
+                fields.get(&identifier_key(role)).is_some_and(|kind| {
+                    !matches!(kind, FieldKind::Optional(_) | FieldKind::Sequence { .. })
+                })
+            }
+            FormAtom::Verb(_) | FormAtom::OpenVerb(_) => true,
+            FormAtom::Role(_) => false,
+        })
 }
 
 fn normalize_length_requirements(
@@ -826,7 +831,7 @@ fn reject_grouped_length_requirements(
                 reject_grouped_length_requirements(owner, operand, errors);
             }
         }
-        RequireExprSource::In { .. } => {}
+        RequireExprSource::In { .. } | RequireExprSource::OptionalPresence { .. } => {}
     }
 }
 
@@ -2128,9 +2133,11 @@ fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
                         ParsedFeatureValue::FromRole(_) => {}
                     }
                 }
-                for atom in &construction.form.atoms {
-                    if let FormAtom::Verb(VerbOperand::Fixed(path)) = atom {
-                        validate_generated_owned_path(path, &mut errors);
+                for form in &construction.forms {
+                    for atom in &form.atoms {
+                        if let FormAtom::Verb(VerbOperand::Fixed(path)) = atom {
+                            validate_generated_owned_path(path, &mut errors);
+                        }
                     }
                 }
             }
@@ -2246,11 +2253,13 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     "generated element type",
                     &mut errors,
                 );
-                reject_raw_keyword_identifier(
-                    &construction.form.name,
-                    "generated form/rule fragment",
-                    &mut errors,
-                );
+                for form in &construction.forms {
+                    reject_raw_keyword_identifier(
+                        &form.name,
+                        "generated form/rule fragment",
+                        &mut errors,
+                    );
+                }
                 categories.insert(category.clone());
                 duplicate_name(&mut source_names, &name, &construction.name, &mut errors);
                 let category_variant = pascal_case(&name);
@@ -2260,12 +2269,14 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     construction.name.span(),
                     &mut errors,
                 );
-                validate_generated_rust_ident(
-                    &pascal_case(&identifier_key(&construction.form.name)),
-                    &format!("form/rule fragment for construction `{name}`"),
-                    construction.form.name.span(),
-                    &mut errors,
-                );
+                for form in &construction.forms {
+                    validate_generated_rust_ident(
+                        &pascal_case(&identifier_key(&form.name)),
+                        &format!("form/rule fragment for construction `{name}`"),
+                        form.name.span(),
+                        &mut errors,
+                    );
+                }
                 let variants = category_variant_order.entry(category.clone()).or_default();
                 if !variants.contains(&category_variant) {
                     variants.push(category_variant);
@@ -2945,16 +2956,35 @@ fn generated_name_inventory(
                     construction.name.span(),
                     errors,
                 );
-                register_structural_owner_rule_names(
-                    &mut names,
-                    &format!("{}{category_variant}", pascal_case(&category)),
-                    &element,
-                    &construction.element.fields,
-                    &construction.requirements,
-                    &format!("RuleId for construction {construction_name}"),
-                    construction.name.span(),
-                    errors,
-                );
+                for form in &construction.forms {
+                    let form_rule = if construction.forms.len() == 1 {
+                        format!("{}{category_variant}", pascal_case(&category))
+                    } else {
+                        format!(
+                            "{}{category_variant}{}",
+                            pascal_case(&category),
+                            pascal_case(&identifier_key(&form.name))
+                        )
+                    };
+                    let rule_role = if construction.forms.len() == 1 {
+                        format!("RuleId for construction {construction_name}")
+                    } else {
+                        format!(
+                            "RuleId for construction form {construction_name}.{}",
+                            form.name
+                        )
+                    };
+                    register_structural_owner_rule_names(
+                        &mut names,
+                        &form_rule,
+                        &element,
+                        &construction.element.fields,
+                        &construction.requirements,
+                        &rule_role,
+                        form.name.span(),
+                        errors,
+                    );
+                }
                 for equation in &construction.equations {
                     let ParsedFeatureValue::Match { role, .. } = &equation.value else {
                         continue;
@@ -3487,9 +3517,9 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
                 && !construction.equations.iter().any(|writer| matches!(&writer.target, ParsedFeaturePlace::Role { field, feature: writer_feature } if identifier_key(field) == identifier_key(&slot.role) && *writer_feature == parsed_feature)))
         }) || (feature == Feature::Number
             && construction
-                .form
-                .atoms
+                .forms
                 .iter()
+                .flat_map(|form| &form.atoms)
                 .any(|atom| matches!(atom, FormAtom::Noun(_)))
             && path_name(&construction.category) == category)
     })
@@ -3559,20 +3589,36 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
             .iter()
             .map(|field| (identifier_key(&field.name), &field.kind))
             .collect();
-        let (verb_operands, open_verb_count) = form_verbs(construction);
+        let form_verb_rows = construction
+            .forms
+            .iter()
+            .map(form_verbs)
+            .collect::<Vec<_>>();
+        let verb_operands = form_verb_rows
+            .iter()
+            .flat_map(|(operands, _)| operands.iter().copied())
+            .collect::<Vec<_>>();
+        let open_verb_count = form_verb_rows
+            .iter()
+            .map(|(_, open_verb_count)| open_verb_count)
+            .sum::<usize>();
         let has_fixed_verb = verb_operands
             .iter()
             .any(|operand| matches!(operand, VerbOperand::Fixed(_)))
             || open_verb_count != 0;
         let local_vocab_providers = local_vocab_feature_providers(construction, &fields, symbols);
-        if verb_operands.len() + open_verb_count > 1 {
-            combine(
-                &mut errors,
-                syn::Error::new(
-                    construction.form.name.span(),
-                    "an MVP form may contain only one agreement-bearing verb slot",
-                ),
-            );
+        for (form, (form_verbs, form_open_verb_count)) in
+            construction.forms.iter().zip(&form_verb_rows)
+        {
+            if form_verbs.len() + form_open_verb_count > 1 {
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        form.name.span(),
+                        "an MVP form may contain only one agreement-bearing verb slot",
+                    ),
+                );
+            }
         }
         if has_fixed_verb && fields.contains_key("verb") {
             let span = construction
@@ -3580,7 +3626,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 .fields
                 .iter()
                 .find(|field| identifier_key(&field.name) == "verb")
-                .map_or(construction.form.name.span(), |field| field.name.span());
+                .map_or(construction.forms[0].name.span(), |field| field.name.span());
             combine(
                 &mut errors,
                 syn::Error::new(
@@ -3592,37 +3638,40 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
         for field in &construction.element.fields {
             validate_resolved_field_kind(&field.kind, symbols, &mut errors);
         }
-        for atom in &construction.form.atoms {
-            match atom {
-                FormAtom::Role(role) => check_role_kind(role, &fields, true, &mut errors),
-                FormAtom::Lex(role) => check_lex_role(role, &fields, symbols, &mut errors),
-                FormAtom::Identity(role) => match fields
-                    .get(&identifier_key(role))
-                    .map(|kind| field_kind_leaf(kind))
-                {
-                    None => combine(
-                        &mut errors,
-                        syn::Error::new(role.span(), format!("unknown role `{role}`")),
-                    ),
-                    Some(FieldKind::Identity(_)) => {}
-                    Some(_) => combine(
-                        &mut errors,
-                        syn::Error::new(
-                            role.span(),
-                            format!("field `{role}` is not an identity role"),
+        for form in &construction.forms {
+            validate_form_guard(construction, form, &fields, symbols, &mut errors);
+            for atom in &form.atoms {
+                match atom {
+                    FormAtom::Role(role) => check_role_kind(role, &fields, true, &mut errors),
+                    FormAtom::Lex(role) => check_lex_role(role, &fields, symbols, &mut errors),
+                    FormAtom::Identity(role) => match fields
+                        .get(&identifier_key(role))
+                        .map(|kind| field_kind_leaf(kind))
+                    {
+                        None => combine(
+                            &mut errors,
+                            syn::Error::new(role.span(), format!("unknown role `{role}`")),
                         ),
-                    ),
-                },
-                FormAtom::Noun(role) => check_noun_role(role, &fields, symbols, &mut errors),
-                FormAtom::Verb(VerbOperand::Projected(role)) => {
-                    check_verb_role(role, &fields, symbols, &mut errors);
-                    reject_projected_verb_role(role, &mut errors);
+                        Some(FieldKind::Identity(_)) => {}
+                        Some(_) => combine(
+                            &mut errors,
+                            syn::Error::new(
+                                role.span(),
+                                format!("field `{role}` is not an identity role"),
+                            ),
+                        ),
+                    },
+                    FormAtom::Noun(role) => check_noun_role(role, &fields, symbols, &mut errors),
+                    FormAtom::Verb(VerbOperand::Projected(role)) => {
+                        check_verb_role(role, &fields, symbols, &mut errors);
+                        reject_projected_verb_role(role, &mut errors);
+                    }
+                    FormAtom::Verb(VerbOperand::Fixed(path)) => {
+                        check_terminal_variant(path, TerminalKind::Lexeme, symbols, &mut errors);
+                    }
+                    FormAtom::OpenVerb(open) => validate_open_declaration(open, &mut errors),
+                    FormAtom::Literal(_) => {}
                 }
-                FormAtom::Verb(VerbOperand::Fixed(path)) => {
-                    check_terminal_variant(path, TerminalKind::Lexeme, symbols, &mut errors);
-                }
-                FormAtom::OpenVerb(open) => validate_open_declaration(open, &mut errors),
-                FormAtom::Literal(_) => {}
             }
         }
         for equation in &construction.equations {
@@ -3725,9 +3774,8 @@ fn validate_open_declaration(
     }
 }
 
-fn form_verbs(construction: &crate::model::Construction) -> (Vec<&VerbOperand>, usize) {
-    let verb_operands = construction
-        .form
+fn form_verbs(form: &crate::model::Form) -> (Vec<&VerbOperand>, usize) {
+    let verb_operands = form
         .atoms
         .iter()
         .filter_map(|atom| match atom {
@@ -3735,13 +3783,87 @@ fn form_verbs(construction: &crate::model::Construction) -> (Vec<&VerbOperand>, 
             _ => None,
         })
         .collect();
-    let open_verb_count = construction
-        .form
+    let open_verb_count = form
         .atoms
         .iter()
         .filter(|atom| matches!(atom, FormAtom::OpenVerb(_)))
         .count();
     (verb_operands, open_verb_count)
+}
+
+fn validate_form_guard(
+    construction: &crate::model::Construction,
+    form: &crate::model::Form,
+    fields: &HashMap<String, &FieldKind>,
+    symbols: &Symbols,
+    errors: &mut Option<syn::Error>,
+) {
+    let FormGuardSource::When(guard) = &form.guard else {
+        return;
+    };
+    validate_form_guard_expr(construction, guard, fields, symbols, errors);
+}
+
+fn validate_form_guard_expr(
+    construction: &crate::model::Construction,
+    guard: &RequireExprSource,
+    fields: &HashMap<String, &FieldKind>,
+    symbols: &Symbols,
+    errors: &mut Option<syn::Error>,
+) {
+    match guard {
+        RequireExprSource::OptionalPresence { role, .. } => match fields.get(&identifier_key(role))
+        {
+            Some(FieldKind::Optional(_)) => {}
+            Some(_) => combine(
+                errors,
+                syn::Error::new(
+                    role.span(),
+                    "optional-presence guard requires an optional role",
+                ),
+            ),
+            None => combine(
+                errors,
+                syn::Error::new(role.span(), format!("unknown form-guard role `{role}`")),
+            ),
+        },
+        RequireExprSource::In {
+            subject: crate::model::RequireSubjectSource::Role(role),
+            ..
+        } => match fields.get(&identifier_key(role)) {
+            Some(FieldKind::Lex(path)) => match symbols.terminals.get(&path_name(path)) {
+                Some(info) if info.kind == TerminalKind::Vocab => {}
+                Some(_) => combine(
+                    errors,
+                    syn::Error::new(role.span(), "form guard membership requires a vocab role"),
+                ),
+                None => combine(
+                    errors,
+                    syn::Error::new(role.span(), format!("unknown form-guard role `{role}`")),
+                ),
+            },
+            Some(_) => combine(
+                errors,
+                syn::Error::new(role.span(), "form guard membership requires a vocab role"),
+            ),
+            None => combine(
+                errors,
+                syn::Error::new(role.span(), format!("unknown form-guard role `{role}`")),
+            ),
+        },
+        RequireExprSource::All(operands) | RequireExprSource::Any(operands) => {
+            for operand in operands {
+                validate_form_guard_expr(construction, operand, fields, symbols, errors);
+            }
+        }
+        RequireExprSource::In { .. } | RequireExprSource::Length { .. } => combine(
+            errors,
+            syn::Error::new(
+                construction.name.span(),
+                "form guard contains an unsupported predicate subject",
+            ),
+        ),
+    }
 }
 
 fn reject_projected_verb_role(role: &syn::Ident, errors: &mut Option<syn::Error>) {
@@ -3791,7 +3913,7 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
             .map(|field| (identifier_key(&field.name), &field.kind))
             .collect();
         let mut atoms = Vec::new();
-        for atom in &construction.form.atoms {
+        for atom in construction.forms.iter().flat_map(|form| &form.atoms) {
             let resolved = match atom {
                 FormAtom::Literal(_) => Some(AtomContribution::Literal),
                 FormAtom::Role(role) => fields
@@ -4242,46 +4364,54 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
     let mut errors = None;
     for declaration in &raw.declarations {
         let Declaration::Construction(construction) = declaration else { continue };
-        let mut counts: HashMap<String, usize> = construction
-            .element
-            .fields
-            .iter()
-            .map(|field| (identifier_key(&field.name), 0))
-            .collect();
-        for atom in &construction.form.atoms {
-            let role = match atom {
-                FormAtom::Role(role)
-                | FormAtom::Lex(role)
-                | FormAtom::Identity(role)
-                | FormAtom::Noun(role)
-                | FormAtom::Verb(VerbOperand::Projected(role)) => Some(role),
-                FormAtom::Verb(VerbOperand::Fixed(_))
-                | FormAtom::OpenVerb(_)
-                | FormAtom::Literal(_) => None,
-            };
-            if let Some(role) = role
-                && let Some(count) = counts.get_mut(&identifier_key(role))
-            {
-                *count += 1;
+        for form in &construction.forms {
+            let mut counts: HashMap<String, usize> = construction
+                .element
+                .fields
+                .iter()
+                .map(|field| (identifier_key(&field.name), 0))
+                .collect();
+            for atom in &form.atoms {
+                let role = match atom {
+                    FormAtom::Role(role)
+                    | FormAtom::Lex(role)
+                    | FormAtom::Identity(role)
+                    | FormAtom::Noun(role)
+                    | FormAtom::Verb(VerbOperand::Projected(role)) => Some(role),
+                    FormAtom::Verb(VerbOperand::Fixed(_))
+                    | FormAtom::OpenVerb(_)
+                    | FormAtom::Literal(_) => None,
+                };
+                if let Some(role) = role
+                    && let Some(count) = counts.get_mut(&identifier_key(role))
+                {
+                    *count += 1;
+                }
             }
-        }
-        for field in &construction.element.fields {
-            match counts[&identifier_key(&field.name)] {
-                0 => combine(
-                    &mut errors,
-                    syn::Error::new(
-                        field.name.span(),
-                        format!("field `{}` is not present in the form", field.name),
+            for field in &construction.element.fields {
+                match counts[&identifier_key(&field.name)] {
+                    0 => combine(
+                        &mut errors,
+                        syn::Error::new(
+                            field.name.span(),
+                            format!(
+                                "field `{}` is not present in form `{}`",
+                                field.name, form.name
+                            ),
+                        ),
                     ),
-                ),
-                1 => {}
-                count => combine(
-                    &mut errors,
-                    syn::Error::new(
-                        field.name.span(),
-                        format!("field `{}` is used {count} times in the form", field.name),
+                    1 => {}
+                    count => combine(
+                        &mut errors,
+                        syn::Error::new(
+                            field.name.span(),
+                            format!(
+                                "field `{}` is used {count} times in form `{}`",
+                                field.name, form.name
+                            ),
+                        ),
                     ),
-                ),
+                }
             }
         }
     }
@@ -5293,7 +5423,8 @@ fn normalize_predicate(
             deduplicate_alternatives(&mut alternatives);
             errors.map_or(Ok(alternatives), Err)
         }
-        crate::RequireExprSource::Length { .. } => Ok(Vec::new()),
+        crate::RequireExprSource::Length { .. }
+        | crate::RequireExprSource::OptionalPresence { .. } => Ok(Vec::new()),
     }
 }
 
@@ -5368,9 +5499,9 @@ fn resolve_predicate_atom(
             if !fields.contains_key(&role_name) {
                 let parse_only = role_name == "verb"
                     && construction
-                        .form
-                        .atoms
+                        .forms
                         .iter()
+                        .flat_map(|form| &form.atoms)
                         .any(|atom| matches!(atom, FormAtom::Verb(_) | FormAtom::OpenVerb(_)));
                 let message = if parse_only {
                     format!(
@@ -5848,19 +5979,19 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
             );
         }
         let has_number = writers.contains("construction.number");
-        for atom in &construction.form.atoms {
+        for atom in construction.forms.iter().flat_map(|form| &form.atoms) {
             match atom {
                 FormAtom::Noun(_) if !has_number => combine(
                     &mut errors,
                     syn::Error::new(
-                        construction.form.name.span(),
+                        construction.forms[0].name.span(),
                         "noun atom requires number in scope",
                     ),
                 ),
                 _ => {}
             }
         }
-        for atom in &construction.form.atoms {
+        for atom in construction.forms.iter().flat_map(|form| &form.atoms) {
             let slot = match atom {
                 FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_) => {
                     Some("verb".to_owned())
@@ -5883,7 +6014,7 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                 combine(
                     &mut errors,
                     syn::Error::new(
-                        construction.form.name.span(),
+                        construction.forms[0].name.span(),
                         format!("verb atom requires agreement binding for `{slot}.agreement`"),
                     ),
                 );
@@ -5914,14 +6045,19 @@ fn seal_feature_resolutions(
             .iter()
             .map(|equation| equation.target().clone())
             .collect::<Vec<_>>();
-        if construction.form.atoms.iter().any(|atom| {
-            matches!(
-                atom,
-                FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_)
-            )
-        }) {
+        if construction
+            .forms
+            .iter()
+            .flat_map(|form| &form.atoms)
+            .any(|atom| {
+                matches!(
+                    atom,
+                    FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_)
+                )
+            })
+        {
             places.push(feature::FeaturePlace::Role {
-                field: syn::Ident::new("verb", construction.form.name.span()),
+                field: syn::Ident::new("verb", construction.forms[0].name.span()),
                 feature: feature::Feature::Agreement,
             });
         }
@@ -5977,14 +6113,18 @@ fn seal_category_render_capabilities(
     let mut agreement_contextual = HashSet::new();
 
     for construction in &constructions {
-        let has_fixed_verb = construction.form.atoms.iter().any(|atom| {
-            matches!(
-                atom,
-                FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_)
-            )
-        });
+        let has_fixed_verb = construction
+            .forms
+            .iter()
+            .flat_map(|form| &form.atoms)
+            .any(|atom| {
+                matches!(
+                    atom,
+                    FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_)
+                )
+            });
         let verb_place = feature::FeaturePlace::Role {
-            field: syn::Ident::new("verb", construction.form.name.span()),
+            field: syn::Ident::new("verb", construction.forms[0].name.span()),
             feature: feature::Feature::Agreement,
         };
         if has_fixed_verb
@@ -6000,40 +6140,44 @@ fn seal_category_render_capabilities(
     loop {
         let before = agreement_contextual.len();
         for construction in &constructions {
-            let passes_external_to_child = construction.form.atoms.iter().any(|atom| {
-                let FormAtom::Role(role) = atom else { return false };
-                let Some(category) = construction.element.fields.iter().find_map(|field| {
-                    same_identifier(&field.name, role)
-                        .then_some(&field.kind)
-                        .and_then(|kind| match kind {
-                            FieldKind::Category(category) => Some(path_name(category)),
-                            FieldKind::Lex(_)
-                            | FieldKind::Identity(_)
-                            | FieldKind::Optional(_)
-                            | FieldKind::Sequence { .. } => None,
+            let passes_external_to_child = construction
+                .forms
+                .iter()
+                .flat_map(|form| &form.atoms)
+                .any(|atom| {
+                    let FormAtom::Role(role) = atom else { return false };
+                    let Some(category) = construction.element.fields.iter().find_map(|field| {
+                        same_identifier(&field.name, role)
+                            .then_some(&field.kind)
+                            .and_then(|kind| match kind {
+                                FieldKind::Category(category) => Some(path_name(category)),
+                                FieldKind::Lex(_)
+                                | FieldKind::Identity(_)
+                                | FieldKind::Optional(_)
+                                | FieldKind::Sequence { .. } => None,
+                            })
+                    }) else {
+                        return false;
+                    };
+                    let place = feature::FeaturePlace::Role {
+                        field: role.clone(),
+                        feature: feature::Feature::Agreement,
+                    };
+                    agreement_contextual.contains(&category)
+                        && construction.equations.iter().any(|equation| {
+                            matches!(
+                                &equation.target,
+                                ParsedFeaturePlace::Role {
+                                    field,
+                                    feature: ParsedFeature::Agreement,
+                                } if same_identifier(field, role)
+                            )
                         })
-                }) else {
-                    return false;
-                };
-                let place = feature::FeaturePlace::Role {
-                    field: role.clone(),
-                    feature: feature::Feature::Agreement,
-                };
-                agreement_contextual.contains(&category)
-                    && construction.equations.iter().any(|equation| {
-                        matches!(
-                            &equation.target,
-                            ParsedFeaturePlace::Role {
-                                field,
-                                feature: ParsedFeature::Agreement,
-                            } if same_identifier(field, role)
-                        )
-                    })
-                    && resolutions
-                        .get(&identifier_key(&construction.name))
-                        .and_then(|values| values.get(&place))
-                        == Some(&feature::FeatureResolution::External)
-            });
+                        && resolutions
+                            .get(&identifier_key(&construction.name))
+                            .and_then(|values| values.get(&place))
+                            == Some(&feature::FeatureResolution::External)
+                });
             if passes_external_to_child {
                 agreement_contextual.insert(path_name(&construction.category));
             }
@@ -6047,7 +6191,7 @@ fn seal_category_render_capabilities(
     loop {
         let before = context_required.len();
         for construction in &constructions {
-            let reads_context = construction.form.atoms.iter().any(|atom| match atom {
+            let reads_context = construction.forms.iter().flat_map(|form| &form.atoms).any(|atom| match atom {
                 FormAtom::Identity(_) => true,
                 FormAtom::Role(role) => construction
                     .element
@@ -6184,7 +6328,7 @@ fn validate_contextual_agreement_uses(
     let mut errors = None;
     for declaration in &raw.declarations {
         let Declaration::Construction(construction) = declaration else { continue };
-        for atom in &construction.form.atoms {
+        for atom in construction.forms.iter().flat_map(|form| &form.atoms) {
             let FormAtom::Role(role) = atom else { continue };
             let Some(category) = construction.element.fields.iter().find_map(|field| {
                 same_identifier(&field.name, role)
@@ -6535,7 +6679,12 @@ fn validate_backend_completeness(
             );
             continue;
         };
-        if atoms.len() != construction.form.atoms.len()
+        if atoms.len()
+            != construction
+                .forms
+                .iter()
+                .map(|form| form.atoms.len())
+                .sum::<usize>()
             || atoms
                 .iter()
                 .any(|atom| !atom.is_complete() || !atom.is_supported_by(&terminal_capabilities))
@@ -6558,7 +6707,7 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
     for declaration in &raw.declarations {
         match declaration {
             Declaration::Construction(construction) => {
-                for atom in &construction.form.atoms {
+                for atom in construction.forms.iter().flat_map(|form| &form.atoms) {
                     if let FormAtom::Verb(VerbOperand::Projected(role)) = atom {
                         combine(
                             &mut errors,
@@ -6644,9 +6793,9 @@ fn validate_lowerable_feature_compositions(
         .map(|field| (identifier_key(&field.name), &field.kind))
         .collect::<HashMap<_, _>>();
     let has_noun = construction
-        .form
-        .atoms
+        .forms
         .iter()
+        .flat_map(|form| &form.atoms)
         .any(|atom| matches!(atom, FormAtom::Noun(_)));
     let matched_role = |feature| {
         construction.equations.iter().find_map(|equation| {
@@ -6865,6 +7014,80 @@ pub(crate) mod tests {
             .expect_err("fixture must be invalid")
             .into_compile_error()
             .to_string()
+    }
+
+    #[test]
+    fn guarded_forms_reject_category_and_open_domain_subjects() {
+        let category = error(quote! {
+            vocab Word { One = "one", }
+            construction guarded: Cat {
+                element Guarded { child: Other, }
+                form selected when child is One = child;
+                form fallback otherwise = child;
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            category.contains("form guard membership requires a vocab role"),
+            "{category}"
+        );
+
+        let open_domain = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Word using EnglishVerb { One = "one", }
+            construction guarded: Cat {
+                element Guarded { word: lex Word, }
+                form selected when word is One = lex(word);
+                form fallback otherwise = lex(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            open_domain.contains("form guard membership requires a vocab role"),
+            "{open_domain}"
+        );
+    }
+
+    #[test]
+    fn guarded_forms_validate_each_form_and_reserve_each_rule_name() {
+        validate(quote! {
+            vocab Word { One = "one", }
+            construction guarded: Cat {
+                element Guarded { word: lex Word, }
+                form selected when word is One = lex(word);
+                form fallback otherwise = lex(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("every guarded form has a validated backend atom inventory");
+
+        let missing_role = error(quote! {
+            vocab Word { One = "one", }
+            construction guarded: Cat {
+                element Guarded { word: lex Word, }
+                form selected when word is One = lex(word);
+                form fallback otherwise = "fallback";
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            missing_role.contains("field `word` is not present in form `fallback`"),
+            "{missing_role}"
+        );
+
+        let collision = error(quote! {
+            vocab Word { One = "one", }
+            construction guarded: Cat {
+                element Guarded { word: lex Word, }
+                form foo_bar when word is One = lex(word);
+                form FooBar otherwise = lex(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            collision.contains("Construction/RuleId variant"),
+            "{collision}"
+        );
     }
 
     fn assert_same_span(actual: proc_macro2::Span, expected: proc_macro2::Span) {
@@ -7468,7 +7691,7 @@ pub(crate) mod tests {
         let Declaration::Construction(construction) = &unsupported.declarations[0] else {
             panic!("first declaration is a construction")
         };
-        let FormAtom::OpenVerb(open) = &construction.form.atoms[0] else {
+        let FormAtom::OpenVerb(open) = &construction.forms[0].atoms[0] else {
             panic!("form contains an open declaration atom")
         };
         let expected_kind_span = open.kind.span();
@@ -7494,7 +7717,7 @@ pub(crate) mod tests {
         let Declaration::Construction(construction) = &unnamed.declarations[0] else {
             panic!("first declaration is a construction")
         };
-        let FormAtom::OpenVerb(open) = &construction.form.atoms[0] else {
+        let FormAtom::OpenVerb(open) = &construction.forms[0].atoms[0] else {
             panic!("form contains an open declaration atom")
         };
         let expected_name_span = open.name.span();

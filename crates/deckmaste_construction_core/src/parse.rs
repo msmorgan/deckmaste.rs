@@ -39,6 +39,7 @@ use crate::model::FixedSurfaceAtomSource;
 use crate::model::FixedSurfaceSource;
 use crate::model::Form;
 use crate::model::FormAtom;
+use crate::model::FormGuardSource;
 use crate::model::GeneratedCodecRecipe;
 use crate::model::GeneratedIdentityRecipe;
 use crate::model::LeafCallback;
@@ -243,7 +244,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
     let element = parse_element(&content)?;
     let mut requirements = Vec::new();
     let mut equations = Vec::new();
-    let mut form = None;
+    let mut forms = Vec::new();
 
     while !content.is_empty() {
         if content.peek(Token![#]) {
@@ -257,10 +258,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
         } else if content.peek(keyword::derive) {
             equations.push(parse_equation(&content)?);
         } else if content.peek(keyword::form) {
-            if form.is_some() {
-                return Err(deferred(content.span(), "multiple forms"));
-            }
-            form = Some(parse_form(&content)?);
+            forms.push(parse_form(&content)?);
         } else if content.peek(keyword::when) {
             return Err(deferred(content.span(), "when"));
         } else if content.peek(keyword::otherwise) {
@@ -272,15 +270,14 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<Construction> {
         }
     }
 
-    let form =
-        form.ok_or_else(|| syn::Error::new(name.span(), "construction requires exactly one form"))?;
+    validate_form_list(&forms, &name)?;
     Ok(Construction {
         name,
         category,
         element,
         requirements,
         equations,
-        form,
+        forms,
     })
 }
 
@@ -700,12 +697,15 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
 fn parse_form(input: ParseStream<'_>) -> syn::Result<Form> {
     input.parse::<keyword::form>()?;
     let name = input.call(Ident::parse_any)?;
-    if input.peek(keyword::when) {
-        return Err(deferred(input.span(), "when"));
-    }
-    if input.peek(keyword::otherwise) {
-        return Err(deferred(input.span(), "otherwise"));
-    }
+    let guard = if input.peek(keyword::when) {
+        input.parse::<keyword::when>()?;
+        FormGuardSource::When(parse_form_guard_expr(input)?)
+    } else if input.peek(keyword::otherwise) {
+        input.parse::<keyword::otherwise>()?;
+        FormGuardSource::Otherwise
+    } else {
+        FormGuardSource::Unguarded
+    };
     input.parse::<Token![=]>()?;
     let mut atoms = Vec::new();
     while !input.peek(Token![;]) {
@@ -762,7 +762,178 @@ fn parse_form(input: ParseStream<'_>) -> syn::Result<Form> {
         atoms.push(atom);
     }
     input.parse::<Token![;]>()?;
-    Ok(Form { name, atoms })
+    Ok(Form { name, guard, atoms })
+}
+
+fn parse_form_guard_expr(input: ParseStream<'_>) -> syn::Result<RequireExprSource> {
+    if input.peek(keyword::all) {
+        input.parse::<keyword::all>()?;
+        return parse_form_guard_group(input, RequireExprSource::All, "all");
+    }
+    if input.peek(keyword::any) {
+        input.parse::<keyword::any>()?;
+        return parse_form_guard_group(input, RequireExprSource::Any, "any");
+    }
+    if input.peek(Token![!]) {
+        return Err(input.error("form guards do not support negation"));
+    }
+    if input.peek(keyword::len) {
+        return Err(input.error("form guards do not support length subjects"));
+    }
+
+    let role = input.call(Ident::parse_any)?;
+    if input.peek(Token![::]) || input.peek(syn::token::Paren) {
+        return Err(syn::Error::new(
+            role.span(),
+            "form guards require a role subject",
+        ));
+    }
+    if input.peek(Token![.]) {
+        input.parse::<Token![.]>()?;
+        let predicate = input.call(Ident::parse_any)?;
+        if predicate != "is_some" && predicate != "is_none" {
+            return Err(syn::Error::new(
+                predicate.span(),
+                "form guards do not support feature subjects",
+            ));
+        }
+        let content;
+        parenthesized!(content in input);
+        if !content.is_empty() {
+            return Err(content.error("optional-presence guards accept no arguments"));
+        }
+        return Ok(RequireExprSource::OptionalPresence {
+            role,
+            present: predicate == "is_some",
+        });
+    }
+
+    let members = if input.peek(keyword::is) {
+        input.parse::<keyword::is>()?;
+        vec![parse_require_member(input)?]
+    } else if input.peek(Token![in]) {
+        input.parse::<Token![in]>()?;
+        parse_require_members(input)?
+    } else {
+        return Err(input.error("form guard requires `is` or `in`"));
+    };
+    Ok(RequireExprSource::In {
+        subject: RequireSubjectSource::Role(role),
+        members,
+    })
+}
+
+fn parse_form_guard_group(
+    input: ParseStream<'_>,
+    group: impl FnOnce(Vec<RequireExprSource>) -> RequireExprSource,
+    name: &str,
+) -> syn::Result<RequireExprSource> {
+    let content;
+    parenthesized!(content in input);
+    let mut operands = Vec::new();
+    while !content.is_empty() {
+        operands.push(parse_form_guard_expr(&content)?);
+        if content.is_empty() {
+            break;
+        }
+        content.parse::<Token![,]>()?;
+        if content.is_empty() {
+            return Err(content.error(format!("form guard {name} does not allow a trailing comma")));
+        }
+    }
+    if operands.len() < 2 {
+        return Err(syn::Error::new(
+            input.span(),
+            format!("form guard {name} requires at least two operands"),
+        ));
+    }
+    Ok(group(operands))
+}
+
+fn validate_form_list(forms: &[Form], construction: &Ident) -> syn::Result<()> {
+    if forms.is_empty() {
+        return Err(syn::Error::new(
+            construction.span(),
+            "construction requires at least one form",
+        ));
+    }
+
+    let mut names = std::collections::HashSet::new();
+    let mut fallback = None;
+    let mut errors = None;
+    for (index, form) in forms.iter().enumerate() {
+        if !names.insert(form.name.to_string()) {
+            combine(
+                &mut errors,
+                syn::Error::new(
+                    form.name.span(),
+                    format!("duplicate form name `{}`", form.name),
+                ),
+            );
+        }
+        match form.guard {
+            FormGuardSource::Unguarded if forms.len() != 1 => combine(
+                &mut errors,
+                syn::Error::new(
+                    form.name.span(),
+                    "an unguarded form cannot be mixed with guarded forms",
+                ),
+            ),
+            FormGuardSource::Otherwise => {
+                if fallback.replace(index).is_some() {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            form.name.span(),
+                            "construction has multiple fallback forms",
+                        ),
+                    );
+                }
+                if index + 1 != forms.len() {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(form.name.span(), "fallback form must be last"),
+                    );
+                }
+            }
+            FormGuardSource::Unguarded | FormGuardSource::When(_) => {}
+        }
+    }
+    if forms
+        .iter()
+        .any(|form| matches!(form.guard, FormGuardSource::When(_)))
+        && fallback.is_none()
+    {
+        let form = forms
+            .iter()
+            .find(|form| matches!(form.guard, FormGuardSource::When(_)))
+            .expect("guarded form exists");
+        combine(
+            &mut errors,
+            syn::Error::new(
+                form.name.span(),
+                "guarded forms require a final fallback form",
+            ),
+        );
+    }
+    if fallback.is_some()
+        && !forms
+            .iter()
+            .any(|form| matches!(form.guard, FormGuardSource::When(_)))
+    {
+        let form = forms
+            .iter()
+            .find(|form| matches!(form.guard, FormGuardSource::Otherwise))
+            .expect("fallback form exists");
+        combine(
+            &mut errors,
+            syn::Error::new(
+                form.name.span(),
+                "fallback form requires at least one guarded form",
+            ),
+        );
+    }
+    errors.map_or(Ok(()), Err)
 }
 
 fn classify_verb_operand(path: Path) -> VerbOperand {
@@ -1603,6 +1774,7 @@ mod tests {
     use crate::FeaturePlace;
     use crate::FeatureValue;
     use crate::FormAtom;
+    use crate::FormGuardSource;
     use crate::RequireExprSource;
     use crate::RequireSubjectSource;
     use crate::TraversalKind;
@@ -2040,6 +2212,116 @@ mod tests {
         }
     }
 
+    #[test]
+    fn guarded_forms_parse_in_authored_order() {
+        let declarations = parse(
+            r#"
+                construction demonstrative: NounPhrase {
+                    element DemonstrativeNp { word: lex Demonstrative, head: lex Noun, }
+                    form that when word is That = lex(word) noun(head);
+                    form those otherwise = lex(word) noun(head);
+                }
+            "#,
+        )
+        .expect("guarded forms parse");
+        let Declaration::Construction(construction) = &declarations.declarations[0] else {
+            panic!("fixture contains one construction");
+        };
+        assert_eq!(construction.forms.len(), 2);
+        assert_eq!(construction.forms[0].name, "that");
+        assert!(matches!(
+            &construction.forms[0].guard,
+            FormGuardSource::When(RequireExprSource::In {
+                subject: RequireSubjectSource::Role(role),
+                members,
+            }) if role == "word" && matches!(members.as_slice(), [member] if member == "That")
+        ));
+        assert_eq!(construction.forms[1].name, "those");
+        assert!(matches!(
+            construction.forms[1].guard,
+            FormGuardSource::Otherwise
+        ));
+
+        let declarations = parse(
+            r#"
+                construction optional_mode: NounPhrase {
+                    element OptionalMode { optional: opt NounPhrase, mode: lex Mode, }
+                    form present when all(optional.is_some(), mode in [One, Two]) = lex(mode);
+                    form absent otherwise = lex(mode);
+                }
+            "#,
+        )
+        .expect("optional-presence guards compose with membership");
+        let Declaration::Construction(construction) = &declarations.declarations[0] else {
+            panic!("fixture contains one construction");
+        };
+        assert!(matches!(
+            &construction.forms[0].guard,
+            FormGuardSource::When(RequireExprSource::All(operands))
+                if matches!(operands.as_slice(), [
+                    RequireExprSource::OptionalPresence { role, present: true },
+                    RequireExprSource::In { subject: RequireSubjectSource::Role(mode), members },
+                ] if role == "optional" && mode == "mode"
+                    && members.iter().map(ToString::to_string).collect::<Vec<_>>() == ["One", "Two"])
+        ));
+    }
+
+    #[test]
+    fn guarded_forms_reject_invalid_source_shapes() {
+        let cases = [
+            (
+                "form one = word; form two otherwise = word;",
+                "unguarded form cannot be mixed",
+            ),
+            (
+                "form one when word is One = word;",
+                "require a final fallback",
+            ),
+            (
+                "form one otherwise = word;",
+                "requires at least one guarded form",
+            ),
+            (
+                "form one otherwise = word; form two otherwise = word;",
+                "multiple fallback",
+            ),
+            (
+                "form one otherwise = word; form two when word is One = word;",
+                "fallback form must be last",
+            ),
+            (
+                "form one when word is One = word; form one otherwise = word;",
+                "duplicate form name `one`",
+            ),
+            (
+                "form one when len(word) = 1 = word; form two otherwise = word;",
+                "do not support length subjects",
+            ),
+            (
+                "form one when word.number is One = word; form two otherwise = word;",
+                "do not support feature subjects",
+            ),
+            (
+                "form one when !word is One = word; form two otherwise = word;",
+                "do not support negation",
+            ),
+            (
+                "form one when callback(word) = word; form two otherwise = word;",
+                "require a role subject",
+            ),
+        ];
+        for (forms, expected) in cases {
+            let source = format!(
+                "construction guarded: Category {{ element Guarded {{ word: lex Word, }} {forms} }}"
+            );
+            let error = parse(&source)
+                .expect_err("invalid guarded form declaration is rejected")
+                .into_compile_error()
+                .to_string();
+            assert!(error.contains(expected), "{forms}: {error}");
+        }
+    }
+
     fn tokens(value: &impl ToTokens) -> String {
         value.to_token_stream().to_string()
     }
@@ -2226,17 +2508,21 @@ mod tests {
             ]
         );
 
-        assert!(matches!(triggered.form.atoms[0], FormAtom::Lex(ref role) if role == "trigger"));
-        assert!(matches!(triggered.form.atoms[1], FormAtom::Role(ref role) if role == "event"));
         assert!(
-            matches!(triggered.form.atoms[2], FormAtom::Literal(ref word) if word.value() == ",")
+            matches!(triggered.forms[0].atoms[0], FormAtom::Lex(ref role) if role == "trigger")
         );
-        assert!(matches!(triggered.form.atoms[3], FormAtom::Role(ref role) if role == "effect"));
+        assert!(matches!(triggered.forms[0].atoms[1], FormAtom::Role(ref role) if role == "event"));
+        assert!(
+            matches!(triggered.forms[0].atoms[2], FormAtom::Literal(ref word) if word.value() == ",")
+        );
+        assert!(
+            matches!(triggered.forms[0].atoms[3], FormAtom::Role(ref role) if role == "effect")
+        );
 
         let Declaration::Construction(count) = &declarations.declarations[2] else {
             panic!("third declaration is count");
         };
-        let FormAtom::Verb(VerbOperand::Fixed(control)) = &count.form.atoms[2] else {
+        let FormAtom::Verb(VerbOperand::Fixed(control)) = &count.forms[0].atoms[2] else {
             panic!("count uses a fixed control verb");
         };
         assert_eq!(path(control), "VerbLexeme :: Control");
@@ -2545,8 +2831,7 @@ mod tests {
             let Declaration::Construction(construction) = declaration else {
                 panic!("fixtures contain only constructions");
             };
-            let operand = construction
-                .form
+            let operand = construction.forms[0]
                 .atoms
                 .iter()
                 .find_map(|atom| match atom {
@@ -2563,7 +2848,7 @@ mod tests {
         let Declaration::Construction(projected) = &declarations.declarations[3] else {
             panic!("fourth declaration is projected");
         };
-        let FormAtom::Verb(VerbOperand::Projected(field)) = &projected.form.atoms[0] else {
+        let FormAtom::Verb(VerbOperand::Projected(field)) = &projected.forms[0].atoms[0] else {
             panic!("bare verb operand should remain a projected role");
         };
         assert_eq!(field, "word");
@@ -2615,14 +2900,6 @@ mod tests {
             (
                 "construction x: X { element XNode { value: X, } require value != None; form x = value; }",
                 "Plan 05 structural declarations",
-            ),
-            (
-                "construction x: X { element XNode { value: X, } form x when value = value; }",
-                "when",
-            ),
-            (
-                "construction x: X { element XNode { value: X, } form x otherwise = value; }",
-                "otherwise",
             ),
             ("scanner Words { anything }", "scanner"),
             (
@@ -2734,14 +3011,13 @@ mod tests {
     }
 
     #[test]
-    fn rejects_a_second_form_by_name() {
+    fn rejects_multiple_unguarded_forms() {
         let error = parse(
             "construction x: X { element XNode { value: X, } form one = value; form two = value; }",
         )
-        .expect_err("a second form is deferred")
+        .expect_err("an unguarded form cannot be mixed with another form")
         .to_string();
-        assert!(error.contains("multiple forms"), "{error}");
-        assert!(error.contains("unimplemented in MVP"), "{error}");
+        assert!(error.contains("unguarded form cannot be mixed"), "{error}");
     }
 
     #[test]
