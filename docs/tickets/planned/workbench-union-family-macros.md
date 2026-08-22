@@ -1,5 +1,5 @@
 ---
-needs: [workbench-join-shape-flat-or-pair, workbench-joined-kind-binding, workbench-unhomed-union-gates, workbench-union-gate-spelling-rehome]
+needs: [workbench-join-is-a-constructor]
 ---
 # Migrate the union family to functions over the joined-kind core
 
