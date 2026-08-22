@@ -1,6 +1,5 @@
 pub use crate::constructions::Ability;
 pub use crate::constructions::Amount;
-pub use crate::constructions::Article;
 pub use crate::constructions::Clause;
 pub use crate::constructions::Common;
 pub use crate::constructions::Connive;

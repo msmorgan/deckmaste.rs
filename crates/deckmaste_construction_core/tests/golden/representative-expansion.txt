@@ -65,6 +65,7 @@ pub(crate) enum Number {
     Singular,
     Plural,
 }
+pub(crate) use ::macro_ron::v2::Onset;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum FeatureConstraint<F> {
     Exact(F),
@@ -109,6 +110,7 @@ pub(crate) struct DeclarationMatcher {
 pub(crate) struct DeclarationLeaf {
     pub(crate) id: ::macro_ron::v2::DeclarationIdentity,
     pub(crate) feature: ::macro_ron::v2::SurfaceFeature,
+    pub(crate) onset: Onset,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum Lexical {
@@ -125,8 +127,8 @@ pub(crate) enum Leaf {
     Literal(&'static str),
     EndOfInput,
     Words(Words),
-    Noun { noun: Nouns, number: Number },
-    Verb { lexeme: Verbs, agreement: Agreement },
+    Noun { noun: Nouns, number: Number, onset: Onset },
+    Verb { lexeme: Verbs, agreement: Agreement, onset: Onset },
     SignedNumber(SignedNumber),
     Declaration(DeclarationLeaf),
 }
@@ -628,7 +630,7 @@ impl LexicalOwnerTemplate {
             }
             (
                 LexicalOwnerTemplate::Lexeme { declaration: "Verbs", member: "Act" },
-                Leaf::Verb { lexeme: Verbs::Act, agreement: Agreement::Bare },
+                Leaf::Verb { lexeme: Verbs::Act, agreement: Agreement::Bare, .. },
             ) => {
                 Some(
                     LexicalOwner::static_owner(
@@ -642,6 +644,7 @@ impl LexicalOwnerTemplate {
                 Leaf::Verb {
                     lexeme: Verbs::Act,
                     agreement: Agreement::ThirdPersonSingular,
+                    ..
                 },
             ) => {
                 Some(
@@ -764,24 +767,28 @@ pub(crate) fn scan_lexical(
         }
         Lexical::Verb(wanted, constraint) => {
             [
-                (Verbs::Act, Agreement::Bare, "act"),
-                (Verbs::Act, Agreement::ThirdPersonSingular, "acts"),
+                (Verbs::Act, Agreement::Bare, Onset::Vowel, "act"),
+                (Verbs::Act, Agreement::ThirdPersonSingular, Onset::Vowel, "acts"),
             ]
                 .into_iter()
-                .filter(|(lexeme, _, _)| *lexeme == wanted)
-                .filter(|(_, agreement, _)| {
+                .filter(|(lexeme, _, _, _)| *lexeme == wanted)
+                .filter(|(_, agreement, _, _)| {
                     matches!(constraint, FeatureConstraint::Any)
                         || matches!(
                             constraint, FeatureConstraint::Exact(expected) if expected ==
                             * agreement
                         )
                 })
-                .filter_map(|(lexeme, agreement, surface)| {
+                .filter_map(|(lexeme, agreement, onset, surface)| {
                     input
                         .word_end(surface)
                         .map(|end| LexicalMatch {
                             end,
-                            value: Leaf::Verb { lexeme, agreement },
+                            value: Leaf::Verb {
+                                lexeme,
+                                agreement,
+                                onset,
+                            },
                             owner: None,
                         })
                 })
@@ -789,23 +796,27 @@ pub(crate) fn scan_lexical(
         }
         Lexical::Noun(wanted) => {
             [
-                (Nouns::Person, Number::Singular, "person"),
-                (Nouns::Person, Number::Plural, "persons"),
+                (Nouns::Person, Number::Singular, Onset::Consonant, "person"),
+                (Nouns::Person, Number::Plural, Onset::Consonant, "persons"),
             ]
                 .into_iter()
-                .filter(|(_, number, _)| {
+                .filter(|(_, number, _, _)| {
                     matches!(wanted, FeatureConstraint::Any)
                         || matches!(
                             wanted, FeatureConstraint::Exact(expected) if expected == *
                             number
                         )
                 })
-                .filter_map(|(lexeme, number, surface)| {
+                .filter_map(|(lexeme, number, onset, surface)| {
                     input
                         .word_end(surface)
                         .map(|end| LexicalMatch {
                             end,
-                            value: Leaf::Noun { noun: lexeme, number },
+                            value: Leaf::Noun {
+                                noun: lexeme,
+                                number,
+                                onset,
+                            },
                             owner: None,
                         })
                 })
@@ -815,9 +826,13 @@ pub(crate) fn scan_lexical(
             input
                 .declaration_readings(matcher)
                 .into_iter()
-                .map(|(end, id, feature)| LexicalMatch {
+                .map(|(end, id, feature, onset)| LexicalMatch {
                     end,
-                    value: Leaf::Declaration(DeclarationLeaf { id, feature }),
+                    value: Leaf::Declaration(DeclarationLeaf {
+                        id,
+                        feature,
+                        onset,
+                    }),
                     owner: None,
                 })
                 .collect()
@@ -1220,7 +1235,11 @@ pub(super) fn build_checked(
         RuleId::ActionAction => {
             match children {
                 [BuildValue::Leaf(
-                    Leaf::Verb { lexeme: Verbs::Act, agreement: Agreement::Bare },
+                    Leaf::Verb {
+                        lexeme: Verbs::Act,
+                        agreement: Agreement::Bare,
+                        onset: Onset::Vowel,
+                    },
                 ), BuildValue::Node(node)] => {
                     Ok(
                         Some(

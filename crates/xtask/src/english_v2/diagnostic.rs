@@ -1945,7 +1945,7 @@ pub(super) fn fixture_report(outcome: FixtureOutcome) -> DiagnosticReport {
                 3,
                 vec![
                     Expectation::Nonterminal(NonterminalKind::Ability),
-                    Expectation::Terminal(terminal(TerminalClass::Noun)),
+                    Expectation::Terminal(terminal(TerminalClass::DeclarationNoun(6))),
                     Expectation::Literal("literal\nvalue".to_owned()),
                 ],
             ),
@@ -3650,7 +3650,7 @@ mod tests {
                 vec![
                     deckmaste_english_v2::parser::ExpectationInfo::Literal("source literal"),
                     deckmaste_english_v2::parser::ExpectationInfo::Terminal(
-                        deckmaste_english_v2::parser::TerminalClass::Noun,
+                        deckmaste_english_v2::parser::TerminalClass::DeclarationNoun(6),
                     ),
                     deckmaste_english_v2::parser::ExpectationInfo::Nonterminal(
                         deckmaste_english_v2::parser::NonterminalCategory::Clause,
@@ -3742,7 +3742,7 @@ mod tests {
                 omitted: 1,
                 items: vec![
                     Expectation::Literal("source literal".to_owned()),
-                    Expectation::Terminal(terminal(TerminalClass::Noun)),
+                    Expectation::Terminal(terminal(TerminalClass::DeclarationNoun(6))),
                     Expectation::Nonterminal(NonterminalKind::Clause),
                 ],
             }

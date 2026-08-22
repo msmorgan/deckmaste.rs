@@ -225,6 +225,16 @@ fn emit_arm_from_plan(
                 FiniteDomainKindPlan::OptionalPresence,
                 FiniteValuePlan::OptionalPresence(present),
             ) => Ok(quote! { #field_value.is_some() == #present }),
+            (FiniteDomainKindPlan::Feature { feature, .. }, FiniteValuePlan::Feature(value)) => {
+                let actual = lowering
+                    .role_features
+                    .get(&(guard_role.to_owned(), *feature))
+                    .map(local_feature_value)
+                    .ok_or_else(|| internal("form guard feature role has no lowered value"))?;
+                let expected = feature_value(*value);
+                let actual = resolved_feature_value_tokens(&actual);
+                Ok(quote! { #actual == #expected })
+            }
             _ => Err(internal("form guard domain and assignment value disagree")),
         }
     })? {
@@ -451,8 +461,9 @@ fn lower_value(
                 .category_carries_agreement(name)
                 .then(|| quote! { , _ });
             let number = plan.category_carries_number(name).then(|| quote! { , _ });
+            let onset = plan.category_carries_onset(name).then(|| quote! { , _ });
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::#variant(#binding #agreement #number) },
+                pattern: quote! { BuildValue::#variant(#binding #agreement #number #onset) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -505,7 +516,7 @@ fn lower_terminal_value(
             let leaf = plan.codec_ident();
             let binding = binders.allocate(preferred);
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { noun: #binding, number: _ }) },
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { noun: #binding, number: _, onset: _ }) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -902,6 +913,8 @@ fn lower_atom(
             terminal, variant, ..
         } => {
             let agreement = verb_agreement_pattern(validated, row, lowering)?;
+            let onset =
+                verb_onset_pattern(validated, row, lowering, terminal, variant, &agreement)?;
             let agreement_field = if agreement.to_string() == "agreement" {
                 quote! { agreement }
             } else {
@@ -910,16 +923,18 @@ fn lower_atom(
             let terminal = ident(terminal);
             let variant = ident(variant);
             lowering.patterns.push(quote! {
-                BuildValue::Leaf(Leaf::Verb { lexeme: #terminal::#variant, #agreement_field })
+                BuildValue::Leaf(Leaf::Verb { lexeme: #terminal::#variant, #agreement_field, onset: #onset })
             });
         }
         AtomPlan::OpenDeclaration(open) => {
             let declaration = lowering.binders.allocate("declaration");
             let surface_feature = lowering.binders.allocate("surface_feature");
+            let onset = lowering.binders.allocate("verb_onset");
             lowering.patterns.push(quote! {
                 BuildValue::Leaf(Leaf::Declaration(DeclarationLeaf {
                     id: #declaration,
                     feature: #surface_feature,
+                    onset: #onset,
                 }))
             });
             let kind = crate::emit::declaration_kind(open.kind());
@@ -946,6 +961,10 @@ fn lower_atom(
                     }
                 }),
             );
+            lowering.role_features.insert(
+                ("verb".to_owned(), Feature::Onset),
+                LocalFeatureValue::Bound(onset),
+            );
         }
     }
     Ok(())
@@ -969,26 +988,27 @@ fn lower_category_role(
 
     let carries_agreement = validated.category_carries_agreement(category_name);
     let carries_number = validated.category_carries_number(category_name);
+    let carries_onset = validated.category_carries_onset(category_name);
     let agreement = carries_agreement
         .then(|| role_agreement_pattern(validated, row, &role, category_name, lowering))
         .transpose()?;
     let number = carries_number.then(|| role_number_pattern(validated, row, form, &role, lowering));
-    match (agreement, number) {
-        (Some(agreement), Some(number)) => lowering
-            .patterns
-            .push(quote! { BuildValue::#category(#role_binding, #agreement, #number) }),
-        (Some(pattern), None) => {
-            lowering
-                .patterns
-                .push(quote! { BuildValue::#category(#role_binding, #pattern) });
-        }
-        (None, Some(number)) => lowering
-            .patterns
-            .push(quote! { BuildValue::#category(#role_binding, #number) }),
-        (None, None) => lowering
-            .patterns
-            .push(quote! { BuildValue::#category(#role_binding) }),
-    }
+    let onset = carries_onset.then(|| {
+        let name = lowering
+            .binders
+            .allocate(&format!("{}_onset", identifier_key(&role)));
+        lowering.role_features.insert(
+            (identifier_key(&role), Feature::Onset),
+            LocalFeatureValue::Bound(name.clone()),
+        );
+        name
+    });
+    let agreement = agreement.map(|value| quote! { , #value });
+    let number = number.map(|value| quote! { , #value });
+    let onset = onset.map(|value| quote! { , #value });
+    lowering
+        .patterns
+        .push(quote! { BuildValue::#category(#role_binding #agreement #number #onset) });
     Ok(())
 }
 
@@ -1073,6 +1093,11 @@ fn lower_terminal_role(
         AtomTerminal::Vocab(vocab) => {
             let leaf = ident(vocab.name());
             let binding = lowering.binders.allocate(&vocab_argument(vocab.name()));
+            let onset_arms = vocab.variants().iter().map(|variant| {
+                let member = variant.name();
+                let onset = super::onset(variant.onset());
+                quote! { #leaf::#member => #onset }
+            });
             lowering
                 .patterns
                 .push(quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) });
@@ -1082,18 +1107,17 @@ fn lower_terminal_role(
             lowering
                 .vocab_values
                 .insert(identifier_key(&role), binding.clone());
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::Onset),
+                LocalFeatureValue::Computed(quote! {
+                    match #binding { #(#onset_arms,)* }
+                }),
+            );
             return Ok(());
         }
         AtomTerminal::Binding(binding) => binding,
         AtomTerminal::ContextIdentity(identity) => {
-            let variant = identity.aggregate_ident();
-            let value = lowering.binders.allocate(&identifier_key(&role));
-            lowering
-                .patterns
-                .push(quote! { BuildValue::Leaf(Leaf::#variant(#value)) });
-            lowering
-                .field_values
-                .insert(identifier_key(&role), quote! { *#value });
+            lower_context_identity_role(identity, &role, lowering);
             return Ok(());
         }
         AtomTerminal::SignedDecimal(codec) => {
@@ -1111,13 +1135,20 @@ fn lower_terminal_role(
             let leaf = plan.codec_ident();
             let value = lowering.binders.allocate(&identifier_key(&role));
             let number = noun_number_pattern(validated, row, &role, lowering)?;
+            let onset = lowering
+                .binders
+                .allocate(&format!("{}_onset", identifier_key(&role)));
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::Onset),
+                LocalFeatureValue::Bound(onset.clone()),
+            );
             let number_field = if number.to_string() == "number" {
                 quote! { number }
             } else {
                 quote! { number: #number }
             };
             lowering.patterns.push(quote! {
-                BuildValue::Leaf(Leaf::#leaf { noun: #value, #number_field })
+                BuildValue::Leaf(Leaf::#leaf { noun: #value, #number_field, onset: #onset })
             });
             lowering
                 .field_values
@@ -1172,7 +1203,14 @@ fn lower_terminal_role(
                 "noun terminal binding must expose exactly one build slot",
             ));
         };
-        quote! { Leaf::Noun { noun: #noun_value, #number_field } }
+        let onset = lowering
+            .binders
+            .allocate(&format!("{}_onset", identifier_key(&role)));
+        lowering.role_features.insert(
+            (identifier_key(&role), Feature::Onset),
+            LocalFeatureValue::Bound(onset.clone()),
+        );
+        quote! { Leaf::Noun { noun: #noun_value, #number_field, onset: #onset } }
     } else if build.construct_is_direct_slot() {
         quote! { Leaf::#variant(#(#pattern_names),*) }
     } else {
@@ -1190,6 +1228,38 @@ fn lower_terminal_role(
     };
     lowering.field_values.insert(identifier_key(&role), stored);
     Ok(())
+}
+
+fn context_identity_onset(
+    identity: &crate::semantic::ContextIdentityPlan,
+    value: &syn::Ident,
+) -> TokenStream {
+    let identity_type = identity.ident();
+    let arms = identity.arms().iter().map(|arm| {
+        let member = arm.variant();
+        let accessor = ident(&format!("{}_onset", identifier_key(arm.accessor())));
+        quote! { #identity_type::#member => context.#accessor() }
+    });
+    quote! { match #value { #(#arms,)* } }
+}
+
+fn lower_context_identity_role(
+    identity: &crate::semantic::ContextIdentityPlan,
+    role: &syn::Ident,
+    lowering: &mut Lowering,
+) {
+    let variant = identity.aggregate_ident();
+    let value = lowering.binders.allocate(&identifier_key(role));
+    lowering
+        .patterns
+        .push(quote! { BuildValue::Leaf(Leaf::#variant(#value)) });
+    lowering
+        .field_values
+        .insert(identifier_key(role), quote! { *#value });
+    lowering.role_features.insert(
+        (identifier_key(role), Feature::Onset),
+        LocalFeatureValue::Computed(context_identity_onset(identity, &value)),
+    );
 }
 
 fn lower_build_recipe(
@@ -1306,6 +1376,84 @@ fn verb_agreement_pattern(
         LocalFeatureValue::Bound(agreement.clone()),
     );
     Ok(quote! { #agreement })
+}
+
+fn verb_onset_pattern(
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    lowering: &mut Lowering,
+    terminal: &str,
+    variant: &str,
+    agreement_pattern: &TokenStream,
+) -> syn::Result<TokenStream> {
+    let lexeme = validated
+        .runtime_verb_lexeme()
+        .filter(|lexeme| lexeme.name() == terminal)
+        .ok_or_else(|| internal("fixed verb has no sealed lexeme onset provider"))?;
+    let rows = lexeme
+        .surfaces()
+        .iter()
+        .filter(|surface| surface.member() == variant)
+        .collect::<Vec<_>>();
+    let target = FeaturePlace::Role {
+        field: ident("verb"),
+        feature: Feature::Agreement,
+    };
+    if let Some(crate::feature::FeatureResolution::Known(agreement)) =
+        validated.feature_resolution(row.construction_id(), &target)
+    {
+        let feature = match agreement {
+            FeatureValue::Bare => macro_ron::v2::SurfaceFeature::Bare,
+            FeatureValue::ThirdPersonSingular => macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+            FeatureValue::Singular
+            | FeatureValue::Plural
+            | FeatureValue::Consonant
+            | FeatureValue::Vowel => {
+                return Err(internal("fixed verb resolved a non-Agreement feature"));
+            }
+        };
+        let onset = rows
+            .iter()
+            .find(|surface| surface.feature() == feature)
+            .map(|surface| match surface.onset() {
+                macro_ron::v2::Onset::Consonant => FeatureValue::Consonant,
+                macro_ron::v2::Onset::Vowel => FeatureValue::Vowel,
+            })
+            .ok_or_else(|| internal("fixed verb has no exact realized onset row"))?;
+        lowering.role_features.insert(
+            ("verb".to_owned(), Feature::Onset),
+            LocalFeatureValue::Known(onset),
+        );
+        return Ok(feature_value(onset));
+    }
+
+    let onset = lowering.binders.allocate("verb_onset");
+    lowering.role_features.insert(
+        ("verb".to_owned(), Feature::Onset),
+        LocalFeatureValue::Bound(onset.clone()),
+    );
+    let correlations = rows.iter().map(|surface| {
+        let agreement = match surface.feature() {
+            macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+            macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                quote! { Agreement::ThirdPersonSingular }
+            }
+            macro_ron::v2::SurfaceFeature::Singular
+            | macro_ron::v2::SurfaceFeature::Plural
+            | macro_ron::v2::SurfaceFeature::Fixed => {
+                unreachable!("validated verb lexeme has Agreement rows")
+            }
+        };
+        let expected_onset = match surface.onset() {
+            macro_ron::v2::Onset::Consonant => quote! { Onset::Consonant },
+            macro_ron::v2::Onset::Vowel => quote! { Onset::Vowel },
+        };
+        quote! { (*#agreement_pattern == #agreement && *#onset == #expected_onset) }
+    });
+    lowering.guards.push(quote! {
+        #(#correlations)||*
+    });
+    Ok(quote! { #onset })
 }
 
 fn lower_feature_guards(
@@ -1429,19 +1577,20 @@ fn emit_success(
     let category_value = quote! { #category::#variant(#element_value) };
     let carries_agreement = validated.category_carries_agreement(row.category());
     let carries_number = validated.category_carries_number(row.category());
-    let wrapped = if carries_agreement && carries_number {
-        let agreement = construction_agreement(validated, row, lowering, agreement_override)?;
-        let number = construction_number(validated, row, lowering, number_override)?;
-        quote! { BuildValue::#category(#category_value, #agreement, #number) }
-    } else if carries_agreement {
-        let agreement = construction_agreement(validated, row, lowering, agreement_override)?;
-        quote! { BuildValue::#category(#category_value, #agreement) }
-    } else if carries_number {
-        let number = construction_number(validated, row, lowering, number_override)?;
-        quote! { BuildValue::#category(#category_value, #number) }
-    } else {
-        quote! { BuildValue::#category(#category_value) }
-    };
+    let carries_onset = validated.category_carries_onset(row.category());
+    let agreement = carries_agreement
+        .then(|| construction_agreement(validated, row, lowering, agreement_override))
+        .transpose()?
+        .map(|value| quote! { , #value });
+    let number = carries_number
+        .then(|| construction_number(validated, row, lowering, number_override))
+        .transpose()?
+        .map(|value| quote! { , #value });
+    let onset = carries_onset
+        .then(|| construction_onset(validated, row, lowering))
+        .transpose()?
+        .map(|value| quote! { , #value });
+    let wrapped = quote! { BuildValue::#category(#category_value #agreement #number #onset) };
     Ok(quote! { Ok(Some(#wrapped)) })
 }
 
@@ -1458,7 +1607,8 @@ fn emit_fallible_element_success(
     let mapped = quote! { #category::#variant };
     let carries_agreement = validated.category_carries_agreement(row.category());
     let carries_number = validated.category_carries_number(row.category());
-    if !carries_agreement && !carries_number {
+    let carries_onset = validated.category_carries_onset(row.category());
+    if !carries_agreement && !carries_number && !carries_onset {
         return Ok(quote! {
             #result.map(#mapped).map(BuildValue::#category).map(Some)
         });
@@ -1470,30 +1620,20 @@ fn emit_fallible_element_success(
     let number = carries_number
         .then(|| construction_number(validated, row, lowering, number_override))
         .transpose()?;
+    let onset = carries_onset
+        .then(|| construction_onset(validated, row, lowering))
+        .transpose()?;
     let argument = lowering.constructor_map_local.clone().unwrap_or_else(|| {
         let argument = lowering.binders.allocate(row.construction_id());
         lowering.constructor_map_local = Some(argument.clone());
         argument
     });
-    if let (Some(agreement), Some(number)) = (&agreement, &number) {
-        return Ok(quote! {
-            #result
-                .map(|#argument| { BuildValue::#category(#category::#variant(#argument), #agreement, #number) })
-                .map(Some)
-        });
-    }
-    if let Some(number) = number {
-        return Ok(quote! {
-            #result
-                .map(|#argument| { BuildValue::#category(#category::#variant(#argument), #number) })
-                .map(Some)
-        });
-    }
-    let output = agreement
-        .ok_or_else(|| internal("fallible construction is missing its carried feature output"))?;
+    let agreement = agreement.map(|value| quote! { , #value });
+    let number = number.map(|value| quote! { , #value });
+    let onset = onset.map(|value| quote! { , #value });
     Ok(quote! {
         #result
-            .map(|#argument| { BuildValue::#category(#category::#variant(#argument), #output) })
+            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #agreement #number #onset) })
             .map(Some)
     })
 }
@@ -1637,6 +1777,21 @@ fn construction_number(
     Ok(resolved_feature_value_tokens(&output))
 }
 
+fn construction_onset(
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    lowering: &Lowering,
+) -> syn::Result<TokenStream> {
+    let output = resolve_feature_place(
+        validated,
+        row,
+        lowering,
+        &FeaturePlace::Construction(Feature::Onset),
+        &mut HashSet::new(),
+    )?;
+    Ok(resolved_feature_value_tokens(&output))
+}
+
 fn resolve_feature_place(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
@@ -1692,6 +1847,19 @@ fn resolve_feature_place(
                 FeaturePlace::Construction(Feature::Number)
                 | FeaturePlace::Role {
                     feature: Feature::Number,
+                    ..
+                } => {
+                    let ty = ident(terminal_for_role(row, role)?);
+                    let arms = arms.iter().map(|(variant, value)| {
+                        let variant = variant.value();
+                        let value = feature_value(*value);
+                        quote! { #ty::#variant => #value }
+                    });
+                    ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
+                }
+                FeaturePlace::Construction(Feature::Onset)
+                | FeaturePlace::Role {
+                    feature: Feature::Onset,
                     ..
                 } => {
                     let ty = ident(terminal_for_role(row, role)?);
@@ -1817,6 +1985,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
         FeatureValue::Singular => quote! { Number::Singular },
         FeatureValue::Plural => quote! { Number::Plural },
+        FeatureValue::Consonant => quote! { Onset::Consonant },
+        FeatureValue::Vowel => quote! { Onset::Vowel },
     }
 }
 fn vocab_argument(name: &str) -> String {
@@ -2466,7 +2636,7 @@ mod tests {
         let items = super::emit(validated.semantic()).expect("role-derived noun build lowers");
         let source = items[0].tokens.to_string();
         assert!(
-            source.contains("Leaf :: Noun { noun : head , number }"),
+            source.contains("Leaf :: Noun { noun : head , number , onset : head_onset }"),
             "{source}"
         );
         assert!(
@@ -2568,8 +2738,9 @@ mod tests {
             .tokens
             .to_string();
         assert!(
-            source.contains("Leaf :: Noun { noun : head , number : Number :: Singular }")
-                && source.contains("match count")
+            source.contains(
+                "Leaf :: Noun { noun : head , number : Number :: Singular , onset : head_onset }"
+            ) && source.contains("match count")
                 && source.contains("Count :: One => Ok (Some")
                 && source.contains("Agreement :: ThirdPersonSingular")
                 && source.contains("Count :: Many => Ok (Some")
@@ -2615,8 +2786,8 @@ mod tests {
         for fragment in [
             "* source_number == * number",
             "* source_number == * right_number",
-            "Leaf :: Noun { noun : left , number }",
-            "Leaf :: Noun { noun : right , number : right_number }",
+            "Leaf :: Noun { noun : left , number , onset : left_onset }",
+            "Leaf :: Noun { noun : right , number : right_number , onset : right_onset }",
             "_ => Ok (None)",
         ] {
             assert!(source.contains(fragment), "missing `{fragment}`: {source}");
@@ -2954,5 +3125,32 @@ mod tests {
         assert!(!root_arm.contains("Leaf :: Literal"), "{root_arm}");
         assert!(!root_arm.contains("Leaf :: EndOfInput"), "{root_arm}");
         assert!(!joined.contains("vec !"), "{joined}");
+    }
+
+    #[test]
+    fn constant_onset_forwards_without_bound_prefix_syntax() {
+        let expansion = crate::generate(quote::quote! {
+            construction constant_onset: NounPhrase {
+                element ConstantOnset {}
+                derive onset = Values::Consonant;
+                form constant_onset = "nonartifact";
+            }
+            construction wrapper: Phrase {
+                element Wrapper { head: NounPhrase, }
+                derive onset = head.onset;
+                form an when head.onset is Vowel = "an" head;
+                form a otherwise = "a" head;
+            }
+            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a constant onset forwards through the ordinary category interface");
+        let source = expansion.tokens().to_string();
+
+        assert!(
+            source.contains(
+                "BuildValue :: NounPhrase (NounPhrase :: ConstantOnset (ConstantOnset) , Onset :: Consonant)"
+            ),
+            "the constant-Onset interface forwards; actual bound-prefix onset belongs to Task 6: {source}"
+        );
     }
 }

@@ -1587,7 +1587,6 @@ mod tests {
 
     const ALL_DECLARATION_ORIGINS: &[&str] = &[
         "vocab TriggerWord",
-        "vocab Article",
         "vocab Demonstrative",
         "vocab Pronoun",
         "vocab Variable",
@@ -1648,7 +1647,6 @@ mod tests {
 
     const SCANNER_ORIGINS: &[&str] = &[
         "vocab TriggerWord",
-        "vocab Article",
         "vocab Demonstrative",
         "vocab Pronoun",
         "vocab Variable",
@@ -1706,7 +1704,6 @@ mod tests {
         "construction number",
         "construction variable",
         "vocab TriggerWord",
-        "vocab Article",
         "vocab Demonstrative",
         "vocab Pronoun",
         "vocab Variable",
@@ -1799,9 +1796,6 @@ mod tests {
             "type TriggerWord" | "function render_trigger_word" | "function walk_trigger_word" => {
                 &["vocab TriggerWord"]
             }
-            "type Article" | "function render_article" | "function walk_article" => {
-                &["vocab Article"]
-            }
             "type Demonstrative"
             | "function render_demonstrative"
             | "function walk_demonstrative" => &["vocab Demonstrative"],
@@ -1833,6 +1827,7 @@ mod tests {
             }
             "type Agreement"
             | "type Number"
+            | "type Onset"
             | "type FeatureConstraint"
             | "type CasePosition"
             | "type PrefixPosition"
@@ -2078,7 +2073,6 @@ mod tests {
         "type NumberAmount",
         "type VariableAmount",
         "type TriggerWord",
-        "type Article",
         "type Demonstrative",
         "type Pronoun",
         "type Variable",
@@ -2095,6 +2089,7 @@ mod tests {
         "type SignedNumber",
         "type Agreement",
         "type Number",
+        "type Onset",
         "type FeatureConstraint",
         "type CasePosition",
         "type PrefixPosition",
@@ -2172,7 +2167,6 @@ mod tests {
         "function render_verb_phrase",
         "function render_amount",
         "function render_trigger_word",
-        "function render_article",
         "function render_demonstrative",
         "function render_pronoun",
         "function render_variable",
@@ -2214,7 +2208,6 @@ mod tests {
         "function walk_number_amount",
         "function walk_variable_amount",
         "function walk_trigger_word",
-        "function walk_article",
         "function walk_demonstrative",
         "function walk_pronoun",
         "function walk_variable",
@@ -2899,7 +2892,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 189);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 187);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -2950,7 +2943,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 189);
+        assert_eq!(parsed.items.len(), 187);
     }
 
     #[test]

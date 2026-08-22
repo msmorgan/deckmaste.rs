@@ -77,6 +77,59 @@ fn texts(declaration: &NormalizedDeclaration) -> Vec<&str> {
 }
 
 #[test]
+fn normalization_freezes_bounded_and_authored_onsets_per_realized_form() {
+    let cases = [
+        ("Artifact", "artifact", Onset::Vowel),
+        ("Player", "player", Onset::Consonant),
+        ("Honor", "honor", Onset::Vowel),
+        ("Unit", "unit", Onset::Consonant),
+        ("Euphemism", "euphemism", Onset::Consonant),
+        ("One", "one", Onset::Consonant),
+        ("OneTime", "one-time", Onset::Consonant),
+        ("Onerous", "onerous", Onset::Vowel),
+        ("Oneiric", "oneiric", Onset::Vowel),
+        ("X", "X", Onset::Vowel),
+        ("B", "B", Onset::Consonant),
+        ("MVP", "MVP", Onset::Vowel),
+        ("CPU", "CPU", Onset::Consonant),
+        ("Nonartifact", "nonartifact", Onset::Consonant),
+    ];
+    for (name, surface, expected) in cases {
+        let source = format!(
+            "Type(name:\"{name}\",spelling:\"{surface}\",grammar:FixedTerm(surface:\"{surface}\"))"
+        );
+        let normalized = read_str(source_path(&format!("{name}.ron")), &source).unwrap();
+        let [realized] = normalized.grammar().unwrap().surfaces() else {
+            panic!("one fixed surface is normalized")
+        };
+        assert_eq!(realized.onset(), expected, "{surface}");
+        assert_eq!(realized.onset_override(), None, "{surface}");
+    }
+
+    let overridden = read_str(
+        source_path("Aether.ron"),
+        r#"Type(
+            name:"Aether",
+            spelling:"Æther",
+            grammar:FixedTerm(surface:"Æther",onset:Vowel),
+        )"#,
+    )
+    .unwrap();
+    let [realized] = overridden.grammar().unwrap().surfaces() else {
+        panic!("one overridden surface is normalized")
+    };
+    assert_eq!(realized.onset(), Onset::Vowel);
+    assert_eq!(realized.onset_override(), Some(Onset::Vowel));
+
+    assert!(matches!(
+        validation(
+            r#"Type(name:"Aether",spelling:"Æther",grammar:FixedTerm(surface:"Æther"))"#
+        ),
+        ValidationError::UnknownOnset { surface } if surface == "Æther"
+    ));
+}
+
+#[test]
 fn normalized_runtime_carrier_exposes_identity_and_position() {
     let identity = DeclarationIdentity::new(DeclarationKind::KeywordAction, "Scry");
     assert_eq!(identity.kind(), DeclarationKind::KeywordAction);
@@ -210,10 +263,14 @@ fn graduated_declaration_round_trips_and_normalizes() {
             RealizedSurface {
                 feature: SurfaceFeature::Bare,
                 text: "scry".to_owned(),
+                onset: Onset::Consonant,
+                onset_override: None,
             },
             RealizedSurface {
                 feature: SurfaceFeature::ThirdPersonSingular,
                 text: "scries".to_owned(),
+                onset: Onset::Consonant,
+                onset_override: None,
             },
         ]
     );
@@ -231,10 +288,14 @@ fn nursery_declaration_uses_dumb_verb_morphology() {
             RealizedSurface {
                 feature: SurfaceFeature::Bare,
                 text: "destroy".to_owned(),
+                onset: Onset::Consonant,
+                onset_override: None,
             },
             RealizedSurface {
                 feature: SurfaceFeature::ThirdPersonSingular,
                 text: "destroys".to_owned(),
+                onset: Onset::Consonant,
+                onset_override: None,
             },
         ]
     );
@@ -260,10 +321,14 @@ Subtype(
             RealizedSurface {
                 feature: SurfaceFeature::Singular,
                 text: "Merfolk".to_owned(),
+                onset: Onset::Consonant,
+                onset_override: None,
             },
             RealizedSurface {
                 feature: SurfaceFeature::Plural,
                 text: "Merfolk".to_owned(),
+                onset: Onset::Consonant,
+                onset_override: None,
             },
         ]
     );
@@ -285,6 +350,8 @@ Subtype(
         vec![RealizedSurface {
             feature: SurfaceFeature::Singular,
             text: "Jace".to_owned(),
+            onset: Onset::Consonant,
+            onset_override: None,
         }]
     );
 }

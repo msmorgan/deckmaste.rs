@@ -19,7 +19,6 @@ use deckmaste_english_v2::parser::TextSpan;
 use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
 use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::SurfaceFeature;
 
 fn environment() -> ParserEnvironment {
     let declarations = macro_ron::v2::read_builtin_v2(
@@ -48,6 +47,86 @@ fn single_paragraph(oracle_text: &OracleText) -> &Paragraph {
 
 fn claims_overlap(left: TextSpan, right: TextSpan) -> bool {
     left.start < right.end && right.start < left.end
+}
+
+#[test]
+fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
+    let environment = environment();
+    let parser = Parser::new(environment.clone()).expect("required declarations are present");
+    let context = context("Context Card");
+
+    for text in ["Destroy a player.", "Destroy an artifact."] {
+        let parsed = parser
+            .parse(text, &context)
+            .unwrap_or_else(|error| panic!("{text} must parse: {error:?}"));
+        let Ability::Paragraph(paragraph) = &parsed else {
+            panic!("indefinite destroy is a paragraph")
+        };
+        let [
+            Sentence::Imperative(Imperative {
+                predicate:
+                    VerbPhrase::Destroy(Destroy {
+                        object: NounPhrase::Common(Common { head }),
+                    }),
+            }),
+        ] = paragraph.sentences()
+        else {
+            panic!("the public Common AST stores only its noun head: {parsed:?}")
+        };
+        assert!(matches!(head, Noun::Lexeme(_) | Noun::Declaration(_)));
+        assert_eq!(parsed.render(&context, &environment), text);
+        let ownership = parser
+            .analyze(text, &context)
+            .ownership()
+            .expect("selected indefinite phrase owns all bytes")
+            .clone();
+        assert!(ownership.summary().covered());
+        assert!(
+            ownership.parsed_claims().iter().any(|claim| {
+                claim.kind() == LexicalProvenanceKind::FormLiteral
+                    && text[claim.span().start..claim.span().end].trim()
+                        == if text.contains(" an ") { "an" } else { "a" }
+            }),
+            "article has exact form-literal ownership: {ownership:?}"
+        );
+    }
+
+    for text in ["Destroy an player.", "Destroy a artifact."] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "wrong article must not select: {text}",
+        );
+    }
+
+    let mut declarations = macro_ron::v2::read_builtin_v2(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+    )
+    .expect("integrated builtin-v2 declarations load");
+    declarations.push(
+        macro_ron::v2::read_str(
+            "/synthetic/types/Herb.ron",
+            r#"Type(
+                name:"Herb",
+                spelling:"herb",
+                grammar:Noun(singular:"herb",singular_onset:Vowel),
+            )"#,
+        )
+        .expect("open declaration onset override normalizes"),
+    );
+    let overridden_environment = ParserEnvironment::try_from_declarations(declarations)
+        .expect("overridden environment freezes");
+    let overridden_parser =
+        Parser::new(overridden_environment.clone()).expect("required declarations are present");
+    let text = "Destroy an herb.";
+    let parsed = overridden_parser
+        .parse(text, &context)
+        .expect("scanner/build use frozen onset rather than recomputing from `herb`");
+    assert_eq!(parsed.render(&context, &overridden_environment), text);
+    assert!(
+        overridden_parser
+            .parse("Destroy a herb.", &context)
+            .is_err()
+    );
 }
 
 fn assert_one_structural_claim(
@@ -648,7 +727,6 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "NumberAmount",
             "VariableAmount",
             "TriggerWord",
-            "Article",
             "Demonstrative",
             "Pronoun",
             "Variable",
@@ -814,7 +892,6 @@ fn creature() -> Noun {
         DeclarationNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Creature"),
-            SurfaceFeature::Singular,
         )
         .expect("Creature is a normalized noun declaration"),
     )
@@ -826,7 +903,6 @@ fn creatures() -> Noun {
         DeclarationNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Creature"),
-            SurfaceFeature::Plural,
         )
         .expect("Creature has a normalized plural noun reading"),
     )
@@ -857,7 +933,6 @@ fn destroy_target_creature() -> Ability {
 fn connive_event() -> Clause {
     Clause::Event(EventClause {
         subject: NounPhrase::Common(Common {
-            article: Article::A,
             head: Noun::Lexeme(NounLexeme::Player),
         }),
         predicate: VerbPhrase::Connive(Connive),
@@ -1186,7 +1261,10 @@ fn parser_analysis_ownership_covers_every_kind_unicode_and_multitoken_identity()
             "Context Card deals 3 damage to target creature.",
             "Context Card",
         ),
-        ("Élan deals 3 damage to target creature.", "Élan"),
+        (
+            concat!("E", "\u{301}", "lan deals 3 damage to target creature."),
+            concat!("E", "\u{301}", "lan"),
+        ),
     ];
     let mut kinds = BTreeSet::new();
     for (text, card_name) in cases {
@@ -1444,7 +1522,9 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
         parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {
             span: TextSpan { start: 15, end: 21 },
-            expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::Noun)]),
+            expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::DeclarationNoun(
+                6
+            ),)]),
         })
     );
 }

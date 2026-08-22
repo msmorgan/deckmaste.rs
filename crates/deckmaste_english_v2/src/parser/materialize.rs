@@ -864,9 +864,12 @@ mod tests {
     use crate::ast::Clause;
     use crate::ast::Connive;
     use crate::ast::Imperative;
+    use crate::ast::Noun;
+    use crate::ast::NounLexeme;
     use crate::ast::NounPhrase;
     use crate::ast::Pronoun;
     use crate::ast::PronounNp;
+    use crate::ast::SelfReferenceSpelling;
     use crate::ast::Sentence;
     use crate::ast::Sign;
     use crate::ast::SignedNumber;
@@ -881,6 +884,7 @@ mod tests {
     use crate::constructions::FeatureConstraint;
     use crate::constructions::LexicalOwnerTemplate;
     use crate::constructions::Number;
+    use crate::constructions::Onset;
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
     use crate::environment::canonical_test_environment;
@@ -984,6 +988,68 @@ mod tests {
     }
 
     #[test]
+    fn indefinite_article_build_arms_reject_mismatched_frozen_onsets() {
+        let parse_context = context("Context Card");
+        let children = |article, onset| {
+            [
+                BuildValue::Leaf(Leaf::Literal(article)),
+                BuildValue::Leaf(Leaf::Noun {
+                    noun: Noun::Lexeme(NounLexeme::Player),
+                    number: Number::Singular,
+                    onset,
+                }),
+            ]
+        };
+
+        assert!(
+            super::build_checked(
+                RuleId::NounPhraseCommonAn,
+                &children("an", Onset::Vowel),
+                &parse_context,
+            )
+            .expect("matching vowel onset is a checked build")
+            .is_some()
+        );
+        assert!(
+            super::build_checked(
+                RuleId::NounPhraseCommonA,
+                &children("a", Onset::Consonant),
+                &parse_context,
+            )
+            .expect("matching consonant onset is a checked build")
+            .is_some()
+        );
+        assert_eq!(
+            super::build_checked(
+                RuleId::NounPhraseCommonAn,
+                &children("an", Onset::Consonant),
+                &parse_context,
+            ),
+            Ok(None)
+        );
+        assert_eq!(
+            super::build_checked(
+                RuleId::NounPhraseCommonA,
+                &children("a", Onset::Vowel),
+                &parse_context,
+            ),
+            Ok(None)
+        );
+
+        let identity_context = context("Artifact Avatar");
+        assert!(matches!(
+            super::build_checked(
+                RuleId::NounPhraseSelfReference,
+                &[BuildValue::Leaf(Leaf::SelfReference(
+                    SelfReferenceSpelling::Full,
+                ))],
+                &identity_context,
+            ),
+            Ok(Some(BuildValue::NounPhrase(_, _, Onset::Vowel)))
+        ));
+    }
+
+    #[test]
     fn materialization_rejects_a_direct_nullable_cycle_but_keeps_an_acyclic_family() {
         let forest = Forest::from_test_parts(
             vec![PackedNode {
@@ -1075,6 +1141,7 @@ mod tests {
                         children: vec![lexical(Leaf::Declaration(DeclarationLeaf {
                             id: DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
                             feature: SurfaceFeature::Bare,
+                            onset: Onset::Consonant,
                         }))],
                     }],
                 },
@@ -1089,6 +1156,7 @@ mod tests {
                             lexical(Leaf::Verb {
                                 lexeme: VerbLexeme::Be,
                                 agreement: Agreement::ThirdPersonSingular,
+                                onset: Onset::Vowel,
                             }),
                             lexical(Leaf::Literal("the")),
                             lexical(Leaf::Literal("number")),
@@ -1400,7 +1468,10 @@ mod tests {
                 })),
                 RulePosition::Nonterminal(Category::NounPhrase),
                 RulePosition::Lexical(Lexical::Literal("target")),
-                RulePosition::Lexical(Lexical::Noun(FeatureConstraint::Exact(Number::Singular))),
+                RulePosition::Lexical(Lexical::DeclarationNoun(
+                    6,
+                    FeatureConstraint::Exact(Number::Singular),
+                )),
             ]
         );
     }
@@ -1456,7 +1527,7 @@ mod tests {
                         && claim.span == (crate::parser::TextSpan { start: 0, end: 7 })
                     {
                         claim.owner = LexicalOwnerTemplate::Vocab {
-                            declaration: "Article",
+                            declaration: "Pronoun",
                         }
                         .instantiate(&claim.value);
                         removed_span = Some(claim.span);

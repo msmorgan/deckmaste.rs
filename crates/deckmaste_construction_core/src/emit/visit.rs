@@ -725,6 +725,39 @@ fn emit_construction_walker(
         .iter()
         .map(|field| (field.name_key(), field))
         .collect::<HashMap<_, _>>();
+    let has_feature_guard = construction.forms().iter().any(|form| {
+        form.guard().predicate().is_some_and(|predicate| {
+            predicate
+                .domains()
+                .iter()
+                .any(|domain| matches!(domain.kind(), FiniteDomainKindPlan::Feature { .. }))
+        })
+    });
+    if has_feature_guard {
+        let canonical = construction
+            .forms()
+            .first()
+            .ok_or_else(|| internal("construction has no canonical traversal form"))?;
+        let calls = emit_construction_form_walker_calls(
+            validated,
+            construction,
+            canonical,
+            &argument,
+            &field_locals,
+            &fields,
+        )?;
+        return Ok(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: function.to_string(),
+            },
+            quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) { #destructure #(#calls)* } },
+            vec![DeclarationKey::new(
+                DeclarationKind::Construction,
+                construction.construction_id(),
+            )],
+        ));
+    }
     let form_bodies = construction
         .forms()
         .iter()
@@ -757,6 +790,9 @@ fn emit_construction_walker(
                             FiniteDomainKindPlan::OptionalPresence,
                             FiniteValuePlan::OptionalPresence(present),
                         ) => Ok(quote! { #field_value.is_some() == #present }),
+                        (FiniteDomainKindPlan::Feature { .. }, FiniteValuePlan::Feature(_)) => {
+                            unreachable!("feature guards use one validated canonical traversal")
+                        }
                         _ => Err(internal("form guard domain and assignment value disagree")),
                     }
                 })?;
@@ -1255,6 +1291,44 @@ mod tests {
     )]
     use quote::ToTokens;
     use syn::visit::Visit;
+
+    #[test]
+    fn feature_guarded_walkers_emit_one_canonical_traversal_program() {
+        let expansion = crate::generate(quote::quote! {
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme NounLexeme using EnglishNoun {
+                Player = "player",
+                Artifact = "artifact",
+            }
+            codec Noun {
+                generate declaration_noun {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type];
+                    feature = Number;
+                }
+            }
+            construction common: Root {
+                element Common { head: lex Noun, }
+                derive number = Values::Singular;
+                derive onset = head.onset;
+                form an when head.onset is Vowel = "an" noun(head);
+                form a otherwise = "a" noun(head);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("identical article traversal programs validate");
+        let walker = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { kind: crate::NamedKind::Function, name } if name == "walk_common"))
+            .expect("common walker is generated")
+            .tokens
+            .to_string();
+        assert_eq!(walker.matches("visit_noun").count(), 1, "{walker}");
+        assert!(!walker.contains("if true"), "{walker}");
+        assert!(!walker.contains("unreachable !"), "{walker}");
+    }
 
     #[test]
     fn guarded_walkers_execute_the_selected_forms_complete_traversal() {

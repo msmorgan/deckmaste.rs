@@ -1229,8 +1229,8 @@ mod tests {
             "Lexical :: Words",
             "(\"changed\" , Words :: First)",
             "Leaf :: Words (value)",
-            "(Verbs :: Act , Agreement :: Bare , \"act\")",
-            "(Nouns :: Person , Number :: Singular , \"person\")",
+            "(Verbs :: Act , Agreement :: Bare , Onset :: Vowel , \"act\")",
+            "(Nouns :: Person , Number :: Singular , Onset :: Consonant , \"person\")",
             "Lexical :: Declaration (matcher)",
             "input . declaration_readings (matcher)",
         ] {
@@ -1357,7 +1357,7 @@ mod tests {
     fn generated_vocab_scanner_preserves_unicode_raw_names_and_initial_collisions() {
         let source = quote::quote! {
             vocab Terms {
-                Unicode = "élan",
+                Unicode = "e\u{301}lan",
                 r#RawMember = "raw",
                 Running = "word",
                 AlreadyInitial = "Word",
@@ -1385,7 +1385,7 @@ mod tests {
         let scanner = scanner_item.tokens.to_string();
 
         for expected in [
-            "(\"élan\" , Terms :: Unicode)",
+            "(\"e\\u{301}lan\" , Terms :: Unicode)",
             "(\"raw\" , Terms :: RawMember)",
             "(\"word\" , Terms :: Running)",
             "(\"Word\" , Terms :: AlreadyInitial)",
@@ -1406,6 +1406,20 @@ mod tests {
         })
         .expect_err("duplicate running spellings remain invalid");
         assert!(duplicate.to_string().contains("duplicate word `same`"));
+
+        let unknown = crate::generate(quote::quote! {
+            vocab Terms { Unknown = "élan", }
+            construction leaf: Node {
+                element TermLeaf { term: lex Terms, }
+                form leaf = lex(term);
+            }
+            root Node { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("an undecidable onset without an authored override is rejected");
+        assert_eq!(
+            unknown.to_string(),
+            "vocab spelling has no bounded onset and no authored override"
+        );
     }
 
     #[test]
@@ -2038,7 +2052,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 87);
+        assert_eq!(keys.len(), 88);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,
             name: "GeneratedRoot".into(),

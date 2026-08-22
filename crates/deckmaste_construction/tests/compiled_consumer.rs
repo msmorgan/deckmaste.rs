@@ -9,6 +9,7 @@ pub mod environment {
     use macro_ron::v2::DeclarationIdentity;
     use macro_ron::v2::GrammarRecipe;
     use macro_ron::v2::NormalizedDeclaration;
+    use macro_ron::v2::Onset;
     use macro_ron::v2::SurfaceFeature;
 
     pub(crate) struct ParserEnvironment {
@@ -38,7 +39,25 @@ pub mod environment {
                 .map(macro_ron::v2::RealizedSurface::text)
         }
 
-        pub(crate) fn noun_rows(&self) -> Vec<(DeclarationIdentity, SurfaceFeature, &str)> {
+        pub(crate) fn onset(
+            &self,
+            id: &DeclarationIdentity,
+            feature: SurfaceFeature,
+        ) -> Option<Onset> {
+            self.declarations
+                .iter()
+                .find(|declaration| declaration.identity() == id)
+                .and_then(NormalizedDeclaration::grammar)
+                .and_then(|grammar| {
+                    grammar
+                        .surfaces()
+                        .iter()
+                        .find(|surface| surface.feature() == feature)
+                })
+                .map(macro_ron::v2::RealizedSurface::onset)
+        }
+
+        pub(crate) fn noun_rows(&self) -> Vec<(DeclarationIdentity, SurfaceFeature, Onset, &str)> {
             self.declarations
                 .iter()
                 .filter_map(|declaration| {
@@ -47,10 +66,14 @@ pub mod environment {
                         .then_some((declaration.identity(), grammar))
                 })
                 .flat_map(|(id, grammar)| {
-                    grammar
-                        .surfaces()
-                        .iter()
-                        .map(move |surface| (id.clone(), surface.feature(), surface.text()))
+                    grammar.surfaces().iter().map(move |surface| {
+                        (
+                            id.clone(),
+                            surface.feature(),
+                            surface.onset(),
+                            surface.text(),
+                        )
+                    })
                 })
                 .collect()
         }
@@ -244,12 +267,13 @@ mod declaration_noun_fixture {
             usize,
             macro_ron::v2::DeclarationIdentity,
             macro_ron::v2::SurfaceFeature,
+            macro_ron::v2::Onset,
         )> {
             assert_eq!(position, macro_ron::v2::GrammarPosition::Noun);
             self.environment
                 .noun_rows()
                 .into_iter()
-                .filter_map(|(id, feature, surface)| {
+                .filter_map(|(id, feature, onset, surface)| {
                     let number = match feature {
                         macro_ron::v2::SurfaceFeature::Singular => Number::Singular,
                         macro_ron::v2::SurfaceFeature::Plural => Number::Plural,
@@ -257,7 +281,10 @@ mod declaration_noun_fixture {
                     };
                     (matches!(wanted, FeatureConstraint::Any)
                         || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number))
-                    .then(|| self.word_end(surface).map(|end| (end, id, feature)))
+                    .then(|| {
+                        self.word_end(surface)
+                            .map(|end| (end, id, feature, onset))
+                    })
                     .flatten()
                 })
                 .collect()
@@ -270,6 +297,7 @@ mod declaration_noun_fixture {
             usize,
             macro_ron::v2::DeclarationIdentity,
             macro_ron::v2::SurfaceFeature,
+            macro_ron::v2::Onset,
         )> {
             debug_assert_eq!(self.context.marker, std::marker::PhantomData);
             Vec::new()
@@ -278,7 +306,10 @@ mod declaration_noun_fixture {
 
     constructions! {
         morphology EnglishNoun { feature = Number; recipe = english_noun; }
-        lexeme NounLexeme using EnglishNoun { Player = "player", }
+        lexeme NounLexeme using EnglishNoun {
+            Player = "player",
+            Artifact = "artifact" { Plural = "units", },
+        }
         codec TypeNoun {
             generate declaration_noun {
                 closed = NounLexeme;
@@ -340,9 +371,21 @@ mod declaration_noun_fixture {
             derive number = head.number;
             form modified = noun(modifier) noun(head);
         }
+        construction article_noun: InflectedArticle {
+            element ArticleNoun {
+                source: NumberSource,
+                head: lex TypeNoun,
+            }
+            derive head.number = source.number;
+            derive number = source.number;
+            derive onset = head.onset;
+            form an when head.onset is Vowel = "an" source noun(head);
+            form a otherwise = "a" source noun(head);
+        }
         root ConstantOutputPair { punctuation = "."; eoi = true; standalone_render = true; }
         root ElsewhereOutputPair { punctuation = "."; eoi = true; standalone_render = true; }
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root InflectedArticle { punctuation = "."; eoi = true; standalone_render = true; }
     }
 
     fn declaration(path: &str, source: &str) -> macro_ron::v2::DeclarationSource {
@@ -536,6 +579,7 @@ mod declaration_noun_fixture {
                 value: Leaf::TypeNoun {
                     noun: TypeNoun::Declaration(noun),
                     number: Number::Singular,
+                    onset: macro_ron::v2::Onset::Consonant,
                 },
                 ..
             }] if noun.id() == &relic
@@ -546,6 +590,7 @@ mod declaration_noun_fixture {
                 value: Leaf::CreatureNoun {
                     noun: CreatureNoun::Declaration(noun),
                     number: Number::Singular,
+                    onset: macro_ron::v2::Onset::Vowel,
                 },
                 ..
             }] if noun.id() == &elf
@@ -572,6 +617,7 @@ mod declaration_noun_fixture {
         let mismatched = Leaf::CreatureNoun {
             noun: noun.clone(),
             number: Number::Plural,
+            onset: macro_ron::v2::Onset::Vowel,
         };
         assert!(
             build(
@@ -605,13 +651,15 @@ mod declaration_noun_fixture {
 
     fn declaration_leaf(noun: &Leaf, number: Number) -> BuildValue {
         match noun {
-            Leaf::TypeNoun { noun, .. } => BuildValue::Leaf(Leaf::TypeNoun {
+            Leaf::TypeNoun { noun, onset, .. } => BuildValue::Leaf(Leaf::TypeNoun {
                 noun: noun.clone(),
                 number,
+                onset: *onset,
             }),
-            Leaf::CreatureNoun { noun, .. } => BuildValue::Leaf(Leaf::CreatureNoun {
+            Leaf::CreatureNoun { noun, onset, .. } => BuildValue::Leaf(Leaf::CreatureNoun {
                 noun: noun.clone(),
                 number,
+                onset: *onset,
             }),
             _ => panic!("expected a declaration noun leaf"),
         }
@@ -666,6 +714,100 @@ mod declaration_noun_fixture {
             .is_none(),
             "only the right private Number must match right_source.number",
         );
+    }
+
+    pub(crate) fn assert_irregular_noun_onset_rows_agree() {
+        let environment = environment();
+        let context = ParseContext::default();
+        let article_rule = |id| {
+            RULES
+                .iter()
+                .find(|rule| rule.id == id)
+                .expect("the generated article rule is present")
+        };
+        let singular_rule = article_rule(RuleId::InflectedArticleArticleNounAn);
+        let plural_rule = article_rule(RuleId::InflectedArticleArticleNounA);
+        let noun_terminal = |rule: &Rule<Category, LexicalTerminal, RuleId>| {
+            rule.rhs
+                .iter()
+                .find_map(|position| match position {
+                    L(
+                        terminal @ LexicalTerminal {
+                            matcher: Lexical::DeclarationNoun(_, _),
+                            ..
+                        },
+                    ) => Some(*terminal),
+                    _ => None,
+                })
+                .expect("the article rule contains its noun terminal")
+        };
+
+        for (text, number, expected_onset, rule_id, expected_render) in [
+            (
+                "Artifact",
+                Number::Singular,
+                macro_ron::v2::Onset::Vowel,
+                RuleId::InflectedArticleArticleNounAn,
+                "An singular artifact.",
+            ),
+            (
+                "Units",
+                Number::Plural,
+                macro_ron::v2::Onset::Consonant,
+                RuleId::InflectedArticleArticleNounA,
+                "A plural units.",
+            ),
+        ] {
+            let rule = if number == Number::Singular { singular_rule } else { plural_rule };
+            let scanned = scan_terminal(&environment, &context, text, 0, noun_terminal(rule));
+            assert!(matches!(
+                scanned.as_slice(),
+                [LexicalMatch {
+                    value: Leaf::TypeNoun {
+                        noun: TypeNoun::Lexeme(NounLexeme::Artifact),
+                        number: actual_number,
+                        onset,
+                    },
+                    ..
+                }] if *actual_number == number && *onset == expected_onset
+            ));
+            let literal = if expected_onset == macro_ron::v2::Onset::Vowel { "an" } else { "a" };
+            let built = build(
+                rule_id,
+                &[
+                    BuildValue::Leaf(Leaf::Literal(literal)),
+                    number_source(number),
+                    BuildValue::Leaf(scanned[0].value.clone()),
+                ],
+                &context,
+            )
+            .expect("the exact realized noun row satisfies its article guard");
+            let BuildValue::InflectedArticle(article, onset) = built else {
+                panic!("the article construction carries its frozen onset")
+            };
+            assert_eq!(onset, expected_onset);
+            assert_eq!(
+                Render::render(&article, &context, &environment),
+                expected_render
+            );
+            let inverse = if expected_onset == macro_ron::v2::Onset::Vowel {
+                RuleId::InflectedArticleArticleNounA
+            } else {
+                RuleId::InflectedArticleArticleNounAn
+            };
+            assert!(
+                build(
+                    inverse,
+                    &[
+                        BuildValue::Leaf(Leaf::Literal(if literal == "an" { "a" } else { "an" })),
+                        number_source(number),
+                        BuildValue::Leaf(scanned[0].value.clone()),
+                    ],
+                    &context,
+                )
+                .is_none()
+            );
+        }
     }
 
     pub(crate) fn assert_construction_number_does_not_overconstrain_noun_roles() {
@@ -723,11 +865,24 @@ pub mod fixture {
     use engine::RulePosition;
     use engine::StatefulLexicalMatch as EngineStatefulLexicalMatch;
 
-    #[derive(Default)]
     struct ParseContext<'a> {
         sentinel: u8,
         card_name: &'a str,
         abbreviated_card_name: &'a str,
+        card_name_onset: macro_ron::v2::Onset,
+        abbreviated_card_name_onset: macro_ron::v2::Onset,
+    }
+
+    impl Default for ParseContext<'_> {
+        fn default() -> Self {
+            Self {
+                sentinel: 0,
+                card_name: "",
+                abbreviated_card_name: "",
+                card_name_onset: macro_ron::v2::Onset::Consonant,
+                abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            }
+        }
     }
 
     trait Render {
@@ -855,6 +1010,16 @@ pub mod fixture {
         fn abbreviated_card_name(&self) -> &'a str {
             debug_assert_ne!(self.sentinel, 0);
             self.abbreviated_card_name
+        }
+
+        fn card_name_onset(&self) -> macro_ron::v2::Onset {
+            debug_assert_ne!(self.sentinel, 0);
+            self.card_name_onset
+        }
+
+        fn abbreviated_card_name_onset(&self) -> macro_ron::v2::Onset {
+            debug_assert_ne!(self.sentinel, 0);
+            self.abbreviated_card_name_onset
         }
     }
 
@@ -988,6 +1153,7 @@ pub mod fixture {
             usize,
             macro_ron::v2::DeclarationIdentity,
             macro_ron::v2::SurfaceFeature,
+            macro_ron::v2::Onset,
         )> {
             debug_assert!(self.position.byte_offset <= self.text.len());
             Vec::new()
@@ -1162,6 +1328,24 @@ pub mod fixture {
             derive verb.agreement = Values::Bare;
             form action = verb(VerbLexeme::Act);
         }
+        construction act_onset: VerbHead {
+            element ActOnset {}
+            derive verb.agreement = Values::Bare;
+            derive onset = verb.onset;
+            form act_onset = verb(VerbLexeme::Act);
+        }
+        construction other_onset: VerbHead {
+            element OtherOnset {}
+            derive verb.agreement = Values::Bare;
+            derive onset = verb.onset;
+            form other_onset = verb(VerbLexeme::Other);
+        }
+        construction indefinite_verb: VerbArticle {
+            element IndefiniteVerb { head: VerbHead, }
+            derive onset = head.onset;
+            form an when head.onset is Vowel = "an" head;
+            form a otherwise = "a" head;
+        }
 
         construction bare_be: BeSentence {
             element BareBe {}
@@ -1199,6 +1383,17 @@ pub mod fixture {
         construction identity_guard: ContextBound {
             element IdentityGuard { spelling: identity SelfRef, }
             form identity_guard = identity(spelling);
+        }
+        construction named_head: NamedHead {
+            element NamedHeadValue { spelling: identity SelfRef, }
+            derive onset = spelling.onset;
+            form named_head = identity(spelling);
+        }
+        construction named_article: NamedArticle {
+            element NamedArticleValue { head: NamedHead, }
+            derive onset = head.onset;
+            form an when head.onset is Vowel = "an" head;
+            form a otherwise = "a" head;
         }
 
         construction agreement: FeatureBound {
@@ -1370,6 +1565,8 @@ pub mod fixture {
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root BeSentence { punctuation = "."; eoi = true; standalone_render = true; }
+        root VerbArticle { punctuation = "."; eoi = true; standalone_render = true; }
+        root NamedArticle { punctuation = "."; eoi = true; standalone_render = true; }
         root RenderChild { punctuation = "."; eoi = false; standalone_render = true; }
         root HygieneRoot { punctuation = "!"; eoi = true; standalone_render = true; }
         root r#RawCategory { punctuation = "?"; eoi = true; standalone_render = true; }
@@ -1454,6 +1651,7 @@ pub mod fixture {
                 Leaf::Verb {
                     lexeme: VerbLexeme::Act,
                     agreement: Agreement::Bare,
+                    onset: macro_ron::v2::Onset::Vowel,
                 },
                 LexicalProvenanceKind::Lexeme,
                 "lexeme:VerbLexeme/Act/bare",
@@ -1495,6 +1693,7 @@ pub mod fixture {
             &Leaf::Declaration(DeclarationLeaf {
                 id: macro_ron::v2::DeclarationIdentity::new(kind, "Destroy"),
                 feature: macro_ron::v2::SurfaceFeature::Bare,
+                onset: macro_ron::v2::Onset::Consonant,
             }),
         );
         assert_eq!(declaration.kind(), LexicalProvenanceKind::Lexeme);
@@ -1521,6 +1720,7 @@ pub mod fixture {
             &Leaf::Declaration(DeclarationLeaf {
                 id: macro_ron::v2::DeclarationIdentity::new(kind, "Destroy"),
                 feature: macro_ron::v2::SurfaceFeature::Bare,
+                onset: macro_ron::v2::Onset::Consonant,
             }),
         );
         let shared_clone = shared_declaration.clone();
@@ -1550,6 +1750,7 @@ pub mod fixture {
             &Leaf::Declaration(DeclarationLeaf {
                 id: macro_ron::v2::DeclarationIdentity::new(kind, "Destroy"),
                 feature: macro_ron::v2::SurfaceFeature::Bare,
+                onset: macro_ron::v2::Onset::Consonant,
             }),
         );
         assert_eq!(shared_declaration, shared_clone);
@@ -1689,6 +1890,7 @@ pub mod fixture {
                     value: Leaf::Verb {
                         lexeme: VerbLexeme::Act,
                         agreement: actual,
+                        onset: macro_ron::v2::Onset::Vowel,
                     },
                     owner: Some(_),
                     ..
@@ -1767,7 +1969,8 @@ pub mod fixture {
             [LexicalMatch {
                 value: Leaf::Verb {
                     lexeme: VerbLexeme::Other,
-                    agreement: Agreement::Bare
+                    agreement: Agreement::Bare,
+                    onset: macro_ron::v2::Onset::Consonant,
                 },
                 owner: Some(_),
                 ..
@@ -1911,6 +2114,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
         };
         let guarded = GuardedChild::new(Mode::One, Box::new(Child::Bare(BareChild)))
             .expect("valid finite-domain values construct the recursive product");
@@ -1969,6 +2174,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
         };
         let rules = [
             RuleId::PartitionRootPartitionedFirst,
@@ -2011,6 +2218,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
         };
         let inline_member = StructuralAtom::StructuralAtom(StructuralAtomValue {
             marker: StructuralWord::Alpha,
@@ -2165,6 +2374,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
         };
         for text in texts {
             let forest = parse_structural(category, text, &context);
@@ -2588,6 +2799,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
         };
         let atom = |marker| StructuralAtom::StructuralAtom(StructuralAtomValue { marker });
         let alpha = atom(StructuralWord::Alpha);
@@ -2714,6 +2927,123 @@ pub mod fixture {
         );
     }
 
+    pub(super) fn assert_verb_onset_transport_and_mutation_rejection() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+        };
+        let scan_verb = |text, lexeme, member| {
+            scan_lexical(
+                &ScanInput {
+                    text,
+                    position: ScanPosition {
+                        byte_offset: 0,
+                        case: CasePosition::DocumentInitial,
+                        prefix: PrefixPosition::None,
+                    },
+                    context: &context,
+                },
+                LexicalTerminal {
+                    matcher: Lexical::Verb(lexeme, FeatureConstraint::Exact(Agreement::Bare)),
+                    owner: LexicalOwnerTemplate::Lexeme {
+                        declaration: "VerbLexeme",
+                        member,
+                    },
+                },
+            )
+        };
+
+        for (text, lexeme, member, onset, head_rule, article_rule, rendered) in [
+            (
+                "Act",
+                VerbLexeme::Act,
+                "Act",
+                macro_ron::v2::Onset::Vowel,
+                RuleId::VerbHeadActOnset,
+                RuleId::VerbArticleIndefiniteVerbAn,
+                "An act.",
+            ),
+            (
+                "Same",
+                VerbLexeme::Other,
+                "Other",
+                macro_ron::v2::Onset::Consonant,
+                RuleId::VerbHeadOtherOnset,
+                RuleId::VerbArticleIndefiniteVerbA,
+                "A same.",
+            ),
+        ] {
+            let scanned = scan_verb(text, lexeme, member);
+            assert!(matches!(
+                scanned.as_slice(),
+                [LexicalMatch {
+                    value: Leaf::Verb {
+                        lexeme: actual_lexeme,
+                        agreement: Agreement::Bare,
+                        onset: actual_onset,
+                    },
+                    ..
+                }] if *actual_lexeme == lexeme && *actual_onset == onset
+            ));
+            let head = build(
+                head_rule,
+                &[BuildValue::Leaf(scanned[0].value.clone())],
+                &context,
+            )
+            .expect("a normalized verb row builds its onset-carrying head");
+            assert!(matches!(head, BuildValue::VerbHead(_, actual) if actual == onset));
+            let literal = if onset == macro_ron::v2::Onset::Vowel { "an" } else { "a" };
+            let article = build(
+                article_rule,
+                &[BuildValue::Leaf(Leaf::Literal(literal)), head],
+                &context,
+            )
+            .expect("the frozen verb onset selects the exact guarded article form");
+            let BuildValue::VerbArticle(article, actual) = article else {
+                panic!("the wrapper carries the forwarded verb onset")
+            };
+            assert_eq!(actual, onset);
+            assert_eq!(Render::render(&article, &context), rendered);
+        }
+
+        assert!(
+            build(
+                RuleId::VerbHeadActOnset,
+                &[BuildValue::Leaf(Leaf::Verb {
+                    lexeme: VerbLexeme::Act,
+                    agreement: Agreement::Bare,
+                    onset: macro_ron::v2::Onset::Consonant,
+                })],
+                &context,
+            )
+            .is_none(),
+            "a corrupted frozen onset is rejected at the build boundary"
+        );
+    }
+
+    pub(super) fn assert_exact_name_render_uses_frozen_onset() {
+        for (surface, frozen_onset, expected) in [
+            ("artifact", macro_ron::v2::Onset::Consonant, "A artifact."),
+            ("card", macro_ron::v2::Onset::Vowel, "An card."),
+        ] {
+            let context = ParseContext {
+                sentinel: 99,
+                card_name: surface,
+                abbreviated_card_name: surface,
+                card_name_onset: frozen_onset,
+                abbreviated_card_name_onset: frozen_onset,
+            };
+            let named = NamedHead::NamedHead(NamedHeadValue {
+                spelling: SelfRef::Full,
+            });
+            let article = NamedArticle::NamedArticle(NamedArticleValue { head: named });
+            assert_eq!(Render::render(&article, &context), expected);
+        }
+    }
+
     #[allow(
         clippy::too_many_lines,
         reason = "one authentic compiled consumer executes the complete boundary matrix"
@@ -2723,6 +3053,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
         };
         assert_generated_runtime_abi(&context);
         assert!(SelfRef::Full.valid_in(&context));
@@ -2732,6 +3064,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "full card",
             abbreviated_card_name: "short",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
         };
         assert!(SelfRef::Abbreviated.valid_in(&abbreviated_context));
         assert_eq!(SelfRef::Abbreviated.surface(&abbreviated_context), "short");
@@ -2780,6 +3114,7 @@ pub mod fixture {
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(1),
                     number,
+                    onset: macro_ron::v2::Onset::Consonant,
                 }),
             ]
         };
@@ -2792,10 +3127,12 @@ pub mod fixture {
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(2),
                     number: left,
+                    onset: macro_ron::v2::Onset::Consonant,
                 }),
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(3),
                     number: right,
+                    onset: macro_ron::v2::Onset::Consonant,
                 }),
             ]
         };
@@ -2861,6 +3198,7 @@ pub mod fixture {
             &[BuildValue::Leaf(Leaf::Verb {
                 lexeme: VerbLexeme::Act,
                 agreement: Agreement::Bare,
+                onset: macro_ron::v2::Onset::Vowel,
             })],
             &context,
         )
@@ -2872,6 +3210,7 @@ pub mod fixture {
                 &[BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Act,
                     agreement: Agreement::ThirdPersonSingular,
+                    onset: macro_ron::v2::Onset::Vowel,
                 })],
                 &context,
             )
@@ -2957,6 +3296,7 @@ pub mod fixture {
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Act,
                     agreement: Agreement::ThirdPersonSingular,
+                    onset: macro_ron::v2::Onset::Vowel,
                 }),
             ],
             &context,
@@ -2973,10 +3313,12 @@ pub mod fixture {
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(4),
                     number: Number::Singular,
+                    onset: macro_ron::v2::Onset::Consonant,
                 }),
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(5),
                     number: Number::Singular,
+                    onset: macro_ron::v2::Onset::Consonant,
                 }),
                 BuildValue::Leaf(Leaf::Mode(Mode::One)),
             ],
@@ -3144,6 +3486,11 @@ fn construction_number_does_not_overconstrain_declaration_noun_roles() {
 }
 
 #[test]
+fn irregular_noun_rows_keep_exact_onset_through_scan_build_guard_and_render() {
+    declaration_noun_fixture::assert_irregular_noun_onset_rows_agree();
+}
+
+#[test]
 fn invariant_constructors_enforce_the_compiled_public_boundary() {
     fixture::assert_invariant_public_boundary();
 }
@@ -3166,4 +3513,14 @@ fn structural_helpers_parse_and_fold_through_ordinary_bnf() {
 #[test]
 fn structural_surfaces_ownership_and_traversal_execute_generated_code() {
     fixture::assert_structural_render_scan_ownership_and_traversal();
+}
+
+#[test]
+fn verb_onset_survives_scan_build_forwarding_guard_and_render() {
+    fixture::assert_verb_onset_transport_and_mutation_rejection();
+}
+
+#[test]
+fn exact_name_wrapper_render_uses_frozen_context_onset() {
+    fixture::assert_exact_name_render_uses_frozen_onset();
 }

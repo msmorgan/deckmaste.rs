@@ -27,6 +27,13 @@ pub(crate) mod scanner;
 pub(crate) mod terminal;
 pub(crate) mod visit;
 
+pub(super) fn onset(value: macro_ron::v2::Onset) -> TokenStream {
+    match value {
+        macro_ron::v2::Onset::Consonant => quote! { Onset::Consonant },
+        macro_ron::v2::Onset::Vowel => quote! { Onset::Vowel },
+    }
+}
+
 pub(super) fn emit_form_guard_expression<F>(
     construction: &crate::semantic::ConstructionPlan,
     form_index: usize,
@@ -386,6 +393,7 @@ fn emit_predicate_atom(
             let feature_type = match feature {
                 crate::feature::Feature::Agreement => local_ident("Agreement"),
                 crate::feature::Feature::Number => local_ident("Number"),
+                crate::feature::Feature::Onset => local_ident("Onset"),
             };
             let members = allowed
                 .iter()

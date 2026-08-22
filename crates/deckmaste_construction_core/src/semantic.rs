@@ -9,6 +9,7 @@ use crate::feature;
 use crate::feature::Feature;
 use crate::feature::FeatureExpr;
 use crate::feature::FeaturePlace;
+use crate::feature::FeatureValue;
 use crate::identifier::CHECKED_CONSTRUCTOR;
 use crate::identifier::INVARIANT_CONSTRUCTOR;
 use crate::identifier::key as identifier_key;
@@ -505,6 +506,7 @@ pub(crate) struct ConstructionPlan {
 
 #[derive(Debug)]
 pub(crate) struct FormPlan {
+    origin_span: Span,
     name: String,
     rule_id: String,
     guard: FormGuardPlan,
@@ -538,6 +540,10 @@ pub(crate) enum FiniteDomainKindPlan {
         variants: Vec<String>,
     },
     OptionalPresence,
+    Feature {
+        feature: Feature,
+        values: Vec<FeatureValue>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -549,6 +555,7 @@ pub(crate) struct FiniteAssignmentPlan {
 pub(crate) enum FiniteValuePlan {
     Vocab(String),
     OptionalPresence(bool),
+    Feature(FeatureValue),
 }
 
 #[derive(Debug)]
@@ -665,6 +672,15 @@ pub(crate) enum TerminalPlan {
     ContextIdentity(ContextIdentityPlan),
     SignedDecimal(SignedDecimalPlan),
     DeclarationNoun(DeclarationNounPlan),
+}
+
+impl TerminalPlan {
+    fn provides_onset(&self) -> bool {
+        matches!(
+            self,
+            Self::Vocab(_) | Self::Lexeme(_) | Self::ContextIdentity(_) | Self::DeclarationNoun(_)
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -895,6 +911,7 @@ pub(crate) struct VocabPlan {
 pub(crate) struct VocabVariantPlan {
     name: syn::Ident,
     word: syn::LitStr,
+    onset: macro_ron::v2::Onset,
 }
 
 #[derive(Debug, Clone)]
@@ -926,6 +943,7 @@ pub(crate) struct LexemeSurfacePlan {
     member: String,
     feature: macro_ron::v2::SurfaceFeature,
     surface: String,
+    onset: macro_ron::v2::Onset,
 }
 
 #[derive(Debug)]
@@ -1083,6 +1101,7 @@ pub(crate) struct FeaturePlan {
     resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
     category_render: HashMap<String, CategoryRenderCapability>,
     number_carry_categories: HashSet<String>,
+    onset_carry_categories: HashSet<String>,
 }
 
 fn seal_terminals(
@@ -1094,10 +1113,9 @@ fn seal_terminals(
         .iter()
         .enumerate()
         .filter_map(|(source_index, declaration)| match declaration {
-            Declaration::Vocab(vocab) => Some(Ok(TerminalPlan::Vocab(VocabPlan::from_source(
-                source_index,
-                vocab,
-            )))),
+            Declaration::Vocab(vocab) => {
+                Some(VocabPlan::from_source(source_index, vocab).map(TerminalPlan::Vocab))
+            }
             Declaration::Lexeme(lexeme) => Some(
                 LexemePlan::from_source(
                     source_index,
@@ -1286,8 +1304,10 @@ impl SemanticPlan {
         validate_generated_associated_names(&constructions, &products)?;
         seal_invariant_category_feature_reads(&constructions, &mut category_reads);
         let number_carry_categories = number_carry_categories(&constructions, &equations);
+        let onset_carry_categories = onset_carry_categories(&constructions, &equations);
 
         let terminals = field_policy_terminals;
+        validate_onset_provider_capabilities(&constructions, &terminals, &equations)?;
         let roots: Vec<RootPlan> = source
             .declarations
             .iter()
@@ -1333,6 +1353,7 @@ impl SemanticPlan {
                 resolutions,
                 category_render,
                 number_carry_categories,
+                onset_carry_categories,
             },
         })
     }
@@ -1398,6 +1419,13 @@ impl SemanticPlan {
     )]
     pub(crate) fn terminals(&self) -> &[TerminalPlan] {
         &self.terminals
+    }
+
+    pub(crate) fn terminal_provides_onset(&self, name: &str) -> bool {
+        self.terminals
+            .iter()
+            .find(|terminal| terminal.plan_name() == name)
+            .is_some_and(TerminalPlan::provides_onset)
     }
 
     #[allow(
@@ -1581,6 +1609,10 @@ impl SemanticPlan {
 
     pub(crate) fn category_carries_number(&self, category: &str) -> bool {
         self.features.number_carry_categories.contains(category)
+    }
+
+    pub(crate) fn category_carries_onset(&self, category: &str) -> bool {
+        self.features.onset_carry_categories.contains(category)
     }
 
     #[cfg(test)]
@@ -2522,6 +2554,10 @@ impl ConstructionPlan {
 }
 
 impl FormPlan {
+    pub(crate) const fn origin_span(&self) -> Span {
+        self.origin_span
+    }
+
     pub(crate) fn name(&self) -> &str {
         &self.name
     }
@@ -2588,7 +2624,7 @@ impl FinitePredicatePlan {
                 .all(|(domain, value)| {
                     domains
                         .iter()
-                        .position(|candidate| candidate.role == domain.role)
+                        .position(|candidate| candidate == domain)
                         .is_some_and(|index| assignment.values.get(index) == Some(value))
                 })
         })
@@ -2659,6 +2695,7 @@ fn seal_forms(
             .iter()
             .all(|atom| form_atom_is_nullable(atom, fields, nullable_types));
         forms.push(FormPlan {
+            origin_span: source.name.span(),
             name,
             rule_id,
             guard,
@@ -2748,6 +2785,10 @@ fn guard_referenced_roles(source: &crate::model::RequireExprSource) -> HashSet<S
             | crate::model::RequireExprSource::In {
                 subject: crate::model::RequireSubjectSource::Role(role),
                 ..
+            }
+            | crate::model::RequireExprSource::In {
+                subject: crate::model::RequireSubjectSource::RoleFeature { role, .. },
+                ..
             } => {
                 roles.insert(identifier_key(role));
             }
@@ -2774,7 +2815,14 @@ fn finite_domain(
     let role = field.name_key();
     let optional = predicate_uses_optional_presence(predicate, &role);
     let membership = predicate_uses_membership(predicate, &role);
-    let kind = if optional {
+    let feature = predicate_feature(predicate, &role);
+    let kind = if let Some(feature) = feature {
+        let feature = Feature::from(feature);
+        FiniteDomainKindPlan::Feature {
+            feature,
+            values: feature.domain().to_vec(),
+        }
+    } else if optional {
         FiniteDomainKindPlan::OptionalPresence
     } else if membership {
         let vocab = terminals
@@ -2806,6 +2854,29 @@ fn finite_domain(
         ));
     };
     Ok(FiniteDomainPlan { role, kind })
+}
+
+fn predicate_feature(
+    source: &crate::model::RequireExprSource,
+    role: &str,
+) -> Option<crate::model::Feature> {
+    match source {
+        crate::model::RequireExprSource::In {
+            subject:
+                crate::model::RequireSubjectSource::RoleFeature {
+                    role: candidate,
+                    feature,
+                },
+            ..
+        } if identifier_key(candidate) == role => Some(*feature),
+        crate::model::RequireExprSource::All(operands)
+        | crate::model::RequireExprSource::Any(operands) => operands
+            .iter()
+            .find_map(|operand| predicate_feature(operand, role)),
+        crate::model::RequireExprSource::OptionalPresence { .. }
+        | crate::model::RequireExprSource::In { .. }
+        | crate::model::RequireExprSource::Length { .. } => None,
+    }
 }
 
 fn predicate_uses_optional_presence(source: &crate::model::RequireExprSource, role: &str) -> bool {
@@ -2882,6 +2953,11 @@ fn enumerate_assignments(domains: &[FiniteDomainPlan]) -> Vec<FiniteAssignmentPl
                 FiniteValuePlan::OptionalPresence(false),
                 FiniteValuePlan::OptionalPresence(true),
             ],
+            FiniteDomainKindPlan::Feature { values, .. } => values
+                .iter()
+                .copied()
+                .map(FiniteValuePlan::Feature)
+                .collect(),
         };
         assignments = assignments
             .into_iter()
@@ -2916,6 +2992,18 @@ fn evaluate_guard(
                 .any(|member| identifier_key(member) == *value),
             _ => false,
         },
+        crate::model::RequireExprSource::In {
+            subject: crate::model::RequireSubjectSource::RoleFeature { role, feature },
+            members,
+        } => match assignment_value(domains, assignment, &identifier_key(role)) {
+            Some(FiniteValuePlan::Feature(value)) => {
+                let feature = Feature::from(*feature);
+                members
+                    .iter()
+                    .any(|member| feature.member(member).ok() == Some(*value))
+            }
+            _ => false,
+        },
         crate::model::RequireExprSource::All(operands) => operands
             .iter()
             .all(|operand| evaluate_guard(operand, domains, assignment)),
@@ -2943,10 +3031,7 @@ fn combined_form_domains(forms: &[FormPlan]) -> Vec<FiniteDomainPlan> {
     for form in forms {
         let Some(predicate) = form.guard.predicate() else { continue };
         for domain in &predicate.domains {
-            if !domains
-                .iter()
-                .any(|candidate: &FiniteDomainPlan| candidate.role == domain.role)
-            {
+            if !domains.iter().any(|candidate| candidate == domain) {
                 domains.push(domain.clone());
             }
         }
@@ -3055,6 +3140,15 @@ fn assignment_witness(domains: &[FiniteDomainPlan], assignment: &FiniteAssignmen
             FiniteValuePlan::Vocab(value) => format!("{}={value}", domain.role),
             FiniteValuePlan::OptionalPresence(true) => format!("{}=present", domain.role),
             FiniteValuePlan::OptionalPresence(false) => format!("{}=absent", domain.role),
+            FiniteValuePlan::Feature(value) => {
+                let feature = match domain.kind {
+                    FiniteDomainKindPlan::Feature { feature, .. } => feature,
+                    FiniteDomainKindPlan::Vocab { .. } | FiniteDomainKindPlan::OptionalPresence => {
+                        unreachable!("feature assignment has a feature domain")
+                    }
+                };
+                format!("{}.{}={}", domain.role, feature.key(), value.key())
+            }
         })
         .collect::<Vec<_>>()
         .join(",")
@@ -3684,6 +3778,157 @@ fn number_carry_categories(
     }
 }
 
+fn onset_carry_categories(
+    constructions: &[ConstructionPlan],
+    equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+) -> HashSet<String> {
+    let mut members = HashMap::<String, Vec<&ConstructionPlan>>::new();
+    for construction in constructions {
+        members
+            .entry(construction.category.clone())
+            .or_default()
+            .push(construction);
+    }
+    members
+        .into_iter()
+        .filter_map(|(category, constructions)| {
+            constructions
+                .iter()
+                .all(|construction| {
+                    equations
+                        .get(&construction.construction_id)
+                        .into_iter()
+                        .flatten()
+                        .any(|equation| {
+                            equation.target() == &FeaturePlace::Construction(Feature::Onset)
+                        })
+                })
+                .then_some(category)
+        })
+        .collect()
+}
+
+fn validate_onset_provider_capabilities(
+    constructions: &[ConstructionPlan],
+    terminals: &[TerminalPlan],
+    equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+) -> syn::Result<()> {
+    let provides_onset = |name: &str| {
+        terminals
+            .iter()
+            .find(|terminal| terminal.plan_name() == name)
+            .is_some_and(TerminalPlan::provides_onset)
+    };
+    let mut errors: Option<syn::Error> = None;
+    for construction in constructions {
+        let mut roles = construction
+            .forms()
+            .iter()
+            .filter_map(|form| form.guard().predicate())
+            .flat_map(FinitePredicatePlan::domains)
+            .filter_map(|domain| {
+                matches!(
+                    domain.kind(),
+                    FiniteDomainKindPlan::Feature {
+                        feature: Feature::Onset,
+                        ..
+                    }
+                )
+                .then_some(domain.role())
+            })
+            .map(str::to_owned)
+            .collect::<HashSet<_>>();
+        roles.extend(
+            equations
+                .get(construction.construction_id())
+                .into_iter()
+                .flatten()
+                .filter_map(|equation| match equation.value() {
+                    feature::FeatureExpr::FromRole {
+                        role,
+                        feature: Feature::Onset,
+                    } => Some(identifier_key(role)),
+                    feature::FeatureExpr::Constant(_)
+                    | feature::FeatureExpr::FromRole { .. }
+                    | feature::FeatureExpr::MatchVocab { .. } => None,
+                }),
+        );
+        for role in roles {
+            if role == "verb" {
+                let mut sealed_provider = None;
+                for form in construction.forms() {
+                    let providers = form
+                        .atoms()
+                        .iter()
+                        .filter_map(|atom| match atom {
+                            AtomPlan::VerbFixed {
+                                terminal, variant, ..
+                            } => Some(format!("closed:{terminal}:{variant}")),
+                            AtomPlan::OpenDeclaration(open) => {
+                                Some(format!("open:{:?}:{}", open.kind(), open.name()))
+                            }
+                            AtomPlan::Literal(_)
+                            | AtomPlan::Category { .. }
+                            | AtomPlan::Lex { .. }
+                            | AtomPlan::Identity { .. }
+                            | AtomPlan::Noun { .. } => None,
+                        })
+                        .collect::<Vec<_>>();
+                    let [provider] = providers.as_slice() else {
+                        let error = syn::Error::new(
+                            form.origin_span(),
+                            "verb onset requires exactly one sealed terminal provider in every form",
+                        );
+                        if let Some(errors) = &mut errors {
+                            errors.combine(error);
+                        } else {
+                            errors = Some(error);
+                        }
+                        continue;
+                    };
+                    if sealed_provider
+                        .as_ref()
+                        .is_some_and(|sealed| sealed != provider)
+                    {
+                        let error = syn::Error::new(
+                            form.origin_span(),
+                            "verb onset requires the same sealed terminal provider in every form",
+                        );
+                        if let Some(errors) = &mut errors {
+                            errors.combine(error);
+                        } else {
+                            errors = Some(error);
+                        }
+                    } else {
+                        sealed_provider.get_or_insert_with(|| provider.clone());
+                    }
+                }
+                continue;
+            }
+            let Some(field) = construction
+                .fields()
+                .iter()
+                .find(|field| field.name_key() == role)
+            else {
+                continue;
+            };
+            if field.kind() != ConstructionFieldKind::Category && !provides_onset(field.terminal())
+            {
+                let error = syn::Error::new(
+                    field.name().span(),
+                    format!("terminal `{}` does not provide onset", field.terminal()),
+                );
+                if let Some(errors) = &mut errors {
+                    errors.combine(error);
+                } else {
+                    errors = Some(error);
+                }
+            }
+        }
+    }
+    errors.map_or(Ok(()), Err)
+}
+
 fn sealed_error(fact: &str) -> syn::Error {
     syn::Error::new(
         proc_macro2::Span::call_site(),
@@ -3830,20 +4075,30 @@ impl TerminalPlan {
 }
 
 impl VocabPlan {
-    fn from_source(source_index: usize, source: &crate::Vocab) -> Self {
-        Self {
+    fn from_source(source_index: usize, source: &crate::Vocab) -> syn::Result<Self> {
+        Ok(Self {
             source_index,
             name: source.name.clone(),
             name_key: identifier_key(&source.name),
             variants: source
                 .variants
                 .iter()
-                .map(|variant| VocabVariantPlan {
-                    name: variant.name.clone(),
-                    word: variant.word.clone(),
+                .map(|variant| {
+                    let onset = macro_ron::v2::normalize_surface_onset(&variant.word.value(), None)
+                        .ok_or_else(|| {
+                            syn::Error::new(
+                                variant.word.span(),
+                                "vocab spelling has no bounded onset and no authored override",
+                            )
+                        })?;
+                    Ok(VocabVariantPlan {
+                        name: variant.name.clone(),
+                        word: variant.word.clone(),
+                        onset,
+                    })
                 })
-                .collect(),
-        }
+                .collect::<syn::Result<Vec<_>>>()?,
+        })
     }
 
     pub(crate) fn name(&self) -> &str {
@@ -3941,11 +4196,16 @@ impl LexemePlan {
                         },
                         Ok,
                     )?;
+                let onset =
+                    macro_ron::v2::normalize_surface_onset(&surface, None).ok_or_else(|| {
+                        syn::Error::new(member.name.span(), "lexeme surface has unknown onset")
+                    })?;
                 surfaces.push(LexemeSurfacePlan {
                     span: member.name.span(),
                     member: identifier_key(&member.name),
                     feature,
                     surface,
+                    onset,
                 });
             }
             if !member.overrides.is_empty() {
@@ -4094,6 +4354,10 @@ impl LexemeSurfacePlan {
 
     pub(crate) fn surface(&self) -> &str {
         &self.surface
+    }
+
+    pub(crate) fn onset(&self) -> macro_ron::v2::Onset {
+        self.onset
     }
 }
 
@@ -4517,6 +4781,10 @@ impl VocabVariantPlan {
 
     pub(crate) fn word(&self) -> &syn::LitStr {
         &self.word
+    }
+
+    pub(crate) fn onset(&self) -> macro_ron::v2::Onset {
+        self.onset
     }
 }
 
@@ -5245,6 +5513,47 @@ mod tests {
         assert_eq!(
             invariant.snapshot(),
             "(mode in [One] AND agreement in [Bare])\nOR\n(mode in [Two] AND agreement in [ThirdPersonSingular])"
+        );
+    }
+
+    #[test]
+    fn derived_onset_forms_are_a_finite_disjoint_exhaustive_partition() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                morphology EnglishNoun { feature = Number; recipe = english_noun; }
+                lexeme NounLexeme using EnglishNoun {
+                    Player = "player",
+                    Artifact = "artifact",
+                }
+                codec Noun {
+                    generate declaration_noun {
+                        closed = NounLexeme;
+                        position = Noun;
+                        kinds = [Type, Subtype];
+                        feature = Number;
+                    }
+                }
+                construction common: Phrase {
+                    element Common { head: lex Noun, }
+                    derive number = Values::Singular;
+                    derive onset = head.onset;
+                    form an when head.onset is Vowel = "an" noun(head);
+                    form a otherwise = "a" noun(head);
+                }
+                root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("Onset feature and feature guard parse"),
+        )
+        .expect("lexical Onset provider and finite guard validate")
+        .into_semantic();
+        let forms = semantic.constructions()[0].forms();
+        assert_eq!(
+            forms[0].guard().test_accepting_witnesses(forms),
+            ["head.onset=Vowel"]
+        );
+        assert_eq!(
+            forms[1].guard().test_accepting_witnesses(forms),
+            ["head.onset=Consonant"]
         );
     }
 

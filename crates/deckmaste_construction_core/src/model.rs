@@ -213,6 +213,7 @@ pub struct FeatureSlot {
 pub enum Feature {
     Agreement,
     Number,
+    Onset,
 }
 
 #[derive(Debug)]

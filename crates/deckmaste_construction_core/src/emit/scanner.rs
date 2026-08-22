@@ -182,9 +182,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 Lexical::Declaration(matcher) => input
                     .declaration_readings(matcher)
                     .into_iter()
-                    .map(|(end, id, feature)| LexicalMatch {
+                    .map(|(end, id, feature, onset)| LexicalMatch {
                         end,
-                        value: Leaf::Declaration(DeclarationLeaf { id, feature }),
+                        value: Leaf::Declaration(DeclarationLeaf { id, feature, onset }),
                         owner: None,
                     })
                     .collect(),
@@ -223,20 +223,21 @@ fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                 }
             };
             let surface = syn::LitStr::new(row.surface(), Span::call_site());
-            quote! { (#ty::#member, #agreement, #surface) }
+            let onset = super::onset(row.onset());
+            quote! { (#ty::#member, #agreement, #onset, #surface) }
         });
         quote! {
             Lexical::Verb(wanted, constraint) => [#(#candidates),*]
                 .into_iter()
-                .filter(|(lexeme, _, _)| *lexeme == wanted)
-                .filter(|(_, agreement, _)| {
+                .filter(|(lexeme, _, _, _)| *lexeme == wanted)
+                .filter(|(_, agreement, _, _)| {
                     matches!(constraint, FeatureConstraint::Any)
                         || matches!(constraint, FeatureConstraint::Exact(expected) if expected == *agreement)
                 })
-                .filter_map(|(lexeme, agreement, surface)| {
+                .filter_map(|(lexeme, agreement, onset, surface)| {
                     input.word_end(surface).map(|end| LexicalMatch {
                         end,
-                        value: Leaf::Verb { lexeme, agreement },
+                        value: Leaf::Verb { lexeme, agreement, onset },
                         owner: None,
                     })
                 })
@@ -251,14 +252,14 @@ fn noun_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
         quote! {
             Lexical::Noun(wanted) => [#(#candidates),*]
                 .into_iter()
-                .filter(|(_, number, _)| {
+                .filter(|(_, number, _, _)| {
                     matches!(wanted, FeatureConstraint::Any)
                         || matches!(wanted, FeatureConstraint::Exact(expected) if expected == *number)
                 })
-                .filter_map(|(lexeme, number, surface)| {
+                .filter_map(|(lexeme, number, onset, surface)| {
                     input.word_end(surface).map(|end| LexicalMatch {
                         end,
-                        value: Leaf::Noun { noun: lexeme, number },
+                        value: Leaf::Noun { noun: lexeme, number, onset },
                         owner: None,
                     })
                 })
@@ -283,7 +284,8 @@ fn noun_surface_candidates(
             }
         };
         let surface = syn::LitStr::new(row.surface(), Span::call_site());
-        quote! { (#ty::#member, #number, #surface) }
+        let onset = super::onset(row.onset());
+        quote! { (#ty::#member, #number, #onset, #surface) }
     })
 }
 
@@ -310,14 +312,14 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         let position = crate::emit::grammar_position(codec.position());
         let number_feature = match codec.feature_axis() {
             crate::feature::Feature::Number => quote! { wanted },
-            crate::feature::Feature::Agreement => {
+            crate::feature::Feature::Agreement | crate::feature::Feature::Onset => {
                 unreachable!("validated declaration_noun has the Number feature axis")
             }
         };
         quote! {
             Lexical::DeclarationNoun(#terminal_index, wanted) => {
                 let mut matches = Vec::new();
-                for (lexeme, number, surface) in [#(#closed_candidates),*] {
+                for (lexeme, number, onset, surface) in [#(#closed_candidates),*] {
                     if matches!(wanted, FeatureConstraint::Any)
                         || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number)
                     {
@@ -327,13 +329,14 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                 value: Leaf::#noun {
                                     noun: #noun::Lexeme(lexeme),
                                     number,
+                                    onset,
                                 },
                                 owner: None,
                             });
                         }
                     }
                 }
-                for (end, id, feature) in input.declaration_noun_readings(#position, #number_feature) {
+                for (end, id, feature, onset) in input.declaration_noun_readings(#position, #number_feature) {
                     if matches!(id.kind(), #(#allowed)|*) {
                         let number = match feature {
                             ::macro_ron::v2::SurfaceFeature::Singular => Number::Singular,
@@ -348,6 +351,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             value: Leaf::#noun {
                                 noun: #noun::Declaration(declaration),
                                 number,
+                                onset,
                             },
                             owner: None,
                         });
@@ -410,12 +414,12 @@ mod tests {
     fn generated_morphology_scanner_uses_every_sealed_surface_row() {
         let source = generated_scanner_source();
         for row in [
-            "(VerbLexeme :: InventedLemma , Agreement :: Bare , \"deal\")",
-            "(VerbLexeme :: InventedLemma , Agreement :: ThirdPersonSingular , \"deals\")",
-            "(VerbLexeme :: Be , Agreement :: Bare , \"are\")",
-            "(VerbLexeme :: Be , Agreement :: ThirdPersonSingular , \"is\")",
-            "(NounLexeme :: TwoWords , Number :: Singular , \"object\")",
-            "(NounLexeme :: TwoWords , Number :: Plural , \"objects\")",
+            "(VerbLexeme :: InventedLemma , Agreement :: Bare , Onset :: Consonant , \"deal\")",
+            "(VerbLexeme :: InventedLemma , Agreement :: ThirdPersonSingular , Onset :: Consonant , \"deals\")",
+            "(VerbLexeme :: Be , Agreement :: Bare , Onset :: Vowel , \"are\")",
+            "(VerbLexeme :: Be , Agreement :: ThirdPersonSingular , Onset :: Vowel , \"is\")",
+            "(NounLexeme :: TwoWords , Number :: Singular , Onset :: Vowel , \"object\")",
+            "(NounLexeme :: TwoWords , Number :: Plural , Onset :: Vowel , \"objects\")",
         ] {
             assert!(
                 source.contains(row),
@@ -433,6 +437,10 @@ mod tests {
         assert!(
             source.contains("Lexical :: Verb (wanted , constraint)"),
             "closed verb matcher does not carry its sealed feature constraint: {source}"
+        );
+        assert!(
+            source.contains("Leaf :: Verb { lexeme , agreement , onset }"),
+            "closed verb scanner discarded the normalized-row onset: {source}"
         );
         assert!(
             source.contains("matches ! (constraint , FeatureConstraint :: Any)")

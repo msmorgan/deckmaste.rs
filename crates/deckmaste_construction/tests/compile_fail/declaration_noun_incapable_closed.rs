@@ -1,10 +1,10 @@
 use deckmaste_construction::constructions;
 
 constructions! {
-    vocab Article { A = "a", }
+    vocab Word { A = "a", }
     codec Noun {
         generate declaration_noun {
-            closed = Article;
+            closed = Word;
             position = Noun;
             kinds = [Type, Subtype];
             feature = Number;

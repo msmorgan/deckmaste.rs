@@ -161,7 +161,7 @@ impl ScanInput<'_> {
     fn declaration_readings(
         &self,
         matcher: DeclarationMatcher,
-    ) -> Vec<(usize, DeclarationIdentity, SurfaceFeature)> {
+    ) -> Vec<(usize, DeclarationIdentity, SurfaceFeature, Onset)> {
         super::scan::lookup_declaration_readings(
             self.text,
             self.position.byte_offset,
@@ -175,6 +175,15 @@ impl ScanInput<'_> {
                 FeatureConstraint::Exact(expected) => feature == expected,
             },
         )
+        .into_iter()
+        .map(|(end, id, feature)| {
+            let onset = self
+                .environment
+                .onset(&id, feature)
+                .expect("normalized declaration reading has frozen onset");
+            (end, id, feature, onset)
+        })
+        .collect()
     }
 }
 

@@ -216,24 +216,45 @@ impl Serialize for ParameterType {
 pub enum Grammar {
     Verb {
         bare: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        bare_onset: Option<Onset>,
         #[serde(default, skip_serializing_if = "DerivedSurface::is_derived")]
         third_person: DerivedSurface,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        third_person_onset: Option<Onset>,
         valence: VerbValence,
     },
     Noun {
         singular: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        singular_onset: Option<Onset>,
         #[serde(default, skip_serializing_if = "DerivedSurface::is_derived")]
         plural: DerivedSurface,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        plural_onset: Option<Onset>,
     },
     FixedTerm {
         surface: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        onset: Option<Onset>,
     },
     FixedClause {
         surface: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        onset: Option<Onset>,
     },
     FixedKeyword {
         surface: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        onset: Option<Onset>,
     },
+}
+
+/// The effective initial sound of one complete realized surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
+pub enum Onset {
+    Consonant,
+    Vowel,
 }
 
 /// The authored state of a form supplied by a dumb morphology recipe.
@@ -472,6 +493,8 @@ pub enum SurfaceFeature {
 pub struct RealizedSurface {
     feature: SurfaceFeature,
     text: String,
+    onset: Onset,
+    onset_override: Option<Onset>,
 }
 
 impl RealizedSurface {
@@ -483,6 +506,18 @@ impl RealizedSurface {
     #[must_use]
     pub fn text(&self) -> &str {
         &self.text
+    }
+
+    /// Returns the frozen effective onset used by every downstream consumer.
+    #[must_use]
+    pub fn onset(&self) -> Onset {
+        self.onset
+    }
+
+    /// Returns the optional authored override retained for provenance.
+    #[must_use]
+    pub fn onset_override(&self) -> Option<Onset> {
+        self.onset_override
     }
 }
 
@@ -662,6 +697,10 @@ pub enum ValidationError {
     InvalidBody { reason: String },
     #[error("{field} surface must be nonempty, trimmed, and single-line")]
     InvalidSurface { field: &'static str },
+    #[error(
+        "surface `{surface}` has no onset in the bounded pronunciation recipe; author an attested per-form override"
+    )]
+    UnknownOnset { surface: String },
     #[error("{field} override `{surface}` equals the dumb derived surface; omit it")]
     RedundantOverride {
         field: &'static str,
@@ -1197,7 +1236,9 @@ fn normalize_grammar(
         (
             Grammar::Verb {
                 bare,
+                bare_onset,
                 third_person,
+                third_person_onset,
                 valence,
             },
             GrammarSourceMap::Verb {
@@ -1218,18 +1259,28 @@ fn normalize_grammar(
             )?;
             let mut surfaces = vec![RealizedSurface {
                 feature: SurfaceFeature::Bare,
+                onset: normalized_onset(path, *bare_position, &bare, bare_onset)?,
+                onset_override: bare_onset,
                 text: bare.clone(),
             }];
             if let Some(text) = third_person {
+                let position = third_person_position.unwrap_or(*bare_position);
                 surfaces.push(RealizedSurface {
                     feature: SurfaceFeature::ThirdPersonSingular,
+                    onset: normalized_onset(path, position, &text, third_person_onset)?,
+                    onset_override: third_person_onset,
                     text,
                 });
             }
             (bare, GrammarRecipe::Verb { valence }, surfaces)
         }
         (
-            Grammar::Noun { singular, plural },
+            Grammar::Noun {
+                singular,
+                singular_onset,
+                plural,
+                plural_onset,
+            },
             GrammarSourceMap::Noun {
                 singular: singular_position,
                 plural: plural_position,
@@ -1246,25 +1297,32 @@ fn normalize_grammar(
             )?;
             let mut surfaces = vec![RealizedSurface {
                 feature: SurfaceFeature::Singular,
+                onset: normalized_onset(path, *singular_position, &singular, singular_onset)?,
+                onset_override: singular_onset,
                 text: singular.clone(),
             }];
             if let Some(text) = plural {
+                let position = plural_position.unwrap_or(*singular_position);
                 surfaces.push(RealizedSurface {
                     feature: SurfaceFeature::Plural,
+                    onset: normalized_onset(path, position, &text, plural_onset)?,
+                    onset_override: plural_onset,
                     text,
                 });
             }
             (singular, GrammarRecipe::Noun, surfaces)
         }
-        (Grammar::FixedTerm { surface }, GrammarSourceMap::Fixed { surface: position }) => {
-            fixed_grammar(path, *position, surface, GrammarRecipe::FixedTerm)?
+        (Grammar::FixedTerm { surface, onset }, GrammarSourceMap::Fixed { surface: position }) => {
+            fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedTerm)?
         }
-        (Grammar::FixedClause { surface }, GrammarSourceMap::Fixed { surface: position }) => {
-            fixed_grammar(path, *position, surface, GrammarRecipe::FixedClause)?
-        }
-        (Grammar::FixedKeyword { surface }, GrammarSourceMap::Fixed { surface: position }) => {
-            fixed_grammar(path, *position, surface, GrammarRecipe::FixedKeyword)?
-        }
+        (
+            Grammar::FixedClause { surface, onset },
+            GrammarSourceMap::Fixed { surface: position },
+        ) => fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedClause)?,
+        (
+            Grammar::FixedKeyword { surface, onset },
+            GrammarSourceMap::Fixed { surface: position },
+        ) => fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedKeyword)?,
         _ => {
             return Err(source_map_parse_error(
                 path,
@@ -1293,17 +1351,115 @@ fn fixed_grammar(
     path: &Path,
     position: SourcePosition,
     surface: String,
+    onset_override: Option<Onset>,
     recipe: GrammarRecipe,
 ) -> Result<(String, GrammarRecipe, Vec<RealizedSurface>), ReadError> {
     validate_surface(path, position, "surface", &surface)?;
+    let onset = normalized_onset(path, position, &surface, onset_override)?;
     Ok((
         surface.clone(),
         recipe,
         vec![RealizedSurface {
             feature: SurfaceFeature::Fixed,
             text: surface,
+            onset,
+            onset_override,
         }],
     ))
+}
+
+fn normalized_onset(
+    path: &Path,
+    position: SourcePosition,
+    surface: &str,
+    onset_override: Option<Onset>,
+) -> Result<Onset, ReadError> {
+    normalize_surface_onset(surface, onset_override).ok_or_else(|| {
+        validation_error_at(
+            path,
+            position,
+            ValidationError::UnknownOnset {
+                surface: surface.to_owned(),
+            },
+        )
+    })
+}
+
+/// Applies the normalization-owned bounded pronunciation recipe.
+///
+/// This is exposed for the declaration compiler to freeze its closed terminal
+/// rows. Runtime scanners, builders, and renderers consume only those frozen
+/// values and normalized [`RealizedSurface`] rows.
+#[must_use]
+pub fn normalize_surface_onset(surface: &str, onset_override: Option<Onset>) -> Option<Onset> {
+    onset_override.or_else(|| bounded_surface_onset(surface))
+}
+
+fn bounded_surface_onset(surface: &str) -> Option<Onset> {
+    let word = surface
+        .split(|character: char| character.is_whitespace() || character == '-')
+        .next()?;
+    if word.is_empty() {
+        return None;
+    }
+
+    let letters = word
+        .chars()
+        .take_while(char::is_ascii_alphabetic)
+        .collect::<String>();
+    if !letters.is_empty() && letters.chars().all(|letter| letter.is_ascii_uppercase()) {
+        let first = letters.as_bytes()[0];
+        return Some(
+            if matches!(
+                first,
+                b'A' | b'E' | b'F' | b'H' | b'I' | b'L' | b'M' | b'N' | b'O' | b'R' | b'S' | b'X'
+            ) {
+                Onset::Vowel
+            } else {
+                Onset::Consonant
+            },
+        );
+    }
+
+    let lower = word.to_ascii_lowercase();
+    if ["heir", "honest", "honor", "hour"]
+        .iter()
+        .any(|prefix| lower.starts_with(prefix))
+    {
+        return Some(Onset::Vowel);
+    }
+    if lower.starts_with("eu")
+        || lower == "one"
+        || lower.starts_with("once")
+        || [
+            "unit",
+            "unite",
+            "unity",
+            "unicorn",
+            "uniform",
+            "unique",
+            "union",
+            "universe",
+            "universal",
+            "university",
+            "use",
+            "user",
+            "usual",
+            "utensil",
+            "utility",
+            "utopia",
+        ]
+        .iter()
+        .any(|prefix| lower.starts_with(prefix))
+    {
+        return Some(Onset::Consonant);
+    }
+
+    match lower.as_bytes().first().copied() {
+        Some(b'a' | b'e' | b'i' | b'o' | b'u') => Some(Onset::Vowel),
+        Some(first) if first.is_ascii_alphabetic() => Some(Onset::Consonant),
+        _ => None,
+    }
 }
 
 fn realize_derived_surface(

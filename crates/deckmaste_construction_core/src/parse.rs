@@ -690,6 +690,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
     match ident.to_string().as_str() {
         "agreement" => Some(Feature::Agreement),
         "number" => Some(Feature::Number),
+        "onset" => Some(Feature::Onset),
         _ => None,
     }
 }
@@ -788,25 +789,30 @@ fn parse_form_guard_expr(input: ParseStream<'_>) -> syn::Result<RequireExprSourc
             "form guards require a role subject",
         ));
     }
-    if input.peek(Token![.]) {
+    let subject = if input.peek(Token![.]) {
         input.parse::<Token![.]>()?;
         let predicate = input.call(Ident::parse_any)?;
-        if predicate != "is_some" && predicate != "is_none" {
+        if predicate == "is_some" || predicate == "is_none" {
+            let content;
+            parenthesized!(content in input);
+            if !content.is_empty() {
+                return Err(content.error("optional-presence guards accept no arguments"));
+            }
+            return Ok(RequireExprSource::OptionalPresence {
+                role,
+                present: predicate == "is_some",
+            });
+        }
+        let Some(feature) = feature_from_ident(&predicate) else {
             return Err(syn::Error::new(
                 predicate.span(),
-                "form guards do not support feature subjects",
+                format!("unknown form guard feature `{predicate}`"),
             ));
-        }
-        let content;
-        parenthesized!(content in input);
-        if !content.is_empty() {
-            return Err(content.error("optional-presence guards accept no arguments"));
-        }
-        return Ok(RequireExprSource::OptionalPresence {
-            role,
-            present: predicate == "is_some",
-        });
-    }
+        };
+        RequireSubjectSource::RoleFeature { role, feature }
+    } else {
+        RequireSubjectSource::Role(role)
+    };
 
     let members = if input.peek(keyword::is) {
         input.parse::<keyword::is>()?;
@@ -817,10 +823,7 @@ fn parse_form_guard_expr(input: ParseStream<'_>) -> syn::Result<RequireExprSourc
     } else {
         return Err(input.error("form guard requires `is` or `in`"));
     };
-    Ok(RequireExprSource::In {
-        subject: RequireSubjectSource::Role(role),
-        members,
-    })
+    Ok(RequireExprSource::In { subject, members })
 }
 
 fn parse_form_guard_group(
@@ -1948,7 +1951,7 @@ mod tests {
                 }
 
                 abstract product SurfaceAtoms {
-                    items: seq Choice separated by " " lex(Article::A),
+                    items: seq Choice separated by " " lex(SeparatorWord::A),
                 }
                 abstract sum DocumentBlock { Ability, }
             "#,
@@ -2041,7 +2044,7 @@ mod tests {
         };
         assert_eq!(space.value(), " ");
         assert_eq!(article.segments.len(), 2);
-        assert_eq!(article.segments[0].ident, "Article");
+        assert_eq!(article.segments[0].ident, "SeparatorWord");
         assert_eq!(article.segments[1].ident, "A");
 
         let Declaration::AbstractSum(document_block) = &declarations.declarations[4] else {
@@ -2315,10 +2318,6 @@ mod tests {
             (
                 "form one when len(word) = 1 = word; form two otherwise = word;",
                 "do not support length subjects",
-            ),
-            (
-                "form one when word.number is One = word; form two otherwise = word;",
-                "do not support feature subjects",
             ),
             (
                 "form one when !word is One = word; form two otherwise = word;",

@@ -2217,7 +2217,7 @@ fn seal_category_feature_reads(raw: &Declarations) -> HashMap<String, HashSet<Fe
     categories
         .into_iter()
         .filter_map(|category| {
-            let reads = [Feature::Agreement, Feature::Number]
+            let reads = [Feature::Agreement, Feature::Number, Feature::Onset]
                 .into_iter()
                 .filter(|feature| raw_category_reads_feature(raw, &category, *feature))
                 .collect::<HashSet<_>>();
@@ -3129,6 +3129,7 @@ fn generated_name_inventory(
                     let (spelling, display) = match feature {
                         ParsedFeature::Agreement => ("agreement", "Agreement"),
                         ParsedFeature::Number => ("number", "Number"),
+                        ParsedFeature::Onset => ("onset", "Onset"),
                     };
                     names.register_value(
                         &feature_helper(spelling, &vocab),
@@ -3628,6 +3629,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
     let parsed_feature = match feature {
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Number => ParsedFeature::Number,
+        Feature::Onset => ParsedFeature::Onset,
     };
     raw.declarations.iter().any(|declaration| {
         let Declaration::Construction(construction) = declaration else { return false };
@@ -3767,6 +3769,8 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 ),
             );
         }
+        validate_form_guard_subject_composition(construction, &mut errors);
+        validate_feature_guarded_traversal_programs(construction, &mut errors);
         for field in &construction.element.fields {
             validate_resolved_field_kind(&field.kind, symbols, &mut errors);
         }
@@ -3841,6 +3845,139 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
     }
     finish(errors)?;
     resolve_grammar_uses(raw)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FiniteGuardSubjectKind {
+    Membership,
+    OptionalPresence,
+    Feature(ParsedFeature),
+}
+
+fn validate_form_guard_subject_composition(
+    construction: &crate::model::Construction,
+    errors: &mut Option<syn::Error>,
+) {
+    fn collect<'a>(
+        guard: &'a RequireExprSource,
+        subjects: &mut Vec<(&'a syn::Ident, FiniteGuardSubjectKind)>,
+    ) {
+        match guard {
+            RequireExprSource::OptionalPresence { role, .. } => {
+                subjects.push((role, FiniteGuardSubjectKind::OptionalPresence));
+            }
+            RequireExprSource::In {
+                subject: crate::model::RequireSubjectSource::Role(role),
+                ..
+            } => subjects.push((role, FiniteGuardSubjectKind::Membership)),
+            RequireExprSource::In {
+                subject: crate::model::RequireSubjectSource::RoleFeature { role, feature },
+                ..
+            } => subjects.push((role, FiniteGuardSubjectKind::Feature(*feature))),
+            RequireExprSource::All(operands) | RequireExprSource::Any(operands) => {
+                for operand in operands {
+                    collect(operand, subjects);
+                }
+            }
+            RequireExprSource::In { .. } | RequireExprSource::Length { .. } => {}
+        }
+    }
+
+    let mut first_by_role = HashMap::<String, FiniteGuardSubjectKind>::new();
+    for form in &construction.forms {
+        let crate::model::FormGuardSource::When(guard) = &form.guard else {
+            continue;
+        };
+        let mut subjects = Vec::new();
+        collect(guard, &mut subjects);
+        for (role, kind) in subjects {
+            let role_key = identifier_key(role);
+            if let Some(existing) = first_by_role.get(&role_key)
+                && existing != &kind
+            {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        role.span(),
+                        format!(
+                            "form guards cannot mix finite subjects for role `{role}`; correlation is not modeled"
+                        ),
+                    ),
+                );
+            } else {
+                first_by_role.insert(role_key, kind);
+            }
+        }
+    }
+}
+
+fn validate_feature_guarded_traversal_programs(
+    construction: &crate::model::Construction,
+    errors: &mut Option<syn::Error>,
+) {
+    fn contains_feature_subject(guard: &RequireExprSource) -> bool {
+        match guard {
+            RequireExprSource::In {
+                subject: crate::model::RequireSubjectSource::RoleFeature { .. },
+                ..
+            } => true,
+            RequireExprSource::All(operands) | RequireExprSource::Any(operands) => {
+                operands.iter().any(contains_feature_subject)
+            }
+            RequireExprSource::OptionalPresence { .. }
+            | RequireExprSource::In { .. }
+            | RequireExprSource::Length { .. } => false,
+        }
+    }
+
+    let has_feature_guard = construction.forms.iter().any(|form| {
+        matches!(&form.guard, crate::model::FormGuardSource::When(guard) if contains_feature_subject(guard))
+    });
+    if !has_feature_guard {
+        return;
+    }
+
+    let signature = |form: &crate::model::Form| {
+        form.atoms
+            .iter()
+            .filter_map(|atom| match atom {
+                FormAtom::Literal(_) => None,
+                FormAtom::Role(role) => Some(format!("category:{}", identifier_key(role))),
+                FormAtom::Lex(role) => Some(format!("lex:{}", identifier_key(role))),
+                FormAtom::Identity(role) => Some(format!("identity:{}", identifier_key(role))),
+                FormAtom::Noun(role) => Some(format!("noun:{}", identifier_key(role))),
+                FormAtom::Verb(VerbOperand::Projected(role)) => {
+                    Some(format!("verb-role:{}", identifier_key(role)))
+                }
+                FormAtom::Verb(VerbOperand::Fixed(path)) => {
+                    Some(format!("verb-fixed:{}", path_name(path)))
+                }
+                FormAtom::OpenVerb(open) => Some(format!(
+                    "open-verb:{}:{}",
+                    identifier_key(&open.kind),
+                    open.name.value()
+                )),
+            })
+            .collect::<Vec<_>>()
+    };
+    let Some(canonical) = construction.forms.first() else {
+        return;
+    };
+    let canonical_signature = signature(canonical);
+    for form in construction.forms.iter().skip(1) {
+        if signature(form) != canonical_signature {
+            combine(
+                errors,
+                syn::Error::new(
+                    form.name.span(),
+                    format!(
+                        "feature-guarded forms must have identical traversal programs; form `{}` differs from `{}`",
+                        form.name, canonical.name
+                    ),
+                ),
+            );
+        }
+    }
 }
 
 fn validate_resolved_field_kind(
@@ -3983,6 +4120,21 @@ fn validate_form_guard_expr(
                 syn::Error::new(role.span(), format!("unknown form-guard role `{role}`")),
             ),
         },
+        RequireExprSource::In {
+            subject:
+                crate::model::RequireSubjectSource::RoleFeature {
+                    role,
+                    feature: ParsedFeature::Onset,
+                },
+            ..
+        } => {
+            if !fields.contains_key(&identifier_key(role)) {
+                combine(
+                    errors,
+                    syn::Error::new(role.span(), format!("unknown form-guard role `{role}`")),
+                );
+            }
+        }
         RequireExprSource::All(operands) | RequireExprSource::Any(operands) => {
             for operand in operands {
                 validate_form_guard_expr(construction, operand, fields, symbols, errors);
@@ -4250,7 +4402,7 @@ fn check_feature_role(
     errors: &mut Option<syn::Error>,
 ) {
     if identifier_key(role) == "verb" && has_fixed_verb {
-        if feature != ParsedFeature::Agreement {
+        if !matches!(feature, ParsedFeature::Agreement | ParsedFeature::Onset) {
             combine(
                 errors,
                 syn::Error::new(
@@ -4280,6 +4432,7 @@ fn check_feature_role(
                 );
             }
         }
+        Some(FieldKind::Lex(_) | FieldKind::Identity(_)) if feature == ParsedFeature::Onset => {}
         Some(FieldKind::Lex(_))
             if local_vocab_providers.contains(&(identifier_key(role), feature)) =>
         {
@@ -4292,7 +4445,7 @@ fn check_feature_role(
                 .get(&path_name(path))
                 .is_some_and(|terminal| terminal.kind == TerminalKind::Lexeme) =>
         {
-            if feature != ParsedFeature::Agreement {
+            if !matches!(feature, ParsedFeature::Agreement | ParsedFeature::Onset) {
                 combine(
                     errors,
                     syn::Error::new(
@@ -5889,7 +6042,9 @@ fn feature_place_is_constructible(
                 ParsedFeaturePlace::Role { field, feature } => fields
                     .get(&identifier_key(field))
                     .is_some_and(|kind| {
-                        matches!(kind, FieldKind::Category(path) if providers.contains(&(path_name(path), *feature)))
+                        (*feature == ParsedFeature::Onset
+                            && matches!(kind, FieldKind::Lex(_) | FieldKind::Identity(_)))
+                            || matches!(kind, FieldKind::Category(path) if providers.contains(&(path_name(path), *feature)))
                     }),
                 ParsedFeaturePlace::Construction(_) => false,
             },
@@ -6518,7 +6673,11 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
     }
     let mut providers = HashSet::new();
     for (category, constructions) in categories {
-        for feature in [ParsedFeature::Agreement, ParsedFeature::Number] {
+        for feature in [
+            ParsedFeature::Agreement,
+            ParsedFeature::Number,
+            ParsedFeature::Onset,
+        ] {
             if constructions.iter().all(|construction| construction.equations.iter().any(|equation| matches!(equation.target, ParsedFeaturePlace::Construction(found) if found == feature))) {
                 providers.insert((category.clone(), feature));
             }
@@ -6542,6 +6701,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Number => "number",
+        ParsedFeature::Onset => "onset",
     }
 }
 
@@ -6962,7 +7122,7 @@ fn validate_lowerable_feature_compositions(
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::Match { .. },
             )
             | (
-                ParsedFeaturePlace::Construction(ParsedFeature::Agreement),
+                ParsedFeaturePlace::Construction(ParsedFeature::Agreement | ParsedFeature::Onset),
                 ParsedFeatureValue::FromRole(_),
             ) => true,
             (
@@ -6993,6 +7153,13 @@ fn validate_lowerable_feature_compositions(
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
             ) => role_provides_number(raw, &fields, field),
+            (
+                ParsedFeaturePlace::Role {
+                    feature: ParsedFeature::Onset,
+                    ..
+                },
+                ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
+            ) => false,
         };
         if !lowerable {
             let span = match &equation.target {
@@ -7049,7 +7216,11 @@ fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<
     }
 
     for (category, members) in categories {
-        for feature in [ParsedFeature::Agreement, ParsedFeature::Number] {
+        for feature in [
+            ParsedFeature::Agreement,
+            ParsedFeature::Number,
+            ParsedFeature::Onset,
+        ] {
             let provides = |construction: &crate::Construction| {
                 construction.equations.iter().any(|equation| {
                     matches!(
@@ -7086,6 +7257,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Number => "number",
+        ParsedFeature::Onset => "onset",
     }
 }
 
@@ -7251,6 +7423,144 @@ pub(crate) mod tests {
             actual.contains("Loop.next: zero-width recursive cycle"),
             "{actual}"
         );
+    }
+
+    #[test]
+    fn onset_roles_reject_terminals_without_a_sealed_provider_capability() {
+        let custom_identity = error(quote! {
+            identity Handle {
+                value_type = Handle;
+                lexical = Lexical::Handle;
+                render = render_handle;
+                build { pattern = BuildValue::Handle(handle); construct = handle; }
+                traversal {
+                    callback = copy;
+                    argument = handle;
+                    variant Primary;
+                }
+            }
+            construction only: Root {
+                element Only { handle: identity Handle, }
+                derive onset = handle.onset;
+                form only = identity(handle);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            custom_identity.contains("terminal `Handle` does not provide onset"),
+            "{custom_identity}"
+        );
+        assert!(!custom_identity.contains("internal"), "{custom_identity}");
+
+        let signed_decimal = error(quote! {
+            codec SignedNumber {
+                generate signed_decimal {
+                    magnitude = u32;
+                    sign_type = Sign { Positive = none, Negative = "-", };
+                }
+            }
+            construction only: Root {
+                element Only { count: lex SignedNumber, }
+                derive onset = count.onset;
+                form only = lex(count);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            signed_decimal.contains("terminal `SignedNumber` does not provide onset"),
+            "{signed_decimal}"
+        );
+        assert!(!signed_decimal.contains("internal"), "{signed_decimal}");
+    }
+
+    #[test]
+    fn implicit_verb_onset_requires_the_same_provider_in_every_form() {
+        let missing_source = quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Act = "act", }
+            vocab Mode { WithVerb = "with", WithoutVerb = "without", }
+            construction guarded: Root {
+                element Guarded { mode: lex Mode, }
+                derive verb.agreement = Values::Bare;
+                derive onset = verb.onset;
+                form with_verb when mode is WithVerb = lex(mode) verb(Verbs::Act);
+                form without_verb otherwise = lex(mode);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        };
+        let parsed = crate::parse_declarations(missing_source)
+            .expect("partial multi-form verb onset fixture parses");
+        let Declaration::Construction(construction) = &parsed.declarations[3] else {
+            panic!("fourth declaration is the guarded construction")
+        };
+        let expected_span = construction.forms[1].name.span();
+        let missing = crate::validate_declarations(parsed)
+            .expect_err("every form must contain the sealed verb onset provider");
+        assert_same_span(missing.span(), expected_span);
+        let missing = missing.to_string();
+        assert!(
+            missing
+                .contains("verb onset requires exactly one sealed terminal provider in every form"),
+            "{missing}"
+        );
+        assert!(!missing.contains("internal"), "{missing}");
+
+        crate::validate_declarations(
+            crate::parse_declarations(quote! {
+                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                lexeme Verbs using EnglishVerb { Act = "act", }
+                vocab Mode { First = "first", Second = "second", }
+                construction guarded: Root {
+                    element Guarded { mode: lex Mode, }
+                    derive verb.agreement = Values::Bare;
+                    derive onset = verb.onset;
+                    form first when mode is First = lex(mode) verb(Verbs::Act);
+                    form second otherwise = lex(mode) verb(Verbs::Act);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("uniform multi-form verb onset fixture parses"),
+        )
+        .expect("the same verb onset provider is present in every form");
+    }
+
+    #[test]
+    fn feature_guarded_forms_require_identical_traversal_programs() {
+        let actual = error(quote! {
+            vocab Word { Artifact = "artifact", Player = "player", }
+            construction guarded: Root {
+                element Guarded { left: lex Word, right: lex Word, }
+                derive onset = left.onset;
+                form vowel when left.onset is Vowel = lex(left) lex(right);
+                form consonant otherwise = lex(right) lex(left);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            actual.contains("feature-guarded forms must have identical traversal programs"),
+            "{actual}"
+        );
+        assert!(!actual.contains("internal"), "{actual}");
+    }
+
+    #[test]
+    fn guarded_forms_reject_mixed_finite_subjects_for_one_role() {
+        let actual = error(quote! {
+            vocab Word { Artifact = "artifact", Player = "player", }
+            construction guarded: Root {
+                element Guarded { word: lex Word, }
+                derive onset = word.onset;
+                form artifact when word is Artifact = lex(word);
+                form vowel when word.onset is Vowel = lex(word);
+                form fallback otherwise = lex(word);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            actual.contains("form guards cannot mix finite subjects for role `word`"),
+            "{actual}"
+        );
+        assert!(!actual.contains("internal"), "{actual}");
     }
 
     fn assert_same_span(actual: proc_macro2::Span, expected: proc_macro2::Span) {
@@ -11291,7 +11601,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 105);
+        assert_eq!(expansion.plan().items().len(), 106);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -11633,7 +11943,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 105);
+        assert_eq!(expansion.plan().items().len(), 106);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -11765,7 +12075,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 105);
+        assert_eq!(emission.items().len(), 106);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

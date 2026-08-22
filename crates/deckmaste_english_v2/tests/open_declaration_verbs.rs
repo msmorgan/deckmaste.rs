@@ -145,7 +145,7 @@ fn category_homonym_does_not_replace_the_requested_action_identity() {
         .scanner_matches()
         .items()
         .iter()
-        .filter(|scanner_match| scanner_match.terminal_name_v1().contains("Declaration"))
+        .filter(|scanner_match| scanner_match.terminal_name_v1().starts_with("Declaration("))
         .collect::<Vec<_>>();
     assert_eq!(declaration_matches.len(), 1);
     assert!(

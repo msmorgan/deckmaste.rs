@@ -10,6 +10,7 @@ use macro_ron::v2::DeclarationKind;
 pub use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::GrammarRecipe;
 use macro_ron::v2::NormalizedDeclaration;
+use macro_ron::v2::Onset;
 use macro_ron::v2::SurfaceFeature;
 use macro_ron::v2::VerbValence;
 
@@ -20,7 +21,7 @@ use crate::orthography::initial_surface;
 pub struct DeclarationRecord {
     id: DeclarationId,
     recipe: Option<GrammarRecipe>,
-    surfaces: Vec<(SurfaceFeature, Arc<str>)>,
+    surfaces: Vec<(SurfaceFeature, Onset, Arc<str>)>,
     provenance: PathBuf,
 }
 
@@ -61,7 +62,13 @@ impl DeclarationRecord {
     fn surface(&self, feature: SurfaceFeature) -> Option<&str> {
         self.surfaces
             .iter()
-            .find_map(|(candidate, surface)| (*candidate == feature).then_some(surface.as_ref()))
+            .find_map(|(candidate, _, surface)| (*candidate == feature).then_some(surface.as_ref()))
+    }
+
+    fn onset(&self, feature: SurfaceFeature) -> Option<Onset> {
+        self.surfaces
+            .iter()
+            .find_map(|(candidate, onset, _)| (*candidate == feature).then_some(*onset))
     }
 }
 
@@ -72,6 +79,7 @@ pub struct DeclarationReading {
     position: GrammarPosition,
     feature: SurfaceFeature,
     surface: Arc<str>,
+    onset: Onset,
 }
 
 impl DeclarationReading {
@@ -97,6 +105,12 @@ impl DeclarationReading {
     #[must_use]
     pub fn surface(&self) -> &str {
         &self.surface
+    }
+
+    /// Returns the compiler-frozen phonetic onset for this realized surface.
+    #[must_use]
+    pub fn onset(&self) -> Onset {
+        self.onset
     }
 }
 
@@ -179,7 +193,7 @@ impl ParserEnvironment {
                         grammar
                             .surfaces()
                             .iter()
-                            .map(|surface| (surface.feature(), surface.text())),
+                            .map(|surface| (surface.feature(), surface.onset(), surface.text())),
                     )?,
                 ),
                 None => (None, Vec::new()),
@@ -207,13 +221,14 @@ impl ParserEnvironment {
                     continue;
                 };
                 let position = recipe.position();
-                for (feature, surface) in &record.surfaces {
+                for (feature, onset, surface) in &record.surfaces {
                     let initial = initial_surface(surface);
                     let reading = DeclarationReading {
                         id: record.id.clone(),
                         position,
                         feature: *feature,
                         surface: Arc::clone(surface),
+                        onset: *onset,
                     };
                     readings
                         .entry(position)
@@ -310,6 +325,16 @@ impl ParserEnvironment {
             .and_then(|record| record.surface(feature))
     }
 
+    /// Returns the compiler-frozen onset for a declaration's realized feature.
+    #[must_use]
+    pub fn onset(&self, id: &DeclarationId, feature: SurfaceFeature) -> Option<Onset> {
+        self.data
+            .declarations
+            .get(&id.kind())
+            .and_then(|records| records.get(id.name()))
+            .and_then(|record| record.onset(feature))
+    }
+
     #[cfg(test)]
     pub(crate) fn test_only_shares_storage_with(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.data, &other.data)
@@ -361,17 +386,20 @@ pub(crate) fn reading_lookup_count() -> usize {
 
 fn collect_surfaces<'a>(
     identity: &DeclarationId,
-    surfaces: impl IntoIterator<Item = (SurfaceFeature, &'a str)>,
-) -> Result<Vec<(SurfaceFeature, Arc<str>)>, ParserEnvironmentError> {
+    surfaces: impl IntoIterator<Item = (SurfaceFeature, Onset, &'a str)>,
+) -> Result<Vec<(SurfaceFeature, Onset, Arc<str>)>, ParserEnvironmentError> {
     let mut collected = Vec::new();
-    for (feature, surface) in surfaces {
-        if collected.iter().any(|(candidate, _)| *candidate == feature) {
+    for (feature, onset, surface) in surfaces {
+        if collected
+            .iter()
+            .any(|(candidate, _, _)| *candidate == feature)
+        {
             return Err(ParserEnvironmentError::DuplicateSurfaceFeature {
                 identity: identity.clone(),
                 feature,
             });
         }
-        collected.push((feature, Arc::from(surface)));
+        collected.push((feature, onset, Arc::from(surface)));
     }
     Ok(collected)
 }
@@ -388,8 +416,8 @@ mod tests {
         let error = collect_surfaces(
             &identity,
             [
-                (SurfaceFeature::Bare, "scry"),
-                (SurfaceFeature::Bare, "scry again"),
+                (SurfaceFeature::Bare, Onset::Consonant, "scry"),
+                (SurfaceFeature::Bare, Onset::Consonant, "scry again"),
             ],
         )
         .expect_err("a repeated realized feature fails closed");

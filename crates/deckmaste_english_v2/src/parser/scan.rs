@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::GrammarPosition;
+use macro_ron::v2::Onset;
 use macro_ron::v2::SurfaceFeature;
 
 use super::diagnostic::Bounded;
@@ -726,7 +727,7 @@ impl ScanInput<'_> {
     pub(crate) fn declaration_readings(
         &self,
         matcher: DeclarationMatcher,
-    ) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
+    ) -> Vec<(usize, DeclarationId, SurfaceFeature, Onset)> {
         lookup_declaration_readings_with_prefix(
             self.text,
             self.position.byte_offset,
@@ -747,7 +748,7 @@ impl ScanInput<'_> {
         &self,
         position: GrammarPosition,
         wanted: FeatureConstraint<Number>,
-    ) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
+    ) -> Vec<(usize, DeclarationId, SurfaceFeature, Onset)> {
         let offset = self.position.byte_offset;
         let initial = matches!(
             self.position.case,
@@ -797,7 +798,12 @@ impl ScanInput<'_> {
                 if matches!(wanted, FeatureConstraint::Any)
                     || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number)
                 {
-                    results.push((end, reading.id().clone(), reading.feature()));
+                    results.push((
+                        end,
+                        reading.id().clone(),
+                        reading.feature(),
+                        reading.onset(),
+                    ));
                 }
             }
         }
@@ -837,6 +843,9 @@ pub(super) fn lookup_declaration_readings(
         position,
         matches_feature,
     )
+    .into_iter()
+    .map(|(end, id, feature, _)| (end, id, feature))
+    .collect()
 }
 
 #[allow(
@@ -853,7 +862,7 @@ fn lookup_declaration_readings_with_prefix(
     name: &str,
     position: GrammarPosition,
     matches_feature: impl Fn(SurfaceFeature) -> bool,
-) -> Vec<(usize, DeclarationId, SurfaceFeature)> {
+) -> Vec<(usize, DeclarationId, SurfaceFeature, Onset)> {
     let prefix = usize::from(prefix_position == PrefixPosition::WordOwnedSpace);
     let Some(remainder) = text.get(offset..) else {
         return Vec::new();
@@ -893,7 +902,12 @@ fn lookup_declaration_readings_with_prefix(
                 && reading.id().name() == name
                 && matches_feature(reading.feature())
             {
-                results.push((end, reading.id().clone(), reading.feature()));
+                results.push((
+                    end,
+                    reading.id().clone(),
+                    reading.feature(),
+                    reading.onset(),
+                ));
             }
         }
     }
@@ -968,7 +982,6 @@ mod tests {
     use super::terminal_name_v1;
     use super::trace_label_counts;
     use super::value_label_v1;
-    use crate::ast::Article;
     use crate::ast::DeclarationNoun;
     use crate::ast::Demonstrative;
     use crate::ast::Noun;
@@ -989,6 +1002,7 @@ mod tests {
     use crate::constructions::LexicalProvenanceKind;
     use crate::constructions::LexicalTerminal;
     use crate::constructions::Number;
+    use crate::constructions::Onset;
     use crate::constructions::PrefixPosition;
     use crate::constructions::RULES;
     use crate::constructions::ScanPosition;
@@ -1208,7 +1222,11 @@ mod tests {
             assert!(matches!(
                 matches.as_slice(),
                 [LexicalMatch {
-                    value: Leaf::Verb { lexeme: actual_lexeme, agreement: actual_agreement },
+                    value: Leaf::Verb {
+                        lexeme: actual_lexeme,
+                        agreement: actual_agreement,
+                        ..
+                    },
                     owner: Some(_),
                     ..
                 }] if *actual_lexeme == lexeme && *actual_agreement == agreement
@@ -1249,8 +1267,8 @@ mod tests {
         ] {
             let matches = scan(
                 text,
-                Lexical::Noun(FeatureConstraint::Exact(number)),
-                LexicalOwnerTemplate::DeclarationNoun,
+                Lexical::DeclarationNoun(6, FeatureConstraint::Exact(number)),
+                LexicalOwnerTemplate::DeclarationNoun(6),
             );
             let closed = matches
                 .iter()
@@ -1260,6 +1278,7 @@ mod tests {
                         Leaf::Noun {
                             noun: Noun::Lexeme(NounLexeme::Player),
                             number: actual,
+                            ..
                         } if actual == number
                     )
                 })
@@ -1269,8 +1288,8 @@ mod tests {
         assert!(
             scan(
                 "Playersx.",
-                Lexical::Noun(FeatureConstraint::Any),
-                LexicalOwnerTemplate::DeclarationNoun,
+                Lexical::DeclarationNoun(6, FeatureConstraint::Any),
+                LexicalOwnerTemplate::DeclarationNoun(6),
             )
             .is_empty()
         );
@@ -1421,12 +1440,6 @@ mod tests {
                 "vocab:TriggerWord/Whenever",
             ),
             (
-                Lexical::Article,
-                Leaf::Article(Article::An),
-                "an",
-                "vocab:Article/An",
-            ),
-            (
                 Lexical::Demonstrative,
                 Leaf::Demonstrative(Demonstrative::Those),
                 "those",
@@ -1450,9 +1463,6 @@ mod tests {
             let owner = match matcher {
                 Lexical::TriggerWord => LexicalOwnerTemplate::Vocab {
                     declaration: "TriggerWord",
-                },
-                Lexical::Article => LexicalOwnerTemplate::Vocab {
-                    declaration: "Article",
                 },
                 Lexical::Demonstrative => LexicalOwnerTemplate::Vocab {
                     declaration: "Demonstrative",
@@ -1579,6 +1589,7 @@ mod tests {
             Leaf::Declaration(DeclarationLeaf {
                 id: DeclarationId::new(DeclarationKind::KeywordAction, "Scry"),
                 feature: SurfaceFeature::Bare,
+                onset: Onset::Consonant,
             })
         );
         assert!(scan(&connive, "Scry").is_empty());
@@ -1696,7 +1707,7 @@ mod tests {
     fn generated_declaration_scan_handles_expanding_unicode_initial_case() {
         let declaration = read_str(
             "/synthetic/SharpS.ron",
-            r#"CounterKind(name:"SharpS",spelling:"ßeta",grammar:FixedTerm(surface:"ßeta"))"#,
+            r#"CounterKind(name:"SharpS",spelling:"ßeta",grammar:FixedTerm(surface:"ßeta",onset:Consonant))"#,
         )
         .expect("synthetic Unicode fixed term is valid");
         let environment = ParserEnvironment::try_from_declarations([declaration])
@@ -1957,8 +1968,8 @@ mod tests {
                     context: &context,
                 },
                 LexicalTerminal {
-                    matcher: Lexical::Noun(wanted),
-                    owner: LexicalOwnerTemplate::DeclarationNoun,
+                    matcher: Lexical::DeclarationNoun(6, wanted),
+                    owner: LexicalOwnerTemplate::DeclarationNoun(6),
                 },
             )
         };
@@ -1970,11 +1981,11 @@ mod tests {
                         Leaf::Noun {
                             noun: Noun::Declaration(noun),
                             number,
+                            ..
                         } => Some((
                             matched.end,
                             noun.id().kind(),
                             noun.id().name().to_owned(),
-                            noun.feature(),
                             number,
                         )),
                         _ => None,
@@ -1994,16 +2005,9 @@ mod tests {
                     5,
                     DeclarationKind::Subtype(SubtypeCategory::Creature),
                     "Elf".to_owned(),
-                    SurfaceFeature::Plural,
                     Number::Plural,
                 ),
-                (
-                    5,
-                    DeclarationKind::Type,
-                    "Elf".to_owned(),
-                    SurfaceFeature::Plural,
-                    Number::Plural,
-                ),
+                (5, DeclarationKind::Type, "Elf".to_owned(), Number::Plural,),
             ],
             "same-spelling Type/Subtype readings remain distinct in identity order",
         );
@@ -2019,14 +2023,12 @@ mod tests {
                     10,
                     DeclarationKind::Subtype(SubtypeCategory::Creature),
                     "Elf".to_owned(),
-                    SurfaceFeature::Singular,
                     Number::Singular,
                 ),
                 (
                     10,
                     DeclarationKind::Type,
                     "Elf".to_owned(),
-                    SurfaceFeature::Singular,
                     Number::Singular,
                 ),
             ],
@@ -2048,12 +2050,13 @@ mod tests {
             matched.value,
             Leaf::Noun {
                 noun: Noun::Lexeme(NounLexeme::Player),
-                number: Number::Singular
+                number: Number::Singular,
+                ..
             }
         )));
         assert!(player.iter().any(|matched| matches!(
             &matched.value,
-            Leaf::Noun { noun: Noun::Declaration(noun), number: Number::Singular }
+            Leaf::Noun { noun: Noun::Declaration(noun), number: Number::Singular, .. }
                 if noun.id() == &DeclarationId::new(DeclarationKind::Type, "Player")
         )));
         assert_noun_collision_owners(&player);
@@ -2075,7 +2078,7 @@ mod tests {
         let owners = player
             .iter()
             .map(|matched| {
-                LexicalOwnerTemplate::DeclarationNoun
+                LexicalOwnerTemplate::DeclarationNoun(6)
                     .instantiate(&matched.value)
                     .expect("each noun branch has an exact owner")
             })
@@ -2372,7 +2375,8 @@ mod tests {
                 "ClauseEvent",
                 "ClauseWhere",
                 "NounPhrasePronoun",
-                "NounPhraseCommon",
+                "NounPhraseCommon [form an]",
+                "NounPhraseCommon [form a]",
                 "NounPhraseDemonstrative [form that]",
                 "NounPhraseDemonstrative [form those]",
                 "NounPhraseTarget",
@@ -2416,13 +2420,14 @@ mod tests {
                 "Literal(\"number\")",
                 "Literal(\"of\")",
                 "Pronoun",
-                "Article",
-                "Noun(Exact(Singular))",
+                "Literal(\"an\")",
+                "DeclarationNoun(6, Exact(Singular))",
+                "Literal(\"a\")",
                 "Demonstrative",
-                "Noun(Any)",
+                "DeclarationNoun(6, Any)",
                 "Literal(\"target\")",
                 "SelfReference",
-                "Noun(Exact(Plural))",
+                "DeclarationNoun(6, Exact(Plural))",
                 "Verb(Control, Exact(Bare))",
                 "Literal(\"with\")",
                 "Literal(\"power\")",
@@ -2450,8 +2455,6 @@ mod tests {
                 Leaf::TriggerWord(TriggerWord::Whenever),
                 "TriggerWord(Whenever)",
             ),
-            (Leaf::Article(Article::A), "Article(A)"),
-            (Leaf::Article(Article::An), "Article(An)"),
             (
                 Leaf::Demonstrative(Demonstrative::That),
                 "Demonstrative(That)",
@@ -2467,29 +2470,33 @@ mod tests {
                 Leaf::Noun {
                     noun: Noun::Lexeme(NounLexeme::Player),
                     number: super::Number::Singular,
+                    onset: Onset::Consonant,
                 },
-                "Noun { noun: Lexeme(Player), number: Singular }",
+                "Noun { noun: Lexeme(Player), number: Singular, onset: Consonant }",
             ),
             (
                 Leaf::Noun {
                     noun: Noun::Lexeme(NounLexeme::Player),
                     number: super::Number::Plural,
+                    onset: Onset::Consonant,
                 },
-                "Noun { noun: Lexeme(Player), number: Plural }",
+                "Noun { noun: Lexeme(Player), number: Plural, onset: Consonant }",
             ),
             (
                 Leaf::Declaration(DeclarationLeaf {
                     id: DeclarationId::new(DeclarationKind::KeywordAction, "Destroy"),
                     feature: SurfaceFeature::Bare,
+                    onset: Onset::Consonant,
                 }),
-                "Declaration(DeclarationLeaf { id: DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }, feature: Bare })",
+                "Declaration(DeclarationLeaf { id: DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }, feature: Bare, onset: Consonant })",
             ),
             (
                 Leaf::Verb {
                     lexeme: VerbLexeme::Deal,
                     agreement: Agreement::ThirdPersonSingular,
+                    onset: Onset::Consonant,
                 },
-                "Verb { lexeme: Deal, agreement: ThirdPersonSingular }",
+                "Verb { lexeme: Deal, agreement: ThirdPersonSingular, onset: Consonant }",
             ),
             (
                 Leaf::SignedNumber(SignedNumber {
@@ -2798,15 +2805,16 @@ mod tests {
             environment.surface(&id, SurfaceFeature::Plural),
             Some("creatures")
         );
-        let identity = DeclarationNoun::from_reading(id, SurfaceFeature::Plural)
-            .expect("Type is an allowed declaration noun kind");
+        let identity =
+            DeclarationNoun::from_reading(id).expect("Type is an allowed declaration noun kind");
         let value = Leaf::Noun {
             noun: Noun::Declaration(identity),
             number: super::Number::Plural,
+            onset: Onset::Consonant,
         };
         assert_eq!(
             value_label_v1(&value),
-            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" }, feature: Plural }), number: Plural }"
+            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" } }), number: Plural, onset: Consonant }"
         );
     }
 

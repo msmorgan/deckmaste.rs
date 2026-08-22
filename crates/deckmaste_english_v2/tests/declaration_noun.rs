@@ -56,9 +56,9 @@ fn declaration_noun_admits_dynamic_type_and_subtype_rows_without_catalogs() {
         trace.scanner_matches().items().iter().any(|scanner_match| {
             scanner_match.start() == 14
                 && scanner_match.end() == 20
-                && scanner_match.value_label_v1().contains(
-                    "DeclarationIdentity { kind: Type, name: \"Relic\" }, feature: Singular",
-                )
+                && scanner_match
+                    .value_label_v1()
+                    .contains("DeclarationIdentity { kind: Type, name: \"Relic\" }")
         }),
         "{:#?}",
         trace.scanner_matches().items()
@@ -85,8 +85,8 @@ fn rend_spirit_is_the_reviewed_declaration_noun_corpus_delta() {
     assert!(trace.scanner_matches().items().iter().any(|scanner_match| {
         scanner_match.start() == 14
             && scanner_match.end() == 21
-            && scanner_match.value_label_v1().contains(
-                "DeclarationIdentity { kind: Subtype(Creature), name: \"Spirit\" }, feature: Singular",
-            )
+            && scanner_match
+                .value_label_v1()
+                .contains("DeclarationIdentity { kind: Subtype(Creature), name: \"Spirit\" }")
     }));
 }

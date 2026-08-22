@@ -17,7 +17,7 @@ use macro_ron::v2::SurfaceFeature;
 #[derive(Default)]
 struct RecordingVisitor {
     amounts: Vec<Amount>,
-    declaration_nouns: Vec<(DeclarationKind, String, SurfaceFeature)>,
+    declaration_nouns: Vec<(DeclarationKind, String)>,
     variables: Vec<Variable>,
     signed_numbers: Vec<(Sign, u32)>,
     self_reference_spellings: Vec<SelfReferenceSpelling>,
@@ -34,11 +34,8 @@ impl Visitor for RecordingVisitor {
     }
 
     fn visit_declaration_noun(&mut self, noun: &DeclarationNoun) {
-        self.declaration_nouns.push((
-            noun.id().kind(),
-            noun.id().name().to_owned(),
-            noun.feature(),
-        ));
+        self.declaration_nouns
+            .push((noun.id().kind(), noun.id().name().to_owned()));
     }
 
     fn visit_variable(&mut self, variable: Variable) {
@@ -86,10 +83,10 @@ fn card_type(spelling: &str) -> Noun {
     declaration_noun(DeclarationKind::Type, spelling, SurfaceFeature::Singular)
 }
 
-fn declaration_noun(kind: DeclarationKind, name: &str, feature: SurfaceFeature) -> Noun {
+fn declaration_noun(kind: DeclarationKind, name: &str, _feature: SurfaceFeature) -> Noun {
     let environment = environment();
     Noun::Declaration(
-        DeclarationNoun::new(&environment, DeclarationId::new(kind, name), feature)
+        DeclarationNoun::new(&environment, DeclarationId::new(kind, name))
             .expect("normalized noun declaration is present"),
     )
 }
@@ -138,7 +135,6 @@ fn damage(amount: Amount) -> VerbPhrase {
 fn triggered_damage() -> Ability {
     let event = Clause::Event(EventClause {
         subject: NounPhrase::Common(Common {
-            article: Article::A,
             head: Noun::Lexeme(NounLexeme::Player),
         }),
         predicate: VerbPhrase::Connive(Connive),
@@ -410,7 +406,6 @@ fn declaration_noun_construction_requires_allowed_environment_membership() {
         DeclarationNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Creature"),
-            SurfaceFeature::Singular,
         )
         .is_some()
     );
@@ -418,7 +413,6 @@ fn declaration_noun_construction_requires_allowed_environment_membership() {
         DeclarationNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Definitely Not A Type"),
-            SurfaceFeature::Singular,
         )
         .is_none()
     );
@@ -426,7 +420,6 @@ fn declaration_noun_construction_requires_allowed_environment_membership() {
         DeclarationNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::KeywordAbility, "Flying"),
-            SurfaceFeature::Singular,
         )
         .is_none(),
         "a present but disallowed declaration kind cannot become a noun"
@@ -586,7 +579,7 @@ fn demonstrative_form_selection_adds_no_ast_or_visitor_tag() {
     enum Event {
         DemonstrativeNp,
         Word(Demonstrative),
-        Head(DeclarationKind, String, SurfaceFeature),
+        Head(DeclarationKind, String),
     }
 
     #[derive(Default)]
@@ -603,25 +596,20 @@ fn demonstrative_form_selection_adds_no_ast_or_visitor_tag() {
         }
 
         fn visit_declaration_noun(&mut self, noun: &DeclarationNoun) {
-            self.0.push(Event::Head(
-                noun.id().kind(),
-                noun.id().name().to_owned(),
-                noun.feature(),
-            ));
+            self.0
+                .push(Event::Head(noun.id().kind(), noun.id().name().to_owned()));
         }
     }
 
-    for (word, head, expected_feature, expected) in [
+    for (word, head, expected) in [
         (
             Demonstrative::That,
             creature(),
-            SurfaceFeature::Singular,
             "That creature deals 3 damage to it.",
         ),
         (
             Demonstrative::Those,
             creatures(),
-            SurfaceFeature::Plural,
             "Those creatures deal 3 damage to it.",
         ),
     ] {
@@ -647,11 +635,7 @@ fn demonstrative_form_selection_adds_no_ast_or_visitor_tag() {
             [
                 Event::DemonstrativeNp,
                 Event::Word(word),
-                Event::Head(
-                    DeclarationKind::Type,
-                    "Creature".to_owned(),
-                    expected_feature,
-                ),
+                Event::Head(DeclarationKind::Type, "Creature".to_owned(),),
             ],
         );
     }
@@ -660,10 +644,7 @@ fn demonstrative_form_selection_adds_no_ast_or_visitor_tag() {
 #[test]
 fn renders_an_with_a_singular_noun_and_third_person_verb() {
     let value = Sentence::Declarative(Declarative {
-        subject: NounPhrase::Common(Common {
-            article: Article::An,
-            head: artifact(),
-        }),
+        subject: NounPhrase::Common(Common { head: artifact() }),
         predicate: damage(Amount::Number(NumberAmount {
             number: SignedNumber {
                 sign: Sign::Positive,
@@ -680,10 +661,7 @@ fn renders_an_with_a_singular_noun_and_third_person_verb() {
 #[test]
 fn renders_a_subtype_with_its_printed_case() {
     let value = Sentence::Declarative(Declarative {
-        subject: NounPhrase::Common(Common {
-            article: Article::An,
-            head: equipment(),
-        }),
+        subject: NounPhrase::Common(Common { head: equipment() }),
         predicate: damage(Amount::Number(NumberAmount {
             number: SignedNumber {
                 sign: Sign::Positive,
@@ -749,26 +727,10 @@ fn visitor_reaches_every_vertical_slice_leaf() {
     assert_eq!(
         visitor.declaration_nouns,
         vec![
-            (
-                DeclarationKind::Type,
-                "Creature".to_owned(),
-                SurfaceFeature::Singular
-            ),
-            (
-                DeclarationKind::Type,
-                "Creature".to_owned(),
-                SurfaceFeature::Singular
-            ),
-            (
-                DeclarationKind::Type,
-                "Creature".to_owned(),
-                SurfaceFeature::Plural
-            ),
-            (
-                DeclarationKind::Type,
-                "Creature".to_owned(),
-                SurfaceFeature::Singular
-            ),
+            (DeclarationKind::Type, "Creature".to_owned()),
+            (DeclarationKind::Type, "Creature".to_owned()),
+            (DeclarationKind::Type, "Creature".to_owned()),
+            (DeclarationKind::Type, "Creature".to_owned()),
         ]
     );
     assert_eq!(

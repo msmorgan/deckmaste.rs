@@ -713,6 +713,8 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         }
         crate::feature::FeatureValue::Singular => quote! { Number::Singular },
         crate::feature::FeatureValue::Plural => quote! { Number::Plural },
+        crate::feature::FeatureValue::Consonant => quote! { Onset::Consonant },
+        crate::feature::FeatureValue::Vowel => quote! { Onset::Vowel },
     }
 }
 
@@ -1582,6 +1584,7 @@ mod tests {
                 "ActionStem",
                 "Agreement",
                 "Number",
+                "Onset",
                 "FeatureConstraint",
                 "CasePosition",
                 "PrefixPosition",

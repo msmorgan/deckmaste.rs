@@ -1,7 +1,6 @@
 pub use crate::constructions::Visitor;
 pub use crate::constructions::walk_ability;
 pub use crate::constructions::walk_amount;
-pub use crate::constructions::walk_article;
 pub use crate::constructions::walk_clause;
 pub use crate::constructions::walk_common;
 pub use crate::constructions::walk_connive;

@@ -11,6 +11,7 @@ use crate::model;
 pub(crate) enum Feature {
     Agreement,
     Number,
+    Onset,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,6 +20,8 @@ pub(crate) enum FeatureValue {
     ThirdPersonSingular,
     Singular,
     Plural,
+    Consonant,
+    Vowel,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +64,7 @@ impl Feature {
         match self {
             Self::Agreement => &[FeatureValue::Bare, FeatureValue::ThirdPersonSingular],
             Self::Number => &[FeatureValue::Singular, FeatureValue::Plural],
+            Self::Onset => &[FeatureValue::Consonant, FeatureValue::Vowel],
         }
     }
 
@@ -85,6 +89,7 @@ impl Feature {
         match self {
             Self::Agreement => "agreement",
             Self::Number => "number",
+            Self::Onset => "onset",
         }
     }
 }
@@ -96,6 +101,8 @@ impl FeatureValue {
             Self::ThirdPersonSingular => "ThirdPersonSingular",
             Self::Singular => "Singular",
             Self::Plural => "Plural",
+            Self::Consonant => "Consonant",
+            Self::Vowel => "Vowel",
         }
     }
 }
@@ -227,6 +234,7 @@ impl Feature {
         match self {
             Self::Agreement => "agreement",
             Self::Number => "number",
+            Self::Onset => "onset",
         }
     }
 }
@@ -239,6 +247,8 @@ impl FeatureValue {
             Self::ThirdPersonSingular => "ThirdPersonSingular",
             Self::Singular => "Singular",
             Self::Plural => "Plural",
+            Self::Consonant => "Consonant",
+            Self::Vowel => "Vowel",
         }
     }
 }
@@ -270,6 +280,8 @@ pub(crate) fn lower_constant(
         (model::Feature::Agreement, "ThirdPersonSingular") => FeatureValue::ThirdPersonSingular,
         (model::Feature::Number, "Singular") => FeatureValue::Singular,
         (model::Feature::Number, "Plural") => FeatureValue::Plural,
+        (model::Feature::Onset, "Consonant") => FeatureValue::Consonant,
+        (model::Feature::Onset, "Vowel") => FeatureValue::Vowel,
         (model::Feature::Agreement, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -282,6 +294,12 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not a number value"),
             ));
         }
+        (model::Feature::Onset, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not an onset value"),
+            ));
+        }
     };
     Ok(value)
 }
@@ -291,6 +309,7 @@ impl From<model::Feature> for Feature {
         match value {
             model::Feature::Agreement => Self::Agreement,
             model::Feature::Number => Self::Number,
+            model::Feature::Onset => Self::Onset,
         }
     }
 }

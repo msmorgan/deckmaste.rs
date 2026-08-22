@@ -1603,9 +1603,10 @@ fn closed_verb_feature(
             FeatureValue::ThirdPersonSingular => Ok(quote! {
                 FeatureConstraint::Exact(Agreement::ThirdPersonSingular)
             }),
-            FeatureValue::Singular | FeatureValue::Plural => {
-                Err(internal("closed verb agreement has a number value"))
-            }
+            FeatureValue::Singular
+            | FeatureValue::Plural
+            | FeatureValue::Consonant
+            | FeatureValue::Vowel => Err(internal("closed verb agreement has a number value")),
         },
         Some(
             crate::feature::FeatureResolution::External
@@ -1631,9 +1632,10 @@ pub(crate) fn open_verb_feature(
             FeatureValue::ThirdPersonSingular => Ok(quote! {
                 FeatureConstraint::Exact(::macro_ron::v2::SurfaceFeature::ThirdPersonSingular)
             }),
-            FeatureValue::Singular | FeatureValue::Plural => {
-                Err(internal("open verb agreement has a number value"))
-            }
+            FeatureValue::Singular
+            | FeatureValue::Plural
+            | FeatureValue::Consonant
+            | FeatureValue::Vowel => Err(internal("open verb agreement has a number value")),
         },
         Some(
             crate::feature::FeatureResolution::External
@@ -1744,9 +1746,10 @@ fn noun_number(
         FeatureExpr::Constant(value) => match value.value() {
             FeatureValue::Singular => Ok(quote! { FeatureConstraint::Exact(Number::Singular) }),
             FeatureValue::Plural => Ok(quote! { FeatureConstraint::Exact(Number::Plural) }),
-            FeatureValue::Bare | FeatureValue::ThirdPersonSingular => {
-                Err(internal("noun number has an agreement value"))
-            }
+            FeatureValue::Bare
+            | FeatureValue::ThirdPersonSingular
+            | FeatureValue::Consonant
+            | FeatureValue::Vowel => Err(internal("noun number has an agreement value")),
         },
         FeatureExpr::MatchVocab { .. } | FeatureExpr::FromRole { .. } => {
             Ok(quote! { FeatureConstraint::Any })

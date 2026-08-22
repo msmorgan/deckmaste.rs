@@ -355,7 +355,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         ));
     }
 
-    for feature in [Feature::Agreement, Feature::Number] {
+    for feature in [Feature::Agreement, Feature::Number, Feature::Onset] {
         for (category, members) in &categories {
             if !validated.category_reads_feature(category, feature) {
                 continue;
@@ -1052,6 +1052,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
     let return_ty = match helper.feature {
         Feature::Agreement => quote! { Agreement },
         Feature::Number => quote! { Number },
+        Feature::Onset => quote! { Onset },
     };
     let arms = helper
         .vocab
@@ -1300,6 +1301,9 @@ fn reserve_feature_callees(
     {
         return reserve_feature_callees(validated, construction, writer.value(), allocator);
     }
+    if *source_feature == Feature::Onset && field.kind() != ConstructionFieldKind::Category {
+        return Ok(());
+    }
     let source = match field.kind() {
         ConstructionFieldKind::Category => field.terminal().to_owned(),
         ConstructionFieldKind::Lex => {
@@ -1406,6 +1410,26 @@ fn render_arms(
                                 ) => {
                                     let _ = field;
                                     Ok(quote! { #field_value.is_some() == #present })
+                                }
+                                (
+                                    FiniteDomainKindPlan::Feature { feature, .. },
+                                    FiniteValuePlan::Feature(value),
+                                ) => {
+                                    let role =
+                                        syn::Ident::new(domain.role(), construction.origin_span());
+                                    let expression = FeatureExpr::FromRole {
+                                        role,
+                                        feature: *feature,
+                                    };
+                                    let actual = feature_expr(
+                                        validated,
+                                        construction,
+                                        &expression,
+                                        *feature,
+                                        &locals,
+                                    )?;
+                                    let expected = feature_value(*value);
+                                    Ok(quote! { #actual == #expected })
                                 }
                                 _ => {
                                     Err(internal("form guard domain and assignment value disagree"))
@@ -2105,7 +2129,11 @@ fn feature_expr(
                         locals,
                     );
                 }
-                return Ok(quote! { agreement });
+                return match source_feature {
+                    Feature::Agreement => Ok(quote! { agreement }),
+                    Feature::Onset => implicit_verb_onset(validated, construction, locals),
+                    Feature::Number => Err(internal("verb slot does not provide number")),
+                };
             }
             let role_key = identifier_key(role);
             let field = construction.field(&role_key)?;
@@ -2131,6 +2159,17 @@ fn feature_expr(
                 );
             }
             let role_value = field_value(construction, &role_key, locals)?;
+            if *source_feature == Feature::Onset && field.kind() != ConstructionFieldKind::Category
+            {
+                return lexical_onset_expr(
+                    validated,
+                    construction,
+                    &role_key,
+                    field,
+                    role_value,
+                    locals,
+                );
+            }
             let (source, value) = match field.kind() {
                 ConstructionFieldKind::Category => (field.terminal().to_owned(), role_value),
                 ConstructionFieldKind::Lex => {
@@ -2154,7 +2193,14 @@ fn feature_expr(
                 }
             };
             let function = ident(&feature_helper(feature_name(*source_feature), &source));
-            quote! { #function(#value) }
+            if *source_feature == Feature::Onset {
+                let environment = validated
+                    .needs_parser_environment()
+                    .then(|| quote! { , environment });
+                quote! { #function(#value, context #environment) }
+            } else {
+                quote! { #function(#value) }
+            }
         }
         FeatureExpr::MatchVocab { role, arms } => {
             let role_key = identifier_key(role);
@@ -2168,6 +2214,149 @@ fn feature_expr(
             let role_value = field_value(construction, &role_key, locals)?;
             let role_value = copy_value(construction, &role_key, role_value)?;
             quote! { match #role_value { #(#match_arms),* } }
+        }
+    })
+}
+
+fn implicit_verb_onset(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    locals: &RenderLocals,
+) -> syn::Result<TokenStream> {
+    let atom = construction
+        .forms()
+        .iter()
+        .flat_map(FormPlan::atoms)
+        .find(|atom| {
+            matches!(
+                atom,
+                AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_)
+            )
+        })
+        .ok_or_else(|| internal("validated verb onset source has no verb atom"))?;
+    let agreement = verb_agreement(validated, construction, locals)?;
+    match atom {
+        AtomPlan::VerbFixed {
+            terminal, variant, ..
+        } => {
+            if !validated.terminal_provides_onset(terminal) {
+                return Err(internal("validated fixed verb lacks onset capability"));
+            }
+            let lexeme = find_lexeme(validated, terminal)
+                .ok_or_else(|| internal("fixed verb onset lacks its sealed lexeme"))?;
+            let arms = lexeme
+                .surfaces()
+                .iter()
+                .filter(|row| row.member() == variant)
+                .map(|row| {
+                    let agreement = match row.feature() {
+                        macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                            quote! { Agreement::ThirdPersonSingular }
+                        }
+                        macro_ron::v2::SurfaceFeature::Singular
+                        | macro_ron::v2::SurfaceFeature::Plural
+                        | macro_ron::v2::SurfaceFeature::Fixed => {
+                            unreachable!("validated verb lexeme has the Agreement feature axis")
+                        }
+                    };
+                    let onset = super::onset(row.onset());
+                    quote! { #agreement => #onset }
+                });
+            Ok(quote! { match #agreement { #(#arms,)* } })
+        }
+        AtomPlan::OpenDeclaration(open) => {
+            let kind = crate::emit::declaration_kind(open.kind());
+            let name = syn::LitStr::new(open.name(), Span::call_site());
+            Ok(quote! {
+                environment
+                    .onset(
+                        &::macro_ron::v2::DeclarationIdentity::new(#kind, #name),
+                        match #agreement {
+                            Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                            Agreement::ThirdPersonSingular => {
+                                ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                            }
+                        },
+                    )
+                    .expect("required open verb remains in its normalized parser environment")
+            })
+        }
+        AtomPlan::Literal(_)
+        | AtomPlan::Category { .. }
+        | AtomPlan::Lex { .. }
+        | AtomPlan::Identity { .. }
+        | AtomPlan::Noun { .. } => unreachable!("verb onset selected a verb atom"),
+    }
+}
+
+fn lexical_onset_expr(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+    field: &crate::semantic::ConstructionFieldPlan,
+    role_value: TokenStream,
+    locals: &RenderLocals,
+) -> syn::Result<TokenStream> {
+    if let Some(vocab) = find_vocab(validated, field.terminal()) {
+        let ty = ident(vocab.name());
+        let value = copy_value(construction, role, role_value)?;
+        let arms = vocab.variants().iter().map(|variant| {
+            let member = variant.name();
+            let onset = super::onset(variant.onset());
+            quote! { #ty::#member => #onset }
+        });
+        return Ok(quote! { match #value { #(#arms,)* } });
+    }
+    if let Some(identity) = find_context_identity(validated, field.terminal()) {
+        let ty = identity.ident();
+        let value = copy_value(construction, role, role_value)?;
+        let arms = identity.arms().iter().map(|arm| {
+            let member = arm.variant();
+            let accessor = ident(&format!("{}_onset", identifier_key(arm.accessor())));
+            quote! { #ty::#member => context.#accessor() }
+        });
+        return Ok(quote! { match #value { #(#arms,)* } });
+    }
+    let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
+        return Err(internal(
+            "lexical onset source has no sealed terminal onset plan",
+        ));
+    };
+    let noun = codec.codec_ident();
+    let closed = codec.closed_lexeme();
+    let number = noun_role_number(validated, construction, role, locals)?;
+    let closed_arms = validated
+        .runtime_noun_lexeme()
+        .expect("validated declaration noun has a closed lexeme")
+        .surfaces()
+        .iter()
+        .map(|row| {
+            let member = ident(row.member());
+            let number = match row.feature() {
+                macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                macro_ron::v2::SurfaceFeature::Bare
+                | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                | macro_ron::v2::SurfaceFeature::Fixed => {
+                    unreachable!("validated noun lexeme has the Number feature axis")
+                }
+            };
+            let onset = super::onset(row.onset());
+            quote! { (#noun::Lexeme(#closed::#member), #number) => #onset }
+        });
+    Ok(quote! {
+        match (#role_value, #number) {
+            #(#closed_arms,)*
+            (#noun::Declaration(declaration), number) => environment
+                .onset(
+                    declaration.id(),
+                    match number {
+                        Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
+                        Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                    },
+                )
+                .expect("stored declaration noun remains in its normalized parser environment"),
         }
     })
 }
@@ -2244,6 +2433,7 @@ fn emit_feature_helper(
     let return_ty = match feature {
         Feature::Agreement => quote! { Agreement },
         Feature::Number => quote! { Number },
+        Feature::Onset => quote! { Onset },
     };
     let mut entries: Vec<(TokenStream, String, TokenStream)> = Vec::new();
     for construction in members {
@@ -2305,8 +2495,16 @@ fn emit_feature_helper(
     let arms = groups
         .into_iter()
         .map(|(_, value, patterns)| quote! { #(#patterns)|* => #value });
+    let context = (feature == Feature::Onset).then(|| quote! { , context: &ParseContext<'_> });
+    let environment = (feature == Feature::Onset && validated.needs_parser_environment())
+        .then(|| quote! { , environment: &crate::environment::ParserEnvironment });
+    let used_context = (feature == Feature::Onset).then(|| quote! { let _ = context; });
+    let used_environment = (feature == Feature::Onset && validated.needs_parser_environment())
+        .then(|| quote! { let _ = environment; });
     let tokens = quote! {
-        fn #function(#argument: &#ty) -> #return_ty {
+        fn #function(#argument: &#ty #context #environment) -> #return_ty {
+            #used_context
+            #used_environment
             match #argument { #(#arms,)* }
         }
     };
@@ -2478,6 +2676,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
         FeatureValue::Singular => quote! { Number::Singular },
         FeatureValue::Plural => quote! { Number::Plural },
+        FeatureValue::Consonant => quote! { Onset::Consonant },
+        FeatureValue::Vowel => quote! { Onset::Vowel },
     }
 }
 
@@ -2660,6 +2860,7 @@ fn feature_name(feature: Feature) -> &'static str {
     match feature {
         Feature::Agreement => "agreement",
         Feature::Number => "number",
+        Feature::Onset => "onset",
     }
 }
 fn ident(name: &str) -> syn::Ident {
@@ -2678,6 +2879,53 @@ mod tests {
         reason = "literal full-surface structural oracles retain detailed mismatch output"
     )]
     use quote::ToTokens;
+
+    #[test]
+    fn closed_noun_onset_helper_matches_the_exact_member_and_number_row() {
+        let expansion = crate::generate(quote::quote! {
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme NounLexeme using EnglishNoun {
+                Irregular = "artifact" { Plural = "relics", },
+            }
+            codec Noun {
+                generate declaration_noun {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type];
+                    feature = Number;
+                }
+            }
+            construction common: NounPhrase {
+                element Common { head: lex Noun, }
+                derive number = Values::Singular;
+                derive onset = head.onset;
+                form common = noun(head);
+            }
+            construction wrapper: Root {
+                element Wrapper { head: NounPhrase, }
+                derive onset = head.onset;
+                form an when head.onset is Vowel = "an" head;
+                form a otherwise = "a" head;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("irregular closed noun rows compile");
+        let helper = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { kind: crate::NamedKind::Function, name } if name == "onset_for_noun_phrase"))
+            .expect("noun-phrase onset helper is generated")
+            .tokens
+            .to_string();
+        for expected in [
+            "Noun :: Lexeme (NounLexeme :: Irregular) , Number :: Singular",
+            "Noun :: Lexeme (NounLexeme :: Irregular) , Number :: Plural",
+            "Onset :: Vowel",
+            "Onset :: Consonant",
+        ] {
+            assert!(helper.contains(expected), "missing `{expected}`: {helper}");
+        }
+    }
 
     #[test]
     fn guarded_form_renderer_selects_atoms_from_the_same_finite_partition() {

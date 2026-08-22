@@ -18,6 +18,7 @@ use crate::identifier::LEXICAL_PROVENANCE_KIND_TYPE;
 use crate::identifier::LEXICAL_TERMINAL_TYPE;
 use crate::identifier::LEXICAL_TYPE;
 use crate::identifier::NUMBER_TYPE;
+use crate::identifier::ONSET_TYPE;
 use crate::identifier::PREFIX_POSITION_TYPE;
 use crate::identifier::SCAN_POSITION_TYPE;
 use crate::identifier::STRUCTURAL_TRANSITION_TYPE;
@@ -93,6 +94,12 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
+            ONSET_TYPE,
+            quote! {
+                pub(crate) use ::macro_ron::v2::Onset;
+            },
+        ),
+        named_type(
             FEATURE_CONSTRAINT_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -160,6 +167,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 pub(crate) struct DeclarationLeaf {
                     pub(crate) id: ::macro_ron::v2::DeclarationIdentity,
                     pub(crate) feature: ::macro_ron::v2::SurfaceFeature,
+                    pub(crate) onset: Onset,
                 }
             },
         ),
@@ -236,6 +244,9 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         let number = plan
             .category_carries_number(root.category())
             .then(|| quote! { , _ });
+        let onset = plan
+            .category_carries_onset(root.category())
+            .then(|| quote! { , _ });
         GeneratedItem::new(
             ItemKey::Impl {
                 trait_name: Some("GeneratedRoot".to_owned()),
@@ -249,7 +260,7 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
 
                     fn from_build(value: BuildValue) -> Option<Self> {
                         match value {
-                            BuildValue::#category(value #agreement #number) => Some(value),
+                            BuildValue::#category(value #agreement #number #onset) => Some(value),
                             _ => None,
                         }
                     }
@@ -444,7 +455,10 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let number = plan
                     .category_carries_number(item.name)
                     .then(|| quote! { , Number });
-                quote! { #name(#name #agreement #number) }
+                let onset = plan
+                    .category_carries_onset(item.name)
+                    .then(|| quote! { , Onset });
+                quote! { #name(#name #agreement #number #onset) }
             }
             super::SemanticTypeKind::Product | super::SemanticTypeKind::Sum => {
                 quote! { #name(#name) }
@@ -593,14 +607,14 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .noun_type()
         .map(|_| quote! { Noun(FeatureConstraint<Number>), });
     let noun_leaf = inventory.noun_type().map(|noun_type| {
-        quote! { Noun { noun: #noun_type, number: Number }, }
+        quote! { Noun { noun: #noun_type, number: Number, onset: Onset }, }
     });
     let noun_class = inventory.noun_type().map(|_| quote! { Noun, });
     let declaration_noun_lexical = (!inventory.declaration_nouns.is_empty())
         .then(|| quote! { DeclarationNoun(usize, FeatureConstraint<Number>), });
     let declaration_noun_leaf_variants = inventory.declaration_nouns.iter().map(|(_, codec)| {
         let noun = codec.codec_ident();
-        quote! { #noun { noun: #noun, number: Number }, }
+        quote! { #noun { noun: #noun, number: Number, onset: Onset }, }
     });
     let declaration_noun_class =
         (!inventory.declaration_nouns.is_empty()).then(|| quote! { DeclarationNoun(usize), });
@@ -611,7 +625,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     });
     let verb_leaf = inventory.verb_lexeme.map(|lexeme| {
         let ident = lexeme.name_ident();
-        quote! { Verb { lexeme: #ident, agreement: Agreement }, }
+        quote! { Verb { lexeme: #ident, agreement: Agreement, onset: Onset }, }
     });
     let verb_class = inventory.verb_lexeme.map(|_| quote! { VerbLexeme, });
 
@@ -1115,6 +1129,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     Leaf::Verb {
                         lexeme: #declaration_ident::#member_ident,
                         agreement: #agreement,
+                        ..
                     },
                 ) => Some(LexicalOwner::static_owner(
                     LexicalProvenanceKind::Lexeme,
@@ -1157,6 +1172,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 Leaf::#noun {
                                     noun: #noun::Lexeme(#closed::#member),
                                     number: #number,
+                                    ..
                                 },
                             ) => Some(LexicalOwner::static_owner(
                                 LexicalProvenanceKind::Lexeme,
@@ -1171,6 +1187,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         Leaf::#noun {
                             noun: #noun::Declaration(declaration),
                             number,
+                            ..
                         },
                     ) => Some(LexicalOwner::declaration_owner(
                         declaration.id().clone(),

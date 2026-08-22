@@ -278,6 +278,7 @@ fn emit_lexeme_surface_helper(
     let (feature_ty, feature_argument) = match lexeme.morphology().feature() {
         crate::Feature::Agreement => (quote! { Agreement }, quote! { agreement }),
         crate::Feature::Number => (quote! { Number }, quote! { number }),
+        crate::Feature::Onset => unreachable!("onset is not a morphology axis"),
     };
     let arms = lexeme
         .surfaces()

@@ -13,7 +13,6 @@ use crate::render::Writer;
 
 constructions! {
     vocab TriggerWord { Whenever = "whenever", }
-    vocab Article { A = "a", An = "an", }
     vocab Demonstrative { That = "that", Those = "those", }
     vocab Pronoun { It = "it", You = "you", }
     vocab Variable { X = "X", }
@@ -114,13 +113,16 @@ constructions! {
         };
         derive agreement = word.agreement;
         derive number = Values::Singular;
+        derive onset = word.onset;
         form pronoun = lex(word);
     }
     construction common: NounPhrase {
-        element Common { article: lex Article, head: lex Noun, }
+        element Common { head: lex Noun, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
-        form common = lex(article) noun(head);
+        derive onset = head.onset;
+        form an when head.onset is Vowel = "an" noun(head);
+        form a otherwise = "a" noun(head);
     }
     // The union family is not declared here yet: the cross-kind head ("target
     // player or planeswalker"), the mixed group ("you and permanents you
@@ -139,6 +141,7 @@ constructions! {
             That => Values::Singular,
             Those => Values::Plural,
         };
+        derive onset = word.onset;
         form that when word is That = lex(word) noun(head);
         form those otherwise = lex(word) noun(head);
     }
@@ -146,12 +149,14 @@ constructions! {
         element TargetNp { head: lex Noun, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
+        derive onset = Values::Consonant;
         form target = "target" noun(head);
     }
     construction self_reference: NounPhrase {
         element SelfReferenceNp { spelling: identity SelfReferenceSpelling, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
+        derive onset = spelling.onset;
         form self_reference = identity(spelling);
     }
     construction count: NounPhrase {
@@ -163,6 +168,7 @@ constructions! {
         require controller is You;
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive onset = head.onset;
         derive controller.agreement = match controller {
             It => Values::ThirdPersonSingular,
             You => Values::Bare,
