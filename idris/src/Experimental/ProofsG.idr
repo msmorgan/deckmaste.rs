@@ -27,16 +27,6 @@ badUnionAnaphorOnObject : Unspellable (Effect []) (\ok =>
 badUnionAnaphorOnObject Refl impossible
 
 
-||| "This deals 4 damage to target permanent or player. Destroy that permanent or player."
-||| The anaphor inherits the head's refusals: it stands in no zone [CR#110.1] and may denote a player [CR#102.1].
-public export
-badDestroyUnionAnaphor : Unspellable (Effect []) (\ok =>
-  Sequentially [ DealDamage This (Lit 4)
-                   (Macros.target (KindJoin JoinAnyPlayer JoinPermanent))
-               , Macros.destroy (That JoinW)
-                   {ok = Builtin.fst ok, na = Builtin.snd ok} ])
-badDestroyUnionAnaphor (OnField, _) impossible
-
 
 ||| "each creature with a poison counter on it"
 ||| [CR#122.1] places a counter on an object or a player, and poison is a player's kind.
@@ -332,7 +322,7 @@ badWarpGrantInGraveyard Oh impossible
 ||| each half separately: the spell half is a card on the stack [CR#112.1],
 ||| while `AbilityP` carries no zone field to place the ability half with.
 ||| No head spells this join yet
-||| -- `KindJoin` joins a player -- so the witness is the payload.
+||| -- `Macros.kindJoin` joins a player -- so the witness is the payload.
 public export
 spellOrAbilityJoin : Payload (Object \/ Ability)
 spellOrAbilityJoin = JoinP (ObjectP Nothing (Just Stack) Nothing Nothing) AbilityP
@@ -351,6 +341,32 @@ public export
 joinedCreatureTy :
   tyOfThat JoinW (effIntro {bs = []}
     (DealDamage This (Lit 3)
-       (Macros.target (KindJoin JoinAnyPlayer JoinCreature))))
+       (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))))
   = Just Creature
 joinedCreatureTy = Refl
+
+||| The seven-verb refusal's own fact. A joined phrase places nothing —
+||| [CR#400.1] makes a zone a place where objects can be and [CR#109.1]
+||| lists what an object is — so destroy, exile, tap, untap, return,
+||| counter and sacrifice each refuse it at their `Noun bs Object` slot,
+||| with no rule written for the purpose, while the damage clause admits it
+||| because damage asks for no zone [CR#120.1].
+public export
+anyTargetIsPlaceless :
+  nounZone {bs = []} (Macros.target Macros.anyTarget) = Nothing
+anyTargetIsPlaceless = Refl
+
+||| ...and the damage half of the same fact: the joined phrase IS a damage
+||| recipient, by the one row that replaced three.
+public export
+anyTargetTakesDamage : DamageRecipient (Macros.target {bs = []} Macros.anyTarget)
+anyTargetTakesDamage = JoinTakes
+
+||| The mixed group binds nothing jointly [CR#109.5]: "you" is deixis and
+||| mints nothing, and a coordination of two phrases mints each arm's
+||| bindings and no third one. Structural, not stipulated — no constructor
+||| writes the joint binding, which is why nothing reads the pair back.
+public export
+youAndBindsNothing :
+  nounDelta {bs = []} (Macros.youAnd Macros.thisCreature) = []
+youAndBindsNothing = Refl

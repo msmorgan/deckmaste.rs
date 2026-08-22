@@ -95,55 +95,12 @@ badNonsource : Unspellable (Predicate [] Object) (\ok =>
 badNonsource Oh impossible
 
 
-||| "Tap target permanent or player."
-||| [CR#701.26a] taps only untapped permanents and [CR#110.5d] gives status to
-||| permanents alone, so a head that may denote a player is untappable.
-public export
-badTapKindJoin : Unspellable (Effect []) (\ok =>
-  SetStatus Tapped (Macros.target (KindJoin JoinAnyPlayer JoinPermanent)) {ok})
-badTapKindJoin OnField impossible
-
-
-||| "Exile target permanent or player."
-||| [CR#400.1] makes a zone a place where OBJECTS can be and [CR#109.1] lists what
-||| an object is; a player is none of them, so a head that may denote one has no zone.
-public export
-badExileKindJoin : Unspellable (Effect []) (\ok =>
-  Macros.exile (Macros.target (KindJoin JoinAnyPlayer JoinPermanent)) {na = ok})
-badExileKindJoin MkNotPlayerSpanning impossible
-
-
-||| "…target creature or permanent or player…"
-||| The union head is already two nouns joined by "or", so coordinating it writes the disjunction twice.
-public export
-badKindJoinInOr : Unspellable (Predicate [] Object) (\ok =>
-  Or [KindJoin JoinAnyPlayer JoinPlaneswalker, Macros.creature] {cd = ok})
-badKindJoinInOr Oh impossible
-
-
-||| "Tap you and permanents you control."
-||| The same refusal through the joined subject: [CR#701.26a] taps permanents and
-||| [CR#110.5d] denies a non-permanent any status to change.
-public export
-badTapYouAnd : Unspellable (Effect []) (\ok =>
-  SetStatus Tapped (YouAnd (AllOf (And [Permanent, ControlledBy You]))) {ok})
-badTapYouAnd OnField impossible
-
-
-||| "…you and you and permanents you control…"
-||| The row spells its own player half [CR#109.5], so nesting spells the second person twice.
-public export
-badNestedYouAnd : Unspellable (Noun [] Object) (\ok =>
-  YouAnd (YouAnd (AllOf (And [Permanent, ControlledBy You]))) {nn = ok})
-badNestedYouAnd Oh impossible
-
-
 ||| "All damage that would be dealt to you is dealt to you and permanents you control instead."
 ||| [CR#614.9] puts one thing at each end of the arrow, and the mixed group is plural by construction.
 public export
 badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
   Redirects AnyDamage AllOfIt (Macros.shieldingIt You) Nothing
-            (YouAnd (AllOf (And [Permanent, ControlledBy You]))) {one = ok})
+            (Macros.youAnd (AllOf (And [Permanent, ControlledBy You]))) {one = ok})
 badRedirectToGroup Oh impossible
 
 
@@ -152,7 +109,7 @@ badRedirectToGroup Oh impossible
 public export
 badScaleShiftByThatMuch : Unspellable (StaticEffect []) (\ok =>
   Scales AnyDamage (Macros.a Macros.source)
-         (Macros.shieldingIt (Macros.a (KindJoin JoinAnyPlayer JoinPermanent)))
+         (Macros.shieldingIt (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
          (Shifted ShiftUp (ThatMuch {ok})) Repeatedly)
 badScaleShiftByThatMuch Refl impossible
 
@@ -172,7 +129,7 @@ badScaleToArtifact ObjectTakes impossible
 public export
 badPreventedThisWayAfterDamageEvent : Unspellable Ability (\ok =>
   Triggered Whenever (IsDealtDamage Macros.thisCreature)
-            (DealDamage It (PreventedThisWay {ok = ok}) (Macros.target AnyTarget)))
+            (DealDamage It (PreventedThisWay {ok = ok}) (Macros.target Macros.anyTarget)))
 badPreventedThisWayAfterDamageEvent Refl impossible
 
 
@@ -182,7 +139,7 @@ public export
 badThatMuchAfterDeath : Unspellable Ability (\ok =>
   Triggered Whenever (Dies (Macros.a Macros.creature))
             (DealDamage Macros.thisCreature (ThatMuch {ok = ok})
-                        (Macros.target AnyTarget)))
+                        (Macros.target Macros.anyTarget)))
 badThatMuchAfterDeath Refl impossible
 
 
@@ -192,7 +149,7 @@ public export
 badThatCreatureIsDamagedSelf : Unspellable Ability (\ok =>
   Triggered Whenever (IsDealtDamage Macros.thisCreature)
             (DealDamage (That (TypeW Creature) {ok = ok}) ThatMuch
-                        (Macros.target AnyTarget)))
+                        (Macros.target Macros.anyTarget)))
 badThatCreatureIsDamagedSelf Refl impossible
 
 

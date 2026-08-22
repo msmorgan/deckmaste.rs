@@ -1244,7 +1244,7 @@ kindOfW PlayerW = Player
 kindOfW PermanentW = Object
 kindOfW TokenW = Object
 kindOfW CopyW = Object
-kindOfW JoinW = Object
+kindOfW JoinW = Object \/ Player
 
 public export
 stampedBy : VerbName -> Stamp -> Bool
@@ -1429,40 +1429,6 @@ Eq PlayerGroupWord where
   (==) YourOpponents _ = False
 
 public export
-data JoinedPlayer = JoinAnyPlayer | JoinOpponent
-
-public export
-Eq JoinedPlayer where
-  (==) JoinAnyPlayer JoinAnyPlayer = True
-  (==) JoinAnyPlayer _ = False
-  (==) JoinOpponent JoinOpponent = True
-  (==) JoinOpponent _ = False
-
-public export
-data JoinedClass = JoinPermanent | JoinCreature | JoinPlaneswalker | JoinBattle
-
-public export
-Eq JoinedClass where
-  (==) JoinPermanent JoinPermanent = True
-  (==) JoinPermanent _ = False
-  (==) JoinCreature JoinCreature = True
-  (==) JoinCreature _ = False
-  (==) JoinPlaneswalker JoinPlaneswalker = True
-  (==) JoinPlaneswalker _ = False
-  (==) JoinBattle JoinBattle = True
-  (==) JoinBattle _ = False
-
-||| The card type a joined class names, for the Object half of the join's
-||| payload. "Permanent" is not among the card types [CR#205.2a], so the
-||| permanent class names none.
-public export
-joinedClassTy : JoinedClass -> Maybe CardType
-joinedClassTy JoinPermanent = Nothing
-joinedClassTy JoinCreature = Just Creature
-joinedClassTy JoinPlaneswalker = Just Planeswalker
-joinedClassTy JoinBattle = Just Battle
-
-public export
 data RoundMode = RoundUp | RoundDown
 
 public export
@@ -1515,6 +1481,10 @@ public export
 data Targetable : Kind -> Type where
   ObjectTgt : Targetable Object
   PlayerTgt : Targetable Player
+  ||| [CR#115.1] lets a spell or ability target objects and players alike,
+  ||| so a phrase that may denote either is targetable exactly when both
+  ||| halves are.
+  JoinTgt : Targetable a -> Targetable b -> Targetable (a \/ b)
 
 ||| [CR#120.1a]: damage can be dealt to a battle, a creature or a
 ||| planeswalker and to nothing else. [CR#115.4] names the same three
@@ -1531,11 +1501,16 @@ data Phrasal : Kind -> Type where
   PhPlayer : Phrasal Player
   PhQuality : Phrasal (Quality q)
   PhAbility : Phrasal Ability
+  ||| A determiner over a joined description determines both halves at once
+  ||| ("a permanent or player", Furnace of Rath).
+  PhJoin : Phrasal a -> Phrasal b -> Phrasal (a \/ b)
 
 public export
 targetablePhrasal : Targetable k -> Phrasal k
 targetablePhrasal ObjectTgt = PhObject
 targetablePhrasal PlayerTgt = PhPlayer
+targetablePhrasal (JoinTgt l r) =
+  PhJoin (targetablePhrasal l) (targetablePhrasal r)
 
 
 ||| The last group functions away from the battlefield, each rule naming

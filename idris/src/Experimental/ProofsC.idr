@@ -176,7 +176,8 @@ badSearchZonedDescription Refl impossible
 public export
 badDistributedMillSingular : Unspellable (Effect []) (\ok =>
   Sequentially [ Does (Each AnyPlayer) Mill
-                      (Move (LibrarySlice OnTop (Lit 1) (Each AnyPlayer)) Macros.graveyardZ {na = MkNotPlayerSpanning}) {tb = MillB {na = MkNotPlayerSpanning}}
+                      (Move (LibrarySlice OnTop (Lit 1) (Each AnyPlayer)) Macros.graveyardZ)
+                      {tb = MillB {whose = Each AnyPlayer}}
                , Macros.exile (It {ok}) ])
 badDistributedMillSingular Refl impossible
 
@@ -507,7 +508,7 @@ badUntilBeginningOfUpkeep (SpanStated {ok = Oh}) impossible
 ||| The anaphor is a pro-verb whose subject is a player, and a damage clause's agent is an object [CR#120.1].
 public export
 badReflexiveOnSourceDeed : Unspellable (Effect []) (\ok =>
-  Reflexively (DealDamage This (Lit 3) (Macros.target AnyTarget)) Macros.drawACard {en = ok})
+  Reflexively (DealDamage This (Lit 3) (Macros.target Macros.anyTarget)) Macros.drawACard {en = ok})
 badReflexiveOnSourceDeed Oh impossible
 
 
@@ -557,7 +558,7 @@ badReflexiveOnBranchedMay Oh impossible
 public export
 badAfterReflexiveReadsTrigger : Unspellable (Effect []) (\ok =>
   Sequentially [Reflexively (Does You Mill (Move (LibrarySlice OnTop (Lit 4) You)
-                                                 Macros.graveyardZ {na = MkNotPlayerSpanning}) {tb = MillB {na = MkNotPlayerSpanning}})
+                                                 Macros.graveyardZ) {tb = MillB {whose = You}})
                             (Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [White]
                                                      (MkTypeLine [Soldier] [Creature])
                                                      [] Nothing)),

@@ -81,12 +81,6 @@ mutual
   nameSrcDelta ChosenName = []
   nameSrcDelta (SameNameAs n) = nounDelta n
 
-  public export
-  nameSrcAnyTargetFree : {0 bs : Bindings} -> NameSource bs -> Bool
-  nameSrcAnyTargetFree (PrintedName _) = True
-  nameSrcAnyTargetFree ChosenName = True
-  nameSrcAnyTargetFree (SameNameAs n) = nounAnyTargetFree n
-
   ||| Indexed by sort so each domain narrows its own way — a name by a
   ||| card description [CR#201.4a], a color/creature-type by exclusion, a
   ||| number by a floor — and the index refuses every crossing for free.
@@ -198,13 +192,12 @@ mutual
                   (dom : Predicate bs k) ->
                   {auto 0 ex : IsExtremal op} ->
                   {auto 0 sc : projScope ax = k} ->
-                  {auto 0 af : AnyTargetFree dom} -> Predicate bs k
+                  Predicate bs k
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
     ExiledWith : (src : Noun bs Object) ->
                  {auto 0 ls : LinkSource src} -> Predicate bs Object
     And : (ps : List (Predicate bs k)) -> {auto 0 zc : ZoneCoherent ps} ->
           {auto 0 cf : ContradictionFree ps} -> {auto 0 oa : OtherAnchored ps} ->
-          {auto 0 at : AnyTargetLone ps} -> 
           Predicate bs k
     Or : (ps : List (Predicate bs k)) -> {auto 0 ne : NonEmpty ps} ->
          {auto 0 pd : ParallelDisjuncts ps} ->
@@ -212,10 +205,21 @@ mutual
          {auto 0 dd : DistinctDisjuncts ps} -> Predicate bs k
     Not : (p : Predicate bs k) -> {auto 0 ng : Negatable p} -> Predicate bs k
     Other : {auto 0 ok : So (anyTargeted k bs)} -> Predicate bs k
-    OtherThan : (n : Noun bs k) -> {auto 0 ca : ComplementAnchor n} -> Predicate bs k
-    AnyTarget : Predicate bs Object
-    KindJoin : (who : JoinedPlayer) -> (what : JoinedClass) ->
-               Predicate bs Object
+    ||| The complement names a referent to SUBTRACT [CR#601.2c], not a
+    ||| member of the phrase's own domain, so it is described at its own
+    ||| kind: "any target other than this creature" subtracts an object
+    ||| from a phrase that may denote a player too.
+    OtherThan : {kn : Kind} -> (n : Noun bs kn) ->
+                {auto 0 ca : ComplementAnchor n} -> Predicate bs k
+    ||| The cross-kind head: one description per kind, and the phrase's kind
+    ||| is their join. "Target creature or player" is
+    ||| `Joined (HasType Creature) AnyPlayer`, admitted by [CR#115.1]: a
+    ||| spell's targets are objects and/or players. "Any target" is the same
+    ||| row over [CR#115.4]'s own four-way list. Which half English writes first
+    ||| is the spelling layer's business, so the semantics fixes the object
+    ||| arm left and one kind order serves every phrasing.
+    Joined : {ka : Kind} -> {kb : Kind} -> (l : Predicate bs ka) ->
+             (r : Predicate bs kb) -> Predicate bs (ka \/ kb)
     IsSource : Predicate bs Object
     AbilityHead : (cls : AbilityClass) -> Predicate bs Ability
     AbilityOf : (src : Noun bs Object) -> Predicate bs Ability
@@ -230,6 +234,7 @@ mutual
   seedTy (HasType t) = Just t
   seedTy (And ps) = seedTyAll ps
   seedTy (Or ps) = seedTyJoin ps
+  seedTy (Joined l r) = maybe (seedTy r) Just (seedTy l)
   seedTy _ = Nothing
 
   public export
@@ -455,8 +460,7 @@ mutual
   hasHead (Not _) = False
   hasHead Other = False
   hasHead (OtherThan _) = False
-  hasHead AnyTarget = True
-  hasHead (KindJoin _ _) = True
+  hasHead (Joined _ _) = True
 
   public export
   hasHeadAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
@@ -642,12 +646,14 @@ mutual
   predEq (Not _) _ = False
   predEq Other Other = True
   predEq Other _ = False
-  predEq (OtherThan a) (OtherThan b) = nounEqRef a b
+  -- the complement carries its own kind index, so two anchors need not be
+  -- comparable; conservative, like the `Or` row above. Nothing is lost:
+  -- `coordinable` keeps a complement out of an `Or`, and `OtherAnchored`
+  -- admits at most one per `And`, so two never have to be told apart.
   predEq (OtherThan _) _ = False
-  predEq AnyTarget AnyTarget = True
-  predEq AnyTarget _ = False
-  predEq (KindJoin w c) (KindJoin x d) = w == x && c == d
-  predEq (KindJoin _ _) _ = False
+  -- deliberately conservative, like the `Or` row above: two joined
+  -- descriptions are never provably the same referent [CR#601.2c].
+  predEq (Joined _ _) _ = False
 
   public export
   predEqAll : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -834,41 +840,6 @@ mutual
   OtherAnchored {bs} {k} ps = So (otherAnchorOk k (headTysAll ps) ps)
 
   public export
-  isAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  isAnyTarget AnyTarget = True
-  isAnyTarget _ = False
-
-  public export
-  isKindJoin : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  isKindJoin (KindJoin _ _) = True
-  isKindJoin _ = False
-
-  public export
-  anyIsKindJoin : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  anyIsKindJoin [] = False
-  anyIsKindJoin (p :: ps) = isKindJoin p || anyIsKindJoin ps
-
-  public export
-  headIsKindJoin : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  headIsKindJoin p = anyIsKindJoin (flattenPs [p])
-
-  ||| The card type the joined class names, if any -- the Object half's
-  ||| type in the join's payload. The class word ("any target") names none.
-  public export
-  kindJoinTy : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
-  kindJoinTy (KindJoin _ c) = joinedClassTy c
-  kindJoinTy _ = Nothing
-
-  public export
-  anyKindJoinTy : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Maybe CardType
-  anyKindJoinTy [] = Nothing
-  anyKindJoinTy (p :: ps) = maybe (anyKindJoinTy ps) Just (kindJoinTy p)
-
-  public export
-  headKindJoinTy : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
-  headKindJoinTy p = anyKindJoinTy (flattenPs [p])
-
-  public export
   isOther : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isOther Other = True
   isOther (OtherThan _) = True
@@ -886,15 +857,6 @@ mutual
   hasBareOtherAny (p :: ps) = hasBareOther p || hasBareOtherAny ps
 
   public export
-  anyIsAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  anyIsAnyTarget [] = False
-  anyIsAnyTarget (p :: ps) = isAnyTarget p || anyIsAnyTarget ps
-
-  public export
-  headIsAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  headIsAnyTarget p = anyIsAnyTarget (flattenPs [p])
-
-  public export
   isSourceHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isSourceHead IsSource = True
   isSourceHead _ = False
@@ -904,32 +866,27 @@ mutual
   anyIsSource [] = False
   anyIsSource (p :: ps) = isSourceHead p || anyIsSource ps
 
+  ||| [CR#120.7] makes a source the object that dealt some damage — a
+  ||| position in an event rather than an object in a zone — so a phrase
+  ||| headed by the source word places nothing. This is the only head-word
+  ||| placelessness left; the union family's is the kind's (see
+  ||| `phraseZone`).
   public export
   headIsPlaceless : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  headIsPlaceless p = headIsAnyTarget p || anyIsSource (flattenPs [p]) ||
-                      headIsKindJoin p
+  headIsPlaceless p = anyIsSource (flattenPs [p])
 
+  ||| Where a description places its referent. [CR#109.2] reads a bare type
+  ||| word onto the battlefield, so an object description defaults there.
+  ||| A phrase whose kind reaches past objects places NOTHING: [CR#400.1]
+  ||| makes a zone a place where objects can be and [CR#109.1] lists what
+  ||| an object is, and a player is none of them. That single fact is what
+  ||| refuses destroy, exile, tap, untap, return, counter and sacrifice
+  ||| over a joined phrase, with no rule written for the purpose.
   public export
-  ||| [CR#115.4] closes the class word's target set to creatures,
-  ||| players, planeswalkers and battles, all of them on the battlefield
-  ||| or in no zone at all, so a modifier that places the target
-  ||| elsewhere names nothing. Every other qualifier merely restricts the
-  ||| set and is the phrase's own business.
-  allLoneOk : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  allLoneOk [] = True
-  allLoneOk (p :: ps) = anyTargetZoneOk (seedZone p) && allLoneOk ps
-
-  public export
-  anyTargetZoneOk : Maybe Zone -> Bool
-  anyTargetZoneOk Nothing = True
-  anyTargetZoneOk (Just Battlefield) = True
-  anyTargetZoneOk (Just _) = False
-
-  public export
-  countAnyTargets : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Nat
-  countAnyTargets [] = Z
-  countAnyTargets (p :: ps) =
-    if isAnyTarget p then S (countAnyTargets ps) else countAnyTargets ps
+  phraseZone : {0 bs : Bindings} -> {k : Kind} -> Predicate bs k -> Maybe Zone
+  phraseZone p = if headIsPlaceless p || not (kindLte k Object)
+                   then Nothing
+                   else Just (zoneOr Battlefield (seedZone p))
 
   public export
   countOthers : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Nat
@@ -947,18 +904,6 @@ mutual
   exactlyOne Z = False
   exactlyOne (S Z) = True
   exactlyOne (S (S _)) = False
-
-  public export
-  anyTargetLone : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  anyTargetLone ps = if anyIsAnyTarget (flattenPs ps)
-                       then allLoneOk (flattenPs ps) &&
-                            exactlyOne (countAnyTargets (flattenPs ps)) &&
-                            atMostOne (countOthers (flattenPs ps))
-                       else True
-
-  public export
-  AnyTargetLone : List (Predicate bs k) -> Type
-  AnyTargetLone {bs} {k} ps = So (anyTargetLone ps)
 
   public export
   isComparison : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -1010,9 +955,7 @@ mutual
 
   public export
   coordinable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  coordinable p = not (headIsAnyTarget p) &&
-                  not (headIsKindJoin p) &&
-                  not (hasOther p)
+  coordinable p = not (hasOther p)
 
   public export
   coordinableAll : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -1104,8 +1047,7 @@ mutual
   predSays (Not p) = predSays p
   predSays Other = True
   predSays (OtherThan _) = True
-  predSays AnyTarget = True
-  predSays (KindJoin _ _) = True
+  predSays (Joined _ _) = True
 
   public export
   predSaysAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
@@ -1161,8 +1103,7 @@ mutual
   predNegFree (Not _) = False
   predNegFree Other = True
   predNegFree (OtherThan _) = True
-  predNegFree AnyTarget = True
-  predNegFree (KindJoin _ _) = True
+  predNegFree (Joined l r) = predNegFree l && predNegFree r
 
   public export
   predNegFreeAll : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -1171,94 +1112,32 @@ mutual
   predNegFreeAll (p :: ps) = predNegFree p && predNegFreeAll ps
 
   public export
-  anyTargetFree : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  anyTargetFree (HasType _) = True
-  anyTargetFree (HasSubtype _) = True
-  anyTargetFree AnyPlayer = True
-  anyTargetFree Opponent = True
-  anyTargetFree (QualityNoun _) = True
-  anyTargetFree (OfChosen _) = True
-  anyTargetFree OfLastChosenColor = True
-  anyTargetFree (OfYourChoice _) = True
-  anyTargetFree (AbilityHead _) = True
-  anyTargetFree (AbilityOf n) = nounAnyTargetFree n
-  anyTargetFree (ActivatedBy n) = nounAnyTargetFree n
-  anyTargetFree IsManaAbility = True
-  anyTargetFree IsSource = True
-  anyTargetFree (HasKeyword _) = True
-  anyTargetFree (ControlledBy n) = nounAnyTargetFree n
-  anyTargetFree (CastBy n) = nounAnyTargetFree n
-  anyTargetFree (ExiledWith n) = nounAnyTargetFree n
-  anyTargetFree Attacking = True
-  anyTargetFree Blocking = True
-  anyTargetFree (BlockerOf m) = nounAnyTargetFree m
-  anyTargetFree (BlockedBy m) = nounAnyTargetFree m
-  anyTargetFree (HappenedTo _ _ {what}) = complementAnyTargetFree what
-  anyTargetFree (CastFrom z) = zoneAnyTargetFree z
-  anyTargetFree (ColorIs _) = True
-  anyTargetFree IsColorless = True
-  anyTargetFree Multicolored = True
-  anyTargetFree Monocolored = True
-  anyTargetFree (HasSupertype _) = True
-  anyTargetFree (Named src) = nameSrcAnyTargetFree src
-  anyTargetFree (HasDesignation _) = True
-  anyTargetFree (IsAttached _) = True
-  anyTargetFree Permanent = True
-  anyTargetFree IsToken = True
-  anyTargetFree (HasStatus _) = True
-  anyTargetFree (HasCounters _) = True
-  anyTargetFree (Compare _ _ b) = amtAnyTargetFree b
-  anyTargetFree (Superlative _ _ d) = anyTargetFree d
-  anyTargetFree (InZone z) = zoneAnyTargetFree z
-  anyTargetFree (And ps) = anyTargetFreeAll ps
-  anyTargetFree (Or ps) = anyTargetFreeAll ps
-  anyTargetFree (Not p) = anyTargetFree p
-  anyTargetFree Other = True
-  anyTargetFree (OtherThan n) = nounAnyTargetFree n
-  anyTargetFree AnyTarget = False
-  anyTargetFree (KindJoin _ _) = True
-
-  public export
-  anyTargetFreeAll : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  anyTargetFreeAll [] = True
-  anyTargetFreeAll (p :: ps) = anyTargetFree p && anyTargetFreeAll ps
-
-  public export
-  AnyTargetFree : Predicate bs k -> Type
-  AnyTargetFree {bs} {k} p = So (anyTargetFree p)
-
-  public export
   ZoneFree : Predicate bs k -> Type
   ZoneFree {bs} {k} p = seedZone p = Nothing
-
-  ||| [CR#115.4] writes the class word as the WHOLE target phrase — "any
-  ||| target", "another target", "two targets" — so a description either is
-  ||| that phrase or contains none of it. The count is free: the rule lists
-  ||| "two targets" itself. The quantity stays in the signature and is
-  ||| matched on so the obligation is stuck until a determiner is written:
-  ||| reducing on the predicate alone drives the positivity checker through
-  ||| `flattenPs` and `Noun` stops being strictly positive.
-  public export
-  anyTargetOkAt : {0 bs : Bindings} -> {0 k : Kind} ->
-                  Quantity -> Predicate bs k -> Bool
-  anyTargetOkAt (Range _ _) p = headIsAnyTarget p || anyTargetFree p
-
-  public export
-  AnyTargetAtCount : Quantity -> Predicate bs k -> Type
-  AnyTargetAtCount {bs} {k} q p = So (anyTargetOkAt q p)
 
   public export
   zoneOr : Zone -> Maybe Zone -> Zone
   zoneOr z Nothing = z
   zoneOr z (Just w) = w
 
+  ||| What each half of a joined phrase carries. A joined phrase places
+  ||| nothing — [CR#400.1] makes a zone a place where objects can be and
+  ||| [CR#109.1] lists what an object is, so a phrase that may denote a
+  ||| player names no zone — and the object half carries the head type the
+  ||| description named, which is what the demonstrative echo reads back.
+  public export
+  joinHalfPayload : {k : Kind} -> Phrasal k -> Maybe CardType -> Payload k
+  joinHalfPayload PhObject ty = ObjectP ty Nothing Nothing Nothing
+  joinHalfPayload PhPlayer ty = PlayerP
+  joinHalfPayload {k = Quality q} PhQuality ty = QualityP
+  joinHalfPayload PhAbility ty = AbilityP
+  joinHalfPayload (PhJoin l r) ty =
+    JoinP (joinHalfPayload l ty) (joinHalfPayload r ty)
+
   public export
   bindFor : Determiner -> Plurality -> {k : Kind} -> Phrasal k -> Predicate bs k -> Binding
   bindFor det plur PhObject p =
-    if headIsAnyTarget p || headIsKindJoin p
-      then MkBinding det (Object \/ Player) plur
-              (JoinP (ObjectP (headKindJoinTy p) Nothing Nothing Nothing) PlayerP)
-      else MkBinding det Object plur
+    MkBinding det Object plur
               (ObjectP (seedTy p)
                        (Just (zoneOr Battlefield (seedZone p)))
                        Nothing
@@ -1266,6 +1145,12 @@ mutual
   bindFor det plur PhPlayer p = MkBinding det Player plur PlayerP
   bindFor det plur {k = Quality q} PhQuality p = MkBinding det (Quality q) plur QualityP
   bindFor det plur PhAbility p = MkBinding det Ability plur AbilityP
+  -- the branch that used to CHOOSE a payload: it now fills one in, since
+  -- the kind fixes the shape and the description fixes the object half's
+  -- type [CR#205.2a] — a class word naming no card type leaves none.
+  bindFor det plur (PhJoin l r) p =
+    MkBinding det k plur (JoinP (joinHalfPayload l (seedTy p))
+                                (joinHalfPayload r (seedTy p)))
 
   public export
   data Noun : Bindings -> Kind -> Type where
@@ -1277,29 +1162,33 @@ mutual
     You : Noun bs Player        -- "you" [CR#109.5]
     PlayerGroup : (w : PlayerGroupWord) -> Noun bs Player
     Each : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-           {auto 0 af : AnyTargetFree p} -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
+           Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
     Indefinite : (m : ChoiceMode bs) -> (p : Predicate bs k) ->
                  {auto ph : Phrasal k} ->
-                 {auto 0 af : AnyTargetFree p} -> Noun bs k
+                 Noun bs k
     Definite : (p : Predicate bs k) ->
                {auto ph : Phrasal k} ->
-               {auto 0 af : AnyTargetFree p} ->
                {auto 0 uq : Uniquifying p} -> Noun bs k
     TargetGroup : (q : Quantity) -> (p : Predicate bs k) ->
                   {auto tk : Targetable k} -> {auto 0 nz : NonZeroQ q} ->
-                  {auto 0 wf : WellFormedQ q} ->
-                  {auto 0 af : AnyTargetAtCount q p} -> Noun bs k
+                  {auto 0 wf : WellFormedQ q} -> Noun bs k
     CountedGroup : (q : Quantity) -> (p : Predicate bs k) ->
                    {auto ph : Phrasal k} -> {auto 0 nz : NonZeroQ q} ->
                    {auto 0 wf : WellFormedQ q} ->
-                   {auto 0 af : AnyTargetFree p} -> Noun bs k
+                   Noun bs k
     AllOf : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-            {auto 0 af : AnyTargetFree p} -> Noun bs k
+            Noun bs k
     EachOf : (grp : Noun bs k) ->
              {auto 0 pl : nounPlur grp = ManyOf} ->
              {auto 0 gm : GroupMention grp} -> Noun bs k
-    YouAnd : (n : Noun bs Object) ->
-             {auto 0 nn : NotMixedGroup n} -> Noun bs Object
+    ||| "you and permanents you control" [CR#109.5]: two phrases coordinated
+    ||| across kinds, so the pair's kind is their join. It leaves NO joint
+    ||| referent — each arm mints its own bindings and no constructor writes
+    ||| a third — which is why nothing reads a mixed group back. The
+    ||| asymmetry with a joined HEAD is structural, not a gate: a head is a
+    ||| description, and a determiner over it goes through `bindFor`.
+    Both : {ka : Kind} -> {kb : Kind} -> (l : Noun bs ka) ->
+           (r : Noun (nomIntro l) kb) -> Noun bs (ka \/ kb)
     LibrarySlice : (pos : LibPos) -> (amt : Amount bs) ->
                    (whose : Noun bs Player) ->
                    {auto 0 sp : SlicePossessor whose} ->
@@ -1353,7 +1242,7 @@ mutual
   nounEqRef (CountedGroup _ _) _ = False
   nounEqRef (AllOf _) _ = False
   nounEqRef (EachOf _) _ = False
-  nounEqRef (YouAnd _) _ = False
+  nounEqRef (Both _ _) _ = False
   nounEqRef (LibrarySlice _ _ _) _ = False
   nounEqRef (SomeOf _ _) _ = False
   nounEqRef TheRest _ = False
@@ -1370,49 +1259,6 @@ mutual
   nounEqRef (ControllerOf _) _ = False
   nounEqRef (OwnerOf _) _ = False
   nounEqRef (Designated _ _) _ = False
-
-  public export
-  nounAnyTargetFree : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  nounAnyTargetFree This = True
-  nounAnyTargetFree (AsType t n) = nounAnyTargetFree n
-  nounAnyTargetFree You = True
-  nounAnyTargetFree (PlayerGroup _) = True
-  nounAnyTargetFree (Each p) = anyTargetFree p
-  nounAnyTargetFree (Indefinite m p) = anyTargetFree p
-  nounAnyTargetFree (Definite p) = anyTargetFree p
-  nounAnyTargetFree (TargetGroup _ p) = anyTargetFree p
-  nounAnyTargetFree (CountedGroup _ p) = anyTargetFree p
-  nounAnyTargetFree (AllOf p) = anyTargetFree p
-  nounAnyTargetFree (EachOf grp) = nounAnyTargetFree grp
-  nounAnyTargetFree (YouAnd n) = nounAnyTargetFree n
-  nounAnyTargetFree (LibrarySlice _ _ whose) = nounAnyTargetFree whose
-  nounAnyTargetFree (SomeOf _ grp) = nounAnyTargetFree grp
-  nounAnyTargetFree TheRest = True
-  nounAnyTargetFree It = True
-  nounAnyTargetFree They = True
-  nounAnyTargetFree Them = True
-  nounAnyTargetFree (Those _) = True
-  nounAnyTargetFree (That _) = True
-  nounAnyTargetFree (AttachHost _ _) = True
-  nounAnyTargetFree (TheVerbed _ _) = True
-  nounAnyTargetFree (ThoseVerbed _ _) = True
-  nounAnyTargetFree (ControllerOf n) = nounAnyTargetFree n
-  nounAnyTargetFree (OwnerOf n) = nounAnyTargetFree n
-  nounAnyTargetFree (Designated _ n) = nounAnyTargetFree n
-
-  public export
-  placeAnyTargetFree : {0 bs : Bindings} -> LibPlace bs -> Bool
-  placeAnyTargetFree (OneEnd _) = True
-  placeAnyTargetFree (EitherEnd Nothing) = True
-  placeAnyTargetFree (EitherEnd (Just n)) = nounAnyTargetFree n
-
-  public export
-  zoneAnyTargetFree : {0 bs : Bindings} -> ZoneExpr bs -> Bool
-  zoneAnyTargetFree (ZoneAt z Bare) = True
-  zoneAnyTargetFree (ZoneAt z (OwnedBy n)) = nounAnyTargetFree n
-  zoneAnyTargetFree (LibraryAt pl _ Bare) = placeAnyTargetFree pl
-  zoneAnyTargetFree (LibraryAt pl _ (OwnedBy n)) =
-    placeAnyTargetFree pl && nounAnyTargetFree n
 
   ||| Destination legality for the move primitive [CR#400.3]: an owned
   ||| destination naming an arbitrary player is unwritable — a moved card
@@ -1451,7 +1297,7 @@ mutual
   nounDelta (CountedGroup q p {ph}) = bindFor CountD (quantPlur q) ph p :: predDelta p
   nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
   nounDelta (EachOf grp) = nounDelta grp
-  nounDelta (YouAnd n) = nounDelta n
+  nounDelta (Both l r) = nounDelta r ++ nounDelta l
   nounDelta (LibrarySlice pos amt whose) =
     MkBinding TheD Object (outputPlur (nounPlur whose) (amtPlur amt))
               (ObjectP Nothing (Just Library) Nothing Nothing)
@@ -1503,6 +1349,7 @@ mutual
   predDelta (OtherThan n) = nounDelta n
   predDelta (Compare _ _ b) = amtDelta b
   predDelta (Superlative _ _ d) = predDelta d
+  predDelta (Joined l r) = predDelta l ++ predDelta r
   predDelta _ = []
 
   public export
@@ -1553,14 +1400,6 @@ mutual
   complementDelta (Just (Involving what)) = nounDelta what
 
   public export
-  complementAnyTargetFree : {0 bs : Bindings} -> {0 ev : EventName} ->
-                            {0 ks : Kind} ->
-                            Maybe (EventComplement bs ev ks) -> Bool
-  complementAnyTargetFree Nothing = True
-  complementAnyTargetFree (Just (Involving what)) = nounAnyTargetFree what
-
-
-  public export
   data Amount : Bindings -> Type where
     Lit : Nat -> Amount bs
     PlayerStatOf : (w : PlayerStat) -> (n : Noun bs Player) ->
@@ -1568,11 +1407,11 @@ mutual
     StatOf : (c : Characteristic) -> (n : Noun bs Object) ->
              {auto 0 one : nounPlur n = OneOf} -> Amount bs
     CountOf : {k : Kind} -> (p : Predicate bs k) ->
-              {auto 0 af : AnyTargetFree p} -> Amount bs
+              Amount bs
     Aggregate : {k : Kind} -> (op : AggregateOp) -> (ax : ProjAxis) ->
                 (p : Predicate bs k) ->
                 {auto 0 sc : projScope ax = k} ->
-                {auto 0 af : AnyTargetFree p} -> Amount bs
+                Amount bs
     CountersOn : {k : Kind} -> (kind : CounterKind) -> (holder : Noun bs k) ->
                  {auto 0 sc : counterScope kind = k} ->
                  {auto 0 one : nounPlur holder = OneOf} -> Amount bs
@@ -1613,26 +1452,6 @@ mutual
   amtDelta XVal = []
   amtDelta (Plus a b) = amtDelta a ++ amtDelta b
   amtDelta (Minus a b) = amtDelta a ++ amtDelta b
-
-  public export
-  amtAnyTargetFree : {0 bs : Bindings} -> Amount bs -> Bool
-  amtAnyTargetFree (Lit _) = True
-  amtAnyTargetFree (StatOf _ n) = nounAnyTargetFree n
-  amtAnyTargetFree (PlayerStatOf _ n) = nounAnyTargetFree n
-  amtAnyTargetFree (CountersOn _ holder) = nounAnyTargetFree holder
-  amtAnyTargetFree (EventCount _ who _ {what}) =
-    nounAnyTargetFree who && complementAnyTargetFree what
-  amtAnyTargetFree (CountOf p) = anyTargetFree p
-  amtAnyTargetFree (Aggregate _ _ p) = anyTargetFree p
-  amtAnyTargetFree (Times _ a) = amtAnyTargetFree a
-  amtAnyTargetFree ThatMuch = True
-  amtAnyTargetFree PreventedThisWay = True
-  amtAnyTargetFree GroupSize = True
-  amtAnyTargetFree TheDifference = True
-  amtAnyTargetFree (DefinedLetter _) = True
-  amtAnyTargetFree XVal = True
-  amtAnyTargetFree (Plus a b) = amtAnyTargetFree a && amtAnyTargetFree b
-  amtAnyTargetFree (Minus a b) = amtAnyTargetFree a && amtAnyTargetFree b
 
   public export
   amtIntro : {bs : Bindings} -> Amount bs -> Bindings
@@ -1750,7 +1569,7 @@ mutual
   anchorPhrase (CountedGroup _ _) = False
   anchorPhrase (AllOf _) = False
   anchorPhrase (EachOf _) = False
-  anchorPhrase (YouAnd _) = False
+  anchorPhrase (Both _ _) = False
   anchorPhrase (LibrarySlice _ _ _) = False
   anchorPhrase (SomeOf _ _) = False
   anchorPhrase TheRest = False
@@ -1792,7 +1611,7 @@ mutual
   choosable (CountedGroup _ _) = True
   choosable (AllOf _) = False
   choosable (EachOf _) = False
-  choosable (YouAnd _) = False
+  choosable (Both _ _) = False
   choosable (LibrarySlice _ _ _) = False
   choosable (SomeOf _ _) = False
   choosable TheRest = False
@@ -1841,7 +1660,7 @@ mutual
   groupMention (CountedGroup _ _) = False
   groupMention (AllOf _) = False
   groupMention (EachOf _) = False
-  groupMention (YouAnd _) = False
+  groupMention (Both _ _) = False
   groupMention (LibrarySlice _ _ _) = True
   groupMention (SomeOf _ _) = False
   groupMention TheRest = False
@@ -1943,7 +1762,7 @@ mutual
   public export
   data Condition : Bindings -> Type where
     Exists : {k : Kind} -> (p : Predicate bs k) ->
-             {auto 0 af : AnyTargetFree p} -> Condition bs
+             Condition bs
     Happened : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
                (w : Lookback) ->
                {default Nothing what :
@@ -1964,7 +1783,7 @@ mutual
               {auto 0 bl : Bindingless n} ->
               {auto 0 sy : PredSays p} ->
               {auto 0 zc : ZoneFits (nounZone n) (seedZone p)} ->
-              {auto 0 af : AnyTargetFree p} -> Condition bs
+              Condition bs
     CompareAmt : (subj : Amount bs) -> (r : Comparator) -> (bound : Amount bs) ->
                  {auto 0 rd : ReadAmount subj} ->
                  Condition bs
@@ -2111,13 +1930,13 @@ mutual
   data TokenPhrase : {0 bs : Bindings} -> Noun bs Object -> Type where
     CountedTokens : {0 q : Quantity} -> {0 p : Predicate bs Object} ->
                     {0 ph : Phrasal Object} -> {0 nz : NonZeroQ q} ->
-                    {0 wf : WellFormedQ q} -> {0 af : AnyTargetFree p} ->
+                    {0 wf : WellFormedQ q} ->
                     {auto 0 ok : So (seedsToken p)} ->
-                    TokenPhrase (CountedGroup q p {ph} {nz} {wf} {af})
+                    TokenPhrase (CountedGroup q p {ph} {nz} {wf})
     OneToken : {0 m : ChoiceMode bs} -> {0 p : Predicate bs Object} ->
-               {0 ph : Phrasal Object} -> {0 af : AnyTargetFree p} ->
+               {0 ph : Phrasal Object} ->
                {auto 0 ok : So (seedsToken p)} ->
-               TokenPhrase (Indefinite m p {ph} {af})
+               TokenPhrase (Indefinite m p {ph})
 
   public export
   data EventSource : Bindings -> Type where
@@ -2667,7 +2486,7 @@ mutual
     CantUntapMoreThan : (who : Noun bs Player) -> (k : Nat) ->
                         (p : Predicate bs Object) ->
                         {auto 0 zn : ZoneFits (seedZone p) (Just Battlefield)} ->
-                        {auto 0 af : AnyTargetFree p} -> StaticEffect bs
+                        StaticEffect bs
     Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticEffect bs
     BecomesAlso : (n : Noun bs Object) -> (added : TokenChars bs) ->
                   {auto 0 ne : LineNonEmpty added.line} ->
@@ -3142,19 +2961,9 @@ mutual
   public export
   data SpendPurpose : Bindings -> Type where
     ToCast : (p : Predicate bs Object) ->
-             {auto 0 af : AnyTargetFree p} -> SpendPurpose bs
+             SpendPurpose bs
     ToActivate : (src : Maybe (Predicate bs Object)) ->
-                 {auto 0 sf : SpendSourceOk src} -> SpendPurpose bs
-
-  public export
-  spendSourceOk : {0 bs : Bindings} -> Maybe (Predicate bs Object) -> Bool
-  spendSourceOk Nothing = True
-  spendSourceOk (Just p) = anyTargetFree p
-
-  public export
-  data SpendSourceOk : {0 bs : Bindings} -> Maybe (Predicate bs Object) -> Type where
-    MkSpendSourceOk : {0 src : Maybe (Predicate bs Object)} ->
-                      {auto 0 ok : So (spendSourceOk src)} -> SpendSourceOk src
+                 SpendPurpose bs
 
   public export
   data ManaRider : Bindings -> Type where
@@ -3233,7 +3042,6 @@ mutual
            {default (MkMoveRiders [] Nothing) riders : MoveRiders (nomIntro what)} ->
            {auto 0 ok : DestOk to} ->
            {auto 0 arr : ArrangementOk (nounPlur what) to} ->
-           {auto 0 na : NotPlayerSpanning what} ->
            {auto 0 pl : Placeable (nounTy what) (zoneSort to)} ->
            {auto 0 rf : RidersFit riders (zoneSort to)} -> Effect bs
     CounterSpell : (what : Noun bs Object) ->
@@ -3257,7 +3065,6 @@ mutual
              (what : Exposed (nomIntro who)) -> Effect bs
     Search : (who : Noun bs Player) -> (sc : SearchScope (nomIntro who)) ->
              (p : Predicate (nomIntro who) Object) ->
-             {auto 0 af : AnyTargetFree p} ->
              {auto 0 zf : ZoneFree p} -> Effect bs
     Shuffle : (whose : Noun bs Player) -> Effect bs
     Continuously : (se : StaticEffect bs) -> (span : Maybe (Duration (staticIntro se))) ->
@@ -3615,7 +3422,7 @@ mutual
   costNounOk (CountedGroup _ _) = True
   costNounOk (AllOf _) = True
   costNounOk (EachOf grp) = costNounOk grp
-  costNounOk (YouAnd _) = False
+  costNounOk (Both _ _) = False
   costNounOk (LibrarySlice _ _ _) = True
   costNounOk (SomeOf _ grp) = costNounOk grp
   costNounOk TheRest = True
@@ -3644,7 +3451,7 @@ mutual
   nounIsYou (CountedGroup _ _) = False
   nounIsYou (AllOf _) = False
   nounIsYou (EachOf _) = False
-  nounIsYou (YouAnd _) = False
+  nounIsYou (Both _ _) = False
   nounIsYou (LibrarySlice _ _ _) = False
   nounIsYou (SomeOf _ _) = False
   nounIsYou TheRest = False
@@ -3853,84 +3660,6 @@ mutual
              SimEffects n (annIntro e) -> SimEffects (S n) bs
 
   public export
-  nounIsAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  nounIsAnyTarget (TargetGroup _ p) = headIsAnyTarget p
-  nounIsAnyTarget (CountedGroup _ _) = False
-  nounIsAnyTarget This = False
-  nounIsAnyTarget (AsType t n) = nounIsAnyTarget n
-  nounIsAnyTarget You = False
-  nounIsAnyTarget (PlayerGroup _) = False
-  nounIsAnyTarget (Each _) = False
-  nounIsAnyTarget (Indefinite _ _) = False
-  nounIsAnyTarget (Definite _) = False
-  nounIsAnyTarget (AllOf _) = False
-  nounIsAnyTarget (EachOf grp) = nounIsAnyTarget grp
-  nounIsAnyTarget (YouAnd _) = False
-  nounIsAnyTarget (LibrarySlice _ _ _) = False
-  nounIsAnyTarget (SomeOf _ grp) = nounIsAnyTarget grp
-  nounIsAnyTarget TheRest = False
-  nounIsAnyTarget It = False
-  nounIsAnyTarget They = False
-  nounIsAnyTarget Them = False
-  nounIsAnyTarget (Those _) = False
-  nounIsAnyTarget (That _) = False
-  nounIsAnyTarget (AttachHost _ _) = False
-  nounIsAnyTarget (TheVerbed _ _) = False
-  nounIsAnyTarget (ThoseVerbed _ _) = False
-  nounIsAnyTarget (ControllerOf _) = False
-  nounIsAnyTarget (OwnerOf _) = False
-  nounIsAnyTarget (Designated _ _) = False
-
-  public export
-  nounIsKindJoin : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  nounIsKindJoin (TargetGroup _ p) = headIsKindJoin p
-  nounIsKindJoin (CountedGroup _ p) = headIsKindJoin p
-  nounIsKindJoin (Each p) = headIsKindJoin p
-  nounIsKindJoin (Indefinite _ p) = headIsKindJoin p
-  nounIsKindJoin (Definite p) = headIsKindJoin p
-  nounIsKindJoin (AllOf p) = headIsKindJoin p
-  nounIsKindJoin This = False
-  nounIsKindJoin (AsType _ n) = nounIsKindJoin n
-  nounIsKindJoin You = False
-  nounIsKindJoin (PlayerGroup _) = False
-  nounIsKindJoin (EachOf grp) = nounIsKindJoin grp
-  nounIsKindJoin (YouAnd n) = nounIsKindJoin n
-  nounIsKindJoin (LibrarySlice _ _ _) = False
-  nounIsKindJoin (SomeOf _ grp) = nounIsKindJoin grp
-  nounIsKindJoin TheRest = False
-  nounIsKindJoin It = False
-  nounIsKindJoin They = False
-  nounIsKindJoin Them = False
-  nounIsKindJoin (Those _) = False
-  nounIsKindJoin (That JoinW) = True
-  nounIsKindJoin (That _) = False
-  nounIsKindJoin (AttachHost _ _) = False
-  nounIsKindJoin (TheVerbed _ _) = False
-  nounIsKindJoin (ThoseVerbed _ _) = False
-  nounIsKindJoin (ControllerOf _) = False
-  nounIsKindJoin (OwnerOf _) = False
-  nounIsKindJoin (Designated _ _) = False
-
-  public export
-  nounIsMixedGroup : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  nounIsMixedGroup (YouAnd _) = True
-  nounIsMixedGroup _ = False
-
-  public export
-  NotMixedGroup : Noun bs k -> Type
-  NotMixedGroup {bs} {k} n = So (not (nounIsMixedGroup n))
-
-  public export
-  nounSpansPlayers : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  nounSpansPlayers n = nounIsAnyTarget n || nounIsKindJoin n ||
-                       nounIsMixedGroup n
-
-  public export
-  data NotPlayerSpanning : Noun bs k -> Type where
-    MkNotPlayerSpanning : {auto 0 ok : So (not (nounSpansPlayers n))} ->
-                          NotPlayerSpanning n
-
-  public export
   nounTargeted : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   nounTargeted (TargetGroup _ _) = True
   nounTargeted (CountedGroup _ _) = False
@@ -3943,7 +3672,7 @@ mutual
   nounTargeted (Definite _) = False
   nounTargeted (AllOf _) = False
   nounTargeted (EachOf grp) = nounTargeted grp
-  nounTargeted (YouAnd n) = nounTargeted n
+  nounTargeted (Both l r) = nounTargeted l || nounTargeted r
   nounTargeted (LibrarySlice _ _ _) = False
   nounTargeted (SomeOf _ grp) = nounTargeted grp
   nounTargeted TheRest = False
@@ -3983,12 +3712,19 @@ mutual
   public export
   data DamageRecipient : Noun bs k -> Type where
     PlayerTakes : DamageRecipient {k = Player} n
-    AnyTargetTakes : {auto 0 ok : So (nounIsAnyTarget n)} ->
-                     DamageRecipient {k = Object} n
-    JoinTakes : {auto 0 ok : So (nounIsKindJoin n)} ->
-                DamageRecipient {k = Object} n
-    GroupTakes : {auto 0 ok : So (nounIsMixedGroup n)} ->
-                 DamageRecipient {k = Object} n
+    ||| A joined phrase is dealt damage on either half's account:
+    ||| [CR#120.1] admits a battle, a creature, a planeswalker or a player
+    ||| and nothing else, and the phrase names an object description beside
+    ||| a player one. No zone is asked, because damage asks none —
+    ||| `ObjectTakes` asks for one only where the phrase has one to give.
+    ||| The row is the kind's: every noun at a joined kind, and no
+    ||| others. That is WIDER than the three rows it replaces, whose
+    ||| heads were a closed class enum or the deictic "you": a same-kind
+    ||| join such as `Joined (HasType Land) (HasType Land)` now passes
+    ||| without `ObjectTakes`'s type check. Overgeneration, tolerated:
+    ||| such a value has no English production and is refused at the
+    ||| boundary.
+    JoinTakes : DamageRecipient {k = ka \/ kb} n
     ObjectTakes : {auto 0 field : OnBattlefield (nounZone n)} ->
                   {auto 0 dm : DamageableTy (nounTy n)} ->
                   DamageRecipient {k = Object} n
@@ -4009,28 +3745,22 @@ mutual
   public export
   data TagBody : VerbName -> Effect bs -> Type where
     DestroyB : {auto 0 z : OnBattlefield (nounZone n)} ->
-               {auto 0 na : NotPlayerSpanning n} ->
-               TagBody Destroy (Move n (ZoneAt Graveyard Bare) {na})
+               TagBody Destroy (Move n (ZoneAt Graveyard Bare))
     SacrificeB : {auto 0 z : OnBattlefield (nounZone n)} ->
-                 {auto 0 na : NotPlayerSpanning n} ->
-                 TagBody Sacrifice (Move n (ZoneAt Graveyard Bare) {na})
-    ExileB : {auto 0 na : NotPlayerSpanning n} ->
-             TagBody Exile (Move n (ZoneAt Exile Bare) {na})
+                 TagBody Sacrifice (Move n (ZoneAt Graveyard Bare))
+    ExileB : TagBody Exile (Move n (ZoneAt Exile Bare))
     ExileWithCountersB : {0 amt : Amount (nomIntro n)} ->
                          {0 kind : CounterKind} ->
-                         {auto 0 na : NotPlayerSpanning n} ->
                          TagBody Exile
-                                 (Move n (ZoneAt Exile Bare) {na}
+                                 (Move n (ZoneAt Exile Bare)
                                        {riders = MkMoveRiders [] Nothing
                                           {counters = Just (MkCounterRider amt kind)}})
     DiscardB : {auto 0 d : DiscardOk n} ->
-               {auto 0 na : NotPlayerSpanning n} ->
-               TagBody Discard (Move n (ZoneAt Graveyard Bare) {na})
+               TagBody Discard (Move n (ZoneAt Graveyard Bare))
     MillB : {0 amt : Amount bs} -> {0 whose : Noun bs Player} ->
             {auto 0 sp : SlicePossessor whose} ->
-            {auto 0 na : NotPlayerSpanning (LibrarySlice OnTop amt whose {sp})} ->
             TagBody Mill (Move (LibrarySlice OnTop amt whose {sp})
-                               (ZoneAt Graveyard Bare) {na})
+                               (ZoneAt Graveyard Bare))
     ScryB : {0 amt : Amount bs} ->
             {auto 0 sp : SlicePossessor {bs} You} ->
             TagBody Scry
@@ -4045,8 +3775,8 @@ mutual
     ||| into/onto <zone>" spell one event, so the tag rides the same Move.
     ||| Every Move admits: its own gates already bound the destination, and
     ||| the destination's possessive is rendering's business [CR#400.3].
-    PutB : 
-           TagBody Put (Move n to {riders} {ok} {arr} {na} {pl} {rf})
+    PutB :
+           TagBody Put (Move n to {riders} {ok} {arr} {pl} {rf})
 
   public export
   NonAgentive : VerbName -> Type
@@ -4073,19 +3803,22 @@ mutual
   setZoneHead p z [] = []
   setZoneHead p z (b :: bs) = setZone p z b :: bs
 
+  ||| A moved singular referent is re-zoned where the pronoun that names it
+  ||| would find it, so the write uses the same test `zoneOfIt` reads with.
+  ||| A joined binding is reached and left alone: `setZone`'s own join row
+  ||| is the identity, because moving an object says nothing about the half
+  ||| of the reference that was never an object [CR#400.1].
   public export
   setZoneIt : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
   setZoneIt p z [] = []
-  setZoneIt p z (MkBinding det Object OneOf (ObjectP ty zn _ og) :: bs) =
-    MkBinding det Object OneOf (ObjectP ty z (mkStamp p zn) og) :: bs
-  setZoneIt p z (b :: bs) = b :: setZoneIt p z bs
+  setZoneIt p z (b :: bs) =
+    if itReaches OneOf b then setZone p z b :: bs else b :: setZoneIt p z bs
 
   public export
   setZoneThem : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
   setZoneThem p z [] = []
-  setZoneThem p z (MkBinding det Object ManyOf (ObjectP ty zn _ og) :: bs) =
-    MkBinding det Object ManyOf (ObjectP ty z (mkStamp p zn) og) :: bs
-  setZoneThem p z (b :: bs) = b :: setZoneThem p z bs
+  setZoneThem p z (b :: bs) =
+    if itReaches ManyOf b then setZone p z b :: bs else b :: setZoneThem p z bs
 
   public export
   setZoneThose : Maybe VerbName -> NounWord -> Maybe Zone -> Bindings -> Bindings
@@ -4129,7 +3862,7 @@ mutual
   moveIntro p nn@(CountedGroup q pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(AllOf pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p (EachOf grp) z = moveIntro p grp z
-  moveIntro p nn@(YouAnd _) z = nomIntro nn
+  moveIntro p nn@(Both _ _) z = nomIntro nn
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(SomeOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p TheRest z = groupSpent bs
@@ -4155,20 +3888,14 @@ mutual
   nounZone (AsType t n) = Just Battlefield
   nounZone You = Nothing
   nounZone (PlayerGroup _) = Nothing
-  nounZone (Each p) =
-    if headIsPlaceless p then Nothing else Just (zoneOr Battlefield (seedZone p))
-  nounZone (Indefinite m p) =
-    if headIsPlaceless p then Nothing else Just (zoneOr Battlefield (seedZone p))
-  nounZone (Definite p) =
-    if headIsPlaceless p then Nothing else Just (zoneOr Battlefield (seedZone p))
-  nounZone (TargetGroup q p) =
-    if headIsPlaceless p then Nothing else Just (zoneOr Battlefield (seedZone p))
-  nounZone (CountedGroup q p) =
-    if headIsPlaceless p then Nothing else Just (zoneOr Battlefield (seedZone p))
-  nounZone (AllOf p) =
-    if headIsPlaceless p then Nothing else Just (zoneOr Battlefield (seedZone p))
+  nounZone (Each p) = phraseZone p
+  nounZone (Indefinite m p) = phraseZone p
+  nounZone (Definite p) = phraseZone p
+  nounZone (TargetGroup q p) = phraseZone p
+  nounZone (CountedGroup q p) = phraseZone p
+  nounZone (AllOf p) = phraseZone p
   nounZone (EachOf grp) = nounZone grp
-  nounZone (YouAnd _) = Nothing
+  nounZone (Both _ _) = Nothing
   nounZone (LibrarySlice _ _ _) = Just Library
   nounZone (SomeOf _ grp) = nounZone grp
   nounZone TheRest = zoneOfGroup bs
@@ -4199,7 +3926,7 @@ mutual
   nounTy (CountedGroup q p) = seedTy p
   nounTy (AllOf p) = seedTy p
   nounTy (EachOf grp) = nounTy grp
-  nounTy (YouAnd _) = Nothing
+  nounTy (Both _ _) = Nothing
   nounTy (LibrarySlice _ _ _) = Nothing
   nounTy (SomeOf _ grp) = nounTy grp
   nounTy TheRest = tyOfGroup bs
@@ -4228,7 +3955,7 @@ mutual
   nounPlur (CountedGroup q p) = quantPlur q
   nounPlur (AllOf p) = ManyOf
   nounPlur (EachOf grp) = ManyOf
-  nounPlur (YouAnd _) = ManyOf
+  nounPlur (Both _ _) = ManyOf
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
   nounPlur (SomeOf q _) = quantPlur q
   nounPlur TheRest = ManyOf

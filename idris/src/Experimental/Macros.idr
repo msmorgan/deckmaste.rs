@@ -32,9 +32,46 @@ oneThrough : Nat -> Quantity
 oneThrough n = Range (Just 1) (Just n)
 
 public export
-target : (p : Predicate bs k) -> {auto tk : Targetable k} ->
-         {auto 0 af : AnyTargetAtCount (exactly 1) p} -> Noun bs k
-target p = TargetGroup (exactly 1) p {tk} {af}
+target : (p : Predicate bs k) -> {auto tk : Targetable k} -> Noun bs k
+target p = TargetGroup (exactly 1) p {tk}
+
+||| "any target" [CR#115.4]: the class word, written out as the rule's own
+||| list — a creature, a player, a planeswalker or a battle. A function, not
+||| a row: the marking is spelling, and the expansion is what the rule says.
+||| -- spelling: "any target" — the whole target phrase in two words, never
+||| the four nouns coordinated.
+public export
+anyTarget : Predicate bs (Object \/ Player)
+anyTarget = Joined (Or [HasType Creature, HasType Planeswalker, HasType Battle])
+                   AnyPlayer
+
+||| "target creature or player", "target permanent or player", "target
+||| player or planeswalker": the cross-kind head, over any two descriptions.
+||| [CR#115.1] is the rule that admits it — a spell's targets are objects
+||| and/or players — not [CR#115.4], which covers the class word written
+||| INSTEAD of "target [something]". The arguments are player-then-object, as the retired row
+||| wrote them; the printed order of the two halves is the spelling layer's.
+||| -- spelling: the two halves joined by "or", in whichever order the card
+||| prints them.
+public export
+kindJoin : (who : Predicate bs Player) -> (what : Predicate bs Object) ->
+           Predicate bs (Object \/ Player)
+kindJoin who what = Joined what who
+
+||| "you and permanents you control" [CR#109.5]: the mixed group. It binds
+||| nothing jointly — see `Both` — so no clause reads the pair back.
+||| -- spelling: "you and [phrase]", the player half first.
+public export
+youAnd : (n : Noun bs Object) -> Noun bs (Player \/ Object)
+youAnd n = Both You n
+
+||| "that creature or player", "that permanent or player": the demonstrative
+||| that reads a joined mention back. The word is `JoinW`, whose kind is now
+||| the join, so the read lands at the antecedent's own kind.
+||| -- spelling: "that " then the two halves as the antecedent spelled them.
+public export
+thatJoin : {auto 0 ok : countWord JoinW bs = 1} -> Noun bs (Object \/ Player)
+thatJoin = That JoinW {ok}
 
 
 public export
@@ -199,32 +236,33 @@ nontoken = Not IsToken
 
 public export
 a : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-    {auto 0 af : AnyTargetFree p} -> Noun bs k
-a p = Indefinite Unmarked p {ph} {af}
+    Noun bs k
+a p = Indefinite Unmarked p {ph}
 
 public export
 aTheirChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
                {auto 0 ch : countChoosers bs = 1} ->
-               {auto 0 af : AnyTargetFree p} -> Noun bs k
-aTheirChoice p = Indefinite (TheirChoice {ch}) p {ph} {af}
+               Noun bs k
+aTheirChoice p = Indefinite (TheirChoice {ch}) p {ph}
 
 public export
 aYourChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-              {auto 0 af : AnyTargetFree p} -> Noun bs k
-aYourChoice p = Indefinite YourChoice p {ph} {af}
+              Noun bs k
+aYourChoice p = Indefinite YourChoice p {ph}
 
 public export
 aAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-            {auto 0 af : AnyTargetFree p} -> Noun bs k
-aAtRandom p = Indefinite AtRandom p {ph} {af}
+            Noun bs k
+aAtRandom p = Indefinite AtRandom p {ph}
 
 public export
 anOpponent : Noun bs Player
 anOpponent = a Opponent
 
 public export
-anyOtherTarget : {auto 0 ok : anyTargeted Object bs = True} -> Predicate bs Object
-anyOtherTarget = And [AnyTarget, Other {ok = eqToSo ok}] {oa = eqToSo ok}
+anyOtherTarget : {auto 0 ok : anyTargeted (Object \/ Player) bs = True} ->
+                 Predicate bs (Object \/ Player)
+anyOtherTarget = And [anyTarget, Other {ok = eqToSo ok}] {oa = eqToSo ok}
 
 
 public export
@@ -260,27 +298,26 @@ manaValueOf n = StatOf ManaValue n {one}
 public export
 nForEach : {k : Kind} -> (n : Nat) -> (p : Predicate bs k) ->
            {auto 0 nz : IsSucc n} ->
-           {auto 0 af : AnyTargetFree p} -> Amount bs
-nForEach n p = Times n (CountOf p {af}) {nz}
+           Amount bs
+nForEach n p = Times n (CountOf p) {nz}
 
 public export
 forEach : {k : Kind} -> (p : Predicate bs k) ->
-          {auto 0 af : AnyTargetFree p} -> Amount bs
-forEach p = nForEach 1 p {af}
+          Amount bs
+forEach p = nForEach 1 p
 
 public export
 destroy : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
-          {auto 0 na : NotPlayerSpanning n} -> Effect bs
-destroy n = Composite Destroy (Move n graveyardZ {na}) {ok = DestroyB {z = ok} {na}}
+          Effect bs
+destroy n = Composite Destroy (Move n graveyardZ) {ok = DestroyB {z = ok}}
 
 public export
-exile : (n : Noun bs Object) -> {auto 0 na : NotPlayerSpanning n} -> Effect bs
-exile n = Composite Exile (Move n exileZ {na}) {ok = ExileB {na}}
+exile : (n : Noun bs Object) -> Effect bs
+exile n = Composite Exile (Move n exileZ) {ok = ExileB}
 
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
-                    (kind : CounterKind) ->
-                    {auto 0 na : NotPlayerSpanning n} -> Effect bs
+                    (kind : CounterKind) -> Effect bs
 exileWithCounters n amt kind =
   Composite Exile
             (Move n exileZ
@@ -295,10 +332,9 @@ returnToBattlefieldWithCounters :
   {auto 0 one : nounPlur who = OneOf} ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-  {auto 0 na : NotPlayerSpanning n} ->
   Effect bs
 returnToBattlefieldWithCounters n who amt kind =
-  Move n battlefieldZ {pl} {na}
+  Move n battlefieldZ {pl}
        {riders = MkMoveRiders [] (Just who) {one = OneController {one}}
                               {counters = Just (MkCounterRider amt kind)}}
 
@@ -306,52 +342,46 @@ public export
 putOntoBattlefield : (n : Noun bs Object) ->
                      {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
                      {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-                     {auto 0 na : NotPlayerSpanning n} ->
                      Effect bs
-putOntoBattlefield n = Move n battlefieldZ {pl} {na}
+putOntoBattlefield n = Move n battlefieldZ {pl}
 
 public export
 putOntoBattlefieldTapped : (n : Noun bs Object) ->
                            {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
                            {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-                           {auto 0 na : NotPlayerSpanning n} ->
                            Effect bs
 putOntoBattlefieldTapped n =
-  Move n battlefieldZ {pl} {na} {riders = MkMoveRiders [EntersTapped] Nothing}
+  Move n battlefieldZ {pl} {riders = MkMoveRiders [EntersTapped] Nothing}
 
 public export
 putOntoBattlefieldTappedAttacking :
   (n : Noun bs Object) ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-  {auto 0 na : NotPlayerSpanning n} ->
   Effect bs
 putOntoBattlefieldTappedAttacking n =
-  Move n battlefieldZ {pl} {na} {riders = MkMoveRiders [EntersTapped, EntersAttacking] Nothing}
+  Move n battlefieldZ {pl} {riders = MkMoveRiders [EntersTapped, EntersAttacking] Nothing}
 
 public export
 putOntoBattlefieldUnderYourControl :
   (n : Noun bs Object) ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-  {auto 0 na : NotPlayerSpanning n} ->
   Effect bs
 putOntoBattlefieldUnderYourControl n =
-  Move n battlefieldZ {pl} {na} {riders = MkMoveRiders [] (Just You)}
+  Move n battlefieldZ {pl} {riders = MkMoveRiders [] (Just You)}
 
 public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
-            {auto 0 ok : OnBattlefield (nounZone n)} ->
-            {auto 0 na : NotPlayerSpanning n} -> Effect bs
+            {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
 sacrifice agent n =
-  Does agent Sacrifice (Move n graveyardZ {na}) {tb = SacrificeB {z = ok} {na}}
+  Does agent Sacrifice (Move n graveyardZ) {tb = SacrificeB {z = ok}}
 
 public export
 discards : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
-           {auto 0 dk : DiscardOk n} ->
-           {auto 0 na : NotPlayerSpanning n} -> Effect bs
+           {auto 0 dk : DiscardOk n} -> Effect bs
 discards agent n =
-  Does agent Discard (Move n graveyardZ {na}) {tb = DiscardB {d = dk} {na}}
+  Does agent Discard (Move n graveyardZ) {tb = DiscardB {d = dk}}
 
 public export
 discardsACard : (agent : Noun bs Player) -> Effect bs
@@ -647,16 +677,15 @@ public export
 itsA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
        {auto 0 sy : PredSays p} ->
        {auto 0 zc : ZoneFits (zoneOfIt bs) (seedZone p)} ->
-       {auto 0 af : AnyTargetFree p} -> Condition bs
-itsA p = Matches (It {ok}) p {sy} {zc} {af}
+       Condition bs
+itsA p = Matches (It {ok}) p {sy} {zc}
 
 public export
 itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
           {auto 0 sy : PredSays p} ->
           {auto 0 zc : ZoneFits (zoneOfIt bs) (seedZone p)} ->
-          {auto 0 af : AnyTargetFree p} ->
           {auto 0 nf : predNegFree p = True} -> Condition bs
-itIsntA p = NotCond (itsA p {ok} {sy} {zc} {af})
+itIsntA p = NotCond (itsA p {ok} {sy} {zc})
 
 
 public export
@@ -754,17 +783,15 @@ revealsTheirHand who = Expose Reveal who (ExposedZone (handOf (They {ok})))
 
 public export
 searchLibraryFor : (p : Predicate bs Object) ->
-                   {auto 0 af : AnyTargetFree p} ->
                    {auto 0 zf : ZoneFree p} -> Effect bs
-searchLibraryFor p = Search You (OneZone yourLibrary) p {af} {zf}
+searchLibraryFor p = Search You (OneZone yourLibrary) p {zf}
 
 ||| "Search <player>'s graveyard, hand, and library for …": the three-zone
 ||| sweep, possessor-anchored [CR#701.23a].
 public export
 searchZonesOf : (whose : Noun bs Player) -> (p : Predicate bs Object) ->
-                {auto 0 af : AnyTargetFree p} ->
                 {auto 0 zf : ZoneFree p} -> Effect bs
-searchZonesOf whose p = Search You (GraveyardHandLibraryOf whose) p {af} {zf}
+searchZonesOf whose p = Search You (GraveyardHandLibraryOf whose) p {zf}
 
 ||| "<player> puts <it> into/onto <zone>": the agentive placement clause.
 public export
@@ -772,10 +799,9 @@ puts : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
        (to : ZoneExpr (nomIntro n)) ->
        {auto 0 ok : DestOk to} ->
        {auto 0 arr : ArrangementOk (nounPlur n) to} ->
-       {auto 0 na : NotPlayerSpanning n} ->
        {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
        Effect bs
-puts agent n to = Does agent Put (Move n to {ok} {arr} {na} {pl}) {tb = PutB}
+puts agent n to = Does agent Put (Move n to {ok} {arr} {pl}) {tb = PutB}
 
 public export
 shuffle : Effect bs
@@ -838,8 +864,7 @@ shieldingIt : {k : Kind} -> (n : Noun bs k) ->
 shieldingIt n = ToRecipient n {rk}
 
 public export
-exileUntil : (n : Noun bs Object) -> {auto 0 na : NotPlayerSpanning n} ->
-             (ev : GameEvent (preIntro (exile n))) ->
+exileUntil : (n : Noun bs Object) -> (ev : GameEvent (preIntro (exile n))) ->
              Effect bs
 exileUntil n ev = HeldUntil (exile n) ev {ok = Oh}
 
@@ -908,12 +933,11 @@ public export
 mills : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
         (whose : Noun (nomIntro agent) Player) ->
         {auto 0 sp : SlicePossessor whose} ->
-        {auto 0 na : NotPlayerSpanning (LibrarySlice OnTop amt whose {sp})} ->
         Effect bs
 mills agent amt whose =
   Does agent Mill
-       (Move (LibrarySlice OnTop amt whose {sp}) graveyardZ {na})
-       {tb = MillB {sp} {na}}
+       (Move (LibrarySlice OnTop amt whose {sp}) graveyardZ)
+       {tb = MillB {sp}}
 
 ||| "Enchant creature": a keyword whose parameter is a subject phrase.
 public export

@@ -10,12 +10,6 @@ import Experimental.Unspellable
 %unbound_implicits off
 
 
-||| "any target and any target"
-||| The class word is written ONCE per phrase; this names one referent twice.
-public export
-badDoubleAnyTarget : Unspellable (Predicate [] Object) (\ok =>
-  And [AnyTarget, AnyTarget] {at = ok})
-badDoubleAnyTarget Oh impossible
 
 
 ||| "another other creature"
@@ -28,12 +22,6 @@ badDoubleOther : Unspellable
 badDoubleOther Oh impossible
 
 
-||| "a creature the controller of any target controls"
-||| "Any target" here sits under the non-targeting determiner a possessor phrase imposes.
-public export
-badAnyTargetEmbedded : Unspellable (Noun [] Object) (\ok =>
-  Macros.a (And [Macros.creature, ControlledBy (ControllerOf (Macros.target AnyTarget))]) {af = ok})
-badAnyTargetEmbedded Oh impossible
 
 
 ||| "You discard it." of a referent nothing has placed
@@ -45,12 +33,6 @@ badDiscardIt : Unspellable
 badDiscardIt DiscardTracked impossible
 
 
-||| "You discard any target."
-||| The class word heads no zone clause and takes no [CR#109.2] default, so discard has no zone.
-public export
-badDiscardAnyTarget : Unspellable (Effect []) (\ok =>
-  Macros.discards You (Macros.target AnyTarget) {dk = Builtin.fst ok, na = Builtin.snd ok})
-badDiscardAnyTarget (_, MkNotPlayerSpanning) impossible
 
 
 ||| "a creature you control in your graveyard"
@@ -69,45 +51,17 @@ badEmptySequence : Unspellable (Effect []) (\ok =>
 badEmptySequence ItIsSucc impossible
 
 
-||| "Destroy any target."
-||| "Any target" projects no zone [CR#115.4]; destruction moves a battlefield permanent [CR#701.8a].
-public export
-badDestroyAnyTarget : Unspellable (Effect []) (\ok =>
-  Macros.destroy (Macros.target AnyTarget) {ok = Builtin.fst ok, na = Builtin.snd ok})
-badDestroyAnyTarget (OnField, _) impossible
-
-
-||| "Tap any target."
-||| The same silence one verb over: tapping takes a battlefield object [CR#701.26a].
-public export
-badTapAnyTarget : Unspellable (Effect []) (\ok =>
-  SetStatus Tapped (Macros.target AnyTarget) {ok})
-badTapAnyTarget OnField impossible
 
 
 ||| "This deals 3 damage to any target. Destroy it."
 ||| The binding records the any-target phrase's own silence, so "it" inherits no battlefield.
 public export
 badDestroyAnyTargetRemention : Unspellable (Effect []) (\ok =>
-  Sequentially [DealDamage This (Lit 3) (Macros.target AnyTarget),
+  Sequentially [DealDamage This (Lit 3) (Macros.target Macros.anyTarget),
                Macros.destroy It {ok}])
 badDestroyAnyTargetRemention OnField impossible
 
 
-||| "Exile any target."
-||| [CR#115.4]'s class spans players, so the phrase is ruled out before a placement sets any zone.
-public export
-badExileAnyTarget : Unspellable (Effect []) (\ok =>
-  Macros.exile (Macros.target AnyTarget) {na = ok})
-badExileAnyTarget MkNotPlayerSpanning impossible
-
-
-||| "Counter any target."
-||| [CR#115.4] excludes spells from the class, and countering demands a card on the stack [CR#112.1].
-public export
-badCounterAnyTarget : Unspellable (Effect []) (\ok =>
-  Macros.counterSpell (Macros.target AnyTarget) {zn = ok})
-badCounterAnyTarget OnTheStack impossible
 
 
 ||| "This deals 1 damage to this spell."
@@ -150,20 +104,6 @@ badCrossZoneDisjunction : Unspellable (Predicate [] Object) (\ok =>
 badCrossZoneDisjunction Oh impossible
 
 
-||| "any target or creature"
-||| "Any target" is already the union [CR#115.4] fixes; coordinating it re-opens a closed class.
-public export
-badAnyTargetInOr : Unspellable (Predicate [] Object) (\ok =>
-  Or [AnyTarget, Macros.creature] {cd = ok})
-badAnyTargetInOr Oh impossible
-
-
-||| "any target or creature" with the class word wrapped in a conjunction
-||| Every alternative is read through `flattenPs`, so a singleton wrapper launders nothing.
-public export
-badAnyTargetInOrLaundered : Unspellable (Predicate [] Object) (\ok =>
-  Or [And [AnyTarget], Macros.creature] {cd = ok})
-badAnyTargetInOrLaundered Oh impossible
 
 
 ||| "other creature or land"
@@ -264,12 +204,6 @@ badCantInGraveyard : Unspellable (Effect []) (\ok =>
 badCantInGraveyard Oh impossible
 
 
-||| "Any target can't block this turn."
-||| The class word names [CR#115.4]'s damage class and fixes no type for the deed's head demand.
-public export
-badCantAnyTarget : Unspellable (Effect []) (\ok =>
-  Macros.cantBlock (Macros.target AnyTarget) (Just Macros.thisTurn) {dp = ok})
-badCantAnyTarget Participant impossible
 
 
 ||| "noncreature with power 2 or less"
@@ -298,20 +232,6 @@ badMixedCharacteristicDisjunct : Unspellable (Predicate [] Object) (\ok =>
 badMixedCharacteristicDisjunct Oh impossible
 
 
-||| "if you control any target"
-||| The class word names [CR#115.4]'s damage class and describes no object for an existential.
-public export
-badExistsAnyTarget : Unspellable (Condition []) (\ok =>
-  Exists AnyTarget {af = ok})
-badExistsAnyTarget Oh impossible
-
-
-||| "Destroy target artifact if it's any target."
-||| The class word fixes its class by rule [CR#115.4] rather than describing the referent.
-public export
-badMatchesAnyTarget : Unspellable (Effect []) (\ok =>
-  OnlyIf (Macros.destroy (Macros.target Macros.artifact)) (Macros.itsA AnyTarget {af = ok}) Nothing)
-badMatchesAnyTarget Oh impossible
 
 
 ||| "if target creature is an artifact"

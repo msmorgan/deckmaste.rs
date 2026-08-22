@@ -184,16 +184,6 @@ badUnflipEvent Oh impossible
 
 
 
-||| "target creature the controller of any target controls"
-||| The singular quantity licenses the class word as head, not inside a possessor.
-public export
-badEmbeddedAnyTargetExact1 : Unspellable (Noun [] Object) (\ok =>
-  Macros.target (And [Macros.creature, ControlledBy (ControllerOf (Macros.target AnyTarget))]) {af = ok})
-badEmbeddedAnyTargetExact1 Oh impossible
-
-
-
-
 ||| "Target creature card in your graveyard doesn't untap during its controller's next untap step."
 ||| The timed clause's subject stands on the battlefield [CR#701.26a].
 public export
@@ -212,17 +202,6 @@ badUntapNextAmbiguousIt : Unspellable (Effect []) (\ok =>
 badUntapNextAmbiguousIt Refl impossible
 
 
-||| "Whenever you cast any target, draw a card."
-||| The cast header names a spell, never [CR#115.4]'s damage class.
-public export
-badCastsAnyTarget : Unspellable Ability (\ok =>
-  Triggered Whenever
-            (Casts You (Macros.target AnyTarget)
-                   {zn = Builtin.fst ok}
-                   {nt = Builtin.fst (Builtin.snd ok)})
-            Macros.drawACard
-            {hn = Builtin.snd (Builtin.snd ok)})
-badCastsAnyTarget (_, (Oh, _)) impossible
 
 
 ||| "Exile target creature tapped."

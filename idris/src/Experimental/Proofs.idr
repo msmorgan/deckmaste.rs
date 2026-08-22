@@ -158,7 +158,7 @@ badStale OnField impossible
 ||| A delayed clause announces its own targets [CR#603.3d,601.2c], so "other" has no witness.
 public export
 badDelayedOther : Unspellable (Effect []) (\ok =>
-  Sequentially [DealDamage This (Lit 2) (Macros.target AnyTarget),
+  Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
                Delayed (BeginningOf EndStep NoPossessor) (DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))])
 badDelayedOther Refl impossible
 
@@ -543,7 +543,7 @@ badDiscardedCreatureWord : Unspellable Ability (\ok =>
   Activated (Do (Macros.discards You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
             (DealDamage This
                           (Macros.manaValueOf (TheVerbed Discard (TypeW Creature) {ok}))
-                          (Macros.target AnyTarget)))
+                          (Macros.target Macros.anyTarget)))
 badDiscardedCreatureWord Refl impossible
 
 
@@ -559,7 +559,7 @@ badUnboundTheirChoice Refl impossible
 ||| "That much" with nothing done yet: no outcome to read.
 public export
 badThatMuchUnbound : Unspellable (Effect []) (\ok =>
-  DealDamage This (ThatMuch {ok}) (Macros.target AnyTarget))
+  DealDamage This (ThatMuch {ok}) (Macros.target Macros.anyTarget))
 badThatMuchUnbound Refl impossible
 
 
@@ -567,7 +567,7 @@ badThatMuchUnbound Refl impossible
 ||| Two event clauses leave "that much" ambiguous.
 public export
 badThatMuchAmbig : Unspellable (Effect []) (\ok =>
-  Sequentially [DealDamage This (Lit 3) (Macros.target AnyTarget),
+  Sequentially [DealDamage This (Lit 3) (Macros.target Macros.anyTarget),
                 Macros.losesLife You (Lit 2),
                 Macros.gainsLife You (ThatMuch {ok})])
 badThatMuchAmbig Refl impossible
@@ -612,24 +612,6 @@ public export
 badAttackingInHand : Unspellable (Predicate [] Object) (\ok =>
   And [Attacking, InZone Macros.handZ] {zc = ok})
 badAttackingInHand Oh impossible
-
-
-||| "any target in a graveyard"
-||| [CR#115.4] closes the class to creatures, players, planeswalkers and battles;
-||| none of them is in a graveyard, so the restricted phrase denotes nothing.
-public export
-badAnyTargetInGraveyard : Unspellable (Predicate [] Object) (\ok =>
-  And [AnyTarget, InZone Macros.graveyardZ] {at = ok})
-badAnyTargetInGraveyard Oh impossible
-
-
-||| "a any target" / "each any target"
-||| [CR#115.4] makes "any target" the whole target phrase, so a second determiner
-||| over it determines something already determined.
-public export
-badAnyTargetUnderA : Unspellable (Noun [] Object) (\ok =>
-  Macros.a AnyTarget {af = ok})
-badAnyTargetUnderA Oh impossible
 
 
 ||| "Discard this creature."
