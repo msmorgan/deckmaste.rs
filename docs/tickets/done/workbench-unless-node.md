@@ -66,5 +66,5 @@ colon. Probe: `Can't find an implementation for So False`.
 `Macros.counterSpell` already carries `CounterSpell`'s zone implicit.
 
 **Gates.** Clean 18/18 exit 0; cards implicit grep 0; `cite check
---list-noncompliant` empty, 0 stale of 15982 (no `bless` — [CR#118.12a,107.5]
-already locked); `cite audit --diff` read on all 6 sites.
+--list-noncompliant` empty, 0 stale of 15982 (no `bless` —
+[CR#118.12a,107.5] already locked); `cite audit --diff` read on all 6 sites.
