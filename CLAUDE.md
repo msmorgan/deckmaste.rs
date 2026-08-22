@@ -35,6 +35,12 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   `deckmaste_spelling`'s splice-and-reparse render/compile machinery (that
   crate itself survives). `deckmaste_legacy_render` is legacy independently
   of the rewrite.
+  `deckmaste_features` (v1's feature vocabulary: strata, witness metadata,
+  `chart_feature!`, first-character onset) also deletes at cutover — its last
+  non-legacy use is two frame re-exports in `macro_ron`, which the frame seam
+  replaces. v2 never depends on it: `Onset` is a sealed compiler feature like
+  `Number`, normalized rows carry effective onset as data, and the pronunciation
+  recipe is v2-owned code.
 - **The rewrite's crates:** `deckmaste_english_v2` (takes the
   `deckmaste_english` name at cutover), the future `deckmaste_construction`
   declaration compiler, and the stable shared layer `deckmaste_data`
