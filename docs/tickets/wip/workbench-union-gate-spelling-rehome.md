@@ -99,3 +99,83 @@ Do not touch any crate slated for deletion at the english_v2 cutover.
   `workbench-union-family-macros`'s job, and this ticket is its prerequisite.
 
 Standard constraints apply.
+
+## As-landed
+
+**The drain this ticket was to precede has already landed.**
+`Predicate.AnyTarget`, `Predicate.KindJoin` and `Noun.YouAnd` left the core in
+`workbench-union-family-macros`, replaced by `Macros.anyTarget` / `kindJoin` /
+`youAnd` / `thatJoin` over a joined kind `Object \/ Player`, and the Idris
+docstrings carrying the measured tables were deleted with them. The re-homing
+is therefore still the deliverable — and the only one — but no number could be
+quoted from its site; every figure below was re-measured from the corpus.
+
+**Landed:** `crates/deckmaste_english_v2/docs/union-spellings.md` (407 lines),
+plus a seven-line `//` pointer above `construction demonstrative` in
+`crates/deckmaste_english_v2/src/constructions.rs`. No Idris change. The
+declaration set is still the 204-line early slice with no union family
+declarable, so the content is homed in the form the declaration author
+consumes, beside the declarations, per this ticket's own consumption boundary.
+
+**Method.** Distinct supported oracle lines via the `mtg-rules` skill's
+`scripts/corpus --match`, re-measured 2026-08-22, every regex printed beside
+its count in the file. The deleted docstrings' regexes are unrecoverable, so
+the two measurements are not reconcilable line by line; the file states both
+figures wherever they differ.
+
+**Re-measured against this ticket's inventory** (ticket → mine):
+
+- Union head total 326 → **319**. Grid: player 279 → **258**, opponent 45 →
+  **61**; planeswalker 205 → **236**, permanent 100 → **63**, battle 17 →
+  **16**, creature 4 → **4**. All eight cells attested either way. The
+  ticket's own subtotals do not agree with each other (279 + 45 = 324, not
+  326). The planeswalker and permanent errors run opposite ways while the
+  totals nearly match — consistent with the docstring counting some
+  demonstrative readbacks as heads.
+- Order: permanent 92 object-first / 8 player-first → **46 / 17**; battle 16
+  player-first / 1 object-first → **15 / 1**. Covariance still fails.
+- Head modifier-bearing 11 of 326 → **22 of 319** (21 genuine; one is a PP
+  attaching to "attack"). Nine distinct spellings, enumerated in the file.
+- Not coordinable, not negatable: both **0**, agreeing.
+- Mixed group 35 sentences → **36**; "and" 23 / "and/or" 12 → **28 / 8**. The
+  crossing pair Channel Harm / Refraction Trap verified by `scripts/card`.
+  "target player and creatures they control" **0**, agreeing.
+- Class word: "creature, planeswalker, or player" **2**, agreeing;
+  "creature, player, or planeswalker" **0**. "any target" itself 748 lines.
+- Anaphor 48 readbacks → **68**; 33 union-headed → **51**; 10 class-word →
+  **10**, agreeing exactly; 15 no-pair → **17**.
+- Seven-verb zero: **0** for all of destroy, exile, tap, untap, return,
+  counter and sacrifice, agreeing. A looser window returns 29 lines, all
+  false positives; the file records the anchoring the regex needs.
+
+**Two of this ticket's claims are wrong on their own terms**, and the file
+says so rather than restating them:
+
+1. "`AnyTargetLone` … the class word bears a modifier in none." Four printed
+   lines carry a restrictive relative clause on the class word ("any target
+   that isn't a Dragon", "…that isn't a Dinosaur", "…that isn't a commander",
+   "…that was dealt damage this turn"). The discipline that measures 0 is the
+   narrower one: no pre-nominal modifier, no control restriction. "any other
+   target" (16 lines) is the complement, not a modifier.
+2. "The player half is fixed at `You`, 35/35." True of the 36 "you and …"
+   lines, and true of the exact spelling the ticket tested. But 14 printed
+   lines coordinate a non-"you" player half with a distributive object half —
+   "deals N damage to target player and each creature that player controls",
+   "to each opponent and each creature they control". A declaration that
+   hard-wires "you" refuses them.
+
+**A third divergence, recorded in the file.** The head's class inventory is
+not [CR#115.4]'s. That rule names creatures, players, planeswalkers and
+battles — the class word's list — while the head's second-largest cell is
+"permanent" (63 lines), a word the rule does not use. The two heads do not
+draw on the same inventory, which is a fourth independent answer to this
+ticket's "is the class word the union head under another spelling?".
+
+**Out of scope, honoured.** `headIsPlaceless`, `nounSpansPlayers`, `bindFor`'s
+union branch and `DamageRecipient`'s union rows are not written down; the file
+closes by naming them as derivable from the joined kind.
+
+**Gates.** `cargo fmt`; `cargo clippy -p deckmaste_english_v2` 0 warnings;
+`cargo test -p deckmaste_english_v2` green; `cargo xtask cite check
+--list-noncompliant` empty; `cite check` 0 stale; `cite bless`; `cite audit
+--diff` read over every citation site. Not committed.

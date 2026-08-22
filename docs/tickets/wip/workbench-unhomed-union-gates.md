@@ -87,3 +87,77 @@ measured rows — this ticket owns the two that no measurement alone answers.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## As-landed
+
+Same situation as the sibling ticket: the drain landed first.
+`AnyTarget` / `KindJoin` / `YouAnd` left the core in
+`workbench-union-family-macros` for `Macros.anyTarget` / `kindJoin` / `youAnd`
+/ `thatJoin` at kind `Object \/ Player`, and the docstrings carrying the
+measurements were deleted with them. Under the doctrine — the semantics admits
+anything the rules make CR-meaningful, attestation lives at the spelling
+boundary (`docs/memory/rulings/measurements-live-in-pins.md`) — §1's table is
+spelling-boundary content and was the only thing left to build.
+
+**§1, the shared demonstrative surface — DELIVERED.** The collapse table lands
+as §4 of `crates/deckmaste_english_v2/docs/union-spellings.md`: antecedent
+spelling → demonstrative words, ten rows, with the four rules it encodes. Its
+substance, re-measured 2026-08-22 (this ticket's figures → mine):
+
+- 48 readbacks → **68**; 33 union-headed → **51**; 15 with no pair → **17**;
+  **10** class-word antecedents → **10**, reproducing exactly.
+- **The generic surface is shared and nothing distinguishes the two
+  antecedents.** 8 class-word lines and 28 permanent-headed lines write the
+  identical "that permanent or player". The half-naming form does not
+  separate them either: Chain Lightning and Chain of Plasma announce "any
+  target" and read it back as "that player or that **permanent's**
+  controller", the same construction a permanent-pair head uses.
+- **The echo is exact in both directions.** A planeswalker head with a generic
+  readback: 0 lines. A permanent head with a planeswalker-naming readback: 0
+  lines. No crossing.
+- Naming a half is always a coordination of two demonstratives reaching the
+  object half through its controller (23 lines); not one of the 68 is a bare
+  "that player"/"that permanent" over a union antecedent.
+- One demonstrative word throughout; the single "those" line is ordinary
+  number agreement.
+
+The table is delivered as a rule, not a refusal: it fixes what a powerset
+join's `{creature, player, planeswalker, battle}` and `{permanent, player}`
+must both spell, so the risk this ticket named — undergeneration and
+mis-generation — is answered.
+
+**§2, `IsClassWord` / modifier discipline — DROPPED by conductor ruling.**
+Modifier discipline is corpus knowledge, a spelling fact; it gets no semantics
+gate and no lexical marker. Recorded spelling-side instead, in §1 and §3 of
+the same file: the union head bears a modifier in **22 of 319** lines (this
+ticket's figure: 11 of 326), the class word in **0** lines of the kind that
+matters — no pre-nominal modifier, no control restriction, so "any red
+target" and "any target you control" are both unattested. This ticket's flat
+"the class word in none" is not quite right and the file says so: four lines
+carry a restrictive relative clause on the class word ("any target that isn't
+a Dragon", "…that isn't a Dinosaur", "…that isn't a commander", "…that was
+dealt damage this turn"), and "any other target" (16 lines) is the complement
+rather than a modifier. The gates this section listed to preserve —
+`anyTargetFree` and its five siblings, `AnyTargetLone`, `AnyTargetAtCount`,
+`negatable AnyTarget = False` — were retired in
+`workbench-union-family-macros` as vacuous or unpinnable once the kind index
+did the refusing; nothing here reinstates them.
+
+**§3, the ledger — RESOLVED, and not by this ticket.**
+`docs/tickets/done/workbench-join-is-a-constructor.md` settled both rows:
+`Object \/ Ability` is admitted, witnessed by `spellOrAbilityJoin` in ProofsG
+(Bolt Bend's "target spell or ability") with `abilityUnderSpellOrAbility`
+reading the `Ability` half back through `kindLteJoinR`; and
+`lookbackSubjectOk (a \/ b)` is now both halves rather than a silent yes, so
+the joined-kind lookback subject inherits nothing.
+
+**No Idris change in this ticket, and no lexical marker minted.** The
+acceptance clause "the modifier discipline still refuses everything it refuses
+today, with its pins intact" is superseded: those pins were retired by the
+ruling that a count is never a refusal, and the discipline is now declared at
+the spelling boundary instead.
+
+**Gates.** Rust-side only, as the deliverable is: `cargo fmt`; `cargo clippy
+-p deckmaste_english_v2` 0 warnings; `cargo test -p deckmaste_english_v2`
+green; `cargo xtask cite check --list-noncompliant` empty; `cite check` 0
+stale; `cite bless`; `cite audit --diff` read. Not committed.

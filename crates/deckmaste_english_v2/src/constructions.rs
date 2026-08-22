@@ -122,6 +122,13 @@ constructions! {
         derive number = Values::Singular;
         form common = lex(article) noun(head);
     }
+    // The union family is not declared here yet: the cross-kind head ("target
+    // player or planeswalker"), the mixed group ("you and permanents you
+    // control"), the class word "any target" [CR#115.4], and the demonstrative
+    // that reads one of them back. Its measured spelling tables live in
+    // `docs/union-spellings.md` — the admissible-pair grid, order and modifier
+    // discipline, the seven-verb zero, and the collapse rule fixing which words
+    // this demonstrative spells for each antecedent.
     construction demonstrative: NounPhrase {
         element DemonstrativeNp { word: lex Demonstrative, head: lex Noun, }
         derive agreement = match word {
