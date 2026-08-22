@@ -33,9 +33,9 @@ Completion evidence on the task-closed tree:
   gap, overlap, synthetic-claim, provenance-plan-mismatch,
   selection-exception-inventory, exception-use, and stored-form-tag counter is
   zero;
-- the seven separate elapsed samples were expand 0.22s, report 0.18s, parse
-  8.95s, roundtrip 8.29s, ambiguity 9.00s, coverage 9.05s, and
-  require-complete 8.03s. Every sample stayed at or below 16.26 seconds and
+- the seven separate elapsed samples were expand 0.20s, report 0.15s, parse
+  8.83s, roundtrip 8.16s, ambiguity 8.64s, coverage 8.86s, and
+  require-complete 8.00s. Every sample stayed at or below 16.26 seconds and
   below its named warning threshold, so no `WARNING` line was emitted. The
   require-complete probe reported the expected 412-of-32,641 Stage 5 boundary.
 

@@ -25,9 +25,9 @@ selected, covered, byte-exact, and totally owned, including 356 empty
 documents, while 32,229 are ordinary parse failures. The elapsed-time ceiling
 remains 16.26 seconds for each of the seven corpus-scale gates. The Plan 06
 measured samples, used for the next plan's named 1.5x WARNING thresholds, are:
-expand 0.22s, report 0.18s, parse 8.95s, roundtrip 8.29s, ambiguity 9.00s,
-coverage 9.05s, and require-complete 8.03s. Therefore Plan 07 warns at or above
-0.33s, 0.27s, 13.425s, 12.435s, 13.50s, 13.575s, and 12.045s respectively.
+expand 0.20s, report 0.15s, parse 8.83s, roundtrip 8.16s, ambiguity 8.64s,
+coverage 8.86s, and require-complete 8.00s. Therefore Plan 07 warns at or above
+0.30s, 0.225s, 13.245s, 12.24s, 12.96s, 13.29s, and 12.00s respectively.
 Those figures are the starting point, not Stage 5 completion evidence.
 
 Before implementing each remaining plan, author and obtain approval of its
