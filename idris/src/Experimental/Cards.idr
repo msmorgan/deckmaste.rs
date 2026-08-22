@@ -1985,6 +1985,16 @@ diminish =
                              (Just Macros.untilEndOfTurn)) ]
        Nothing
 
+||| Cycle of Life
+||| "Target creature you cast this turn has base power and toughness 0/1
+||| until your next upkeep." — the subject is a battlefield permanent, so
+||| `CastBy` reads as history rather than as a stack seed.
+cycleOfLife : Effect []
+cycleOfLife =
+  Continuously (HasBasePt (Macros.target (And [Macros.creature, CastBy You]))
+                          (Lit 0) (Lit 1))
+               (Just Macros.untilYourNextUpkeep)
+
 aboutFace : Card
 aboutFace =
   Macros.card "About Face" (Just [Macros.pip Red]) []

@@ -299,7 +299,10 @@ mutual
   seedZone (HasStatus _) = Just Battlefield
   seedZone (HasCounters _) = Nothing
   seedZone (ControlledBy _) = Nothing
-  seedZone (CastBy _) = Just Stack
+  -- Casting is history, not a location: [CR#400.7d] lets a permanent's
+  -- ability reference the spell it was cast as, and [CR#702.40a] counts
+  -- spells cast earlier this turn that have long left the stack.
+  seedZone (CastBy _) = Nothing
   seedZone (ExiledWith _) = Just Exile
   seedZone (And ps) = seedZoneAll ps
   seedZone (Or ps) = seedZoneJoin ps

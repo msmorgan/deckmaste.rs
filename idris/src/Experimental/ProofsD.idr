@@ -580,10 +580,3 @@ badCostSubjectOnBattlefield : Unspellable (StaticEffect []) (\ok =>
 badCostSubjectOnBattlefield MkCostSubject impossible
 
 
-||| "a creature card you cast in your graveyard"
-||| HELD: [CR#601.2a] puts the cast card on the stack, so whether `CastBy` seeds Stack at all is a zone-model question, not a widening.
-public export
-badCastInGraveyard : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, CastBy You, InZone Macros.graveyardZ] {zc = ok})
-badCastInGraveyard Oh impossible
-
