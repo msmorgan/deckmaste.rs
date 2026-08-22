@@ -1,16 +1,15 @@
 ---
-needs: [english-v2-plan-05-structural-declarations]
+needs: [english-v2-plan-06-forms-and-selection]
 ---
-Continue the English v2 Stage 5 grammar buildout from the integrated Plan 05
-structural declaration substrate through Plans 06–10. Authority remains
+Continue the English v2 Stage 5 grammar buildout from the integrated Plan 06
+forms-and-selection substrate through Plans 07–10. Authority remains
 `docs/decisions/english-v2-rewrite.md`; preserve the generated declaration
 authority, open declaration families, immutable parser environment,
 `OracleText` document root, structural ownership, and separator/terminator
-algebra established by Plans 03–05.
+algebra established by Plans 03–06.
 
 The remaining roadmap is:
 
-- Plan 06: forms and selection;
 - Plan 07: editorial and nominal grammar;
 - Plan 08: ability and logic grammar;
 - Plan 09: effect grammar;
@@ -21,12 +20,14 @@ registries; the stub-authoring tickets (`builtin-v2-keyword-action-stubs`,
 `builtin-v2-keyword-ability-stubs`, `builtin-v2-creature-type-stubs`) must land
 before the plans that read them — Plan 10 at the latest.
 
-The locked Plan 05 corpus baseline is 32,285 normalized units: 56 are selected,
-covered, byte-exact, and totally owned, while 32,229 are ordinary parse
-failures. The elapsed-time ceiling remains 16.26 seconds for each of the seven
-corpus-scale gates. The Plan 05 measured samples, used for the next plan's named
-1.5x WARNING thresholds, are: expand 2.75s, report 0.15s, parse 7.50s,
-roundtrip 7.12s, ambiguity 7.87s, coverage 7.96s, and require-complete 7.16s.
+The locked Plan 06 corpus baseline is 32,641 normalized units: 412 are
+selected, covered, byte-exact, and totally owned, including 356 empty
+documents, while 32,229 are ordinary parse failures. The elapsed-time ceiling
+remains 16.26 seconds for each of the seven corpus-scale gates. The Plan 06
+measured samples, used for the next plan's named 1.5x WARNING thresholds, are:
+expand 0.22s, report 0.18s, parse 8.95s, roundtrip 8.29s, ambiguity 9.00s,
+coverage 9.05s, and require-complete 8.03s. Therefore Plan 07 warns at or above
+0.33s, 0.27s, 13.425s, 12.435s, 13.50s, 13.575s, and 12.045s respectively.
 Those figures are the starting point, not Stage 5 completion evidence.
 
 Before implementing each remaining plan, author and obtain approval of its
