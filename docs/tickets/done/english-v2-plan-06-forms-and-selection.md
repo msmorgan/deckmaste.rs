@@ -20,7 +20,7 @@ remain intact. The declaration-language boundary is recorded in
 
 Completion evidence on the task-closed tree:
 
-- construction core: 258 unit tests passed;
+- construction core: 259 unit tests passed;
 - construction proc macro: all 42 compile-fail fixtures and 6
   compiled-consumer tests passed;
 - English v2: 124 library tests, 66 integration tests, and 2 doc tests passed;
