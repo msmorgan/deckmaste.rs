@@ -1503,6 +1503,101 @@ mod tests {
     }
 
     #[test]
+    fn catalog_identity_emits_typed_provider_metadata() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Supertype {
+                Basic = "basic",
+                Legendary = "legendary",
+                Ongoing = "ongoing",
+                Snow = "snow",
+                World = "world",
+            }
+            identity CardName {
+                generate catalog_identity { provider = CardNames; }
+            }
+            identity CardAlias {
+                generate catalog_identity { provider = CardNames; }
+            }
+            construction named: NounPhrase {
+                element NamedNp { name: identity CardName, }
+                derive onset = name.onset;
+                form vowel when name.onset is Vowel = "vowel" identity(name);
+                form consonant otherwise = "consonant" identity(name);
+            }
+            root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("representative catalog identity generates");
+
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "Supertype")),
+            ["Basic", "Legendary", "Ongoing", "Snow", "World"]
+        );
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "CatalogProvider")),
+            ["CardNames"]
+        );
+
+        let card_name =
+            syn::parse2::<syn::ItemStruct>(generated_item(&expansion, "CardName").tokens.clone())
+                .expect("generated CardName is a typed struct");
+        assert_eq!(
+            card_name
+                .fields
+                .iter()
+                .map(|field| {
+                    let ty = &field.ty;
+                    (
+                        field.ident.as_ref().unwrap().to_string(),
+                        quote::quote!(#ty).to_string(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                ("provider".to_owned(), "CatalogProvider".to_owned()),
+                (
+                    "canonical_identity".to_owned(),
+                    "std :: sync :: Arc < str >".to_owned(),
+                ),
+            ]
+        );
+
+        let named_item = |kind, name| {
+            expansion
+                .items()
+                .iter()
+                .find(|item| {
+                    matches!(
+                        &item.key,
+                        ItemKey::Named {
+                            kind: actual_kind,
+                            name: actual_name,
+                        } if *actual_kind == kind && actual_name == name
+                    )
+                })
+                .unwrap_or_else(|| panic!("generated {kind:?} `{name}` exists"))
+        };
+        assert_eq!(
+            named_item(NamedKind::Constant, "REQUIRED_CATALOG_PROVIDERS")
+                .tokens
+                .to_string(),
+            "pub (crate) const REQUIRED_CATALOG_PROVIDERS : & [CatalogProvider] = & [CatalogProvider :: CardNames] ;"
+        );
+
+        assert!(
+            expansion.items().iter().any(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name,
+                    } if name == "scan_lexical"
+                )
+            }),
+            "catalog grammar emits its indexed scanner entry point"
+        );
+    }
+
+    #[test]
     fn declaration_noun_generated_body_is_pinned() {
         let expansion = crate::generate(quote::quote! {
             morphology EnglishNoun { feature = Number; recipe = english_noun; }

@@ -74,7 +74,7 @@ impl InspectSteps for ProductionSteps {
     }
 
     fn load_parser(&mut self) -> anyhow::Result<Self::Parser> {
-        Ok(crate::english_v2::parser_from_builtin_v2())
+        crate::english_v2::parser_from_builtin_v2()
     }
 
     fn context<'a>(&mut self, unit: &'a Self::Unit) -> anyhow::Result<Self::Context<'a>> {
@@ -246,7 +246,7 @@ mod tests {
 
     #[test]
     fn probe_and_inspect_share_the_exact_trace_payload_for_complete_documents_and_limits() {
-        let parser = crate::english_v2::parser_from_builtin_v2();
+        let parser = crate::english_v2::parser_from_builtin_v2().unwrap();
         for (text, context) in [
             ("Destroy target creature.", "Accepted Card"),
             (

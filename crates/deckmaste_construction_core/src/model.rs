@@ -352,7 +352,14 @@ pub struct DeclarationNounKindSource {
 #[derive(Debug)]
 pub enum GeneratedIdentityRecipe {
     Context(ContextIdentitySource),
+    Catalog(CatalogIdentitySource),
     Unsupported { name: Ident },
+}
+
+#[derive(Debug)]
+pub struct CatalogIdentitySource {
+    pub recipe: Ident,
+    pub provider_slots: Vec<GeneratedIdentSlot>,
 }
 
 #[derive(Debug)]

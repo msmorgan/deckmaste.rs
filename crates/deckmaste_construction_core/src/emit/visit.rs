@@ -21,6 +21,7 @@ use crate::semantic::AccessorMode;
 use crate::semantic::AtomPlan;
 use crate::semantic::BindingPlan;
 use crate::semantic::BindingTraversalRecipe;
+use crate::semantic::CatalogIdentityPlan;
 use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionFieldPlan;
 use crate::semantic::ConstructionPlan;
@@ -48,6 +49,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     let mut lexemes = Vec::new();
     let mut bindings = Vec::new();
     let mut context_identities = Vec::new();
+    let mut catalog_identities = Vec::new();
     let mut signed_decimal = None;
     let mut declaration_nouns = Vec::new();
     for terminal in validated.terminals() {
@@ -56,6 +58,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             TerminalPlan::Lexeme(row) => lexemes.push(row),
             TerminalPlan::Binding(row) => bindings.push(row),
             TerminalPlan::ContextIdentity(row) => context_identities.push(row),
+            TerminalPlan::CatalogIdentity(row) => catalog_identities.push(row),
             TerminalPlan::SignedDecimal(row) => signed_decimal = Some(row),
             TerminalPlan::DeclarationNoun(row) => declaration_nouns.push(row),
         }
@@ -92,6 +95,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         vocabs: &vocabs,
         copy_bindings: &copy_bindings,
         context_identities: &context_identities,
+        catalog_identities: &catalog_identities,
         lexemes: &lexemes,
         borrowed_bindings: &borrowed_bindings,
         signed_decimal,
@@ -129,6 +133,9 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             DeclarationKind::Identity,
         ));
     }
+    for identity in &catalog_identities {
+        items.push(emit_catalog_identity_walker(identity));
+    }
     for lexeme in &lexemes {
         items.push(emit_enum_walker(
             lexeme.name_ident(),
@@ -155,6 +162,7 @@ struct TerminalVisitors<'a> {
     vocabs: &'a [&'a VocabPlan],
     copy_bindings: &'a [&'a BindingPlan],
     context_identities: &'a [&'a crate::semantic::ContextIdentityPlan],
+    catalog_identities: &'a [&'a CatalogIdentityPlan],
     lexemes: &'a [&'a LexemePlan],
     borrowed_bindings: &'a [&'a BindingPlan],
     signed_decimal: Option<&'a SignedDecimalPlan>,
@@ -219,6 +227,14 @@ fn emit_trait(
     );
     if let Some(codec) = terminals.signed_decimal {
         origins.push(codec.origin().clone());
+    }
+    if !terminals.catalog_identities.is_empty() {
+        methods.push(quote! {
+            fn visit_catalog_provider(&mut self, _provider: CatalogProvider) {}
+        });
+        for identity in terminals.catalog_identities {
+            methods.push(noop_method(identity.name(), VisitMode::Borrowed));
+        }
     }
     origins.extend(
         terminals
@@ -359,6 +375,25 @@ fn emit_declaration_noun_value_walker(codec: &DeclarationNounPlan) -> GeneratedI
             }
         },
         vec![codec.origin().clone()],
+    )
+}
+
+fn emit_catalog_identity_walker(identity: &CatalogIdentityPlan) -> GeneratedItem {
+    let ty = identity.ident();
+    let function = ident(&format!("walk_{}", snake_case(identity.name())));
+    let callback = ident(&format!("visit_{}", snake_case(identity.name())));
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function.to_string(),
+        },
+        quote! {
+            pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, identity: &#ty) {
+                visitor.visit_catalog_provider(identity.provider());
+                visitor.#callback(identity);
+            }
+        },
+        vec![identity.origin().clone()],
     )
 }
 
@@ -1174,6 +1209,9 @@ fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitM
             TerminalPlan::ContextIdentity(row) if row.name() == terminal => {
                 return Ok(VisitMode::Copy);
             }
+            TerminalPlan::CatalogIdentity(row) if row.name() == terminal => {
+                return Ok(VisitMode::Borrowed);
+            }
             TerminalPlan::SignedDecimal(row) if row.codec_name() == terminal => {
                 return Ok(VisitMode::Borrowed);
             }
@@ -1184,6 +1222,7 @@ fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitM
             | TerminalPlan::Lexeme(_)
             | TerminalPlan::Binding(_)
             | TerminalPlan::ContextIdentity(_)
+            | TerminalPlan::CatalogIdentity(_)
             | TerminalPlan::SignedDecimal(_)
             | TerminalPlan::DeclarationNoun(_) => {}
         }

@@ -8,6 +8,7 @@ use std::str::FromStr as _;
 use proc_macro2::Delimiter;
 use proc_macro2::TokenTree;
 use sha2::Digest as _;
+use syn::visit::Visit as _;
 
 const INVENTORY_ROOTS: &[&str] = &[
     "crates/deckmaste_construction_core/src",
@@ -73,12 +74,32 @@ const INVENTORY_FILES: &[&str] = &[
     "crates/xtask/src/english_v2/timing.rs",
 ];
 
+const CATALOG_MANIFEST_ROOTS: &[&str] = &[
+    "crates/deckmaste_construction_core",
+    "crates/deckmaste_construction",
+    "crates/deckmaste_english_v2",
+    "crates/xtask",
+];
+const CATALOG_MANIFEST_FILES: &[&str] = &[
+    "crates/deckmaste_construction_core/Cargo.toml",
+    "crates/deckmaste_construction/Cargo.toml",
+    "crates/deckmaste_english_v2/Cargo.toml",
+    "crates/xtask/Cargo.toml",
+];
+const XTASK_CATALOG_DEPENDENCY: &str =
+    "deckmaste_catalogs = { version = \"0.1.0\", path = \"../deckmaste_catalogs\" }";
+
 const CONSTRUCTIONS_PATH: &str = "crates/deckmaste_english_v2/src/constructions.rs";
 const AST_EMITTER_PATH: &str = "crates/deckmaste_construction_core/src/emit/ast.rs";
 const BUILD_EMITTER_PATH: &str = "crates/deckmaste_construction_core/src/emit/build.rs";
 const PARSER_PATH: &str = "crates/deckmaste_construction_core/src/parse.rs";
 const ENGINE_PATH: &str = "crates/deckmaste_english_v2/src/parser/engine.rs";
+const ENGLISH_PARSER_PATH: &str = "crates/deckmaste_english_v2/src/parser/mod.rs";
+const ENGLISH_SCANNER_PATH: &str = "crates/deckmaste_english_v2/src/parser/scan.rs";
+const RENDER_EMITTER_PATH: &str = "crates/deckmaste_construction_core/src/emit/render.rs";
 const REPORT_PATH: &str = "crates/xtask/src/english_v2/report.rs";
+const CATALOG_ADAPTER_PATH: &str = "crates/xtask/src/english_v2.rs";
+const CATALOG_ADAPTER_FUNCTION: &str = "adapt_card_name_catalog_provider";
 const RETIREMENT_DIAGNOSTIC: &str =
     "`checked` metadata was retired after Stage 4; use generated invariants";
 
@@ -258,6 +279,36 @@ const TOTAL_COUNTS: &[ExactCount] = &[
         label: "checked_constructor_bindings identifier total",
         atoms: &[Atom::Ident("checked_constructor_bindings")],
         expected: 6,
+    },
+    ExactCount {
+        path: ENGLISH_PARSER_PATH,
+        label: "generated REQUIRED_CATALOG_PROVIDERS parser-construction authority",
+        atoms: &[Atom::Ident("REQUIRED_CATALOG_PROVIDERS")],
+        expected: 2,
+    },
+    ExactCount {
+        path: ENGLISH_SCANNER_PATH,
+        label: "indexed provider surface byte-limit lookup",
+        atoms: &[Atom::Ident("catalog_surface_byte_limit")],
+        expected: 1,
+    },
+    ExactCount {
+        path: ENGLISH_SCANNER_PATH,
+        label: "indexed provider exact-surface lookup",
+        atoms: &[Atom::Ident("catalog_row_for_surface")],
+        expected: 1,
+    },
+    ExactCount {
+        path: RENDER_EMITTER_PATH,
+        label: "generated renderer environment surface lookup",
+        atoms: &[Atom::Ident("catalog_surface")],
+        expected: 2,
+    },
+    ExactCount {
+        path: RENDER_EMITTER_PATH,
+        label: "generated renderer environment onset lookup",
+        atoms: &[Atom::Ident("catalog_onset")],
+        expected: 1,
     },
 ];
 
@@ -452,6 +503,89 @@ fn inventory_diff(
     })
 }
 
+fn discover_catalog_manifests(root: &Path) -> Result<BTreeSet<String>, String> {
+    fn visit(
+        workspace_root: &Path,
+        directory: &Path,
+        found: &mut BTreeSet<String>,
+    ) -> Result<(), String> {
+        let entries = fs::read_dir(directory).map_err(|error| {
+            format!(
+                "reading manifest directory {}: {error}",
+                directory.display()
+            )
+        })?;
+        for entry in entries {
+            let entry = entry.map_err(|error| {
+                format!("reading manifest entry in {}: {error}", directory.display())
+            })?;
+            let path = entry.path();
+            let file_type = entry
+                .file_type()
+                .map_err(|error| format!("reading manifest type {}: {error}", path.display()))?;
+            if file_type.is_symlink() {
+                return Err(format!(
+                    "symlinked manifest entry is forbidden: {}",
+                    path.display()
+                ));
+            }
+            if file_type.is_dir() {
+                visit(workspace_root, &path, found)?;
+            } else if file_type.is_file() && entry.file_name() == "Cargo.toml" {
+                found.insert(normalized_relative(workspace_root, &path)?);
+            }
+        }
+        Ok(())
+    }
+
+    let mut found = BTreeSet::new();
+    for relative in CATALOG_MANIFEST_ROOTS {
+        visit(root, &root.join(relative), &mut found)?;
+    }
+    Ok(found)
+}
+
+fn catalog_manifest_violations(root: &Path) -> Result<Vec<String>, String> {
+    let expected = CATALOG_MANIFEST_FILES
+        .iter()
+        .map(|path| (*path).to_owned())
+        .collect::<BTreeSet<_>>();
+    let actual = discover_catalog_manifests(root)?;
+    let missing = expected
+        .difference(&actual)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let mut violations = inventory_violations(InventoryDiff {
+        missing: missing.iter().cloned().collect(),
+        unexpected: actual.difference(&expected).cloned().collect(),
+    });
+    for relative in CATALOG_MANIFEST_FILES {
+        if missing.contains(*relative) {
+            continue;
+        }
+        let source = fs::read_to_string(root.join(relative))
+            .map_err(|error| format!("reading {relative}: {error}"))?;
+        let observed_name = source.matches("deckmaste_catalogs").count();
+        let expected_name = 2 * usize::from(*relative == "crates/xtask/Cargo.toml");
+        if observed_name != expected_name {
+            violations.push(format!(
+                "{relative}: literal deckmaste_catalogs dependency: expected count {expected_name}, observed count {observed_name}"
+            ));
+        }
+        let observed_exact = source
+            .lines()
+            .filter(|line| *line == XTASK_CATALOG_DEPENDENCY)
+            .count();
+        let expected_exact = usize::from(*relative == "crates/xtask/Cargo.toml");
+        if observed_exact != expected_exact {
+            violations.push(format!(
+                "{relative}: exact reviewed xtask catalog dependency: expected count {expected_exact}, observed count {observed_exact}"
+            ));
+        }
+    }
+    Ok(violations)
+}
+
 fn flatten(stream: proc_macro2::TokenStream, tokens: &mut Vec<LexToken>) {
     for token in stream {
         match token {
@@ -587,6 +721,101 @@ fn audit_file(path: &str, source: &str, tokens: &[LexToken]) -> Vec<String> {
     violations
 }
 
+#[derive(Default)]
+struct CatalogAuthorityAudit {
+    adapter_functions: usize,
+    adapter_paths: usize,
+    forbidden_paths: usize,
+    inside_adapter: bool,
+    adapter_file: bool,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for CatalogAuthorityAudit {
+    fn visit_item_fn(&mut self, function: &'ast syn::ItemFn) {
+        let is_adapter = self.adapter_file && function.sig.ident == CATALOG_ADAPTER_FUNCTION;
+        if is_adapter {
+            self.adapter_functions += 1;
+        }
+        let previous = self.inside_adapter;
+        self.inside_adapter = previous || is_adapter;
+        syn::visit::visit_item_fn(self, function);
+        self.inside_adapter = previous;
+    }
+
+    fn visit_path(&mut self, path: &'ast syn::Path) {
+        let catalog_crate = concat!("deckmaste_", "catalogs");
+        if path
+            .segments
+            .first()
+            .is_some_and(|segment| segment.ident == catalog_crate)
+        {
+            if self.inside_adapter {
+                self.adapter_paths += 1;
+            } else {
+                self.forbidden_paths += 1;
+            }
+        }
+        syn::visit::visit_path(self, path);
+    }
+}
+
+fn catalog_authority_violations(path: &str, source: &str) -> Result<Vec<String>, String> {
+    let syntax =
+        syn::parse_file(source).map_err(|error| format!("{path}: parsing Rust: {error}"))?;
+    let mut audit = CatalogAuthorityAudit {
+        adapter_file: path == CATALOG_ADAPTER_PATH,
+        ..CatalogAuthorityAudit::default()
+    };
+    audit.visit_file(&syntax);
+
+    let mut violations = Vec::new();
+    if audit.forbidden_paths != 0 {
+        violations.push(format!(
+            "{path}: deckmaste_catalogs path outside {CATALOG_ADAPTER_FUNCTION}: expected count 0, observed count {}",
+            audit.forbidden_paths
+        ));
+    }
+    if path == CATALOG_ADAPTER_PATH {
+        if audit.adapter_functions != 1 {
+            violations.push(format!(
+                "{path}: named catalog adapter function: expected count 1, observed count {}",
+                audit.adapter_functions
+            ));
+        }
+        if audit.adapter_paths != 2 {
+            violations.push(format!(
+                "{path}: catalog dependency paths inside {CATALOG_ADAPTER_FUNCTION}: expected count 2, observed count {}",
+                audit.adapter_paths
+            ));
+        }
+    }
+    Ok(violations)
+}
+
+fn catalog_token_violations(path: &str, tokens: &[LexToken]) -> Vec<String> {
+    let catalog_crate = Atom::Ident(concat!("deckmaste_", "catalogs"));
+    let observed = count_pattern(tokens, &[catalog_crate]);
+    if path == CATALOG_ADAPTER_PATH {
+        (observed != 2)
+            .then(|| {
+                format!(
+                    "{path}: catalog dependency tokens inside {CATALOG_ADAPTER_FUNCTION}: expected count 2, observed count {observed}"
+                )
+            })
+            .into_iter()
+            .collect()
+    } else {
+        (observed != 0)
+            .then(|| {
+                format!(
+                    "{path}: deckmaste_catalogs path outside {CATALOG_ADAPTER_FUNCTION}: expected count 0, observed count {observed}"
+                )
+            })
+            .into_iter()
+            .collect()
+    }
+}
+
 fn inventory_violations(diff: InventoryDiff) -> Vec<String> {
     let mut violations = diff
         .missing
@@ -617,14 +846,17 @@ fn audit_root(root: &Path) -> Result<Vec<String>, String> {
             .map_err(|error| format!("reading {relative}: {error}"))?;
         let tokens = lex_source(&source).map_err(|error| format!("{relative}: {error}"))?;
         violations.extend(audit_file(relative, &source, &tokens));
+        violations.extend(catalog_token_violations(relative, &tokens));
+        violations.extend(catalog_authority_violations(relative, &source)?);
     }
+    violations.extend(catalog_manifest_violations(root)?);
     violations.sort();
     violations.dedup();
     Ok(violations)
 }
 
 fn copy_inventory(source_root: &Path, destination_root: &Path) -> Result<(), String> {
-    for relative in INVENTORY_FILES {
+    for relative in INVENTORY_FILES.iter().chain(CATALOG_MANIFEST_FILES) {
         let destination = destination_root.join(relative);
         fs::create_dir_all(destination.parent().expect("inventory path has a parent"))
             .map_err(|error| format!("creating parent for {relative}: {error}"))?;
@@ -655,6 +887,28 @@ fn plan04_closed_world_inventory_fails_loud() {
     let temp = tempfile::tempdir().expect("temporary inventory root");
     copy_inventory(&live, temp.path()).expect("inventory copies");
     assert_eq!(audit_root(temp.path()), Ok(vec![]));
+
+    let unreviewed_manifest = "crates/deckmaste_english_v2/generated/Cargo.toml";
+    fs::create_dir_all(
+        temp.path()
+            .join(unreviewed_manifest)
+            .parent()
+            .expect("manifest fixture has parent"),
+    )
+    .expect("manifest fixture parent writes");
+    fs::write(
+        temp.path().join(unreviewed_manifest),
+        "[package]\nname = \"rogue\"\n",
+    )
+    .expect("unreviewed manifest fixture writes");
+    assert!(audit_root(temp.path()).unwrap().iter().any(|violation| {
+        violation
+            == &format!(
+                "{unreviewed_manifest}: inventory member: expected count 0, observed count 1"
+            )
+    }));
+    fs::remove_file(temp.path().join(unreviewed_manifest))
+        .expect("unreviewed manifest fixture removes");
 
     let unexpected = "crates/deckmaste_english_v2/src/unreviewed.rs";
     fs::write(temp.path().join(unexpected), "fn unreviewed_surface() {}")
@@ -700,6 +954,33 @@ fn plan04_closed_world_lexical_tokens_reject_retired_authority() {
 }
 
 #[test]
+fn plan04_catalog_dependency_is_confined_to_the_named_xtask_adapter() {
+    let live = workspace_root();
+    let temp = tempfile::tempdir().expect("temporary audit root");
+    copy_inventory(&live, temp.path()).expect("inventory copies");
+    assert_eq!(audit_root(temp.path()), Ok(vec![]));
+
+    let relative = "crates/deckmaste_english_v2/src/environment.rs";
+    let fixture = temp.path().join(relative);
+    let original = fs::read(&fixture).expect("copied environment reads");
+    fs::write(
+        &fixture,
+        [
+            original.as_slice(),
+            b"\nfn rogue_catalog_lookup() { let _ = deckmaste_catalogs::CatalogKind::CardNames; }\n",
+        ]
+        .concat(),
+    )
+    .expect("rogue dependency writes only in disposable root");
+    assert_eq!(
+        audit_root(temp.path()),
+        Ok(vec![format!(
+            "{relative}: deckmaste_catalogs path outside adapt_card_name_catalog_provider: expected count 0, observed count 1"
+        )])
+    );
+}
+
+#[test]
 fn plan04_closed_world_disposable_root_authenticates_red_then_green() {
     let live = workspace_root();
     let before = hash_inventory(&live).expect("live inventory hashes");
@@ -726,7 +1007,9 @@ fn plan04_generated_invariants_are_single_authority() {
     assert!(
         violations.is_empty(),
         "This audit proves the current repository architecture: the direct constructions! \
-         invocation is the generated authority, and current inventoried production source \
+         invocation is the generated authority; deckmaste_catalogs appears only in the named \
+         xtask adapter; generated required-provider metadata plus immutable environment lookup \
+         are the only downstream catalog-identity authority; and inventoried production source \
          contains no retired competing authority. It does not decide arbitrary future Rust \
          metaprograms.\n{}",
         violations.join("\n"),

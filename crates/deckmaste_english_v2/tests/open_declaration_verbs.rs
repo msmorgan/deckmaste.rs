@@ -1,8 +1,11 @@
 use std::fs;
 use std::path::Path;
 
+use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::ast::NounLexeme;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::environment::CatalogProviderRow;
+use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
@@ -14,6 +17,7 @@ use deckmaste_english_v2::visit::walk_ability;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::NormalizedDeclaration;
+use macro_ron::v2::Onset;
 use macro_ron::v2::SurfaceFeature;
 use macro_ron::v2::read_str;
 use syn::visit::Visit;
@@ -36,8 +40,23 @@ fn synthetic_verb_rows() -> Vec<NormalizedDeclaration> {
 }
 
 fn synthetic_environment() -> ParserEnvironment {
-    ParserEnvironment::try_from_declarations(synthetic_verb_rows())
-        .expect("synthetic verb declarations freeze")
+    environment_from(synthetic_verb_rows()).expect("synthetic verb declarations freeze")
+}
+
+fn environment_from(
+    declarations: impl IntoIterator<Item = NormalizedDeclaration>,
+) -> Result<ParserEnvironment, deckmaste_english_v2::environment::ParserEnvironmentError> {
+    ParserEnvironment::try_from_parts(
+        declarations,
+        [CatalogProviderRows::new(
+            CatalogProvider::CardNames,
+            [CatalogProviderRow::new(
+                "context-card",
+                "Context Card",
+                Onset::Consonant,
+            )],
+        )],
+    )
 }
 
 fn parser() -> Parser {
@@ -50,7 +69,7 @@ fn context() -> ParseContext<'static> {
 
 #[test]
 fn parser_build_rejects_missing_wrong_recipe_and_missing_agreement_surface() {
-    let missing = Parser::new(ParserEnvironment::try_from_declarations([]).unwrap())
+    let missing = Parser::new(environment_from([]).unwrap())
         .expect_err("static declarations must exist before parsing");
     assert!(matches!(
         missing,
@@ -58,7 +77,7 @@ fn parser_build_rejects_missing_wrong_recipe_and_missing_agreement_surface() {
             if name == "Destroy" || name == "Connive"
     ));
 
-    let wrong_recipe = ParserEnvironment::try_from_declarations([
+    let wrong_recipe = environment_from([
         declaration(
             "/synthetic/actions/Destroy.ron",
             r#"KeywordAction(name:"Destroy",spelling:"destroy",grammar:FixedTerm(surface:"destroy"))"#,
@@ -78,7 +97,7 @@ fn parser_build_rejects_missing_wrong_recipe_and_missing_agreement_surface() {
         }
     ));
 
-    let missing_feature = ParserEnvironment::try_from_declarations([
+    let missing_feature = environment_from([
         declaration(
             "/synthetic/actions/Destroy.ron",
             r#"KeywordAction(name:"Destroy",spelling:"destroy",grammar:Verb(bare:"destroy",third_person:Unavailable,valence:Transitive))"#,
@@ -129,7 +148,7 @@ fn category_homonym_does_not_replace_the_requested_action_identity() {
         "/synthetic/abilities/Destroy.ron",
         r#"KeywordAbility(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",valence:Transitive))"#,
     ));
-    let environment = ParserEnvironment::try_from_declarations(rows).unwrap();
+    let environment = environment_from(rows).unwrap();
     assert_eq!(
         environment.readings(GrammarPosition::Verb, "frindle").len(),
         2,
@@ -159,7 +178,7 @@ fn category_homonym_does_not_replace_the_requested_action_identity() {
             .contains("KeywordAbility")
     );
 
-    let ability_only = ParserEnvironment::try_from_declarations([declaration(
+    let ability_only = environment_from([declaration(
         "/synthetic/abilities/Destroy.ron",
         r#"KeywordAbility(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",valence:Transitive))"#,
     )])
@@ -595,6 +614,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             .map(|row| (row.member(), row.feature(), row.surface()))
             .collect::<Vec<_>>(),
         [
+            ("Card", SurfaceFeature::Singular, "card"),
+            ("Card", SurfaceFeature::Plural, "cards"),
             ("Player", SurfaceFeature::Singular, "player"),
             ("Player", SurfaceFeature::Plural, "players"),
         ]
@@ -607,6 +628,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
         "lexeme:VerbLexeme/Be/third_person_singular",
         "lexeme:NounLexeme/Player/singular",
         "lexeme:NounLexeme/Player/plural",
+        "lexeme:NounLexeme/Card/singular",
+        "lexeme:NounLexeme/Card/plural",
     ] {
         assert!(
             generated.contains(owner),

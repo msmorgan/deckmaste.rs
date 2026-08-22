@@ -13,9 +13,11 @@ use selection::analyze_selection;
 use crate::ast::Ability;
 use crate::ast::OracleText;
 use crate::ast::Sentence;
+use crate::constructions::CatalogProvider;
 use crate::constructions::Category;
 use crate::constructions::FeatureConstraint;
 use crate::constructions::GeneratedParseRoot;
+use crate::constructions::REQUIRED_CATALOG_PROVIDERS;
 use crate::constructions::REQUIRED_DECLARATIONS;
 use crate::context::ParseContext;
 use crate::environment::DeclarationId;
@@ -118,6 +120,8 @@ pub use crate::constructions::TerminalClass;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParserBuildError {
+    #[error("required catalog provider {provider:?} is missing from the parser environment")]
+    MissingCatalogProvider { provider: CatalogProvider },
     #[error("required declaration {kind} `{name}` is missing from the parser environment")]
     MissingDeclaration { kind: DeclarationKind, name: String },
     #[error(
@@ -528,6 +532,11 @@ impl Parser {
 }
 
 fn validate_required_declarations(environment: &ParserEnvironment) -> Result<(), ParserBuildError> {
+    for &provider in REQUIRED_CATALOG_PROVIDERS {
+        if !environment.has_catalog_provider(provider) {
+            return Err(ParserBuildError::MissingCatalogProvider { provider });
+        }
+    }
     for matcher in REQUIRED_DECLARATIONS {
         let record = environment
             .declaration(matcher.kind, matcher.name)
@@ -1031,7 +1040,7 @@ mod structural_trace_tests {
         let (_, second) = parser.observe_structural(text, &context, TraceLimits::new(1));
         assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
         assert_eq!(first, second);
-        assert_eq!(first.scanner_matches().total(), 11);
+        assert_eq!(first.scanner_matches().total(), 12);
         assert_eq!(first.scanner_matches().shown(), 1);
     }
 

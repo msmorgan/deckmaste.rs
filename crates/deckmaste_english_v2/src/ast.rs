@@ -1,5 +1,7 @@
 pub use crate::constructions::Ability;
 pub use crate::constructions::Amount;
+pub use crate::constructions::CardName;
+pub use crate::constructions::CatalogProvider;
 pub use crate::constructions::Clause;
 pub use crate::constructions::Common;
 pub use crate::constructions::Connive;
@@ -14,6 +16,7 @@ pub use crate::constructions::DocumentBlock;
 pub use crate::constructions::EventClause;
 pub use crate::constructions::GainLife;
 pub use crate::constructions::Imperative;
+pub use crate::constructions::NamedNp;
 pub use crate::constructions::Noun;
 pub use crate::constructions::NounLexeme;
 pub use crate::constructions::NounPhrase;
@@ -30,6 +33,7 @@ pub use crate::constructions::{
 pub use crate::constructions::Sentence;
 pub use crate::constructions::Sign;
 pub use crate::constructions::SignedNumber;
+pub use crate::constructions::Supertype;
 pub use crate::constructions::TargetNp;
 pub use crate::constructions::TriggerWord;
 pub use crate::constructions::Triggered;

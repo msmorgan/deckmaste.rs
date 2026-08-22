@@ -1469,7 +1469,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::NounPhrase),
                 RulePosition::Lexical(Lexical::Literal("target")),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
-                    6,
+                    7,
                     FeatureConstraint::Exact(Number::Singular),
                 )),
             ]

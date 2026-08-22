@@ -34,6 +34,7 @@ use super::engine::parse_root_with_state;
 use super::materialize::completion_has_checked_build;
 use crate::constructions::BuildRejection;
 use crate::constructions::CasePosition;
+use crate::constructions::CatalogProvider;
 use crate::constructions::Category;
 use crate::constructions::DeclarationMatcher;
 use crate::constructions::FeatureConstraint;
@@ -708,6 +709,44 @@ impl ScanInput<'_> {
         .then_some(end)
     }
 
+    pub(crate) fn catalog_identity_reading(
+        &self,
+        provider: CatalogProvider,
+    ) -> Option<(usize, std::sync::Arc<str>, Onset)> {
+        let offset = self.position.byte_offset;
+        let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
+        let remainder = self.text.get(offset..)?;
+        let surface_text = (prefix == 0)
+            .then_some(remainder)
+            .or_else(|| remainder.strip_prefix(' '))?;
+        let byte_limit = self.environment.catalog_surface_byte_limit(provider);
+        let mut longest = None;
+        for relative_end in surface_text
+            .char_indices()
+            .skip(1)
+            .map(|(end, _)| end)
+            .chain(std::iter::once(surface_text.len()))
+            .take_while(|&end| end <= byte_limit)
+        {
+            let end = offset + prefix + relative_end;
+            if !has_lexical_boundary(self.text, end) {
+                continue;
+            }
+            let Some(row) = self
+                .environment
+                .catalog_row_for_surface(provider, &surface_text[..relative_end])
+            else {
+                continue;
+            };
+            longest = Some((
+                end,
+                std::sync::Arc::from(row.canonical_identity()),
+                row.onset(),
+            ));
+        }
+        longest
+    }
+
     pub(crate) fn punctuation_end(&self, punctuation: &str) -> Option<usize> {
         let offset = self.position.byte_offset;
         self.text
@@ -1009,6 +1048,7 @@ mod tests {
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
     use crate::environment::ParserEnvironment;
+    use crate::environment::canonical_test_catalog_provider;
     use crate::environment::canonical_test_environment;
     use crate::environment::reading_lookup_count;
     use crate::environment::reset_reading_lookup_count;
@@ -1267,8 +1307,8 @@ mod tests {
         ] {
             let matches = scan(
                 text,
-                Lexical::DeclarationNoun(6, FeatureConstraint::Exact(number)),
-                LexicalOwnerTemplate::DeclarationNoun(6),
+                Lexical::DeclarationNoun(7, FeatureConstraint::Exact(number)),
+                LexicalOwnerTemplate::DeclarationNoun(7),
             );
             let closed = matches
                 .iter()
@@ -1288,8 +1328,8 @@ mod tests {
         assert!(
             scan(
                 "Playersx.",
-                Lexical::DeclarationNoun(6, FeatureConstraint::Any),
-                LexicalOwnerTemplate::DeclarationNoun(6),
+                Lexical::DeclarationNoun(7, FeatureConstraint::Any),
+                LexicalOwnerTemplate::DeclarationNoun(7),
             )
             .is_empty()
         );
@@ -1423,7 +1463,7 @@ mod tests {
                     .expect("synthetic keyword action is valid"),
             );
         }
-        ParserEnvironment::try_from_declarations(declarations)
+        ParserEnvironment::try_from_parts(declarations, [canonical_test_catalog_provider()])
             .expect("parser declaration environment freezes")
     }
 
@@ -1968,8 +2008,8 @@ mod tests {
                     context: &context,
                 },
                 LexicalTerminal {
-                    matcher: Lexical::DeclarationNoun(6, wanted),
-                    owner: LexicalOwnerTemplate::DeclarationNoun(6),
+                    matcher: Lexical::DeclarationNoun(7, wanted),
+                    owner: LexicalOwnerTemplate::DeclarationNoun(7),
                 },
             )
         };
@@ -2078,7 +2118,7 @@ mod tests {
         let owners = player
             .iter()
             .map(|matched| {
-                LexicalOwnerTemplate::DeclarationNoun(6)
+                LexicalOwnerTemplate::DeclarationNoun(7)
                     .instantiate(&matched.value)
                     .expect("each noun branch has an exact owner")
             })
@@ -2377,6 +2417,8 @@ mod tests {
                 "NounPhrasePronoun",
                 "NounPhraseCommon [form an]",
                 "NounPhraseCommon [form a]",
+                "NounPhraseNamed [form an]",
+                "NounPhraseNamed [form a]",
                 "NounPhraseDemonstrative [form that]",
                 "NounPhraseDemonstrative [form those]",
                 "NounPhraseTarget",
@@ -2421,13 +2463,15 @@ mod tests {
                 "Literal(\"of\")",
                 "Pronoun",
                 "Literal(\"an\")",
-                "DeclarationNoun(6, Exact(Singular))",
+                "DeclarationNoun(7, Exact(Singular))",
                 "Literal(\"a\")",
+                "Literal(\"named\")",
+                "CatalogIdentity(9)",
                 "Demonstrative",
-                "DeclarationNoun(6, Any)",
+                "DeclarationNoun(7, Any)",
                 "Literal(\"target\")",
                 "SelfReference",
-                "DeclarationNoun(6, Exact(Plural))",
+                "DeclarationNoun(7, Exact(Plural))",
                 "Verb(Control, Exact(Bare))",
                 "Literal(\"with\")",
                 "Literal(\"power\")",

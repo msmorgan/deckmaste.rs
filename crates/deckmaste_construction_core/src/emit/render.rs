@@ -951,6 +951,23 @@ fn render_structural_value(
                         |writer| writer.identity((#expression).surface(context)),
                     );
                 })
+            } else if find_catalog_identity(plan, name).is_some() {
+                Ok(quote! {
+                    writer.claim(
+                        || LexicalOwner::catalog_owner(
+                            (#expression).provider(),
+                            (#expression).canonical_identity.clone(),
+                        ),
+                        |writer| writer.identity(
+                            environment
+                                .catalog_surface(
+                                    (#expression).provider(),
+                                    (#expression).canonical_identity(),
+                                )
+                                .expect("validated catalog identity remains in its frozen provider"),
+                        ),
+                    );
+                })
             } else {
                 let binding = find_binding(plan, name)?;
                 let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
@@ -1173,6 +1190,7 @@ fn render_allocator(
                         .get(role)
                         .ok_or_else(|| internal("resolved identity role is absent"))?;
                     if find_context_identity(validated, field.terminal()).is_none()
+                        && find_catalog_identity(validated, field.terminal()).is_none()
                         && let BindingRenderPlan::Runtime(path) =
                             find_binding(validated, field.terminal())?
                                 .render()
@@ -1618,6 +1636,14 @@ fn render_atom_statement(
             if find_context_identity(validated, field.terminal()).is_some() {
                 let value = copy_value(construction, role, value)?;
                 Ok(quote! { #method_writer.identity((#value).surface(context)); })
+            } else if find_catalog_identity(validated, field.terminal()).is_some() {
+                Ok(quote! {
+                    #method_writer.identity(
+                        environment
+                            .catalog_surface((#value).provider(), (#value).canonical_identity())
+                            .expect("validated catalog identity remains in its frozen provider"),
+                    );
+                })
             } else {
                 let binding = find_binding(validated, field.terminal())?;
                 match binding
@@ -1822,6 +1848,14 @@ fn render_owner(
                     }
                 });
                 return Ok(quote! { match #value { #(#arms,)* } });
+            }
+            if find_catalog_identity(validated, terminal).is_some() {
+                return Ok(quote! {
+                    LexicalOwner::catalog_owner(
+                        (#value).provider(),
+                        (#value).canonical_identity.clone(),
+                    )
+                });
             }
             let stable_id = syn::LitStr::new(&format!("identity:{terminal}"), Span::call_site());
             Ok(quote! {
@@ -2318,6 +2352,13 @@ fn lexical_onset_expr(
         });
         return Ok(quote! { match #value { #(#arms,)* } });
     }
+    if find_catalog_identity(validated, field.terminal()).is_some() {
+        return Ok(quote! {
+            environment
+                .catalog_onset((#role_value).provider(), (#role_value).canonical_identity())
+                .expect("validated catalog identity remains in its frozen provider")
+        });
+    }
     let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
         return Err(internal(
             "lexical onset source has no sealed terminal onset plan",
@@ -2764,6 +2805,7 @@ fn find_lexeme<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a Lexeme
             | TerminalPlan::Vocab(_)
             | TerminalPlan::Binding(_)
             | TerminalPlan::ContextIdentity(_)
+            | TerminalPlan::CatalogIdentity(_)
             | TerminalPlan::SignedDecimal(_)
             | TerminalPlan::DeclarationNoun(_) => None,
         })
@@ -2787,6 +2829,15 @@ fn find_context_identity<'a>(
     validated
         .runtime_context_identities()
         .find(|identity| identity.name() == name)
+}
+
+fn find_catalog_identity<'a>(
+    validated: &'a SemanticPlan,
+    name: &str,
+) -> Option<&'a crate::semantic::CatalogIdentityPlan> {
+    validated
+        .runtime_catalog_identities()
+        .find_map(|(_, identity)| (identity.name() == name).then_some(identity))
 }
 
 fn find_signed_decimal<'a>(

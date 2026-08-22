@@ -944,7 +944,7 @@ pub(super) fn run(args: &CoverageArgs, output: &mut dyn Write) -> anyhow::Result
             Corpus::load(&args.corpus.data)
                 .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))
         },
-        || Ok(crate::english_v2::parser_from_builtin_v2()),
+        crate::english_v2::parser_from_builtin_v2,
         crate::english_v2::coverage_lock::apply,
     )
 }
@@ -2117,7 +2117,7 @@ mod tests {
             &mut diagnostics,
             &mut observer,
             || Ok(corpus),
-            || Ok(crate::english_v2::parser_from_builtin_v2()),
+            crate::english_v2::parser_from_builtin_v2,
             |_, _, _, diagnostics| {
                 gate_calls += 1;
                 shared.borrow_mut().push("gate".to_owned());
@@ -2175,7 +2175,7 @@ mod tests {
             &mut diagnostics,
             &mut observer,
             || Ok(corpus),
-            || Ok(crate::english_v2::parser_from_builtin_v2()),
+            crate::english_v2::parser_from_builtin_v2,
             |_, _, _, _| unreachable!("report-only coverage has no gate"),
         )
         .unwrap();
@@ -2235,7 +2235,7 @@ mod tests {
             &mut diagnostics,
             &mut observer,
             || Ok(corpus),
-            || Ok(crate::english_v2::parser_from_builtin_v2()),
+            crate::english_v2::parser_from_builtin_v2,
             |_, _, _, _| unreachable!("report-only coverage has no gate"),
         )
         .unwrap();
@@ -2312,7 +2312,7 @@ mod tests {
                 &mut diagnostics,
                 &mut observer,
                 || Ok(corpus),
-                || Ok(crate::english_v2::parser_from_builtin_v2()),
+                crate::english_v2::parser_from_builtin_v2,
                 |_, _, _, _| {
                     gate_calls += 1;
                     anyhow::bail!("gate sentinel")
@@ -2339,7 +2339,7 @@ mod tests {
             &mut diagnostics,
             &mut observer,
             || Ok(corpus),
-            || Ok(crate::english_v2::parser_from_builtin_v2()),
+            crate::english_v2::parser_from_builtin_v2,
             |_, _, _, _| {
                 gate_calls += 1;
                 Ok(())
@@ -2372,7 +2372,7 @@ mod tests {
                 &mut diagnostics,
                 &mut observer,
                 || Ok(corpus),
-                || Ok(crate::english_v2::parser_from_builtin_v2()),
+                crate::english_v2::parser_from_builtin_v2,
                 |_, _, _, _| unreachable!("internal coverage must not invoke the gate"),
             )
         })

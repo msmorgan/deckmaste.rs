@@ -56,7 +56,7 @@ impl ProbeSteps for ProductionSteps {
     type Trace = ProductionTrace;
 
     fn load_parser(&mut self) -> anyhow::Result<Self::Parser> {
-        Ok(crate::english_v2::parser_from_builtin_v2())
+        crate::english_v2::parser_from_builtin_v2()
     }
 
     fn context<'a>(&mut self, name: &'a str) -> anyhow::Result<Self::Context<'a>> {

@@ -2,6 +2,8 @@ use std::path::Path;
 
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::environment::CatalogProviderRow;
+use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
@@ -11,6 +13,7 @@ use deckmaste_english_v2::visit::Visitor;
 use deckmaste_english_v2::visit::walk_amount;
 use deckmaste_english_v2::visit::walk_signed_number;
 use macro_ron::v2::DeclarationKind;
+use macro_ron::v2::Onset;
 use macro_ron::v2::SubtypeCategory;
 use macro_ron::v2::SurfaceFeature;
 
@@ -25,6 +28,8 @@ struct RecordingVisitor {
     nouns: Vec<NounLexeme>,
     verbs: Vec<VerbLexeme>,
     declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
+    catalog_providers: Vec<CatalogProvider>,
+    card_names: Vec<String>,
 }
 
 impl Visitor for RecordingVisitor {
@@ -68,6 +73,15 @@ impl Visitor for RecordingVisitor {
                 .push((declaration.kind(), declaration.name().to_owned()));
         }
     }
+
+    fn visit_catalog_provider(&mut self, provider: CatalogProvider) {
+        self.catalog_providers.push(provider);
+    }
+
+    fn visit_card_name(&mut self, card_name: &CardName) {
+        self.card_names
+            .push(card_name.canonical_identity().to_owned());
+    }
 }
 
 fn environment() -> ParserEnvironment {
@@ -75,8 +89,18 @@ fn environment() -> ParserEnvironment {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
-    ParserEnvironment::try_from_declarations(declarations)
-        .expect("builtin-v2 declaration environment freezes")
+    ParserEnvironment::try_from_parts(
+        declarations,
+        [CatalogProviderRows::new(
+            CatalogProvider::CardNames,
+            [CatalogProviderRow::new(
+                "seven-dwarves",
+                "Seven Dwarves",
+                Onset::Consonant,
+            )],
+        )],
+    )
+    .expect("builtin-v2 declaration and catalog environment freezes")
 }
 
 fn card_type(spelling: &str) -> Noun {
@@ -770,4 +794,19 @@ fn visitor_reaches_every_vertical_slice_leaf() {
             VerbLexeme::Deal,
         ]
     );
+}
+
+#[test]
+fn visitor_reaches_catalog_provider_and_canonical_identity() {
+    let environment = environment();
+    let parser = Parser::new(environment).expect("required rows are present");
+    let context = context("Context Card");
+    let parsed = parser
+        .parse("Destroy a card named Seven Dwarves.", &context)
+        .expect("named identity parses");
+
+    let mut visitor = RecordingVisitor::default();
+    visitor.visit_ability(&parsed);
+    assert_eq!(visitor.catalog_providers, [CatalogProvider::CardNames]);
+    assert_eq!(visitor.card_names, ["seven-dwarves"]);
 }

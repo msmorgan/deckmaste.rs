@@ -2986,7 +2986,7 @@ mod tests {
     }
 
     fn parser() -> Parser {
-        crate::english_v2::parser_from_builtin_v2()
+        crate::english_v2::parser_from_builtin_v2().unwrap()
     }
 
     fn trace(text: &str, context: &str, limit: usize) -> ParserTrace {

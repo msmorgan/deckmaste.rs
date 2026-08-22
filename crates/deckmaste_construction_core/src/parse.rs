@@ -1297,6 +1297,29 @@ fn parse_generated_identity(input: ParseStream<'_>) -> syn::Result<GeneratedIden
     let recipe = input.call(Ident::parse_any)?;
     let content;
     braced!(content in input);
+    if recipe == "catalog_identity" {
+        let mut provider_slots = Vec::new();
+        while !content.is_empty() {
+            reject_doc_comment(&content)?;
+            let slot = content.call(Ident::parse_any)?;
+            content.parse::<Token![=]>()?;
+            let value = content.call(Ident::parse_any)?;
+            content.parse::<Token![;]>()?;
+            if slot != "provider" {
+                return Err(syn::Error::new(
+                    slot.span(),
+                    "catalog_identity recipe accepts only a `provider` field",
+                ));
+            }
+            provider_slots.push(crate::model::GeneratedIdentSlot { slot, value });
+        }
+        return Ok(GeneratedIdentityRecipe::Catalog(
+            crate::model::CatalogIdentitySource {
+                recipe,
+                provider_slots,
+            },
+        ));
+    }
     if recipe != "context" {
         let _: TokenStream = content.parse()?;
         return Ok(GeneratedIdentityRecipe::Unsupported { name: recipe });
@@ -3059,6 +3082,32 @@ mod tests {
         );
         assert_eq!(source.canonical_slots.len(), 1);
         assert_eq!(source.canonical_slots[0].arm, "Full");
+    }
+
+    #[test]
+    fn parses_catalog_identity_generated_source_into_typed_rows() {
+        let declarations = parse(
+            r"
+                identity CardName {
+                    generate catalog_identity {
+                        provider = CardNames;
+                    }
+                }
+            ",
+        )
+        .expect("the closed catalog identity recipe parses");
+
+        let Declaration::Identity(binding) = &declarations.declarations[0] else {
+            panic!("the declaration remains an identity")
+        };
+        let Some(crate::GeneratedIdentityRecipe::Catalog(source)) = &binding.generated_identity
+        else {
+            panic!("the identity retains a typed catalog recipe")
+        };
+        assert_eq!(source.recipe, "catalog_identity");
+        assert_eq!(source.provider_slots.len(), 1);
+        assert_eq!(source.provider_slots[0].slot, "provider");
+        assert_eq!(source.provider_slots[0].value, "CardNames");
     }
 
     #[test]

@@ -14,6 +14,7 @@ use macro_ron::v2::Onset;
 use macro_ron::v2::SurfaceFeature;
 use macro_ron::v2::VerbValence;
 
+use crate::constructions::CatalogProvider;
 use crate::orthography::initial_surface;
 
 /// One declaration and its validated grammar metadata.
@@ -114,6 +115,70 @@ impl DeclarationReading {
     }
 }
 
+/// One immutable identity supplied by a named generated catalog provider.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CatalogProviderRow {
+    canonical_identity: Arc<str>,
+    canonical_surface: Arc<str>,
+    onset: Onset,
+}
+
+impl CatalogProviderRow {
+    /// Creates one typed provider row from its canonical identity and surface.
+    #[must_use]
+    pub fn new(
+        canonical_identity: impl Into<Arc<str>>,
+        canonical_surface: impl Into<Arc<str>>,
+        onset: Onset,
+    ) -> Self {
+        Self {
+            canonical_identity: canonical_identity.into(),
+            canonical_surface: canonical_surface.into(),
+            onset,
+        }
+    }
+
+    /// Returns the provider's canonical identity key.
+    #[must_use]
+    pub fn canonical_identity(&self) -> &str {
+        &self.canonical_identity
+    }
+
+    /// Returns the exact canonical surface emitted by the renderer.
+    #[must_use]
+    pub fn canonical_surface(&self) -> &str {
+        &self.canonical_surface
+    }
+
+    /// Returns the adapter-frozen effective onset for the canonical surface.
+    #[must_use]
+    pub const fn onset(&self) -> Onset {
+        self.onset
+    }
+}
+
+/// All immutable rows supplied for one named generated catalog provider.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CatalogProviderRows {
+    provider: CatalogProvider,
+    rows: Vec<CatalogProviderRow>,
+}
+
+impl CatalogProviderRows {
+    /// Creates one named provider group. Uniqueness is checked when freezing
+    /// the parser environment.
+    #[must_use]
+    pub fn new(
+        provider: CatalogProvider,
+        rows: impl IntoIterator<Item = CatalogProviderRow>,
+    ) -> Self {
+        Self {
+            provider,
+            rows: rows.into_iter().collect(),
+        }
+    }
+}
+
 /// A failure while freezing normalized declarations into a parser environment.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParserEnvironmentError {
@@ -136,6 +201,31 @@ pub enum ParserEnvironmentError {
         identity: DeclarationId,
         feature: SurfaceFeature,
     },
+
+    /// The caller supplied the same named generated provider twice.
+    #[error("catalog provider {provider:?} was supplied more than once")]
+    DuplicateCatalogProvider { provider: CatalogProvider },
+
+    /// Two rows in one provider claim the same canonical identity.
+    #[error("catalog provider {provider:?} repeats canonical identity `{canonical_identity}`")]
+    DuplicateCatalogIdentity {
+        provider: CatalogProvider,
+        canonical_identity: String,
+    },
+
+    /// Two rows in one provider claim the same exact canonical surface.
+    #[error("catalog provider {provider:?} repeats canonical surface `{canonical_surface}`")]
+    DuplicateCatalogSurface {
+        provider: CatalogProvider,
+        canonical_surface: String,
+    },
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct CatalogProviderData {
+    identities: BTreeMap<Arc<str>, CatalogProviderRow>,
+    surfaces: BTreeMap<Arc<str>, Arc<str>>,
+    surface_byte_limit: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -145,6 +235,7 @@ struct EnvironmentData {
     initial_readings: BTreeMap<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>,
     running_surface_byte_limits: BTreeMap<GrammarPosition, usize>,
     initial_surface_byte_limits: BTreeMap<GrammarPosition, usize>,
+    catalog_providers: BTreeMap<CatalogProvider, CatalogProviderData>,
 }
 
 #[cfg(test)]
@@ -170,6 +261,19 @@ impl ParserEnvironment {
     /// feature uniqueness already guaranteed by an ordinary v2 source set.
     pub fn try_from_declarations(
         declarations: impl IntoIterator<Item = NormalizedDeclaration>,
+    ) -> Result<Self, ParserEnvironmentError> {
+        Self::try_from_parts(declarations, [])
+    }
+
+    /// Freezes normalized declarations and typed generated-provider rows into
+    /// deterministic immutable indexes.
+    ///
+    /// # Errors
+    /// Returns a typed error for duplicate declaration identities, provider
+    /// groups, provider identities, or provider surfaces.
+    pub fn try_from_parts(
+        declarations: impl IntoIterator<Item = NormalizedDeclaration>,
+        catalog_providers: impl IntoIterator<Item = CatalogProviderRows>,
     ) -> Result<Self, ParserEnvironmentError> {
         let mut records = BTreeMap::<DeclarationKind, BTreeMap<Arc<str>, DeclarationRecord>>::new();
         for declaration in declarations {
@@ -254,6 +358,45 @@ impl ParserEnvironment {
             }
         }
 
+        let mut frozen_catalog_providers = BTreeMap::new();
+        for supplied in catalog_providers {
+            let provider = supplied.provider;
+            if frozen_catalog_providers.contains_key(&provider) {
+                return Err(ParserEnvironmentError::DuplicateCatalogProvider { provider });
+            }
+            let mut identities = BTreeMap::new();
+            let mut surfaces = BTreeMap::new();
+            let mut surface_byte_limit = 0;
+            for row in supplied.rows {
+                if identities.contains_key(row.canonical_identity()) {
+                    return Err(ParserEnvironmentError::DuplicateCatalogIdentity {
+                        provider,
+                        canonical_identity: row.canonical_identity().to_owned(),
+                    });
+                }
+                if surfaces.contains_key(row.canonical_surface()) {
+                    return Err(ParserEnvironmentError::DuplicateCatalogSurface {
+                        provider,
+                        canonical_surface: row.canonical_surface().to_owned(),
+                    });
+                }
+                surfaces.insert(
+                    Arc::clone(&row.canonical_surface),
+                    Arc::clone(&row.canonical_identity),
+                );
+                surface_byte_limit = surface_byte_limit.max(row.canonical_surface.len());
+                identities.insert(Arc::clone(&row.canonical_identity), row);
+            }
+            frozen_catalog_providers.insert(
+                provider,
+                CatalogProviderData {
+                    identities,
+                    surfaces,
+                    surface_byte_limit,
+                },
+            );
+        }
+
         Ok(Self {
             data: Arc::new(EnvironmentData {
                 declarations: records,
@@ -261,6 +404,7 @@ impl ParserEnvironment {
                 initial_readings,
                 running_surface_byte_limits,
                 initial_surface_byte_limits,
+                catalog_providers: frozen_catalog_providers,
             }),
         })
     }
@@ -335,6 +479,72 @@ impl ParserEnvironment {
             .and_then(|record| record.onset(feature))
     }
 
+    /// Resolves one canonical identity within a named generated provider.
+    #[must_use]
+    pub fn catalog_identity(
+        &self,
+        provider: CatalogProvider,
+        canonical_identity: &str,
+    ) -> Option<Arc<str>> {
+        self.data
+            .catalog_providers
+            .get(&provider)?
+            .identities
+            .get(canonical_identity)
+            .map(|row| Arc::clone(&row.canonical_identity))
+    }
+
+    /// Resolves the canonical surface for one provider identity.
+    #[must_use]
+    pub fn catalog_surface(
+        &self,
+        provider: CatalogProvider,
+        canonical_identity: &str,
+    ) -> Option<&str> {
+        self.data
+            .catalog_providers
+            .get(&provider)?
+            .identities
+            .get(canonical_identity)
+            .map(CatalogProviderRow::canonical_surface)
+    }
+
+    /// Resolves the adapter-frozen onset for one provider identity.
+    #[must_use]
+    pub fn catalog_onset(
+        &self,
+        provider: CatalogProvider,
+        canonical_identity: &str,
+    ) -> Option<Onset> {
+        self.data
+            .catalog_providers
+            .get(&provider)?
+            .identities
+            .get(canonical_identity)
+            .map(CatalogProviderRow::onset)
+    }
+
+    pub(crate) fn catalog_row_for_surface(
+        &self,
+        provider: CatalogProvider,
+        surface: &str,
+    ) -> Option<&CatalogProviderRow> {
+        let provider = self.data.catalog_providers.get(&provider)?;
+        let canonical_identity = provider.surfaces.get(surface)?;
+        provider.identities.get(canonical_identity)
+    }
+
+    pub(crate) fn catalog_surface_byte_limit(&self, provider: CatalogProvider) -> usize {
+        self.data
+            .catalog_providers
+            .get(&provider)
+            .map_or(0, |provider| provider.surface_byte_limit)
+    }
+
+    pub(crate) fn has_catalog_provider(&self, provider: CatalogProvider) -> bool {
+        self.data.catalog_providers.contains_key(&provider)
+    }
+
     #[cfg(test)]
     pub(crate) fn test_only_shares_storage_with(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.data, &other.data)
@@ -375,8 +585,20 @@ pub(crate) fn canonical_test_environment() -> ParserEnvironment {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
-    ParserEnvironment::try_from_declarations(declarations)
-        .expect("builtin-v2 declaration environment freezes")
+    ParserEnvironment::try_from_parts(declarations, [canonical_test_catalog_provider()])
+        .expect("builtin-v2 declaration and catalog environment freezes")
+}
+
+#[cfg(test)]
+pub(crate) fn canonical_test_catalog_provider() -> CatalogProviderRows {
+    CatalogProviderRows::new(
+        CatalogProvider::CardNames,
+        [CatalogProviderRow::new(
+            "seven-dwarves",
+            "Seven Dwarves",
+            Onset::Consonant,
+        )],
+    )
 }
 
 #[cfg(test)]

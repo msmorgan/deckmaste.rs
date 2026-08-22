@@ -3,6 +3,8 @@ use std::path::Path;
 
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::environment::CatalogProviderRow;
+use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::BoundedParseOutcome;
@@ -19,14 +21,27 @@ use deckmaste_english_v2::parser::TextSpan;
 use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
 use macro_ron::v2::DeclarationKind;
+use macro_ron::v2::Onset;
+
+fn card_name_provider() -> CatalogProviderRows {
+    CatalogProviderRows::new(
+        CatalogProvider::CardNames,
+        [
+            CatalogProviderRow::new("alpha", "Alpha", Onset::Vowel),
+            CatalogProviderRow::new("alpha-beta", "Alpha Beta", Onset::Vowel),
+            CatalogProviderRow::new("urzas-saga", "Urza's Saga", Onset::Vowel),
+            CatalogProviderRow::new("seven-dwarves", "Seven Dwarves", Onset::Consonant),
+        ],
+    )
+}
 
 fn environment() -> ParserEnvironment {
     let declarations = macro_ron::v2::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
-    ParserEnvironment::try_from_declarations(declarations)
-        .expect("builtin-v2 declaration environment freezes")
+    ParserEnvironment::try_from_parts(declarations, [card_name_provider()])
+        .expect("builtin-v2 declaration and catalog environment freezes")
 }
 
 fn parser() -> Parser {
@@ -113,8 +128,9 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         )
         .expect("open declaration onset override normalizes"),
     );
-    let overridden_environment = ParserEnvironment::try_from_declarations(declarations)
-        .expect("overridden environment freezes");
+    let overridden_environment =
+        ParserEnvironment::try_from_parts(declarations, [card_name_provider()])
+            .expect("overridden environment freezes");
     let overridden_parser =
         Parser::new(overridden_environment.clone()).expect("required declarations are present");
     let text = "Destroy an herb.";
@@ -716,6 +732,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "WhereClause",
             "PronounNp",
             "Common",
+            "NamedNp",
             "DemonstrativeNp",
             "TargetNp",
             "SelfReferenceNp",
@@ -730,13 +747,16 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Demonstrative",
             "Pronoun",
             "Variable",
+            "Supertype",
             "NounLexeme",
             "VerbLexeme",
             "DeclarationNoun",
             "Noun",
             "SelfReferenceSpelling",
+            "CardName",
             "Sign",
             "SignedNumber",
+            "CatalogProvider",
             "DeclarationClass",
             "TerminalClass",
             "LexicalProvenanceKind",
@@ -1250,6 +1270,94 @@ fn generated_morphology_closed_owner_ids_match_scan_and_render_claims() {
 }
 
 #[test]
+fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
+    let parser = parser();
+    let environment = environment();
+    let context = context("Context Card");
+    let text = "Destroy a card named Alpha Beta.";
+    let parsed = parser
+        .parse(text, &context)
+        .expect("explicit card name parses");
+    let Ability::Paragraph(paragraph) = &parsed else {
+        panic!("named-card sentence is a paragraph: {parsed:?}");
+    };
+    let [
+        Sentence::Imperative(Imperative {
+            predicate:
+                VerbPhrase::Destroy(Destroy {
+                    object: NounPhrase::Named(NamedNp { head, name }),
+                }),
+        }),
+    ] = paragraph.sentences()
+    else {
+        panic!("explicit card name has its generated AST construction: {parsed:?}");
+    };
+    assert_eq!(head, &Noun::Lexeme(NounLexeme::Card));
+    assert_eq!(name.provider(), CatalogProvider::CardNames);
+    assert_eq!(name.canonical_identity(), "alpha-beta");
+    assert_eq!(parsed.render(&context, &environment), text);
+
+    let ownership = parser
+        .analyze(text, &context)
+        .ownership()
+        .expect("named identity owns its source bytes")
+        .clone();
+    assert!(ownership.failures().is_empty());
+    assert!(ownership.summary().covered());
+    assert!(ownership.parsed_claims().iter().any(|claim| {
+        claim.kind() == LexicalProvenanceKind::Identity
+            && claim.stable_owner_id() == "identity:CardNames/alpha-beta"
+            && &text[claim.span().start..claim.span().end] == " Alpha Beta"
+    }));
+    assert!(ownership.rendered_claims().iter().any(|claim| {
+        claim.kind() == LexicalProvenanceKind::Identity
+            && claim.stable_owner_id() == "identity:CardNames/alpha-beta"
+    }));
+
+    assert!(
+        parser
+            .parse("Destroy a card named alpha beta.", &context)
+            .is_err(),
+        "catalog identity scan preserves exact case"
+    );
+    let punctuation = "Destroy a card named Urza's Saga.";
+    let punctuation_ast = parser
+        .parse(punctuation, &context)
+        .expect("punctuation-bearing identity parses");
+    assert_eq!(punctuation_ast.render(&context, &environment), punctuation);
+}
+
+#[test]
+fn bare_own_card_name_remains_unique_source_self_reference() {
+    let parser = parser();
+    let context = context("Seven Dwarves");
+    let text = "Seven Dwarves gains 2 life.";
+    let analysis = parser.analyze(text, &context);
+    let selected = analysis.selected().expect("source self-reference selects");
+    let Ability::Paragraph(paragraph) = selected else {
+        panic!("self-reference sentence is a paragraph: {selected:?}");
+    };
+    let [
+        Sentence::Declarative(Declarative {
+            subject: NounPhrase::SelfReference(_),
+            ..
+        }),
+    ] = paragraph.sentences()
+    else {
+        panic!("bare own card name remains source self-reference: {selected:?}");
+    };
+    assert_eq!(
+        analysis
+            .decision()
+            .expect("selected analysis retains its decision")
+            .candidates()
+            .len(),
+        1,
+        "bare catalog identity contributes no rival noun-phrase construction"
+    );
+}
+
+#[test]
 fn parser_analysis_ownership_covers_every_kind_unicode_and_multitoken_identity() {
     let parser = parser();
     let cases = [
@@ -1523,7 +1631,7 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
         Err(ParseError::Failure {
             span: TextSpan { start: 15, end: 21 },
             expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::DeclarationNoun(
-                6
+                7
             ),)]),
         })
     );

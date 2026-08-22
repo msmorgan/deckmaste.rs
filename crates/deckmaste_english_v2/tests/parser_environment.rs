@@ -1,14 +1,20 @@
 use std::path::Path;
+use std::sync::Arc;
 
+use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::environment::CatalogProviderRow;
+use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::GrammarPosition;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::environment::ParserEnvironmentError;
 use deckmaste_english_v2::parser::Parser;
+use deckmaste_english_v2::parser::ParserBuildError;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::GrammarRecipe;
 use macro_ron::v2::NormalizedDeclaration;
+use macro_ron::v2::Onset;
 use macro_ron::v2::SubtypeCategory;
 use macro_ron::v2::SurfaceFeature;
 use macro_ron::v2::VerbValence;
@@ -68,6 +74,10 @@ fn reading_projection(
             )
         })
         .collect()
+}
+
+fn card_name_provider(rows: impl IntoIterator<Item = CatalogProviderRow>) -> CatalogProviderRows {
+    CatalogProviderRows::new(CatalogProvider::CardNames, rows)
 }
 
 #[test]
@@ -232,6 +242,178 @@ fn parser_environment_is_deterministic_and_owns_source_data() {
 }
 
 #[test]
+fn parser_environment_freezes_exact_catalog_identity_rows() {
+    let provider = card_name_provider([
+        CatalogProviderRow::new("alpha", "Alpha", Onset::Vowel),
+        CatalogProviderRow::new("alpha-beta", "Alpha Beta", Onset::Vowel),
+        CatalogProviderRow::new("urzas-saga", "Urza's Saga", Onset::Vowel),
+        CatalogProviderRow::new("seven-dwarves", "Seven Dwarves", Onset::Consonant),
+    ]);
+    let environment = ParserEnvironment::try_from_parts(synthetic_declarations(), [provider])
+        .expect("catalog provider rows freeze");
+
+    assert_eq!(
+        environment.catalog_surface(CatalogProvider::CardNames, "seven-dwarves"),
+        Some("Seven Dwarves")
+    );
+    assert_eq!(
+        environment.catalog_onset(CatalogProvider::CardNames, "seven-dwarves"),
+        Some(Onset::Consonant)
+    );
+    assert_eq!(
+        environment
+            .catalog_identity(CatalogProvider::CardNames, "seven-dwarves")
+            .as_deref(),
+        Some("seven-dwarves")
+    );
+    assert_eq!(
+        environment.catalog_identity(CatalogProvider::CardNames, "Seven Dwarves"),
+        None,
+        "the value constructor accepts canonical identities, not surface spellings"
+    );
+}
+
+#[test]
+fn parser_environment_catalog_rows_are_deterministic_and_owned() {
+    let forward_rows = vec![
+        CatalogProviderRow::new("second", "Alpha Beta", Onset::Vowel),
+        CatalogProviderRow::new("first", "Alpha", Onset::Vowel),
+    ];
+    let reverse_rows = forward_rows.iter().cloned().rev().collect::<Vec<_>>();
+    let forward = ParserEnvironment::try_from_parts(
+        synthetic_declarations(),
+        [card_name_provider(forward_rows)],
+    )
+    .expect("forward rows freeze");
+    let reverse = ParserEnvironment::try_from_parts(
+        synthetic_declarations().into_iter().rev(),
+        [card_name_provider(reverse_rows)],
+    )
+    .expect("reverse rows freeze");
+
+    assert_eq!(forward, reverse);
+}
+
+#[test]
+fn parser_environment_catalog_rows_outlive_owned_sources() {
+    let environment = {
+        let identity_string = String::from("scoped-identity");
+        let surface_string = String::from("Scoped Surface");
+        let identity: Arc<str> = Arc::from(identity_string.as_str());
+        let surface: Arc<str> = Arc::from(surface_string.as_str());
+        let environment = ParserEnvironment::try_from_parts(
+            [],
+            [card_name_provider([CatalogProviderRow::new(
+                Arc::clone(&identity),
+                Arc::clone(&surface),
+                Onset::Consonant,
+            )])],
+        )
+        .expect("scoped owned row freezes");
+        drop(identity);
+        drop(surface);
+        drop(identity_string);
+        drop(surface_string);
+        environment
+    };
+
+    assert_eq!(
+        environment.catalog_surface(CatalogProvider::CardNames, "scoped-identity"),
+        Some("Scoped Surface")
+    );
+    assert_eq!(
+        environment.catalog_onset(CatalogProvider::CardNames, "scoped-identity"),
+        Some(Onset::Consonant)
+    );
+    assert_eq!(
+        environment
+            .catalog_identity(CatalogProvider::CardNames, "scoped-identity")
+            .as_deref(),
+        Some("scoped-identity")
+    );
+}
+
+#[test]
+fn parser_environment_rejects_duplicate_catalog_identity_exactly() {
+    let error = ParserEnvironment::try_from_parts(
+        [],
+        [card_name_provider([
+            CatalogProviderRow::new("same", "First Surface", Onset::Consonant),
+            CatalogProviderRow::new("same", "Second Surface", Onset::Consonant),
+        ])],
+    )
+    .expect_err("one provider cannot repeat a canonical identity");
+
+    assert_eq!(
+        error,
+        ParserEnvironmentError::DuplicateCatalogIdentity {
+            provider: CatalogProvider::CardNames,
+            canonical_identity: "same".to_owned(),
+        }
+    );
+}
+
+#[test]
+fn parser_environment_rejects_duplicate_catalog_surface_exactly() {
+    let error = ParserEnvironment::try_from_parts(
+        [],
+        [card_name_provider([
+            CatalogProviderRow::new("first", "Same Surface", Onset::Consonant),
+            CatalogProviderRow::new("second", "Same Surface", Onset::Vowel),
+        ])],
+    )
+    .expect_err("one provider cannot repeat an exact canonical surface");
+
+    assert_eq!(
+        error,
+        ParserEnvironmentError::DuplicateCatalogSurface {
+            provider: CatalogProvider::CardNames,
+            canonical_surface: "Same Surface".to_owned(),
+        }
+    );
+}
+
+#[test]
+fn parser_environment_rejects_duplicate_catalog_provider() {
+    let error = ParserEnvironment::try_from_parts(
+        synthetic_declarations(),
+        [
+            card_name_provider([CatalogProviderRow::new("first", "First", Onset::Consonant)]),
+            card_name_provider([CatalogProviderRow::new(
+                "second",
+                "Second",
+                Onset::Consonant,
+            )]),
+        ],
+    )
+    .expect_err("one named provider may be supplied only once");
+
+    assert_eq!(
+        error,
+        ParserEnvironmentError::DuplicateCatalogProvider {
+            provider: CatalogProvider::CardNames,
+        }
+    );
+}
+
+#[test]
+fn parser_constructor_rejects_missing_generated_catalog_provider() {
+    let declarations = macro_ron::v2::read_builtin_v2(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+    )
+    .expect("integrated builtin-v2 declarations load");
+    let environment = ParserEnvironment::try_from_declarations(declarations)
+        .expect("declarations freeze without implicit provider discovery");
+
+    assert_eq!(
+        Parser::new(environment).expect_err("generated provider metadata is fail-closed"),
+        ParserBuildError::MissingCatalogProvider {
+            provider: CatalogProvider::CardNames,
+        }
+    );
+}
+
+#[test]
 fn parser_environment_rejects_duplicate_category_safe_identity() {
     let first = declaration(
         "/synthetic/first/Quuxify.ron",
@@ -262,8 +444,15 @@ fn parser_constructor_owns_and_clones_one_immutable_environment() {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
-    let environment = ParserEnvironment::try_from_declarations(declarations)
-        .expect("builtin-v2 declarations compile");
+    let environment = ParserEnvironment::try_from_parts(
+        declarations,
+        [card_name_provider([CatalogProviderRow::new(
+            "seven-dwarves",
+            "Seven Dwarves",
+            Onset::Consonant,
+        )])],
+    )
+    .expect("builtin-v2 declarations and provider compile");
     let parser = Parser::new(environment).expect("required declarations are present");
     let cloned = parser.clone();
     let context = ParseContext::new("Context Card").expect("nonempty context");

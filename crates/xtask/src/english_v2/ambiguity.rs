@@ -20,7 +20,7 @@ use super::corpus::CorpusUnit;
 pub(super) fn run(args: &AmbiguityArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let corpus = Corpus::load(&args.corpus.data)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
-    let parser = crate::english_v2::parser_from_builtin_v2();
+    let parser = crate::english_v2::parser_from_builtin_v2()?;
     let report = AmbiguityReport::run(&corpus, &parser)?;
 
     render_then_apply(&report, args.json, args.require_resolved, output)
@@ -732,8 +732,8 @@ mod tests {
         ]);
         reset_parser_entry_calls_for_test();
 
-        let report =
-            AmbiguityReport::run(&corpus, &crate::english_v2::parser_from_builtin_v2()).unwrap();
+        let parser = crate::english_v2::parser_from_builtin_v2().unwrap();
+        let report = AmbiguityReport::run(&corpus, &parser).unwrap();
 
         assert_eq!(
             take_parser_entry_calls_for_test(),

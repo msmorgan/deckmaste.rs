@@ -16,6 +16,13 @@ constructions! {
     vocab Demonstrative { That = "that", Those = "those", }
     vocab Pronoun { It = "it", You = "you", }
     vocab Variable { X = "X", }
+    vocab Supertype {
+        Basic = "basic",
+        Legendary = "legendary",
+        Ongoing = "ongoing",
+        Snow = "snow",
+        World = "world",
+    }
 
     morphology EnglishVerb {
         feature = Agreement;
@@ -26,6 +33,7 @@ constructions! {
         recipe = english_noun;
     }
     lexeme NounLexeme using EnglishNoun {
+        Card = "card",
         Player = "player",
     }
     lexeme VerbLexeme using EnglishVerb {
@@ -51,6 +59,11 @@ constructions! {
             Full => card_name,
             Abbreviated => abbreviated_card_name,
             canonical_on_collision = Full;
+        }
+    }
+    identity CardName {
+        generate catalog_identity {
+            provider = CardNames;
         }
     }
     codec SignedNumber {
@@ -131,6 +144,14 @@ constructions! {
     // `docs/union-spellings.md` — the admissible-pair grid, order and modifier
     // discipline, the seven-verb zero, and the collapse rule fixing which words
     // this demonstrative spells for each antecedent.
+    construction named: NounPhrase {
+        element NamedNp { head: lex Noun, name: identity CardName, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = head.onset;
+        form an when head.onset is Vowel = "an" noun(head) "named" identity(name);
+        form a otherwise = "a" noun(head) "named" identity(name);
+    }
     construction demonstrative: NounPhrase {
         element DemonstrativeNp { word: lex Demonstrative, head: lex Noun, }
         derive agreement = match word {

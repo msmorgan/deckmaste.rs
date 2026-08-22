@@ -1,11 +1,15 @@
 use std::path::Path;
 
+use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::environment::CatalogProviderRow;
+use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
 use macro_ron::v2::NormalizedDeclaration;
+use macro_ron::v2::Onset;
 
 fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
     macro_ron::v2::read_str(path, source).expect("synthetic declaration is valid")
@@ -17,8 +21,18 @@ fn parser_with(extra: impl IntoIterator<Item = NormalizedDeclaration>) -> Parser
     )
     .expect("builtin-v2 declarations load");
     declarations.extend(extra);
-    let environment = ParserEnvironment::try_from_declarations(declarations)
-        .expect("declarations compile into one environment");
+    let environment = ParserEnvironment::try_from_parts(
+        declarations,
+        [CatalogProviderRows::new(
+            CatalogProvider::CardNames,
+            [CatalogProviderRow::new(
+                "context-card",
+                "Context Card",
+                Onset::Consonant,
+            )],
+        )],
+    )
+    .expect("declarations compile into one environment");
     Parser::new(environment).expect("required static declarations are present")
 }
 

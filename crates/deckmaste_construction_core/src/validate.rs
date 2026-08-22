@@ -1590,6 +1590,33 @@ fn validate_lexeme_declaration_shape(
     }
 }
 
+fn validate_catalog_identity(
+    source: &crate::model::CatalogIdentitySource,
+    errors: &mut Option<syn::Error>,
+) {
+    match source.provider_slots.as_slice() {
+        [] => combine(
+            errors,
+            syn::Error::new(
+                source.recipe.span(),
+                "catalog_identity requires one `provider` field",
+            ),
+        ),
+        [_] => {}
+        [_, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        "duplicate catalog_identity field `provider`",
+                    ),
+                );
+            }
+        }
+    }
+}
+
 fn validate_generated_identities(raw: &Declarations) -> syn::Result<()> {
     let mut errors = None;
     for declaration in &raw.declarations {
@@ -1607,6 +1634,9 @@ fn validate_generated_identities(raw: &Declarations) -> syn::Result<()> {
                     format!("unknown generated identity recipe `{name}`"),
                 ),
             ),
+            crate::model::GeneratedIdentityRecipe::Catalog(source) => {
+                validate_catalog_identity(source, &mut errors);
+            }
             crate::model::GeneratedIdentityRecipe::Context(source) => {
                 if source.arms.len() != 2 {
                     combine(
@@ -2652,6 +2682,7 @@ struct GeneratedNameInventory {
     value_names: HashMap<String, String>,
     visitor_items: HashMap<String, String>,
     terminal_variants: HashMap<String, String>,
+    catalog_provider_variants: HashMap<String, String>,
     category_variants: HashMap<String, String>,
     rule_variants: HashMap<String, String>,
     rule_id_items: HashMap<String, String>,
@@ -2744,6 +2775,34 @@ impl GeneratedNameInventory {
             &spelling_key(generated),
             role,
             span,
+            errors,
+        );
+    }
+
+    fn register_catalog_provider_variant(
+        &mut self,
+        provider: &syn::Ident,
+        errors: &mut Option<syn::Error>,
+    ) {
+        let semantic_identity = identifier_key(provider);
+        let authored_spelling = provider.to_string();
+        let role = format!(
+            "generated catalog provider variant `{semantic_identity}` authored as `{authored_spelling}`"
+        );
+        validate_generated_rust_ident(&semantic_identity, &role, provider.span(), errors);
+        if self
+            .catalog_provider_variants
+            .get(&semantic_identity)
+            .is_some_and(|previous| previous == &role)
+        {
+            return;
+        }
+        register_associated_name(
+            &mut self.catalog_provider_variants,
+            "CatalogProvider variant",
+            &semantic_identity,
+            &role,
+            provider.span(),
             errors,
         );
     }
@@ -3229,6 +3288,17 @@ fn generated_name_inventory(
                             binding.name.span(),
                             errors,
                         );
+                    }
+                    (None, Some(crate::model::GeneratedIdentityRecipe::Catalog(source))) => {
+                        names.register_terminal_variant(
+                            &name,
+                            &format!("generated catalog identity terminal variant for `{name}`"),
+                            binding.name.span(),
+                            errors,
+                        );
+                        for provider in &source.provider_slots {
+                            names.register_catalog_provider_variant(&provider.value, errors);
+                        }
                     }
                     (None, None) if binding.codec_atom != Some(CodecAtomClass::Noun) => {
                         if let Some(variant) = binding.lexical_variant.as_ref().and_then(|path| {
@@ -4817,12 +4887,21 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
                         format!("signed_decimal codec `{}`", binding.name),
                         errors,
                     );
-                } else if binding.generated_identity.is_some() {
+                } else if let Some(identity) = &binding.generated_identity {
+                    let (mode, family) = match identity {
+                        crate::model::GeneratedIdentityRecipe::Context(_) => {
+                            (VisitMode::Copy, "context")
+                        }
+                        crate::model::GeneratedIdentityRecipe::Catalog(_) => {
+                            (VisitMode::Borrowed, "catalog")
+                        }
+                        crate::model::GeneratedIdentityRecipe::Unsupported { .. } => continue,
+                    };
                     register_terminal_callbacks(
                         &mut callbacks,
                         &binding.name,
-                        VisitMode::Copy,
-                        format!("context identity `{}`", binding.name),
+                        mode,
+                        format!("{family} identity `{}`", binding.name),
                         errors,
                     );
                 } else if let Some(mode) = binding.traversal.callback_mode {
@@ -7858,6 +7937,19 @@ pub(crate) mod tests {
         })
     }
 
+    fn catalog_identity_error(body: &proc_macro2::TokenStream) -> String {
+        error(quote! {
+            identity CardName {
+                generate catalog_identity { #body }
+            }
+            construction named: Cat {
+                element Named { name: identity CardName, }
+                form named = identity(name);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+    }
+
     fn declaration_noun_error(body: &proc_macro2::TokenStream) -> String {
         error(quote! {
             morphology EnglishNoun { feature = Number; recipe = english_noun; }
@@ -8088,6 +8180,35 @@ pub(crate) mod tests {
             let message = context_identity_error(&body);
             assert!(message.contains(expected), "{expected}: {message}");
         }
+    }
+
+    #[test]
+    fn catalog_identity_recipe_requires_exactly_one_named_provider() {
+        validate(quote! {
+            identity CardName {
+                generate catalog_identity { provider = CardNames; }
+            }
+            construction named: Cat {
+                element Named { name: identity CardName, }
+                form named = identity(name);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("one named provider validates");
+
+        let missing = catalog_identity_error(&quote! {});
+        assert!(
+            missing.contains("catalog_identity requires one `provider` field"),
+            "{missing}"
+        );
+        let duplicate = catalog_identity_error(&quote! {
+            provider = CardNames;
+            provider = AlternateCardNames;
+        });
+        assert!(
+            duplicate.contains("duplicate catalog_identity field `provider`"),
+            "{duplicate}"
+        );
     }
 
     #[test]
@@ -12002,6 +12123,8 @@ pub(crate) mod tests {
                         value.name().to_owned(),
                     ),
                     crate::semantic::TerminalPlan::ContextIdentity(value) =>
+                        (value.source_index(), "identity", value.name().to_owned(),),
+                    crate::semantic::TerminalPlan::CatalogIdentity(value) =>
                         (value.source_index(), "identity", value.name().to_owned(),),
                     crate::semantic::TerminalPlan::SignedDecimal(value) =>
                         (value.source_index(), "codec", value.codec_name().to_owned(),),

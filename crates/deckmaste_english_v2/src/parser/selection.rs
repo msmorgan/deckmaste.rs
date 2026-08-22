@@ -997,6 +997,7 @@ mod tests {
                 "ClauseWhere",
                 "NounPhrasePronoun",
                 "NounPhraseCommon",
+                "NounPhraseNamed",
                 "NounPhraseDemonstrative",
                 "NounPhraseTarget",
                 "NounPhraseSelfReference",

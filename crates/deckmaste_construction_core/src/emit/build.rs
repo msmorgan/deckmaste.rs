@@ -504,6 +504,21 @@ fn lower_terminal_value(
                 expression: quote! { *#binding },
             })
         }
+        AtomTerminal::CatalogIdentity { plan, .. } => {
+            let ty = plan.ident();
+            let provider = plan.provider();
+            let identity = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! {
+                    BuildValue::Leaf(Leaf::CatalogIdentity {
+                        provider: CatalogProvider::#provider,
+                        canonical_identity: #identity,
+                        onset: _,
+                    })
+                },
+                expression: quote! { #ty::from_canonical(#identity.clone()) },
+            })
+        }
         AtomTerminal::SignedDecimal(codec) => {
             let leaf = codec.codec_ident();
             let binding = binders.allocate(preferred);
@@ -1079,6 +1094,34 @@ fn role_number_pattern(
     }
 }
 
+fn lower_catalog_identity_role(
+    plan: &crate::semantic::CatalogIdentityPlan,
+    role: &syn::Ident,
+    lowering: &mut Lowering,
+) {
+    let ty = plan.ident();
+    let provider = plan.provider();
+    let identity = lowering.binders.allocate(&identifier_key(role));
+    let onset = lowering
+        .binders
+        .allocate(&format!("{}_onset", identifier_key(role)));
+    lowering.patterns.push(quote! {
+        BuildValue::Leaf(Leaf::CatalogIdentity {
+            provider: CatalogProvider::#provider,
+            canonical_identity: #identity,
+            onset: #onset,
+        })
+    });
+    lowering.field_values.insert(
+        identifier_key(role),
+        quote! { #ty::from_canonical(#identity.clone()) },
+    );
+    lowering.role_features.insert(
+        (identifier_key(role), Feature::Onset),
+        LocalFeatureValue::Bound(onset),
+    );
+}
+
 fn lower_terminal_role(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
@@ -1118,6 +1161,10 @@ fn lower_terminal_role(
         AtomTerminal::Binding(binding) => binding,
         AtomTerminal::ContextIdentity(identity) => {
             lower_context_identity_role(identity, &role, lowering);
+            return Ok(());
+        }
+        AtomTerminal::CatalogIdentity { plan, .. } => {
+            lower_catalog_identity_role(plan, &role, lowering);
             return Ok(());
         }
         AtomTerminal::SignedDecimal(codec) => {

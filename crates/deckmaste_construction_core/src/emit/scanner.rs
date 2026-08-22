@@ -110,6 +110,31 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 .collect()
         }
     });
+    let catalog_identity_arms =
+        plan.runtime_catalog_identities()
+            .map(|(terminal_index, identity)| {
+                let provider = identity.provider();
+                quote! {
+                    Lexical::CatalogIdentity(#terminal_index) => input
+                        .catalog_identity_reading(CatalogProvider::#provider)
+                        .map(|(end, canonical_identity, onset)| LexicalMatch {
+                            end,
+                            value: Leaf::CatalogIdentity {
+                                provider: CatalogProvider::#provider,
+                                canonical_identity,
+                                onset,
+                            },
+                            owner: None,
+                        })
+                        .into_iter()
+                        .collect()
+                }
+            });
+    let unknown_catalog_identity_arm = plan
+        .runtime_catalog_identities()
+        .next()
+        .is_some()
+        .then(|| quote! { Lexical::CatalogIdentity(_) => Vec::new(), });
     let verb_lexeme_arm = verb_lexeme_arm(plan);
     let declaration_noun_arms = declaration_noun_arms(plan);
     let unknown_declaration_noun_arm = (!declaration_noun_arms.is_empty())
@@ -173,6 +198,8 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     .collect(),
                 #(#vocab_arms,)*
                 #(#context_identity_arms,)*
+                #(#catalog_identity_arms,)*
+                #unknown_catalog_identity_arm
                 #signed_decimal_arm
                 #verb_lexeme_arm
                 #(#declaration_noun_arms,)*

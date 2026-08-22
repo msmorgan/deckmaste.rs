@@ -13,7 +13,7 @@ use super::corpus::Corpus;
 pub(super) fn run(args: &RoundtripArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let corpus = Corpus::load(&args.corpus.data)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
-    let parser = crate::english_v2::parser_from_builtin_v2();
+    let parser = crate::english_v2::parser_from_builtin_v2()?;
     let report = AuditReport::run(&corpus, &parser);
 
     render_report(&report, args.json, output)?;

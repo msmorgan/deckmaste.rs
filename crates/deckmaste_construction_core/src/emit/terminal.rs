@@ -160,6 +160,67 @@ pub(crate) fn emit(
                     vec![origin],
                 ));
             }
+            TerminalPlan::CatalogIdentity(row) => {
+                let origin = row.origin().clone();
+                let ty = row.ident();
+                let provider = row.provider();
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(row.name()),
+                    quote! {
+                        /// A canonical identity validated against its generated provider.
+                        ///
+                        /// Rendering and derived-feature lookup require the same frozen parser
+                        /// environment used to construct this value, or an environment containing
+                        /// an equivalent row for this provider and canonical identity.
+                        #[derive(Debug, Clone, PartialEq, Eq)]
+                        pub struct #ty {
+                            provider: CatalogProvider,
+                            canonical_identity: std::sync::Arc<str>,
+                        }
+                    },
+                    vec![origin.clone()],
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty: row.name().to_owned(),
+                    },
+                    quote! {
+                        impl #ty {
+                            /// Validates and constructs one canonical provider identity.
+                            ///
+                            /// The returned value remains environment-affine: render it only with
+                            /// this environment or one containing an equivalent provider row.
+                            pub fn new(
+                                environment: &crate::environment::ParserEnvironment,
+                                canonical_identity: &str,
+                            ) -> Option<Self> {
+                                environment
+                                    .catalog_identity(CatalogProvider::#provider, canonical_identity)
+                                    .map(Self::from_canonical)
+                            }
+
+                            pub const fn provider(&self) -> CatalogProvider {
+                                self.provider
+                            }
+
+                            pub fn canonical_identity(&self) -> &str {
+                                &self.canonical_identity
+                            }
+
+                            pub(crate) fn from_canonical(
+                                canonical_identity: std::sync::Arc<str>,
+                            ) -> Self {
+                                Self {
+                                    provider: CatalogProvider::#provider,
+                                    canonical_identity,
+                                }
+                            }
+                        }
+                    },
+                    vec![origin],
+                ));
+            }
             TerminalPlan::SignedDecimal(row) => {
                 let origin = row.origin().clone();
                 let sign = row.sign_type();
@@ -264,6 +325,58 @@ pub(crate) fn emit(
                 ));
             }
         }
+    }
+    let catalog_identities = validated.runtime_catalog_identities().collect::<Vec<_>>();
+    if !catalog_identities.is_empty() {
+        let mut providers = std::collections::BTreeMap::new();
+        for (_, identity) in &catalog_identities {
+            providers
+                .entry(identifier_key(identity.provider()))
+                .or_insert_with(|| identity.provider().clone());
+        }
+        let variants = providers.values();
+        let names = providers.values().map(|provider| {
+            let name = syn::LitStr::new(&provider.to_string(), provider.span());
+            quote! { Self::#provider => #name }
+        });
+        let required = providers.values();
+        let origins = catalog_identities
+            .iter()
+            .map(|(_, identity)| identity.origin().clone())
+            .collect::<Vec<_>>();
+        items.push(GeneratedItem::new(
+            ItemKey::named_type("CatalogProvider"),
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+                pub enum CatalogProvider { #(#variants),* }
+            },
+            origins.clone(),
+        ));
+        items.push(GeneratedItem::new(
+            ItemKey::Impl {
+                trait_name: None,
+                self_ty: "CatalogProvider".to_owned(),
+            },
+            quote! {
+                impl CatalogProvider {
+                    pub const fn name(self) -> &'static str {
+                        match self { #(#names,)* }
+                    }
+                }
+            },
+            origins.clone(),
+        ));
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Constant,
+                name: "REQUIRED_CATALOG_PROVIDERS".to_owned(),
+            },
+            quote! {
+                pub(crate) const REQUIRED_CATALOG_PROVIDERS: &[CatalogProvider] =
+                    &[#(CatalogProvider::#required),*];
+            },
+            origins,
+        ));
     }
     Ok((items, contributions))
 }

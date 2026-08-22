@@ -30,17 +30,104 @@ use deckmaste_construction_core::Expansion;
 use deckmaste_construction_core::ItemKey;
 use deckmaste_construction_core::NamedKind;
 use deckmaste_construction_core::TerminalBindingDeclarationKind;
+use deckmaste_english_v2::ast::CatalogProvider;
+use deckmaste_english_v2::environment::CatalogProviderRow;
+use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 
-fn parser_from_builtin_v2() -> Parser {
+fn catalog_surface_onset(surface: &str) -> Option<macro_ron::v2::Onset> {
+    macro_ron::v2::normalize_surface_onset(surface, None).or_else(|| {
+        let initial = surface.chars().next()?;
+        if initial == '+' {
+            return Some(macro_ron::v2::Onset::Consonant);
+        }
+        initial.is_alphabetic().then(|| {
+            if "AEIOUÀÁÂÃÄÅÆÈÉÊËÌÍÎÏÒÓÔÕÖØÙÚÛÜÝŸ"
+                .chars()
+                .any(|vowel| vowel == initial.to_uppercase().next().unwrap_or(initial))
+            {
+                macro_ron::v2::Onset::Vowel
+            } else {
+                macro_ron::v2::Onset::Consonant
+            }
+        })
+    })
+}
+
+fn adapt_card_name_catalog_provider(catalog_root: &Path) -> anyhow::Result<CatalogProviderRows> {
+    let catalogs = deckmaste_catalogs::CatalogSet::load(catalog_root).with_context(|| {
+        format!(
+            "loading generated canonical catalogs from {}",
+            catalog_root.display()
+        )
+    })?;
+    let rows = catalogs
+        .get(deckmaste_catalogs::CatalogKind::CardNames)
+        .iter()
+        .map(|name| {
+            let onset = catalog_surface_onset(name).with_context(|| {
+                format!("freezing card-name catalog surface with unknown onset: {name:?}")
+            })?;
+            Ok(CatalogProviderRow::new(name.as_str(), name.as_str(), onset))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    Ok(CatalogProviderRows::new(CatalogProvider::CardNames, rows))
+}
+
+fn parser_from_builtin_v2() -> anyhow::Result<Parser> {
     let declarations = macro_ron::v2::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
-    .expect("integrated builtin-v2 declarations load");
-    let environment = ParserEnvironment::try_from_declarations(declarations)
-        .expect("integrated builtin-v2 declarations freeze");
-    Parser::new(environment).expect("builtin-v2 supplies every generated static declaration")
+    .context("loading integrated builtin-v2 declarations")?;
+    let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
+    let provider = adapt_card_name_catalog_provider(&catalog_root)?;
+    let environment = ParserEnvironment::try_from_parts(declarations, [provider])
+        .context("freezing integrated builtin-v2 declarations and catalog providers")?;
+    Parser::new(environment)
+        .context("building builtin-v2 parser from generated environment requirements")
+}
+
+#[cfg(test)]
+mod catalog_adapter_tests {
+    use super::*;
+
+    #[test]
+    fn named_catalog_adapter_supplies_canonical_seven_dwarves_row() {
+        let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
+        let provider = adapt_card_name_catalog_provider(&catalog_root)
+            .expect("generated catalog adapts without parser-side discovery");
+        let environment = ParserEnvironment::try_from_parts([], [provider])
+            .expect("adapter rows freeze without parser-side discovery");
+
+        assert_eq!(
+            environment.catalog_surface(
+                deckmaste_english_v2::ast::CatalogProvider::CardNames,
+                "Seven Dwarves",
+            ),
+            Some("Seven Dwarves")
+        );
+        assert_eq!(
+            environment.catalog_onset(
+                deckmaste_english_v2::ast::CatalogProvider::CardNames,
+                "Seven Dwarves",
+            ),
+            Some(macro_ron::v2::Onset::Consonant)
+        );
+    }
+
+    #[test]
+    fn named_catalog_adapter_propagates_context_for_catalog_load_failure() {
+        let temporary = tempfile::tempdir().expect("temporary adapter root");
+        let missing = temporary.path().join("missing-catalogs");
+
+        let error = adapt_card_name_catalog_provider(&missing)
+            .expect_err("missing catalog directory must be a typed command error");
+        let rendered = format!("{error:#}");
+
+        assert!(rendered.contains("loading generated canonical catalogs from"));
+        assert!(rendered.contains(&missing.display().to_string()));
+    }
 }
 
 #[derive(Debug, Args)]
@@ -1590,12 +1677,14 @@ mod tests {
         "vocab Demonstrative",
         "vocab Pronoun",
         "vocab Variable",
+        "vocab Supertype",
         "morphology EnglishVerb",
         "morphology EnglishNoun",
         "lexeme NounLexeme",
         "lexeme VerbLexeme",
         "codec Noun",
         "identity SelfReferenceSpelling",
+        "identity CardName",
         "codec SignedNumber",
         "construction paragraph",
         "construction triggered",
@@ -1606,6 +1695,7 @@ mod tests {
         "construction where",
         "construction pronoun",
         "construction common",
+        "construction named",
         "construction demonstrative",
         "construction target",
         "construction self_reference",
@@ -1633,6 +1723,7 @@ mod tests {
         "construction where",
         "construction pronoun",
         "construction common",
+        "construction named",
         "construction demonstrative",
         "construction target",
         "construction self_reference",
@@ -1650,10 +1741,12 @@ mod tests {
         "vocab Demonstrative",
         "vocab Pronoun",
         "vocab Variable",
+        "vocab Supertype",
         "lexeme NounLexeme",
         "lexeme VerbLexeme",
         "codec Noun",
         "identity SelfReferenceSpelling",
+        "identity CardName",
         "codec SignedNumber",
         "construction triggered",
         "construction with_where",
@@ -1672,6 +1765,7 @@ mod tests {
         "construction where",
         "construction pronoun",
         "construction common",
+        "construction named",
         "construction demonstrative",
         "construction target",
         "construction self_reference",
@@ -1693,6 +1787,7 @@ mod tests {
         "construction where",
         "construction pronoun",
         "construction common",
+        "construction named",
         "construction demonstrative",
         "construction target",
         "construction self_reference",
@@ -1707,6 +1802,7 @@ mod tests {
         "vocab Demonstrative",
         "vocab Pronoun",
         "vocab Variable",
+        "vocab Supertype",
         "identity SelfReferenceSpelling",
         "lexeme NounLexeme",
         "lexeme VerbLexeme",
@@ -1736,6 +1832,7 @@ mod tests {
             | "function walk_noun_phrase" => &[
                 "construction pronoun",
                 "construction common",
+                "construction named",
                 "construction demonstrative",
                 "construction target",
                 "construction self_reference",
@@ -1778,6 +1875,7 @@ mod tests {
             "type WhereClause" | "function walk_where_clause" => &["construction where"],
             "type PronounNp" | "function walk_pronoun_np" => &["construction pronoun"],
             "type Common" | "function walk_common" => &["construction common"],
+            "type NamedNp" | "function walk_named_np" => &["construction named"],
             "type DemonstrativeNp"
             | "function walk_demonstrative_np"
             | "function agreement_for_demonstrative"
@@ -1806,6 +1904,9 @@ mod tests {
             "type Variable" | "function render_variable" | "function walk_variable" => {
                 &["vocab Variable"]
             }
+            "type Supertype" | "function render_supertype" | "function walk_supertype" => {
+                &["vocab Supertype"]
+            }
             "type NounLexeme"
             | "function surface_for_noun_lexeme"
             | "function walk_noun_lexeme" => &["lexeme NounLexeme"],
@@ -1825,6 +1926,12 @@ mod tests {
             "type SelfReferenceSpelling" | "impl SelfReferenceSpelling" => {
                 &["identity SelfReferenceSpelling"]
             }
+            "type CardName"
+            | "impl CardName"
+            | "type CatalogProvider"
+            | "impl CatalogProvider"
+            | "constant REQUIRED_CATALOG_PROVIDERS"
+            | "function walk_card_name" => &["identity CardName"],
             "type Agreement"
             | "type Number"
             | "type Onset"
@@ -1906,6 +2013,7 @@ mod tests {
                 "construction where",
                 "construction pronoun",
                 "construction common",
+                "construction named",
                 "construction demonstrative",
                 "construction target",
                 "construction self_reference",
@@ -1936,6 +2044,7 @@ mod tests {
                 "construction where",
                 "construction pronoun",
                 "construction common",
+                "construction named",
                 "construction demonstrative",
                 "construction target",
                 "construction self_reference",
@@ -2060,6 +2169,7 @@ mod tests {
         "type WhereClause",
         "type PronounNp",
         "type Common",
+        "type NamedNp",
         "type DemonstrativeNp",
         "type TargetNp",
         "type SelfReferenceNp",
@@ -2076,6 +2186,7 @@ mod tests {
         "type Demonstrative",
         "type Pronoun",
         "type Variable",
+        "type Supertype",
         "type NounLexeme",
         "function surface_for_noun_lexeme",
         "type VerbLexeme",
@@ -2085,8 +2196,13 @@ mod tests {
         "type Noun",
         "type SelfReferenceSpelling",
         "impl SelfReferenceSpelling",
+        "type CardName",
+        "impl CardName",
         "type Sign",
         "type SignedNumber",
+        "type CatalogProvider",
+        "impl CatalogProvider",
+        "constant REQUIRED_CATALOG_PROVIDERS",
         "type Agreement",
         "type Number",
         "type Onset",
@@ -2170,6 +2286,7 @@ mod tests {
         "function render_demonstrative",
         "function render_pronoun",
         "function render_variable",
+        "function render_supertype",
         "function agreement_for_pronoun",
         "function agreement_for_demonstrative",
         "function number_for_demonstrative",
@@ -2197,6 +2314,7 @@ mod tests {
         "function walk_where_clause",
         "function walk_pronoun_np",
         "function walk_common",
+        "function walk_named_np",
         "function walk_demonstrative_np",
         "function walk_target_np",
         "function walk_self_reference_np",
@@ -2211,7 +2329,9 @@ mod tests {
         "function walk_demonstrative",
         "function walk_pronoun",
         "function walk_variable",
+        "function walk_supertype",
         "function walk_self_reference_spelling",
+        "function walk_card_name",
         "function walk_noun_lexeme",
         "function walk_verb_lexeme",
         "function walk_sign",
@@ -2580,20 +2700,6 @@ mod tests {
         xtask_paths.sort();
         xtask_paths.dedup();
         let xtask_files = parse_rust_sources(&xtask_paths);
-        for (path, file) in runtime_files.iter().chain(&xtask_files) {
-            for catalog_authority in [
-                concat!("Parser", "Catalogs"),
-                concat!("Catalog", "Set"),
-                concat!("Catalog", "Kind"),
-                concat!("Catalog", "Identity"),
-                concat!("deckmaste_", "catalogs"),
-            ] {
-                assert!(
-                    !contains_production_identifier(file, catalog_authority),
-                    "{path} retains catalog authority {catalog_authority}"
-                );
-            }
-        }
         for (path, file) in &xtask_files {
             assert!(
                 !contains_production_code_indirection(file),
@@ -2892,7 +2998,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 187);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 198);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -2943,7 +3049,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 187);
+        assert_eq!(parsed.items.len(), 198);
     }
 
     #[test]

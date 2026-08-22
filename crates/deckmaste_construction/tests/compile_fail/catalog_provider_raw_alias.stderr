@@ -1,0 +1,5 @@
+error: generated Rust CatalogProvider variant `CardNames` collides: semantic identity `CardNames` is shared by generated catalog provider variant `CardNames` authored as `CardNames` and generated catalog provider variant `CardNames` authored as `r#CardNames`
+ --> tests/compile_fail/catalog_provider_raw_alias.rs:8:48
+  |
+8 |         generate catalog_identity { provider = r#CardNames; }
+  |                                                ^^^^^^^^^^^

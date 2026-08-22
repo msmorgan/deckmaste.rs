@@ -29,7 +29,9 @@ use crate::identifier::snake_case;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::AtomPlan;
 use crate::semantic::BindingPlan;
+use crate::semantic::CatalogIdentityPlan;
 use crate::semantic::ContextIdentityPlan;
 use crate::semantic::DeclarationNounPlan;
 use crate::semantic::LexemePlan;
@@ -39,26 +41,47 @@ use crate::semantic::VocabPlan;
 
 struct RuntimeInventory<'a> {
     vocabs: Vec<&'a VocabPlan>,
+    unused_vocab_lexicals: Vec<&'a VocabPlan>,
     noun_lexeme: Option<&'a LexemePlan>,
     verb_lexeme: Option<&'a LexemePlan>,
     noun_binding: Option<&'a BindingPlan>,
     direct_bindings: Vec<&'a BindingPlan>,
     opaque_bindings: Vec<&'a BindingPlan>,
     context_identities: Vec<&'a ContextIdentityPlan>,
+    catalog_identities: Vec<(usize, &'a CatalogIdentityPlan)>,
     signed_decimal: Option<&'a SignedDecimalPlan>,
     declaration_nouns: Vec<(usize, &'a DeclarationNounPlan)>,
 }
 
 impl<'a> RuntimeInventory<'a> {
     fn from_plan(plan: &'a SemanticPlan) -> Self {
+        let vocabs = plan.runtime_vocabs().collect::<Vec<_>>();
+        let unused_vocab_lexicals = vocabs
+            .iter()
+            .copied()
+            .filter(|vocab| {
+                !plan.constructions().iter().any(|construction| {
+                    construction.forms().iter().any(|form| {
+                        form.atoms().iter().any(|atom| {
+                            matches!(
+                                atom,
+                                AtomPlan::Lex { terminal, .. } if terminal == vocab.name()
+                            )
+                        })
+                    })
+                })
+            })
+            .collect();
         Self {
-            vocabs: plan.runtime_vocabs().collect(),
+            vocabs,
+            unused_vocab_lexicals,
             noun_lexeme: plan.runtime_noun_lexeme(),
             verb_lexeme: plan.runtime_verb_lexeme(),
             noun_binding: plan.runtime_noun_binding(),
             direct_bindings: plan.runtime_direct_bindings().collect(),
             opaque_bindings: plan.runtime_opaque_bindings().collect(),
             context_identities: plan.runtime_context_identities().collect(),
+            catalog_identities: plan.runtime_catalog_identities().collect(),
             signed_decimal: plan.runtime_signed_decimal(),
             declaration_nouns: plan.runtime_declaration_nouns().collect(),
         }
@@ -595,8 +618,77 @@ fn emit_required_declarations(plan: &SemanticPlan) -> GeneratedItem {
     )
 }
 
+fn vocab_lexical_variants(inventory: &RuntimeInventory<'_>) -> Vec<TokenStream> {
+    inventory
+        .vocabs
+        .iter()
+        .map(|vocab| {
+            let ident = vocab.name_ident();
+            if inventory
+                .unused_vocab_lexicals
+                .iter()
+                .any(|unused| unused.name() == vocab.name())
+            {
+                quote! {
+                    #[allow(
+                        dead_code,
+                        reason = "closed vocabulary remains generated until its first construction"
+                    )]
+                    #ident
+                }
+            } else {
+                quote! { #ident }
+            }
+        })
+        .collect()
+}
+
+fn catalog_lexical_variants(
+    inventory: &RuntimeInventory<'_>,
+) -> (
+    Option<TokenStream>,
+    Option<TokenStream>,
+    Option<TokenStream>,
+) {
+    let present = !inventory.catalog_identities.is_empty();
+    let lexical = present.then(|| quote! { CatalogIdentity(usize), });
+    let leaf = present.then(|| {
+        quote! {
+            CatalogIdentity {
+                provider: CatalogProvider,
+                canonical_identity: std::sync::Arc<str>,
+                onset: Onset,
+            },
+        }
+    });
+    let class = present.then(|| quote! { CatalogIdentity(usize), });
+    (lexical, leaf, class)
+}
+
+fn signed_lexical_variants(
+    inventory: &RuntimeInventory<'_>,
+) -> (
+    Option<TokenStream>,
+    Option<TokenStream>,
+    Option<TokenStream>,
+) {
+    let lexical = inventory.signed_decimal.map(|codec| {
+        let variant = codec.codec_ident();
+        quote! { #variant, }
+    });
+    let leaf = inventory.signed_decimal.map(|codec| {
+        let variant = codec.codec_ident();
+        quote! { #variant(#variant), }
+    });
+    let class = inventory.signed_decimal.map(|codec| {
+        let variant = codec.codec_ident();
+        quote! { #variant, }
+    });
+    (lexical, leaf, class)
+}
+
 fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
-    let vocab_variants = inventory.vocabs.iter().map(|vocab| vocab.name_ident());
+    let vocab_variants = vocab_lexical_variants(inventory);
     let vocab_leaf_variants = inventory.vocabs.iter().map(|vocab| {
         let ident = vocab.name_ident();
         quote! { #ident(#ident) }
@@ -655,10 +747,6 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .opaque_bindings
         .iter()
         .map(|binding| binding_variant(binding));
-    let signed_lexical = inventory.signed_decimal.map(|codec| {
-        let variant = codec.codec_ident();
-        quote! { #variant, }
-    });
     let context_lexical_variants = inventory.context_identities.iter().map(|identity| {
         let variant = identity.aggregate_ident();
         quote! { #variant, }
@@ -672,14 +760,8 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .context_identities
         .iter()
         .map(|identity| identity.aggregate_ident());
-    let signed_leaf = inventory.signed_decimal.map(|codec| {
-        let variant = codec.codec_ident();
-        quote! { #variant(#variant), }
-    });
-    let signed_class = inventory.signed_decimal.map(|codec| {
-        let variant = codec.codec_ident();
-        quote! { #variant, }
-    });
+    let (catalog_lexical, catalog_leaf, catalog_class) = catalog_lexical_variants(inventory);
+    let (signed_lexical, signed_leaf, signed_class) = signed_lexical_variants(inventory);
 
     vec![
         named_type(
@@ -696,6 +778,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #(#direct_lexical_variants)*
                     #(#opaque_lexical_variants)*
                     #(#context_lexical_variants)*
+                    #catalog_lexical
                     #signed_lexical
                     Declaration(DeclarationMatcher),
                 }
@@ -715,6 +798,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #(#direct_leaf_variants)*
                     #(#opaque_leaf_variants)*
                     #(#context_leaf_variants)*
+                    #catalog_leaf
                     #signed_leaf
                     Declaration(DeclarationLeaf),
                 }
@@ -733,6 +817,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #(#direct_class_variants,)*
                     #(#opaque_class_variants,)*
                     #(#context_class_variants,)*
+                    #catalog_class
                     #signed_class
                     Declaration(DeclarationClass),
                 }
@@ -754,6 +839,17 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
 fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let declaration_noun =
         (!inventory.declaration_nouns.is_empty()).then(|| quote! { DeclarationNoun(usize), });
+    let catalog_identity =
+        (!inventory.catalog_identities.is_empty()).then(|| quote! { CatalogIdentity(usize), });
+    let catalog_owner_identity = (!inventory.catalog_identities.is_empty()).then(|| {
+        quote! {
+            Catalog(std::sync::Arc<(
+                CatalogProvider,
+                std::sync::Arc<str>,
+                std::sync::OnceLock<String>,
+            )>),
+        }
+    });
     vec![
         named_type(
             LEXICAL_PROVENANCE_KIND_TYPE,
@@ -792,6 +888,7 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     Identity {
                         declaration: &'static str,
                     },
+                    #catalog_identity
                     #declaration_noun
                     Declaration {
                         kind: ::macro_ron::v2::DeclarationKind,
@@ -814,6 +911,7 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         ::macro_ron::v2::SurfaceFeature,
                         std::sync::OnceLock<String>,
                     )>),
+                    #catalog_owner_identity
                 }
             },
         ),
@@ -868,6 +966,12 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         let variant = identity.aggregate_ident();
         quote! { Lexical::#variant => TerminalClass::#variant, }
     });
+    let catalog_class_arm = (!inventory.catalog_identities.is_empty()).then(|| {
+        quote! {
+            Lexical::CatalogIdentity(terminal_index) =>
+                TerminalClass::CatalogIdentity(terminal_index),
+        }
+    });
     let vocab_labels = inventory.vocabs.iter().map(|vocab| {
         let variant = vocab.name_ident();
         let label = syn::LitStr::new(
@@ -908,6 +1012,8 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         );
         quote! { TerminalClass::#variant => #label, }
     });
+    let catalog_label = (!inventory.catalog_identities.is_empty())
+        .then(|| quote! { TerminalClass::CatalogIdentity(_) => "catalog identity", });
     let context_labels = inventory.context_identities.iter().map(|identity| {
         let variant = identity.aggregate_ident();
         let label = syn::LitStr::new(
@@ -959,6 +1065,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #(#direct_class_arms)*
                             #(#opaque_class_arms)*
                             #(#context_class_arms)*
+                            #catalog_class_arm
                             #signed_class_arm
                             Lexical::Declaration(matcher) => TerminalClass::Declaration(
                                 DeclarationClass {
@@ -1019,6 +1126,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #(#direct_labels)*
                             #(#opaque_labels)*
                             #(#context_labels)*
+                            #catalog_label
                             #signed_label
                             TerminalClass::Declaration(_) => "open declaration",
                         }
@@ -1101,6 +1209,94 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             }
         })
     });
+    let catalog_owner_arms =
+        inventory
+            .catalog_identities
+            .iter()
+            .map(|(terminal_index, identity)| {
+                let provider = identity.provider();
+                quote! {
+                    (
+                        LexicalOwnerTemplate::CatalogIdentity(#terminal_index),
+                        Leaf::CatalogIdentity {
+                            provider: CatalogProvider::#provider,
+                            canonical_identity,
+                            ..
+                        },
+                    ) => Some(LexicalOwner::catalog_owner(
+                        CatalogProvider::#provider,
+                        canonical_identity.clone(),
+                    )),
+                }
+            });
+    let catalog_owner_constructor = (!inventory.catalog_identities.is_empty()).then(|| {
+        quote! {
+            pub(crate) fn catalog_owner(
+                provider: CatalogProvider,
+                canonical_identity: std::sync::Arc<str>,
+            ) -> Self {
+                Self {
+                    identity: LexicalOwnerIdentity::Catalog(std::sync::Arc::new((
+                        provider,
+                        canonical_identity,
+                        std::sync::OnceLock::new(),
+                    ))),
+                }
+            }
+        }
+    });
+    let catalog_kind_arm = (!inventory.catalog_identities.is_empty()).then(|| {
+        quote! {
+            LexicalOwnerIdentity::Catalog(_) => LexicalProvenanceKind::Identity,
+        }
+    });
+    let catalog_stable_id_arm = (!inventory.catalog_identities.is_empty()).then(|| {
+        quote! {
+            LexicalOwnerIdentity::Catalog(identity) => identity.2.get_or_init(|| {
+                LexicalOwner::construct_label(|| {
+                    format!("identity:{}/{}", identity.0.name(), identity.1)
+                })
+            }),
+        }
+    });
+    let catalog_stable_id_owned_arm = (!inventory.catalog_identities.is_empty()).then(|| {
+        quote! {
+            LexicalOwnerIdentity::Catalog(_) => self.stable_id().to_owned(),
+        }
+    });
+    let catalog_eq_arm = (!inventory.catalog_identities.is_empty()).then(|| {
+        quote! {
+            (
+                LexicalOwnerIdentity::Catalog(left),
+                LexicalOwnerIdentity::Catalog(right),
+            ) => left.0 == right.0 && left.1 == right.1,
+        }
+    });
+    let catalog_ord_arms = (!inventory.catalog_identities.is_empty()).then(|| {
+        quote! {
+            (
+                LexicalOwnerIdentity::Catalog(left),
+                LexicalOwnerIdentity::Catalog(right),
+            ) => left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)),
+            (LexicalOwnerIdentity::Catalog(_), _) => std::cmp::Ordering::Greater,
+        }
+    });
+    let declaration_ord_arms = if inventory.catalog_identities.is_empty() {
+        quote! {
+            (LexicalOwnerIdentity::Declaration(_), _) => std::cmp::Ordering::Greater,
+        }
+    } else {
+        quote! {
+            (
+                LexicalOwnerIdentity::Declaration(_),
+                LexicalOwnerIdentity::Static { .. },
+            ) => std::cmp::Ordering::Greater,
+            (
+                LexicalOwnerIdentity::Declaration(_),
+                LexicalOwnerIdentity::Catalog(_),
+            ) => std::cmp::Ordering::Less,
+        }
+    };
     let verb_lexeme_owner_arms = inventory.verb_lexeme.into_iter().flat_map(|lexeme| {
         let declaration_ident = lexeme.name_ident();
         let declaration = syn::LitStr::new(lexeme.name(), lexeme.name_ident().span());
@@ -1303,10 +1499,13 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         }
                     }
 
+                    #catalog_owner_constructor
+
                     pub const fn kind(&self) -> LexicalProvenanceKind {
                         match self.identity {
                             LexicalOwnerIdentity::Static { kind, .. } => kind,
                             LexicalOwnerIdentity::Declaration(_) => LexicalProvenanceKind::Lexeme,
+                            #catalog_kind_arm
                         }
                     }
 
@@ -1316,6 +1515,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             LexicalOwnerIdentity::Declaration(declaration) => declaration
                                 .2
                                 .get_or_init(|| declaration_lexeme_owner_id(&declaration.0, declaration.1)),
+                            #catalog_stable_id_arm
                         }
                     }
 
@@ -1325,6 +1525,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 Self::construct_label(|| stable_id.to_string())
                             }
                             LexicalOwnerIdentity::Declaration(_) => self.stable_id().to_owned(),
+                            #catalog_stable_id_owned_arm
                         }
                     }
                 }
@@ -1379,6 +1580,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 LexicalOwnerIdentity::Declaration(left),
                                 LexicalOwnerIdentity::Declaration(right),
                             ) => left.0 == right.0 && left.1 == right.1,
+                            #catalog_eq_arm
                             _ => false,
                         }
                     }
@@ -1407,7 +1609,8 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                     LexicalOwnerIdentity::Declaration(right),
                                 ) => left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)),
                                 (LexicalOwnerIdentity::Static { .. }, _) => std::cmp::Ordering::Less,
-                                (LexicalOwnerIdentity::Declaration(_), _) => std::cmp::Ordering::Greater,
+                                #declaration_ord_arms
+                                #catalog_ord_arms
                             }
                         })
                     }
@@ -1445,6 +1648,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             ) => Some(LexicalOwner::static_owner(kind, stable_id)),
                             #(#vocab_owner_arms)*
                             #(#context_owner_arms)*
+                            #(#catalog_owner_arms)*
                             #(#verb_lexeme_owner_arms)*
                             (
                                 LexicalOwnerTemplate::Declaration { kind, name },
