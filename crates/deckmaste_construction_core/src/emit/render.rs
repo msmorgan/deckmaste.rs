@@ -30,6 +30,9 @@ use crate::semantic::BindingRenderPlan;
 use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionFieldPlan;
 use crate::semantic::ConstructionPlan;
+use crate::semantic::FiniteDomainKindPlan;
+use crate::semantic::FiniteValuePlan;
+use crate::semantic::FormPlan;
 use crate::semantic::LexemePlan;
 use crate::semantic::RootPlan;
 use crate::semantic::SemanticPlan;
@@ -1107,7 +1110,7 @@ fn render_allocator(
             .iter()
             .map(|field| (field.name_key(), field))
             .collect::<HashMap<_, _>>();
-        for atom in construction.atoms() {
+        for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
             match atom {
                 AtomPlan::Literal(_) => {}
                 AtomPlan::Category { role, .. } => {
@@ -1345,9 +1348,61 @@ fn render_arms(
                 fields: field_locals,
                 category: category_value.clone(),
             };
-            let statements = render_atoms(validated, construction, &locals, root_names)?;
-            let category_role_block =
-                !root_impl && matches!(construction.atoms(), [AtomPlan::Category { .. }]);
+            let form_bodies = construction
+                .forms()
+                .iter()
+                .enumerate()
+                .map(|(form_index, form)| {
+                    let statements =
+                        render_atoms(validated, construction, form, &locals, root_names)?;
+                    let guard = super::emit_form_guard_expression(
+                        construction,
+                        form_index,
+                        |domain, value| {
+                            let field = construction.field(domain.role())?;
+                            let field_value = field_value(construction, domain.role(), &locals)?;
+                            match (domain.kind(), value) {
+                                (
+                                    FiniteDomainKindPlan::Vocab { terminal, .. },
+                                    FiniteValuePlan::Vocab(variant),
+                                ) => {
+                                    let terminal = ident(terminal);
+                                    let variant = ident(variant);
+                                    let value =
+                                        copy_value(construction, domain.role(), field_value)?;
+                                    Ok(quote! { matches!(#value, #terminal::#variant) })
+                                }
+                                (
+                                    FiniteDomainKindPlan::OptionalPresence,
+                                    FiniteValuePlan::OptionalPresence(present),
+                                ) => {
+                                    let _ = field;
+                                    Ok(quote! { #field_value.is_some() == #present })
+                                }
+                                _ => {
+                                    Err(internal("form guard domain and assignment value disagree"))
+                                }
+                            }
+                        },
+                    )?;
+                    Ok((guard, statements))
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            if construction.forms().len() > 1 {
+                let branches = form_bodies.iter().map(|(guard, statements)| {
+                    let guard = guard.as_ref().expect("multi-form rows are guarded");
+                    quote! { if #guard { #(#statements)* } else }
+                });
+                return Ok(quote! {
+                    #pattern => { #(#branches)* { unreachable!("sealed form partition is total") } }
+                });
+            }
+            let (_, statements) = form_bodies
+                .into_iter()
+                .next()
+                .ok_or_else(|| internal("construction has no sealed render form"))?;
+            let category_role_block = !root_impl
+                && matches!(construction.forms()[0].atoms(), [AtomPlan::Category { .. }]);
             if statements.len() == 1 && !category_role_block {
                 let statement = syn::parse2::<syn::Stmt>(
                     statements
@@ -1371,6 +1426,7 @@ fn render_arms(
 fn render_atoms(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
+    form: &FormPlan,
     locals: &RenderLocals,
     root_names: &HashSet<String>,
 ) -> syn::Result<Vec<TokenStream>> {
@@ -1380,8 +1436,7 @@ fn render_atoms(
         .iter()
         .map(|field| (field.name_key(), field))
         .collect::<HashMap<_, _>>();
-    construction
-        .atoms()
+    form.atoms()
         .iter()
         .enumerate()
         .map(|(atom_index, atom)| {
@@ -1410,7 +1465,14 @@ fn render_atoms(
             }
             let statement =
                 render_atom_statement(validated, construction, atom, locals, root_names, &fields)?;
-            let owner = render_owner(validated, construction, atom_index, atom, locals)?;
+            let owner = render_owner(
+                validated,
+                construction,
+                form.name(),
+                atom_index,
+                atom,
+                locals,
+            )?;
             Ok(quote! {
                 #method_writer.claim(
                     || #owner,
@@ -1624,6 +1686,7 @@ fn render_fixed_verb_atom(
 fn render_owner(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
+    form_name: &str,
     atom_index: usize,
     atom: &AtomPlan,
     locals: &RenderLocals,
@@ -1634,7 +1697,7 @@ fn render_owner(
                 &format!(
                     "form:{}/{}/{}",
                     construction.construction_id(),
-                    construction.form(),
+                    form_name,
                     atom_index,
                 ),
                 Span::call_site(),
@@ -2395,7 +2458,7 @@ fn enqueue_role_categories(
     queued: &mut HashSet<String>,
 ) {
     for construction in members {
-        for atom in construction.atoms() {
+        for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
             let AtomPlan::Category { category, .. } = atom else { continue };
             if queued.insert(category.clone()) {
                 order.push(category.clone());
@@ -2554,6 +2617,44 @@ mod tests {
         reason = "literal full-surface structural oracles retain detailed mismatch output"
     )]
     use quote::ToTokens;
+
+    #[test]
+    fn guarded_form_renderer_selects_atoms_from_the_same_finite_partition() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Word { That = "that", Those = "those", Other = "other", }
+            construction demonstrative: NounPhrase {
+                element Demonstrative { word: lex Word, }
+                form that when word is That = "singular" lex(word);
+                form those when word is Those = "plural" lex(word);
+                form fallback otherwise = "fallback" lex(word);
+            }
+            root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("guarded renderer fixture generates");
+        let source = expansion
+            .items()
+            .iter()
+            .filter(|item| matches!(&item.key, crate::ItemKey::Impl { self_ty, trait_name: None } if self_ty == "NounPhrase"))
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        for fragment in [
+            "Word :: That",
+            "Word :: Those",
+            "word (\"singular\")",
+            "word (\"plural\")",
+            "word (\"fallback\")",
+            "form:demonstrative/that/0",
+            "form:demonstrative/those/0",
+            "form:demonstrative/fallback/0",
+        ] {
+            assert!(
+                source.contains(fragment),
+                "renderer lacks `{fragment}`: {source}"
+            );
+        }
+    }
 
     #[test]
     fn structural_surface_lookup_is_total_and_owner_ids_retain_policy_and_edge_class() {

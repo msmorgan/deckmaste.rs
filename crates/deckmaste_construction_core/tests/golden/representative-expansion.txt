@@ -1028,6 +1028,15 @@ pub(crate) enum Construction {
     NodeChain,
     ActionAction,
 }
+impl Construction {
+    pub(crate) const fn name(self) -> &'static str {
+        match self {
+            Self::NodeLeaf => "NodeLeaf",
+            Self::NodeChain => "NodeChain",
+            Self::ActionAction => "ActionAction",
+        }
+    }
+}
 impl Category {
     pub(crate) const fn root_adapter(self, eoi: bool) -> &'static [LexicalTerminal] {
         match (self, eoi) {
@@ -1095,6 +1104,13 @@ impl RuleId {
             Self::NodeLeaf => Some(Construction::NodeLeaf),
             Self::NodeChain => Some(Construction::NodeChain),
             Self::ActionAction => Some(Construction::ActionAction),
+        }
+    }
+    pub(crate) const fn form_name(self) -> Option<&'static str> {
+        match self {
+            Self::NodeLeaf => None,
+            Self::NodeChain => None,
+            Self::ActionAction => None,
         }
     }
     pub(crate) const fn owner(self) -> &'static str {

@@ -493,7 +493,6 @@ pub(crate) struct ConstructionPlan {
     category: String,
     category_variant: String,
     element_type: String,
-    form: String,
     rule_id: String,
     render_arm: String,
     visitor_method: String,
@@ -501,7 +500,55 @@ pub(crate) struct ConstructionPlan {
     nullable: bool,
     fields: Vec<ConstructionFieldPlan>,
     invariant: InvariantPlan,
+    forms: Vec<FormPlan>,
+}
+
+#[derive(Debug)]
+pub(crate) struct FormPlan {
+    name: String,
+    rule_id: String,
+    guard: FormGuardPlan,
     atoms: Vec<AtomPlan>,
+    nullable: bool,
+}
+
+#[derive(Debug)]
+pub(crate) enum FormGuardPlan {
+    Unguarded,
+    Predicate(FinitePredicatePlan),
+    Otherwise { guarded_form_indexes: Vec<usize> },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FinitePredicatePlan {
+    domains: Vec<FiniteDomainPlan>,
+    accepting: Vec<FiniteAssignmentPlan>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FiniteDomainPlan {
+    role: String,
+    kind: FiniteDomainKindPlan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum FiniteDomainKindPlan {
+    Vocab {
+        terminal: String,
+        variants: Vec<String>,
+    },
+    OptionalPresence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FiniteAssignmentPlan {
+    values: Vec<FiniteValuePlan>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum FiniteValuePlan {
+    Vocab(String),
+    OptionalPresence(bool),
 }
 
 #[derive(Debug)]
@@ -770,18 +817,22 @@ impl RuntimeEmissionPlan {
             .map(|root| root.punctuation.clone())
             .filter(|punctuation| !punctuation.is_empty())
             .chain(constructions.iter().flat_map(|construction| {
-                construction.atoms.iter().filter_map(|atom| match atom {
-                    AtomPlan::Literal(literal) if is_punctuation_literal(literal) => {
-                        Some(literal.clone())
-                    }
-                    AtomPlan::Literal(_)
-                    | AtomPlan::Category { .. }
-                    | AtomPlan::Lex { .. }
-                    | AtomPlan::Identity { .. }
-                    | AtomPlan::Noun { .. }
-                    | AtomPlan::VerbFixed { .. }
-                    | AtomPlan::OpenDeclaration(_) => None,
-                })
+                construction
+                    .forms
+                    .iter()
+                    .flat_map(FormPlan::atoms)
+                    .filter_map(|atom| match atom {
+                        AtomPlan::Literal(literal) if is_punctuation_literal(literal) => {
+                            Some(literal.clone())
+                        }
+                        AtomPlan::Literal(_)
+                        | AtomPlan::Category { .. }
+                        | AtomPlan::Lex { .. }
+                        | AtomPlan::Identity { .. }
+                        | AtomPlan::Noun { .. }
+                        | AtomPlan::VerbFixed { .. }
+                        | AtomPlan::OpenDeclaration(_) => None,
+                    })
             }))
             .collect::<BTreeSet<_>>()
             .into_iter()
@@ -804,7 +855,7 @@ impl RuntimeEmissionPlan {
             constructions
                 .iter()
                 .filter(|construction| {
-                    construction.atoms.iter().any(
+                    construction.forms.iter().flat_map(FormPlan::atoms).any(
                         |atom| matches!(atom, AtomPlan::Literal(literal) if is_punctuation_literal(literal)),
                     )
                 })
@@ -1195,6 +1246,8 @@ impl SemanticPlan {
                         invariant,
                         nullable,
                         &mut construction_fields,
+                        &field_policy_terminals,
+                        &nullable_types,
                     )
                 })
                 .collect::<syn::Result<Vec<_>>>()?;
@@ -1323,8 +1376,9 @@ impl SemanticPlan {
     ) -> impl Iterator<Item = (&ConstructionPlan, &OpenDeclarationAtomPlan)> {
         self.constructions.iter().flat_map(|construction| {
             construction
-                .atoms
+                .forms
                 .iter()
+                .flat_map(FormPlan::atoms)
                 .filter_map(move |atom| match atom {
                     AtomPlan::OpenDeclaration(open) => Some((construction, open)),
                     _ => None,
@@ -1592,7 +1646,7 @@ impl SemanticPlan {
             .iter_mut()
             .find(|row| row.construction_id == construction_id)
             .expect("test construction is present");
-        construction.atoms[atom_index] = AtomPlan::Literal(literal.to_owned());
+        construction.forms[0].atoms[atom_index] = AtomPlan::Literal(literal.to_owned());
     }
 
     #[cfg(test)]
@@ -1607,7 +1661,7 @@ impl SemanticPlan {
             .iter_mut()
             .find(|row| row.construction_id == construction_id)
             .expect("test construction is present");
-        let AtomPlan::OpenDeclaration(open) = &mut construction.atoms[atom_index] else {
+        let AtomPlan::OpenDeclaration(open) = &mut construction.forms[0].atoms[atom_index] else {
             panic!("test atom is an open declaration")
         };
         open.name = name.to_owned();
@@ -1735,7 +1789,11 @@ impl SemanticPlan {
                         .ident = syn::Ident::new(new, field.value_type.span());
                 }
             }
-            for atom in &mut construction.atoms {
+            for atom in construction
+                .forms
+                .iter_mut()
+                .flat_map(|form| &mut form.atoms)
+            {
                 if let AtomPlan::Lex { terminal, .. } = atom
                     && *terminal == old
                 {
@@ -1809,7 +1867,11 @@ impl SemanticPlan {
                         .ident = syn::Ident::new(new, field.value_type.span());
                 }
             }
-            for atom in &mut construction.atoms {
+            for atom in construction
+                .forms
+                .iter_mut()
+                .flat_map(|form| &mut form.atoms)
+            {
                 if let AtomPlan::Identity { terminal, .. } = atom
                     && *terminal == old
                 {
@@ -1976,8 +2038,8 @@ impl SemanticPlan {
                 (
                     plan.construction_id.clone(),
                     plan.element_type.clone(),
-                    plan.form.clone(),
-                    plan.atoms.iter().map(AtomPlan::snapshot).collect(),
+                    plan.forms[0].name.clone(),
+                    plan.forms[0].atoms.iter().map(AtomPlan::snapshot).collect(),
                 )
             })
             .collect();
@@ -2271,6 +2333,10 @@ fn collect_invariant_feature_dependencies(
 }
 
 impl ConstructionPlan {
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "construction sealing consumes the already-separated validated fact inventories"
+    )]
     fn from_source(
         source_index: usize,
         source: &crate::Construction,
@@ -2278,6 +2344,8 @@ impl ConstructionPlan {
         invariant: InvariantPlan,
         nullable: bool,
         structural_fields: &mut HashMap<(String, String), StructuralFieldPlan>,
+        terminals: &[TerminalPlan],
+        nullable_types: &HashSet<String>,
     ) -> syn::Result<Self> {
         let construction_id = identifier_key(&source.name);
         let category = path_key(&source.category);
@@ -2321,8 +2389,20 @@ impl ConstructionPlan {
                 })
             })
             .collect::<syn::Result<Vec<_>>>()?;
-        let form = source.forms.first().expect("parser requires one form");
-        let atoms = seal_atoms(form, &resolved_atoms[..form.atoms.len()])?;
+        let forms = seal_forms(
+            source,
+            &fields,
+            resolved_atoms,
+            &rule_id,
+            terminals,
+            nullable_types,
+        )?;
+        if nullable != forms.iter().any(FormPlan::is_nullable) {
+            return Err(syn::Error::new(
+                source.name.span(),
+                "sealed construction form nullability is inconsistent",
+            ));
+        }
         Ok(Self {
             source_index,
             origin_span: source.name.span(),
@@ -2335,7 +2415,6 @@ impl ConstructionPlan {
             category,
             category_variant,
             element_type: element_type.clone(),
-            form: identifier_key(&form.name),
             rule_id: rule_id.clone(),
             render_arm: element_type.clone(),
             visitor_method: format!("visit_{}", snake_case(&element_type)),
@@ -2343,7 +2422,7 @@ impl ConstructionPlan {
             nullable,
             fields,
             invariant,
-            atoms,
+            forms,
         })
     }
 
@@ -2359,12 +2438,16 @@ impl ConstructionPlan {
         &self.construction_id
     }
 
-    pub(crate) fn form(&self) -> &str {
-        &self.form
-    }
-
     pub(crate) fn category(&self) -> &str {
         &self.category
+    }
+
+    #[cfg(test)]
+    pub(crate) fn form(&self) -> &str {
+        self.forms
+            .first()
+            .expect("sealed construction has at least one form")
+            .name()
     }
 
     pub(crate) fn category_variant(&self) -> &str {
@@ -2380,7 +2463,14 @@ impl ConstructionPlan {
     }
 
     pub(crate) fn atoms(&self) -> &[AtomPlan] {
-        &self.atoms
+        self.forms
+            .first()
+            .expect("sealed construction has at least one form")
+            .atoms()
+    }
+
+    pub(crate) fn forms(&self) -> &[FormPlan] {
+        &self.forms
     }
 
     pub(crate) fn origin_span(&self) -> Span {
@@ -2425,6 +2515,507 @@ impl ConstructionPlan {
     pub(crate) fn invariant(&self) -> &InvariantPlan {
         &self.invariant
     }
+}
+
+impl FormPlan {
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub(crate) fn rule_id(&self) -> &str {
+        &self.rule_id
+    }
+
+    pub(crate) fn guard(&self) -> &FormGuardPlan {
+        &self.guard
+    }
+
+    pub(crate) fn atoms(&self) -> &[AtomPlan] {
+        &self.atoms
+    }
+
+    pub(crate) const fn is_nullable(&self) -> bool {
+        self.nullable
+    }
+}
+
+impl FormGuardPlan {
+    pub(crate) fn guarded_form_indexes(&self) -> Option<&[usize]> {
+        match self {
+            Self::Otherwise {
+                guarded_form_indexes,
+            } => Some(guarded_form_indexes),
+            Self::Unguarded | Self::Predicate(_) => None,
+        }
+    }
+
+    pub(crate) fn predicate(&self) -> Option<&FinitePredicatePlan> {
+        match self {
+            Self::Predicate(predicate) => Some(predicate),
+            Self::Unguarded | Self::Otherwise { .. } => None,
+        }
+    }
+
+    #[cfg(test)]
+    fn test_accepting_witnesses(&self, forms: &[FormPlan]) -> Vec<String> {
+        let domains = combined_form_domains(forms);
+        enumerate_assignments(&domains)
+            .into_iter()
+            .filter(|assignment| form_guard_accepts(self, forms, &domains, assignment))
+            .map(|assignment| assignment_witness(&domains, &assignment))
+            .collect()
+    }
+}
+
+impl FinitePredicatePlan {
+    pub(crate) fn domains(&self) -> &[FiniteDomainPlan] {
+        &self.domains
+    }
+
+    pub(crate) fn accepting(&self) -> &[FiniteAssignmentPlan] {
+        &self.accepting
+    }
+
+    fn accepts(&self, domains: &[FiniteDomainPlan], assignment: &FiniteAssignmentPlan) -> bool {
+        self.accepting.iter().any(|accepted| {
+            self.domains
+                .iter()
+                .zip(&accepted.values)
+                .all(|(domain, value)| {
+                    domains
+                        .iter()
+                        .position(|candidate| candidate.role == domain.role)
+                        .is_some_and(|index| assignment.values.get(index) == Some(value))
+                })
+        })
+    }
+}
+
+impl FiniteDomainPlan {
+    pub(crate) fn role(&self) -> &str {
+        &self.role
+    }
+
+    pub(crate) fn kind(&self) -> &FiniteDomainKindPlan {
+        &self.kind
+    }
+}
+
+impl FiniteAssignmentPlan {
+    pub(crate) fn values(&self) -> &[FiniteValuePlan] {
+        &self.values
+    }
+}
+
+fn seal_forms(
+    construction: &crate::Construction,
+    fields: &[ConstructionFieldPlan],
+    resolved_atoms: &[AtomContribution],
+    base_rule_id: &str,
+    terminals: &[TerminalPlan],
+    nullable_types: &HashSet<String>,
+) -> syn::Result<Vec<FormPlan>> {
+    let mut atom_offset = 0;
+    let mut guarded_indexes = Vec::new();
+    let mut forms = Vec::with_capacity(construction.forms.len());
+    for (form_index, source) in construction.forms.iter().enumerate() {
+        let atom_end = atom_offset + source.atoms.len();
+        let atoms = seal_atoms(
+            source,
+            resolved_atoms.get(atom_offset..atom_end).ok_or_else(|| {
+                syn::Error::new(
+                    source.name.span(),
+                    "sealed construction atom inventory is truncated",
+                )
+            })?,
+        )?;
+        atom_offset = atom_end;
+        let guard = match &source.guard {
+            crate::model::FormGuardSource::Unguarded => FormGuardPlan::Unguarded,
+            crate::model::FormGuardSource::When(predicate) => {
+                guarded_indexes.push(form_index);
+                FormGuardPlan::Predicate(seal_finite_predicate(
+                    predicate,
+                    fields,
+                    terminals,
+                    source.name.span(),
+                )?)
+            }
+            crate::model::FormGuardSource::Otherwise => FormGuardPlan::Otherwise {
+                guarded_form_indexes: guarded_indexes.clone(),
+            },
+        };
+        let name = identifier_key(&source.name);
+        let rule_id = if construction.forms.len() == 1 {
+            base_rule_id.to_owned()
+        } else {
+            format!("{base_rule_id}{}", pascal_case(&name))
+        };
+        let nullable = atoms
+            .iter()
+            .all(|atom| form_atom_is_nullable(atom, fields, nullable_types));
+        forms.push(FormPlan {
+            name,
+            rule_id,
+            guard,
+            atoms,
+            nullable,
+        });
+    }
+    if atom_offset != resolved_atoms.len() {
+        return Err(syn::Error::new(
+            construction.name.span(),
+            "sealed construction atom inventory has surplus rows",
+        ));
+    }
+    reject_guard_overlaps(&forms, fields)?;
+    Ok(forms)
+}
+
+fn form_atom_is_nullable(
+    atom: &AtomPlan,
+    fields: &[ConstructionFieldPlan],
+    nullable_types: &HashSet<String>,
+) -> bool {
+    match atom {
+        AtomPlan::Literal(value) => value.is_empty(),
+        AtomPlan::Category { role, category } => fields
+            .iter()
+            .find(|field| field.name_key() == *role)
+            .and_then(ConstructionFieldPlan::structural_kind)
+            .map_or_else(
+                || nullable_types.contains(category),
+                |kind| structural_kind_is_nullable(kind, nullable_types),
+            ),
+        AtomPlan::Lex { role, .. }
+        | AtomPlan::Identity { role, .. }
+        | AtomPlan::Noun { role, .. } => fields
+            .iter()
+            .find(|field| field.name_key() == *role)
+            .and_then(ConstructionFieldPlan::structural_kind)
+            .is_some_and(|kind| structural_kind_is_nullable(kind, nullable_types)),
+        AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => false,
+    }
+}
+
+fn structural_kind_is_nullable(
+    kind: &StructuralFieldKindPlan,
+    nullable_types: &HashSet<String>,
+) -> bool {
+    match kind {
+        StructuralFieldKindPlan::Optional(_) => true,
+        StructuralFieldKindPlan::Sequence { bounds, .. } => bounds.min() == 0,
+        StructuralFieldKindPlan::Required(value) => match value {
+            ValueKindPlan::Category(name)
+            | ValueKindPlan::Product(name)
+            | ValueKindPlan::Sum(name) => nullable_types.contains(name),
+            ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) => false,
+        },
+    }
+}
+
+fn seal_finite_predicate(
+    source: &crate::model::RequireExprSource,
+    fields: &[ConstructionFieldPlan],
+    terminals: &[TerminalPlan],
+    form_span: Span,
+) -> syn::Result<FinitePredicatePlan> {
+    let referenced = guard_referenced_roles(source);
+    let domains = fields
+        .iter()
+        .filter(|field| referenced.contains(&field.name_key()))
+        .map(|field| finite_domain(field, source, terminals))
+        .collect::<syn::Result<Vec<_>>>()?;
+    let accepting = enumerate_assignments(&domains)
+        .into_iter()
+        .filter(|assignment| evaluate_guard(source, &domains, assignment))
+        .collect::<Vec<_>>();
+    if accepting.is_empty() {
+        return Err(syn::Error::new(form_span, "form guard is unsatisfiable"));
+    }
+    Ok(FinitePredicatePlan { domains, accepting })
+}
+
+fn guard_referenced_roles(source: &crate::model::RequireExprSource) -> HashSet<String> {
+    fn collect(source: &crate::model::RequireExprSource, roles: &mut HashSet<String>) {
+        match source {
+            crate::model::RequireExprSource::OptionalPresence { role, .. }
+            | crate::model::RequireExprSource::In {
+                subject: crate::model::RequireSubjectSource::Role(role),
+                ..
+            } => {
+                roles.insert(identifier_key(role));
+            }
+            crate::model::RequireExprSource::All(operands)
+            | crate::model::RequireExprSource::Any(operands) => {
+                for operand in operands {
+                    collect(operand, roles);
+                }
+            }
+            crate::model::RequireExprSource::In { .. }
+            | crate::model::RequireExprSource::Length { .. } => {}
+        }
+    }
+    let mut roles = HashSet::new();
+    collect(source, &mut roles);
+    roles
+}
+
+fn finite_domain(
+    field: &ConstructionFieldPlan,
+    predicate: &crate::model::RequireExprSource,
+    terminals: &[TerminalPlan],
+) -> syn::Result<FiniteDomainPlan> {
+    let role = field.name_key();
+    let optional = predicate_uses_optional_presence(predicate, &role);
+    let membership = predicate_uses_membership(predicate, &role);
+    let kind = if optional {
+        FiniteDomainKindPlan::OptionalPresence
+    } else if membership {
+        let vocab = terminals
+            .iter()
+            .find_map(|terminal| match terminal {
+                TerminalPlan::Vocab(vocab) if vocab.name() == field.terminal() => Some(vocab),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                syn::Error::new(
+                    field.name().span(),
+                    "form guard membership requires a vocab role",
+                )
+            })?;
+        let variants = vocab
+            .variants()
+            .iter()
+            .map(|variant| identifier_key(variant.name()))
+            .collect::<Vec<_>>();
+        validate_predicate_members(predicate, &role, &variants)?;
+        FiniteDomainKindPlan::Vocab {
+            terminal: field.terminal().to_owned(),
+            variants,
+        }
+    } else {
+        return Err(syn::Error::new(
+            field.name().span(),
+            "form guard role has no finite predicate",
+        ));
+    };
+    Ok(FiniteDomainPlan { role, kind })
+}
+
+fn predicate_uses_optional_presence(source: &crate::model::RequireExprSource, role: &str) -> bool {
+    match source {
+        crate::model::RequireExprSource::OptionalPresence {
+            role: candidate, ..
+        } => identifier_key(candidate) == role,
+        crate::model::RequireExprSource::All(operands)
+        | crate::model::RequireExprSource::Any(operands) => operands
+            .iter()
+            .any(|operand| predicate_uses_optional_presence(operand, role)),
+        crate::model::RequireExprSource::In { .. }
+        | crate::model::RequireExprSource::Length { .. } => false,
+    }
+}
+
+fn predicate_uses_membership(source: &crate::model::RequireExprSource, role: &str) -> bool {
+    match source {
+        crate::model::RequireExprSource::In {
+            subject: crate::model::RequireSubjectSource::Role(candidate),
+            ..
+        } => identifier_key(candidate) == role,
+        crate::model::RequireExprSource::All(operands)
+        | crate::model::RequireExprSource::Any(operands) => operands
+            .iter()
+            .any(|operand| predicate_uses_membership(operand, role)),
+        crate::model::RequireExprSource::OptionalPresence { .. }
+        | crate::model::RequireExprSource::In { .. }
+        | crate::model::RequireExprSource::Length { .. } => false,
+    }
+}
+
+fn validate_predicate_members(
+    source: &crate::model::RequireExprSource,
+    role: &str,
+    variants: &[String],
+) -> syn::Result<()> {
+    match source {
+        crate::model::RequireExprSource::In {
+            subject: crate::model::RequireSubjectSource::Role(candidate),
+            members,
+        } if identifier_key(candidate) == role => {
+            for member in members {
+                let name = identifier_key(member);
+                if !variants.contains(&name) {
+                    return Err(syn::Error::new(
+                        member.span(),
+                        format!("unknown member `{name}` in form guard"),
+                    ));
+                }
+            }
+        }
+        crate::model::RequireExprSource::All(operands)
+        | crate::model::RequireExprSource::Any(operands) => {
+            for operand in operands {
+                validate_predicate_members(operand, role, variants)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn enumerate_assignments(domains: &[FiniteDomainPlan]) -> Vec<FiniteAssignmentPlan> {
+    let mut assignments = vec![FiniteAssignmentPlan { values: Vec::new() }];
+    for domain in domains {
+        let values = match &domain.kind {
+            FiniteDomainKindPlan::Vocab { variants, .. } => variants
+                .iter()
+                .cloned()
+                .map(FiniteValuePlan::Vocab)
+                .collect::<Vec<_>>(),
+            FiniteDomainKindPlan::OptionalPresence => vec![
+                FiniteValuePlan::OptionalPresence(false),
+                FiniteValuePlan::OptionalPresence(true),
+            ],
+        };
+        assignments = assignments
+            .into_iter()
+            .flat_map(|assignment| {
+                values.iter().cloned().map(move |value| {
+                    let mut assignment = assignment.clone();
+                    assignment.values.push(value);
+                    assignment
+                })
+            })
+            .collect();
+    }
+    assignments
+}
+
+fn evaluate_guard(
+    source: &crate::model::RequireExprSource,
+    domains: &[FiniteDomainPlan],
+    assignment: &FiniteAssignmentPlan,
+) -> bool {
+    match source {
+        crate::model::RequireExprSource::OptionalPresence { role, present } => {
+            assignment_value(domains, assignment, &identifier_key(role))
+                == Some(&FiniteValuePlan::OptionalPresence(*present))
+        }
+        crate::model::RequireExprSource::In {
+            subject: crate::model::RequireSubjectSource::Role(role),
+            members,
+        } => match assignment_value(domains, assignment, &identifier_key(role)) {
+            Some(FiniteValuePlan::Vocab(value)) => members
+                .iter()
+                .any(|member| identifier_key(member) == *value),
+            _ => false,
+        },
+        crate::model::RequireExprSource::All(operands) => operands
+            .iter()
+            .all(|operand| evaluate_guard(operand, domains, assignment)),
+        crate::model::RequireExprSource::Any(operands) => operands
+            .iter()
+            .any(|operand| evaluate_guard(operand, domains, assignment)),
+        crate::model::RequireExprSource::In { .. }
+        | crate::model::RequireExprSource::Length { .. } => false,
+    }
+}
+
+fn assignment_value<'a>(
+    domains: &[FiniteDomainPlan],
+    assignment: &'a FiniteAssignmentPlan,
+    role: &str,
+) -> Option<&'a FiniteValuePlan> {
+    domains
+        .iter()
+        .position(|domain| domain.role == role)
+        .and_then(|index| assignment.values.get(index))
+}
+
+fn combined_form_domains(forms: &[FormPlan]) -> Vec<FiniteDomainPlan> {
+    let mut domains = Vec::new();
+    for form in forms {
+        let Some(predicate) = form.guard.predicate() else { continue };
+        for domain in &predicate.domains {
+            if !domains
+                .iter()
+                .any(|candidate: &FiniteDomainPlan| candidate.role == domain.role)
+            {
+                domains.push(domain.clone());
+            }
+        }
+    }
+    domains
+}
+
+fn form_guard_accepts(
+    guard: &FormGuardPlan,
+    forms: &[FormPlan],
+    domains: &[FiniteDomainPlan],
+    assignment: &FiniteAssignmentPlan,
+) -> bool {
+    match guard {
+        FormGuardPlan::Unguarded => true,
+        FormGuardPlan::Predicate(predicate) => predicate.accepts(domains, assignment),
+        FormGuardPlan::Otherwise {
+            guarded_form_indexes,
+        } => guarded_form_indexes.iter().all(|index| {
+            forms[*index]
+                .guard
+                .predicate()
+                .is_some_and(|predicate| !predicate.accepts(domains, assignment))
+        }),
+    }
+}
+
+fn reject_guard_overlaps(forms: &[FormPlan], fields: &[ConstructionFieldPlan]) -> syn::Result<()> {
+    let mut domains = combined_form_domains(forms);
+    domains.sort_by_key(|domain| {
+        fields
+            .iter()
+            .position(|field| field.name_key() == domain.role)
+    });
+    let assignments = enumerate_assignments(&domains);
+    let guarded = forms
+        .iter()
+        .enumerate()
+        .filter(|(_, form)| matches!(form.guard, FormGuardPlan::Predicate(_)))
+        .collect::<Vec<_>>();
+    for (left_offset, (left_index, left)) in guarded.iter().enumerate() {
+        for (right_index, right) in guarded.iter().skip(left_offset + 1) {
+            if let Some(witness) = assignments.iter().find(|assignment| {
+                form_guard_accepts(&left.guard, forms, &domains, assignment)
+                    && form_guard_accepts(&right.guard, forms, &domains, assignment)
+            }) {
+                return Err(syn::Error::new(
+                    fields
+                        .first()
+                        .map_or(Span::call_site(), |field| field.name().span()),
+                    format!(
+                        "form guards `{}` and `{}` overlap at {}",
+                        forms[*left_index].name,
+                        forms[*right_index].name,
+                        assignment_witness(&domains, witness),
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn assignment_witness(domains: &[FiniteDomainPlan], assignment: &FiniteAssignmentPlan) -> String {
+    domains
+        .iter()
+        .zip(&assignment.values)
+        .map(|(domain, value)| match value {
+            FiniteValuePlan::Vocab(value) => format!("{}={value}", domain.role),
+            FiniteValuePlan::OptionalPresence(true) => format!("{}=present", domain.role),
+            FiniteValuePlan::OptionalPresence(false) => format!("{}=absent", domain.role),
+        })
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 fn structural_field_source_leaf(kind: &crate::model::FieldKind) -> &crate::model::FieldKind {
@@ -3004,8 +3595,9 @@ fn number_carry_categories(
         let before = carried.len();
         for construction in constructions {
             let output_is_needed = construction
-                .atoms
+                .forms
                 .iter()
+                .flat_map(FormPlan::atoms)
                 .any(|atom| matches!(atom, AtomPlan::Noun { .. }))
                 || carried.contains(&construction.category);
             if !output_is_needed {
@@ -3023,19 +3615,24 @@ fn number_carry_categories(
             else {
                 continue;
             };
-            if let Some(category) = construction.atoms.iter().find_map(|atom| match atom {
-                AtomPlan::Category {
-                    role: found,
-                    category,
-                } if found == &identifier_key(role) => Some(category.clone()),
-                AtomPlan::Literal(_)
-                | AtomPlan::Category { .. }
-                | AtomPlan::Lex { .. }
-                | AtomPlan::Identity { .. }
-                | AtomPlan::Noun { .. }
-                | AtomPlan::VerbFixed { .. }
-                | AtomPlan::OpenDeclaration(_) => None,
-            }) {
+            if let Some(category) = construction
+                .forms
+                .iter()
+                .flat_map(FormPlan::atoms)
+                .find_map(|atom| match atom {
+                    AtomPlan::Category {
+                        role: found,
+                        category,
+                    } if found == &identifier_key(role) => Some(category.clone()),
+                    AtomPlan::Literal(_)
+                    | AtomPlan::Category { .. }
+                    | AtomPlan::Lex { .. }
+                    | AtomPlan::Identity { .. }
+                    | AtomPlan::Noun { .. }
+                    | AtomPlan::VerbFixed { .. }
+                    | AtomPlan::OpenDeclaration(_) => None,
+                })
+            {
                 carried.insert(category);
             }
         }
@@ -4207,6 +4804,168 @@ mod tests {
     use super::SeparatorPlan;
     use super::StructuralFieldKindPlan;
     use super::ValueKindPlan;
+
+    fn guarded_form_result(tokens: proc_macro2::TokenStream) -> syn::Result<super::SemanticPlan> {
+        crate::validate_declarations(crate::parse_declarations(tokens)?)
+            .map(crate::ValidatedDeclarations::into_semantic)
+    }
+
+    #[test]
+    fn guarded_forms_seal_disjoint_domains_and_fallback_complement() {
+        let semantic = guarded_form_result(quote::quote! {
+            vocab Word { That = "that", Those = "those", Other = "other", }
+            construction demonstrative: NounPhrase {
+                element Demonstrative { word: lex Word, }
+                form that when word in [That] = lex(word);
+                form those when word in [Those] = lex(word);
+                form fallback otherwise = lex(word);
+            }
+            root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("disjoint guarded forms seal");
+        let construction = &semantic.constructions()[0];
+
+        assert_eq!(construction.construction_id(), "demonstrative");
+        assert_eq!(construction.category_variant(), "Demonstrative");
+        assert_eq!(construction.forms().len(), 3);
+        assert_eq!(construction.forms()[0].name(), "that");
+        assert_eq!(
+            construction.forms()[0].rule_id(),
+            "NounPhraseDemonstrativeThat"
+        );
+        assert_eq!(construction.forms()[1].name(), "those");
+        assert_eq!(
+            construction.forms()[1].rule_id(),
+            "NounPhraseDemonstrativeThose"
+        );
+        assert_eq!(construction.forms()[2].name(), "fallback");
+        assert_eq!(
+            construction.forms()[2].rule_id(),
+            "NounPhraseDemonstrativeFallback"
+        );
+        assert_eq!(
+            construction
+                .forms()
+                .iter()
+                .map(|form| form.guard().test_accepting_witnesses(construction.forms()))
+                .collect::<Vec<_>>(),
+            [
+                vec!["word=That".to_owned()],
+                vec!["word=Those".to_owned()],
+                vec!["word=Other".to_owned()],
+            ]
+        );
+    }
+
+    #[test]
+    fn guarded_forms_reject_overlap_with_the_first_deterministic_witness() {
+        let error = guarded_form_result(quote::quote! {
+            vocab Word { That = "that", Those = "those", }
+            construction demonstrative: NounPhrase {
+                element Demonstrative { word: lex Word, }
+                form broad when word in [That, Those] = lex(word);
+                form narrow when word is Those = lex(word);
+                form fallback otherwise = lex(word);
+            }
+            root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("overlapping forms do not seal")
+        .into_compile_error()
+        .to_string();
+
+        assert!(error.contains("broad"), "{error}");
+        assert!(error.contains("narrow"), "{error}");
+        assert!(error.contains("word=Those"), "{error}");
+    }
+
+    #[test]
+    fn guarded_forms_reject_unsatisfiable_unknown_and_wrong_kind_predicates() {
+        let cases = [
+            (
+                quote::quote! {
+                    vocab Word { That = "that", Those = "those", }
+                    construction demonstrative: NounPhrase {
+                        element Demonstrative { word: lex Word, }
+                        form impossible when all(word is That, word is Those) = lex(word);
+                        form fallback otherwise = lex(word);
+                    }
+                    root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+                "unsatisfiable",
+            ),
+            (
+                quote::quote! {
+                    vocab Word { That = "that", }
+                    construction demonstrative: NounPhrase {
+                        element Demonstrative { word: lex Word, }
+                        form selected when missing is That = lex(word);
+                        form fallback otherwise = lex(word);
+                    }
+                    root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+                "unknown form-guard role `missing`",
+            ),
+            (
+                quote::quote! {
+                    vocab Word { That = "that", }
+                    construction demonstrative: NounPhrase {
+                        element Demonstrative { word: lex Word, }
+                        form selected when word is Missing = lex(word);
+                        form fallback otherwise = lex(word);
+                    }
+                    root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+                "unknown member `Missing`",
+            ),
+            (
+                quote::quote! {
+                    construction child: Child { element ChildNode {} form child = "child"; }
+                    construction parent: Parent {
+                        element ParentNode { child: Child, }
+                        form selected when child is Child = child;
+                        form fallback otherwise = child;
+                    }
+                    root Parent { punctuation = "."; eoi = true; standalone_render = true; }
+                },
+                "form guard membership requires a vocab role",
+            ),
+        ];
+
+        for (tokens, expected) in cases {
+            let error = guarded_form_result(tokens)
+                .expect_err("invalid guard does not seal")
+                .into_compile_error()
+                .to_string();
+            assert!(error.contains(expected), "expected `{expected}` in {error}");
+        }
+    }
+
+    #[test]
+    fn optional_presence_guards_seal_both_assignments() {
+        let semantic = guarded_form_result(quote::quote! {
+            vocab Word { That = "that", }
+            construction optional: NounPhrase {
+                element OptionalWord { word: opt lex Word, }
+                form present when word.is_some() = lex(word);
+                form absent otherwise = lex(word);
+            }
+            root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("optional-presence partition seals");
+        let construction = &semantic.constructions()[0];
+
+        assert_eq!(
+            construction
+                .forms()
+                .iter()
+                .map(|form| form.guard().test_accepting_witnesses(construction.forms()))
+                .collect::<Vec<_>>(),
+            [
+                vec!["word=present".to_owned()],
+                vec!["word=absent".to_owned()],
+            ]
+        );
+    }
 
     #[test]
     #[allow(

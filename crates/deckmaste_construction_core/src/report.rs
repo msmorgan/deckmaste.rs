@@ -413,6 +413,27 @@ mod tests {
     use crate::test_support::synthetic_projection_expansion;
 
     #[test]
+    fn derived_guarded_forms_never_become_stored_form_tags() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Word { That = "that", Those = "those", }
+                construction demonstrative: NounPhrase {
+                    element Demonstrative { word: lex Word, }
+                    form that when word is That = lex(word);
+                    form those otherwise = lex(word);
+                }
+                root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("guarded report fixture parses"),
+        )
+        .expect("guarded report fixture validates")
+        .into_semantic();
+        let report = super::escape_hatch_report(&semantic).expect("guarded report seals");
+
+        assert!(report.stored_form_tags().is_empty());
+    }
+
+    #[test]
     fn structural_inventory_is_source_ordered_and_separator_storage_stays_empty() {
         let semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {

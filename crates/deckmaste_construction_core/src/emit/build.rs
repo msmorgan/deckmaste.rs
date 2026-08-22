@@ -26,6 +26,8 @@ use crate::semantic::AtomPlan;
 use crate::semantic::AtomTerminal;
 use crate::semantic::BindingBuildExprPlan;
 use crate::semantic::ConstructionPlan;
+use crate::semantic::FiniteDomainKindPlan;
+use crate::semantic::FiniteValuePlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::StructuralFieldKindPlan;
 use crate::semantic::StructuralFieldPlan;
@@ -177,7 +179,10 @@ fn emit_arm_from_plan(
     sequence_states: &[super::rules::SequenceOwnerBuildPlan],
 ) -> syn::Result<TokenStream> {
     let mut lowering = Lowering::default();
-    for atom in row.atoms() {
+    let form_index = rule
+        .form_index
+        .ok_or_else(|| internal("construction rule has no form index"))?;
+    for atom in row.forms()[form_index].atoms() {
         let state = atom_role(atom)
             .and_then(|role| sequence_states.iter().find(|field| field.role == role));
         if let Some(state) = state {
@@ -202,6 +207,28 @@ fn emit_arm_from_plan(
         }
     }
     lower_feature_guards(plan, row, &mut lowering)?;
+    if let Some(guard) = super::emit_form_guard_expression(row, form_index, |domain, value| {
+        let guard_role = domain.role();
+        let field_value = lowering
+            .field_values
+            .get(guard_role)
+            .cloned()
+            .ok_or_else(|| internal("form guard role has no lowered build value"))?;
+        match (domain.kind(), value) {
+            (FiniteDomainKindPlan::Vocab { terminal, .. }, FiniteValuePlan::Vocab(variant)) => {
+                let terminal = ident(terminal);
+                let variant = ident(variant);
+                Ok(quote! { matches!(#field_value, #terminal::#variant) })
+            }
+            (
+                FiniteDomainKindPlan::OptionalPresence,
+                FiniteValuePlan::OptionalPresence(present),
+            ) => Ok(quote! { #field_value.is_some() == #present }),
+            _ => Err(internal("form guard domain and assignment value disagree")),
+        }
+    })? {
+        lowering.guards.push(guard);
+    }
     let success = if let Some(dynamic_role) = dynamic_match_role(plan, row) {
         emit_dynamic_match(plan, row, &mut lowering, &dynamic_role)?
     } else {
@@ -1798,6 +1825,48 @@ mod tests {
     use syn::visit::Visit;
 
     struct Binders(Vec<String>);
+
+    #[test]
+    fn guarded_form_build_arms_reject_same_shape_values_outside_their_partition() {
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Word { That = "that", Those = "those", Other = "other", }
+                construction demonstrative: NounPhrase {
+                    element Demonstrative { word: lex Word, }
+                    form that when word is That = lex(word);
+                    form those when word is Those = lex(word);
+                    form fallback otherwise = lex(word);
+                }
+                root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("guarded build fixture parses"),
+        )
+        .expect("guarded build fixture validates")
+        .into_semantic();
+        let item = super::emit(&plan)
+            .expect("guarded build fixture emits")
+            .remove(0);
+
+        let that = build_arm(&item, "NounPhraseDemonstrativeThat")
+            .to_token_stream()
+            .to_string();
+        assert!(that.contains("Word :: That"), "{that}");
+        assert!(!that.contains("Word :: Those"), "{that}");
+        let those = build_arm(&item, "NounPhraseDemonstrativeThose")
+            .to_token_stream()
+            .to_string();
+        assert!(those.contains("Word :: Those"), "{those}");
+        assert!(!those.contains("Word :: That"), "{those}");
+        let fallback = build_arm(&item, "NounPhraseDemonstrativeFallback")
+            .to_token_stream()
+            .to_string();
+        assert!(
+            fallback.contains("Word :: That")
+                && fallback.contains("Word :: Those")
+                && fallback.contains('!'),
+            "{fallback}",
+        );
+    }
 
     fn shared_rhs_structural_plan() -> crate::semantic::SemanticPlan {
         crate::validate_declarations(

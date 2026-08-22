@@ -2215,13 +2215,13 @@ mod tests {
     #[test]
     fn guarded_forms_parse_in_authored_order() {
         let declarations = parse(
-            r#"
+            r"
                 construction demonstrative: NounPhrase {
                     element DemonstrativeNp { word: lex Demonstrative, head: lex Noun, }
                     form that when word is That = lex(word) noun(head);
                     form those otherwise = lex(word) noun(head);
                 }
-            "#,
+            ",
         )
         .expect("guarded forms parse");
         let Declaration::Construction(construction) = &declarations.declarations[0] else {
@@ -2243,13 +2243,13 @@ mod tests {
         ));
 
         let declarations = parse(
-            r#"
+            r"
                 construction optional_mode: NounPhrase {
                     element OptionalMode { optional: opt NounPhrase, mode: lex Mode, }
                     form present when all(optional.is_some(), mode in [One, Two]) = lex(mode);
                     form absent otherwise = lex(mode);
                 }
-            "#,
+            ",
         )
         .expect("optional-presence guards compose with membership");
         let Declaration::Construction(construction) = &declarations.declarations[0] else {

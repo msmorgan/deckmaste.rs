@@ -75,6 +75,7 @@ impl SequenceOwnerState {
 pub(super) enum RuleSymbolPlan {
     Authored {
         construction_index: usize,
+        form_index: usize,
         atom_index: usize,
     },
     Value(ValueKindPlan),
@@ -188,16 +189,23 @@ pub(super) struct RuleRowPlan {
     pub(super) role: Option<String>,
     pub(super) state: String,
     pub(super) public_construction: Option<String>,
+    pub(super) form_index: Option<usize>,
+    pub(super) form_name: Option<String>,
     pub(super) rhs: Vec<RuleSymbolPlan>,
     pub(super) build: RuleBuildPlan,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "generated rule metadata and its exhaustive associated methods form one authority"
+)]
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let category_type = ident(RULE_CATEGORY_TYPE);
     let construction_type = ident(RULE_CONSTRUCTION_TYPE);
     let rule_id_type = ident(RULE_ID_TYPE);
     let rule_id_count = ident(RULE_ID_COUNT);
     let rule_id_public_construction = ident("public_construction");
+    let rule_id_form_name = ident("form_name");
     let rule_id_index = ident(RULE_ID_INDEX);
     let rules_constant = ident(RULES_CONSTANT);
     let constructions = plan.constructions();
@@ -208,6 +216,14 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         .iter()
         .map(|construction| ident(construction.rule_id()))
         .collect::<Vec<_>>();
+    let construction_name_matches =
+        constructions
+            .iter()
+            .zip(&construction_ids)
+            .map(|(construction, construction_id)| {
+                let name = syn::LitStr::new(construction.rule_id(), Span::call_site());
+                quote! { Self::#construction_id => #name }
+            });
     let rule_ids = lowered.iter().map(|row| ident(&row.id)).collect::<Vec<_>>();
     let count = syn::LitInt::new(&lowered.len().to_string(), Span::call_site());
     let construction_matches = lowered.iter().zip(&rule_ids).map(|(row, rule_id)| {
@@ -236,6 +252,16 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let state_matches = lowered.iter().zip(&rule_ids).map(|(row, rule_id)| {
         let state = syn::LitStr::new(&row.state, Span::call_site());
         quote! { Self::#rule_id => #state }
+    });
+    let form_name_matches = lowered.iter().zip(&rule_ids).map(|(row, rule_id)| {
+        let value = row.form_name.as_ref().map_or_else(
+            || quote! { None },
+            |name| {
+                let name = syn::LitStr::new(name, Span::call_site());
+                quote! { Some(#name) }
+            },
+        );
+        quote! { Self::#rule_id => #value }
     });
     let rows = lowered
         .iter()
@@ -268,6 +294,20 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             },
             origins.clone(),
         ),
+        GeneratedItem::new(
+            ItemKey::Impl {
+                trait_name: None,
+                self_ty: RULE_CONSTRUCTION_TYPE.to_owned(),
+            },
+            quote! {
+                impl Construction {
+                    pub(crate) const fn name(self) -> &'static str {
+                        match self { #(#construction_name_matches,)* }
+                    }
+                }
+            },
+            origins.clone(),
+        ),
         root_adapter,
         GeneratedItem::new(
             ItemKey::named_type(RULE_ID_TYPE),
@@ -289,6 +329,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
                     pub(crate) const #rule_id_count: usize = #count;
                     pub(crate) const fn #rule_id_public_construction(self) -> Option<Construction> {
                         match self { #(#construction_matches,)* }
+                    }
+                    pub(crate) const fn #rule_id_form_name(self) -> Option<&'static str> {
+                        match self { #(#form_name_matches,)* }
                     }
                     pub(crate) const fn owner(self) -> &'static str {
                         match self { #(#owner_matches,)* }
@@ -426,14 +469,16 @@ fn emit_rule_symbol(plan: &SemanticPlan, symbol: &RuleSymbolPlan) -> syn::Result
     match symbol {
         RuleSymbolPlan::Authored {
             construction_index,
+            form_index,
             atom_index,
         } => {
             let construction = &plan.constructions()[*construction_index];
             emit_position(
                 plan,
                 construction,
+                construction.forms()[*form_index].name(),
                 *atom_index,
-                &construction.atoms()[*atom_index],
+                &construction.forms()[*form_index].atoms()[*atom_index],
             )
         }
         RuleSymbolPlan::Value(value) => emit_value_position(plan, value),
@@ -541,6 +586,8 @@ pub(super) fn lowered_rows(plan: &SemanticPlan) -> syn::Result<Vec<RuleRowPlan>>
                 role: Some(alternative.name().to_owned()),
                 state: "sum_alternative".to_owned(),
                 public_construction: None,
+                form_index: None,
+                form_name: None,
                 rhs: vec![RuleSymbolPlan::Value(alternative.value().clone())],
                 build: RuleBuildPlan::Sum {
                     sum_index,
@@ -556,58 +603,67 @@ fn lower_construction_rows(
     construction_index: usize,
     construction: &ConstructionPlan,
 ) -> syn::Result<Vec<RuleRowPlan>> {
-    let mut variants = vec![(
-        Vec::<SequenceOwnerBuildPlan>::new(),
-        Vec::<RuleSymbolPlan>::new(),
-    )];
-    for (atom_index, atom) in construction.atoms().iter().enumerate() {
-        let structural = atom_role(atom).and_then(|role| {
-            construction
-                .fields()
-                .iter()
-                .find(|field| field.name_key() == role)
-                .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
-        });
-        let Some(field) = structural else {
-            for (_, rhs) in &mut variants {
-                rhs.push(RuleSymbolPlan::Authored {
-                    construction_index,
-                    atom_index,
-                });
-            }
-            continue;
-        };
-        let field_variants = owner_field_variants(construction.element_type(), field)?;
-        variants = combine_owner_variants(variants, field, &field_variants);
+    let mut rows = Vec::new();
+    for (form_index, form) in construction.forms().iter().enumerate() {
+        let mut variants = vec![(
+            Vec::<SequenceOwnerBuildPlan>::new(),
+            Vec::<RuleSymbolPlan>::new(),
+        )];
+        for (atom_index, atom) in form.atoms().iter().enumerate() {
+            let structural = atom_role(atom).and_then(|role| {
+                construction
+                    .fields()
+                    .iter()
+                    .find(|field| field.name_key() == role)
+                    .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
+            });
+            let Some(field) = structural else {
+                for (_, rhs) in &mut variants {
+                    rhs.push(RuleSymbolPlan::Authored {
+                        construction_index,
+                        form_index,
+                        atom_index,
+                    });
+                }
+                continue;
+            };
+            let field_variants = owner_field_variants(construction.element_type(), field)?;
+            variants = combine_owner_variants(variants, field, &field_variants);
+        }
+        rows.extend(
+            variants
+                .into_iter()
+                .map(|(sequence_states, rhs)| {
+                    let (id, role, state) = public_variant_metadata(
+                        form.rule_id(),
+                        construction.element_type(),
+                        construction.fields().iter().filter_map(|field| {
+                            field
+                                .structural_plan()
+                                .map(|structural| (field.name_key(), structural))
+                        }),
+                        &sequence_states,
+                    )?;
+                    Ok(RuleRowPlan {
+                        id,
+                        lhs: construction.category().to_owned(),
+                        owner: construction.element_type().to_owned(),
+                        role,
+                        state,
+                        public_construction: Some(construction.rule_id().to_owned()),
+                        form_index: Some(form_index),
+                        form_name: (construction.forms().len() > 1).then(|| form.name().to_owned()),
+                        rhs,
+                        build: RuleBuildPlan::Construction {
+                            index: construction_index,
+                            sequence_states,
+                        },
+                    })
+                })
+                .collect::<syn::Result<Vec<_>>>()?,
+        );
     }
-    variants
-        .into_iter()
-        .map(|(sequence_states, rhs)| {
-            let (id, role, state) = public_variant_metadata(
-                construction.rule_id(),
-                construction.element_type(),
-                construction.fields().iter().filter_map(|field| {
-                    field
-                        .structural_plan()
-                        .map(|structural| (field.name_key(), structural))
-                }),
-                &sequence_states,
-            )?;
-            Ok(RuleRowPlan {
-                id,
-                lhs: construction.category().to_owned(),
-                owner: construction.element_type().to_owned(),
-                role,
-                state,
-                public_construction: Some(construction.rule_id().to_owned()),
-                rhs,
-                build: RuleBuildPlan::Construction {
-                    index: construction_index,
-                    sequence_states,
-                },
-            })
-        })
-        .collect()
+    Ok(rows)
 }
 
 fn lower_product_rows(
@@ -642,6 +698,8 @@ fn lower_product_rows(
                 role,
                 state,
                 public_construction: None,
+                form_index: None,
+                form_name: None,
                 rhs,
                 build: RuleBuildPlan::Product {
                     index: product_index,
@@ -858,6 +916,8 @@ fn lower_helper_rows<'a>(
                         role: role.clone(),
                         state: state.to_owned(),
                         public_construction: None,
+                        form_index: None,
+                        form_name: None,
                         rhs,
                         build: RuleBuildPlan::Optional {
                             owner: owner_key,
@@ -1163,6 +1223,8 @@ fn sequence_helper_row(
         role: Some(role.to_owned()),
         state: state.to_owned(),
         public_construction: None,
+        form_index: None,
+        form_name: None,
         rhs,
         build: RuleBuildPlan::Sequence {
             owner: owner_key,
@@ -1418,6 +1480,7 @@ fn value_name(value: &ValueKindPlan) -> &str {
 fn emit_position(
     plan: &SemanticPlan,
     construction: &ConstructionPlan,
+    form_name: &str,
     atom_index: usize,
     atom: &AtomPlan,
 ) -> syn::Result<TokenStream> {
@@ -1452,7 +1515,7 @@ fn emit_position(
                 &format!(
                     "form:{}/{}/{}",
                     construction.construction_id(),
-                    construction.form(),
+                    form_name,
                     atom_index
                 ),
                 Span::call_site(),
@@ -1714,6 +1777,77 @@ mod tests {
     use std::collections::HashSet;
 
     use quote::quote;
+
+    fn guarded_forms_plan() -> crate::semantic::SemanticPlan {
+        crate::validate_declarations(
+            crate::parse_declarations(quote! {
+                vocab Word { That = "that", Those = "those", Other = "other", }
+                construction demonstrative: NounPhrase {
+                    element Demonstrative { word: lex Word, }
+                    form that when word is That = "that" lex(word);
+                    form those when word is Those = "those" lex(word);
+                    form fallback otherwise = "other" lex(word);
+                }
+                root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("guarded emitter fixture parses"),
+        )
+        .expect("guarded emitter fixture validates")
+        .into_semantic()
+    }
+
+    #[test]
+    fn guarded_forms_lower_distinct_authored_rules_with_shared_construction_authority() {
+        let plan = guarded_forms_plan();
+        let rows = super::lowered_rows(&plan).expect("guarded rows lower");
+        let authored = rows
+            .iter()
+            .filter(|row| row.public_construction.is_some())
+            .map(|row| {
+                (
+                    row.id.as_str(),
+                    row.public_construction.as_deref(),
+                    row.form_name.as_deref(),
+                    row.rhs
+                        .iter()
+                        .map(super::RuleSymbolPlan::test_label)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            authored,
+            [
+                (
+                    "NounPhraseDemonstrativeThat",
+                    Some("NounPhraseDemonstrative"),
+                    Some("that"),
+                    vec!["authored".to_owned(), "authored".to_owned()],
+                ),
+                (
+                    "NounPhraseDemonstrativeThose",
+                    Some("NounPhraseDemonstrative"),
+                    Some("those"),
+                    vec!["authored".to_owned(), "authored".to_owned()],
+                ),
+                (
+                    "NounPhraseDemonstrativeFallback",
+                    Some("NounPhraseDemonstrative"),
+                    Some("fallback"),
+                    vec!["authored".to_owned(), "authored".to_owned()],
+                ),
+            ]
+        );
+
+        let source = super::emit(&plan)
+            .expect("guarded rules emit")
+            .into_iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(source.contains("const fn name"), "{source}");
+        assert!(source.contains("const fn form_name"), "{source}");
+    }
 
     #[derive(Debug, Clone, Copy)]
     struct LoweringSize {
@@ -2501,7 +2635,7 @@ mod tests {
         )
         .unwrap();
         let generated = super::emit(validated.semantic()).unwrap();
-        assert_eq!(generated.len(), 6);
+        assert_eq!(generated.len(), 7);
         let actual = generated
             .iter()
             .map(|item| syn::parse2::<syn::Item>(item.tokens.clone()).unwrap())
@@ -2529,7 +2663,7 @@ mod tests {
             "DocumentDocument",
         ];
         assert_eq!(enum_variants(&actual[1]), ids);
-        assert_eq!(enum_variants(&actual[3]), ids);
+        assert_eq!(enum_variants(&actual[4]), ids);
 
         let normalize = |item: syn::Item| {
             prettyplease::unparse(&syn::File {
@@ -2539,13 +2673,13 @@ mod tests {
             })
         };
         assert_eq!(
-            normalize(actual[5].clone()),
+            normalize(actual[6].clone()),
             normalize(expected_synthetic_projection_rules())
         );
 
         let construction_origins = ["leaf", "nested", "action", "idle", "solo", "document"]
             .map(|name| (crate::DeclarationKind::Construction, name));
-        for &index in &[0, 1, 3, 4] {
+        for &index in &[0, 1, 2, 4, 5] {
             assert_eq!(
                 generated[index]
                     .origins
@@ -2556,7 +2690,7 @@ mod tests {
             );
         }
         assert_eq!(
-            generated[2]
+            generated[3]
                 .origins
                 .iter()
                 .map(|origin| (origin.kind(), origin.name()))
@@ -2564,7 +2698,7 @@ mod tests {
             [(crate::DeclarationKind::Root, "Document")],
         );
         assert_eq!(
-            generated[5]
+            generated[6]
                 .origins
                 .iter()
                 .map(|origin| (origin.kind(), origin.name()))
@@ -2618,7 +2752,7 @@ mod tests {
             }).unwrap(),
         ).unwrap();
         let items = super::emit(validated.semantic()).unwrap();
-        let adapter = items[2].tokens.to_string();
+        let adapter = items[3].tokens.to_string();
         let rules = items.last().unwrap().tokens.to_string();
         assert!(rules.contains("FeatureConstraint :: Exact (Number :: Singular)"));
         assert!(!rules.contains("Lexical :: Literal (\"!\")"));

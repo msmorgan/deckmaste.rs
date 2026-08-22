@@ -7,6 +7,9 @@ use quote::quote;
 use crate::identifier::key as identifier_key;
 use crate::identifier::local_name;
 use crate::identifier::spelling_key;
+use crate::semantic::FiniteDomainPlan;
+use crate::semantic::FiniteValuePlan;
+use crate::semantic::FormGuardPlan;
 use crate::semantic::InvariantPlan;
 use crate::semantic::PredicateMemberPlan;
 use crate::semantic::PredicateSubjectPlan;
@@ -23,6 +26,67 @@ pub(crate) mod runtime;
 pub(crate) mod scanner;
 pub(crate) mod terminal;
 pub(crate) mod visit;
+
+pub(super) fn emit_form_guard_expression<F>(
+    construction: &crate::semantic::ConstructionPlan,
+    form_index: usize,
+    mut comparison: F,
+) -> syn::Result<Option<TokenStream>>
+where
+    F: FnMut(&FiniteDomainPlan, &FiniteValuePlan) -> syn::Result<TokenStream>,
+{
+    fn predicate_expression<F>(
+        predicate: &crate::semantic::FinitePredicatePlan,
+        comparison: &mut F,
+    ) -> syn::Result<TokenStream>
+    where
+        F: FnMut(&FiniteDomainPlan, &FiniteValuePlan) -> syn::Result<TokenStream>,
+    {
+        let alternatives = predicate
+            .accepting()
+            .iter()
+            .map(|assignment| {
+                let atoms = predicate
+                    .domains()
+                    .iter()
+                    .zip(assignment.values())
+                    .map(|(domain, value)| comparison(domain, value))
+                    .collect::<syn::Result<Vec<_>>>()?;
+                Ok(quote! { (#(#atoms)&&*) })
+            })
+            .collect::<syn::Result<Vec<_>>>()?;
+        Ok(quote! { (#(#alternatives)||*) })
+    }
+
+    let form = &construction.forms()[form_index];
+    match form.guard() {
+        FormGuardPlan::Unguarded => Ok(None),
+        FormGuardPlan::Predicate(predicate) => {
+            predicate_expression(predicate, &mut comparison).map(Some)
+        }
+        FormGuardPlan::Otherwise { .. } => {
+            let guarded = form
+                .guard()
+                .guarded_form_indexes()
+                .expect("otherwise guard carries prior indexes")
+                .iter()
+                .map(|index| {
+                    construction.forms()[*index]
+                        .guard()
+                        .predicate()
+                        .ok_or_else(|| {
+                            syn::Error::new(
+                                proc_macro2::Span::call_site(),
+                                "fallback references a non-predicate form",
+                            )
+                        })
+                        .and_then(|predicate| predicate_expression(predicate, &mut comparison))
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            Ok(Some(quote! { !(#(#guarded)||*) }))
+        }
+    }
+}
 
 const RUST_SOURCE_MARGIN: usize = 100;
 

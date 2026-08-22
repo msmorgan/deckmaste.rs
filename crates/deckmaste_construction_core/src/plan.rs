@@ -2032,7 +2032,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 86);
+        assert_eq!(keys.len(), 87);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,
             name: "GeneratedRoot".into(),
