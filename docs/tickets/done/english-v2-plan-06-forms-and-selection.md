@@ -8,8 +8,10 @@ implementation starts.
 
 The completed slice adds finite guarded multi-form declarations with a final
 `otherwise` complement, compiler-proven satisfiability and pairwise
-disjointness, and generated form-specific rule, build, render, traversal, and
-diagnostic authority without stored form tags. `Demonstrative` now declares
+disjointness, generated form-specific rule identities, and guard-driven build,
+render, and traversal behavior. Generated construction and form names are
+consumed by handwritten diagnostics; one AST and one visitor/walker authority
+remain per construction, with no stored form tag. `Demonstrative` now declares
 `that` and `those` as guarded forms. The Plan 05 defect correction admits an
 empty document only at the `OracleText` root; all 356 normalized empty-text
 faces render to zero bytes with zero claims, while non-root sequence minima
