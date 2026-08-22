@@ -394,6 +394,7 @@ fn emit_predicate_atom(
                 crate::feature::Feature::Agreement => local_ident("Agreement"),
                 crate::feature::Feature::Number => local_ident("Number"),
                 crate::feature::Feature::Onset => local_ident("Onset"),
+                crate::feature::Feature::PossessiveEnding => local_ident("PossessiveEnding"),
             };
             let members = allowed
                 .iter()

@@ -1,0 +1,5 @@
+error: bound atom values must be required, singular fields
+  --> tests/compile_fail/bound_sequence_role.rs:10:31
+   |
+10 |         form invalid = suffix(items, "'s");
+   |                               ^^^^^

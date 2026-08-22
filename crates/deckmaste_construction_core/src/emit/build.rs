@@ -210,13 +210,13 @@ fn emit_arm_from_plan(
     lower_feature_guards(plan, row, form, &mut lowering)?;
     if let Some(guard) = super::emit_form_guard_expression(row, form_index, |domain, value| {
         let guard_role = domain.role();
-        let field_value = lowering
-            .field_values
-            .get(guard_role)
-            .cloned()
-            .ok_or_else(|| internal("form guard role has no lowered build value"))?;
         match (domain.kind(), value) {
             (FiniteDomainKindPlan::Vocab { terminal, .. }, FiniteValuePlan::Vocab(variant)) => {
+                let field_value = lowering
+                    .field_values
+                    .get(guard_role)
+                    .cloned()
+                    .ok_or_else(|| internal("form guard role has no lowered build value"))?;
                 let terminal = ident(terminal);
                 let variant = ident(variant);
                 Ok(quote! { matches!(#field_value, #terminal::#variant) })
@@ -224,13 +224,30 @@ fn emit_arm_from_plan(
             (
                 FiniteDomainKindPlan::OptionalPresence,
                 FiniteValuePlan::OptionalPresence(present),
-            ) => Ok(quote! { #field_value.is_some() == #present }),
+            ) => {
+                let field_value = lowering
+                    .field_values
+                    .get(guard_role)
+                    .cloned()
+                    .ok_or_else(|| internal("form guard role has no lowered build value"))?;
+                Ok(quote! { #field_value.is_some() == #present })
+            }
             (FiniteDomainKindPlan::Feature { feature, .. }, FiniteValuePlan::Feature(value)) => {
-                let actual = lowering
-                    .role_features
-                    .get(&(guard_role.to_owned(), *feature))
-                    .map(local_feature_value)
-                    .ok_or_else(|| internal("form guard feature role has no lowered value"))?;
+                let actual = if guard_role.starts_with('@') {
+                    resolve_feature_place(
+                        plan,
+                        row,
+                        &lowering,
+                        &FeaturePlace::Construction(*feature),
+                        &mut HashSet::new(),
+                    )?
+                } else {
+                    lowering
+                        .role_features
+                        .get(&(guard_role.to_owned(), *feature))
+                        .map(local_feature_value)
+                        .ok_or_else(|| internal("form guard feature role has no lowered value"))?
+                };
                 let expected = feature_value(*value);
                 let actual = resolved_feature_value_tokens(&actual);
                 Ok(quote! { #actual == #expected })
@@ -462,8 +479,11 @@ fn lower_value(
                 .then(|| quote! { , _ });
             let number = plan.category_carries_number(name).then(|| quote! { , _ });
             let onset = plan.category_carries_onset(name).then(|| quote! { , _ });
+            let possessive_ending = plan
+                .category_carries_possessive_ending(name)
+                .then(|| quote! { , _ });
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::#variant(#binding #agreement #number #onset) },
+                pattern: quote! { BuildValue::#variant(#binding #agreement #number #onset #possessive_ending) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -514,6 +534,7 @@ fn lower_terminal_value(
                         provider: CatalogProvider::#provider,
                         canonical_identity: #identity,
                         onset: _,
+                        possessive_ending: _,
                     })
                 },
                 expression: quote! { #ty::from_canonical(#identity.clone()) },
@@ -531,7 +552,7 @@ fn lower_terminal_value(
             let leaf = plan.codec_ident();
             let binding = binders.allocate(preferred);
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { noun: #binding, number: _, onset: _ }) },
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { noun: #binding, number: _, onset: _, possessive_ending: _ }) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -734,9 +755,10 @@ fn lower_sequence_rhs(
             super::rules::RuleSymbolPlan::Surface(surface) => {
                 patterns.push(fixed_surface_pattern(plan, &surface.atom)?);
             }
-            super::rules::RuleSymbolPlan::Authored { .. } => {
+            super::rules::RuleSymbolPlan::Authored { .. }
+            | super::rules::RuleSymbolPlan::BoundAffix { .. } => {
                 return Err(internal(&format!(
-                    "{state} sequence RHS contains an authored atom"
+                    "{state} sequence RHS contains a construction atom"
                 )));
             }
         }
@@ -851,12 +873,15 @@ fn carrier_variant(owner: &str, field: &StructuralFieldPlan) -> syn::Result<Stri
 }
 
 fn atom_role(atom: &AtomPlan) -> Option<&str> {
-    match atom {
+    match atom.value_atom() {
         AtomPlan::Category { role, .. }
         | AtomPlan::Lex { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
-        AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
+        AtomPlan::Literal(_)
+        | AtomPlan::VerbFixed { .. }
+        | AtomPlan::OpenDeclaration(_)
+        | AtomPlan::Bound { .. } => None,
     }
 }
 
@@ -909,6 +934,11 @@ fn lower_atom(
         }
     }
     match atom {
+        AtomPlan::Bound {
+            direction,
+            affix,
+            value,
+        } => lower_bound_atom(validated, row, form, *direction, affix, value, lowering)?,
         AtomPlan::Literal(literal) => {
             let literal = syn::LitStr::new(literal, Span::call_site());
             lowering
@@ -985,6 +1015,46 @@ fn lower_atom(
     Ok(())
 }
 
+fn lower_bound_atom(
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    form: &crate::semantic::FormPlan,
+    direction: crate::semantic::BoundDirectionPlan,
+    affix_surface: &str,
+    value: &AtomPlan,
+    lowering: &mut Lowering,
+) -> syn::Result<()> {
+    let affix = syn::LitStr::new(affix_surface, Span::call_site());
+    let push_affix = |lowering: &mut Lowering| {
+        lowering
+            .patterns
+            .push(quote! { BuildValue::Leaf(Leaf::Literal(#affix)) });
+    };
+    match direction {
+        crate::semantic::BoundDirectionPlan::Prefix => {
+            push_affix(lowering);
+            lower_atom(validated, row, form, value, lowering)?;
+            if let Some(role) = atom_role(value) {
+                let onset = ::macro_ron::v2::normalize_surface_onset(affix_surface, None)
+                    .ok_or_else(|| internal("validated bound prefix has no realized onset"))?;
+                let onset = match onset {
+                    ::macro_ron::v2::Onset::Consonant => FeatureValue::Consonant,
+                    ::macro_ron::v2::Onset::Vowel => FeatureValue::Vowel,
+                };
+                lowering.role_features.insert(
+                    (role.to_owned(), Feature::Onset),
+                    LocalFeatureValue::Known(onset),
+                );
+            }
+        }
+        crate::semantic::BoundDirectionPlan::Suffix => {
+            lower_atom(validated, row, form, value, lowering)?;
+            push_affix(lowering);
+        }
+    }
+    Ok(())
+}
+
 fn lower_category_role(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
@@ -1004,6 +1074,7 @@ fn lower_category_role(
     let carries_agreement = validated.category_carries_agreement(category_name);
     let carries_number = validated.category_carries_number(category_name);
     let carries_onset = validated.category_carries_onset(category_name);
+    let carries_possessive_ending = validated.category_carries_possessive_ending(category_name);
     let agreement = carries_agreement
         .then(|| role_agreement_pattern(validated, row, &role, category_name, lowering))
         .transpose()?;
@@ -1018,12 +1089,23 @@ fn lower_category_role(
         );
         name
     });
+    let possessive_ending = carries_possessive_ending.then(|| {
+        let name = lowering
+            .binders
+            .allocate(&format!("{}_possessive_ending", identifier_key(&role)));
+        lowering.role_features.insert(
+            (identifier_key(&role), Feature::PossessiveEnding),
+            LocalFeatureValue::Bound(name.clone()),
+        );
+        name
+    });
     let agreement = agreement.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });
     let onset = onset.map(|value| quote! { , #value });
+    let possessive_ending = possessive_ending.map(|value| quote! { , #value });
     lowering
         .patterns
-        .push(quote! { BuildValue::#category(#role_binding #agreement #number #onset) });
+        .push(quote! { BuildValue::#category(#role_binding #agreement #number #onset #possessive_ending) });
     Ok(())
 }
 
@@ -1105,11 +1187,15 @@ fn lower_catalog_identity_role(
     let onset = lowering
         .binders
         .allocate(&format!("{}_onset", identifier_key(role)));
+    let possessive_ending = lowering
+        .binders
+        .allocate(&format!("{}_possessive_ending", identifier_key(role)));
     lowering.patterns.push(quote! {
         BuildValue::Leaf(Leaf::CatalogIdentity {
             provider: CatalogProvider::#provider,
             canonical_identity: #identity,
             onset: #onset,
+            possessive_ending: #possessive_ending,
         })
     });
     lowering.field_values.insert(
@@ -1119,6 +1205,10 @@ fn lower_catalog_identity_role(
     lowering.role_features.insert(
         (identifier_key(role), Feature::Onset),
         LocalFeatureValue::Bound(onset),
+    );
+    lowering.role_features.insert(
+        (identifier_key(role), Feature::PossessiveEnding),
+        LocalFeatureValue::Bound(possessive_ending),
     );
 }
 
@@ -1141,6 +1231,11 @@ fn lower_terminal_role(
                 let onset = super::onset(variant.onset());
                 quote! { #leaf::#member => #onset }
             });
+            let possessive_ending_arms = vocab.variants().iter().map(|variant| {
+                let member = variant.name();
+                let ending = possessive_ending_for_surface(&variant.word().value());
+                quote! { #leaf::#member => #ending }
+            });
             lowering
                 .patterns
                 .push(quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) });
@@ -1154,6 +1249,12 @@ fn lower_terminal_role(
                 (identifier_key(&role), Feature::Onset),
                 LocalFeatureValue::Computed(quote! {
                     match #binding { #(#onset_arms,)* }
+                }),
+            );
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::PossessiveEnding),
+                LocalFeatureValue::Computed(quote! {
+                    match #binding { #(#possessive_ending_arms,)* }
                 }),
             );
             return Ok(());
@@ -1185,9 +1286,16 @@ fn lower_terminal_role(
             let onset = lowering
                 .binders
                 .allocate(&format!("{}_onset", identifier_key(&role)));
+            let possessive_ending = lowering
+                .binders
+                .allocate(&format!("{}_possessive_ending", identifier_key(&role)));
             lowering.role_features.insert(
                 (identifier_key(&role), Feature::Onset),
                 LocalFeatureValue::Bound(onset.clone()),
+            );
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::PossessiveEnding),
+                LocalFeatureValue::Bound(possessive_ending.clone()),
             );
             let number_field = if number.to_string() == "number" {
                 quote! { number }
@@ -1195,7 +1303,12 @@ fn lower_terminal_role(
                 quote! { number: #number }
             };
             lowering.patterns.push(quote! {
-                BuildValue::Leaf(Leaf::#leaf { noun: #value, #number_field, onset: #onset })
+                BuildValue::Leaf(Leaf::#leaf {
+                    noun: #value,
+                    #number_field,
+                    onset: #onset,
+                    possessive_ending: #possessive_ending,
+                })
             });
             lowering
                 .field_values
@@ -1203,6 +1316,18 @@ fn lower_terminal_role(
             return Ok(());
         }
     };
+    lower_binding_terminal_role(binding, validated, row, form, &role, noun, lowering)
+}
+
+fn lower_binding_terminal_role(
+    binding: &crate::semantic::BindingPlan,
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    form: &crate::semantic::FormPlan,
+    role: &syn::Ident,
+    noun: bool,
+    lowering: &mut Lowering,
+) -> syn::Result<()> {
     let build = binding
         .build()
         .ok_or_else(|| internal("atom-capable binding has no build metadata"))?;
@@ -1218,16 +1343,16 @@ fn lower_terminal_role(
             .iter()
             .map(|name| {
                 if names.len() == 1 {
-                    identifier_key(&role)
+                    identifier_key(role)
                 } else {
-                    format!("{}_{}", identifier_key(&role), identifier_key(name))
+                    format!("{}_{}", identifier_key(role), identifier_key(name))
                 }
             })
             .collect::<Vec<_>>()
     } else if noun || names.len() != 1 {
         names.iter().map(identifier_key).collect()
     } else {
-        vec![identifier_key(&role)]
+        vec![identifier_key(role)]
     };
     let pattern_names = preferred_names
         .iter()
@@ -1239,7 +1364,7 @@ fn lower_terminal_role(
         .map(|(declared, emitted)| (identifier_key(declared), quote! { #emitted }))
         .collect::<HashMap<_, _>>();
     let inner = if noun {
-        let number = noun_number_pattern(validated, row, &role, lowering)?;
+        let number = noun_number_pattern(validated, row, role, lowering)?;
         let number_field = if number.to_string() == "number" {
             quote! { number }
         } else {
@@ -1252,12 +1377,26 @@ fn lower_terminal_role(
         };
         let onset = lowering
             .binders
-            .allocate(&format!("{}_onset", identifier_key(&role)));
+            .allocate(&format!("{}_onset", identifier_key(role)));
+        let possessive_ending = lowering
+            .binders
+            .allocate(&format!("{}_possessive_ending", identifier_key(role)));
         lowering.role_features.insert(
-            (identifier_key(&role), Feature::Onset),
+            (identifier_key(role), Feature::Onset),
             LocalFeatureValue::Bound(onset.clone()),
         );
-        quote! { Leaf::Noun { noun: #noun_value, #number_field, onset: #onset } }
+        lowering.role_features.insert(
+            (identifier_key(role), Feature::PossessiveEnding),
+            LocalFeatureValue::Bound(possessive_ending.clone()),
+        );
+        quote! {
+            Leaf::Noun {
+                noun: #noun_value,
+                #number_field,
+                onset: #onset,
+                possessive_ending: #possessive_ending,
+            }
+        }
     } else if build.construct_is_direct_slot() {
         quote! { Leaf::#variant(#(#pattern_names),*) }
     } else {
@@ -1273,7 +1412,7 @@ fn lower_terminal_role(
     } else {
         construct
     };
-    lowering.field_values.insert(identifier_key(&role), stored);
+    lowering.field_values.insert(identifier_key(role), stored);
     Ok(())
 }
 
@@ -1288,6 +1427,46 @@ fn context_identity_onset(
         quote! { #identity_type::#member => context.#accessor() }
     });
     quote! { match #value { #(#arms,)* } }
+}
+
+fn context_identity_possessive_ending(
+    identity: &crate::semantic::ContextIdentityPlan,
+    value: &syn::Ident,
+) -> TokenStream {
+    let identity_type = identity.ident();
+    let arms = identity.arms().iter().map(|arm| {
+        let member = arm.variant();
+        let accessor = arm.accessor();
+        let ending = runtime_possessive_ending(&quote! { context.#accessor() });
+        quote! { #identity_type::#member => #ending }
+    });
+    quote! { match #value { #(#arms,)* } }
+}
+
+fn possessive_ending_for_surface(surface: &str) -> TokenStream {
+    if surface
+        .as_bytes()
+        .last()
+        .is_some_and(|byte| matches!(byte, b's' | b'S'))
+    {
+        quote! { PossessiveEnding::EndsInS }
+    } else {
+        quote! { PossessiveEnding::Other }
+    }
+}
+
+fn runtime_possessive_ending(surface: &TokenStream) -> TokenStream {
+    quote! {
+        if (#surface)
+            .as_bytes()
+            .last()
+            .is_some_and(|byte| matches!(byte, b's' | b'S'))
+        {
+            PossessiveEnding::EndsInS
+        } else {
+            PossessiveEnding::Other
+        }
+    }
 }
 
 fn lower_context_identity_role(
@@ -1306,6 +1485,10 @@ fn lower_context_identity_role(
     lowering.role_features.insert(
         (identifier_key(role), Feature::Onset),
         LocalFeatureValue::Computed(context_identity_onset(identity, &value)),
+    );
+    lowering.role_features.insert(
+        (identifier_key(role), Feature::PossessiveEnding),
+        LocalFeatureValue::Computed(context_identity_possessive_ending(identity, &value)),
     );
 }
 
@@ -1455,7 +1638,9 @@ fn verb_onset_pattern(
             FeatureValue::Singular
             | FeatureValue::Plural
             | FeatureValue::Consonant
-            | FeatureValue::Vowel => {
+            | FeatureValue::Vowel
+            | FeatureValue::EndsInS
+            | FeatureValue::Other => {
                 return Err(internal("fixed verb resolved a non-Agreement feature"));
             }
         };
@@ -1625,6 +1810,7 @@ fn emit_success(
     let carries_agreement = validated.category_carries_agreement(row.category());
     let carries_number = validated.category_carries_number(row.category());
     let carries_onset = validated.category_carries_onset(row.category());
+    let carries_possessive_ending = validated.category_carries_possessive_ending(row.category());
     let agreement = carries_agreement
         .then(|| construction_agreement(validated, row, lowering, agreement_override))
         .transpose()?
@@ -1637,7 +1823,11 @@ fn emit_success(
         .then(|| construction_onset(validated, row, lowering))
         .transpose()?
         .map(|value| quote! { , #value });
-    let wrapped = quote! { BuildValue::#category(#category_value #agreement #number #onset) };
+    let possessive_ending = carries_possessive_ending
+        .then(|| construction_possessive_ending(validated, row, lowering))
+        .transpose()?
+        .map(|value| quote! { , #value });
+    let wrapped = quote! { BuildValue::#category(#category_value #agreement #number #onset #possessive_ending) };
     Ok(quote! { Ok(Some(#wrapped)) })
 }
 
@@ -1655,7 +1845,8 @@ fn emit_fallible_element_success(
     let carries_agreement = validated.category_carries_agreement(row.category());
     let carries_number = validated.category_carries_number(row.category());
     let carries_onset = validated.category_carries_onset(row.category());
-    if !carries_agreement && !carries_number && !carries_onset {
+    let carries_possessive_ending = validated.category_carries_possessive_ending(row.category());
+    if !carries_agreement && !carries_number && !carries_onset && !carries_possessive_ending {
         return Ok(quote! {
             #result.map(#mapped).map(BuildValue::#category).map(Some)
         });
@@ -1670,6 +1861,9 @@ fn emit_fallible_element_success(
     let onset = carries_onset
         .then(|| construction_onset(validated, row, lowering))
         .transpose()?;
+    let possessive_ending = carries_possessive_ending
+        .then(|| construction_possessive_ending(validated, row, lowering))
+        .transpose()?;
     let argument = lowering.constructor_map_local.clone().unwrap_or_else(|| {
         let argument = lowering.binders.allocate(row.construction_id());
         lowering.constructor_map_local = Some(argument.clone());
@@ -1678,9 +1872,10 @@ fn emit_fallible_element_success(
     let agreement = agreement.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });
     let onset = onset.map(|value| quote! { , #value });
+    let possessive_ending = possessive_ending.map(|value| quote! { , #value });
     Ok(quote! {
         #result
-            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #agreement #number #onset) })
+            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #agreement #number #onset #possessive_ending) })
             .map(Some)
     })
 }
@@ -1839,6 +2034,21 @@ fn construction_onset(
     Ok(resolved_feature_value_tokens(&output))
 }
 
+fn construction_possessive_ending(
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    lowering: &Lowering,
+) -> syn::Result<TokenStream> {
+    let output = resolve_feature_place(
+        validated,
+        row,
+        lowering,
+        &FeaturePlace::Construction(Feature::PossessiveEnding),
+        &mut HashSet::new(),
+    )?;
+    Ok(resolved_feature_value_tokens(&output))
+}
+
 fn resolve_feature_place(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
@@ -1863,8 +2073,12 @@ fn resolve_feature_place(
             "validated feature equation graph contains a cycle",
         ));
     }
-    let equation = equation(validated, row, place)
-        .ok_or_else(|| internal("accepted feature source has no symbolic binding"))?;
+    let equation = equation(validated, row, place).ok_or_else(|| {
+        internal(&format!(
+            "accepted feature source has no symbolic binding: construction `{}`, place `{place:?}`",
+            row.construction_id(),
+        ))
+    })?;
     let resolved = match equation.value() {
         FeatureExpr::Constant(value) => ResolvedFeatureValue::Known(*value.value()),
         FeatureExpr::FromRole { role, feature } => resolve_feature_place(
@@ -1907,6 +2121,19 @@ fn resolve_feature_place(
                 FeaturePlace::Construction(Feature::Onset)
                 | FeaturePlace::Role {
                     feature: Feature::Onset,
+                    ..
+                } => {
+                    let ty = ident(terminal_for_role(row, role)?);
+                    let arms = arms.iter().map(|(variant, value)| {
+                        let variant = variant.value();
+                        let value = feature_value(*value);
+                        quote! { #ty::#variant => #value }
+                    });
+                    ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
+                }
+                FeaturePlace::Construction(Feature::PossessiveEnding)
+                | FeaturePlace::Role {
+                    feature: Feature::PossessiveEnding,
                     ..
                 } => {
                     let ty = ident(terminal_for_role(row, role)?);
@@ -1998,28 +2225,22 @@ fn feature_is_read(
 fn role_number_is_needed_in_build(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
-    form: &crate::semantic::FormPlan,
+    _form: &crate::semantic::FormPlan,
     role: &syn::Ident,
 ) -> bool {
-    let output_needs_number = form
-        .atoms()
-        .iter()
-        .any(|atom| matches!(atom, AtomPlan::Noun { .. }))
-        || validated.category_carries_number(row.category());
-    output_needs_number
-        && (feature_is_read(validated, row, role, Feature::Number)
-            || matches!(
-                equation(
-                    validated,
-                    row,
-                    &FeaturePlace::Construction(Feature::Number),
-                )
-                .map(crate::feature::FeatureEquation::value),
-                Some(FeatureExpr::FromRole {
-                    role: source,
-                    feature: Feature::Number,
-                }) if identifier_key(source) == identifier_key(role)
-            ))
+    feature_is_read(validated, row, role, Feature::Number)
+        || matches!(
+            equation(
+                validated,
+                row,
+                &FeaturePlace::Construction(Feature::Number),
+            )
+            .map(crate::feature::FeatureEquation::value),
+            Some(FeatureExpr::FromRole {
+                role: source,
+                feature: Feature::Number,
+            }) if identifier_key(source) == identifier_key(role)
+        )
 }
 
 fn terminal_for_role<'a>(row: &'a ConstructionPlan, role: &syn::Ident) -> syn::Result<&'a str> {
@@ -2034,6 +2255,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Plural => quote! { Number::Plural },
         FeatureValue::Consonant => quote! { Onset::Consonant },
         FeatureValue::Vowel => quote! { Onset::Vowel },
+        FeatureValue::EndsInS => quote! { PossessiveEnding::EndsInS },
+        FeatureValue::Other => quote! { PossessiveEnding::Other },
     }
 }
 fn vocab_argument(name: &str) -> String {
@@ -2683,7 +2906,7 @@ mod tests {
         let items = super::emit(validated.semantic()).expect("role-derived noun build lowers");
         let source = items[0].tokens.to_string();
         assert!(
-            source.contains("Leaf :: Noun { noun : head , number , onset : head_onset }"),
+            source.contains("Leaf :: Noun { noun : head , number , onset : head_onset , possessive_ending : head_possessive_ending , }"),
             "{source}"
         );
         assert!(
@@ -2786,7 +3009,7 @@ mod tests {
             .to_string();
         assert!(
             source.contains(
-                "Leaf :: Noun { noun : head , number : Number :: Singular , onset : head_onset }"
+                "Leaf :: Noun { noun : head , number : Number :: Singular , onset : head_onset , possessive_ending : head_possessive_ending , }"
             ) && source.contains("match count")
                 && source.contains("Count :: One => Ok (Some")
                 && source.contains("Agreement :: ThirdPersonSingular")
@@ -2833,8 +3056,8 @@ mod tests {
         for fragment in [
             "* source_number == * number",
             "* source_number == * right_number",
-            "Leaf :: Noun { noun : left , number , onset : left_onset }",
-            "Leaf :: Noun { noun : right , number : right_number , onset : right_onset }",
+            "Leaf :: Noun { noun : left , number , onset : left_onset , possessive_ending : left_possessive_ending , }",
+            "Leaf :: Noun { noun : right , number : right_number , onset : right_onset , possessive_ending : right_possessive_ending , }",
             "_ => Ok (None)",
         ] {
             assert!(source.contains(fragment), "missing `{fragment}`: {source}");
@@ -3175,12 +3398,13 @@ mod tests {
     }
 
     #[test]
-    fn constant_onset_forwards_without_bound_prefix_syntax() {
-        let expansion = crate::generate(quote::quote! {
-            construction constant_onset: NounPhrase {
-                element ConstantOnset {}
-                derive onset = Values::Consonant;
-                form constant_onset = "nonartifact";
+    fn bound_prefix_onset_comes_from_the_fixed_realized_prefix() {
+        let source = quote::quote! {
+            vocab Modifier { Artifact = "artifact", }
+            construction prefixed_onset: NounPhrase {
+                element PrefixedOnset { modifier: lex Modifier, }
+                derive onset = modifier.onset;
+                form prefixed_onset = prefix("non", lex(modifier));
             }
             construction wrapper: Phrase {
                 element Wrapper { head: NounPhrase, }
@@ -3189,15 +3413,25 @@ mod tests {
                 form a otherwise = "a" head;
             }
             root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
-        })
-        .expect("a constant onset forwards through the ordinary category interface");
+        };
+        let raw = crate::parse_declarations(source).expect("the fixed-prefix onset fixture parses");
+        let validated =
+            crate::validate_declarations(raw).expect("the fixed-prefix onset fixture validates");
+        crate::emit::ast::emit(validated.semantic()).expect("fixed-prefix AST emits");
+        crate::emit::terminal::emit(validated.semantic()).expect("fixed-prefix terminals emit");
+        crate::emit::render::emit(validated.semantic()).expect("fixed-prefix render emits");
+        crate::emit::visit::emit(validated.semantic()).expect("fixed-prefix visitor emits");
+        crate::emit::rules::emit(validated.semantic()).expect("fixed-prefix rules emit");
+        crate::emit::build::emit(validated.semantic()).expect("fixed-prefix build emits");
+        let expansion = crate::generate_from_semantic(validated.semantic())
+            .expect("a fixed bound prefix overrides its value's vowel onset");
         let source = expansion.tokens().to_string();
 
         assert!(
             source.contains(
-                "BuildValue :: NounPhrase (NounPhrase :: ConstantOnset (ConstantOnset) , Onset :: Consonant)"
+                "BuildValue :: NounPhrase (NounPhrase :: PrefixedOnset (PrefixedOnset { modifier : * modifier }) , Onset :: Consonant)"
             ),
-            "the constant-Onset interface forwards; actual bound-prefix onset belongs to Task 6: {source}"
+            "the prefix's consonantal onset overrides `artifact`: {source}"
         );
     }
 }

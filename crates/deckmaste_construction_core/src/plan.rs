@@ -1232,7 +1232,7 @@ mod tests {
             "(Verbs :: Act , Agreement :: Bare , Onset :: Vowel , \"act\")",
             "(Nouns :: Person , Number :: Singular , Onset :: Consonant , \"person\")",
             "Lexical :: Declaration (matcher)",
-            "input . declaration_readings (matcher)",
+            "input . declaration_readings (matcher , terminal . right_boundary)",
         ] {
             assert!(
                 scanner.contains(expected),
@@ -2147,7 +2147,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 88);
+        assert_eq!(keys.len(), 91);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,
             name: "GeneratedRoot".into(),

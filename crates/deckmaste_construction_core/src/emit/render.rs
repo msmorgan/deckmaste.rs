@@ -355,7 +355,12 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         ));
     }
 
-    for feature in [Feature::Agreement, Feature::Number, Feature::Onset] {
+    for feature in [
+        Feature::Agreement,
+        Feature::Number,
+        Feature::Onset,
+        Feature::PossessiveEnding,
+    ] {
         for (category, members) in &categories {
             if !validated.category_reads_feature(category, feature) {
                 continue;
@@ -1070,6 +1075,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::Agreement => quote! { Agreement },
         Feature::Number => quote! { Number },
         Feature::Onset => quote! { Onset },
+        Feature::PossessiveEnding => quote! { PossessiveEnding },
     };
     let arms = helper
         .vocab
@@ -1139,6 +1145,7 @@ fn render_allocator(
             .map(|field| (field.name_key(), field))
             .collect::<HashMap<_, _>>();
         for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
+            let atom = atom.value_atom();
             match atom {
                 AtomPlan::Literal(_) => {}
                 AtomPlan::Category { role, .. } => {
@@ -1266,6 +1273,7 @@ fn render_allocator(
                         allocator.reserve(feature_helper("number", construction.category()));
                     }
                 }
+                AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
             }
         }
     }
@@ -1319,7 +1327,9 @@ fn reserve_feature_callees(
     {
         return reserve_feature_callees(validated, construction, writer.value(), allocator);
     }
-    if *source_feature == Feature::Onset && field.kind() != ConstructionFieldKind::Category {
+    if matches!(*source_feature, Feature::Onset | Feature::PossessiveEnding)
+        && field.kind() != ConstructionFieldKind::Category
+    {
         return Ok(());
     }
     let source = match field.kind() {
@@ -1347,6 +1357,11 @@ struct RenderLocals {
     whole: Option<syn::Ident>,
     fields: HashMap<String, syn::Ident>,
     category: TokenStream,
+}
+
+fn render_arm_requires_block(construction: &ConstructionPlan, root_impl: bool) -> bool {
+    matches!(construction.forms()[0].atoms(), [AtomPlan::Bound { .. }])
+        || (!root_impl && matches!(construction.forms()[0].atoms(), [AtomPlan::Category { .. }]))
 }
 
 fn render_arms(
@@ -1408,51 +1423,67 @@ fn render_arms(
                     let guard = super::emit_form_guard_expression(
                         construction,
                         form_index,
-                        |domain, value| {
-                            let field = construction.field(domain.role())?;
-                            let field_value = field_value(construction, domain.role(), &locals)?;
-                            match (domain.kind(), value) {
-                                (
-                                    FiniteDomainKindPlan::Vocab { terminal, .. },
-                                    FiniteValuePlan::Vocab(variant),
-                                ) => {
-                                    let terminal = ident(terminal);
-                                    let variant = ident(variant);
-                                    let value =
-                                        copy_value(construction, domain.role(), field_value)?;
-                                    Ok(quote! { matches!(#value, #terminal::#variant) })
-                                }
-                                (
-                                    FiniteDomainKindPlan::OptionalPresence,
-                                    FiniteValuePlan::OptionalPresence(present),
-                                ) => {
-                                    let _ = field;
-                                    Ok(quote! { #field_value.is_some() == #present })
-                                }
-                                (
-                                    FiniteDomainKindPlan::Feature { feature, .. },
-                                    FiniteValuePlan::Feature(value),
-                                ) => {
+                        |domain, value| match (domain.kind(), value) {
+                            (
+                                FiniteDomainKindPlan::Vocab { terminal, .. },
+                                FiniteValuePlan::Vocab(variant),
+                            ) => {
+                                let field_value =
+                                    field_value(construction, domain.role(), &locals)?;
+                                let terminal = ident(terminal);
+                                let variant = ident(variant);
+                                let value = copy_value(construction, domain.role(), field_value)?;
+                                Ok(quote! { matches!(#value, #terminal::#variant) })
+                            }
+                            (
+                                FiniteDomainKindPlan::OptionalPresence,
+                                FiniteValuePlan::OptionalPresence(present),
+                            ) => {
+                                let field_value =
+                                    field_value(construction, domain.role(), &locals)?;
+                                Ok(quote! { #field_value.is_some() == #present })
+                            }
+                            (
+                                FiniteDomainKindPlan::Feature { feature, .. },
+                                FiniteValuePlan::Feature(value),
+                            ) => {
+                                let actual = if domain.role().starts_with('@') {
+                                    let equation = validated
+                                        .feature_equations(construction.construction_id())
+                                        .iter()
+                                        .find(|equation| {
+                                            equation.target()
+                                                == &FeaturePlace::Construction(*feature)
+                                        })
+                                        .ok_or_else(|| {
+                                            internal("construction feature guard has no equation")
+                                        })?;
+                                    feature_expr(
+                                        validated,
+                                        construction,
+                                        equation.value(),
+                                        *feature,
+                                        &locals,
+                                    )?
+                                } else {
                                     let role =
                                         syn::Ident::new(domain.role(), construction.origin_span());
                                     let expression = FeatureExpr::FromRole {
                                         role,
                                         feature: *feature,
                                     };
-                                    let actual = feature_expr(
+                                    feature_expr(
                                         validated,
                                         construction,
                                         &expression,
                                         *feature,
                                         &locals,
-                                    )?;
-                                    let expected = feature_value(*value);
-                                    Ok(quote! { #actual == #expected })
-                                }
-                                _ => {
-                                    Err(internal("form guard domain and assignment value disagree"))
-                                }
+                                    )?
+                                };
+                                let expected = feature_value(*value);
+                                Ok(quote! { #actual == #expected })
                             }
+                            _ => Err(internal("form guard domain and assignment value disagree")),
                         },
                     )?;
                     Ok((guard, statements))
@@ -1471,9 +1502,7 @@ fn render_arms(
                 .into_iter()
                 .next()
                 .ok_or_else(|| internal("construction has no sealed render form"))?;
-            let category_role_block = !root_impl
-                && matches!(construction.forms()[0].atoms(), [AtomPlan::Category { .. }]);
-            if statements.len() == 1 && !category_role_block {
+            if statements.len() == 1 && !render_arm_requires_block(construction, root_impl) {
                 let statement = syn::parse2::<syn::Stmt>(
                     statements
                         .into_iter()
@@ -1510,6 +1539,25 @@ fn render_atoms(
         .iter()
         .enumerate()
         .map(|(atom_index, atom)| {
+            if let AtomPlan::Bound {
+                direction,
+                affix,
+                value,
+            } = atom
+            {
+                return render_bound_atom(
+                    validated,
+                    construction,
+                    form,
+                    atom_index,
+                    *direction,
+                    affix,
+                    value,
+                    locals,
+                    root_names,
+                    &fields,
+                );
+            }
             if let Some(role) = render_atom_role(atom)
                 && let Some(field) = fields.get(role)
                 && let Some(structural) = field.structural_plan()
@@ -1551,6 +1599,104 @@ fn render_atoms(
             })
         })
         .collect()
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "bound rendering preserves the enclosing form and value ownership inputs"
+)]
+fn render_bound_atom(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    form: &FormPlan,
+    atom_index: usize,
+    direction: crate::semantic::BoundDirectionPlan,
+    affix: &str,
+    value: &AtomPlan,
+    locals: &RenderLocals,
+    root_names: &HashSet<String>,
+    fields: &HashMap<String, &ConstructionFieldPlan>,
+) -> syn::Result<TokenStream> {
+    let affix_statement = render_fixed_surface_statement(affix);
+    let affix_id = syn::LitStr::new(
+        &format!(
+            "form:{}/{}/{atom_index}/affix",
+            construction.construction_id(),
+            form.name(),
+        ),
+        Span::call_site(),
+    );
+    let affix_claim = quote! {
+        writer.claim(
+            || LexicalOwner::static_owner(
+                LexicalProvenanceKind::FormLiteral,
+                #affix_id,
+            ),
+            |writer| { #affix_statement },
+        );
+    };
+    let value_statement = if let Some(role) = render_atom_role(value)
+        && let Some(field) = fields.get(role)
+        && let Some(structural) = field.structural_plan()
+    {
+        render_construction_structural_field(
+            validated,
+            construction,
+            role,
+            structural,
+            locals,
+            root_names,
+        )?
+    } else {
+        render_atom_statement(validated, construction, value, locals, root_names, fields)?
+    };
+    let value_render = if matches!(value, AtomPlan::Category { .. }) {
+        value_statement
+    } else {
+        let owner = render_owner(
+            validated,
+            construction,
+            form.name(),
+            atom_index,
+            value,
+            locals,
+        )?;
+        quote! {
+            writer.claim(
+                || #owner,
+                |writer| { #value_statement },
+            );
+        }
+    };
+    Ok(match direction {
+        crate::semantic::BoundDirectionPlan::Prefix => quote! {
+            #affix_claim
+            writer.suppress_next_space();
+            #value_render
+        },
+        crate::semantic::BoundDirectionPlan::Suffix => quote! {
+            #value_render
+            writer.suppress_next_space();
+            #affix_claim
+        },
+    })
+}
+
+fn render_fixed_surface_statement(surface: &str) -> TokenStream {
+    if surface.chars().count() == 1
+        && surface
+            .chars()
+            .all(|character| character.is_ascii_punctuation())
+    {
+        let punctuation = surface
+            .chars()
+            .next()
+            .expect("one-character fixed surface is present");
+        quote! { writer.punctuation(#punctuation); }
+    } else {
+        let surface = syn::LitStr::new(surface, Span::call_site());
+        quote! { writer.word(#surface); }
+    }
 }
 
 fn render_atom_statement(
@@ -1699,6 +1845,7 @@ fn render_atom_statement(
                 &call_writer,
             )
         }
+        AtomPlan::Bound { .. } => Err(internal("bound atoms must be rendered as two claims")),
     }
 }
 
@@ -1733,12 +1880,13 @@ fn render_construction_structural_field(
 }
 
 fn render_atom_role(atom: &AtomPlan) -> Option<&str> {
-    match atom {
+    match atom.value_atom() {
         AtomPlan::Category { role, .. }
         | AtomPlan::Lex { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
+        AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
     }
 }
 
@@ -1769,6 +1917,7 @@ fn render_owner(
     atom: &AtomPlan,
     locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
+    let atom = atom.value_atom();
     match atom {
         AtomPlan::Literal(_) => {
             let stable_id = syn::LitStr::new(
@@ -1966,6 +2115,7 @@ fn render_owner(
                 }
             })
         }
+        AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
     }
 }
 
@@ -2167,6 +2317,9 @@ fn feature_expr(
                     Feature::Agreement => Ok(quote! { agreement }),
                     Feature::Onset => implicit_verb_onset(validated, construction, locals),
                     Feature::Number => Err(internal("verb slot does not provide number")),
+                    Feature::PossessiveEnding => {
+                        Err(internal("verb slot does not provide possessive ending"))
+                    }
                 };
             }
             let role_key = identifier_key(role);
@@ -2193,9 +2346,26 @@ fn feature_expr(
                 );
             }
             let role_value = field_value(construction, &role_key, locals)?;
+            if *source_feature == Feature::Onset
+                && let Some(onset) = bound_prefix_onset(construction, &role_key)?
+            {
+                return Ok(onset);
+            }
             if *source_feature == Feature::Onset && field.kind() != ConstructionFieldKind::Category
             {
                 return lexical_onset_expr(
+                    validated,
+                    construction,
+                    &role_key,
+                    field,
+                    role_value,
+                    locals,
+                );
+            }
+            if *source_feature == Feature::PossessiveEnding
+                && field.kind() != ConstructionFieldKind::Category
+            {
+                return lexical_possessive_ending_expr(
                     validated,
                     construction,
                     &role_key,
@@ -2227,7 +2397,7 @@ fn feature_expr(
                 }
             };
             let function = ident(&feature_helper(feature_name(*source_feature), &source));
-            if *source_feature == Feature::Onset {
+            if matches!(*source_feature, Feature::Onset | Feature::PossessiveEnding) {
                 let environment = validated
                     .needs_parser_environment()
                     .then(|| quote! { , environment });
@@ -2320,8 +2490,46 @@ fn implicit_verb_onset(
         | AtomPlan::Category { .. }
         | AtomPlan::Lex { .. }
         | AtomPlan::Identity { .. }
-        | AtomPlan::Noun { .. } => unreachable!("verb onset selected a verb atom"),
+        | AtomPlan::Noun { .. }
+        | AtomPlan::Bound { .. } => unreachable!("verb onset selected a verb atom"),
     }
+}
+
+fn bound_prefix_onset(
+    construction: &ConstructionPlan,
+    role: &str,
+) -> syn::Result<Option<TokenStream>> {
+    let mut realized = None;
+    for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
+        let AtomPlan::Bound {
+            direction: crate::semantic::BoundDirectionPlan::Prefix,
+            affix,
+            value,
+        } = atom
+        else {
+            continue;
+        };
+        let matches_role = matches!(
+            value.as_ref(),
+            AtomPlan::Category { role: found, .. }
+                | AtomPlan::Lex { role: found, .. }
+                | AtomPlan::Identity { role: found, .. }
+                | AtomPlan::Noun { role: found, .. }
+                if found == role
+        );
+        if !matches_role {
+            continue;
+        }
+        let onset = ::macro_ron::v2::normalize_surface_onset(affix, None)
+            .ok_or_else(|| internal("validated bound prefix has no realized onset"))?;
+        if realized.is_some_and(|found| found != onset) {
+            return Err(internal(
+                "one role has bound prefixes with inconsistent realized onset",
+            ));
+        }
+        realized = Some(onset);
+    }
+    Ok(realized.map(super::onset))
 }
 
 fn lexical_onset_expr(
@@ -2402,6 +2610,114 @@ fn lexical_onset_expr(
     })
 }
 
+fn lexical_possessive_ending_expr(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+    field: &crate::semantic::ConstructionFieldPlan,
+    role_value: TokenStream,
+    locals: &RenderLocals,
+) -> syn::Result<TokenStream> {
+    if let Some(vocab) = find_vocab(validated, field.terminal()) {
+        let ty = ident(vocab.name());
+        let value = copy_value(construction, role, role_value)?;
+        let arms = vocab.variants().iter().map(|variant| {
+            let member = variant.name();
+            let ending = possessive_ending_for_surface(&variant.word().value());
+            quote! { #ty::#member => #ending }
+        });
+        return Ok(quote! { match #value { #(#arms,)* } });
+    }
+    if let Some(identity) = find_context_identity(validated, field.terminal()) {
+        let ty = identity.ident();
+        let value = copy_value(construction, role, role_value)?;
+        let arms = identity.arms().iter().map(|arm| {
+            let member = arm.variant();
+            let accessor = arm.accessor();
+            let ending = runtime_possessive_ending(&quote! { context.#accessor() });
+            quote! { #ty::#member => #ending }
+        });
+        return Ok(quote! { match #value { #(#arms,)* } });
+    }
+    if find_catalog_identity(validated, field.terminal()).is_some() {
+        return Ok(runtime_possessive_ending(&quote! {
+            environment
+                .catalog_surface((#role_value).provider(), (#role_value).canonical_identity())
+                .expect("validated catalog identity remains in its frozen provider")
+        }));
+    }
+    let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
+        return Err(internal(
+            "possessive-ending source has no sealed lexical surface plan",
+        ));
+    };
+    let noun = codec.codec_ident();
+    let closed = codec.closed_lexeme();
+    let number = noun_role_number(validated, construction, role, locals)?;
+    let closed_arms = validated
+        .runtime_noun_lexeme()
+        .expect("validated declaration noun has a closed lexeme")
+        .surfaces()
+        .iter()
+        .map(|row| {
+            let member = ident(row.member());
+            let number = match row.feature() {
+                macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                macro_ron::v2::SurfaceFeature::Bare
+                | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                | macro_ron::v2::SurfaceFeature::Fixed => {
+                    unreachable!("validated noun lexeme has the Number feature axis")
+                }
+            };
+            let ending = possessive_ending_for_surface(row.surface());
+            quote! { (#noun::Lexeme(#closed::#member), #number) => #ending }
+        });
+    let dynamic = runtime_possessive_ending(&quote! {
+        environment
+            .surface(
+                declaration.id(),
+                match number {
+                    Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
+                    Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                },
+            )
+            .expect("stored declaration noun remains in its normalized parser environment")
+    });
+    Ok(quote! {
+        match (#role_value, #number) {
+            #(#closed_arms,)*
+            (#noun::Declaration(declaration), number) => #dynamic,
+        }
+    })
+}
+
+fn possessive_ending_for_surface(surface: &str) -> TokenStream {
+    if surface
+        .as_bytes()
+        .last()
+        .is_some_and(|byte| matches!(byte, b's' | b'S'))
+    {
+        quote! { PossessiveEnding::EndsInS }
+    } else {
+        quote! { PossessiveEnding::Other }
+    }
+}
+
+fn runtime_possessive_ending(surface: &TokenStream) -> TokenStream {
+    quote! {
+        if (#surface)
+            .as_bytes()
+            .last()
+            .is_some_and(|byte| matches!(byte, b's' | b'S'))
+        {
+            PossessiveEnding::EndsInS
+        } else {
+            PossessiveEnding::Other
+        }
+    }
+}
+
 fn canonical_lexical_feature_lowering<'a>(
     validated: &'a SemanticPlan,
     construction: &'a ConstructionPlan,
@@ -2475,6 +2791,7 @@ fn emit_feature_helper(
         Feature::Agreement => quote! { Agreement },
         Feature::Number => quote! { Number },
         Feature::Onset => quote! { Onset },
+        Feature::PossessiveEnding => quote! { PossessiveEnding },
     };
     let mut entries: Vec<(TokenStream, String, TokenStream)> = Vec::new();
     for construction in members {
@@ -2536,13 +2853,18 @@ fn emit_feature_helper(
     let arms = groups
         .into_iter()
         .map(|(_, value, patterns)| quote! { #(#patterns)|* => #value });
-    let context = (feature == Feature::Onset).then(|| quote! { , context: &ParseContext<'_> });
-    let environment = (feature == Feature::Onset && validated.needs_parser_environment())
+    let realized_surface_feature = matches!(feature, Feature::Onset | Feature::PossessiveEnding);
+    let context = realized_surface_feature.then(|| quote! { , context: &ParseContext<'_> });
+    let environment = (realized_surface_feature && validated.needs_parser_environment())
         .then(|| quote! { , environment: &crate::environment::ParserEnvironment });
-    let used_context = (feature == Feature::Onset).then(|| quote! { let _ = context; });
-    let used_environment = (feature == Feature::Onset && validated.needs_parser_environment())
+    let used_context = realized_surface_feature.then(|| quote! { let _ = context; });
+    let used_environment = (realized_surface_feature && validated.needs_parser_environment())
         .then(|| quote! { let _ = environment; });
     let tokens = quote! {
+        #[expect(
+            clippy::unnested_or_patterns,
+            reason = "equal derived feature values intentionally share flat construction patterns"
+        )]
         fn #function(#argument: &#ty #context #environment) -> #return_ty {
             #used_context
             #used_environment
@@ -2719,6 +3041,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Plural => quote! { Number::Plural },
         FeatureValue::Consonant => quote! { Onset::Consonant },
         FeatureValue::Vowel => quote! { Onset::Vowel },
+        FeatureValue::EndsInS => quote! { PossessiveEnding::EndsInS },
+        FeatureValue::Other => quote! { PossessiveEnding::Other },
     }
 }
 
@@ -2912,6 +3236,7 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::Agreement => "agreement",
         Feature::Number => "number",
         Feature::Onset => "onset",
+        Feature::PossessiveEnding => "possessive_ending",
     }
 }
 fn ident(name: &str) -> syn::Ident {

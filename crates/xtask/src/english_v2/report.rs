@@ -733,7 +733,7 @@ mod tests {
                 report.checked_constructor_bindings.len(),
                 report.roots.len(),
             ],
-            [0, 0, 0, 1, 27, 0, 0, 0, 3],
+            [0, 0, 0, 1, 27, 0, 0, 0, 4],
             "categories intentionally overlap and have no unique total"
         );
         assert!(report.handwritten_codecs.is_empty());
@@ -753,7 +753,7 @@ mod tests {
         assert!(report.checked_constructor_bindings.is_empty());
         assert_eq!(
             identities(&report.roots),
-            ["Ability", "OracleText", "Sentence"]
+            ["Ability", "OracleText", "Possessive", "Sentence"]
         );
         assert_eq!(report.abstract_products, ["OracleText"]);
         assert_eq!(report.abstract_sums, ["DocumentBlock"]);
@@ -911,6 +911,11 @@ mod tests {
                 },
                 {
                     "identity": "OracleText",
+                    "rationale": "declared parser entry point",
+                    "removal_target": null
+                },
+                {
+                    "identity": "Possessive",
                     "rationale": "declared parser entry point",
                     "removal_target": null
                 },

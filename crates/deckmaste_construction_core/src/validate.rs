@@ -682,17 +682,24 @@ fn construction_has_fixed_width(construction: &crate::Construction) -> bool {
         .map(|field| (identifier_key(&field.name), &field.kind))
         .collect::<HashMap<_, _>>();
     construction.forms.iter().all(|form| {
-        form.atoms.iter().any(|atom| match atom {
-            FormAtom::Literal(value) => !value.value().is_empty(),
-            FormAtom::Lex(role) | FormAtom::Identity(role) | FormAtom::Noun(role) => {
-                fields.get(&identifier_key(role)).is_some_and(|kind| {
-                    !matches!(kind, FieldKind::Optional(_) | FieldKind::Sequence { .. })
-                })
-            }
-            FormAtom::Verb(_) | FormAtom::OpenVerb(_) => true,
-            FormAtom::Role(_) => false,
-        })
+        form.atoms
+            .iter()
+            .any(|atom| form_atom_has_fixed_width(atom, &fields))
     })
+}
+
+fn form_atom_has_fixed_width(atom: &FormAtom, fields: &HashMap<String, &FieldKind>) -> bool {
+    match atom {
+        FormAtom::Literal(value) => !value.value().is_empty(),
+        FormAtom::Lex(role) | FormAtom::Identity(role) | FormAtom::Noun(role) => {
+            fields.get(&identifier_key(role)).is_some_and(|kind| {
+                !matches!(kind, FieldKind::Optional(_) | FieldKind::Sequence { .. })
+            })
+        }
+        FormAtom::Verb(_) | FormAtom::OpenVerb(_) => true,
+        FormAtom::Role(_) => false,
+        FormAtom::Bound(bound) => form_atom_has_fixed_width(&bound.value, fields),
+    }
 }
 
 fn normalize_length_requirements(
@@ -2247,10 +2254,15 @@ fn seal_category_feature_reads(raw: &Declarations) -> HashMap<String, HashSet<Fe
     categories
         .into_iter()
         .filter_map(|category| {
-            let reads = [Feature::Agreement, Feature::Number, Feature::Onset]
-                .into_iter()
-                .filter(|feature| raw_category_reads_feature(raw, &category, *feature))
-                .collect::<HashSet<_>>();
+            let reads = [
+                Feature::Agreement,
+                Feature::Number,
+                Feature::Onset,
+                Feature::PossessiveEnding,
+            ]
+            .into_iter()
+            .filter(|feature| raw_category_reads_feature(raw, &category, *feature))
+            .collect::<HashSet<_>>();
             (!reads.is_empty()).then_some((category, reads))
         })
         .collect()
@@ -3189,6 +3201,9 @@ fn generated_name_inventory(
                         ParsedFeature::Agreement => ("agreement", "Agreement"),
                         ParsedFeature::Number => ("number", "Number"),
                         ParsedFeature::Onset => ("onset", "Onset"),
+                        ParsedFeature::PossessiveEnding => {
+                            ("possessive_ending", "PossessiveEnding")
+                        }
                     };
                     names.register_value(
                         &feature_helper(spelling, &vocab),
@@ -3700,6 +3715,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Number => ParsedFeature::Number,
         Feature::Onset => ParsedFeature::Onset,
+        Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
     };
     raw.declarations.iter().any(|declaration| {
         let Declaration::Construction(construction) = declaration else { return false };
@@ -3768,6 +3784,70 @@ fn validate_generated_rust_ident(
             ),
         );
     }
+}
+
+fn validate_bound_form_atom<'a>(
+    atom: &'a FormAtom,
+    fields: &HashMap<String, &FieldKind>,
+    errors: &mut Option<syn::Error>,
+) -> &'a FormAtom {
+    let FormAtom::Bound(bound) = atom else {
+        return atom;
+    };
+    let affix = bound.affix.value();
+    if affix.is_empty() {
+        combine(
+            errors,
+            syn::Error::new(
+                bound.affix.span(),
+                "a bound affix must have a nonempty fixed byte surface",
+            ),
+        );
+    }
+    if affix.chars().any(char::is_whitespace) {
+        combine(
+            errors,
+            syn::Error::new(
+                bound.affix.span(),
+                "a bound affix must not contain whitespace",
+            ),
+        );
+    }
+    if matches!(bound.value.as_ref(), FormAtom::Literal(_)) {
+        combine(
+            errors,
+            syn::Error::new(
+                bound.affix.span(),
+                "a bound atom accepts exactly one ordinary value atom",
+            ),
+        );
+    }
+    let value_role = match bound.value.as_ref() {
+        FormAtom::Role(role)
+        | FormAtom::Lex(role)
+        | FormAtom::Identity(role)
+        | FormAtom::Noun(role)
+        | FormAtom::Verb(VerbOperand::Projected(role)) => Some(role),
+        FormAtom::Literal(_)
+        | FormAtom::Verb(VerbOperand::Fixed(_))
+        | FormAtom::OpenVerb(_)
+        | FormAtom::Bound(_) => None,
+    };
+    if let Some(role) = value_role
+        && matches!(
+            fields.get(&identifier_key(role)),
+            Some(FieldKind::Optional(_) | FieldKind::Sequence { .. })
+        )
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                role.span(),
+                "bound atom values must be required, singular fields",
+            ),
+        );
+    }
+    &bound.value
 }
 
 fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<ResolvedGrammar> {
@@ -3847,6 +3927,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
         for form in &construction.forms {
             validate_form_guard(construction, form, &fields, symbols, &mut errors);
             for atom in &form.atoms {
+                let atom = validate_bound_form_atom(atom, &fields, &mut errors);
                 match atom {
                     FormAtom::Role(role) => check_role_kind(role, &fields, true, &mut errors),
                     FormAtom::Lex(role) => check_lex_role(role, &fields, symbols, &mut errors),
@@ -3877,6 +3958,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     }
                     FormAtom::OpenVerb(open) => validate_open_declaration(open, &mut errors),
                     FormAtom::Literal(_) => {}
+                    FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
                 }
             }
         }
@@ -4010,23 +4092,30 @@ fn validate_feature_guarded_traversal_programs(
     let signature = |form: &crate::model::Form| {
         form.atoms
             .iter()
-            .filter_map(|atom| match atom {
-                FormAtom::Literal(_) => None,
-                FormAtom::Role(role) => Some(format!("category:{}", identifier_key(role))),
-                FormAtom::Lex(role) => Some(format!("lex:{}", identifier_key(role))),
-                FormAtom::Identity(role) => Some(format!("identity:{}", identifier_key(role))),
-                FormAtom::Noun(role) => Some(format!("noun:{}", identifier_key(role))),
-                FormAtom::Verb(VerbOperand::Projected(role)) => {
-                    Some(format!("verb-role:{}", identifier_key(role)))
+            .filter_map(|atom| {
+                let atom = match atom {
+                    FormAtom::Bound(bound) => bound.value.as_ref(),
+                    atom => atom,
+                };
+                match atom {
+                    FormAtom::Literal(_) => None,
+                    FormAtom::Role(role) => Some(format!("category:{}", identifier_key(role))),
+                    FormAtom::Lex(role) => Some(format!("lex:{}", identifier_key(role))),
+                    FormAtom::Identity(role) => Some(format!("identity:{}", identifier_key(role))),
+                    FormAtom::Noun(role) => Some(format!("noun:{}", identifier_key(role))),
+                    FormAtom::Verb(VerbOperand::Projected(role)) => {
+                        Some(format!("verb-role:{}", identifier_key(role)))
+                    }
+                    FormAtom::Verb(VerbOperand::Fixed(path)) => {
+                        Some(format!("verb-fixed:{}", path_name(path)))
+                    }
+                    FormAtom::OpenVerb(open) => Some(format!(
+                        "open-verb:{}:{}",
+                        identifier_key(&open.kind),
+                        open.name.value()
+                    )),
+                    FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
                 }
-                FormAtom::Verb(VerbOperand::Fixed(path)) => {
-                    Some(format!("verb-fixed:{}", path_name(path)))
-                }
-                FormAtom::OpenVerb(open) => Some(format!(
-                    "open-verb:{}:{}",
-                    identifier_key(&open.kind),
-                    open.name.value()
-                )),
             })
             .collect::<Vec<_>>()
     };
@@ -4191,11 +4280,7 @@ fn validate_form_guard_expr(
             ),
         },
         RequireExprSource::In {
-            subject:
-                crate::model::RequireSubjectSource::RoleFeature {
-                    role,
-                    feature: ParsedFeature::Onset,
-                },
+            subject: crate::model::RequireSubjectSource::RoleFeature { role, feature: _ },
             ..
         } => {
             if !fields.contains_key(&identifier_key(role)) {
@@ -4205,12 +4290,16 @@ fn validate_form_guard_expr(
                 );
             }
         }
+        RequireExprSource::In {
+            subject: crate::model::RequireSubjectSource::ConstructionFeature(_),
+            ..
+        } => {}
         RequireExprSource::All(operands) | RequireExprSource::Any(operands) => {
             for operand in operands {
                 validate_form_guard_expr(construction, operand, fields, symbols, errors);
             }
         }
-        RequireExprSource::In { .. } | RequireExprSource::Length { .. } => combine(
+        RequireExprSource::Length { .. } => combine(
             errors,
             syn::Error::new(
                 construction.name.span(),
@@ -4268,6 +4357,10 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
             .collect();
         let mut atoms = Vec::new();
         for atom in construction.forms.iter().flat_map(|form| &form.atoms) {
+            let atom = match atom {
+                FormAtom::Bound(bound) => bound.value.as_ref(),
+                atom => atom,
+            };
             let resolved = match atom {
                 FormAtom::Literal(_) => Some(AtomContribution::Literal),
                 FormAtom::Role(role) => fields
@@ -4322,6 +4415,7 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                     }
                 }),
                 FormAtom::Verb(VerbOperand::Projected(_)) => None,
+                FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
             };
             if let Some(resolved) = resolved {
                 atoms.push(resolved);
@@ -4502,7 +4596,11 @@ fn check_feature_role(
                 );
             }
         }
-        Some(FieldKind::Lex(_) | FieldKind::Identity(_)) if feature == ParsedFeature::Onset => {}
+        Some(FieldKind::Lex(_) | FieldKind::Identity(_))
+            if matches!(
+                feature,
+                ParsedFeature::Onset | ParsedFeature::PossessiveEnding
+            ) => {}
         Some(FieldKind::Lex(_))
             if local_vocab_providers.contains(&(identifier_key(role), feature)) =>
         {
@@ -4727,6 +4825,10 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
                 .map(|field| (identifier_key(&field.name), 0))
                 .collect();
             for atom in &form.atoms {
+                let atom = match atom {
+                    FormAtom::Bound(bound) => bound.value.as_ref(),
+                    atom => atom,
+                };
                 let role = match atom {
                     FormAtom::Role(role)
                     | FormAtom::Lex(role)
@@ -4736,6 +4838,7 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
                     FormAtom::Verb(VerbOperand::Fixed(_))
                     | FormAtom::OpenVerb(_)
                     | FormAtom::Literal(_) => None,
+                    FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
                 };
                 if let Some(role) = role
                     && let Some(count) = counts.get_mut(&identifier_key(role))
@@ -6121,7 +6224,10 @@ fn feature_place_is_constructible(
                 ParsedFeaturePlace::Role { field, feature } => fields
                     .get(&identifier_key(field))
                     .is_some_and(|kind| {
-                        (*feature == ParsedFeature::Onset
+                        (matches!(
+                            *feature,
+                            ParsedFeature::Onset | ParsedFeature::PossessiveEnding
+                        )
                             && matches!(kind, FieldKind::Lex(_) | FieldKind::Identity(_)))
                             || matches!(kind, FieldKind::Category(path) if providers.contains(&(path_name(path), *feature)))
                     }),
@@ -6557,7 +6663,12 @@ fn seal_category_render_capabilities(
     loop {
         let before = context_required.len();
         for construction in &constructions {
-            let reads_context = construction.forms.iter().flat_map(|form| &form.atoms).any(|atom| match atom {
+            let reads_context = construction.forms.iter().flat_map(|form| &form.atoms).any(|atom| {
+                let atom = match atom {
+                    FormAtom::Bound(bound) => bound.value.as_ref(),
+                    atom => atom,
+                };
+                match atom {
                 FormAtom::Identity(_) => true,
                 FormAtom::Role(role) => construction
                     .element
@@ -6572,6 +6683,8 @@ fn seal_category_render_capabilities(
                 | FormAtom::Verb(_)
                 | FormAtom::OpenVerb(_)
                 | FormAtom::Noun(_) => false,
+                FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
+            }
             });
             if reads_context {
                 context_required.insert(path_name(&construction.category));
@@ -6756,6 +6869,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             ParsedFeature::Agreement,
             ParsedFeature::Number,
             ParsedFeature::Onset,
+            ParsedFeature::PossessiveEnding,
         ] {
             if constructions.iter().all(|construction| construction.equations.iter().any(|equation| matches!(equation.target, ParsedFeaturePlace::Construction(found) if found == feature))) {
                 providers.insert((category.clone(), feature));
@@ -6781,6 +6895,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Number => "number",
         ParsedFeature::Onset => "onset",
+        ParsedFeature::PossessiveEnding => "possessive_ending",
     }
 }
 
@@ -7201,7 +7316,11 @@ fn validate_lowerable_feature_compositions(
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::Match { .. },
             )
             | (
-                ParsedFeaturePlace::Construction(ParsedFeature::Agreement | ParsedFeature::Onset),
+                ParsedFeaturePlace::Construction(
+                    ParsedFeature::Agreement
+                    | ParsedFeature::Onset
+                    | ParsedFeature::PossessiveEnding,
+                ),
                 ParsedFeatureValue::FromRole(_),
             ) => true,
             (
@@ -7234,7 +7353,7 @@ fn validate_lowerable_feature_compositions(
             ) => role_provides_number(raw, &fields, field),
             (
                 ParsedFeaturePlace::Role {
-                    feature: ParsedFeature::Onset,
+                    feature: ParsedFeature::Onset | ParsedFeature::PossessiveEnding,
                     ..
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
@@ -7299,6 +7418,7 @@ fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<
             ParsedFeature::Agreement,
             ParsedFeature::Number,
             ParsedFeature::Onset,
+            ParsedFeature::PossessiveEnding,
         ] {
             let provides = |construction: &crate::Construction| {
                 construction.equations.iter().any(|equation| {
@@ -7337,6 +7457,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Number => "number",
         ParsedFeature::Onset => "onset",
+        ParsedFeature::PossessiveEnding => "possessive_ending",
     }
 }
 
@@ -7444,6 +7565,125 @@ pub(crate) mod tests {
             open_domain.contains("form guard membership requires a vocab role"),
             "{open_domain}"
         );
+    }
+
+    #[test]
+    fn bound_atoms_validate_the_four_closed_shapes() {
+        validate(quote! {
+            vocab Modifier { Black = "black", Elf = "Elf", }
+            construction owner: Owner {
+                element OwnerValue { modifier: lex Modifier, }
+                form owner = lex(modifier);
+            }
+            construction plain_prefix: Root {
+                element PlainPrefix { modifier: lex Modifier, }
+                form plain_prefix = prefix("non", lex(modifier));
+            }
+            construction hyphen_prefix: Root {
+                element HyphenPrefix { modifier: lex Modifier, }
+                form hyphen_prefix = prefix("non-", lex(modifier));
+            }
+            construction singular_suffix: Root {
+                element SingularSuffix { owner: Owner, }
+                form singular_suffix = suffix(owner, "'s");
+            }
+            construction plural_suffix: Root {
+                element PluralSuffix { owner: Owner, }
+                form plural_suffix = suffix(owner, "'");
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("validated bound atoms retain their one value atom and fixed affix");
+    }
+
+    #[test]
+    fn bound_atoms_reject_empty_whitespace_and_literal_affixes_or_values() {
+        let rejected = [
+            (
+                quote! { prefix("", lex(modifier)) },
+                "nonempty fixed byte surface",
+            ),
+            (
+                quote! { prefix("non ", lex(modifier)) },
+                "must not contain whitespace",
+            ),
+            (
+                quote! { suffix(lex(modifier), "\t") },
+                "must not contain whitespace",
+            ),
+            (
+                quote! { prefix("non", "black") },
+                "exactly one ordinary value atom",
+            ),
+        ];
+
+        for (atom, diagnostic) in rejected {
+            let actual = error(quote! {
+                vocab Modifier { Black = "black", }
+                construction invalid: Root {
+                    element Invalid { modifier: lex Modifier, }
+                    form invalid = #atom;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            });
+            assert!(actual.contains(diagnostic), "{actual}");
+        }
+    }
+
+    #[test]
+    fn bound_atoms_reject_optional_and_sequence_role_values() {
+        let rejected = [
+            (quote! { maybe: opt Item, }, quote! { prefix("non", maybe) }),
+            (quote! { maybe: opt Item, }, quote! { suffix(maybe, "'s") }),
+            (quote! { items: seq Item, }, quote! { prefix("non", items) }),
+            (quote! { items: seq Item, }, quote! { suffix(items, "'s") }),
+        ];
+
+        for (field, atom) in rejected {
+            let actual = error(quote! {
+                construction item: Item {
+                    element ItemValue {}
+                    form item = "item";
+                }
+                construction invalid: Root {
+                    element Invalid { #field }
+                    form invalid = #atom;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            });
+            assert!(
+                actual.contains("bound atom values must be required, singular fields"),
+                "{actual}"
+            );
+        }
+    }
+
+    #[test]
+    fn possessive_ending_is_a_sealed_role_feature_for_guarded_suffix_forms() {
+        validate(quote! {
+            vocab OwnerWord { Daxos = "Daxos", Players = "players", }
+            construction owner: Owner {
+                element OwnerValue { value: lex OwnerWord, }
+                derive number = match value {
+                    Daxos => Values::Singular,
+                    Players => Values::Plural,
+                };
+                derive possessive_ending = value.possessive_ending;
+                form owner = lex(value);
+            }
+            construction possessive: Root {
+                element Possessive { owner: Owner, }
+                derive number = owner.number;
+                form singular when number is Singular = suffix(owner, "'s");
+                form plural_s when all(
+                    number is Plural,
+                    owner.possessive_ending is EndsInS
+                ) = suffix(owner, "'");
+                form plural_other otherwise = suffix(owner, "'s");
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("possessive ending is derived from the owner's realized lexical surface");
     }
 
     #[test]
@@ -11722,7 +11962,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 106);
+        assert_eq!(expansion.plan().items().len(), 109);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -12064,7 +12304,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 106);
+        assert_eq!(expansion.plan().items().len(), 109);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -12198,7 +12438,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 106);
+        assert_eq!(emission.items().len(), 109);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

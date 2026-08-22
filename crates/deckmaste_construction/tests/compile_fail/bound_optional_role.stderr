@@ -1,0 +1,5 @@
+error: bound atom values must be required, singular fields
+  --> tests/compile_fail/bound_optional_role.rs:10:38
+   |
+10 |         form invalid = prefix("non", maybe);
+   |                                      ^^^^^

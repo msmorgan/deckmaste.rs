@@ -302,7 +302,7 @@ const TOTAL_COUNTS: &[ExactCount] = &[
         path: RENDER_EMITTER_PATH,
         label: "generated renderer environment surface lookup",
         atoms: &[Atom::Ident("catalog_surface")],
-        expected: 2,
+        expected: 3,
     },
     ExactCount {
         path: RENDER_EMITTER_PATH,

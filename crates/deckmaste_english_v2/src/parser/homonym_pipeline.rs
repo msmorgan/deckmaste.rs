@@ -123,7 +123,7 @@ struct ScanInput<'a> {
 }
 
 impl ScanInput<'_> {
-    fn word_end(&self, running_text: &str) -> Option<usize> {
+    fn word_end(&self, running_text: &str, right_boundary: LexicalBoundary) -> Option<usize> {
         let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
         let remainder = self.text.get(self.position.byte_offset..)?;
         let remainder = (prefix == 0)
@@ -136,11 +136,14 @@ impl ScanInput<'_> {
         };
         let end = self.position.byte_offset + prefix + rendered.len();
         (remainder.starts_with(&rendered)
-            && self
+            && (matches!(
+                right_boundary,
+                LexicalBoundary::Adjacent | LexicalBoundary::BothAdjacent
+            ) || self
                 .text
                 .get(end..)
                 .and_then(|tail| tail.chars().next())
-                .is_none_or(|character| !character.is_alphanumeric()))
+                .is_none_or(|character| !character.is_alphanumeric())))
         .then_some(end)
     }
 
@@ -161,6 +164,7 @@ impl ScanInput<'_> {
     fn declaration_readings(
         &self,
         matcher: DeclarationMatcher,
+        _right_boundary: LexicalBoundary,
     ) -> Vec<(usize, DeclarationIdentity, SurfaceFeature, Onset)> {
         super::scan::lookup_declaration_readings(
             self.text,
@@ -338,10 +342,11 @@ fn scan(
     terminal: LexicalTerminal,
     environment: &ParserEnvironment,
 ) -> Vec<StatefulLexicalMatch<Leaf, LexicalOwner, ScanPosition>> {
+    let scan_position = terminal.position_before(position);
     scan_lexical(
         &ScanInput {
             text,
-            position,
+            position: scan_position,
             environment,
         },
         terminal,
@@ -371,8 +376,13 @@ fn parse_fixture(
             case: CasePosition::DocumentInitial,
             prefix: PrefixPosition::None,
         },
-        |terminal, offset, position| {
+        |terminal, offset, position, suppress_right_boundary| {
             debug_assert_eq!(offset, position.byte_offset);
+            let terminal = if suppress_right_boundary {
+                terminal.suppress_right_boundary()
+            } else {
+                terminal
+            };
             scan(text, *position, terminal, environment)
         },
         |_rule, _family, _forest| true,
@@ -826,8 +836,13 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
             case: CasePosition::DocumentInitial,
             prefix: PrefixPosition::None,
         },
-        |terminal, offset, position| {
+        |terminal, offset, position, suppress_right_boundary| {
             debug_assert_eq!(offset, position.byte_offset);
+            let terminal = if suppress_right_boundary {
+                terminal.suppress_right_boundary()
+            } else {
+                terminal
+            };
             scan(text, *position, terminal, &environment)
         },
         |_rule, _family, _forest| true,

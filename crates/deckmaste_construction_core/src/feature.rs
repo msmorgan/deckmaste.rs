@@ -12,6 +12,7 @@ pub(crate) enum Feature {
     Agreement,
     Number,
     Onset,
+    PossessiveEnding,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +23,8 @@ pub(crate) enum FeatureValue {
     Plural,
     Consonant,
     Vowel,
+    EndsInS,
+    Other,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,6 +68,7 @@ impl Feature {
             Self::Agreement => &[FeatureValue::Bare, FeatureValue::ThirdPersonSingular],
             Self::Number => &[FeatureValue::Singular, FeatureValue::Plural],
             Self::Onset => &[FeatureValue::Consonant, FeatureValue::Vowel],
+            Self::PossessiveEnding => &[FeatureValue::EndsInS, FeatureValue::Other],
         }
     }
 
@@ -90,6 +94,7 @@ impl Feature {
             Self::Agreement => "agreement",
             Self::Number => "number",
             Self::Onset => "onset",
+            Self::PossessiveEnding => "possessive_ending",
         }
     }
 }
@@ -103,6 +108,8 @@ impl FeatureValue {
             Self::Plural => "Plural",
             Self::Consonant => "Consonant",
             Self::Vowel => "Vowel",
+            Self::EndsInS => "EndsInS",
+            Self::Other => "Other",
         }
     }
 }
@@ -235,6 +242,7 @@ impl Feature {
             Self::Agreement => "agreement",
             Self::Number => "number",
             Self::Onset => "onset",
+            Self::PossessiveEnding => "possessive_ending",
         }
     }
 }
@@ -249,6 +257,8 @@ impl FeatureValue {
             Self::Plural => "Plural",
             Self::Consonant => "Consonant",
             Self::Vowel => "Vowel",
+            Self::EndsInS => "EndsInS",
+            Self::Other => "Other",
         }
     }
 }
@@ -282,6 +292,8 @@ pub(crate) fn lower_constant(
         (model::Feature::Number, "Plural") => FeatureValue::Plural,
         (model::Feature::Onset, "Consonant") => FeatureValue::Consonant,
         (model::Feature::Onset, "Vowel") => FeatureValue::Vowel,
+        (model::Feature::PossessiveEnding, "EndsInS") => FeatureValue::EndsInS,
+        (model::Feature::PossessiveEnding, "Other") => FeatureValue::Other,
         (model::Feature::Agreement, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -300,6 +312,12 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not an onset value"),
             ));
         }
+        (model::Feature::PossessiveEnding, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a possessive-ending value"),
+            ));
+        }
     };
     Ok(value)
 }
@@ -310,6 +328,7 @@ impl From<model::Feature> for Feature {
             model::Feature::Agreement => Self::Agreement,
             model::Feature::Number => Self::Number,
             model::Feature::Onset => Self::Onset,
+            model::Feature::PossessiveEnding => Self::PossessiveEnding,
         }
     }
 }

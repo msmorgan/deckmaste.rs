@@ -82,6 +82,10 @@ impl Writer<'_> {
         self.prefix = PrefixPosition::WordOwnedSpace;
     }
 
+    pub(crate) fn suppress_next_space(&mut self) {
+        self.prefix = PrefixPosition::SurfaceOwned;
+    }
+
     pub(crate) fn identity(&mut self, identity: &str) {
         if self.prefix == PrefixPosition::WordOwnedSpace {
             self.output.push(' ');

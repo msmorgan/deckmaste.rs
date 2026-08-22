@@ -1700,6 +1700,9 @@ mod tests {
         "construction target",
         "construction self_reference",
         "construction count",
+        "construction possessive_self_reference",
+        "construction possessive_plural_noun",
+        "construction possessive",
         "construction destroy",
         "construction connive",
         "construction deal_damage",
@@ -1710,6 +1713,7 @@ mod tests {
         "abstract product OracleText",
         "root Ability",
         "root Sentence",
+        "root Possessive",
         "root OracleText",
     ];
 
@@ -1728,6 +1732,9 @@ mod tests {
         "construction target",
         "construction self_reference",
         "construction count",
+        "construction possessive_self_reference",
+        "construction possessive_plural_noun",
+        "construction possessive",
         "construction destroy",
         "construction connive",
         "construction deal_damage",
@@ -1752,6 +1759,7 @@ mod tests {
         "construction with_where",
         "root Ability",
         "root Sentence",
+        "root Possessive",
         "root OracleText",
     ];
 
@@ -1770,6 +1778,9 @@ mod tests {
         "construction target",
         "construction self_reference",
         "construction count",
+        "construction possessive_self_reference",
+        "construction possessive_plural_noun",
+        "construction possessive",
         "construction destroy",
         "construction connive",
         "construction deal_damage",
@@ -1792,6 +1803,9 @@ mod tests {
         "construction target",
         "construction self_reference",
         "construction count",
+        "construction possessive_self_reference",
+        "construction possessive_plural_noun",
+        "construction possessive",
         "construction destroy",
         "construction connive",
         "construction deal_damage",
@@ -1838,6 +1852,15 @@ mod tests {
                 "construction self_reference",
                 "construction count",
             ],
+            "type PossessiveOwner"
+            | "function render_possessive_owner"
+            | "function number_for_possessive_owner"
+            | "function possessive_ending_for_possessive_owner"
+            | "function walk_possessive_owner" => &[
+                "construction possessive_self_reference",
+                "construction possessive_plural_noun",
+            ],
+            "type Possessive" | "function walk_possessive" => &["construction possessive"],
             "type VerbPhrase" | "function render_verb_phrase" | "function walk_verb_phrase" => &[
                 "construction destroy",
                 "construction connive",
@@ -1885,6 +1908,17 @@ mod tests {
                 &["construction self_reference"]
             }
             "type CountNp" | "impl CountNp" | "function walk_count_np" => &["construction count"],
+            "type PossessiveSelfReference"
+            | "impl PossessiveSelfReference"
+            | "function walk_possessive_self_reference" => {
+                &["construction possessive_self_reference"]
+            }
+            "type PossessiveNoun" | "function walk_possessive_noun" => {
+                &["construction possessive_plural_noun"]
+            }
+            "type PossessiveValue" | "function walk_possessive_value" => {
+                &["construction possessive"]
+            }
             "type Destroy" | "function walk_destroy" => &["construction destroy"],
             "type Connive" | "function walk_connive" => &["construction connive"],
             "type DealDamage" | "function walk_deal_damage" => &["construction deal_damage"],
@@ -1935,9 +1969,11 @@ mod tests {
             "type Agreement"
             | "type Number"
             | "type Onset"
+            | "type PossessiveEnding"
             | "type FeatureConstraint"
             | "type CasePosition"
             | "type PrefixPosition"
+            | "type LexicalBoundary"
             | "type StructuralTransition"
             | "type ScanPosition"
             | "type DeclarationClass"
@@ -1966,9 +2002,11 @@ mod tests {
             | "trait GeneratedParseRoot"
             | "impl GeneratedRoot for Ability"
             | "impl GeneratedRoot for Sentence"
+            | "impl GeneratedRoot for Possessive"
             | "impl GeneratedRoot for OracleText"
             | "impl GeneratedParseRoot for Ability"
             | "impl GeneratedParseRoot for Sentence"
+            | "impl GeneratedParseRoot for Possessive"
             | "impl GeneratedParseRoot for OracleText"
             | "impl StructuralTransition for StructuralTransition"
             | "impl Lexical for Lexical"
@@ -1990,13 +2028,16 @@ mod tests {
             | "type FixedSurfaceAtom"
             | "function sequence_separator"
             | "function sequence_terminator" => ALL_DECLARATION_ORIGINS,
-            "function scan_lexical" => SCANNER_ORIGINS,
+            "function scan_lexical" | "function possessive_ending_at" => SCANNER_ORIGINS,
             "impl Ability" | "impl Render for Ability" | "function render_ability_with_claims" => {
                 &["root Ability"]
             }
             "impl Sentence"
             | "impl Render for Sentence"
             | "function render_sentence_with_claims" => &["root Sentence"],
+            "impl Possessive"
+            | "impl Render for Possessive"
+            | "function render_possessive_with_claims" => &["root Possessive"],
             "function write_oracle_text_render"
             | "impl Render for OracleText"
             | "function render_oracle_text_with_claims" => &["root OracleText"],
@@ -2018,6 +2059,9 @@ mod tests {
                 "construction target",
                 "construction self_reference",
                 "construction count",
+                "construction possessive_self_reference",
+                "construction possessive_plural_noun",
+                "construction possessive",
                 "construction destroy",
                 "construction connive",
                 "construction deal_damage",
@@ -2033,7 +2077,12 @@ mod tests {
             | "impl RuleId"
             | "function build_checked"
             | "function build" => CONSTRUCTION_ORIGINS,
-            "impl Category" => &["root Ability", "root Sentence", "root OracleText"],
+            "impl Category" => &[
+                "root Ability",
+                "root Sentence",
+                "root Possessive",
+                "root OracleText",
+            ],
             "constant RULES" => &[
                 "construction paragraph",
                 "construction triggered",
@@ -2049,6 +2098,9 @@ mod tests {
                 "construction target",
                 "construction self_reference",
                 "construction count",
+                "construction possessive_self_reference",
+                "construction possessive_plural_noun",
+                "construction possessive",
                 "construction destroy",
                 "construction connive",
                 "construction deal_damage",
@@ -2056,6 +2108,7 @@ mod tests {
                 "construction number",
                 "construction variable",
                 "root Ability",
+                "root Possessive",
                 "root OracleText",
             ],
             _ => return None,
@@ -2153,6 +2206,8 @@ mod tests {
         "type Sentence",
         "type Clause",
         "type NounPhrase",
+        "type PossessiveOwner",
+        "type Possessive",
         "type VerbPhrase",
         "type Amount",
         "type DocumentBlock",
@@ -2176,6 +2231,10 @@ mod tests {
         "impl SelfReferenceNp",
         "type CountNp",
         "impl CountNp",
+        "type PossessiveSelfReference",
+        "impl PossessiveSelfReference",
+        "type PossessiveNoun",
+        "type PossessiveValue",
         "type Destroy",
         "type Connive",
         "type DealDamage",
@@ -2206,9 +2265,11 @@ mod tests {
         "type Agreement",
         "type Number",
         "type Onset",
+        "type PossessiveEnding",
         "type FeatureConstraint",
         "type CasePosition",
         "type PrefixPosition",
+        "type LexicalBoundary",
         "type StructuralTransition",
         "type ScanPosition",
         "type DeclarationClass",
@@ -2237,9 +2298,11 @@ mod tests {
         "trait GeneratedParseRoot",
         "impl GeneratedRoot for Ability",
         "impl GeneratedRoot for Sentence",
+        "impl GeneratedRoot for Possessive",
         "impl GeneratedRoot for OracleText",
         "impl GeneratedParseRoot for Ability",
         "impl GeneratedParseRoot for Sentence",
+        "impl GeneratedParseRoot for Possessive",
         "impl GeneratedParseRoot for OracleText",
         "impl StructuralTransition for StructuralTransition",
         "impl Lexical for Lexical",
@@ -2258,6 +2321,7 @@ mod tests {
         "impl LexicalOwnerTemplate for LexicalOwnerTemplate",
         "constant REQUIRED_DECLARATIONS",
         "function scan_lexical",
+        "function possessive_ending_at",
         "type SequenceOwner",
         "type FixedSurfaceAtom",
         "function sequence_separator",
@@ -2273,6 +2337,9 @@ mod tests {
         "impl Sentence",
         "impl Render for Sentence",
         "function render_sentence_with_claims",
+        "impl Possessive",
+        "impl Render for Possessive",
+        "function render_possessive_with_claims",
         "function write_oracle_text_render",
         "impl Render for OracleText",
         "function render_oracle_text_with_claims",
@@ -2280,6 +2347,7 @@ mod tests {
         "function render_sentence_body",
         "function render_clause",
         "function render_noun_phrase",
+        "function render_possessive_owner",
         "function render_verb_phrase",
         "function render_amount",
         "function render_trigger_word",
@@ -2293,11 +2361,15 @@ mod tests {
         "function render_signed_number",
         "function agreement_for_noun_phrase",
         "function number_for_noun_phrase",
+        "function number_for_possessive_owner",
+        "function possessive_ending_for_possessive_owner",
         "trait Visitor",
         "function walk_ability",
         "function walk_sentence",
         "function walk_clause",
         "function walk_noun_phrase",
+        "function walk_possessive_owner",
+        "function walk_possessive",
         "function walk_verb_phrase",
         "function walk_amount",
         "function walk_paragraph_sentences_sequence",
@@ -2319,6 +2391,9 @@ mod tests {
         "function walk_target_np",
         "function walk_self_reference_np",
         "function walk_count_np",
+        "function walk_possessive_self_reference",
+        "function walk_possessive_noun",
+        "function walk_possessive_value",
         "function walk_destroy",
         "function walk_connive",
         "function walk_deal_damage",
@@ -2998,7 +3073,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 198);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 220);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -3035,9 +3110,10 @@ mod tests {
              //   - bare = \"are\"\n\
              //   - third_person_singular = \"is\"\n\
              // terminal bindings (0)\n\
-             // roots (3)\n\
+             // roots (4)\n\
              // - root Ability\n\
              // - root Sentence\n\
+             // - root Possessive\n\
              // - root OracleText\n"
         );
     }
@@ -3049,7 +3125,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 198);
+        assert_eq!(parsed.items.len(), 220);
     }
 
     #[test]

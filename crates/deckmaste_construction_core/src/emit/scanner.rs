@@ -29,7 +29,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     let end = if structural_surface {
                         input.structural_surface_end(running_text)
                     } else {
-                        input.word_end(running_text)
+                        input.word_end(running_text, terminal.right_boundary)
                     };
                     end.map(|end| LexicalMatch {
                         end,
@@ -76,7 +76,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let candidate_length = usize::from(sign == #sign_type::#negative) + digit_length;
                 let candidate = &number[..candidate_length];
                 (magnitude.to_string() == digits)
-                    .then(|| input.word_end(candidate))
+                    .then(|| input.word_end(candidate, terminal.right_boundary))
                     .flatten()
                     .map(|end| LexicalMatch {
                         end,
@@ -101,7 +101,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 .into_iter()
                 .filter(|(value, _)| value.valid_in(input.context))
                 .filter_map(|(value, surface)| {
-                    input.identity_end(surface).map(|end| LexicalMatch {
+                    input.identity_end(surface, terminal.right_boundary).map(|end| LexicalMatch {
                         end,
                         value: Leaf::#aggregate(value),
                         owner: None,
@@ -116,13 +116,17 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let provider = identity.provider();
                 quote! {
                     Lexical::CatalogIdentity(#terminal_index) => input
-                        .catalog_identity_reading(CatalogProvider::#provider)
+                        .catalog_identity_reading(
+                            CatalogProvider::#provider,
+                            terminal.right_boundary,
+                        )
                         .map(|(end, canonical_identity, onset)| LexicalMatch {
                             end,
                             value: Leaf::CatalogIdentity {
                                 provider: CatalogProvider::#provider,
                                 canonical_identity,
                                 onset,
+                                possessive_ending: possessive_ending_at(input.text, end),
                             },
                             owner: None,
                         })
@@ -187,7 +191,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 Lexical::Literal(literal) => (if structural_surface {
                     input.structural_surface_end(literal)
                 } else {
-                    input.word_end(literal)
+                    input.word_end(literal, terminal.right_boundary)
                 })
                     .map(|end| LexicalMatch {
                         end,
@@ -207,7 +211,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 #noun_lexeme_arm
                 #bound_arm
                 Lexical::Declaration(matcher) => input
-                    .declaration_readings(matcher)
+                    .declaration_readings(matcher, terminal.right_boundary)
                     .into_iter()
                     .map(|(end, id, feature, onset)| LexicalMatch {
                         end,
@@ -223,14 +227,36 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         }
     };
 
-    vec![GeneratedItem::new(
-        ItemKey::Named {
-            kind: NamedKind::Function,
-            name: "scan_lexical".to_owned(),
-        },
-        tokens,
-        plan.runtime_scanner_origins(),
-    )]
+    vec![
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: "scan_lexical".to_owned(),
+            },
+            tokens,
+            plan.runtime_scanner_origins(),
+        ),
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: "possessive_ending_at".to_owned(),
+            },
+            quote! {
+                fn possessive_ending_at(text: &str, end: usize) -> PossessiveEnding {
+                    if text
+                        .get(..end)
+                        .and_then(|surface| surface.as_bytes().last())
+                        .is_some_and(|byte| matches!(byte, b's' | b'S'))
+                    {
+                        PossessiveEnding::EndsInS
+                    } else {
+                        PossessiveEnding::Other
+                    }
+                }
+            },
+            plan.runtime_scanner_origins(),
+        ),
+    ]
 }
 
 fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
@@ -262,7 +288,7 @@ fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                         || matches!(constraint, FeatureConstraint::Exact(expected) if expected == *agreement)
                 })
                 .filter_map(|(lexeme, agreement, onset, surface)| {
-                    input.word_end(surface).map(|end| LexicalMatch {
+                    input.word_end(surface, terminal.right_boundary).map(|end| LexicalMatch {
                         end,
                         value: Leaf::Verb { lexeme, agreement, onset },
                         owner: None,
@@ -284,9 +310,14 @@ fn noun_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                         || matches!(wanted, FeatureConstraint::Exact(expected) if expected == *number)
                 })
                 .filter_map(|(lexeme, number, onset, surface)| {
-                    input.word_end(surface).map(|end| LexicalMatch {
+                    input.word_end(surface, terminal.right_boundary).map(|end| LexicalMatch {
                         end,
-                        value: Leaf::Noun { noun: lexeme, number, onset },
+                        value: Leaf::Noun {
+                            noun: lexeme,
+                            number,
+                            onset,
+                            possessive_ending: possessive_ending_at(input.text, end),
+                        },
                         owner: None,
                     })
                 })
@@ -339,7 +370,9 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         let position = crate::emit::grammar_position(codec.position());
         let number_feature = match codec.feature_axis() {
             crate::feature::Feature::Number => quote! { wanted },
-            crate::feature::Feature::Agreement | crate::feature::Feature::Onset => {
+            crate::feature::Feature::Agreement
+            | crate::feature::Feature::Onset
+            | crate::feature::Feature::PossessiveEnding => {
                 unreachable!("validated declaration_noun has the Number feature axis")
             }
         };
@@ -350,20 +383,25 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     if matches!(wanted, FeatureConstraint::Any)
                         || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number)
                     {
-                        if let Some(end) = input.word_end(surface) {
+                        if let Some(end) = input.word_end(surface, terminal.right_boundary) {
                             matches.push(LexicalMatch {
                                 end,
                                 value: Leaf::#noun {
                                     noun: #noun::Lexeme(lexeme),
                                     number,
                                     onset,
+                                    possessive_ending: possessive_ending_at(input.text, end),
                                 },
                                 owner: None,
                             });
                         }
                     }
                 }
-                for (end, id, feature, onset) in input.declaration_noun_readings(#position, #number_feature) {
+                for (end, id, feature, onset) in input.declaration_noun_readings(
+                    #position,
+                    #number_feature,
+                    terminal.right_boundary,
+                ) {
                     if matches!(id.kind(), #(#allowed)|*) {
                         let number = match feature {
                             ::macro_ron::v2::SurfaceFeature::Singular => Number::Singular,
@@ -379,6 +417,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                 noun: #noun::Declaration(declaration),
                                 number,
                                 onset,
+                                possessive_ending: possessive_ending_at(input.text, end),
                             },
                             owner: None,
                         });

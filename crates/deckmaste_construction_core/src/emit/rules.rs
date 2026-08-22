@@ -78,6 +78,11 @@ pub(super) enum RuleSymbolPlan {
         form_index: usize,
         atom_index: usize,
     },
+    BoundAffix {
+        construction_index: usize,
+        form_index: usize,
+        atom_index: usize,
+    },
     Value(ValueKindPlan),
     Helper(String),
     Surface(StructuralSurfaceSymbolPlan),
@@ -108,6 +113,7 @@ impl RuleSymbolPlan {
     fn test_label(&self) -> String {
         match self {
             Self::Authored { .. } => "authored".to_owned(),
+            Self::BoundAffix { .. } => "bound-affix".to_owned(),
             Self::Value(value) => format!("value:{}", value_name(value)),
             Self::Helper(category) => format!("helper:{category}"),
             Self::Surface(StructuralSurfaceSymbolPlan {
@@ -380,6 +386,7 @@ fn emit_root_adapter(plan: &SemanticPlan) -> GeneratedItem {
                             kind: LexicalProvenanceKind::FormLiteral,
                             stable_id: #stable_id,
                         },
+                        right_boundary: LexicalBoundary::Separated,
                     }
                 });
             }
@@ -388,6 +395,7 @@ fn emit_root_adapter(plan: &SemanticPlan) -> GeneratedItem {
                     LexicalTerminal {
                         matcher: Lexical::EndOfInput,
                         owner: LexicalOwnerTemplate::None,
+                        right_boundary: LexicalBoundary::Separated,
                     }
                 });
             }
@@ -481,6 +489,15 @@ fn emit_rule_symbol(plan: &SemanticPlan, symbol: &RuleSymbolPlan) -> syn::Result
                 &construction.forms()[*form_index].atoms()[*atom_index],
             )
         }
+        RuleSymbolPlan::BoundAffix {
+            construction_index,
+            form_index,
+            atom_index,
+        } => emit_bound_affix_position(
+            &plan.constructions()[*construction_index],
+            *form_index,
+            *atom_index,
+        ),
         RuleSymbolPlan::Value(value) => emit_value_position(plan, value),
         RuleSymbolPlan::Helper(category) => {
             let category = ident(category);
@@ -599,6 +616,23 @@ pub(super) fn lowered_rows(plan: &SemanticPlan) -> syn::Result<Vec<RuleRowPlan>>
     Ok(rows)
 }
 
+fn structural_field_for_atom<'a>(
+    construction: &'a ConstructionPlan,
+    atom: &AtomPlan,
+) -> syn::Result<Option<&'a StructuralFieldPlan>> {
+    let structural = atom_role(atom).and_then(|role| {
+        construction
+            .fields()
+            .iter()
+            .find(|field| field.name_key() == role)
+            .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
+    });
+    if structural.is_some() && matches!(atom, AtomPlan::Bound { .. }) {
+        return Err(internal("bound atom reached structural role lowering"));
+    }
+    Ok(structural)
+}
+
 fn lower_construction_rows(
     construction_index: usize,
     construction: &ConstructionPlan,
@@ -610,20 +644,30 @@ fn lower_construction_rows(
             Vec::<RuleSymbolPlan>::new(),
         )];
         for (atom_index, atom) in form.atoms().iter().enumerate() {
-            let structural = atom_role(atom).and_then(|role| {
-                construction
-                    .fields()
-                    .iter()
-                    .find(|field| field.name_key() == role)
-                    .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
-            });
+            let structural = structural_field_for_atom(construction, atom)?;
             let Some(field) = structural else {
                 for (_, rhs) in &mut variants {
-                    rhs.push(RuleSymbolPlan::Authored {
+                    let authored = RuleSymbolPlan::Authored {
                         construction_index,
                         form_index,
                         atom_index,
-                    });
+                    };
+                    let affix = RuleSymbolPlan::BoundAffix {
+                        construction_index,
+                        form_index,
+                        atom_index,
+                    };
+                    match atom {
+                        AtomPlan::Bound {
+                            direction: crate::semantic::BoundDirectionPlan::Prefix,
+                            ..
+                        } => rhs.extend([affix, authored]),
+                        AtomPlan::Bound {
+                            direction: crate::semantic::BoundDirectionPlan::Suffix,
+                            ..
+                        } => rhs.extend([authored, affix]),
+                        _ => rhs.push(authored),
+                    }
                 }
                 continue;
             };
@@ -1457,12 +1501,15 @@ fn counted_helper_category(
 }
 
 fn atom_role(atom: &AtomPlan) -> Option<&str> {
-    match atom {
+    match atom.value_atom() {
         AtomPlan::Category { role, .. }
         | AtomPlan::Lex { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
-        AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
+        AtomPlan::Literal(_)
+        | AtomPlan::VerbFixed { .. }
+        | AtomPlan::OpenDeclaration(_)
+        | AtomPlan::Bound { .. } => None,
     }
 }
 
@@ -1484,6 +1531,23 @@ fn emit_position(
     atom_index: usize,
     atom: &AtomPlan,
 ) -> syn::Result<TokenStream> {
+    let adjacent_value = matches!(
+        atom,
+        AtomPlan::Bound {
+            direction: crate::semantic::BoundDirectionPlan::Suffix,
+            ..
+        }
+    );
+    let right_boundary = if let AtomPlan::Bound {
+        direction: crate::semantic::BoundDirectionPlan::Suffix,
+        ..
+    } = atom
+    {
+        quote! { LexicalBoundary::Adjacent }
+    } else {
+        quote! { LexicalBoundary::Separated }
+    };
+    let atom = atom.value_atom();
     if let Some(role) = atom_role(atom)
         && let Some(structural) = construction
             .fields()
@@ -1520,7 +1584,7 @@ fn emit_position(
                 ),
                 Span::call_site(),
             );
-            Ok(lexical_terminal(
+            Ok(lexical_terminal_with_boundary(
                 &quote! { Lexical::Literal(#literal) },
                 &quote! {
                     LexicalOwnerTemplate::Static {
@@ -1528,16 +1592,25 @@ fn emit_position(
                         stable_id: #stable_id,
                     }
                 },
+                &right_boundary,
             ))
         }
         AtomPlan::Category { category, .. } => {
             let category = ident(category);
-            Ok(quote! { N(Category::#category) })
+            if adjacent_value {
+                Ok(quote! { RulePosition::AdjacentNonterminal(Category::#category) })
+            } else {
+                Ok(quote! { N(Category::#category) })
+            }
         }
         AtomPlan::Lex { terminal, .. } | AtomPlan::Identity { terminal, .. } => {
             let lexical = lexical_variant(plan, terminal)?;
             let owner = owner_template(plan, terminal)?;
-            Ok(lexical_terminal(&lexical, &owner))
+            Ok(lexical_terminal_with_boundary(
+                &lexical,
+                &owner,
+                &right_boundary,
+            ))
         }
         AtomPlan::Noun { role, terminal } => {
             let number = noun_number(plan, construction, role)?;
@@ -1550,7 +1623,11 @@ fn emit_position(
                 let lexical = lexical_variant(plan, terminal)?;
                 quote! { #lexical(#number) }
             };
-            Ok(lexical_terminal(&matcher, &owner))
+            Ok(lexical_terminal_with_boundary(
+                &matcher,
+                &owner,
+                &right_boundary,
+            ))
         }
         AtomPlan::VerbFixed {
             terminal, variant, ..
@@ -1560,11 +1637,12 @@ fn emit_position(
             let agreement = closed_verb_feature(plan, construction)?;
             let declaration = syn::LitStr::new(&terminal.to_string(), Span::call_site());
             let member = syn::LitStr::new(&variant.to_string(), Span::call_site());
-            Ok(lexical_terminal(
+            Ok(lexical_terminal_with_boundary(
                 &quote! { Lexical::Verb(#terminal::#variant, #agreement) },
                 &quote! {
                     LexicalOwnerTemplate::Lexeme { declaration: #declaration, member: #member }
                 },
+                &right_boundary,
             ))
         }
         AtomPlan::OpenDeclaration(open) => {
@@ -1572,7 +1650,7 @@ fn emit_position(
             let name = syn::LitStr::new(open.name(), Span::call_site());
             let position = crate::emit::grammar_position(open.position());
             let feature = open_verb_feature(plan, construction)?;
-            Ok(lexical_terminal(
+            Ok(lexical_terminal_with_boundary(
                 &quote! {
                     Lexical::Declaration(DeclarationMatcher {
                         kind: #kind,
@@ -1582,9 +1660,50 @@ fn emit_position(
                     })
                 },
                 &quote! { LexicalOwnerTemplate::Declaration { kind: #kind, name: #name } },
+                &right_boundary,
             ))
         }
+        AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
     }
+}
+
+fn emit_bound_affix_position(
+    construction: &ConstructionPlan,
+    form_index: usize,
+    atom_index: usize,
+) -> syn::Result<TokenStream> {
+    let form = &construction.forms()[form_index];
+    let AtomPlan::Bound {
+        direction, affix, ..
+    } = &form.atoms()[atom_index]
+    else {
+        return Err(internal(
+            "bound-affix rule symbol references an ordinary atom",
+        ));
+    };
+    let literal = syn::LitStr::new(affix, Span::call_site());
+    let stable_id = syn::LitStr::new(
+        &format!(
+            "form:{}/{}/{atom_index}/affix",
+            construction.construction_id(),
+            form.name(),
+        ),
+        Span::call_site(),
+    );
+    let boundary = match direction {
+        crate::semantic::BoundDirectionPlan::Prefix => quote! { LexicalBoundary::Adjacent },
+        crate::semantic::BoundDirectionPlan::Suffix => quote! { LexicalBoundary::LeftAdjacent },
+    };
+    Ok(lexical_terminal_with_boundary(
+        &quote! { Lexical::Literal(#literal) },
+        &quote! {
+            LexicalOwnerTemplate::Static {
+                kind: LexicalProvenanceKind::FormLiteral,
+                stable_id: #stable_id,
+            }
+        },
+        &boundary,
+    ))
 }
 
 fn closed_verb_feature(
@@ -1606,7 +1725,11 @@ fn closed_verb_feature(
             FeatureValue::Singular
             | FeatureValue::Plural
             | FeatureValue::Consonant
-            | FeatureValue::Vowel => Err(internal("closed verb agreement has a number value")),
+            | FeatureValue::Vowel
+            | FeatureValue::EndsInS
+            | FeatureValue::Other => {
+                Err(internal("closed verb agreement has a non-agreement value"))
+            }
         },
         Some(
             crate::feature::FeatureResolution::External
@@ -1635,7 +1758,9 @@ pub(crate) fn open_verb_feature(
             FeatureValue::Singular
             | FeatureValue::Plural
             | FeatureValue::Consonant
-            | FeatureValue::Vowel => Err(internal("open verb agreement has a number value")),
+            | FeatureValue::Vowel
+            | FeatureValue::EndsInS
+            | FeatureValue::Other => Err(internal("open verb agreement has a non-agreement value")),
         },
         Some(
             crate::feature::FeatureResolution::External
@@ -1646,8 +1771,20 @@ pub(crate) fn open_verb_feature(
 }
 
 fn lexical_terminal(matcher: &TokenStream, owner: &TokenStream) -> TokenStream {
+    lexical_terminal_with_boundary(matcher, owner, &quote! { LexicalBoundary::Separated })
+}
+
+fn lexical_terminal_with_boundary(
+    matcher: &TokenStream,
+    owner: &TokenStream,
+    right_boundary: &TokenStream,
+) -> TokenStream {
     quote! {
-        L(LexicalTerminal { matcher: #matcher, owner: #owner })
+        L(LexicalTerminal {
+            matcher: #matcher,
+            owner: #owner,
+            right_boundary: #right_boundary,
+        })
     }
 }
 
@@ -1755,7 +1892,9 @@ fn noun_number(
             FeatureValue::Bare
             | FeatureValue::ThirdPersonSingular
             | FeatureValue::Consonant
-            | FeatureValue::Vowel => Err(internal("noun number has an agreement value")),
+            | FeatureValue::Vowel
+            | FeatureValue::EndsInS
+            | FeatureValue::Other => Err(internal("noun number has a non-number value")),
         },
         FeatureExpr::MatchVocab { .. } | FeatureExpr::FromRole { .. } => {
             Ok(quote! { FeatureConstraint::Any })
@@ -1927,6 +2066,32 @@ mod tests {
         )
         .expect("structural rule fixture validates")
         .into_semantic()
+    }
+
+    #[test]
+    fn bound_structural_roles_trip_the_defensive_lowering_invariant() {
+        let plan = structural_semantic_plan();
+        let construction = plan
+            .constructions()
+            .iter()
+            .find(|construction| construction.element_type() == "UniformValue")
+            .expect("fixture has a structural construction");
+        let atom = crate::semantic::AtomPlan::Bound {
+            direction: crate::semantic::BoundDirectionPlan::Prefix,
+            affix: "non".to_owned(),
+            value: Box::new(crate::semantic::AtomPlan::Category {
+                role: "maybe".to_owned(),
+                category: "Item".to_owned(),
+            }),
+        };
+
+        let error = super::structural_field_for_atom(construction, &atom)
+            .expect_err("validated bound atoms must never enter structural lowering")
+            .to_string();
+        assert!(
+            error.contains("bound atom reached structural role lowering"),
+            "{error}"
+        );
     }
 
     fn bounded_sequence_semantic_plan() -> crate::semantic::SemanticPlan {
@@ -2575,6 +2740,7 @@ mod tests {
                         L(LexicalTerminal {
                             matcher: Lexical::Mode,
                             owner: LexicalOwnerTemplate::Vocab { declaration: "Mode" },
+                            right_boundary: LexicalBoundary::Separated,
                         }),
                         L(LexicalTerminal {
                             matcher: Lexical::Noun(FeatureConstraint::Any),
@@ -2582,6 +2748,7 @@ mod tests {
                                 kind: LexicalProvenanceKind::Codec,
                                 stable_id: "codec:Resource",
                             },
+                            right_boundary: LexicalBoundary::Separated,
                         }),
                     ],
                 },
@@ -2595,6 +2762,7 @@ mod tests {
                                 kind: LexicalProvenanceKind::FormLiteral,
                                 stable_id: "form:nested/nested/0",
                             },
+                            right_boundary: LexicalBoundary::Separated,
                         }),
                         N(Category::Expr),
                         L(LexicalTerminal {
@@ -2603,6 +2771,7 @@ mod tests {
                                 kind: LexicalProvenanceKind::Codec,
                                 stable_id: "codec:Marker",
                             },
+                            right_boundary: LexicalBoundary::Separated,
                         }),
                     ],
                 },
@@ -2618,6 +2787,7 @@ mod tests {
                             declaration: "ActionStem",
                             member: "Activate",
                         },
+                        right_boundary: LexicalBoundary::Separated,
                     })],
                 },
                 Rule {
@@ -2629,6 +2799,7 @@ mod tests {
                             kind: LexicalProvenanceKind::FormLiteral,
                             stable_id: "form:idle/idle/0",
                         },
+                        right_boundary: LexicalBoundary::Separated,
                     })],
                 },
                 Rule {
@@ -2637,6 +2808,7 @@ mod tests {
                     rhs: &[L(LexicalTerminal {
                         matcher: Lexical::Mode,
                         owner: LexicalOwnerTemplate::Vocab { declaration: "Mode" },
+                        right_boundary: LexicalBoundary::Separated,
                     })],
                 },
                 Rule {
@@ -2651,6 +2823,7 @@ mod tests {
                                 kind: LexicalProvenanceKind::Identity,
                                 stable_id: "identity:Handle",
                             },
+                            right_boundary: LexicalBoundary::Separated,
                         }),
                         L(LexicalTerminal {
                             matcher: Lexical::Pair,
@@ -2658,6 +2831,7 @@ mod tests {
                                 kind: LexicalProvenanceKind::Codec,
                                 stable_id: "codec:Pair",
                             },
+                            right_boundary: LexicalBoundary::Separated,
                         }),
                     ],
                 },

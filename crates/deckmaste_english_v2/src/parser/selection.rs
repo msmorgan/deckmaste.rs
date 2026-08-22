@@ -275,7 +275,9 @@ fn structural_specificity<N, L>(
             .map(|position| match position {
                 RulePosition::Lexical(lexical) if is_literal(lexical) => SpecificityTier::Literal,
                 RulePosition::Lexical(_) => SpecificityTier::TypedLexical,
-                RulePosition::Nonterminal(_) => SpecificityTier::Nonterminal,
+                RulePosition::Nonterminal(_) | RulePosition::AdjacentNonterminal(_) => {
+                    SpecificityTier::Nonterminal
+                }
             })
             .collect(),
     )
@@ -1002,6 +1004,9 @@ mod tests {
                 "NounPhraseTarget",
                 "NounPhraseSelfReference",
                 "NounPhraseCount",
+                "PossessiveOwnerPossessiveSelfReference",
+                "PossessiveOwnerPossessivePluralNoun",
+                "PossessivePossessive",
                 "VerbPhraseDestroy",
                 "VerbPhraseConnive",
                 "VerbPhraseDealDamage",

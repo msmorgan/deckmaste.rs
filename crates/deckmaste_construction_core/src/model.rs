@@ -214,6 +214,7 @@ pub enum Feature {
     Agreement,
     Number,
     Onset,
+    PossessiveEnding,
 }
 
 #[derive(Debug)]
@@ -255,6 +256,20 @@ pub enum FormAtom {
     Verb(VerbOperand),
     OpenVerb(OpenDeclarationAtom),
     Noun(Ident),
+    Bound(BoundAtom),
+}
+
+#[derive(Debug)]
+pub struct BoundAtom {
+    pub direction: BoundDirection,
+    pub affix: LitStr,
+    pub value: Box<FormAtom>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoundDirection {
+    Prefix,
+    Suffix,
 }
 
 #[derive(Debug)]

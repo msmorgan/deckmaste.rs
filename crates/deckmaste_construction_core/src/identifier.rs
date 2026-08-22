@@ -17,6 +17,7 @@ pub(crate) const BUILD_VIOLATION_TYPE: &str = "BuildViolation";
 pub(crate) const AGREEMENT_TYPE: &str = "Agreement";
 pub(crate) const NUMBER_TYPE: &str = "Number";
 pub(crate) const ONSET_TYPE: &str = "Onset";
+pub(crate) const POSSESSIVE_ENDING_TYPE: &str = "PossessiveEnding";
 pub(crate) const FEATURE_CONSTRAINT_TYPE: &str = "FeatureConstraint";
 pub(crate) const CASE_POSITION_TYPE: &str = "CasePosition";
 pub(crate) const PREFIX_POSITION_TYPE: &str = "PrefixPosition";
@@ -41,6 +42,7 @@ pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     AGREEMENT_TYPE,
     NUMBER_TYPE,
     ONSET_TYPE,
+    POSSESSIVE_ENDING_TYPE,
     FEATURE_CONSTRAINT_TYPE,
     CASE_POSITION_TYPE,
     PREFIX_POSITION_TYPE,

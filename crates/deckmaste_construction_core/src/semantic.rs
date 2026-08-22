@@ -650,6 +650,17 @@ pub(crate) enum AtomPlan {
         path: syn::Path,
     },
     OpenDeclaration(OpenDeclarationAtomPlan),
+    Bound {
+        direction: BoundDirectionPlan,
+        affix: String,
+        value: Box<AtomPlan>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BoundDirectionPlan {
+    Prefix,
+    Suffix,
 }
 
 #[derive(Debug, Clone)]
@@ -681,6 +692,16 @@ impl TerminalPlan {
             self,
             Self::Vocab(_)
                 | Self::Lexeme(_)
+                | Self::ContextIdentity(_)
+                | Self::CatalogIdentity(_)
+                | Self::DeclarationNoun(_)
+        )
+    }
+
+    fn provides_possessive_ending(&self) -> bool {
+        matches!(
+            self,
+            Self::Vocab(_)
                 | Self::ContextIdentity(_)
                 | Self::CatalogIdentity(_)
                 | Self::DeclarationNoun(_)
@@ -851,17 +872,20 @@ impl RuntimeEmissionPlan {
                     .forms
                     .iter()
                     .flat_map(FormPlan::atoms)
-                    .filter_map(|atom| match atom {
-                        AtomPlan::Literal(literal) if is_punctuation_literal(literal) => {
-                            Some(literal.clone())
+                    .flat_map(|atom| {
+                        let mut literals = Vec::new();
+                        if let AtomPlan::Bound { affix, .. } = atom
+                            && is_punctuation_literal(affix)
+                        {
+                            literals.push(affix.clone());
                         }
-                        AtomPlan::Literal(_)
-                        | AtomPlan::Category { .. }
-                        | AtomPlan::Lex { .. }
-                        | AtomPlan::Identity { .. }
-                        | AtomPlan::Noun { .. }
-                        | AtomPlan::VerbFixed { .. }
-                        | AtomPlan::OpenDeclaration(_) => None,
+                        let atom = atom.value_atom();
+                        if let AtomPlan::Literal(literal) = atom
+                            && is_punctuation_literal(literal)
+                        {
+                            literals.push(literal.clone());
+                        }
+                        literals
                     })
             }))
             .collect::<BTreeSet<_>>()
@@ -1126,6 +1150,7 @@ pub(crate) struct FeaturePlan {
     category_render: HashMap<String, CategoryRenderCapability>,
     number_carry_categories: HashSet<String>,
     onset_carry_categories: HashSet<String>,
+    possessive_ending_carry_categories: HashSet<String>,
 }
 
 fn seal_terminals(
@@ -1345,11 +1370,15 @@ impl SemanticPlan {
         )?;
         validate_generated_associated_names(&constructions, &products)?;
         seal_invariant_category_feature_reads(&constructions, &mut category_reads);
+        seal_form_guard_category_feature_reads(&constructions, &equations, &mut category_reads)?;
         let number_carry_categories = number_carry_categories(&constructions, &equations);
         let onset_carry_categories = onset_carry_categories(&constructions, &equations);
+        let possessive_ending_carry_categories =
+            possessive_ending_carry_categories(&constructions, &equations);
 
         let terminals = field_policy_terminals;
         validate_onset_provider_capabilities(&constructions, &terminals, &equations)?;
+        validate_possessive_ending_provider_capabilities(&constructions, &terminals, &equations)?;
         let roots: Vec<RootPlan> = source
             .declarations
             .iter()
@@ -1396,6 +1425,7 @@ impl SemanticPlan {
                 category_render,
                 number_carry_categories,
                 onset_carry_categories,
+                possessive_ending_carry_categories,
             },
         })
     }
@@ -1669,6 +1699,12 @@ impl SemanticPlan {
 
     pub(crate) fn category_carries_onset(&self, category: &str) -> bool {
         self.features.onset_carry_categories.contains(category)
+    }
+
+    pub(crate) fn category_carries_possessive_ending(&self, category: &str) -> bool {
+        self.features
+            .possessive_ending_carry_categories
+            .contains(category)
     }
 
     #[cfg(test)]
@@ -2255,6 +2291,90 @@ fn seal_invariant_category_feature_reads(
     }
 }
 
+fn seal_form_guard_category_feature_reads(
+    constructions: &[ConstructionPlan],
+    equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+    category_reads: &mut HashMap<String, HashSet<Feature>>,
+) -> syn::Result<()> {
+    for construction in constructions {
+        for domain in construction
+            .forms()
+            .iter()
+            .filter_map(|form| form.guard().predicate())
+            .flat_map(FinitePredicatePlan::domains)
+        {
+            let FiniteDomainKindPlan::Feature { feature, .. } = domain.kind() else {
+                continue;
+            };
+            if domain.role().starts_with('@') {
+                collect_form_guard_category_read(
+                    construction,
+                    equations
+                        .get(construction.construction_id())
+                        .map_or(&[], Vec::as_slice),
+                    &FeaturePlace::Construction(*feature),
+                    category_reads,
+                    &mut HashSet::new(),
+                )?;
+            } else {
+                let field = construction.field(domain.role())?;
+                if field.kind() == ConstructionFieldKind::Category {
+                    category_reads
+                        .entry(field.terminal().to_owned())
+                        .or_default()
+                        .insert(*feature);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn collect_form_guard_category_read(
+    construction: &ConstructionPlan,
+    equations: &[feature::FeatureEquation],
+    place: &FeaturePlace,
+    category_reads: &mut HashMap<String, HashSet<Feature>>,
+    visiting: &mut HashSet<FeaturePlace>,
+) -> syn::Result<()> {
+    if !visiting.insert(place.clone()) {
+        return Err(sealed_error("form guard feature dependency cycle"));
+    }
+    match equations
+        .iter()
+        .find(|equation| equation.target() == place)
+        .map(feature::FeatureEquation::value)
+    {
+        Some(FeatureExpr::FromRole { role, feature }) => {
+            collect_form_guard_category_read(
+                construction,
+                equations,
+                &FeaturePlace::Role {
+                    field: role.clone(),
+                    feature: *feature,
+                },
+                category_reads,
+                visiting,
+            )?;
+        }
+        Some(FeatureExpr::Constant(_) | FeatureExpr::MatchVocab { .. }) => {}
+        None => {
+            let FeaturePlace::Role { field, feature } = place else {
+                return Err(sealed_error("form guard construction feature dependency"));
+            };
+            let field = construction.field(&identifier_key(field))?;
+            if field.kind() == ConstructionFieldKind::Category {
+                category_reads
+                    .entry(field.terminal().to_owned())
+                    .or_default()
+                    .insert(*feature);
+            }
+        }
+    }
+    visiting.remove(place);
+    Ok(())
+}
+
 #[derive(Default)]
 struct InvariantFeatureDependencies {
     fields: HashSet<String>,
@@ -2810,7 +2930,7 @@ fn form_atom_is_nullable(
             .find(|field| field.name_key() == *role)
             .and_then(ConstructionFieldPlan::structural_kind)
             .is_some_and(|kind| structural_kind_is_nullable(kind, nullable_types)),
-        AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => false,
+        AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) | AtomPlan::Bound { .. } => false,
     }
 }
 
@@ -2837,11 +2957,22 @@ fn seal_finite_predicate(
     form_span: Span,
 ) -> syn::Result<FinitePredicatePlan> {
     let referenced = guard_referenced_roles(source);
-    let domains = fields
+    let mut domains = fields
         .iter()
         .filter(|field| referenced.contains(&field.name_key()))
         .map(|field| finite_domain(field, source, terminals))
         .collect::<syn::Result<Vec<_>>>()?;
+    domains.extend(
+        guard_referenced_construction_features(source)
+            .into_iter()
+            .map(|feature| FiniteDomainPlan {
+                role: construction_feature_domain_key(feature),
+                kind: FiniteDomainKindPlan::Feature {
+                    feature,
+                    values: feature.domain().to_vec(),
+                },
+            }),
+    );
     let accepting = enumerate_assignments(&domains)
         .into_iter()
         .filter(|assignment| evaluate_guard(source, &domains, assignment))
@@ -2850,6 +2981,40 @@ fn seal_finite_predicate(
         return Err(syn::Error::new(form_span, "form guard is unsatisfiable"));
     }
     Ok(FinitePredicatePlan { domains, accepting })
+}
+
+fn construction_feature_domain_key(feature: Feature) -> String {
+    format!("@{}", feature.key())
+}
+
+fn guard_referenced_construction_features(
+    source: &crate::model::RequireExprSource,
+) -> Vec<Feature> {
+    fn collect(source: &crate::model::RequireExprSource, features: &mut Vec<Feature>) {
+        match source {
+            crate::model::RequireExprSource::In {
+                subject: crate::model::RequireSubjectSource::ConstructionFeature(feature),
+                ..
+            } => {
+                let feature = Feature::from(*feature);
+                if !features.contains(&feature) {
+                    features.push(feature);
+                }
+            }
+            crate::model::RequireExprSource::All(operands)
+            | crate::model::RequireExprSource::Any(operands) => {
+                for operand in operands {
+                    collect(operand, features);
+                }
+            }
+            crate::model::RequireExprSource::OptionalPresence { .. }
+            | crate::model::RequireExprSource::In { .. }
+            | crate::model::RequireExprSource::Length { .. } => {}
+        }
+    }
+    let mut features = Vec::new();
+    collect(source, &mut features);
+    features
 }
 
 fn guard_referenced_roles(source: &crate::model::RequireExprSource) -> HashSet<String> {
@@ -3078,14 +3243,26 @@ fn evaluate_guard(
             }
             _ => false,
         },
+        crate::model::RequireExprSource::In {
+            subject: crate::model::RequireSubjectSource::ConstructionFeature(feature),
+            members,
+        } => {
+            let feature = Feature::from(*feature);
+            let key = construction_feature_domain_key(feature);
+            match assignment_value(domains, assignment, &key) {
+                Some(FiniteValuePlan::Feature(value)) => members
+                    .iter()
+                    .any(|member| feature.member(member).ok() == Some(*value)),
+                _ => false,
+            }
+        }
         crate::model::RequireExprSource::All(operands) => operands
             .iter()
             .all(|operand| evaluate_guard(operand, domains, assignment)),
         crate::model::RequireExprSource::Any(operands) => operands
             .iter()
             .any(|operand| evaluate_guard(operand, domains, assignment)),
-        crate::model::RequireExprSource::In { .. }
-        | crate::model::RequireExprSource::Length { .. } => false,
+        crate::model::RequireExprSource::Length { .. } => false,
     }
 }
 
@@ -3202,6 +3379,7 @@ fn ordered_combined_form_domains(
         fields
             .iter()
             .position(|field| field.name_key() == domain.role)
+            .unwrap_or(usize::MAX)
     });
     domains
 }
@@ -3644,6 +3822,13 @@ fn accessor_mode(
 }
 
 impl AtomPlan {
+    pub(crate) fn value_atom(&self) -> &Self {
+        match self {
+            Self::Bound { value, .. } => value.value_atom(),
+            atom => atom,
+        }
+    }
+
     fn from_source(source: &FormAtom, resolved: &AtomContribution) -> syn::Result<Self> {
         match (source, resolved) {
             (FormAtom::Literal(literal), AtomContribution::Literal) => {
@@ -3719,6 +3904,17 @@ impl AtomPlan {
                     position: macro_ron::v2::GrammarPosition::Verb,
                 }))
             }
+            (FormAtom::Bound(authored), resolved) => {
+                let direction = match authored.direction {
+                    crate::model::BoundDirection::Prefix => BoundDirectionPlan::Prefix,
+                    crate::model::BoundDirection::Suffix => BoundDirectionPlan::Suffix,
+                };
+                Ok(Self::Bound {
+                    direction,
+                    affix: authored.affix.value(),
+                    value: Box::new(Self::from_source(&authored.value, resolved)?),
+                })
+            }
             _ => Err(syn::Error::new(
                 form_atom_span(source),
                 "sealed construction atom kind is inconsistent",
@@ -3741,6 +3937,11 @@ impl AtomPlan {
                 "open_verb({:?}, {}, {:?})",
                 open.kind, open.name, open.position
             ),
+            Self::Bound {
+                direction,
+                affix,
+                value,
+            } => format!("{direction:?}({affix:?}, {})", value.snapshot()),
         }
     }
 }
@@ -3794,6 +3995,7 @@ fn form_atom_span(atom: &FormAtom) -> Span {
         | FormAtom::Verb(VerbOperand::Projected(role)) => role.span(),
         FormAtom::Verb(VerbOperand::Fixed(path)) => path.span(),
         FormAtom::OpenVerb(open) => open.name.span(),
+        FormAtom::Bound(bound) => bound.affix.span(),
     }
 }
 
@@ -3810,6 +4012,13 @@ fn number_carry_categories(
                 .iter()
                 .flat_map(FormPlan::atoms)
                 .any(|atom| matches!(atom, AtomPlan::Noun { .. }))
+                || construction.forms.iter().any(|form| {
+                    form.guard().predicate().is_some_and(|predicate| {
+                        predicate.domains().iter().any(|domain| {
+                            domain.role() == construction_feature_domain_key(Feature::Number)
+                        })
+                    })
+                })
                 || carried.contains(&construction.category);
             if !output_is_needed {
                 continue;
@@ -3830,7 +4039,7 @@ fn number_carry_categories(
                 .forms
                 .iter()
                 .flat_map(FormPlan::atoms)
-                .find_map(|atom| match atom {
+                .find_map(|atom| match atom.value_atom() {
                     AtomPlan::Category {
                         role: found,
                         category,
@@ -3841,7 +4050,8 @@ fn number_carry_categories(
                     | AtomPlan::Identity { .. }
                     | AtomPlan::Noun { .. }
                     | AtomPlan::VerbFixed { .. }
-                    | AtomPlan::OpenDeclaration(_) => None,
+                    | AtomPlan::OpenDeclaration(_)
+                    | AtomPlan::Bound { .. } => None,
                 })
             {
                 carried.insert(category);
@@ -3876,6 +4086,37 @@ fn onset_carry_categories(
                         .flatten()
                         .any(|equation| {
                             equation.target() == &FeaturePlace::Construction(Feature::Onset)
+                        })
+                })
+                .then_some(category)
+        })
+        .collect()
+}
+
+fn possessive_ending_carry_categories(
+    constructions: &[ConstructionPlan],
+    equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+) -> HashSet<String> {
+    let mut members = HashMap::<String, Vec<&ConstructionPlan>>::new();
+    for construction in constructions {
+        members
+            .entry(construction.category.clone())
+            .or_default()
+            .push(construction);
+    }
+    members
+        .into_iter()
+        .filter_map(|(category, constructions)| {
+            constructions
+                .iter()
+                .all(|construction| {
+                    equations
+                        .get(&construction.construction_id)
+                        .into_iter()
+                        .flatten()
+                        .any(|equation| {
+                            equation.target()
+                                == &FeaturePlace::Construction(Feature::PossessiveEnding)
                         })
                 })
                 .then_some(category)
@@ -3935,7 +4176,7 @@ fn validate_onset_provider_capabilities(
                     let providers = form
                         .atoms()
                         .iter()
-                        .filter_map(|atom| match atom {
+                        .filter_map(|atom| match atom.value_atom() {
                             AtomPlan::VerbFixed {
                                 terminal, variant, ..
                             } => Some(format!("closed:{terminal}:{variant}")),
@@ -3946,7 +4187,8 @@ fn validate_onset_provider_capabilities(
                             | AtomPlan::Category { .. }
                             | AtomPlan::Lex { .. }
                             | AtomPlan::Identity { .. }
-                            | AtomPlan::Noun { .. } => None,
+                            | AtomPlan::Noun { .. }
+                            | AtomPlan::Bound { .. } => None,
                         })
                         .collect::<Vec<_>>();
                     let [provider] = providers.as_slice() else {
@@ -3992,6 +4234,80 @@ fn validate_onset_provider_capabilities(
                 let error = syn::Error::new(
                     field.name().span(),
                     format!("terminal `{}` does not provide onset", field.terminal()),
+                );
+                if let Some(errors) = &mut errors {
+                    errors.combine(error);
+                } else {
+                    errors = Some(error);
+                }
+            }
+        }
+    }
+    errors.map_or(Ok(()), Err)
+}
+
+fn validate_possessive_ending_provider_capabilities(
+    constructions: &[ConstructionPlan],
+    terminals: &[TerminalPlan],
+    equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+) -> syn::Result<()> {
+    let provides_ending = |name: &str| {
+        terminals
+            .iter()
+            .find(|terminal| terminal.plan_name() == name)
+            .is_some_and(TerminalPlan::provides_possessive_ending)
+    };
+    let mut errors: Option<syn::Error> = None;
+    for construction in constructions {
+        let mut roles = construction
+            .forms()
+            .iter()
+            .filter_map(|form| form.guard().predicate())
+            .flat_map(FinitePredicatePlan::domains)
+            .filter_map(|domain| {
+                matches!(
+                    domain.kind(),
+                    FiniteDomainKindPlan::Feature {
+                        feature: Feature::PossessiveEnding,
+                        ..
+                    }
+                )
+                .then_some(domain.role())
+            })
+            .filter(|role| !role.starts_with('@'))
+            .map(str::to_owned)
+            .collect::<HashSet<_>>();
+        roles.extend(
+            equations
+                .get(construction.construction_id())
+                .into_iter()
+                .flatten()
+                .filter_map(|equation| match equation.value() {
+                    feature::FeatureExpr::FromRole {
+                        role,
+                        feature: Feature::PossessiveEnding,
+                    } => Some(identifier_key(role)),
+                    feature::FeatureExpr::Constant(_)
+                    | feature::FeatureExpr::FromRole { .. }
+                    | feature::FeatureExpr::MatchVocab { .. } => None,
+                }),
+        );
+        for role in roles {
+            let Some(field) = construction
+                .fields()
+                .iter()
+                .find(|field| field.name_key() == role)
+            else {
+                continue;
+            };
+            if field.kind() != ConstructionFieldKind::Category && !provides_ending(field.terminal())
+            {
+                let error = syn::Error::new(
+                    field.name().span(),
+                    format!(
+                        "terminal `{}` does not provide possessive ending",
+                        field.terminal()
+                    ),
                 );
                 if let Some(errors) = &mut errors {
                     errors.combine(error);

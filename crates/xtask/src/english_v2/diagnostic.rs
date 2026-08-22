@@ -907,6 +907,8 @@ enum NonterminalKind {
     Clause,
     NounPhrase,
     VerbPhrase,
+    PossessiveOwner,
+    Possessive,
     Amount,
 }
 
@@ -1329,6 +1331,8 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::Clause => NonterminalKind::Clause,
         NonterminalCategory::NounPhrase => NonterminalKind::NounPhrase,
         NonterminalCategory::VerbPhrase => NonterminalKind::VerbPhrase,
+        NonterminalCategory::PossessiveOwner => NonterminalKind::PossessiveOwner,
+        NonterminalCategory::Possessive => NonterminalKind::Possessive,
         NonterminalCategory::Amount => NonterminalKind::Amount,
     }
 }

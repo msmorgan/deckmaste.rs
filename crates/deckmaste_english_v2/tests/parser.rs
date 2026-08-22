@@ -719,6 +719,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Sentence",
             "Clause",
             "NounPhrase",
+            "PossessiveOwner",
+            "Possessive",
             "VerbPhrase",
             "Amount",
             "DocumentBlock",
@@ -737,6 +739,9 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "TargetNp",
             "SelfReferenceNp",
             "CountNp",
+            "PossessiveSelfReference",
+            "PossessiveNoun",
+            "PossessiveValue",
             "Destroy",
             "Connive",
             "DealDamage",
@@ -813,6 +818,13 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
             &[("spelling", false)][..],
             &["new", "try_new", "spelling"][..],
         ),
+        (
+            "PossessiveSelfReference",
+            &[("spelling", false)][..],
+            &["new", "try_new", "spelling"][..],
+        ),
+        ("PossessiveNoun", &[("head", true)][..], &[][..]),
+        ("PossessiveValue", &[("owner", true)][..], &[][..]),
         ("OracleText", &[("blocks", true)][..], &[][..]),
     ] {
         let structure = file

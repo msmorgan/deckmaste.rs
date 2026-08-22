@@ -198,6 +198,29 @@ constructions! {
         form count = noun(head) lex(controller) verb(VerbLexeme::Control)
             "with" "power" lex(threshold) "or" "less";
     }
+    construction possessive_self_reference: PossessiveOwner {
+        element PossessiveSelfReference { spelling: identity SelfReferenceSpelling, }
+        derive number = Values::Singular;
+        derive possessive_ending = spelling.possessive_ending;
+        form possessive_self_reference = identity(spelling);
+    }
+    construction possessive_plural_noun: PossessiveOwner {
+        element PossessiveNoun { head: lex Noun, }
+        derive head.number = Values::Plural;
+        derive number = Values::Plural;
+        derive possessive_ending = head.possessive_ending;
+        form possessive_plural_noun = noun(head);
+    }
+    construction possessive: Possessive {
+        element PossessiveValue { owner: PossessiveOwner, }
+        derive number = owner.number;
+        form singular when number is Singular = suffix(owner, "'s");
+        form plural_s when all(
+            number is Plural,
+            owner.possessive_ending is EndsInS
+        ) = suffix(owner, "'");
+        form plural_other otherwise = suffix(owner, "'s");
+    }
     construction destroy: VerbPhrase {
         element Destroy { object: NounPhrase, }
         derive agreement = verb.agreement;
@@ -234,5 +257,6 @@ constructions! {
 
     root Ability { eoi = true; standalone_render = true; }
     root Sentence { punctuation = "."; eoi = false; standalone_render = true; }
+    root Possessive { eoi = true; standalone_render = true; }
     root OracleText { eoi = true; standalone_render = true; }
 }

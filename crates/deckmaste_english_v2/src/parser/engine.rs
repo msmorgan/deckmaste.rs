@@ -7,6 +7,7 @@ use super::TextSpan;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum RulePosition<N, L> {
     Nonterminal(N),
+    AdjacentNonterminal(N),
     Lexical(L),
 }
 
@@ -195,7 +196,7 @@ where
         start,
         input_length,
         &(),
-        move |terminal, offset, &()| {
+        move |terminal, offset, &(), _suppress_right_boundary| {
             scan(terminal, offset)
                 .into_iter()
                 .map(|lexical| StatefulLexicalMatch { lexical, state: () })
@@ -220,7 +221,7 @@ where
     T: Clone + Eq,
     O: Clone + Eq,
     S: Clone + Eq + Ord,
-    Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, O, S>>,
+    Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, O, S>>,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> D,
 {
@@ -250,7 +251,7 @@ where
     T: Clone + Eq,
     O: Clone + Eq,
     S: Clone + Eq + Ord,
-    Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, O, S>>,
+    Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, O, S>>,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> D,
 {
@@ -293,7 +294,7 @@ where
         start,
         input_length,
         &(),
-        move |terminal, offset, &()| {
+        move |terminal, offset, &(), _suppress_right_boundary| {
             scan(terminal, offset)
                 .into_iter()
                 .map(|lexical| StatefulLexicalMatch { lexical, state: () })
@@ -320,7 +321,7 @@ where
     T: Clone + Eq,
     Owner: Clone + Eq,
     S: Clone + Eq + Ord,
-    Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
+    Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> D,
     Obs: Observation<R, T, L, Owner, D::Rejection>,
@@ -363,7 +364,7 @@ where
     T: Clone + Eq,
     Owner: Clone + Eq,
     S: Clone + Eq + Ord,
-    Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
+    Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> D,
     Obs: Observation<R, T, L, Owner, D::Rejection>,
@@ -379,6 +380,10 @@ where
     )
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the Earley agenda closure remains one explicit state-transition loop"
+)]
 fn parse_observed_with_state_seed<N, L, R, T, Owner, D, S, Scan, ValidateCompletion, Obs>(
     rules: &[Rule<N, L, R>],
     seed: RootSeed<N, R>,
@@ -395,7 +400,7 @@ where
     T: Clone + Eq,
     Owner: Clone + Eq,
     S: Clone + Eq + Ord,
-    Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
+    Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> D,
     Obs: Observation<R, T, L, Owner, D::Rejection>,
@@ -413,7 +418,7 @@ where
         .collect::<Vec<_>>();
     let mut agenda = VecDeque::new();
     let mut completed_by_start = (0..=input_length)
-        .map(|_| Vec::<(N, NodeId)>::new())
+        .map(|_| Vec::<(N, bool, NodeId)>::new())
         .collect::<Vec<_>>();
 
     seed_chart(rules, seed, initial_state, &mut chart, &mut agenda);
@@ -434,17 +439,23 @@ where
             };
             requeue_completed_items_after_forest_growth(&chart, rules, &mut agenda);
 
-            if completed_rule_is_root(&rule.id, &rule.lhs, seed, item.origin, column, input_length)
-                && !stateful_forest.forest.accepted_roots.contains(&node_id)
-            {
-                stateful_forest.forest.accepted_roots.push(node_id);
-            }
-            if seed.excludes_from_prediction(&rule.id) {
+            if !register_completed_node(
+                &mut stateful_forest,
+                &mut completed_by_start,
+                completed_rule_is_root(
+                    &rule.id,
+                    &rule.lhs,
+                    seed,
+                    item.origin,
+                    column,
+                    input_length,
+                ),
+                seed.excludes_from_prediction(&rule.id),
+                rule.lhs,
+                &item,
+                node_id,
+            ) {
                 continue;
-            }
-
-            if !completed_by_start[item.origin].contains(&(rule.lhs, node_id)) {
-                completed_by_start[item.origin].push((rule.lhs, node_id));
             }
 
             let waiters = chart[item.origin]
@@ -453,7 +464,10 @@ where
                     waiter.state == item.origin_state
                         && matches!(
                             rules[waiter.rule_index].rhs.get(waiter.dot),
-                            Some(RulePosition::Nonterminal(category)) if *category == rule.lhs
+                            Some(RulePosition::Nonterminal(category) | RulePosition::AdjacentNonterminal(category))
+                                if *category == rule.lhs
+                                    && expected_right_boundary(rules, waiter)
+                                        == item.suppress_right_boundary
                         )
                 })
                 .map(|(key, families)| (key.clone(), families.clone()))
@@ -472,6 +486,7 @@ where
                             origin: waiter.origin,
                             origin_state: waiter.origin_state.clone(),
                             state: item.state.clone(),
+                            suppress_right_boundary: waiter.suppress_right_boundary,
                         },
                         Family { children },
                     );
@@ -481,7 +496,8 @@ where
         }
 
         match rule.rhs[item.dot] {
-            RulePosition::Nonterminal(category) => {
+            RulePosition::Nonterminal(category) | RulePosition::AdjacentNonterminal(category) => {
+                let suppress_right_boundary = expected_right_boundary(rules, &item);
                 for (predicted_rule, predicted) in rules.iter().enumerate() {
                     if predicted.lhs == category && !seed.excludes_from_prediction(&predicted.id) {
                         insert_item(
@@ -494,6 +510,7 @@ where
                                 origin: column,
                                 origin_state: item.state.clone(),
                                 state: item.state.clone(),
+                                suppress_right_boundary,
                             },
                             Family {
                                 children: Vec::new(),
@@ -505,12 +522,13 @@ where
                 let completed = completed_by_start[column]
                     .iter()
                     .copied()
-                    .filter(|(completed_category, node_id)| {
+                    .filter(|(completed_category, completed_boundary, node_id)| {
                         *completed_category == category
+                            && *completed_boundary == suppress_right_boundary
                             && stateful_forest.node_states[node_id.0].start == item.state
                     })
                     .collect::<Vec<_>>();
-                for (_, node_id) in completed {
+                for (_, _, node_id) in completed {
                     let mut children = family.children.clone();
                     children.push(Child::Node(node_id));
                     let node = &stateful_forest.forest.nodes[node_id.0];
@@ -524,6 +542,7 @@ where
                             origin: item.origin,
                             origin_state: item.origin_state.clone(),
                             state: stateful_forest.node_states[node_id.0].end.clone(),
+                            suppress_right_boundary: item.suppress_right_boundary,
                         },
                         Family { children },
                     );
@@ -533,6 +552,8 @@ where
                 advance_lexical(
                     &PendingLexicalScan {
                         lexical,
+                        suppress_right_boundary: item.suppress_right_boundary
+                            && item.dot + 1 == rule.rhs.len(),
                         column,
                         input_length,
                         item: &item,
@@ -554,6 +575,35 @@ where
     } else {
         Ok(stateful_forest.forest)
     }
+}
+
+fn register_completed_node<N: Copy + Eq, R, T, O, S>(
+    stateful_forest: &mut StatefulForest<R, T, O, S>,
+    completed_by_start: &mut [Vec<(N, bool, NodeId)>],
+    is_root: bool,
+    excluded_from_prediction: bool,
+    lhs: N,
+    item: &ItemKey<S>,
+    node_id: NodeId,
+) -> bool {
+    if is_root && !stateful_forest.forest.accepted_roots.contains(&node_id) {
+        stateful_forest.forest.accepted_roots.push(node_id);
+    }
+    if excluded_from_prediction {
+        return false;
+    }
+    let completion = (lhs, item.suppress_right_boundary, node_id);
+    if !completed_by_start[item.origin].contains(&completion) {
+        completed_by_start[item.origin].push(completion);
+    }
+    true
+}
+
+fn expected_right_boundary<N, L, R, S>(rules: &[Rule<N, L, R>], item: &ItemKey<S>) -> bool {
+    matches!(
+        rules[item.rule_index].rhs.get(item.dot),
+        Some(RulePosition::AdjacentNonterminal(_))
+    ) || (item.suppress_right_boundary && item.dot + 1 == rules[item.rule_index].rhs.len())
 }
 
 fn accept_completed_node<N, L, R, T, O, D, S, ValidateCompletion, Obs>(
@@ -591,6 +641,8 @@ where
                 && node.end == column
                 && stateful_forest.node_states[index].start == item.origin_state
                 && stateful_forest.node_states[index].end == item.state
+                && stateful_forest.node_states[index].suppress_right_boundary
+                    == item.suppress_right_boundary
         })
         .map_or_else(
             || {
@@ -604,6 +656,7 @@ where
                 stateful_forest.node_states.push(NodeState {
                     start: item.origin_state.clone(),
                     end: item.state.clone(),
+                    suppress_right_boundary: item.suppress_right_boundary,
                 });
                 node_id
             },
@@ -650,10 +703,15 @@ fn advance_lexical<L, R, T, O, E, S, Scan, Obs>(
     T: Clone + Eq,
     O: Clone + Eq,
     S: Clone + Eq + Ord,
-    Scan: FnMut(L, usize, &S) -> Vec<StatefulLexicalMatch<T, O, S>>,
+    Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, O, S>>,
     Obs: Observation<R, T, L, O, E>,
 {
-    for stateful_match in scan(pending.lexical, pending.column, &pending.item.state) {
+    for stateful_match in scan(
+        pending.lexical,
+        pending.column,
+        &pending.item.state,
+        pending.suppress_right_boundary,
+    ) {
         let lexical_match = stateful_match.lexical;
         if !(pending.column..=pending.input_length).contains(&lexical_match.end) {
             continue;
@@ -683,6 +741,7 @@ fn advance_lexical<L, R, T, O, E, S, Scan, Obs>(
                 origin: pending.item.origin,
                 origin_state: pending.item.origin_state.clone(),
                 state: stateful_match.state,
+                suppress_right_boundary: pending.item.suppress_right_boundary,
             },
             Family { children },
         );
@@ -730,6 +789,7 @@ fn seed_chart<N, L, R, T, O, S>(
                     origin: 0,
                     origin_state: initial_state.clone(),
                     state: initial_state.clone(),
+                    suppress_right_boundary: false,
                 },
                 Family {
                     children: Vec::new(),
@@ -761,11 +821,13 @@ struct ItemKey<S> {
     origin: usize,
     origin_state: S,
     state: S,
+    suppress_right_boundary: bool,
 }
 
 struct NodeState<S> {
     start: S,
     end: S,
+    suppress_right_boundary: bool,
 }
 
 struct StatefulForest<R, T, O, S> {
@@ -775,6 +837,7 @@ struct StatefulForest<R, T, O, S> {
 
 struct PendingLexicalScan<'a, L, T, O, S> {
     lexical: L,
+    suppress_right_boundary: bool,
     column: usize,
     input_length: usize,
     item: &'a ItemKey<S>,
@@ -997,6 +1060,7 @@ mod tests {
         terminal: &'static str,
         start: usize,
         _state: &RootBoundaryState,
+        _suppress_right_boundary: bool,
     ) -> Vec<StatefulLexicalMatch<&'static str, (), RootBoundaryState>> {
         match (terminal, start) {
             ("a", 0) => vec![StatefulLexicalMatch {
@@ -1537,7 +1601,7 @@ mod tests {
             ToyCategory::Start,
             3,
             &ScanState::Initial,
-            |terminal, start, state| {
+            |terminal, start, state, _suppress_right_boundary| {
                 scans.push((terminal, start, *state));
                 let (end, next_state, value) = match (terminal, start, state) {
                     ("left", 0, ScanState::Initial) => (1, ScanState::Left, "left"),

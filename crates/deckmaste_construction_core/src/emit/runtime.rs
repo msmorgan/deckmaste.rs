@@ -19,6 +19,7 @@ use crate::identifier::LEXICAL_TERMINAL_TYPE;
 use crate::identifier::LEXICAL_TYPE;
 use crate::identifier::NUMBER_TYPE;
 use crate::identifier::ONSET_TYPE;
+use crate::identifier::POSSESSIVE_ENDING_TYPE;
 use crate::identifier::PREFIX_POSITION_TYPE;
 use crate::identifier::SCAN_POSITION_TYPE;
 use crate::identifier::STRUCTURAL_TRANSITION_TYPE;
@@ -123,6 +124,13 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
+            POSSESSIVE_ENDING_TYPE,
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum PossessiveEnding { EndsInS, Other }
+            },
+        ),
+        named_type(
             FEATURE_CONSTRAINT_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -141,6 +149,18 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum PrefixPosition { WordOwnedSpace, SurfaceOwned, None }
+            },
+        ),
+        named_type(
+            "LexicalBoundary",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum LexicalBoundary {
+                    Separated,
+                    Adjacent,
+                    LeftAdjacent,
+                    BothAdjacent,
+                }
             },
         ),
         named_type(
@@ -270,6 +290,9 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         let onset = plan
             .category_carries_onset(root.category())
             .then(|| quote! { , _ });
+        let possessive_ending = plan
+            .category_carries_possessive_ending(root.category())
+            .then(|| quote! { , _ });
         GeneratedItem::new(
             ItemKey::Impl {
                 trait_name: Some("GeneratedRoot".to_owned()),
@@ -283,7 +306,7 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
 
                     fn from_build(value: BuildValue) -> Option<Self> {
                         match value {
-                            BuildValue::#category(value #agreement #number #onset) => Some(value),
+                            BuildValue::#category(value #agreement #number #onset #possessive_ending) => Some(value),
                             _ => None,
                         }
                     }
@@ -481,7 +504,10 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let onset = plan
                     .category_carries_onset(item.name)
                     .then(|| quote! { , Onset });
-                quote! { #name(#name #agreement #number #onset) }
+                let possessive_ending = plan
+                    .category_carries_possessive_ending(item.name)
+                    .then(|| quote! { , PossessiveEnding });
+                quote! { #name(#name #agreement #number #onset #possessive_ending) }
             }
             super::SemanticTypeKind::Product | super::SemanticTypeKind::Sum => {
                 quote! { #name(#name) }
@@ -658,6 +684,7 @@ fn catalog_lexical_variants(
                 provider: CatalogProvider,
                 canonical_identity: std::sync::Arc<str>,
                 onset: Onset,
+                possessive_ending: PossessiveEnding,
             },
         }
     });
@@ -699,14 +726,14 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .noun_type()
         .map(|_| quote! { Noun(FeatureConstraint<Number>), });
     let noun_leaf = inventory.noun_type().map(|noun_type| {
-        quote! { Noun { noun: #noun_type, number: Number, onset: Onset }, }
+        quote! { Noun { noun: #noun_type, number: Number, onset: Onset, possessive_ending: PossessiveEnding }, }
     });
     let noun_class = inventory.noun_type().map(|_| quote! { Noun, });
     let declaration_noun_lexical = (!inventory.declaration_nouns.is_empty())
         .then(|| quote! { DeclarationNoun(usize, FeatureConstraint<Number>), });
     let declaration_noun_leaf_variants = inventory.declaration_nouns.iter().map(|(_, codec)| {
         let noun = codec.codec_ident();
-        quote! { #noun { noun: #noun, number: Number, onset: Onset }, }
+        quote! { #noun { noun: #noun, number: Number, onset: Onset, possessive_ending: PossessiveEnding }, }
     });
     let declaration_noun_class =
         (!inventory.declaration_nouns.is_empty()).then(|| quote! { DeclarationNoun(usize), });
@@ -830,6 +857,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 pub(crate) struct LexicalTerminal {
                     pub(crate) matcher: Lexical,
                     pub(crate) owner: LexicalOwnerTemplate,
+                    pub(crate) right_boundary: LexicalBoundary,
                 }
             },
         ),
@@ -1087,6 +1115,33 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         self.matcher.class()
                     }
 
+                    pub(crate) const fn position_before(
+                        self,
+                        current: ScanPosition,
+                    ) -> ScanPosition {
+                        match self.right_boundary {
+                            LexicalBoundary::LeftAdjacent | LexicalBoundary::BothAdjacent => ScanPosition {
+                                prefix: PrefixPosition::SurfaceOwned,
+                                ..current
+                            },
+                            LexicalBoundary::Separated | LexicalBoundary::Adjacent => current,
+                        }
+                    }
+
+                    pub(crate) const fn suppress_right_boundary(self) -> Self {
+                        Self {
+                            right_boundary: match self.right_boundary {
+                                LexicalBoundary::Separated | LexicalBoundary::Adjacent => {
+                                    LexicalBoundary::Adjacent
+                                }
+                                LexicalBoundary::LeftAdjacent | LexicalBoundary::BothAdjacent => {
+                                    LexicalBoundary::BothAdjacent
+                                }
+                            },
+                            ..self
+                        }
+                    }
+
                     pub(crate) const fn position_after(
                         self,
                         current: ScanPosition,
@@ -1104,7 +1159,12 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             _ => ScanPosition {
                                 byte_offset,
                                 case: CasePosition::Continuation,
-                                prefix: PrefixPosition::WordOwnedSpace,
+                                prefix: match self.right_boundary {
+                                    LexicalBoundary::Separated => PrefixPosition::WordOwnedSpace,
+                                    LexicalBoundary::Adjacent => PrefixPosition::SurfaceOwned,
+                                    LexicalBoundary::LeftAdjacent => PrefixPosition::WordOwnedSpace,
+                                    LexicalBoundary::BothAdjacent => PrefixPosition::SurfaceOwned,
+                                },
                             },
                         }
                     }

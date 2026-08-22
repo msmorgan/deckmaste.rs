@@ -41,6 +41,7 @@ use crate::constructions::FeatureConstraint;
 use crate::constructions::GeneratedParseRoot;
 use crate::constructions::Leaf;
 use crate::constructions::Lexical;
+use crate::constructions::LexicalBoundary;
 use crate::constructions::LexicalOwner;
 use crate::constructions::LexicalTerminal;
 use crate::constructions::Number;
@@ -124,7 +125,9 @@ pub(crate) fn parse_forest<R: GeneratedParseRoot>(
         RootRuleId::Adapter,
         text.len(),
         &initial_scan_position(),
-        |lexical, offset, position| grammar.scan_stateful(lexical, text, offset, *position),
+        |lexical, offset, position, suppress_right_boundary| {
+            grammar.scan_stateful(lexical, text, offset, *position, suppress_right_boundary)
+        },
         |rule, family, forest| {
             completion_has_checked_build(&rules, rule, family, forest, grammar.context)
         },
@@ -149,7 +152,9 @@ pub(crate) fn parse_forest_observed<R: GeneratedParseRoot>(
         RootRuleId::Adapter,
         text.len(),
         &initial_scan_position(),
-        |lexical, offset, position| grammar.scan_stateful(lexical, text, offset, *position),
+        |lexical, offset, position, suppress_right_boundary| {
+            grammar.scan_stateful(lexical, text, offset, *position, suppress_right_boundary)
+        },
         |rule, family, forest| {
             completion_has_checked_build(&rules, rule, family, forest, grammar.context)
         },
@@ -632,8 +637,14 @@ impl SliceGrammar<'_> {
         text: &str,
         offset: usize,
         position: ScanPosition,
+        suppress_right_boundary: bool,
     ) -> Vec<StatefulLexicalMatch<Leaf, LexicalOwner, ScanPosition>> {
         debug_assert_eq!(offset, position.byte_offset);
+        let terminal = if suppress_right_boundary {
+            terminal.suppress_right_boundary()
+        } else {
+            terminal
+        };
         self.scan_at(terminal, text, position)
             .into_iter()
             .map(|lexical| StatefulLexicalMatch {
@@ -649,6 +660,7 @@ impl SliceGrammar<'_> {
         text: &str,
         position: ScanPosition,
     ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
+        let position = terminal.position_before(position);
         scan_lexical(
             &ScanInput {
                 text,
@@ -670,7 +682,11 @@ const fn initial_scan_position() -> ScanPosition {
 }
 
 impl ScanInput<'_> {
-    pub(crate) fn word_end(&self, running_text: &str) -> Option<usize> {
+    pub(crate) fn word_end(
+        &self,
+        running_text: &str,
+        right_boundary: LexicalBoundary,
+    ) -> Option<usize> {
         let offset = self.position.byte_offset;
         debug_assert!(
             self.position.case != CasePosition::DocumentInitial
@@ -691,10 +707,15 @@ impl ScanInput<'_> {
             running_text.to_owned()
         };
         let end = offset + prefix + word.len();
-        (remainder.starts_with(&word) && has_lexical_boundary(self.text, end)).then_some(end)
+        (remainder.starts_with(&word) && permits_right_boundary(self.text, end, right_boundary))
+            .then_some(end)
     }
 
-    pub(crate) fn identity_end(&self, exact_text: &str) -> Option<usize> {
+    pub(crate) fn identity_end(
+        &self,
+        exact_text: &str,
+        right_boundary: LexicalBoundary,
+    ) -> Option<usize> {
         let offset = self.position.byte_offset;
         let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
         let remainder = self.text.get(offset..)?;
@@ -705,13 +726,14 @@ impl ScanInput<'_> {
         (!exact_text.is_empty()
             && end > offset
             && remainder.starts_with(exact_text)
-            && has_lexical_boundary(self.text, end))
+            && permits_right_boundary(self.text, end, right_boundary))
         .then_some(end)
     }
 
     pub(crate) fn catalog_identity_reading(
         &self,
         provider: CatalogProvider,
+        right_boundary: LexicalBoundary,
     ) -> Option<(usize, std::sync::Arc<str>, Onset)> {
         let offset = self.position.byte_offset;
         let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
@@ -729,7 +751,7 @@ impl ScanInput<'_> {
             .take_while(|&end| end <= byte_limit)
         {
             let end = offset + prefix + relative_end;
-            if !has_lexical_boundary(self.text, end) {
+            if !permits_right_boundary(self.text, end, right_boundary) {
                 continue;
             }
             let Some(row) = self
@@ -766,6 +788,7 @@ impl ScanInput<'_> {
     pub(crate) fn declaration_readings(
         &self,
         matcher: DeclarationMatcher,
+        right_boundary: LexicalBoundary,
     ) -> Vec<(usize, DeclarationId, SurfaceFeature, Onset)> {
         lookup_declaration_readings_with_prefix(
             self.text,
@@ -779,6 +802,7 @@ impl ScanInput<'_> {
             matcher.kind,
             matcher.name,
             matcher.position,
+            right_boundary,
             |feature| matches_feature(matcher.feature, feature),
         )
     }
@@ -787,6 +811,7 @@ impl ScanInput<'_> {
         &self,
         position: GrammarPosition,
         wanted: FeatureConstraint<Number>,
+        right_boundary: LexicalBoundary,
     ) -> Vec<(usize, DeclarationId, SurfaceFeature, Onset)> {
         let offset = self.position.byte_offset;
         let initial = matches!(
@@ -817,7 +842,7 @@ impl ScanInput<'_> {
             .take_while(|&end| end <= surface_byte_limit)
         {
             let end = offset + prefix + relative_end;
-            if !has_lexical_boundary(self.text, end) {
+            if !permits_right_boundary(self.text, end, right_boundary) {
                 continue;
             }
             let candidate = &surface_text[..relative_end];
@@ -880,6 +905,7 @@ pub(super) fn lookup_declaration_readings(
         kind,
         name,
         position,
+        LexicalBoundary::Separated,
         matches_feature,
     )
     .into_iter()
@@ -900,6 +926,7 @@ fn lookup_declaration_readings_with_prefix(
     kind: DeclarationKind,
     name: &str,
     position: GrammarPosition,
+    right_boundary: LexicalBoundary,
     matches_feature: impl Fn(SurfaceFeature) -> bool,
 ) -> Vec<(usize, DeclarationId, SurfaceFeature, Onset)> {
     let prefix = usize::from(prefix_position == PrefixPosition::WordOwnedSpace);
@@ -927,7 +954,7 @@ fn lookup_declaration_readings_with_prefix(
         .take_while(|&end| end <= surface_byte_limit);
     for relative_end in candidate_ends {
         let end = offset + prefix + relative_end;
-        if !has_lexical_boundary(text, end) {
+        if !permits_right_boundary(text, end, right_boundary) {
             continue;
         }
         let candidate = &surface_text[..relative_end];
@@ -955,6 +982,13 @@ fn lookup_declaration_readings_with_prefix(
     results
 }
 
+fn permits_right_boundary(text: &str, end: usize, boundary: LexicalBoundary) -> bool {
+    matches!(
+        boundary,
+        LexicalBoundary::Adjacent | LexicalBoundary::BothAdjacent
+    ) || has_lexical_boundary(text, end)
+}
+
 fn project_failure(
     failure: ChartFailure<Category, LexicalTerminal>,
 ) -> ChartFailure<Category, Lexical> {
@@ -966,6 +1000,9 @@ fn project_failure(
             .map(|position| match position {
                 super::engine::RulePosition::Nonterminal(category) => {
                     super::engine::RulePosition::Nonterminal(category)
+                }
+                super::engine::RulePosition::AdjacentNonterminal(category) => {
+                    super::engine::RulePosition::AdjacentNonterminal(category)
                 }
                 super::engine::RulePosition::Lexical(terminal) => {
                     super::engine::RulePosition::Lexical(terminal.matcher)
@@ -1007,6 +1044,7 @@ mod tests {
     use super::ChartFailure;
     use super::Leaf;
     use super::Lexical;
+    use super::LexicalBoundary;
     use super::LexicalMatch;
     use super::RootRuleId;
     use super::RuleId;
@@ -1042,6 +1080,7 @@ mod tests {
     use crate::constructions::LexicalTerminal;
     use crate::constructions::Number;
     use crate::constructions::Onset;
+    use crate::constructions::PossessiveEnding;
     use crate::constructions::PrefixPosition;
     use crate::constructions::RULES;
     use crate::constructions::ScanPosition;
@@ -1095,7 +1134,7 @@ mod tests {
                 environment: &environment,
                 context: &context,
             }
-            .word_end(word)
+            .word_end(word, LexicalBoundary::Separated)
         };
 
         assert_eq!(
@@ -1180,7 +1219,7 @@ mod tests {
             environment: &environment,
             context: &context,
         };
-        let _ = input.word_end("destroy");
+        let _ = input.word_end("destroy", LexicalBoundary::Separated);
     }
 
     #[test]
@@ -1198,7 +1237,7 @@ mod tests {
             environment: &environment,
             context: &context,
         };
-        let _ = input.word_end("alpha");
+        let _ = input.word_end("alpha", LexicalBoundary::Separated);
     }
 
     #[test]
@@ -1217,7 +1256,11 @@ mod tests {
                     environment: &environment,
                     context: &context,
                 },
-                LexicalTerminal { matcher, owner },
+                LexicalTerminal {
+                    matcher,
+                    owner,
+                    right_boundary: LexicalBoundary::Separated,
+                },
             )
         };
 
@@ -1362,6 +1405,7 @@ mod tests {
                 feature: FeatureConstraint::Any,
             }),
             owner: LexicalOwnerTemplate::Declaration { kind, name },
+            right_boundary: LexicalBoundary::Separated,
         }
     }
 
@@ -1515,7 +1559,11 @@ mod tests {
                 },
                 _ => unreachable!("the fixture contains only finite vocab terminals"),
             };
-            let terminal = LexicalTerminal { matcher, owner };
+            let terminal = LexicalTerminal {
+                matcher,
+                owner,
+                right_boundary: LexicalBoundary::Separated,
+            };
 
             let initial =
                 if running == "X" { running.to_owned() } else { initial_surface(running) };
@@ -1595,9 +1643,15 @@ mod tests {
             context: &context,
         };
 
-        assert_eq!(input.word_end("élan"), Some("Élan".len()));
-        assert_eq!(input.word_end("élan vital"), Some("Élan vital".len()));
-        assert_eq!(input.word_end("éLan"), None);
+        assert_eq!(
+            input.word_end("élan", LexicalBoundary::Separated),
+            Some("Élan".len())
+        );
+        assert_eq!(
+            input.word_end("élan vital", LexicalBoundary::Separated),
+            Some("Élan vital".len())
+        );
+        assert_eq!(input.word_end("éLan", LexicalBoundary::Separated), None);
     }
 
     #[test]
@@ -1702,6 +1756,7 @@ mod tests {
                 kind,
                 name: "PartnerWith",
             },
+            right_boundary: LexicalBoundary::Separated,
         };
 
         for (text, offset, expected_end) in [
@@ -1765,6 +1820,7 @@ mod tests {
                 kind,
                 name: "SharpS",
             },
+            right_boundary: LexicalBoundary::Separated,
         };
         let input = ScanInput {
             text: "SSeta.",
@@ -1804,6 +1860,7 @@ mod tests {
                 kind,
                 name: "ScryWord",
             },
+            right_boundary: LexicalBoundary::Separated,
         };
         let text = format!("Scry{}.", " x".repeat(4_096));
         let input = ScanInput {
@@ -1865,6 +1922,7 @@ mod tests {
                 feature,
             }),
             owner: LexicalOwnerTemplate::Declaration { kind, name },
+            right_boundary: LexicalBoundary::Separated,
         };
         let scan = |terminal| crate::constructions::scan_lexical(&input, terminal);
         let project =
@@ -2010,6 +2068,7 @@ mod tests {
                 LexicalTerminal {
                     matcher: Lexical::DeclarationNoun(7, wanted),
                     owner: LexicalOwnerTemplate::DeclarationNoun(7),
+                    right_boundary: LexicalBoundary::Separated,
                 },
             )
         };
@@ -2424,6 +2483,11 @@ mod tests {
                 "NounPhraseTarget",
                 "NounPhraseSelfReference",
                 "NounPhraseCount",
+                "PossessiveOwnerPossessiveSelfReference",
+                "PossessiveOwnerPossessivePluralNoun",
+                "PossessivePossessive [form singular]",
+                "PossessivePossessive [form plural_s]",
+                "PossessivePossessive [form plural_other]",
                 "VerbPhraseDestroy",
                 "VerbPhraseConnive",
                 "VerbPhraseDealDamage",
@@ -2445,7 +2509,8 @@ mod tests {
                 super::super::engine::RulePosition::Lexical(lexical) => seen_lexical
                     .insert(lexical.matcher)
                     .then_some(terminal_name_v1(lexical.matcher)),
-                super::super::engine::RulePosition::Nonterminal(_) => None,
+                super::super::engine::RulePosition::Nonterminal(_)
+                | super::super::engine::RulePosition::AdjacentNonterminal(_) => None,
             })
             .collect::<Vec<_>>();
         assert_eq!(
@@ -2478,6 +2543,8 @@ mod tests {
                 "SignedNumber",
                 "Literal(\"or\")",
                 "Literal(\"less\")",
+                "Literal(\"'s\")",
+                "Literal(\"'\")",
                 "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Destroy\", position: Verb, feature: Any })",
                 "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Connive\", position: Verb, feature: Any })",
                 "Verb(Deal, Any)",
@@ -2515,16 +2582,18 @@ mod tests {
                     noun: Noun::Lexeme(NounLexeme::Player),
                     number: super::Number::Singular,
                     onset: Onset::Consonant,
+                    possessive_ending: PossessiveEnding::Other,
                 },
-                "Noun { noun: Lexeme(Player), number: Singular, onset: Consonant }",
+                "Noun { noun: Lexeme(Player), number: Singular, onset: Consonant, possessive_ending: Other }",
             ),
             (
                 Leaf::Noun {
                     noun: Noun::Lexeme(NounLexeme::Player),
                     number: super::Number::Plural,
                     onset: Onset::Consonant,
+                    possessive_ending: PossessiveEnding::EndsInS,
                 },
-                "Noun { noun: Lexeme(Player), number: Plural, onset: Consonant }",
+                "Noun { noun: Lexeme(Player), number: Plural, onset: Consonant, possessive_ending: EndsInS }",
             ),
             (
                 Leaf::Declaration(DeclarationLeaf {
@@ -2580,6 +2649,7 @@ mod tests {
                 kind: crate::constructions::LexicalProvenanceKind::Codec,
                 stable_id: "codec:SignedNumber",
             },
+            right_boundary: LexicalBoundary::Separated,
         };
         let accepted = [
             ("0", Sign::Positive, 0),
@@ -2708,6 +2778,7 @@ mod tests {
             owner: LexicalOwnerTemplate::Identity {
                 declaration: "SelfReferenceSpelling",
             },
+            right_boundary: LexicalBoundary::Separated,
         };
         let cases = [
             (
@@ -2855,10 +2926,11 @@ mod tests {
             noun: Noun::Declaration(identity),
             number: super::Number::Plural,
             onset: Onset::Consonant,
+            possessive_ending: PossessiveEnding::EndsInS,
         };
         assert_eq!(
             value_label_v1(&value),
-            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" } }), number: Plural, onset: Consonant }"
+            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" } }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
         );
     }
 

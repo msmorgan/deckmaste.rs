@@ -718,7 +718,7 @@ fn emit_construction_walker(
     let mut allocator = LocalAllocator::default();
     allocator.reserve("visitor");
     for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
-        let terminal = match atom {
+        let terminal = match atom.value_atom() {
             AtomPlan::Lex { terminal, .. }
             | AtomPlan::Identity { terminal, .. }
             | AtomPlan::VerbFixed { terminal, .. } => Some(terminal.clone()),
@@ -726,6 +726,7 @@ fn emit_construction_walker(
             | AtomPlan::Category { .. }
             | AtomPlan::Noun { .. }
             | AtomPlan::OpenDeclaration(_) => None,
+            AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
         };
         if let Some(terminal) = terminal {
             allocator.reserve(format!("walk_{}", snake_case(&terminal)));
@@ -888,7 +889,7 @@ fn emit_construction_form_walker_calls(
             calls.push(call);
             continue;
         }
-        let call = match atom {
+        let call = match atom.value_atom() {
             AtomPlan::Literal(_) => None,
             AtomPlan::Category { role, category } => {
                 let field = fields
@@ -950,6 +951,7 @@ fn emit_construction_form_walker_calls(
                     );
                 })
             }
+            AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
         };
         if let Some(call) = call {
             calls.push(call);
@@ -959,12 +961,13 @@ fn emit_construction_form_walker_calls(
 }
 
 fn visit_atom_role(atom: &AtomPlan) -> Option<&str> {
-    match atom {
+    match atom.value_atom() {
         AtomPlan::Category { role, .. }
         | AtomPlan::Lex { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
+        AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
     }
 }
 

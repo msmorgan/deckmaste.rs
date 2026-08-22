@@ -346,6 +346,9 @@ where
                                 RulePosition::Nonterminal(category) => {
                                     RulePosition::Nonterminal(category)
                                 }
+                                RulePosition::AdjacentNonterminal(category) => {
+                                    RulePosition::AdjacentNonterminal(category)
+                                }
                                 RulePosition::Lexical(lexical) => {
                                     RulePosition::Lexical((self.lexical_matcher)(lexical))
                                 }
@@ -658,7 +661,12 @@ fn finalize_candidates<R: GeneratedParseRoot>(
         let nonterminal = first
             .positions
             .iter()
-            .find(|position| matches!(position, RulePosition::Nonterminal(_)))
+            .find(|position| {
+                matches!(
+                    position,
+                    RulePosition::Nonterminal(_) | RulePosition::AdjacentNonterminal(_)
+                )
+            })
             .copied()
             .expect("a complete ability candidate traverses a nonterminal");
         let literal_positions = first
@@ -885,6 +893,7 @@ mod tests {
     use crate::constructions::LexicalOwnerTemplate;
     use crate::constructions::Number;
     use crate::constructions::Onset;
+    use crate::constructions::PossessiveEnding;
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
     use crate::environment::canonical_test_environment;
@@ -997,6 +1006,7 @@ mod tests {
                     noun: Noun::Lexeme(NounLexeme::Player),
                     number: Number::Singular,
                     onset,
+                    possessive_ending: PossessiveEnding::Other,
                 }),
             ]
         };

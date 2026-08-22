@@ -715,6 +715,8 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::Plural => quote! { Number::Plural },
         crate::feature::FeatureValue::Consonant => quote! { Onset::Consonant },
         crate::feature::FeatureValue::Vowel => quote! { Onset::Vowel },
+        crate::feature::FeatureValue::EndsInS => quote! { PossessiveEnding::EndsInS },
+        crate::feature::FeatureValue::Other => quote! { PossessiveEnding::Other },
     }
 }
 
@@ -1585,9 +1587,11 @@ mod tests {
                 "Agreement",
                 "Number",
                 "Onset",
+                "PossessiveEnding",
                 "FeatureConstraint",
                 "CasePosition",
                 "PrefixPosition",
+                "LexicalBoundary",
                 "StructuralTransition",
                 "ScanPosition",
                 "DeclarationClass",

@@ -23,6 +23,7 @@ pub use crate::constructions::walk_noun_phrase;
 pub use crate::constructions::walk_number_amount;
 pub use crate::constructions::walk_oracle_text;
 pub use crate::constructions::walk_paragraph;
+pub use crate::constructions::walk_possessive;
 pub use crate::constructions::walk_pronoun;
 pub use crate::constructions::walk_pronoun_np;
 pub use crate::constructions::walk_self_reference_np;

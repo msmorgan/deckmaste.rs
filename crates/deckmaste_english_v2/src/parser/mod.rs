@@ -720,6 +720,118 @@ mod structural_trace_tests {
     }
 
     #[test]
+    fn realized_possessive_surfaces_select_render_visit_and_own_exactly() {
+        use crate::constructions::Possessive;
+        use crate::render::Render as _;
+        use crate::visit::Visitor;
+
+        #[derive(Default)]
+        struct Recorder {
+            self_references: Vec<crate::constructions::SelfReferenceSpelling>,
+            nouns: Vec<crate::constructions::NounLexeme>,
+            declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
+        }
+
+        impl Visitor for Recorder {
+            fn visit_self_reference_spelling(
+                &mut self,
+                spelling: crate::constructions::SelfReferenceSpelling,
+            ) {
+                self.self_references.push(spelling);
+            }
+
+            fn visit_noun_lexeme(&mut self, noun: crate::constructions::NounLexeme) {
+                self.nouns.push(noun);
+            }
+
+            fn visit_declaration_noun(&mut self, noun: &crate::constructions::DeclarationNoun) {
+                self.declarations
+                    .push((noun.id().kind(), noun.id().name().to_owned()));
+            }
+        }
+
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let cases = [
+            ("Daxos's", "Daxos, Blessed by the Sun"),
+            ("Players'", "Context Card"),
+            ("Merfolk's", "Context Card"),
+            ("Equipment's", "Context Card"),
+        ];
+        for (text, card_name) in cases {
+            let context = ParseContext::new(card_name).unwrap();
+            let analysis = parser.analyze_root::<Possessive>(text, &context);
+            let selected = analysis.selected().unwrap_or_else(|| {
+                panic!("{text:?} did not select exactly one possessive: {analysis:#?}")
+            });
+            assert_eq!(
+                selected.render(&context, parser.environment()),
+                text,
+                "possessive realization is byte-exact",
+            );
+            let ownership = analysis
+                .ownership()
+                .expect("selected possessive has ownership");
+            assert!(ownership.failures().is_empty(), "{text}: {ownership:#?}");
+            assert!(ownership.summary().covered());
+            assert_eq!(
+                ownership
+                    .parsed_claims()
+                    .iter()
+                    .map(|claim| (claim.span(), claim.kind(), claim.stable_owner_id()))
+                    .collect::<Vec<_>>(),
+                ownership
+                    .rendered_claims()
+                    .iter()
+                    .map(|claim| (claim.span(), claim.kind(), claim.stable_owner_id()))
+                    .collect::<Vec<_>>(),
+            );
+            assert_eq!(ownership.parsed_claims().len(), 2);
+            let suffix_len = if text == "Players'" { 1 } else { 2 };
+            assert_eq!(ownership.parsed_claims()[0].span().start, 0);
+            assert_eq!(
+                ownership.parsed_claims()[0].span().end,
+                text.len() - suffix_len,
+            );
+            assert_eq!(
+                ownership.parsed_claims()[1].span().start,
+                text.len() - suffix_len,
+            );
+            assert_eq!(ownership.parsed_claims()[1].span().end, text.len());
+
+            let mut visitor = Recorder::default();
+            crate::visit::walk_possessive(&mut visitor, selected);
+            match text {
+                "Daxos's" => assert_eq!(
+                    visitor.self_references,
+                    [crate::constructions::SelfReferenceSpelling::Abbreviated],
+                ),
+                "Players'" => {
+                    assert_eq!(visitor.nouns, [crate::constructions::NounLexeme::Player]);
+                }
+                "Merfolk's" => assert_eq!(
+                    visitor.declarations,
+                    [(
+                        macro_ron::v2::DeclarationKind::Subtype(
+                            macro_ron::v2::SubtypeCategory::Creature,
+                        ),
+                        "Merfolk".to_owned(),
+                    )],
+                ),
+                "Equipment's" => assert_eq!(
+                    visitor.declarations,
+                    [(
+                        macro_ron::v2::DeclarationKind::Subtype(
+                            macro_ron::v2::SubtypeCategory::Artifact,
+                        ),
+                        "Equipment".to_owned(),
+                    )],
+                ),
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    #[test]
     fn ability_and_sentence_public_calls_each_use_one_pipeline() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Context Card").unwrap();
@@ -1271,7 +1383,7 @@ fn failure_span(text: &str, offset: usize) -> TextSpan {
 
 const fn expectation(position: RulePosition<Category, Lexical>) -> Expectation {
     match position {
-        RulePosition::Nonterminal(category) => {
+        RulePosition::Nonterminal(category) | RulePosition::AdjacentNonterminal(category) => {
             Expectation::Nonterminal(category.nonterminal_category())
         }
         RulePosition::Lexical(Lexical::Literal(literal)) => Expectation::Literal(literal),

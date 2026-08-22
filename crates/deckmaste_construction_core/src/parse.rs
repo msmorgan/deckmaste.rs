@@ -691,6 +691,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "agreement" => Some(Feature::Agreement),
         "number" => Some(Feature::Number),
         "onset" => Some(Feature::Onset),
+        "possessive_ending" => Some(Feature::PossessiveEnding),
         _ => None,
     }
 }
@@ -716,54 +717,91 @@ fn parse_form(input: ParseStream<'_>) -> syn::Result<Form> {
         if input.peek(keyword::otherwise) {
             return Err(deferred(input.span(), "otherwise"));
         }
-        if input.peek(LitStr) {
-            atoms.push(FormAtom::Literal(input.parse()?));
-            continue;
-        }
-
-        let ident: Ident = input.parse()?;
-        let atom = if input.peek(syn::token::Paren) {
-            let content;
-            parenthesized!(content in input);
-            match ident.to_string().as_str() {
-                "verb" => {
-                    let path = parse_generated_owned_path(&content)?;
-                    if !content.is_empty() {
-                        return Err(content.error("verb atoms accept exactly one operand"));
-                    }
-                    FormAtom::Verb(classify_verb_operand(path))
-                }
-                "open_verb" => {
-                    let kind = content.call(Ident::parse_any)?;
-                    content.parse::<Token![,]>()?;
-                    let name = content.parse()?;
-                    if !content.is_empty() {
-                        return Err(content
-                            .error("open_verb atoms accept exactly a declaration kind and name"));
-                    }
-                    FormAtom::OpenVerb(OpenDeclarationAtom { kind, name })
-                }
-                "lex" | "identity" | "noun" => {
-                    let role = content.parse()?;
-                    if !content.is_empty() {
-                        return Err(content.error("form atoms accept exactly one role"));
-                    }
-                    match ident.to_string().as_str() {
-                        "lex" => FormAtom::Lex(role),
-                        "identity" => FormAtom::Identity(role),
-                        "noun" => FormAtom::Noun(role),
-                        _ => unreachable!(),
-                    }
-                }
-                _ => return Err(syn::Error::new(ident.span(), "unknown form atom")),
-            }
-        } else {
-            FormAtom::Role(ident)
-        };
-        atoms.push(atom);
+        atoms.push(parse_form_atom(input, true)?);
     }
     input.parse::<Token![;]>()?;
     Ok(Form { name, guard, atoms })
+}
+
+fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<FormAtom> {
+    if input.peek(LitStr) {
+        return Ok(FormAtom::Literal(input.parse()?));
+    }
+
+    let ident: Ident = input.parse()?;
+    let atom = if input.peek(syn::token::Paren) {
+        let content;
+        parenthesized!(content in input);
+        match ident.to_string().as_str() {
+            "prefix" | "suffix" if allow_bound => {
+                let direction = if ident == "prefix" {
+                    crate::model::BoundDirection::Prefix
+                } else {
+                    crate::model::BoundDirection::Suffix
+                };
+                let (affix, value) = match direction {
+                    crate::model::BoundDirection::Prefix => {
+                        let affix = content.parse()?;
+                        content.parse::<Token![,]>()?;
+                        let value = parse_form_atom(&content, false)?;
+                        (affix, value)
+                    }
+                    crate::model::BoundDirection::Suffix => {
+                        let value = parse_form_atom(&content, false)?;
+                        content.parse::<Token![,]>()?;
+                        let affix = content.parse()?;
+                        (affix, value)
+                    }
+                };
+                if !content.is_empty() {
+                    return Err(content
+                        .error("bound atoms accept exactly one fixed affix and one value atom"));
+                }
+                FormAtom::Bound(crate::model::BoundAtom {
+                    direction,
+                    affix,
+                    value: Box::new(value),
+                })
+            }
+            "prefix" | "suffix" => {
+                return Err(syn::Error::new(ident.span(), "bound atoms cannot nest"));
+            }
+            "verb" => {
+                let path = parse_generated_owned_path(&content)?;
+                if !content.is_empty() {
+                    return Err(content.error("verb atoms accept exactly one operand"));
+                }
+                FormAtom::Verb(classify_verb_operand(path))
+            }
+            "open_verb" => {
+                let kind = content.call(Ident::parse_any)?;
+                content.parse::<Token![,]>()?;
+                let name = content.parse()?;
+                if !content.is_empty() {
+                    return Err(
+                        content.error("open_verb atoms accept exactly a declaration kind and name")
+                    );
+                }
+                FormAtom::OpenVerb(OpenDeclarationAtom { kind, name })
+            }
+            "lex" | "identity" | "noun" => {
+                let role = content.parse()?;
+                if !content.is_empty() {
+                    return Err(content.error("form atoms accept exactly one role"));
+                }
+                match ident.to_string().as_str() {
+                    "lex" => FormAtom::Lex(role),
+                    "identity" => FormAtom::Identity(role),
+                    "noun" => FormAtom::Noun(role),
+                    _ => unreachable!(),
+                }
+            }
+            _ => return Err(syn::Error::new(ident.span(), "unknown form atom")),
+        }
+    } else {
+        FormAtom::Role(ident)
+    };
+    Ok(atom)
 }
 
 fn parse_form_guard_expr(input: ParseStream<'_>) -> syn::Result<RequireExprSource> {
@@ -810,6 +848,8 @@ fn parse_form_guard_expr(input: ParseStream<'_>) -> syn::Result<RequireExprSourc
             ));
         };
         RequireSubjectSource::RoleFeature { role, feature }
+    } else if let Some(feature) = feature_from_ident(&role) {
+        RequireSubjectSource::ConstructionFeature(feature)
     } else {
         RequireSubjectSource::Role(role)
     };
@@ -2492,6 +2532,64 @@ mod tests {
                 .expect_err("lexical surface literals must not be empty")
                 .to_string();
             assert!(error.contains("empty"), "{error}");
+        }
+    }
+
+    #[test]
+    fn bound_prefix_and_suffix_atoms_parse_the_four_approved_shapes() {
+        let declarations = crate::parse_declarations(quote::quote! {
+            vocab Modifier { Black = "black", Elf = "Elf", }
+            construction plain_prefix: Root {
+                element PlainPrefix { modifier: lex Modifier, }
+                form plain_prefix = prefix("non", lex(modifier));
+            }
+            construction hyphen_prefix: Root {
+                element HyphenPrefix { modifier: lex Modifier, }
+                form hyphen_prefix = prefix("non-", lex(modifier));
+            }
+            construction singular_suffix: Root {
+                element SingularSuffix { owner: Root, }
+                form singular_suffix = suffix(owner, "'s");
+            }
+            construction plural_suffix: Root {
+                element PluralSuffix { owner: Root, }
+                form plural_suffix = suffix(owner, "'");
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("the four closed bound-atom spellings parse");
+
+        assert_eq!(declarations.declarations.len(), 6);
+    }
+
+    #[test]
+    fn bound_atoms_reject_nesting_extra_values_and_callbacks() {
+        let rejected = [
+            (
+                quote::quote! { prefix("non", suffix(owner, "'s")) },
+                "bound atoms cannot nest",
+            ),
+            (
+                quote::quote! { prefix("non", owner, lex(modifier)) },
+                "bound atoms accept exactly one fixed affix and one value atom",
+            ),
+            (
+                quote::quote! { prefix("non", callback(owner)) },
+                "unknown form atom",
+            ),
+        ];
+
+        for (atom, diagnostic) in rejected {
+            let source = quote::quote! {
+                construction invalid: Root {
+                    element Invalid { owner: Root, modifier: lex Modifier, }
+                    form invalid = #atom;
+                }
+            };
+            let error = crate::parse_declarations(source)
+                .expect_err("non-value bound atom shapes must be rejected")
+                .to_string();
+            assert!(error.contains(diagnostic), "{error}");
         }
     }
 

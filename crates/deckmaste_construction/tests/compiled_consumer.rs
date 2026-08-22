@@ -183,6 +183,10 @@ mod declaration_noun_fixture {
             self.prefix = PrefixPosition::WordOwnedSpace;
         }
 
+        fn suppress_next_space(&mut self) {
+            self.prefix = PrefixPosition::SurfaceOwned;
+        }
+
         fn punctuation(&mut self, punctuation: char) {
             self.output.push(punctuation);
             self.case = if punctuation == '.' {
@@ -219,7 +223,7 @@ mod declaration_noun_fixture {
     }
 
     impl ScanInput<'_> {
-        fn word_end(&self, running_text: &str) -> Option<usize> {
+        fn word_end(&self, running_text: &str, right_boundary: LexicalBoundary) -> Option<usize> {
             let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
             let remainder = self.text.get(self.position.byte_offset..)?;
             let remainder = (prefix == 0)
@@ -241,6 +245,9 @@ mod declaration_noun_fixture {
             };
             let end = self.position.byte_offset + prefix + rendered.len();
             let has_boundary = matches!(
+                right_boundary,
+                LexicalBoundary::Adjacent | LexicalBoundary::BothAdjacent
+            ) || matches!(
                 self.text.as_bytes().get(end),
                 None | Some(b' ' | b',' | b'.')
             );
@@ -263,6 +270,7 @@ mod declaration_noun_fixture {
             &self,
             position: macro_ron::v2::GrammarPosition,
             wanted: FeatureConstraint<Number>,
+            right_boundary: LexicalBoundary,
         ) -> Vec<(
             usize,
             macro_ron::v2::DeclarationIdentity,
@@ -282,7 +290,7 @@ mod declaration_noun_fixture {
                     (matches!(wanted, FeatureConstraint::Any)
                         || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number))
                     .then(|| {
-                        self.word_end(surface)
+                        self.word_end(surface, right_boundary)
                             .map(|end| (end, id, feature, onset))
                     })
                     .flatten()
@@ -293,6 +301,7 @@ mod declaration_noun_fixture {
         fn declaration_readings(
             &self,
             _matcher: DeclarationMatcher,
+            _right_boundary: LexicalBoundary,
         ) -> Vec<(
             usize,
             macro_ron::v2::DeclarationIdentity,
@@ -455,6 +464,7 @@ mod declaration_noun_fixture {
                     FeatureConstraint::Exact(Number::Singular),
                 ),
                 owner: LexicalOwnerTemplate::DeclarationNoun(terminal_index),
+                right_boundary: LexicalBoundary::Separated,
             },
         )
     }
@@ -502,6 +512,7 @@ mod declaration_noun_fixture {
             LexicalTerminal {
                 matcher: Lexical::DeclarationNoun(1, FeatureConstraint::Exact(Number::Singular),),
                 owner: LexicalOwnerTemplate::DeclarationNoun(1),
+                ..
             }
         ));
         assert!(
@@ -510,6 +521,7 @@ mod declaration_noun_fixture {
                 LexicalTerminal {
                     matcher: Lexical::DeclarationNoun(2, FeatureConstraint::Any,),
                     owner: LexicalOwnerTemplate::DeclarationNoun(2),
+                    ..
                 }
             ),
             "unexpected generated head terminal: {head:?}"
@@ -552,10 +564,12 @@ mod declaration_noun_fixture {
         let swapped_modifier_index = LexicalTerminal {
             matcher: Lexical::DeclarationNoun(2, FeatureConstraint::Exact(Number::Singular)),
             owner: LexicalOwnerTemplate::DeclarationNoun(2),
+            right_boundary: LexicalBoundary::Separated,
         };
         let swapped_head_index = LexicalTerminal {
             matcher: Lexical::DeclarationNoun(1, FeatureConstraint::Any),
             owner: LexicalOwnerTemplate::DeclarationNoun(1),
+            right_boundary: LexicalBoundary::Separated,
         };
         assert!(
             scan_terminal(&environment, &context, "Relic.", 0, swapped_modifier_index,).is_empty(),
@@ -580,6 +594,7 @@ mod declaration_noun_fixture {
                     noun: TypeNoun::Declaration(noun),
                     number: Number::Singular,
                     onset: macro_ron::v2::Onset::Consonant,
+                    ..
                 },
                 ..
             }] if noun.id() == &relic
@@ -591,6 +606,7 @@ mod declaration_noun_fixture {
                     noun: CreatureNoun::Declaration(noun),
                     number: Number::Singular,
                     onset: macro_ron::v2::Onset::Vowel,
+                    ..
                 },
                 ..
             }] if noun.id() == &elf
@@ -618,6 +634,7 @@ mod declaration_noun_fixture {
             noun: noun.clone(),
             number: Number::Plural,
             onset: macro_ron::v2::Onset::Vowel,
+            possessive_ending: PossessiveEnding::Other,
         };
         assert!(
             build(
@@ -651,15 +668,27 @@ mod declaration_noun_fixture {
 
     fn declaration_leaf(noun: &Leaf, number: Number) -> BuildValue {
         match noun {
-            Leaf::TypeNoun { noun, onset, .. } => BuildValue::Leaf(Leaf::TypeNoun {
+            Leaf::TypeNoun {
+                noun,
+                onset,
+                possessive_ending,
+                ..
+            } => BuildValue::Leaf(Leaf::TypeNoun {
                 noun: noun.clone(),
                 number,
                 onset: *onset,
+                possessive_ending: *possessive_ending,
             }),
-            Leaf::CreatureNoun { noun, onset, .. } => BuildValue::Leaf(Leaf::CreatureNoun {
+            Leaf::CreatureNoun {
+                noun,
+                onset,
+                possessive_ending,
+                ..
+            } => BuildValue::Leaf(Leaf::CreatureNoun {
                 noun: noun.clone(),
                 number,
                 onset: *onset,
+                possessive_ending: *possessive_ending,
             }),
             _ => panic!("expected a declaration noun leaf"),
         }
@@ -767,6 +796,7 @@ mod declaration_noun_fixture {
                         noun: TypeNoun::Lexeme(NounLexeme::Artifact),
                         number: actual_number,
                         onset,
+                        ..
                     },
                     ..
                 }] if *actual_number == number && *onset == expected_onset
@@ -970,6 +1000,10 @@ pub mod fixture {
             self.prefix = PrefixPosition::WordOwnedSpace;
         }
 
+        fn suppress_next_space(&mut self) {
+            self.prefix = PrefixPosition::SurfaceOwned;
+        }
+
         fn identity(&mut self, identity: &str) {
             if self.prefix == PrefixPosition::WordOwnedSpace {
                 self.output.push(' ');
@@ -1086,7 +1120,7 @@ pub mod fixture {
     }
 
     impl ScanInput<'_> {
-        fn word_end(&self, running_text: &str) -> Option<usize> {
+        fn word_end(&self, running_text: &str, right_boundary: LexicalBoundary) -> Option<usize> {
             let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
             let remainder = self.text.get(self.position.byte_offset..)?;
             let remainder = (prefix == 0)
@@ -1107,7 +1141,10 @@ pub mod fixture {
                 running_text.to_owned()
             };
             let end = self.position.byte_offset + prefix + rendered.len();
-            let has_boundary = match self.text.get(end..) {
+            let has_boundary = matches!(
+                right_boundary,
+                LexicalBoundary::Adjacent | LexicalBoundary::BothAdjacent
+            ) || match self.text.get(end..) {
                 Some("") => true,
                 Some(trailing) => trailing
                     .chars()
@@ -1130,7 +1167,7 @@ pub mod fixture {
                 .then_some(self.position.byte_offset + surface.len())
         }
 
-        fn identity_end(&self, exact_text: &str) -> Option<usize> {
+        fn identity_end(&self, exact_text: &str, right_boundary: LexicalBoundary) -> Option<usize> {
             let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
             let remainder = self.text.get(self.position.byte_offset..)?;
             let remainder = (prefix == 0)
@@ -1139,16 +1176,20 @@ pub mod fixture {
             let end = self.position.byte_offset + prefix + exact_text.len();
             (!exact_text.is_empty()
                 && remainder.starts_with(exact_text)
-                && matches!(
+                && (matches!(
+                    right_boundary,
+                    LexicalBoundary::Adjacent | LexicalBoundary::BothAdjacent
+                ) || matches!(
                     self.text.as_bytes().get(end),
                     None | Some(b' ' | b',' | b'.')
-                ))
+                )))
             .then_some(end)
         }
 
         fn declaration_readings(
             &self,
             _matcher: DeclarationMatcher,
+            _right_boundary: LexicalBoundary,
         ) -> Vec<(
             usize,
             macro_ron::v2::DeclarationIdentity,
@@ -1177,6 +1218,16 @@ pub mod fixture {
             Beta = "beta",
             Gamma = "gamma",
             Delta = "delta",
+        }
+        vocab BoundWord {
+            Artifact = "artifact",
+            Black = "black",
+            Elf = "Elf",
+            Daxos = "Daxos",
+            Tarmogoyf = "Tarmogoyf",
+            Players = "players",
+            Merfolk = "Merfolk",
+            Equipment = "Equipment",
         }
         vocab Letter { A = "a", B = "b", }
         morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
@@ -1303,6 +1354,76 @@ pub mod fixture {
             form first when word is First = "alpha" lex(word);
             form second when word is Second = "beta" lex(word);
             form fallback otherwise = "omega" lex(word);
+        }
+        construction non_plain: BoundRoot {
+            element NonPlain { value: lex BoundWord, }
+            require value is Black;
+            form non_plain = "target" prefix("non", lex(value));
+        }
+        construction non_hyphen: BoundRoot {
+            element NonHyphen { value: lex BoundWord, }
+            require value is Elf;
+            form non_hyphen = "target" prefix("non-", lex(value));
+        }
+        construction singular_possessive: BoundRoot {
+            element SingularPossessive { owner: lex BoundWord, }
+            require owner is Tarmogoyf;
+            form singular_possessive = "target" suffix(lex(owner), "'s");
+        }
+        construction plural_possessive: BoundRoot {
+            element PluralPossessive { owner: lex BoundWord, }
+            require owner is Players;
+            form plural_possessive = "target" suffix(lex(owner), "'");
+        }
+        construction shared_boundary: SharedBoundary {
+            element SharedBoundaryValue { value: lex BoundWord, }
+            require value is Black;
+            form shared_boundary = lex(value);
+        }
+        construction separated_boundary: DualBoundaryRoot {
+            element SeparatedBoundary { value: SharedBoundary, }
+            form separated_boundary = "target" value "tail";
+        }
+        construction adjacent_boundary: DualBoundaryRoot {
+            element AdjacentBoundary { value: SharedBoundary, }
+            form adjacent_boundary = "target" suffix(value, "'s");
+        }
+        construction prefixed_onset: PrefixHead {
+            element PrefixedOnset { value: lex BoundWord, }
+            require value is Artifact;
+            derive onset = value.onset;
+            form prefixed_onset = prefix("non", lex(value));
+        }
+        construction prefixed_article: PrefixArticle {
+            element PrefixedArticle { head: PrefixHead, }
+            derive onset = head.onset;
+            form an when head.onset is Vowel = "an" head;
+            form a otherwise = "a" head;
+        }
+        construction bound_owner: PossessiveOwner {
+            element BoundOwner { value: lex BoundWord, }
+            derive number = match value {
+                Artifact => Values::Singular,
+                Black => Values::Singular,
+                Elf => Values::Singular,
+                Daxos => Values::Singular,
+                Tarmogoyf => Values::Singular,
+                Players => Values::Plural,
+                Merfolk => Values::Plural,
+                Equipment => Values::Plural,
+            };
+            derive possessive_ending = value.possessive_ending;
+            form bound_owner = lex(value);
+        }
+        construction derived_possessive: DerivedPossessiveRoot {
+            element DerivedPossessive { owner: PossessiveOwner, }
+            derive number = owner.number;
+            form singular when number is Singular = suffix(owner, "'s");
+            form plural_s when all(
+                number is Plural,
+                owner.possessive_ending is EndsInS
+            ) = suffix(owner, "'");
+            form plural_other otherwise = suffix(owner, "'s");
         }
         construction refined: Parent {
             element RefinedParent { mode: lex Mode, child: Child, }
@@ -1564,6 +1685,10 @@ pub mod fixture {
 
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root BoundRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root DualBoundaryRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root DerivedPossessiveRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root PrefixArticle { punctuation = "."; eoi = true; standalone_render = true; }
         root BeSentence { punctuation = "."; eoi = true; standalone_render = true; }
         root VerbArticle { punctuation = "."; eoi = true; standalone_render = true; }
         root NamedArticle { punctuation = "."; eoi = true; standalone_render = true; }
@@ -1795,6 +1920,7 @@ pub mod fixture {
                 kind,
                 name: "Destroy",
             },
+            right_boundary: LexicalBoundary::Separated,
         };
         let TerminalClass::Declaration(class) = terminal.class() else {
             panic!("open declaration matcher retains its category-safe class")
@@ -1816,6 +1942,7 @@ pub mod fixture {
             owner: LexicalOwnerTemplate::Vocab {
                 declaration: "Mode",
             },
+            right_boundary: LexicalBoundary::Separated,
         };
         assert_eq!(
             scan_lexical(&input, terminal),
@@ -1854,6 +1981,7 @@ pub mod fixture {
                         declaration: "VerbLexeme",
                         member: "Act",
                     },
+                    right_boundary: LexicalBoundary::Separated,
                 },
             )
         };
@@ -1918,6 +2046,7 @@ pub mod fixture {
                 declaration: "VerbLexeme",
                 member,
             },
+            right_boundary: LexicalBoundary::Separated,
         };
         let collision_input = ScanInput {
             text: "Same",
@@ -1999,6 +2128,7 @@ pub mod fixture {
                     declaration: "VerbLexeme",
                     member: "Be",
                 },
+                right_boundary: LexicalBoundary::Separated,
             },
         );
         assert_eq!(bare_be.len(), 1);
@@ -2064,6 +2194,7 @@ pub mod fixture {
                     kind: LexicalProvenanceKind::FormLiteral,
                     stable_id: "compiled-consumer/pre-punctuation-literal",
                 },
+                right_boundary: LexicalBoundary::Separated,
             };
 
             assert_eq!(
@@ -2094,6 +2225,7 @@ pub mod fixture {
                 kind: LexicalProvenanceKind::FormLiteral,
                 stable_id: "compiled-consumer/punctuation",
             },
+            right_boundary: LexicalBoundary::Separated,
         };
 
         assert_eq!(
@@ -2326,6 +2458,22 @@ pub mod fixture {
         text: &str,
         context: &ParseContext<'_>,
     ) -> engine::Forest<RuleId, Leaf, LexicalOwner> {
+        try_parse_structural(category, text, context).unwrap_or_else(|failure| {
+            panic!(
+                "structural grammar failed at {} for {category:?} on {text:?}",
+                failure.offset
+            )
+        })
+    }
+
+    fn try_parse_structural(
+        category: Category,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> Result<
+        engine::Forest<RuleId, Leaf, LexicalOwner>,
+        engine::ChartFailure<Category, LexicalTerminal>,
+    > {
         engine::parse_with_state(
             RULES,
             category,
@@ -2335,12 +2483,18 @@ pub mod fixture {
                 case: CasePosition::DocumentInitial,
                 prefix: PrefixPosition::None,
             },
-            |terminal, offset, position| {
+            |terminal, offset, position, suppress_right_boundary| {
                 debug_assert_eq!(offset, position.byte_offset);
+                let terminal = if suppress_right_boundary {
+                    terminal.suppress_right_boundary()
+                } else {
+                    terminal
+                };
+                let scan_position = terminal.position_before(*position);
                 scan_lexical(
                     &ScanInput {
                         text,
-                        position: *position,
+                        position: scan_position,
                         context,
                     },
                     terminal,
@@ -2361,12 +2515,6 @@ pub mod fixture {
             },
             |_, _, _| true,
         )
-        .unwrap_or_else(|failure| {
-            panic!(
-                "structural grammar failed at {} for {category:?} on {text:?}",
-                failure.offset
-            )
-        })
     }
 
     fn assert_structural_accepts(category: Category, texts: &[&str]) {
@@ -2952,6 +3100,7 @@ pub mod fixture {
                         declaration: "VerbLexeme",
                         member,
                     },
+                    right_boundary: LexicalBoundary::Separated,
                 },
             )
         };
@@ -3024,6 +3173,279 @@ pub mod fixture {
         );
     }
 
+    pub(super) fn assert_bound_atoms_preserve_adjacent_disjoint_claims() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+        };
+        let cases = [
+            (
+                BoundRoot::NonPlain(NonPlain {
+                    value: BoundWord::Black,
+                }),
+                "Target nonblack.",
+                [(0, 6), (6, 10), (10, 15)],
+            ),
+            (
+                BoundRoot::NonHyphen(NonHyphen {
+                    value: BoundWord::Elf,
+                }),
+                "Target non-Elf.",
+                [(0, 6), (6, 11), (11, 14)],
+            ),
+            (
+                BoundRoot::SingularPossessive(SingularPossessive {
+                    owner: BoundWord::Tarmogoyf,
+                }),
+                "Target Tarmogoyf's.",
+                [(0, 6), (6, 16), (16, 18)],
+            ),
+            (
+                BoundRoot::PluralPossessive(PluralPossessive {
+                    owner: BoundWord::Players,
+                }),
+                "Target players'.",
+                [(0, 6), (6, 14), (14, 15)],
+            ),
+        ];
+
+        for (value, expected, expected_spans) in cases {
+            let (rendered, rendered_claims) = render_bound_root_with_claims(&value, &context);
+            assert_eq!(rendered, expected);
+            let surface = expected
+                .strip_suffix('.')
+                .expect("bound root fixture has root punctuation");
+            let rendered_claims = rendered_claims
+                .into_iter()
+                .filter(|claim| claim.end <= surface.len())
+                .map(|claim| (claim.start, claim.end, claim.owner.stable_id().to_owned()))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                rendered_claims
+                    .iter()
+                    .map(|(start, end, _)| (*start, *end))
+                    .collect::<Vec<_>>(),
+                expected_spans,
+            );
+            assert_exact_partition(surface, &rendered_claims);
+
+            let forest = parse_structural(Category::BoundRoot, surface, &context);
+            let roots = forest.accepted_root_ids().collect::<Vec<_>>();
+            assert_eq!(roots.len(), 1, "{surface:?} has one accepted root");
+            let mut parsed_claims = Vec::new();
+            collect_first_family_claims(&forest, roots[0], &mut parsed_claims);
+            assert_eq!(parsed_claims, rendered_claims);
+            assert_exact_partition(surface, &parsed_claims);
+        }
+        for malformed in [
+            "Targetnonblack",
+            "Target  nonblack",
+            "Target non black",
+            "Target Tarmogoyf 's",
+        ] {
+            assert!(
+                try_parse_structural(Category::BoundRoot, malformed, &context).is_err(),
+                "ordinary boundaries keep exactly one separating space and bound boundaries keep none: {malformed:?}",
+            );
+        }
+    }
+
+    pub(super) fn assert_same_origin_dual_boundary_predictions() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+        };
+
+        for surface in ["Target black tail", "Target black's"] {
+            let forest = parse_structural(Category::DualBoundaryRoot, surface, &context);
+            assert_eq!(
+                forest.accepted_root_ids().count(),
+                1,
+                "{surface:?} retains its exact boundary-specific root",
+            );
+        }
+        for malformed in ["Target blacktail", "Target black 's"] {
+            assert!(
+                try_parse_structural(Category::DualBoundaryRoot, malformed, &context).is_err(),
+                "{malformed:?} must not cross the ordinary/adjacent boundary contract",
+            );
+        }
+    }
+
+    pub(super) fn assert_bound_prefix_owns_realized_onset() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+        };
+        let head = build(
+            RuleId::PrefixHeadPrefixedOnset,
+            &[
+                BuildValue::Leaf(Leaf::Literal("non")),
+                BuildValue::Leaf(Leaf::BoundWord(BoundWord::Artifact)),
+            ],
+            &context,
+        )
+        .expect("the fixed prefix overrides the vowel-initial value onset");
+        assert!(matches!(
+            head,
+            BuildValue::PrefixHead(_, macro_ron::v2::Onset::Consonant)
+        ));
+        assert!(
+            build(
+                RuleId::PrefixArticlePrefixedArticleAn,
+                &[BuildValue::Leaf(Leaf::Literal("an")), head.clone()],
+                &context,
+            )
+            .is_none(),
+            "the vowel article cannot accept the value's pre-prefix onset",
+        );
+        let article = build(
+            RuleId::PrefixArticlePrefixedArticleA,
+            &[BuildValue::Leaf(Leaf::Literal("a")), head],
+            &context,
+        )
+        .expect("the consonant article accepts the realized prefix onset");
+        let BuildValue::PrefixArticle(article, actual_onset) = article else {
+            panic!("the prefixed article builds its declared category")
+        };
+        assert_eq!(actual_onset, macro_ron::v2::Onset::Consonant);
+        assert_eq!(Render::render(&article, &context), "A nonartifact.");
+
+        let forest = parse_structural(Category::PrefixArticle, "A nonartifact", &context);
+        assert_eq!(forest.accepted_root_ids().count(), 1);
+    }
+
+    pub(super) fn assert_possessive_ending_selects_guarded_suffix_forms() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+        };
+        let cases = [
+            (
+                BoundWord::Daxos,
+                Number::Singular,
+                PossessiveEnding::EndsInS,
+                RuleId::DerivedPossessiveRootDerivedPossessiveSingular,
+                "'s",
+                "Daxos's.",
+            ),
+            (
+                BoundWord::Players,
+                Number::Plural,
+                PossessiveEnding::EndsInS,
+                RuleId::DerivedPossessiveRootDerivedPossessivePluralS,
+                "'",
+                "Players'.",
+            ),
+            (
+                BoundWord::Merfolk,
+                Number::Plural,
+                PossessiveEnding::Other,
+                RuleId::DerivedPossessiveRootDerivedPossessivePluralOther,
+                "'s",
+                "Merfolk's.",
+            ),
+            (
+                BoundWord::Equipment,
+                Number::Plural,
+                PossessiveEnding::Other,
+                RuleId::DerivedPossessiveRootDerivedPossessivePluralOther,
+                "'s",
+                "Equipment's.",
+            ),
+        ];
+
+        for (word, number, ending, possessive_rule, suffix, expected) in cases {
+            let owner = build(
+                RuleId::PossessiveOwnerBoundOwner,
+                &[BuildValue::Leaf(Leaf::BoundWord(word))],
+                &context,
+            )
+            .expect("the realized owner surface derives its sealed features");
+            assert!(matches!(
+                owner,
+                BuildValue::PossessiveOwner(_, actual_number, actual_ending)
+                    if actual_number == number && actual_ending == ending
+            ));
+            let possessive = build(
+                possessive_rule,
+                &[owner.clone(), BuildValue::Leaf(Leaf::Literal(suffix))],
+                &context,
+            )
+            .expect("the exact Number/Ending partition selects one suffix form");
+            let BuildValue::DerivedPossessiveRoot(possessive) = possessive else {
+                panic!("the guarded suffix rule builds its declared category")
+            };
+            assert_eq!(Render::render(&possessive, &context), expected);
+
+            let accepted = [
+                (RuleId::DerivedPossessiveRootDerivedPossessiveSingular, "'s"),
+                (RuleId::DerivedPossessiveRootDerivedPossessivePluralS, "'"),
+                (
+                    RuleId::DerivedPossessiveRootDerivedPossessivePluralOther,
+                    "'s",
+                ),
+            ]
+            .into_iter()
+            .filter(|(rule, suffix)| {
+                build(
+                    *rule,
+                    &[owner.clone(), BuildValue::Leaf(Leaf::Literal(suffix))],
+                    &context,
+                )
+                .is_some()
+            })
+            .count();
+            assert_eq!(accepted, 1, "{expected:?} has one build-valid form");
+        }
+
+        let daxos = BuildValue::PossessiveOwner(
+            PossessiveOwner::BoundOwner(BoundOwner {
+                value: BoundWord::Daxos,
+            }),
+            Number::Plural,
+            PossessiveEnding::EndsInS,
+        );
+        assert!(
+            build(
+                RuleId::DerivedPossessiveRootDerivedPossessiveSingular,
+                &[daxos, BuildValue::Leaf(Leaf::Literal("'s"))],
+                &context,
+            )
+            .is_none(),
+            "a Number mutation cannot cross the singular guarded build boundary",
+        );
+
+        let players = BuildValue::PossessiveOwner(
+            PossessiveOwner::BoundOwner(BoundOwner {
+                value: BoundWord::Players,
+            }),
+            Number::Plural,
+            PossessiveEnding::Other,
+        );
+        assert!(
+            build(
+                RuleId::DerivedPossessiveRootDerivedPossessivePluralS,
+                &[players, BuildValue::Leaf(Leaf::Literal("'"))],
+                &context,
+            )
+            .is_none(),
+            "a PossessiveEnding mutation cannot cross the EndsInS guarded build boundary",
+        );
+    }
+
     pub(super) fn assert_exact_name_render_uses_frozen_onset() {
         for (surface, frozen_onset, expected) in [
             ("artifact", macro_ron::v2::Onset::Consonant, "A artifact."),
@@ -3084,6 +3506,7 @@ pub mod fixture {
                 owner: LexicalOwnerTemplate::Identity {
                     declaration: "SelfRef",
                 },
+                right_boundary: LexicalBoundary::Separated,
             },
         );
         assert_eq!(
@@ -3115,6 +3538,7 @@ pub mod fixture {
                     noun: Head(1),
                     number,
                     onset: macro_ron::v2::Onset::Consonant,
+                    possessive_ending: PossessiveEnding::Other,
                 }),
             ]
         };
@@ -3128,11 +3552,13 @@ pub mod fixture {
                     noun: Head(2),
                     number: left,
                     onset: macro_ron::v2::Onset::Consonant,
+                    possessive_ending: PossessiveEnding::Other,
                 }),
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(3),
                     number: right,
                     onset: macro_ron::v2::Onset::Consonant,
+                    possessive_ending: PossessiveEnding::Other,
                 }),
             ]
         };
@@ -3314,11 +3740,13 @@ pub mod fixture {
                     noun: Head(4),
                     number: Number::Singular,
                     onset: macro_ron::v2::Onset::Consonant,
+                    possessive_ending: PossessiveEnding::Other,
                 }),
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(5),
                     number: Number::Singular,
                     onset: macro_ron::v2::Onset::Consonant,
+                    possessive_ending: PossessiveEnding::Other,
                 }),
                 BuildValue::Leaf(Leaf::Mode(Mode::One)),
             ],
@@ -3430,6 +3858,7 @@ pub mod fixture {
                     kind: LexicalProvenanceKind::Codec,
                     stable_id: "codec:SignedNumber",
                 },
+                right_boundary: LexicalBoundary::Separated,
             },
         );
         assert_eq!(signed_matches.len(), 1);
@@ -3518,6 +3947,26 @@ fn structural_surfaces_ownership_and_traversal_execute_generated_code() {
 #[test]
 fn verb_onset_survives_scan_build_forwarding_guard_and_render() {
     fixture::assert_verb_onset_transport_and_mutation_rejection();
+}
+
+#[test]
+fn bound_atoms_scan_and_render_adjacent_disjoint_claims() {
+    fixture::assert_bound_atoms_preserve_adjacent_disjoint_claims();
+}
+
+#[test]
+fn same_origin_nested_category_keeps_separated_and_adjacent_earley_identities_distinct() {
+    fixture::assert_same_origin_dual_boundary_predictions();
+}
+
+#[test]
+fn bound_prefix_realized_onset_selects_the_consonant_article() {
+    fixture::assert_bound_prefix_owns_realized_onset();
+}
+
+#[test]
+fn realized_possessive_ending_selects_guarded_suffix_forms_and_rejects_mutations() {
+    fixture::assert_possessive_ending_selects_guarded_suffix_forms();
 }
 
 #[test]

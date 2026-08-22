@@ -125,6 +125,10 @@ mod catalog_fixture {
             self.prefix = PrefixPosition::WordOwnedSpace;
         }
 
+        fn suppress_next_space(&mut self) {
+            self.prefix = PrefixPosition::SurfaceOwned;
+        }
+
         fn structural_surface(&mut self, surface: &str, transition: StructuralTransition) {
             self.output.push_str(surface);
             self.case = transition.case_after(self.case);
@@ -251,7 +255,7 @@ mod catalog_fixture {
     }
 
     impl ScanInput<'_> {
-        fn word_end(&self, running_text: &str) -> Option<usize> {
+        fn word_end(&self, running_text: &str, right_boundary: LexicalBoundary) -> Option<usize> {
             let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
             let remainder = self.text.get(self.position.byte_offset..)?;
             let remainder = (prefix == 0)
@@ -273,6 +277,9 @@ mod catalog_fixture {
             };
             let end = self.position.byte_offset + prefix + rendered.len();
             let boundary = matches!(
+                right_boundary,
+                LexicalBoundary::Adjacent | LexicalBoundary::BothAdjacent
+            ) || matches!(
                 self.text.as_bytes().get(end),
                 None | Some(b' ' | b',' | b'.')
             );
@@ -294,6 +301,7 @@ mod catalog_fixture {
         fn catalog_identity_reading(
             &self,
             provider: CatalogProvider,
+            right_boundary: LexicalBoundary,
         ) -> Option<(usize, Arc<str>, macro_ron::v2::Onset)> {
             let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
             let remainder = self.text.get(self.position.byte_offset..)?;
@@ -309,6 +317,9 @@ mod catalog_fixture {
             {
                 let end = self.position.byte_offset + prefix + relative_end;
                 if !matches!(
+                    right_boundary,
+                    LexicalBoundary::Adjacent | LexicalBoundary::BothAdjacent
+                ) && !matches!(
                     self.text.as_bytes().get(end),
                     None | Some(b' ' | b',' | b'.')
                 ) {
@@ -327,6 +338,7 @@ mod catalog_fixture {
         fn declaration_readings(
             &self,
             _matcher: DeclarationMatcher,
+            _right_boundary: LexicalBoundary,
         ) -> Vec<(
             usize,
             macro_ron::v2::DeclarationIdentity,
@@ -351,7 +363,24 @@ mod catalog_fixture {
             form an when name.onset is Vowel = "an" identity(name);
             form a otherwise = "a" identity(name);
         }
+        construction catalog_possessive: CatalogPossessiveRoot {
+            element CatalogPossessive { name: identity CatalogName, }
+            derive number = Values::Plural;
+            derive possessive_ending = name.possessive_ending;
+            form singular when number is Singular = suffix(identity(name), "'s");
+            form plural_s when all(
+                number is Plural,
+                name.possessive_ending is EndsInS
+            ) =
+                suffix(identity(name), "'");
+            form plural_other otherwise = suffix(identity(name), "'s");
+        }
         root NamedRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root CatalogPossessiveRoot {
+            punctuation = ".";
+            eoi = true;
+            standalone_render = true;
+        }
     }
 
     fn environment() -> environment::ParserEnvironment {
@@ -379,6 +408,18 @@ mod catalog_fixture {
                 "wrong-provider",
                 "Apple",
                 Onset::Vowel,
+            ),
+            environment::CatalogRow::new(
+                CatalogProvider::PrimaryNames,
+                "ends-in-s",
+                "Players",
+                Onset::Consonant,
+            ),
+            environment::CatalogRow::new(
+                CatalogProvider::PrimaryNames,
+                "other-ending",
+                "Merfolk",
+                Onset::Consonant,
             ),
         ];
         environment::ParserEnvironment::new(rows)
@@ -410,19 +451,61 @@ mod catalog_fixture {
         byte_offset: usize,
         terminal: LexicalTerminal,
     ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
+        scan_identity_at(
+            environment,
+            context,
+            text,
+            ScanPosition {
+                byte_offset,
+                case: CasePosition::Continuation,
+                prefix: PrefixPosition::WordOwnedSpace,
+            },
+            terminal,
+        )
+    }
+
+    fn scan_identity_at(
+        environment: &environment::ParserEnvironment,
+        context: &ParseContext<'_>,
+        text: &str,
+        position: ScanPosition,
+        terminal: LexicalTerminal,
+    ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
         scan_lexical(
             &ScanInput {
                 text,
-                position: ScanPosition {
-                    byte_offset,
-                    case: CasePosition::Continuation,
-                    prefix: PrefixPosition::WordOwnedSpace,
-                },
+                position,
                 environment,
                 context,
             },
             terminal,
         )
+    }
+
+    fn catalog_possessive_rules() -> Vec<(RuleId, &'static str, LexicalTerminal)> {
+        RULES
+            .iter()
+            .filter(|rule| rule.lhs == Category::CatalogPossessiveRoot)
+            .filter_map(|rule| {
+                let affix = rule.rhs.iter().find_map(|position| match position {
+                    L(LexicalTerminal {
+                        matcher: Lexical::Literal(actual @ ("'" | "'s")),
+                        ..
+                    }) => Some(*actual),
+                    _ => None,
+                });
+                let identity = rule.rhs.iter().find_map(|position| match position {
+                    L(
+                        terminal @ LexicalTerminal {
+                            matcher: Lexical::CatalogIdentity(_),
+                            ..
+                        },
+                    ) => Some(*terminal),
+                    _ => None,
+                });
+                Some((rule.id, affix?, identity?))
+            })
+            .collect()
     }
 
     #[derive(Default)]
@@ -489,6 +572,7 @@ mod catalog_fixture {
                         provider: CatalogProvider::PrimaryNames,
                         canonical_identity,
                         onset: actual_onset,
+                        ..
                     },
                     ..
                 }] if canonical_identity.as_ref() == identity && *actual_onset == onset
@@ -531,6 +615,7 @@ mod catalog_fixture {
         let wrong_terminal = LexicalTerminal {
             matcher: Lexical::CatalogIdentity(usize::MAX),
             owner: LexicalOwnerTemplate::CatalogIdentity(usize::MAX),
+            right_boundary: LexicalBoundary::Separated,
         };
         assert!(scan_identity(&environment, &context, "A Apple.", 1, wrong_terminal).is_empty());
         assert!(
@@ -542,6 +627,7 @@ mod catalog_fixture {
                 LexicalTerminal {
                     matcher: Lexical::CatalogIdentity(1),
                     owner: LexicalOwnerTemplate::CatalogIdentity(1),
+                    right_boundary: LexicalBoundary::Separated,
                 },
             )
             .iter()
@@ -563,6 +649,7 @@ mod catalog_fixture {
                 provider: CatalogProvider::SecondaryNames,
                 canonical_identity: Arc::from("wrong-provider"),
                 onset: Onset::Consonant,
+                possessive_ending: PossessiveEnding::Other,
             }),
         ];
         assert!(build(RuleId::NamedRootArticleA, &corrupted_provider, &context).is_none());
@@ -573,9 +660,155 @@ mod catalog_fixture {
                 provider: CatalogProvider::PrimaryNames,
                 canonical_identity: Arc::from("heuristic-vowel"),
                 onset: Onset::Vowel,
+                possessive_ending: PossessiveEnding::Other,
             }),
         ];
         assert!(build(RuleId::NamedRootArticleA, &corrupted_onset, &context).is_none());
+    }
+
+    fn assert_catalog_possessive_ending_transport() {
+        use macro_ron::v2::Onset;
+
+        let environment = environment();
+        let context = ParseContext::default();
+        let rules = catalog_possessive_rules();
+        assert_eq!(rules.len(), 3, "the fixture uses the three guarded forms");
+        let identity_terminal = rules[0].2;
+        assert!(
+            rules
+                .iter()
+                .all(|(_, _, terminal)| *terminal == identity_terminal)
+        );
+
+        for (text, identity, ending, expected, spans) in [
+            (
+                "Players'",
+                "ends-in-s",
+                PossessiveEnding::EndsInS,
+                "Players'.",
+                [(0, 7), (7, 8)],
+            ),
+            (
+                "Merfolk's",
+                "other-ending",
+                PossessiveEnding::Other,
+                "Merfolk's.",
+                [(0, 7), (7, 9)],
+            ),
+        ] {
+            let scanned = scan_identity_at(
+                &environment,
+                &context,
+                text,
+                ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
+                },
+                identity_terminal,
+            );
+            assert!(matches!(
+                scanned.as_slice(),
+                [LexicalMatch {
+                    end: 7,
+                    value: Leaf::CatalogIdentity {
+                        provider: CatalogProvider::PrimaryNames,
+                        canonical_identity,
+                        onset: actual_onset,
+                        possessive_ending: actual_ending,
+                    },
+                    ..
+                }] if canonical_identity.as_ref() == identity
+                    && *actual_onset == Onset::Consonant
+                    && *actual_ending == ending
+            ));
+
+            let identity_leaf = scanned[0].value.clone();
+            let accepted = rules
+                .iter()
+                .filter_map(|(rule, affix, _)| {
+                    let built = build(
+                        *rule,
+                        &[
+                            BuildValue::Leaf(identity_leaf.clone()),
+                            BuildValue::Leaf(Leaf::Literal(affix)),
+                        ],
+                        &context,
+                    )?;
+                    Some((*rule, *affix, built))
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                accepted.len(),
+                1,
+                "the scanned ending selects exactly one guarded suffix form",
+            );
+
+            let (selected, affix, built) = accepted
+                .into_iter()
+                .next()
+                .expect("one guarded suffix form accepts the scanned ending");
+            let possessive = <CatalogPossessiveRoot as GeneratedRoot>::from_build(built)
+                .expect("generated root unwraps its ending-carrying build value");
+            let (rendered, claims) =
+                render_catalog_possessive_root_with_claims(&possessive, &context, &environment);
+            assert_eq!(rendered, expected);
+            let surface = expected.strip_suffix('.').expect("root punctuation exists");
+            let claims = claims
+                .into_iter()
+                .filter(|claim| claim.end <= surface.len())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                claims
+                    .iter()
+                    .map(|claim| (claim.start, claim.end))
+                    .collect::<Vec<_>>(),
+                spans,
+            );
+            assert_eq!(&rendered[spans[0].0..spans[0].1], &text[..7]);
+            assert_eq!(&rendered[spans[1].0..spans[1].1], affix);
+            assert_eq!(
+                claims[0].owner.stable_id(),
+                format!("identity:PrimaryNames/{identity}"),
+            );
+
+            let mutated_ending = match ending {
+                PossessiveEnding::EndsInS => PossessiveEnding::Other,
+                PossessiveEnding::Other => PossessiveEnding::EndsInS,
+            };
+            let Leaf::CatalogIdentity {
+                provider,
+                canonical_identity,
+                onset,
+                ..
+            } = identity_leaf
+            else {
+                panic!("catalog scan returns its catalog identity leaf")
+            };
+            let corrupted = Leaf::CatalogIdentity {
+                provider,
+                canonical_identity,
+                onset,
+                possessive_ending: mutated_ending,
+            };
+            assert!(
+                build(
+                    selected,
+                    &[
+                        BuildValue::Leaf(corrupted),
+                        BuildValue::Leaf(Leaf::Literal(affix)),
+                    ],
+                    &context,
+                )
+                .is_none(),
+                "a wrong catalog PossessiveEnding cannot cross the guarded build boundary",
+            );
+        }
+    }
+
+    #[test]
+    fn catalog_identity_possessive_ending_drives_guarded_suffix_and_claims() {
+        assert_catalog_possessive_ending_transport();
     }
 }
 
