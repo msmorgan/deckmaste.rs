@@ -680,11 +680,8 @@ fn construction_has_fixed_width(construction: &crate::Construction) -> bool {
         .iter()
         .map(|field| (identifier_key(&field.name), &field.kind))
         .collect::<HashMap<_, _>>();
-    construction
-        .forms
-        .iter()
-        .flat_map(|form| &form.atoms)
-        .any(|atom| match atom {
+    construction.forms.iter().all(|form| {
+        form.atoms.iter().any(|atom| match atom {
             FormAtom::Literal(value) => !value.value().is_empty(),
             FormAtom::Lex(role) | FormAtom::Identity(role) | FormAtom::Noun(role) => {
                 fields.get(&identifier_key(role)).is_some_and(|kind| {
@@ -694,6 +691,7 @@ fn construction_has_fixed_width(construction: &crate::Construction) -> bool {
             FormAtom::Verb(_) | FormAtom::OpenVerb(_) => true,
             FormAtom::Role(_) => false,
         })
+    })
 }
 
 fn normalize_length_requirements(
@@ -7087,6 +7085,22 @@ pub(crate) mod tests {
         assert!(
             collision.contains("Construction/RuleId variant"),
             "{collision}"
+        );
+    }
+
+    #[test]
+    fn guarded_forms_keep_a_nullable_fallback_in_zero_width_cycle_checks() {
+        let actual = error(quote! {
+            construction loop: Cat {
+                element Loop { next: opt Cat, }
+                form present when next.is_some() = "present" next;
+                form absent otherwise = next;
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            actual.contains("Loop.next: zero-width recursive cycle"),
+            "{actual}"
         );
     }
 
