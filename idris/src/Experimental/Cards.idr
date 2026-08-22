@@ -7093,3 +7093,28 @@ bioessenceHydraTrigger =
     (CounterEvent CounterPut LoyaltyCounter
                   (AllOf (And [HasType Planeswalker, ControlledBy You])))
     (PutCounters ThatMuch Macros.plusOnePlusOne Macros.thisCreature)
+
+||| Void Maw's activated ability: "Put a card exiled with this creature
+||| into its owner's graveyard: This creature gets +2/+2 until end of
+||| turn." A placement paid as a cost [CR#118.1].
+public export
+voidMawPutCost : Ability
+voidMawPutCost =
+  Activated (Do (Macros.puts You (Macros.a (ExiledWith Macros.thisCreature))
+                             Macros.graveyardZ))
+            (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2))
+                         (Just Macros.untilEndOfTurn))
+
+||| Bullseye, Death Dealer's activated ability: "{3}, {T}, Sacrifice an
+||| artifact or discard a nonland card: Bullseye deals 2 damage to any
+||| target." The cost the player chooses between [CR#118.1].
+public export
+bullseyeModalCost : Ability
+bullseyeModalCost =
+  Activated (Compound [Mana [Macros.generic 3], TapSymbol,
+                       Do (Macros.chooseOne
+                             [Macros.sacrifice You (Macros.a Macros.artifact),
+                              Macros.discards You
+                                (Macros.a (And [Not Macros.land,
+                                                InZone Macros.handZ]))])])
+            (DealDamage This (Lit 2) (Macros.target AnyTarget))

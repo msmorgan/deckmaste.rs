@@ -6,7 +6,7 @@ needs: []
 `grantSubjectOk` now admits an ability granted to an off-battlefield subject
 ([CR#113.6b]), but every printed witness grants a keyword the `Keyword` sum
 lacks: unearth [CR#702.84], flashback [CR#702.34], dredge [CR#702.52],
-retrace [CR#702.107], cycling [CR#702.29], ninjutsu [CR#702.49], miracle
+retrace [CR#702.81], cycling [CR#702.29], ninjutsu [CR#702.49], miracle
 [CR#702.94], warp. Mint each through the `KA` shape-indexed applicator
 (`idris-keyword-model`) with the CR's own expansion as its meaning, then bench
 the grant lines ("Creature cards in your graveyard have unearth {…}",

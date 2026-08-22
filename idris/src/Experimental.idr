@@ -3493,69 +3493,74 @@ mutual
   nounIsYou (OwnerOf _) = False
   nounIsYou (Designated _ _) = False
 
+  ||| [CR#118.1] makes a cost an action a player carries out, so any
+  ||| instruction a payer can follow is admitted; `costNounOk` keeps its
+  ||| own hold on which nouns a cost may name. Refused: the nodes that
+  ||| instruct nothing at payment (a static, a replacement, a scheduled
+  ||| or reflexive trigger, a skip [CR#614.10]) and the coordinations,
+  ||| which claim an order [CR#601.2h] pays in any — `Compound` is the
+  ||| cost-side telescope.
   public export
   costActionOk : {0 bs : Bindings} -> Effect bs -> Bool
-  costActionOk (DealDamage _ _ _) = False
-  costActionOk (DoesntUntapNext _ _) = False
+  costActionOk (DealDamage src _ _) = costNounOk src
+  costActionOk (DoesntUntapNext n _) = costNounOk n
   costActionOk (SkipsNext _ _ _) = False
-  costActionOk (ExtraTurn _ _) = False
-  costActionOk (AdditionalPart _ _ _) = False
-  costActionOk (Distribute _ _ _) = False
-  costActionOk (Fights _ _) = False
-  costActionOk (SetStatus Tapped n) = costNounOk n
-  costActionOk (SetStatus Untapped n) = costNounOk n
-  costActionOk (SetStatus Flipped _) = False
-  costActionOk (SetStatus Unflipped _) = False
-  costActionOk (SetStatus FaceUp _) = False
-  costActionOk (SetStatus FaceDown _) = False
-  costActionOk (SetStatus PhasedIn _) = False
-  costActionOk (SetStatus PhasedOut _) = False
-  costActionOk (GetsCounters _ _ _) = False
-  costActionOk (LosesAllCounters _ _) = False
-  costActionOk (RemoveFromCombat _) = False
-  costActionOk (Regenerate _) = False
-  costActionOk (CantBe _ _ _) = False
-  costActionOk (GainsDesignation _ _ _) = False
-  costActionOk (GameBecomes _) = False
+  costActionOk (ExtraTurn who _) = costNounOk who
+  costActionOk (AdditionalPart _ _ _) = True
+  costActionOk (Distribute _ _ among) = costNounOk among
+  costActionOk (Fights a _) = costNounOk a
+  costActionOk (SetStatus _ n) = costNounOk n
+  costActionOk (GetsCounters who _ _) = costNounOk who
+  costActionOk (LosesAllCounters who _) = costNounOk who
+  costActionOk (RemoveFromCombat n) = costNounOk n
+  costActionOk (Regenerate n) = costNounOk n
+  costActionOk (CantBe e _ _) = costActionOk e
+  costActionOk (GainsDesignation n _ _) = costNounOk n
+  costActionOk (GameBecomes _) = True
   costActionOk (Concludes _ _) = True
-  costActionOk GameDrawn = False
+  costActionOk GameDrawn = True
   costActionOk (CounterSpell _) = True
-  costActionOk (CopyStack _ _ _ _) = False
-  costActionOk (ChooseNewTargets _) = False
-  costActionOk (Choose _) = False
+  costActionOk (CopyStack _ what _ _) = costNounOk what
+  costActionOk (ChooseNewTargets what) = costNounOk what
+  costActionOk (Choose n) = costNounOk n
   costActionOk (Move what _) = costNounOk what
   costActionOk (ChangeLife _ _) = True
-  costActionOk (AddMana _ _ _ _) = False
+  costActionOk (AddMana who _ _ _) = costNounOk who
   costActionOk (Draw _ _) = True
-  costActionOk (Expose Reveal _ _) = True
-  costActionOk (Expose _ _ _) = False
-  costActionOk (Search _ _ _) = False
-  costActionOk (Shuffle _) = False
+  costActionOk (Expose _ who _) = costNounOk who
+  costActionOk (Search who _ _) = costNounOk who
+  costActionOk (Shuffle whose) = costNounOk whose
   costActionOk (Continuously _ _) = False
-  costActionOk (Create _ _ _ _) = False
+  costActionOk (Create agent _ _ _) = costNounOk agent
   costActionOk (GetsEmblem _ _) = True
   costActionOk (PutCounters _ _ on) = costNounOk on
   costActionOk (RemoveCounters _ _ from) = costNounOk from
-  costActionOk (Composite Exile e) = costActionOk e
-  costActionOk (Composite Destroy e) = costActionOk e
-  costActionOk (Composite _ _) = False
-  costActionOk (Does _ Sacrifice e) = costActionOk e
-  costActionOk (Does _ Discard e) = costActionOk e
-  costActionOk (Does _ Mill e) = costActionOk e
-  costActionOk (Does _ _ _) = False
+  costActionOk (Composite _ e) = costActionOk e
+  costActionOk (Does _ _ e) = costActionOk e
   costActionOk (Pay _ _) = False
-  costActionOk (May _ _ _ _) = False
-  costActionOk (If _ _ _) = False
-  costActionOk (WhereLetter _ _ _) = False
-  costActionOk (ForEachOf _ _) = False
+  costActionOk (May _ body ifDid ifNot) =
+    costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
+  costActionOk (If e _ otherwise) = costActionOk e && costActionOkOpt otherwise
+  costActionOk (WhereLetter _ _ body) = costActionOk body
+  costActionOk (ForEachOf _ body) = costActionOk body
   costActionOk (Repeat _) = False
   costActionOk (Sequentially _) = False
   costActionOk (Simultaneously _) = False
-  costActionOk (Modal _ _) = False
+  costActionOk (Modal _ modes) = costActionsOk modes
   costActionOk (Delayed _ _) = False
   costActionOk (InsteadOf _ _) = False
   costActionOk (HeldUntil _ _) = False
   costActionOk (Reflexively _ _) = False
+
+  public export
+  costActionOkOpt : {0 bs : Bindings} -> Maybe (Effect bs) -> Bool
+  costActionOkOpt Nothing = True
+  costActionOkOpt (Just e) = costActionOk e
+
+  public export
+  costActionsOk : {0 bs : Bindings} -> List (Effect bs) -> Bool
+  costActionsOk [] = True
+  costActionsOk (e :: es) = costActionOk e && costActionsOk es
 
   public export
   CostAction : Effect bs -> Type

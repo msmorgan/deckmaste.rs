@@ -337,6 +337,50 @@ badReflexiveAsCost : Unspellable Ability (\ok =>
 badReflexiveAsCost Oh impossible
 
 
+||| "You skip your next turn:" written as a cost
+||| [CR#614.10] makes a skip a replacement effect — "instead of doing [something], do nothing" — not an action the payer carries out [CR#118.1].
+public export
+badSkipAsCost : Unspellable Ability (\ok =>
+  Activated (Do (SkipsNext You Turn (Lit 1)) {ok}) Macros.drawACard)
+badSkipAsCost Oh impossible
+
+
+||| "You pay 2 life:" written as a cost over a cost
+||| [CR#602.1a] makes the activation cost everything before the colon and fixes its payer, so a cost that re-announces payer and payment states what the slot already holds; the telescope is `Compound`.
+public export
+badPayAsCost : Unspellable Ability (\ok =>
+  Activated (Do (Pay You (Macros.payLife You 2)) {ok}) Macros.drawACard)
+badPayAsCost Oh impossible
+
+
+||| "Discard a card, then sacrifice a creature:" written as one cost
+||| [CR#601.2h] pays a total cost's parts in any order, so no cost orders its own parts; `Compound` is the cost-side telescope.
+public export
+badSequentialCost : Unspellable Ability (\ok =>
+  Activated (Do (Sequentially [Macros.discardsACard You,
+                               Macros.sacrifice You (Macros.a Macros.creature)]) {ok})
+            Macros.drawACard)
+badSequentialCost Oh impossible
+
+
+||| "Discard a card and sacrifice a creature simultaneously:" written as one cost
+||| [CR#601.2h] pays a cost's parts one at a time in any order, so a cost claims no simultaneity.
+public export
+badSimultaneousCost : Unspellable Ability (\ok =>
+  Activated (Do (Simultaneously [Macros.discardsACard You,
+                                 Macros.sacrifice You (Macros.a Macros.creature)]) {ok})
+            Macros.drawACard)
+badSimultaneousCost Oh impossible
+
+
+||| "Repeat this process:" written as a cost
+||| [CR#118.1] wants an action or payment; "repeat" names one only by anaphora, and [CR#601.2h] pays a cost's parts in any order, so no part precedes another for the anaphor to reach.
+public export
+badRepeatAsCost : Unspellable Ability (\ok =>
+  Activated (Do (Repeat Again) {ok}) Macros.drawACard)
+badRepeatAsCost Oh impossible
+
+
 ||| a compound cost of no components
 ||| A cost telescope of nothing is no cost: there is nothing to pay.
 public export
