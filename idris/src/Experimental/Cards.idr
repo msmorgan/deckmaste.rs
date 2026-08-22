@@ -3503,6 +3503,19 @@ onakkeJavelineerBolt =
             (DealDamage Macros.thisCreature (Lit 2)
                         (Macros.target (KindJoin JoinAnyPlayer JoinBattle)))
 
+||| Firesong and Sunspeaker's joined head -- "deals 3 damage to target
+||| creature or player", the one current-oracle black-border phrasing that
+||| still writes the pair out instead of "any target" -- with the echo that
+||| reads it back. No printed card spells that echo, so the second clause is
+||| the workbench's; it is what makes the pair `JoinP` carries observable,
+||| since `JoinCreature` is the Object half's card type.
+public export
+firesongJoinEcho : Effect []
+firesongJoinEcho =
+  Sequentially [ DealDamage This (Lit 3)
+                   (Macros.target (KindJoin JoinAnyPlayer JoinCreature))
+               , DealDamage This (Lit 1) (That JoinW) ]
+
 public export
 endure : Card
 endure =

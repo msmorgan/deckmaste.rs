@@ -121,9 +121,34 @@ Eq LetterWord where
   (==) LetterY LetterX = False
   (==) LetterY LetterY = True
 
+export infixl 5 \/
+
 public export
-data Kind = Object | Player | Quality QualitySort | Outcome | Gap
-          | Letter LetterWord | TurnRef | Ability | ObjectOrPlayer
+data Kind : Type where
+  Object : Kind
+  Player : Kind
+  Quality : QualitySort -> Kind
+  Outcome : Kind
+  Gap : Kind
+  Letter : LetterWord -> Kind
+  TurnRef : Kind
+  Ability : Kind
+  ||| A joined kind: the term names either half ("any target" [CR#115.4],
+  ||| "target spell or ability", "target creature or player").
+  |||
+  ||| THE JOIN IS SYNTAX -- a plain constructor, never reduced. The earlier
+  ||| flat-vs-pair argument was a level confusion: the PAIR is `JoinP`, one
+  ||| `Payload` per half, and the kind index only records that a join
+  ||| happened. So no gate says which pairs may join; the rules make every
+  ||| such phrase meaningful and the semantics refuses none.
+  |||
+  ||| Order is `kindLte`, not `=`: an `Object` anaphor resolves against an
+  ||| `Object \/ Player` antecedent because `Object` sits below it.
+  ||| Idempotence, commutativity and associativity hold up to that order.
+  ||| The semilattice is UNBOUNDED by decision -- `Or` carries
+  ||| `TwoDisjuncts`, so a heterogeneous fold seeds with a non-empty list's
+  ||| head and needs no unit: no `Top`, no `Bottom`.
+  (\/) : Kind -> Kind -> Kind
 
 public export
 Eq Kind where
@@ -135,7 +160,7 @@ Eq Kind where
   (==) Object (Letter _) = False
   (==) Object TurnRef = False
   (==) Object Ability = False
-  (==) Object ObjectOrPlayer = False
+  (==) Object (_ \/ _) = False
   (==) Player Object = False
   (==) Player Player = True
   (==) Player (Quality _) = False
@@ -144,7 +169,7 @@ Eq Kind where
   (==) Player (Letter _) = False
   (==) Player TurnRef = False
   (==) Player Ability = False
-  (==) Player ObjectOrPlayer = False
+  (==) Player (_ \/ _) = False
   (==) (Quality _) Object = False
   (==) (Quality _) Player = False
   (==) (Quality a) (Quality b) = a == b
@@ -153,7 +178,7 @@ Eq Kind where
   (==) (Quality _) (Letter _) = False
   (==) (Quality _) TurnRef = False
   (==) (Quality _) Ability = False
-  (==) (Quality _) ObjectOrPlayer = False
+  (==) (Quality _) (_ \/ _) = False
   (==) Outcome Object = False
   (==) Outcome Player = False
   (==) Outcome (Quality _) = False
@@ -162,7 +187,7 @@ Eq Kind where
   (==) Outcome (Letter _) = False
   (==) Outcome TurnRef = False
   (==) Outcome Ability = False
-  (==) Outcome ObjectOrPlayer = False
+  (==) Outcome (_ \/ _) = False
   (==) Gap Object = False
   (==) Gap Player = False
   (==) Gap (Quality _) = False
@@ -171,7 +196,7 @@ Eq Kind where
   (==) Gap (Letter _) = False
   (==) Gap TurnRef = False
   (==) Gap Ability = False
-  (==) Gap ObjectOrPlayer = False
+  (==) Gap (_ \/ _) = False
   (==) (Letter _) Object = False
   (==) (Letter _) Player = False
   (==) (Letter _) (Quality _) = False
@@ -180,7 +205,7 @@ Eq Kind where
   (==) (Letter a) (Letter b) = a == b
   (==) (Letter _) TurnRef = False
   (==) (Letter _) Ability = False
-  (==) (Letter _) ObjectOrPlayer = False
+  (==) (Letter _) (_ \/ _) = False
   (==) TurnRef Object = False
   (==) TurnRef Player = False
   (==) TurnRef (Quality _) = False
@@ -189,7 +214,7 @@ Eq Kind where
   (==) TurnRef (Letter _) = False
   (==) TurnRef TurnRef = True
   (==) TurnRef Ability = False
-  (==) TurnRef ObjectOrPlayer = False
+  (==) TurnRef (_ \/ _) = False
   (==) Ability Object = False
   (==) Ability Player = False
   (==) Ability (Quality _) = False
@@ -198,16 +223,16 @@ Eq Kind where
   (==) Ability (Letter _) = False
   (==) Ability TurnRef = False
   (==) Ability Ability = True
-  (==) Ability ObjectOrPlayer = False
-  (==) ObjectOrPlayer Object = False
-  (==) ObjectOrPlayer Player = False
-  (==) ObjectOrPlayer (Quality _) = False
-  (==) ObjectOrPlayer Outcome = False
-  (==) ObjectOrPlayer Gap = False
-  (==) ObjectOrPlayer (Letter _) = False
-  (==) ObjectOrPlayer TurnRef = False
-  (==) ObjectOrPlayer Ability = False
-  (==) ObjectOrPlayer ObjectOrPlayer = True
+  (==) Ability (_ \/ _) = False
+  (==) (_ \/ _) Object = False
+  (==) (_ \/ _) Player = False
+  (==) (_ \/ _) (Quality _) = False
+  (==) (_ \/ _) Outcome = False
+  (==) (_ \/ _) Gap = False
+  (==) (_ \/ _) (Letter _) = False
+  (==) (_ \/ _) TurnRef = False
+  (==) (_ \/ _) Ability = False
+  (==) (a \/ b) (c \/ d) = a == c && b == d
 
 ||| A `QualitySort` matches only itself.
 public export
@@ -265,376 +290,218 @@ sameKindRefl Gap = Oh
 sameKindRefl (Letter w) = sameLetterWordRefl w
 sameKindRefl TurnRef = Oh
 sameKindRefl Ability = Oh
-sameKindRefl ObjectOrPlayer = Oh
+sameKindRefl (a \/ b) = andSo (sameKindRefl a, sameKindRefl b)
 
-||| Which kind pairs have a join. Like-with-like joins itself; `Object` and
-||| `Player` join in either order; `ObjectOrPlayer` absorbs both and itself.
-||| Nothing else joins: among the kinds a target slot admits (`Targetable`
-||| has only `Object` and `Player`) the corpus attests this one cross-kind
-||| join. Kinds outside that set are not surveyed here: "target spell or
-||| ability" is attested and would be `Object \/ Ability`, so that cell is
-||| `False` as unsurveyed, not refused — it is `workbench-unhomed-union-gates`'
-||| to measure and admit, and no pin freezes it.
-public export
-joinable : Kind -> Kind -> Bool
-joinable Object Player = True
-joinable Object ObjectOrPlayer = True
-joinable Player Object = True
-joinable Player ObjectOrPlayer = True
-joinable ObjectOrPlayer Object = True
-joinable ObjectOrPlayer Player = True
-joinable ObjectOrPlayer ObjectOrPlayer = True
-joinable a b = a == b
-
-export infixl 5 \/
-
-||| The kind join, FLAT ON `Kind`: `Object \/ Player = ObjectOrPlayer`, one
-||| joined kind and no pair in the index. WHICH union a term names is carried
-||| by `Payload`, not by the kind — the ticket's flat/pair/powerset trichotomy
-||| conflated the two levels, since its "pairs" ({Permanent,Player},
-||| {Creature,Player}) are card-type and possessor content, which `Payload` and
-||| the predicates already hold.
+||| The kind ORDER, replacing the old join gate and join FUNCTION.
+||| `kindLte x y` asks whether a term of kind `x` is admitted where kind
+||| `y` was named: every half of a join on the left must fit, and a join
+||| on the right is fitted by either half. Off the joins it is `==`, so
+||| nothing changes at an unjoined kind.
 |||
-||| The measurements: the demonstrative echo copies its antecedent's kind pair
-||| 33 of 33 with no crossing in either direction; the 15 readbacks with no
-||| pair to echo write the generic "permanent or player"; the 10 class-word
-||| readbacks write that same generic pair, which a naive powerset kind
-||| ({Creature,Player,Planeswalker,Battle}) would mis-spell as "that creature,
-||| player, planeswalker, or battle"; and all 43 share one demonstrative.
-||| So the 33 echoes derive from the Object-half type the joined payload will
-||| carry, while the class word and the 15 no-pair readbacks have no type and
-||| spell the generic pair — the kind index needs no collapse table.
+||| The left-join clause comes FIRST: that is what makes the definition
+||| total and what makes `(a \/ b) <= c` mean "both halves fit". `&&`/`||`
+||| are lazy; harmless, since a `So` gate only reduces at concrete kinds.
 |||
-||| Site 2's 2x4 admissible-pair grid is payload admissibility, routed to
-||| `workbench-unhomed-union-gates`; the joined payload and its Object-half
-||| type are `workbench-joined-kind-binding`. Neither is decided here.
+||| This is a DECISION PROCEDURE, not a witness: it says an `Object`
+||| anaphor may resolve against an `Object \/ Player` antecedent, but not
+||| WHICH half it resolved to. The documented upgrade, if a reader ever
+||| needs that half, is the inductive
 |||
-||| The semilattice is UNBOUNDED by decision — no unit kind. `Or` carries
-||| `TwoDisjuncts`, so a heterogeneous fold is over a non-empty list and seeds
-||| with its head; the "an empty `Or` is vacuous" reading that justified old
-||| semantics' `Empty` is refused upstream, so no `Top` and no `Bottom`.
+||| ```idris
+||| data KindLte : Kind -> Kind -> Type where
+|||   Same  : KindLte k k
+|||   JoinL : KindLte a c -> KindLte b c -> KindLte (a \/ b) c
+|||   InL   : KindLte x a -> KindLte x (a \/ b)
+|||   InR   : KindLte x b -> KindLte x (a \/ b)
+||| ```
 |||
-||| R5(c): the kinds are INPUTS. `ok` is erased and `Oh : So True` constrains
-||| nothing, so no call may leave `a` or `b` to be inferred from the witness.
-||| Off the attested pairs the operator returns its left kind; `ok` refuses
-||| every such pair ("any target" is the one join English writes [CR#115.4]).
+||| whose `InL`/`InR` carry it. Not minted now: no reader asks.
 public export
-(\/) : (a, b : Kind) -> {auto 0 ok : So (joinable a b)} -> Kind
-(\/) Object Object = Object
-(\/) Object Player = ObjectOrPlayer
-(\/) Object ObjectOrPlayer = ObjectOrPlayer
-(\/) Object _ = Object
-(\/) Player Object = ObjectOrPlayer
-(\/) Player Player = Player
-(\/) Player ObjectOrPlayer = ObjectOrPlayer
-(\/) Player _ = Player
-(\/) ObjectOrPlayer _ = ObjectOrPlayer
-(\/) (Quality q) _ = Quality q
-(\/) Outcome _ = Outcome
-(\/) Gap _ = Gap
-(\/) (Letter w) _ = Letter w
-(\/) TurnRef _ = TurnRef
-(\/) Ability _ = Ability
+kindLte : Kind -> Kind -> Bool
+kindLte (a \/ b) y = kindLte a y && kindLte b y
+kindLte x (a \/ b) = kindLte x a || kindLte x b
+kindLte x y = x == y
 
-||| Reflexivity of the gate: every kind joins itself.
+||| Widening into the left half of a join.
 public export
-joinableRefl : (k : Kind) -> So (joinable k k)
-joinableRefl Object = Oh
-joinableRefl Player = Oh
-joinableRefl (Quality q) = sameQRefl q
-joinableRefl Outcome = Oh
-joinableRefl Gap = Oh
-joinableRefl (Letter w) = sameLetterWordRefl w
-joinableRefl TurnRef = Oh
-joinableRefl Ability = Oh
-joinableRefl ObjectOrPlayer = Oh
+kindLteInL : (x, a, b : Kind) -> So (kindLte x a) -> So (kindLte x (a \/ b))
+kindLteInL Object a b ok = orSo (Left ok)
+kindLteInL Player a b ok = orSo (Left ok)
+kindLteInL (Quality _) a b ok = orSo (Left ok)
+kindLteInL Outcome a b ok = orSo (Left ok)
+kindLteInL Gap a b ok = orSo (Left ok)
+kindLteInL (Letter _) a b ok = orSo (Left ok)
+kindLteInL TurnRef a b ok = orSo (Left ok)
+kindLteInL Ability a b ok = orSo (Left ok)
+kindLteInL (p \/ q) a b ok =
+  andSo (kindLteInL p a b (fst (soAnd ok)), kindLteInL q a b (snd (soAnd ok)))
 
-||| Symmetry of the gate, as a LEMMA: a symmetric constructor on a witness
-||| type would loop auto search, so the fact is a function instead.
+||| Widening into the right half of a join.
 public export
-joinableSym : (a, b : Kind) -> So (joinable a b) -> So (joinable b a)
-joinableSym Object Object _ = Oh
-joinableSym Object Player _ = Oh
-joinableSym Object (Quality _) ok = absurd ok
-joinableSym Object Outcome ok = absurd ok
-joinableSym Object Gap ok = absurd ok
-joinableSym Object (Letter _) ok = absurd ok
-joinableSym Object TurnRef ok = absurd ok
-joinableSym Object Ability ok = absurd ok
-joinableSym Object ObjectOrPlayer _ = Oh
+kindLteInR : (x, a, b : Kind) -> So (kindLte x b) -> So (kindLte x (a \/ b))
+kindLteInR Object a b ok = orSo (Right ok)
+kindLteInR Player a b ok = orSo (Right ok)
+kindLteInR (Quality _) a b ok = orSo (Right ok)
+kindLteInR Outcome a b ok = orSo (Right ok)
+kindLteInR Gap a b ok = orSo (Right ok)
+kindLteInR (Letter _) a b ok = orSo (Right ok)
+kindLteInR TurnRef a b ok = orSo (Right ok)
+kindLteInR Ability a b ok = orSo (Right ok)
+kindLteInR (p \/ q) a b ok =
+  andSo (kindLteInR p a b (fst (soAnd ok)), kindLteInR q a b (snd (soAnd ok)))
 
-joinableSym Player Object _ = Oh
-joinableSym Player Player _ = Oh
-joinableSym Player (Quality _) ok = absurd ok
-joinableSym Player Outcome ok = absurd ok
-joinableSym Player Gap ok = absurd ok
-joinableSym Player (Letter _) ok = absurd ok
-joinableSym Player TurnRef ok = absurd ok
-joinableSym Player Ability ok = absurd ok
-joinableSym Player ObjectOrPlayer _ = Oh
-
-joinableSym (Quality _) Object ok = absurd ok
-joinableSym (Quality _) Player ok = absurd ok
-joinableSym (Quality x) (Quality y) ok = case sameQEq x y ok of Refl => ok
-joinableSym (Quality _) Outcome ok = absurd ok
-joinableSym (Quality _) Gap ok = absurd ok
-joinableSym (Quality _) (Letter _) ok = absurd ok
-joinableSym (Quality _) TurnRef ok = absurd ok
-joinableSym (Quality _) Ability ok = absurd ok
-joinableSym (Quality _) ObjectOrPlayer ok = absurd ok
-
-joinableSym Outcome Object ok = absurd ok
-joinableSym Outcome Player ok = absurd ok
-joinableSym Outcome (Quality _) ok = absurd ok
-joinableSym Outcome Outcome _ = Oh
-joinableSym Outcome Gap ok = absurd ok
-joinableSym Outcome (Letter _) ok = absurd ok
-joinableSym Outcome TurnRef ok = absurd ok
-joinableSym Outcome Ability ok = absurd ok
-joinableSym Outcome ObjectOrPlayer ok = absurd ok
-
-joinableSym Gap Object ok = absurd ok
-joinableSym Gap Player ok = absurd ok
-joinableSym Gap (Quality _) ok = absurd ok
-joinableSym Gap Outcome ok = absurd ok
-joinableSym Gap Gap _ = Oh
-joinableSym Gap (Letter _) ok = absurd ok
-joinableSym Gap TurnRef ok = absurd ok
-joinableSym Gap Ability ok = absurd ok
-joinableSym Gap ObjectOrPlayer ok = absurd ok
-
-joinableSym (Letter _) Object ok = absurd ok
-joinableSym (Letter _) Player ok = absurd ok
-joinableSym (Letter _) (Quality _) ok = absurd ok
-joinableSym (Letter _) Outcome ok = absurd ok
-joinableSym (Letter _) Gap ok = absurd ok
-joinableSym (Letter v) (Letter w) ok = case sameLetterWordEq v w ok of Refl => ok
-joinableSym (Letter _) TurnRef ok = absurd ok
-joinableSym (Letter _) Ability ok = absurd ok
-joinableSym (Letter _) ObjectOrPlayer ok = absurd ok
-
-joinableSym TurnRef Object ok = absurd ok
-joinableSym TurnRef Player ok = absurd ok
-joinableSym TurnRef (Quality _) ok = absurd ok
-joinableSym TurnRef Outcome ok = absurd ok
-joinableSym TurnRef Gap ok = absurd ok
-joinableSym TurnRef (Letter _) ok = absurd ok
-joinableSym TurnRef TurnRef _ = Oh
-joinableSym TurnRef Ability ok = absurd ok
-joinableSym TurnRef ObjectOrPlayer ok = absurd ok
-
-joinableSym Ability Object ok = absurd ok
-joinableSym Ability Player ok = absurd ok
-joinableSym Ability (Quality _) ok = absurd ok
-joinableSym Ability Outcome ok = absurd ok
-joinableSym Ability Gap ok = absurd ok
-joinableSym Ability (Letter _) ok = absurd ok
-joinableSym Ability TurnRef ok = absurd ok
-joinableSym Ability Ability _ = Oh
-joinableSym Ability ObjectOrPlayer ok = absurd ok
-
-joinableSym ObjectOrPlayer Object _ = Oh
-joinableSym ObjectOrPlayer Player _ = Oh
-joinableSym ObjectOrPlayer (Quality _) ok = absurd ok
-joinableSym ObjectOrPlayer Outcome ok = absurd ok
-joinableSym ObjectOrPlayer Gap ok = absurd ok
-joinableSym ObjectOrPlayer (Letter _) ok = absurd ok
-joinableSym ObjectOrPlayer TurnRef ok = absurd ok
-joinableSym ObjectOrPlayer Ability ok = absurd ok
-joinableSym ObjectOrPlayer ObjectOrPlayer _ = Oh
-
-||| Idempotence.
+||| Reflexivity: every kind fits itself, joins included.
 public export
-joinIdem : (k : Kind) -> (\/) k k {ok = joinableRefl k} = k
-joinIdem Object = Refl
-joinIdem Player = Refl
-joinIdem (Quality q) = Refl
-joinIdem Outcome = Refl
-joinIdem Gap = Refl
-joinIdem (Letter w) = Refl
-joinIdem TurnRef = Refl
-joinIdem Ability = Refl
-joinIdem ObjectOrPlayer = Refl
+kindLteRefl : (k : Kind) -> So (kindLte k k)
+kindLteRefl Object = Oh
+kindLteRefl Player = Oh
+kindLteRefl (Quality q) = sameQRefl q
+kindLteRefl Outcome = Oh
+kindLteRefl Gap = Oh
+kindLteRefl (Letter w) = sameLetterWordRefl w
+kindLteRefl TurnRef = Oh
+kindLteRefl Ability = Oh
+kindLteRefl (a \/ b) =
+  andSo (kindLteInL a a b (kindLteRefl a), kindLteInR b a b (kindLteRefl b))
 
-||| Commutativity.
+||| Each half sits below the join: the upper-bound half of the lattice law.
 public export
-joinComm : (a, b : Kind) -> (ok : So (joinable a b)) ->
-           (\/) a b {ok} = (\/) b a {ok = joinableSym a b ok}
-joinComm Object Object _ = Refl
-joinComm Object Player _ = Refl
-joinComm Object (Quality _) ok = absurd ok
-joinComm Object Outcome ok = absurd ok
-joinComm Object Gap ok = absurd ok
-joinComm Object (Letter _) ok = absurd ok
-joinComm Object TurnRef ok = absurd ok
-joinComm Object Ability ok = absurd ok
-joinComm Object ObjectOrPlayer _ = Refl
+kindLteJoinL : (a, b : Kind) -> So (kindLte a (a \/ b))
+kindLteJoinL a b = kindLteInL a a b (kindLteRefl a)
 
-joinComm Player Object _ = Refl
-joinComm Player Player _ = Refl
-joinComm Player (Quality _) ok = absurd ok
-joinComm Player Outcome ok = absurd ok
-joinComm Player Gap ok = absurd ok
-joinComm Player (Letter _) ok = absurd ok
-joinComm Player TurnRef ok = absurd ok
-joinComm Player Ability ok = absurd ok
-joinComm Player ObjectOrPlayer _ = Refl
-
-joinComm (Quality _) Object ok = absurd ok
-joinComm (Quality _) Player ok = absurd ok
-joinComm (Quality x) (Quality y) ok = case sameQEq x y ok of Refl => Refl
-joinComm (Quality _) Outcome ok = absurd ok
-joinComm (Quality _) Gap ok = absurd ok
-joinComm (Quality _) (Letter _) ok = absurd ok
-joinComm (Quality _) TurnRef ok = absurd ok
-joinComm (Quality _) Ability ok = absurd ok
-joinComm (Quality _) ObjectOrPlayer ok = absurd ok
-
-joinComm Outcome Object ok = absurd ok
-joinComm Outcome Player ok = absurd ok
-joinComm Outcome (Quality _) ok = absurd ok
-joinComm Outcome Outcome _ = Refl
-joinComm Outcome Gap ok = absurd ok
-joinComm Outcome (Letter _) ok = absurd ok
-joinComm Outcome TurnRef ok = absurd ok
-joinComm Outcome Ability ok = absurd ok
-joinComm Outcome ObjectOrPlayer ok = absurd ok
-
-joinComm Gap Object ok = absurd ok
-joinComm Gap Player ok = absurd ok
-joinComm Gap (Quality _) ok = absurd ok
-joinComm Gap Outcome ok = absurd ok
-joinComm Gap Gap _ = Refl
-joinComm Gap (Letter _) ok = absurd ok
-joinComm Gap TurnRef ok = absurd ok
-joinComm Gap Ability ok = absurd ok
-joinComm Gap ObjectOrPlayer ok = absurd ok
-
-joinComm (Letter _) Object ok = absurd ok
-joinComm (Letter _) Player ok = absurd ok
-joinComm (Letter _) (Quality _) ok = absurd ok
-joinComm (Letter _) Outcome ok = absurd ok
-joinComm (Letter _) Gap ok = absurd ok
-joinComm (Letter v) (Letter w) ok = case sameLetterWordEq v w ok of Refl => Refl
-joinComm (Letter _) TurnRef ok = absurd ok
-joinComm (Letter _) Ability ok = absurd ok
-joinComm (Letter _) ObjectOrPlayer ok = absurd ok
-
-joinComm TurnRef Object ok = absurd ok
-joinComm TurnRef Player ok = absurd ok
-joinComm TurnRef (Quality _) ok = absurd ok
-joinComm TurnRef Outcome ok = absurd ok
-joinComm TurnRef Gap ok = absurd ok
-joinComm TurnRef (Letter _) ok = absurd ok
-joinComm TurnRef TurnRef _ = Refl
-joinComm TurnRef Ability ok = absurd ok
-joinComm TurnRef ObjectOrPlayer ok = absurd ok
-
-joinComm Ability Object ok = absurd ok
-joinComm Ability Player ok = absurd ok
-joinComm Ability (Quality _) ok = absurd ok
-joinComm Ability Outcome ok = absurd ok
-joinComm Ability Gap ok = absurd ok
-joinComm Ability (Letter _) ok = absurd ok
-joinComm Ability TurnRef ok = absurd ok
-joinComm Ability Ability _ = Refl
-joinComm Ability ObjectOrPlayer ok = absurd ok
-
-joinComm ObjectOrPlayer Object _ = Refl
-joinComm ObjectOrPlayer Player _ = Refl
-joinComm ObjectOrPlayer (Quality _) ok = absurd ok
-joinComm ObjectOrPlayer Outcome ok = absurd ok
-joinComm ObjectOrPlayer Gap ok = absurd ok
-joinComm ObjectOrPlayer (Letter _) ok = absurd ok
-joinComm ObjectOrPlayer TurnRef ok = absurd ok
-joinComm ObjectOrPlayer Ability ok = absurd ok
-joinComm ObjectOrPlayer ObjectOrPlayer _ = Refl
-
-||| Associativity over the attested sublattice: every regrouping the four
-||| gates admit computes the same kind.
 public export
-joinAssoc : (a, b, c : Kind) ->
-            (ab : So (joinable a b)) -> (bc : So (joinable b c)) ->
-            (abc : So (joinable ((\/) a b {ok = ab}) c)) ->
-            (a_bc : So (joinable a ((\/) b c {ok = bc}))) ->
-            (\/) ((\/) a b {ok = ab}) c {ok = abc}
-              = (\/) a ((\/) b c {ok = bc}) {ok = a_bc}
-joinAssoc Object Object Object _ _ _ _ = Refl
-joinAssoc Object Object Player _ _ _ _ = Refl
-joinAssoc Object Object (Quality _) _ bc _ _ = absurd bc
-joinAssoc Object Object Outcome _ bc _ _ = absurd bc
-joinAssoc Object Object Gap _ bc _ _ = absurd bc
-joinAssoc Object Object (Letter _) _ bc _ _ = absurd bc
-joinAssoc Object Object TurnRef _ bc _ _ = absurd bc
-joinAssoc Object Object Ability _ bc _ _ = absurd bc
-joinAssoc Object Object ObjectOrPlayer _ _ _ _ = Refl
+kindLteJoinR : (a, b : Kind) -> So (kindLte b (a \/ b))
+kindLteJoinR a b = kindLteInR b a b (kindLteRefl b)
 
-joinAssoc Object Player Object _ _ _ _ = Refl
-joinAssoc Object Player Player _ _ _ _ = Refl
-joinAssoc Object Player (Quality _) _ bc _ _ = absurd bc
-joinAssoc Object Player Outcome _ bc _ _ = absurd bc
-joinAssoc Object Player Gap _ bc _ _ = absurd bc
-joinAssoc Object Player (Letter _) _ bc _ _ = absurd bc
-joinAssoc Object Player TurnRef _ bc _ _ = absurd bc
-joinAssoc Object Player Ability _ bc _ _ = absurd bc
-joinAssoc Object Player ObjectOrPlayer _ _ _ _ = Refl
+||| Commutativity, up to the order: a join and its swap admit each other.
+||| (They are distinct TERMS -- the join is syntax -- so this is not `=`.)
+public export
+kindLteComm : (a, b : Kind) -> So (kindLte (a \/ b) (b \/ a))
+kindLteComm a b = andSo (kindLteJoinR b a, kindLteJoinL b a)
 
-joinAssoc Object (Quality _) _ ab _ _ _ = absurd ab
+||| Associativity, up to the order, in both directions.
+public export
+kindLteAssocR : (a, b, c : Kind) ->
+                So (kindLte ((a \/ b) \/ c) (a \/ (b \/ c)))
+kindLteAssocR a b c =
+  andSo (andSo (kindLteJoinL a (b \/ c),
+                kindLteInR b a (b \/ c) (kindLteJoinL b c)),
+         kindLteInR c a (b \/ c) (kindLteJoinR b c))
 
-joinAssoc Object Outcome _ ab _ _ _ = absurd ab
+public export
+kindLteAssocL : (a, b, c : Kind) ->
+                So (kindLte (a \/ (b \/ c)) ((a \/ b) \/ c))
+kindLteAssocL a b c =
+  andSo (kindLteInL a (a \/ b) c (kindLteJoinL a b),
+         andSo (kindLteInL b (a \/ b) c (kindLteJoinR a b),
+                kindLteJoinR (a \/ b) c))
 
-joinAssoc Object Gap _ ab _ _ _ = absurd ab
+||| Transitivity, by induction on the left kind and then the middle one:
+||| a join on the left splits into both halves, a join in the middle is
+||| entered through whichever half the left kind fit, and two unjoined
+||| kinds fit only by `==`, which is identity.
+public export
+kindLteTrans : (a, b, c : Kind) ->
+               So (kindLte a b) -> So (kindLte b c) -> So (kindLte a c)
+kindLteTrans (p \/ q) b c ab bc =
+  andSo (kindLteTrans p b c (fst (soAnd ab)) bc,
+         kindLteTrans q b c (snd (soAnd ab)) bc)
 
-joinAssoc Object (Letter _) _ ab _ _ _ = absurd ab
+kindLteTrans Object (r \/ s) c ab bc = case soOr ab of
+  Left l => kindLteTrans Object r c l (fst (soAnd bc))
+  Right m => kindLteTrans Object s c m (snd (soAnd bc))
+kindLteTrans Object Object c ab bc = bc
+kindLteTrans Object Player c ab bc = absurd ab
+kindLteTrans Object (Quality _) c ab bc = absurd ab
+kindLteTrans Object Outcome c ab bc = absurd ab
+kindLteTrans Object Gap c ab bc = absurd ab
+kindLteTrans Object (Letter _) c ab bc = absurd ab
+kindLteTrans Object TurnRef c ab bc = absurd ab
+kindLteTrans Object Ability c ab bc = absurd ab
 
-joinAssoc Object TurnRef _ ab _ _ _ = absurd ab
+kindLteTrans Player (r \/ s) c ab bc = case soOr ab of
+  Left l => kindLteTrans Player r c l (fst (soAnd bc))
+  Right m => kindLteTrans Player s c m (snd (soAnd bc))
+kindLteTrans Player Object c ab bc = absurd ab
+kindLteTrans Player Player c ab bc = bc
+kindLteTrans Player (Quality _) c ab bc = absurd ab
+kindLteTrans Player Outcome c ab bc = absurd ab
+kindLteTrans Player Gap c ab bc = absurd ab
+kindLteTrans Player (Letter _) c ab bc = absurd ab
+kindLteTrans Player TurnRef c ab bc = absurd ab
+kindLteTrans Player Ability c ab bc = absurd ab
 
-joinAssoc Object Ability _ ab _ _ _ = absurd ab
+kindLteTrans (Quality _) (r \/ s) c ab bc = case soOr ab of
+  Left l => kindLteTrans (Quality _) r c l (fst (soAnd bc))
+  Right m => kindLteTrans (Quality _) s c m (snd (soAnd bc))
+kindLteTrans (Quality _) Object c ab bc = absurd ab
+kindLteTrans (Quality _) Player c ab bc = absurd ab
+kindLteTrans (Quality q) (Quality r) c ab bc = case sameQEq q r ab of Refl => bc
+kindLteTrans (Quality _) Outcome c ab bc = absurd ab
+kindLteTrans (Quality _) Gap c ab bc = absurd ab
+kindLteTrans (Quality _) (Letter _) c ab bc = absurd ab
+kindLteTrans (Quality _) TurnRef c ab bc = absurd ab
+kindLteTrans (Quality _) Ability c ab bc = absurd ab
 
-joinAssoc Object ObjectOrPlayer _ _ _ _ _ = Refl
+kindLteTrans Outcome (r \/ s) c ab bc = case soOr ab of
+  Left l => kindLteTrans Outcome r c l (fst (soAnd bc))
+  Right m => kindLteTrans Outcome s c m (snd (soAnd bc))
+kindLteTrans Outcome Object c ab bc = absurd ab
+kindLteTrans Outcome Player c ab bc = absurd ab
+kindLteTrans Outcome (Quality _) c ab bc = absurd ab
+kindLteTrans Outcome Outcome c ab bc = bc
+kindLteTrans Outcome Gap c ab bc = absurd ab
+kindLteTrans Outcome (Letter _) c ab bc = absurd ab
+kindLteTrans Outcome TurnRef c ab bc = absurd ab
+kindLteTrans Outcome Ability c ab bc = absurd ab
 
-joinAssoc Player Object Object _ _ _ _ = Refl
-joinAssoc Player Object Player _ _ _ _ = Refl
-joinAssoc Player Object (Quality _) _ bc _ _ = absurd bc
-joinAssoc Player Object Outcome _ bc _ _ = absurd bc
-joinAssoc Player Object Gap _ bc _ _ = absurd bc
-joinAssoc Player Object (Letter _) _ bc _ _ = absurd bc
-joinAssoc Player Object TurnRef _ bc _ _ = absurd bc
-joinAssoc Player Object Ability _ bc _ _ = absurd bc
-joinAssoc Player Object ObjectOrPlayer _ _ _ _ = Refl
+kindLteTrans Gap (r \/ s) c ab bc = case soOr ab of
+  Left l => kindLteTrans Gap r c l (fst (soAnd bc))
+  Right m => kindLteTrans Gap s c m (snd (soAnd bc))
+kindLteTrans Gap Object c ab bc = absurd ab
+kindLteTrans Gap Player c ab bc = absurd ab
+kindLteTrans Gap (Quality _) c ab bc = absurd ab
+kindLteTrans Gap Outcome c ab bc = absurd ab
+kindLteTrans Gap Gap c ab bc = bc
+kindLteTrans Gap (Letter _) c ab bc = absurd ab
+kindLteTrans Gap TurnRef c ab bc = absurd ab
+kindLteTrans Gap Ability c ab bc = absurd ab
 
-joinAssoc Player Player Object _ _ _ _ = Refl
-joinAssoc Player Player Player _ _ _ _ = Refl
-joinAssoc Player Player (Quality _) _ bc _ _ = absurd bc
-joinAssoc Player Player Outcome _ bc _ _ = absurd bc
-joinAssoc Player Player Gap _ bc _ _ = absurd bc
-joinAssoc Player Player (Letter _) _ bc _ _ = absurd bc
-joinAssoc Player Player TurnRef _ bc _ _ = absurd bc
-joinAssoc Player Player Ability _ bc _ _ = absurd bc
-joinAssoc Player Player ObjectOrPlayer _ _ _ _ = Refl
+kindLteTrans (Letter _) (r \/ s) c ab bc = case soOr ab of
+  Left l => kindLteTrans (Letter _) r c l (fst (soAnd bc))
+  Right m => kindLteTrans (Letter _) s c m (snd (soAnd bc))
+kindLteTrans (Letter _) Object c ab bc = absurd ab
+kindLteTrans (Letter _) Player c ab bc = absurd ab
+kindLteTrans (Letter _) (Quality _) c ab bc = absurd ab
+kindLteTrans (Letter _) Outcome c ab bc = absurd ab
+kindLteTrans (Letter _) Gap c ab bc = absurd ab
+kindLteTrans (Letter v) (Letter w) c ab bc = case sameLetterWordEq v w ab of Refl => bc
+kindLteTrans (Letter _) TurnRef c ab bc = absurd ab
+kindLteTrans (Letter _) Ability c ab bc = absurd ab
 
-joinAssoc Player (Quality _) _ ab _ _ _ = absurd ab
+kindLteTrans TurnRef (r \/ s) c ab bc = case soOr ab of
+  Left l => kindLteTrans TurnRef r c l (fst (soAnd bc))
+  Right m => kindLteTrans TurnRef s c m (snd (soAnd bc))
+kindLteTrans TurnRef Object c ab bc = absurd ab
+kindLteTrans TurnRef Player c ab bc = absurd ab
+kindLteTrans TurnRef (Quality _) c ab bc = absurd ab
+kindLteTrans TurnRef Outcome c ab bc = absurd ab
+kindLteTrans TurnRef Gap c ab bc = absurd ab
+kindLteTrans TurnRef (Letter _) c ab bc = absurd ab
+kindLteTrans TurnRef TurnRef c ab bc = bc
+kindLteTrans TurnRef Ability c ab bc = absurd ab
 
-joinAssoc Player Outcome _ ab _ _ _ = absurd ab
-
-joinAssoc Player Gap _ ab _ _ _ = absurd ab
-
-joinAssoc Player (Letter _) _ ab _ _ _ = absurd ab
-
-joinAssoc Player TurnRef _ ab _ _ _ = absurd ab
-
-joinAssoc Player Ability _ ab _ _ _ = absurd ab
-
-joinAssoc Player ObjectOrPlayer _ _ _ _ _ = Refl
-
-joinAssoc ObjectOrPlayer _ _ _ _ _ _ = Refl
-
-joinAssoc (Quality q) _ _ _ _ _ _ = Refl
-joinAssoc Outcome _ _ _ _ _ _ = Refl
-joinAssoc Gap _ _ _ _ _ _ = Refl
-joinAssoc (Letter w) _ _ _ _ _ _ = Refl
-joinAssoc TurnRef _ _ _ _ _ _ = Refl
-joinAssoc Ability _ _ _ _ _ _ = Refl
+kindLteTrans Ability (r \/ s) c ab bc = case soOr ab of
+  Left l => kindLteTrans Ability r c l (fst (soAnd bc))
+  Right m => kindLteTrans Ability s c m (snd (soAnd bc))
+kindLteTrans Ability Object c ab bc = absurd ab
+kindLteTrans Ability Player c ab bc = absurd ab
+kindLteTrans Ability (Quality _) c ab bc = absurd ab
+kindLteTrans Ability Outcome c ab bc = absurd ab
+kindLteTrans Ability Gap c ab bc = absurd ab
+kindLteTrans Ability (Letter _) c ab bc = absurd ab
+kindLteTrans Ability TurnRef c ab bc = absurd ab
+kindLteTrans Ability Ability c ab bc = bc
 
 public export
 data AggregateOp = SumOf | MinOf | MaxOf
@@ -858,9 +725,10 @@ data Payload : Kind -> Type where
   LetterP : Payload (Letter w)
   TurnRefP : Payload TurnRef
   AbilityP : Payload Ability
-  -- a union mention ("target permanent or player") may name a player, so
-  -- it has no zone or card type to project like ObjectP does.
-  UnionP : Payload Object
+  ||| A union mention carries what it knows about EACH half -- "target
+  ||| creature or player" is `JoinP (ObjectP (Just Creature) ...) PlayerP`
+  ||| -- and that pair is what the demonstrative echo reads back.
+  JoinP : Payload a -> Payload b -> Payload (a \/ b)
 
 public export
 record Binding where
@@ -874,29 +742,42 @@ public export
 Bindings : Type
 Bindings = List Binding
 
+||| The zone a payload places its referent in. A join is placeless
+||| unless one half places itself: only the Object half ever carries a
+||| zone, so the join reports that half's, and a join with no Object half
+||| reports none.
+public export
+payloadZone : Payload k -> Maybe Zone
+payloadZone (ObjectP _ zn _ _) = zn
+payloadZone PlayerP = Nothing
+payloadZone QualityP = Nothing
+payloadZone (OutcomeP _) = Nothing
+payloadZone GapP = Nothing
+payloadZone LetterP = Nothing
+payloadZone TurnRefP = Nothing
+payloadZone AbilityP = Nothing
+payloadZone (JoinP l r) = maybe (payloadZone r) Just (payloadZone l)
+
+||| The card type a payload names, read the same way as `payloadZone`.
+public export
+payloadTy : Payload k -> Maybe CardType
+payloadTy (ObjectP ty _ _ _) = ty
+payloadTy PlayerP = Nothing
+payloadTy QualityP = Nothing
+payloadTy (OutcomeP _) = Nothing
+payloadTy GapP = Nothing
+payloadTy LetterP = Nothing
+payloadTy TurnRefP = Nothing
+payloadTy AbilityP = Nothing
+payloadTy (JoinP l r) = maybe (payloadTy r) Just (payloadTy l)
+
 public export
 bindingZone : Binding -> Maybe Zone
-bindingZone (MkBinding _ _ _ (ObjectP _ zn _ _)) = zn
-bindingZone (MkBinding _ _ _ PlayerP) = Nothing
-bindingZone (MkBinding _ _ _ QualityP) = Nothing
-bindingZone (MkBinding _ _ _ (OutcomeP _)) = Nothing
-bindingZone (MkBinding _ _ _ GapP) = Nothing
-bindingZone (MkBinding _ _ _ LetterP) = Nothing
-bindingZone (MkBinding _ _ _ TurnRefP) = Nothing
-bindingZone (MkBinding _ _ _ AbilityP) = Nothing
-bindingZone (MkBinding _ _ _ UnionP) = Nothing
+bindingZone (MkBinding _ _ _ pl) = payloadZone pl
 
 public export
 bindingTy : Binding -> Maybe CardType
-bindingTy (MkBinding _ _ _ (ObjectP ty _ _ _)) = ty
-bindingTy (MkBinding _ _ _ PlayerP) = Nothing
-bindingTy (MkBinding _ _ _ QualityP) = Nothing
-bindingTy (MkBinding _ _ _ (OutcomeP _)) = Nothing
-bindingTy (MkBinding _ _ _ GapP) = Nothing
-bindingTy (MkBinding _ _ _ LetterP) = Nothing
-bindingTy (MkBinding _ _ _ TurnRefP) = Nothing
-bindingTy (MkBinding _ _ _ AbilityP) = Nothing
-bindingTy (MkBinding _ _ _ UnionP) = Nothing
+bindingTy (MkBinding _ _ _ pl) = payloadTy pl
 
 public export
 Eq OutcomeSort where
@@ -956,7 +837,7 @@ public export
 countOnes : Kind -> Bindings -> Nat
 countOnes k [] = Z
 countOnes k (MkBinding _ k' OneOf _ :: bs) =
-  if k == k' then S (countOnes k bs) else countOnes k bs
+  if kindLte k k' then S (countOnes k bs) else countOnes k bs
 countOnes k (_ :: bs) = countOnes k bs
 
 public export
@@ -970,7 +851,7 @@ public export
 countQuality : QualitySort -> Bindings -> Nat
 countQuality q [] = Z
 countQuality q (MkBinding _ k OneOf _ :: bs) =
-  if Quality q == k then S (countQuality q bs) else countQuality q bs
+  if kindLte (Quality q) k then S (countQuality q bs) else countQuality q bs
 countQuality q (_ :: bs) = countQuality q bs
 
 public export
@@ -981,7 +862,7 @@ public export
 countLetter : LetterWord -> Bindings -> Nat
 countLetter w [] = Z
 countLetter w (MkBinding _ k OneOf _ :: bs) =
-  if Letter w == k then S (countLetter w bs) else countLetter w bs
+  if kindLte (Letter w) k then S (countLetter w bs) else countLetter w bs
 countLetter w (_ :: bs) = countLetter w bs
 
 ||| Any group mention, whatever it is a group of: "one or more opponents"
@@ -996,20 +877,27 @@ public export
 countManys : Kind -> Bindings -> Nat
 countManys k [] = Z
 countManys k (MkBinding _ k' ManyOf _ :: bs) =
-  if k == k' then S (countManys k bs) else countManys k bs
+  if kindLte k k' then S (countManys k bs) else countManys k bs
 countManys k (_ :: bs) = countManys k bs
+
+||| An assembled group of objects. `kindLte` is the test, not `==`: a
+||| joined group ("two targets") is a group of objects too.
+public export
+objGroup : Binding -> Bool
+objGroup b = kindLte Object b.kind && not (isOne b.plur)
 
 public export
 countGroups : Bindings -> Nat
 countGroups [] = Z
 countGroups (MkBinding PartD _ _ _ :: bs) = countGroups bs
-countGroups (MkBinding _ Object ManyOf _ :: bs) = S (countGroups bs)
-countGroups (_ :: bs) = countGroups bs
+countGroups (b :: bs) =
+  if objGroup b then S (countGroups bs) else countGroups bs
 
 public export
 countParts : Bindings -> Nat
 countParts [] = Z
-countParts (MkBinding PartD Object _ _ :: bs) = S (countParts bs)
+countParts (b@(MkBinding PartD _ _ _) :: bs) =
+  if kindLte Object b.kind then S (countParts bs) else countParts bs
 countParts (_ :: bs) = countParts bs
 
 public export
@@ -1023,30 +911,27 @@ public export
 groupSpent : Bindings -> Bindings
 groupSpent [] = []
 groupSpent (b@(MkBinding PartD _ _ _) :: bs) = b :: groupSpent bs
-groupSpent (MkBinding _ Object ManyOf _ :: bs) = groupSpent bs
-groupSpent (b :: bs) = b :: groupSpent bs
+groupSpent (b :: bs) = if objGroup b then groupSpent bs else b :: groupSpent bs
 
 public export
 zoneOfGroup : Bindings -> Maybe Zone
 zoneOfGroup [] = Nothing
 zoneOfGroup (MkBinding PartD _ _ _ :: bs) = zoneOfGroup bs
-zoneOfGroup (MkBinding _ Object ManyOf (ObjectP _ zn _ _) :: bs) = zn
-zoneOfGroup (MkBinding _ Object ManyOf UnionP :: bs) = Nothing
-zoneOfGroup (_ :: bs) = zoneOfGroup bs
+zoneOfGroup (b :: bs) =
+  if objGroup b then bindingZone b else zoneOfGroup bs
 
 public export
 tyOfGroup : Bindings -> Maybe CardType
 tyOfGroup [] = Nothing
 tyOfGroup (MkBinding PartD _ _ _ :: bs) = tyOfGroup bs
-tyOfGroup (MkBinding _ Object ManyOf (ObjectP ty _ _ _) :: bs) = ty
-tyOfGroup (MkBinding _ Object ManyOf UnionP :: bs) = Nothing
-tyOfGroup (_ :: bs) = tyOfGroup bs
+tyOfGroup (b :: bs) =
+  if objGroup b then bindingTy b else tyOfGroup bs
 
 public export
 anyTargeted : Kind -> Bindings -> Bool
 anyTargeted k [] = False
 anyTargeted k (MkBinding TargetD k' _ _ :: bs) =
-  if k == k' then True else anyTargeted k bs
+  if kindLte k k' then True else anyTargeted k bs
 anyTargeted k (_ :: bs) = anyTargeted k bs
 
 public export
@@ -1123,7 +1008,7 @@ pubB (MkBinding _ _ _ GapP) = True          -- so is a comparison's margin
 pubB (MkBinding _ _ _ LetterP) = True       -- and so is a value the text defines
 pubB (MkBinding _ _ _ TurnRefP) = True       -- and so is a value the text defines
 pubB (MkBinding _ _ _ AbilityP) = True       -- an ability class is public too
-pubB (MkBinding _ _ _ UnionP) = True         -- a target is public whichever half it is
+pubB (MkBinding _ _ _ (JoinP _ _)) = True         -- a target is public whichever half it is
 
 public export
 publicOnly : Bindings -> Bindings
@@ -1139,33 +1024,49 @@ stampMoves : Maybe Stamp -> Bool
 stampMoves Nothing = False
 stampMoves (Just (MkStamp v _)) = verbMoves v
 
+||| The stamp a payload was left with, read like `payloadZone`.
+public export
+payloadProv : Payload k -> Maybe Stamp
+payloadProv (ObjectP _ _ pv _) = pv
+payloadProv PlayerP = Nothing
+payloadProv QualityP = Nothing
+payloadProv (OutcomeP _) = Nothing
+payloadProv GapP = Nothing
+payloadProv LetterP = Nothing
+payloadProv TurnRefP = Nothing
+payloadProv AbilityP = Nothing
+payloadProv (JoinP l r) = maybe (payloadProv r) Just (payloadProv l)
+
+||| An `It`/`Them` anaphor is of kind `Object`, and `kindLte` is what
+||| lets it land on a JOINED antecedent: "any target ... that permanent
+||| or player" resolves `Object` against `Object \/ Player`.
+public export
+itReaches : Plurality -> Binding -> Bool
+itReaches pl b = kindLte Object b.kind && isOne pl == isOne b.plur
+
 public export
 provOfIt : Bindings -> Maybe Stamp
 provOfIt [] = Nothing
-provOfIt (MkBinding det Object OneOf (ObjectP _ _ pv _) :: bs) = pv
-provOfIt (MkBinding det Object OneOf UnionP :: bs) = Nothing
-provOfIt (b :: bs) = provOfIt bs
+provOfIt (b :: bs) =
+  if itReaches OneOf b then payloadProv b.payload else provOfIt bs
 
 public export
 provOfThem : Bindings -> Maybe Stamp
 provOfThem [] = Nothing
-provOfThem (MkBinding det Object ManyOf (ObjectP _ _ pv _) :: bs) = pv
-provOfThem (MkBinding det Object ManyOf UnionP :: bs) = Nothing
-provOfThem (b :: bs) = provOfThem bs
+provOfThem (b :: bs) =
+  if itReaches ManyOf b then payloadProv b.payload else provOfThem bs
 
 public export
 zoneOfIt : Bindings -> Maybe Zone
 zoneOfIt [] = Nothing
-zoneOfIt (MkBinding det Object OneOf (ObjectP ty zn _ _) :: bs) = zn
-zoneOfIt (MkBinding det Object OneOf UnionP :: bs) = Nothing
-zoneOfIt (b :: bs) = zoneOfIt bs
+zoneOfIt (b :: bs) =
+  if itReaches OneOf b then bindingZone b else zoneOfIt bs
 
 public export
 zoneOfThem : Bindings -> Maybe Zone
 zoneOfThem [] = Nothing
-zoneOfThem (MkBinding det Object ManyOf (ObjectP ty zn _ _) :: bs) = zn
-zoneOfThem (MkBinding det Object ManyOf UnionP :: bs) = Nothing
-zoneOfThem (b :: bs) = zoneOfThem bs
+zoneOfThem (b :: bs) =
+  if itReaches ManyOf b then bindingZone b else zoneOfThem bs
 
 public export
 data NounWord = TypeW CardType | CardW | SpellW | PlayerW
@@ -1249,7 +1150,7 @@ wordReaches (TypeW t) (MkBinding _ _ _ GapP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ LetterP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ TurnRefP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ AbilityP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ UnionP) = False
+wordReaches (TypeW t) (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _)) = isCardZone zn
 wordReaches CardW (MkBinding _ _ _ PlayerP) = False
 wordReaches CardW (MkBinding _ _ _ QualityP) = False
@@ -1258,7 +1159,7 @@ wordReaches CardW (MkBinding _ _ _ GapP) = False
 wordReaches CardW (MkBinding _ _ _ LetterP) = False
 wordReaches CardW (MkBinding _ _ _ TurnRefP) = False
 wordReaches CardW (MkBinding _ _ _ AbilityP) = False
-wordReaches CardW (MkBinding _ _ _ UnionP) = False
+wordReaches CardW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
   onStackZone zn && not (isCopyOrigin og)
 wordReaches SpellW (MkBinding _ _ _ PlayerP) = False
@@ -1268,7 +1169,7 @@ wordReaches SpellW (MkBinding _ _ _ GapP) = False
 wordReaches SpellW (MkBinding _ _ _ LetterP) = False
 wordReaches SpellW (MkBinding _ _ _ TurnRefP) = False
 wordReaches SpellW (MkBinding _ _ _ AbilityP) = False
-wordReaches SpellW (MkBinding _ _ _ UnionP) = False
+wordReaches SpellW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ (ObjectP _ _ _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ PlayerP) = True
 wordReaches PlayerW (MkBinding _ _ _ QualityP) = False
@@ -1277,7 +1178,7 @@ wordReaches PlayerW (MkBinding _ _ _ GapP) = False
 wordReaches PlayerW (MkBinding _ _ _ LetterP) = False
 wordReaches PlayerW (MkBinding _ _ _ TurnRefP) = False
 wordReaches PlayerW (MkBinding _ _ _ AbilityP) = False
-wordReaches PlayerW (MkBinding _ _ _ UnionP) = False
+wordReaches PlayerW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn _ _)) = onFieldZone zn
 wordReaches PermanentW (MkBinding _ _ _ PlayerP) = False
 wordReaches PermanentW (MkBinding _ _ _ QualityP) = False
@@ -1286,7 +1187,7 @@ wordReaches PermanentW (MkBinding _ _ _ GapP) = False
 wordReaches PermanentW (MkBinding _ _ _ LetterP) = False
 wordReaches PermanentW (MkBinding _ _ _ TurnRefP) = False
 wordReaches PermanentW (MkBinding _ _ _ AbilityP) = False
-wordReaches PermanentW (MkBinding _ _ _ UnionP) = False
+wordReaches PermanentW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches TokenW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
   onFieldZone zn && isTokenOrigin og
 wordReaches TokenW (MkBinding _ _ _ PlayerP) = False
@@ -1296,7 +1197,7 @@ wordReaches TokenW (MkBinding _ _ _ GapP) = False
 wordReaches TokenW (MkBinding _ _ _ LetterP) = False
 wordReaches TokenW (MkBinding _ _ _ TurnRefP) = False
 wordReaches TokenW (MkBinding _ _ _ AbilityP) = False
-wordReaches TokenW (MkBinding _ _ _ UnionP) = False
+wordReaches TokenW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches CopyW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
   onStackZone zn && isCopyOrigin og
 wordReaches CopyW (MkBinding _ _ _ PlayerP) = False
@@ -1306,8 +1207,8 @@ wordReaches CopyW (MkBinding _ _ _ GapP) = False
 wordReaches CopyW (MkBinding _ _ _ LetterP) = False
 wordReaches CopyW (MkBinding _ _ _ TurnRefP) = False
 wordReaches CopyW (MkBinding _ _ _ AbilityP) = False
-wordReaches CopyW (MkBinding _ _ _ UnionP) = False
-wordReaches JoinW (MkBinding _ _ _ UnionP) = True
+wordReaches CopyW (MkBinding _ _ _ (JoinP _ _)) = False
+wordReaches JoinW (MkBinding _ _ _ (JoinP _ _)) = True
 wordReaches JoinW (MkBinding _ _ _ (ObjectP _ _ _ _)) = False
 wordReaches JoinW (MkBinding _ _ _ PlayerP) = False
 wordReaches JoinW (MkBinding _ _ _ QualityP) = False
@@ -1368,7 +1269,7 @@ verbedMatch v w (MkBinding _ _ _ GapP) = False
 verbedMatch v w (MkBinding _ _ _ LetterP) = False
 verbedMatch v w (MkBinding _ _ _ TurnRefP) = False
 verbedMatch v w (MkBinding _ _ _ AbilityP) = False
-verbedMatch v w (MkBinding _ _ _ UnionP) = False
+verbedMatch v w (MkBinding _ _ _ (JoinP _ _)) = False
 
 public export
 verbedMatchMany : VerbName -> NounWord -> Binding -> Bool
@@ -1382,7 +1283,7 @@ verbedMatchMany v w (MkBinding _ _ _ GapP) = False
 verbedMatchMany v w (MkBinding _ _ _ LetterP) = False
 verbedMatchMany v w (MkBinding _ _ _ TurnRefP) = False
 verbedMatchMany v w (MkBinding _ _ _ AbilityP) = False
-verbedMatchMany v w (MkBinding _ _ _ UnionP) = False
+verbedMatchMany v w (MkBinding _ _ _ (JoinP _ _)) = False
 
 public export
 countVerbed : VerbName -> NounWord -> Bindings -> Nat
@@ -1460,16 +1361,14 @@ zoneOfThose w (b :: bs) =
 public export
 tyOfIt : Bindings -> Maybe CardType
 tyOfIt [] = Nothing
-tyOfIt (MkBinding det Object OneOf (ObjectP ty zn pv _) :: bs) = ty
-tyOfIt (MkBinding det Object OneOf UnionP :: bs) = Nothing
-tyOfIt (b :: bs) = tyOfIt bs
+tyOfIt (b :: bs) =
+  if itReaches OneOf b then bindingTy b else tyOfIt bs
 
 public export
 tyOfThem : Bindings -> Maybe CardType
 tyOfThem [] = Nothing
-tyOfThem (MkBinding det Object ManyOf (ObjectP ty zn pv _) :: bs) = ty
-tyOfThem (MkBinding det Object ManyOf UnionP :: bs) = Nothing
-tyOfThem (b :: bs) = tyOfThem bs
+tyOfThem (b :: bs) =
+  if itReaches ManyOf b then bindingTy b else tyOfThem bs
 
 public export
 tyOfThat : NounWord -> Bindings -> Maybe CardType
@@ -1544,6 +1443,16 @@ Eq JoinedClass where
   (==) JoinPlaneswalker _ = False
   (==) JoinBattle JoinBattle = True
   (==) JoinBattle _ = False
+
+||| The card type a joined class names, for the Object half of the join's
+||| payload. "Permanent" is not among the card types [CR#205.2a], so the
+||| permanent class names none.
+public export
+joinedClassTy : JoinedClass -> Maybe CardType
+joinedClassTy JoinPermanent = Nothing
+joinedClassTy JoinCreature = Just Creature
+joinedClassTy JoinPlaneswalker = Just Planeswalker
+joinedClassTy JoinBattle = Just Battle
 
 public export
 data RoundMode = RoundUp | RoundDown

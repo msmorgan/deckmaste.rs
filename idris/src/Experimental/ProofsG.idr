@@ -221,50 +221,6 @@ badSingletonForEach : Unspellable (Effect []) (\ok =>
 badSingletonForEach Refl impossible
 
 
-||| "of the chosen colour or outcome"
-||| The kind join is gated to the one cross-kind pair English writes [CR#115.4];
-||| a quality and an outcome have no join.
-public export
-badJoinQualityOutcome : Unspellable Kind (\ok =>
-  (\/) (Quality Color) Outcome {ok = ok})
-badJoinQualityOutcome Oh impossible
-
-
-||| "this turn or target creature"
-||| A turn reference names a time, and no join carries it to an object.
-public export
-badJoinTurnRefObject : Unspellable Kind (\ok =>
-  (\/) TurnRef Object {ok = ok})
-badJoinTurnRefObject Oh impossible
-
-
-||| "X or target player"
-||| A letter word names a chosen number, and no join carries it to a player.
-public export
-badJoinLetterPlayer : Unspellable Kind (\ok =>
-  (\/) (Letter LetterX) Player {ok = ok})
-badJoinLetterPlayer Oh impossible
-
-
--- ...and the joins the gate DOES admit, pinned by Refl: "any target"
--- [CR#115.4] in both orders, the absorption, and the like-with-like case.
-public export
-joinObjectPlayer : Object \/ Player = ObjectOrPlayer
-joinObjectPlayer = Refl
-
-public export
-joinPlayerObject : Player \/ Object = ObjectOrPlayer
-joinPlayerObject = Refl
-
-public export
-joinAbsorbsObject : ObjectOrPlayer \/ Object = ObjectOrPlayer
-joinAbsorbsObject = Refl
-
-public export
-joinObjectObject : Object \/ Object = Object
-joinObjectObject = Refl
-
-
 ||| "if you activated a loyalty ability this turn"
 ||| An activation is an activation of something: with no complement the clause names no event.
 public export
@@ -365,3 +321,36 @@ badWarpGrantInGraveyard : Unspellable Ability (\ok =>
                 (Macros.keywordCosting Warp (Mana [Macros.generic 2]))
                 {ok = ok}))
 badWarpGrantInGraveyard Oh impossible
+
+
+-- A WITNESS, not a pin: with the join a plain constructor, no cross-kind
+-- pair is refused any more, so the pairs the old join gate would not
+-- admit are simply written.
+
+||| "Change the target of target spell or ability with a single target."
+||| (Bolt Bend.) `Object \/ Ability` is writable, and its payload carries
+||| each half separately: the spell half is a card on the stack [CR#112.1],
+||| while `AbilityP` carries no zone field to place the ability half with.
+||| No head spells this join yet
+||| -- `KindJoin` joins a player -- so the witness is the payload.
+public export
+spellOrAbilityJoin : Payload (Object \/ Ability)
+spellOrAbilityJoin = JoinP (ObjectP Nothing (Just Stack) Nothing Nothing) AbilityP
+
+||| ...and the order reads either half back: "counter that ability" after
+||| "target spell or ability" resolves `Ability` against the join.
+public export
+abilityUnderSpellOrAbility : So (kindLte Ability (Object \/ Ability))
+abilityUnderSpellOrAbility = kindLteJoinR Object Ability
+
+||| ...and the joined head's class reaches the binding it mints: "target
+||| creature or player" leaves an Object half typed `Creature`, which is
+||| what the demonstrative echo reads back off `JoinP`. A join that forgot
+||| its own head would read `Nothing` here.
+public export
+joinedCreatureTy :
+  tyOfThat JoinW (effIntro {bs = []}
+    (DealDamage This (Lit 3)
+       (Macros.target (KindJoin JoinAnyPlayer JoinCreature))))
+  = Just Creature
+joinedCreatureTy = Refl

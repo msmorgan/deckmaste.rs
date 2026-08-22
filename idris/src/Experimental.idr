@@ -852,6 +852,22 @@ mutual
   headIsKindJoin : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   headIsKindJoin p = anyIsKindJoin (flattenPs [p])
 
+  ||| The card type the joined class names, if any -- the Object half's
+  ||| type in the join's payload. The class word ("any target") names none.
+  public export
+  kindJoinTy : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
+  kindJoinTy (KindJoin _ c) = joinedClassTy c
+  kindJoinTy _ = Nothing
+
+  public export
+  anyKindJoinTy : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Maybe CardType
+  anyKindJoinTy [] = Nothing
+  anyKindJoinTy (p :: ps) = maybe (anyKindJoinTy ps) Just (kindJoinTy p)
+
+  public export
+  headKindJoinTy : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
+  headKindJoinTy p = anyKindJoinTy (flattenPs [p])
+
   public export
   isOther : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isOther Other = True
@@ -1240,7 +1256,8 @@ mutual
   bindFor : Determiner -> Plurality -> {k : Kind} -> Phrasal k -> Predicate bs k -> Binding
   bindFor det plur PhObject p =
     if headIsAnyTarget p || headIsKindJoin p
-      then MkBinding det Object plur UnionP
+      then MkBinding det (Object \/ Player) plur
+              (JoinP (ObjectP (headKindJoinTy p) Nothing Nothing Nothing) PlayerP)
       else MkBinding det Object plur
               (ObjectP (seedTy p)
                        (Just (zoneOr Battlefield (seedZone p)))
@@ -4013,7 +4030,7 @@ mutual
   setZone p z (MkBinding det (Letter w) plur LetterP) = MkBinding det (Letter w) plur LetterP
   setZone p z (MkBinding det TurnRef plur TurnRefP) = MkBinding det TurnRef plur TurnRefP
   setZone p z (MkBinding det Ability plur AbilityP) = MkBinding det Ability plur AbilityP
-  setZone p z (MkBinding det Object plur UnionP) = MkBinding det Object plur UnionP
+  setZone p z (MkBinding det (a \/ b) plur (JoinP l r)) = MkBinding det (a \/ b) plur (JoinP l r)
 
   public export
   setZoneHead : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
