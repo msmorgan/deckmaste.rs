@@ -245,6 +245,14 @@ badDisjunctionOrdered : Unspellable (ZoneExpr []) (\ok =>
 badDisjunctionOrdered Oh impossible
 
 
+||| "zeroth from the top"
+||| [CR#401.7] counts library positions from the top card, which is the
+||| first, so a library has no zeroth position to put a card into.
+public export
+badZerothFromTop : Unspellable LibOrdinal (\ok => Nth 0 {nz = ok})
+badZerothFromTop ItIsSucc impossible
+
+
 ||| "if there is no monstrous creature"
 ||| The absence check reads a player-held designation [CR#725.1]; an
 ||| object-held marker is described on the object that holds it.

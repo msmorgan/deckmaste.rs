@@ -1076,6 +1076,14 @@ teferisImpPhasesIn =
   Triggered Whenever (StatusEvent Macros.thisCreature PhasedIn)
             Macros.drawACard
 
+||| Oubliette — [CR#610.4]'s "until" rider on a permanent phasing out,
+||| the second one-shot that takes the rider.
+oubliette : Ability
+oubliette =
+  Triggered When (Enters Macros.thisEnchantment)
+            (Macros.phasesOutUntil (Macros.target Macros.creature)
+                                   (Leaves Macros.thisEnchantment))
+
 shimmeringEfreet : Ability
 shimmeringEfreet =
   Triggered Whenever (StatusEvent Macros.thisCreature PhasedIn)
@@ -1161,12 +1169,17 @@ merenOfClanNelToth =
   Triggered Whenever (Dies (Macros.a (Macros.otherCreatureYouControl Macros.thisCreature)))
             (GetsCounters You (Lit 1) Experience)
 
+||| Bumi, King of Three Trials — "Target player scries 3": the looker is
+||| a player other than you [CR#701.22a].
+bumiScryMode : Effect []
+bumiScryMode = Macros.playerScries (Macros.target AnyPlayer) (Lit 3)
+
 ||| Final Act
 finalActCounterMode : Effect []
-finalActCounterMode = LosesAllCounters (Each Opponent) Nothing
+finalActCounterMode = Macros.losesAllCounters (Each Opponent) Nothing
 
 leeches : Effect []
-leeches = LosesAllCounters (Macros.target AnyPlayer) (Just Poison)
+leeches = Macros.losesAllCounters (Macros.target AnyPlayer) (Just Poison)
 
 kratosStoicFather : Ability
 kratosStoicFather =
@@ -1263,6 +1276,21 @@ cradleToGrave =
 herosDemise : Effect []
 herosDemise =
   Macros.destroy (Macros.target (And [Macros.creature, HasSupertype Legendary]))
+
+||| Concordant Crossroads — [CR#205.4a]'s World supertype, printed.
+concordantCrossroads : Card
+concordantCrossroads =
+  Macros.card "Concordant Crossroads" (Just [Macros.pip Green]) [World]
+       (MkTypeLine [] [Enchantment])
+       [ Static (Gains (AllOf Macros.creature) (KeywordAbility Haste)) ] Nothing
+
+||| Selenia — a vanguard card [CR#313.1], whose whole printed text is one
+||| static. [CR#205.2a]'s vanguard row reaches a real type line.
+selenia : Card
+selenia =
+  Macros.card "Selenia" Nothing [] (MkTypeLine [] [Vanguard])
+       [ Static (Gains (AllOf Macros.creatureYouControl)
+                       (KeywordAbility Vigilance)) ] Nothing
 
 ||| Pure // Simple
 simpleHalf : Effect []
@@ -6458,7 +6486,7 @@ oust : Card
 oust =
   Macros.card "Oust" (Just [Macros.pip White]) [] (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
-                  [ Move (Macros.target Macros.creature) (Macros.nthFromTop Second)
+                  [ Move (Macros.target Macros.creature) (Macros.nthFromTop (Nth 2))
                   , Macros.gainsLife (ControllerOf It) (Lit 3) ]) ]
        Nothing
 
@@ -6467,7 +6495,7 @@ chronostutter : Card
 chronostutter =
   Macros.card "Chronostutter" (Just [Macros.generic 5, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Move (Macros.target Macros.creature) (Macros.nthFromTop Second)) ]
+       [ Spell (Move (Macros.target Macros.creature) (Macros.nthFromTop (Nth 2))) ]
        Nothing
 
 public export
@@ -6480,7 +6508,7 @@ shatteredEgo =
                       (PtDown (Lit 3)) (PtDown (Lit 0)))
        , Activated (Mana [Macros.generic 3, Macros.pip Blue, Macros.pip Blue])
                    (Move (AttachHost Enchanted (TypeW Creature))
-                         (Macros.nthFromTop Third)) ]
+                         (Macros.nthFromTop (Nth 3))) ]
        Nothing
 
 public export
@@ -6496,7 +6524,7 @@ gandalfWhiteRider =
                                     (Just Macros.untilEndOfTurn)
                       , Does You Scry (Macros.lookAt (Macros.topCards 1)) ])
        , Triggered When (Dies Macros.thisCreature)
-                   (Macros.may You (Move It (Macros.nthFromTop Fifth))) ]
+                   (Macros.may You (Move It (Macros.nthFromTop (Nth 5)))) ]
        (Just (3, 3))
 
 
@@ -6515,7 +6543,7 @@ approachOfTheSecondSun =
                                                                           "Approach of the Second Sun")])) ])
                    (Concludes WinGame You)
                    (Just (Sequentially
-                            [ Move This (Macros.nthFromTop Seventh)
+                            [ Move This (Macros.nthFromTop (Nth 7))
                             , Macros.gainsLife You (Lit 7) ]))) ]
        Nothing
 
@@ -6950,7 +6978,7 @@ deemInferior : Effect []
 deemInferior =
   Macros.puts (OwnerOf (Macros.target (And [Permanent, Not (HasType Land)])))
               It
-              (Macros.nthFromTopOrBottomZ Second)
+              (Macros.nthFromTopOrBottomZ (Nth 2))
 
 ||| Lost Hours' third line: "That player puts that card into their library
 ||| third from the top." The agentive clause over a plain ordinal.
@@ -6960,7 +6988,7 @@ lostHoursPlacement =
   Sequentially [ Macros.revealsTheirHand (Macros.target AnyPlayer)
                , Choose (Macros.a (And [Not (HasType Land),
                                         InZone (Macros.handOf They)]))
-               , Macros.puts (That PlayerW) It (Macros.nthFromTop Third) ]
+               , Macros.puts (That PlayerW) It (Macros.nthFromTop (Nth 3)) ]
 
 ||| Aether Gust's second line: "Its owner puts it on their choice of the
 ||| top or bottom of their library." The agentive clause with the chooser

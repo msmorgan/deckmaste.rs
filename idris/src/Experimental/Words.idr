@@ -10,9 +10,17 @@ import public Data.So
 %default total
 
 
+||| [CR#205.2a] closes the card types by enumeration, so this catalog
+||| ports the rule's whole set rather than the types a card has been
+||| observed to write. Conspiracy, dungeon, phenomenon, plane, scheme and
+||| vanguard are rows here for the same reason the other nine are: the
+||| rule names them. Every total table below therefore answers for all
+||| fifteen, and answers a command-zone type on a rule — [CR#110.4] for
+||| permanence, the type's own "can't be cast" rule for casting.
 public export
 data CardType = Creature | Artifact | Land | Enchantment | Instant | Sorcery
               | Planeswalker | Battle | Kindred
+              | Conspiracy | Dungeon | Phenomenon | Plane | Scheme | Vanguard
 
 public export
 combatant : CardType -> Bool
@@ -25,6 +33,14 @@ combatant Land = False
 combatant Enchantment = False
 combatant Instant = False
 combatant Sorcery = False
+-- [CR#701.14a] has only creatures fight, and [CR#110.4] keeps the
+-- command-zone types off the battlefield altogether.
+combatant Conspiracy = False
+combatant Dungeon = False
+combatant Phenomenon = False
+combatant Plane = False
+combatant Scheme = False
+combatant Vanguard = False
 
 public export
 data FightParticipant : Maybe CardType -> Type where
@@ -642,8 +658,14 @@ data LibPos = OnTop | OnBottom
 public export
 data Arrangement = AnyOrder | RandomOrder
 
+||| [CR#401.7] states the library offset as "Nth from the top" for any
+||| N, so the position is a number and not a closed vocabulary: the five
+||| ordinals cards have printed are spelling, and the frame is the rule's.
+||| `Nth 0` is the one refusal — [CR#401.7] counts positions from the top
+||| card, which is the first, so a library has no zeroth position.
 public export
-data LibOrdinal = Second | Third | Fourth | Fifth | Seventh
+data LibOrdinal : Type where
+  Nth : (n : Nat) -> {auto 0 nz : IsSucc n} -> LibOrdinal
 
 namespace Verb
   public export
@@ -832,6 +854,18 @@ Eq CardType where
   (==) Battle _ = False
   (==) Kindred Kindred = True
   (==) Kindred _ = False
+  (==) Conspiracy Conspiracy = True
+  (==) Conspiracy _ = False
+  (==) Dungeon Dungeon = True
+  (==) Dungeon _ = False
+  (==) Phenomenon Phenomenon = True
+  (==) Phenomenon _ = False
+  (==) Plane Plane = True
+  (==) Plane _ = False
+  (==) Scheme Scheme = True
+  (==) Scheme _ = False
+  (==) Vanguard Vanguard = True
+  (==) Vanguard _ = False
 
 public export
 countOnes : Kind -> Bindings -> Nat
@@ -2172,6 +2206,14 @@ ascribesAsType Battle = True
 ascribesAsType Kindred = False
 ascribesAsType Instant = False
 ascribesAsType Sorcery = False
+-- [CR#110.4]'s six permanent types are the words a card reads onto the
+-- battlefield by; the command-zone types are none of them.
+ascribesAsType Conspiracy = False
+ascribesAsType Dungeon = False
+ascribesAsType Phenomenon = False
+ascribesAsType Plane = False
+ascribesAsType Scheme = False
+ascribesAsType Vanguard = False
 
 public export
 ascriptionOk : CardType -> Maybe Subtype -> Bool
@@ -2283,8 +2325,14 @@ keywordStackRegime Ninjutsu = Nothing
 keywordStackRegime Miracle = Nothing
 keywordStackRegime Warp = Just AtCasting
 
+||| [CR#205.4a] closes the supertypes by enumeration at five, so this
+||| catalog ports the rule's whole set — the same discipline `Color` and
+||| `CardType` follow — rather than only the ones a card has been
+||| observed to write.
+||| World carries [CR#205.4f]'s state-based action and Ongoing
+||| [CR#205.4h]'s scheme exemption; both are supertypes a card prints.
 public export
-data Supertype = Legendary | Basic | Snow
+data Supertype = Legendary | Basic | Snow | Ongoing | World
 
 public export
 Eq Supertype where
@@ -2294,6 +2342,10 @@ Eq Supertype where
   (==) Basic _ = False
   (==) Snow Snow = True
   (==) Snow _ = False
+  (==) Ongoing Ongoing = True
+  (==) Ongoing _ = False
+  (==) World World = True
+  (==) World _ = False
 
 public export
 data Designation
@@ -2480,7 +2532,10 @@ Eq AttachWord where
 ||| attaches to an object or player [CR#303.4], which every noun word
 ||| names, so "enchanted" takes them all. The zeros are the two artifact
 ||| attachment rules: an Equipment attaches to a creature [CR#301.5] and
-||| a Fortification to a land [CR#301.6].
+||| a Fortification to a land [CR#301.6]. [CR#110.4]'s non-permanent
+||| types are zeros in those two rows for the same reason: neither an
+||| Equipment nor a Fortification can attach to a card that never reaches
+||| the battlefield.
 public export
 attachHeadOk : AttachWord -> NounWord -> Bool
 attachHeadOk Enchanted _ = True
@@ -2493,6 +2548,12 @@ attachHeadOk Equipped (TypeW Battle) = False
 attachHeadOk Equipped (TypeW Kindred) = False
 attachHeadOk Equipped (TypeW Instant) = False
 attachHeadOk Equipped (TypeW Sorcery) = False
+attachHeadOk Equipped (TypeW Conspiracy) = False
+attachHeadOk Equipped (TypeW Dungeon) = False
+attachHeadOk Equipped (TypeW Phenomenon) = False
+attachHeadOk Equipped (TypeW Plane) = False
+attachHeadOk Equipped (TypeW Scheme) = False
+attachHeadOk Equipped (TypeW Vanguard) = False
 attachHeadOk Equipped CardW = False
 attachHeadOk Equipped SpellW = False
 attachHeadOk Equipped PlayerW = False
@@ -2509,6 +2570,12 @@ attachHeadOk Fortified (TypeW Battle) = False
 attachHeadOk Fortified (TypeW Kindred) = False
 attachHeadOk Fortified (TypeW Instant) = False
 attachHeadOk Fortified (TypeW Sorcery) = False
+attachHeadOk Fortified (TypeW Conspiracy) = False
+attachHeadOk Fortified (TypeW Dungeon) = False
+attachHeadOk Fortified (TypeW Phenomenon) = False
+attachHeadOk Fortified (TypeW Plane) = False
+attachHeadOk Fortified (TypeW Scheme) = False
+attachHeadOk Fortified (TypeW Vanguard) = False
 attachHeadOk Fortified CardW = False
 attachHeadOk Fortified SpellW = False
 attachHeadOk Fortified PlayerW = False
@@ -2745,6 +2812,12 @@ typePrintOrder Planeswalker = 5
 typePrintOrder Battle = 6
 typePrintOrder Instant = 7
 typePrintOrder Sorcery = 8
+typePrintOrder Conspiracy = 9
+typePrintOrder Dungeon = 10
+typePrintOrder Phenomenon = 11
+typePrintOrder Plane = 12
+typePrintOrder Scheme = 13
+typePrintOrder Vanguard = 14
 
 public export
 permanentType : CardType -> Bool
@@ -2757,6 +2830,15 @@ permanentType Land = True
 permanentType Enchantment = True
 permanentType Instant = False
 permanentType Sorcery = False
+-- [CR#110.4] names the six permanent types; the command-zone types are
+-- not among them, and [CR#311.2,312.2,313.2,314.2,315.3,309.2c] say so
+-- again.
+permanentType Conspiracy = False
+permanentType Dungeon = False
+permanentType Phenomenon = False
+permanentType Plane = False
+permanentType Scheme = False
+permanentType Vanguard = False
 
 public export
 spellType : CardType -> Bool
@@ -2769,6 +2851,14 @@ spellType Enchantment = False
 spellType Planeswalker = False
 spellType Battle = False
 spellType Kindred = False
+-- A spell is a card on the stack [CR#112.1]; the command-zone types
+-- never reach it [CR#311.2,312.2,313.2,314.2,315.3,309.2c].
+spellType Conspiracy = False
+spellType Dungeon = False
+spellType Phenomenon = False
+spellType Plane = False
+spellType Scheme = False
+spellType Vanguard = False
 
 public export
 placeableTy : Maybe CardType -> Bool
@@ -2952,6 +3042,14 @@ retainable Kindred = True
 -- so no retention rider is needed for either.
 retainable Instant = False
 retainable Sorcery = False
+-- [CR#205.1a] exempts instant and sorcery and no other type, so every
+-- remaining type is one a retention rider [CR#205.1b] has to name.
+retainable Conspiracy = True
+retainable Dungeon = True
+retainable Phenomenon = True
+retainable Plane = True
+retainable Scheme = True
+retainable Vanguard = True
 
 public export
 retentionOk : TypeLine -> Maybe CardType -> Bool

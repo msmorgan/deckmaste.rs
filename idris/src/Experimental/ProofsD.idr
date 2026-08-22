@@ -278,7 +278,7 @@ badGetsBoostCounter Refl impossible
 ||| A named kind on the player's removal verb must be a player's kind [CR#122.1].
 public export
 badLosesAllBoostCounters : Unspellable (Effect []) (\ok =>
-  LosesAllCounters (Each Opponent) (Just Macros.plusOnePlusOne)
+  LosesCounters (Each Opponent) (Just Macros.plusOnePlusOne)
                    {pk = KindNamed {sc = ok}})
 badLosesAllBoostCounters Refl impossible
 

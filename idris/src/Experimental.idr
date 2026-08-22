@@ -1472,6 +1472,13 @@ mutual
   amtIntro (Plus a b) = amtIntro b
   amtIntro (Minus a b) = amtIntro b
 
+  ||| An unwritten amount introduces nothing: the slot's absence is the
+  ||| bare "all" spelling, not a mention a later clause could read.
+  public export
+  optAmtIntro : {bs : Bindings} -> Maybe (Amount bs) -> Bindings
+  optAmtIntro Nothing = bs
+  optAmtIntro (Just a) = amtIntro a
+
   public export
   amtPlur : {0 bs : Bindings} -> Amount bs -> Plurality
   amtPlur (Lit (S Z)) = OneOf
@@ -3092,8 +3099,15 @@ mutual
     GetsCounters : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
                    (kind : CounterKind) ->
                    {auto 0 sc : counterScope kind = Player} -> Effect bs
-    LosesAllCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
-                       {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
+    ||| Counters leave a player in a stated number as well as all at
+    ||| once: [CR#728.1]'s own rules text has a player remove "one rad
+    ||| counter from themselves", and printed removal lines count what
+    ||| they take off an opponent. The amount is therefore a slot, and
+    ||| leaving it unwritten is the "all" spelling rather than the only
+    ||| reading available.
+    LosesCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
+                    {default Nothing amt : Maybe (Amount (nomIntro who))} ->
+                    {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
     Composite : (v : VerbName) -> (e : Effect bs) ->
                 {auto 0 ok : TagBody v e} -> {auto 0 na : NonAgentive v} -> Effect bs
     Does : (subj : Noun bs Player) -> (v : VerbName) ->
@@ -3183,7 +3197,9 @@ mutual
                      {auto 0 fb : FollowerPart followedBy} -> Effect bs
 
   ||| [CR#610.3] hangs the "until" rider on a one-shot that changes an
-  ||| object's zone, and on nothing else.
+  ||| object's zone and [CR#610.4] on one that phases a permanent out.
+  ||| Those are the only two one-shots the CR gives the rider, so every
+  ||| False below is that pair of rules speaking rather than a count.
   public export
   heldUntilOk : {0 bs : Bindings} -> Effect bs -> Bool
   heldUntilOk (DealDamage _ _ _) = False
@@ -3193,9 +3209,12 @@ mutual
   heldUntilOk (AdditionalPart _ _ _) = False
   heldUntilOk (Distribute _ _ _) = False
   heldUntilOk (Fights _ _) = False
+  -- [CR#610.4]: "until" also rides a permanent phasing out, and the
+  -- second one-shot phases it back in.
+  heldUntilOk (SetStatus PhasedOut _) = True
   heldUntilOk (SetStatus _ _) = False
   heldUntilOk (GetsCounters _ _ _) = False
-  heldUntilOk (LosesAllCounters _ _) = False
+  heldUntilOk (LosesCounters _ _) = False
   heldUntilOk (RemoveFromCombat _) = False
   heldUntilOk (Regenerate _) = False
   heldUntilOk (CantBe _ _ _) = False
@@ -3274,7 +3293,7 @@ mutual
   -- agent form has no subject to inflect.
   reflexEncloseUse (SetStatus _ _) = EncAgentless
   reflexEncloseUse (GetsCounters _ _ _) = EncAgentless
-  reflexEncloseUse (LosesAllCounters _ _) = EncAgentless
+  reflexEncloseUse (LosesCounters _ _) = EncAgentless
   reflexEncloseUse (RemoveFromCombat _) = EncAgentless
   reflexEncloseUse (Regenerate _) = EncAgentless
   reflexEncloseUse (CantBe _ _ _) = EncAgentless
@@ -3350,7 +3369,7 @@ mutual
   thisWayOutcomeOk (Fights _ _) = True
   thisWayOutcomeOk (SetStatus _ _) = True
   thisWayOutcomeOk (GetsCounters _ _ _) = True
-  thisWayOutcomeOk (LosesAllCounters _ _) = True
+  thisWayOutcomeOk (LosesCounters _ _) = True
   thisWayOutcomeOk (RemoveFromCombat _) = True
   thisWayOutcomeOk (Regenerate _) = True
   thisWayOutcomeOk (CantBe _ _ _) = True
@@ -3485,7 +3504,7 @@ mutual
   costActionOk (Fights a _) = costNounOk a
   costActionOk (SetStatus _ n) = costNounOk n
   costActionOk (GetsCounters who _ _) = costNounOk who
-  costActionOk (LosesAllCounters who _) = costNounOk who
+  costActionOk (LosesCounters who _) = costNounOk who
   costActionOk (RemoveFromCombat n) = costNounOk n
   costActionOk (Regenerate n) = costNounOk n
   costActionOk (CantBe e _ _) = costActionOk e
@@ -3580,10 +3599,10 @@ mutual
   effEq (SetStatus v a) (SetStatus w b) = sameStatusVal v w && nounEqRef a b
   effEq (SetStatus _ _) _ = False
   effEq (GetsCounters _ _ _) _ = False
-  effEq (LosesAllCounters a Nothing) (LosesAllCounters b Nothing) = nounEqRef a b
-  effEq (LosesAllCounters a (Just j)) (LosesAllCounters b (Just l)) =
+  effEq (LosesCounters a Nothing) (LosesCounters b Nothing) = nounEqRef a b
+  effEq (LosesCounters a (Just j)) (LosesCounters b (Just l)) =
     nounEqRef a b && j == l
-  effEq (LosesAllCounters _ _) _ = False
+  effEq (LosesCounters _ _) _ = False
   effEq (RemoveFromCombat a) (RemoveFromCombat b) = nounEqRef a b
   effEq (RemoveFromCombat _) _ = False
   effEq (Regenerate a) (Regenerate b) = nounEqRef a b
@@ -3761,16 +3780,41 @@ mutual
             {auto 0 sp : SlicePossessor whose} ->
             TagBody Mill (Move (LibrarySlice OnTop amt whose {sp})
                                (ZoneAt Graveyard Bare))
+    ||| [CR#701.22a] states one player twice over — the looker and the
+    ||| owner of the library looked at are the same person — and says
+    ||| nothing about WHICH player that is, so "target player scries 3"
+    ||| (Bumi, King of Three Trials) is as much a scry as "you scry 3".
+    ||| The looker is therefore a two-row table over how the clause
+    ||| writes that one person rather than a value fixed at `You`: second
+    ||| person writes itself, and any other subject is read back by the
+    ||| anaphor, whose own gate checks the mention is there to read. Both
+    ||| rows repeat the same mention in both positions, which is the rule
+    ||| doing the tying.
     ScryB : {0 amt : Amount bs} ->
             {auto 0 sp : SlicePossessor {bs} You} ->
             TagBody Scry
                     (Expose LookAt You
                             (ExposedCards (LibrarySlice OnTop amt You {sp})))
+    ScryTheyB : {0 amt : Amount bs} ->
+                {auto 0 an : countOnes Player bs = 1} ->
+                {auto 0 sp : SlicePossessor (They {bs} {ok = an})} ->
+                TagBody Scry
+                        (Expose LookAt (They {ok = an})
+                                (ExposedCards
+                                   (LibrarySlice OnTop amt (They {ok = an}) {sp})))
+    ||| [CR#701.25a] words surveil the same way, over the same two rows.
     SurveilB : {0 amt : Amount bs} ->
                {auto 0 sp : SlicePossessor {bs} You} ->
                TagBody Surveil
                        (Expose LookAt You
                                (ExposedCards (LibrarySlice OnTop amt You {sp})))
+    SurveilTheyB : {0 amt : Amount bs} ->
+                   {auto 0 an : countOnes Player bs = 1} ->
+                   {auto 0 sp : SlicePossessor (They {bs} {ok = an})} ->
+                   TagBody Surveil
+                           (Expose LookAt (They {ok = an})
+                                   (ExposedCards
+                                      (LibrarySlice OnTop amt (They {ok = an}) {sp})))
     ||| The agentive placement clause: the imperative and "<player> puts it
     ||| into/onto <zone>" spell one event, so the tag rides the same Move.
     ||| Every Move admits: its own gates already bound the destination, and
@@ -3982,7 +4026,7 @@ mutual
   effIntro (ExtraTurn w _) = turnRefB :: nomIntro w
   effIntro (AdditionalPart _ _ _) = bs
   effIntro (GetsCounters who amt _) = amtIntro amt
-  effIntro (LosesAllCounters who _) = nomIntro who
+  effIntro (LosesCounters who _ {amt}) = optAmtIntro amt
   effIntro (RemoveFromCombat n) = nomIntro n
   effIntro (Regenerate n) = nomIntro n
   effIntro (CantBe e _ _) = effIntro e
@@ -4055,7 +4099,7 @@ mutual
   preIntro (ExtraTurn w _) = nomIntro w
   preIntro (AdditionalPart _ _ _) = bs
   preIntro (GetsCounters who amt _) = amtIntro amt
-  preIntro (LosesAllCounters who _) = nomIntro who
+  preIntro (LosesCounters who _ {amt}) = optAmtIntro amt
   preIntro (RemoveFromCombat n) = nomIntro n
   preIntro (Regenerate n) = nomIntro n
   preIntro (CantBe e _ _) = preIntro e
@@ -4116,7 +4160,7 @@ mutual
   annIntro (ExtraTurn w _) = turnRefB :: nomIntro w
   annIntro (AdditionalPart _ _ _) = bs
   annIntro (GetsCounters who amt _) = amtIntro amt
-  annIntro (LosesAllCounters who _) = nomIntro who
+  annIntro (LosesCounters who _ {amt}) = optAmtIntro amt
   annIntro (RemoveFromCombat n) = nomIntro n
   annIntro (Regenerate n) = nomIntro n
   annIntro (CantBe e _ _) = annIntro e
@@ -4215,7 +4259,7 @@ mutual
   deedDelta (ExtraTurn _ _) = []
   deedDelta (AdditionalPart _ _ _) = []
   deedDelta (GetsCounters _ _ _) = []
-  deedDelta (LosesAllCounters _ _) = []
+  deedDelta (LosesCounters _ _) = []
   deedDelta (RemoveFromCombat _) = []
   deedDelta (Regenerate _) = []
   deedDelta (CantBe e _ _) = deedDelta e
@@ -4530,6 +4574,17 @@ mutual
   KeywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List Keyword -> Type
   KeywordListOk {bs} ab ks = So (keywordListOk ab ks)
 
+  ||| [CR#613.1f] applies ability-adding effects over abilities as such,
+  ||| and [CR#113.3] gives four kinds of them; neither rule restricts
+  ||| which kind an effect may add, nor says how the added text is
+  ||| written, so whether the grant puts the ability in quotation marks
+  ||| is rendering and no cell here indexes on it. The two Falses
+  ||| are structural, not measured: a `Spell` line is [CR#113.3a]'s spell
+  ||| ability, followed only while an instant or sorcery spell resolves,
+  ||| so an object handed one has nothing to follow; and
+  ||| `AlsoForKeywords` is not an ability at all but the spelling that
+  ||| extends one line's keyword list, so a grant naming it would name no
+  ||| second ability.
   public export
   grantableAb : {0 bs : Bindings} -> AbilityAt bs -> Bool
   grantableAb (KeywordAbility _) = True
@@ -4841,6 +4896,16 @@ typesCombinable tys =
   not (anyPermanentType tys && anySpellType tys)
     && (not (elem Kindred tys) || hasNonKindredType tys)
 
+||| Which card class may print a keyword on itself. This is not
+||| `keywordStackRegime`'s question re-asked: that table says from which
+||| zone a keyword's ability functions, this one says whether the word
+||| can sit on the card at all, and the two would disagree even if every
+||| cell agreed today. Flash is the case that used to look like a
+||| disagreement: [CR#702.8a] says only that flash functions in any zone
+||| the card could be played from, and restricts the word to no card
+||| type, so an instant or sorcery may carry it. On an instant the word
+||| grants what the card already has — redundant, which is not the same
+||| as meaningless — and a sorcery carrying it is not redundant at all.
 public export
 keywordCardOk : CardClass -> Keyword -> Bool
 keywordCardOk PermanentCard Haste = True

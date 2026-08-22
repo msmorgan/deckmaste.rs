@@ -29,11 +29,17 @@ those is a **recorded decision** at the site — widen, bless-as-permanent with 
 rule (not a count) doing the closing, or re-measure — written into the
 docstring, not a note elsewhere.
 
-> **Ruling 2026-08-22 — re-measure, then decide.** The closure tables this
-> ticket reads are a demoted snapshot (`docs/memory/rulings/measurements-live-
-> in-pins.md`). Every "N of M" below is a claim to re-measure with the
-> mtg-rules `corpus` script before acting; a measured zero lands as a pin, a
-> flip records its count in this ticket's `## As landed`, never in a docstring.
+> **Ruling 2026-08-22 — pins refuse rules-impossibility only.** An earlier
+> banner here read "a measured zero lands as a pin"; that was reversed the
+> same day and is void. The governing doctrine is
+> `docs/memory/rulings/measurements-live-in-pins.md`: the semantics admits
+> anything the Comprehensive Rules make meaningful, a pin refuses a term only
+> where a rule makes it meaningless and its docstring names that rule, and a
+> count is never a refusal. Leaving a printed card unrepresentable is the
+> worst outcome. Every "N of M" below is a demoted snapshot
+> (`docs/idris-workbench-closure-tables.md`), useful only as a pointer to the
+> cell; measurements that decided a flip go in this ticket's `## As landed`,
+> never in a docstring. Line anchors below are stale — re-grep by name.
 
 ## The five hard-fixed value slots
 
@@ -189,3 +195,94 @@ does not work them; it records them so the ranking's tail is not lost.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## As landed (2026-08-22)
+
+Doctrine applied: `docs/memory/rulings/measurements-live-in-pins.md` (the
+banner's earlier "measured zero → pin" rule is void). Five of the eleven were
+already settled by
+[Pins refuse rules-impossibility only](../done/workbench-pins-refuse-rules-impossibility-only.md);
+six were widened here. No pin was retired, because none of the six refusals
+lived in a pin — each was a constructor's shape or a catalog's missing row, and
+the build confirms every existing pin still refuses (a widened gate that made a
+pin's clause reachable would have failed `impossible`).
+
+| cell | outcome |
+|---|---|
+| `heldUntilOk` — the until-rider's single True cell | **widened**. The counters/riders/ordered-list refusals and `badHeldUntilWithCounters` were already gone (pin sweep); what remained was `SetStatus _ _ = False`, which left [CR#610.4]'s phase-out family unspellable. `SetStatus PhasedOut` now takes the rider, and the docstring names both [CR#610.3] and [CR#610.4] as the only two one-shots the CR hangs "until" on |
+| `LosesAllCounters` — the always-all removal | **widened**. Renamed `LosesCounters` with a `{default Nothing amt}` slot; unwritten is the "all" spelling. Grounded on [CR#728.1]'s own rules text ("removes one rad counter from themselves"), not a count. `optAmtIntro` added beside `amtIntro`; `effIntro`/`preIntro`/`annIntro` read the slot. Macros `Macros.losesCounters` for the counted form and `Macros.losesAllCounters` for the bare "all" spelling, so the bench never leaves the slot's absence unnamed |
+| `CreationVoice`'s fourth cell `CreatedByCauser` | **resolved by** the pin sweep — `CreatedByCauserPlain` (a causer with no stated controller, [CR#111.2] supplying one) exists and `badCausedCreationBareControl` is gone. Nothing changed |
+| `TagBody`'s `ScryB`/`SurveilB` possessor, fixed at `You` | **widened**. Each is now a two-row table over how the one player [CR#701.22a]/[CR#701.25a] names is written — second person, or the anaphor reading back the clause's subject (`ScryTheyB`/`SurveilTheyB`). Both rows repeat the same mention in looker and slice, which is the rule doing the tying. A free `Noun bs Player` was tried first and rejected: the body's context is `nomIntro who`, which auto-search cannot invert, so `Does You Scry …` stopped elaborating |
+| `GainsDesignation`'s four not-pinnable cells | **resolved by** the pin sweep — `designationGiven` is True for CitysBlessing, EnduringStory, Monstrous and Renowned, and `GivingWarrant` carries `Instructed` vs `InExpansionOf`. No "will flip when the keyword round lands" text survives. Nothing changed |
+| `LibOrdinal`'s hole at Sixth | **widened past the hole**. [CR#401.7] states the offset as "Nth from the top" for any N, so the five-name enum was the wrong shape entirely: `LibOrdinal` is now `Nth : (n : Nat) -> {auto 0 nz : IsSucc n}`. `Nth 0` is the one refusal (positions count from the top card). The `off` slot never had an offset×bottom or offset×arrangement gate to widen — the ticket's `ordinalFits` does not exist |
+| `CardType`'s six absent rows | **widened**. [CR#205.2a]'s whole set is ported: Conspiracy, Dungeon, Phenomenon, Plane, Scheme, Vanguard. Nine total tables took the new rows — `combatant` ([CR#701.14a]), `attachHeadOk` (12 cells), `ascribesAsType`, `typePrintOrder`, `permanentType` ([CR#110.4]), `spellType` ([CR#112.1]), `retainable` (True — [CR#205.1a] exempts only instant and sorcery), `deedType` (24 cells), `castableTy` ([CR#311.2,312.2,313.2,314.2,315.3], [CR#309.2]) — plus `Eq CardType`. The catalog's docstring states the discipline |
+| `Supertype`'s two unminted rows | **widened**. [CR#205.4a]'s whole set: World and Ongoing minted, `Eq` extended, discipline stated in the docstring beside `Color`'s |
+| `keywordCounterOk`'s printing-backed Falses | **resolved by** the pin sweep — the docstring already grounds every zero on [CR#122.1b]'s fifteen-name enumeration, and re-reading the rule confirms each True is on that list and each False is off it. Nothing changed |
+| `grantableAb`'s three quotation cells | **decision recorded at the site**. Quotation is rendering: [CR#613.1f] applies ability-adding effects over abilities as such and [CR#113.3] gives four kinds, neither restricting which kind may be added nor how the added text is written, so no cell indexes on quotation. The two Falses are structural — `Spell` is [CR#113.3a]'s spell ability, followed only while an instant or sorcery resolves; `AlsoForKeywords` is not an ability but the spelling that extends one line's keyword list |
+| `keywordCardOk`'s Flash cell | **resolved by** the pin sweep (`SpellCard Flash = True`, `badFlashOnInstant` gone); **decision recorded** here. [CR#702.8a] restricts flash to no card type — on an instant the word is redundant, which is not meaningless, and on a sorcery it is not even redundant. The two-table split does not rest on a disagreement: `keywordStackRegime` says from which zone an ability functions, `keywordCardOk` says whether the word may sit on the card. `headerWindowOk` no longer exists and `windowOk`'s two Falses are [CR#500.1] plus a missing antecedent, so the sibling six-cell disagreement the ticket paired with this one is also gone |
+
+The "four ranked cells this ticket does NOT own" and "the ten grids ranked
+below the fifteen" sections were read and left untouched; nothing in them
+changed.
+
+### Bench
+
+| widened cell | witness |
+|---|---|
+| `heldUntilOk` phase-out rider | `oubliette` — Oubliette, "When this enchantment enters, target creature phases out until this enchantment leaves the battlefield." (The bench spells the first sentence; the card's "Tap that creature as it phases in this way." rider is not modelled.) Three supported lines write a phase-out "until" rider, five across the whole corpus |
+| `ScryB` non-second-person looker | `bumiScryMode` — Bumi, King of Three Trials, "Target player scries 3." Kozilek's Command writes the same shape |
+| `Supertype` World | `concordantCrossroads` — Concordant Crossroads, "World Enchantment / All creatures have haste." (whole card) |
+| `CardType` new rows | `selenia` — Selenia, a vanguard card whose whole printed text is "Creatures you control have vigilance." (whole card) |
+| `Supertype` Ongoing | none benchable: every printed Ongoing card is an ongoing scheme, and every such card's text needs the unmodelled "abandon this scheme" verb. The row is [CR#205.4a]'s and lands without a witness |
+| `LosesCounters` amount slot | none benchable: the one printed counted removal reaching a player is "Remove up to five counters from target artifact, creature, planeswalker, or opponent", blocked by the open disjunctive-head gap. The slot is [CR#728.1]'s and lands without a witness |
+| `LibOrdinal` `Nth` | the existing ordinal cards re-bench unchanged (`Nth 2`/`Nth 3`/`Nth 5`/`Nth 7`) |
+| `Conspiracy`/`Dungeon`/`Phenomenon`/`Plane`/`Scheme` rows | no whole card is spellable yet — schemes and phenomena need "abandon"/"encounter"/"planeswalk", conspiracies need hidden agenda, dungeons need venture. Selenia benches the shape for the family |
+
+### Ledger
+
+- **`CardClass` has no command-zone arm.** `cardClassOf` is binary, so a
+  conspiracy, dungeon, phenomenon, plane, scheme or vanguard card classifies
+  as `PermanentCard` and is read by `cardAbilityOk PermanentCard`. That is
+  wrong for a card [CR#110.4] keeps off the battlefield, and it is why
+  `selenia` typechecks. A third class belongs to a card-frame round, not to a
+  catalog widening.
+- **`typesCombinable` does not refuse a command-zone type beside another.**
+  `[Conspiracy, Creature]` passes, because neither `permanentType` nor
+  `spellType` is True for it. No rule refuses the combination outright, so
+  this is tolerated overgeneration rather than a defect; a card-frame round
+  can tighten it if a rule turns up.
+- **`typePrintOrder`** gave the six rows positions 9–14 in printing order.
+  It is spelling-only and no gate consumes it, so the values are provisional
+  and belong with `workbench-type-line-order-is-spelling`.
+- **Scry/surveil lookers are a two-row table, not a free parameter.**
+  `ScryTheyB`/`SurveilTheyB` cover "target player scries N"; "each player
+  scries N" is still unspellable, because the anaphor needs a single Player
+  mention and `Each` introduces a plural one. A plural read-back mention is
+  the missing piece, and it is the same gap `MillB` has.
+- **`effEq` ignores `LosesCounters`' new amount slot**, matching the
+  neighbouring `GetsCounters` row which compares nothing at all. If `effEq`
+  ever becomes load-bearing for counter clauses, both rows need the amount.
+- **The phase-out "until" lines** measured 2026-08-22 with the mtg-rules
+  `corpus` script: three in the supported scope the workbench measures by
+  (Oubliette, Out of Time, The Moment), five with `--all` (adding the
+  plane Unyaro and the Attraction Ferris Wheel). The one printed
+  counted player-counter removal ("Remove up to five counters from target
+  artifact, creature, planeswalker, or opponent") likewise. Both are
+  recorded here and nowhere else; neither count decided a flip — [CR#610.4]
+  and [CR#728.1] did.
+- **`Nth 0` is pinned.** `badZerothFromTop` (ProofsG) witnesses the
+  `IsSucc` refusal, so the one rules-impossibility the widened `LibOrdinal`
+  introduces cannot go silently reachable. `Nth 1` ("first from the top")
+  is admitted and duplicates the plain `OnTop` spelling — [CR#401.7] makes
+  it meaningful, so the duplicate is tolerated overgeneration.
+- **`grantableAb (Spell _) = False` is narrower than [CR#113.3a] for one
+  subject.** `Gains` takes a `Noun bs Object`, which can name a spell, and
+  [CR#113.3a] makes text on a resolving instant or sorcery spell a spell
+  ability. No printed line grants a quoted ability to a spell (0 corpus
+  lines), so the cell refuses nothing printed; the docstring's argument
+  ("an object handed one has nothing to follow") holds for a permanent
+  subject only.
+- **`attachHeadOk Enchanted _ = True` covers the six new types too**, so
+  "enchanted conspiracy" is admitted. That is the pre-existing catch-all,
+  which already admitted "enchanted instant"; a rule tightening it belongs
+  with the attachment round.

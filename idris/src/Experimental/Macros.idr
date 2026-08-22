@@ -868,6 +868,17 @@ exileUntil : (n : Noun bs Object) -> (ev : GameEvent (preIntro (exile n))) ->
              Effect bs
 exileUntil n ev = HeldUntil (exile n) ev {ok = Oh}
 
+||| "<permanent> phases out until [event]": [CR#610.4]'s rider, the
+||| second one-shot the CR hangs "until" on beside [CR#610.3]'s zone
+||| change.
+public export
+phasesOutUntil : (n : Noun bs Object) ->
+                 {auto 0 zn : OnBattlefield (nounZone n)} ->
+                 {auto 0 at : StatusEffectVal PhasedOut} ->
+                 (ev : GameEvent (annIntro (SetStatus PhasedOut n {ok = zn} {at}))) ->
+                 Effect bs
+phasesOutUntil n ev = HeldUntil (SetStatus PhasedOut n {ok = zn} {at}) ev {ok = Oh}
+
 public export
 insteadOf : (replaced : Effect bs) -> (repl : Effect (replacedCtx replaced)) ->
             {auto 0 na : NotInstead replaced} ->
@@ -938,6 +949,43 @@ mills agent amt whose =
   Does agent Mill
        (Move (LibrarySlice OnTop amt whose {sp}) graveyardZ)
        {tb = MillB {sp}}
+
+||| "Target player scries N." / "Target player surveils N."
+||| [CR#701.22a] and [CR#701.25a] name one player and read that player's
+||| own library, so the subject is written once and the slice reads it
+||| back as the anaphor.
+public export
+playerScries : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
+               {auto 0 an : countOnes Player (nomIntro agent) = 1} ->
+               Effect bs
+playerScries agent amt =
+  Does agent Scry
+       (Expose LookAt (They {ok = an})
+               (ExposedCards (LibrarySlice OnTop amt (They {ok = an}))))
+
+public export
+playerSurveils : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
+                 {auto 0 an : countOnes Player (nomIntro agent) = 1} ->
+                 Effect bs
+playerSurveils agent amt =
+  Does agent Surveil
+       (Expose LookAt (They {ok = an})
+               (ExposedCards (LibrarySlice OnTop amt (They {ok = an}))))
+
+||| "<player> loses N <kind> counters": the counted removal beside the
+||| bare "all" spelling `LosesCounters` writes with the slot unfilled.
+public export
+losesCounters : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
+                (kind : Maybe CounterKind) ->
+                {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
+losesCounters who amt kind = LosesCounters who kind {amt = Just amt} {pk}
+
+||| "<player> loses all <kind> counters": the bare removal, which the
+||| unwritten amount slot spells.
+public export
+losesAllCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
+                   {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
+losesAllCounters who kind = LosesCounters who kind {pk}
 
 ||| "Enchant creature": a keyword whose parameter is a subject phrase.
 public export

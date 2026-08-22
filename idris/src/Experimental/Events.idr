@@ -332,6 +332,32 @@ deedType Block Patient Sorcery = False
 deedType Block Patient Planeswalker = False
 deedType Block Patient Battle = False
 deedType Block Patient Kindred = False
+-- [CR#110.4] names no command-zone type among the permanent types, so
+-- nothing of these types is ever on the battlefield to take either role.
+deedType Attack Agent Conspiracy = False
+deedType Attack Agent Dungeon = False
+deedType Attack Agent Phenomenon = False
+deedType Attack Agent Plane = False
+deedType Attack Agent Scheme = False
+deedType Attack Agent Vanguard = False
+deedType Attack Patient Conspiracy = False
+deedType Attack Patient Dungeon = False
+deedType Attack Patient Phenomenon = False
+deedType Attack Patient Plane = False
+deedType Attack Patient Scheme = False
+deedType Attack Patient Vanguard = False
+deedType Block Agent Conspiracy = False
+deedType Block Agent Dungeon = False
+deedType Block Agent Phenomenon = False
+deedType Block Agent Plane = False
+deedType Block Agent Scheme = False
+deedType Block Agent Vanguard = False
+deedType Block Patient Conspiracy = False
+deedType Block Patient Dungeon = False
+deedType Block Patient Phenomenon = False
+deedType Block Patient Plane = False
+deedType Block Patient Scheme = False
+deedType Block Patient Vanguard = False
 
 public export
 data DeedParticipant : Deed -> Role -> Maybe CardType -> Type where
@@ -396,6 +422,15 @@ castableTy Cast (Just Sorcery) = True
 castableTy Cast (Just Planeswalker) = True
 castableTy Cast (Just Battle) = True
 castableTy Cast (Just Kindred) = True
+-- [CR#311.2,312.2,313.2,314.2,315.3] and [CR#309.2c] each say outright
+-- that the card can't be cast; a dungeon enters the game by the venture
+-- keyword action instead [CR#309.2].
+castableTy Cast (Just Conspiracy) = False
+castableTy Cast (Just Dungeon) = False
+castableTy Cast (Just Phenomenon) = False
+castableTy Cast (Just Plane) = False
+castableTy Cast (Just Scheme) = False
+castableTy Cast (Just Vanguard) = False
 
 
 public export
