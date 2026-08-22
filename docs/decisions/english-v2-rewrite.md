@@ -88,6 +88,10 @@ member, including the last. The declaration and member count/edge position
 derive these surfaces and their lexical ownership; no separator field, value,
 form tag, or token node is stored. Oracle sentences are period-terminated,
 sentence edges are ASCII-space-separated, and document blocks are LF-separated.
+An empty Oracle text is a valid document — a vanilla creature is the zero-block
+`OracleText`, rendering to zero bytes and trivially byte-exact — so the document
+root's block sequence admits length zero; only non-root sequences may require
+members.
 This follows the [Oracle text style guide §1](../oracle-style-guide.md#1-write-rules-instructions-not-conversational-prose)
 and [§3](../oracle-style-guide.md#3-punctuation-and-glyphs).
 - **Added:** inflected atoms — `verb(lexeme)` and `noun(role)` render their
