@@ -438,13 +438,13 @@ badIfNotReadsMandatoryBody : Unspellable (Effect []) (\ok =>
 badIfNotReadsMandatoryBody Refl impossible
 
 
-||| "Tap target creature unless its controller pays {1}."
-||| [CR#118.12a] rewrites "unless" as an offer followed by an if-not arm, so the
-||| payer phrase is typed before the arm that names the creature it reads.
+||| "Counter target spell unless its controller taps."
+||| [CR#118.12a] makes the unless-arm a cost its player may pay; the tap
+||| symbol is a cost only before a colon [CR#107.5], never a verb phrase.
 public export
-badUnlessAnaphoricPayer : Unspellable (Effect []) (\ok =>
-  Macros.mayElse (ControllerOf (It {ok})) (Pay You (Mana [Macros.generic 1])) (SetStatus Tapped (Macros.target Macros.creature)))
-badUnlessAnaphoricPayer Refl impossible
+badUnlessTapSymbol : Unspellable (Effect []) (\ok =>
+  Unless (Macros.counterSpell (Macros.target Macros.spell)) (ControllerOf It) TapSymbol {pb = ok})
+badUnlessTapSymbol Oh impossible
 
 
 ||| "Whenever target creature dies, draw a card."

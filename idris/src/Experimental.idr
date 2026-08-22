@@ -3244,6 +3244,14 @@ mutual
           (ifNot : Maybe (Effect (mayCtx offer))) -> Effect bs
     If : (e : Effect bs) -> (c : Condition (preIntro e)) ->
          (otherwise : Maybe (Effect bs)) -> Effect bs
+    ||| "[Do something] unless [a player does something else]" [CR#118.12a],
+    ||| carried for the cost arm: the offer is written after the effect, so
+    ||| the payer reads what the effect has already named. A conditional
+    ||| "unless" is `If e (NotCond c) Nothing` instead.
+    Unless : (e : Effect bs) -> (who : Noun (preIntro e) Player) ->
+             (c : Cost (nomIntro who)) ->
+             {auto 0 pb : Payable c} ->
+             {auto 0 ag : PayAgrees who c} -> Effect bs
     WhereLetter : (w : LetterWord) -> (def : Amount bs) ->
                   (body : Effect (Experimental.Words.letterB w :: bs)) -> Effect bs
     ForEachOf : (grp : Noun bs Object) ->
@@ -3330,6 +3338,7 @@ mutual
   heldUntilOk (Pay _ _) = False
   heldUntilOk (May _ _ _ _) = False
   heldUntilOk (If _ _ _) = False
+  heldUntilOk (Unless _ _ _) = False
   heldUntilOk (WhereLetter _ _ _) = False
   heldUntilOk (ForEachOf _ _) = False
   heldUntilOk (Repeat _) = False
@@ -3403,6 +3412,7 @@ mutual
   reflexEncloseUse (May _ body Nothing _) = reflexEncloseUse body
   reflexEncloseUse (May _ _ _ _) = EncNotOneAction
   reflexEncloseUse (If _ _ _) = EncNotOneAction
+  reflexEncloseUse (Unless _ _ _) = EncNotOneAction
   reflexEncloseUse (WhereLetter _ _ _) = EncNotOneAction
   reflexEncloseUse (ForEachOf _ _) = EncNotOneAction
   reflexEncloseUse (Repeat _) = EncNotOneAction
@@ -3546,6 +3556,8 @@ mutual
   costActionOk (May _ body ifDid ifNot) =
     costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
   costActionOk (If e _ otherwise) = costActionOk e && costActionOkOpt otherwise
+  -- an offer another player answers at resolution [CR#118.12a]
+  costActionOk (Unless _ _ _) = False
   costActionOk (WhereLetter _ _ body) = costActionOk body
   costActionOk (ForEachOf _ body) = costActionOk body
   costActionOk (Repeat _) = False
@@ -3649,6 +3661,7 @@ mutual
   effEq (Pay _ _) _ = False
   effEq (May _ _ _ _) _ = False
   effEq (If _ _ _) _ = False
+  effEq (Unless _ _ _) _ = False
   effEq (WhereLetter _ _ _) _ = False
   effEq (ForEachOf _ _) _ = False
   effEq (Repeat _) _ = False
@@ -4130,6 +4143,7 @@ mutual
   effIntro (Pay who c) = costIntro c
   effIntro (May d body did notd) = mayIntro body did notd
   effIntro (If e c oth) = condDelta c ++ bs
+  effIntro (Unless e who c) = bs
   effIntro (WhereLetter _ def body) = effIntro body
   effIntro (ForEachOf _ _) = bs
   effIntro (Repeat _) = bs
@@ -4188,6 +4202,7 @@ mutual
   preIntro (Pay who c) = nomIntro who
   preIntro (May d body did notd) = mayIntro body did notd
   preIntro (If e c oth) = condDelta c ++ annIntro e
+  preIntro (Unless e who c) = annIntro e
   preIntro (WhereLetter _ def body) = preIntro body
   preIntro (ForEachOf _ _) = bs
   preIntro (Repeat _) = bs
@@ -4246,6 +4261,7 @@ mutual
   annIntro (Pay who c) = nomIntro who
   annIntro (May d body did notd) = annIntro body
   annIntro (If e c oth) = condDelta c ++ annIntro e
+  annIntro (Unless e who c) = annIntro e
   annIntro (WhereLetter _ def body) = annIntro body
   annIntro (ForEachOf _ _) = bs
   annIntro (Repeat _) = bs
@@ -4272,6 +4288,7 @@ mutual
   replacedCtx (Sequentially es) = annSeqs es
   replacedCtx (May d body did notd) = replacedCtx body
   replacedCtx (If e c oth) = condDelta c ++ replacedCtx e
+  replacedCtx (Unless e who c) = replacedCtx e
   replacedCtx e = deedDelta e ++ annIntro e
 
   ||| A sequence announces every deed it strings together, so a replacement
@@ -4335,6 +4352,7 @@ mutual
   deedDelta (Pay who c) = []
   deedDelta (May d body did notd) = []
   deedDelta (If e c oth) = []
+  deedDelta (Unless e who c) = []
   deedDelta (WhereLetter _ _ _) = []
   deedDelta (ForEachOf _ _) = []
   deedDelta (Repeat _) = []

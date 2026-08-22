@@ -5604,6 +5604,33 @@ disruptingShoal =
                    (CompareAmt (Macros.manaValueOf It) Eq XVal) Nothing) ]
        Nothing
 
+||| Mana Leak: "Counter target spell unless its controller pays {3}."
+||| The unless-arm reads the spell the clause just named [CR#118.12a].
+public export
+manaLeak : Card
+manaLeak =
+  Macros.card "Mana Leak" (Just [Macros.generic 1, Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Unless (Macros.counterSpell (Macros.target Macros.spell))
+                       (ControllerOf It)
+                       (Mana [Macros.generic 3])) ]
+       Nothing
+
+||| Rhystic Study: "Whenever an opponent casts a spell, you may draw a card
+||| unless that player pays {1}." [CR#118.12a] over an offered body.
+public export
+rhysticStudy : Card
+rhysticStudy =
+  Macros.card "Rhystic Study"
+       (Just [Macros.generic 2, Macros.pip Blue]) []
+       (MkTypeLine [] [Enchantment])
+       [ Triggered Whenever
+           (Casts Macros.anOpponent (Macros.a Macros.spell))
+           (Unless (Macros.may You Macros.drawACard)
+                   (That PlayerW)
+                   (Mana [Macros.generic 1])) ]
+       Nothing
+
 public export
 blazingShoal : Card
 blazingShoal =
