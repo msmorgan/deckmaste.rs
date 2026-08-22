@@ -671,13 +671,13 @@ pub(crate) enum TerminalPlan {
 pub(crate) enum DeclarationKindFamily {
     Type,
     Subtype,
+    SubtypeFamily(macro_ron::v2::SubtypeCategory),
 }
 
 #[derive(Debug)]
 pub(crate) struct DeclarationNounPlan {
     source_index: usize,
     origin: DeclarationKey,
-    origin_span: Span,
     codec_ident: syn::Ident,
     declaration_value_ident: syn::Ident,
     closed_lexeme: syn::Ident,
@@ -727,7 +727,7 @@ struct RuntimeEmissionPlan {
     opaque_binding_indices: Vec<usize>,
     context_identity_indices: Vec<usize>,
     signed_decimal_index: Option<usize>,
-    declaration_noun_index: Option<usize>,
+    declaration_noun_indices: Vec<usize>,
     punctuation_literals: Vec<String>,
     scanner_origin_indices: Vec<usize>,
 }
@@ -747,7 +747,7 @@ impl RuntimeEmissionPlan {
             opaque_binding_indices: Vec::new(),
             context_identity_indices: Vec::new(),
             signed_decimal_index: None,
-            declaration_noun_index: None,
+            declaration_noun_indices: Vec::new(),
             punctuation_literals: Vec::new(),
             scanner_origin_indices: Vec::new(),
         };
@@ -802,13 +802,8 @@ impl RuntimeEmissionPlan {
                         ));
                     }
                 }
-                TerminalPlan::DeclarationNoun(codec) => {
-                    if plan.declaration_noun_index.replace(index).is_some() {
-                        return Err(syn::Error::new(
-                            codec.origin_span(),
-                            "sealed runtime inventory has multiple declaration_noun codecs",
-                        ));
-                    }
+                TerminalPlan::DeclarationNoun(_) => {
+                    plan.declaration_noun_indices.push(index);
                 }
             }
         }
@@ -847,7 +842,7 @@ impl RuntimeEmissionPlan {
             .chain(&plan.opaque_binding_indices)
             .chain(&plan.context_identity_indices)
             .chain(plan.signed_decimal_index.iter())
-            .chain(plan.declaration_noun_index.iter())
+            .chain(&plan.declaration_noun_indices)
             .map(|&index| terminals[index].source_index())
             .collect::<BTreeSet<_>>();
         scanner_origin_indices.extend(roots.iter().map(RootPlan::source_index));
@@ -878,7 +873,10 @@ pub(crate) enum AtomTerminal<'a> {
     Binding(&'a BindingPlan),
     ContextIdentity(&'a ContextIdentityPlan),
     SignedDecimal(&'a SignedDecimalPlan),
-    DeclarationNoun(&'a DeclarationNounPlan),
+    DeclarationNoun {
+        terminal_index: usize,
+        plan: &'a DeclarationNounPlan,
+    },
 }
 
 #[derive(Debug)]
@@ -1391,7 +1389,7 @@ impl SemanticPlan {
     }
 
     pub(crate) fn needs_parser_environment(&self) -> bool {
-        self.has_open_declarations() || self.runtime.declaration_noun_index.is_some()
+        self.has_open_declarations() || !self.runtime.declaration_noun_indices.is_empty()
     }
 
     #[allow(
@@ -1455,13 +1453,23 @@ impl SemanticPlan {
         })
     }
 
-    pub(crate) fn runtime_declaration_noun(&self) -> Option<&DeclarationNounPlan> {
-        self.runtime.declaration_noun_index.map(|index| {
+    pub(crate) fn runtime_declaration_nouns(
+        &self,
+    ) -> impl Iterator<Item = (usize, &DeclarationNounPlan)> {
+        self.runtime.declaration_noun_indices.iter().map(|&index| {
             let TerminalPlan::DeclarationNoun(codec) = &self.terminals[index] else {
                 unreachable!("sealed runtime declaration-noun index changed terminal kind")
             };
-            codec
+            (index, codec)
         })
+    }
+
+    pub(crate) fn runtime_declaration_noun_for(
+        &self,
+        value_type: &str,
+    ) -> Option<(usize, &DeclarationNounPlan)> {
+        self.runtime_declaration_nouns()
+            .find(|(_, codec)| codec.codec_name() == value_type)
     }
 
     pub(crate) fn runtime_direct_bindings(&self) -> impl Iterator<Item = &BindingPlan> {
@@ -1996,7 +2004,7 @@ impl SemanticPlan {
     }
 
     pub(crate) fn atom_terminal(&self, name: &str) -> syn::Result<AtomTerminal<'_>> {
-        for terminal in &self.terminals {
+        for (terminal_index, terminal) in self.terminals.iter().enumerate() {
             match terminal {
                 TerminalPlan::Vocab(row) if row.name() == name => {
                     return Ok(AtomTerminal::Vocab(row));
@@ -2011,7 +2019,10 @@ impl SemanticPlan {
                     return Ok(AtomTerminal::SignedDecimal(row));
                 }
                 TerminalPlan::DeclarationNoun(row) if row.codec_name() == name => {
-                    return Ok(AtomTerminal::DeclarationNoun(row));
+                    return Ok(AtomTerminal::DeclarationNoun {
+                        terminal_index,
+                        plan: row,
+                    });
                 }
                 TerminalPlan::Vocab(_)
                 | TerminalPlan::Lexeme(_)
@@ -4273,16 +4284,32 @@ impl DeclarationNounPlan {
             .expect("validated declaration_noun has one kind set")
             .kinds
             .iter()
-            .map(|kind| match identifier_key(kind).as_str() {
-                "Type" => DeclarationKindFamily::Type,
-                "Subtype" => DeclarationKindFamily::Subtype,
-                _ => unreachable!("validated declaration_noun kind is closed"),
+            .map(|kind| {
+                match (
+                    identifier_key(&kind.kind).as_str(),
+                    kind.subtype_family.as_ref().map(identifier_key),
+                ) {
+                    ("Type", None) => DeclarationKindFamily::Type,
+                    ("Subtype", None) => DeclarationKindFamily::Subtype,
+                    ("Subtype", Some(family)) => DeclarationKindFamily::SubtypeFamily(match family
+                        .as_str()
+                    {
+                        "Artifact" => macro_ron::v2::SubtypeCategory::Artifact,
+                        "Battle" => macro_ron::v2::SubtypeCategory::Battle,
+                        "Creature" => macro_ron::v2::SubtypeCategory::Creature,
+                        "Enchantment" => macro_ron::v2::SubtypeCategory::Enchantment,
+                        "Land" => macro_ron::v2::SubtypeCategory::Land,
+                        "Planeswalker" => macro_ron::v2::SubtypeCategory::Planeswalker,
+                        "Spell" => macro_ron::v2::SubtypeCategory::Spell,
+                        _ => unreachable!("validated declaration_noun subtype family is closed"),
+                    }),
+                    _ => unreachable!("validated declaration_noun kind is closed"),
+                }
             })
             .collect();
         Self {
             source_index,
             origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
-            origin_span: source.name.span(),
             codec_ident: source.name.clone(),
             declaration_value_ident: syn::Ident::new(
                 &format!("Declaration{}", identifier_key(&source.name)),
@@ -4301,10 +4328,6 @@ impl DeclarationNounPlan {
 
     pub(crate) fn origin(&self) -> &DeclarationKey {
         &self.origin
-    }
-
-    pub(crate) fn origin_span(&self) -> Span {
-        self.origin_span
     }
 
     pub(crate) fn codec_name(&self) -> &str {

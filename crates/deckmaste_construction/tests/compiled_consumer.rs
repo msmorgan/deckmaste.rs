@@ -59,6 +59,7 @@ pub mod environment {
 
 mod declaration_noun_fixture {
     use RulePosition::Lexical as L;
+    use RulePosition::Nonterminal as N;
 
     use super::constructions;
 
@@ -278,26 +279,70 @@ mod declaration_noun_fixture {
     constructions! {
         morphology EnglishNoun { feature = Number; recipe = english_noun; }
         lexeme NounLexeme using EnglishNoun { Player = "player", }
-        codec Noun {
+        codec TypeNoun {
             generate declaration_noun {
                 closed = NounLexeme;
                 position = Noun;
-                kinds = [Type, Subtype];
+                kinds = [Type];
                 feature = Number;
             }
         }
-        construction singular: Phrase {
-            element SingularPhrase { head: lex Noun, }
+        codec CreatureNoun {
+            generate declaration_noun {
+                closed = NounLexeme;
+                position = Noun;
+                kinds = [Subtype(Creature)];
+                feature = Number;
+            }
+        }
+        construction singular: NumberSource {
+            element SingularNumberSource {}
             derive number = Values::Singular;
-            form singular = noun(head);
+            form singular = "singular";
         }
-        construction plural: PluralPhrase {
-            element PluralPhraseNode { head: lex Noun, }
+        construction plural: NumberSource {
+            element PluralNumberSource {}
             derive number = Values::Plural;
-            form plural = noun(head);
+            form plural = "plural";
         }
+        construction constant_pair: ConstantOutputPair {
+            element ConstantOutputPairNode {
+                left_source: NumberSource,
+                left: lex TypeNoun,
+                right_source: NumberSource,
+                right: lex CreatureNoun,
+            }
+            derive left.number = left_source.number;
+            derive right.number = right_source.number;
+            derive number = Values::Singular;
+            form constant_pair = left_source noun(left) right_source noun(right);
+        }
+        construction elsewhere_pair: ElsewhereOutputPair {
+            element ElsewhereOutputPairNode {
+                output_source: NumberSource,
+                left_source: NumberSource,
+                left: lex TypeNoun,
+                right_source: NumberSource,
+                right: lex CreatureNoun,
+            }
+            derive left.number = left_source.number;
+            derive right.number = right_source.number;
+            derive number = output_source.number;
+            form elsewhere_pair = output_source left_source noun(left) right_source noun(right);
+        }
+        construction modified: Phrase {
+            element ModifiedPhrase {
+                modifier: lex TypeNoun,
+                head: lex CreatureNoun,
+            }
+            derive modifier.number = Values::Singular;
+            derive head.number = modifier.number;
+            derive number = head.number;
+            form modified = noun(modifier) noun(head);
+        }
+        root ConstantOutputPair { punctuation = "."; eoi = true; standalone_render = true; }
+        root ElsewhereOutputPair { punctuation = "."; eoi = true; standalone_render = true; }
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
-        root PluralPhrase { punctuation = "."; eoi = true; standalone_render = true; }
     }
 
     fn declaration(path: &str, source: &str) -> macro_ron::v2::DeclarationSource {
@@ -313,6 +358,10 @@ mod declaration_noun_fixture {
             declaration(
                 "/synthetic/subtypes/creature/Elf.ron",
                 r#"Subtype(category:Creature,name:"Elf",spelling:"Elf",grammar:Noun(singular:"Elf",plural:"Elves"))"#,
+            ),
+            declaration(
+                "/synthetic/subtypes/artifact/Clue.ron",
+                r#"Subtype(category:Artifact,name:"Clue",spelling:"Clue",grammar:Noun(singular:"Clue"))"#,
             ),
             declaration(
                 "/synthetic/abilities/Fraud.ron",
@@ -331,281 +380,317 @@ mod declaration_noun_fixture {
         }
     }
 
-    fn assert_build_render_and_visit(
-        environment: &crate::environment::ParserEnvironment,
-        context: &ParseContext<'_>,
-        singular: &LexicalMatch<Leaf, LexicalOwner>,
-        plural: &LexicalMatch<Leaf, LexicalOwner>,
-    ) {
-        let built = build(
-            RuleId::PhraseSingular,
-            &[BuildValue::Leaf(singular.value.clone())],
-            context,
-        )
-        .expect("generated declaration noun builds through its construction");
-        let BuildValue::Phrase(phrase) = built else {
-            panic!("singular declaration noun builds the declared root")
-        };
-        assert_eq!(Render::render(&phrase, context, environment), "Relic.");
-        let (rendered, claims) = render_phrase_with_claims(&phrase, context, environment);
-        assert_eq!(rendered, "Relic.");
-        assert_eq!(
-            claims
-                .iter()
-                .map(|claim| (claim.start, claim.end, claim.owner.stable_id()))
-                .collect::<Vec<_>>(),
-            [
-                (0, 5, "lexeme:type/Relic/singular"),
-                (5, 6, "root:Phrase/punctuation"),
-            ]
-        );
-
-        let built = build(
-            RuleId::PluralPhrasePlural,
-            &[BuildValue::Leaf(plural.value.clone())],
-            context,
-        )
-        .expect("generated plural declaration noun builds through its construction");
-        let BuildValue::PluralPhrase(plural_phrase) = built else {
-            panic!("plural declaration noun builds the declared plural root")
-        };
-        assert_eq!(
-            Render::render(&plural_phrase, context, environment),
-            "Elves."
-        );
-        let (rendered, claims) =
-            render_plural_phrase_with_claims(&plural_phrase, context, environment);
-        assert_eq!(rendered, "Elves.");
-        assert_eq!(
-            claims
-                .iter()
-                .map(|claim| (claim.start, claim.end, claim.owner.stable_id()))
-                .collect::<Vec<_>>(),
-            [
-                (0, 5, "lexeme:creature_subtype/Elf/plural"),
-                (5, 6, "root:PluralPhrase/punctuation"),
-            ]
-        );
-
-        let mut recorder = Recorder(Vec::new());
-        walk_noun(
-            &mut recorder,
-            match &singular.value {
-                Leaf::Noun { noun, .. } => noun,
-                _ => unreachable!(),
-            },
-        );
-        walk_plural_phrase(&mut recorder, &plural_phrase);
-        assert_eq!(recorder.0, ["type `Relic`", "creature subtype `Elf`"]);
-    }
-
-    fn assert_generated_noun_surface_helper() {
-        assert_eq!(
-            surface_for_noun_lexeme(NounLexeme::Player, Number::Plural),
-            "players"
-        );
-    }
-
-    fn assert_closed_noun_morphology_scan(
-        environment: &crate::environment::ParserEnvironment,
-        context: &ParseContext<'_>,
-    ) {
-        let scan = |text, byte_offset, case, wanted| {
-            scan_lexical(
-                &ScanInput {
-                    text,
-                    position: ScanPosition {
-                        byte_offset,
-                        case,
-                        prefix: if byte_offset == 0 {
-                            PrefixPosition::None
-                        } else {
-                            PrefixPosition::WordOwnedSpace
-                        },
+    fn scan<'a>(
+        environment: &'a crate::environment::ParserEnvironment,
+        context: &'a ParseContext<'a>,
+        text: &'a str,
+        byte_offset: usize,
+        terminal_index: usize,
+    ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
+        scan_lexical(
+            &ScanInput {
+                text,
+                position: ScanPosition {
+                    byte_offset,
+                    case: if byte_offset == 0 {
+                        CasePosition::DocumentInitial
+                    } else {
+                        CasePosition::Continuation
                     },
-                    environment,
-                    context,
+                    prefix: if byte_offset == 0 {
+                        PrefixPosition::None
+                    } else {
+                        PrefixPosition::WordOwnedSpace
+                    },
                 },
-                LexicalTerminal {
-                    matcher: Lexical::Noun(wanted),
-                    owner: LexicalOwnerTemplate::DeclarationNoun,
+                environment,
+                context,
+            },
+            LexicalTerminal {
+                matcher: Lexical::DeclarationNoun(
+                    terminal_index,
+                    FeatureConstraint::Exact(Number::Singular),
+                ),
+                owner: LexicalOwnerTemplate::DeclarationNoun(terminal_index),
+            },
+        )
+    }
+
+    fn scan_terminal<'a>(
+        environment: &'a crate::environment::ParserEnvironment,
+        context: &'a ParseContext<'a>,
+        text: &'a str,
+        byte_offset: usize,
+        terminal: LexicalTerminal,
+    ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
+        scan_lexical(
+            &ScanInput {
+                text,
+                position: ScanPosition {
+                    byte_offset,
+                    case: if byte_offset == 0 {
+                        CasePosition::DocumentInitial
+                    } else {
+                        CasePosition::Continuation
+                    },
+                    prefix: if byte_offset == 0 {
+                        PrefixPosition::None
+                    } else {
+                        PrefixPosition::WordOwnedSpace
+                    },
                 },
-            )
+                environment,
+                context,
+            },
+            terminal,
+        )
+    }
+
+    fn phrase_rule_terminals() -> (LexicalTerminal, LexicalTerminal) {
+        let rule = RULES
+            .iter()
+            .find(|rule| rule.id == RuleId::PhraseModified)
+            .expect("the generated Phrase rule is present");
+        let [L(modifier), L(head)] = rule.rhs else {
+            panic!("the generated Phrase rule has two lexical noun roles")
         };
-        let closed = scan(
-            "Player.",
-            0,
-            CasePosition::DocumentInitial,
-            FeatureConstraint::Exact(Number::Singular),
-        );
         assert!(matches!(
-            closed.as_slice(),
-            [LexicalMatch {
-                end: 6,
-                value: Leaf::Noun {
-                    noun: Noun::Lexeme(NounLexeme::Player),
-                    number: Number::Singular
-                },
-                owner: Some(_),
-            }]
+            modifier,
+            LexicalTerminal {
+                matcher: Lexical::DeclarationNoun(1, FeatureConstraint::Exact(Number::Singular),),
+                owner: LexicalOwnerTemplate::DeclarationNoun(1),
+            }
         ));
-        assert_eq!(
-            closed[0].owner.as_ref().unwrap().stable_id(),
-            "lexeme:NounLexeme/Player/singular"
-        );
-        let closed_plural = scan(
-            "prefix players.",
-            6,
-            CasePosition::Continuation,
-            FeatureConstraint::Exact(Number::Plural),
-        );
-        assert!(matches!(
-            closed_plural.as_slice(),
-            [LexicalMatch {
-                end: 14,
-                value: Leaf::Noun {
-                    noun: Noun::Lexeme(NounLexeme::Player),
-                    number: Number::Plural
-                },
-                owner: Some(_),
-            }]
-        ));
-        assert_eq!(
-            closed_plural[0].owner.as_ref().unwrap().stable_id(),
-            "lexeme:NounLexeme/Player/plural"
-        );
         assert!(
-            scan(
-                "Playersx.",
-                0,
-                CasePosition::DocumentInitial,
-                FeatureConstraint::Any,
-            )
-            .is_empty()
+            matches!(
+                head,
+                LexicalTerminal {
+                    matcher: Lexical::DeclarationNoun(2, FeatureConstraint::Any,),
+                    owner: LexicalOwnerTemplate::DeclarationNoun(2),
+                }
+            ),
+            "unexpected generated head terminal: {head:?}"
         );
+        (*modifier, *head)
     }
 
     pub(crate) fn run() {
         let environment = environment();
         let context = ParseContext::default();
-        assert_generated_noun_surface_helper();
         let relic =
             macro_ron::v2::DeclarationIdentity::new(macro_ron::v2::DeclarationKind::Type, "Relic");
         let elf = macro_ron::v2::DeclarationIdentity::new(
             macro_ron::v2::DeclarationKind::Subtype(macro_ron::v2::SubtypeCategory::Creature),
             "Elf",
         );
-
-        let relic_singular = DeclarationNoun::new(
-            &environment,
-            relic.clone(),
-            macro_ron::v2::SurfaceFeature::Singular,
-        )
-        .expect("Type singular membership constructs");
-        assert_eq!(relic_singular.id(), &relic);
-        assert_eq!(
-            relic_singular.feature(),
-            macro_ron::v2::SurfaceFeature::Singular
-        );
-        assert!(
-            DeclarationNoun::new(
-                &environment,
-                elf.clone(),
-                macro_ron::v2::SurfaceFeature::Plural,
-            )
-            .is_some()
-        );
-        assert!(
-            DeclarationNoun::new(
-                &environment,
-                macro_ron::v2::DeclarationIdentity::new(
-                    macro_ron::v2::DeclarationKind::Type,
-                    "Missing",
-                ),
-                macro_ron::v2::SurfaceFeature::Singular,
-            )
-            .is_none()
-        );
-        assert!(
-            DeclarationNoun::new(
-                &environment,
-                macro_ron::v2::DeclarationIdentity::new(
-                    macro_ron::v2::DeclarationKind::KeywordAbility,
-                    "Fraud",
-                ),
-                macro_ron::v2::SurfaceFeature::Singular,
-            )
-            .is_none()
+        let clue = macro_ron::v2::DeclarationIdentity::new(
+            macro_ron::v2::DeclarationKind::Subtype(macro_ron::v2::SubtypeCategory::Artifact),
+            "Clue",
         );
 
-        let scan = |text, byte_offset, case, wanted| {
-            scan_lexical(
-                &ScanInput {
-                    text,
-                    position: ScanPosition {
-                        byte_offset,
-                        case,
-                        prefix: if byte_offset == 0 {
-                            PrefixPosition::None
-                        } else {
-                            PrefixPosition::WordOwnedSpace
-                        },
-                    },
-                    environment: &environment,
-                    context: &context,
-                },
-                LexicalTerminal {
-                    matcher: Lexical::Noun(wanted),
-                    owner: LexicalOwnerTemplate::DeclarationNoun,
-                },
-            )
+        let public_type = DeclarationTypeNoun::new(&environment, relic.clone())
+            .expect("the public declaration noun stores a valid identity");
+        assert_eq!(public_type.id(), &relic);
+        assert!(DeclarationTypeNoun::new(&environment, elf.clone()).is_none());
+        assert!(DeclarationCreatureNoun::new(&environment, elf.clone()).is_some());
+        assert!(DeclarationCreatureNoun::new(&environment, clue).is_none());
+
+        let (modifier_terminal, head_terminal) = phrase_rule_terminals();
+        let modifier = scan_terminal(&environment, &context, "Relic Elf.", 0, modifier_terminal);
+        let head = scan_terminal(&environment, &context, "Relic Elf.", 5, head_terminal);
+        assert!(
+            scan_terminal(&environment, &context, "Elf.", 0, modifier_terminal).is_empty(),
+            "deliberately swapping the Creature declaration into the Type role fails",
+        );
+        assert!(
+            scan_terminal(&environment, &context, "Relic.", 0, head_terminal).is_empty(),
+            "deliberately swapping the Type declaration into the Creature role fails",
+        );
+        let swapped_modifier_index = LexicalTerminal {
+            matcher: Lexical::DeclarationNoun(2, FeatureConstraint::Exact(Number::Singular)),
+            owner: LexicalOwnerTemplate::DeclarationNoun(2),
         };
-        let singular = scan(
-            "Relic.",
-            0,
-            CasePosition::DocumentInitial,
-            FeatureConstraint::Exact(Number::Singular),
-        );
-        assert_eq!(singular.len(), 1);
-        assert_eq!(singular[0].end, 5);
-        assert!(matches!(
-            &singular[0].value,
-            Leaf::Noun { noun: Noun::Declaration(noun), number: Number::Singular }
-                if noun.id() == &relic
-        ));
-        let owner = LexicalOwnerTemplate::DeclarationNoun
-            .instantiate(&singular[0].value)
-            .expect("declaration noun has an exact owner");
-        assert_eq!(owner.kind(), LexicalProvenanceKind::Lexeme);
-        assert_eq!(owner.stable_id(), "lexeme:type/Relic/singular");
-
-        let plural = scan(
-            "prefix Elves.",
-            6,
-            CasePosition::Continuation,
-            FeatureConstraint::Exact(Number::Plural),
-        );
-        assert_eq!(plural.len(), 1);
-        assert_eq!(plural[0].end, 12);
-        assert!(matches!(
-            &plural[0].value,
-            Leaf::Noun { noun: Noun::Declaration(noun), number: Number::Plural }
-                if noun.id() == &elf
-                    && noun.feature() == macro_ron::v2::SurfaceFeature::Plural
-        ));
+        let swapped_head_index = LexicalTerminal {
+            matcher: Lexical::DeclarationNoun(1, FeatureConstraint::Any),
+            owner: LexicalOwnerTemplate::DeclarationNoun(1),
+        };
         assert!(
-            scan(
-                "Fraud.",
-                0,
-                CasePosition::DocumentInitial,
-                FeatureConstraint::Any,
-            )
-            .is_empty()
+            scan_terminal(&environment, &context, "Relic.", 0, swapped_modifier_index,).is_empty(),
+            "deliberately swapping the generated modifier terminal index fails",
+        );
+        assert!(
+            scan_terminal(&environment, &context, "Elf.", 0, swapped_head_index,).is_empty(),
+            "deliberately swapping the generated head terminal index fails",
+        );
+        assert!(
+            scan_terminal(&environment, &context, "Clue.", 0, head_terminal).is_empty(),
+            "the exact Creature family filter rejects an Artifact subtype",
+        );
+        assert!(
+            scan(&environment, &context, "Relic.", 0, usize::MAX).is_empty(),
+            "an unknown declaration-noun terminal index rejects without a union scan",
+        );
+        assert!(matches!(
+            modifier.as_slice(),
+            [LexicalMatch {
+                value: Leaf::TypeNoun {
+                    noun: TypeNoun::Declaration(noun),
+                    number: Number::Singular,
+                },
+                ..
+            }] if noun.id() == &relic
+        ));
+        assert!(matches!(
+            head.as_slice(),
+            [LexicalMatch {
+                value: Leaf::CreatureNoun {
+                    noun: CreatureNoun::Declaration(noun),
+                    number: Number::Singular,
+                },
+                ..
+            }] if noun.id() == &elf
+        ));
+
+        let built = build(
+            RuleId::PhraseModified,
+            &[
+                BuildValue::Leaf(modifier[0].value.clone()),
+                BuildValue::Leaf(head[0].value.clone()),
+            ],
+            &context,
+        )
+        .expect("singular modifier Number flows to the inherited-number head");
+        let BuildValue::Phrase(phrase) = built else {
+            panic!("the generated compound noun builds its declared root")
+        };
+        assert_eq!(
+            Render::render(&phrase, &context, &environment),
+            "Relic Elf."
         );
 
-        assert_closed_noun_morphology_scan(&environment, &context);
+        let Leaf::CreatureNoun { noun, .. } = &head[0].value else { unreachable!() };
+        let mismatched = Leaf::CreatureNoun {
+            noun: noun.clone(),
+            number: Number::Plural,
+        };
+        assert!(
+            build(
+                RuleId::PhraseModified,
+                &[
+                    BuildValue::Leaf(modifier[0].value.clone()),
+                    BuildValue::Leaf(mismatched),
+                ],
+                &context,
+            )
+            .is_none(),
+            "the private realized feature must agree with the sealed role Number",
+        );
 
-        assert_build_render_and_visit(&environment, &context, &singular[0], &plural[0]);
+        let mut recorder = Recorder(Vec::new());
+        walk_phrase(&mut recorder, &phrase);
+        assert_eq!(recorder.0, ["type `Relic`", "creature subtype `Elf`"]);
+    }
+
+    fn number_source(number: Number) -> BuildValue {
+        match number {
+            Number::Singular => BuildValue::NumberSource(
+                NumberSource::Singular(SingularNumberSource),
+                Number::Singular,
+            ),
+            Number::Plural => {
+                BuildValue::NumberSource(NumberSource::Plural(PluralNumberSource), Number::Plural)
+            }
+        }
+    }
+
+    fn declaration_leaf(noun: &Leaf, number: Number) -> BuildValue {
+        match noun {
+            Leaf::TypeNoun { noun, .. } => BuildValue::Leaf(Leaf::TypeNoun {
+                noun: noun.clone(),
+                number,
+            }),
+            Leaf::CreatureNoun { noun, .. } => BuildValue::Leaf(Leaf::CreatureNoun {
+                noun: noun.clone(),
+                number,
+            }),
+            _ => panic!("expected a declaration noun leaf"),
+        }
+    }
+
+    fn independently_numbered_children(
+        left: &Leaf,
+        left_number: Number,
+        right: &Leaf,
+        right_number: Number,
+    ) -> Vec<BuildValue> {
+        vec![
+            number_source(Number::Singular),
+            declaration_leaf(left, left_number),
+            number_source(Number::Plural),
+            declaration_leaf(right, right_number),
+        ]
+    }
+
+    pub(crate) fn assert_dynamic_role_number_guards_are_independent() {
+        let environment = environment();
+        let context = ParseContext::default();
+        let left = &scan(&environment, &context, "Relic", 0, 1)[0].value;
+        let right = &scan(&environment, &context, "Elf", 0, 2)[0].value;
+
+        let valid = independently_numbered_children(left, Number::Singular, right, Number::Plural);
+        assert!(
+            build(RuleId::ConstantOutputPairConstantPair, &valid, &context).is_some(),
+            "independent role Numbers do not inherit the constant construction Number",
+        );
+
+        let wrong_left =
+            independently_numbered_children(left, Number::Plural, right, Number::Plural);
+        assert!(
+            build(
+                RuleId::ConstantOutputPairConstantPair,
+                &wrong_left,
+                &context,
+            )
+            .is_none(),
+            "only the left private Number must match left_source.number",
+        );
+
+        let wrong_right =
+            independently_numbered_children(left, Number::Singular, right, Number::Singular);
+        assert!(
+            build(
+                RuleId::ConstantOutputPairConstantPair,
+                &wrong_right,
+                &context,
+            )
+            .is_none(),
+            "only the right private Number must match right_source.number",
+        );
+    }
+
+    pub(crate) fn assert_construction_number_does_not_overconstrain_noun_roles() {
+        let environment = environment();
+        let context = ParseContext::default();
+        let left = &scan(&environment, &context, "Relic", 0, 1)[0].value;
+        let right = &scan(&environment, &context, "Elf", 0, 2)[0].value;
+        let children = std::iter::once(number_source(Number::Singular))
+            .chain(independently_numbered_children(
+                left,
+                Number::Singular,
+                right,
+                Number::Plural,
+            ))
+            .collect::<Vec<_>>();
+
+        assert!(
+            build(
+                RuleId::ElsewhereOutputPairElsewherePair,
+                &children,
+                &context,
+            )
+            .is_some(),
+            "construction Number derives from output_source without constraining either noun role",
+        );
     }
 }
 
@@ -3046,6 +3131,16 @@ pub mod fixture {
 fn generated_morphology_output_is_type_correct_and_executes_every_boundary_case() {
     declaration_noun_fixture::run();
     fixture::run();
+}
+
+#[test]
+fn dynamic_declaration_noun_role_guards_are_independent() {
+    declaration_noun_fixture::assert_dynamic_role_number_guards_are_independent();
+}
+
+#[test]
+fn construction_number_does_not_overconstrain_declaration_noun_roles() {
+    declaration_noun_fixture::assert_construction_number_does_not_overconstrain_noun_roles();
 }
 
 #[test]

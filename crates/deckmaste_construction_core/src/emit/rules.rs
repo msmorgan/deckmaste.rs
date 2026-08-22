@@ -1539,11 +1539,18 @@ fn emit_position(
             let owner = owner_template(plan, terminal)?;
             Ok(lexical_terminal(&lexical, &owner))
         }
-        AtomPlan::Noun { terminal, .. } => {
-            let lexical = lexical_variant(plan, terminal)?;
-            let number = noun_number(plan, construction)?;
+        AtomPlan::Noun { role, terminal } => {
+            let number = noun_number(plan, construction, role)?;
             let owner = owner_template(plan, terminal)?;
-            Ok(lexical_terminal(&quote! { #lexical(#number) }, &owner))
+            let matcher = if let AtomTerminal::DeclarationNoun { terminal_index, .. } =
+                plan.atom_terminal(terminal)?
+            {
+                quote! { Lexical::DeclarationNoun(#terminal_index, #number) }
+            } else {
+                let lexical = lexical_variant(plan, terminal)?;
+                quote! { #lexical(#number) }
+            };
+            Ok(lexical_terminal(&matcher, &owner))
         }
         AtomPlan::VerbFixed {
             terminal, variant, ..
@@ -1672,9 +1679,12 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
                 }
             })
         }
-        AtomTerminal::DeclarationNoun(codec) => {
-            debug_assert_eq!(codec.position(), ::macro_ron::v2::GrammarPosition::Noun);
-            Ok(quote! { LexicalOwnerTemplate::DeclarationNoun })
+        AtomTerminal::DeclarationNoun {
+            terminal_index,
+            plan,
+        } => {
+            debug_assert_eq!(plan.position(), ::macro_ron::v2::GrammarPosition::Noun);
+            Ok(quote! { LexicalOwnerTemplate::DeclarationNoun(#terminal_index) })
         }
     }
 }
@@ -1702,15 +1712,33 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
             let variant = codec.codec_ident();
             Ok(quote! { Lexical::#variant })
         }
-        AtomTerminal::DeclarationNoun(_) => Ok(quote! { Lexical::Noun }),
+        AtomTerminal::DeclarationNoun { .. } => Err(internal(
+            "declaration noun lexical matcher requires its sealed index",
+        )),
     }
 }
 
-fn noun_number(plan: &SemanticPlan, construction: &ConstructionPlan) -> syn::Result<TokenStream> {
-    let equation = plan
-        .feature_equations(construction.construction_id())
+fn noun_number(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+) -> syn::Result<TokenStream> {
+    let equations = plan.feature_equations(construction.construction_id());
+    let role_target = FeaturePlace::Role {
+        field: syn::Ident::new(role, construction.origin_span()),
+        feature: Feature::Number,
+    };
+    let target = if equations
         .iter()
-        .find(|equation| equation.target() == &FeaturePlace::Construction(Feature::Number))
+        .any(|equation| equation.target() == &role_target)
+    {
+        role_target
+    } else {
+        FeaturePlace::Construction(Feature::Number)
+    };
+    let equation = equations
+        .iter()
+        .find(|equation| equation.target() == &target)
         .ok_or_else(|| internal("noun atom has no validated construction number"))?;
     match equation.value() {
         FeatureExpr::Constant(value) => match value.value() {

@@ -501,10 +501,11 @@ fn lower_terminal_value(
                 expression: quote! { #binding.clone() },
             })
         }
-        AtomTerminal::DeclarationNoun(_) => {
+        AtomTerminal::DeclarationNoun { plan, .. } => {
+            let leaf = plan.codec_ident();
             let binding = binders.allocate(preferred);
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::Leaf(Leaf::Noun { noun: #binding, number: _ }) },
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { noun: #binding, number: _ }) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -1106,7 +1107,8 @@ fn lower_terminal_role(
                 .insert(identifier_key(&role), quote! { #value.clone() });
             return Ok(());
         }
-        AtomTerminal::DeclarationNoun(_) => {
+        AtomTerminal::DeclarationNoun { plan, .. } => {
+            let leaf = plan.codec_ident();
             let value = lowering.binders.allocate(&identifier_key(&role));
             let number = noun_number_pattern(validated, row, &role, lowering)?;
             let number_field = if number.to_string() == "number" {
@@ -1115,7 +1117,7 @@ fn lower_terminal_role(
                 quote! { number: #number }
             };
             lowering.patterns.push(quote! {
-                BuildValue::Leaf(Leaf::Noun { noun: #value, #number_field })
+                BuildValue::Leaf(Leaf::#leaf { noun: #value, #number_field })
             });
             lowering
                 .field_values
@@ -1226,16 +1228,34 @@ fn noun_number_pattern(
     role: &syn::Ident,
     lowering: &mut Lowering,
 ) -> syn::Result<TokenStream> {
-    let target = FeaturePlace::Construction(Feature::Number);
+    let role_target = FeaturePlace::Role {
+        field: role.clone(),
+        feature: Feature::Number,
+    };
+    let target = if equation(validated, row, &role_target).is_some() {
+        role_target.clone()
+    } else {
+        FeaturePlace::Construction(Feature::Number)
+    };
     if let Some(crate::feature::FeatureResolution::Known(value)) =
         validated.feature_resolution(row.construction_id(), &target)
     {
+        lowering.role_features.insert(
+            (identifier_key(role), Feature::Number),
+            LocalFeatureValue::Known(value),
+        );
         return Ok(feature_value(value));
     }
     let equation = equation(validated, row, &target)
         .ok_or_else(|| internal("noun atom has no construction number"))?;
     match equation.value() {
-        FeatureExpr::Constant(value) => Ok(feature_value(*value.value())),
+        FeatureExpr::Constant(value) => {
+            lowering.role_features.insert(
+                (identifier_key(role), Feature::Number),
+                LocalFeatureValue::Known(*value.value()),
+            );
+            Ok(feature_value(*value.value()))
+        }
         FeatureExpr::MatchVocab { .. } | FeatureExpr::FromRole { .. } => {
             let preferred = if lowering.dynamic_numbers.is_empty() {
                 "number".to_owned()
@@ -1243,7 +1263,13 @@ fn noun_number_pattern(
                 format!("{}_number", identifier_key(role))
             };
             let number = lowering.binders.allocate(&preferred);
-            lowering.dynamic_numbers.push(number.clone());
+            lowering.role_features.insert(
+                (identifier_key(role), Feature::Number),
+                LocalFeatureValue::Bound(number.clone()),
+            );
+            if target != role_target {
+                lowering.dynamic_numbers.push(number.clone());
+            }
             Ok(quote! { #number })
         }
     }
@@ -1766,18 +1792,19 @@ fn role_number_is_needed_in_build(
         .any(|atom| matches!(atom, AtomPlan::Noun { .. }))
         || validated.category_carries_number(row.category());
     output_needs_number
-        && matches!(
-            equation(
-                validated,
-                row,
-                &FeaturePlace::Construction(Feature::Number),
-            )
-            .map(crate::feature::FeatureEquation::value),
-            Some(FeatureExpr::FromRole {
-                role: source,
-                feature: Feature::Number,
-            }) if identifier_key(source) == identifier_key(role)
-        )
+        && (feature_is_read(validated, row, role, Feature::Number)
+            || matches!(
+                equation(
+                    validated,
+                    row,
+                    &FeaturePlace::Construction(Feature::Number),
+                )
+                .map(crate::feature::FeatureEquation::value),
+                Some(FeatureExpr::FromRole {
+                    role: source,
+                    feature: Feature::Number,
+                }) if identifier_key(source) == identifier_key(role)
+            ))
 }
 
 fn terminal_for_role<'a>(row: &'a ConstructionPlan, role: &syn::Ident) -> syn::Result<&'a str> {

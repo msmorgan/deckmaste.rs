@@ -111,9 +111,12 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         }
     });
     let verb_lexeme_arm = verb_lexeme_arm(plan);
-    let declaration_noun_arm = declaration_noun_arm(plan);
+    let declaration_noun_arms = declaration_noun_arms(plan);
+    let unknown_declaration_noun_arm = (!declaration_noun_arms.is_empty())
+        .then(|| quote! { Lexical::DeclarationNoun(_, _) => Vec::new(), });
     let noun_lexeme_arm = plan
-        .runtime_declaration_noun()
+        .runtime_declaration_nouns()
+        .next()
         .is_none()
         .then(|| noun_lexeme_arm(plan))
         .flatten();
@@ -172,7 +175,8 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 #(#context_identity_arms,)*
                 #signed_decimal_arm
                 #verb_lexeme_arm
-                #declaration_noun_arm
+                #(#declaration_noun_arms,)*
+                #unknown_declaration_noun_arm
                 #noun_lexeme_arm
                 #bound_arm
                 Lexical::Declaration(matcher) => input
@@ -283,8 +287,8 @@ fn noun_surface_candidates(
     })
 }
 
-fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
-    plan.runtime_declaration_noun().map(|codec| {
+fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
+    plan.runtime_declaration_nouns().map(|(terminal_index, codec)| {
         let noun = codec.codec_ident();
         let declaration = codec.declaration_value_ident();
         let closed_plan = plan
@@ -298,6 +302,10 @@ fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
             crate::semantic::DeclarationKindFamily::Subtype => {
                 quote! { ::macro_ron::v2::DeclarationKind::Subtype(_) }
             }
+            crate::semantic::DeclarationKindFamily::SubtypeFamily(family) => {
+                let family = crate::emit::subtype_category(*family);
+                quote! { ::macro_ron::v2::DeclarationKind::Subtype(#family) }
+            }
         });
         let position = crate::emit::grammar_position(codec.position());
         let number_feature = match codec.feature_axis() {
@@ -307,7 +315,7 @@ fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
             }
         };
         quote! {
-            Lexical::Noun(wanted) => {
+            Lexical::DeclarationNoun(#terminal_index, wanted) => {
                 let mut matches = Vec::new();
                 for (lexeme, number, surface) in [#(#closed_candidates),*] {
                     if matches!(wanted, FeatureConstraint::Any)
@@ -316,7 +324,7 @@ fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                         if let Some(end) = input.word_end(surface) {
                             matches.push(LexicalMatch {
                                 end,
-                                value: Leaf::Noun {
+                                value: Leaf::#noun {
                                     noun: #noun::Lexeme(lexeme),
                                     number,
                                 },
@@ -332,12 +340,12 @@ fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                             ::macro_ron::v2::SurfaceFeature::Plural => Number::Plural,
                             _ => continue,
                         };
-                        let Some(declaration) = #declaration::from_reading(id, feature) else {
+                        let Some(declaration) = #declaration::from_reading(id) else {
                             continue;
                         };
                         matches.push(LexicalMatch {
                             end,
-                            value: Leaf::Noun {
+                            value: Leaf::#noun {
                                 noun: #noun::Declaration(declaration),
                                 number,
                             },
@@ -348,12 +356,12 @@ fn declaration_noun_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                 matches
             }
         }
-    })
+    }).collect()
 }
 
 fn bound_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
     let mut arms = Vec::new();
-    if plan.runtime_declaration_noun().is_none() && plan.runtime_noun_binding().is_some() {
+    if plan.runtime_declaration_nouns().next().is_none() && plan.runtime_noun_binding().is_some() {
         arms.push(quote! { Lexical::Noun(_) });
     }
     arms.extend(plan.runtime_direct_bindings().map(binding_arm));

@@ -643,12 +643,12 @@ fn parse_equation(input: ParseStream<'_>) -> syn::Result<FeatureEquation> {
         }
         input.parse::<Token![.]>()?;
         let feature_ident: Ident = input.parse()?;
-        if feature_ident != "agreement" {
+        let Some(feature) = feature_from_ident(&feature_ident) else {
             return Err(deferred(feature_ident.span(), "derive target"));
-        }
+        };
         FeaturePlace::Role {
             field: first,
-            feature: Feature::Agreement,
+            feature,
         }
     };
     input.parse::<Token![=]>()?;
@@ -1350,9 +1350,28 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
             if slot == "kinds" {
                 let kinds_content;
                 bracketed!(kinds_content in content);
-                let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(
+                let kinds = Punctuated::<crate::model::DeclarationNounKindSource, Token![,]>::parse_terminated_with(
                     &kinds_content,
-                    Ident::parse_any,
+                    |input| {
+                        let kind = input.call(Ident::parse_any)?;
+                        let subtype_family = if input.peek(syn::token::Paren) {
+                            let family_content;
+                            parenthesized!(family_content in input);
+                            let family = family_content.call(Ident::parse_any)?;
+                            if !family_content.is_empty() {
+                                return Err(family_content.error(
+                                    "declaration_noun subtype-family filter accepts one family",
+                                ));
+                            }
+                            Some(family)
+                        } else {
+                            None
+                        };
+                        Ok(crate::model::DeclarationNounKindSource {
+                            kind,
+                            subtype_family,
+                        })
+                    },
                 )?
                 .into_iter()
                 .collect();
@@ -2779,13 +2798,20 @@ mod tests {
         assert_eq!(source.role, "subject");
         assert_eq!(source.feature, Feature::Agreement);
 
-        let error = parse(
+        let role_number = parse(
             "construction x: X { element XNode { role: X, } derive role.number = NounNumber::Plural; form x = role; }",
         )
-        .expect_err("role.number is not an architecture-authorized target")
-        .to_string();
-        assert!(error.contains("derive target"), "{error}");
-        assert!(error.contains("unimplemented in MVP"), "{error}");
+        .expect("role-level Number is an architecture-authorized target");
+        let Declaration::Construction(role_number) = &role_number.declarations[0] else {
+            panic!("role Number fixture is a construction")
+        };
+        assert!(matches!(
+            role_number.equations[0].target,
+            FeaturePlace::Role {
+                feature: Feature::Number,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -2970,6 +2996,32 @@ mod tests {
             declarations.declarations[1],
             Declaration::Codec(_)
         ));
+    }
+
+    #[test]
+    fn parses_distinct_declaration_noun_domain_filters() {
+        parse(
+            r#"
+                lexeme NounLexeme using EnglishNoun { Player = "player", }
+                codec TypeNoun {
+                    generate declaration_noun {
+                        closed = NounLexeme;
+                        position = Noun;
+                        kinds = [Type];
+                        feature = Number;
+                    }
+                }
+                codec CreatureNoun {
+                    generate declaration_noun {
+                        closed = NounLexeme;
+                        position = Noun;
+                        kinds = [Subtype(Creature)];
+                        feature = Number;
+                    }
+                }
+            "#,
+        )
+        .expect("exact kind and subtype-family declaration noun filters parse");
     }
 
     #[test]

@@ -1082,14 +1082,12 @@ fn signature_tail(parts: &[Option<TokenStream>]) -> TokenStream {
     quote! { #(, #parts)* }
 }
 
-fn render_allocator(
+fn render_base_allocator(
     validated: &SemanticPlan,
-    members: &[&ConstructionPlan],
     root_impl: bool,
-    root_names: &HashSet<String>,
     takes_agreement: bool,
     takes_context: bool,
-) -> syn::Result<LocalAllocator> {
+) -> LocalAllocator {
     let mut allocator = LocalAllocator::default();
     allocator.reserve("writer");
     if root_impl {
@@ -1104,6 +1102,18 @@ fn render_allocator(
     if validated.needs_parser_environment() {
         allocator.reserve("environment");
     }
+    allocator
+}
+
+fn render_allocator(
+    validated: &SemanticPlan,
+    members: &[&ConstructionPlan],
+    root_impl: bool,
+    root_names: &HashSet<String>,
+    takes_agreement: bool,
+    takes_context: bool,
+) -> syn::Result<LocalAllocator> {
+    let mut allocator = render_base_allocator(validated, root_impl, takes_agreement, takes_context);
     for construction in members {
         let fields = construction
             .fields()
@@ -1204,8 +1214,8 @@ fn render_allocator(
                         .get(role)
                         .ok_or_else(|| internal("resolved noun role is absent"))?;
                     if validated
-                        .runtime_declaration_noun()
-                        .is_none_or(|codec| codec.codec_name() != field.terminal())
+                        .runtime_declaration_noun_for(field.terminal())
+                        .is_none()
                     {
                         let binding = find_binding(validated, field.terminal())?;
                         let Some(BindingRenderPlan::Runtime(path)) = binding.render() else {
@@ -1218,7 +1228,24 @@ fn render_allocator(
                         })?;
                         allocator.reserve(lexeme_surface_helper(lexeme.name()));
                     }
-                    allocator.reserve(feature_helper("number", construction.category()));
+                    let role_number = FeaturePlace::Role {
+                        field: syn::Ident::new(role, construction.origin_span()),
+                        feature: Feature::Number,
+                    };
+                    if let Some(writer) = validated
+                        .feature_equations(construction.construction_id())
+                        .iter()
+                        .find(|equation| equation.target() == &role_number)
+                    {
+                        reserve_feature_callees(
+                            validated,
+                            construction,
+                            writer.value(),
+                            &mut allocator,
+                        )?;
+                    } else {
+                        allocator.reserve(feature_helper("number", construction.category()));
+                    }
                 }
             }
         }
@@ -1262,13 +1289,14 @@ fn reserve_feature_callees(
         return Ok(());
     }
     let field = construction.field(&identifier_key(role))?;
-    if field.kind() == ConstructionFieldKind::Category
-        && let Some(writer) = validated
+    if let Some(writer) = validated
             .feature_equations(construction.construction_id())
             .iter()
             .find(|equation| {
                 matches!(equation.target(), FeaturePlace::Role { field, feature } if identifier_key(field) == identifier_key(role) && feature == source_feature)
             })
+        && (field.kind() == ConstructionFieldKind::Category
+            || !matches!(writer.value(), FeatureExpr::MatchVocab { .. }))
     {
         return reserve_feature_callees(validated, construction, writer.value(), allocator);
     }
@@ -1829,10 +1857,7 @@ fn render_owner(
         AtomPlan::Noun { role, .. } => {
             let field = construction.field(role)?;
             let value = field_value(construction, role, locals)?;
-            let Some(codec) = validated
-                .runtime_declaration_noun()
-                .filter(|codec| codec.codec_name() == field.terminal())
-            else {
+            let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
                 let stable_id =
                     syn::LitStr::new(&format!("codec:{}", field.terminal()), Span::call_site());
                 return Ok(quote! {
@@ -1841,8 +1866,7 @@ fn render_owner(
             };
             let noun = codec.codec_ident();
             let closed = codec.closed_lexeme();
-            let number = ident(&feature_helper("number", construction.category()));
-            let category_value = &locals.category;
+            let number = noun_role_number(validated, construction, role, locals)?;
             let closed_arms = validated
                 .runtime_noun_lexeme()
                 .expect("validated declaration noun has a closed lexeme")
@@ -1872,11 +1896,14 @@ fn render_owner(
                     }
                 });
             Ok(quote! {
-                match (#value, #number(#category_value)) {
+                match (#value, #number) {
                     #(#closed_arms,)*
                     (#noun::Declaration(declaration), _) => LexicalOwner::declaration_owner(
                         declaration.id().clone(),
-                        declaration.feature(),
+                        match #number {
+                            Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
+                            Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                        },
                     ),
                 }
             })
@@ -1893,18 +1920,14 @@ fn render_noun_atom(
     method_writer: &TokenStream,
     call_writer: &TokenStream,
 ) -> syn::Result<TokenStream> {
-    let number = ident(&feature_helper("number", construction.category()));
-    let category_value = &locals.category;
+    let number = noun_role_number(validated, construction, role, locals)?;
     let value = field_value(construction, role, locals)?;
-    let Some(codec) = validated
-        .runtime_declaration_noun()
-        .filter(|codec| codec.codec_name() == field.terminal())
-    else {
+    let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
         let binding = find_binding(validated, field.terminal())?;
         let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
             return Err(internal("noun terminal lacks runtime render binding"));
         };
-        return Ok(quote! { #function(#call_writer, #value, #number(#category_value)); });
+        return Ok(quote! { #function(#call_writer, #value, #number); });
     };
 
     let noun = codec.codec_ident();
@@ -1921,16 +1944,50 @@ fn render_noun_atom(
     Ok(quote! {
         match #value {
             #noun::Lexeme(lexeme) => {
-                #method_writer.word(#surface(*lexeme, #number(#category_value)));
+                #method_writer.word(#surface(*lexeme, #number));
             }
             #noun::Declaration(declaration) => {
                 let surface = environment
-                    .surface(declaration.id(), declaration.feature())
+                    .surface(
+                        declaration.id(),
+                        match #number {
+                            Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
+                            Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                        },
+                    )
                     .expect("stored declaration noun remains in its parser environment");
                 #method_writer.word(surface);
             }
         }
     })
+}
+
+fn noun_role_number(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+    locals: &RenderLocals,
+) -> syn::Result<TokenStream> {
+    let target = FeaturePlace::Role {
+        field: syn::Ident::new(role, construction.origin_span()),
+        feature: Feature::Number,
+    };
+    if let Some(equation) = validated
+        .feature_equations(construction.construction_id())
+        .iter()
+        .find(|equation| equation.target() == &target)
+    {
+        return feature_expr(
+            validated,
+            construction,
+            equation.value(),
+            Feature::Number,
+            locals,
+        );
+    }
+    let number = ident(&feature_helper("number", construction.category()));
+    let category_value = &locals.category;
+    Ok(quote! { #number(#category_value) })
 }
 
 fn render_open_declaration(
@@ -2052,8 +2109,7 @@ fn feature_expr(
             }
             let role_key = identifier_key(role);
             let field = construction.field(&role_key)?;
-            if field.kind() == ConstructionFieldKind::Category
-                && let Some(writer) = validated
+            if let Some(writer) = validated
                     .feature_equations(construction.construction_id())
                     .iter()
                     .find(|equation| {
@@ -2063,6 +2119,8 @@ fn feature_expr(
                                 if identifier_key(field) == identifier_key(role) && feature == source_feature
                         )
                     })
+                && (field.kind() == ConstructionFieldKind::Category
+                    || !matches!(writer.value(), FeatureExpr::MatchVocab { .. }))
             {
                 return feature_expr(
                     validated,
@@ -2310,10 +2368,13 @@ fn feature_roles(
                     .find(|equation| {
                         matches!(equation.target(), FeaturePlace::Role { field, feature } if identifier_key(field) == identifier_key(role) && feature == source_feature)
                     });
-                let result = if field.is_none()
-                    || field.is_some_and(|field| field.kind() == ConstructionFieldKind::Category)
-                        && writer.is_some()
-                {
+                let derived_role = field.is_some_and(|field| {
+                    field.kind() == ConstructionFieldKind::Category
+                        || validated
+                            .runtime_declaration_noun_for(field.terminal())
+                            .is_some()
+                });
+                let result = if field.is_none() || derived_role && writer.is_some() {
                     if let Some(writer) = writer {
                         collect(validated, construction, writer.value(), roles, visiting)
                     } else {

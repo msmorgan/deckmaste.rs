@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -1884,7 +1885,94 @@ fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
             }
         }
     }
+    finish_generated_codec_validation(raw, errors)
+}
+
+fn finish_generated_codec_validation(
+    raw: &Declarations,
+    mut errors: Option<syn::Error>,
+) -> syn::Result<()> {
+    validate_declaration_noun_domains_are_pairwise_intentional(raw, &mut errors);
     finish(errors)
+}
+
+fn validate_declaration_noun_domains_are_pairwise_intentional(
+    raw: &Declarations,
+    errors: &mut Option<syn::Error>,
+) {
+    let nouns = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| {
+            let Declaration::Codec(binding) = declaration else { return None };
+            let Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(source)) =
+                &binding.generated
+            else {
+                return None;
+            };
+            Some((binding, declaration_noun_domain_members(source)))
+        })
+        .collect::<Vec<_>>();
+    for (index, (left, left_domain)) in nouns.iter().enumerate() {
+        for (right, right_domain) in &nouns[index + 1..] {
+            let overlap = left_domain.intersection(right_domain).next().cloned();
+            if let Some(overlap) = overlap {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        right.name.span(),
+                        format!(
+                            "declaration_noun domains `{}` and `{}` overlap at `{overlap}`",
+                            left.name, right.name
+                        ),
+                    ),
+                );
+            }
+        }
+    }
+}
+
+fn declaration_noun_domain_members(
+    source: &crate::model::DeclarationNounSource,
+) -> BTreeSet<String> {
+    let Some(kinds) = source.kind_slots.first() else {
+        return BTreeSet::new();
+    };
+    let mut members = BTreeSet::new();
+    for kind in &kinds.kinds {
+        match (
+            identifier_key(&kind.kind).as_str(),
+            kind.subtype_family.as_ref().map(identifier_key),
+        ) {
+            ("Type", None) => {
+                members.insert("Type".to_owned());
+            }
+            ("Subtype", None) => {
+                for family in declaration_subtype_families() {
+                    members.insert(format!("Subtype({family})"));
+                }
+            }
+            ("Subtype", Some(family))
+                if declaration_subtype_families().contains(&family.as_str()) =>
+            {
+                members.insert(format!("Subtype({family})"));
+            }
+            _ => {}
+        }
+    }
+    members
+}
+
+fn declaration_subtype_families() -> &'static [&'static str] {
+    &[
+        "Artifact",
+        "Battle",
+        "Creature",
+        "Enchantment",
+        "Land",
+        "Planeswalker",
+        "Spell",
+    ]
 }
 
 fn validate_declaration_noun_source(
@@ -1992,51 +2080,80 @@ fn validate_declaration_noun_source(
         }
     }
     if let Some(kinds) = kinds {
-        if kinds.kinds.is_empty() {
+        validate_declaration_noun_kinds(source, kinds, errors);
+    }
+}
+
+fn validate_declaration_noun_kinds(
+    source: &crate::model::DeclarationNounSource,
+    kinds: &crate::model::DeclarationNounKindsSource,
+    errors: &mut Option<syn::Error>,
+) {
+    if kinds.kinds.is_empty() {
+        combine(
+            errors,
+            syn::Error::new(
+                kinds.slot.span(),
+                "declaration_noun kind set cannot be empty",
+            ),
+        );
+    }
+    let mut seen = HashSet::new();
+    for kind in &kinds.kinds {
+        let name = identifier_key(&kind.kind);
+        if !matches!(name.as_str(), "Type" | "Subtype") {
             combine(
                 errors,
                 syn::Error::new(
-                    kinds.slot.span(),
-                    "declaration_noun kind set cannot be empty",
+                    kind.kind.span(),
+                    "declaration_noun kinds must be `Type` or `Subtype`",
+                ),
+            );
+            continue;
+        }
+        let family = kind.subtype_family.as_ref().map(identifier_key);
+        if name == "Type" && family.is_some() {
+            combine(
+                errors,
+                syn::Error::new(
+                    kind.kind.span(),
+                    "declaration_noun `Type` filter does not accept a subtype family",
+                ),
+            );
+            continue;
+        }
+        if let Some(family) = &family
+            && !declaration_subtype_families().contains(&family.as_str())
+        {
+            combine(
+                errors,
+                syn::Error::new(
+                    kind.subtype_family.as_ref().expect("family exists").span(),
+                    format!("unknown declaration_noun subtype family `{family}`"),
+                ),
+            );
+            continue;
+        }
+        let key = family.map_or_else(|| name.clone(), |family| format!("{name}({family})"));
+        if !seen.insert(key.clone()) {
+            combine(
+                errors,
+                syn::Error::new(
+                    kind.kind.span(),
+                    format!("duplicate declaration_noun kind `{key}`"),
                 ),
             );
         }
-        let mut seen = HashSet::new();
-        let mut valid_kinds = !kinds.kinds.is_empty();
-        for kind in &kinds.kinds {
-            let name = identifier_key(kind);
-            if !matches!(name.as_str(), "Type" | "Subtype") {
-                valid_kinds = false;
-                combine(
-                    errors,
-                    syn::Error::new(
-                        kind.span(),
-                        "declaration_noun kinds must be `Type` or `Subtype`",
-                    ),
-                );
-            } else if !seen.insert(name.clone()) {
-                combine(
-                    errors,
-                    syn::Error::new(
-                        kind.span(),
-                        format!("duplicate declaration_noun kind `{name}`"),
-                    ),
-                );
-            }
-        }
-        if valid_kinds {
-            for required in ["Type", "Subtype"] {
-                if !seen.contains(required) {
-                    combine(
-                        errors,
-                        syn::Error::new(
-                            kinds.slot.span(),
-                            format!("declaration_noun requires `{required}` kind"),
-                        ),
-                    );
-                }
-            }
-        }
+    }
+    let members = declaration_noun_domain_members(source);
+    if !kinds.kinds.is_empty() && members.is_empty() {
+        combine(
+            errors,
+            syn::Error::new(
+                kinds.slot.span(),
+                "declaration_noun domain is not resolvable",
+            ),
+        );
     }
 }
 
@@ -3609,7 +3726,19 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
             .iter()
             .any(|operand| matches!(operand, VerbOperand::Fixed(_)))
             || open_verb_count != 0;
-        let local_vocab_providers = local_vocab_feature_providers(construction, &fields, symbols);
+        let mut local_vocab_providers =
+            local_vocab_feature_providers(construction, &fields, symbols);
+        local_vocab_providers.extend(construction.equations.iter().filter_map(|equation| {
+            let ParsedFeaturePlace::Role {
+                field,
+                feature: ParsedFeature::Number,
+            } = &equation.target
+            else {
+                return None;
+            };
+            role_provides_number(raw, &fields, field)
+                .then(|| (identifier_key(field), ParsedFeature::Number))
+        }));
         for (form, (form_verbs, form_open_verb_count)) in
             construction.forms.iter().zip(&form_verb_rows)
         {
@@ -6721,7 +6850,7 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
                         );
                     }
                 }
-                validate_lowerable_feature_compositions(construction, &mut errors);
+                validate_lowerable_feature_compositions(raw, construction, &mut errors);
             }
             Declaration::Codec(binding) | Declaration::Identity(binding) => {
                 if binding.generated.is_none()
@@ -6786,6 +6915,7 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
 }
 
 fn validate_lowerable_feature_compositions(
+    raw: &Declarations,
     construction: &crate::Construction,
     errors: &mut Option<syn::Error>,
 ) {
@@ -6838,13 +6968,7 @@ fn validate_lowerable_feature_compositions(
             (
                 ParsedFeaturePlace::Construction(ParsedFeature::Number),
                 ParsedFeatureValue::FromRole(source),
-            ) => {
-                !has_noun
-                    || matches!(
-                        fields.get(&identifier_key(&source.role)),
-                        Some(FieldKind::Category(_))
-                    )
-            }
+            ) => !has_noun || role_provides_number(raw, &fields, &source.role),
             (
                 ParsedFeaturePlace::Role {
                     field,
@@ -6865,10 +6989,10 @@ fn validate_lowerable_feature_compositions(
             (
                 ParsedFeaturePlace::Role {
                     feature: ParsedFeature::Number,
-                    ..
+                    field,
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
-            ) => false,
+            ) => role_provides_number(raw, &fields, field),
         };
         if !lowerable {
             let span = match &equation.target {
@@ -6883,6 +7007,26 @@ fn validate_lowerable_feature_compositions(
                 ),
             );
         }
+    }
+}
+
+fn role_provides_number(
+    raw: &Declarations,
+    fields: &HashMap<String, &FieldKind>,
+    role: &syn::Ident,
+) -> bool {
+    match fields.get(&identifier_key(role)) {
+        Some(FieldKind::Category(_)) => true,
+        Some(FieldKind::Lex(path)) => raw.declarations.iter().any(|declaration| {
+            matches!(
+                declaration,
+                Declaration::Codec(binding)
+                    if identifier_key(&binding.name) == path_name(path)
+                        && matches!(binding.generated, Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(_)))
+            )
+        }),
+        Some(FieldKind::Identity(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
+        | None => false,
     }
 }
 
@@ -7502,10 +7646,10 @@ pub(crate) mod tests {
                 quote! {
                     closed = NounLexeme;
                     position = Noun;
-                    kinds = [Type];
+                    kinds = [Subtype(Contraption)];
                     feature = Number;
                 },
-                "requires `Subtype` kind",
+                "unknown declaration_noun subtype family `Contraption`",
             ),
             (
                 quote! {
@@ -7523,6 +7667,42 @@ pub(crate) mod tests {
                 "expected {expected:?} in {message}"
             );
         }
+    }
+
+    #[test]
+    fn declaration_noun_domains_and_role_number_flow_are_typed() {
+        validate(quote! {
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme NounLexeme using EnglishNoun { Player = "player", }
+            codec TypeNoun {
+                generate declaration_noun {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type];
+                    feature = Number;
+                }
+            }
+            codec CreatureNoun {
+                generate declaration_noun {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Subtype(Creature)];
+                    feature = Number;
+                }
+            }
+            construction modified: Phrase {
+                element Modified {
+                    modifier: lex TypeNoun,
+                    head: lex CreatureNoun,
+                }
+                derive modifier.number = Values::Singular;
+                derive head.number = modifier.number;
+                derive number = head.number;
+                form modified = noun(modifier) noun(head);
+            }
+            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("typed declaration noun domains and role-derived Number validate");
     }
 
     #[test]
@@ -10841,7 +11021,7 @@ pub(crate) mod tests {
                     }
                     root Root { punctuation = "."; eoi = true; standalone_render = true; }
                 },
-                "derive target unimplemented in MVP",
+                "feature equation composition",
             ),
             (
                 "partial agreement provider",

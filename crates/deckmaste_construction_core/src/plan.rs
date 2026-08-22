@@ -844,22 +844,35 @@ mod tests {
     }
 
     #[test]
-    fn declaration_noun_recipe_routes_sealed_facts_to_every_emitter() {
+    fn declaration_noun_roles_resolve_to_exact_source_ordered_terminal_plans() {
         let source: proc_macro2::TokenStream = quote::quote! {
             morphology EnglishNoun { feature = Number; recipe = english_noun; }
             lexeme NounLexeme using EnglishNoun { Player = "player", }
-            codec Noun {
+            codec TypeNoun {
                 generate declaration_noun {
                     closed = NounLexeme;
                     position = Noun;
-                    kinds = [Type, Subtype];
+                    kinds = [Type];
                     feature = Number;
                 }
             }
-            construction common: Phrase {
-                element Common { head: lex Noun, }
-                derive number = Values::Singular;
-                form common = noun(head);
+            codec CreatureNoun {
+                generate declaration_noun {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Subtype(Creature)];
+                    feature = Number;
+                }
+            }
+            construction modified: Phrase {
+                element Modified {
+                    modifier: lex TypeNoun,
+                    head: lex CreatureNoun,
+                }
+                derive modifier.number = Values::Singular;
+                derive head.number = modifier.number;
+                derive number = head.number;
+                form modified = noun(modifier) noun(head);
             }
             root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         };
@@ -869,36 +882,29 @@ mod tests {
         .expect("the exact closed recipe validates")
         .into_semantic();
 
-        let outputs = [
-            ("terminal", crate::emit::terminal::emit(&plan).unwrap().0),
-            ("runtime", crate::emit::runtime::emit(&plan)),
-            ("scanner", crate::emit::scanner::emit(&plan)),
-            ("rules", crate::emit::rules::emit(&plan).unwrap()),
-            ("build", crate::emit::build::emit(&plan).unwrap()),
-            ("render", crate::emit::render::emit(&plan).unwrap()),
-            ("visit", crate::emit::visit::emit(&plan).unwrap()),
-        ];
-        for (emitter, items) in outputs {
-            let emitted = items
-                .iter()
-                .map(|item| item.tokens.to_string())
-                .collect::<String>();
-            let expected: &[&str] = match emitter {
-                "terminal" => &["NounLexeme", "DeclarationNoun", "SurfaceFeature"],
-                "runtime" => &["DeclarationNoun", "Noun :: Declaration"],
-                "scanner" => &["NounLexeme", "GrammarPosition :: Noun", "SurfaceFeature"],
-                "rules" => &["Lexical :: Noun", "DeclarationNoun"],
-                "build" => &["Leaf :: Noun", ". clone"],
-                "render" => &["Noun :: Declaration", "environment . surface"],
-                "visit" => &["visit_declaration", "walk_declaration_noun"],
-                _ => unreachable!(),
-            };
-            for needle in expected {
-                assert!(
-                    emitted.contains(needle),
-                    "{emitter} did not consume `{needle}`: {emitted}"
-                );
-            }
+        let terminals = plan
+            .runtime_declaration_nouns()
+            .map(|(index, terminal)| (index, terminal.codec_name()))
+            .collect::<Vec<_>>();
+        assert_eq!(terminals, [(1, "TypeNoun"), (2, "CreatureNoun")]);
+
+        let construction = plan
+            .constructions()
+            .iter()
+            .find(|construction| construction.construction_id() == "modified")
+            .expect("the consumer construction is sealed");
+        for (role, expected_type, expected_index) in
+            [("modifier", "TypeNoun", 1), ("head", "CreatureNoun", 2)]
+        {
+            let field = construction.field(role).expect("the noun role is sealed");
+            assert_eq!(field.terminal(), expected_type);
+            assert!(matches!(
+                plan.atom_terminal(field.terminal()),
+                Ok(crate::semantic::AtomTerminal::DeclarationNoun {
+                    terminal_index,
+                    plan: terminal,
+                }) if terminal_index == expected_index && terminal.codec_name() == expected_type
+            ));
         }
     }
 

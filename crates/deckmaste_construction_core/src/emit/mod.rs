@@ -499,6 +499,20 @@ pub(super) fn declaration_kind(kind: macro_ron::v2::DeclarationKind) -> TokenStr
     }
 }
 
+pub(super) fn subtype_category(category: macro_ron::v2::SubtypeCategory) -> TokenStream {
+    use macro_ron::v2::SubtypeCategory;
+
+    match category {
+        SubtypeCategory::Artifact => quote! { ::macro_ron::v2::SubtypeCategory::Artifact },
+        SubtypeCategory::Battle => quote! { ::macro_ron::v2::SubtypeCategory::Battle },
+        SubtypeCategory::Creature => quote! { ::macro_ron::v2::SubtypeCategory::Creature },
+        SubtypeCategory::Enchantment => quote! { ::macro_ron::v2::SubtypeCategory::Enchantment },
+        SubtypeCategory::Land => quote! { ::macro_ron::v2::SubtypeCategory::Land },
+        SubtypeCategory::Planeswalker => quote! { ::macro_ron::v2::SubtypeCategory::Planeswalker },
+        SubtypeCategory::Spell => quote! { ::macro_ron::v2::SubtypeCategory::Spell },
+    }
+}
+
 pub(super) fn grammar_position(position: macro_ron::v2::GrammarPosition) -> TokenStream {
     use macro_ron::v2::GrammarPosition;
 

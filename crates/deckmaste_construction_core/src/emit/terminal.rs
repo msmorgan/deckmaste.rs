@@ -201,6 +201,10 @@ pub(crate) fn emit(
                     crate::semantic::DeclarationKindFamily::Subtype => {
                         quote! { ::macro_ron::v2::DeclarationKind::Subtype(_) }
                     }
+                    crate::semantic::DeclarationKindFamily::SubtypeFamily(family) => {
+                        let family = crate::emit::subtype_category(*family);
+                        quote! { ::macro_ron::v2::DeclarationKind::Subtype(#family) }
+                    }
                 });
                 items.push(GeneratedItem::new(
                     ItemKey::named_type(row.declaration_value_ident().to_string()),
@@ -208,7 +212,6 @@ pub(crate) fn emit(
                         #[derive(Debug, Clone, PartialEq, Eq)]
                         pub struct #declaration {
                             id: ::macro_ron::v2::DeclarationIdentity,
-                            feature: ::macro_ron::v2::SurfaceFeature,
                         }
                     },
                     vec![origin.clone()],
@@ -223,31 +226,26 @@ pub(crate) fn emit(
                             pub fn new(
                                 environment: &crate::environment::ParserEnvironment,
                                 id: ::macro_ron::v2::DeclarationIdentity,
-                                feature: ::macro_ron::v2::SurfaceFeature,
                             ) -> Option<Self> {
-                                environment.surface(&id, feature)?;
-                                Self::from_reading(id, feature)
+                                let has_surface = environment
+                                    .surface(&id, ::macro_ron::v2::SurfaceFeature::Singular)
+                                    .or_else(|| environment.surface(
+                                        &id,
+                                        ::macro_ron::v2::SurfaceFeature::Plural,
+                                    ))
+                                    .is_some();
+                                has_surface.then(|| Self::from_reading(id)).flatten()
                             }
 
                             pub(crate) fn from_reading(
                                 id: ::macro_ron::v2::DeclarationIdentity,
-                                feature: ::macro_ron::v2::SurfaceFeature,
                             ) -> Option<Self> {
-                                (matches!(id.kind(), #(#allowed)|*)
-                                    && matches!(
-                                        feature,
-                                        ::macro_ron::v2::SurfaceFeature::Singular
-                                            | ::macro_ron::v2::SurfaceFeature::Plural
-                                    ))
-                                .then_some(Self { id, feature })
+                                matches!(id.kind(), #(#allowed)|*)
+                                    .then_some(Self { id })
                             }
 
                             pub fn id(&self) -> &::macro_ron::v2::DeclarationIdentity {
                                 &self.id
-                            }
-
-                            pub const fn feature(&self) -> ::macro_ron::v2::SurfaceFeature {
-                                self.feature
                             }
                         }
                     },

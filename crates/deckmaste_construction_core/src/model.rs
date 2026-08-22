@@ -339,7 +339,13 @@ pub struct GeneratedIdentSlot {
 #[derive(Debug)]
 pub struct DeclarationNounKindsSource {
     pub slot: Ident,
-    pub kinds: Vec<Ident>,
+    pub kinds: Vec<DeclarationNounKindSource>,
+}
+
+#[derive(Debug)]
+pub struct DeclarationNounKindSource {
+    pub kind: Ident,
+    pub subtype_family: Option<Ident>,
 }
 
 #[derive(Debug)]

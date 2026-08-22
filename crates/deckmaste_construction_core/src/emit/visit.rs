@@ -49,7 +49,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     let mut bindings = Vec::new();
     let mut context_identities = Vec::new();
     let mut signed_decimal = None;
-    let mut declaration_noun = None;
+    let mut declaration_nouns = Vec::new();
     for terminal in validated.terminals() {
         match terminal {
             TerminalPlan::Vocab(row) => vocabs.push(row),
@@ -57,7 +57,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             TerminalPlan::Binding(row) => bindings.push(row),
             TerminalPlan::ContextIdentity(row) => context_identities.push(row),
             TerminalPlan::SignedDecimal(row) => signed_decimal = Some(row),
-            TerminalPlan::DeclarationNoun(row) => declaration_noun = Some(row),
+            TerminalPlan::DeclarationNoun(row) => declaration_nouns.push(row),
         }
     }
     let containers = bindings
@@ -95,7 +95,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         lexemes: &lexemes,
         borrowed_bindings: &borrowed_bindings,
         signed_decimal,
-        declaration_noun,
+        declaration_nouns: &declaration_nouns,
     };
     let trait_item = emit_trait(validated, &categories, constructions, &terminal_visitors)?;
     let mut items = vec![trait_item];
@@ -143,7 +143,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         items.push(emit_signed_decimal_sign_walker(codec));
         items.push(emit_signed_decimal_walker(codec));
     }
-    if let Some(codec) = declaration_noun {
+    for codec in declaration_nouns {
         items.push(emit_declaration_noun_value_walker(codec));
         items.push(emit_declaration_noun_walker(codec));
     }
@@ -158,7 +158,7 @@ struct TerminalVisitors<'a> {
     lexemes: &'a [&'a LexemePlan],
     borrowed_bindings: &'a [&'a BindingPlan],
     signed_decimal: Option<&'a SignedDecimalPlan>,
-    declaration_noun: Option<&'a DeclarationNounPlan>,
+    declaration_nouns: &'a [&'a DeclarationNounPlan],
 }
 
 #[allow(
@@ -220,9 +220,12 @@ fn emit_trait(
     if let Some(codec) = terminals.signed_decimal {
         origins.push(codec.origin().clone());
     }
-    if let Some(codec) = terminals.declaration_noun {
-        origins.push(codec.origin().clone());
-    }
+    origins.extend(
+        terminals
+            .declaration_nouns
+            .iter()
+            .map(|codec| codec.origin().clone()),
+    );
     origins.extend(constructions.iter().map(|construction| {
         DeclarationKey::new(
             DeclarationKind::Construction,
@@ -316,14 +319,14 @@ fn visitor_methods(
         methods.push(noop_method(&codec.sign_type().to_string(), VisitMode::Copy));
         methods.push(noop_method(codec.codec_name(), VisitMode::Borrowed));
     }
-    if let Some(codec) = terminals.declaration_noun {
+    for codec in terminals.declaration_nouns {
         methods.push(default_method(codec.codec_name(), codec.codec_name()));
         methods.push(default_method(
             &codec.declaration_value_ident().to_string(),
             &crate::identifier::snake_case(&codec.declaration_value_ident().to_string()),
         ));
     }
-    if terminals.declaration_noun.is_some()
+    if !terminals.declaration_nouns.is_empty()
         || constructions.iter().any(|construction| {
             construction
                 .forms()
