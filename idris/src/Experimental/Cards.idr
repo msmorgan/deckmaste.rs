@@ -5791,6 +5791,41 @@ deathWard =
        [ Spell (Regenerate (Macros.target Macros.creature)) ]
        Nothing
 
+||| "{1}: Regenerate this creature. When it regenerates this way, put a
+||| -1/-1 counter on it." — "this way" binds the trigger to the shield
+||| this resolution created [CR#701.19a], so it waits for that shield to
+||| apply rather than being checked at once [CR#603.7,603.12].
+public export
+matopiGolem : Card
+matopiGolem =
+  Macros.card "Matopi Golem" (Just [Macros.generic 5]) []
+       (MkTypeLine [Golem] [Artifact, Creature])
+       [ Activated (Mana [Macros.generic 1])
+                   (ThisWay (Regenerate Macros.thisCreature)
+                            (Regenerates Macros.thisCreature)
+                            (PutCounters (Lit 1) Macros.minusOneMinusOne It)) ]
+       (Just (3, 3))
+
+||| "{R}: This creature gets +1/+0 until end of turn. When its power
+||| becomes 20 this way, it deals 20 damage to any target." — the
+||| enclosure is a continuous effect with no agent to inflect, so only
+||| [CR#603.12]'s outcome-bound template reaches it.
+public export
+infernoOfTheStarMounts : Card
+infernoOfTheStarMounts =
+  Macros.card "Inferno of the Star Mounts"
+       (Just [Macros.generic 4, Macros.pip Red, Macros.pip Red]) [Legendary]
+       (MkTypeLine [Dragon] [Creature])
+       [ Static (ObjectCant Countered This)
+       , KeywordAbility Flying
+       , KeywordAbility Haste
+       , Activated (Mana [Macros.pip Red])
+                   (ThisWay (Macros.gets Macros.thisCreature (PtUp (Lit 1))
+                                         (PtUp (Lit 0)) (Just Macros.untilEndOfTurn))
+                            (StatBecomes It Power (Lit 20))
+                            (DealDamage It (Lit 20) (Macros.target AnyTarget))) ]
+       (Just (6, 6))
+
 public export
 terror : Card
 terror =

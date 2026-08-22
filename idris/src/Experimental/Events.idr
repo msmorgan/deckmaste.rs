@@ -19,6 +19,7 @@ data EventName = Death | Departure | Destruction | DamageTaken
                | TokenCreation
                | ChapterArrival
                | AbilityActivation
+               | StatValueChange | Regeneration
 
 public export
 statusEventName : StatusCat -> EventName
@@ -94,6 +95,10 @@ sameEventName ChapterArrival ChapterArrival = True
 sameEventName ChapterArrival _ = False
 sameEventName AbilityActivation AbilityActivation = True
 sameEventName AbilityActivation _ = False
+sameEventName StatValueChange StatValueChange = True
+sameEventName StatValueChange _ = False
+sameEventName Regeneration Regeneration = True
+sameEventName Regeneration _ = False
 
 public export
 sameLookback : Lookback -> Lookback -> Bool
@@ -184,6 +189,12 @@ lookbackSubjectOk ChapterArrival Object = False
 lookbackSubjectOk ChapterArrival Player = False
 lookbackSubjectOk AbilityActivation Object = False
 lookbackSubjectOk AbilityActivation Player = True
+-- a bare "became" names no event: the value it reached is the
+-- complement, and a lookback carries none. Same ground as StatusChange.
+lookbackSubjectOk StatValueChange Object = False
+lookbackSubjectOk StatValueChange Player = False
+lookbackSubjectOk Regeneration Object = True
+lookbackSubjectOk Regeneration Player = False
 lookbackSubjectOk _ (Quality _) = False
 lookbackSubjectOk _ Outcome = False
 lookbackSubjectOk _ Gap = False

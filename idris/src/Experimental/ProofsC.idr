@@ -545,6 +545,15 @@ badReflexiveOnDelayed : Unspellable (Effect []) (\ok =>
 badReflexiveOnDelayed Oh impossible
 
 
+||| "At the beginning of your next end step, draw a card. When you draw a card this way, draw a card."
+||| The scheduled draw is a separate delayed ability's deed [CR#603.7e], not something the enclosure did, so "this way" names nothing [CR#603.12].
+public export
+badThisWayOnDelayed : Unspellable (Effect []) (\ok =>
+  ThisWay (Delayed (BeginningOf EndStep (ByWord Yours)) Macros.drawACard)
+          (Draws You) Macros.drawACard {oc = ok})
+badThisWayOnDelayed Oh impossible
+
+
 ||| "You may sacrifice a creature. If you do, draw a card. When you do, draw a card."
 ||| [CR#118.12]'s "if you do" and [CR#603.12]'s "when you do" ask the same question of one choice.
 public export

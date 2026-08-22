@@ -1922,7 +1922,7 @@ data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
              | Nymph | Dryad
              | Nightmare | Fish
              | Horror | Gargoyle | Assassin
-             | Skeleton
+             | Skeleton | Golem
              | Town | Desert
              | Pegasus
              | Faerie
@@ -1951,6 +1951,8 @@ Eq Subtype where
   (==) Assassin _ = False
   (==) Skeleton Skeleton = True
   (==) Skeleton _ = False
+  (==) Golem Golem = True
+  (==) Golem _ = False
   (==) Town Town = True
   (==) Town _ = False
   (==) Desert Desert = True
@@ -2156,6 +2158,7 @@ subtypeType Horror = Creature
 subtypeType Gargoyle = Creature
 subtypeType Assassin = Creature
 subtypeType Skeleton = Creature
+subtypeType Golem = Creature
 subtypeType Town = Land
 subtypeType Desert = Land
 subtypeType Pegasus = Creature

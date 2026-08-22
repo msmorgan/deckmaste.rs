@@ -2205,6 +2205,17 @@ mutual
                 (what : Noun (nomIntro who) Ability) ->
                 {auto 0 one : nounPlur what = OneOf} ->
                 {auto 0 nt : Nontarget what} -> GameEvent bs
+    ||| "[its] power becomes 20": [CR#603.2e] licenses a "becomes" event,
+    ||| which happens only as the value is reached and not while it holds.
+    StatBecomes : (n : Noun bs Object) -> (c : Characteristic) ->
+                  (v : Amount (nomIntro n)) ->
+                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                  GameEvent bs
+    ||| "[it] regenerates": [CR#701.19a]'s shield applying, which is not
+    ||| the same event as creating it [CR#701.19c].
+    Regenerates : (n : Noun bs Object) ->
+                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                  GameEvent bs
 
   public export
   eventName : {0 bs : Bindings} -> GameEvent bs -> EventName
@@ -2229,6 +2240,8 @@ mutual
   eventName (TokensCreated _) = TokenCreation
   eventName (ChapterMark _) = ChapterArrival
   eventName (Activates _ _) = AbilityActivation
+  eventName (StatBecomes _ _ _) = StatValueChange
+  eventName (Regenerates _) = Regeneration
 
   ||| What an event pattern contributes before it happens — its announced
   ||| subject phrase [CR#601.2c]. Read by an interception's replacement,
@@ -2261,6 +2274,8 @@ mutual
   eventIntro (TokensCreated n) = nomIntro n
   eventIntro (ChapterMark _) = bs
   eventIntro (Activates _ what) = nomIntro what
+  eventIntro (StatBecomes _ _ v) = amtIntro v
+  eventIntro (Regenerates n) = nomIntro n
 
   public export
   selfSubjIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
@@ -2333,6 +2348,8 @@ mutual
   eventAfter (TokensCreated n) = nomIntro n
   eventAfter (ChapterMark _) = bs
   eventAfter (Activates _ what) = nomIntro what
+  eventAfter (StatBecomes n _ v) = amtDelta v ++ selfSubjIntro n
+  eventAfter (Regenerates n) = selfSubjIntro n
 
   public export
   eventSubjectPlur : {bs : Bindings} -> GameEvent bs -> Plurality
@@ -2357,6 +2374,8 @@ mutual
   eventSubjectPlur (TokensCreated n) = nounPlur n
   eventSubjectPlur (ChapterMark _) = OneOf
   eventSubjectPlur (Activates who _) = nounPlur who
+  eventSubjectPlur (StatBecomes n _ _) = nounPlur n
+  eventSubjectPlur (Regenerates n) = nounPlur n
 
   ||| The context a delayed body reads: the event's own after-discourse
   ||| with the outer clause's targets settled [CR#603.7c,603.3d,601.2c].
@@ -3282,6 +3301,16 @@ mutual
                 {auto 0 ok : HeldClause e} -> Effect bs
     Reflexively : (body : Effect bs) -> (trig : Effect (reflexCtx body)) ->
                   {auto 0 en : ReflexEnclosure body} -> Effect bs
+    ||| [CR#603.12]'s other trigger template, "when [something happens]
+    ||| this way": the trigger names the EVENT the enclosure caused
+    ||| rather than the player who acted, so it reads the enclosure's
+    ||| outcome mentions. It is checked at once when the enclosure caused
+    ||| the event as it resolved [CR#603.12]; when the enclosure's effect
+    ||| is a replacement that applies later, as a regeneration shield
+    ||| does [CR#701.19a], it waits as a delayed trigger [CR#603.7].
+    ThisWay : (body : Effect bs) -> (ev : GameEvent (effIntro body)) ->
+              (trig : Effect (thisWayCtx body ev)) ->
+              {auto 0 oc : ThisWayOutcome body} -> Effect bs
 
     DoesntUntapNext : (n : Noun bs Object) -> (steps : Amount bs) ->
                       {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
@@ -3349,6 +3378,7 @@ mutual
   heldUntilOk (InsteadOf _ _) = False
   heldUntilOk (HeldUntil _ _) = False
   heldUntilOk (Reflexively _ _) = False
+  heldUntilOk (ThisWay _ _ _) = False
 
   ||| Why a clause is or is not a reflexive trigger's enclosure
   ||| [CR#603.12]; kept as an enum rather than a Bool since a False can
@@ -3421,6 +3451,7 @@ mutual
   reflexEncloseUse (Modal _ _) = EncNotOneAction
   reflexEncloseUse (InsteadOf _ _) = EncNotOneAction
   reflexEncloseUse (Reflexively _ _) = EncNotOneAction
+  reflexEncloseUse (ThisWay _ _ _) = EncNotOneAction
   reflexEncloseUse (Delayed _ _) = EncNotYetTaken
   reflexEncloseUse (HeldUntil _ _) = EncNotYetTaken
 
@@ -3434,6 +3465,73 @@ mutual
   public export
   ReflexEnclosure : Effect bs -> Type
   ReflexEnclosure e = So (admitsReflexEnclosure (reflexEncloseUse e))
+
+  ||| Does the enclosure itself cause the event "this way" points at?
+  ||| Only a clause that creates a delayed triggered ability fails: that
+  ||| ability is a separate one that resolves on its own [CR#603.7], so
+  ||| the deed when it comes is not the enclosure's for "this way" to
+  ||| name. An effect that applies later without a second ability — a
+  ||| replacement, a continuous effect, a skipped step — still caused it.
+  ||| Separate from `reflexEncloseUse`: that asks for an agent to
+  ||| inflect, this asks for a caused event, so a compound or agentless
+  ||| enclosure is fine here.
+  public export
+  thisWayOutcomeOk : {0 bs : Bindings} -> Effect bs -> Bool
+  thisWayOutcomeOk (Delayed _ _) = False
+  -- an offer's outcome is its body's; the arms are separate sentences.
+  thisWayOutcomeOk (May _ body _ _) = thisWayOutcomeOk body
+  thisWayOutcomeOk (DoesntUntapNext _ _) = True
+  thisWayOutcomeOk (SkipsNext _ _ _) = True
+  thisWayOutcomeOk (ExtraTurn _ _) = True
+  thisWayOutcomeOk (AdditionalPart _ _ _) = True
+  thisWayOutcomeOk (HeldUntil _ _) = True
+  thisWayOutcomeOk (DealDamage _ _ _) = True
+  thisWayOutcomeOk (Distribute _ _ _) = True
+  thisWayOutcomeOk (Fights _ _) = True
+  thisWayOutcomeOk (SetStatus _ _) = True
+  thisWayOutcomeOk (GetsCounters _ _ _) = True
+  thisWayOutcomeOk (LosesAllCounters _ _) = True
+  thisWayOutcomeOk (RemoveFromCombat _) = True
+  thisWayOutcomeOk (Regenerate _) = True
+  thisWayOutcomeOk (CantBe _ _ _) = True
+  thisWayOutcomeOk (GainsDesignation _ _ _) = True
+  thisWayOutcomeOk (GameBecomes _) = True
+  thisWayOutcomeOk (Concludes _ _) = True
+  thisWayOutcomeOk GameDrawn = True
+  thisWayOutcomeOk (CounterSpell _) = True
+  thisWayOutcomeOk (CopyStack _ _ _ _) = True
+  thisWayOutcomeOk (ChooseNewTargets _) = True
+  thisWayOutcomeOk (Choose _) = True
+  thisWayOutcomeOk (Move _ _) = True
+  thisWayOutcomeOk (ChangeLife _ _) = True
+  thisWayOutcomeOk (AddMana _ _ _ _) = True
+  thisWayOutcomeOk (Draw _ _) = True
+  thisWayOutcomeOk (Expose _ _ _) = True
+  thisWayOutcomeOk (Search _ _ _) = True
+  thisWayOutcomeOk (Shuffle _) = True
+  thisWayOutcomeOk (Continuously _ _) = True
+  thisWayOutcomeOk (Create _ _ _ _) = True
+  thisWayOutcomeOk (GetsEmblem _ _) = True
+  thisWayOutcomeOk (PutCounters _ _ _) = True
+  thisWayOutcomeOk (RemoveCounters _ _ _) = True
+  thisWayOutcomeOk (Composite _ _) = True
+  thisWayOutcomeOk (Does _ _ _) = True
+  thisWayOutcomeOk (Pay _ _) = True
+  thisWayOutcomeOk (If _ _ _) = True
+  thisWayOutcomeOk (Unless _ _ _) = True
+  thisWayOutcomeOk (WhereLetter _ _ _) = True
+  thisWayOutcomeOk (ForEachOf _ _) = True
+  thisWayOutcomeOk (Repeat _) = True
+  thisWayOutcomeOk (Sequentially _) = True
+  thisWayOutcomeOk (Simultaneously _) = True
+  thisWayOutcomeOk (Modal _ _) = True
+  thisWayOutcomeOk (InsteadOf _ _) = True
+  thisWayOutcomeOk (Reflexively _ _) = True
+  thisWayOutcomeOk (ThisWay _ _ _) = True
+
+  public export
+  ThisWayOutcome : Effect bs -> Type
+  ThisWayOutcome e = So (thisWayOutcomeOk e)
 
   public export
   payableOk : {0 bs : Bindings} -> Cost bs -> Bool
@@ -3568,6 +3666,7 @@ mutual
   costActionOk (InsteadOf _ _) = False
   costActionOk (HeldUntil _ _) = False
   costActionOk (Reflexively _ _) = False
+  costActionOk (ThisWay _ _ _) = False
 
   public export
   costActionOkOpt : {0 bs : Bindings} -> Maybe (Effect bs) -> Bool
@@ -3672,6 +3771,7 @@ mutual
   effEq (InsteadOf _ _) _ = False
   effEq (HeldUntil _ _) _ = False
   effEq (Reflexively _ _) _ = False
+  effEq (ThisWay _ _ _) _ = False
 
   public export
   anyEffEq : {0 bs : Bindings} -> Effect bs -> List (Effect bs) -> Bool
@@ -4152,6 +4252,7 @@ mutual
   effIntro (Modal q modes) = bs
   effIntro (Delayed ev e) = bs               -- a future clause mentions nothing NOW
   effIntro (Reflexively body trig) = effIntro body
+  effIntro (ThisWay body ev trig) = effIntro body
   effIntro (InsteadOf replaced repl) = annIntro replaced
   effIntro (HeldUntil e ev) = annIntro e
 
@@ -4211,6 +4312,7 @@ mutual
   preIntro (Modal q modes) = bs
   preIntro (Delayed ev e) = bs
   preIntro (Reflexively body trig) = preIntro body
+  preIntro (ThisWay body ev trig) = preIntro body
   preIntro (InsteadOf replaced repl) = annIntro replaced
   preIntro (HeldUntil e ev) = annIntro e
 
@@ -4270,6 +4372,7 @@ mutual
   annIntro (Modal q modes) = bs
   annIntro (Delayed ev e) = bs
   annIntro (Reflexively body trig) = annIntro body
+  annIntro (ThisWay body ev trig) = annIntro body
   annIntro (InsteadOf replaced repl) = annIntro replaced
   annIntro (HeldUntil e ev) = annIntro e
 
@@ -4361,6 +4464,7 @@ mutual
   deedDelta (Modal q modes) = []
   deedDelta (Delayed ev e) = []
   deedDelta (Reflexively body trig) = deedDelta body
+  deedDelta (ThisWay body ev trig) = deedDelta body
   deedDelta (InsteadOf replaced repl) = []
   deedDelta (HeldUntil e ev) = []
 
@@ -4392,6 +4496,14 @@ mutual
   public export
   reflexCtx : {bs : Bindings} -> Effect bs -> Bindings
   reflexCtx body = settleTargets (effIntro body)
+
+  ||| The post-state a "this way" trigger's body is typed in: the event
+  ||| has happened, so it reads the event's after-discourse with the
+  ||| enclosure's targets settled [CR#603.12,603.6,601.2c].
+  public export
+  thisWayCtx : {bs : Bindings} -> (body : Effect bs) ->
+               GameEvent (effIntro body) -> Bindings
+  thisWayCtx body ev = settleTargets (eventAfter ev)
 
   public export
   effsIntro : {bs : Bindings} -> {0 n : Nat} -> Effects n bs -> Bindings
