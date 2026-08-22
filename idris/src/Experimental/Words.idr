@@ -1621,6 +1621,11 @@ targetablePhrasal ObjectTgt = PhObject
 targetablePhrasal PlayerTgt = PhPlayer
 
 
+||| The last group functions away from the battlefield, each rule naming
+||| its own zone [CR#113.6b]: a graveyard for unearth [CR#702.84a],
+||| flashback [CR#702.34a], dredge [CR#702.52a] and retrace [CR#702.81a];
+||| a hand for cycling [CR#702.29a], ninjutsu [CR#702.49a] and miracle
+||| [CR#702.94a]; the stack for warp [CR#702.185a].
 public export
 data Keyword = Haste | Flying | Trample | Vigilance | Deathtouch
              | DoubleStrike | FirstStrike | Reach
@@ -1630,6 +1635,8 @@ data Keyword = Haste | Flying | Trample | Vigilance | Deathtouch
              | Indestructible | Flash
              | CumulativeUpkeep
              | Hexproof | Menace | Skulk
+             | Unearth | Flashback | Dredge | Retrace
+             | Cycling | Ninjutsu | Miracle | Warp
 
 public export
 data KeywordParamShape = NoParam | CostParam | QualityParam | SubjectParam
@@ -1662,6 +1669,16 @@ keywordParamShape CumulativeUpkeep = CostParam
 keywordParamShape Hexproof = NoParam
 keywordParamShape Menace = NoParam
 keywordParamShape Skulk = NoParam
+-- Each rule writes its own parameter: "Unearth [cost]" [CR#702.84a],
+-- "Dredge N" [CR#702.52a], a bare "Retrace" [CR#702.81a].
+keywordParamShape Unearth = CostParam
+keywordParamShape Flashback = CostParam
+keywordParamShape Dredge = NumberParam
+keywordParamShape Retrace = NoParam
+keywordParamShape Cycling = CostParam
+keywordParamShape Ninjutsu = CostParam
+keywordParamShape Miracle = CostParam
+keywordParamShape Warp = CostParam
 
 public export
 Eq KeywordParamShape where
@@ -1732,6 +1749,22 @@ Eq Keyword where
   (==) Menace _ = False
   (==) Skulk Skulk = True
   (==) Skulk _ = False
+  (==) Unearth Unearth = True
+  (==) Unearth _ = False
+  (==) Flashback Flashback = True
+  (==) Flashback _ = False
+  (==) Dredge Dredge = True
+  (==) Dredge _ = False
+  (==) Retrace Retrace = True
+  (==) Retrace _ = False
+  (==) Cycling Cycling = True
+  (==) Cycling _ = False
+  (==) Ninjutsu Ninjutsu = True
+  (==) Ninjutsu _ = False
+  (==) Miracle Miracle = True
+  (==) Miracle _ = False
+  (==) Warp Warp = True
+  (==) Warp _ = False
 
 public export
 data AbilityClass = AnyActivated | LoyaltyClass | KeywordClass Keyword
@@ -2272,6 +2305,14 @@ keywordCounterOk CumulativeUpkeep = False
 keywordCounterOk Hexproof = True
 keywordCounterOk Menace = True
 keywordCounterOk Skulk = False
+keywordCounterOk Unearth = False
+keywordCounterOk Flashback = False
+keywordCounterOk Dredge = False
+keywordCounterOk Retrace = False
+keywordCounterOk Cycling = False
+keywordCounterOk Ninjutsu = False
+keywordCounterOk Miracle = False
+keywordCounterOk Warp = False
 
 public export
 KeywordCounterEligible : Keyword -> Type
@@ -2314,6 +2355,16 @@ keywordStackRegime CumulativeUpkeep = Nothing
 keywordStackRegime Hexproof = Nothing
 keywordStackRegime Menace = Nothing
 keywordStackRegime Skulk = Nothing
+-- [CR#702.185a] puts warp's two statics on the stack; the graveyard and
+-- hand keywords name a zone off it.
+keywordStackRegime Unearth = Nothing
+keywordStackRegime Flashback = Nothing
+keywordStackRegime Dredge = Nothing
+keywordStackRegime Retrace = Nothing
+keywordStackRegime Cycling = Nothing
+keywordStackRegime Ninjutsu = Nothing
+keywordStackRegime Miracle = Nothing
+keywordStackRegime Warp = Just AtCasting
 
 public export
 data Supertype = Legendary | Basic | Snow

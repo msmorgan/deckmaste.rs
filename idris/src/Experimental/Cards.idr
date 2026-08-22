@@ -7118,3 +7118,77 @@ bullseyeModalCost =
                                 (Macros.a (And [Not Macros.land,
                                                 InZone Macros.handZ]))])])
             (DealDamage This (Lit 2) (Macros.target AnyTarget))
+
+||| Sedris, the Traitor King: "Each creature card in your graveyard has
+||| unearth {2}{B}." The grant reaches a subject in a graveyard because
+||| unearth's own ability functions there [CR#702.84a].
+public export
+sedrisTheTraitorKing : Ability
+sedrisTheTraitorKing =
+  Static (Gains (Each (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+                (Macros.keywordCosting Unearth
+                   (Mana [Macros.generic 2, Macros.pip Black])))
+
+||| Grixis: "Blue, black, and/or red creature cards in your graveyard have
+||| unearth. The unearth cost is equal to the card's mana cost." The
+||| second sentence fixes the parameter [CR#202.1a].
+public export
+grixis : Ability
+grixis =
+  Static (Gains (AllOf (And [Or [ColorIs Blue, ColorIs Black, ColorIs Red],
+                             Macros.creature,
+                             InZone (Macros.graveyardOf You)]))
+                (Macros.keywordCosting Unearth ItsManaCost))
+
+||| Dralnu, Lich Lord: "Target instant or sorcery card in your graveyard
+||| gains flashback until end of turn. The flashback cost is equal to its
+||| mana cost." Flashback's graveyard static is named by [CR#702.34a].
+public export
+dralnuLichLord : Effect []
+dralnuLichLord =
+  Macros.gains (Macros.target (And [Macros.instantOrSorcery,
+                                    InZone (Macros.graveyardOf You)]))
+               (Macros.keywordCosting Flashback ItsManaCost)
+               (Just Macros.untilEndOfTurn)
+
+||| Dregscape Zombie: "Unearth {B}" [CR#702.84a].
+public export
+dregscapeZombie : Ability
+dregscapeZombie = Macros.keywordCosting Unearth (Mana [Macros.pip Black])
+
+||| Think Twice: "Flashback {2}{U}" [CR#702.34a].
+public export
+thinkTwice : Ability
+thinkTwice =
+  Macros.keywordCosting Flashback (Mana [Macros.generic 2, Macros.pip Blue])
+
+||| Greater Mossdog: "Dredge 3" [CR#702.52a].
+public export
+greaterMossdog : Ability
+greaterMossdog = Macros.keywordNumber Dredge (Lit 3)
+
+||| Raven's Crime: "Retrace" [CR#702.81a].
+public export
+ravensCrime : Ability
+ravensCrime = KeywordAbility Retrace
+
+||| Barkhide Mauler: "Cycling {2}" [CR#702.29a].
+public export
+barkhideMauler : Ability
+barkhideMauler = Macros.keywordCosting Cycling (Mana [Macros.generic 2])
+
+||| Ninja of the New Moon: "Ninjutsu {3}{B}" [CR#702.49a].
+public export
+ninjaOfTheNewMoon : Ability
+ninjaOfTheNewMoon =
+  Macros.keywordCosting Ninjutsu (Mana [Macros.generic 3, Macros.pip Black])
+
+||| Thunderous Wrath: "Miracle {R}" [CR#702.94a].
+public export
+thunderousWrath : Ability
+thunderousWrath = Macros.keywordCosting Miracle (Mana [Macros.pip Red])
+
+||| Bygone Colossus: "Warp {3}" [CR#702.185a].
+public export
+bygoneColossus : Ability
+bygoneColossus = Macros.keywordCosting Warp (Mana [Macros.generic 3])

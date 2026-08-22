@@ -316,3 +316,52 @@ badPossessedMonarch : Unspellable (Noun [] Object) (\ok =>
   Designated Monarch You {sc = ok})
 badPossessedMonarch Refl impossible
 
+
+
+||| "Unearth"
+||| [CR#702.84a] states the keyword as "Unearth [cost]", so the parameter is never absent.
+public export
+badBareUnearth : Unspellable Ability (\ok =>
+  KeywordAbility Unearth {pf = ok})
+badBareUnearth Oh impossible
+
+
+||| "Retrace {1}"
+||| [CR#702.81a] writes retrace bare, so no cost stands beside the word.
+public export
+badCostedRetrace : Unspellable Ability (\ok =>
+  KeywordAbility Retrace {param = Just (ParamCost (Mana [Macros.generic 1]))}
+                 {pf = ok})
+badCostedRetrace Oh impossible
+
+
+||| "Unearth {B}" printed on an instant.
+||| [CR#702.84a] returns the card to the battlefield, which [CR#110.4] denies an instant card.
+public export
+badUnearthOnSpellCard : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
+       [KeywordAbility Unearth
+          {param = Just (ParamCost (Mana [Macros.pip Black]))}] Nothing {tx = ok})
+badUnearthOnSpellCard Oh impossible
+
+
+||| "Flashback {2}{U}" printed on an artifact.
+||| [CR#702.34a] permits the graveyard cast only if the resulting spell is an instant or sorcery.
+public export
+badFlashbackOnPermanentCard : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.generic 2, Macros.pip Blue]) []
+       (MkTypeLine [] [Artifact])
+       [KeywordAbility Flashback
+          {param = Just (ParamCost (Mana [Macros.generic 2, Macros.pip Blue]))}]
+       Nothing {tx = ok})
+badFlashbackOnPermanentCard Oh impossible
+
+
+||| "Creature cards in your graveyard have warp {2}."
+||| [CR#702.185a] leaves warp's statics on the stack, so the grant reaches no graveyard card [CR#113.6e].
+public export
+badWarpGrantInGraveyard : Unspellable Ability (\ok =>
+  Static (Gains (AllOf (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+                (Macros.keywordCosting Warp (Mana [Macros.generic 2]))
+                {ok = ok}))
+badWarpGrantInGraveyard Oh impossible

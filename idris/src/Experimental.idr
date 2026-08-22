@@ -3034,6 +3034,9 @@ mutual
     Do : (e : Effect bs) -> {auto 0 ok : CostAction e} -> Cost bs
     Compound : {0 n : Nat} -> CostSeq n bs ->
                {auto 0 ne : IsSucc n} -> Cost bs
+    ||| "its mana cost": the bearer's own printed cost [CR#202.1a], the
+    ||| cost a sentence fixing a granted keyword's parameter names.
+    ItsManaCost : Cost bs
 
   public export
   forEachAmount : {0 bs : Bindings} -> Amount bs -> Bool
@@ -3054,6 +3057,7 @@ mutual
   costIntro (LoyaltySymbol _) = bs
   costIntro (Do e) = effIntro e
   costIntro (Compound cs) = costsIntro cs
+  costIntro ItsManaCost = bs
 
   public export
   isCompound : {0 bs : Bindings} -> Cost bs -> Bool
@@ -3430,6 +3434,7 @@ mutual
   payableOk (LoyaltySymbol _) = False
   payableOk (Do _) = True
   payableOk (Compound _) = True
+  payableOk ItsManaCost = True
 
   public export
   Payable : Cost bs -> Type
@@ -4753,6 +4758,7 @@ mutual
   selfTapPayment (LoyaltySymbol _) = False
   selfTapPayment (Do _) = False
   selfTapPayment (Compound _) = False
+  selfTapPayment ItsManaCost = False
 
   public export
   selfTapCount : {0 bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Nat
@@ -4773,6 +4779,7 @@ mutual
   costTapOnce (LoyaltySymbol _) = True
   costTapOnce (Do _) = True
   costTapOnce (Compound cs) = selfTapOnce cs
+  costTapOnce ItsManaCost = True
 
   public export
   CostTapOnce : Cost bs -> Type
@@ -4789,6 +4796,7 @@ mutual
   costPaidByYou (Do (Does subj _ _)) = nounIsYou subj
   costPaidByYou (Do _) = True
   costPaidByYou (Compound cs) = costsPaidByYou cs
+  costPaidByYou ItsManaCost = True
 
   public export
   costsPaidByYou : {0 bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Bool
@@ -4817,6 +4825,7 @@ mutual
   costOffBattlefield (LoyaltySymbol _) = False
   costOffBattlefield (Do _) = True
   costOffBattlefield (Compound cs) = costsOffBattlefield cs
+  costOffBattlefield ItsManaCost = True
 
   public export
   costsOffBattlefield : {0 bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Bool
@@ -4925,6 +4934,25 @@ keywordCardOk PermanentCard Menace = True
 keywordCardOk SpellCard Menace = False
 keywordCardOk PermanentCard Skulk = True
 keywordCardOk SpellCard Skulk = False
+-- [CR#702.84a] and [CR#702.49a] put the card onto the battlefield, which
+-- [CR#110.4] denies an instant or sorcery card; [CR#702.34a] permits the
+-- flashback cast only if the resulting spell is an instant or sorcery.
+keywordCardOk PermanentCard Unearth = True
+keywordCardOk SpellCard Unearth = False
+keywordCardOk PermanentCard Ninjutsu = True
+keywordCardOk SpellCard Ninjutsu = False
+keywordCardOk PermanentCard Flashback = False
+keywordCardOk SpellCard Flashback = True
+keywordCardOk PermanentCard Dredge = True
+keywordCardOk SpellCard Dredge = True
+keywordCardOk PermanentCard Retrace = True
+keywordCardOk SpellCard Retrace = True
+keywordCardOk PermanentCard Cycling = True
+keywordCardOk SpellCard Cycling = True
+keywordCardOk PermanentCard Miracle = True
+keywordCardOk SpellCard Miracle = True
+keywordCardOk PermanentCard Warp = True
+keywordCardOk SpellCard Warp = True
 
 public export
 staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
