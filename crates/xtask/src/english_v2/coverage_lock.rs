@@ -815,7 +815,7 @@ mod tests {
         const REND_SPIRIT: &str =
             "5a0bd9563d2e05ca394ee7bedc5e55f386f82ee16f4227c410565066c6585660";
         const EXPECTED_FILE_SHA256: &str =
-            "3d37b48fef9a3a9dcdafeddb0e5f0682b5bfbaf079dec53cb1727ea4d31eac28";
+            "50266f0e7588d1572594ade27cf2b8d07fcf5457628fe024fc02de72f1f58885";
         const EXPECTED_SOURCE: &str =
             "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd";
 
@@ -829,7 +829,7 @@ mod tests {
         let loaded = read_lock(&path).expect("production coverage lock is strict schema 2");
         assert!(matches!(loaded, LoadedCoverageLock::V2(_)));
         assert_eq!(loaded.source_fingerprint_for_test(), EXPECTED_SOURCE);
-        assert_eq!(loaded.covered_for_test().len(), 56);
+        assert_eq!(loaded.covered_for_test().len(), 412);
         assert!(
             loaded
                 .covered_for_test()

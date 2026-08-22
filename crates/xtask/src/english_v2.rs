@@ -1757,6 +1757,7 @@ mod tests {
                 "abstract product OracleText",
             ],
             "type Construction"
+            | "impl Construction"
             | "type RuleId"
             | "impl RuleId"
             | "function build_checked"
@@ -1884,7 +1885,6 @@ mod tests {
         "type Amount",
         "type DocumentBlock",
         "type OracleText",
-        "impl OracleText",
         "type Paragraph",
         "impl Paragraph",
         "type Triggered",
@@ -2059,6 +2059,7 @@ mod tests {
         "function walk_noun",
         "type Category",
         "type Construction",
+        "impl Construction",
         "impl Category",
         "type RuleId",
         "impl RuleId",

@@ -197,7 +197,6 @@ constructions! {
     abstract product OracleText {
         blocks: seq DocumentBlock separated by "\n",
     }
-    require len(OracleText.blocks) >= 1;
 
     root Ability { eoi = true; standalone_render = true; }
     root Sentence { punctuation = "."; eoi = false; standalone_render = true; }

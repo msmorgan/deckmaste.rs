@@ -39,7 +39,8 @@ fn context(card_name: &str) -> ParseContext<'_> {
 }
 
 fn single_paragraph(oracle_text: &OracleText) -> &Paragraph {
-    let [DocumentBlock::Ability(Ability::Paragraph(paragraph))] = oracle_text.blocks() else {
+    let [DocumentBlock::Ability(Ability::Paragraph(paragraph))] = oracle_text.blocks.as_slice()
+    else {
         panic!("expected exactly one paragraph ability block: {oracle_text:?}");
     };
     paragraph
@@ -67,6 +68,47 @@ fn assert_one_structural_claim(
             .all(|claim| !claims_overlap(claim.span(), span)),
         "no neighboring lexical claim may overlap {span:?}",
     );
+}
+
+#[test]
+fn empty_oracle_text_is_a_totally_owned_zero_block_document() {
+    let parser = parser();
+    let environment = environment();
+    let context = context("Grizzly Bears");
+    let expected = OracleText { blocks: vec![] };
+
+    let analysis = parser.analyze_oracle_text("", &context);
+    assert_eq!(analysis.selected(), Some(&expected));
+    assert_eq!(expected.render(&context, &environment), "");
+
+    let ownership = analysis
+        .ownership()
+        .expect("empty OracleText is a selected parse");
+    assert_eq!(ownership.rendered_text(), "");
+    assert!(ownership.parsed_claims().is_empty());
+    assert!(ownership.rendered_claims().is_empty());
+    assert!(ownership.failures().is_empty());
+
+    let summary = ownership.summary();
+    assert!(summary.covered());
+    assert_eq!(summary.claims(), 0);
+    assert_eq!(summary.claimed_bytes(), 0);
+    assert_eq!(summary.form_literal_claims(), 0);
+    assert_eq!(summary.form_literal_bytes(), 0);
+    assert_eq!(summary.vocab_claims(), 0);
+    assert_eq!(summary.vocab_bytes(), 0);
+    assert_eq!(summary.lexeme_claims(), 0);
+    assert_eq!(summary.lexeme_bytes(), 0);
+    assert_eq!(summary.codec_claims(), 0);
+    assert_eq!(summary.codec_bytes(), 0);
+    assert_eq!(summary.identity_claims(), 0);
+    assert_eq!(summary.identity_bytes(), 0);
+    assert_eq!(summary.gap_spans(), 0);
+    assert_eq!(summary.gap_bytes(), 0);
+    assert_eq!(summary.overlap_spans(), 0);
+    assert_eq!(summary.overlap_bytes(), 0);
+    assert_eq!(summary.synthetic_claims(), 0);
+    assert_eq!(summary.provenance_plan_mismatches(), 0);
 }
 
 #[test]
@@ -195,7 +237,7 @@ fn oracle_text_lf_separates_blocks_without_flattening_or_storage() {
     let [
         DocumentBlock::Ability(Ability::Paragraph(first)),
         DocumentBlock::Ability(Ability::Paragraph(second)),
-    ] = two_blocks.blocks()
+    ] = two_blocks.blocks.as_slice()
     else {
         panic!("LF must preserve two paragraph blocks: {two_blocks:?}");
     };
@@ -673,11 +715,7 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
             &[("spelling", false)][..],
             &["new", "try_new", "spelling"][..],
         ),
-        (
-            "OracleText",
-            &[("blocks", false)][..],
-            &["new", "try_new", "blocks"][..],
-        ),
+        ("OracleText", &[("blocks", true)][..], &[][..]),
     ] {
         let structure = file
             .items

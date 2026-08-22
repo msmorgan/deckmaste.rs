@@ -2384,7 +2384,8 @@ mod tests {
                 "VerbPhraseGainLife",
                 "AmountNumber",
                 "AmountVariable",
-                "OracleTextProduct",
+                "OracleTextBlocksSequenceEmpty",
+                "OracleTextBlocksSequenceNonEmpty",
                 "OracleTextBlocksSequenceSingleton",
                 "OracleTextBlocksSequenceRecursive",
                 "DocumentBlockAbility"

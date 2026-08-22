@@ -366,13 +366,25 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         .expect("an Event and nonempty effects construct Triggered");
     assert_eq!(triggered.effects(), triggered_effects.as_slice());
 
-    assert!(OracleText::new(vec![]).is_none());
+    let empty_oracle_text = OracleText { blocks: vec![] };
+    assert_eq!(
+        empty_oracle_text.render(&context("Grizzly Bears"), &environment()),
+        ""
+    );
+    assert!(empty_oracle_text.blocks.is_empty());
+
+    let mut empty_visitor = StructuralVisitor::default();
+    deckmaste_english_v2::visit::walk_oracle_text(&mut empty_visitor, &empty_oracle_text);
+    assert!(empty_visitor.0.is_empty());
+
     let blocks = vec![
         DocumentBlock::Ability(Ability::Paragraph(paragraph)),
         DocumentBlock::Ability(Ability::Triggered(triggered)),
     ];
-    let oracle_text = OracleText::new(blocks.clone()).expect("one or more blocks are valid");
-    assert_eq!(oracle_text.blocks(), blocks.as_slice());
+    let oracle_text = OracleText {
+        blocks: blocks.clone(),
+    };
+    assert_eq!(oracle_text.blocks, blocks);
 
     let mut visitor = StructuralVisitor::default();
     deckmaste_english_v2::visit::walk_oracle_text(&mut visitor, &oracle_text);

@@ -82,20 +82,19 @@ impl Corpus {
             .values()
             .flat_map(|cards| cards.iter())
             .filter(|card| card.vintage_playable())
-            .filter_map(|card| {
-                let text = card.text.as_deref().filter(|text| !text.is_empty())?;
+            .map(|card| {
                 let card_name = card.name.to_string();
                 let face_name = card.face_name.as_deref().map(str::to_owned);
                 let side = card.side.as_deref().map(str::to_owned);
                 let context_name = face_name.clone().unwrap_or_else(|| card_name.clone());
-                let text = normalize_oracle_text(text);
-                Some(corpus_unit(
+                let text = normalize_oracle_text(card.text.as_deref().unwrap_or_default());
+                corpus_unit(
                     &card_name,
                     face_name.as_deref(),
                     side.as_deref(),
                     &context_name,
                     &text,
-                ))
+                )
             })
             .collect::<Vec<_>>();
         units.sort_by(|left, right| corpus_sort_key(left).cmp(&corpus_sort_key(right)));
@@ -376,21 +375,32 @@ mod tests {
         let left = Corpus::from_bytes(SNAPSHOT_A).unwrap();
         let right = Corpus::from_bytes(SNAPSHOT_B).unwrap();
         assert_eq!(left.units(), right.units());
-        assert_eq!(left.units().len(), 3);
+        assert_eq!(left.units().len(), 4);
         assert_eq!(
             left.units()
                 .iter()
                 .map(CorpusUnit::context_name)
                 .collect::<Vec<_>>(),
-            ["Alpha", "Front", "Restricted"]
+            ["Alpha", "Empty", "Front", "Restricted"]
         );
         assert!(left.units().iter().all(|unit| unit.id().len() == 64));
+        assert_eq!(left.units()[1].text(), "");
 
-        let front = &left.units()[1];
+        let front = &left.units()[2];
         assert_eq!(front.card_name(), "Front // Back");
         assert_eq!(front.face_name(), Some("Front"));
         assert_eq!(front.side.as_deref(), Some("a"));
         assert_eq!(front.text(), "1–2 | Choose one.");
+    }
+
+    #[test]
+    fn corpus_retains_an_explicit_empty_text_face() {
+        let snapshot = br#"{"data":{"Explicit Empty":[{"name":"Explicit Empty","layout":"normal","types":["Creature"],"supertypes":[],"subtypes":[],"legalities":{"vintage":"Legal"},"text":""}]}}"#;
+
+        let corpus = Corpus::from_bytes(snapshot).unwrap();
+        assert_eq!(corpus.units().len(), 1);
+        assert_eq!(corpus.units()[0].context_name(), "Explicit Empty");
+        assert_eq!(corpus.units()[0].text(), "");
     }
 
     #[test]

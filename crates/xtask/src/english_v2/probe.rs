@@ -113,7 +113,7 @@ fn orchestrate<S: ProbeSteps>(
     steps: &mut S,
 ) -> anyhow::Result<()> {
     ensure!(
-        !args.text.is_empty(),
+        !args.text.is_empty() || args.root == ProbeRoot::OracleText,
         "invalid --text: value must be nonempty"
     );
 
@@ -216,9 +216,64 @@ mod tests {
     }
 
     #[test]
+    fn empty_text_reaches_only_the_oracle_text_root_with_zero_claim_ownership() {
+        let mut arguments = args("", "Grizzly Bears");
+        arguments.root = ProbeRoot::OracleText;
+        reset_parser_entry_calls_for_test();
+
+        let mut output = Vec::new();
+        run(&arguments, &mut output).unwrap();
+
+        assert_eq!(
+            take_parser_entry_calls_for_test(),
+            [(
+                ParserEntryPoint::TraceOracleText,
+                String::new(),
+                "Grizzly Bears".to_owned(),
+            )],
+        );
+        let report: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(report["root"], "OracleText");
+        assert_eq!(report["source"]["text"], "");
+        assert_eq!(report["trace"]["outcome"]["status"], "selected");
+        assert_eq!(report["trace"]["outcome"]["rendered"], "");
+        assert_eq!(report["trace"]["selected_lexical_claims"]["total"], 0);
+        let ownership = &report["trace"]["ownership"];
+        assert_eq!(ownership["covered"], true);
+        assert_eq!(ownership["failures"], serde_json::json!([]));
+        for field in [
+            "claims",
+            "claimed_bytes",
+            "form_literal_claims",
+            "form_literal_bytes",
+            "vocab_claims",
+            "vocab_bytes",
+            "lexeme_claims",
+            "lexeme_bytes",
+            "codec_claims",
+            "codec_bytes",
+            "identity_claims",
+            "identity_bytes",
+            "gap_spans",
+            "gap_bytes",
+            "overlap_spans",
+            "overlap_bytes",
+            "synthetic_claims",
+            "provenance_plan_mismatches",
+        ] {
+            assert_eq!(ownership[field], 0, "{field}");
+        }
+
+        for root in [ProbeRoot::Ability, ProbeRoot::Sentence] {
+            arguments.root = root;
+            let error = run(&arguments, &mut Vec::new()).unwrap_err();
+            assert!(error.to_string().contains("--text"), "{error:#}");
+        }
+    }
+
+    #[test]
     fn validation_errors_are_context_rich_and_nonzero() {
         for (text, context, needle) in [
-            ("", "Probe Card", "--text"),
             ("Destroy target creature.", "", "--context"),
             ("Destroy target creature.", ", Invalid", "--context"),
         ] {
