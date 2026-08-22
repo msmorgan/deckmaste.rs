@@ -93,6 +93,17 @@ must check supplied replacements and explicit unavailability against the
 authoritative grammar sources. Catalogs never supply morphology to the
 runtime.
 
+Every realized form also has one effective `Onset::{Consonant,Vowel}`, a
+v2-owned sealed compiler feature emitted like `Number`. The v2 normalization
+path owns the bounded pronunciation recipe and accepts an optional per-form
+override when the form's attested pronunciation requires one or the recipe
+cannot decide. That override is reviewed, authored stub data backed by
+attestation. It is never inferred from corpus acceptance, a catalog, or a
+parser exception, and a first-character helper is only the recipe's
+orthographic fallback. A spelling the recipe cannot classify and that lacks an
+authored, attested override is a normalization error; normalization never
+guesses an onset.
+
 Every `Verb` declaration stores one closed grammatical valence:
 
 - `Intransitive` admits no direct complement, as with `explore`;
@@ -152,7 +163,9 @@ Each normalized row carries:
 - a category-safe open identity, so a keyword action, keyword ability,
   category-scoped subtype, type, counter kind, and designation cannot be
   confused even when their spellings or local names coincide;
-- its closed recipe and complete realized surface rows;
+- its closed recipe and complete realized surface rows, each with the frozen
+  effective onset as data and the optional authored, attested per-form onset
+  override that produced it;
 - the declaration identity and source provenance needed for diagnostics; and
 - for verbs, the required valence and any validated `Custom` tail shapes.
 
@@ -163,6 +176,14 @@ rows in both directions: surface to every compatible reading, and identity
 plus features to the one render surface. A surface collision retains all
 readings for ordinary ambiguity handling; registration order, catalog order,
 and filesystem order never select one.
+
+Exact-name catalogs cross this boundary only as explicit typed identity
+providers. Generated grammar metadata lists every required named provider;
+the environment freezes those rows and fails on a missing or duplicate
+provider. xtask is the sole production adapter that reads
+`deckmaste_catalogs` and supplies canonical card-name rows. Scanner, parser,
+renderer, diagnostics, and construction consumers never read a catalog and do
+not acquire an alternate vocabulary authority.
 
 The grammar head and semantic spelling frame are coherent by construction and
 bound to the enclosing declaration identity. For a verb, the initial literal
@@ -245,10 +266,17 @@ hardcoded into the parser. Catalogs seed and check the builtin inventory where
 an authoritative complete catalog exists; they do not define the vocabulary
 ceiling.
 
-Not every English vocabulary is such a declaration. Card names remain a parse
-context parameter. Ability words belong to a surface-label preservation path:
-they have no special rules meaning [CR#207.2c] and do not select a semantic
-macro by the label alone. Supertypes remain closed structural grammar.
+Not every English vocabulary is such a declaration. A card's own name used as
+source self-reference denotes that particular object, and an approved
+shortened printed name is equivalent [CR#201.5,201.5c]. The grammar keeps that
+bare name as a per-parse context identity and stores only its full/abbreviated
+choice. An independently mentioned exact card name is a typed catalog identity
+admitted only inside an explicit name-bearing construction such as `a card
+named Seven Dwarves`; it is never a rival bare noun phrase. Ability words
+belong to a surface-label preservation path: they have no special rules
+meaning [CR#207.2c] and do not select a semantic macro by the label alone.
+Supertypes remain generated closed structural vocabulary, never a catalog or
+open declaration domain.
 Non-keyword game-action verbs such as deal, gain, and draw likewise remain
 closed core grammar.
 

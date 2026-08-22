@@ -44,10 +44,13 @@ deckmaste_construction_core   declaration parsing, validation, codegen
         ▼
 deckmaste_english_v2     generated AST + grammar, Earley chart parser,
                          exact renderer, vocab/lexeme/codec tiers,
-                         catalog loader
+                         immutable declaration/provider environment
 
-deckmaste_data -> deckmaste_catalogs -> {deckmaste_english, deckmaste_english_v2, xtask}
+deckmaste_data -> deckmaste_catalogs -> {deckmaste_english, xtask}
 deckmaste_migrations -> deckmaste_data (temporary)
+
+deckmaste_english_v2 -> macro_ron -> deckmaste_features
+                                current cutover debt; edge must be shed
 ~~~
 
 Runtime support the proc-macro cannot export (chart engine, forest, codec
@@ -62,13 +65,20 @@ proc-macro crate can export nothing but macros.
 At cutover, `deckmaste_spelling` and xtask display paths switch to v2 and the
 old `deckmaste_english` / `deckmaste_construction_compiler` crates are
 deleted; v2 then takes the `deckmaste_english` name. Shared snapshot models
-live in the stable low-level `deckmaste_data` crate. The stable
+live in the stable low-level `deckmaste_data` crate. The old
+`deckmaste_features` crate is v1 grammatical-feature vocabulary and is deleted
+at cutover together with the old English/compiler/macro machinery; Plan 07
+adds no new or direct dependency on it, and v2's dependency set is unchanged.
+The current `deckmaste_english_v2 -> macro_ron -> deckmaste_features` edge is
+cutover debt: the surviving `macro_ron`/v2 normalization path must shed that
+transitive dependency before `deckmaste_features` is deleted. The stable
 `deckmaste_catalogs` crate owns extraction, the canonical inventory, line-file
-I/O, directory comparison, and a removable legacy adapter; both English
-implementations and xtask consume that crate. `deckmaste_migrations` now uses
+I/O, directory comparison, and a removable legacy adapter. Legacy English
+consumes it directly; xtask is the sole adapter that turns a named catalog
+source into frozen typed provider rows for v2. Parser consumers never load or
+depend directly on `deckmaste_catalogs`. `deckmaste_migrations` now uses
 `deckmaste_data` temporarily for its surviving extraction work instead of
-owning the shared models. Thus v2 depends only on the stable catalog layer and
-remains independent of every crate scheduled for deletion.
+owning the shared models.
 
 ## The declaration language
 
@@ -77,8 +87,9 @@ classification, with these deltas:
 
 - **Kept:** `construction ID: Category`, named role fields, named `element`
   products, `lex`, `identity`, `opt`, `seq`, abstract sum/product, `require`
-  predicates, `derive` feature flow, `form`/`when`/`otherwise`, and the
-  literal / role / `lex(..)` / `identity(..)` form atoms.
+  predicates, construction-wide and role-level `derive` feature flow,
+  `form`/`when`/`otherwise`, and the literal / role / `lex(..)` /
+  `identity(..)` form atoms.
 
 `require len` remains the only cardinality language; no dedicated `nonempty`
 type or declaration returns. A `seq` may independently be `separated by` a
@@ -94,6 +105,47 @@ root's block sequence admits length zero; only non-root sequences may require
 members.
 This follows the [Oracle text style guide §1](../oracle-style-guide.md#1-write-rules-instructions-not-conversational-prose)
 and [§3](../oracle-style-guide.md#3-punctuation-and-glyphs).
+Nominal coordination uses the same positional sequence algebra with a
+minimum of two members. Separate semantic constructions represent `and`,
+`or`, and `and/or`; arity and edge position derive pair, first, middle, and
+last separator surfaces. The AST stores members and the semantic conjunction,
+never commas, spaces, coordinator spelling, or another separator value.
+Nominal-core coordination under one selector and coordination of complete noun
+phrases are distinct generated categories, so their scope and derived number
+cannot be silently rebracketed.
+
+Feature equations may target the construction or a named role. Role-level
+constants and from-role equations let an attributive noun be singular while
+its head inherits the enclosing phrase's number; each feature-consuming atom
+must resolve exactly one provider. A finite form guard may read a sealed finite
+derived feature only when the compiler can enumerate its domain and include it
+in the same exhaustive/disjoint guard proof as stored features. It is not a
+callback or an open predicate.
+
+`Onset::{Consonant,Vowel}` is a v2-owned sealed compiler feature, emitted and
+carried through generated feature plans exactly like `Number`. It is a
+property of each realized terminal surface. The v2 normalization path owns a
+bounded pronunciation recipe and accepts an explicit optional per-form
+override authored as attested stub data. The first-character helper is only
+that recipe's orthographic fallback, never onset authority. Normalized rows
+freeze effective onset as data; a spelling the recipe cannot classify is a
+normalization error unless that realized form has an authored, attested
+override. Wrappers forward the first actually realized child's onset.
+Indefinite articles are exhaustive guarded forms over that derived value (`an`
+for `Vowel`, `a` otherwise); article choice is not stored.
+
+The narrow adjacency atoms `prefix(fixed, value)` and
+`suffix(value, fixed)` contain exactly one nonempty, whitespace-free fixed
+affix and one ordinary value atom. They suppress only their internal word
+boundary and preserve adjacent, disjoint lexical claims. Nesting, callbacks,
+alternatives, repetition, and two value atoms are rejected. A
+`prefix(fixed, value)` atom gets its onset from the fixed realized prefix, so
+every `non...`/`non-...` form is consonantal rather than inheriting the value's
+onset. The sealed `PossessiveEnding::{EndsInS,Other}` feature derives from the
+last actually realized possessor surface. English possessives have exactly
+three guarded forms: singular takes `'s`; plural `EndsInS` takes `'`; the
+plural remainder takes `'s`. Neither affix punctuation nor a possessive form
+tag is stored.
 - **Added:** inflected atoms — `verb(lexeme)` and `noun(role)` render their
   inflection from derived feature context; and the terminal declarations
   `vocab`, `lexeme`, `codec` (§Terminals).
@@ -226,9 +278,12 @@ contract one level down. Three declaration tiers plus catalogs:
    atoms with internal structure yield fields, never fused strings. Whether a
    codec's spelling is context-derived or stored is a per-codec measurement
    against the style guide, never an assumption.
-4. **Catalogs** — open-class identities are regenerated as sorted, deduplicated
-   plain-text word lists (one entry per line, no headers) and loaded at parser
-   construction. The canonical `data/gen/catalogs` inventory is exactly:
+4. **Catalog sources** — open-class inventories are regenerated as sorted,
+   deduplicated plain-text word lists (one entry per line, no headers). Parser
+   consumers never load those files. Where a construction declares a
+   `catalog_identity`, xtask's named adapter converts the requested immutable
+   inventory into typed provider rows before parser construction. The
+   canonical `data/gen/catalogs` inventory is exactly:
 
    ~~~text
    ability-words.txt          artifact-types.txt       battle-types.txt
@@ -271,9 +326,14 @@ contract one level down. Three declaration tiers plus catalogs:
 **Terminal generation (stage-5 Plan 03 ruling, 2026-08-17):** vocab,
 lexeme, and identity terminals — and the graduated codecs below — are
 generated by a **closed set of compiler-owned recipes** (English verb/noun
-morphology, structured signed-decimal, terminal choice, context identity,
-catalog identity), never by declaration-bound arbitrary callbacks and never
-by a general scanner/renderer combinator language. Each recipe derives both
+morphology, structured signed-decimal, canonical `english_cardinal`, canonical
+`unsigned_decimal`, terminal choice, context identity, and
+`catalog_identity`), never by declaration-bound arbitrary callbacks and never
+by a general scanner/renderer combinator language. `english_cardinal` is an
+algorithmic English-number grammar over a declared unsigned magnitude;
+`unsigned_decimal` is the canonical digit grammar for unsigned scalars; and
+`catalog_identity` carries a canonical identity from one named immutable typed
+provider. None is a corpus word list. Each recipe derives both
 halves of the codec and its round-trip tests from one surface table; the
 recipe set itself is closed — adding a recipe is a reviewed compiler
 change, not declaration-side vocabulary. Morphology is a named recipe over
@@ -306,6 +366,32 @@ parses), is this ruling working as intended: the prior count was the
 artifact of an artificially narrowed terminal, and the corpus is
 conformance evidence, not an acceptance filter.
 
+Declaration-backed noun recipes have explicit, category-safe declaration-kind
+domains and, for subtypes, exact subtype-family domains. More than one such
+terminal may exist only under distinct generated value types, and a
+`noun(role)` atom resolves its terminal statically from the role type rather
+than scanning a catch-all union. Its public value stores declaration identity
+only. The private parse leaf may retain the realized surface feature long
+enough to check it against the role's derived `Number`; rendering then asks
+the immutable environment for identity plus role number. Realized noun number
+is never public AST state.
+
+Supertypes remain generated closed vocabulary, not declaration nouns or
+catalog identities. Oracle text that names its own source denotes that
+particular object, including when it uses an approved shortened printed name
+[CR#201.5,201.5c]. The grammar represents source self-reference as a bare
+per-parse-context identity and stores only its full/abbreviated spelling
+choice. An independently mentioned card-name `catalog_identity` is admitted
+only inside an explicit name-bearing construction such as `a card named Seven
+Dwarves`; it is never a rival bare noun phrase for the current card's name.
+
+Catalog providers do not weaken the normalized grammar boundary. Generated
+metadata names each required typed provider, and construction fails on a
+missing or duplicate provider. xtask alone reads `deckmaste_catalogs` and
+adapts the requested canonical identities into frozen provider rows;
+construction-core and every v2 scanner, parser, renderer, and environment
+consumer read only those rows and generated lookup metadata.
+
 **Lexical coverage gate:** every token of every accepted corpus sentence must
 be claimed by a form literal, vocab, lexeme, codec, or identity — an
 unclaimed token fails at the lexical layer, loudly.
@@ -323,9 +409,14 @@ unclaimed token fails at the lexical layer, loudly.
   all surviving readings; one post-parse selection pass picks by computed
   structural specificity (derived from the declarations), plus an explicit,
   countable exception table for rivalries the rule mis-orders. A tie neither
-  can break is a **hard error naming both constructions** — in production and
-  development alike. Policy lives in one derived rule plus one counted list,
-  never smeared across declarations.
+  can break produces a typed runtime hard error naming both constructions, in
+  production and development alike. During grammar implementation that same
+  tie is also a hard design boundary: the worker stops and reports the complete
+  ambiguity census, competing ASTs, and specificity evidence, and resolution
+  requires an explicit design ruling. A worker must never silently restructure
+  or narrow the grammar, add dominance, or add an exception merely to erase
+  the tie. Policy lives in one derived rule plus one counted list, never
+  smeared across declarations.
 - **Failure:** a failed parse returns a structured error — the span of
   furthest progress plus the set of expectations live at that point. There is
   no recovery representation in the canonical AST; any partial-analysis
@@ -342,11 +433,15 @@ parse(render(v)) == v        for every constructed value v
 
 The second law doubles as an ambiguity detector. **Derive, don't store:**
 verb agreement (an inherited render attribute derived at clause/sentence
-nodes), noun number (per-construction, from determiner/quantifier content),
-capitalization (positional: ability-initial and after terminal periods — not
-after the trigger comma), whitespace (single space; punctuation binds left),
-and numeral spelling (style-guide contextual rule) are all computed at
-render. Stored: only non-derivable surface facts — and the measured corpus
+nodes), noun number (from selector content and role-level equations), article
+choice (from the first realized child's effective onset), possessive suffix
+(from number plus the last realized possessor surface), capitalization
+(positional: ability-initial and after terminal periods — not after the trigger
+comma), whitespace and bound-affix adjacency, coordination separators, and
+numeral spelling are all computed at render. Declaration-noun values store
+identity but not realized number; normalized terminal rows freeze effective
+onset and other terminal realization facts outside the AST. Stored: only
+non-derivable surface facts — and the measured corpus
 tax of exactness over normalization is roughly one two-variant enum (the
 abbreviated-vs-full self-reference spelling, which the old AST also kept even
 though the CR licenses collapsing it; that store-the-surface stance is
@@ -359,6 +454,9 @@ Context-derivable text — the self-name above all — is never stored in a
 node: a self-reference stores only its spelling variant, and the renderer
 reads the name from ctx. A context-free render signature forces name-in-node
 and was the root cause of the one HIGH finding in the stage-2 review.
+An independently mentioned exact card identity is different: it is stored as
+the value of an explicit name-bearing construction and rendered through its
+frozen typed provider, never inferred as source self-reference.
 
 ## Guardrails
 
@@ -481,9 +579,11 @@ the `semantics` shape and are handled separately.
 1. **`english-v2-catalog-pipeline`** (minted) — factor shared snapshot models
    into `deckmaste_data`; implement canonical extraction, inventory, line I/O,
    comparison, and the removable compatibility path in
-   `deckmaste_catalogs`; point both English crates and xtask at the stable
-   catalog layer; move migrations onto `deckmaste_data`; add the v2 loader and
-   the `catalogs generate|check|text` gates.
+   `deckmaste_catalogs`; point legacy English and xtask at the stable catalog
+   layer; move migrations onto `deckmaste_data`; have xtask alone adapt the
+   required canonical identities into frozen typed provider rows for v2; give
+   v2 an immutable declaration/provider environment, never a catalog loader or
+   direct catalog dependency; and add the `catalogs generate|check|text` gates.
 2. **`english-v2-vertical-slice`** (minted) — hand-written golden for the
    AST, exact renderer, and total visitor. NO parser of any kind exists in
    this stage; parsing belongs exclusively to stage 3.
@@ -495,9 +595,10 @@ the `semantics` shape and are handled separately.
    generates the stage-2 AST/renderer/visitor and the stage-3 grammar tables
    diff-identical. Settled mechanics (2026-08-15): comparison is
    **item-level** — the generated-item emission set, not whole files; runtime
-   residue (context, catalog loading, checked-constructor bodies, scanners,
-   morphology tables, codec value types) stays hand-written — and byte-exact
-   after both sides normalize through `syn` parse + `prettyplease::unparse`.
+   residue (context, immutable declaration/provider-environment loading,
+   checked-constructor bodies, scanners, morphology tables, codec value types)
+   stays hand-written — and byte-exact after both sides normalize through
+   `syn` parse + `prettyplease::unparse`.
    Declarations are inline function-like macro invocations; a macro never
    reads a file. Vocab enums and their variant→word render maps generate from
    day one; word→variant scanners and morphology join at stage 5. The stage

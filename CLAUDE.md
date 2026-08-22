@@ -46,8 +46,15 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   declaration compiler, and the stable shared layer `deckmaste_data`
   (snapshot models) + `deckmaste_catalogs` (catalog extraction, inventory,
   line-file I/O — its `legacy` adapter module deletes together with
-  `deckmaste_english` at cutover). v2 must never depend on any crate slated
-  for deletion; today it depends only on `deckmaste_catalogs`.
+  `deckmaste_english` at cutover). Plan 07 adds no dependency on
+  deletion-bound `deckmaste_features`; v2's dependency set is unchanged. v2
+  must never add a direct dependency on a crate slated for deletion. It does
+  not depend directly on `deckmaste_catalogs`: xtask alone adapts catalog
+  contents into the frozen typed provider rows v2 consumes. The current graph
+  still has the transitive cutover debt
+  `deckmaste_english_v2 -> macro_ron -> deckmaste_features`; the surviving
+  `macro_ron`/v2 normalization path must shed that edge before
+  `deckmaste_features` is deleted.
 - **`deckmaste_migrations` survives as a function** (card
   extract→resolve→graduate, snapshot ingestion). Its oracle-text extraction
   is its own regex pipeline — it does not consume the construction parser —
