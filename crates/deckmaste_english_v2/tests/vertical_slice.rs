@@ -6,12 +6,14 @@ use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
 use deckmaste_english_v2::visit::walk_amount;
-use deckmaste_english_v2::visit::walk_signed_number;
+use deckmaste_english_v2::visit::walk_cardinal_quantity;
+use deckmaste_english_v2::visit::walk_scalar_number;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::Onset;
 use macro_ron::v2::SubtypeCategory;
@@ -22,7 +24,7 @@ struct RecordingVisitor {
     amounts: Vec<Amount>,
     declaration_nouns: Vec<(DeclarationKind, String)>,
     variables: Vec<Variable>,
-    signed_numbers: Vec<(Sign, u32)>,
+    scalar_numbers: Vec<u32>,
     self_reference_spellings: Vec<SelfReferenceSpelling>,
     trigger_words: Vec<TriggerWord>,
     nouns: Vec<NounLexeme>,
@@ -47,8 +49,8 @@ impl Visitor for RecordingVisitor {
         self.variables.push(variable);
     }
 
-    fn visit_signed_number(&mut self, number: &SignedNumber) {
-        self.signed_numbers.push((number.sign, number.magnitude));
+    fn visit_scalar_number(&mut self, number: &ScalarNumber) {
+        self.scalar_numbers.push(number.magnitude);
     }
 
     fn visit_self_reference_spelling(&mut self, spelling: SelfReferenceSpelling) {
@@ -199,64 +201,129 @@ fn parser_analysis_preserves_the_vertical_slice_triggered_ability() {
 }
 
 #[test]
-fn signed_decimal_zero_signs_construct_render_scan_and_visit_distinctly() {
-    #[derive(Debug, PartialEq, Eq)]
-    enum Event {
-        Sign(Sign),
-        Number(Sign, u32),
-    }
+fn unsigned_decimal_zero_constructs_renders_scans_and_visits() {
+    let environment = environment();
+    let parser = Parser::new(environment.clone()).expect("required declarations are present");
+    let context = context("Context Card");
+    let number = ScalarNumber { magnitude: 0 };
+    let ability = Ability::Paragraph(
+        Paragraph::new(vec![Sentence::Imperative(Imperative {
+            predicate: VerbPhrase::GainLife(GainLife {
+                amount: Amount::Number(NumberAmount { number }),
+            }),
+        })])
+        .expect("one sentence constructs a paragraph"),
+    );
+    assert_eq!(ability.render(&context, &environment), "Gain 0 life.");
+    assert_eq!(parser.parse("Gain 0 life.", &context), Ok(ability));
+    assert!(parser.parse("Gain -0 life.", &context).is_err());
+}
+
+#[test]
+fn generated_cardinals_and_unsigned_scalars_round_trip_with_codec_ownership() {
     #[derive(Default)]
-    struct OrderedVisitor(Vec<Event>);
-    impl Visitor for OrderedVisitor {
-        fn visit_sign(&mut self, sign: Sign) {
-            self.0.push(Event::Sign(sign));
+    struct NumberVisitor {
+        cardinals: Vec<u32>,
+        scalars: Vec<u32>,
+        variables: Vec<Variable>,
+    }
+    impl Visitor for NumberVisitor {
+        fn visit_cardinal_number(&mut self, number: &CardinalNumber) {
+            self.cardinals.push(number.magnitude);
         }
 
-        fn visit_signed_number(&mut self, number: &SignedNumber) {
-            self.0.push(Event::Number(number.sign, number.magnitude));
+        fn visit_scalar_number(&mut self, number: &ScalarNumber) {
+            self.scalars.push(number.magnitude);
+        }
+
+        fn visit_variable(&mut self, variable: Variable) {
+            self.variables.push(variable);
         }
     }
 
     let environment = environment();
     let parser = Parser::new(environment.clone()).expect("required declarations are present");
     let context = context("Context Card");
-
-    for (sign, expected) in [
-        (Sign::Positive, "Gain 0 life."),
-        (Sign::Negative, "Gain -0 life."),
+    for (surface, magnitude) in [
+        ("Zero", 0),
+        ("One", 1),
+        ("Twenty-one", 21),
+        ("One thousand, one", 1_001),
     ] {
-        let number = SignedNumber { sign, magnitude: 0 };
-        assert_eq!(number.sign, sign);
-        assert_eq!(number.magnitude, 0);
-        let ability = Ability::Paragraph(
-            Paragraph::new(vec![Sentence::Imperative(Imperative {
-                predicate: VerbPhrase::GainLife(GainLife {
-                    amount: Amount::Number(NumberAmount {
-                        number: number.clone(),
-                    }),
-                }),
-            })])
-            .expect("one sentence constructs a paragraph"),
+        let expected = CardinalQuantity::Cardinal(CardinalQuantityValue {
+            number: CardinalNumber { magnitude },
+        });
+        assert_eq!(
+            parser.parse_cardinal_quantity(surface, &context),
+            Ok(expected.clone())
         );
-        assert_eq!(ability.render(&context, &environment), expected);
-        assert_eq!(parser.parse(expected, &context), Ok(ability));
+        assert_eq!(expected.render(&context, &environment), surface);
+        let analysis = parser.analyze_cardinal_quantity(surface, &context);
+        let ownership = analysis
+            .ownership()
+            .expect("selected cardinal owns its bytes");
+        assert!(ownership.summary().covered());
+        assert_eq!(ownership.parsed_claims().len(), 1);
+        assert_eq!(
+            ownership.parsed_claims()[0].kind(),
+            LexicalProvenanceKind::Codec
+        );
     }
 
-    let mut visitor = OrderedVisitor::default();
-    walk_signed_number(
-        &mut visitor,
-        &SignedNumber {
-            sign: Sign::Negative,
-            magnitude: 0,
-        },
+    let scalar = ScalarNumber { magnitude: 1_000 };
+    let ability = Ability::Paragraph(
+        Paragraph::new(vec![Sentence::Imperative(Imperative {
+            predicate: VerbPhrase::GainLife(GainLife {
+                amount: Amount::Number(NumberAmount {
+                    number: scalar.clone(),
+                }),
+            }),
+        })])
+        .expect("one sentence constructs a paragraph"),
     );
+    assert_eq!(ability.render(&context, &environment), "Gain 1,000 life.");
+    assert_eq!(parser.parse("Gain 1,000 life.", &context), Ok(ability));
+    let scalar_ownership = parser
+        .analyze("Gain 1,000 life.", &context)
+        .ownership()
+        .expect("selected scalar ability owns its bytes")
+        .clone();
+    assert!(scalar_ownership.summary().covered());
+    assert!(scalar_ownership.parsed_claims().iter().any(|claim| {
+        claim.kind() == LexicalProvenanceKind::Codec
+            && &"Gain 1,000 life."[claim.span().start..claim.span().end] == " 1,000"
+    }));
+
+    let parsed_cardinal = parser
+        .parse_cardinal_quantity("One thousand, one", &context)
+        .expect("canonical cardinal parses through its generated parent root");
+
+    let y_ability = Ability::Paragraph(
+        Paragraph::new(vec![Sentence::Imperative(Imperative {
+            predicate: VerbPhrase::GainLife(GainLife {
+                amount: Amount::Variable(VariableAmount {
+                    variable: Variable::Y,
+                }),
+            }),
+        })])
+        .expect("one sentence constructs a paragraph"),
+    );
+    assert_eq!(y_ability.render(&context, &environment), "Gain Y life.");
     assert_eq!(
-        visitor.0,
-        [
-            Event::Sign(Sign::Negative),
-            Event::Number(Sign::Negative, 0)
-        ]
+        parser.parse("Gain Y life.", &context),
+        Ok(y_ability.clone())
     );
+
+    let mut visitor = NumberVisitor::default();
+    walk_cardinal_quantity(&mut visitor, &parsed_cardinal);
+    walk_scalar_number(&mut visitor, &scalar);
+    deckmaste_english_v2::visit::walk_ability(&mut visitor, &y_ability);
+    assert_eq!(visitor.cardinals, [1_001]);
+    assert_eq!(visitor.scalars, [1_000]);
+    assert_eq!(visitor.variables, [Variable::Y]);
+
+    assert!(parser.parse_cardinal_quantity("-1", &context).is_err());
+    assert!(parser.parse("Gain -1 life.", &context).is_err());
 }
 
 fn gain_life_with_where() -> Sentence {
@@ -273,15 +340,8 @@ fn gain_life_with_where() -> Sentence {
             Clause::Where(WhereClause {
                 variable: Variable::X,
                 value: NounPhrase::Count(
-                    CountNp::new(
-                        creatures(),
-                        Pronoun::You,
-                        SignedNumber {
-                            sign: Sign::Positive,
-                            magnitude: 2,
-                        },
-                    )
-                    .expect("You is a valid count controller"),
+                    CountNp::new(creatures(), Pronoun::You, ScalarNumber { magnitude: 2 })
+                        .expect("You is a valid count controller"),
                 ),
             }),
         )
@@ -344,10 +404,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: Amount::Number(NumberAmount {
-                number: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 2,
-                },
+                number: ScalarNumber { magnitude: 2 },
             }),
         }),
     });
@@ -504,15 +561,8 @@ fn renders_gain_life_with_a_where_binder_exactly() {
 fn renders_a_plural_count_subject_with_a_bare_verb() {
     let value = Sentence::Declarative(Declarative {
         subject: NounPhrase::Count(
-            CountNp::new(
-                creatures(),
-                Pronoun::You,
-                SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 2,
-                },
-            )
-            .expect("You is a valid count controller"),
+            CountNp::new(creatures(), Pronoun::You, ScalarNumber { magnitude: 2 })
+                .expect("You is a valid count controller"),
         ),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: Amount::Variable(VariableAmount {
@@ -537,10 +587,7 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
         subject: NounPhrase::SelfReference(subject),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
-                number: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 3,
-                },
+                number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
@@ -560,10 +607,7 @@ fn the_same_self_reference_value_renders_from_two_card_contexts() {
         )),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
-                number: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 3,
-                },
+                number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
@@ -585,10 +629,7 @@ fn renders_those_with_a_plural_noun_and_bare_verb() {
             head: creatures(),
         }),
         predicate: damage(Amount::Number(NumberAmount {
-            number: SignedNumber {
-                sign: Sign::Positive,
-                magnitude: 3,
-            },
+            number: ScalarNumber { magnitude: 3 },
         })),
     });
     assert_eq!(
@@ -641,10 +682,7 @@ fn demonstrative_form_selection_adds_no_ast_or_visitor_tag() {
         let sentence = Sentence::Declarative(Declarative {
             subject: value.clone(),
             predicate: damage(Amount::Number(NumberAmount {
-                number: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 3,
-                },
+                number: ScalarNumber { magnitude: 3 },
             })),
         });
         assert_eq!(
@@ -670,10 +708,7 @@ fn renders_an_with_a_singular_noun_and_third_person_verb() {
     let value = Sentence::Declarative(Declarative {
         subject: NounPhrase::Common(Common { head: artifact() }),
         predicate: damage(Amount::Number(NumberAmount {
-            number: SignedNumber {
-                sign: Sign::Positive,
-                magnitude: 3,
-            },
+            number: ScalarNumber { magnitude: 3 },
         })),
     });
     assert_eq!(
@@ -687,10 +722,7 @@ fn renders_a_subtype_with_its_printed_case() {
     let value = Sentence::Declarative(Declarative {
         subject: NounPhrase::Common(Common { head: equipment() }),
         predicate: damage(Amount::Number(NumberAmount {
-            number: SignedNumber {
-                sign: Sign::Positive,
-                magnitude: 3,
-            },
+            number: ScalarNumber { magnitude: 3 },
         })),
     });
     assert_eq!(
@@ -716,10 +748,7 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         )),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
-                number: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 3,
-                },
+                number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
@@ -741,10 +770,7 @@ fn visitor_reaches_every_vertical_slice_leaf() {
                 variable: Variable::X,
             }),
             Amount::Number(NumberAmount {
-                number: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 3,
-                },
+                number: ScalarNumber { magnitude: 3 },
             }),
         ]
     );
@@ -761,10 +787,7 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         visitor.variables,
         vec![Variable::X, Variable::X, Variable::X]
     );
-    assert_eq!(
-        visitor.signed_numbers,
-        vec![(Sign::Positive, 2), (Sign::Positive, 3)]
-    );
+    assert_eq!(visitor.scalar_numbers, vec![2, 3]);
     assert_eq!(
         visitor.self_reference_spellings,
         vec![SelfReferenceSpelling::Abbreviated]

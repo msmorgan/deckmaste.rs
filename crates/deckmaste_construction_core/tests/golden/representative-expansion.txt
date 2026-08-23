@@ -198,7 +198,7 @@ pub(crate) enum LexicalOwnerIdentity {
 pub struct LexicalOwner {
     identity: LexicalOwnerIdentity,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum BuildViolation {
     Length { minimum: usize, maximum: Option<usize>, actual: usize },
     Invariant { identity: &'static str },
@@ -229,7 +229,7 @@ impl BuildViolation {
         }
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct BuildRejection {
     owner: &'static str,
     role: &'static str,

@@ -910,6 +910,7 @@ enum NonterminalKind {
     PossessiveOwner,
     Possessive,
     Amount,
+    CardinalQuantity,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1334,6 +1335,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PossessiveOwner => NonterminalKind::PossessiveOwner,
         NonterminalCategory::Possessive => NonterminalKind::Possessive,
         NonterminalCategory::Amount => NonterminalKind::Amount,
+        NonterminalCategory::CardinalQuantity => NonterminalKind::CardinalQuantity,
     }
 }
 

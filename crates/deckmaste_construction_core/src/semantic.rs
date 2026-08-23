@@ -683,6 +683,7 @@ pub(crate) enum TerminalPlan {
     ContextIdentity(ContextIdentityPlan),
     CatalogIdentity(CatalogIdentityPlan),
     SignedDecimal(SignedDecimalPlan),
+    UnsignedNumber(UnsignedNumberPlan),
     DeclarationNoun(DeclarationNounPlan),
 }
 
@@ -746,6 +747,22 @@ pub(crate) struct SignedDecimalPlan {
     magnitude: UnsignedPrimitive,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UnsignedNumberKind {
+    EnglishCardinal,
+    UnsignedDecimal,
+}
+
+#[derive(Debug)]
+pub(crate) struct UnsignedNumberPlan {
+    source_index: usize,
+    origin: DeclarationKey,
+    codec_name: String,
+    codec_ident: syn::Ident,
+    magnitude: UnsignedPrimitive,
+    kind: UnsignedNumberKind,
+}
+
 #[derive(Debug)]
 pub(crate) struct ContextIdentityPlan {
     source_index: usize,
@@ -779,6 +796,7 @@ struct RuntimeEmissionPlan {
     context_identity_indices: Vec<usize>,
     catalog_identity_indices: Vec<usize>,
     signed_decimal_index: Option<usize>,
+    unsigned_number_indices: Vec<usize>,
     declaration_noun_indices: Vec<usize>,
     punctuation_literals: Vec<String>,
     scanner_origin_indices: Vec<usize>,
@@ -800,6 +818,7 @@ impl RuntimeEmissionPlan {
             context_identity_indices: Vec::new(),
             catalog_identity_indices: Vec::new(),
             signed_decimal_index: None,
+            unsigned_number_indices: Vec::new(),
             declaration_noun_indices: Vec::new(),
             punctuation_literals: Vec::new(),
             scanner_origin_indices: Vec::new(),
@@ -858,6 +877,9 @@ impl RuntimeEmissionPlan {
                         ));
                     }
                 }
+                TerminalPlan::UnsignedNumber(_) => {
+                    plan.unsigned_number_indices.push(index);
+                }
                 TerminalPlan::DeclarationNoun(_) => {
                     plan.declaration_noun_indices.push(index);
                 }
@@ -902,6 +924,7 @@ impl RuntimeEmissionPlan {
             .chain(&plan.context_identity_indices)
             .chain(&plan.catalog_identity_indices)
             .chain(plan.signed_decimal_index.iter())
+            .chain(&plan.unsigned_number_indices)
             .chain(&plan.declaration_noun_indices)
             .map(|&index| terminals[index].source_index())
             .collect::<BTreeSet<_>>();
@@ -937,6 +960,7 @@ pub(crate) enum AtomTerminal<'a> {
         plan: &'a CatalogIdentityPlan,
     },
     SignedDecimal(&'a SignedDecimalPlan),
+    UnsignedNumber(&'a UnsignedNumberPlan),
     DeclarationNoun {
         terminal_index: usize,
         plan: &'a DeclarationNounPlan,
@@ -1186,6 +1210,13 @@ fn seal_terminals(
                     }
                     crate::model::GeneratedCodecRecipe::DeclarationNoun(_) => {
                         TerminalPlan::DeclarationNoun(DeclarationNounPlan::from_source(
+                            source_index,
+                            binding,
+                        ))
+                    }
+                    crate::model::GeneratedCodecRecipe::EnglishCardinal(_)
+                    | crate::model::GeneratedCodecRecipe::UnsignedDecimal(_) => {
+                        TerminalPlan::UnsignedNumber(UnsignedNumberPlan::from_source(
                             source_index,
                             binding,
                         ))
@@ -1521,6 +1552,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => {
                     unreachable!("sealed runtime vocab index changed terminal kind")
                 }
@@ -1607,6 +1639,15 @@ impl SemanticPlan {
         self.runtime.signed_decimal_index.map(|index| {
             let TerminalPlan::SignedDecimal(codec) = &self.terminals[index] else {
                 unreachable!("sealed runtime signed-decimal index changed terminal kind")
+            };
+            codec
+        })
+    }
+
+    pub(crate) fn runtime_unsigned_numbers(&self) -> impl Iterator<Item = &UnsignedNumberPlan> {
+        self.runtime.unsigned_number_indices.iter().map(|&index| {
+            let TerminalPlan::UnsignedNumber(codec) = &self.terminals[index] else {
+                unreachable!("sealed runtime unsigned-number index changed terminal kind")
             };
             codec
         })
@@ -1817,6 +1858,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .expect("test vocabulary is present");
@@ -1841,6 +1883,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .expect("test vocabulary is present");
@@ -1861,6 +1904,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .expect("test binding is present");
@@ -1886,6 +1930,7 @@ impl SemanticPlan {
                 | TerminalPlan::Binding(_)
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .expect("test signed_decimal codec is present");
@@ -1906,6 +1951,7 @@ impl SemanticPlan {
                 | TerminalPlan::Binding(_)
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .expect("test signed_decimal codec is present");
@@ -1959,6 +2005,7 @@ impl SemanticPlan {
                 | TerminalPlan::Binding(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .collect()
@@ -1983,6 +2030,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .expect("test context identity is present");
@@ -2040,6 +2088,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .expect("test context identity is present");
@@ -2062,6 +2111,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .expect("test binding is present");
@@ -2085,6 +2135,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .expect("test binding is present");
@@ -2104,6 +2155,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => None,
             })
             .expect("test binding is present");
@@ -2159,6 +2211,9 @@ impl SemanticPlan {
                 TerminalPlan::SignedDecimal(row) if row.codec_name() == name => {
                     return Ok(AtomTerminal::SignedDecimal(row));
                 }
+                TerminalPlan::UnsignedNumber(row) if row.codec_name() == name => {
+                    return Ok(AtomTerminal::UnsignedNumber(row));
+                }
                 TerminalPlan::DeclarationNoun(row) if row.codec_name() == name => {
                     return Ok(AtomTerminal::DeclarationNoun {
                         terminal_index,
@@ -2171,6 +2226,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
+                | TerminalPlan::UnsignedNumber(_)
                 | TerminalPlan::DeclarationNoun(_) => {}
             }
         }
@@ -3816,6 +3872,7 @@ fn accessor_mode(
             TerminalPlan::Binding(_)
             | TerminalPlan::CatalogIdentity(_)
             | TerminalPlan::SignedDecimal(_)
+            | TerminalPlan::UnsignedNumber(_)
             | TerminalPlan::DeclarationNoun(_) => AccessorMode::Borrow,
         })
         .ok_or_else(|| sealed_error("invariant field terminal"))
@@ -4336,6 +4393,7 @@ impl TerminalPlan {
             Self::ContextIdentity(plan) => plan.source_index(),
             Self::CatalogIdentity(plan) => plan.source_index(),
             Self::SignedDecimal(plan) => plan.source_index(),
+            Self::UnsignedNumber(plan) => plan.source_index(),
             Self::DeclarationNoun(plan) => plan.source_index(),
         }
     }
@@ -4348,6 +4406,7 @@ impl TerminalPlan {
             Self::ContextIdentity(plan) => plan.name(),
             Self::CatalogIdentity(plan) => plan.name(),
             Self::SignedDecimal(plan) => plan.codec_name(),
+            Self::UnsignedNumber(plan) => plan.codec_name(),
             Self::DeclarationNoun(plan) => plan.codec_name(),
         }
     }
@@ -4366,6 +4425,7 @@ impl TerminalPlan {
             | Self::ContextIdentity(_)
             | Self::CatalogIdentity(_)
             | Self::SignedDecimal(_)
+            | Self::UnsignedNumber(_)
             | Self::DeclarationNoun(_) => Vec::new(),
         }
     }
@@ -4381,6 +4441,7 @@ impl TerminalPlan {
             Self::ContextIdentity(plan) => plan.name(),
             Self::CatalogIdentity(plan) => plan.name(),
             Self::SignedDecimal(plan) => plan.codec_name(),
+            Self::UnsignedNumber(plan) => plan.codec_name(),
             Self::DeclarationNoun(plan) => plan.codec_name(),
         }
     }
@@ -4396,7 +4457,10 @@ impl TerminalPlan {
                 "identity"
             }
             Self::ContextIdentity(_) | Self::CatalogIdentity(_) => "identity",
-            Self::Binding(_) | Self::SignedDecimal(_) | Self::DeclarationNoun(_) => "codec",
+            Self::Binding(_)
+            | Self::SignedDecimal(_)
+            | Self::UnsignedNumber(_)
+            | Self::DeclarationNoun(_) => "codec",
         };
         let mut capabilities = Vec::new();
         if self.supports_lex_atom() {
@@ -4422,8 +4486,10 @@ impl TerminalPlan {
     }
 
     pub(crate) fn supports_lex_atom(&self) -> bool {
-        matches!(self, Self::Vocab(_) | Self::SignedDecimal(_))
-            || matches!(self, Self::Binding(binding) if binding.codec_atom() == Some(crate::model::CodecAtomClass::Lex))
+        matches!(
+            self,
+            Self::Vocab(_) | Self::SignedDecimal(_) | Self::UnsignedNumber(_)
+        ) || matches!(self, Self::Binding(binding) if binding.codec_atom() == Some(crate::model::CodecAtomClass::Lex))
     }
 
     pub(crate) fn supports_identity_atom(&self) -> bool {
@@ -4447,6 +4513,7 @@ impl TerminalPlan {
                 | Self::ContextIdentity(_)
                 | Self::CatalogIdentity(_)
                 | Self::SignedDecimal(_)
+                | Self::UnsignedNumber(_)
                 | Self::DeclarationNoun(_)
         ) || matches!(self, Self::Binding(binding) if binding.render().is_some())
     }
@@ -4458,6 +4525,7 @@ impl TerminalPlan {
                 | Self::ContextIdentity(_)
                 | Self::CatalogIdentity(_)
                 | Self::SignedDecimal(_)
+                | Self::UnsignedNumber(_)
                 | Self::DeclarationNoun(_)
         ) || matches!(self, Self::Binding(binding) if binding.build().is_some())
     }
@@ -4968,6 +5036,61 @@ impl SignedDecimalPlan {
 
     pub(crate) fn magnitude(&self) -> UnsignedPrimitive {
         self.magnitude
+    }
+}
+
+impl UnsignedNumberPlan {
+    fn from_source(source_index: usize, source: &crate::TerminalBinding) -> Self {
+        let (recipe, kind) = match source
+            .generated
+            .as_ref()
+            .expect("generated unsigned numeral recipe exists")
+        {
+            crate::model::GeneratedCodecRecipe::EnglishCardinal(recipe) => {
+                (recipe, UnsignedNumberKind::EnglishCardinal)
+            }
+            crate::model::GeneratedCodecRecipe::UnsignedDecimal(recipe) => {
+                (recipe, UnsignedNumberKind::UnsignedDecimal)
+            }
+            crate::model::GeneratedCodecRecipe::SignedDecimal(_)
+            | crate::model::GeneratedCodecRecipe::DeclarationNoun(_)
+            | crate::model::GeneratedCodecRecipe::Unsupported { .. } => {
+                unreachable!("validated unsigned numeral has its closed recipe")
+            }
+        };
+        debug_assert_eq!(recipe.magnitude_slots.len(), 1);
+        Self {
+            source_index,
+            origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
+            codec_name: identifier_key(&source.name),
+            codec_ident: source.name.clone(),
+            magnitude: UnsignedPrimitive::U32,
+            kind,
+        }
+    }
+
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
+    }
+
+    pub(crate) fn origin(&self) -> &DeclarationKey {
+        &self.origin
+    }
+
+    pub(crate) fn codec_name(&self) -> &str {
+        &self.codec_name
+    }
+
+    pub(crate) fn codec_ident(&self) -> &syn::Ident {
+        &self.codec_ident
+    }
+
+    pub(crate) fn magnitude(&self) -> UnsignedPrimitive {
+        self.magnitude
+    }
+
+    pub(crate) fn kind(&self) -> UnsignedNumberKind {
+        self.kind
     }
 }
 

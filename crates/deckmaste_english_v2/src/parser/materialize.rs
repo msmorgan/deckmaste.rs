@@ -877,10 +877,9 @@ mod tests {
     use crate::ast::NounPhrase;
     use crate::ast::Pronoun;
     use crate::ast::PronounNp;
+    use crate::ast::ScalarNumber;
     use crate::ast::SelfReferenceSpelling;
     use crate::ast::Sentence;
-    use crate::ast::Sign;
-    use crate::ast::SignedNumber;
     use crate::ast::Variable;
     use crate::ast::VerbLexeme;
     use crate::ast::VerbPhrase;
@@ -948,10 +947,7 @@ mod tests {
         assert!(matches!(
             outcome.values[0].value,
             BuildValue::Amount(crate::ast::Amount::Number(crate::ast::NumberAmount {
-                number: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 3,
-                },
+                number: ScalarNumber { magnitude: 3 },
             }))
         ));
     }
@@ -1071,10 +1067,7 @@ mod tests {
                         children: vec![Child::Node(NodeId(0))],
                     },
                     Family {
-                        children: vec![lexical(Leaf::SignedNumber(SignedNumber {
-                            sign: Sign::Positive,
-                            magnitude: 3,
-                        }))],
+                        children: vec![lexical(Leaf::ScalarNumber(ScalarNumber { magnitude: 3 }))],
                     },
                 ],
             }],
@@ -1097,8 +1090,7 @@ mod tests {
                             children: vec![Child::Node(NodeId(1))],
                         },
                         Family {
-                            children: vec![lexical(Leaf::SignedNumber(SignedNumber {
-                                sign: Sign::Positive,
+                            children: vec![lexical(Leaf::ScalarNumber(ScalarNumber {
                                 magnitude: 3,
                             }))],
                         },

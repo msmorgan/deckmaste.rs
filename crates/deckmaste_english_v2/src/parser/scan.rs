@@ -1064,9 +1064,8 @@ mod tests {
     use crate::ast::Noun;
     use crate::ast::NounLexeme;
     use crate::ast::Pronoun;
+    use crate::ast::ScalarNumber;
     use crate::ast::SelfReferenceSpelling;
-    use crate::ast::Sign;
-    use crate::ast::SignedNumber;
     use crate::ast::TriggerWord;
     use crate::ast::Variable;
     use crate::ast::VerbLexeme;
@@ -2494,6 +2493,7 @@ mod tests {
                 "VerbPhraseGainLife",
                 "AmountNumber",
                 "AmountVariable",
+                "CardinalQuantityCardinal",
                 "OracleTextBlocksSequenceEmpty",
                 "OracleTextBlocksSequenceNonEmpty",
                 "OracleTextBlocksSequenceSingleton",
@@ -2540,7 +2540,7 @@ mod tests {
                 "Verb(Control, Exact(Bare))",
                 "Literal(\"with\")",
                 "Literal(\"power\")",
-                "SignedNumber",
+                "ScalarNumber",
                 "Literal(\"or\")",
                 "Literal(\"less\")",
                 "Literal(\"'s\")",
@@ -2552,6 +2552,7 @@ mod tests {
                 "Literal(\"to\")",
                 "Verb(Gain, Any)",
                 "Literal(\"life\")",
+                "CardinalNumber",
                 "Literal(\"\\n\")"
             ]
         );
@@ -2612,18 +2613,8 @@ mod tests {
                 "Verb { lexeme: Deal, agreement: ThirdPersonSingular, onset: Consonant }",
             ),
             (
-                Leaf::SignedNumber(SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 2,
-                }),
-                "SignedNumber(SignedNumber { sign: Positive, magnitude: 2 })",
-            ),
-            (
-                Leaf::SignedNumber(SignedNumber {
-                    sign: Sign::Negative,
-                    magnitude: 2,
-                }),
-                "SignedNumber(SignedNumber { sign: Negative, magnitude: 2 })",
+                Leaf::ScalarNumber(ScalarNumber { magnitude: 2 }),
+                "ScalarNumber(ScalarNumber { magnitude: 2 })",
             ),
             (
                 Leaf::SelfReference(SelfReferenceSpelling::Full),
@@ -2640,27 +2631,20 @@ mod tests {
     }
 
     #[test]
-    fn signed_decimal_scanner_is_canonical_at_both_scan_positions() {
+    fn unsigned_decimal_scanner_is_canonical_at_both_scan_positions() {
         let environment = canonical_test_environment();
         let context = context("Test Card");
         let terminal = LexicalTerminal {
-            matcher: Lexical::SignedNumber,
+            matcher: Lexical::ScalarNumber,
             owner: LexicalOwnerTemplate::Static {
                 kind: crate::constructions::LexicalProvenanceKind::Codec,
-                stable_id: "codec:SignedNumber",
+                stable_id: "codec:ScalarNumber",
             },
             right_boundary: LexicalBoundary::Separated,
         };
-        let accepted = [
-            ("0", Sign::Positive, 0),
-            ("-0", Sign::Negative, 0),
-            ("1", Sign::Positive, 1),
-            ("-1", Sign::Negative, 1),
-            ("4294967295", Sign::Positive, u32::MAX),
-            ("-4294967295", Sign::Negative, u32::MAX),
-        ];
+        let accepted = [("0", 0), ("1", 1), ("4,294,967,295", u32::MAX)];
 
-        for (number, sign, magnitude) in accepted {
+        for (number, magnitude) in accepted {
             for (text, byte_offset, case, expected_end) in [
                 (
                     number.to_owned(),
@@ -2696,23 +2680,26 @@ mod tests {
                 assert_eq!(matches[0].end, expected_end, "{text:?} at {case:?}");
                 assert_eq!(
                     matches[0].value,
-                    Leaf::SignedNumber(SignedNumber { sign, magnitude }),
+                    Leaf::ScalarNumber(ScalarNumber { magnitude }),
                     "{text:?} at {case:?}"
                 );
                 let owner = terminal
                     .owner
                     .instantiate(&matches[0].value)
-                    .expect("signed decimals own their bytes");
-                assert_eq!(owner.stable_id(), "codec:SignedNumber");
+                    .expect("unsigned decimals own their bytes");
+                assert_eq!(owner.stable_id(), "codec:ScalarNumber");
             }
         }
 
         for number in [
             "",
             "-",
+            "+1",
+            "-1",
             "00",
             "01",
             "-00",
+            "1000",
             "4294967296",
             "-4294967296",
             "١",
@@ -2752,7 +2739,7 @@ mod tests {
             }
         }
 
-        for text in ["1.", "-1,"] {
+        for text in ["1.", "1,"] {
             let matches = super::scan_lexical(
                 &ScanInput {
                     text,

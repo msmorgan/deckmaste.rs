@@ -15,7 +15,7 @@ constructions! {
     vocab TriggerWord { Whenever = "whenever", }
     vocab Demonstrative { That = "that", Those = "those", }
     vocab Pronoun { It = "it", You = "you", }
-    vocab Variable { X = "X", }
+    vocab Variable { X = "X", Y = "Y", }
     vocab Supertype {
         Basic = "basic",
         Legendary = "legendary",
@@ -66,13 +66,14 @@ constructions! {
             provider = CardNames;
         }
     }
-    codec SignedNumber {
-        generate signed_decimal {
+    codec CardinalNumber {
+        generate english_cardinal {
             magnitude = u32;
-            sign_type = Sign {
-                Positive = none,
-                Negative = "-",
-            };
+        }
+    }
+    codec ScalarNumber {
+        generate unsigned_decimal {
+            magnitude = u32;
         }
     }
     construction paragraph: Ability {
@@ -184,7 +185,7 @@ constructions! {
         element CountNp {
             head: lex Noun,
             controller: lex Pronoun,
-            threshold: lex SignedNumber,
+            threshold: lex ScalarNumber,
         }
         require controller is You;
         derive agreement = Values::Bare;
@@ -242,12 +243,17 @@ constructions! {
         form gain_life = verb(VerbLexeme::Gain) amount "life";
     }
     construction number: Amount {
-        element NumberAmount { number: lex SignedNumber, }
+        element NumberAmount { number: lex ScalarNumber, }
         form number = lex(number);
     }
     construction variable: Amount {
         element VariableAmount { variable: lex Variable, }
         form variable = lex(variable);
+    }
+    construction cardinal: CardinalQuantity {
+        element CardinalQuantityValue { number: lex CardinalNumber, }
+        derive number = number.number;
+        form cardinal = lex(number);
     }
 
     abstract sum DocumentBlock { Ability, }
@@ -258,5 +264,6 @@ constructions! {
     root Ability { eoi = true; standalone_render = true; }
     root Sentence { punctuation = "."; eoi = false; standalone_render = true; }
     root Possessive { eoi = true; standalone_render = true; }
+    root CardinalQuantity { eoi = true; standalone_render = true; }
     root OracleText { eoi = true; standalone_render = true; }
 }

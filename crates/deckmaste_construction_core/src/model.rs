@@ -333,6 +333,8 @@ pub struct TerminalBinding {
 #[derive(Debug)]
 pub enum GeneratedCodecRecipe {
     SignedDecimal(SignedDecimalSource),
+    EnglishCardinal(UnsignedNumberSource),
+    UnsignedDecimal(UnsignedNumberSource),
     DeclarationNoun(DeclarationNounSource),
     Unsupported { name: Ident },
 }
@@ -407,6 +409,12 @@ pub struct SignedDecimalSource {
 pub struct UnsignedPrimitiveSource {
     pub slot: Ident,
     pub primitive: Ident,
+}
+
+#[derive(Debug)]
+pub struct UnsignedNumberSource {
+    pub recipe: Ident,
+    pub magnitude_slots: Vec<UnsignedPrimitiveSource>,
 }
 
 #[derive(Debug)]

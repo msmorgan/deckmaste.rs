@@ -1270,6 +1270,18 @@ pub mod fixture {
             }
         }
 
+        codec CardinalNumber {
+            generate english_cardinal {
+                magnitude = u32;
+            }
+        }
+
+        codec ScalarNumber {
+            generate unsigned_decimal {
+                magnitude = u32;
+            }
+        }
+
 
         codec RawBranchToken {
             value_type = RawBranchToken;
@@ -1317,6 +1329,16 @@ pub mod fixture {
             element SourceNode {}
             derive number = Values::Singular;
             form source = "source";
+        }
+        construction cardinal: CardinalQuantity {
+            element CardinalQuantityValue { number: lex CardinalNumber, }
+            derive number = number.number;
+            form cardinal = lex(number);
+        }
+        construction counted_cardinal: CountedCardinal {
+            element CountedCardinalValue { cardinal: CardinalQuantity, head: lex Head, }
+            derive number = cardinal.number;
+            form counted_cardinal = cardinal noun(head);
         }
         construction one: Phrase {
             element OnePhrase { source: Source, head: lex Head, }
@@ -1704,6 +1726,8 @@ pub mod fixture {
         Token(u8),
         Sign(Sign),
         SignedNumber(Sign, u32),
+        CardinalNumber(u32),
+        ScalarNumber(u32),
         SelfRef(SelfRef),
         StructuralWord(StructuralWord),
     }
@@ -1731,6 +1755,14 @@ pub mod fixture {
         fn visit_signed_number(&mut self, number: &SignedNumber) {
             self.0
                 .push(VisitEvent::SignedNumber(number.sign, number.magnitude));
+        }
+
+        fn visit_cardinal_number(&mut self, number: &CardinalNumber) {
+            self.0.push(VisitEvent::CardinalNumber(number.magnitude));
+        }
+
+        fn visit_scalar_number(&mut self, number: &ScalarNumber) {
+            self.0.push(VisitEvent::ScalarNumber(number.magnitude));
         }
 
         fn visit_self_ref(&mut self, spelling: SelfRef) {
@@ -3896,6 +3928,192 @@ pub mod fixture {
         assert_generated_punctuation_scan(&rendered_raw_category, None, "?", &context);
         walk_raw_category(&mut recording, &raw_category);
     }
+
+    fn assert_cardinal_number_literal_goldens() {
+        for (value, cardinal) in [
+            (0, "zero"),
+            (1, "one"),
+            (2, "two"),
+            (3, "three"),
+            (4, "four"),
+            (5, "five"),
+            (6, "six"),
+            (7, "seven"),
+            (8, "eight"),
+            (9, "nine"),
+            (10, "ten"),
+            (11, "eleven"),
+            (12, "twelve"),
+            (13, "thirteen"),
+            (14, "fourteen"),
+            (15, "fifteen"),
+            (16, "sixteen"),
+            (17, "seventeen"),
+            (18, "eighteen"),
+            (19, "nineteen"),
+            (20, "twenty"),
+            (21, "twenty-one"),
+            (30, "thirty"),
+            (40, "forty"),
+            (50, "fifty"),
+            (60, "sixty"),
+            (70, "seventy"),
+            (80, "eighty"),
+            (90, "ninety"),
+            (99, "ninety-nine"),
+            (100, "one hundred"),
+            (101, "one hundred one"),
+            (105, "one hundred five"),
+            (999, "nine hundred ninety-nine"),
+            (1_000, "one thousand"),
+            (1_001, "one thousand, one"),
+            (
+                999_999,
+                "nine hundred ninety-nine thousand, nine hundred ninety-nine",
+            ),
+            (1_000_000, "one million"),
+            (1_000_001, "one million, one"),
+            (
+                999_999_999,
+                "nine hundred ninety-nine million, nine hundred ninety-nine thousand, nine hundred ninety-nine",
+            ),
+            (1_000_000_000, "one billion"),
+            (1_000_000_001, "one billion, one"),
+            (
+                u32::MAX - 1,
+                "four billion, two hundred ninety-four million, nine hundred sixty-seven thousand, two hundred ninety-four",
+            ),
+            (
+                u32::MAX,
+                "four billion, two hundred ninety-four million, nine hundred sixty-seven thousand, two hundred ninety-five",
+            ),
+        ] {
+            assert_eq!(format_cardinal_number(value), cardinal);
+            assert_eq!(parse_cardinal_number(cardinal), Some(value));
+        }
+    }
+
+    fn assert_scalar_number_literal_goldens() {
+        for (value, decimal) in [
+            (0, "0"),
+            (9, "9"),
+            (10, "10"),
+            (11, "11"),
+            (99, "99"),
+            (100, "100"),
+            (101, "101"),
+            (999, "999"),
+            (1_000, "1,000"),
+            (1_001, "1,001"),
+            (9_999, "9,999"),
+            (10_000, "10,000"),
+            (10_001, "10,001"),
+            (99_999, "99,999"),
+            (100_000, "100,000"),
+            (100_001, "100,001"),
+            (999_999, "999,999"),
+            (1_000_000, "1,000,000"),
+            (1_000_001, "1,000,001"),
+            (9_999_999, "9,999,999"),
+            (10_000_000, "10,000,000"),
+            (10_000_001, "10,000,001"),
+            (99_999_999, "99,999,999"),
+            (100_000_000, "100,000,000"),
+            (100_000_001, "100,000,001"),
+            (999_999_999, "999,999,999"),
+            (1_000_000_000, "1,000,000,000"),
+            (1_000_000_001, "1,000,000,001"),
+            (u32::MAX - 1, "4,294,967,294"),
+            (u32::MAX, "4,294,967,295"),
+        ] {
+            assert_eq!(format_scalar_number(value), decimal);
+            assert_eq!(parse_scalar_number(decimal), Some(value));
+        }
+    }
+
+    pub(super) fn assert_unsigned_numeral_codecs_are_canonical_and_total() {
+        assert_cardinal_number_literal_goldens();
+        assert_scalar_number_literal_goldens();
+
+        for rejected in [
+            "",
+            "One",
+            " one",
+            "negative one",
+            "eleven hundred",
+            "forty and five",
+            "forty five",
+            "one hundred and five",
+            "one thousand one",
+            "one thousand, zero",
+            "one million, one million",
+            "four billion, two hundred ninety-four million, nine hundred sixty-seven thousand, two hundred ninety-six",
+        ] {
+            assert_eq!(parse_cardinal_number(rejected), None, "{rejected:?}");
+        }
+        for rejected in [
+            "",
+            "00",
+            "01",
+            "+1",
+            "-1",
+            "1000",
+            "1,00",
+            "1,000,",
+            "4,294,967,296",
+        ] {
+            assert_eq!(parse_scalar_number(rejected), None, "{rejected:?}");
+        }
+
+        for value in 0..=9_999 {
+            let cardinal = format_cardinal_number(value);
+            assert_eq!(parse_cardinal_number(&cardinal), Some(value));
+            let decimal = format_scalar_number(value);
+            assert_eq!(parse_scalar_number(&decimal), Some(value));
+        }
+        let mut value = 0x9e37_79b9_u32;
+        for _ in 0..10_000 {
+            value = value.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            let cardinal = format_cardinal_number(value);
+            assert_eq!(parse_cardinal_number(&cardinal), Some(value));
+            let decimal = format_scalar_number(value);
+            assert_eq!(parse_scalar_number(&decimal), Some(value));
+        }
+
+        let mut recording = RecordingVisitor::default();
+        walk_cardinal_number(&mut recording, &CardinalNumber { magnitude: 21 });
+        walk_scalar_number(&mut recording, &ScalarNumber { magnitude: 1_000 });
+        assert_eq!(
+            &recording.0[recording.0.len() - 2..],
+            [
+                VisitEvent::CardinalNumber(21),
+                VisitEvent::ScalarNumber(1_000),
+            ],
+        );
+
+        let context = ParseContext::default();
+        for (magnitude, expected) in [
+            (0, Number::Plural),
+            (1, Number::Singular),
+            (2, Number::Plural),
+            (u32::MAX, Number::Plural),
+        ] {
+            let number = CardinalNumber { magnitude };
+            let built = build(
+                RuleId::CardinalQuantityCardinal,
+                &[BuildValue::Leaf(Leaf::CardinalNumber(number.clone()))],
+                &context,
+            )
+            .expect("cardinal magnitude supplies one-versus-other Number");
+            assert_eq!(
+                built,
+                BuildValue::CardinalQuantity(
+                    CardinalQuantity::Cardinal(CardinalQuantityValue { number }),
+                    expected,
+                ),
+            );
+        }
+    }
 }
 
 #[test]
@@ -3972,4 +4190,9 @@ fn realized_possessive_ending_selects_guarded_suffix_forms_and_rejects_mutations
 #[test]
 fn exact_name_wrapper_render_uses_frozen_context_onset() {
     fixture::assert_exact_name_render_uses_frozen_onset();
+}
+
+#[test]
+fn unsigned_numeral_codecs_cover_canonical_surfaces_bounds_and_round_trips() {
+    fixture::assert_unsigned_numeral_codecs_are_canonical_and_total();
 }

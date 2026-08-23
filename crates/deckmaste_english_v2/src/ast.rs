@@ -1,6 +1,9 @@
 pub use crate::constructions::Ability;
 pub use crate::constructions::Amount;
 pub use crate::constructions::CardName;
+pub use crate::constructions::CardinalNumber;
+pub use crate::constructions::CardinalQuantity;
+pub use crate::constructions::CardinalQuantityValue;
 pub use crate::constructions::CatalogProvider;
 pub use crate::constructions::Clause;
 pub use crate::constructions::Common;
@@ -30,9 +33,8 @@ pub use crate::constructions::SelfReferenceNp;
 pub use crate::constructions::{
     SelfReferenceSpelling,
 };
+pub use crate::constructions::ScalarNumber;
 pub use crate::constructions::Sentence;
-pub use crate::constructions::Sign;
-pub use crate::constructions::SignedNumber;
 pub use crate::constructions::Supertype;
 pub use crate::constructions::TargetNp;
 pub use crate::constructions::TriggerWord;

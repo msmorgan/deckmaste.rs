@@ -1812,7 +1812,7 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
         AtomTerminal::CatalogIdentity { terminal_index, .. } => {
             Ok(quote! { LexicalOwnerTemplate::CatalogIdentity(#terminal_index) })
         }
-        AtomTerminal::SignedDecimal(_) => {
+        AtomTerminal::SignedDecimal(_) | AtomTerminal::UnsignedNumber(_) => {
             let stable_id = syn::LitStr::new(&format!("codec:{terminal}"), Span::call_site());
             Ok(quote! {
                 LexicalOwnerTemplate::Static {
@@ -1854,6 +1854,10 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
             Ok(quote! { Lexical::CatalogIdentity(#terminal_index) })
         }
         AtomTerminal::SignedDecimal(codec) => {
+            let variant = codec.codec_ident();
+            Ok(quote! { Lexical::#variant })
+        }
+        AtomTerminal::UnsignedNumber(codec) => {
             let variant = codec.codec_ident();
             Ok(quote! { Lexical::#variant })
         }

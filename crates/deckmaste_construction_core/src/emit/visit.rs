@@ -38,6 +38,7 @@ use crate::semantic::TraversalBranchArmPlan;
 use crate::semantic::TraversalCallPlan;
 use crate::semantic::TraversalFieldPlan;
 use crate::semantic::TraversalValuePlan;
+use crate::semantic::UnsignedNumberPlan;
 use crate::semantic::ValueKindPlan;
 use crate::semantic::VocabPlan;
 use crate::semantic::VocabVariantPlan;
@@ -51,6 +52,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     let mut context_identities = Vec::new();
     let mut catalog_identities = Vec::new();
     let mut signed_decimal = None;
+    let mut unsigned_numbers = Vec::new();
     let mut declaration_nouns = Vec::new();
     for terminal in validated.terminals() {
         match terminal {
@@ -60,6 +62,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             TerminalPlan::ContextIdentity(row) => context_identities.push(row),
             TerminalPlan::CatalogIdentity(row) => catalog_identities.push(row),
             TerminalPlan::SignedDecimal(row) => signed_decimal = Some(row),
+            TerminalPlan::UnsignedNumber(row) => unsigned_numbers.push(row),
             TerminalPlan::DeclarationNoun(row) => declaration_nouns.push(row),
         }
     }
@@ -99,6 +102,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         lexemes: &lexemes,
         borrowed_bindings: &borrowed_bindings,
         signed_decimal,
+        unsigned_numbers: &unsigned_numbers,
         declaration_nouns: &declaration_nouns,
     };
     let trait_item = emit_trait(validated, &categories, constructions, &terminal_visitors)?;
@@ -150,6 +154,9 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         items.push(emit_signed_decimal_sign_walker(codec));
         items.push(emit_signed_decimal_walker(codec));
     }
+    for codec in &unsigned_numbers {
+        items.push(emit_unsigned_number_walker(codec));
+    }
     for codec in declaration_nouns {
         items.push(emit_declaration_noun_value_walker(codec));
         items.push(emit_declaration_noun_walker(codec));
@@ -166,6 +173,7 @@ struct TerminalVisitors<'a> {
     lexemes: &'a [&'a LexemePlan],
     borrowed_bindings: &'a [&'a BindingPlan],
     signed_decimal: Option<&'a SignedDecimalPlan>,
+    unsigned_numbers: &'a [&'a UnsignedNumberPlan],
     declaration_nouns: &'a [&'a DeclarationNounPlan],
 }
 
@@ -228,6 +236,12 @@ fn emit_trait(
     if let Some(codec) = terminals.signed_decimal {
         origins.push(codec.origin().clone());
     }
+    origins.extend(
+        terminals
+            .unsigned_numbers
+            .iter()
+            .map(|codec| codec.origin().clone()),
+    );
     if !terminals.catalog_identities.is_empty() {
         methods.push(quote! {
             fn visit_catalog_provider(&mut self, _provider: CatalogProvider) {}
@@ -333,6 +347,9 @@ fn visitor_methods(
     }
     if let Some(codec) = terminals.signed_decimal {
         methods.push(noop_method(&codec.sign_type().to_string(), VisitMode::Copy));
+        methods.push(noop_method(codec.codec_name(), VisitMode::Borrowed));
+    }
+    for codec in terminals.unsigned_numbers {
         methods.push(noop_method(codec.codec_name(), VisitMode::Borrowed));
     }
     for codec in terminals.declaration_nouns {
@@ -634,6 +651,24 @@ fn emit_signed_decimal_walker(codec: &SignedDecimalPlan) -> GeneratedItem {
         quote! {
             pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, number: &#ty) {
                 visitor.#sign_callback(number.sign);
+                visitor.#callback(number);
+            }
+        },
+        vec![codec.origin().clone()],
+    )
+}
+
+fn emit_unsigned_number_walker(codec: &UnsignedNumberPlan) -> GeneratedItem {
+    let ty = codec.codec_ident();
+    let function = ident(&format!("walk_{}", snake_case(codec.codec_name())));
+    let callback = ident(&format!("visit_{}", snake_case(codec.codec_name())));
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function.to_string(),
+        },
+        quote! {
+            pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, number: &#ty) {
                 visitor.#callback(number);
             }
         },
@@ -1218,6 +1253,9 @@ fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitM
             TerminalPlan::SignedDecimal(row) if row.codec_name() == terminal => {
                 return Ok(VisitMode::Borrowed);
             }
+            TerminalPlan::UnsignedNumber(row) if row.codec_name() == terminal => {
+                return Ok(VisitMode::Borrowed);
+            }
             TerminalPlan::DeclarationNoun(row) if row.codec_name() == terminal => {
                 return Ok(VisitMode::Borrowed);
             }
@@ -1227,6 +1265,7 @@ fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitM
             | TerminalPlan::ContextIdentity(_)
             | TerminalPlan::CatalogIdentity(_)
             | TerminalPlan::SignedDecimal(_)
+            | TerminalPlan::UnsignedNumber(_)
             | TerminalPlan::DeclarationNoun(_) => {}
         }
     }

@@ -250,6 +250,23 @@ pub(crate) fn emit(
                     vec![origin],
                 ));
             }
+            TerminalPlan::UnsignedNumber(row) => {
+                let origin = row.origin().clone();
+                let codec = row.codec_ident();
+                let magnitude = match row.magnitude() {
+                    crate::semantic::UnsignedPrimitive::U32 => quote! { u32 },
+                };
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(row.codec_name()),
+                    quote! {
+                        #[derive(Debug, Clone, PartialEq, Eq)]
+                        pub struct #codec {
+                            pub magnitude: #magnitude,
+                        }
+                    },
+                    vec![origin],
+                ));
+            }
             TerminalPlan::DeclarationNoun(row) => {
                 let origin = row.origin().clone();
                 let noun = row.codec_ident();

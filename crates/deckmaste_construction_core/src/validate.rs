@@ -1771,6 +1771,10 @@ fn validate_generated_identities(raw: &Declarations) -> syn::Result<()> {
     finish(errors)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "closed generated-codec recipes share one exhaustive validation dispatch"
+)]
 fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
     let mut errors = None;
     for declaration in &raw.declarations {
@@ -1920,9 +1924,49 @@ fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
             crate::model::GeneratedCodecRecipe::DeclarationNoun(source) => {
                 validate_declaration_noun_source(raw, source, &mut errors);
             }
+            crate::model::GeneratedCodecRecipe::EnglishCardinal(source)
+            | crate::model::GeneratedCodecRecipe::UnsignedDecimal(source) => {
+                validate_unsigned_number_source(source, &mut errors);
+            }
         }
     }
     finish_generated_codec_validation(raw, errors)
+}
+
+fn validate_unsigned_number_source(
+    source: &crate::model::UnsignedNumberSource,
+    errors: &mut Option<syn::Error>,
+) {
+    let recipe = &source.recipe;
+    match source.magnitude_slots.as_slice() {
+        [] => combine(
+            errors,
+            syn::Error::new(
+                recipe.span(),
+                format!("{recipe} requires one `magnitude` field"),
+            ),
+        ),
+        [slot, rest @ ..] => {
+            if slot.primitive != "u32" {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        slot.primitive.span(),
+                        format!("{recipe} magnitude must be `u32`"),
+                    ),
+                );
+            }
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        format!("duplicate {recipe} field `magnitude`"),
+                    ),
+                );
+            }
+        }
+    }
 }
 
 fn finish_generated_codec_validation(
@@ -3274,6 +3318,37 @@ fn generated_name_inventory(
                 }
                 if matches!(
                     binding.generated,
+                    Some(
+                        crate::model::GeneratedCodecRecipe::EnglishCardinal(_)
+                            | crate::model::GeneratedCodecRecipe::UnsignedDecimal(_)
+                    )
+                ) {
+                    for (prefix, role) in [
+                        ("format_", "formatter"),
+                        ("parse_", "parser"),
+                        ("render_", "renderer"),
+                    ] {
+                        names.register_value(
+                            &prefixed(prefix, &name),
+                            &format!("generated unsigned numeral {role} for `{name}`"),
+                            binding.name.span(),
+                            errors,
+                        );
+                    }
+                    if matches!(
+                        binding.generated,
+                        Some(crate::model::GeneratedCodecRecipe::EnglishCardinal(_))
+                    ) {
+                        names.register_value(
+                            &feature_helper("number", &name),
+                            &format!("generated Number provider for `{name}`"),
+                            binding.name.span(),
+                            errors,
+                        );
+                    }
+                }
+                if matches!(
+                    binding.generated,
                     Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(_))
                 ) {
                     let open_value = format!("Declaration{}", identifier_key(&binding.name));
@@ -3291,6 +3366,20 @@ fn generated_name_inventory(
                         names.register_terminal_variant(
                             &name,
                             &format!("generated signed_decimal terminal variant for `{name}`"),
+                            binding.name.span(),
+                            errors,
+                        );
+                    }
+                    (
+                        Some(
+                            crate::model::GeneratedCodecRecipe::EnglishCardinal(_)
+                            | crate::model::GeneratedCodecRecipe::UnsignedDecimal(_),
+                        ),
+                        None,
+                    ) => {
+                        names.register_terminal_variant(
+                            &name,
+                            &format!("generated unsigned numeral terminal variant for `{name}`"),
                             binding.name.span(),
                             errors,
                         );
@@ -3850,6 +3939,10 @@ fn validate_bound_form_atom<'a>(
     &bound.value
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "resolution validates every form, feature flow, and terminal family together"
+)]
 fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<ResolvedGrammar> {
     let mut errors = None;
     let feature_providers = feature_providers(raw);
@@ -3880,6 +3973,11 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
             || open_verb_count != 0;
         let mut local_vocab_providers =
             local_vocab_feature_providers(construction, &fields, symbols);
+        local_vocab_providers.extend(fields.keys().filter_map(|field| {
+            let field = syn::Ident::new(field, construction.name.span());
+            role_provides_number(raw, &fields, &field)
+                .then(|| (identifier_key(&field), ParsedFeature::Number))
+        }));
         local_vocab_providers.extend(construction.equations.iter().filter_map(|equation| {
             let ParsedFeaturePlace::Role {
                 field,
@@ -4988,6 +5086,20 @@ fn traversal_callbacks(raw: &Declarations, errors: &mut Option<syn::Error>) -> T
                         &binding.name,
                         VisitMode::Borrowed,
                         format!("signed_decimal codec `{}`", binding.name),
+                        errors,
+                    );
+                } else if matches!(
+                    binding.generated,
+                    Some(
+                        crate::model::GeneratedCodecRecipe::EnglishCardinal(_)
+                            | crate::model::GeneratedCodecRecipe::UnsignedDecimal(_)
+                    )
+                ) {
+                    register_terminal_callbacks(
+                        &mut callbacks,
+                        &binding.name,
+                        VisitMode::Borrowed,
+                        format!("unsigned numeral codec `{}`", binding.name),
                         errors,
                     );
                 } else if let Some(identity) = &binding.generated_identity {
@@ -6229,7 +6341,7 @@ fn feature_place_is_constructible(
                             ParsedFeature::Onset | ParsedFeature::PossessiveEnding
                         )
                             && matches!(kind, FieldKind::Lex(_) | FieldKind::Identity(_)))
-                            || matches!(kind, FieldKind::Category(path) if providers.contains(&(path_name(path), *feature)))
+                            || matches!(kind, FieldKind::Category(path) | FieldKind::Lex(path) if providers.contains(&(path_name(path), *feature)))
                     }),
                 ParsedFeaturePlace::Construction(_) => false,
             },
@@ -6876,6 +6988,16 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             }
         }
     }
+    providers.extend(raw.declarations.iter().filter_map(|declaration| {
+        let Declaration::Codec(binding) = declaration else {
+            return None;
+        };
+        matches!(
+            binding.generated,
+            Some(crate::model::GeneratedCodecRecipe::EnglishCardinal(_))
+        )
+        .then(|| (identifier_key(&binding.name), ParsedFeature::Number))
+    }));
     providers
 }
 
@@ -7387,7 +7509,13 @@ fn role_provides_number(
                 declaration,
                 Declaration::Codec(binding)
                     if identifier_key(&binding.name) == path_name(path)
-                        && matches!(binding.generated, Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(_)))
+                        && matches!(
+                            binding.generated,
+                            Some(
+                                crate::model::GeneratedCodecRecipe::DeclarationNoun(_)
+                                    | crate::model::GeneratedCodecRecipe::EnglishCardinal(_)
+                            )
+                        )
             )
         }),
         Some(FieldKind::Identity(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
@@ -8164,6 +8292,17 @@ pub(crate) mod tests {
         })
     }
 
+    fn unsigned_number_error(recipe: &str, body: &proc_macro2::TokenStream) -> String {
+        let recipe = syn::Ident::new(recipe, proc_macro2::Span::call_site());
+        error(quote! {
+            codec Number {
+                generate #recipe { #body }
+            }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+    }
+
     fn context_identity_error(body: &proc_macro2::TokenStream) -> String {
         error(quote! {
             identity SelfReferenceSpelling {
@@ -8513,6 +8652,41 @@ pub(crate) mod tests {
                 message.contains("signed_decimal negative sign must be one ASCII byte"),
                 "{message}"
             );
+        }
+    }
+
+    #[test]
+    fn unsigned_numeral_recipe_validation_pins_the_u32_magnitude_boundary() {
+        validate(quote! {
+            codec CardinalNumber {
+                generate english_cardinal { magnitude = u32; }
+            }
+            codec ScalarNumber {
+                generate unsigned_decimal { magnitude = u32; }
+            }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("the exact two unsigned numeral recipes validate");
+
+        for recipe in ["english_cardinal", "unsigned_decimal"] {
+            for (body, expected) in [
+                (
+                    quote! {},
+                    format!("{recipe} requires one `magnitude` field"),
+                ),
+                (
+                    quote! { magnitude = u64; },
+                    format!("{recipe} magnitude must be `u32`"),
+                ),
+                (
+                    quote! { magnitude = u32; magnitude = u32; },
+                    format!("duplicate {recipe} field `magnitude`"),
+                ),
+            ] {
+                let message = unsigned_number_error(recipe, &body);
+                assert!(message.contains(&expected), "{expected}: {message}");
+            }
         }
     }
 
@@ -12367,6 +12541,8 @@ pub(crate) mod tests {
                     crate::semantic::TerminalPlan::CatalogIdentity(value) =>
                         (value.source_index(), "identity", value.name().to_owned(),),
                     crate::semantic::TerminalPlan::SignedDecimal(value) =>
+                        (value.source_index(), "codec", value.codec_name().to_owned(),),
+                    crate::semantic::TerminalPlan::UnsignedNumber(value) =>
                         (value.source_index(), "codec", value.codec_name().to_owned(),),
                     crate::semantic::TerminalPlan::DeclarationNoun(value) =>
                         (value.source_index(), "codec", value.codec_name().to_owned(),),

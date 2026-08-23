@@ -1013,6 +1013,7 @@ mod tests {
                 "VerbPhraseGainLife",
                 "AmountNumber",
                 "AmountVariable",
+                "CardinalQuantityCardinal",
             ]
         );
     }

@@ -1866,16 +1866,12 @@ mod tests {
         use super::FamilyIdentityChild;
         let identity = FamilyIdentity(vec![
             FamilyIdentityChild::Node(7),
-            FamilyIdentityChild::Lexical(
-                "SignedNumber(SignedNumber { sign: Negative, magnitude: 3 })".to_owned(),
-            ),
+            FamilyIdentityChild::Lexical("ScalarNumber(ScalarNumber { magnitude: 3 })".to_owned()),
         ]);
         assert_eq!(identity.0[0], FamilyIdentityChild::Node(7));
         assert_eq!(
             identity.0[1],
-            FamilyIdentityChild::Lexical(
-                "SignedNumber(SignedNumber { sign: Negative, magnitude: 3 })".to_owned()
-            )
+            FamilyIdentityChild::Lexical("ScalarNumber(ScalarNumber { magnitude: 3 })".to_owned())
         );
         assert!(identity < FamilyIdentity(vec![FamilyIdentityChild::Node(8)]));
     }

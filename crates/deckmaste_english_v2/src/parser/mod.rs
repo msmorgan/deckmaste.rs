@@ -11,6 +11,7 @@ use scan::parse_forest_observed;
 use selection::analyze_selection;
 
 use crate::ast::Ability;
+use crate::ast::CardinalQuantity;
 use crate::ast::OracleText;
 use crate::ast::Sentence;
 use crate::constructions::CatalogProvider;
@@ -296,6 +297,32 @@ impl Parser {
         #[cfg(feature = "test-support")]
         record_parser_entry_call(ParserEntryPoint::AnalyzeSentence, text, context);
         self.analyze_root::<Sentence>(text, context)
+    }
+
+    /// Parses one canonical English cardinal quantity.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the input is not the canonical
+    /// spelling of a value in the generated unsigned magnitude domain.
+    pub fn parse_cardinal_quantity(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> Result<CardinalQuantity, ParseError> {
+        self.analyze_cardinal_quantity(text, context)
+            .into_parse_result()
+    }
+
+    /// Parses one canonical English cardinal and retains its selection
+    /// decision.
+    #[must_use]
+    pub fn analyze_cardinal_quantity(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> ParseAnalysis<CardinalQuantity> {
+        self.analyze_root::<CardinalQuantity>(text, context)
     }
 
     /// Parses one complete normalized Oracle-text document.

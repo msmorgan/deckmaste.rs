@@ -88,6 +88,55 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             }
         }
     });
+    let unsigned_number_arms = plan.runtime_unsigned_numbers().map(|codec| {
+        let codec_name = codec.codec_ident();
+        let stem = crate::identifier::snake_case(codec.codec_name());
+        let formatter = emitted_ident(&format!("format_{stem}"), Span::call_site());
+        let parser = emitted_ident(&format!("parse_{stem}"), Span::call_site());
+        quote! {
+            Lexical::#codec_name => {
+                let offset = input.position.byte_offset;
+                let prefix = usize::from(
+                    input.position.prefix == PrefixPosition::WordOwnedSpace,
+                );
+                let Some(remainder) = input.text.get(offset..) else {
+                    return Vec::new();
+                };
+                let Some(number) = (prefix == 0)
+                    .then_some(remainder)
+                    .or_else(|| remainder.strip_prefix(' '))
+                else {
+                    return Vec::new();
+                };
+                let initial = matches!(
+                    input.position.case,
+                    CasePosition::DocumentInitial | CasePosition::SentenceInitial,
+                );
+                (1..=number.len())
+                    .filter(|end| number.is_char_boundary(*end))
+                    .filter_map(|candidate_length| {
+                        let candidate = number.get(..candidate_length)?;
+                        let mut canonical = candidate.to_owned();
+                        if initial {
+                            canonical.get_mut(..1)?.make_ascii_lowercase();
+                        }
+                        let magnitude = #parser(&canonical)?;
+                        let end = input.word_end(
+                            &#formatter(magnitude),
+                            terminal.right_boundary,
+                        )?;
+                        Some(LexicalMatch {
+                            end,
+                            value: Leaf::#codec_name(#codec_name { magnitude }),
+                            owner: None,
+                        })
+                    })
+                    .max_by_key(|candidate| candidate.end)
+                    .into_iter()
+                    .collect()
+            }
+        }
+    });
     let context_identity_arms = plan.runtime_context_identities().map(|identity| {
         let ty = identity.ident();
         let aggregate = identity.aggregate_ident();
@@ -205,6 +254,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 #(#catalog_identity_arms,)*
                 #unknown_catalog_identity_arm
                 #signed_decimal_arm
+                #(#unsigned_number_arms,)*
                 #verb_lexeme_arm
                 #(#declaration_noun_arms,)*
                 #unknown_declaration_noun_arm

@@ -40,6 +40,8 @@ use crate::semantic::SeparatorPlan;
 use crate::semantic::SignedDecimalPlan;
 use crate::semantic::StructuralFieldKindPlan;
 use crate::semantic::TerminalPlan;
+use crate::semantic::UnsignedNumberKind;
+use crate::semantic::UnsignedNumberPlan;
 use crate::semantic::ValueKindPlan;
 use crate::semantic::VocabPlan;
 
@@ -355,6 +357,83 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         ));
     }
 
+    for codec in validated.runtime_unsigned_numbers() {
+        let codec_name = snake_case(codec.codec_name());
+        let format = ident(&format!("format_{codec_name}"));
+        let parse = ident(&format!("parse_{codec_name}"));
+        let origin = vec![codec.origin().clone()];
+        match codec.kind() {
+            UnsignedNumberKind::EnglishCardinal => {
+                items.push(GeneratedItem::new(
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name: format.to_string(),
+                    },
+                    english_cardinal_formatter(&format),
+                    origin.clone(),
+                ));
+                let number = ident(&feature_helper("number", codec.codec_name()));
+                let ty = codec.codec_ident();
+                items.push(GeneratedItem::new(
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name: number.to_string(),
+                    },
+                    quote! {
+                        fn #number(value: &#ty) -> Number {
+                            if value.magnitude == 1 {
+                                Number::Singular
+                            } else {
+                                Number::Plural
+                            }
+                        }
+                    },
+                    origin.clone(),
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name: parse.to_string(),
+                    },
+                    english_cardinal_parser(&format, &parse),
+                    origin.clone(),
+                ));
+            }
+            UnsignedNumberKind::UnsignedDecimal => {
+                items.push(GeneratedItem::new(
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name: format.to_string(),
+                    },
+                    unsigned_decimal_formatter(&format),
+                    origin.clone(),
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name: parse.to_string(),
+                    },
+                    unsigned_decimal_parser(&format, &parse),
+                    origin.clone(),
+                ));
+            }
+        }
+        let render = ident(&format!("render_{codec_name}"));
+        let ty = codec.codec_ident();
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: render.to_string(),
+            },
+            quote! {
+                fn #render(writer: &mut Writer, number: &#ty) {
+                    writer.word(&#format(number.magnitude));
+                }
+            },
+            origin,
+        ));
+    }
+
     for feature in [
         Feature::Agreement,
         Feature::Number,
@@ -369,6 +448,182 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         }
     }
     Ok(items)
+}
+
+fn english_cardinal_formatter(function: &syn::Ident) -> TokenStream {
+    quote! {
+        fn #function(mut value: u32) -> String {
+            const SMALL: [&str; 20] = [
+                "zero", "one", "two", "three", "four", "five", "six", "seven",
+                "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
+                "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+            ];
+            const TENS: [&str; 10] = [
+                "", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy",
+                "eighty", "ninety",
+            ];
+
+            fn below_hundred(value: u32) -> String {
+                if value < 20 {
+                    SMALL[value as usize].to_owned()
+                } else {
+                    let tens = TENS[(value / 10) as usize];
+                    match value % 10 {
+                        0 => tens.to_owned(),
+                        units => format!("{tens}-{}", SMALL[units as usize]),
+                    }
+                }
+            }
+
+            fn below_thousand(mut value: u32) -> String {
+                let mut surface = String::new();
+                if value >= 100 {
+                    surface.push_str(SMALL[(value / 100) as usize]);
+                    surface.push_str(" hundred");
+                    value %= 100;
+                    if value != 0 {
+                        surface.push(' ');
+                    }
+                }
+                if value != 0 {
+                    surface.push_str(&below_hundred(value));
+                }
+                surface
+            }
+
+            if value == 0 {
+                return SMALL[0].to_owned();
+            }
+            let mut groups = Vec::with_capacity(4);
+            for (scale, name) in [
+                (1_000_000_000, "billion"),
+                (1_000_000, "million"),
+                (1_000, "thousand"),
+            ] {
+                let group = value / scale;
+                if group != 0 {
+                    groups.push(format!("{} {name}", below_thousand(group)));
+                    value %= scale;
+                }
+            }
+            if value != 0 {
+                groups.push(below_thousand(value));
+            }
+            groups.join(", ")
+        }
+    }
+}
+
+fn english_cardinal_parser(formatter: &syn::Ident, function: &syn::Ident) -> TokenStream {
+    quote! {
+        fn #function(input: &str) -> Option<u32> {
+            const SMALL: [&str; 20] = [
+                "zero", "one", "two", "three", "four", "five", "six", "seven",
+                "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
+                "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+            ];
+            const TENS: [&str; 10] = [
+                "", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy",
+                "eighty", "ninety",
+            ];
+
+            fn below_hundred(input: &str) -> Option<u32> {
+                if let Some(value) = SMALL.iter().position(|word| *word == input) {
+                    return u32::try_from(value).ok();
+                }
+                if let Some(value) = TENS
+                    .iter()
+                    .position(|word| *word == input)
+                    .filter(|value| *value >= 2)
+                {
+                    return u32::try_from(value).ok()?.checked_mul(10);
+                }
+                let (tens, units) = input.split_once('-')?;
+                let tens = u32::try_from(
+                    TENS.iter()
+                        .position(|word| *word == tens)
+                        .filter(|value| *value >= 2)?,
+                )
+                .ok()?;
+                let units = u32::try_from(
+                    SMALL[1..10].iter().position(|word| *word == units)? + 1,
+                )
+                .ok()?;
+                tens.checked_mul(10)?.checked_add(units)
+            }
+
+            fn below_thousand(input: &str) -> Option<u32> {
+                if let Some(value) = below_hundred(input) {
+                    return Some(value);
+                }
+                let (hundreds, remainder) = input.split_once(" hundred")?;
+                let hundreds = u32::try_from(
+                    SMALL[1..10].iter().position(|word| *word == hundreds)? + 1,
+                )
+                .ok()?;
+                let remainder = if remainder.is_empty() {
+                    0
+                } else {
+                    below_hundred(remainder.strip_prefix(' ')?)?
+                };
+                hundreds.checked_mul(100)?.checked_add(remainder)
+            }
+
+            let mut total = 0_u32;
+            let mut groups = input.split(", ").peekable();
+            while let Some(group) = groups.next() {
+                let (coefficient, scale) = [
+                    (1_000_000_000, "billion"),
+                    (1_000_000, "million"),
+                    (1_000, "thousand"),
+                ]
+                .into_iter()
+                .find_map(|(scale, name)| {
+                    group
+                        .strip_suffix(name)?
+                        .strip_suffix(' ')
+                        .map(|coefficient| (coefficient, scale))
+                })
+                .unwrap_or((group, 1));
+                if scale == 1 && groups.peek().is_some() {
+                    return None;
+                }
+                let coefficient = below_thousand(coefficient)?;
+                total = total.checked_add(coefficient.checked_mul(scale)?)?;
+            }
+            (#formatter(total) == input).then_some(total)
+        }
+    }
+}
+
+fn unsigned_decimal_formatter(function: &syn::Ident) -> TokenStream {
+    quote! {
+        fn #function(value: u32) -> String {
+            let digits = value.to_string();
+            let first_group_len = match digits.len() % 3 {
+                0 => 3,
+                remainder => remainder,
+            };
+            let mut surface = String::with_capacity(digits.len() + (digits.len() - 1) / 3);
+            surface.push_str(&digits[..first_group_len]);
+            let mut group_start = first_group_len;
+            while group_start < digits.len() {
+                surface.push(',');
+                surface.push_str(&digits[group_start..group_start + 3]);
+                group_start += 3;
+            }
+            surface
+        }
+    }
+}
+
+fn unsigned_decimal_parser(formatter: &syn::Ident, function: &syn::Ident) -> TokenStream {
+    quote! {
+        fn #function(input: &str) -> Option<u32> {
+            let value = input.replace(',', "").parse::<u32>().ok()?;
+            (#formatter(value) == input).then_some(value)
+        }
+    }
 }
 
 fn emit_structural_surface_runtime(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
@@ -849,6 +1104,10 @@ fn render_structural_field(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "structural rendering exhaustively dispatches every sealed value family"
+)]
 fn render_structural_value(
     plan: &SemanticPlan,
     value: &ValueKindPlan,
@@ -899,6 +1158,18 @@ fn render_structural_value(
                     );
                 })
             } else if let Some(codec) = find_signed_decimal(plan, name) {
+                let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
+                let stable_id = syn::LitStr::new(&format!("codec:{name}"), Span::call_site());
+                Ok(quote! {
+                    writer.claim(
+                        || LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Codec,
+                            #stable_id,
+                        ),
+                        |writer| #function(writer, #expression),
+                    );
+                })
+            } else if let Some(codec) = find_unsigned_number(plan, name) {
                 let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
                 let stable_id = syn::LitStr::new(&format!("codec:{name}"), Span::call_site());
                 Ok(quote! {
@@ -1184,6 +1455,8 @@ fn render_allocator(
                         allocator.reserve(format!("render_{}", snake_case(vocab.name())));
                     } else if let Some(codec) = find_signed_decimal(validated, terminal) {
                         allocator.reserve(format!("render_{}", snake_case(codec.codec_name())));
+                    } else if let Some(codec) = find_unsigned_number(validated, terminal) {
+                        allocator.reserve(format!("render_{}", snake_case(codec.codec_name())));
                     } else if let BindingRenderPlan::Runtime(path) =
                         find_binding(validated, terminal)?
                             .render()
@@ -1330,6 +1603,14 @@ fn reserve_feature_callees(
     if matches!(*source_feature, Feature::Onset | Feature::PossessiveEnding)
         && field.kind() != ConstructionFieldKind::Category
     {
+        return Ok(());
+    }
+    if *source_feature == Feature::Number
+        && field.kind() == ConstructionFieldKind::Lex
+        && let Some(codec) = find_unsigned_number(validated, field.terminal())
+        && codec.kind() == UnsignedNumberKind::EnglishCardinal
+    {
+        allocator.reserve(feature_helper("number", codec.codec_name()));
         return Ok(());
     }
     let source = match field.kind() {
@@ -1762,6 +2043,9 @@ fn render_atom_statement(
             } else if let Some(codec) = find_signed_decimal(validated, terminal) {
                 let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
                 Ok(quote! { #function(#call_writer, #value); })
+            } else if let Some(codec) = find_unsigned_number(validated, terminal) {
+                let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
+                Ok(quote! { #function(#call_writer, #value); })
             } else {
                 let binding = find_binding(validated, terminal)?;
                 let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
@@ -1960,7 +2244,9 @@ fn render_owner(
                 });
                 return Ok(quote! { match #value { #(#arms,)* } });
             }
-            let (kind, prefix) = if find_signed_decimal(validated, terminal).is_some() {
+            let (kind, prefix) = if find_signed_decimal(validated, terminal).is_some()
+                || find_unsigned_number(validated, terminal).is_some()
+            {
                 (quote! { LexicalProvenanceKind::Codec }, "codec")
             } else {
                 let binding = find_binding(validated, terminal)?;
@@ -2346,6 +2632,14 @@ fn feature_expr(
                 );
             }
             let role_value = field_value(construction, &role_key, locals)?;
+            if *source_feature == Feature::Number
+                && field.kind() == ConstructionFieldKind::Lex
+                && let Some(codec) = find_unsigned_number(validated, field.terminal())
+                && codec.kind() == UnsignedNumberKind::EnglishCardinal
+            {
+                let function = ident(&feature_helper("number", codec.codec_name()));
+                return Ok(quote! { #function(#role_value) });
+            }
             if *source_feature == Feature::Onset
                 && let Some(onset) = bound_prefix_onset(construction, &role_key)?
             {
@@ -3131,6 +3425,7 @@ fn find_lexeme<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a Lexeme
             | TerminalPlan::ContextIdentity(_)
             | TerminalPlan::CatalogIdentity(_)
             | TerminalPlan::SignedDecimal(_)
+            | TerminalPlan::UnsignedNumber(_)
             | TerminalPlan::DeclarationNoun(_) => None,
         })
 }
@@ -3171,6 +3466,15 @@ fn find_signed_decimal<'a>(
     validated
         .runtime_signed_decimal()
         .filter(|codec| codec.codec_name() == name)
+}
+
+fn find_unsigned_number<'a>(
+    validated: &'a SemanticPlan,
+    name: &str,
+) -> Option<&'a UnsignedNumberPlan> {
+    validated
+        .runtime_unsigned_numbers()
+        .find(|codec| codec.codec_name() == name)
 }
 
 fn field_value(

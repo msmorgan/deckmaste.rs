@@ -31,6 +31,7 @@ use crate::semantic::FiniteValuePlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::StructuralFieldKindPlan;
 use crate::semantic::StructuralFieldPlan;
+use crate::semantic::UnsignedNumberKind;
 use crate::semantic::ValueKindPlan;
 
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
@@ -541,6 +542,14 @@ fn lower_terminal_value(
             })
         }
         AtomTerminal::SignedDecimal(codec) => {
+            let leaf = codec.codec_ident();
+            let binding = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) },
+                expression: quote! { #binding.clone() },
+            })
+        }
+        AtomTerminal::UnsignedNumber(codec) => {
             let leaf = codec.codec_ident();
             let binding = binders.allocate(preferred);
             Ok(LoweredValue {
@@ -1277,6 +1286,28 @@ fn lower_terminal_role(
             lowering
                 .field_values
                 .insert(identifier_key(&role), quote! { #value.clone() });
+            return Ok(());
+        }
+        AtomTerminal::UnsignedNumber(codec) => {
+            let variant = codec.codec_ident();
+            let number_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
+                .then(|| ident(&feature_helper("number", codec.codec_name())));
+            if let Some(provider) = &number_provider {
+                lowering.binders.reserve(provider.to_string());
+            }
+            let value = lowering.binders.allocate(&identifier_key(&role));
+            lowering
+                .patterns
+                .push(quote! { BuildValue::Leaf(Leaf::#variant(#value)) });
+            lowering
+                .field_values
+                .insert(identifier_key(&role), quote! { #value.clone() });
+            if let Some(provider) = number_provider {
+                lowering.role_features.insert(
+                    (identifier_key(&role), Feature::Number),
+                    LocalFeatureValue::Computed(quote! { #provider(#value) }),
+                );
+            }
             return Ok(());
         }
         AtomTerminal::DeclarationNoun { plan, .. } => {

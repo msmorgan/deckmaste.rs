@@ -69,6 +69,7 @@ use crate::model::TraversalCall;
 use crate::model::TraversalField;
 use crate::model::TraversalKind;
 use crate::model::TraversalPart;
+use crate::model::UnsignedNumberSource;
 use crate::model::UnsignedPrimitiveSource;
 use crate::model::VerbOperand;
 use crate::model::VisitMode;
@@ -1302,7 +1303,12 @@ fn generated_terminal_binding(
     let lexical_variant: syn::Path = syn::parse_quote_spanned!(name.span()=> Lexical::#name);
     let codec_atom = match generated.as_ref() {
         Some(GeneratedCodecRecipe::DeclarationNoun(_)) => Some(CodecAtomClass::Noun),
-        Some(GeneratedCodecRecipe::SignedDecimal(_) | GeneratedCodecRecipe::Unsupported { .. })
+        Some(
+            GeneratedCodecRecipe::SignedDecimal(_)
+            | GeneratedCodecRecipe::EnglishCardinal(_)
+            | GeneratedCodecRecipe::UnsignedDecimal(_)
+            | GeneratedCodecRecipe::Unsupported { .. },
+        )
         | None => (kind == BindingKind::Codec).then_some(CodecAtomClass::Lex),
     };
     TerminalBinding {
@@ -1399,6 +1405,10 @@ fn parse_generated_identity(input: ParseStream<'_>) -> syn::Result<GeneratedIden
     }))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "closed generated-codec recipes share one exhaustive parser dispatch"
+)]
 fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRecipe> {
     input.parse::<keyword::generate>()?;
     let recipe = input.call(Ident::parse_any)?;
@@ -1468,6 +1478,35 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 feature_slots,
             },
         ));
+    }
+    if matches!(
+        recipe.to_string().as_str(),
+        "english_cardinal" | "unsigned_decimal"
+    ) {
+        let mut magnitude_slots = Vec::new();
+        while !content.is_empty() {
+            reject_doc_comment(&content)?;
+            let slot = content.call(Ident::parse_any)?;
+            content.parse::<Token![=]>()?;
+            if slot != "magnitude" {
+                return Err(syn::Error::new(
+                    slot.span(),
+                    format!("{recipe} recipe accepts only a `magnitude` field"),
+                ));
+            }
+            let primitive = content.call(Ident::parse_any)?;
+            content.parse::<Token![;]>()?;
+            magnitude_slots.push(UnsignedPrimitiveSource { slot, primitive });
+        }
+        let source = UnsignedNumberSource {
+            recipe: recipe.clone(),
+            magnitude_slots,
+        };
+        return Ok(if recipe == "english_cardinal" {
+            GeneratedCodecRecipe::EnglishCardinal(source)
+        } else {
+            GeneratedCodecRecipe::UnsignedDecimal(source)
+        });
     }
     if recipe != "signed_decimal" {
         let _: TokenStream = content.parse()?;
@@ -3091,6 +3130,39 @@ mod tests {
         assert!(matches!(
             declarations.declarations[0],
             Declaration::Codec(_)
+        ));
+    }
+
+    #[test]
+    fn parses_unsigned_cardinal_and_decimal_generated_codec_sources() {
+        let declarations = parse(
+            r"
+                codec CardinalNumber {
+                    generate english_cardinal {
+                        magnitude = u32;
+                    }
+                }
+                codec ScalarNumber {
+                    generate unsigned_decimal {
+                        magnitude = u32;
+                    }
+                }
+            ",
+        )
+        .expect("the two closed unsigned numeral recipes parse");
+
+        let [Declaration::Codec(cardinal), Declaration::Codec(decimal)] =
+            declarations.declarations.as_slice()
+        else {
+            panic!("both declarations are generated codecs")
+        };
+        assert!(matches!(
+            cardinal.generated,
+            Some(crate::GeneratedCodecRecipe::EnglishCardinal(_))
+        ));
+        assert!(matches!(
+            decimal.generated,
+            Some(crate::GeneratedCodecRecipe::UnsignedDecimal(_))
         ));
     }
 

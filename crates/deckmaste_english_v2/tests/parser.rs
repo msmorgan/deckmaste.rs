@@ -505,14 +505,11 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         with_where_text,
     );
 
-    let threshold = SignedNumber {
-        sign: Sign::Positive,
-        magnitude: 2,
-    };
+    let threshold = ScalarNumber { magnitude: 2 };
     let count = CountNp::new(creatures(), Pronoun::You, threshold.clone())
         .expect("You is the valid CountNp controller");
     let _: &Noun = &count.head;
-    let _: &SignedNumber = &count.threshold;
+    let _: &ScalarNumber = &count.threshold;
     let _: Pronoun = count.controller();
     assert_eq!(count.controller(), Pronoun::You);
     assert!(
@@ -659,10 +656,7 @@ fn demonstrative_forms_select_distinct_rules_and_reject_the_same_rhs_wrong_guard
             subject: NounPhrase::Demonstrative(DemonstrativeNp { word, head }),
             predicate: VerbPhrase::DealDamage(DealDamage {
                 amount: Amount::Number(NumberAmount {
-                    number: SignedNumber {
-                        sign: Sign::Positive,
-                        magnitude: 3,
-                    },
+                    number: ScalarNumber { magnitude: 3 },
                 }),
                 to: NounPhrase::Pronoun(PronounNp { word: Pronoun::It }),
             }),
@@ -723,6 +717,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Possessive",
             "VerbPhrase",
             "Amount",
+            "CardinalQuantity",
             "DocumentBlock",
             "OracleText",
             "Paragraph",
@@ -748,6 +743,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "GainLife",
             "NumberAmount",
             "VariableAmount",
+            "CardinalQuantityValue",
             "TriggerWord",
             "Demonstrative",
             "Pronoun",
@@ -759,8 +755,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Noun",
             "SelfReferenceSpelling",
             "CardName",
-            "Sign",
-            "SignedNumber",
+            "CardinalNumber",
+            "ScalarNumber",
             "CatalogProvider",
             "DeclarationClass",
             "TerminalClass",
@@ -1007,15 +1003,8 @@ fn gain_life_with_where() -> Ability {
             Clause::Where(WhereClause {
                 variable: Variable::X,
                 value: NounPhrase::Count(
-                    CountNp::new(
-                        creatures(),
-                        Pronoun::You,
-                        SignedNumber {
-                            sign: Sign::Positive,
-                            magnitude: 2,
-                        },
-                    )
-                    .expect("You is a valid count controller"),
+                    CountNp::new(creatures(), Pronoun::You, ScalarNumber { magnitude: 2 })
+                        .expect("You is a valid count controller"),
                 ),
             }),
         )
@@ -1031,10 +1020,7 @@ fn zacama_deals_damage() -> Ability {
         )),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
-                number: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 3,
-                },
+                number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
@@ -1601,10 +1587,7 @@ fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
         )),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
-                number: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 3,
-                },
+                number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
@@ -1622,10 +1605,7 @@ fn self_reference_identity_preserves_its_inherent_case() {
         subject: NounPhrase::SelfReference(self_reference(SelfReferenceSpelling::Full, "eBay")),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
-                number: SignedNumber {
-                    sign: Sign::Positive,
-                    magnitude: 3,
-                },
+                number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),

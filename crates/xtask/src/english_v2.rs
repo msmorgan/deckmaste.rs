@@ -1685,7 +1685,8 @@ mod tests {
         "codec Noun",
         "identity SelfReferenceSpelling",
         "identity CardName",
-        "codec SignedNumber",
+        "codec CardinalNumber",
+        "codec ScalarNumber",
         "construction paragraph",
         "construction triggered",
         "construction imperative",
@@ -1709,11 +1710,13 @@ mod tests {
         "construction gain_life",
         "construction number",
         "construction variable",
+        "construction cardinal",
         "abstract sum DocumentBlock",
         "abstract product OracleText",
         "root Ability",
         "root Sentence",
         "root Possessive",
+        "root CardinalQuantity",
         "root OracleText",
     ];
 
@@ -1741,6 +1744,7 @@ mod tests {
         "construction gain_life",
         "construction number",
         "construction variable",
+        "construction cardinal",
     ];
 
     const SCANNER_ORIGINS: &[&str] = &[
@@ -1754,12 +1758,14 @@ mod tests {
         "codec Noun",
         "identity SelfReferenceSpelling",
         "identity CardName",
-        "codec SignedNumber",
+        "codec CardinalNumber",
+        "codec ScalarNumber",
         "construction triggered",
         "construction with_where",
         "root Ability",
         "root Sentence",
         "root Possessive",
+        "root CardinalQuantity",
         "root OracleText",
     ];
 
@@ -1787,7 +1793,9 @@ mod tests {
         "construction gain_life",
         "construction number",
         "construction variable",
-        "codec SignedNumber",
+        "construction cardinal",
+        "codec CardinalNumber",
+        "codec ScalarNumber",
         "codec Noun",
         "construction paragraph",
         "construction triggered",
@@ -1812,6 +1820,7 @@ mod tests {
         "construction gain_life",
         "construction number",
         "construction variable",
+        "construction cardinal",
         "vocab TriggerWord",
         "vocab Demonstrative",
         "vocab Pronoun",
@@ -1870,6 +1879,10 @@ mod tests {
             "type Amount" | "function render_amount" | "function walk_amount" => {
                 &["construction number", "construction variable"]
             }
+            "type CardinalQuantity"
+            | "function walk_cardinal_quantity"
+            | "type CardinalQuantityValue"
+            | "function walk_cardinal_quantity_value" => &["construction cardinal"],
             "type DocumentBlock"
             | "function render_document_block"
             | "function walk_document_block" => &["abstract sum DocumentBlock"],
@@ -1952,11 +1965,17 @@ mod tests {
             | "type Noun"
             | "function walk_declaration_noun"
             | "function walk_noun" => &["codec Noun"],
-            "type Sign"
-            | "type SignedNumber"
-            | "function render_signed_number"
-            | "function walk_sign"
-            | "function walk_signed_number" => &["codec SignedNumber"],
+            "type CardinalNumber"
+            | "function format_cardinal_number"
+            | "function number_for_cardinal_number"
+            | "function parse_cardinal_number"
+            | "function render_cardinal_number"
+            | "function walk_cardinal_number" => &["codec CardinalNumber"],
+            "type ScalarNumber"
+            | "function format_scalar_number"
+            | "function parse_scalar_number"
+            | "function render_scalar_number"
+            | "function walk_scalar_number" => &["codec ScalarNumber"],
             "type SelfReferenceSpelling" | "impl SelfReferenceSpelling" => {
                 &["identity SelfReferenceSpelling"]
             }
@@ -2003,10 +2022,12 @@ mod tests {
             | "impl GeneratedRoot for Ability"
             | "impl GeneratedRoot for Sentence"
             | "impl GeneratedRoot for Possessive"
+            | "impl GeneratedRoot for CardinalQuantity"
             | "impl GeneratedRoot for OracleText"
             | "impl GeneratedParseRoot for Ability"
             | "impl GeneratedParseRoot for Sentence"
             | "impl GeneratedParseRoot for Possessive"
+            | "impl GeneratedParseRoot for CardinalQuantity"
             | "impl GeneratedParseRoot for OracleText"
             | "impl StructuralTransition for StructuralTransition"
             | "impl Lexical for Lexical"
@@ -2038,6 +2059,9 @@ mod tests {
             "impl Possessive"
             | "impl Render for Possessive"
             | "function render_possessive_with_claims" => &["root Possessive"],
+            "impl CardinalQuantity"
+            | "impl Render for CardinalQuantity"
+            | "function render_cardinal_quantity_with_claims" => &["root CardinalQuantity"],
             "function write_oracle_text_render"
             | "impl Render for OracleText"
             | "function render_oracle_text_with_claims" => &["root OracleText"],
@@ -2068,6 +2092,7 @@ mod tests {
                 "construction gain_life",
                 "construction number",
                 "construction variable",
+                "construction cardinal",
                 "abstract sum DocumentBlock",
                 "abstract product OracleText",
             ],
@@ -2081,6 +2106,7 @@ mod tests {
                 "root Ability",
                 "root Sentence",
                 "root Possessive",
+                "root CardinalQuantity",
                 "root OracleText",
             ],
             "constant RULES" => &[
@@ -2107,8 +2133,10 @@ mod tests {
                 "construction gain_life",
                 "construction number",
                 "construction variable",
+                "construction cardinal",
                 "root Ability",
                 "root Possessive",
+                "root CardinalQuantity",
                 "root OracleText",
             ],
             _ => return None,
@@ -2210,6 +2238,7 @@ mod tests {
         "type Possessive",
         "type VerbPhrase",
         "type Amount",
+        "type CardinalQuantity",
         "type DocumentBlock",
         "type OracleText",
         "type Paragraph",
@@ -2241,6 +2270,7 @@ mod tests {
         "type GainLife",
         "type NumberAmount",
         "type VariableAmount",
+        "type CardinalQuantityValue",
         "type TriggerWord",
         "type Demonstrative",
         "type Pronoun",
@@ -2257,8 +2287,8 @@ mod tests {
         "impl SelfReferenceSpelling",
         "type CardName",
         "impl CardName",
-        "type Sign",
-        "type SignedNumber",
+        "type CardinalNumber",
+        "type ScalarNumber",
         "type CatalogProvider",
         "impl CatalogProvider",
         "constant REQUIRED_CATALOG_PROVIDERS",
@@ -2299,10 +2329,12 @@ mod tests {
         "impl GeneratedRoot for Ability",
         "impl GeneratedRoot for Sentence",
         "impl GeneratedRoot for Possessive",
+        "impl GeneratedRoot for CardinalQuantity",
         "impl GeneratedRoot for OracleText",
         "impl GeneratedParseRoot for Ability",
         "impl GeneratedParseRoot for Sentence",
         "impl GeneratedParseRoot for Possessive",
+        "impl GeneratedParseRoot for CardinalQuantity",
         "impl GeneratedParseRoot for OracleText",
         "impl StructuralTransition for StructuralTransition",
         "impl Lexical for Lexical",
@@ -2340,6 +2372,9 @@ mod tests {
         "impl Possessive",
         "impl Render for Possessive",
         "function render_possessive_with_claims",
+        "impl CardinalQuantity",
+        "impl Render for CardinalQuantity",
+        "function render_cardinal_quantity_with_claims",
         "function write_oracle_text_render",
         "impl Render for OracleText",
         "function render_oracle_text_with_claims",
@@ -2358,7 +2393,13 @@ mod tests {
         "function agreement_for_pronoun",
         "function agreement_for_demonstrative",
         "function number_for_demonstrative",
-        "function render_signed_number",
+        "function format_cardinal_number",
+        "function number_for_cardinal_number",
+        "function parse_cardinal_number",
+        "function render_cardinal_number",
+        "function format_scalar_number",
+        "function parse_scalar_number",
+        "function render_scalar_number",
         "function agreement_for_noun_phrase",
         "function number_for_noun_phrase",
         "function number_for_possessive_owner",
@@ -2372,6 +2413,7 @@ mod tests {
         "function walk_possessive",
         "function walk_verb_phrase",
         "function walk_amount",
+        "function walk_cardinal_quantity",
         "function walk_paragraph_sentences_sequence",
         "function walk_triggered_effects_sequence",
         "function walk_document_block",
@@ -2400,6 +2442,7 @@ mod tests {
         "function walk_gain_life",
         "function walk_number_amount",
         "function walk_variable_amount",
+        "function walk_cardinal_quantity_value",
         "function walk_trigger_word",
         "function walk_demonstrative",
         "function walk_pronoun",
@@ -2409,8 +2452,8 @@ mod tests {
         "function walk_card_name",
         "function walk_noun_lexeme",
         "function walk_verb_lexeme",
-        "function walk_sign",
-        "function walk_signed_number",
+        "function walk_cardinal_number",
+        "function walk_scalar_number",
         "function walk_declaration_noun",
         "function walk_noun",
         "type Category",
@@ -3073,7 +3116,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 220);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 235);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -3110,10 +3153,11 @@ mod tests {
              //   - bare = \"are\"\n\
              //   - third_person_singular = \"is\"\n\
              // terminal bindings (0)\n\
-             // roots (4)\n\
+             // roots (5)\n\
              // - root Ability\n\
              // - root Sentence\n\
              // - root Possessive\n\
+             // - root CardinalQuantity\n\
              // - root OracleText\n"
         );
     }
@@ -3125,7 +3169,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 220);
+        assert_eq!(parsed.items.len(), 235);
     }
 
     #[test]
