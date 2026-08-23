@@ -11,8 +11,17 @@ Where a construction has an optional slot or an obligation the elaborator
 cannot discharge from the card's own words, the card language supplies a
 **wrapping macro** — a plain, total function in `Experimental/Macros.idr` — that
 takes the slot positionally, names itself after the English it spells, and
-fills the implicit itself. The card calls the macro. A construction may keep the
-implicit for its macro's use; it must be invisible from `Cards.idr`.
+fills the implicit itself. The card calls the macro.
+
+**Amended 2026-08-22 — constructions take every parameter as a required
+positional.** `{default …}` slots on core constructors are banned outright,
+not only hidden from cards. The reason is translation, not convenience: a
+realised card macro tree must translate into an Idris term positionally,
+term-for-term, so a card can be verified later with no defaulting or
+permutation step between the macro language and Idris. Optional content is an
+explicit argument (`Maybe`, a riders record, …) and the common case is a
+wrapping macro. `{auto 0 …}` proof gates are not slots and are unaffected.
+Sweep: `workbench-no-default-slots`.
 
 Proof obligations are discharged by `auto` search or supplied inside a macro,
 never by the card. A macro forwards each obligation that mentions one of its own
