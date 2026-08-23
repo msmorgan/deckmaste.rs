@@ -127,15 +127,18 @@ public export
 ChosenQualityRead : QualitySort -> Type
 ChosenQualityRead q = So (chosenQualityReadOk q)
 
+||| The letters an ability may define. Closed at two by [CR#107.3p]:
+||| "Some objects use the letter Y in addition to the letter X. Y follows
+||| the same rules as X." No third letter exists in the rules.
 public export
-data LetterWord = LetterX | LetterY
+data Letter = X | Y
 
 public export
-Eq LetterWord where
-  (==) LetterX LetterX = True
-  (==) LetterX LetterY = False
-  (==) LetterY LetterX = False
-  (==) LetterY LetterY = True
+Eq Letter where
+  (==) X X = True
+  (==) X Y = False
+  (==) Y X = False
+  (==) Y Y = True
 
 export infixl 5 \/
 
@@ -146,7 +149,7 @@ data Kind : Type where
   Quality : QualitySort -> Kind
   Outcome : Kind
   Gap : Kind
-  Letter : LetterWord -> Kind
+  LetterK : Letter -> Kind
   TurnRef : Kind
   Ability : Kind
   ||| A joined kind: the term names either half ("any target" [CR#115.4],
@@ -173,7 +176,7 @@ Eq Kind where
   (==) Object (Quality _) = False
   (==) Object Outcome = False
   (==) Object Gap = False
-  (==) Object (Letter _) = False
+  (==) Object (LetterK _) = False
   (==) Object TurnRef = False
   (==) Object Ability = False
   (==) Object (_ \/ _) = False
@@ -182,7 +185,7 @@ Eq Kind where
   (==) Player (Quality _) = False
   (==) Player Outcome = False
   (==) Player Gap = False
-  (==) Player (Letter _) = False
+  (==) Player (LetterK _) = False
   (==) Player TurnRef = False
   (==) Player Ability = False
   (==) Player (_ \/ _) = False
@@ -191,7 +194,7 @@ Eq Kind where
   (==) (Quality a) (Quality b) = a == b
   (==) (Quality _) Outcome = False
   (==) (Quality _) Gap = False
-  (==) (Quality _) (Letter _) = False
+  (==) (Quality _) (LetterK _) = False
   (==) (Quality _) TurnRef = False
   (==) (Quality _) Ability = False
   (==) (Quality _) (_ \/ _) = False
@@ -200,7 +203,7 @@ Eq Kind where
   (==) Outcome (Quality _) = False
   (==) Outcome Outcome = True
   (==) Outcome Gap = False
-  (==) Outcome (Letter _) = False
+  (==) Outcome (LetterK _) = False
   (==) Outcome TurnRef = False
   (==) Outcome Ability = False
   (==) Outcome (_ \/ _) = False
@@ -209,25 +212,25 @@ Eq Kind where
   (==) Gap (Quality _) = False
   (==) Gap Outcome = False
   (==) Gap Gap = True
-  (==) Gap (Letter _) = False
+  (==) Gap (LetterK _) = False
   (==) Gap TurnRef = False
   (==) Gap Ability = False
   (==) Gap (_ \/ _) = False
-  (==) (Letter _) Object = False
-  (==) (Letter _) Player = False
-  (==) (Letter _) (Quality _) = False
-  (==) (Letter _) Outcome = False
-  (==) (Letter _) Gap = False
-  (==) (Letter a) (Letter b) = a == b
-  (==) (Letter _) TurnRef = False
-  (==) (Letter _) Ability = False
-  (==) (Letter _) (_ \/ _) = False
+  (==) (LetterK _) Object = False
+  (==) (LetterK _) Player = False
+  (==) (LetterK _) (Quality _) = False
+  (==) (LetterK _) Outcome = False
+  (==) (LetterK _) Gap = False
+  (==) (LetterK a) (LetterK b) = a == b
+  (==) (LetterK _) TurnRef = False
+  (==) (LetterK _) Ability = False
+  (==) (LetterK _) (_ \/ _) = False
   (==) TurnRef Object = False
   (==) TurnRef Player = False
   (==) TurnRef (Quality _) = False
   (==) TurnRef Outcome = False
   (==) TurnRef Gap = False
-  (==) TurnRef (Letter _) = False
+  (==) TurnRef (LetterK _) = False
   (==) TurnRef TurnRef = True
   (==) TurnRef Ability = False
   (==) TurnRef (_ \/ _) = False
@@ -236,7 +239,7 @@ Eq Kind where
   (==) Ability (Quality _) = False
   (==) Ability Outcome = False
   (==) Ability Gap = False
-  (==) Ability (Letter _) = False
+  (==) Ability (LetterK _) = False
   (==) Ability TurnRef = False
   (==) Ability Ability = True
   (==) Ability (_ \/ _) = False
@@ -245,7 +248,7 @@ Eq Kind where
   (==) (_ \/ _) (Quality _) = False
   (==) (_ \/ _) Outcome = False
   (==) (_ \/ _) Gap = False
-  (==) (_ \/ _) (Letter _) = False
+  (==) (_ \/ _) (LetterK _) = False
   (==) (_ \/ _) TurnRef = False
   (==) (_ \/ _) Ability = False
   (==) (a \/ b) (c \/ d) = a == c && b == d
@@ -281,19 +284,19 @@ sameQEq Number CreatureType ok = absurd ok
 sameQEq Number CardName ok = absurd ok
 sameQEq Number Number _ = Refl
 
-||| A `LetterWord` matches only itself.
+||| A `Letter` matches only itself.
 public export
-sameLetterWordRefl : (w : LetterWord) -> So (w == w)
-sameLetterWordRefl LetterX = Oh
-sameLetterWordRefl LetterY = Oh
+sameLetterRefl : (w : Letter) -> So (w == w)
+sameLetterRefl X = Oh
+sameLetterRefl Y = Oh
 
 ||| `==` decides equality likewise.
 public export
-sameLetterWordEq : (a, b : LetterWord) -> So (a == b) -> a = b
-sameLetterWordEq LetterX LetterX _ = Refl
-sameLetterWordEq LetterX LetterY ok = absurd ok
-sameLetterWordEq LetterY LetterX ok = absurd ok
-sameLetterWordEq LetterY LetterY _ = Refl
+sameLetterEq : (a, b : Letter) -> So (a == b) -> a = b
+sameLetterEq X X _ = Refl
+sameLetterEq X Y ok = absurd ok
+sameLetterEq Y X ok = absurd ok
+sameLetterEq Y Y _ = Refl
 
 ||| Every kind matches itself.
 public export
@@ -303,7 +306,7 @@ sameKindRefl Player = Oh
 sameKindRefl (Quality q) = sameQRefl q
 sameKindRefl Outcome = Oh
 sameKindRefl Gap = Oh
-sameKindRefl (Letter w) = sameLetterWordRefl w
+sameKindRefl (LetterK w) = sameLetterRefl w
 sameKindRefl TurnRef = Oh
 sameKindRefl Ability = Oh
 sameKindRefl (a \/ b) = andSo (sameKindRefl a, sameKindRefl b)
@@ -346,7 +349,7 @@ kindLteInL Player a b ok = orSo (Left ok)
 kindLteInL (Quality _) a b ok = orSo (Left ok)
 kindLteInL Outcome a b ok = orSo (Left ok)
 kindLteInL Gap a b ok = orSo (Left ok)
-kindLteInL (Letter _) a b ok = orSo (Left ok)
+kindLteInL (LetterK _) a b ok = orSo (Left ok)
 kindLteInL TurnRef a b ok = orSo (Left ok)
 kindLteInL Ability a b ok = orSo (Left ok)
 kindLteInL (p \/ q) a b ok =
@@ -360,7 +363,7 @@ kindLteInR Player a b ok = orSo (Right ok)
 kindLteInR (Quality _) a b ok = orSo (Right ok)
 kindLteInR Outcome a b ok = orSo (Right ok)
 kindLteInR Gap a b ok = orSo (Right ok)
-kindLteInR (Letter _) a b ok = orSo (Right ok)
+kindLteInR (LetterK _) a b ok = orSo (Right ok)
 kindLteInR TurnRef a b ok = orSo (Right ok)
 kindLteInR Ability a b ok = orSo (Right ok)
 kindLteInR (p \/ q) a b ok =
@@ -374,7 +377,7 @@ kindLteRefl Player = Oh
 kindLteRefl (Quality q) = sameQRefl q
 kindLteRefl Outcome = Oh
 kindLteRefl Gap = Oh
-kindLteRefl (Letter w) = sameLetterWordRefl w
+kindLteRefl (LetterK w) = sameLetterRefl w
 kindLteRefl TurnRef = Oh
 kindLteRefl Ability = Oh
 kindLteRefl (a \/ b) =
@@ -431,7 +434,7 @@ kindLteTrans Object Player c ab bc = absurd ab
 kindLteTrans Object (Quality _) c ab bc = absurd ab
 kindLteTrans Object Outcome c ab bc = absurd ab
 kindLteTrans Object Gap c ab bc = absurd ab
-kindLteTrans Object (Letter _) c ab bc = absurd ab
+kindLteTrans Object (LetterK _) c ab bc = absurd ab
 kindLteTrans Object TurnRef c ab bc = absurd ab
 kindLteTrans Object Ability c ab bc = absurd ab
 
@@ -443,7 +446,7 @@ kindLteTrans Player Player c ab bc = bc
 kindLteTrans Player (Quality _) c ab bc = absurd ab
 kindLteTrans Player Outcome c ab bc = absurd ab
 kindLteTrans Player Gap c ab bc = absurd ab
-kindLteTrans Player (Letter _) c ab bc = absurd ab
+kindLteTrans Player (LetterK _) c ab bc = absurd ab
 kindLteTrans Player TurnRef c ab bc = absurd ab
 kindLteTrans Player Ability c ab bc = absurd ab
 
@@ -455,7 +458,7 @@ kindLteTrans (Quality _) Player c ab bc = absurd ab
 kindLteTrans (Quality q) (Quality r) c ab bc = case sameQEq q r ab of Refl => bc
 kindLteTrans (Quality _) Outcome c ab bc = absurd ab
 kindLteTrans (Quality _) Gap c ab bc = absurd ab
-kindLteTrans (Quality _) (Letter _) c ab bc = absurd ab
+kindLteTrans (Quality _) (LetterK _) c ab bc = absurd ab
 kindLteTrans (Quality _) TurnRef c ab bc = absurd ab
 kindLteTrans (Quality _) Ability c ab bc = absurd ab
 
@@ -467,7 +470,7 @@ kindLteTrans Outcome Player c ab bc = absurd ab
 kindLteTrans Outcome (Quality _) c ab bc = absurd ab
 kindLteTrans Outcome Outcome c ab bc = bc
 kindLteTrans Outcome Gap c ab bc = absurd ab
-kindLteTrans Outcome (Letter _) c ab bc = absurd ab
+kindLteTrans Outcome (LetterK _) c ab bc = absurd ab
 kindLteTrans Outcome TurnRef c ab bc = absurd ab
 kindLteTrans Outcome Ability c ab bc = absurd ab
 
@@ -479,21 +482,21 @@ kindLteTrans Gap Player c ab bc = absurd ab
 kindLteTrans Gap (Quality _) c ab bc = absurd ab
 kindLteTrans Gap Outcome c ab bc = absurd ab
 kindLteTrans Gap Gap c ab bc = bc
-kindLteTrans Gap (Letter _) c ab bc = absurd ab
+kindLteTrans Gap (LetterK _) c ab bc = absurd ab
 kindLteTrans Gap TurnRef c ab bc = absurd ab
 kindLteTrans Gap Ability c ab bc = absurd ab
 
-kindLteTrans (Letter _) (r \/ s) c ab bc = case soOr ab of
-  Left l => kindLteTrans (Letter _) r c l (fst (soAnd bc))
-  Right m => kindLteTrans (Letter _) s c m (snd (soAnd bc))
-kindLteTrans (Letter _) Object c ab bc = absurd ab
-kindLteTrans (Letter _) Player c ab bc = absurd ab
-kindLteTrans (Letter _) (Quality _) c ab bc = absurd ab
-kindLteTrans (Letter _) Outcome c ab bc = absurd ab
-kindLteTrans (Letter _) Gap c ab bc = absurd ab
-kindLteTrans (Letter v) (Letter w) c ab bc = case sameLetterWordEq v w ab of Refl => bc
-kindLteTrans (Letter _) TurnRef c ab bc = absurd ab
-kindLteTrans (Letter _) Ability c ab bc = absurd ab
+kindLteTrans (LetterK _) (r \/ s) c ab bc = case soOr ab of
+  Left l => kindLteTrans (LetterK _) r c l (fst (soAnd bc))
+  Right m => kindLteTrans (LetterK _) s c m (snd (soAnd bc))
+kindLteTrans (LetterK _) Object c ab bc = absurd ab
+kindLteTrans (LetterK _) Player c ab bc = absurd ab
+kindLteTrans (LetterK _) (Quality _) c ab bc = absurd ab
+kindLteTrans (LetterK _) Outcome c ab bc = absurd ab
+kindLteTrans (LetterK _) Gap c ab bc = absurd ab
+kindLteTrans (LetterK v) (LetterK w) c ab bc = case sameLetterEq v w ab of Refl => bc
+kindLteTrans (LetterK _) TurnRef c ab bc = absurd ab
+kindLteTrans (LetterK _) Ability c ab bc = absurd ab
 
 kindLteTrans TurnRef (r \/ s) c ab bc = case soOr ab of
   Left l => kindLteTrans TurnRef r c l (fst (soAnd bc))
@@ -503,7 +506,7 @@ kindLteTrans TurnRef Player c ab bc = absurd ab
 kindLteTrans TurnRef (Quality _) c ab bc = absurd ab
 kindLteTrans TurnRef Outcome c ab bc = absurd ab
 kindLteTrans TurnRef Gap c ab bc = absurd ab
-kindLteTrans TurnRef (Letter _) c ab bc = absurd ab
+kindLteTrans TurnRef (LetterK _) c ab bc = absurd ab
 kindLteTrans TurnRef TurnRef c ab bc = bc
 kindLteTrans TurnRef Ability c ab bc = absurd ab
 
@@ -515,7 +518,7 @@ kindLteTrans Ability Player c ab bc = absurd ab
 kindLteTrans Ability (Quality _) c ab bc = absurd ab
 kindLteTrans Ability Outcome c ab bc = absurd ab
 kindLteTrans Ability Gap c ab bc = absurd ab
-kindLteTrans Ability (Letter _) c ab bc = absurd ab
+kindLteTrans Ability (LetterK _) c ab bc = absurd ab
 kindLteTrans Ability TurnRef c ab bc = absurd ab
 kindLteTrans Ability Ability c ab bc = bc
 
@@ -744,7 +747,7 @@ data Payload : Kind -> Type where
   QualityP : Payload (Quality q)
   OutcomeP : (sort : OutcomeSort) -> Payload Outcome
   GapP : Payload Gap
-  LetterP : Payload (Letter w)
+  LetterP : Payload (LetterK l)
   TurnRefP : Payload TurnRef
   AbilityP : Payload Ability
   ||| A union mention carries what it knows about EACH half -- "target
@@ -826,9 +829,15 @@ public export
 turnRefB : Binding
 turnRefB = MkBinding TheD TurnRef OneOf TurnRefP
 
+||| The introducing mention of a letter: indefinite, awaiting "where X is".
+||| A cost's own {X} mints this form too, not a definite one: [CR#107.3c]
+||| reads "an {X}, [-X], or X in its cost and/or its text" together and
+||| lets the text define the value of a letter the cost writes, so a cost
+||| X is open to a later definition and only becomes definite without one,
+||| by its controller's announcement [CR#107.3a].
 public export
-letterB : LetterWord -> Binding
-letterB w = MkBinding TheD (Letter w) OneOf LetterP
+letterB : Letter -> Binding
+letterB l = MkBinding AD (LetterK l) OneOf LetterP
 
 public export
 qualityB : QualitySort -> Binding
@@ -892,12 +901,47 @@ public export
 data ChoiceStands : Nat -> Type where
   ChoiceMade : ChoiceStands (S n)
 
+||| Every mention of the letter, introduced or defined alike.
 public export
-countLetter : LetterWord -> Bindings -> Nat
-countLetter w [] = Z
-countLetter w (MkBinding _ k OneOf _ :: bs) =
-  if kindLte (Letter w) k then S (countLetter w bs) else countLetter w bs
-countLetter w (_ :: bs) = countLetter w bs
+countLetter : Letter -> Bindings -> Nat
+countLetter l [] = Z
+countLetter l (MkBinding _ k OneOf _ :: bs) =
+  if kindLte (LetterK l) k then S (countLetter l bs) else countLetter l bs
+countLetter l (_ :: bs) = countLetter l bs
+
+||| An introduced letter still awaiting its definition. The determiner is
+||| matched first so the table reduces under an abstract plurality.
+public export
+openLetter : Letter -> Binding -> Bool
+openLetter l (MkBinding AD k pl _) = isOne pl && kindLte (LetterK l) k
+openLetter l (MkBinding TargetD _ _ _) = False
+openLetter l (MkBinding EachD _ _ _) = False
+openLetter l (MkBinding AllD _ _ _) = False
+openLetter l (MkBinding TheD _ _ _) = False
+openLetter l (MkBinding PartD _ _ _) = False
+openLetter l (MkBinding CountD _ _ _) = False
+openLetter l (MkBinding SelfD _ _ _) = False
+
+public export
+anyOpenLetter : Letter -> Bindings -> Bool
+anyOpenLetter l [] = False
+anyOpenLetter l (b :: bs) = openLetter l b || anyOpenLetter l bs
+
+||| "where X is ..." settles EVERY open X into the definite: [CR#107.3i]
+||| gives all instances of X on an object one value, so the X written
+||| twice in "+X/+X" is one variable and one definition closes it.
+public export
+defineLetter : Letter -> Bindings -> Bindings
+defineLetter l [] = []
+defineLetter l (b :: bs) =
+  if openLetter l b then MkBinding TheD b.kind b.plur b.payload :: defineLetter l bs
+                    else b :: defineLetter l bs
+
+||| What a letter mention contributes: the introduction, when the prefix
+||| holds no such letter yet; nothing, when it reads one already there.
+public export
+letterDelta : Letter -> Bindings -> List Binding
+letterDelta l bs = if countLetter l bs == 0 then [letterB l] else []
 
 ||| Any group mention, whatever it is a group of: "one or more opponents"
 ||| leaves a size to read back as surely as a group of objects does.
@@ -1784,6 +1828,14 @@ data ManaSymbol : Type where
 public export
 ManaCost : Type
 ManaCost = List ManaSymbol
+
+||| Whether a mana cost writes the variable symbol: the spell's or
+||| ability's own announcement of X [CR#107.3a].
+public export
+manaHasX : ManaCost -> Bool
+manaHasX [] = False
+manaHasX (Variable :: _) = True
+manaHasX (_ :: ms) = manaHasX ms
 
 public export
 ManaRun : ManaCost -> Type

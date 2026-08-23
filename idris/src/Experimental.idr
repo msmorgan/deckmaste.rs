@@ -1428,9 +1428,17 @@ mutual
                        Amount bs
     GroupSize : {auto 0 ok : countManysAny bs = 1} -> Amount bs
     TheDifference : {auto 0 ok : countOnes Gap bs = 1} -> Amount bs
-    DefinedLetter : (w : LetterWord) ->
-                    {auto 0 ok : countLetter w bs = 1} -> Amount bs
-    XVal : Amount bs
+    ||| The letter, wherever the text writes it. It INTRODUCES the letter
+    ||| when no earlier mention -- cost or text -- put one in the prefix,
+    ||| and reads it otherwise; cost X and text X are one variable
+    ||| [CR#107.3i]. Ungated, and no discharge gate stands at the ability
+    ||| boundary either: the rules give every X a value. An ability may
+    ||| define it [CR#107.3c]; a cost announces it [CR#107.3a]; failing
+    ||| both, its controller chooses it [CR#107.3]; and in a gained
+    ||| ability that defines none it is 0 [CR#107.3j]. A gate would refuse
+    ||| those last two, which are rules-meaningful, so an undefined letter
+    ||| leaving an ability is recorded and not refused.
+    LetterVal : (l : Letter) -> Amount bs
     Plus : (a : Amount bs) -> Amount (amtIntro a) -> Amount bs
     Minus : (a : Amount bs) -> Amount (amtIntro a) -> Amount bs
 
@@ -1448,8 +1456,7 @@ mutual
   amtDelta PreventedThisWay = []
   amtDelta GroupSize = []
   amtDelta TheDifference = []
-  amtDelta (DefinedLetter _) = []
-  amtDelta XVal = []
+  amtDelta (LetterVal l) = letterDelta l bs
   amtDelta (Plus a b) = amtDelta a ++ amtDelta b
   amtDelta (Minus a b) = amtDelta a ++ amtDelta b
 
@@ -1467,8 +1474,7 @@ mutual
   amtIntro PreventedThisWay = bs
   amtIntro GroupSize = bs
   amtIntro TheDifference = bs
-  amtIntro (DefinedLetter _) = bs
-  amtIntro XVal = bs
+  amtIntro (LetterVal l) = letterDelta l bs ++ bs
   amtIntro (Plus a b) = amtIntro b
   amtIntro (Minus a b) = amtIntro b
 
@@ -1494,8 +1500,7 @@ mutual
   amtPlur PreventedThisWay = ManyOf
   amtPlur GroupSize = ManyOf
   amtPlur TheDifference = ManyOf
-  amtPlur (DefinedLetter _) = ManyOf
-  amtPlur XVal = ManyOf
+  amtPlur (LetterVal _) = ManyOf
   amtPlur (Plus _ _) = ManyOf
   amtPlur (Minus _ _) = ManyOf
 
@@ -1513,15 +1518,14 @@ mutual
   writtenBound PreventedThisWay = False
   writtenBound GroupSize = False
   writtenBound TheDifference = False
-  writtenBound (DefinedLetter _) = False
-  writtenBound XVal = True
+  writtenBound (LetterVal _) = True
   writtenBound (Plus _ _) = False
   writtenBound (Minus _ _) = False
 
   public export
   boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
   boundEq (Lit a) (Lit b) = a == b
-  boundEq XVal XVal = True
+  boundEq (LetterVal a) (LetterVal b) = a == b
   boundEq _ _ = False
 
   public export
@@ -1550,8 +1554,7 @@ mutual
   readAmount PreventedThisWay = False
   readAmount GroupSize = False
   readAmount TheDifference = True
-  readAmount (DefinedLetter _) = False
-  readAmount XVal = False
+  readAmount (LetterVal _) = False
   readAmount (Plus _ _) = False
   readAmount (Minus _ _) = False
 
@@ -1791,7 +1794,8 @@ mutual
               {auto 0 sy : PredSays p} ->
               {auto 0 zc : ZoneFits (nounZone n) (seedZone p)} ->
               Condition bs
-    CompareAmt : (subj : Amount bs) -> (r : Comparator) -> (bound : Amount bs) ->
+    CompareAmt : (subj : Amount bs) -> (r : Comparator) ->
+                 (bound : Amount (amtIntro subj)) ->
                  {auto 0 rd : ReadAmount subj} ->
                  Condition bs
     NotCond : (c : Condition bs) -> Condition bs
@@ -2342,7 +2346,7 @@ mutual
   public export
   record TokenChars (bs : Bindings) where
     constructor MkToken
-    pt : Maybe (Amount bs, Amount bs)
+    pt : Maybe (p : Amount bs ** Amount (amtIntro p))
     colors : List Color
     line : TypeLine
     abilities : List (AbilityAt [])
@@ -2353,7 +2357,7 @@ mutual
   tokenTyped t = lineNonEmpty (MkTypeLine [] t.line.tys)
 
   public export
-  ptWritten : {0 bs : Bindings} -> Maybe (Amount bs, Amount bs) -> Bool
+  ptWritten : {0 bs : Bindings} -> Maybe (p : Amount bs ** Amount (amtIntro p)) -> Bool
   ptWritten Nothing = False
   ptWritten (Just _) = True
 
@@ -2412,6 +2416,21 @@ mutual
   specHeadTy TokenAsThose = tyOfThose TokenW bs
   specHeadTy (TokenCopyOf src _) = nounTy src
 
+  ||| What a written token's P/T amounts mention; a copy's source is left
+  ||| out, since the copy clause already names it and a second mention
+  ||| would double the pronoun's antecedents.
+  public export
+  ptDelta : {bs : Bindings} -> Maybe (p : Amount bs ** Amount (amtIntro p)) ->
+            List Binding
+  ptDelta Nothing = []
+  ptDelta (Just (p ** t)) = amtDelta t ++ amtDelta p
+
+  public export
+  specDelta : {bs : Bindings} -> TokenSpec bs -> List Binding
+  specDelta (TokenWritten t) = ptDelta t.pt
+  specDelta TokenAsThose = []
+  specDelta (TokenCopyOf _ _) = []
+
   public export
   data PtShift : Bindings -> Type where
     PtUp : (amt : Amount bs) -> PtShift bs
@@ -2426,6 +2445,14 @@ mutual
   shiftRises : {0 bs : Bindings} -> PtShift bs -> Bool
   shiftRises (PtUp _) = True
   shiftRises (PtDown _) = False
+
+  public export
+  shiftDelta : {bs : Bindings} -> PtShift bs -> List Binding
+  shiftDelta s = amtDelta (shiftAmount s)
+
+  public export
+  shiftIntro : {bs : Bindings} -> PtShift bs -> Bindings
+  shiftIntro s = amtIntro (shiftAmount s)
 
   public export
   writtenZero : {0 bs : Bindings} -> Amount bs -> Bool
@@ -2450,15 +2477,15 @@ mutual
   public export
   data StaticEffect : Bindings -> Type where
     Gets : (n : Noun bs Object) -> (pow : PtShift (nomIntro n)) ->
-           (tou : PtShift (nomIntro n)) ->
+           (tou : PtShift (shiftIntro pow)) ->
            {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
            StaticEffect bs
     DefinesPt : (n : Noun bs Object) -> (sl : DefinedSlots) ->
                 (amt : Amount (nomIntro n)) ->
                 {auto 0 sd : SelfDefined n} ->
                 StaticEffect bs
-    HasBasePt : (n : Noun bs Object) -> (pow : Amount bs) -> (tou : Amount bs) ->
-                StaticEffect bs
+    HasBasePt : (n : Noun bs Object) -> (pow : Amount bs) ->
+                (tou : Amount (amtIntro pow)) -> StaticEffect bs
     SwitchesPt : (n : Noun bs Object) ->
                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                  StaticEffect bs
@@ -2467,9 +2494,11 @@ mutual
                   StaticEffect bs
     AltCost : (c : Maybe (Cost bs)) ->
               {auto 0 ap : AltPayment c} -> StaticEffect bs
-    WhereLetterStatic : (w : LetterWord) -> (def : Amount bs) ->
-                        (se : StaticEffect (Experimental.Words.letterB w :: bs)) ->
-                        StaticEffect bs
+    ||| The static twin of `Define`: "[se], where [l] is [amt]" as one
+    ||| member of an `AndAlso` after the statement that used the letter.
+    ||| -- spelling: as `Define`.
+    DefinesLetter : (l : Letter) -> (amt : Amount bs) ->
+                    {auto 0 ok : So (anyOpenLetter l bs)} -> StaticEffect bs
     Gains : (n : Noun bs Object) -> (ab : AbilityAt bs) ->
             {auto 0 ok : GrantSubject ab n} ->
             {auto 0 gr : Grantable ab} -> StaticEffect bs
@@ -2642,15 +2671,6 @@ mutual
 
 
   public export
-  notLetterRider : {0 bs : Bindings} -> StaticEffect bs -> Bool
-  notLetterRider (WhereLetterStatic _ _ _) = False
-  notLetterRider _ = True
-
-  public export
-  NotLetterRider : StaticEffect bs -> Type
-  NotLetterRider {bs} se = So (notLetterRider se)
-
-  public export
   NotConditional : StaticEffect bs -> Type
   NotConditional {bs} se = So (notConditional se)
 
@@ -2736,7 +2756,7 @@ mutual
 
   public export
   staticKind : {0 bs : Bindings} -> StaticEffect bs -> StaticKind
-  staticKind (WhereLetterStatic _ _ se) = staticKind se
+  staticKind (DefinesLetter _ _) = LetterDefinition
   staticKind (Gets _ _ _) = PtDelta
   staticKind (DefinesPt _ _ _) = PtDefinition
   staticKind (HasBasePt _ _ _) = BasePtSet
@@ -2782,12 +2802,12 @@ mutual
 
   public export
   staticIntro : {bs : Bindings} -> StaticEffect bs -> Bindings
-  staticIntro (WhereLetterStatic _ _ se) = staticIntro se
-  staticIntro (Gets n _ _) = selfSubjIntro n
-  staticIntro (DefinesPt n _ _) = selfSubjIntro n
-  staticIntro (HasBasePt n _ _) = selfSubjIntro n
+  staticIntro (DefinesLetter l amt) = defineLetter l (amtIntro amt)
+  staticIntro (Gets n pow tou) = shiftDelta tou ++ shiftDelta pow ++ selfSubjIntro n
+  staticIntro (DefinesPt n _ amt) = amtDelta amt ++ selfSubjIntro n
+  staticIntro (HasBasePt n pow tou) = amtDelta tou ++ amtDelta pow ++ selfSubjIntro n
   staticIntro (SwitchesPt n) = selfSubjIntro n
-  staticIntro (CostsToCast n _) = selfSubjIntro n
+  staticIntro (CostsToCast n sh) = amtDelta (costAmount sh) ++ selfSubjIntro n
   staticIntro (AltCost _) = bs
   staticIntro (Gains n _) = selfSubjIntro n
   staticIntro (Deontic n _ _ _ _) = selfSubjIntro n
@@ -2821,7 +2841,7 @@ mutual
   staticIntro (Visibility _ who _) = nomIntro who
   staticIntro (MayPlayAdditionalLands who _) = nomIntro who
   staticIntro (EntersRider n _) = selfSubjIntro n
-  staticIntro (EntersWithCounters n _ _ _) = selfSubjIntro n
+  staticIntro (EntersWithCounters n amt _ _) = amtDelta amt ++ selfSubjIntro n
   staticIntro (EntersChoice n _ _) = selfSubjIntro n
   staticIntro (AndAlso parts) = partsIntro parts
 
@@ -2931,11 +2951,11 @@ mutual
 
   public export
   costIntro : {bs : Bindings} -> Cost bs -> Bindings
-  costIntro (Mana _) = bs
+  costIntro (Mana c) = if manaHasX c then letterB X :: bs else bs
   costIntro (ScaledMana _) = bs
   costIntro TapSymbol = bs
   costIntro UntapSymbol = bs
-  costIntro (LoyaltySymbol LoyaltyDownX) = Experimental.Words.letterB LetterX :: bs
+  costIntro (LoyaltySymbol LoyaltyDownX) = letterB X :: bs
   costIntro (LoyaltySymbol _) = bs
   costIntro (Do e) = effIntro e
   costIntro (Compound cs) = costsIntro cs
@@ -2989,7 +3009,7 @@ mutual
     ExceptAbility : (ab : AbilityAt []) ->
                     {auto 0 gr : Grantable ab} -> CopyExcept bs
     ExceptThisAbility : CopyExcept bs
-    ExceptPt : (pow : Amount bs) -> (tou : Amount bs) -> CopyExcept bs
+    ExceptPt : (pow : Amount bs) -> (tou : Amount (amtIntro pow)) -> CopyExcept bs
     ExceptNonlegendary : CopyExcept bs
     ExceptColor : (c : Chroma.Color) -> CopyExcept bs
 
@@ -3075,7 +3095,6 @@ mutual
              {auto 0 zf : ZoneFree p} -> Effect bs
     Shuffle : (whose : Noun bs Player) -> Effect bs
     Continuously : (se : StaticEffect bs) -> (span : Maybe (Duration (staticIntro se))) ->
-                   {auto 0 nr : NotLetterRider se} ->
                    {auto 0 sp : SpanOk (staticKind se) span} ->
                    {auto 0 cl : ClauseStatic se} -> Effect bs
     Create : (agent : Noun bs Player) -> (count : Amount (nomIntro agent)) ->
@@ -3143,8 +3162,17 @@ mutual
              (c : Cost (nomIntro who)) ->
              {auto 0 pb : Payable c} ->
              {auto 0 ag : PayAgrees who c} -> Effect bs
-    WhereLetter : (w : LetterWord) -> (def : Amount bs) ->
-                  (body : Effect (Experimental.Words.letterB w :: bs)) -> Effect bs
+    ||| "..., where [l] is [amt]": the definition of a letter an earlier
+    ||| clause brought in by use. [CR#107.3c] fixes a text-defined X's
+    ||| value as the ability resolves and has its controller choose
+    ||| nothing, so the step presupposes an open X to define -- the gate --
+    ||| and settles every open instance at once [CR#107.3i]. A second
+    ||| definition finds none open and is refused by the same gate.
+    ||| -- spelling: ", where X is [amt]" attached to the clause before it,
+    ||| never "then"; a `Sequentially` whose member is a `Define` spells no
+    ||| "then" at that seam.
+    Define : (l : Letter) -> (amt : Amount bs) ->
+             {auto 0 ok : So (anyOpenLetter l bs)} -> Effect bs
     ForEachOf : (grp : Noun bs Object) ->
                 (body : Effect (elemIntro grp)) ->
                 {auto 0 pl : nounPlur grp = ManyOf} ->
@@ -3246,7 +3274,7 @@ mutual
   heldUntilOk (OnlyIf _ _ _) = False
   heldUntilOk (If _ _ _) = False
   heldUntilOk (Unless _ _ _) = False
-  heldUntilOk (WhereLetter _ _ _) = False
+  heldUntilOk (Define _ _) = False
   heldUntilOk (ForEachOf _ _) = False
   heldUntilOk (Repeat _) = False
   heldUntilOk (Sequentially _) = False
@@ -3322,7 +3350,7 @@ mutual
   reflexEncloseUse (OnlyIf _ _ _) = EncNotOneAction
   reflexEncloseUse (If _ _ _) = EncNotOneAction
   reflexEncloseUse (Unless _ _ _) = EncNotOneAction
-  reflexEncloseUse (WhereLetter _ _ _) = EncNotOneAction
+  reflexEncloseUse (Define _ _) = EncAgentless
   reflexEncloseUse (ForEachOf _ _) = EncNotOneAction
   reflexEncloseUse (Repeat _) = EncNotOneAction
   reflexEncloseUse (Sequentially _) = EncNotOneAction
@@ -3399,7 +3427,7 @@ mutual
   thisWayOutcomeOk (OnlyIf _ _ _) = True
   thisWayOutcomeOk (If _ _ _) = True
   thisWayOutcomeOk (Unless _ _ _) = True
-  thisWayOutcomeOk (WhereLetter _ _ _) = True
+  thisWayOutcomeOk (Define _ _) = True
   thisWayOutcomeOk (ForEachOf _ _) = True
   thisWayOutcomeOk (Repeat _) = True
   thisWayOutcomeOk (Sequentially _) = True
@@ -3537,7 +3565,9 @@ mutual
   costActionOk (If _ e otherwise) = costActionOk e && costActionOkOpt otherwise
   -- an offer another player answers at resolution [CR#118.12a]
   costActionOk (Unless _ _ _) = False
-  costActionOk (WhereLetter _ _ body) = costActionOk body
+  -- a definition instructs nothing at payment but rides a cost's own
+  -- amount; admitted so the cost telescope can carry "where X is".
+  costActionOk (Define _ _) = True
   costActionOk (ForEachOf _ body) = costActionOk body
   costActionOk (Repeat _) = False
   costActionOk (Sequentially _) = False
@@ -3643,7 +3673,7 @@ mutual
   effEq (OnlyIf _ _ _) _ = False
   effEq (If _ _ _) _ = False
   effEq (Unless _ _ _) _ = False
-  effEq (WhereLetter _ _ _) _ = False
+  effEq (Define _ _) _ = False
   effEq (ForEachOf _ _) _ = False
   effEq (Repeat _) _ = False
   effEq (Sequentially _) _ = False
@@ -3835,7 +3865,7 @@ mutual
   setZone p z (MkBinding det Outcome plur (OutcomeP s)) =
     MkBinding det Outcome plur (OutcomeP s)
   setZone p z (MkBinding det Gap plur GapP) = MkBinding det Gap plur GapP
-  setZone p z (MkBinding det (Letter w) plur LetterP) = MkBinding det (Letter w) plur LetterP
+  setZone p z (MkBinding det (LetterK l) plur LetterP) = MkBinding det (LetterK l) plur LetterP
   setZone p z (MkBinding det TurnRef plur TurnRefP) = MkBinding det TurnRef plur TurnRefP
   setZone p z (MkBinding det Ability plur AbilityP) = MkBinding det Ability plur AbilityP
   setZone p z (MkBinding det (a \/ b) plur (JoinP l r)) = MkBinding det (a \/ b) plur (JoinP l r)
@@ -4019,10 +4049,10 @@ mutual
   effIntro (DealDamage src amt to) = outcomeB DamageDealt :: nomIntro to
   effIntro (Fights a b) = nomIntro b
   effIntro (SetStatus _ n) = nomIntro n
-  effIntro (DoesntUntapNext n _) = nomIntro n
-  effIntro (SkipsNext w _ _) = nomIntro w
-  effIntro (ExtraTurn w _) = turnRefB :: nomIntro w
-  effIntro (AdditionalPart _ _ _ _) = bs
+  effIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
+  effIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
+  effIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
+  effIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
   effIntro (GetsCounters who amt _) = amtIntro amt
   effIntro (LosesCounters who _ amt) = optAmtIntro amt
   effIntro (RemoveFromCombat n) = nomIntro n
@@ -4055,7 +4085,7 @@ mutual
   effIntro (Create agent count spec riders) =
     MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
               (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin))
-      :: amtIntro count
+      :: (specDelta spec ++ amtIntro count)
   effIntro (GetsEmblem who _) = nomIntro who
   effIntro (PutCounters amt kind on) = nomIntro on
   effIntro (Distribute (DividedDamage _) amt among) = outcomeB DamageDealt :: nomIntro among
@@ -4071,7 +4101,7 @@ mutual
   effIntro (OnlyIf e c oth) = bs
   effIntro (If c e oth) = bs
   effIntro (Unless e who c) = bs
-  effIntro (WhereLetter _ def body) = effIntro body
+  effIntro (Define l amt) = defineLetter l (amtIntro amt)
   effIntro (ForEachOf _ _) = bs
   effIntro (Repeat _) = bs
   effIntro (Sequentially es) = effsIntro es
@@ -4092,10 +4122,10 @@ mutual
   preIntro (Distribute v amt among) = nomIntro among
   preIntro (Fights a b) = nomIntro b
   preIntro (SetStatus _ n) = nomIntro n
-  preIntro (DoesntUntapNext n _) = nomIntro n
-  preIntro (SkipsNext w _ _) = nomIntro w
-  preIntro (ExtraTurn w _) = nomIntro w
-  preIntro (AdditionalPart _ _ _ _) = bs
+  preIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
+  preIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
+  preIntro (ExtraTurn w count) = amtDelta count ++ nomIntro w
+  preIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
   preIntro (GetsCounters who amt _) = amtIntro amt
   preIntro (LosesCounters who _ amt) = optAmtIntro amt
   preIntro (RemoveFromCombat n) = nomIntro n
@@ -4119,7 +4149,7 @@ mutual
   preIntro (Search who sc p) = predDelta p ++ searchDelta sc ++ nomIntro who
   preIntro (Shuffle whose) = nomIntro whose
   preIntro (Continuously se _) = staticIntro se
-  preIntro (Create agent count spec riders) = amtIntro count
+  preIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
   preIntro (GetsEmblem who _) = nomIntro who
   preIntro (PutCounters amt kind on) = nomIntro on
   preIntro (RemoveCounters amt kind from) = nomIntro from
@@ -4132,7 +4162,7 @@ mutual
   preIntro (OnlyIf e c oth) = annIntro e
   preIntro (If c e oth) = bs
   preIntro (Unless e who c) = annIntro e
-  preIntro (WhereLetter _ def body) = preIntro body
+  preIntro (Define l amt) = defineLetter l (amtIntro amt)
   preIntro (ForEachOf _ _) = bs
   preIntro (Repeat _) = bs
   preIntro (Sequentially es) = preIntros es
@@ -4153,10 +4183,10 @@ mutual
   annIntro (Distribute v amt among) = nomIntro among
   annIntro (Fights a b) = nomIntro b
   annIntro (SetStatus _ n) = nomIntro n
-  annIntro (DoesntUntapNext n _) = nomIntro n
-  annIntro (SkipsNext w _ _) = nomIntro w
-  annIntro (ExtraTurn w _) = turnRefB :: nomIntro w
-  annIntro (AdditionalPart _ _ _ _) = bs
+  annIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
+  annIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
+  annIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
+  annIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
   annIntro (GetsCounters who amt _) = amtIntro amt
   annIntro (LosesCounters who _ amt) = optAmtIntro amt
   annIntro (RemoveFromCombat n) = nomIntro n
@@ -4180,7 +4210,7 @@ mutual
   annIntro (Search who sc p) = predDelta p ++ searchDelta sc ++ nomIntro who
   annIntro (Shuffle whose) = nomIntro whose
   annIntro (Continuously se _) = staticIntro se
-  annIntro (Create agent count spec riders) = amtIntro count
+  annIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
   annIntro (GetsEmblem who _) = nomIntro who
   annIntro (PutCounters amt kind on) = nomIntro on
   annIntro (RemoveCounters amt kind from) = nomIntro from
@@ -4193,7 +4223,7 @@ mutual
   annIntro (OnlyIf e c oth) = annIntro e
   annIntro (If c e oth) = bs
   annIntro (Unless e who c) = annIntro e
-  annIntro (WhereLetter _ def body) = annIntro body
+  annIntro (Define l amt) = defineLetter l (amtIntro amt)
   annIntro (ForEachOf _ _) = bs
   annIntro (Repeat _) = bs
   annIntro (Sequentially es) = bs
@@ -4297,7 +4327,7 @@ mutual
   deedDelta (OnlyIf e c oth) = []
   deedDelta (If c e oth) = []
   deedDelta (Unless e who c) = []
-  deedDelta (WhereLetter _ _ _) = []
+  deedDelta (Define _ _) = []
   deedDelta (ForEachOf _ _) = []
   deedDelta (Repeat _) = []
   deedDelta (Sequentially es) = []
@@ -4754,7 +4784,6 @@ mutual
   clauseStaticOk (DefinesPt _ _ _) = False
   clauseStaticOk (AltCost _) = False
   clauseStaticOk (AndAlso parts) = partsClauseOk parts
-  clauseStaticOk (WhereLetterStatic _ _ se) = clauseStaticOk se
   clauseStaticOk _ = True
 
   public export
@@ -5033,7 +5062,6 @@ starred (PrintedStarPlus _) = True
 public export
 staticDefinesPt : {0 bs : Bindings} -> StaticEffect bs -> Maybe DefinedSlots
 staticDefinesPt (DefinesPt _ sl _) = Just sl
-staticDefinesPt (WhereLetterStatic _ _ se) = staticDefinesPt se
 staticDefinesPt (Conditionally _ se _) = staticDefinesPt se
 staticDefinesPt (OnlyWhile se _ _) = staticDefinesPt se
 staticDefinesPt _ = Nothing

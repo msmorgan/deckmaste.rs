@@ -559,7 +559,7 @@ public export
 badAfterReflexiveReadsTrigger : Unspellable (Effect []) (\ok =>
   Sequentially [Reflexively (Does You Mill (Move (LibrarySlice OnTop (Lit 4) You)
                                                  Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {tb = MillB {whose = You}})
-                            (Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [White]
+                            (Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                                      (MkTypeLine [Soldier] [Creature])
                                                      [] Nothing)),
                 SetStatus Tapped (That (TypeW Creature) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])

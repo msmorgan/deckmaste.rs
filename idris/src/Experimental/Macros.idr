@@ -470,11 +470,11 @@ entersWithCounters n amt kind = EntersWithCounters n amt kind Fresh
 
 public export
 gets : (n : Noun bs Object) -> (pow : PtShift (nomIntro n)) ->
-       (tou : PtShift (nomIntro n)) ->
-       (d : Maybe (Duration (selfSubjIntro n))) ->
+       (tou : PtShift (shiftIntro pow)) ->
        {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
+       (d : Maybe (Duration (staticIntro (Gets n pow tou {ok})))) ->
        {auto 0 sp : SpanOk PtDelta d} -> Effect bs
-gets n pow tou d = Continuously (Gets n pow tou) d
+gets n pow tou d = Continuously (Gets n pow tou {ok}) d {sp}
 
 public export
 gains : (n : Noun bs Object) -> (a : AbilityAt bs) ->
@@ -571,9 +571,9 @@ mayThenElse d body did notd = May (Just d) body (Just did) (Just notd)
 
 
 public export
-creatureTokOf : (pow : Amount bs) -> (tou : Amount bs) -> List Color -> List Subtype ->
-                TokenChars bs
-creatureTokOf pow tou cs ss = MkToken (Just (pow, tou)) cs (MkTypeLine ss [Creature]) [] Nothing
+creatureTokOf : (pow : Amount bs) -> (tou : Amount (amtIntro pow)) ->
+                List Color -> List Subtype -> TokenChars bs
+creatureTokOf pow tou cs ss = MkToken (Just (pow ** tou)) cs (MkTypeLine ss [Creature]) [] Nothing
 
 public export
 creatureTok : (pow : Nat) -> (tou : Nat) -> List Color -> List Subtype -> TokenChars bs
@@ -1518,22 +1518,6 @@ public export
 onlyUnless : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
              {auto 0 nn : NotConditional se} -> StaticEffect bs
 onlyUnless se c = OnlyWhile se (NotCond c) Unless {nn}
-
-||| "[body], where [w] is [def]": the letter's definition written after the
-||| clause it scopes over, as English postposes it. The letter is a name the
-||| ability defines once [CR#107.3], so the core keeps the binder first and
-||| this macro restores the English order.
-public export
-whereLetter : (w : LetterWord) -> (body : Effect (Experimental.Words.letterB w :: bs)) ->
-              (def : Amount bs) -> Effect bs
-whereLetter w body def = WhereLetter w def body
-
-||| "[se], where [w] is [def]": the static twin.
-public export
-whereLetterStatic : (w : LetterWord) ->
-                    (se : StaticEffect (Experimental.Words.letterB w :: bs)) ->
-                    (def : Amount bs) -> StaticEffect bs
-whereLetterStatic w se def = WhereLetterStatic w def se
 
 ||| "While you're searching your library, you may cast <what> from <zone>."
 public export

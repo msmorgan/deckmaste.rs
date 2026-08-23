@@ -160,7 +160,7 @@ countOutcomesIsFold s (MkBinding d Object p pay :: bs) = countOutcomesIsFold s b
 countOutcomesIsFold s (MkBinding d Player p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d (Quality q) p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d Gap p pay :: bs) = countOutcomesIsFold s bs
-countOutcomesIsFold s (MkBinding d (Letter w) p pay :: bs) = countOutcomesIsFold s bs
+countOutcomesIsFold s (MkBinding d (LetterK l) p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d TurnRef p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d Ability p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d (a \/ b) p pay :: bs) = countOutcomesIsFold s bs
@@ -182,22 +182,22 @@ countQualityIsFold : (q : QualitySort) -> (bs : Bindings) ->
 countQualityIsFold q bs =
   trans (countQualityIsCountOnes q bs) (countOnesIsFold (Quality q) bs)
 
-||| `countLetter` likewise: a defined letter is a singular mention of a
-||| letter kind [CR#107.3].
+||| `countLetter` likewise: a letter is a singular mention of a letter
+||| kind [CR#107.3].
 public export
-countLetterIsCountOnes : (w : LetterWord) -> (bs : Bindings) ->
-                         countLetter w bs = countOnes (Letter w) bs
-countLetterIsCountOnes w [] = Refl
-countLetterIsCountOnes w (MkBinding d j OneOf p :: bs) with (kindLte (Letter w) j)
-  _ | True = cong S (countLetterIsCountOnes w bs)
-  _ | False = countLetterIsCountOnes w bs
-countLetterIsCountOnes w (MkBinding d j ManyOf p :: bs) = countLetterIsCountOnes w bs
+countLetterIsCountOnes : (l : Letter) -> (bs : Bindings) ->
+                         countLetter l bs = countOnes (LetterK l) bs
+countLetterIsCountOnes l [] = Refl
+countLetterIsCountOnes l (MkBinding d j OneOf p :: bs) with (kindLte (LetterK l) j)
+  _ | True = cong S (countLetterIsCountOnes l bs)
+  _ | False = countLetterIsCountOnes l bs
+countLetterIsCountOnes l (MkBinding d j ManyOf p :: bs) = countLetterIsCountOnes l bs
 
 public export
-countLetterIsFold : (w : LetterWord) -> (bs : Bindings) ->
-                    countLetter w bs = countBy (oneOfKind (Letter w)) bs
-countLetterIsFold w bs =
-  trans (countLetterIsCountOnes w bs) (countOnesIsFold (Letter w) bs)
+countLetterIsFold : (l : Letter) -> (bs : Bindings) ->
+                    countLetter l bs = countBy (oneOfKind (LetterK l)) bs
+countLetterIsFold l bs =
+  trans (countLetterIsCountOnes l bs) (countOnesIsFold (LetterK l) bs)
 
 ||| What `countWord` folds: a singular mention the demonstrative's noun
 ||| word reaches AS THE REFERENT NOW STANDS — the word filter is read
@@ -552,25 +552,62 @@ theDifferenceResolvesInPrefix : (bs : Bindings) -> countOnes Gap bs = 1 ->
 theDifferenceResolvesInPrefix bs ok = resolveOnes Gap bs ok
 
 
--- "X": the letter a `WhereLetter` binder defined [CR#107.3].
+-- "X": the letter a clause brought in by use, and "where X is", which
+-- defines it [CR#107.3c].
 
-||| The letter read is an anaphor over a binding the enclosing binder
-||| minted, and the gate is the same counted uniqueness as the pronouns'.
-||| The binder puts the letter in the body's context, so the body's read
-||| is a read of its own prefix.
+||| What `anyOpenLetter` folds: an introduced, still-undefined letter.
 public export
-definedLetterReadsOnlyPrefix : (bs : Bindings) -> (w : LetterWord) ->
-                               countLetter w bs = 1 -> Amount bs
-definedLetterReadsOnlyPrefix bs w ok = DefinedLetter w {bs} {ok}
+openLetterIsAny : (l : Letter) -> (bs : Bindings) ->
+                  anyOpenLetter l bs = anyBy (openLetter l) bs
+openLetterIsAny l [] = Refl
+openLetterIsAny l (b :: bs) with (openLetter l b)
+  _ | True = Refl
+  _ | False = openLetterIsAny l bs
+
+||| The definition asks one thing of its context: that some open X stands
+||| in the prefix. Existence rather than uniqueness, because "+X/+X"
+||| writes the one variable twice [CR#107.3i].
+public export
+defineReadsOnlyPrefix : (bs : Bindings) -> (l : Letter) -> (amt : Amount bs) ->
+                        So (anyOpenLetter l bs) -> Effect bs
+defineReadsOnlyPrefix bs l amt ok = Define l amt {bs} {ok}
 
 public export
-definedLetterResolvesInPrefix : (bs : Bindings) -> (w : LetterWord) ->
-                                countLetter w bs = 1 ->
-                                (b : Binding ** (Elem b bs,
-                                                 So (oneOfKind (Letter w) b)))
-definedLetterResolvesInPrefix bs w ok =
-  countByWitness (oneOfKind (Letter w)) bs Z
-                 (trans (sym (countLetterIsFold w bs)) ok)
+defineResolvesInPrefix : (bs : Bindings) -> (l : Letter) -> So (anyOpenLetter l bs) ->
+                         (b : Binding ** (Elem b bs, So (openLetter l b)))
+defineResolvesInPrefix bs l ok =
+  anyByWitness (openLetter l) bs (replace {p = So} (openLetterIsAny l bs) ok)
+
+||| After a definition no instance of the letter is open.
+public export
+defineClosesLetter : (l : Letter) -> (bs : Bindings) ->
+                     anyOpenLetter l (defineLetter l bs) = False
+defineClosesLetter l [] = Refl
+defineClosesLetter l (b :: bs) with (openLetter l b) proof eq
+  _ | True = defineClosesLetter l bs
+  _ | False = rewrite eq in defineClosesLetter l bs
+
+||| PIN -- "where X is ..." with no X in scope. [CR#107.3c] defines the
+||| value of an X the object's text uses; a definition of nothing defines
+||| nothing.
+public export
+badDefineWithoutUse : Not (So (anyOpenLetter X []))
+badDefineWithoutUse Oh impossible
+
+||| PIN -- a second "where X is" on one ability: the first settled every
+||| instance [CR#107.3i], so none is open for the second to define.
+public export
+badSecondDefine : (bs : Bindings) -> (l : Letter) ->
+                  Not (So (anyOpenLetter l (defineLetter l bs)))
+badSecondDefine bs l ok = absurd (replace {p = So} (defineClosesLetter l bs) ok)
+
+||| A cost's X is the same variable the text writes [CR#107.3i] and stays
+||| open to a definition: [CR#107.3c] gives the text's definition the value
+||| of an X written "in its cost and/or its text", so no rule refuses
+||| "where X is" under an X-bearing cost and nothing here pins one.
+public export
+costXStaysOpen : So (anyOpenLetter X (costIntro (LoyaltySymbol {bs = []} LoyaltyDownX)))
+costXStaysOpen = Oh
 
 
 -- "of the chosen <quality>": the read of a choice another clause made.
@@ -760,13 +797,11 @@ attachHostNeedsNoAntecedent : (w : AttachWord) -> (h : NounWord) ->
                               AttachHeadOk w h -> Noun [] (kindOfW h)
 attachHostNeedsNoAntecedent w h ok = AttachHost w h {ok}
 
-||| "X" as a cost variable is ungated: it names the value declared in the
-||| spell's own cost, not a binding [CR#107.3a]. The letter READ over a
-||| `WhereLetter` binding is `DefinedLetter`, which is gated; these are
-||| two different words and only the second is an anaphor.
+||| The letter is writable at the empty prefix -- not as deixis but as an
+||| INTRODUCTION: `LetterVal` at `[]` mints the letter it names [CR#107.3].
 public export
-xValNeedsNoAntecedent : Amount []
-xValNeedsNoAntecedent = XVal
+letterValIntroducesAtEmptyPrefix : (l : Letter) -> Amount []
+letterValIntroducesAtEmptyPrefix l = LetterVal l
 
 
 --------------------------------------------------------------------------------
@@ -901,29 +936,28 @@ thisWayThreadsPrefix : (bs : Bindings) -> (body : Effect bs) ->
                        Effect bs
 thisWayThreadsPrefix bs body ev trig oc = ThisWay body ev trig {oc}
 
-||| The letter binder mints the letter from its OWN first argument, not
-||| from the definition: `letterB w` mentions `w` and nothing else, so
-||| the body's context is fixed before the definition is read. That is
-||| why the core's binder-first order and the macro's English order are
-||| both forward — neither argument reads a binding a later argument
-||| introduces.
+||| "where X is" re-marks the letter it defines in place — the shape
+||| `settleTargets` has — and inserts nothing minted later.
 public export
-whereLetterBindingIsFromWordAlone : (w : LetterWord) -> (bs : Bindings) ->
-                                    Experimental.Words.letterB w :: bs =
-                                      MkBinding TheD (Letter w) OneOf LetterP :: bs
-whereLetterBindingIsFromWordAlone w bs = Refl
+defineIntroIsRemark : (bs : Bindings) -> (l : Letter) -> (amt : Amount bs) ->
+                      (ok : So (anyOpenLetter l bs)) ->
+                      effIntro (Define l amt {ok}) = defineLetter l (amtIntro amt)
+defineIntroIsRemark bs l amt ok = Refl
 
-||| Core order: definition, then body.
+||| One variable written twice. "This creature gets -X/-X, where X is your
+||| life total" mints the letter ONCE: the toughness shift is typed at the
+||| power shift's output, so its `LetterVal` finds the letter already in the
+||| prefix and reads it [CR#107.3i]. Every twin-`Amount` slot is a telescope
+||| for this reason.
 public export
-whereLetterCoreOrder : (bs : Bindings) -> (w : LetterWord) -> (def : Amount bs) ->
-                       Effect (Experimental.Words.letterB w :: bs) -> Effect bs
-whereLetterCoreOrder bs w def body = WhereLetter w def body
+twinShiftMintsOneLetter :
+  countLetter X (staticIntro (Gets {bs = []} Macros.thisCreature
+                                   (PtDown (LetterVal X)) (PtDown (LetterVal X)))) = 1
+twinShiftMintsOneLetter = Refl
 
-||| English order: body, then definition — the macro, typing the same
-||| two arguments in the same two contexts. The order that differs is
-||| the SPELLING's, not the binding's.
+||| The letter's own contribution is a fold over the prefix: the
+||| introduction exactly when the prefix counts no such letter.
 public export
-whereLetterEnglishOrder : (bs : Bindings) -> (w : LetterWord) ->
-                          Effect (Experimental.Words.letterB w :: bs) ->
-                          (def : Amount bs) -> Effect bs
-whereLetterEnglishOrder bs w body def = Macros.whereLetter w body def
+letterValDeltaIsPrefixFold : (bs : Bindings) -> (l : Letter) ->
+                             amtDelta (LetterVal l {bs}) = letterDelta l bs
+letterValDeltaIsPrefixFold bs l = Refl

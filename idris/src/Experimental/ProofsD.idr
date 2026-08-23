@@ -474,55 +474,34 @@ badNonComparisonDifference : Unspellable Ability (\ok =>
 badNonComparisonDifference Refl impossible
 
 
-||| "Draw X cards."
-||| The letter is a name the sentence introduced [CR#107.3c]; this one defined none.
-public export
-badUnlicensedX : Unspellable (Effect []) (\ok =>
-  Draw You (DefinedLetter LetterX {ok}))
-badUnlicensedX Refl impossible
-
-
 ||| "Draw X cards, where X is the number of creatures you control, where X is the number of creatures on the battlefield."
-||| One ability defines one letter [CR#107.3]; a letter defined twice names nothing.
+||| One statement settles every instance of X [CR#107.3i]; the second
+||| definition finds none open to define.
 public export
 badDoubleXRider : Unspellable (Effect []) (\ok =>
-  WhereLetter LetterX (CountOf Macros.creatureYouControl)
-              (WhereLetter LetterX (CountOf Macros.creature)
-                           (Draw You (DefinedLetter LetterX {ok}))))
-badDoubleXRider Refl impossible
+  Sequentially [ Draw You (LetterVal X)
+               , Define X (CountOf Macros.creatureYouControl)
+               , Define X (CountOf Macros.creature) {ok} ])
+badDoubleXRider Oh impossible
 
 
 ||| "Draw Y cards, where X is the number of creatures you control."
 ||| Y is a name of its own and follows X's rules, not X's definition [CR#107.3p].
 public export
 badUnlicensedY : Unspellable (Effect []) (\ok =>
-  WhereLetter LetterX (CountOf Macros.creatureYouControl)
-              (Draw You (DefinedLetter LetterY {ok})))
-badUnlicensedY Refl impossible
-
-
-||| "Target creature gets +X/+X, where X is the number of creatures you control, until end of turn."
-||| The adverbial belongs to the clause and the rider binds the whole clause [CR#611.2a].
-public export
-badRiderInsideDuration : Unspellable (Effect []) (\ok =>
-  Continuously (WhereLetterStatic LetterX (CountOf Macros.creatureYouControl)
-                                  (Gets (Macros.target Macros.creature)
-                                        (PtUp (DefinedLetter LetterX))
-                                        (PtUp (DefinedLetter LetterX))))
-               (Just Macros.untilEndOfTurn) {nr = ok})
-badRiderInsideDuration Oh impossible
+  Sequentially [ Draw You (LetterVal Y)
+               , Define X (CountOf Macros.creatureYouControl) {ok} ])
+badUnlicensedY Oh impossible
 
 
 ||| "This creature gets +X/+0, where X is the number of creatures you control, where X is the number of creatures on the battlefield."
-||| One statement defines one letter [CR#107.3]; a letter defined twice names nothing.
+||| The static twin of `badDoubleXRider`, and the same rule [CR#107.3i].
 public export
 badDoubleStaticRider : Unspellable (StaticEffect []) (\ok =>
-  WhereLetterStatic LetterX (CountOf Macros.creatureYouControl)
-                    (WhereLetterStatic LetterX (CountOf Macros.creature)
-                                       (Gets Macros.thisCreature
-                                             (PtUp (DefinedLetter LetterX {ok}))
-                                             (PtUp (Lit 0)))))
-badDoubleStaticRider Refl impossible
+  AndAlso [ Gets Macros.thisCreature (PtUp (LetterVal X)) (PtUp (Lit 0))
+          , DefinesLetter X (CountOf Macros.creatureYouControl)
+          , DefinesLetter X (CountOf Macros.creature) {ok} ])
+badDoubleStaticRider Oh impossible
 
 
 ||| "the greatest power among players"

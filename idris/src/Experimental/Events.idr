@@ -200,7 +200,7 @@ lookbackSubjectOk _ Outcome = False
 lookbackSubjectOk _ Gap = False
 lookbackSubjectOk _ TurnRef = False
 lookbackSubjectOk _ Ability = False
-lookbackSubjectOk _ (Letter _) = False
+lookbackSubjectOk _ (LetterK _) = False
 -- a joined subject is a lookback subject only if BOTH halves are: "any
 -- target" cannot be what died, since a player cannot die.
 lookbackSubjectOk ev (a \/ b) = lookbackSubjectOk ev a && lookbackSubjectOk ev b
@@ -374,6 +374,7 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 | VisibilityRider
                 | LandAllowance
                 | TurnSkip
+                | LetterDefinition
 
 public export
 data CondMarking = AsLongAs | Unless

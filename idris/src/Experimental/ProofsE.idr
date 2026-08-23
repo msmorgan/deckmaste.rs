@@ -448,7 +448,7 @@ badPlaneswalkerAttacks Participant impossible
 ||| A token is a permanent [CR#111.1] and a spell ability is a resolving spell's [CR#113.3a].
 public export
 badTokenSpellAbility : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [White]
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                  (MkTypeLine [Soldier] [Creature])
                                  [Spell Macros.drawACard] Nothing) {ta = ok})
 badTokenSpellAbility Oh impossible

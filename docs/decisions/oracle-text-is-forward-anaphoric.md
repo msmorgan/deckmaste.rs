@@ -86,41 +86,49 @@ The `otherwise` arm of both is typed at `otherwiseCtx e` — the phrases the
 then-branch announced plus the quantity it wrote — which is a clause written
 before the arm. Forward.
 
-### `WhereLetter` is scoped binding, not cataphora
+### Obligations: a mention may owe a later step
 
-Core writes the definition before the body (`WhereLetter w def body`), where
-English postposes it: "…draw X cards, where X is the number of creatures you
-control." That departs from [Semantics v2](semantics-v2.md) §2's "constructor
-argument order IS textual order", and it is the only place in the grammar that
-does. It does **not** depart from this ADR's law, by clause 4: the binding the
-body reads is `letterB w`, derived from the constructor's own first argument,
-and the definition contributes nothing to it. `def` is typed at `bs`; the body
-is typed at `letterB w :: bs`. Neither argument reads a binding the other
-introduces.
+A letter is introduced by use. "Draw X cards, where X is N" writes X first and
+the definition second, and both are forward: the body's X is an introducing
+mention (`Amount.LetterVal`, which mints when the prefix holds no such letter),
+and "where X is" is a later predication on it (`Effect.Define` and its static
+twin `StaticEffect.DefinesLetter`, gated on an open letter in `bs` and
+re-marking it definite in place). No argument reads a later argument's mint;
+clause 4 holds.
 
-Both orders are therefore forward, and the choice between them is convention —
-binder before scope, the way a `let` is written — not law. The English order is
-restored by `Macros.whereLetter` and `Macros.whereLetterStatic`, which take the
-same two arguments in the same two contexts with the positions swapped.
+This is the contract's **obligation clause**: a mention may carry an obligation
+— here, that the letter be defined — which a later step discharges by
+re-marking the binding, and which the ability boundary is where to read.
+Whether an undischarged obligation is refused is a rules question per
+obligation. For letters the rules admit it: [CR#107.3] gives every X either a
+defining ability or its controller's choice, and [CR#107.3j] gives a gained
+ability's undefined X the value 0. So an open letter leaving an ability is
+recorded, not refused, and the obligation is soft — a `Define` may follow;
+nothing demands one. The refusals are the definition's own: no letter to define
+[CR#107.3c], and a second definition of a letter the first already settled
+[CR#107.3i].
 
-The record on the round that minted the pair (`docs/tickets/done/workbench-conditional-and-coordination.md`) justified binder-first
-differently: that "a reading-order core would be the cataphoric binder the
-workbench rejects". That reasoning is withdrawn here. A body-first core would
-type the body at `letterB w :: bs` exactly as the macro does, with no argument
-reading a later argument's mint; it would be forward too. The shape stands on
-the binder convention alone.
+Cost X and text X are one variable [CR#107.3i]: an activation cost's `{X}` or
+`-X` mints the letter into the ability's context (`costIntro`) and the text
+reads it. It mints the OPEN form, because [CR#107.3c] reads "an {X}, [-X], or X
+in its cost and/or its text" together and lets the text define the value of a
+letter the cost wrote; only an undefined one falls to its controller's
+announcement [CR#107.3a]. No printed line does both, and a count is not a
+refusal. A card's own mana cost is not yet threaded — a `Spell` effect is typed
+at `[]`, so Prosperity's `{X}` and its text X are one variable in prose only,
+and the text X is an introduction. Closing that means typing a card's text at
+its cost's letters, and [CR#107.3k] is the rule to read first.
 
-X is a name an ability defines [CR#107.3], not a pronoun resolving to an
-antecedent — the where-clause supplies a value for a name already in scope.
-That is why the two orders are informationally independent. The letter READ,
-`Amount.DefinedLetter`, is a genuine anaphor over the binding the binder minted
-and is gated like the pronouns; `Amount.XVal`, the cost variable whose value
-the controller announces [CR#107.3a], is neither and is ungated.
+This supersedes the scoping constructor a definition-first `WhereLetter` used
+to be (`docs/tickets/done/workbench-conditional-and-coordination.md`) and the
+binder-first convention argued there. The grammar now has no departure from
+[Semantics v2](semantics-v2.md) §2's "constructor argument order IS textual
+order".
 
 ### Deixis is not anaphora
 
 `This` [CR#113.7], `You` [CR#109.5], the player-group words, `AttachHost`
-("enchanted creature", "equipped creature" [CR#303.4m,301.5f]) and `XVal`
+("enchanted creature", "equipped creature" [CR#303.4m,301.5f]) and `LetterVal`
 read no context and carry no gate. They are writable in the empty context, which is
 the operational difference: an anaphor before its antecedent does not
 typecheck, and deixis does.
@@ -137,8 +145,8 @@ sibling's mints, would have compiled.
 Making it falsifiable costs little because Idris's telescope already forbids
 the crude failure: an argument's type cannot mention a later argument. What it
 does not forbid is a construction minting a binding into an earlier argument's
-context on behalf of a later one, and that is what clause 4 and the
-`WhereLetter` analysis are for.
+context on behalf of a later one, and that is what clause 4 and the obligation
+clause are for.
 
 Counted uniqueness rather than a nearest-wins tiebreak is the same decision
 seen from the read side: the guide's editorial rule — repeat the noun rather
@@ -157,18 +165,18 @@ incomplete landing.
 A threading function is reviewed for the shape `delta ++ bs`. Handing a clause
 *less* than the prefix is a scope decision and is fine (a conditioned clause
 exports nothing); so is re-marking it (`thisWayCtx`, `reflexCtx` and
-`delayedCtx` settle announced targets into definites through
-`settleTargets`). Handing it anything minted later is a defect.
+`delayedCtx` settle announced targets into definites through `settleTargets`;
+`effIntro`/`staticIntro` settle open letters into definites through
+`defineLetter`). Handing it anything minted later is a defect.
 
 The two conditional orientations stay two constructors. A proposal to collapse
 them into one is a proposal to reintroduce either the prenex lift or the
 rejected endophora binder, and is refused on that ground.
 
-`Macros.whereLetter` and `Macros.whereLetterStatic` are the authoring surface
-that spells the English order. Direct core-order use in the bench is legal —
-`WhereLetter` binds no implicits, so [Card authoring binds no
-implicits](card-authoring-binds-no-implicits.md) does not require the macro —
-but it is not the printed order.
+`Define` and `DefinesLetter` need no authoring macro over them: they are
+already written where the printed line writes them, and they bind no implicit a
+card would have to supply, so [Card authoring binds no
+implicits](card-authoring-binds-no-implicits.md) is satisfied by direct use.
 
 ## Tracked references
 

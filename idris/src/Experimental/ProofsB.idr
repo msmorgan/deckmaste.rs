@@ -290,7 +290,7 @@ badIfNotReadsMayBody Refl impossible
 ||| A subtype sits on one card type's own set [CR#205.1a], and this one is a creature type [CR#205.3m].
 public export
 badZombieArtifactToken : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [Black] (MkTypeLine [Zombie] [Artifact])
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [Black] (MkTypeLine [Zombie] [Artifact])
                           [] Nothing) {sf = ok})
 badZombieArtifactToken Oh impossible
 
@@ -307,7 +307,7 @@ badCreatureTokenNoPt Oh impossible
 ||| A token is a permanent [CR#111.1], so its line names a card type [CR#111.10].
 public export
 badTypelessToken : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [White] (MkTypeLine [] []) [] Nothing) {tt = ok})
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White] (MkTypeLine [] []) [] Nothing) {tt = ok})
 badTypelessToken Oh impossible
 
 
@@ -324,7 +324,7 @@ badRemoveCountersDead Oh impossible
 ||| Same surface phrase: a type word written twice is a word written twice.
 public export
 badTokenDuplicateType : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1, Lit 1)) [] (MkTypeLine [] [Creature, Creature])
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [] [Creature, Creature])
                           [] Nothing) {tc = ok})
 badTokenDuplicateType Oh impossible
 
