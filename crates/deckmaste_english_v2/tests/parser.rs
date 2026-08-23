@@ -433,6 +433,31 @@ fn target_noun(noun: Noun) -> NounPhrase {
     )
 }
 
+fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
+    NounPhrase::ControllerScalarQualifiedReference(ControllerScalarQualifiedReference {
+        reference: PostmodifiableReference::PostmodifiablePluralReference(
+            PostmodifiablePluralReference {
+                selector: PluralSelector::UnmarkedPluralSelector(UnmarkedPluralSelector {
+                    nominal: plural_nominal(creatures()),
+                }),
+            },
+        ),
+        controller_owner: ControllerOwnerQualification::YouControl(
+            YouControl::new(SubjectPronoun::You).expect("You is a valid controller"),
+        ),
+        scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
+            measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
+                characteristic: ScalarCharacteristic::Power,
+            }),
+            comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
+                threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
+                    value: ScalarNumber { magnitude: 2 },
+                }),
+            }),
+        }),
+    })
+}
+
 fn that_noun(noun: Noun) -> NounPhrase {
     NounPhrase::ThatReference(ThatReference {
         nominal: singular_nominal(noun),
@@ -605,23 +630,15 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         with_where_text,
     );
 
-    let threshold = ScalarNumber { magnitude: 2 };
-    let count = CountNp::new(
-        plural_head(creatures()),
-        SubjectPronoun::You,
-        threshold.clone(),
-    )
-    .expect("You is the valid CountNp controller");
-    let _: &PluralHead = &count.head;
-    let _: &ScalarNumber = &count.threshold;
-    let _: SubjectPronoun = count.controller();
-    assert_eq!(count.controller(), SubjectPronoun::You);
+    let controller = YouControl::new(SubjectPronoun::You).expect("You is a valid controller");
+    let _: SubjectPronoun = controller.controller();
+    assert_eq!(controller.controller(), SubjectPronoun::You);
     assert!(
-        CountNp::new(plural_head(creatures()), SubjectPronoun::It, threshold).is_none(),
-        "It is not a valid CountNp controller",
+        YouControl::new(SubjectPronoun::It).is_none(),
+        "It is not a valid controller",
     );
     let count = paragraph(Sentence::Declarative(Declarative {
-        subject: nominal_subject(NounPhrase::Count(count)),
+        subject: nominal_subject(creatures_you_control_with_power_at_most_two()),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: variable_x(),
         }),
@@ -631,7 +648,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     assert_eq!(
         parser
             .parse(&count_text, &plain_context)
-            .expect("rendered CountNp sentence parses")
+            .expect("rendered qualified nominal sentence parses")
             .render(&plain_context, &environment),
         count_text,
     );
@@ -822,6 +839,16 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "NounPhrase",
             "TargetedNounPhrase",
             "FullNounPhraseCoordination",
+            "PostmodifiableReference",
+            "ControllerOwnerQualification",
+            "SingularController",
+            "ZoneReference",
+            "ZoneQualification",
+            "ScalarThreshold",
+            "ScalarMeasure",
+            "ScalarComparison",
+            "CountComparison",
+            "ScalarQualification",
             "PossessiveOwner",
             "Possessive",
             "VerbPhrase",
@@ -947,7 +974,34 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "FullAndOrNounPhraseCoordination",
             "CoordinatedNounPhrase",
             "SourceSelfReference",
-            "CountNp",
+            "PostmodifiableIndefiniteReference",
+            "PostmodifiableSingularReference",
+            "PostmodifiablePluralReference",
+            "YouControl",
+            "OpponentController",
+            "OpponentControls",
+            "YouOwn",
+            "PossessedZone",
+            "UnpossessedZone",
+            "InZone",
+            "FromZone",
+            "FixedScalarThreshold",
+            "VariableScalarThreshold",
+            "CharacteristicScalar",
+            "ManaValueScalar",
+            "ScalarOrLess",
+            "ScalarOrGreater",
+            "ScalarLessThan",
+            "ScalarGreaterThan",
+            "ScalarLessThanOrEqualTo",
+            "CountOrMore",
+            "CountOrFewer",
+            "ScalarQualificationValue",
+            "ControllerQualifiedReference",
+            "ControllerScalarQualifiedReference",
+            "ZoneQualifiedReference",
+            "ScalarQualifiedReference",
+            "CountComparisonReference",
             "PossessiveSelfReference",
             "PossessiveNoun",
             "PossessiveValue",
@@ -969,6 +1023,9 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Status",
             "Designation",
             "ChosenQuality",
+            "ControllerNoun",
+            "ScalarCharacteristic",
+            "Zone",
             "NonCommonNoun",
             "NonTargetCommonModifier",
             "Supertype",
@@ -1042,9 +1099,34 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
             &["new", "try_new", "clause"][..],
         ),
         (
-            "CountNp",
-            &[("head", true), ("controller", false), ("threshold", true)][..],
+            "PostmodifiableSingularReference",
+            &[("selector", false)][..],
+            &["new", "try_new", "selector"][..],
+        ),
+        (
+            "YouControl",
+            &[("controller", false)][..],
             &["new", "try_new", "controller"][..],
+        ),
+        (
+            "OpponentController",
+            &[("controller", false)][..],
+            &["new", "try_new", "controller"][..],
+        ),
+        (
+            "YouOwn",
+            &[("owner", false)][..],
+            &["new", "try_new", "owner"][..],
+        ),
+        (
+            "UnpossessedZone",
+            &[("zone", false)][..],
+            &["new", "try_new", "zone"][..],
+        ),
+        (
+            "CountComparisonReference",
+            &[("count", false), ("comparison", true), ("selector", true)][..],
+            &["new", "try_new", "count"][..],
         ),
         (
             "SourceSelfReference",
@@ -1234,14 +1316,7 @@ fn gain_life_with_where() -> Ability {
             Box::new(gain_life_sentence()),
             Clause::Where(WhereClause {
                 variable: Variable::X,
-                value: nominal_object(NounPhrase::Count(
-                    CountNp::new(
-                        plural_head(creatures()),
-                        SubjectPronoun::You,
-                        ScalarNumber { magnitude: 2 },
-                    )
-                    .expect("You is a valid count controller"),
-                )),
+                value: nominal_object(creatures_you_control_with_power_at_most_two()),
             }),
         )
         .expect("Where is a valid trailing clause"),
@@ -1799,9 +1874,9 @@ fn parser_trace_parse_failure_bounds_expectations_without_truncating_private_err
                 end: text.len()
             }
         );
-        assert_eq!(failure.expectations().total(), 17);
+        assert_eq!(failure.expectations().total(), 27);
         assert_eq!(failure.expectations().shown(), expected_shown);
-        assert_eq!(failure.expectations().omitted(), 17 - expected_shown);
+        assert_eq!(failure.expectations().omitted(), 27 - expected_shown);
         if limit > 0 {
             assert_eq!(
                 failure.expectations().items()[0],
@@ -1888,24 +1963,34 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
                 Expectation::Nonterminal(NonterminalCategory::PluralCoordinationMember),
                 Expectation::Nonterminal(NonterminalCategory::SingularNominalCoordination),
                 Expectation::Nonterminal(NonterminalCategory::PluralNominalCoordination),
+                Expectation::Nonterminal(NonterminalCategory::ControllerOwnerQualification),
+                Expectation::Nonterminal(NonterminalCategory::SingularController),
+                Expectation::Nonterminal(NonterminalCategory::ZoneQualification),
+                Expectation::Nonterminal(NonterminalCategory::ScalarQualification),
+                Expectation::Terminal(TerminalClass::SubjectPronoun),
                 Expectation::Terminal(TerminalClass::Color),
                 Expectation::Terminal(TerminalClass::Status),
                 Expectation::Terminal(TerminalClass::NonTargetCommonModifier),
                 Expectation::Terminal(TerminalClass::Supertype),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(16)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(17)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(18)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(19)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(20)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(21)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(22)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(23)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(24)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(25)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(26)),
                 Expectation::Literal(","),
                 Expectation::Literal(", "),
                 Expectation::Literal("."),
+                Expectation::Literal("a"),
+                Expectation::Literal("an"),
+                Expectation::Literal("from"),
+                Expectation::Literal("in"),
                 Expectation::Literal("non"),
                 Expectation::Literal("non-"),
+                Expectation::Literal("with"),
             ]),
         })
     );
@@ -1924,21 +2009,31 @@ fn missing_period_reports_chart_derived_literal_expectation() {
             expectations: BTreeSet::from([
                 Expectation::Nonterminal(NonterminalCategory::SingularHead),
                 Expectation::Nonterminal(NonterminalCategory::PluralHead),
+                Expectation::Nonterminal(NonterminalCategory::ControllerOwnerQualification),
+                Expectation::Nonterminal(NonterminalCategory::SingularController),
+                Expectation::Nonterminal(NonterminalCategory::ZoneQualification),
+                Expectation::Nonterminal(NonterminalCategory::ScalarQualification),
+                Expectation::Terminal(TerminalClass::SubjectPronoun),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(16)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(17)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(18)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(19)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(20)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(21)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(22)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(23)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(24)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(25)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(26)),
                 Expectation::Literal(" and "),
                 Expectation::Literal(" and/or "),
                 Expectation::Literal(" or "),
                 Expectation::Literal(","),
                 Expectation::Literal(", "),
                 Expectation::Literal("."),
+                Expectation::Literal("a"),
+                Expectation::Literal("an"),
+                Expectation::Literal("from"),
+                Expectation::Literal("in"),
+                Expectation::Literal("with"),
             ]),
         })
     );

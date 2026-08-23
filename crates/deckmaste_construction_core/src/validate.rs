@@ -49,6 +49,7 @@ use crate::model::FieldKind;
 use crate::model::FormAtom;
 use crate::model::FormGuardSource;
 use crate::model::RequireExprSource;
+use crate::model::RequireSubjectSource;
 use crate::model::TerminalBinding;
 use crate::model::TraversalKind;
 use crate::model::VerbOperand;
@@ -6809,28 +6810,30 @@ fn seal_category_render_capabilities(
     loop {
         let before = context_required.len();
         for construction in &constructions {
-            let reads_context = construction.forms.iter().flat_map(|form| &form.atoms).any(|atom| {
-                let atom = match atom {
-                    FormAtom::Bound(bound) => bound.value.as_ref(),
-                    atom => atom,
-                };
-                match atom {
-                FormAtom::Identity(_) => true,
-                FormAtom::Role(role) => construction
-                    .element
-                    .fields
-                    .iter()
-                    .find(|field| same_identifier(&field.name, role))
-                    .is_some_and(|field| {
-                        matches!(&field.kind, FieldKind::Category(path) if context_required.contains(&path_name(path)))
-                    }),
-                FormAtom::Literal(_)
-                | FormAtom::Lex(_)
-                | FormAtom::Verb(_)
-                | FormAtom::OpenVerb(_)
-                | FormAtom::Noun(_) => false,
-                FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
-            }
+            let reads_context = construction.forms.iter().any(|form| {
+                form.atoms.iter().any(|atom| {
+                    let atom = match atom {
+                        FormAtom::Bound(bound) => bound.value.as_ref(),
+                        atom => atom,
+                    };
+                    match atom {
+                        FormAtom::Identity(_) => true,
+                        FormAtom::Role(role) => construction
+                            .element
+                            .fields
+                            .iter()
+                            .find(|field| same_identifier(&field.name, role))
+                            .is_some_and(|field| {
+                                matches!(&field.kind, FieldKind::Category(path) if context_required.contains(&path_name(path)))
+                            }),
+                        FormAtom::Literal(_)
+                        | FormAtom::Lex(_)
+                        | FormAtom::Verb(_)
+                        | FormAtom::OpenVerb(_)
+                        | FormAtom::Noun(_) => false,
+                        FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
+                    }
+                }) || matches!(&form.guard, FormGuardSource::When(requirement) if guard_reads_realized_category_feature(construction, requirement))
             });
             if reads_context {
                 context_required.insert(path_name(&construction.category));
@@ -6855,6 +6858,33 @@ fn seal_category_render_capabilities(
         capability.requires_context = context_required.contains(category);
     }
     capabilities
+}
+
+fn guard_reads_realized_category_feature(
+    construction: &crate::Construction,
+    requirement: &RequireExprSource,
+) -> bool {
+    match requirement {
+        RequireExprSource::In {
+            subject:
+                RequireSubjectSource::RoleFeature {
+                    role,
+                    feature: ParsedFeature::Onset | ParsedFeature::PossessiveEnding,
+                },
+            ..
+        } => construction
+            .element
+            .fields
+            .iter()
+            .find(|field| same_identifier(&field.name, role))
+            .is_some_and(|field| matches!(field.kind, FieldKind::Category(_))),
+        RequireExprSource::All(requirements) | RequireExprSource::Any(requirements) => requirements
+            .iter()
+            .any(|requirement| guard_reads_realized_category_feature(construction, requirement)),
+        RequireExprSource::OptionalPresence { .. }
+        | RequireExprSource::Length { .. }
+        | RequireExprSource::In { .. } => false,
+    }
 }
 
 fn resolve_local_feature(

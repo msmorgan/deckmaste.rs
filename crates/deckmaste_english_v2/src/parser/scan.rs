@@ -1304,7 +1304,7 @@ mod tests {
                     member: match lexeme {
                         VerbLexeme::Deal => "Deal",
                         VerbLexeme::Be => "Be",
-                        VerbLexeme::Gain | VerbLexeme::Control => unreachable!(),
+                        VerbLexeme::Gain | VerbLexeme::Control | VerbLexeme::Own => unreachable!(),
                     },
                 },
             );
@@ -2203,14 +2203,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            16,
+            19,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            19,
+            22,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2230,14 +2230,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            16,
+            19,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            19,
+            22,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2262,13 +2262,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (17, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (18, "Siege.", "Siege", SubtypeCategory::Battle),
-            (19, "Elf.", "Elf", SubtypeCategory::Creature),
-            (20, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (21, "Forest.", "Forest", SubtypeCategory::Land),
-            (22, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (23, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (20, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (21, "Siege.", "Siege", SubtypeCategory::Battle),
+            (22, "Elf.", "Elf", SubtypeCategory::Creature),
+            (23, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (24, "Forest.", "Forest", SubtypeCategory::Land),
+            (25, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (26, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2286,7 +2286,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (17..=23).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (20..=26).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2302,7 +2302,7 @@ mod tests {
         }
 
         let player = scan(
-            16,
+            19,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2803,7 +2803,36 @@ mod tests {
                 "FullAndOrNounPhraseCoordinationMembersSequenceMiddle",
                 "NounPhraseCoordinatedNounPhrase",
                 "NounPhraseSelfReference",
-                "NounPhraseCount",
+                "PostmodifiableReferencePostmodifiableIndefiniteReference [form an]",
+                "PostmodifiableReferencePostmodifiableIndefiniteReference [form a]",
+                "PostmodifiableReferencePostmodifiableSingularReference",
+                "PostmodifiableReferencePostmodifiablePluralReference",
+                "ControllerOwnerQualificationYouControl",
+                "SingularControllerOpponentController [form an]",
+                "SingularControllerOpponentController [form a]",
+                "ControllerOwnerQualificationOpponentControls",
+                "ControllerOwnerQualificationYouOwn",
+                "ZoneReferencePossessedZone",
+                "ZoneReferenceUnpossessedZone",
+                "ZoneQualificationInZone",
+                "ZoneQualificationFromZone",
+                "ScalarThresholdFixedScalarThreshold",
+                "ScalarThresholdVariableScalarThreshold",
+                "ScalarMeasureCharacteristicScalar",
+                "ScalarMeasureManaValueScalar",
+                "ScalarComparisonScalarOrLess",
+                "ScalarComparisonScalarOrGreater",
+                "ScalarComparisonScalarLessThan",
+                "ScalarComparisonScalarGreaterThan",
+                "ScalarComparisonScalarLessThanOrEqualTo",
+                "CountComparisonCountOrMore",
+                "CountComparisonCountOrFewer",
+                "ScalarQualificationScalarQualification",
+                "NounPhraseControllerQualifiedReference",
+                "NounPhraseControllerScalarQualifiedReference",
+                "NounPhraseZoneQualifiedReference",
+                "NounPhraseScalarQualifiedReference",
+                "NounPhraseCountComparisonReference",
                 "PossessiveOwnerPossessiveSelfReference",
                 "PossessiveOwnerPossessivePluralNoun",
                 "PossessivePossessive [form singular]",
@@ -2852,23 +2881,23 @@ mod tests {
                 "ObjectPronoun",
                 "ReflexivePronoun",
                 "Noun(Exact(Singular))",
-                "DeclarationNoun(16, Exact(Singular))",
-                "DeclarationNoun(17, Exact(Singular))",
-                "DeclarationNoun(18, Exact(Singular))",
                 "DeclarationNoun(19, Exact(Singular))",
                 "DeclarationNoun(20, Exact(Singular))",
                 "DeclarationNoun(21, Exact(Singular))",
                 "DeclarationNoun(22, Exact(Singular))",
                 "DeclarationNoun(23, Exact(Singular))",
+                "DeclarationNoun(24, Exact(Singular))",
+                "DeclarationNoun(25, Exact(Singular))",
+                "DeclarationNoun(26, Exact(Singular))",
                 "Noun(Exact(Plural))",
-                "DeclarationNoun(16, Exact(Plural))",
-                "DeclarationNoun(17, Exact(Plural))",
-                "DeclarationNoun(18, Exact(Plural))",
                 "DeclarationNoun(19, Exact(Plural))",
                 "DeclarationNoun(20, Exact(Plural))",
                 "DeclarationNoun(21, Exact(Plural))",
                 "DeclarationNoun(22, Exact(Plural))",
                 "DeclarationNoun(23, Exact(Plural))",
+                "DeclarationNoun(24, Exact(Plural))",
+                "DeclarationNoun(25, Exact(Plural))",
+                "DeclarationNoun(26, Exact(Plural))",
                 "Color",
                 "Status",
                 "Supertype",
@@ -2889,7 +2918,7 @@ mod tests {
                 "Literal(\"a\")",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(25)",
+                "CatalogIdentity(28)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
@@ -2909,10 +2938,22 @@ mod tests {
                 "PossessiveAbsolutePronoun",
                 "SelfReference",
                 "Verb(Control, Exact(Bare))",
-                "Literal(\"with\")",
-                "Literal(\"power\")",
+                "ControllerNoun",
+                "Verb(Control, Exact(ThirdPersonSingular))",
+                "Verb(Own, Exact(Bare))",
+                "Zone",
+                "Literal(\"in\")",
+                "Literal(\"from\")",
                 "ScalarNumber",
+                "ScalarCharacteristic",
+                "Literal(\"mana\")",
+                "Literal(\"value\")",
                 "Literal(\"less\")",
+                "Literal(\"greater\")",
+                "Literal(\"than\")",
+                "Literal(\"equal\")",
+                "Literal(\"fewer\")",
+                "Literal(\"with\")",
                 "Literal(\"'s\")",
                 "Literal(\"'\")",
                 "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Destroy\", position: Verb, feature: Any })",
@@ -3336,7 +3377,7 @@ mod tests {
     }
 
     #[test]
-    fn count_np_requires_you_and_bare_control() {
+    fn controller_qualification_requires_you_and_bare_control() {
         assert!(
             slice_candidates(
                 "You gain X life, where X is the number of creatures it control with power 2 or less.",

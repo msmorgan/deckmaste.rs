@@ -57,6 +57,16 @@ constructions! {
     }
     vocab Designation { Chosen = "chosen", Exiled = "exiled", }
     vocab ChosenQuality { Color = "color", Name = "name", Type = "type", }
+    vocab ControllerNoun { Opponent = "opponent", Player = "player", }
+    vocab ScalarCharacteristic { Power = "power", Toughness = "toughness", }
+    vocab Zone {
+        Battlefield = "battlefield",
+        Exile = "exile",
+        Graveyard = "graveyard",
+        Hand = "hand",
+        Library = "library",
+        Stack = "stack",
+    }
     vocab NonCommonNoun { Token = "token", }
     vocab NonTargetCommonModifier {
         Card = "card",
@@ -101,6 +111,7 @@ constructions! {
         Deal = "deal",
         Gain = "gain",
         Control = "control",
+        Own = "own",
         Be = "be" {
             Bare = "are",
             ThirdPersonSingular = "is",
@@ -1044,7 +1055,7 @@ constructions! {
         element VariableReference { count: lex Variable, selector: PluralSelector, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
-        derive onset = count.onset;
+        derive onset = Values::Consonant;
         form variable_reference = lex(count) selector;
     }
     construction up_to_one_reference: NounPhrase {
@@ -1230,26 +1241,179 @@ constructions! {
         derive onset = spelling.onset;
         form self_reference = identity(spelling);
     }
-    construction count: NounPhrase {
-        element CountNp {
-            head: PluralHead,
-            controller: lex SubjectPronoun,
-            threshold: lex ScalarNumber,
-        }
+    construction postmodifiable_indefinite_reference: PostmodifiableReference {
+        element PostmodifiableIndefiniteReference { nominal: SingularNominal, }
+        derive agreement = nominal.agreement;
+        derive number = nominal.number;
+        derive onset = nominal.onset;
+        form an when nominal.onset is Vowel = "an" nominal;
+        form a otherwise = "a" nominal;
+    }
+    construction postmodifiable_singular_reference: PostmodifiableReference {
+        element PostmodifiableSingularReference { selector: SingularSelector, }
+        require any(
+            selector is TargetSingularSelector,
+            selector is TargetSingularCoordinationSelector
+        );
+        derive agreement = selector.agreement;
+        derive number = selector.number;
+        derive onset = selector.onset;
+        form postmodifiable_singular_reference = selector;
+    }
+    construction postmodifiable_plural_reference: PostmodifiableReference {
+        element PostmodifiablePluralReference { selector: PluralSelector, }
+        derive agreement = selector.agreement;
+        derive number = selector.number;
+        derive onset = selector.onset;
+        form postmodifiable_plural_reference = selector;
+    }
+    construction you_control: ControllerOwnerQualification {
+        element YouControl { controller: lex SubjectPronoun, }
         require controller is You;
+        derive verb.agreement = Values::Bare;
+        form you_control = lex(controller) verb(VerbLexeme::Control);
+    }
+    construction opponent_controller: SingularController {
+        element OpponentController { controller: lex ControllerNoun, }
+        require controller is Opponent;
+        derive onset = controller.onset;
+        form an when controller.onset is Vowel = "an" lex(controller);
+        form a otherwise = "a" lex(controller);
+    }
+    construction opponent_controls: ControllerOwnerQualification {
+        element OpponentControls { controller: SingularController, }
+        derive verb.agreement = Values::ThirdPersonSingular;
+        form opponent_controls = controller verb(VerbLexeme::Control);
+    }
+    construction you_own: ControllerOwnerQualification {
+        element YouOwn { owner: lex SubjectPronoun, }
+        require owner is You;
+        derive verb.agreement = Values::Bare;
+        form you_own = lex(owner) verb(VerbLexeme::Own);
+    }
+    construction possessed_zone: ZoneReference {
+        element PossessedZone {
+            possessor: lex PossessiveDeterminerPronoun,
+            zone: lex Zone,
+        }
+        form possessed_zone = lex(possessor) lex(zone);
+    }
+    construction unpossessed_zone: ZoneReference {
+        element UnpossessedZone { zone: lex Zone, }
+        require zone is Exile;
+        form unpossessed_zone = lex(zone);
+    }
+    construction in_zone: ZoneQualification {
+        element InZone { zone: ZoneReference, }
+        form in_zone = "in" zone;
+    }
+    construction from_zone: ZoneQualification {
+        element FromZone { zone: ZoneReference, }
+        form from_zone = "from" zone;
+    }
+    construction fixed_scalar_threshold: ScalarThreshold {
+        element FixedScalarThreshold { value: lex ScalarNumber, }
+        form fixed_scalar_threshold = lex(value);
+    }
+    construction variable_scalar_threshold: ScalarThreshold {
+        element VariableScalarThreshold { value: lex Variable, }
+        form variable_scalar_threshold = lex(value);
+    }
+    construction characteristic_scalar: ScalarMeasure {
+        element CharacteristicScalar { characteristic: lex ScalarCharacteristic, }
+        form characteristic_scalar = lex(characteristic);
+    }
+    construction mana_value_scalar: ScalarMeasure {
+        element ManaValueScalar {}
+        form mana_value_scalar = "mana" "value";
+    }
+    construction scalar_or_less: ScalarComparison {
+        element ScalarOrLess { threshold: ScalarThreshold, }
+        form scalar_or_less = threshold "or" "less";
+    }
+    construction scalar_or_greater: ScalarComparison {
+        element ScalarOrGreater { threshold: ScalarThreshold, }
+        form scalar_or_greater = threshold "or" "greater";
+    }
+    construction scalar_less_than: ScalarComparison {
+        element ScalarLessThan { threshold: ScalarThreshold, }
+        form scalar_less_than = "less" "than" threshold;
+    }
+    construction scalar_greater_than: ScalarComparison {
+        element ScalarGreaterThan { threshold: ScalarThreshold, }
+        form scalar_greater_than = "greater" "than" threshold;
+    }
+    construction scalar_less_than_or_equal_to: ScalarComparison {
+        element ScalarLessThanOrEqualTo { threshold: ScalarThreshold, }
+        form scalar_less_than_or_equal_to = "less" "than" "or" "equal" "to" threshold;
+    }
+    construction count_or_more: CountComparison {
+        element CountOrMore {}
+        form count_or_more = "or" "more";
+    }
+    construction count_or_fewer: CountComparison {
+        element CountOrFewer {}
+        form count_or_fewer = "or" "fewer";
+    }
+    construction scalar_qualification: ScalarQualification {
+        element ScalarQualificationValue {
+            measure: ScalarMeasure,
+            comparison: ScalarComparison,
+        }
+        form scalar_qualification = "with" measure comparison;
+    }
+    construction controller_qualified_reference: NounPhrase {
+        element ControllerQualifiedReference {
+            reference: PostmodifiableReference,
+            controller_owner: ControllerOwnerQualification,
+        }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        form controller_qualified_reference = reference controller_owner;
+    }
+    construction controller_scalar_qualified_reference: NounPhrase {
+        element ControllerScalarQualifiedReference {
+            reference: PostmodifiableReference,
+            controller_owner: ControllerOwnerQualification,
+            scalar: ScalarQualification,
+        }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        form controller_scalar_qualified_reference = reference controller_owner scalar;
+    }
+    construction zone_qualified_reference: NounPhrase {
+        element ZoneQualifiedReference {
+            reference: PostmodifiableReference,
+            zone: ZoneQualification,
+        }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        form zone_qualified_reference = reference zone;
+    }
+    construction scalar_qualified_reference: NounPhrase {
+        element ScalarQualifiedReference {
+            reference: PostmodifiableReference,
+            scalar: ScalarQualification,
+        }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        form scalar_qualified_reference = reference scalar;
+    }
+    construction count_comparison_reference: NounPhrase {
+        element CountComparisonReference {
+            count: CardinalQuantity,
+            comparison: CountComparison,
+            selector: PluralSelector,
+        }
+        require count.cardinality is TwoPlus;
         derive agreement = Values::Bare;
         derive number = Values::Plural;
-        derive onset = head.onset;
-        derive controller.agreement = match controller {
-            He => Values::ThirdPersonSingular,
-            It => Values::ThirdPersonSingular,
-            She => Values::ThirdPersonSingular,
-            They => Values::Bare,
-            You => Values::Bare,
-        };
-        derive verb.agreement = controller.agreement;
-        form count = head lex(controller) verb(VerbLexeme::Control)
-            "with" "power" lex(threshold) "or" "less";
+        derive onset = Values::Consonant;
+        form count_comparison_reference = count comparison selector;
     }
     construction possessive_self_reference: PossessiveOwner {
         element PossessiveSelfReference { spelling: identity SelfReferenceSpelling, }

@@ -210,6 +210,31 @@ fn target_noun(noun: Noun) -> NounPhrase {
     )
 }
 
+fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
+    NounPhrase::ControllerScalarQualifiedReference(ControllerScalarQualifiedReference {
+        reference: PostmodifiableReference::PostmodifiablePluralReference(
+            PostmodifiablePluralReference {
+                selector: PluralSelector::UnmarkedPluralSelector(UnmarkedPluralSelector {
+                    nominal: plural_nominal(creatures()),
+                }),
+            },
+        ),
+        controller_owner: ControllerOwnerQualification::YouControl(
+            YouControl::new(SubjectPronoun::You).expect("You is a valid controller"),
+        ),
+        scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
+            measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
+                characteristic: ScalarCharacteristic::Power,
+            }),
+            comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
+                threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
+                    value: ScalarNumber { magnitude: 2 },
+                }),
+            }),
+        }),
+    })
+}
+
 fn that_noun(noun: Noun) -> NounPhrase {
     NounPhrase::ThatReference(ThatReference {
         nominal: singular_nominal(noun),
@@ -432,14 +457,7 @@ fn gain_life_with_where() -> Sentence {
             })),
             Clause::Where(WhereClause {
                 variable: Variable::X,
-                value: nominal_object(NounPhrase::Count(
-                    CountNp::new(
-                        plural_head(creatures()),
-                        SubjectPronoun::You,
-                        ScalarNumber { magnitude: 2 },
-                    )
-                    .expect("You is a valid count controller"),
-                )),
+                value: nominal_object(creatures_you_control_with_power_at_most_two()),
             }),
         )
         .expect("Where is a valid trailing clause"),
@@ -657,14 +675,7 @@ fn renders_gain_life_with_a_where_binder_exactly() {
 #[test]
 fn renders_a_plural_count_subject_with_a_bare_verb() {
     let value = Sentence::Declarative(Declarative {
-        subject: nominal_subject(NounPhrase::Count(
-            CountNp::new(
-                plural_head(creatures()),
-                SubjectPronoun::You,
-                ScalarNumber { magnitude: 2 },
-            )
-            .expect("You is a valid count controller"),
-        )),
+        subject: nominal_subject(creatures_you_control_with_power_at_most_two()),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: Amount::Variable(VariableAmount {
                 variable: Variable::X,

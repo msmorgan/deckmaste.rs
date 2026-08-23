@@ -7,11 +7,13 @@ use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::ast::ChosenQuality;
 use deckmaste_english_v2::ast::Color;
 use deckmaste_english_v2::ast::CommonNoun;
+use deckmaste_english_v2::ast::ControllerNoun;
 use deckmaste_english_v2::ast::Designation;
 use deckmaste_english_v2::ast::ObjectPronoun;
 use deckmaste_english_v2::ast::PossessiveAbsolutePronoun;
 use deckmaste_english_v2::ast::PossessiveDeterminerPronoun;
 use deckmaste_english_v2::ast::ReflexivePronoun;
+use deckmaste_english_v2::ast::ScalarCharacteristic;
 use deckmaste_english_v2::ast::ScalarNumber;
 use deckmaste_english_v2::ast::SelfReferenceSpelling;
 use deckmaste_english_v2::ast::Status;
@@ -19,6 +21,7 @@ use deckmaste_english_v2::ast::SubjectPronoun;
 use deckmaste_english_v2::ast::Supertype;
 use deckmaste_english_v2::ast::Variable;
 use deckmaste_english_v2::ast::VerbLexeme;
+use deckmaste_english_v2::ast::Zone;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
@@ -146,6 +149,65 @@ impl Visitor for NominalVisitor {
         deckmaste_english_v2::visit::walk_cardinal_quantity(self, value);
     }
 
+    fn visit_postmodifiable_reference(
+        &mut self,
+        value: &deckmaste_english_v2::ast::PostmodifiableReference,
+    ) {
+        self.events.push("PostmodifiableReference".to_owned());
+        deckmaste_english_v2::visit::walk_postmodifiable_reference(self, value);
+    }
+
+    fn visit_controller_owner_qualification(
+        &mut self,
+        value: &deckmaste_english_v2::ast::ControllerOwnerQualification,
+    ) {
+        self.events.push("ControllerOwnerQualification".to_owned());
+        deckmaste_english_v2::visit::walk_controller_owner_qualification(self, value);
+    }
+
+    fn visit_singular_controller(&mut self, value: &deckmaste_english_v2::ast::SingularController) {
+        self.events.push("SingularController".to_owned());
+        deckmaste_english_v2::visit::walk_singular_controller(self, value);
+    }
+
+    fn visit_zone_reference(&mut self, value: &deckmaste_english_v2::ast::ZoneReference) {
+        self.events.push("ZoneReference".to_owned());
+        deckmaste_english_v2::visit::walk_zone_reference(self, value);
+    }
+
+    fn visit_zone_qualification(&mut self, value: &deckmaste_english_v2::ast::ZoneQualification) {
+        self.events.push("ZoneQualification".to_owned());
+        deckmaste_english_v2::visit::walk_zone_qualification(self, value);
+    }
+
+    fn visit_scalar_threshold(&mut self, value: &deckmaste_english_v2::ast::ScalarThreshold) {
+        self.events.push("ScalarThreshold".to_owned());
+        deckmaste_english_v2::visit::walk_scalar_threshold(self, value);
+    }
+
+    fn visit_scalar_measure(&mut self, value: &deckmaste_english_v2::ast::ScalarMeasure) {
+        self.events.push("ScalarMeasure".to_owned());
+        deckmaste_english_v2::visit::walk_scalar_measure(self, value);
+    }
+
+    fn visit_scalar_comparison(&mut self, value: &deckmaste_english_v2::ast::ScalarComparison) {
+        self.events.push("ScalarComparison".to_owned());
+        deckmaste_english_v2::visit::walk_scalar_comparison(self, value);
+    }
+
+    fn visit_count_comparison(&mut self, value: &deckmaste_english_v2::ast::CountComparison) {
+        self.events.push("CountComparison".to_owned());
+        deckmaste_english_v2::visit::walk_count_comparison(self, value);
+    }
+
+    fn visit_scalar_qualification(
+        &mut self,
+        value: &deckmaste_english_v2::ast::ScalarQualification,
+    ) {
+        self.events.push("ScalarQualification".to_owned());
+        deckmaste_english_v2::visit::walk_scalar_qualification(self, value);
+    }
+
     record_product!(visit_paragraph, Paragraph, walk_paragraph);
     record_product!(visit_imperative, Imperative, walk_imperative);
     record_product!(visit_declarative, Declarative, walk_declarative);
@@ -271,7 +333,114 @@ impl Visitor for NominalVisitor {
         SourceSelfReference,
         walk_source_self_reference
     );
-    record_product!(visit_count_np, CountNp, walk_count_np);
+    record_product!(
+        visit_postmodifiable_indefinite_reference,
+        PostmodifiableIndefiniteReference,
+        walk_postmodifiable_indefinite_reference
+    );
+    record_product!(
+        visit_postmodifiable_singular_reference,
+        PostmodifiableSingularReference,
+        walk_postmodifiable_singular_reference
+    );
+    record_product!(
+        visit_postmodifiable_plural_reference,
+        PostmodifiablePluralReference,
+        walk_postmodifiable_plural_reference
+    );
+    record_product!(visit_you_control, YouControl, walk_you_control);
+    record_product!(
+        visit_opponent_controller,
+        OpponentController,
+        walk_opponent_controller
+    );
+    record_product!(
+        visit_opponent_controls,
+        OpponentControls,
+        walk_opponent_controls
+    );
+    record_product!(visit_you_own, YouOwn, walk_you_own);
+    record_product!(visit_possessed_zone, PossessedZone, walk_possessed_zone);
+    record_product!(
+        visit_unpossessed_zone,
+        UnpossessedZone,
+        walk_unpossessed_zone
+    );
+    record_product!(visit_in_zone, InZone, walk_in_zone);
+    record_product!(visit_from_zone, FromZone, walk_from_zone);
+    record_product!(
+        visit_fixed_scalar_threshold,
+        FixedScalarThreshold,
+        walk_fixed_scalar_threshold
+    );
+    record_product!(
+        visit_variable_scalar_threshold,
+        VariableScalarThreshold,
+        walk_variable_scalar_threshold
+    );
+    record_product!(
+        visit_characteristic_scalar,
+        CharacteristicScalar,
+        walk_characteristic_scalar
+    );
+    record_product!(
+        visit_mana_value_scalar,
+        ManaValueScalar,
+        walk_mana_value_scalar
+    );
+    record_product!(visit_scalar_or_less, ScalarOrLess, walk_scalar_or_less);
+    record_product!(
+        visit_scalar_or_greater,
+        ScalarOrGreater,
+        walk_scalar_or_greater
+    );
+    record_product!(
+        visit_scalar_less_than,
+        ScalarLessThan,
+        walk_scalar_less_than
+    );
+    record_product!(
+        visit_scalar_greater_than,
+        ScalarGreaterThan,
+        walk_scalar_greater_than
+    );
+    record_product!(
+        visit_scalar_less_than_or_equal_to,
+        ScalarLessThanOrEqualTo,
+        walk_scalar_less_than_or_equal_to
+    );
+    record_product!(visit_count_or_more, CountOrMore, walk_count_or_more);
+    record_product!(visit_count_or_fewer, CountOrFewer, walk_count_or_fewer);
+    record_product!(
+        visit_scalar_qualification_value,
+        ScalarQualificationValue,
+        walk_scalar_qualification_value
+    );
+    record_product!(
+        visit_controller_qualified_reference,
+        ControllerQualifiedReference,
+        walk_controller_qualified_reference
+    );
+    record_product!(
+        visit_controller_scalar_qualified_reference,
+        ControllerScalarQualifiedReference,
+        walk_controller_scalar_qualified_reference
+    );
+    record_product!(
+        visit_zone_qualified_reference,
+        ZoneQualifiedReference,
+        walk_zone_qualified_reference
+    );
+    record_product!(
+        visit_scalar_qualified_reference,
+        ScalarQualifiedReference,
+        walk_scalar_qualified_reference
+    );
+    record_product!(
+        visit_count_comparison_reference,
+        CountComparisonReference,
+        walk_count_comparison_reference
+    );
     record_product!(
         visit_unmarked_singular_selector,
         UnmarkedSingularSelector,
@@ -578,6 +747,18 @@ impl Visitor for NominalVisitor {
 
     fn visit_chosen_quality(&mut self, value: ChosenQuality) {
         self.events.push(format!("ChosenQuality:{value:?}"));
+    }
+
+    fn visit_controller_noun(&mut self, value: ControllerNoun) {
+        self.events.push(format!("ControllerNoun:{value:?}"));
+    }
+
+    fn visit_scalar_characteristic(&mut self, value: ScalarCharacteristic) {
+        self.events.push(format!("ScalarCharacteristic:{value:?}"));
+    }
+
+    fn visit_zone(&mut self, value: Zone) {
+        self.events.push(format!("Zone:{value:?}"));
     }
 
     fn visit_supertype(&mut self, value: Supertype) {
@@ -2256,6 +2437,600 @@ fn invalid_nominal_order_agreement_join_and_case_are_rejected() {
             "{text:?} must remain outside the typed nominal grammar",
         );
     }
+}
+
+#[test]
+fn restricted_nominal_postmodifiers_and_comparison_families_parse() {
+    let parser = parser();
+    let context = context("Context Card");
+
+    for text in [
+        "Creatures you control gain 2 life.",
+        "Destroy a creature an opponent controls.",
+        "Destroy target creature you own.",
+        "Destroy target creature card from your graveyard.",
+        "Destroy target card in exile.",
+        "Destroy target creature with power 2 or less.",
+        "Destroy target creature with power 2 or greater.",
+        "Destroy target creature with power less than 2.",
+        "Destroy target creature with power greater than 2.",
+        "Destroy target creature with power less than or equal to 2.",
+        "Destroy target creature with mana value X or greater.",
+        "Destroy two or more creatures.",
+        "Destroy two or fewer creatures.",
+    ] {
+        let parsed = parser
+            .parse(text, &context)
+            .unwrap_or_else(|error| panic!("{text:?} must select: {error:?}"));
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+    }
+
+    for (text, reason) in [
+        (
+            "Destroy target creature that entered this turn.",
+            "general event relatives remain ordinary Plan 08 parse failures",
+        ),
+        (
+            "Destroy target creature with power 2 or fewer.",
+            "scalar syntax cannot select the countable fewer family",
+        ),
+        (
+            "Destroy target creature with mana value X or more.",
+            "scalar syntax cannot select the countable more family",
+        ),
+        (
+            "Destroy two or less creatures.",
+            "countable syntax cannot select the scalar less family",
+        ),
+        (
+            "Destroy two or greater creatures.",
+            "countable syntax cannot select the scalar greater family",
+        ),
+        (
+            "Destroy target creature with power 2 or less you control.",
+            "numeric qualifications cannot precede controller qualifications",
+        ),
+        (
+            "Destroy target creature from your graveyard you control.",
+            "zone qualifications cannot precede controller qualifications",
+        ),
+        (
+            "Creatures you controls gain 2 life.",
+            "you requires bare control",
+        ),
+        (
+            "Destroy a creature an opponent control.",
+            "an opponent requires third-person-singular controls",
+        ),
+    ] {
+        assert!(parser.parse(text, &context).is_err(), "{reason}: {text:?}");
+    }
+}
+
+#[test]
+fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
+    let parser = parser();
+    for (card_name, text, path, specificity) in [
+        (
+            "Context Card",
+            "Creatures you control with power 2 or less gain X life.",
+            "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseControllerScalarQualifiedReference/PostmodifiableReferencePostmodifiablePluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold/VerbPhraseGainLife/AmountVariable",
+            "NNNNNNNNNNTTTLNNTNLLTTNLT",
+        ),
+        (
+            "Defeat",
+            "Destroy target creature with power 2 or less.",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseScalarQualifiedReference/PostmodifiableReferencePostmodifiableSingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold",
+            "NNTNNNNNLNNTLNNTNLLT",
+        ),
+        (
+            "Context Card",
+            "Creatures you control gain 2 life.",
+            "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseControllerQualifiedReference/PostmodifiableReferencePostmodifiablePluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/VerbPhraseGainLife/AmountNumber",
+            "NNNNNNNNNTTTTNLT",
+        ),
+        (
+            "Context Card",
+            "Destroy a creature an opponent controls.",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseControllerQualifiedReference/PostmodifiableReferencePostmodifiableIndefiniteReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ControllerOwnerQualificationOpponentControls/SingularControllerOpponentController",
+            "NNTNNNNLNNTNTLT",
+        ),
+        (
+            "Context Card",
+            "Destroy target creature you own.",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseControllerQualifiedReference/PostmodifiableReferencePostmodifiableSingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ControllerOwnerQualificationYouOwn",
+            "NNTNNNNNLNNTTT",
+        ),
+        (
+            "Raise Dead",
+            "Destroy target creature card from your graveyard.",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseZoneQualifiedReference/PostmodifiableReferencePostmodifiableSingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierTypeModifier/SingularHeadCommonSingularHead/ZoneQualificationFromZone/ZoneReferencePossessedZone",
+            "NNTNNNNNLNNNTTLNTT",
+        ),
+        (
+            "Context Card",
+            "Destroy target creature with mana value X or greater.",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseScalarQualifiedReference/PostmodifiableReferencePostmodifiableSingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ScalarQualificationScalarQualification/ScalarMeasureManaValueScalar/ScalarComparisonScalarOrGreater/ScalarThresholdVariableScalarThreshold",
+            "NNTNNNNNLNNTLNNLLNLLT",
+        ),
+        (
+            "Context Card",
+            "Destroy two or more creatures.",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrMore/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            "NNTNNNNNTLLNNT",
+        ),
+        (
+            "Context Card",
+            "Destroy two or fewer creatures.",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrFewer/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            "NNTNNNNNTLLNNT",
+        ),
+    ] {
+        let context = context(card_name);
+        let analysis = parser.analyze(text, &context);
+        let selected = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
+        let decision = analysis.decision().expect("selected parse has a decision");
+        assert_eq!(decision.candidates().len(), 1, "candidate census: {text:?}");
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
+        assert_eq!(decision.selected(), Some(0));
+        assert_eq!(decision.survivors(), [0]);
+        assert!(decision.comparisons().is_empty());
+        assert!(decision.exception_uses().is_empty());
+        assert_eq!(decision.candidates()[0].ordinal(), 0);
+        assert_eq!(decision.candidates()[0].construction_path().join("/"), path);
+        assert_eq!(
+            compact_specificity(decision.candidates()[0].specificity()),
+            specificity,
+        );
+        assert_eq!(selected.render(&context, parser.environment()), text);
+
+        let ownership = analysis.ownership().expect("selected parse owns its bytes");
+        assert!(ownership.failures().is_empty(), "{text:?}: {ownership:?}");
+        assert!(ownership.summary().covered(), "{text:?}: {ownership:?}");
+        assert_eq!(ownership.rendered_text(), text);
+    }
+}
+
+fn assert_former_count_fixture_ownership(
+    ownership: &deckmaste_english_v2::parser::SelectedOwnership,
+    text: &str,
+) {
+    let project = |claims: &[deckmaste_english_v2::parser::LexicalClaim]| {
+        claims
+            .iter()
+            .map(|claim| {
+                (
+                    claim.span().start,
+                    claim.span().end,
+                    claim.kind(),
+                    claim.stable_owner_id().to_owned(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let expected = [
+        (
+            0,
+            9,
+            LexicalProvenanceKind::Lexeme,
+            "lexeme:type/Creature/plural",
+        ),
+        (
+            9,
+            13,
+            LexicalProvenanceKind::Vocab,
+            "vocab:SubjectPronoun/You",
+        ),
+        (
+            13,
+            21,
+            LexicalProvenanceKind::Lexeme,
+            "lexeme:VerbLexeme/Control/bare",
+        ),
+        (
+            21,
+            26,
+            LexicalProvenanceKind::FormLiteral,
+            "form:scalar_qualification/scalar_qualification/0",
+        ),
+        (
+            26,
+            32,
+            LexicalProvenanceKind::Vocab,
+            "vocab:ScalarCharacteristic/Power",
+        ),
+        (32, 34, LexicalProvenanceKind::Codec, "codec:ScalarNumber"),
+        (
+            34,
+            37,
+            LexicalProvenanceKind::FormLiteral,
+            "form:scalar_or_less/scalar_or_less/1",
+        ),
+        (
+            37,
+            42,
+            LexicalProvenanceKind::FormLiteral,
+            "form:scalar_or_less/scalar_or_less/2",
+        ),
+        (
+            42,
+            47,
+            LexicalProvenanceKind::Lexeme,
+            "lexeme:VerbLexeme/Gain/bare",
+        ),
+        (47, 49, LexicalProvenanceKind::Vocab, "vocab:Variable/X"),
+        (
+            49,
+            54,
+            LexicalProvenanceKind::FormLiteral,
+            "form:gain_life/gain_life/2",
+        ),
+        (
+            54,
+            55,
+            LexicalProvenanceKind::FormLiteral,
+            "structural:Paragraph/sentences/terminator/0",
+        ),
+    ]
+    .map(|(start, end, kind, owner)| (start, end, kind, owner.to_owned()))
+    .to_vec();
+    assert_eq!(project(ownership.parsed_claims()), expected);
+    assert_eq!(project(ownership.rendered_claims()), expected);
+    assert!(ownership.failures().is_empty());
+    assert!(ownership.summary().covered());
+    assert_eq!(ownership.rendered_text(), text);
+}
+
+#[test]
+fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
+    use deckmaste_english_v2::ast::Ability;
+    use deckmaste_english_v2::ast::Amount;
+    use deckmaste_english_v2::ast::ControllerOwnerQualification;
+    use deckmaste_english_v2::ast::NounPhrase;
+    use deckmaste_english_v2::ast::ScalarComparison;
+    use deckmaste_english_v2::ast::ScalarMeasure;
+    use deckmaste_english_v2::ast::ScalarQualification;
+    use deckmaste_english_v2::ast::ScalarThreshold;
+    use deckmaste_english_v2::ast::Sentence;
+    use deckmaste_english_v2::ast::Subject;
+    use deckmaste_english_v2::ast::VerbPhrase;
+
+    let parser = parser();
+    let context = context("Context Card");
+    let text = "Creatures you control with power 2 or less gain X life.";
+    let analysis = parser.analyze(text, &context);
+    let selected = analysis.selected().expect("former fixture selects");
+
+    let Ability::Paragraph(paragraph) = selected else {
+        panic!("former fixture remains a paragraph: {selected:?}");
+    };
+    let [Sentence::Declarative(declarative)] = paragraph.sentences() else {
+        panic!("former fixture remains one declarative: {paragraph:?}");
+    };
+    let Subject::SubjectNominal(subject) = &declarative.subject else {
+        panic!("former fixture retains a nominal subject: {declarative:?}");
+    };
+    let NounPhrase::ControllerScalarQualifiedReference(reference) = &subject.value else {
+        panic!("hardcoded count is replaced by the typed product: {subject:?}");
+    };
+    assert!(matches!(
+        reference.reference,
+        deckmaste_english_v2::ast::PostmodifiableReference::PostmodifiablePluralReference(_)
+    ));
+    assert!(matches!(
+        &reference.controller_owner,
+        ControllerOwnerQualification::YouControl(value)
+            if value.controller() == SubjectPronoun::You
+    ));
+    let ScalarQualification::ScalarQualification(scalar) = &reference.scalar;
+    assert!(matches!(
+        scalar.measure,
+        ScalarMeasure::CharacteristicScalar(deckmaste_english_v2::ast::CharacteristicScalar {
+            characteristic: ScalarCharacteristic::Power,
+        })
+    ));
+    assert!(matches!(
+        &scalar.comparison,
+        ScalarComparison::ScalarOrLess(deckmaste_english_v2::ast::ScalarOrLess {
+            threshold: ScalarThreshold::FixedScalarThreshold(
+                deckmaste_english_v2::ast::FixedScalarThreshold {
+                    value: ScalarNumber { magnitude: 2 },
+                }
+            ),
+        })
+    ));
+    assert!(matches!(
+        &declarative.predicate,
+        VerbPhrase::GainLife(deckmaste_english_v2::ast::GainLife {
+            amount: Amount::Variable(deckmaste_english_v2::ast::VariableAmount {
+                variable: Variable::X,
+            }),
+        })
+    ));
+
+    let mut visitor = NominalVisitor::default();
+    visitor.visit_ability(selected);
+    assert_eq!(
+        visitor.events,
+        [
+            "Ability",
+            "Paragraph",
+            "Sentence",
+            "Declarative",
+            "Subject",
+            "NominalSubject",
+            "NounPhrase",
+            "ControllerScalarQualifiedReference",
+            "PostmodifiableReference",
+            "PostmodifiablePluralReference",
+            "PluralSelector",
+            "UnmarkedPluralSelector",
+            "PluralNominal",
+            "BarePluralNominal",
+            "PluralHead",
+            "TypePluralHead",
+            "Declaration:Type:Creature",
+            "ControllerOwnerQualification",
+            "YouControl",
+            "SubjectPronoun:You",
+            "VerbLexeme:Control",
+            "ScalarQualification",
+            "ScalarQualificationValue",
+            "ScalarMeasure",
+            "CharacteristicScalar",
+            "ScalarCharacteristic:Power",
+            "ScalarComparison",
+            "ScalarOrLess",
+            "ScalarThreshold",
+            "FixedScalarThreshold",
+            "ScalarNumber:2",
+            "VerbPhrase",
+            "GainLife",
+            "VerbLexeme:Gain",
+            "Amount",
+            "VariableAmount",
+            "Variable:X",
+        ]
+    );
+
+    assert_former_count_fixture_ownership(
+        analysis.ownership().expect("former fixture owns all bytes"),
+        text,
+    );
+}
+
+const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
+    (
+        "Creatures you control gain 2 life.",
+        &[
+            "ControllerQualifiedReference",
+            "PostmodifiableReference",
+            "PostmodifiablePluralReference",
+            "ControllerOwnerQualification",
+            "YouControl",
+            "SubjectPronoun:You",
+            "VerbLexeme:Control",
+        ],
+    ),
+    (
+        "Destroy a creature an opponent controls.",
+        &[
+            "ControllerQualifiedReference",
+            "PostmodifiableReference",
+            "PostmodifiableIndefiniteReference",
+            "ControllerOwnerQualification",
+            "OpponentControls",
+            "SingularController",
+            "OpponentController",
+            "ControllerNoun:Opponent",
+            "VerbLexeme:Control",
+        ],
+    ),
+    (
+        "Destroy target creature you own.",
+        &[
+            "ControllerQualifiedReference",
+            "PostmodifiableReference",
+            "PostmodifiableSingularReference",
+            "ControllerOwnerQualification",
+            "YouOwn",
+            "SubjectPronoun:You",
+            "VerbLexeme:Own",
+        ],
+    ),
+    (
+        "Destroy target creature card from your graveyard.",
+        &[
+            "ZoneQualifiedReference",
+            "PostmodifiableReference",
+            "PostmodifiableSingularReference",
+            "ZoneQualification",
+            "FromZone",
+            "ZoneReference",
+            "PossessedZone",
+            "PossessiveDeterminerPronoun:Your",
+            "Zone:Graveyard",
+        ],
+    ),
+    (
+        "Destroy target card in exile.",
+        &[
+            "ZoneQualifiedReference",
+            "PostmodifiableReference",
+            "PostmodifiableSingularReference",
+            "ZoneQualification",
+            "InZone",
+            "ZoneReference",
+            "UnpossessedZone",
+            "Zone:Exile",
+        ],
+    ),
+    (
+        "Destroy target creature with mana value X or greater.",
+        &[
+            "ScalarQualifiedReference",
+            "PostmodifiableReference",
+            "PostmodifiableSingularReference",
+            "ScalarQualification",
+            "ScalarQualificationValue",
+            "ScalarMeasure",
+            "ManaValueScalar",
+            "ScalarComparison",
+            "ScalarOrGreater",
+            "ScalarThreshold",
+            "VariableScalarThreshold",
+            "Variable:X",
+        ],
+    ),
+    (
+        "Destroy target creature with power less than 2.",
+        &[
+            "ScalarQualifiedReference",
+            "PostmodifiableReference",
+            "PostmodifiableSingularReference",
+            "ScalarQualification",
+            "ScalarQualificationValue",
+            "ScalarMeasure",
+            "CharacteristicScalar",
+            "ScalarCharacteristic:Power",
+            "ScalarComparison",
+            "ScalarLessThan",
+            "ScalarThreshold",
+            "FixedScalarThreshold",
+        ],
+    ),
+    (
+        "Destroy target creature with power greater than 2.",
+        &[
+            "ScalarQualifiedReference",
+            "PostmodifiableReference",
+            "PostmodifiableSingularReference",
+            "ScalarQualification",
+            "ScalarQualificationValue",
+            "ScalarMeasure",
+            "CharacteristicScalar",
+            "ScalarCharacteristic:Power",
+            "ScalarComparison",
+            "ScalarGreaterThan",
+            "ScalarThreshold",
+            "FixedScalarThreshold",
+        ],
+    ),
+    (
+        "Destroy target creature with power less than or equal to 2.",
+        &[
+            "ScalarQualifiedReference",
+            "PostmodifiableReference",
+            "PostmodifiableSingularReference",
+            "ScalarQualification",
+            "ScalarQualificationValue",
+            "ScalarMeasure",
+            "CharacteristicScalar",
+            "ScalarCharacteristic:Power",
+            "ScalarComparison",
+            "ScalarLessThanOrEqualTo",
+            "ScalarThreshold",
+            "FixedScalarThreshold",
+        ],
+    ),
+    (
+        "Destroy two or more creatures.",
+        &[
+            "CountComparisonReference",
+            "CardinalQuantity",
+            "CardinalQuantityValue",
+            "CountComparison",
+            "CountOrMore",
+        ],
+    ),
+    (
+        "Destroy two or fewer creatures.",
+        &[
+            "CountComparisonReference",
+            "CardinalQuantity",
+            "CardinalQuantityValue",
+            "CountComparison",
+            "CountOrFewer",
+        ],
+    ),
+];
+
+fn assert_task10_visitor_preorders(cases: &[(&str, &[&str])]) {
+    let parser = parser();
+    let context = context("Context Card");
+    for &(text, expected) in cases {
+        let parsed = parser
+            .parse(text, &context)
+            .unwrap_or_else(|error| panic!("{text:?} must parse: {error:?}"));
+        let mut visitor = NominalVisitor::default();
+        visitor.visit_ability(&parsed);
+        let task10_events = visitor
+            .events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event.as_str(),
+                    "ControllerQualifiedReference"
+                        | "ControllerScalarQualifiedReference"
+                        | "ZoneQualifiedReference"
+                        | "ScalarQualifiedReference"
+                        | "CountComparisonReference"
+                        | "PostmodifiableReference"
+                        | "PostmodifiableIndefiniteReference"
+                        | "PostmodifiableSingularReference"
+                        | "PostmodifiablePluralReference"
+                        | "ControllerOwnerQualification"
+                        | "YouControl"
+                        | "OpponentControls"
+                        | "SingularController"
+                        | "OpponentController"
+                        | "YouOwn"
+                        | "SubjectPronoun:You"
+                        | "ControllerNoun:Opponent"
+                        | "VerbLexeme:Control"
+                        | "VerbLexeme:Own"
+                        | "ZoneQualification"
+                        | "FromZone"
+                        | "InZone"
+                        | "ZoneReference"
+                        | "PossessedZone"
+                        | "UnpossessedZone"
+                        | "PossessiveDeterminerPronoun:Your"
+                        | "Zone:Graveyard"
+                        | "Zone:Exile"
+                        | "ScalarQualification"
+                        | "ScalarQualificationValue"
+                        | "ScalarMeasure"
+                        | "CharacteristicScalar"
+                        | "ManaValueScalar"
+                        | "ScalarCharacteristic:Power"
+                        | "ScalarComparison"
+                        | "ScalarOrGreater"
+                        | "ScalarLessThan"
+                        | "ScalarGreaterThan"
+                        | "ScalarLessThanOrEqualTo"
+                        | "ScalarThreshold"
+                        | "FixedScalarThreshold"
+                        | "VariableScalarThreshold"
+                        | "Variable:X"
+                        | "CardinalQuantity"
+                        | "CardinalQuantityValue"
+                        | "CountComparison"
+                        | "CountOrMore"
+                        | "CountOrFewer"
+                )
+            })
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        assert_eq!(task10_events, expected, "visitor preorder for {text:?}");
+    }
+}
+
+#[test]
+fn task10_visitor_callbacks_have_literal_typed_preorders() {
+    assert_task10_visitor_preorders(TASK10_VISITOR_CASES);
 }
 
 #[test]

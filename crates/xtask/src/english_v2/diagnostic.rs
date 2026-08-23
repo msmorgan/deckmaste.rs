@@ -923,6 +923,16 @@ enum NonterminalKind {
     PluralSelector,
     TargetedNounPhrase,
     FullNounPhraseCoordination,
+    PostmodifiableReference,
+    ControllerOwnerQualification,
+    SingularController,
+    ZoneReference,
+    ZoneQualification,
+    ScalarThreshold,
+    ScalarMeasure,
+    ScalarComparison,
+    CountComparison,
+    ScalarQualification,
     VerbPhrase,
     PossessiveOwner,
     Possessive,
@@ -1375,6 +1385,18 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::FullNounPhraseCoordination => {
             NonterminalKind::FullNounPhraseCoordination
         }
+        NonterminalCategory::PostmodifiableReference => NonterminalKind::PostmodifiableReference,
+        NonterminalCategory::ControllerOwnerQualification => {
+            NonterminalKind::ControllerOwnerQualification
+        }
+        NonterminalCategory::SingularController => NonterminalKind::SingularController,
+        NonterminalCategory::ZoneReference => NonterminalKind::ZoneReference,
+        NonterminalCategory::ZoneQualification => NonterminalKind::ZoneQualification,
+        NonterminalCategory::ScalarThreshold => NonterminalKind::ScalarThreshold,
+        NonterminalCategory::ScalarMeasure => NonterminalKind::ScalarMeasure,
+        NonterminalCategory::ScalarComparison => NonterminalKind::ScalarComparison,
+        NonterminalCategory::CountComparison => NonterminalKind::CountComparison,
+        NonterminalCategory::ScalarQualification => NonterminalKind::ScalarQualification,
         NonterminalCategory::VerbPhrase => NonterminalKind::VerbPhrase,
         NonterminalCategory::PossessiveOwner => NonterminalKind::PossessiveOwner,
         NonterminalCategory::Possessive => NonterminalKind::Possessive,

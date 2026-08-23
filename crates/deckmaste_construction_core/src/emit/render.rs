@@ -3915,6 +3915,46 @@ mod tests {
     }
 
     #[test]
+    fn category_feature_guard_threads_parse_context_through_nested_renderer() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Word { Opponent = "opponent", Player = "player", }
+            construction noun: Nominal {
+                element NounValue { word: lex Word, }
+                derive onset = word.onset;
+                form noun = lex(word);
+            }
+            construction article: Qualified {
+                element ArticleValue { nominal: Nominal, }
+                form an when nominal.onset is Vowel = "an" nominal;
+                form a otherwise = "a" nominal;
+            }
+            construction root: Root {
+                element RootValue { qualified: Qualified, }
+                form root = qualified;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("category-feature guard fixture validates");
+
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            source.contains(
+                "fn render_qualified (writer : & mut Writer , qualified : & Qualified , context : & ParseContext"
+            ),
+            "guarded category renderer receives parse context: {source}",
+        );
+        assert!(
+            source.contains("render_qualified (writer , qualified , context"),
+            "the parent renderer forwards parse context: {source}",
+        );
+    }
+
+    #[test]
     fn invariant_mixed_fields_render_through_sealed_access_modes() {
         let plan = crate::test_support::invariant_access_semantic_plan();
         assert!(

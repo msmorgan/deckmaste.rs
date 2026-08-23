@@ -1684,6 +1684,9 @@ mod tests {
         "vocab Status",
         "vocab Designation",
         "vocab ChosenQuality",
+        "vocab ControllerNoun",
+        "vocab ScalarCharacteristic",
+        "vocab Zone",
         "vocab NonCommonNoun",
         "vocab NonTargetCommonModifier",
         "vocab Supertype",
@@ -1808,7 +1811,34 @@ mod tests {
         "construction full_and_or_noun_phrase_coordination",
         "construction coordinated_noun_phrase",
         "construction self_reference",
-        "construction count",
+        "construction postmodifiable_indefinite_reference",
+        "construction postmodifiable_singular_reference",
+        "construction postmodifiable_plural_reference",
+        "construction you_control",
+        "construction opponent_controller",
+        "construction opponent_controls",
+        "construction you_own",
+        "construction possessed_zone",
+        "construction unpossessed_zone",
+        "construction in_zone",
+        "construction from_zone",
+        "construction fixed_scalar_threshold",
+        "construction variable_scalar_threshold",
+        "construction characteristic_scalar",
+        "construction mana_value_scalar",
+        "construction scalar_or_less",
+        "construction scalar_or_greater",
+        "construction scalar_less_than",
+        "construction scalar_greater_than",
+        "construction scalar_less_than_or_equal_to",
+        "construction count_or_more",
+        "construction count_or_fewer",
+        "construction scalar_qualification",
+        "construction controller_qualified_reference",
+        "construction controller_scalar_qualified_reference",
+        "construction zone_qualified_reference",
+        "construction scalar_qualified_reference",
+        "construction count_comparison_reference",
         "construction possessive_self_reference",
         "construction possessive_plural_noun",
         "construction possessive",
@@ -1944,7 +1974,11 @@ mod tests {
         "construction possessive_absolute_reference",
         "construction coordinated_noun_phrase",
         "construction self_reference",
-        "construction count",
+        "construction controller_qualified_reference",
+        "construction controller_scalar_qualified_reference",
+        "construction zone_qualified_reference",
+        "construction scalar_qualified_reference",
+        "construction count_comparison_reference",
     ];
 
     static ALL_DECLARATION_ORIGINS: std::sync::LazyLock<Vec<&'static str>> =
@@ -1993,6 +2027,9 @@ mod tests {
         "vocab Status",
         "vocab Designation",
         "vocab ChosenQuality",
+        "vocab ControllerNoun",
+        "vocab ScalarCharacteristic",
+        "vocab Zone",
         "vocab NonCommonNoun",
         "vocab NonTargetCommonModifier",
         "vocab Supertype",
@@ -2037,12 +2074,43 @@ mod tests {
                 .pop()
                 .expect("coordinated noun phrase closes the moved category range");
             category_origins.insert(first_targeted, coordinated_noun_phrase);
-            let after_count = category_origins
+            let first_postmodifiable_product = category_origins
                 .iter()
-                .position(|origin| *origin == "construction count")
-                .expect("count construction is present")
+                .position(|origin| *origin == "construction controller_qualified_reference")
+                .expect("postmodifiable construction block is present");
+            let last_postmodifiable_product = category_origins
+                .iter()
+                .position(|origin| *origin == "construction count_comparison_reference")
+                .expect("postmodifiable construction block is present");
+            let postmodifiable_products = category_origins
+                .drain(first_postmodifiable_product..=last_postmodifiable_product)
+                .collect::<Vec<_>>();
+            let after_self_reference = category_origins
+                .iter()
+                .position(|origin| *origin == "construction self_reference")
+                .expect("self-reference construction is present")
                 + 1;
-            category_origins.splice(after_count..after_count, noun_phrase_categories);
+            let after_postmodifiable_products =
+                after_self_reference + postmodifiable_products.len();
+            category_origins.splice(
+                after_self_reference..after_self_reference,
+                postmodifiable_products,
+            );
+            category_origins.splice(
+                after_postmodifiable_products..after_postmodifiable_products,
+                noun_phrase_categories,
+            );
+            let opponent_controller = category_origins
+                .iter()
+                .position(|origin| *origin == "construction opponent_controller")
+                .map(|index| category_origins.remove(index))
+                .expect("opponent-controller construction is present");
+            let after_you_own = category_origins
+                .iter()
+                .position(|origin| *origin == "construction you_own")
+                .expect("owner construction is present")
+                + 1;
+            category_origins.insert(after_you_own, opponent_controller);
 
             let mut origins = category_origins;
             origins.extend([
@@ -2204,6 +2272,69 @@ mod tests {
             | "function walk_full_noun_phrase_coordination" => {
                 FULL_NOUN_PHRASE_COORDINATION_ORIGINS
             }
+            "type PostmodifiableReference"
+            | "function render_postmodifiable_reference"
+            | "function agreement_for_postmodifiable_reference"
+            | "function number_for_postmodifiable_reference"
+            | "function onset_for_postmodifiable_reference"
+            | "function walk_postmodifiable_reference" => &[
+                "construction postmodifiable_indefinite_reference",
+                "construction postmodifiable_singular_reference",
+                "construction postmodifiable_plural_reference",
+            ],
+            "type ControllerOwnerQualification"
+            | "function render_controller_owner_qualification"
+            | "function walk_controller_owner_qualification" => &[
+                "construction you_control",
+                "construction opponent_controls",
+                "construction you_own",
+            ],
+            "type SingularController"
+            | "function render_singular_controller"
+            | "function walk_singular_controller"
+            | "type OpponentController"
+            | "impl OpponentController"
+            | "function walk_opponent_controller" => &["construction opponent_controller"],
+            "type ZoneReference"
+            | "function render_zone_reference"
+            | "function walk_zone_reference" => &[
+                "construction possessed_zone",
+                "construction unpossessed_zone",
+            ],
+            "type ZoneQualification"
+            | "function render_zone_qualification"
+            | "function walk_zone_qualification" => {
+                &["construction in_zone", "construction from_zone"]
+            }
+            "type ScalarThreshold"
+            | "function render_scalar_threshold"
+            | "function walk_scalar_threshold" => &[
+                "construction fixed_scalar_threshold",
+                "construction variable_scalar_threshold",
+            ],
+            "type ScalarMeasure"
+            | "function render_scalar_measure"
+            | "function walk_scalar_measure" => &[
+                "construction characteristic_scalar",
+                "construction mana_value_scalar",
+            ],
+            "type ScalarComparison"
+            | "function render_scalar_comparison"
+            | "function walk_scalar_comparison" => &[
+                "construction scalar_or_less",
+                "construction scalar_or_greater",
+                "construction scalar_less_than",
+                "construction scalar_greater_than",
+                "construction scalar_less_than_or_equal_to",
+            ],
+            "type CountComparison"
+            | "function render_count_comparison"
+            | "function walk_count_comparison" => {
+                &["construction count_or_more", "construction count_or_fewer"]
+            }
+            "type ScalarQualification"
+            | "function render_scalar_qualification"
+            | "function walk_scalar_qualification" => &["construction scalar_qualification"],
             "type PossessiveOwner"
             | "function render_possessive_owner"
             | "function number_for_possessive_owner"
@@ -2684,7 +2815,87 @@ mod tests {
             "type SourceSelfReference"
             | "impl SourceSelfReference"
             | "function walk_source_self_reference" => &["construction self_reference"],
-            "type CountNp" | "impl CountNp" | "function walk_count_np" => &["construction count"],
+            "type PostmodifiableIndefiniteReference"
+            | "function walk_postmodifiable_indefinite_reference" => {
+                &["construction postmodifiable_indefinite_reference"]
+            }
+            "type PostmodifiableSingularReference"
+            | "impl PostmodifiableSingularReference"
+            | "function walk_postmodifiable_singular_reference" => {
+                &["construction postmodifiable_singular_reference"]
+            }
+            "type PostmodifiablePluralReference"
+            | "function walk_postmodifiable_plural_reference" => {
+                &["construction postmodifiable_plural_reference"]
+            }
+            "type YouControl" | "impl YouControl" | "function walk_you_control" => {
+                &["construction you_control"]
+            }
+            "type OpponentControls" | "function walk_opponent_controls" => {
+                &["construction opponent_controls"]
+            }
+            "type YouOwn" | "impl YouOwn" | "function walk_you_own" => &["construction you_own"],
+            "type PossessedZone" | "function walk_possessed_zone" => {
+                &["construction possessed_zone"]
+            }
+            "type UnpossessedZone" | "impl UnpossessedZone" | "function walk_unpossessed_zone" => {
+                &["construction unpossessed_zone"]
+            }
+            "type InZone" | "function walk_in_zone" => &["construction in_zone"],
+            "type FromZone" | "function walk_from_zone" => &["construction from_zone"],
+            "type FixedScalarThreshold" | "function walk_fixed_scalar_threshold" => {
+                &["construction fixed_scalar_threshold"]
+            }
+            "type VariableScalarThreshold" | "function walk_variable_scalar_threshold" => {
+                &["construction variable_scalar_threshold"]
+            }
+            "type CharacteristicScalar" | "function walk_characteristic_scalar" => {
+                &["construction characteristic_scalar"]
+            }
+            "type ManaValueScalar" | "function walk_mana_value_scalar" => {
+                &["construction mana_value_scalar"]
+            }
+            "type ScalarOrLess" | "function walk_scalar_or_less" => {
+                &["construction scalar_or_less"]
+            }
+            "type ScalarOrGreater" | "function walk_scalar_or_greater" => {
+                &["construction scalar_or_greater"]
+            }
+            "type ScalarLessThan" | "function walk_scalar_less_than" => {
+                &["construction scalar_less_than"]
+            }
+            "type ScalarGreaterThan" | "function walk_scalar_greater_than" => {
+                &["construction scalar_greater_than"]
+            }
+            "type ScalarLessThanOrEqualTo" | "function walk_scalar_less_than_or_equal_to" => {
+                &["construction scalar_less_than_or_equal_to"]
+            }
+            "type CountOrMore" | "function walk_count_or_more" => &["construction count_or_more"],
+            "type CountOrFewer" | "function walk_count_or_fewer" => {
+                &["construction count_or_fewer"]
+            }
+            "type ScalarQualificationValue" | "function walk_scalar_qualification_value" => {
+                &["construction scalar_qualification"]
+            }
+            "type ControllerQualifiedReference"
+            | "function walk_controller_qualified_reference" => {
+                &["construction controller_qualified_reference"]
+            }
+            "type ControllerScalarQualifiedReference"
+            | "function walk_controller_scalar_qualified_reference" => {
+                &["construction controller_scalar_qualified_reference"]
+            }
+            "type ZoneQualifiedReference" | "function walk_zone_qualified_reference" => {
+                &["construction zone_qualified_reference"]
+            }
+            "type ScalarQualifiedReference" | "function walk_scalar_qualified_reference" => {
+                &["construction scalar_qualified_reference"]
+            }
+            "type CountComparisonReference"
+            | "impl CountComparisonReference"
+            | "function walk_count_comparison_reference" => {
+                &["construction count_comparison_reference"]
+            }
             "type PossessiveSelfReference"
             | "impl PossessiveSelfReference"
             | "function walk_possessive_self_reference" => {
@@ -2722,9 +2933,7 @@ mod tests {
             "type ReflexivePronoun"
             | "function render_reflexive_pronoun"
             | "function walk_reflexive_pronoun" => &["vocab ReflexivePronoun"],
-            "function agreement_for_subject_pronoun" => {
-                &["construction subject_pronoun", "construction count"]
-            }
+            "function agreement_for_subject_pronoun" => &["construction subject_pronoun"],
             "function agreement_for_object_pronoun" => &["construction object_pronoun"],
             "function agreement_for_reflexive_pronoun"
             | "function number_for_reflexive_pronoun" => &["construction reflexive_object"],
@@ -2739,6 +2948,13 @@ mod tests {
             "type ChosenQuality"
             | "function render_chosen_quality"
             | "function walk_chosen_quality" => &["vocab ChosenQuality"],
+            "type ControllerNoun"
+            | "function render_controller_noun"
+            | "function walk_controller_noun" => &["vocab ControllerNoun"],
+            "type ScalarCharacteristic"
+            | "function render_scalar_characteristic"
+            | "function walk_scalar_characteristic" => &["vocab ScalarCharacteristic"],
+            "type Zone" | "function render_zone" | "function walk_zone" => &["vocab Zone"],
             "type NonCommonNoun"
             | "function render_non_common_noun"
             | "function walk_non_common_noun" => &["vocab NonCommonNoun"],
@@ -3026,6 +3242,16 @@ mod tests {
         "type NounPhrase",
         "type TargetedNounPhrase",
         "type FullNounPhraseCoordination",
+        "type PostmodifiableReference",
+        "type ControllerOwnerQualification",
+        "type SingularController",
+        "type ZoneReference",
+        "type ZoneQualification",
+        "type ScalarThreshold",
+        "type ScalarMeasure",
+        "type ScalarComparison",
+        "type CountComparison",
+        "type ScalarQualification",
         "type PossessiveOwner",
         "type Possessive",
         "type VerbPhrase",
@@ -3175,8 +3401,40 @@ mod tests {
         "type CoordinatedNounPhrase",
         "type SourceSelfReference",
         "impl SourceSelfReference",
-        "type CountNp",
-        "impl CountNp",
+        "type PostmodifiableIndefiniteReference",
+        "type PostmodifiableSingularReference",
+        "impl PostmodifiableSingularReference",
+        "type PostmodifiablePluralReference",
+        "type YouControl",
+        "impl YouControl",
+        "type OpponentController",
+        "impl OpponentController",
+        "type OpponentControls",
+        "type YouOwn",
+        "impl YouOwn",
+        "type PossessedZone",
+        "type UnpossessedZone",
+        "impl UnpossessedZone",
+        "type InZone",
+        "type FromZone",
+        "type FixedScalarThreshold",
+        "type VariableScalarThreshold",
+        "type CharacteristicScalar",
+        "type ManaValueScalar",
+        "type ScalarOrLess",
+        "type ScalarOrGreater",
+        "type ScalarLessThan",
+        "type ScalarGreaterThan",
+        "type ScalarLessThanOrEqualTo",
+        "type CountOrMore",
+        "type CountOrFewer",
+        "type ScalarQualificationValue",
+        "type ControllerQualifiedReference",
+        "type ControllerScalarQualifiedReference",
+        "type ZoneQualifiedReference",
+        "type ScalarQualifiedReference",
+        "type CountComparisonReference",
+        "impl CountComparisonReference",
         "type PossessiveSelfReference",
         "impl PossessiveSelfReference",
         "type PossessiveNoun",
@@ -3199,6 +3457,9 @@ mod tests {
         "type Status",
         "type Designation",
         "type ChosenQuality",
+        "type ControllerNoun",
+        "type ScalarCharacteristic",
+        "type Zone",
         "type NonCommonNoun",
         "type NonTargetCommonModifier",
         "type Supertype",
@@ -3360,6 +3621,16 @@ mod tests {
         "function render_noun_phrase",
         "function render_targeted_noun_phrase",
         "function render_full_noun_phrase_coordination",
+        "function render_postmodifiable_reference",
+        "function render_controller_owner_qualification",
+        "function render_singular_controller",
+        "function render_zone_reference",
+        "function render_zone_qualification",
+        "function render_scalar_threshold",
+        "function render_scalar_measure",
+        "function render_scalar_comparison",
+        "function render_count_comparison",
+        "function render_scalar_qualification",
         "function render_possessive_owner",
         "function render_verb_phrase",
         "function render_amount",
@@ -3375,6 +3646,9 @@ mod tests {
         "function render_status",
         "function render_designation",
         "function render_chosen_quality",
+        "function render_controller_noun",
+        "function render_scalar_characteristic",
+        "function render_zone",
         "function render_non_common_noun",
         "function render_non_target_common_modifier",
         "function render_supertype",
@@ -3400,6 +3674,7 @@ mod tests {
         "function agreement_for_singular_selector",
         "function agreement_for_plural_selector",
         "function agreement_for_noun_phrase",
+        "function agreement_for_postmodifiable_reference",
         "function cardinality_for_cardinal_quantity",
         "function number_for_singular_head",
         "function number_for_plural_head",
@@ -3409,6 +3684,7 @@ mod tests {
         "function number_for_singular_selector",
         "function number_for_plural_selector",
         "function number_for_noun_phrase",
+        "function number_for_postmodifiable_reference",
         "function number_for_possessive_owner",
         "function onset_for_singular_head",
         "function onset_for_plural_head",
@@ -3419,6 +3695,7 @@ mod tests {
         "function onset_for_singular_selector",
         "function onset_for_plural_selector",
         "function onset_for_noun_phrase",
+        "function onset_for_postmodifiable_reference",
         "function possessive_ending_for_plural_head",
         "function possessive_ending_for_possessive_owner",
         "trait Visitor",
@@ -3443,6 +3720,16 @@ mod tests {
         "function walk_noun_phrase",
         "function walk_targeted_noun_phrase",
         "function walk_full_noun_phrase_coordination",
+        "function walk_postmodifiable_reference",
+        "function walk_controller_owner_qualification",
+        "function walk_singular_controller",
+        "function walk_zone_reference",
+        "function walk_zone_qualification",
+        "function walk_scalar_threshold",
+        "function walk_scalar_measure",
+        "function walk_scalar_comparison",
+        "function walk_count_comparison",
+        "function walk_scalar_qualification",
         "function walk_possessive_owner",
         "function walk_possessive",
         "function walk_verb_phrase",
@@ -3584,7 +3871,34 @@ mod tests {
         "function walk_full_and_or_noun_phrase_coordination",
         "function walk_coordinated_noun_phrase",
         "function walk_source_self_reference",
-        "function walk_count_np",
+        "function walk_postmodifiable_indefinite_reference",
+        "function walk_postmodifiable_singular_reference",
+        "function walk_postmodifiable_plural_reference",
+        "function walk_you_control",
+        "function walk_opponent_controller",
+        "function walk_opponent_controls",
+        "function walk_you_own",
+        "function walk_possessed_zone",
+        "function walk_unpossessed_zone",
+        "function walk_in_zone",
+        "function walk_from_zone",
+        "function walk_fixed_scalar_threshold",
+        "function walk_variable_scalar_threshold",
+        "function walk_characteristic_scalar",
+        "function walk_mana_value_scalar",
+        "function walk_scalar_or_less",
+        "function walk_scalar_or_greater",
+        "function walk_scalar_less_than",
+        "function walk_scalar_greater_than",
+        "function walk_scalar_less_than_or_equal_to",
+        "function walk_count_or_more",
+        "function walk_count_or_fewer",
+        "function walk_scalar_qualification_value",
+        "function walk_controller_qualified_reference",
+        "function walk_controller_scalar_qualified_reference",
+        "function walk_zone_qualified_reference",
+        "function walk_scalar_qualified_reference",
+        "function walk_count_comparison_reference",
         "function walk_possessive_self_reference",
         "function walk_possessive_noun",
         "function walk_possessive_value",
@@ -3606,6 +3920,9 @@ mod tests {
         "function walk_status",
         "function walk_designation",
         "function walk_chosen_quality",
+        "function walk_controller_noun",
+        "function walk_scalar_characteristic",
+        "function walk_zone",
         "function walk_non_common_noun",
         "function walk_non_target_common_modifier",
         "function walk_supertype",
@@ -4009,7 +4326,7 @@ mod tests {
             .iter()
             .map(deckmaste_construction_core::TerminalVariantContribution::name)
             .collect::<Vec<_>>();
-        assert_eq!(verbs, ["Deal", "Gain", "Control", "Be"]);
+        assert_eq!(verbs, ["Deal", "Gain", "Control", "Own", "Be"]);
 
         let adversarial = syn::parse_file(
             "mod nested { enum Noun { Mirror } }\n\
@@ -4291,7 +4608,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 635);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 736);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -4344,7 +4661,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 635);
+        assert_eq!(parsed.items.len(), 736);
     }
 
     #[test]

@@ -1486,7 +1486,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
-                    16,
+                    19,
                     FeatureConstraint::Exact(Number::Singular),
                 )),
             ]
@@ -1665,7 +1665,7 @@ mod tests {
             );
             if limit > 0 {
                 let cycle = &trace.materialization_cycles().items()[0];
-                assert_eq!(cycle.node_ordinal(), 26);
+                assert_eq!(cycle.node_ordinal(), 28);
                 assert_eq!(cycle.construction_path().total(), 2);
                 assert_eq!(cycle.construction_path().shown(), usize::min(limit, 2));
                 assert_eq!(

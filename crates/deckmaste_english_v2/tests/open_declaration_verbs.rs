@@ -583,7 +583,7 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             .iter()
             .map(deckmaste_construction_core::TerminalVariantContribution::name)
             .collect::<Vec<_>>(),
-        ["Deal", "Gain", "Control", "Be"]
+        ["Deal", "Gain", "Control", "Own", "Be"]
     );
     assert_eq!(
         verb_lexeme
@@ -598,6 +598,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             ("Gain", SurfaceFeature::ThirdPersonSingular, "gains"),
             ("Control", SurfaceFeature::Bare, "control"),
             ("Control", SurfaceFeature::ThirdPersonSingular, "controls"),
+            ("Own", SurfaceFeature::Bare, "own"),
+            ("Own", SurfaceFeature::ThirdPersonSingular, "owns"),
             ("Be", SurfaceFeature::Bare, "are"),
             ("Be", SurfaceFeature::ThirdPersonSingular, "is"),
         ]
