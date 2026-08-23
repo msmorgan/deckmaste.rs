@@ -403,7 +403,12 @@ metadata names each required typed provider, and construction fails on a
 missing or duplicate provider. xtask alone reads `deckmaste_catalogs` and
 adapts the requested canonical identities into frozen provider rows;
 construction-core and every v2 scanner, parser, renderer, and environment
-consumer read only those rows and generated lookup metadata.
+consumer read only those rows and generated lookup metadata. For card-name
+rows, the adapter derives the exact catalog surfaces that the bounded onset
+recipe cannot classify and requires two-way equality with a closed, reviewed
+per-surface onset-override inventory. A new unreviewed surface and a stale
+override both fail loudly; Unicode class, punctuation prefix, and other
+spelling-wide fallbacks are not onset authority.
 
 **Lexical coverage gate:** every token of every accepted corpus sentence must
 be claimed by a form literal, vocab, lexeme, codec, or identity — an

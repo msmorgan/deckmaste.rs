@@ -16,6 +16,7 @@ mod roundtrip;
 mod timing;
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::fs;
 use std::io::Write;
@@ -23,6 +24,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
+use anyhow::ensure;
 use clap::Args;
 use clap::Subcommand;
 use clap::ValueEnum;
@@ -37,25 +39,22 @@ use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 
-fn catalog_surface_onset(surface: &str) -> Option<macro_ron::v2::Onset> {
-    const EXACT_OVERRIDES: [(&str, macro_ron::v2::Onset); 1] =
-        [("+2 Mace", macro_ron::v2::Onset::Consonant)];
+const CARD_NAME_ONSET_OVERRIDES: [(&str, macro_ron::v2::Onset); 8] = [
+    ("+2 Mace", macro_ron::v2::Onset::Consonant),
+    ("Éomer of the Riddermark", macro_ron::v2::Onset::Vowel),
+    ("Éomer, King of Rohan", macro_ron::v2::Onset::Vowel),
+    ("Éomer, Marshal of Rohan", macro_ron::v2::Onset::Vowel),
+    ("Éowyn, Fearless Knight", macro_ron::v2::Onset::Vowel),
+    ("Éowyn, Lady of Rohan", macro_ron::v2::Onset::Vowel),
+    ("Éowyn, Shieldmaiden", macro_ron::v2::Onset::Vowel),
+    ("Óin the Brave", macro_ron::v2::Onset::Vowel),
+];
 
-    if let Some((_, onset)) = EXACT_OVERRIDES.iter().find(|(name, _)| *name == surface) {
-        return Some(*onset);
-    }
+fn catalog_surface_onset(surface: &str) -> Option<macro_ron::v2::Onset> {
     macro_ron::v2::normalize_surface_onset(surface, None).or_else(|| {
-        let initial = surface.chars().next()?;
-        initial.is_alphabetic().then(|| {
-            if "AEIOUÀÁÂÃÄÅÆÈÉÊËÌÍÎÏÒÓÔÕÖØÙÚÛÜÝŸ"
-                .chars()
-                .any(|vowel| vowel == initial.to_uppercase().next().unwrap_or(initial))
-            {
-                macro_ron::v2::Onset::Vowel
-            } else {
-                macro_ron::v2::Onset::Consonant
-            }
-        })
+        CARD_NAME_ONSET_OVERRIDES
+            .iter()
+            .find_map(|(name, onset)| (*name == surface).then_some(*onset))
     })
 }
 
@@ -72,9 +71,27 @@ fn adapt_card_name_catalog_provider(catalog_root: &Path) -> anyhow::Result<Adapt
             catalog_root.display()
         )
     })?;
+    let card_names = catalogs.get(deckmaste_catalogs::CatalogKind::CardNames);
+    let derived_exceptional = card_names
+        .iter()
+        .filter(|name| macro_ron::v2::normalize_surface_onset(name, None).is_none())
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    let reviewed_exceptional = CARD_NAME_ONSET_OVERRIDES
+        .iter()
+        .map(|(name, _)| *name)
+        .collect::<BTreeSet<_>>();
+    ensure!(
+        reviewed_exceptional.len() == CARD_NAME_ONSET_OVERRIDES.len(),
+        "card-name onset override inventory contains a duplicate surface",
+    );
+    ensure!(
+        derived_exceptional == reviewed_exceptional,
+        "card-name onset override inventory differs from generated catalog exceptions: derived {derived_exceptional:?}, reviewed {reviewed_exceptional:?}",
+    );
+
     let mut context_onsets = BTreeMap::new();
-    let rows = catalogs
-        .get(deckmaste_catalogs::CatalogKind::CardNames)
+    let rows = card_names
         .iter()
         .map(|name| {
             let onset = catalog_surface_onset(name).with_context(|| {
@@ -107,6 +124,17 @@ fn parser_from_builtin_v2() -> anyhow::Result<Parser> {
 mod catalog_adapter_tests {
     use super::*;
 
+    const EXPECTED_EXCEPTIONAL_ONSETS: [(&str, macro_ron::v2::Onset); 8] = [
+        ("+2 Mace", macro_ron::v2::Onset::Consonant),
+        ("Éomer of the Riddermark", macro_ron::v2::Onset::Vowel),
+        ("Éomer, King of Rohan", macro_ron::v2::Onset::Vowel),
+        ("Éomer, Marshal of Rohan", macro_ron::v2::Onset::Vowel),
+        ("Éowyn, Fearless Knight", macro_ron::v2::Onset::Vowel),
+        ("Éowyn, Lady of Rohan", macro_ron::v2::Onset::Vowel),
+        ("Éowyn, Shieldmaiden", macro_ron::v2::Onset::Vowel),
+        ("Óin the Brave", macro_ron::v2::Onset::Vowel),
+    ];
+
     #[test]
     fn named_catalog_adapter_supplies_canonical_seven_dwarves_row() {
         let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
@@ -132,24 +160,49 @@ mod catalog_adapter_tests {
     }
 
     #[test]
-    fn named_catalog_adapter_uses_the_exact_reviewed_plus_two_mace_onset() {
-        assert_eq!(
-            catalog_surface_onset("+2 Mace"),
-            Some(macro_ron::v2::Onset::Consonant),
-        );
+    fn named_catalog_adapter_exception_inventory_is_closed_and_exact() {
+        let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
+        let expected_exceptional = EXPECTED_EXCEPTIONAL_ONSETS
+            .iter()
+            .map(|(name, _)| *name)
+            .collect::<std::collections::BTreeSet<_>>();
+        let reviewed_exceptional = CARD_NAME_ONSET_OVERRIDES
+            .iter()
+            .map(|(name, _)| *name)
+            .collect::<std::collections::BTreeSet<_>>();
+
+        adapt_card_name_catalog_provider(&catalog_root)
+            .expect("production adapter proves catalog-derived and reviewed sets are equal");
+        assert_eq!(reviewed_exceptional, expected_exceptional);
         assert_eq!(
             catalog_surface_onset("+3 Mace"),
             None,
-            "the exception is an exact metadata row, not a parser for leading plus signs",
+            "a symbol prefix cannot become an unreviewed wildcard",
         );
+        assert_eq!(
+            catalog_surface_onset("Éomer's Cousin"),
+            None,
+            "an accented initial cannot become an unreviewed Unicode-class fallback",
+        );
+    }
 
+    #[test]
+    fn named_catalog_adapter_freezes_each_reviewed_exception_onset() {
         let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
         let adapted = adapt_card_name_catalog_provider(&catalog_root)
             .expect("generated card-name metadata freezes");
-        assert_eq!(
-            adapted.context_onsets.get("+2 Mace"),
-            Some(&macro_ron::v2::Onset::Consonant),
-        );
+        for (name, onset) in EXPECTED_EXCEPTIONAL_ONSETS {
+            assert_eq!(adapted.context_onsets.get(name), Some(&onset), "{name}");
+        }
+        let environment = ParserEnvironment::try_from_parts([], [adapted.provider])
+            .expect("adapter rows freeze without parser-side discovery");
+        for (name, onset) in EXPECTED_EXCEPTIONAL_ONSETS {
+            assert_eq!(
+                environment.catalog_onset(CatalogProvider::CardNames, name),
+                Some(onset),
+                "{name}",
+            );
+        }
     }
 
     #[test]
