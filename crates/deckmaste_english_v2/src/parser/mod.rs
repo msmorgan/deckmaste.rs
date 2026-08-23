@@ -12,7 +12,10 @@ use selection::analyze_selection;
 
 use crate::ast::Ability;
 use crate::ast::CardinalQuantity;
+use crate::ast::CountReference;
+use crate::ast::MannerReference;
 use crate::ast::OracleText;
+use crate::ast::ScalarReference;
 use crate::ast::Sentence;
 use crate::constructions::CatalogProvider;
 use crate::constructions::Category;
@@ -323,6 +326,81 @@ impl Parser {
         context: &ParseContext<'_>,
     ) -> ParseAnalysis<CardinalQuantity> {
         self.analyze_root::<CardinalQuantity>(text, context)
+    }
+
+    /// Parses the closed manner deictic category.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure unless the input is a complete generated
+    /// manner reference.
+    pub fn parse_manner_reference(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> Result<MannerReference, ParseError> {
+        self.analyze_manner_reference(text, context)
+            .into_parse_result()
+    }
+
+    /// Parses a manner reference and retains its complete selection decision.
+    #[must_use]
+    pub fn analyze_manner_reference(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> ParseAnalysis<MannerReference> {
+        self.analyze_root::<MannerReference>(text, context)
+    }
+
+    /// Parses the closed count-deictic category.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure unless the input is a complete generated
+    /// count reference.
+    pub fn parse_count_reference(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> Result<CountReference, ParseError> {
+        self.analyze_count_reference(text, context)
+            .into_parse_result()
+    }
+
+    /// Parses a count reference and retains its complete selection decision.
+    #[must_use]
+    pub fn analyze_count_reference(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> ParseAnalysis<CountReference> {
+        self.analyze_root::<CountReference>(text, context)
+    }
+
+    /// Parses the closed scalar-deictic category.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure unless the input is a complete generated
+    /// scalar reference.
+    pub fn parse_scalar_reference(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> Result<ScalarReference, ParseError> {
+        self.analyze_scalar_reference(text, context)
+            .into_parse_result()
+    }
+
+    /// Parses a scalar reference and retains its complete selection decision.
+    #[must_use]
+    pub fn analyze_scalar_reference(
+        &self,
+        text: &str,
+        context: &ParseContext<'_>,
+    ) -> ParseAnalysis<ScalarReference> {
+        self.analyze_root::<ScalarReference>(text, context)
     }
 
     /// Parses one complete normalized Oracle-text document.
@@ -1196,7 +1274,7 @@ mod structural_trace_tests {
         let (_, second) = parser.observe_structural(text, &context, TraceLimits::new(1));
         assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
         assert_eq!(first, second);
-        assert_eq!(first.scanner_matches().total(), 13);
+        assert_eq!(first.scanner_matches().total(), 12);
         assert_eq!(first.scanner_matches().shown(), 1);
     }
 

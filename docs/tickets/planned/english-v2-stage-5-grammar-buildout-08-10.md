@@ -14,19 +14,19 @@ The remaining roadmap is:
 - Plan 09: effect grammar;
 - Plan 10: keyword and frame completion plus corpus closure.
 
-The locked Plan 07 corpus baseline is 32,641 normalized units: 600 are
-selected, covered, byte-exact, and totally owned, while 32,041 are ordinary
+The locked Plan 07 corpus baseline is 32,641 normalized units: 608 are
+selected, covered, byte-exact, and totally owned, while 32,033 are ordinary
 parse failures. The elapsed-time hard ceiling remains 16.26 seconds for each
 of the seven corpus-scale gates. Derived at exactly 1.5× the fresh Plan 07
 samples, Plan 08 WARNING thresholds are:
 
-- expand: 1.1523370155s;
-- report: 0.7198423380s;
-- parse: 18.7719779100s;
-- roundtrip: 17.4930979020s;
-- ambiguity: 18.3639925065s;
-- coverage: 19.0779314910s;
-- require-complete: 17.3195677995s.
+- expand: 1.1815357365s;
+- report: 0.7659729825s;
+- parse: 14.8670149695s;
+- roundtrip: 13.2118697115s;
+- ambiguity: 15.0661526490s;
+- coverage: 15.3698812485s;
+- require-complete: 13.6325952750s.
 
 The warning thresholds do not relax the 16.26-second hard ceiling. Before
 implementing each remaining plan, author and obtain approval of its detailed

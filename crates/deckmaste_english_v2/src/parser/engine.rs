@@ -111,6 +111,35 @@ pub(crate) enum CompletionDisposition<E> {
     DeferredBuildRejection(E),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CompletionDependency {
+    WholeForest,
+    FamilyReachable,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RootRule<R> {
+    rule: R,
+    completion_dependency: CompletionDependency,
+}
+
+impl<R> RootRule<R> {
+    pub(crate) const fn family_reachable(rule: R) -> Self {
+        Self {
+            rule,
+            completion_dependency: CompletionDependency::FamilyReachable,
+        }
+    }
+
+    #[cfg(test)]
+    const fn whole_forest(rule: R) -> Self {
+        Self {
+            rule,
+            completion_dependency: CompletionDependency::WholeForest,
+        }
+    }
+}
+
 impl<E> CompletionDisposition<E> {
     pub(crate) const fn is_accepted(&self) -> bool {
         matches!(self, Self::Accepted | Self::DeferredBuildRejection(_))
@@ -238,7 +267,7 @@ where
 
 pub(crate) fn parse_root_with_state<N, L, R, T, O, D, S, Scan, ValidateCompletion>(
     rules: &[Rule<N, L, R>],
-    root_rule: R,
+    root: RootRule<R>,
     input_length: usize,
     initial_state: &S,
     scan: Scan,
@@ -257,7 +286,7 @@ where
 {
     parse_root_observed_with_state(
         rules,
-        root_rule,
+        root,
         input_length,
         initial_state,
         scan,
@@ -350,7 +379,7 @@ pub(crate) fn parse_root_observed_with_state<
     Obs,
 >(
     rules: &[Rule<N, L, R>],
-    root_rule: R,
+    root: RootRule<R>,
     input_length: usize,
     initial_state: &S,
     scan: Scan,
@@ -371,7 +400,7 @@ where
 {
     parse_observed_with_state_seed(
         rules,
-        RootSeed::Rule(root_rule),
+        RootSeed::Rule(root),
         input_length,
         initial_state,
         scan,
@@ -426,7 +455,7 @@ where
     while let Some((column, item, family)) = agenda.pop_front() {
         let rule = &rules[item.rule_index];
         if item.dot == rule.rhs.len() {
-            let Some(node_id) = accept_completed_node(
+            let Some((node_id, extended_existing_node)) = accept_completed_node(
                 rule,
                 column,
                 &item,
@@ -437,7 +466,14 @@ where
             ) else {
                 continue;
             };
-            requeue_completed_items_after_forest_growth(&chart, rules, &mut agenda);
+            // Family-reachable validation cannot reference a node before it exists, so
+            // only extending an existing packed node can change an earlier result.
+            // Whole-forest validation retains the conservative global retry contract.
+            if extended_existing_node
+                || seed.completion_dependency() == CompletionDependency::WholeForest
+            {
+                requeue_completed_items_after_forest_growth(&chart, rules, &mut agenda);
+            }
 
             if !register_completed_node(
                 &mut stateful_forest,
@@ -614,7 +650,7 @@ fn accept_completed_node<N, L, R, T, O, D, S, ValidateCompletion, Obs>(
     stateful_forest: &mut StatefulForest<R, T, O, S>,
     validate_completion: &mut ValidateCompletion,
     observation: &mut Obs,
-) -> Option<NodeId>
+) -> Option<(NodeId, bool)>
 where
     R: Copy + Eq,
     T: Clone + Eq,
@@ -630,7 +666,7 @@ where
     if !disposition.is_accepted() {
         return None;
     }
-    let node_id = stateful_forest
+    let (node_id, extended_existing_node) = stateful_forest
         .forest
         .nodes
         .iter()
@@ -658,15 +694,15 @@ where
                     end: item.state.clone(),
                     suppress_right_boundary: item.suppress_right_boundary,
                 });
-                node_id
+                (node_id, false)
             },
-            NodeId,
+            |index| (NodeId(index), true),
         );
     insert_family(
         &mut stateful_forest.forest.nodes[node_id.0].families,
         family,
     )
-    .then_some(node_id)
+    .then_some((node_id, extended_existing_node))
 }
 
 fn observe_final_chart<N, L, R, T, O, E, S, Obs>(
@@ -751,12 +787,19 @@ fn advance_lexical<L, R, T, O, E, S, Scan, Obs>(
 #[derive(Clone, Copy)]
 enum RootSeed<N, R> {
     Category(N),
-    Rule(R),
+    Rule(RootRule<R>),
 }
 
 impl<N, R: Eq> RootSeed<N, R> {
     fn excludes_from_prediction(self, rule: &R) -> bool {
-        matches!(self, Self::Rule(root_rule) if &root_rule == rule)
+        matches!(self, Self::Rule(root) if &root.rule == rule)
+    }
+
+    fn completion_dependency(self) -> CompletionDependency {
+        match self {
+            Self::Category(_) => CompletionDependency::WholeForest,
+            Self::Rule(root) => root.completion_dependency,
+        }
     }
 }
 
@@ -776,7 +819,7 @@ fn seed_chart<N, L, R, T, O, S>(
     for (rule_index, rule) in rules.iter().enumerate() {
         let selected = match seed {
             RootSeed::Category(start) => rule.lhs == start,
-            RootSeed::Rule(root_rule) => rule.id == root_rule,
+            RootSeed::Rule(root) => rule.id == root.rule,
         };
         if selected {
             insert_item(
@@ -809,7 +852,7 @@ fn completed_rule_is_root<N: Eq, R: Eq>(
 ) -> bool {
     let selected = match seed {
         RootSeed::Category(start) => lhs == &start,
-        RootSeed::Rule(root_rule) => rule == &root_rule,
+        RootSeed::Rule(root) => rule == &root.rule,
     };
     selected && origin == 0 && column == input_length
 }
@@ -993,48 +1036,33 @@ mod tests {
 
     #[test]
     fn deferred_build_rejection_preserves_a_complete_syntactic_root_and_typed_cause() {
-        #[derive(Default)]
-        struct Recording(Vec<&'static str>);
-
-        impl Observation<ToyRuleId, &'static str, &'static str, &'static str, &'static str>
-            for Recording
-        {
-            fn checked_completion(
-                &mut self,
-                _rule: ToyRuleId,
-                _start: usize,
-                _end: usize,
-                _family: &Family<&'static str, &'static str>,
-                disposition: &CompletionDisposition<&'static str>,
-            ) {
-                if let CompletionDisposition::DeferredBuildRejection(reason) = disposition {
-                    self.0.push(reason);
-                }
-            }
-        }
-
-        let mut observation = Recording::default();
-        let forest = parse_observed(
+        let mut rejections = Vec::new();
+        let forest = parse_root_with_state(
             SCAN_RULES,
-            ToyCategory::Start,
+            RootRule::family_reachable(ToyRuleId::Start),
             10,
-            |_, start| {
+            &(),
+            |_, start, &(), _suppress_right_boundary| {
                 (start == 0)
-                    .then_some(vec![LexicalMatch {
-                        end: 10,
-                        value: "alpha beta",
-                        owner: Some("toy:alpha-beta"),
+                    .then_some(vec![StatefulLexicalMatch {
+                        lexical: LexicalMatch {
+                            end: 10,
+                            value: "alpha beta",
+                            owner: Some("toy:alpha-beta"),
+                        },
+                        state: (),
                     }])
                     .unwrap_or_default()
             },
-            |_, _, _| CompletionDisposition::DeferredBuildRejection("Root.guarded"),
-            &mut observation,
+            |_, _, _| {
+                rejections.push("Root.guarded");
+                CompletionDisposition::DeferredBuildRejection("Root.guarded")
+            },
         )
         .expect("a checked-constructor rejection retains the syntactic root");
 
         assert_eq!(forest.accepted_root_ids().count(), 1);
-        assert!(!observation.0.is_empty());
-        assert!(observation.0.iter().all(|reason| *reason == "Root.guarded"));
+        assert_eq!(rejections, ["Root.guarded"]);
     }
 
     const ROOT_BOUNDARY_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[
@@ -1087,7 +1115,7 @@ mod tests {
     fn explicit_root_rule_is_the_unique_outer_seed() {
         let forest = parse_root_with_state(
             ROOT_BOUNDARY_RULES,
-            ToyRuleId::RootAdapter,
+            RootRule::whole_forest(ToyRuleId::RootAdapter),
             2,
             &RootBoundaryState,
             scan_root_boundary,
@@ -1109,7 +1137,7 @@ mod tests {
         let result =
             parse_root_with_state(
                 ROOT_BOUNDARY_RULES,
-                ToyRuleId::RootAdapter,
+                RootRule::whole_forest(ToyRuleId::RootAdapter),
                 3,
                 &RootBoundaryState,
                 scan_root_boundary,

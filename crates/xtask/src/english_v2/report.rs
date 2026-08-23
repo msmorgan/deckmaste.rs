@@ -733,7 +733,7 @@ mod tests {
                 report.checked_constructor_bindings.len(),
                 report.roots.len(),
             ],
-            [0, 0, 0, 1, 27, 0, 0, 0, 5],
+            [0, 0, 0, 1, 27, 0, 0, 0, 8],
             "categories intentionally overlap and have no unique total"
         );
         assert!(report.handwritten_codecs.is_empty());
@@ -756,8 +756,11 @@ mod tests {
             [
                 "Ability",
                 "CardinalQuantity",
+                "CountReference",
+                "MannerReference",
                 "OracleText",
                 "Possessive",
+                "ScalarReference",
                 "Sentence",
             ]
         );
@@ -951,12 +954,27 @@ mod tests {
                     "removal_target": null
                 },
                 {
+                    "identity": "CountReference",
+                    "rationale": "declared parser entry point",
+                    "removal_target": null
+                },
+                {
+                    "identity": "MannerReference",
+                    "rationale": "declared parser entry point",
+                    "removal_target": null
+                },
+                {
                     "identity": "OracleText",
                     "rationale": "declared parser entry point",
                     "removal_target": null
                 },
                 {
                     "identity": "Possessive",
+                    "rationale": "declared parser entry point",
+                    "removal_target": null
+                },
+                {
+                    "identity": "ScalarReference",
                     "rationale": "declared parser entry point",
                     "removal_target": null
                 },

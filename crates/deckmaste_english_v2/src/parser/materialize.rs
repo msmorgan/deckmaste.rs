@@ -1023,7 +1023,7 @@ mod tests {
 
         assert!(
             super::build_checked(
-                RuleId::NounPhraseIndefiniteReferenceAn,
+                RuleId::UnqualifiedReferenceIndefiniteReferenceAn,
                 &children("an", Onset::Vowel),
                 &parse_context,
             )
@@ -1032,7 +1032,7 @@ mod tests {
         );
         assert!(
             super::build_checked(
-                RuleId::NounPhraseIndefiniteReferenceA,
+                RuleId::UnqualifiedReferenceIndefiniteReferenceA,
                 &children("a", Onset::Consonant),
                 &parse_context,
             )
@@ -1041,7 +1041,7 @@ mod tests {
         );
         assert_eq!(
             super::build_checked(
-                RuleId::NounPhraseIndefiniteReferenceAn,
+                RuleId::UnqualifiedReferenceIndefiniteReferenceAn,
                 &children("an", Onset::Consonant),
                 &parse_context,
             ),
@@ -1049,7 +1049,7 @@ mod tests {
         );
         assert_eq!(
             super::build_checked(
-                RuleId::NounPhraseIndefiniteReferenceA,
+                RuleId::UnqualifiedReferenceIndefiniteReferenceA,
                 &children("a", Onset::Vowel),
                 &parse_context,
             ),
@@ -1059,13 +1059,13 @@ mod tests {
         let identity_context = context("Artifact Avatar");
         assert!(matches!(
             super::build_checked(
-                RuleId::NounPhraseSelfReference,
+                RuleId::UnqualifiedReferenceSelfReference,
                 &[BuildValue::Leaf(Leaf::SelfReference(
                     SelfReferenceSpelling::Full,
                 ))],
                 &identity_context,
             ),
-            Ok(Some(BuildValue::NounPhrase(_, _, Onset::Vowel)))
+            Ok(Some(BuildValue::UnqualifiedReference(_, _, Onset::Vowel)))
         ));
     }
 
@@ -1471,7 +1471,11 @@ mod tests {
                 Construction::SentenceImperative,
                 Construction::VerbPhraseDestroy,
                 Construction::ObjectObjectNominal,
-                Construction::NounPhraseOrdinarySingularReference,
+                Construction::NounPhraseQualifiedNounPhrase,
+                Construction::NumericStageUnqualifiedNumericStage,
+                Construction::ZoneStageUnqualifiedZoneStage,
+                Construction::ControllerStageUnqualifiedControllerStage,
+                Construction::UnqualifiedReferenceOrdinarySingularReference,
                 Construction::SingularSelectorTargetSingularSelector,
                 Construction::SingularNominalBareSingularNominal,
                 Construction::SingularHeadTypeSingularHead,
@@ -1490,6 +1494,10 @@ mod tests {
                 })),
                 RulePosition::Nonterminal(Category::Object),
                 RulePosition::Nonterminal(Category::NounPhrase),
+                RulePosition::Nonterminal(Category::NumericStage),
+                RulePosition::Nonterminal(Category::ZoneStage),
+                RulePosition::Nonterminal(Category::ControllerStage),
+                RulePosition::Nonterminal(Category::UnqualifiedReference),
                 RulePosition::Nonterminal(Category::SingularSelector),
                 RulePosition::Lexical(Lexical::Literal("target")),
                 RulePosition::Nonterminal(Category::SingularNominal),
@@ -1674,7 +1682,7 @@ mod tests {
             );
             if limit > 0 {
                 let cycle = &trace.materialization_cycles().items()[0];
-                assert_eq!(cycle.node_ordinal(), 28);
+                assert_eq!(cycle.node_ordinal(), 34);
                 assert_eq!(cycle.construction_path().total(), 2);
                 assert_eq!(cycle.construction_path().shown(), usize::min(limit, 2));
                 assert_eq!(

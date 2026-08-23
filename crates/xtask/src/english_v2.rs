@@ -1993,6 +1993,8 @@ mod tests {
         "construction up_to_many_reference",
         "construction any_number_reference",
         "construction one_or_more_reference",
+        "construction that_many",
+        "construction counted_reference",
         "construction this_reference",
         "construction that_reference",
         "construction those_reference",
@@ -2009,9 +2011,8 @@ mod tests {
         "construction full_and_or_noun_phrase_coordination",
         "construction coordinated_noun_phrase",
         "construction self_reference",
-        "construction postmodifiable_indefinite_reference",
-        "construction postmodifiable_singular_reference",
-        "construction postmodifiable_plural_reference",
+        "construction this_way",
+        "construction that_much",
         "construction you_control",
         "construction opponent_controller",
         "construction opponent_controls",
@@ -2032,11 +2033,14 @@ mod tests {
         "construction count_or_more",
         "construction count_or_fewer",
         "construction scalar_qualification",
+        "construction unqualified_controller_stage",
         "construction controller_qualified_reference",
-        "construction controller_scalar_qualified_reference",
+        "construction unqualified_zone_stage",
         "construction zone_qualified_reference",
+        "construction unqualified_numeric_stage",
         "construction scalar_qualified_reference",
         "construction count_comparison_reference",
+        "construction qualified_noun_phrase",
         "construction possessive_self_reference",
         "construction possessive_plural_noun",
         "construction possessive",
@@ -2046,6 +2050,7 @@ mod tests {
         "construction gain_life",
         "construction number",
         "construction variable",
+        "construction scalar_reference_amount",
         "construction cardinal",
     ];
 
@@ -2144,7 +2149,7 @@ mod tests {
         "construction other_plural_selector",
         "construction other_target_plural_selector",
     ];
-    const NOUN_PHRASE_ORIGINS: &[&str] = &[
+    const UNQUALIFIED_REFERENCE_ORIGINS: &[&str] = &[
         "construction indefinite_reference",
         "construction named_card_reference",
         "construction ordinary_singular_reference",
@@ -2161,6 +2166,7 @@ mod tests {
         "construction up_to_many_reference",
         "construction any_number_reference",
         "construction one_or_more_reference",
+        "construction counted_reference",
         "construction this_reference",
         "construction that_reference",
         "construction those_reference",
@@ -2172,12 +2178,9 @@ mod tests {
         "construction possessive_absolute_reference",
         "construction coordinated_noun_phrase",
         "construction self_reference",
-        "construction controller_qualified_reference",
-        "construction controller_scalar_qualified_reference",
-        "construction zone_qualified_reference",
-        "construction scalar_qualified_reference",
         "construction count_comparison_reference",
     ];
+    const NOUN_PHRASE_ORIGINS: &[&str] = &["construction qualified_noun_phrase"];
 
     static ALL_DECLARATION_ORIGINS: std::sync::LazyLock<Vec<&'static str>> =
         std::sync::LazyLock::new(|| {
@@ -2208,6 +2211,9 @@ mod tests {
                 "root Sentence",
                 "root Possessive",
                 "root CardinalQuantity",
+                "root MannerReference",
+                "root CountReference",
+                "root ScalarReference",
                 "root OracleText",
             ]);
             origins
@@ -2251,53 +2257,46 @@ mod tests {
         "root Sentence",
         "root Possessive",
         "root CardinalQuantity",
+        "root MannerReference",
+        "root CountReference",
+        "root ScalarReference",
         "root OracleText",
     ];
 
     static VISITOR_ORIGINS: std::sync::LazyLock<Vec<&'static str>> =
         std::sync::LazyLock::new(|| {
-            let first_targeted = CONSTRUCTION_ORIGINS
+            let mut category_origins = CONSTRUCTION_ORIGINS.to_vec();
+            let first_targeted = category_origins
                 .iter()
                 .position(|origin| *origin == "construction singular_targeted_noun_phrase")
                 .expect("targeted noun-phrase construction is present");
-            let coordinated = CONSTRUCTION_ORIGINS
+            let last_coordination = category_origins
                 .iter()
-                .position(|origin| *origin == "construction coordinated_noun_phrase")
-                .expect("coordinated noun-phrase construction is present");
-            let mut category_origins = CONSTRUCTION_ORIGINS.to_vec();
-            let mut noun_phrase_categories = category_origins
-                .drain(first_targeted..=coordinated)
+                .position(|origin| *origin == "construction full_and_or_noun_phrase_coordination")
+                .expect("full noun-phrase coordination construction is present");
+            let targeted_categories = category_origins
+                .drain(first_targeted..=last_coordination)
                 .collect::<Vec<_>>();
-            let coordinated_noun_phrase = noun_phrase_categories
-                .pop()
-                .expect("coordinated noun phrase closes the moved category range");
-            category_origins.insert(first_targeted, coordinated_noun_phrase);
-            let first_postmodifiable_product = category_origins
+
+            let that_many = category_origins
                 .iter()
-                .position(|origin| *origin == "construction controller_qualified_reference")
-                .expect("postmodifiable construction block is present");
-            let last_postmodifiable_product = category_origins
+                .position(|origin| *origin == "construction that_many")
+                .map(|index| category_origins.remove(index))
+                .expect("count-deictic construction is present");
+            let count_comparison = category_origins
                 .iter()
                 .position(|origin| *origin == "construction count_comparison_reference")
-                .expect("postmodifiable construction block is present");
-            let postmodifiable_products = category_origins
-                .drain(first_postmodifiable_product..=last_postmodifiable_product)
-                .collect::<Vec<_>>();
+                .map(|index| category_origins.remove(index))
+                .expect("count-comparison construction is present");
             let after_self_reference = category_origins
                 .iter()
                 .position(|origin| *origin == "construction self_reference")
                 .expect("self-reference construction is present")
                 + 1;
-            let after_postmodifiable_products =
-                after_self_reference + postmodifiable_products.len();
-            category_origins.splice(
-                after_self_reference..after_self_reference,
-                postmodifiable_products,
-            );
-            category_origins.splice(
-                after_postmodifiable_products..after_postmodifiable_products,
-                noun_phrase_categories,
-            );
+            let mut moved_categories = vec![count_comparison, that_many];
+            moved_categories.extend(targeted_categories);
+            category_origins.splice(after_self_reference..after_self_reference, moved_categories);
+
             let opponent_controller = category_origins
                 .iter()
                 .position(|origin| *origin == "construction opponent_controller")
@@ -2346,6 +2345,9 @@ mod tests {
             "root Ability",
             "root Possessive",
             "root CardinalQuantity",
+            "root MannerReference",
+            "root CountReference",
+            "root ScalarReference",
             "root OracleText",
         ]);
         origins
@@ -2456,6 +2458,21 @@ mod tests {
             | "function number_for_plural_selector"
             | "function onset_for_plural_selector"
             | "function walk_plural_selector" => PLURAL_SELECTOR_ORIGINS,
+            "type UnqualifiedReference"
+            | "function render_unqualified_reference"
+            | "function agreement_for_unqualified_reference"
+            | "function number_for_unqualified_reference"
+            | "function onset_for_unqualified_reference"
+            | "function walk_unqualified_reference" => UNQUALIFIED_REFERENCE_ORIGINS,
+            "type CountReference"
+            | "function render_count_reference"
+            | "function render_count_reference_body"
+            | "function agreement_for_count_reference"
+            | "function number_for_count_reference"
+            | "function onset_for_count_reference"
+            | "function walk_count_reference"
+            | "type ThatMany"
+            | "function walk_that_many" => &["construction that_many"],
             "type NounPhrase"
             | "function render_noun_phrase"
             | "function agreement_for_noun_phrase"
@@ -2470,16 +2487,20 @@ mod tests {
             | "function walk_full_noun_phrase_coordination" => {
                 FULL_NOUN_PHRASE_COORDINATION_ORIGINS
             }
-            "type PostmodifiableReference"
-            | "function render_postmodifiable_reference"
-            | "function agreement_for_postmodifiable_reference"
-            | "function number_for_postmodifiable_reference"
-            | "function onset_for_postmodifiable_reference"
-            | "function walk_postmodifiable_reference" => &[
-                "construction postmodifiable_indefinite_reference",
-                "construction postmodifiable_singular_reference",
-                "construction postmodifiable_plural_reference",
-            ],
+            "type MannerReference"
+            | "function render_manner_reference"
+            | "function walk_manner_reference"
+            | "type ThisWay"
+            | "function walk_this_way" => &["construction this_way"],
+            "type ScalarReference"
+            | "function render_scalar_reference"
+            | "function render_scalar_reference_body"
+            | "function agreement_for_scalar_reference"
+            | "function number_for_scalar_reference"
+            | "function onset_for_scalar_reference"
+            | "function walk_scalar_reference"
+            | "type ThatMuch"
+            | "function walk_that_much" => &["construction that_much"],
             "type ControllerOwnerQualification"
             | "function render_controller_owner_qualification"
             | "function walk_controller_owner_qualification" => &[
@@ -2533,6 +2554,33 @@ mod tests {
             "type ScalarQualification"
             | "function render_scalar_qualification"
             | "function walk_scalar_qualification" => &["construction scalar_qualification"],
+            "type ControllerStage"
+            | "function render_controller_stage"
+            | "function agreement_for_controller_stage"
+            | "function number_for_controller_stage"
+            | "function onset_for_controller_stage"
+            | "function walk_controller_stage" => &[
+                "construction unqualified_controller_stage",
+                "construction controller_qualified_reference",
+            ],
+            "type ZoneStage"
+            | "function render_zone_stage"
+            | "function agreement_for_zone_stage"
+            | "function number_for_zone_stage"
+            | "function onset_for_zone_stage"
+            | "function walk_zone_stage" => &[
+                "construction unqualified_zone_stage",
+                "construction zone_qualified_reference",
+            ],
+            "type NumericStage"
+            | "function render_numeric_stage"
+            | "function agreement_for_numeric_stage"
+            | "function number_for_numeric_stage"
+            | "function onset_for_numeric_stage"
+            | "function walk_numeric_stage" => &[
+                "construction unqualified_numeric_stage",
+                "construction scalar_qualified_reference",
+            ],
             "type PossessiveOwner"
             | "function render_possessive_owner"
             | "function number_for_possessive_owner"
@@ -2548,9 +2596,11 @@ mod tests {
                 "construction deal_damage",
                 "construction gain_life",
             ],
-            "type Amount" | "function render_amount" | "function walk_amount" => {
-                &["construction number", "construction variable"]
-            }
+            "type Amount" | "function render_amount" | "function walk_amount" => &[
+                "construction number",
+                "construction variable",
+                "construction scalar_reference_amount",
+            ],
             "type CardinalQuantity"
             | "function render_cardinal_quantity_body"
             | "function cardinality_for_cardinal_quantity"
@@ -2956,6 +3006,9 @@ mod tests {
             "type OneOrMoreReference" | "function walk_one_or_more_reference" => {
                 &["construction one_or_more_reference"]
             }
+            "type CountedReference" | "function walk_counted_reference" => {
+                &["construction counted_reference"]
+            }
             "type ThisReference" | "function walk_this_reference" => {
                 &["construction this_reference"]
             }
@@ -3013,19 +3066,6 @@ mod tests {
             "type SourceSelfReference"
             | "impl SourceSelfReference"
             | "function walk_source_self_reference" => &["construction self_reference"],
-            "type PostmodifiableIndefiniteReference"
-            | "function walk_postmodifiable_indefinite_reference" => {
-                &["construction postmodifiable_indefinite_reference"]
-            }
-            "type PostmodifiableSingularReference"
-            | "impl PostmodifiableSingularReference"
-            | "function walk_postmodifiable_singular_reference" => {
-                &["construction postmodifiable_singular_reference"]
-            }
-            "type PostmodifiablePluralReference"
-            | "function walk_postmodifiable_plural_reference" => {
-                &["construction postmodifiable_plural_reference"]
-            }
             "type YouControl" | "impl YouControl" | "function walk_you_control" => {
                 &["construction you_control"]
             }
@@ -3075,16 +3115,21 @@ mod tests {
             "type ScalarQualificationValue" | "function walk_scalar_qualification_value" => {
                 &["construction scalar_qualification"]
             }
+            "type UnqualifiedControllerStage" | "function walk_unqualified_controller_stage" => {
+                &["construction unqualified_controller_stage"]
+            }
             "type ControllerQualifiedReference"
             | "function walk_controller_qualified_reference" => {
                 &["construction controller_qualified_reference"]
             }
-            "type ControllerScalarQualifiedReference"
-            | "function walk_controller_scalar_qualified_reference" => {
-                &["construction controller_scalar_qualified_reference"]
+            "type UnqualifiedZoneStage" | "function walk_unqualified_zone_stage" => {
+                &["construction unqualified_zone_stage"]
             }
             "type ZoneQualifiedReference" | "function walk_zone_qualified_reference" => {
                 &["construction zone_qualified_reference"]
+            }
+            "type UnqualifiedNumericStage" | "function walk_unqualified_numeric_stage" => {
+                &["construction unqualified_numeric_stage"]
             }
             "type ScalarQualifiedReference" | "function walk_scalar_qualified_reference" => {
                 &["construction scalar_qualified_reference"]
@@ -3093,6 +3138,9 @@ mod tests {
             | "impl CountComparisonReference"
             | "function walk_count_comparison_reference" => {
                 &["construction count_comparison_reference"]
+            }
+            "type QualifiedNounPhrase" | "function walk_qualified_noun_phrase" => {
+                &["construction qualified_noun_phrase"]
             }
             "type PossessiveSelfReference"
             | "impl PossessiveSelfReference"
@@ -3111,6 +3159,9 @@ mod tests {
             "type GainLife" | "function walk_gain_life" => &["construction gain_life"],
             "type NumberAmount" | "function walk_number_amount" => &["construction number"],
             "type VariableAmount" | "function walk_variable_amount" => &["construction variable"],
+            "type ScalarReferenceAmount" | "function walk_scalar_reference_amount" => {
+                &["construction scalar_reference_amount"]
+            }
             "type TriggerWord" | "function render_trigger_word" | "function walk_trigger_word" => {
                 &["vocab TriggerWord"]
             }
@@ -3268,11 +3319,17 @@ mod tests {
             | "impl GeneratedRoot for Sentence"
             | "impl GeneratedRoot for Possessive"
             | "impl GeneratedRoot for CardinalQuantity"
+            | "impl GeneratedRoot for MannerReference"
+            | "impl GeneratedRoot for CountReference"
+            | "impl GeneratedRoot for ScalarReference"
             | "impl GeneratedRoot for OracleText"
             | "impl GeneratedParseRoot for Ability"
             | "impl GeneratedParseRoot for Sentence"
             | "impl GeneratedParseRoot for Possessive"
             | "impl GeneratedParseRoot for CardinalQuantity"
+            | "impl GeneratedParseRoot for MannerReference"
+            | "impl GeneratedParseRoot for CountReference"
+            | "impl GeneratedParseRoot for ScalarReference"
             | "impl GeneratedParseRoot for OracleText"
             | "impl StructuralTransition for StructuralTransition"
             | "impl Lexical for Lexical"
@@ -3307,6 +3364,15 @@ mod tests {
             "impl CardinalQuantity"
             | "impl Render for CardinalQuantity"
             | "function render_cardinal_quantity_with_claims" => &["root CardinalQuantity"],
+            "impl MannerReference"
+            | "impl Render for MannerReference"
+            | "function render_manner_reference_with_claims" => &["root MannerReference"],
+            "impl CountReference"
+            | "impl Render for CountReference"
+            | "function render_count_reference_with_claims" => &["root CountReference"],
+            "impl ScalarReference"
+            | "impl Render for ScalarReference"
+            | "function render_scalar_reference_with_claims" => &["root ScalarReference"],
             "function write_oracle_text_render"
             | "impl Render for OracleText"
             | "function render_oracle_text_with_claims" => &["root OracleText"],
@@ -3325,6 +3391,9 @@ mod tests {
                 "root Sentence",
                 "root Possessive",
                 "root CardinalQuantity",
+                "root MannerReference",
+                "root CountReference",
+                "root ScalarReference",
                 "root OracleText",
             ],
             "constant RULES" => RULE_ORIGINS.as_slice(),
@@ -3437,10 +3506,12 @@ mod tests {
         "type PluralNominalCoordination",
         "type SingularSelector",
         "type PluralSelector",
-        "type NounPhrase",
+        "type UnqualifiedReference",
+        "type CountReference",
         "type TargetedNounPhrase",
         "type FullNounPhraseCoordination",
-        "type PostmodifiableReference",
+        "type MannerReference",
+        "type ScalarReference",
         "type ControllerOwnerQualification",
         "type SingularController",
         "type ZoneReference",
@@ -3450,6 +3521,10 @@ mod tests {
         "type ScalarComparison",
         "type CountComparison",
         "type ScalarQualification",
+        "type ControllerStage",
+        "type ZoneStage",
+        "type NumericStage",
+        "type NounPhrase",
         "type PossessiveOwner",
         "type Possessive",
         "type VerbPhrase",
@@ -3579,6 +3654,8 @@ mod tests {
         "impl UpToManyReference",
         "type AnyNumberReference",
         "type OneOrMoreReference",
+        "type ThatMany",
+        "type CountedReference",
         "type ThisReference",
         "type ThatReference",
         "type ThoseReference",
@@ -3599,10 +3676,8 @@ mod tests {
         "type CoordinatedNounPhrase",
         "type SourceSelfReference",
         "impl SourceSelfReference",
-        "type PostmodifiableIndefiniteReference",
-        "type PostmodifiableSingularReference",
-        "impl PostmodifiableSingularReference",
-        "type PostmodifiablePluralReference",
+        "type ThisWay",
+        "type ThatMuch",
         "type YouControl",
         "impl YouControl",
         "type OpponentController",
@@ -3627,12 +3702,15 @@ mod tests {
         "type CountOrMore",
         "type CountOrFewer",
         "type ScalarQualificationValue",
+        "type UnqualifiedControllerStage",
         "type ControllerQualifiedReference",
-        "type ControllerScalarQualifiedReference",
+        "type UnqualifiedZoneStage",
         "type ZoneQualifiedReference",
+        "type UnqualifiedNumericStage",
         "type ScalarQualifiedReference",
         "type CountComparisonReference",
         "impl CountComparisonReference",
+        "type QualifiedNounPhrase",
         "type PossessiveSelfReference",
         "impl PossessiveSelfReference",
         "type PossessiveNoun",
@@ -3643,6 +3721,7 @@ mod tests {
         "type GainLife",
         "type NumberAmount",
         "type VariableAmount",
+        "type ScalarReferenceAmount",
         "type CardinalQuantityValue",
         "type TriggerWord",
         "type SubjectPronoun",
@@ -3737,11 +3816,17 @@ mod tests {
         "impl GeneratedRoot for Sentence",
         "impl GeneratedRoot for Possessive",
         "impl GeneratedRoot for CardinalQuantity",
+        "impl GeneratedRoot for MannerReference",
+        "impl GeneratedRoot for CountReference",
+        "impl GeneratedRoot for ScalarReference",
         "impl GeneratedRoot for OracleText",
         "impl GeneratedParseRoot for Ability",
         "impl GeneratedParseRoot for Sentence",
         "impl GeneratedParseRoot for Possessive",
         "impl GeneratedParseRoot for CardinalQuantity",
+        "impl GeneratedParseRoot for MannerReference",
+        "impl GeneratedParseRoot for CountReference",
+        "impl GeneratedParseRoot for ScalarReference",
         "impl GeneratedParseRoot for OracleText",
         "impl StructuralTransition for StructuralTransition",
         "impl Lexical for Lexical",
@@ -3795,6 +3880,15 @@ mod tests {
         "impl CardinalQuantity",
         "impl Render for CardinalQuantity",
         "function render_cardinal_quantity_with_claims",
+        "impl MannerReference",
+        "impl Render for MannerReference",
+        "function render_manner_reference_with_claims",
+        "impl CountReference",
+        "impl Render for CountReference",
+        "function render_count_reference_with_claims",
+        "impl ScalarReference",
+        "impl Render for ScalarReference",
+        "function render_scalar_reference_with_claims",
         "function write_oracle_text_render",
         "impl Render for OracleText",
         "function render_oracle_text_with_claims",
@@ -3816,10 +3910,11 @@ mod tests {
         "function render_plural_nominal_coordination",
         "function render_singular_selector",
         "function render_plural_selector",
-        "function render_noun_phrase",
+        "function render_unqualified_reference",
+        "function render_count_reference_body",
         "function render_targeted_noun_phrase",
         "function render_full_noun_phrase_coordination",
-        "function render_postmodifiable_reference",
+        "function render_scalar_reference_body",
         "function render_controller_owner_qualification",
         "function render_singular_controller",
         "function render_zone_reference",
@@ -3829,6 +3924,10 @@ mod tests {
         "function render_scalar_comparison",
         "function render_count_comparison",
         "function render_scalar_qualification",
+        "function render_controller_stage",
+        "function render_zone_stage",
+        "function render_numeric_stage",
+        "function render_noun_phrase",
         "function render_possessive_owner",
         "function render_verb_phrase",
         "function render_amount",
@@ -3871,8 +3970,12 @@ mod tests {
         "function agreement_for_plural_nominal",
         "function agreement_for_singular_selector",
         "function agreement_for_plural_selector",
+        "function agreement_for_unqualified_reference",
+        "function agreement_for_count_reference",
+        "function agreement_for_controller_stage",
+        "function agreement_for_zone_stage",
+        "function agreement_for_numeric_stage",
         "function agreement_for_noun_phrase",
-        "function agreement_for_postmodifiable_reference",
         "function cardinality_for_cardinal_quantity",
         "function number_for_singular_head",
         "function number_for_plural_head",
@@ -3881,8 +3984,12 @@ mod tests {
         "function number_for_plural_nominal",
         "function number_for_singular_selector",
         "function number_for_plural_selector",
+        "function number_for_unqualified_reference",
+        "function number_for_count_reference",
+        "function number_for_controller_stage",
+        "function number_for_zone_stage",
+        "function number_for_numeric_stage",
         "function number_for_noun_phrase",
-        "function number_for_postmodifiable_reference",
         "function number_for_possessive_owner",
         "function onset_for_singular_head",
         "function onset_for_plural_head",
@@ -3892,8 +3999,12 @@ mod tests {
         "function onset_for_plural_nominal",
         "function onset_for_singular_selector",
         "function onset_for_plural_selector",
+        "function onset_for_unqualified_reference",
+        "function onset_for_count_reference",
+        "function onset_for_controller_stage",
+        "function onset_for_zone_stage",
+        "function onset_for_numeric_stage",
         "function onset_for_noun_phrase",
-        "function onset_for_postmodifiable_reference",
         "function possessive_ending_for_plural_head",
         "function possessive_ending_for_possessive_owner",
         "trait Visitor",
@@ -3915,10 +4026,12 @@ mod tests {
         "function walk_plural_nominal_coordination",
         "function walk_singular_selector",
         "function walk_plural_selector",
-        "function walk_noun_phrase",
+        "function walk_unqualified_reference",
+        "function walk_count_reference",
         "function walk_targeted_noun_phrase",
         "function walk_full_noun_phrase_coordination",
-        "function walk_postmodifiable_reference",
+        "function walk_manner_reference",
+        "function walk_scalar_reference",
         "function walk_controller_owner_qualification",
         "function walk_singular_controller",
         "function walk_zone_reference",
@@ -3928,6 +4041,10 @@ mod tests {
         "function walk_scalar_comparison",
         "function walk_count_comparison",
         "function walk_scalar_qualification",
+        "function walk_controller_stage",
+        "function walk_zone_stage",
+        "function walk_numeric_stage",
+        "function walk_noun_phrase",
         "function walk_possessive_owner",
         "function walk_possessive",
         "function walk_verb_phrase",
@@ -4053,6 +4170,8 @@ mod tests {
         "function walk_up_to_many_reference",
         "function walk_any_number_reference",
         "function walk_one_or_more_reference",
+        "function walk_that_many",
+        "function walk_counted_reference",
         "function walk_this_reference",
         "function walk_that_reference",
         "function walk_those_reference",
@@ -4069,9 +4188,8 @@ mod tests {
         "function walk_full_and_or_noun_phrase_coordination",
         "function walk_coordinated_noun_phrase",
         "function walk_source_self_reference",
-        "function walk_postmodifiable_indefinite_reference",
-        "function walk_postmodifiable_singular_reference",
-        "function walk_postmodifiable_plural_reference",
+        "function walk_this_way",
+        "function walk_that_much",
         "function walk_you_control",
         "function walk_opponent_controller",
         "function walk_opponent_controls",
@@ -4092,11 +4210,14 @@ mod tests {
         "function walk_count_or_more",
         "function walk_count_or_fewer",
         "function walk_scalar_qualification_value",
+        "function walk_unqualified_controller_stage",
         "function walk_controller_qualified_reference",
-        "function walk_controller_scalar_qualified_reference",
+        "function walk_unqualified_zone_stage",
         "function walk_zone_qualified_reference",
+        "function walk_unqualified_numeric_stage",
         "function walk_scalar_qualified_reference",
         "function walk_count_comparison_reference",
+        "function walk_qualified_noun_phrase",
         "function walk_possessive_self_reference",
         "function walk_possessive_noun",
         "function walk_possessive_value",
@@ -4106,6 +4227,7 @@ mod tests {
         "function walk_gain_life",
         "function walk_number_amount",
         "function walk_variable_amount",
+        "function walk_scalar_reference_amount",
         "function walk_cardinal_quantity_value",
         "function walk_trigger_word",
         "function walk_subject_pronoun",
@@ -4806,7 +4928,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 736);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 789);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -4843,11 +4965,14 @@ mod tests {
              //   - bare = \"are\"\n\
              //   - third_person_singular = \"is\"\n\
              // terminal bindings (0)\n\
-             // roots (5)\n\
+             // roots (8)\n\
              // - root Ability\n\
              // - root Sentence\n\
              // - root Possessive\n\
              // - root CardinalQuantity\n\
+             // - root MannerReference\n\
+             // - root CountReference\n\
+             // - root ScalarReference\n\
              // - root OracleText\n"
         );
     }
@@ -4859,7 +4984,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 736);
+        assert_eq!(parsed.items.len(), 789);
     }
 
     #[test]

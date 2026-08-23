@@ -964,7 +964,7 @@ constructions! {
         derive onset = Values::Vowel;
         form other_target_plural_selector = "other" "target" nominal;
     }
-    construction indefinite_reference: NounPhrase {
+    construction indefinite_reference: UnqualifiedReference {
         element IndefiniteReference { nominal: SingularNominal, }
         derive agreement = nominal.agreement;
         derive number = nominal.number;
@@ -972,14 +972,14 @@ constructions! {
         form an when nominal.onset is Vowel = "an" nominal;
         form a otherwise = "a" nominal;
     }
-    construction named_card_reference: NounPhrase {
+    construction named_card_reference: UnqualifiedReference {
         element NamedCardReference { name: identity CardName, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form named_card_reference = "a" "card" "named" identity(name);
     }
-    construction ordinary_singular_reference: NounPhrase {
+    construction ordinary_singular_reference: UnqualifiedReference {
         element OrdinarySingularReference { selector: SingularSelector, }
         require any(
             selector is TargetSingularSelector,
@@ -990,35 +990,35 @@ constructions! {
         derive onset = selector.onset;
         form ordinary_singular_reference = selector;
     }
-    construction ordinary_plural_reference: NounPhrase {
+    construction ordinary_plural_reference: UnqualifiedReference {
         element OrdinaryPluralReference { selector: PluralSelector, }
         derive agreement = selector.agreement;
         derive number = selector.number;
         derive onset = selector.onset;
         form ordinary_plural_reference = selector;
     }
-    construction definite_singular_reference: NounPhrase {
+    construction definite_singular_reference: UnqualifiedReference {
         element DefiniteSingularReference { selector: SingularSelector, }
         derive agreement = selector.agreement;
         derive number = selector.number;
         derive onset = Values::Consonant;
         form definite_singular_reference = "the" selector;
     }
-    construction definite_plural_reference: NounPhrase {
+    construction definite_plural_reference: UnqualifiedReference {
         element DefinitePluralReference { selector: PluralSelector, }
         derive agreement = selector.agreement;
         derive number = selector.number;
         derive onset = Values::Consonant;
         form definite_plural_reference = "the" selector;
     }
-    construction any_target_reference: NounPhrase {
+    construction any_target_reference: UnqualifiedReference {
         element AnyTargetReference {}
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Vowel;
         form any_target_reference = "any" "target";
     }
-    construction another_reference: NounPhrase {
+    construction another_reference: UnqualifiedReference {
         element AnotherReference { selector: SingularSelector, }
         require any(
             selector is UnmarkedSingularSelector,
@@ -1029,21 +1029,21 @@ constructions! {
         derive onset = Values::Vowel;
         form another_reference = "another" selector;
     }
-    construction each_reference: NounPhrase {
+    construction each_reference: UnqualifiedReference {
         element EachReference { selector: SingularSelector, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Vowel;
         form each_reference = "each" selector;
     }
-    construction all_reference: NounPhrase {
+    construction all_reference: UnqualifiedReference {
         element AllReference { selector: PluralSelector, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive onset = Values::Vowel;
         form all_reference = "all" selector;
     }
-    construction fixed_reference: NounPhrase {
+    construction fixed_reference: UnqualifiedReference {
         element FixedReference { count: CardinalQuantity, selector: PluralSelector, }
         require count.cardinality is TwoPlus;
         derive agreement = Values::Bare;
@@ -1051,14 +1051,14 @@ constructions! {
         derive onset = Values::Consonant;
         form fixed_reference = count selector;
     }
-    construction variable_reference: NounPhrase {
+    construction variable_reference: UnqualifiedReference {
         element VariableReference { count: lex Variable, selector: PluralSelector, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive onset = count.onset;
         form variable_reference = lex(count) selector;
     }
-    construction up_to_one_reference: NounPhrase {
+    construction up_to_one_reference: UnqualifiedReference {
         element UpToOneReference { count: CardinalQuantity, selector: SingularSelector, }
         require count.cardinality is One;
         require any(
@@ -1071,7 +1071,7 @@ constructions! {
         derive onset = Values::Vowel;
         form up_to_one_reference = "up" "to" count selector;
     }
-    construction up_to_many_reference: NounPhrase {
+    construction up_to_many_reference: UnqualifiedReference {
         element UpToManyReference { count: CardinalQuantity, selector: PluralSelector, }
         require count.cardinality is TwoPlus;
         require any(
@@ -1084,63 +1084,80 @@ constructions! {
         derive onset = Values::Vowel;
         form up_to_many_reference = "up" "to" count selector;
     }
-    construction any_number_reference: NounPhrase {
+    construction any_number_reference: UnqualifiedReference {
         element AnyNumberReference { selector: PluralSelector, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive onset = Values::Vowel;
         form any_number_reference = "any" "number" "of" selector;
     }
-    construction one_or_more_reference: NounPhrase {
+    construction one_or_more_reference: UnqualifiedReference {
         element OneOrMoreReference { selector: PluralSelector, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive onset = Values::Consonant;
         form one_or_more_reference = "one" "or" "more" selector;
     }
-    construction this_reference: NounPhrase {
+    construction that_many: CountReference {
+        element ThatMany {}
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Consonant;
+        form that_many = "that" "many";
+    }
+    construction counted_reference: UnqualifiedReference {
+        element CountedReference {
+            count: CountReference,
+            selector: PluralSelector,
+        }
+        derive agreement = count.agreement;
+        derive number = count.number;
+        derive onset = count.onset;
+        form counted_reference = count selector;
+    }
+    construction this_reference: UnqualifiedReference {
         element ThisReference { nominal: SingularNominal, }
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
         form this_reference = "this" nominal;
     }
-    construction that_reference: NounPhrase {
+    construction that_reference: UnqualifiedReference {
         element ThatReference { nominal: SingularNominal, }
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
         form that_reference = "that" nominal;
     }
-    construction those_reference: NounPhrase {
+    construction those_reference: UnqualifiedReference {
         element ThoseReference { nominal: PluralNominal, }
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
         form those_reference = "those" nominal;
     }
-    construction designated_singular_reference: NounPhrase {
+    construction designated_singular_reference: UnqualifiedReference {
         element DesignatedSingularReference { designation: lex Designation, nominal: SingularNominal, }
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
         form designated_singular_reference = "the" lex(designation) nominal;
     }
-    construction designated_plural_reference: NounPhrase {
+    construction designated_plural_reference: UnqualifiedReference {
         element DesignatedPluralReference { designation: lex Designation, nominal: PluralNominal, }
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
         form designated_plural_reference = "the" lex(designation) nominal;
     }
-    construction chosen_quality_reference: NounPhrase {
+    construction chosen_quality_reference: UnqualifiedReference {
         element ChosenQualityReference { quality: lex ChosenQuality, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form chosen_quality_reference = "the" "chosen" lex(quality);
     }
-    construction possessed_singular_reference: NounPhrase {
+    construction possessed_singular_reference: UnqualifiedReference {
         element PossessedSingularReference {
             possessor: lex PossessiveDeterminerPronoun,
             nominal: SingularNominal,
@@ -1150,7 +1167,7 @@ constructions! {
         derive onset = possessor.onset;
         form possessed_singular_reference = lex(possessor) nominal;
     }
-    construction possessed_plural_reference: NounPhrase {
+    construction possessed_plural_reference: UnqualifiedReference {
         element PossessedPluralReference {
             possessor: lex PossessiveDeterminerPronoun,
             nominal: PluralNominal,
@@ -1160,7 +1177,7 @@ constructions! {
         derive onset = possessor.onset;
         form possessed_plural_reference = lex(possessor) nominal;
     }
-    construction possessive_absolute_reference: NounPhrase {
+    construction possessive_absolute_reference: UnqualifiedReference {
         element PossessiveAbsoluteReference { word: lex PossessiveAbsolutePronoun, }
         derive agreement = match word {
             Hers => Values::ThirdPersonSingular,
@@ -1227,45 +1244,30 @@ constructions! {
         require len(members) >= 2;
         form full_and_or_noun_phrase_coordination = members;
     }
-    construction coordinated_noun_phrase: NounPhrase {
+    construction coordinated_noun_phrase: UnqualifiedReference {
         element CoordinatedNounPhrase { coordination: FullNounPhraseCoordination, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive onset = Values::Consonant;
         form coordinated_noun_phrase = coordination;
     }
-    construction self_reference: NounPhrase {
+    construction self_reference: UnqualifiedReference {
         element SourceSelfReference { spelling: identity SelfReferenceSpelling, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = spelling.onset;
         form self_reference = identity(spelling);
     }
-    construction postmodifiable_indefinite_reference: PostmodifiableReference {
-        element PostmodifiableIndefiniteReference { nominal: SingularNominal, }
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = nominal.onset;
-        form an when nominal.onset is Vowel = "an" nominal;
-        form a otherwise = "a" nominal;
+    construction this_way: MannerReference {
+        element ThisWay {}
+        form this_way = "this" "way";
     }
-    construction postmodifiable_singular_reference: PostmodifiableReference {
-        element PostmodifiableSingularReference { selector: SingularSelector, }
-        require any(
-            selector is TargetSingularSelector,
-            selector is TargetSingularCoordinationSelector
-        );
-        derive agreement = selector.agreement;
-        derive number = selector.number;
-        derive onset = selector.onset;
-        form postmodifiable_singular_reference = selector;
-    }
-    construction postmodifiable_plural_reference: PostmodifiableReference {
-        element PostmodifiablePluralReference { selector: PluralSelector, }
-        derive agreement = selector.agreement;
-        derive number = selector.number;
-        derive onset = selector.onset;
-        form postmodifiable_plural_reference = selector;
+    construction that_much: ScalarReference {
+        element ThatMuch {}
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form that_much = "that" "much";
     }
     construction you_control: ControllerOwnerQualification {
         element YouControl { controller: lex SubjectPronoun, }
@@ -1362,9 +1364,16 @@ constructions! {
         }
         form scalar_qualification = "with" measure comparison;
     }
-    construction controller_qualified_reference: NounPhrase {
+    construction unqualified_controller_stage: ControllerStage {
+        element UnqualifiedControllerStage { reference: UnqualifiedReference, }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        form unqualified_controller_stage = reference;
+    }
+    construction controller_qualified_reference: ControllerStage {
         element ControllerQualifiedReference {
-            reference: PostmodifiableReference,
+            reference: UnqualifiedReference,
             controller_owner: ControllerOwnerQualification,
         }
         derive agreement = reference.agreement;
@@ -1372,20 +1381,16 @@ constructions! {
         derive onset = reference.onset;
         form controller_qualified_reference = reference controller_owner;
     }
-    construction controller_scalar_qualified_reference: NounPhrase {
-        element ControllerScalarQualifiedReference {
-            reference: PostmodifiableReference,
-            controller_owner: ControllerOwnerQualification,
-            scalar: ScalarQualification,
-        }
+    construction unqualified_zone_stage: ZoneStage {
+        element UnqualifiedZoneStage { reference: ControllerStage, }
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
-        form controller_scalar_qualified_reference = reference controller_owner scalar;
+        form unqualified_zone_stage = reference;
     }
-    construction zone_qualified_reference: NounPhrase {
+    construction zone_qualified_reference: ZoneStage {
         element ZoneQualifiedReference {
-            reference: PostmodifiableReference,
+            reference: ControllerStage,
             zone: ZoneQualification,
         }
         derive agreement = reference.agreement;
@@ -1393,9 +1398,16 @@ constructions! {
         derive onset = reference.onset;
         form zone_qualified_reference = reference zone;
     }
-    construction scalar_qualified_reference: NounPhrase {
+    construction unqualified_numeric_stage: NumericStage {
+        element UnqualifiedNumericStage { reference: ZoneStage, }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        form unqualified_numeric_stage = reference;
+    }
+    construction scalar_qualified_reference: NumericStage {
         element ScalarQualifiedReference {
-            reference: PostmodifiableReference,
+            reference: ZoneStage,
             scalar: ScalarQualification,
         }
         derive agreement = reference.agreement;
@@ -1403,7 +1415,7 @@ constructions! {
         derive onset = reference.onset;
         form scalar_qualified_reference = reference scalar;
     }
-    construction count_comparison_reference: NounPhrase {
+    construction count_comparison_reference: UnqualifiedReference {
         element CountComparisonReference {
             count: CardinalQuantity,
             comparison: CountComparison,
@@ -1414,6 +1426,13 @@ constructions! {
         derive number = Values::Plural;
         derive onset = Values::Consonant;
         form count_comparison_reference = count comparison selector;
+    }
+    construction qualified_noun_phrase: NounPhrase {
+        element QualifiedNounPhrase { reference: NumericStage, }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        form qualified_noun_phrase = reference;
     }
     construction possessive_self_reference: PossessiveOwner {
         element PossessiveSelfReference { spelling: identity SelfReferenceSpelling, }
@@ -1465,6 +1484,10 @@ constructions! {
         element VariableAmount { variable: lex Variable, }
         form variable = lex(variable);
     }
+    construction scalar_reference_amount: Amount {
+        element ScalarReferenceAmount { reference: ScalarReference, }
+        form scalar_reference_amount = reference;
+    }
     construction cardinal: CardinalQuantity {
         element CardinalQuantityValue { number: lex CardinalNumber, }
         derive cardinality = number.cardinality;
@@ -1481,12 +1504,27 @@ constructions! {
     root Sentence { punctuation = "."; eoi = false; standalone_render = true; }
     root Possessive { eoi = true; standalone_render = true; }
     root CardinalQuantity { eoi = true; standalone_render = true; }
+    root MannerReference { eoi = true; standalone_render = true; }
+    root CountReference { eoi = true; standalone_render = true; }
+    root ScalarReference { eoi = true; standalone_render = true; }
     root OracleText { eoi = true; standalone_render = true; }
 }
 
 #[cfg(test)]
 mod task9_feature_tests {
     use super::*;
+
+    fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
+        NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+            reference: NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
+                reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
+                    reference: ControllerStage::UnqualifiedControllerStage(
+                        UnqualifiedControllerStage { reference },
+                    ),
+                }),
+            }),
+        })
+    }
 
     fn singular_member(noun: CommonNoun) -> SingularCoordinationMember {
         SingularCoordinationMember::BareSingularCoordinationMember(BareSingularCoordinationMember {
@@ -1508,7 +1546,7 @@ mod task9_feature_tests {
 
     #[test]
     fn coordination_scopes_derive_exact_number_and_agreement() {
-        let singular_shared = NounPhrase::OrdinarySingularReference(
+        let singular_shared = noun_phrase(UnqualifiedReference::OrdinarySingularReference(
             OrdinarySingularReference::new(SingularSelector::TargetSingularCoordinationSelector(
                 TargetSingularCoordinationSelector {
                     coordination: SingularNominalCoordination::SingularOrNominalCoordination(
@@ -1521,33 +1559,41 @@ mod task9_feature_tests {
                 },
             ))
             .expect("a target coordination selector is an ordinary singular reference"),
-        );
-        let plural_shared = NounPhrase::OrdinaryPluralReference(OrdinaryPluralReference {
-            selector: PluralSelector::TargetPluralCoordinationSelector(
-                TargetPluralCoordinationSelector {
-                    coordination: PluralNominalCoordination::PluralOrNominalCoordination(
-                        PluralOrNominalCoordination::new(vec![
-                            plural_member(CommonNoun::Player),
-                            plural_member(CommonNoun::Opponent),
-                        ])
-                        .expect("binary plural coordination satisfies minimum arity"),
-                    ),
-                },
-            ),
-        });
-        let full_np = NounPhrase::CoordinatedNounPhrase(CoordinatedNounPhrase {
-            coordination: FullNounPhraseCoordination::FullAndNounPhraseCoordination(
-                FullAndNounPhraseCoordination::new(vec![
-                    TargetedNounPhrase::SingularTargetedNounPhrase(SingularTargetedNounPhrase {
-                        nominal: singular_nominal(CommonNoun::Player),
-                    }),
-                    TargetedNounPhrase::SingularTargetedNounPhrase(SingularTargetedNounPhrase {
-                        nominal: singular_nominal(CommonNoun::Opponent),
-                    }),
-                ])
-                .expect("binary full-NP coordination satisfies minimum arity"),
-            ),
-        });
+        ));
+        let plural_shared = noun_phrase(UnqualifiedReference::OrdinaryPluralReference(
+            OrdinaryPluralReference {
+                selector: PluralSelector::TargetPluralCoordinationSelector(
+                    TargetPluralCoordinationSelector {
+                        coordination: PluralNominalCoordination::PluralOrNominalCoordination(
+                            PluralOrNominalCoordination::new(vec![
+                                plural_member(CommonNoun::Player),
+                                plural_member(CommonNoun::Opponent),
+                            ])
+                            .expect("binary plural coordination satisfies minimum arity"),
+                        ),
+                    },
+                ),
+            },
+        ));
+        let full_np = noun_phrase(UnqualifiedReference::CoordinatedNounPhrase(
+            CoordinatedNounPhrase {
+                coordination: FullNounPhraseCoordination::FullAndNounPhraseCoordination(
+                    FullAndNounPhraseCoordination::new(vec![
+                        TargetedNounPhrase::SingularTargetedNounPhrase(
+                            SingularTargetedNounPhrase {
+                                nominal: singular_nominal(CommonNoun::Player),
+                            },
+                        ),
+                        TargetedNounPhrase::SingularTargetedNounPhrase(
+                            SingularTargetedNounPhrase {
+                                nominal: singular_nominal(CommonNoun::Opponent),
+                            },
+                        ),
+                    ])
+                    .expect("binary full-NP coordination satisfies minimum arity"),
+                ),
+            },
+        ));
 
         assert_eq!(number_for_noun_phrase(&singular_shared), Number::Singular);
         assert_eq!(
@@ -1565,8 +1611,20 @@ mod task9_feature_tests {
 mod task10_feature_tests {
     use super::*;
 
+    fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
+        NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+            reference: NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
+                reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
+                    reference: ControllerStage::UnqualifiedControllerStage(
+                        UnqualifiedControllerStage { reference },
+                    ),
+                }),
+            }),
+        })
+    }
+
     fn variable_reference(count: Variable) -> NounPhrase {
-        NounPhrase::VariableReference(VariableReference {
+        noun_phrase(UnqualifiedReference::VariableReference(VariableReference {
             count,
             selector: PluralSelector::UnmarkedPluralSelector(UnmarkedPluralSelector {
                 nominal: PluralNominal::BarePluralNominal(BarePluralNominal {
@@ -1575,7 +1633,7 @@ mod task10_feature_tests {
                     }),
                 }),
             }),
-        })
+        }))
     }
 
     #[test]
@@ -1617,7 +1675,7 @@ mod task10_feature_tests {
                 .expect("chosen spelling is licensed by the context");
             assert_eq!(
                 onset_for_noun_phrase(
-                    &NounPhrase::SelfReference(reference),
+                    &noun_phrase(UnqualifiedReference::SelfReference(reference)),
                     &context,
                     &environment,
                 ),

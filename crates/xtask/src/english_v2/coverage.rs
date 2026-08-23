@@ -1380,7 +1380,7 @@ mod tests {
         let production_selected_covered_ids = report
             .selected_covered_ids()
             .expect("full production selected-covered IDs are unique");
-        assert_eq!(covered_ids.len(), 600);
+        assert_eq!(covered_ids.len(), 608);
         assert_eq!(
             covered_ids,
             production_selected_covered_ids
@@ -1524,10 +1524,10 @@ mod tests {
 
         assert_eq!(report.rows().len(), 32_641);
         assert_eq!(report.summary().total_units(), 32_641);
-        assert_eq!(report.summary().selected_units(), 600);
-        assert_eq!(report.summary().covered_units(), 600);
+        assert_eq!(report.summary().selected_units(), 608);
+        assert_eq!(report.summary().covered_units(), 608);
         assert_eq!(report.summary().selected_uncovered_units(), 0);
-        assert_eq!(report.summary().parse_failures(), 32_041);
+        assert_eq!(report.summary().parse_failures(), 32_033);
         assert_eq!(report.summary().unresolved_ties(), 0);
         assert_eq!(report.summary().internal_failures(), 0);
         assert_eq!(report.summary().roundtrip_mismatch_units(), 0);

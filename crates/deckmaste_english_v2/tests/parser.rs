@@ -87,19 +87,16 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
             Sentence::Imperative(Imperative {
                 predicate:
                     VerbPhrase::Destroy(Destroy {
-                        object:
-                            Object::ObjectNominal(NominalObject {
-                                value:
-                                    NounPhrase::IndefiniteReference(IndefiniteReference {
-                                        nominal:
-                                            SingularNominal::BareSingularNominal(BareSingularNominal {
-                                                head,
-                                            }),
-                                    }),
-                            }),
+                        object: Object::ObjectNominal(NominalObject { value }),
                     }),
             }),
         ] = paragraph.sentences()
+        else {
+            panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
+        };
+        let UnqualifiedReference::IndefiniteReference(IndefiniteReference {
+            nominal: SingularNominal::BareSingularNominal(BareSingularNominal { head }),
+        }) = unqualified_reference(value)
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
@@ -430,42 +427,86 @@ fn plural_head(noun: Noun) -> PluralHead {
     }
 }
 
-fn indefinite(noun: Noun) -> NounPhrase {
-    NounPhrase::IndefiniteReference(IndefiniteReference {
-        nominal: singular_nominal(noun),
+fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
+    NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+        reference: NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
+            reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
+                reference: ControllerStage::UnqualifiedControllerStage(
+                    UnqualifiedControllerStage { reference },
+                ),
+            }),
+        }),
     })
 }
 
+fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
+    let NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+        reference:
+            NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
+                reference:
+                    ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
+                        reference:
+                            ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
+                                reference,
+                            }),
+                    }),
+            }),
+    }) = noun_phrase
+    else {
+        panic!("expected an unqualified noun phrase: {noun_phrase:?}")
+    };
+    reference
+}
+
+fn indefinite(noun: Noun) -> NounPhrase {
+    noun_phrase(UnqualifiedReference::IndefiniteReference(
+        IndefiniteReference {
+            nominal: singular_nominal(noun),
+        },
+    ))
+}
+
 fn target_noun(noun: Noun) -> NounPhrase {
-    NounPhrase::OrdinarySingularReference(
+    noun_phrase(UnqualifiedReference::OrdinarySingularReference(
         OrdinarySingularReference::new(SingularSelector::TargetSingularSelector(
             TargetSingularSelector {
                 nominal: singular_nominal(noun),
             },
         ))
         .expect("a target selector is an ordinary singular reference"),
-    )
+    ))
 }
 
 fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
-    NounPhrase::ControllerScalarQualifiedReference(ControllerScalarQualifiedReference {
-        reference: PostmodifiableReference::PostmodifiablePluralReference(
-            PostmodifiablePluralReference {
-                selector: PluralSelector::UnmarkedPluralSelector(UnmarkedPluralSelector {
-                    nominal: plural_nominal(creatures()),
-                }),
-            },
-        ),
-        controller_owner: ControllerOwnerQualification::YouControl(
-            YouControl::new(SubjectPronoun::You).expect("You is a valid controller"),
-        ),
-        scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
-            measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
-                characteristic: ScalarCharacteristic::Power,
+    NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+        reference: NumericStage::ScalarQualifiedReference(ScalarQualifiedReference {
+            reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
+                reference: ControllerStage::ControllerQualifiedReference(
+                    ControllerQualifiedReference {
+                        reference: UnqualifiedReference::OrdinaryPluralReference(
+                            OrdinaryPluralReference {
+                                selector: PluralSelector::UnmarkedPluralSelector(
+                                    UnmarkedPluralSelector {
+                                        nominal: plural_nominal(creatures()),
+                                    },
+                                ),
+                            },
+                        ),
+                        controller_owner: ControllerOwnerQualification::YouControl(
+                            YouControl::new(SubjectPronoun::You)
+                                .expect("You is a valid controller"),
+                        ),
+                    },
+                ),
             }),
-            comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
-                threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
-                    value: ScalarNumber { magnitude: 2 },
+            scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
+                measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
+                    characteristic: ScalarCharacteristic::Power,
+                }),
+                comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
+                    threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
+                        value: ScalarNumber { magnitude: 2 },
+                    }),
                 }),
             }),
         }),
@@ -473,15 +514,15 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
 }
 
 fn that_noun(noun: Noun) -> NounPhrase {
-    NounPhrase::ThatReference(ThatReference {
+    noun_phrase(UnqualifiedReference::ThatReference(ThatReference {
         nominal: singular_nominal(noun),
-    })
+    }))
 }
 
 fn those_noun(noun: Noun) -> NounPhrase {
-    NounPhrase::ThoseReference(ThoseReference {
+    noun_phrase(UnqualifiedReference::ThoseReference(ThoseReference {
         nominal: plural_nominal(noun),
-    })
+    }))
 }
 
 fn nominal_subject(value: NounPhrase) -> Subject {
@@ -727,7 +768,9 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         SelfReferenceSpelling::Abbreviated
     );
     let self_reference = paragraph(Sentence::Declarative(Declarative {
-        subject: nominal_subject(NounPhrase::SelfReference(self_reference)),
+        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+            self_reference,
+        ))),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: variable_x(),
         }),
@@ -821,12 +864,12 @@ fn demonstrative_references_select_distinct_typed_constructions() {
         (
             "That creature deals 3 damage to it.",
             that_noun(creature()),
-            "NounPhraseThatReference",
+            "UnqualifiedReferenceThatReference",
         ),
         (
             "Those creatures deal 3 damage to it.",
             those_noun(creatures()),
-            "NounPhraseThoseReference",
+            "UnqualifiedReferenceThoseReference",
         ),
     ] {
         let expected = Sentence::Declarative(Declarative {
@@ -896,10 +939,12 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "PluralNominalCoordination",
             "SingularSelector",
             "PluralSelector",
-            "NounPhrase",
+            "UnqualifiedReference",
+            "CountReference",
             "TargetedNounPhrase",
             "FullNounPhraseCoordination",
-            "PostmodifiableReference",
+            "MannerReference",
+            "ScalarReference",
             "ControllerOwnerQualification",
             "SingularController",
             "ZoneReference",
@@ -909,6 +954,10 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "ScalarComparison",
             "CountComparison",
             "ScalarQualification",
+            "ControllerStage",
+            "ZoneStage",
+            "NumericStage",
+            "NounPhrase",
             "PossessiveOwner",
             "Possessive",
             "VerbPhrase",
@@ -1018,6 +1067,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "UpToManyReference",
             "AnyNumberReference",
             "OneOrMoreReference",
+            "ThatMany",
+            "CountedReference",
             "ThisReference",
             "ThatReference",
             "ThoseReference",
@@ -1034,9 +1085,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "FullAndOrNounPhraseCoordination",
             "CoordinatedNounPhrase",
             "SourceSelfReference",
-            "PostmodifiableIndefiniteReference",
-            "PostmodifiableSingularReference",
-            "PostmodifiablePluralReference",
+            "ThisWay",
+            "ThatMuch",
             "YouControl",
             "OpponentController",
             "OpponentControls",
@@ -1057,11 +1107,14 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "CountOrMore",
             "CountOrFewer",
             "ScalarQualificationValue",
+            "UnqualifiedControllerStage",
             "ControllerQualifiedReference",
-            "ControllerScalarQualifiedReference",
+            "UnqualifiedZoneStage",
             "ZoneQualifiedReference",
+            "UnqualifiedNumericStage",
             "ScalarQualifiedReference",
             "CountComparisonReference",
+            "QualifiedNounPhrase",
             "PossessiveSelfReference",
             "PossessiveNoun",
             "PossessiveValue",
@@ -1071,6 +1124,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "GainLife",
             "NumberAmount",
             "VariableAmount",
+            "ScalarReferenceAmount",
             "CardinalQuantityValue",
             "TriggerWord",
             "SubjectPronoun",
@@ -1159,9 +1213,9 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
             &["new", "try_new", "clause"][..],
         ),
         (
-            "PostmodifiableSingularReference",
-            &[("selector", false)][..],
-            &["new", "try_new", "selector"][..],
+            "UnqualifiedControllerStage",
+            &[("reference", true)][..],
+            &[][..],
         ),
         (
             "YouControl",
@@ -1385,9 +1439,11 @@ fn gain_life_with_where() -> Ability {
 
 fn zacama_deals_damage() -> Ability {
     paragraph(Sentence::Declarative(Declarative {
-        subject: nominal_subject(NounPhrase::SelfReference(self_reference(
-            SelfReferenceSpelling::Abbreviated,
-            "Zacama, Primal Calamity",
+        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+            self_reference(
+                SelfReferenceSpelling::Abbreviated,
+                "Zacama, Primal Calamity",
+            ),
         ))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
@@ -1561,7 +1617,11 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "SentenceImperative".to_owned(),
             "VerbPhraseDestroy".to_owned(),
             "ObjectObjectNominal".to_owned(),
-            "NounPhraseOrdinarySingularReference".to_owned(),
+            "NounPhraseQualifiedNounPhrase".to_owned(),
+            "NumericStageUnqualifiedNumericStage".to_owned(),
+            "ZoneStageUnqualifiedZoneStage".to_owned(),
+            "ControllerStageUnqualifiedControllerStage".to_owned(),
+            "UnqualifiedReferenceOrdinarySingularReference".to_owned(),
             "SingularSelectorTargetSingularSelector".to_owned(),
             "SingularNominalBareSingularNominal".to_owned(),
             "SingularHeadTypeSingularHead".to_owned(),
@@ -1662,13 +1722,15 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
         Sentence::Imperative(Imperative {
             predicate:
                 VerbPhrase::Destroy(Destroy {
-                    object:
-                        Object::ObjectNominal(NominalObject {
-                            value: NounPhrase::NamedCardReference(NamedCardReference { name }),
-                        }),
+                    object: Object::ObjectNominal(NominalObject { value }),
                 }),
         }),
     ] = paragraph.sentences()
+    else {
+        panic!("explicit card name has its generated AST construction: {parsed:?}");
+    };
+    let UnqualifiedReference::NamedCardReference(NamedCardReference { name }) =
+        unqualified_reference(value)
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
@@ -1718,16 +1780,17 @@ fn bare_own_card_name_remains_unique_source_self_reference() {
     };
     let [
         Sentence::Declarative(Declarative {
-            subject:
-                Subject::SubjectNominal(NominalSubject {
-                    value: NounPhrase::SelfReference(_),
-                }),
+            subject: Subject::SubjectNominal(NominalSubject { value }),
             ..
         }),
     ] = paragraph.sentences()
     else {
         panic!("bare own card name remains source self-reference: {selected:?}");
     };
+    assert!(matches!(
+        unqualified_reference(value),
+        UnqualifiedReference::SelfReference(_)
+    ));
     assert_eq!(
         analysis
             .decision()
@@ -1864,10 +1927,10 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
 
         if limit > 0 {
             let candidate = &trace.materialized_candidates().items()[0];
-            assert_eq!(candidate.construction_path().total(), 8);
-            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 8));
-            assert_eq!(candidate.specificity().total(), 10);
-            assert_eq!(candidate.specificity().shown(), usize::min(limit, 10));
+            assert_eq!(candidate.construction_path().total(), 12);
+            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 12));
+            assert_eq!(candidate.specificity().total(), 14);
+            assert_eq!(candidate.specificity().shown(), usize::min(limit, 14));
         }
 
         if limit == usize::MAX {
@@ -1885,13 +1948,17 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "SentenceImperative",
                     "VerbPhraseDestroy",
                     "ObjectObjectNominal",
-                    "NounPhraseOrdinarySingularReference",
+                    "NounPhraseQualifiedNounPhrase",
+                    "NumericStageUnqualifiedNumericStage",
+                    "ZoneStageUnqualifiedZoneStage",
+                    "ControllerStageUnqualifiedControllerStage",
+                    "UnqualifiedReferenceOrdinarySingularReference",
                     "SingularSelectorTargetSingularSelector",
                     "SingularNominalBareSingularNominal",
                     "SingularHeadTypeSingularHead",
                 ]
             );
-            assert_eq!(candidate.specificity().total(), 10);
+            assert_eq!(candidate.specificity().total(), 14);
             assert!(selection.unselected_candidates().items().is_empty());
             assert_eq!(selection.resolution(), complete.resolution());
             assert_eq!(selection.survivors().items(), complete.survivors());
@@ -1971,9 +2038,8 @@ fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
     let text = "Context Card deals 3 damage to target creature.";
     let context = context("Context Card");
     let expected = paragraph(Sentence::Declarative(Declarative {
-        subject: nominal_subject(NounPhrase::SelfReference(self_reference(
-            SelfReferenceSpelling::Full,
-            "Context Card",
+        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+            self_reference(SelfReferenceSpelling::Full, "Context Card"),
         ))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
@@ -1992,9 +2058,8 @@ fn self_reference_identity_preserves_its_inherent_case() {
     let text = "eBay deals 3 damage to target creature.";
     let context = context("eBay");
     let expected = paragraph(Sentence::Declarative(Declarative {
-        subject: nominal_subject(NounPhrase::SelfReference(self_reference(
-            SelfReferenceSpelling::Full,
-            "eBay",
+        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+            self_reference(SelfReferenceSpelling::Full, "eBay"),
         ))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {

@@ -203,42 +203,67 @@ fn plural_head(noun: Noun) -> PluralHead {
     }
 }
 
-fn indefinite(noun: Noun) -> NounPhrase {
-    NounPhrase::IndefiniteReference(IndefiniteReference {
-        nominal: singular_nominal(noun),
+fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
+    NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+        reference: NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
+            reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
+                reference: ControllerStage::UnqualifiedControllerStage(
+                    UnqualifiedControllerStage { reference },
+                ),
+            }),
+        }),
     })
 }
 
+fn indefinite(noun: Noun) -> NounPhrase {
+    noun_phrase(UnqualifiedReference::IndefiniteReference(
+        IndefiniteReference {
+            nominal: singular_nominal(noun),
+        },
+    ))
+}
+
 fn target_noun(noun: Noun) -> NounPhrase {
-    NounPhrase::OrdinarySingularReference(
+    noun_phrase(UnqualifiedReference::OrdinarySingularReference(
         OrdinarySingularReference::new(SingularSelector::TargetSingularSelector(
             TargetSingularSelector {
                 nominal: singular_nominal(noun),
             },
         ))
         .expect("a target selector is an ordinary singular reference"),
-    )
+    ))
 }
 
 fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
-    NounPhrase::ControllerScalarQualifiedReference(ControllerScalarQualifiedReference {
-        reference: PostmodifiableReference::PostmodifiablePluralReference(
-            PostmodifiablePluralReference {
-                selector: PluralSelector::UnmarkedPluralSelector(UnmarkedPluralSelector {
-                    nominal: plural_nominal(creatures()),
-                }),
-            },
-        ),
-        controller_owner: ControllerOwnerQualification::YouControl(
-            YouControl::new(SubjectPronoun::You).expect("You is a valid controller"),
-        ),
-        scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
-            measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
-                characteristic: ScalarCharacteristic::Power,
+    NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+        reference: NumericStage::ScalarQualifiedReference(ScalarQualifiedReference {
+            reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
+                reference: ControllerStage::ControllerQualifiedReference(
+                    ControllerQualifiedReference {
+                        reference: UnqualifiedReference::OrdinaryPluralReference(
+                            OrdinaryPluralReference {
+                                selector: PluralSelector::UnmarkedPluralSelector(
+                                    UnmarkedPluralSelector {
+                                        nominal: plural_nominal(creatures()),
+                                    },
+                                ),
+                            },
+                        ),
+                        controller_owner: ControllerOwnerQualification::YouControl(
+                            YouControl::new(SubjectPronoun::You)
+                                .expect("You is a valid controller"),
+                        ),
+                    },
+                ),
             }),
-            comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
-                threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
-                    value: ScalarNumber { magnitude: 2 },
+            scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
+                measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
+                    characteristic: ScalarCharacteristic::Power,
+                }),
+                comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
+                    threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
+                        value: ScalarNumber { magnitude: 2 },
+                    }),
                 }),
             }),
         }),
@@ -246,15 +271,15 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
 }
 
 fn that_noun(noun: Noun) -> NounPhrase {
-    NounPhrase::ThatReference(ThatReference {
+    noun_phrase(UnqualifiedReference::ThatReference(ThatReference {
         nominal: singular_nominal(noun),
-    })
+    }))
 }
 
 fn those_noun(noun: Noun) -> NounPhrase {
-    NounPhrase::ThoseReference(ThoseReference {
+    noun_phrase(UnqualifiedReference::ThoseReference(ThoseReference {
         nominal: plural_nominal(noun),
-    })
+    }))
 }
 
 fn nominal_subject(value: NounPhrase) -> Subject {
@@ -706,7 +731,7 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
         "Zacama, Primal Calamity",
     );
     let value = Sentence::Declarative(Declarative {
-        subject: nominal_subject(NounPhrase::SelfReference(subject)),
+        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(subject))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
@@ -726,9 +751,11 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
 #[test]
 fn the_same_self_reference_value_renders_from_two_card_contexts() {
     let value = Sentence::Declarative(Declarative {
-        subject: nominal_subject(NounPhrase::SelfReference(self_reference(
-            SelfReferenceSpelling::Abbreviated,
-            "Zacama, Primal Calamity",
+        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+            self_reference(
+                SelfReferenceSpelling::Abbreviated,
+                "Zacama, Primal Calamity",
+            ),
         ))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
@@ -869,9 +896,11 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         .expect("one sentence constructs a paragraph"),
     );
     let self_reference = Sentence::Declarative(Declarative {
-        subject: nominal_subject(NounPhrase::SelfReference(self_reference(
-            SelfReferenceSpelling::Abbreviated,
-            "Zacama, Primal Calamity",
+        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+            self_reference(
+                SelfReferenceSpelling::Abbreviated,
+                "Zacama, Primal Calamity",
+            ),
         ))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {

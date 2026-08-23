@@ -152,12 +152,27 @@ impl Visitor for NominalVisitor {
         deckmaste_english_v2::visit::walk_cardinal_quantity(self, value);
     }
 
-    fn visit_postmodifiable_reference(
+    fn visit_unqualified_reference(
         &mut self,
-        value: &deckmaste_english_v2::ast::PostmodifiableReference,
+        value: &deckmaste_english_v2::ast::UnqualifiedReference,
     ) {
-        self.events.push("PostmodifiableReference".to_owned());
-        deckmaste_english_v2::visit::walk_postmodifiable_reference(self, value);
+        self.events.push("UnqualifiedReference".to_owned());
+        deckmaste_english_v2::visit::walk_unqualified_reference(self, value);
+    }
+
+    fn visit_controller_stage(&mut self, value: &deckmaste_english_v2::ast::ControllerStage) {
+        self.events.push("ControllerStage".to_owned());
+        deckmaste_english_v2::visit::walk_controller_stage(self, value);
+    }
+
+    fn visit_zone_stage(&mut self, value: &deckmaste_english_v2::ast::ZoneStage) {
+        self.events.push("ZoneStage".to_owned());
+        deckmaste_english_v2::visit::walk_zone_stage(self, value);
+    }
+
+    fn visit_numeric_stage(&mut self, value: &deckmaste_english_v2::ast::NumericStage) {
+        self.events.push("NumericStage".to_owned());
+        deckmaste_english_v2::visit::walk_numeric_stage(self, value);
     }
 
     fn visit_controller_owner_qualification(
@@ -337,19 +352,24 @@ impl Visitor for NominalVisitor {
         walk_source_self_reference
     );
     record_product!(
-        visit_postmodifiable_indefinite_reference,
-        PostmodifiableIndefiniteReference,
-        walk_postmodifiable_indefinite_reference
+        visit_qualified_noun_phrase,
+        QualifiedNounPhrase,
+        walk_qualified_noun_phrase
     );
     record_product!(
-        visit_postmodifiable_singular_reference,
-        PostmodifiableSingularReference,
-        walk_postmodifiable_singular_reference
+        visit_unqualified_controller_stage,
+        UnqualifiedControllerStage,
+        walk_unqualified_controller_stage
     );
     record_product!(
-        visit_postmodifiable_plural_reference,
-        PostmodifiablePluralReference,
-        walk_postmodifiable_plural_reference
+        visit_unqualified_zone_stage,
+        UnqualifiedZoneStage,
+        walk_unqualified_zone_stage
+    );
+    record_product!(
+        visit_unqualified_numeric_stage,
+        UnqualifiedNumericStage,
+        walk_unqualified_numeric_stage
     );
     record_product!(visit_you_control, YouControl, walk_you_control);
     record_product!(
@@ -423,11 +443,6 @@ impl Visitor for NominalVisitor {
         visit_controller_qualified_reference,
         ControllerQualifiedReference,
         walk_controller_qualified_reference
-    );
-    record_product!(
-        visit_controller_scalar_qualified_reference,
-        ControllerScalarQualifiedReference,
-        walk_controller_scalar_qualified_reference
     );
     record_product!(
         visit_zone_qualified_reference,
@@ -833,6 +848,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -853,6 +876,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -873,6 +904,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -896,6 +935,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -919,6 +966,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -942,6 +997,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -965,6 +1028,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -988,6 +1059,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -1011,6 +1090,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -1034,6 +1121,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -1054,6 +1149,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "SourceSelfReference",
             "SelfReferenceSpelling:Full",
             "VerbPhrase",
@@ -1065,6 +1168,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "AnyTargetReference",
         ],
         "Pyroclasm deals 2 damage to each creature." => &[
@@ -1075,6 +1186,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "SourceSelfReference",
             "SelfReferenceSpelling:Full",
             "VerbPhrase",
@@ -1086,6 +1205,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "EachReference",
             "SingularSelector",
             "UnmarkedSingularSelector",
@@ -1106,6 +1233,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "AllReference",
             "PluralSelector",
             "UnmarkedPluralSelector",
@@ -1126,6 +1261,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "AllReference",
             "PluralSelector",
             "UnmarkedPluralSelector",
@@ -1149,6 +1292,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "AllReference",
             "PluralSelector",
             "OtherPluralSelector",
@@ -1169,6 +1320,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "VariableReference",
             "Variable:X",
             "PluralSelector",
@@ -1190,6 +1349,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "VariableReference",
             "Variable:Y",
             "PluralSelector",
@@ -1211,6 +1378,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "FixedReference",
             "CardinalQuantity",
             "CardinalQuantityValue",
@@ -1234,6 +1409,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "AnotherReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -1254,6 +1437,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "UpToOneReference",
             "CardinalQuantity",
             "CardinalQuantityValue",
@@ -1277,6 +1468,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "UpToOneReference",
             "CardinalQuantity",
             "CardinalQuantityValue",
@@ -1300,6 +1499,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "UpToManyReference",
             "CardinalQuantity",
             "CardinalQuantityValue",
@@ -1320,6 +1527,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "ThisReference",
             "SingularNominal",
             "BareSingularNominal",
@@ -1335,6 +1550,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "AnyTargetReference",
         ],
         "Destroy the chosen creatures." => &[
@@ -1348,6 +1571,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "DesignatedPluralReference",
             "Designation:Chosen",
             "PluralNominal",
@@ -1367,6 +1598,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "DesignatedSingularReference",
             "Designation:Exiled",
             "SingularNominal",
@@ -1386,6 +1625,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "NamedCardReference",
             "CardName:magnifying-glass",
         ],
@@ -1415,6 +1662,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "PossessedSingularReference",
             "PossessiveDeterminerPronoun:Their",
             "SingularNominal",
@@ -1434,6 +1689,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "PossessiveAbsoluteReference",
             "PossessiveAbsolutePronoun:Yours",
         ],
@@ -1445,6 +1708,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "SourceSelfReference",
             "SelfReferenceSpelling:Full",
             "VerbPhrase",
@@ -1465,6 +1736,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "SourceSelfReference",
             "SelfReferenceSpelling:Full",
             "VerbPhrase",
@@ -1485,6 +1764,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "ThatReference",
             "SingularNominal",
             "BareSingularNominal",
@@ -1509,6 +1796,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "ThoseReference",
             "PluralNominal",
             "BarePluralNominal",
@@ -1536,6 +1831,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OneOrMoreReference",
             "PluralSelector",
             "TargetPluralSelector",
@@ -1553,6 +1856,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "EachReference",
             "SingularSelector",
             "UnmarkedSingularSelector",
@@ -1576,6 +1887,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "AllReference",
             "PluralSelector",
             "UnmarkedPluralSelector",
@@ -1602,6 +1921,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -1625,6 +1952,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -1648,6 +1983,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -1671,6 +2014,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -1694,6 +2045,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -1717,6 +2076,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "OrdinarySingularReference",
             "SingularSelector",
             "TargetSingularSelector",
@@ -1740,6 +2107,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "AnyNumberReference",
             "PluralSelector",
             "TargetPluralSelector",
@@ -1787,6 +2162,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "SourceSelfReference",
             "SelfReferenceSpelling:Full",
             "VerbPhrase",
@@ -1807,6 +2190,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Subject",
             "NominalSubject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "SourceSelfReference",
             "SelfReferenceSpelling:Full",
             "VerbPhrase",
@@ -1830,6 +2221,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "ChosenQualityReference",
             "ChosenQuality:Color",
         ],
@@ -1844,6 +2243,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "ChosenQualityReference",
             "ChosenQuality:Type",
         ],
@@ -1858,6 +2265,14 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "Object",
             "NominalObject",
             "NounPhrase",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "ChosenQualityReference",
             "ChosenQuality:Name",
         ],
@@ -1874,29 +2289,29 @@ struct Shadow {
 fn expected_shadow(text: &str) -> Option<Shadow> {
     match text {
         "Destroy X target artifacts." | "Destroy Y target artifacts." => Some(Shadow {
-            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseVariableReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
-            losing_specificity: "NNTNNTNNNNTT",
-            decisive_position: 7,
+            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
+            losing_specificity: "NNTNNNNNNTNNNNTT",
+            decisive_position: 11,
         }),
         "Destroy two target lands." => Some(Shadow {
-            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseFixedReference/CardinalQuantityCardinal/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
-            losing_specificity: "NNTNNNNTNNNTT",
-            decisive_position: 8,
+            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceFixedReference/CardinalQuantityCardinal/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
+            losing_specificity: "NNTNNNNNNNNTNNNTT",
+            decisive_position: 12,
         }),
         "Destroy another target artifact." => Some(Shadow {
-            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseAnotherReference/SingularSelectorUnmarkedSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierCommonNounModifier/SingularHeadTypeSingularHead",
-            losing_specificity: "NNTNNLNNNNTT",
-            decisive_position: 7,
+            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnotherReference/SingularSelectorUnmarkedSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierCommonNounModifier/SingularHeadTypeSingularHead",
+            losing_specificity: "NNTNNNNNNLNNNNTT",
+            decisive_position: 11,
         }),
         "Destroy one or more target creatures." => Some(Shadow {
-            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOneOrMoreReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
-            losing_specificity: "NNTNNLLLNNNNTT",
-            decisive_position: 9,
+            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOneOrMoreReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
+            losing_specificity: "NNTNNNNNNLLLNNNNTT",
+            decisive_position: 13,
         }),
         "Destroy any number of target creatures." => Some(Shadow {
-            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseAnyNumberReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
-            losing_specificity: "NNTNNLLLNNNNTT",
-            decisive_position: 9,
+            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyNumberReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
+            losing_specificity: "NNTNNNNNNLLLNNNNTT",
+            decisive_position: 13,
         }),
         _ => None,
     }
@@ -1922,183 +2337,183 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Desert Twister",
             text: "Destroy target permanent.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadCommonSingularHead",
-            specificity: "NNTNNNLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadCommonSingularHead",
+            specificity: "NNTNNNNNNNLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Urgent Exorcism",
             text: "Destroy target Spirit.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadCreatureSubtypeSingularHead",
-            specificity: "NNTNNNLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadCreatureSubtypeSingularHead",
+            specificity: "NNTNNNNNNNLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Human Frailty",
             text: "Destroy target Human creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierCreatureSubtypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierCreatureSubtypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target artifact creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierTypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierTypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Dark Betrayal",
             text: "Destroy target black creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierColorModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierColorModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Take Vengeance",
             text: "Destroy target tapped creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierStatusModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierStatusModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Hero's Demise",
             text: "Destroy target legendary creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierSupertypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierSupertypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Doom Blade",
             text: "Destroy target nonblack creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonColorModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNLTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonColorModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Bramblecrush",
             text: "Destroy target noncreature permanent.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonTypeModifier/SingularHeadCommonSingularHead",
-            specificity: "NNTNNNLNNNLTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonTypeModifier/SingularHeadCommonSingularHead",
+            specificity: "NNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Eyeblight's Ending",
             text: "Destroy target non-Elf creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonCreatureSubtypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNLTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonCreatureSubtypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Lightning Bolt",
             text: "Lightning Bolt deals 3 damage to any target.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseAnyTargetReference",
-            specificity: "NNNNTTNLLNTNLL",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
+            specificity: "NNNNNNNNTTNLLNTNNNNNLL",
             candidates: 1,
         },
         Witness {
             card_name: "Pyroclasm",
             text: "Pyroclasm deals 2 damage to each creature.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNNNTTNLLNTNLNNNT",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNNNNNNNTTNLLNTNNNNNLNNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Day of Judgment",
             text: "Destroy all creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNLNNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNTNNNNNNLNNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Hour of Reckoning",
             text: "Destroy all nontoken creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierNonCommonNounModifier/PluralHeadTypePluralHead",
-            specificity: "NNTNNLNNNNLTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierNonCommonNounModifier/PluralHeadTypePluralHead",
+            specificity: "NNTNNNNNNLNNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy all other creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseAllReference/PluralSelectorOtherPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNLNLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorOtherPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNTNNNNNNLNLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "By Force",
             text: "Destroy X target artifacts.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseVariableReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNTNLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNTNNNNNNTNLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy Y target artifacts.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseVariableReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNTNLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNTNNNNNNTNLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Rain of Salt",
             text: "Destroy two target lands.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseFixedReference/CardinalQuantityCardinal/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNTLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceFixedReference/CardinalQuantityCardinal/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNTNNNNNNNNTLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Aetherjacket",
             text: "Destroy another target artifact.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseAnotherReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNTNNLNLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnotherReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNLNLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Gearbane Orangutan",
             text: "Destroy up to one target artifact.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseUpToOneReference/CardinalQuantityCardinal/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNTNNLLNNTLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToOneReference/CardinalQuantityCardinal/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNLLNNTLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy up to one other target artifact.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseUpToOneReference/CardinalQuantityCardinal/SingularSelectorOtherTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNTNNLLNNTLLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToOneReference/CardinalQuantityCardinal/SingularSelectorOtherTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNLLNNTLLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy up to three target artifacts.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseUpToManyReference/CardinalQuantityCardinal/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNLLNNTLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToManyReference/CardinalQuantityCardinal/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNTNNNNNNLLNNTLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Anaba Shaman",
             text: "This creature deals 1 damage to any target.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseThisReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseAnyTargetReference",
-            specificity: "NNNNLNNTTNLLNTNLL",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThisReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
+            specificity: "NNNNNNNNLNNTTNLLNTNNNNNLL",
             candidates: 1,
         },
         Witness {
             card_name: "Sadistic Shell Game",
             text: "Destroy the chosen creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseDesignatedPluralReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNLTNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDesignatedPluralReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNTNNNNNNLTNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Voyager Staff",
             text: "Destroy the exiled card.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseDesignatedSingularReference/SingularNominalBareSingularNominal/SingularHeadCommonSingularHead",
-            specificity: "NNTNNLTNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDesignatedSingularReference/SingularNominalBareSingularNominal/SingularHeadCommonSingularHead",
+            specificity: "NNTNNNNNNLTNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Agency Outfitter",
             text: "Destroy a card named Magnifying Glass.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseNamedCardReference",
-            specificity: "NNTNNLLLT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceNamedCardReference",
+            specificity: "NNTNNNNNNLLLT",
             candidates: 1,
         },
         Witness {
@@ -2111,113 +2526,113 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Adrenaline Jockey",
             text: "Destroy their creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhrasePossessedSingularReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNTNNTNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferencePossessedSingularReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNTNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy yours.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhrasePossessiveAbsoluteReference",
-            specificity: "NNTNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferencePossessiveAbsoluteReference",
+            specificity: "NNTNNNNNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to them.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNTTNLLNTT",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Asmoranomardicadaistinaculdacar",
             text: "Asmoranomardicadaistinaculdacar deals 2 damage to itself.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectReflexiveObject",
-            specificity: "NNNNTTNLLNTT",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectReflexiveObject",
+            specificity: "NNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "That creature deals 2 damage to it.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseThatReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNLNNTTNLLNTT",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThatReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNLNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Those creatures deal 2 damage to it.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseThoseReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNLNNTTNLLNTT",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThoseReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNLNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Dwarven Song",
             text: "Destroy one or more target creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOneOrMoreReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNLLLNLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOneOrMoreReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNTNNNNNNLLLNLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Context Card",
             text: "Each creature gains 2 life.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNNLNNNTTNLT",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNNNNNLNNNTTNLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "All creatures gain 2 life.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNNLNNNTTNLT",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNNNNNLNNNTTNLT",
             candidates: 1,
         },
         Witness {
             card_name: "Dust Bowl",
             text: "Destroy target nonbasic land.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNLTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target nonlegendary creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNLTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target nonsnow creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNLTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target nonartifact permanent.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonTypeModifier/SingularHeadCommonSingularHead",
-            specificity: "NNTNNNLNNNLTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonTypeModifier/SingularHeadCommonSingularHead",
+            specificity: "NNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target non-Human creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonCreatureSubtypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNLTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonCreatureSubtypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target nonattacking creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonStatusModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNLNNNLTT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonStatusModifier/SingularHeadTypeSingularHead",
+            specificity: "NNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy any number of target creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseAnyNumberReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNLLLNLNNT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyNumberReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNTNNNNNNLLLNLNNT",
             candidates: 2,
         },
         Witness {
@@ -2237,36 +2652,36 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to him.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNTTNLLNTT",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to her.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNTTNLLNTT",
+            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy the chosen color.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseChosenQualityReference",
-            specificity: "NNTNNLLT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceChosenQualityReference",
+            specificity: "NNTNNNNNNLLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy the chosen type.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseChosenQualityReference",
-            specificity: "NNTNNLLT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceChosenQualityReference",
+            specificity: "NNTNNNNNNLLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy the chosen name.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseChosenQualityReference",
-            specificity: "NNTNNLLT",
+            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceChosenQualityReference",
+            specificity: "NNTNNNNNNLLT",
             candidates: 1,
         },
     ] {
@@ -2543,56 +2958,56 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
         (
             "Context Card",
             "Creatures you control with power 2 or less gain X life.",
-            "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseControllerScalarQualifiedReference/PostmodifiableReferencePostmodifiablePluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold/VerbPhraseGainLife/AmountVariable",
-            "NNNNNNNNNNTTTLNNTNLLTTNLT",
+            "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinaryPluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold/VerbPhraseGainLife/AmountVariable",
+            "NNNNNNNNNNNNNTTTLNNTNLLTTNLT",
         ),
         (
             "Defeat",
             "Destroy target creature with power 2 or less.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseScalarQualifiedReference/PostmodifiableReferencePostmodifiableSingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold",
-            "NNTNNNNNLNNTLNNTNLLT",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold",
+            "NNTNNNNNNNNLNNTLNNTNLLT",
         ),
         (
             "Context Card",
             "Creatures you control gain 2 life.",
-            "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseControllerQualifiedReference/PostmodifiableReferencePostmodifiablePluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/VerbPhraseGainLife/AmountNumber",
-            "NNNNNNNNNTTTTNLT",
+            "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinaryPluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/VerbPhraseGainLife/AmountNumber",
+            "NNNNNNNNNNNNTTTTNLT",
         ),
         (
             "Context Card",
             "Destroy a creature an opponent controls.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseControllerQualifiedReference/PostmodifiableReferencePostmodifiableIndefiniteReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ControllerOwnerQualificationOpponentControls/SingularControllerOpponentController",
-            "NNTNNNNLNNTNTLT",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceIndefiniteReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ControllerOwnerQualificationOpponentControls/SingularControllerOpponentController",
+            "NNTNNNNNNNLNNTNTLT",
         ),
         (
             "Context Card",
             "Destroy target creature you own.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseControllerQualifiedReference/PostmodifiableReferencePostmodifiableSingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ControllerOwnerQualificationYouOwn",
-            "NNTNNNNNLNNTTT",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ControllerOwnerQualificationYouOwn",
+            "NNTNNNNNNNNLNNTTT",
         ),
         (
             "Raise Dead",
             "Destroy target creature card from your graveyard.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseZoneQualifiedReference/PostmodifiableReferencePostmodifiableSingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierTypeModifier/SingularHeadCommonSingularHead/ZoneQualificationFromZone/ZoneReferencePossessedZone",
-            "NNTNNNNNLNNNTTLNTT",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageZoneQualifiedReference/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierTypeModifier/SingularHeadCommonSingularHead/ZoneQualificationFromZone/ZoneReferencePossessedZone",
+            "NNTNNNNNNNNLNNNTTLNTT",
         ),
         (
             "Context Card",
             "Destroy target creature with mana value X or greater.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseScalarQualifiedReference/PostmodifiableReferencePostmodifiableSingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ScalarQualificationScalarQualification/ScalarMeasureManaValueScalar/ScalarComparisonScalarOrGreater/ScalarThresholdVariableScalarThreshold",
-            "NNTNNNNNLNNTLNNLLNLLT",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ScalarQualificationScalarQualification/ScalarMeasureManaValueScalar/ScalarComparisonScalarOrGreater/ScalarThresholdVariableScalarThreshold",
+            "NNTNNNNNNNNLNNTLNNLLNLLT",
         ),
         (
             "Context Card",
             "Destroy two or more creatures.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrMore/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            "NNTNNNNNTLLNNT",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrMore/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            "NNTNNNNNNNNNTLLNNT",
         ),
         (
             "Context Card",
             "Destroy two or fewer creatures.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrFewer/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            "NNTNNNNNTLLNNT",
+            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrFewer/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            "NNTNNNNNNNNNTLLNNT",
         ),
     ] {
         let context = context(card_name);
@@ -2601,7 +3016,11 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
             .selected()
             .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
         let decision = analysis.decision().expect("selected parse has a decision");
-        assert_eq!(decision.candidates().len(), 1, "candidate census: {text:?}");
+        assert_eq!(
+            decision.candidates().len(),
+            1,
+            "candidate census: {text:?}: {decision:?}",
+        );
         assert_eq!(decision.resolution(), SelectionResolution::Unique);
         assert_eq!(decision.selected(), Some(0));
         assert_eq!(decision.survivors(), [0]);
@@ -2741,15 +3160,28 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
     let Subject::SubjectNominal(subject) = &declarative.subject else {
         panic!("former fixture retains a nominal subject: {declarative:?}");
     };
-    let NounPhrase::ControllerScalarQualifiedReference(reference) = &subject.value else {
-        panic!("hardcoded count is replaced by the typed product: {subject:?}");
+    let NounPhrase::QualifiedNounPhrase(noun_phrase) = &subject.value;
+    let deckmaste_english_v2::ast::NumericStage::ScalarQualifiedReference(reference) =
+        &noun_phrase.reference
+    else {
+        panic!("the final numeric stage owns the scalar qualification: {subject:?}");
+    };
+    let deckmaste_english_v2::ast::ZoneStage::UnqualifiedZoneStage(zone_stage) =
+        &reference.reference
+    else {
+        panic!("the controller stage precedes the absent zone stage: {subject:?}");
+    };
+    let deckmaste_english_v2::ast::ControllerStage::ControllerQualifiedReference(controller) =
+        &zone_stage.reference
+    else {
+        panic!("the controller qualification precedes numeric qualification: {subject:?}");
     };
     assert!(matches!(
-        reference.reference,
-        deckmaste_english_v2::ast::PostmodifiableReference::PostmodifiablePluralReference(_)
+        controller.reference,
+        deckmaste_english_v2::ast::UnqualifiedReference::OrdinaryPluralReference(_)
     ));
     assert!(matches!(
-        &reference.controller_owner,
+        &controller.controller_owner,
         ControllerOwnerQualification::YouControl(value)
             if value.controller() == SubjectPronoun::You
     ));
@@ -2791,9 +3223,15 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
             "Subject",
             "NominalSubject",
             "NounPhrase",
-            "ControllerScalarQualifiedReference",
-            "PostmodifiableReference",
-            "PostmodifiablePluralReference",
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "ScalarQualifiedReference",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "ControllerQualifiedReference",
+            "UnqualifiedReference",
+            "OrdinaryPluralReference",
             "PluralSelector",
             "UnmarkedPluralSelector",
             "PluralNominal",
@@ -2834,9 +3272,15 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Creatures you control gain 2 life.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
             "ControllerQualifiedReference",
-            "PostmodifiableReference",
-            "PostmodifiablePluralReference",
+            "UnqualifiedReference",
+            "OrdinaryPluralReference",
             "ControllerOwnerQualification",
             "YouControl",
             "SubjectPronoun:You",
@@ -2846,9 +3290,15 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Destroy a creature an opponent controls.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
             "ControllerQualifiedReference",
-            "PostmodifiableReference",
-            "PostmodifiableIndefiniteReference",
+            "UnqualifiedReference",
+            "IndefiniteReference",
             "ControllerOwnerQualification",
             "OpponentControls",
             "SingularController",
@@ -2860,9 +3310,15 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Destroy target creature you own.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
             "ControllerQualifiedReference",
-            "PostmodifiableReference",
-            "PostmodifiableSingularReference",
+            "UnqualifiedReference",
+            "OrdinarySingularReference",
             "ControllerOwnerQualification",
             "YouOwn",
             "SubjectPronoun:You",
@@ -2872,9 +3328,15 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Destroy target creature card from your graveyard.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
             "ZoneQualifiedReference",
-            "PostmodifiableReference",
-            "PostmodifiableSingularReference",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
+            "OrdinarySingularReference",
             "ZoneQualification",
             "FromZone",
             "ZoneReference",
@@ -2886,9 +3348,15 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Destroy target card in exile.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
             "ZoneQualifiedReference",
-            "PostmodifiableReference",
-            "PostmodifiableSingularReference",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
+            "OrdinarySingularReference",
             "ZoneQualification",
             "InZone",
             "ZoneReference",
@@ -2899,9 +3367,15 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Destroy target creature with mana value X or greater.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
             "ScalarQualifiedReference",
-            "PostmodifiableReference",
-            "PostmodifiableSingularReference",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
+            "OrdinarySingularReference",
             "ScalarQualification",
             "ScalarQualificationValue",
             "ScalarMeasure",
@@ -2916,9 +3390,15 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Destroy target creature with power less than 2.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
             "ScalarQualifiedReference",
-            "PostmodifiableReference",
-            "PostmodifiableSingularReference",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
+            "OrdinarySingularReference",
             "ScalarQualification",
             "ScalarQualificationValue",
             "ScalarMeasure",
@@ -2933,9 +3413,15 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Destroy target creature with power greater than 2.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
             "ScalarQualifiedReference",
-            "PostmodifiableReference",
-            "PostmodifiableSingularReference",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
+            "OrdinarySingularReference",
             "ScalarQualification",
             "ScalarQualificationValue",
             "ScalarMeasure",
@@ -2950,9 +3436,15 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Destroy target creature with power less than or equal to 2.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
             "ScalarQualifiedReference",
-            "PostmodifiableReference",
-            "PostmodifiableSingularReference",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
+            "OrdinarySingularReference",
             "ScalarQualification",
             "ScalarQualificationValue",
             "ScalarMeasure",
@@ -2967,6 +3459,14 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Destroy two or more creatures.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "CountComparisonReference",
             "CardinalQuantity",
             "CardinalQuantityValue",
@@ -2977,6 +3477,14 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Destroy two or fewer creatures.",
         &[
+            "QualifiedNounPhrase",
+            "NumericStage",
+            "UnqualifiedNumericStage",
+            "ZoneStage",
+            "UnqualifiedZoneStage",
+            "ControllerStage",
+            "UnqualifiedControllerStage",
+            "UnqualifiedReference",
             "CountComparisonReference",
             "CardinalQuantity",
             "CardinalQuantityValue",
@@ -3001,15 +3509,21 @@ fn assert_task10_visitor_preorders(cases: &[(&str, &[&str])]) {
             .filter(|event| {
                 matches!(
                     event.as_str(),
-                    "ControllerQualifiedReference"
-                        | "ControllerScalarQualifiedReference"
+                    "QualifiedNounPhrase"
+                        | "NumericStage"
+                        | "UnqualifiedNumericStage"
+                        | "ZoneStage"
+                        | "UnqualifiedZoneStage"
+                        | "ControllerStage"
+                        | "UnqualifiedControllerStage"
+                        | "ControllerQualifiedReference"
                         | "ZoneQualifiedReference"
                         | "ScalarQualifiedReference"
                         | "CountComparisonReference"
-                        | "PostmodifiableReference"
-                        | "PostmodifiableIndefiniteReference"
-                        | "PostmodifiableSingularReference"
-                        | "PostmodifiablePluralReference"
+                        | "UnqualifiedReference"
+                        | "IndefiniteReference"
+                        | "OrdinaryPluralReference"
+                        | "OrdinarySingularReference"
                         | "ControllerOwnerQualification"
                         | "YouControl"
                         | "OpponentControls"
@@ -3060,6 +3574,288 @@ fn assert_task10_visitor_preorders(cases: &[(&str, &[&str])]) {
 #[test]
 fn task10_visitor_callbacks_have_literal_typed_preorders() {
     assert_task10_visitor_preorders(TASK10_VISITOR_CASES);
+}
+
+#[test]
+fn every_selector_family_enters_the_ordered_nominal_qualification_stages() {
+    let parser = parser();
+    let context = context("Context Card");
+
+    for (text, candidate_count, resolution) in [
+        (
+            "A creature card you control in exile with mana value 2 or less gains 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
+        (
+            "Target creature you control gains 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
+        (
+            "Creatures you control gain 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
+        (
+            "Each creature you control gains 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
+        (
+            "All creatures you control gain 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
+        (
+            "Two creatures you control gain 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
+        (
+            "X target creatures you control gain 2 life.",
+            2,
+            SelectionResolution::Specificity,
+        ),
+        (
+            "Another creature you control gains 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
+        (
+            "The creature you control gains 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
+        (
+            "Up to one target creature you control gains 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
+        (
+            "Up to two target creatures you control gain 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
+        (
+            "Any number of target creatures you control gain 2 life.",
+            2,
+            SelectionResolution::Specificity,
+        ),
+        (
+            "One or more target creatures you control gain 2 life.",
+            2,
+            SelectionResolution::Specificity,
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let selected = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
+        let decision = analysis.decision().expect("selected parse has a decision");
+        assert_eq!(decision.candidates().len(), candidate_count, "{text:?}");
+        assert_eq!(decision.resolution(), resolution, "{text:?}: {decision:?}");
+        assert_eq!(decision.selected(), Some(0));
+        assert_eq!(decision.survivors(), [0]);
+        if resolution == SelectionResolution::Unique {
+            assert!(decision.comparisons().is_empty(), "{text:?}: {decision:?}");
+        } else {
+            assert_eq!(decision.comparisons().len(), 1, "{text:?}: {decision:?}");
+            assert_eq!(decision.comparisons()[0].ordering(), Ordering::Greater);
+            assert!(matches!(
+                decision.comparisons()[0].decisive(),
+                SelectionDecisive::Position(_)
+            ));
+        }
+        assert!(decision.exception_uses().is_empty());
+        assert_eq!(selected.render(&context, parser.environment()), text);
+
+        let ownership = analysis.ownership().expect("selected parse owns its bytes");
+        assert!(ownership.failures().is_empty(), "{text:?}: {ownership:?}");
+        assert!(ownership.summary().covered(), "{text:?}: {ownership:?}");
+        assert_eq!(ownership.rendered_text(), text);
+    }
+
+    for text in [
+        "A card in exile you own gains 2 life.",
+        "A creature with mana value 2 or less from your graveyard gains 2 life.",
+        "A creature you control you own gains 2 life.",
+        "A card in exile in your graveyard gains 2 life.",
+        "A creature with power 2 or less with toughness 2 or less gains 2 life.",
+        "Each creature you control gain 2 life.",
+        "All creatures you control gains 2 life.",
+    ] {
+        assert!(
+            parser.analyze(text, &context).outcome() == ParseAnalysisOutcome::ParseFailure,
+            "{text:?} must remain an ordinary wrong-stage or wrong-agreement failure",
+        );
+    }
+}
+
+#[test]
+fn deictic_manner_count_and_scalar_forms_are_distinct_generated_categories() {
+    use deckmaste_english_v2::ast::CountReference;
+    use deckmaste_english_v2::ast::MannerReference;
+    use deckmaste_english_v2::ast::ScalarReference;
+    use deckmaste_english_v2::ast::ThatMany;
+    use deckmaste_english_v2::ast::ThatMuch;
+    use deckmaste_english_v2::ast::ThisWay;
+
+    #[derive(Default)]
+    struct DeicticVisitor {
+        events: Vec<&'static str>,
+    }
+
+    impl Visitor for DeicticVisitor {
+        fn visit_manner_reference(&mut self, value: &MannerReference) {
+            self.events.push("MannerReference");
+            deckmaste_english_v2::visit::walk_manner_reference(self, value);
+        }
+
+        fn visit_this_way(&mut self, value: &ThisWay) {
+            self.events.push("ThisWay");
+            deckmaste_english_v2::visit::walk_this_way(self, value);
+        }
+
+        fn visit_count_reference(&mut self, value: &CountReference) {
+            self.events.push("CountReference");
+            deckmaste_english_v2::visit::walk_count_reference(self, value);
+        }
+
+        fn visit_that_many(&mut self, value: &ThatMany) {
+            self.events.push("ThatMany");
+            deckmaste_english_v2::visit::walk_that_many(self, value);
+        }
+
+        fn visit_scalar_reference(&mut self, value: &ScalarReference) {
+            self.events.push("ScalarReference");
+            deckmaste_english_v2::visit::walk_scalar_reference(self, value);
+        }
+
+        fn visit_that_much(&mut self, value: &ThatMuch) {
+            self.events.push("ThatMuch");
+            deckmaste_english_v2::visit::walk_that_much(self, value);
+        }
+    }
+
+    let parser = parser();
+    let context = context("Context Card");
+
+    let manner_analysis = parser.analyze_manner_reference("This way", &context);
+    let manner = manner_analysis
+        .selected()
+        .unwrap_or_else(|| panic!("the manner deictic selects: {manner_analysis:?}"));
+    assert_eq!(
+        manner,
+        &MannerReference::ThisWay(ThisWay {}),
+        "the public AST stores syntax but no discourse link",
+    );
+    assert_eq!(manner.render(&context, parser.environment()), "This way");
+    let mut manner_visitor = DeicticVisitor::default();
+    manner_visitor.visit_manner_reference(manner);
+    assert_eq!(manner_visitor.events, ["MannerReference", "ThisWay"]);
+    let manner_decision = manner_analysis.decision().expect("manner decision");
+    assert_eq!(manner_decision.candidates().len(), 1);
+    assert_eq!(manner_decision.resolution(), SelectionResolution::Unique);
+    assert!(
+        manner_analysis
+            .ownership()
+            .expect("manner ownership")
+            .summary()
+            .covered()
+    );
+
+    let count_analysis = parser.analyze_count_reference("That many", &context);
+    let count = count_analysis
+        .selected()
+        .unwrap_or_else(|| panic!("the count deictic selects: {count_analysis:?}"));
+    assert_eq!(count, &CountReference::ThatMany(ThatMany {}));
+    assert_eq!(count.render(&context, parser.environment()), "That many");
+    let mut count_visitor = DeicticVisitor::default();
+    count_visitor.visit_count_reference(count);
+    assert_eq!(count_visitor.events, ["CountReference", "ThatMany"]);
+    let count_decision = count_analysis.decision().expect("count decision");
+    assert_eq!(count_decision.candidates().len(), 1);
+    assert_eq!(count_decision.resolution(), SelectionResolution::Unique);
+    assert!(
+        count_analysis
+            .ownership()
+            .expect("count ownership")
+            .summary()
+            .covered()
+    );
+
+    let scalar_analysis = parser.analyze_scalar_reference("That much", &context);
+    let scalar = scalar_analysis
+        .selected()
+        .unwrap_or_else(|| panic!("the scalar deictic selects: {scalar_analysis:?}"));
+    assert_eq!(scalar, &ScalarReference::ThatMuch(ThatMuch {}));
+    assert_eq!(scalar.render(&context, parser.environment()), "That much");
+    let mut scalar_visitor = DeicticVisitor::default();
+    scalar_visitor.visit_scalar_reference(scalar);
+    assert_eq!(scalar_visitor.events, ["ScalarReference", "ThatMuch"]);
+    let scalar_decision = scalar_analysis.decision().expect("scalar decision");
+    assert_eq!(scalar_decision.candidates().len(), 1);
+    assert_eq!(scalar_decision.resolution(), SelectionResolution::Unique);
+    assert!(
+        scalar_analysis
+            .ownership()
+            .expect("scalar ownership")
+            .summary()
+            .covered()
+    );
+
+    assert!(
+        parser
+            .parse_manner_reference("That many", &context)
+            .is_err()
+    );
+    assert!(
+        parser
+            .parse_manner_reference("That much", &context)
+            .is_err()
+    );
+    assert!(parser.parse_count_reference("This way", &context).is_err());
+    assert!(parser.parse_count_reference("That much", &context).is_err());
+    assert!(parser.parse_scalar_reference("This way", &context).is_err());
+    assert!(
+        parser
+            .parse_scalar_reference("That many", &context)
+            .is_err()
+    );
+
+    for text in [
+        "That many creatures gain 2 life.",
+        "Context Card deals that much damage to target creature.",
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let selected = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
+        let decision = analysis.decision().expect("selected parse has a decision");
+        assert_eq!(decision.candidates().len(), 1, "candidate census: {text:?}");
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
+        assert_eq!(selected.render(&context, parser.environment()), text);
+        assert!(
+            analysis
+                .ownership()
+                .expect("deictic sentence ownership")
+                .summary()
+                .covered()
+        );
+    }
+
+    for text in [
+        "That many creatures gains 2 life.",
+        "Context Card deals that many damage to target creature.",
+        "Context Card deals that much creatures to target creature.",
+    ] {
+        assert_eq!(
+            parser.analyze(text, &context).outcome(),
+            ParseAnalysisOutcome::ParseFailure,
+            "{text:?} must remain outside the wrong agreement or quantity category",
+        );
+    }
 }
 
 #[test]
@@ -3370,7 +4166,11 @@ fn non_target_common_noun_modifiers_compose_under_a_shared_target_selector() {
             "SentenceImperative",
             "VerbPhraseDestroy",
             "ObjectObjectNominal",
-            "NounPhraseCoordinatedNounPhrase",
+            "NounPhraseQualifiedNounPhrase",
+            "NumericStageUnqualifiedNumericStage",
+            "ZoneStageUnqualifiedZoneStage",
+            "ControllerStageUnqualifiedControllerStage",
+            "UnqualifiedReferenceCoordinatedNounPhrase",
             "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
             "TargetedNounPhraseSingularTargetedNounPhrase",
             "SingularNominalBareSingularNominal",
@@ -3906,6 +4706,47 @@ impl Visitor for CoordinationVisitor {
     }
 }
 
+fn assert_coordination_evidence(
+    parser: &Parser,
+    card_name: &str,
+    text: &str,
+    expected_path: &[&str],
+    expected_specificity: &[SpecificityTier],
+    visitor_events: &[&str],
+) {
+    let context = context(card_name);
+    let analysis = parser.analyze(text, &context);
+    let parsed = analysis
+        .selected()
+        .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
+    let decision = analysis
+        .decision()
+        .expect("a selected parse has a decision");
+    assert_eq!(decision.candidates().len(), 1);
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
+    assert_eq!(decision.selected(), Some(0));
+    assert_eq!(decision.survivors(), [0]);
+    assert!(decision.comparisons().is_empty());
+    assert!(decision.exception_uses().is_empty());
+    let selected = &decision.candidates()[0];
+    assert_eq!(selected.ordinal(), 0);
+    assert_eq!(selected.construction_path(), expected_path);
+    assert_eq!(selected.specificity(), expected_specificity);
+
+    assert_eq!(parsed.render(&context, parser.environment()), text);
+    let ownership = analysis.ownership().expect("selected parse owns its bytes");
+    assert!(ownership.failures().is_empty());
+    assert!(ownership.summary().covered());
+    assert_eq!(ownership.rendered_text(), text);
+
+    let mut visitor = CoordinationVisitor::default();
+    visitor.visit_ability(parsed);
+    assert_eq!(
+        visitor.events, visitor_events,
+        "visitor preorder changed for {text:?}"
+    );
+}
+
 #[test]
 fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
     let parser = parser();
@@ -3918,7 +4759,11 @@ fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
                 "SentenceImperative",
                 "VerbPhraseDestroy",
                 "ObjectObjectNominal",
-                "NounPhraseOrdinarySingularReference",
+                "NounPhraseQualifiedNounPhrase",
+                "NumericStageUnqualifiedNumericStage",
+                "ZoneStageUnqualifiedZoneStage",
+                "ControllerStageUnqualifiedControllerStage",
+                "UnqualifiedReferenceOrdinarySingularReference",
                 "SingularSelectorTargetSingularCoordinationSelector",
                 "SingularNominalCoordinationSingularOrNominalCoordination",
                 "SingularCoordinationMemberBareSingularCoordinationMember",
@@ -3932,6 +4777,10 @@ fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
                 SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
                 SpecificityTier::TypedLexical,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
@@ -3967,7 +4816,11 @@ fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
                 "SentenceImperative",
                 "VerbPhraseDestroy",
                 "ObjectObjectNominal",
-                "NounPhraseCoordinatedNounPhrase",
+                "NounPhraseQualifiedNounPhrase",
+                "NumericStageUnqualifiedNumericStage",
+                "ZoneStageUnqualifiedZoneStage",
+                "ControllerStageUnqualifiedControllerStage",
+                "UnqualifiedReferenceCoordinatedNounPhrase",
                 "FullNounPhraseCoordinationFullAndNounPhraseCoordination",
                 "TargetedNounPhraseSingularTargetedNounPhrase",
                 "SingularNominalBareSingularNominal",
@@ -3986,6 +4839,10 @@ fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
                 SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
                 SpecificityTier::TypedLexical,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
@@ -4024,36 +4881,13 @@ fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
             ][..],
         ),
     ] {
-        let context = context(card_name);
-        let analysis = parser.analyze(text, &context);
-        let parsed = analysis
-            .selected()
-            .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
-        let decision = analysis
-            .decision()
-            .expect("a selected parse has a decision");
-        assert_eq!(decision.candidates().len(), 1);
-        assert_eq!(decision.resolution(), SelectionResolution::Unique);
-        assert_eq!(decision.selected(), Some(0));
-        assert_eq!(decision.survivors(), [0]);
-        assert!(decision.comparisons().is_empty());
-        assert!(decision.exception_uses().is_empty());
-        let selected = &decision.candidates()[0];
-        assert_eq!(selected.ordinal(), 0);
-        assert_eq!(selected.construction_path(), expected_path);
-        assert_eq!(selected.specificity(), expected_specificity);
-
-        assert_eq!(parsed.render(&context, parser.environment()), text);
-        let ownership = analysis.ownership().expect("selected parse owns its bytes");
-        assert!(ownership.failures().is_empty());
-        assert!(ownership.summary().covered());
-        assert_eq!(ownership.rendered_text(), text);
-
-        let mut visitor = CoordinationVisitor::default();
-        visitor.visit_ability(parsed);
-        assert_eq!(
-            visitor.events, visitor_events,
-            "visitor preorder changed for {text:?}"
+        assert_coordination_evidence(
+            &parser,
+            card_name,
+            text,
+            expected_path,
+            expected_specificity,
+            visitor_events,
         );
     }
 }
@@ -4493,7 +5327,11 @@ fn singular_and_plural_negative_modifier_sequences_have_exact_ast_scope() {
                 "SentenceImperative",
                 "VerbPhraseDestroy",
                 "ObjectObjectNominal",
-                "NounPhraseOrdinarySingularReference",
+                "NounPhraseQualifiedNounPhrase",
+                "NumericStageUnqualifiedNumericStage",
+                "ZoneStageUnqualifiedZoneStage",
+                "ControllerStageUnqualifiedControllerStage",
+                "UnqualifiedReferenceOrdinarySingularReference",
                 "SingularSelectorTargetSingularSelector",
                 "SingularNominalNegativeModifiedSingularNominal",
                 "NegativeNominalModifierNegativeModifierMember",
@@ -4517,7 +5355,11 @@ fn singular_and_plural_negative_modifier_sequences_have_exact_ast_scope() {
                 "SentenceImperative",
                 "VerbPhraseDestroy",
                 "ObjectObjectNominal",
-                "NounPhraseOrdinaryPluralReference",
+                "NounPhraseQualifiedNounPhrase",
+                "NumericStageUnqualifiedNumericStage",
+                "ZoneStageUnqualifiedZoneStage",
+                "ControllerStageUnqualifiedControllerStage",
+                "UnqualifiedReferenceOrdinaryPluralReference",
                 "PluralSelectorTargetPluralSelector",
                 "PluralNominalNegativeModifiedPluralNominal",
                 "NegativeNominalModifierNegativeModifierMember",
@@ -4647,17 +5489,17 @@ fn coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsisten
     for (text, noun_phrase_path, agreement_summary) in [
         (
             "Target creature or planeswalker gains 2 life.",
-            "NounPhraseOrdinarySingularReference",
+            "NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference",
             "agreement: ThirdPersonSingular",
         ),
         (
             "Target creatures or planeswalkers gain 2 life.",
-            "NounPhraseOrdinaryPluralReference",
+            "NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinaryPluralReference",
             "agreement: Bare",
         ),
         (
             "Target creature and target planeswalker gain 2 life.",
-            "NounPhraseCoordinatedNounPhrase",
+            "NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCoordinatedNounPhrase",
             "agreement: Bare",
         ),
     ] {
@@ -4676,8 +5518,8 @@ fn coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsisten
         assert!(
             decision.candidates()[0]
                 .construction_path()
-                .iter()
-                .any(|node| node == noun_phrase_path),
+                .join("/")
+                .contains(noun_phrase_path),
             "derived Number must retain its exact noun-phrase scope for {text:?}",
         );
         let claims = analysis

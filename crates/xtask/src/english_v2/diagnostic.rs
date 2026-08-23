@@ -908,6 +908,10 @@ enum NonterminalKind {
     Subject,
     Object,
     NounPhrase,
+    UnqualifiedReference,
+    CountReference,
+    MannerReference,
+    ScalarReference,
     SingularHead,
     PluralHead,
     NominalModifier,
@@ -923,7 +927,6 @@ enum NonterminalKind {
     PluralSelector,
     TargetedNounPhrase,
     FullNounPhraseCoordination,
-    PostmodifiableReference,
     ControllerOwnerQualification,
     SingularController,
     ZoneReference,
@@ -933,6 +936,9 @@ enum NonterminalKind {
     ScalarComparison,
     CountComparison,
     ScalarQualification,
+    ControllerStage,
+    ZoneStage,
+    NumericStage,
     VerbPhrase,
     PossessiveOwner,
     Possessive,
@@ -1360,6 +1366,10 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::Subject => NonterminalKind::Subject,
         NonterminalCategory::Object => NonterminalKind::Object,
         NonterminalCategory::NounPhrase => NonterminalKind::NounPhrase,
+        NonterminalCategory::UnqualifiedReference => NonterminalKind::UnqualifiedReference,
+        NonterminalCategory::CountReference => NonterminalKind::CountReference,
+        NonterminalCategory::MannerReference => NonterminalKind::MannerReference,
+        NonterminalCategory::ScalarReference => NonterminalKind::ScalarReference,
         NonterminalCategory::SingularHead => NonterminalKind::SingularHead,
         NonterminalCategory::PluralHead => NonterminalKind::PluralHead,
         NonterminalCategory::NominalModifier => NonterminalKind::NominalModifier,
@@ -1385,7 +1395,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::FullNounPhraseCoordination => {
             NonterminalKind::FullNounPhraseCoordination
         }
-        NonterminalCategory::PostmodifiableReference => NonterminalKind::PostmodifiableReference,
         NonterminalCategory::ControllerOwnerQualification => {
             NonterminalKind::ControllerOwnerQualification
         }
@@ -1397,6 +1406,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ScalarComparison => NonterminalKind::ScalarComparison,
         NonterminalCategory::CountComparison => NonterminalKind::CountComparison,
         NonterminalCategory::ScalarQualification => NonterminalKind::ScalarQualification,
+        NonterminalCategory::ControllerStage => NonterminalKind::ControllerStage,
+        NonterminalCategory::ZoneStage => NonterminalKind::ZoneStage,
+        NonterminalCategory::NumericStage => NonterminalKind::NumericStage,
         NonterminalCategory::VerbPhrase => NonterminalKind::VerbPhrase,
         NonterminalCategory::PossessiveOwner => NonterminalKind::PossessiveOwner,
         NonterminalCategory::Possessive => NonterminalKind::Possessive,
