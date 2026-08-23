@@ -1041,6 +1041,8 @@ fn emit_sequence_renderer(
         crate::identifier::pascal_case(field.name()),
     ));
     let render_value = render_structural_value(plan, item, quote! { value }, root_names)?;
+    let context = structural_value_requires_context(plan, item)?
+        .then(|| quote! { , context: &ParseContext<'_> });
     let environment = plan.needs_parser_environment().then(|| {
         quote! { , environment: &crate::environment::ParserEnvironment }
     });
@@ -1052,8 +1054,7 @@ fn emit_sequence_renderer(
         quote! {
             fn #function(
                 writer: &mut Writer,
-                values: &[#item_ty],
-                context: &ParseContext<'_> #environment,
+                values: &[#item_ty] #context #environment,
             ) {
                 for (index, value) in values.iter().enumerate() {
                     #render_value
@@ -1112,12 +1113,37 @@ fn render_structural_field(
                 if let Some(value) = #whole.#name.as_ref() { #statement }
             })
         }
-        StructuralFieldKindPlan::Sequence { .. } => {
+        StructuralFieldKindPlan::Sequence { item, .. } => {
             let function = ident(&structural_sequence_renderer(owner, field.name()));
+            let context =
+                structural_value_requires_context(plan, item)?.then(|| quote! { , context });
             let environment = plan
                 .needs_parser_environment()
                 .then(|| quote! { , environment });
-            Ok(quote! { #function(writer, &#whole.#name, context #environment); })
+            Ok(quote! { #function(writer, &#whole.#name #context #environment); })
+        }
+    }
+}
+
+fn structural_value_requires_context(
+    plan: &SemanticPlan,
+    value: &ValueKindPlan,
+) -> syn::Result<bool> {
+    match value {
+        ValueKindPlan::Category(category) => {
+            Ok(plan.category_render_capability(category).requires_context())
+        }
+        ValueKindPlan::Product(_) | ValueKindPlan::Sum(_) => Ok(true),
+        ValueKindPlan::Lex(_) => Ok(false),
+        ValueKindPlan::Identity(name) => {
+            if find_context_identity(plan, name).is_some() {
+                Ok(true)
+            } else if find_catalog_identity(plan, name).is_some() {
+                Ok(false)
+            } else {
+                find_binding(plan, name)?;
+                Ok(true)
+            }
         }
     }
 }
@@ -2179,15 +2205,17 @@ fn render_construction_structural_field(
             let render = render_structural_value(plan, kind, quote! { value }, root_names)?;
             Ok(quote! { if let Some(value) = #value { #render } })
         }
-        StructuralFieldKindPlan::Sequence { .. } => {
+        StructuralFieldKindPlan::Sequence { item, .. } => {
             let function = ident(&structural_sequence_renderer(
                 construction.element_type(),
                 field.name(),
             ));
+            let context =
+                structural_value_requires_context(plan, item)?.then(|| quote! { , context });
             let environment = plan
                 .needs_parser_environment()
                 .then(|| quote! { , environment });
-            Ok(quote! { #function(writer, #value, context #environment); })
+            Ok(quote! { #function(writer, #value #context #environment); })
         }
     }
 }
@@ -3842,6 +3870,47 @@ mod tests {
         assert!(
             member < terminator && terminator < separator,
             "each member renders before its terminator and following separator: {body}",
+        );
+    }
+
+    #[test]
+    fn context_free_construction_sequence_renderer_does_not_require_parse_context() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Word { Alpha = "alpha", Beta = "beta", }
+            construction atom: Atom {
+                element AtomValue { word: lex Word, }
+                form atom = lex(word);
+            }
+            construction holder: Root {
+                element HolderValue { items: seq Atom separated by ", ", }
+                require len(HolderValue.items) >= 2;
+                form holder = items;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("context-free construction sequence fixture validates");
+
+        let sequence = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { name, .. } if name == "render_holder_value_items_sequence"))
+            .expect("sequence renderer")
+            .tokens
+            .to_string();
+        assert!(
+            !sequence.contains("ParseContext"),
+            "a context-free member renderer must not require parse context: {sequence}",
+        );
+
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            !source.contains("render_holder_value_items_sequence (writer , items , context"),
+            "a context-free construction must not pass absent parse context: {source}",
         );
     }
 

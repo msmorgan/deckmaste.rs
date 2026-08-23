@@ -58,6 +58,17 @@ constructions! {
     vocab Designation { Chosen = "chosen", Exiled = "exiled", }
     vocab ChosenQuality { Color = "color", Name = "name", Type = "type", }
     vocab NonCommonNoun { Token = "token", }
+    vocab NonTargetCommonModifier {
+        Card = "card",
+        Controller = "controller",
+        Opponent = "opponent",
+        Owner = "owner",
+        Permanent = "permanent",
+        Player = "player",
+        Source = "source",
+        Spell = "spell",
+        Token = "token",
+    }
     vocab Supertype {
         Basic = "basic",
         Legendary = "legendary",
@@ -628,6 +639,59 @@ constructions! {
         derive onset = Values::Consonant;
         form non_spell_subtype_modifier = prefix("non-", noun(noun));
     }
+    construction negative_modifier_member: NegativeNominalModifier {
+        element NegativeModifierMember { value: NominalModifier, }
+        require any(
+            value is NonColorModifier,
+            value is NonCommonNounModifier,
+            value is NonStatusModifier,
+            value is NonSupertypeModifier,
+            value is NonTypeModifier,
+            value is NonArtifactSubtypeModifier,
+            value is NonBattleSubtypeModifier,
+            value is NonCreatureSubtypeModifier,
+            value is NonEnchantmentSubtypeModifier,
+            value is NonLandSubtypeModifier,
+            value is NonPlaneswalkerSubtypeModifier,
+            value is NonSpellSubtypeModifier
+        );
+        form negative_modifier_member = value;
+    }
+    construction non_target_common_noun_modifier: CoordinatedNominalModifier {
+        element NonTargetCommonNounModifier { noun: lex NonTargetCommonModifier, }
+        derive onset = noun.onset;
+        form non_target_common_noun_modifier = lex(noun);
+    }
+    construction coordinated_modifier_member: CoordinatedNominalModifier {
+        element CoordinatedModifierMember { value: NominalModifier, }
+        require any(
+            value is ColorModifier,
+            value is StatusModifier,
+            value is SupertypeModifier,
+            value is TypeModifier,
+            value is ArtifactSubtypeModifier,
+            value is BattleSubtypeModifier,
+            value is CreatureSubtypeModifier,
+            value is EnchantmentSubtypeModifier,
+            value is LandSubtypeModifier,
+            value is PlaneswalkerSubtypeModifier,
+            value is SpellSubtypeModifier,
+            value is NonColorModifier,
+            value is NonCommonNounModifier,
+            value is NonStatusModifier,
+            value is NonSupertypeModifier,
+            value is NonTypeModifier,
+            value is NonArtifactSubtypeModifier,
+            value is NonBattleSubtypeModifier,
+            value is NonCreatureSubtypeModifier,
+            value is NonEnchantmentSubtypeModifier,
+            value is NonLandSubtypeModifier,
+            value is NonPlaneswalkerSubtypeModifier,
+            value is NonSpellSubtypeModifier
+        );
+        derive onset = value.onset;
+        form coordinated_modifier_member = value;
+    }
     construction bare_singular_nominal: SingularNominal {
         element BareSingularNominal { head: SingularHead, }
         derive agreement = head.agreement;
@@ -641,6 +705,17 @@ constructions! {
         derive number = head.number;
         derive onset = modifier.onset;
         form modified_singular_nominal = modifier head;
+    }
+    construction negative_modified_singular_nominal: SingularNominal {
+        element NegativeModifiedSingularNominal {
+            modifiers: seq NegativeNominalModifier separated by ", ",
+            head: SingularHead,
+        }
+        require len(modifiers) >= 2;
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = Values::Consonant;
+        form negative_modified_singular_nominal = modifiers head;
     }
     construction bare_plural_nominal: PluralNominal {
         element BarePluralNominal { head: PluralHead, }
@@ -656,6 +731,145 @@ constructions! {
         derive onset = modifier.onset;
         form modified_plural_nominal = modifier head;
     }
+    construction negative_modified_plural_nominal: PluralNominal {
+        element NegativeModifiedPluralNominal {
+            modifiers: seq NegativeNominalModifier separated by ", ",
+            head: PluralHead,
+        }
+        require len(modifiers) >= 2;
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = Values::Consonant;
+        form negative_modified_plural_nominal = modifiers head;
+    }
+    construction bare_singular_coordination_member: SingularCoordinationMember {
+        element BareSingularCoordinationMember { head: SingularHead, }
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = head.onset;
+        form bare_singular_coordination_member = head;
+    }
+    construction modified_singular_coordination_member: SingularCoordinationMember {
+        element ModifiedSingularCoordinationMember {
+            modifier: CoordinatedNominalModifier,
+            head: SingularHead,
+        }
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = modifier.onset;
+        form modified_singular_coordination_member = modifier head;
+    }
+    construction negative_modified_singular_coordination_member: SingularCoordinationMember {
+        element NegativeModifiedSingularCoordinationMember {
+            modifiers: seq NegativeNominalModifier separated by ", ",
+            head: SingularHead,
+        }
+        require len(modifiers) >= 2;
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = Values::Consonant;
+        form negative_modified_singular_coordination_member = modifiers head;
+    }
+    construction bare_plural_coordination_member: PluralCoordinationMember {
+        element BarePluralCoordinationMember { head: PluralHead, }
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = head.onset;
+        form bare_plural_coordination_member = head;
+    }
+    construction modified_plural_coordination_member: PluralCoordinationMember {
+        element ModifiedPluralCoordinationMember {
+            modifier: CoordinatedNominalModifier,
+            head: PluralHead,
+        }
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = modifier.onset;
+        form modified_plural_coordination_member = modifier head;
+    }
+    construction negative_modified_plural_coordination_member: PluralCoordinationMember {
+        element NegativeModifiedPluralCoordinationMember {
+            modifiers: seq NegativeNominalModifier separated by ", ",
+            head: PluralHead,
+        }
+        require len(modifiers) >= 2;
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = Values::Consonant;
+        form negative_modified_plural_coordination_member = modifiers head;
+    }
+    construction singular_and_nominal_coordination: SingularNominalCoordination {
+        element SingularAndNominalCoordination {
+            members: seq SingularCoordinationMember separated by position {
+                pair = " and ";
+                first = ", ";
+                middle = ", ";
+                last = ", and ";
+            },
+        }
+        require len(members) >= 2;
+        form singular_and_nominal_coordination = members;
+    }
+    construction singular_or_nominal_coordination: SingularNominalCoordination {
+        element SingularOrNominalCoordination {
+            members: seq SingularCoordinationMember separated by position {
+                pair = " or ";
+                first = ", ";
+                middle = ", ";
+                last = ", or ";
+            },
+        }
+        require len(members) >= 2;
+        form singular_or_nominal_coordination = members;
+    }
+    construction singular_and_or_nominal_coordination: SingularNominalCoordination {
+        element SingularAndOrNominalCoordination {
+            members: seq SingularCoordinationMember separated by position {
+                pair = " and/or ";
+                first = ", ";
+                middle = ", ";
+                last = ", and/or ";
+            },
+        }
+        require len(members) >= 2;
+        form singular_and_or_nominal_coordination = members;
+    }
+    construction plural_and_nominal_coordination: PluralNominalCoordination {
+        element PluralAndNominalCoordination {
+            members: seq PluralCoordinationMember separated by position {
+                pair = " and ";
+                first = ", ";
+                middle = ", ";
+                last = ", and ";
+            },
+        }
+        require len(members) >= 2;
+        form plural_and_nominal_coordination = members;
+    }
+    construction plural_or_nominal_coordination: PluralNominalCoordination {
+        element PluralOrNominalCoordination {
+            members: seq PluralCoordinationMember separated by position {
+                pair = " or ";
+                first = ", ";
+                middle = ", ";
+                last = ", or ";
+            },
+        }
+        require len(members) >= 2;
+        form plural_or_nominal_coordination = members;
+    }
+    construction plural_and_or_nominal_coordination: PluralNominalCoordination {
+        element PluralAndOrNominalCoordination {
+            members: seq PluralCoordinationMember separated by position {
+                pair = " and/or ";
+                first = ", ";
+                middle = ", ";
+                last = ", and/or ";
+            },
+        }
+        require len(members) >= 2;
+        form plural_and_or_nominal_coordination = members;
+    }
     construction unmarked_singular_selector: SingularSelector {
         element UnmarkedSingularSelector { nominal: SingularNominal, }
         derive agreement = nominal.agreement;
@@ -669,6 +883,15 @@ constructions! {
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form target_singular_selector = "target" nominal;
+    }
+    construction target_singular_coordination_selector: SingularSelector {
+        element TargetSingularCoordinationSelector {
+            coordination: SingularNominalCoordination,
+        }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form target_singular_coordination_selector = "target" coordination;
     }
     construction other_singular_selector: SingularSelector {
         element OtherSingularSelector { nominal: SingularNominal, }
@@ -691,12 +914,30 @@ constructions! {
         derive onset = nominal.onset;
         form unmarked_plural_selector = nominal;
     }
+    construction unmarked_plural_coordination_selector: PluralSelector {
+        element UnmarkedPluralCoordinationSelector {
+            coordination: PluralNominalCoordination,
+        }
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Consonant;
+        form unmarked_plural_coordination_selector = coordination;
+    }
     construction target_plural_selector: PluralSelector {
         element TargetPluralSelector { nominal: PluralNominal, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive onset = Values::Consonant;
         form target_plural_selector = "target" nominal;
+    }
+    construction target_plural_coordination_selector: PluralSelector {
+        element TargetPluralCoordinationSelector {
+            coordination: PluralNominalCoordination,
+        }
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Consonant;
+        form target_plural_coordination_selector = "target" coordination;
     }
     construction other_plural_selector: PluralSelector {
         element OtherPluralSelector { nominal: PluralNominal, }
@@ -729,7 +970,10 @@ constructions! {
     }
     construction ordinary_singular_reference: NounPhrase {
         element OrdinarySingularReference { selector: SingularSelector, }
-        require selector is TargetSingularSelector;
+        require any(
+            selector is TargetSingularSelector,
+            selector is TargetSingularCoordinationSelector
+        );
         derive agreement = selector.agreement;
         derive number = selector.number;
         derive onset = selector.onset;
@@ -808,6 +1052,7 @@ constructions! {
         require count.cardinality is One;
         require any(
             selector is TargetSingularSelector,
+            selector is TargetSingularCoordinationSelector,
             selector is OtherTargetSingularSelector
         );
         derive agreement = Values::ThirdPersonSingular;
@@ -820,6 +1065,7 @@ constructions! {
         require count.cardinality is TwoPlus;
         require any(
             selector is TargetPluralSelector,
+            selector is TargetPluralCoordinationSelector,
             selector is OtherTargetPluralSelector
         );
         derive agreement = Values::Bare;
@@ -920,6 +1166,63 @@ constructions! {
         derive onset = word.onset;
         form possessive_absolute_reference = lex(word);
     }
+    construction singular_targeted_noun_phrase: TargetedNounPhrase {
+        element SingularTargetedNounPhrase { nominal: SingularNominal, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form singular_targeted_noun_phrase = "target" nominal;
+    }
+    construction plural_targeted_noun_phrase: TargetedNounPhrase {
+        element PluralTargetedNounPhrase { nominal: PluralNominal, }
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Consonant;
+        form plural_targeted_noun_phrase = "target" nominal;
+    }
+    construction full_and_noun_phrase_coordination: FullNounPhraseCoordination {
+        element FullAndNounPhraseCoordination {
+            members: seq TargetedNounPhrase separated by position {
+                pair = " and ";
+                first = ", ";
+                middle = ", ";
+                last = ", and ";
+            },
+        }
+        require len(members) >= 2;
+        form full_and_noun_phrase_coordination = members;
+    }
+    construction full_or_noun_phrase_coordination: FullNounPhraseCoordination {
+        element FullOrNounPhraseCoordination {
+            members: seq TargetedNounPhrase separated by position {
+                pair = " or ";
+                first = ", ";
+                middle = ", ";
+                last = ", or ";
+            },
+        }
+        require len(members) >= 2;
+        form full_or_noun_phrase_coordination = members;
+    }
+    construction full_and_or_noun_phrase_coordination: FullNounPhraseCoordination {
+        element FullAndOrNounPhraseCoordination {
+            members: seq TargetedNounPhrase separated by position {
+                pair = " and/or ";
+                first = ", ";
+                middle = ", ";
+                last = ", and/or ";
+            },
+        }
+        require len(members) >= 2;
+        form full_and_or_noun_phrase_coordination = members;
+    }
+    construction coordinated_noun_phrase: NounPhrase {
+        element CoordinatedNounPhrase { coordination: FullNounPhraseCoordination, }
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Consonant;
+        form coordinated_noun_phrase = coordination;
+    }
     construction self_reference: NounPhrase {
         element SourceSelfReference { spelling: identity SelfReferenceSpelling, }
         derive agreement = Values::ThirdPersonSingular;
@@ -1015,4 +1318,81 @@ constructions! {
     root Possessive { eoi = true; standalone_render = true; }
     root CardinalQuantity { eoi = true; standalone_render = true; }
     root OracleText { eoi = true; standalone_render = true; }
+}
+
+#[cfg(test)]
+mod task9_feature_tests {
+    use super::*;
+
+    fn singular_member(noun: CommonNoun) -> SingularCoordinationMember {
+        SingularCoordinationMember::BareSingularCoordinationMember(BareSingularCoordinationMember {
+            head: SingularHead::CommonSingularHead(CommonSingularHead { noun }),
+        })
+    }
+
+    fn plural_member(noun: CommonNoun) -> PluralCoordinationMember {
+        PluralCoordinationMember::BarePluralCoordinationMember(BarePluralCoordinationMember {
+            head: PluralHead::CommonPluralHead(CommonPluralHead { noun }),
+        })
+    }
+
+    fn singular_nominal(noun: CommonNoun) -> SingularNominal {
+        SingularNominal::BareSingularNominal(BareSingularNominal {
+            head: SingularHead::CommonSingularHead(CommonSingularHead { noun }),
+        })
+    }
+
+    #[test]
+    fn coordination_scopes_derive_exact_number_and_agreement() {
+        let singular_shared = NounPhrase::OrdinarySingularReference(
+            OrdinarySingularReference::new(SingularSelector::TargetSingularCoordinationSelector(
+                TargetSingularCoordinationSelector {
+                    coordination: SingularNominalCoordination::SingularOrNominalCoordination(
+                        SingularOrNominalCoordination::new(vec![
+                            singular_member(CommonNoun::Player),
+                            singular_member(CommonNoun::Opponent),
+                        ])
+                        .expect("binary singular coordination satisfies minimum arity"),
+                    ),
+                },
+            ))
+            .expect("a target coordination selector is an ordinary singular reference"),
+        );
+        let plural_shared = NounPhrase::OrdinaryPluralReference(OrdinaryPluralReference {
+            selector: PluralSelector::TargetPluralCoordinationSelector(
+                TargetPluralCoordinationSelector {
+                    coordination: PluralNominalCoordination::PluralOrNominalCoordination(
+                        PluralOrNominalCoordination::new(vec![
+                            plural_member(CommonNoun::Player),
+                            plural_member(CommonNoun::Opponent),
+                        ])
+                        .expect("binary plural coordination satisfies minimum arity"),
+                    ),
+                },
+            ),
+        });
+        let full_np = NounPhrase::CoordinatedNounPhrase(CoordinatedNounPhrase {
+            coordination: FullNounPhraseCoordination::FullAndNounPhraseCoordination(
+                FullAndNounPhraseCoordination::new(vec![
+                    TargetedNounPhrase::SingularTargetedNounPhrase(SingularTargetedNounPhrase {
+                        nominal: singular_nominal(CommonNoun::Player),
+                    }),
+                    TargetedNounPhrase::SingularTargetedNounPhrase(SingularTargetedNounPhrase {
+                        nominal: singular_nominal(CommonNoun::Opponent),
+                    }),
+                ])
+                .expect("binary full-NP coordination satisfies minimum arity"),
+            ),
+        });
+
+        assert_eq!(number_for_noun_phrase(&singular_shared), Number::Singular);
+        assert_eq!(
+            agreement_for_noun_phrase(&singular_shared),
+            Agreement::ThirdPersonSingular
+        );
+        assert_eq!(number_for_noun_phrase(&plural_shared), Number::Plural);
+        assert_eq!(agreement_for_noun_phrase(&plural_shared), Agreement::Bare);
+        assert_eq!(number_for_noun_phrase(&full_np), Number::Plural);
+        assert_eq!(agreement_for_noun_phrase(&full_np), Agreement::Bare);
+    }
 }

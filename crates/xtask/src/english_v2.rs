@@ -1685,6 +1685,7 @@ mod tests {
         "vocab Designation",
         "vocab ChosenQuality",
         "vocab NonCommonNoun",
+        "vocab NonTargetCommonModifier",
         "vocab Supertype",
     ];
 
@@ -1743,16 +1744,36 @@ mod tests {
         "construction non_land_subtype_modifier",
         "construction non_planeswalker_subtype_modifier",
         "construction non_spell_subtype_modifier",
+        "construction negative_modifier_member",
+        "construction non_target_common_noun_modifier",
+        "construction coordinated_modifier_member",
         "construction bare_singular_nominal",
         "construction modified_singular_nominal",
+        "construction negative_modified_singular_nominal",
         "construction bare_plural_nominal",
         "construction modified_plural_nominal",
+        "construction negative_modified_plural_nominal",
+        "construction bare_singular_coordination_member",
+        "construction modified_singular_coordination_member",
+        "construction negative_modified_singular_coordination_member",
+        "construction bare_plural_coordination_member",
+        "construction modified_plural_coordination_member",
+        "construction negative_modified_plural_coordination_member",
+        "construction singular_and_nominal_coordination",
+        "construction singular_or_nominal_coordination",
+        "construction singular_and_or_nominal_coordination",
+        "construction plural_and_nominal_coordination",
+        "construction plural_or_nominal_coordination",
+        "construction plural_and_or_nominal_coordination",
         "construction unmarked_singular_selector",
         "construction target_singular_selector",
+        "construction target_singular_coordination_selector",
         "construction other_singular_selector",
         "construction other_target_singular_selector",
         "construction unmarked_plural_selector",
+        "construction unmarked_plural_coordination_selector",
         "construction target_plural_selector",
+        "construction target_plural_coordination_selector",
         "construction other_plural_selector",
         "construction other_target_plural_selector",
         "construction indefinite_reference",
@@ -1780,6 +1801,12 @@ mod tests {
         "construction possessed_singular_reference",
         "construction possessed_plural_reference",
         "construction possessive_absolute_reference",
+        "construction singular_targeted_noun_phrase",
+        "construction plural_targeted_noun_phrase",
+        "construction full_and_noun_phrase_coordination",
+        "construction full_or_noun_phrase_coordination",
+        "construction full_and_or_noun_phrase_coordination",
+        "construction coordinated_noun_phrase",
         "construction self_reference",
         "construction count",
         "construction possessive_self_reference",
@@ -1829,24 +1856,63 @@ mod tests {
         "construction non_planeswalker_subtype_modifier",
         "construction non_spell_subtype_modifier",
     ];
+    const NEGATIVE_MODIFIER_ORIGINS: &[&str] = &["construction negative_modifier_member"];
+    const COORDINATED_MODIFIER_ORIGINS: &[&str] = &[
+        "construction non_target_common_noun_modifier",
+        "construction coordinated_modifier_member",
+    ];
 
     const SINGULAR_NOMINAL_ORIGINS: &[&str] = &[
         "construction bare_singular_nominal",
         "construction modified_singular_nominal",
+        "construction negative_modified_singular_nominal",
     ];
     const PLURAL_NOMINAL_ORIGINS: &[&str] = &[
         "construction bare_plural_nominal",
         "construction modified_plural_nominal",
+        "construction negative_modified_plural_nominal",
+    ];
+    const SINGULAR_COORDINATION_MEMBER_ORIGINS: &[&str] = &[
+        "construction bare_singular_coordination_member",
+        "construction modified_singular_coordination_member",
+        "construction negative_modified_singular_coordination_member",
+    ];
+    const PLURAL_COORDINATION_MEMBER_ORIGINS: &[&str] = &[
+        "construction bare_plural_coordination_member",
+        "construction modified_plural_coordination_member",
+        "construction negative_modified_plural_coordination_member",
+    ];
+    const SINGULAR_NOMINAL_COORDINATION_ORIGINS: &[&str] = &[
+        "construction singular_and_nominal_coordination",
+        "construction singular_or_nominal_coordination",
+        "construction singular_and_or_nominal_coordination",
+    ];
+    const PLURAL_NOMINAL_COORDINATION_ORIGINS: &[&str] = &[
+        "construction plural_and_nominal_coordination",
+        "construction plural_or_nominal_coordination",
+        "construction plural_and_or_nominal_coordination",
+    ];
+    const TARGETED_NOUN_PHRASE_ORIGINS: &[&str] = &[
+        "construction singular_targeted_noun_phrase",
+        "construction plural_targeted_noun_phrase",
+    ];
+    const FULL_NOUN_PHRASE_COORDINATION_ORIGINS: &[&str] = &[
+        "construction full_and_noun_phrase_coordination",
+        "construction full_or_noun_phrase_coordination",
+        "construction full_and_or_noun_phrase_coordination",
     ];
     const SINGULAR_SELECTOR_ORIGINS: &[&str] = &[
         "construction unmarked_singular_selector",
         "construction target_singular_selector",
+        "construction target_singular_coordination_selector",
         "construction other_singular_selector",
         "construction other_target_singular_selector",
     ];
     const PLURAL_SELECTOR_ORIGINS: &[&str] = &[
         "construction unmarked_plural_selector",
+        "construction unmarked_plural_coordination_selector",
         "construction target_plural_selector",
+        "construction target_plural_coordination_selector",
         "construction other_plural_selector",
         "construction other_target_plural_selector",
     ];
@@ -1876,6 +1942,7 @@ mod tests {
         "construction possessed_singular_reference",
         "construction possessed_plural_reference",
         "construction possessive_absolute_reference",
+        "construction coordinated_noun_phrase",
         "construction self_reference",
         "construction count",
     ];
@@ -1927,6 +1994,7 @@ mod tests {
         "vocab Designation",
         "vocab ChosenQuality",
         "vocab NonCommonNoun",
+        "vocab NonTargetCommonModifier",
         "vocab Supertype",
         "lexeme CommonNoun",
         "lexeme VerbLexeme",
@@ -1953,7 +2021,30 @@ mod tests {
 
     static VISITOR_ORIGINS: std::sync::LazyLock<Vec<&'static str>> =
         std::sync::LazyLock::new(|| {
-            let mut origins = CONSTRUCTION_ORIGINS.to_vec();
+            let first_targeted = CONSTRUCTION_ORIGINS
+                .iter()
+                .position(|origin| *origin == "construction singular_targeted_noun_phrase")
+                .expect("targeted noun-phrase construction is present");
+            let coordinated = CONSTRUCTION_ORIGINS
+                .iter()
+                .position(|origin| *origin == "construction coordinated_noun_phrase")
+                .expect("coordinated noun-phrase construction is present");
+            let mut category_origins = CONSTRUCTION_ORIGINS.to_vec();
+            let mut noun_phrase_categories = category_origins
+                .drain(first_targeted..=coordinated)
+                .collect::<Vec<_>>();
+            let coordinated_noun_phrase = noun_phrase_categories
+                .pop()
+                .expect("coordinated noun phrase closes the moved category range");
+            category_origins.insert(first_targeted, coordinated_noun_phrase);
+            let after_count = category_origins
+                .iter()
+                .position(|origin| *origin == "construction count")
+                .expect("count construction is present")
+                + 1;
+            category_origins.splice(after_count..after_count, noun_phrase_categories);
+
+            let mut origins = category_origins;
             origins.extend([
                 "codec CardinalNumber",
                 "codec ScalarNumber",
@@ -2054,6 +2145,13 @@ mod tests {
             | "function number_for_nominal_modifier"
             | "function onset_for_nominal_modifier"
             | "function walk_nominal_modifier" => MODIFIER_ORIGINS,
+            "type NegativeNominalModifier"
+            | "function render_negative_nominal_modifier"
+            | "function walk_negative_nominal_modifier" => NEGATIVE_MODIFIER_ORIGINS,
+            "type CoordinatedNominalModifier"
+            | "function render_coordinated_nominal_modifier"
+            | "function onset_for_coordinated_nominal_modifier"
+            | "function walk_coordinated_nominal_modifier" => COORDINATED_MODIFIER_ORIGINS,
             "type SingularNominal"
             | "function render_singular_nominal"
             | "function agreement_for_singular_nominal"
@@ -2066,6 +2164,20 @@ mod tests {
             | "function number_for_plural_nominal"
             | "function onset_for_plural_nominal"
             | "function walk_plural_nominal" => PLURAL_NOMINAL_ORIGINS,
+            "type SingularCoordinationMember"
+            | "function render_singular_coordination_member"
+            | "function walk_singular_coordination_member" => SINGULAR_COORDINATION_MEMBER_ORIGINS,
+            "type PluralCoordinationMember"
+            | "function render_plural_coordination_member"
+            | "function walk_plural_coordination_member" => PLURAL_COORDINATION_MEMBER_ORIGINS,
+            "type SingularNominalCoordination"
+            | "function render_singular_nominal_coordination"
+            | "function walk_singular_nominal_coordination" => {
+                SINGULAR_NOMINAL_COORDINATION_ORIGINS
+            }
+            "type PluralNominalCoordination"
+            | "function render_plural_nominal_coordination"
+            | "function walk_plural_nominal_coordination" => PLURAL_NOMINAL_COORDINATION_ORIGINS,
             "type SingularSelector"
             | "function render_singular_selector"
             | "function agreement_for_singular_selector"
@@ -2084,6 +2196,14 @@ mod tests {
             | "function number_for_noun_phrase"
             | "function onset_for_noun_phrase"
             | "function walk_noun_phrase" => NOUN_PHRASE_ORIGINS,
+            "type TargetedNounPhrase"
+            | "function render_targeted_noun_phrase"
+            | "function walk_targeted_noun_phrase" => TARGETED_NOUN_PHRASE_ORIGINS,
+            "type FullNounPhraseCoordination"
+            | "function render_full_noun_phrase_coordination"
+            | "function walk_full_noun_phrase_coordination" => {
+                FULL_NOUN_PHRASE_COORDINATION_ORIGINS
+            }
             "type PossessiveOwner"
             | "function render_possessive_owner"
             | "function number_for_possessive_owner"
@@ -2127,6 +2247,58 @@ mod tests {
             | "function walk_paragraph_sentences_sequence" => &["construction Paragraph"],
             "function render_triggered_effects_sequence"
             | "function walk_triggered_effects_sequence" => &["construction Triggered"],
+            "function render_negative_modified_singular_nominal_modifiers_sequence"
+            | "function walk_negative_modified_singular_nominal_modifiers_sequence" => {
+                &["construction NegativeModifiedSingularNominal"]
+            }
+            "function render_negative_modified_plural_nominal_modifiers_sequence"
+            | "function walk_negative_modified_plural_nominal_modifiers_sequence" => {
+                &["construction NegativeModifiedPluralNominal"]
+            }
+            "function render_negative_modified_singular_coordination_member_modifiers_sequence"
+            | "function walk_negative_modified_singular_coordination_member_modifiers_sequence" => {
+                &["construction NegativeModifiedSingularCoordinationMember"]
+            }
+            "function render_negative_modified_plural_coordination_member_modifiers_sequence"
+            | "function walk_negative_modified_plural_coordination_member_modifiers_sequence" => {
+                &["construction NegativeModifiedPluralCoordinationMember"]
+            }
+            "function render_singular_and_nominal_coordination_members_sequence"
+            | "function walk_singular_and_nominal_coordination_members_sequence" => {
+                &["construction SingularAndNominalCoordination"]
+            }
+            "function render_singular_or_nominal_coordination_members_sequence"
+            | "function walk_singular_or_nominal_coordination_members_sequence" => {
+                &["construction SingularOrNominalCoordination"]
+            }
+            "function render_singular_and_or_nominal_coordination_members_sequence"
+            | "function walk_singular_and_or_nominal_coordination_members_sequence" => {
+                &["construction SingularAndOrNominalCoordination"]
+            }
+            "function render_plural_and_nominal_coordination_members_sequence"
+            | "function walk_plural_and_nominal_coordination_members_sequence" => {
+                &["construction PluralAndNominalCoordination"]
+            }
+            "function render_plural_or_nominal_coordination_members_sequence"
+            | "function walk_plural_or_nominal_coordination_members_sequence" => {
+                &["construction PluralOrNominalCoordination"]
+            }
+            "function render_plural_and_or_nominal_coordination_members_sequence"
+            | "function walk_plural_and_or_nominal_coordination_members_sequence" => {
+                &["construction PluralAndOrNominalCoordination"]
+            }
+            "function render_full_and_noun_phrase_coordination_members_sequence"
+            | "function walk_full_and_noun_phrase_coordination_members_sequence" => {
+                &["construction FullAndNounPhraseCoordination"]
+            }
+            "function render_full_or_noun_phrase_coordination_members_sequence"
+            | "function walk_full_or_noun_phrase_coordination_members_sequence" => {
+                &["construction FullOrNounPhraseCoordination"]
+            }
+            "function render_full_and_or_noun_phrase_coordination_members_sequence"
+            | "function walk_full_and_or_noun_phrase_coordination_members_sequence" => {
+                &["construction FullAndOrNounPhraseCoordination"]
+            }
             "type Imperative" | "function walk_imperative" => &["construction imperative"],
             "type Declarative" | "function walk_declarative" => &["construction declarative"],
             "type WithWhere" | "impl WithWhere" | "function walk_with_where" => {
@@ -2279,11 +2451,30 @@ mod tests {
             "type NonSpellSubtypeModifier" | "function walk_non_spell_subtype_modifier" => {
                 &["construction non_spell_subtype_modifier"]
             }
+            "type NegativeModifierMember"
+            | "impl NegativeModifierMember"
+            | "function walk_negative_modifier_member" => {
+                &["construction negative_modifier_member"]
+            }
+            "type NonTargetCommonNounModifier"
+            | "function walk_non_target_common_noun_modifier" => {
+                &["construction non_target_common_noun_modifier"]
+            }
+            "type CoordinatedModifierMember"
+            | "impl CoordinatedModifierMember"
+            | "function walk_coordinated_modifier_member" => {
+                &["construction coordinated_modifier_member"]
+            }
             "type BareSingularNominal" | "function walk_bare_singular_nominal" => {
                 &["construction bare_singular_nominal"]
             }
             "type ModifiedSingularNominal" | "function walk_modified_singular_nominal" => {
                 &["construction modified_singular_nominal"]
+            }
+            "type NegativeModifiedSingularNominal"
+            | "impl NegativeModifiedSingularNominal"
+            | "function walk_negative_modified_singular_nominal" => {
+                &["construction negative_modified_singular_nominal"]
             }
             "type BarePluralNominal" | "function walk_bare_plural_nominal" => {
                 &["construction bare_plural_nominal"]
@@ -2291,11 +2482,76 @@ mod tests {
             "type ModifiedPluralNominal" | "function walk_modified_plural_nominal" => {
                 &["construction modified_plural_nominal"]
             }
+            "type NegativeModifiedPluralNominal"
+            | "impl NegativeModifiedPluralNominal"
+            | "function walk_negative_modified_plural_nominal" => {
+                &["construction negative_modified_plural_nominal"]
+            }
+            "type BareSingularCoordinationMember"
+            | "function walk_bare_singular_coordination_member" => {
+                &["construction bare_singular_coordination_member"]
+            }
+            "type ModifiedSingularCoordinationMember"
+            | "function walk_modified_singular_coordination_member" => {
+                &["construction modified_singular_coordination_member"]
+            }
+            "type NegativeModifiedSingularCoordinationMember"
+            | "impl NegativeModifiedSingularCoordinationMember"
+            | "function walk_negative_modified_singular_coordination_member" => {
+                &["construction negative_modified_singular_coordination_member"]
+            }
+            "type BarePluralCoordinationMember"
+            | "function walk_bare_plural_coordination_member" => {
+                &["construction bare_plural_coordination_member"]
+            }
+            "type ModifiedPluralCoordinationMember"
+            | "function walk_modified_plural_coordination_member" => {
+                &["construction modified_plural_coordination_member"]
+            }
+            "type NegativeModifiedPluralCoordinationMember"
+            | "impl NegativeModifiedPluralCoordinationMember"
+            | "function walk_negative_modified_plural_coordination_member" => {
+                &["construction negative_modified_plural_coordination_member"]
+            }
+            "type SingularAndNominalCoordination"
+            | "impl SingularAndNominalCoordination"
+            | "function walk_singular_and_nominal_coordination" => {
+                &["construction singular_and_nominal_coordination"]
+            }
+            "type SingularOrNominalCoordination"
+            | "impl SingularOrNominalCoordination"
+            | "function walk_singular_or_nominal_coordination" => {
+                &["construction singular_or_nominal_coordination"]
+            }
+            "type SingularAndOrNominalCoordination"
+            | "impl SingularAndOrNominalCoordination"
+            | "function walk_singular_and_or_nominal_coordination" => {
+                &["construction singular_and_or_nominal_coordination"]
+            }
+            "type PluralAndNominalCoordination"
+            | "impl PluralAndNominalCoordination"
+            | "function walk_plural_and_nominal_coordination" => {
+                &["construction plural_and_nominal_coordination"]
+            }
+            "type PluralOrNominalCoordination"
+            | "impl PluralOrNominalCoordination"
+            | "function walk_plural_or_nominal_coordination" => {
+                &["construction plural_or_nominal_coordination"]
+            }
+            "type PluralAndOrNominalCoordination"
+            | "impl PluralAndOrNominalCoordination"
+            | "function walk_plural_and_or_nominal_coordination" => {
+                &["construction plural_and_or_nominal_coordination"]
+            }
             "type UnmarkedSingularSelector" | "function walk_unmarked_singular_selector" => {
                 &["construction unmarked_singular_selector"]
             }
             "type TargetSingularSelector" | "function walk_target_singular_selector" => {
                 &["construction target_singular_selector"]
+            }
+            "type TargetSingularCoordinationSelector"
+            | "function walk_target_singular_coordination_selector" => {
+                &["construction target_singular_coordination_selector"]
             }
             "type OtherSingularSelector" | "function walk_other_singular_selector" => {
                 &["construction other_singular_selector"]
@@ -2306,8 +2562,16 @@ mod tests {
             "type UnmarkedPluralSelector" | "function walk_unmarked_plural_selector" => {
                 &["construction unmarked_plural_selector"]
             }
+            "type UnmarkedPluralCoordinationSelector"
+            | "function walk_unmarked_plural_coordination_selector" => {
+                &["construction unmarked_plural_coordination_selector"]
+            }
             "type TargetPluralSelector" | "function walk_target_plural_selector" => {
                 &["construction target_plural_selector"]
+            }
+            "type TargetPluralCoordinationSelector"
+            | "function walk_target_plural_coordination_selector" => {
+                &["construction target_plural_coordination_selector"]
             }
             "type OtherPluralSelector" | "function walk_other_plural_selector" => {
                 &["construction other_plural_selector"]
@@ -2393,6 +2657,30 @@ mod tests {
             | "function number_for_possessive_absolute_pronoun" => {
                 &["construction possessive_absolute_reference"]
             }
+            "type SingularTargetedNounPhrase" | "function walk_singular_targeted_noun_phrase" => {
+                &["construction singular_targeted_noun_phrase"]
+            }
+            "type PluralTargetedNounPhrase" | "function walk_plural_targeted_noun_phrase" => {
+                &["construction plural_targeted_noun_phrase"]
+            }
+            "type FullAndNounPhraseCoordination"
+            | "impl FullAndNounPhraseCoordination"
+            | "function walk_full_and_noun_phrase_coordination" => {
+                &["construction full_and_noun_phrase_coordination"]
+            }
+            "type FullOrNounPhraseCoordination"
+            | "impl FullOrNounPhraseCoordination"
+            | "function walk_full_or_noun_phrase_coordination" => {
+                &["construction full_or_noun_phrase_coordination"]
+            }
+            "type FullAndOrNounPhraseCoordination"
+            | "impl FullAndOrNounPhraseCoordination"
+            | "function walk_full_and_or_noun_phrase_coordination" => {
+                &["construction full_and_or_noun_phrase_coordination"]
+            }
+            "type CoordinatedNounPhrase" | "function walk_coordinated_noun_phrase" => {
+                &["construction coordinated_noun_phrase"]
+            }
             "type SourceSelfReference"
             | "impl SourceSelfReference"
             | "function walk_source_self_reference" => &["construction self_reference"],
@@ -2454,6 +2742,9 @@ mod tests {
             "type NonCommonNoun"
             | "function render_non_common_noun"
             | "function walk_non_common_noun" => &["vocab NonCommonNoun"],
+            "type NonTargetCommonModifier"
+            | "function render_non_target_common_modifier"
+            | "function walk_non_target_common_modifier" => &["vocab NonTargetCommonModifier"],
             "type Supertype" | "function render_supertype" | "function walk_supertype" => {
                 &["vocab Supertype"]
             }
@@ -2722,11 +3013,19 @@ mod tests {
         "type SingularHead",
         "type PluralHead",
         "type NominalModifier",
+        "type NegativeNominalModifier",
+        "type CoordinatedNominalModifier",
         "type SingularNominal",
         "type PluralNominal",
+        "type SingularCoordinationMember",
+        "type PluralCoordinationMember",
+        "type SingularNominalCoordination",
+        "type PluralNominalCoordination",
         "type SingularSelector",
         "type PluralSelector",
         "type NounPhrase",
+        "type TargetedNounPhrase",
+        "type FullNounPhraseCoordination",
         "type PossessiveOwner",
         "type Possessive",
         "type VerbPhrase",
@@ -2791,16 +3090,48 @@ mod tests {
         "type NonLandSubtypeModifier",
         "type NonPlaneswalkerSubtypeModifier",
         "type NonSpellSubtypeModifier",
+        "type NegativeModifierMember",
+        "impl NegativeModifierMember",
+        "type NonTargetCommonNounModifier",
+        "type CoordinatedModifierMember",
+        "impl CoordinatedModifierMember",
         "type BareSingularNominal",
         "type ModifiedSingularNominal",
+        "type NegativeModifiedSingularNominal",
+        "impl NegativeModifiedSingularNominal",
         "type BarePluralNominal",
         "type ModifiedPluralNominal",
+        "type NegativeModifiedPluralNominal",
+        "impl NegativeModifiedPluralNominal",
+        "type BareSingularCoordinationMember",
+        "type ModifiedSingularCoordinationMember",
+        "type NegativeModifiedSingularCoordinationMember",
+        "impl NegativeModifiedSingularCoordinationMember",
+        "type BarePluralCoordinationMember",
+        "type ModifiedPluralCoordinationMember",
+        "type NegativeModifiedPluralCoordinationMember",
+        "impl NegativeModifiedPluralCoordinationMember",
+        "type SingularAndNominalCoordination",
+        "impl SingularAndNominalCoordination",
+        "type SingularOrNominalCoordination",
+        "impl SingularOrNominalCoordination",
+        "type SingularAndOrNominalCoordination",
+        "impl SingularAndOrNominalCoordination",
+        "type PluralAndNominalCoordination",
+        "impl PluralAndNominalCoordination",
+        "type PluralOrNominalCoordination",
+        "impl PluralOrNominalCoordination",
+        "type PluralAndOrNominalCoordination",
+        "impl PluralAndOrNominalCoordination",
         "type UnmarkedSingularSelector",
         "type TargetSingularSelector",
+        "type TargetSingularCoordinationSelector",
         "type OtherSingularSelector",
         "type OtherTargetSingularSelector",
         "type UnmarkedPluralSelector",
+        "type UnmarkedPluralCoordinationSelector",
         "type TargetPluralSelector",
+        "type TargetPluralCoordinationSelector",
         "type OtherPluralSelector",
         "type OtherTargetPluralSelector",
         "type IndefiniteReference",
@@ -2833,6 +3164,15 @@ mod tests {
         "type PossessedSingularReference",
         "type PossessedPluralReference",
         "type PossessiveAbsoluteReference",
+        "type SingularTargetedNounPhrase",
+        "type PluralTargetedNounPhrase",
+        "type FullAndNounPhraseCoordination",
+        "impl FullAndNounPhraseCoordination",
+        "type FullOrNounPhraseCoordination",
+        "impl FullOrNounPhraseCoordination",
+        "type FullAndOrNounPhraseCoordination",
+        "impl FullAndOrNounPhraseCoordination",
+        "type CoordinatedNounPhrase",
         "type SourceSelfReference",
         "impl SourceSelfReference",
         "type CountNp",
@@ -2860,6 +3200,7 @@ mod tests {
         "type Designation",
         "type ChosenQuality",
         "type NonCommonNoun",
+        "type NonTargetCommonModifier",
         "type Supertype",
         "type CommonNoun",
         "function surface_for_common_noun",
@@ -2969,6 +3310,19 @@ mod tests {
         "function render_oracle_text",
         "function render_paragraph_sentences_sequence",
         "function render_triggered_effects_sequence",
+        "function render_negative_modified_singular_nominal_modifiers_sequence",
+        "function render_negative_modified_plural_nominal_modifiers_sequence",
+        "function render_negative_modified_singular_coordination_member_modifiers_sequence",
+        "function render_negative_modified_plural_coordination_member_modifiers_sequence",
+        "function render_singular_and_nominal_coordination_members_sequence",
+        "function render_singular_or_nominal_coordination_members_sequence",
+        "function render_singular_and_or_nominal_coordination_members_sequence",
+        "function render_plural_and_nominal_coordination_members_sequence",
+        "function render_plural_or_nominal_coordination_members_sequence",
+        "function render_plural_and_or_nominal_coordination_members_sequence",
+        "function render_full_and_noun_phrase_coordination_members_sequence",
+        "function render_full_or_noun_phrase_coordination_members_sequence",
+        "function render_full_and_or_noun_phrase_coordination_members_sequence",
         "function render_document_block",
         "impl Ability",
         "impl Render for Ability",
@@ -2993,11 +3347,19 @@ mod tests {
         "function render_singular_head",
         "function render_plural_head",
         "function render_nominal_modifier",
+        "function render_negative_nominal_modifier",
+        "function render_coordinated_nominal_modifier",
         "function render_singular_nominal",
         "function render_plural_nominal",
+        "function render_singular_coordination_member",
+        "function render_plural_coordination_member",
+        "function render_singular_nominal_coordination",
+        "function render_plural_nominal_coordination",
         "function render_singular_selector",
         "function render_plural_selector",
         "function render_noun_phrase",
+        "function render_targeted_noun_phrase",
+        "function render_full_noun_phrase_coordination",
         "function render_possessive_owner",
         "function render_verb_phrase",
         "function render_amount",
@@ -3014,6 +3376,7 @@ mod tests {
         "function render_designation",
         "function render_chosen_quality",
         "function render_non_common_noun",
+        "function render_non_target_common_modifier",
         "function render_supertype",
         "function agreement_for_subject_pronoun",
         "function agreement_for_object_pronoun",
@@ -3050,6 +3413,7 @@ mod tests {
         "function onset_for_singular_head",
         "function onset_for_plural_head",
         "function onset_for_nominal_modifier",
+        "function onset_for_coordinated_nominal_modifier",
         "function onset_for_singular_nominal",
         "function onset_for_plural_nominal",
         "function onset_for_singular_selector",
@@ -3066,11 +3430,19 @@ mod tests {
         "function walk_singular_head",
         "function walk_plural_head",
         "function walk_nominal_modifier",
+        "function walk_negative_nominal_modifier",
+        "function walk_coordinated_nominal_modifier",
         "function walk_singular_nominal",
         "function walk_plural_nominal",
+        "function walk_singular_coordination_member",
+        "function walk_plural_coordination_member",
+        "function walk_singular_nominal_coordination",
+        "function walk_plural_nominal_coordination",
         "function walk_singular_selector",
         "function walk_plural_selector",
         "function walk_noun_phrase",
+        "function walk_targeted_noun_phrase",
+        "function walk_full_noun_phrase_coordination",
         "function walk_possessive_owner",
         "function walk_possessive",
         "function walk_verb_phrase",
@@ -3078,6 +3450,19 @@ mod tests {
         "function walk_cardinal_quantity",
         "function walk_paragraph_sentences_sequence",
         "function walk_triggered_effects_sequence",
+        "function walk_negative_modified_singular_nominal_modifiers_sequence",
+        "function walk_negative_modified_plural_nominal_modifiers_sequence",
+        "function walk_negative_modified_singular_coordination_member_modifiers_sequence",
+        "function walk_negative_modified_plural_coordination_member_modifiers_sequence",
+        "function walk_singular_and_nominal_coordination_members_sequence",
+        "function walk_singular_or_nominal_coordination_members_sequence",
+        "function walk_singular_and_or_nominal_coordination_members_sequence",
+        "function walk_plural_and_nominal_coordination_members_sequence",
+        "function walk_plural_or_nominal_coordination_members_sequence",
+        "function walk_plural_and_or_nominal_coordination_members_sequence",
+        "function walk_full_and_noun_phrase_coordination_members_sequence",
+        "function walk_full_or_noun_phrase_coordination_members_sequence",
+        "function walk_full_and_or_noun_phrase_coordination_members_sequence",
         "function walk_document_block",
         "function walk_oracle_text_blocks_sequence",
         "function walk_oracle_text",
@@ -3135,16 +3520,36 @@ mod tests {
         "function walk_non_land_subtype_modifier",
         "function walk_non_planeswalker_subtype_modifier",
         "function walk_non_spell_subtype_modifier",
+        "function walk_negative_modifier_member",
+        "function walk_non_target_common_noun_modifier",
+        "function walk_coordinated_modifier_member",
         "function walk_bare_singular_nominal",
         "function walk_modified_singular_nominal",
+        "function walk_negative_modified_singular_nominal",
         "function walk_bare_plural_nominal",
         "function walk_modified_plural_nominal",
+        "function walk_negative_modified_plural_nominal",
+        "function walk_bare_singular_coordination_member",
+        "function walk_modified_singular_coordination_member",
+        "function walk_negative_modified_singular_coordination_member",
+        "function walk_bare_plural_coordination_member",
+        "function walk_modified_plural_coordination_member",
+        "function walk_negative_modified_plural_coordination_member",
+        "function walk_singular_and_nominal_coordination",
+        "function walk_singular_or_nominal_coordination",
+        "function walk_singular_and_or_nominal_coordination",
+        "function walk_plural_and_nominal_coordination",
+        "function walk_plural_or_nominal_coordination",
+        "function walk_plural_and_or_nominal_coordination",
         "function walk_unmarked_singular_selector",
         "function walk_target_singular_selector",
+        "function walk_target_singular_coordination_selector",
         "function walk_other_singular_selector",
         "function walk_other_target_singular_selector",
         "function walk_unmarked_plural_selector",
+        "function walk_unmarked_plural_coordination_selector",
         "function walk_target_plural_selector",
+        "function walk_target_plural_coordination_selector",
         "function walk_other_plural_selector",
         "function walk_other_target_plural_selector",
         "function walk_indefinite_reference",
@@ -3172,6 +3577,12 @@ mod tests {
         "function walk_possessed_singular_reference",
         "function walk_possessed_plural_reference",
         "function walk_possessive_absolute_reference",
+        "function walk_singular_targeted_noun_phrase",
+        "function walk_plural_targeted_noun_phrase",
+        "function walk_full_and_noun_phrase_coordination",
+        "function walk_full_or_noun_phrase_coordination",
+        "function walk_full_and_or_noun_phrase_coordination",
+        "function walk_coordinated_noun_phrase",
         "function walk_source_self_reference",
         "function walk_count_np",
         "function walk_possessive_self_reference",
@@ -3196,6 +3607,7 @@ mod tests {
         "function walk_designation",
         "function walk_chosen_quality",
         "function walk_non_common_noun",
+        "function walk_non_target_common_modifier",
         "function walk_supertype",
         "function walk_self_reference_spelling",
         "function walk_card_name",
@@ -3879,7 +4291,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 514);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 635);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -3932,7 +4344,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 514);
+        assert_eq!(parsed.items.len(), 635);
     }
 
     #[test]

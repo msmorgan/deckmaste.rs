@@ -769,6 +769,19 @@ mod tests {
             [
                 "Paragraph.sentences",
                 "Triggered.effects",
+                "NegativeModifiedSingularNominal.modifiers",
+                "NegativeModifiedPluralNominal.modifiers",
+                "NegativeModifiedSingularCoordinationMember.modifiers",
+                "NegativeModifiedPluralCoordinationMember.modifiers",
+                "SingularAndNominalCoordination.members",
+                "SingularOrNominalCoordination.members",
+                "SingularAndOrNominalCoordination.members",
+                "PluralAndNominalCoordination.members",
+                "PluralOrNominalCoordination.members",
+                "PluralAndOrNominalCoordination.members",
+                "FullAndNounPhraseCoordination.members",
+                "FullOrNounPhraseCoordination.members",
+                "FullAndOrNounPhraseCoordination.members",
                 "OracleText.blocks",
             ]
         );
@@ -777,10 +790,27 @@ mod tests {
             [
                 "Paragraph.sentences",
                 "Triggered.effects",
+                "NegativeModifiedSingularNominal.modifiers",
+                "NegativeModifiedPluralNominal.modifiers",
+                "NegativeModifiedSingularCoordinationMember.modifiers",
+                "NegativeModifiedPluralCoordinationMember.modifiers",
                 "OracleText.blocks",
             ]
         );
-        assert!(report.positional_separator_tables.is_empty());
+        assert_eq!(
+            report.positional_separator_tables,
+            [
+                "SingularAndNominalCoordination.members",
+                "SingularOrNominalCoordination.members",
+                "SingularAndOrNominalCoordination.members",
+                "PluralAndNominalCoordination.members",
+                "PluralOrNominalCoordination.members",
+                "PluralAndOrNominalCoordination.members",
+                "FullAndNounPhraseCoordination.members",
+                "FullOrNounPhraseCoordination.members",
+                "FullAndOrNounPhraseCoordination.members",
+            ]
+        );
         assert_eq!(
             report.terminators,
             ["Paragraph.sentences", "Triggered.effects"]
@@ -942,14 +972,41 @@ mod tests {
             "sequence_roles": [
                 "Paragraph.sentences",
                 "Triggered.effects",
+                "NegativeModifiedSingularNominal.modifiers",
+                "NegativeModifiedPluralNominal.modifiers",
+                "NegativeModifiedSingularCoordinationMember.modifiers",
+                "NegativeModifiedPluralCoordinationMember.modifiers",
+                "SingularAndNominalCoordination.members",
+                "SingularOrNominalCoordination.members",
+                "SingularAndOrNominalCoordination.members",
+                "PluralAndNominalCoordination.members",
+                "PluralOrNominalCoordination.members",
+                "PluralAndOrNominalCoordination.members",
+                "FullAndNounPhraseCoordination.members",
+                "FullOrNounPhraseCoordination.members",
+                "FullAndOrNounPhraseCoordination.members",
                 "OracleText.blocks"
             ],
             "uniform_separators": [
                 "Paragraph.sentences",
                 "Triggered.effects",
+                "NegativeModifiedSingularNominal.modifiers",
+                "NegativeModifiedPluralNominal.modifiers",
+                "NegativeModifiedSingularCoordinationMember.modifiers",
+                "NegativeModifiedPluralCoordinationMember.modifiers",
                 "OracleText.blocks"
             ],
-            "positional_separator_tables": [],
+            "positional_separator_tables": [
+                "SingularAndNominalCoordination.members",
+                "SingularOrNominalCoordination.members",
+                "SingularAndOrNominalCoordination.members",
+                "PluralAndNominalCoordination.members",
+                "PluralOrNominalCoordination.members",
+                "PluralAndOrNominalCoordination.members",
+                "FullAndNounPhraseCoordination.members",
+                "FullOrNounPhraseCoordination.members",
+                "FullAndOrNounPhraseCoordination.members"
+            ],
             "terminators": ["Paragraph.sentences", "Triggered.effects"],
             "stored_separator_fields": []
         });

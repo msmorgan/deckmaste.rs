@@ -911,10 +911,18 @@ enum NonterminalKind {
     SingularHead,
     PluralHead,
     NominalModifier,
+    NegativeNominalModifier,
+    CoordinatedNominalModifier,
     SingularNominal,
     PluralNominal,
+    SingularCoordinationMember,
+    PluralCoordinationMember,
+    SingularNominalCoordination,
+    PluralNominalCoordination,
     SingularSelector,
     PluralSelector,
+    TargetedNounPhrase,
+    FullNounPhraseCoordination,
     VerbPhrase,
     PossessiveOwner,
     Possessive,
@@ -1345,10 +1353,28 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::SingularHead => NonterminalKind::SingularHead,
         NonterminalCategory::PluralHead => NonterminalKind::PluralHead,
         NonterminalCategory::NominalModifier => NonterminalKind::NominalModifier,
+        NonterminalCategory::NegativeNominalModifier => NonterminalKind::NegativeNominalModifier,
+        NonterminalCategory::CoordinatedNominalModifier => {
+            NonterminalKind::CoordinatedNominalModifier
+        }
         NonterminalCategory::SingularNominal => NonterminalKind::SingularNominal,
         NonterminalCategory::PluralNominal => NonterminalKind::PluralNominal,
+        NonterminalCategory::SingularCoordinationMember => {
+            NonterminalKind::SingularCoordinationMember
+        }
+        NonterminalCategory::PluralCoordinationMember => NonterminalKind::PluralCoordinationMember,
+        NonterminalCategory::SingularNominalCoordination => {
+            NonterminalKind::SingularNominalCoordination
+        }
+        NonterminalCategory::PluralNominalCoordination => {
+            NonterminalKind::PluralNominalCoordination
+        }
         NonterminalCategory::SingularSelector => NonterminalKind::SingularSelector,
         NonterminalCategory::PluralSelector => NonterminalKind::PluralSelector,
+        NonterminalCategory::TargetedNounPhrase => NonterminalKind::TargetedNounPhrase,
+        NonterminalCategory::FullNounPhraseCoordination => {
+            NonterminalKind::FullNounPhraseCoordination
+        }
         NonterminalCategory::VerbPhrase => NonterminalKind::VerbPhrase,
         NonterminalCategory::PossessiveOwner => NonterminalKind::PossessiveOwner,
         NonterminalCategory::Possessive => NonterminalKind::Possessive,

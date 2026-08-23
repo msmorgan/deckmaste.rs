@@ -2472,3 +2472,1430 @@ fn exact_subtype_noun_codecs_accept_only_their_declared_family() {
         planeswalker,
     );
 }
+
+#[test]
+fn authentic_nominal_and_full_np_coordination_surfaces_parse() {
+    let parser = parser();
+
+    for (card_name, text) in [
+        ("Naturalize", "Destroy target artifact or enchantment."),
+        (
+            "Bedevil",
+            "Destroy target artifact, creature, or planeswalker.",
+        ),
+        ("Desist", "Destroy all artifacts and enchantments."),
+        (
+            "Context Card",
+            "Destroy any number of target artifacts and/or enchantments.",
+        ),
+        (
+            "Context Card",
+            "Destroy target artifact and target enchantment.",
+        ),
+        (
+            "Decimate",
+            "Destroy target artifact, target creature, target enchantment, and target land.",
+        ),
+        (
+            "Context Card",
+            "Destroy target nonartifact, nonblack creature.",
+        ),
+    ] {
+        let context = context(card_name);
+        let parsed = parser
+            .parse(text, &context)
+            .unwrap_or_else(|error| panic!("{text:?} must select: {error:?}"));
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+    }
+}
+
+#[test]
+fn non_target_common_noun_modifiers_compose_under_a_shared_target_selector() {
+    let parser = parser();
+    let context = context("Context Card");
+
+    for text in [
+        "Destroy target card creature or artifact.",
+        "Destroy target controller creature or artifact.",
+        "Destroy target opponent creature or artifact.",
+        "Destroy target owner creature or artifact.",
+        "Destroy target permanent creature or artifact.",
+        "Destroy target player creature or artifact.",
+        "Destroy target source creature or artifact.",
+        "Destroy target spell creature or artifact.",
+        "Destroy target token creature or artifact.",
+        "Destroy target permanent card or creature card.",
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let parsed = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
+        let decision = analysis.decision().expect("selected parse has a decision");
+        assert_eq!(
+            decision.candidates().len(),
+            1,
+            "candidate census for {text:?}"
+        );
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
+        assert_eq!(decision.selected(), Some(0));
+        assert!(decision.comparisons().is_empty());
+        assert!(decision.exception_uses().is_empty());
+        assert!(
+            decision.candidates()[0]
+                .construction_path()
+                .iter()
+                .any(|node| node == "CoordinatedNominalModifierNonTargetCommonNounModifier"),
+            "the typed non-Target common modifier boundary must own {text:?}",
+        );
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+    }
+
+    let full_np = "Destroy target artifact or target creature.";
+    let analysis = parser.analyze(full_np, &context);
+    let parsed = analysis
+        .selected()
+        .unwrap_or_else(|| panic!("{full_np:?} must select: {analysis:?}"));
+    let decision = analysis.decision().expect("selected parse has a decision");
+    assert_eq!(decision.candidates().len(), 1);
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
+    assert_eq!(decision.selected(), Some(0));
+    assert_eq!(
+        decision.candidates()[0].construction_path(),
+        [
+            "AbilityParagraph",
+            "SentenceImperative",
+            "VerbPhraseDestroy",
+            "ObjectObjectNominal",
+            "NounPhraseCoordinatedNounPhrase",
+            "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
+            "TargetedNounPhraseSingularTargetedNounPhrase",
+            "SingularNominalBareSingularNominal",
+            "SingularHeadTypeSingularHead",
+            "TargetedNounPhraseSingularTargetedNounPhrase",
+            "SingularNominalBareSingularNominal",
+            "SingularHeadTypeSingularHead",
+        ],
+        "a repeated target belongs to two full noun phrases, never one shared selector",
+    );
+    assert!(decision.comparisons().is_empty());
+    assert!(decision.exception_uses().is_empty());
+    assert_eq!(parsed.render(&context, parser.environment()), full_np);
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "the complete 9-product by 3-arity surface matrix is deliberately literal"
+)]
+#[test]
+fn every_coordination_product_has_exact_binary_three_and_four_member_surfaces() {
+    let parser = parser();
+    let context = context("Context Card");
+    let rows = [
+        (
+            "shared singular and",
+            2,
+            "SingularNominalCoordinationSingularAndNominalCoordination",
+            "Destroy target artifact and creature.",
+        ),
+        (
+            "shared singular and",
+            3,
+            "SingularNominalCoordinationSingularAndNominalCoordination",
+            "Destroy target artifact, creature, and planeswalker.",
+        ),
+        (
+            "shared singular and",
+            4,
+            "SingularNominalCoordinationSingularAndNominalCoordination",
+            "Destroy target artifact, creature, enchantment, and land.",
+        ),
+        (
+            "shared singular or",
+            2,
+            "SingularNominalCoordinationSingularOrNominalCoordination",
+            "Destroy target artifact or creature.",
+        ),
+        (
+            "shared singular or",
+            3,
+            "SingularNominalCoordinationSingularOrNominalCoordination",
+            "Destroy target artifact, creature, or planeswalker.",
+        ),
+        (
+            "shared singular or",
+            4,
+            "SingularNominalCoordinationSingularOrNominalCoordination",
+            "Destroy target artifact, creature, enchantment, or land.",
+        ),
+        (
+            "shared singular and/or",
+            2,
+            "SingularNominalCoordinationSingularAndOrNominalCoordination",
+            "Destroy target artifact and/or creature.",
+        ),
+        (
+            "shared singular and/or",
+            3,
+            "SingularNominalCoordinationSingularAndOrNominalCoordination",
+            "Destroy target artifact, creature, and/or planeswalker.",
+        ),
+        (
+            "shared singular and/or",
+            4,
+            "SingularNominalCoordinationSingularAndOrNominalCoordination",
+            "Destroy target artifact, creature, enchantment, and/or land.",
+        ),
+        (
+            "shared plural and",
+            2,
+            "PluralNominalCoordinationPluralAndNominalCoordination",
+            "Destroy all artifacts and creatures.",
+        ),
+        (
+            "shared plural and",
+            3,
+            "PluralNominalCoordinationPluralAndNominalCoordination",
+            "Destroy all artifacts, creatures, and planeswalkers.",
+        ),
+        (
+            "shared plural and",
+            4,
+            "PluralNominalCoordinationPluralAndNominalCoordination",
+            "Destroy all artifacts, creatures, enchantments, and lands.",
+        ),
+        (
+            "shared plural or",
+            2,
+            "PluralNominalCoordinationPluralOrNominalCoordination",
+            "Destroy all artifacts or creatures.",
+        ),
+        (
+            "shared plural or",
+            3,
+            "PluralNominalCoordinationPluralOrNominalCoordination",
+            "Destroy all artifacts, creatures, or planeswalkers.",
+        ),
+        (
+            "shared plural or",
+            4,
+            "PluralNominalCoordinationPluralOrNominalCoordination",
+            "Destroy all artifacts, creatures, enchantments, or lands.",
+        ),
+        (
+            "shared plural and/or",
+            2,
+            "PluralNominalCoordinationPluralAndOrNominalCoordination",
+            "Destroy all artifacts and/or creatures.",
+        ),
+        (
+            "shared plural and/or",
+            3,
+            "PluralNominalCoordinationPluralAndOrNominalCoordination",
+            "Destroy all artifacts, creatures, and/or planeswalkers.",
+        ),
+        (
+            "shared plural and/or",
+            4,
+            "PluralNominalCoordinationPluralAndOrNominalCoordination",
+            "Destroy all artifacts, creatures, enchantments, and/or lands.",
+        ),
+        (
+            "full NP and",
+            2,
+            "FullNounPhraseCoordinationFullAndNounPhraseCoordination",
+            "Destroy target artifact and target creature.",
+        ),
+        (
+            "full NP and",
+            3,
+            "FullNounPhraseCoordinationFullAndNounPhraseCoordination",
+            "Destroy target artifact, target creature, and target planeswalker.",
+        ),
+        (
+            "full NP and",
+            4,
+            "FullNounPhraseCoordinationFullAndNounPhraseCoordination",
+            "Destroy target artifact, target creature, target enchantment, and target land.",
+        ),
+        (
+            "full NP or",
+            2,
+            "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
+            "Destroy target artifact or target creature.",
+        ),
+        (
+            "full NP or",
+            3,
+            "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
+            "Destroy target artifact, target creature, or target planeswalker.",
+        ),
+        (
+            "full NP or",
+            4,
+            "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
+            "Destroy target artifact, target creature, target enchantment, or target land.",
+        ),
+        (
+            "full NP and/or",
+            2,
+            "FullNounPhraseCoordinationFullAndOrNounPhraseCoordination",
+            "Destroy target artifact and/or target creature.",
+        ),
+        (
+            "full NP and/or",
+            3,
+            "FullNounPhraseCoordinationFullAndOrNounPhraseCoordination",
+            "Destroy target artifact, target creature, and/or target planeswalker.",
+        ),
+        (
+            "full NP and/or",
+            4,
+            "FullNounPhraseCoordinationFullAndOrNounPhraseCoordination",
+            "Destroy target artifact, target creature, target enchantment, and/or target land.",
+        ),
+    ];
+
+    for (product, arity, expected_path_node, text) in rows {
+        let analysis = parser.analyze(text, &context);
+        let parsed = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{product} arity {arity} must select: {analysis:?}"));
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+        let decision = analysis.decision().expect("selected parse has a decision");
+        let selected = decision
+            .candidates()
+            .iter()
+            .find(|candidate| Some(candidate.ordinal()) == decision.selected())
+            .expect("selected ordinal is retained");
+        assert!(
+            selected
+                .construction_path()
+                .iter()
+                .any(|node| node == expected_path_node),
+            "wrong product for {product} arity {arity}: {:?}",
+            selected.construction_path(),
+        );
+    }
+}
+
+#[derive(Default)]
+struct CoordinationVisitor {
+    events: Vec<&'static str>,
+    delegating_non_target_common_modifier: bool,
+}
+
+impl Visitor for CoordinationVisitor {
+    fn visit_negative_nominal_modifier(
+        &mut self,
+        value: &deckmaste_english_v2::ast::NegativeNominalModifier,
+    ) {
+        self.events.push("NegativeNominalModifier");
+        deckmaste_english_v2::visit::walk_negative_nominal_modifier(self, value);
+    }
+
+    fn visit_coordinated_nominal_modifier(
+        &mut self,
+        value: &deckmaste_english_v2::ast::CoordinatedNominalModifier,
+    ) {
+        self.events.push("CoordinatedNominalModifier");
+        deckmaste_english_v2::visit::walk_coordinated_nominal_modifier(self, value);
+    }
+
+    fn visit_singular_coordination_member(
+        &mut self,
+        value: &deckmaste_english_v2::ast::SingularCoordinationMember,
+    ) {
+        self.events.push("SingularCoordinationMember");
+        deckmaste_english_v2::visit::walk_singular_coordination_member(self, value);
+    }
+
+    fn visit_plural_coordination_member(
+        &mut self,
+        value: &deckmaste_english_v2::ast::PluralCoordinationMember,
+    ) {
+        self.events.push("PluralCoordinationMember");
+        deckmaste_english_v2::visit::walk_plural_coordination_member(self, value);
+    }
+
+    fn visit_singular_nominal_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::SingularNominalCoordination,
+    ) {
+        self.events.push("SingularNominalCoordination");
+        deckmaste_english_v2::visit::walk_singular_nominal_coordination(self, value);
+    }
+
+    fn visit_plural_nominal_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::PluralNominalCoordination,
+    ) {
+        self.events.push("PluralNominalCoordination");
+        deckmaste_english_v2::visit::walk_plural_nominal_coordination(self, value);
+    }
+
+    fn visit_targeted_noun_phrase(
+        &mut self,
+        value: &deckmaste_english_v2::ast::TargetedNounPhrase,
+    ) {
+        self.events.push("TargetedNounPhrase");
+        deckmaste_english_v2::visit::walk_targeted_noun_phrase(self, value);
+    }
+
+    fn visit_full_noun_phrase_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::FullNounPhraseCoordination,
+    ) {
+        self.events.push("FullNounPhraseCoordination");
+        deckmaste_english_v2::visit::walk_full_noun_phrase_coordination(self, value);
+    }
+
+    fn visit_negative_modifier_member(
+        &mut self,
+        value: &deckmaste_english_v2::ast::NegativeModifierMember,
+    ) {
+        self.events.push("NegativeModifierMember");
+        deckmaste_english_v2::visit::walk_negative_modifier_member(self, value);
+    }
+
+    fn visit_non_target_common_noun_modifier(
+        &mut self,
+        value: &deckmaste_english_v2::ast::NonTargetCommonNounModifier,
+    ) {
+        self.events.push("NonTargetCommonNounModifier");
+        deckmaste_english_v2::visit::walk_non_target_common_noun_modifier(self, value);
+    }
+
+    fn visit_non_target_common_modifier(
+        &mut self,
+        value: deckmaste_english_v2::ast::NonTargetCommonModifier,
+    ) {
+        if self.delegating_non_target_common_modifier {
+            return;
+        }
+        self.events.push(match value {
+            deckmaste_english_v2::ast::NonTargetCommonModifier::Card => {
+                "NonTargetCommonModifier::Card"
+            }
+            deckmaste_english_v2::ast::NonTargetCommonModifier::Controller => {
+                "NonTargetCommonModifier::Controller"
+            }
+            deckmaste_english_v2::ast::NonTargetCommonModifier::Opponent => {
+                "NonTargetCommonModifier::Opponent"
+            }
+            deckmaste_english_v2::ast::NonTargetCommonModifier::Owner => {
+                "NonTargetCommonModifier::Owner"
+            }
+            deckmaste_english_v2::ast::NonTargetCommonModifier::Permanent => {
+                "NonTargetCommonModifier::Permanent"
+            }
+            deckmaste_english_v2::ast::NonTargetCommonModifier::Player => {
+                "NonTargetCommonModifier::Player"
+            }
+            deckmaste_english_v2::ast::NonTargetCommonModifier::Source => {
+                "NonTargetCommonModifier::Source"
+            }
+            deckmaste_english_v2::ast::NonTargetCommonModifier::Spell => {
+                "NonTargetCommonModifier::Spell"
+            }
+            deckmaste_english_v2::ast::NonTargetCommonModifier::Token => {
+                "NonTargetCommonModifier::Token"
+            }
+        });
+        self.delegating_non_target_common_modifier = true;
+        deckmaste_english_v2::visit::walk_non_target_common_modifier(self, value);
+        self.delegating_non_target_common_modifier = false;
+    }
+
+    fn visit_coordinated_modifier_member(
+        &mut self,
+        value: &deckmaste_english_v2::ast::CoordinatedModifierMember,
+    ) {
+        self.events.push("CoordinatedModifierMember");
+        deckmaste_english_v2::visit::walk_coordinated_modifier_member(self, value);
+    }
+
+    fn visit_negative_modified_singular_nominal(
+        &mut self,
+        value: &deckmaste_english_v2::ast::NegativeModifiedSingularNominal,
+    ) {
+        self.events.push("NegativeModifiedSingularNominal");
+        deckmaste_english_v2::visit::walk_negative_modified_singular_nominal(self, value);
+    }
+
+    fn visit_negative_modified_plural_nominal(
+        &mut self,
+        value: &deckmaste_english_v2::ast::NegativeModifiedPluralNominal,
+    ) {
+        self.events.push("NegativeModifiedPluralNominal");
+        deckmaste_english_v2::visit::walk_negative_modified_plural_nominal(self, value);
+    }
+
+    fn visit_bare_singular_coordination_member(
+        &mut self,
+        value: &deckmaste_english_v2::ast::BareSingularCoordinationMember,
+    ) {
+        self.events.push("BareSingularCoordinationMember");
+        deckmaste_english_v2::visit::walk_bare_singular_coordination_member(self, value);
+    }
+
+    fn visit_modified_singular_coordination_member(
+        &mut self,
+        value: &deckmaste_english_v2::ast::ModifiedSingularCoordinationMember,
+    ) {
+        self.events.push("ModifiedSingularCoordinationMember");
+        deckmaste_english_v2::visit::walk_modified_singular_coordination_member(self, value);
+    }
+
+    fn visit_negative_modified_singular_coordination_member(
+        &mut self,
+        value: &deckmaste_english_v2::ast::NegativeModifiedSingularCoordinationMember,
+    ) {
+        self.events
+            .push("NegativeModifiedSingularCoordinationMember");
+        deckmaste_english_v2::visit::walk_negative_modified_singular_coordination_member(
+            self, value,
+        );
+    }
+
+    fn visit_bare_plural_coordination_member(
+        &mut self,
+        value: &deckmaste_english_v2::ast::BarePluralCoordinationMember,
+    ) {
+        self.events.push("BarePluralCoordinationMember");
+        deckmaste_english_v2::visit::walk_bare_plural_coordination_member(self, value);
+    }
+
+    fn visit_modified_plural_coordination_member(
+        &mut self,
+        value: &deckmaste_english_v2::ast::ModifiedPluralCoordinationMember,
+    ) {
+        self.events.push("ModifiedPluralCoordinationMember");
+        deckmaste_english_v2::visit::walk_modified_plural_coordination_member(self, value);
+    }
+
+    fn visit_negative_modified_plural_coordination_member(
+        &mut self,
+        value: &deckmaste_english_v2::ast::NegativeModifiedPluralCoordinationMember,
+    ) {
+        self.events.push("NegativeModifiedPluralCoordinationMember");
+        deckmaste_english_v2::visit::walk_negative_modified_plural_coordination_member(self, value);
+    }
+
+    fn visit_singular_and_nominal_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::SingularAndNominalCoordination,
+    ) {
+        self.events.push("SingularAndNominalCoordination");
+        deckmaste_english_v2::visit::walk_singular_and_nominal_coordination(self, value);
+    }
+
+    fn visit_singular_or_nominal_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::SingularOrNominalCoordination,
+    ) {
+        self.events.push("SingularOrNominalCoordination");
+        deckmaste_english_v2::visit::walk_singular_or_nominal_coordination(self, value);
+    }
+
+    fn visit_singular_and_or_nominal_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::SingularAndOrNominalCoordination,
+    ) {
+        self.events.push("SingularAndOrNominalCoordination");
+        deckmaste_english_v2::visit::walk_singular_and_or_nominal_coordination(self, value);
+    }
+
+    fn visit_plural_and_nominal_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::PluralAndNominalCoordination,
+    ) {
+        self.events.push("PluralAndNominalCoordination");
+        deckmaste_english_v2::visit::walk_plural_and_nominal_coordination(self, value);
+    }
+
+    fn visit_plural_or_nominal_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::PluralOrNominalCoordination,
+    ) {
+        self.events.push("PluralOrNominalCoordination");
+        deckmaste_english_v2::visit::walk_plural_or_nominal_coordination(self, value);
+    }
+
+    fn visit_plural_and_or_nominal_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::PluralAndOrNominalCoordination,
+    ) {
+        self.events.push("PluralAndOrNominalCoordination");
+        deckmaste_english_v2::visit::walk_plural_and_or_nominal_coordination(self, value);
+    }
+
+    fn visit_target_singular_coordination_selector(
+        &mut self,
+        value: &deckmaste_english_v2::ast::TargetSingularCoordinationSelector,
+    ) {
+        self.events.push("TargetSingularCoordinationSelector");
+        deckmaste_english_v2::visit::walk_target_singular_coordination_selector(self, value);
+    }
+
+    fn visit_unmarked_plural_coordination_selector(
+        &mut self,
+        value: &deckmaste_english_v2::ast::UnmarkedPluralCoordinationSelector,
+    ) {
+        self.events.push("UnmarkedPluralCoordinationSelector");
+        deckmaste_english_v2::visit::walk_unmarked_plural_coordination_selector(self, value);
+    }
+
+    fn visit_target_plural_coordination_selector(
+        &mut self,
+        value: &deckmaste_english_v2::ast::TargetPluralCoordinationSelector,
+    ) {
+        self.events.push("TargetPluralCoordinationSelector");
+        deckmaste_english_v2::visit::walk_target_plural_coordination_selector(self, value);
+    }
+
+    fn visit_singular_targeted_noun_phrase(
+        &mut self,
+        value: &deckmaste_english_v2::ast::SingularTargetedNounPhrase,
+    ) {
+        self.events.push("SingularTargetedNounPhrase");
+        deckmaste_english_v2::visit::walk_singular_targeted_noun_phrase(self, value);
+    }
+
+    fn visit_plural_targeted_noun_phrase(
+        &mut self,
+        value: &deckmaste_english_v2::ast::PluralTargetedNounPhrase,
+    ) {
+        self.events.push("PluralTargetedNounPhrase");
+        deckmaste_english_v2::visit::walk_plural_targeted_noun_phrase(self, value);
+    }
+
+    fn visit_full_and_noun_phrase_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::FullAndNounPhraseCoordination,
+    ) {
+        self.events.push("FullAndNounPhraseCoordination");
+        deckmaste_english_v2::visit::walk_full_and_noun_phrase_coordination(self, value);
+    }
+
+    fn visit_full_or_noun_phrase_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::FullOrNounPhraseCoordination,
+    ) {
+        self.events.push("FullOrNounPhraseCoordination");
+        deckmaste_english_v2::visit::walk_full_or_noun_phrase_coordination(self, value);
+    }
+
+    fn visit_full_and_or_noun_phrase_coordination(
+        &mut self,
+        value: &deckmaste_english_v2::ast::FullAndOrNounPhraseCoordination,
+    ) {
+        self.events.push("FullAndOrNounPhraseCoordination");
+        deckmaste_english_v2::visit::walk_full_and_or_noun_phrase_coordination(self, value);
+    }
+
+    fn visit_coordinated_noun_phrase(
+        &mut self,
+        value: &deckmaste_english_v2::ast::CoordinatedNounPhrase,
+    ) {
+        self.events.push("CoordinatedNounPhrase");
+        deckmaste_english_v2::visit::walk_coordinated_noun_phrase(self, value);
+    }
+}
+
+#[test]
+fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
+    let parser = parser();
+    for (card_name, text, expected_path, expected_specificity, visitor_events) in [
+        (
+            "Bedevil",
+            "Destroy target artifact, creature, or planeswalker.",
+            &[
+                "AbilityParagraph",
+                "SentenceImperative",
+                "VerbPhraseDestroy",
+                "ObjectObjectNominal",
+                "NounPhraseOrdinarySingularReference",
+                "SingularSelectorTargetSingularCoordinationSelector",
+                "SingularNominalCoordinationSingularOrNominalCoordination",
+                "SingularCoordinationMemberBareSingularCoordinationMember",
+                "SingularHeadTypeSingularHead",
+                "SingularCoordinationMemberBareSingularCoordinationMember",
+                "SingularHeadTypeSingularHead",
+                "SingularCoordinationMemberBareSingularCoordinationMember",
+                "SingularHeadTypeSingularHead",
+            ][..],
+            &[
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::TypedLexical,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Literal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Literal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::TypedLexical,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::TypedLexical,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::TypedLexical,
+            ][..],
+            &[
+                "TargetSingularCoordinationSelector",
+                "SingularNominalCoordination",
+                "SingularOrNominalCoordination",
+                "SingularCoordinationMember",
+                "BareSingularCoordinationMember",
+                "SingularCoordinationMember",
+                "BareSingularCoordinationMember",
+                "SingularCoordinationMember",
+                "BareSingularCoordinationMember",
+            ][..],
+        ),
+        (
+            "Decimate",
+            "Destroy target artifact, target creature, target enchantment, and target land.",
+            &[
+                "AbilityParagraph",
+                "SentenceImperative",
+                "VerbPhraseDestroy",
+                "ObjectObjectNominal",
+                "NounPhraseCoordinatedNounPhrase",
+                "FullNounPhraseCoordinationFullAndNounPhraseCoordination",
+                "TargetedNounPhraseSingularTargetedNounPhrase",
+                "SingularNominalBareSingularNominal",
+                "SingularHeadTypeSingularHead",
+                "TargetedNounPhraseSingularTargetedNounPhrase",
+                "SingularNominalBareSingularNominal",
+                "SingularHeadTypeSingularHead",
+                "TargetedNounPhraseSingularTargetedNounPhrase",
+                "SingularNominalBareSingularNominal",
+                "SingularHeadTypeSingularHead",
+                "TargetedNounPhraseSingularTargetedNounPhrase",
+                "SingularNominalBareSingularNominal",
+                "SingularHeadTypeSingularHead",
+            ][..],
+            &[
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::TypedLexical,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Literal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Literal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::TypedLexical,
+                SpecificityTier::Literal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::TypedLexical,
+                SpecificityTier::Literal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::TypedLexical,
+                SpecificityTier::Literal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::Nonterminal,
+                SpecificityTier::TypedLexical,
+            ][..],
+            &[
+                "CoordinatedNounPhrase",
+                "FullNounPhraseCoordination",
+                "FullAndNounPhraseCoordination",
+                "TargetedNounPhrase",
+                "SingularTargetedNounPhrase",
+                "TargetedNounPhrase",
+                "SingularTargetedNounPhrase",
+                "TargetedNounPhrase",
+                "SingularTargetedNounPhrase",
+                "TargetedNounPhrase",
+                "SingularTargetedNounPhrase",
+            ][..],
+        ),
+    ] {
+        let context = context(card_name);
+        let analysis = parser.analyze(text, &context);
+        let parsed = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
+        let decision = analysis
+            .decision()
+            .expect("a selected parse has a decision");
+        assert_eq!(decision.candidates().len(), 1);
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
+        assert_eq!(decision.selected(), Some(0));
+        assert_eq!(decision.survivors(), [0]);
+        assert!(decision.comparisons().is_empty());
+        assert!(decision.exception_uses().is_empty());
+        let selected = &decision.candidates()[0];
+        assert_eq!(selected.ordinal(), 0);
+        assert_eq!(selected.construction_path(), expected_path);
+        assert_eq!(selected.specificity(), expected_specificity);
+
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+        let ownership = analysis.ownership().expect("selected parse owns its bytes");
+        assert!(ownership.failures().is_empty());
+        assert!(ownership.summary().covered());
+        assert_eq!(ownership.rendered_text(), text);
+
+        let mut visitor = CoordinationVisitor::default();
+        visitor.visit_ability(parsed);
+        assert_eq!(
+            visitor.events, visitor_events,
+            "visitor preorder changed for {text:?}"
+        );
+    }
+}
+
+#[test]
+fn task9_visitor_callbacks_have_literal_full_preorders() {
+    let parser = parser();
+    let context = context("Context Card");
+    for (text, expected) in [
+        (
+            "Destroy target permanent card or creature card.",
+            &[
+                "TargetSingularCoordinationSelector",
+                "SingularNominalCoordination",
+                "SingularOrNominalCoordination",
+                "SingularCoordinationMember",
+                "ModifiedSingularCoordinationMember",
+                "CoordinatedNominalModifier",
+                "NonTargetCommonNounModifier",
+                "NonTargetCommonModifier::Permanent",
+                "SingularCoordinationMember",
+                "ModifiedSingularCoordinationMember",
+                "CoordinatedNominalModifier",
+                "CoordinatedModifierMember",
+            ][..],
+        ),
+        (
+            "Destroy all artifacts and enchantments.",
+            &[
+                "UnmarkedPluralCoordinationSelector",
+                "PluralNominalCoordination",
+                "PluralAndNominalCoordination",
+                "PluralCoordinationMember",
+                "BarePluralCoordinationMember",
+                "PluralCoordinationMember",
+                "BarePluralCoordinationMember",
+            ][..],
+        ),
+        (
+            "Destroy target artifacts or creatures.",
+            &[
+                "TargetPluralCoordinationSelector",
+                "PluralNominalCoordination",
+                "PluralOrNominalCoordination",
+                "PluralCoordinationMember",
+                "BarePluralCoordinationMember",
+                "PluralCoordinationMember",
+                "BarePluralCoordinationMember",
+            ][..],
+        ),
+        (
+            "Destroy target artifacts and target creature.",
+            &[
+                "CoordinatedNounPhrase",
+                "FullNounPhraseCoordination",
+                "FullAndNounPhraseCoordination",
+                "TargetedNounPhrase",
+                "PluralTargetedNounPhrase",
+                "TargetedNounPhrase",
+                "SingularTargetedNounPhrase",
+            ][..],
+        ),
+        (
+            "Destroy target nonartifact, nonblack creature.",
+            &[
+                "NegativeModifiedSingularNominal",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+            ][..],
+        ),
+        (
+            "Destroy target nonartifact, nonblack creatures.",
+            &[
+                "NegativeModifiedPluralNominal",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+            ][..],
+        ),
+        (
+            "Destroy target nonartifact, nonblack creature or artifact.",
+            &[
+                "TargetSingularCoordinationSelector",
+                "SingularNominalCoordination",
+                "SingularOrNominalCoordination",
+                "SingularCoordinationMember",
+                "NegativeModifiedSingularCoordinationMember",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+                "SingularCoordinationMember",
+                "BareSingularCoordinationMember",
+            ][..],
+        ),
+        (
+            "Destroy all nonartifact, nonblack creatures or artifacts.",
+            &[
+                "UnmarkedPluralCoordinationSelector",
+                "PluralNominalCoordination",
+                "PluralOrNominalCoordination",
+                "PluralCoordinationMember",
+                "NegativeModifiedPluralCoordinationMember",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+                "PluralCoordinationMember",
+                "BarePluralCoordinationMember",
+            ][..],
+        ),
+        (
+            "Destroy all token creatures or artifacts.",
+            &[
+                "UnmarkedPluralCoordinationSelector",
+                "PluralNominalCoordination",
+                "PluralOrNominalCoordination",
+                "PluralCoordinationMember",
+                "ModifiedPluralCoordinationMember",
+                "CoordinatedNominalModifier",
+                "NonTargetCommonNounModifier",
+                "NonTargetCommonModifier::Token",
+                "PluralCoordinationMember",
+                "BarePluralCoordinationMember",
+            ][..],
+        ),
+    ] {
+        let parsed = parser
+            .parse(text, &context)
+            .unwrap_or_else(|error| panic!("{text:?} must select: {error:?}"));
+        let mut visitor = CoordinationVisitor::default();
+        visitor.visit_ability(&parsed);
+        assert_eq!(visitor.events, expected, "preorder changed for {text:?}");
+    }
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "scanner and renderer ownership claims are pinned as literal span tables"
+)]
+#[test]
+fn coordination_member_and_separator_ownership_claims_are_literal_and_exact() {
+    type Claim = (usize, usize, LexicalProvenanceKind, &'static str);
+
+    fn project(
+        claims: &[deckmaste_english_v2::parser::LexicalClaim],
+    ) -> Vec<(usize, usize, LexicalProvenanceKind, &str)> {
+        claims
+            .iter()
+            .map(|claim| {
+                (
+                    claim.span().start,
+                    claim.span().end,
+                    claim.kind(),
+                    claim.stable_owner_id(),
+                )
+            })
+            .collect()
+    }
+
+    fn assert_claims(card_name: &str, text: &str, expected: &[Claim]) {
+        let parser = parser();
+        let context = context(card_name);
+        let analysis = parser.analyze(text, &context);
+        let ownership = analysis
+            .ownership()
+            .unwrap_or_else(|| panic!("{text:?} must have selected ownership: {analysis:?}"));
+        assert_eq!(project(ownership.parsed_claims()), expected);
+        assert_eq!(project(ownership.rendered_claims()), expected);
+        assert!(ownership.failures().is_empty());
+        assert!(ownership.summary().covered());
+        assert_eq!(ownership.rendered_text(), text);
+    }
+
+    assert_claims(
+        "Bedevil",
+        "Destroy target artifact, creature, or planeswalker.",
+        &[
+            (
+                0,
+                7,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:keyword_action/Destroy/bare",
+            ),
+            (
+                7,
+                14,
+                LexicalProvenanceKind::FormLiteral,
+                "form:target_singular_coordination_selector/target_singular_coordination_selector/0",
+            ),
+            (
+                14,
+                23,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Artifact/singular",
+            ),
+            (
+                23,
+                25,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:SingularOrNominalCoordination/members/separator/first/0",
+            ),
+            (
+                25,
+                33,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Creature/singular",
+            ),
+            (
+                33,
+                38,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:SingularOrNominalCoordination/members/separator/last/0",
+            ),
+            (
+                38,
+                50,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Planeswalker/singular",
+            ),
+            (
+                50,
+                51,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:Paragraph/sentences/terminator/0",
+            ),
+        ],
+    );
+    assert_claims(
+        "Decimate",
+        "Destroy target artifact, target creature, target enchantment, and target land.",
+        &[
+            (
+                0,
+                7,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:keyword_action/Destroy/bare",
+            ),
+            (
+                7,
+                14,
+                LexicalProvenanceKind::FormLiteral,
+                "form:singular_targeted_noun_phrase/singular_targeted_noun_phrase/0",
+            ),
+            (
+                14,
+                23,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Artifact/singular",
+            ),
+            (
+                23,
+                25,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:FullAndNounPhraseCoordination/members/separator/first/0",
+            ),
+            (
+                25,
+                31,
+                LexicalProvenanceKind::FormLiteral,
+                "form:singular_targeted_noun_phrase/singular_targeted_noun_phrase/0",
+            ),
+            (
+                31,
+                40,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Creature/singular",
+            ),
+            (
+                40,
+                42,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:FullAndNounPhraseCoordination/members/separator/middle/0",
+            ),
+            (
+                42,
+                48,
+                LexicalProvenanceKind::FormLiteral,
+                "form:singular_targeted_noun_phrase/singular_targeted_noun_phrase/0",
+            ),
+            (
+                48,
+                60,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Enchantment/singular",
+            ),
+            (
+                60,
+                66,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:FullAndNounPhraseCoordination/members/separator/last/0",
+            ),
+            (
+                66,
+                72,
+                LexicalProvenanceKind::FormLiteral,
+                "form:singular_targeted_noun_phrase/singular_targeted_noun_phrase/0",
+            ),
+            (
+                72,
+                77,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Land/singular",
+            ),
+            (
+                77,
+                78,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:Paragraph/sentences/terminator/0",
+            ),
+        ],
+    );
+    assert_claims(
+        "Context Card",
+        "Destroy target nonartifact, nonblack creature.",
+        &[
+            (
+                0,
+                7,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:keyword_action/Destroy/bare",
+            ),
+            (
+                7,
+                14,
+                LexicalProvenanceKind::FormLiteral,
+                "form:target_singular_selector/target_singular_selector/0",
+            ),
+            (
+                14,
+                18,
+                LexicalProvenanceKind::FormLiteral,
+                "form:non_type_modifier/non_type_modifier/0/affix",
+            ),
+            (
+                18,
+                26,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Artifact/singular",
+            ),
+            (
+                26,
+                28,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:NegativeModifiedSingularNominal/modifiers/separator/uniform/0",
+            ),
+            (
+                28,
+                31,
+                LexicalProvenanceKind::FormLiteral,
+                "form:non_color_modifier/non_color_modifier/0/affix",
+            ),
+            (31, 36, LexicalProvenanceKind::Vocab, "vocab:Color/Black"),
+            (
+                36,
+                45,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Creature/singular",
+            ),
+            (
+                45,
+                46,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:Paragraph/sentences/terminator/0",
+            ),
+        ],
+    );
+    assert_claims(
+        "Context Card",
+        "Destroy target nonartifact, nonblack creatures.",
+        &[
+            (
+                0,
+                7,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:keyword_action/Destroy/bare",
+            ),
+            (
+                7,
+                14,
+                LexicalProvenanceKind::FormLiteral,
+                "form:target_plural_selector/target_plural_selector/0",
+            ),
+            (
+                14,
+                18,
+                LexicalProvenanceKind::FormLiteral,
+                "form:non_type_modifier/non_type_modifier/0/affix",
+            ),
+            (
+                18,
+                26,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Artifact/singular",
+            ),
+            (
+                26,
+                28,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:NegativeModifiedPluralNominal/modifiers/separator/uniform/0",
+            ),
+            (
+                28,
+                31,
+                LexicalProvenanceKind::FormLiteral,
+                "form:non_color_modifier/non_color_modifier/0/affix",
+            ),
+            (31, 36, LexicalProvenanceKind::Vocab, "vocab:Color/Black"),
+            (
+                36,
+                46,
+                LexicalProvenanceKind::Lexeme,
+                "lexeme:type/Creature/plural",
+            ),
+            (
+                46,
+                47,
+                LexicalProvenanceKind::FormLiteral,
+                "structural:Paragraph/sentences/terminator/0",
+            ),
+        ],
+    );
+}
+
+#[test]
+fn singular_and_plural_negative_modifier_sequences_have_exact_ast_scope() {
+    let parser = parser();
+    let context = context("Context Card");
+    for (text, expected_path, expected_visitor) in [
+        (
+            "Destroy target nonartifact, nonblack creature.",
+            &[
+                "AbilityParagraph",
+                "SentenceImperative",
+                "VerbPhraseDestroy",
+                "ObjectObjectNominal",
+                "NounPhraseOrdinarySingularReference",
+                "SingularSelectorTargetSingularSelector",
+                "SingularNominalNegativeModifiedSingularNominal",
+                "NegativeNominalModifierNegativeModifierMember",
+                "NominalModifierNonTypeModifier",
+                "NegativeNominalModifierNegativeModifierMember",
+                "NominalModifierNonColorModifier",
+                "SingularHeadTypeSingularHead",
+            ][..],
+            &[
+                "NegativeModifiedSingularNominal",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+            ][..],
+        ),
+        (
+            "Destroy target nonartifact, nonblack creatures.",
+            &[
+                "AbilityParagraph",
+                "SentenceImperative",
+                "VerbPhraseDestroy",
+                "ObjectObjectNominal",
+                "NounPhraseOrdinaryPluralReference",
+                "PluralSelectorTargetPluralSelector",
+                "PluralNominalNegativeModifiedPluralNominal",
+                "NegativeNominalModifierNegativeModifierMember",
+                "NominalModifierNonTypeModifier",
+                "NegativeNominalModifierNegativeModifierMember",
+                "NominalModifierNonColorModifier",
+                "PluralHeadTypePluralHead",
+            ][..],
+            &[
+                "NegativeModifiedPluralNominal",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+                "NegativeNominalModifier",
+                "NegativeModifierMember",
+            ][..],
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let parsed = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+        let decision = analysis.decision().expect("selected parse has a decision");
+        assert_eq!(decision.candidates().len(), 1);
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
+        assert_eq!(decision.selected(), Some(0));
+        assert_eq!(decision.candidates()[0].construction_path(), expected_path);
+
+        let mut visitor = CoordinationVisitor::default();
+        visitor.visit_ability(parsed);
+        assert_eq!(visitor.events, expected_visitor);
+    }
+
+    assert!(
+        parser
+            .parse("Destroy target nonartifact, black creature.", &context,)
+            .is_err(),
+        "a positive modifier cannot enter a typed negative-modifier sequence",
+    );
+}
+
+#[test]
+fn malformed_coordination_punctuation_and_scoping_are_rejected() {
+    let parser = parser();
+    let context = context("Context Card");
+    for text in [
+        "Destroy target artifact, creature or planeswalker.",
+        "Destroy target artifact, or enchantment.",
+        "Destroy target artifact or or enchantment.",
+        "Destroy target artifact, target creature and target land.",
+        "Destroy target artifact, and target enchantment.",
+        "Destroy target artifact, target creature, or planeswalker.",
+        "Destroy target target creature or artifact.",
+        "Destroy target nonartifact nonblack creature.",
+        "Destroy target nonartifact, nonblack, creature.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "{text:?} must not enter a coordination or modifier-sequence AST",
+        );
+    }
+}
+
+#[test]
+fn coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsistent() {
+    use deckmaste_english_v2::ast::*;
+    use macro_ron::v2::DeclarationIdentity;
+    use macro_ron::v2::DeclarationKind;
+
+    let parser = parser();
+    let environment = parser.environment();
+    let head = |name| {
+        SingularHead::TypeSingularHead(TypeSingularHead {
+            noun: TypeNoun::Declaration(
+                DeclarationTypeNoun::new(
+                    environment,
+                    DeclarationIdentity::new(DeclarationKind::Type, name),
+                )
+                .expect("the builtin Type noun is present"),
+            ),
+        })
+    };
+    let nominal =
+        |name| SingularNominal::BareSingularNominal(BareSingularNominal { head: head(name) });
+    let coordination_member = |name| {
+        SingularCoordinationMember::BareSingularCoordinationMember(BareSingularCoordinationMember {
+            head: head(name),
+        })
+    };
+    let plural_head = |name| {
+        PluralHead::TypePluralHead(TypePluralHead {
+            noun: TypeNoun::Declaration(
+                DeclarationTypeNoun::new(
+                    environment,
+                    DeclarationIdentity::new(DeclarationKind::Type, name),
+                )
+                .expect("the builtin Type noun is present"),
+            ),
+        })
+    };
+    let plural_coordination_member = |name| {
+        PluralCoordinationMember::BarePluralCoordinationMember(BarePluralCoordinationMember {
+            head: plural_head(name),
+        })
+    };
+
+    assert!(SingularAndNominalCoordination::new(vec![coordination_member("Artifact")]).is_none());
+    assert!(SingularOrNominalCoordination::new(vec![coordination_member("Artifact")]).is_none());
+    assert!(SingularAndOrNominalCoordination::new(vec![coordination_member("Artifact")]).is_none());
+    assert!(
+        PluralAndNominalCoordination::new(vec![plural_coordination_member("Artifact")]).is_none()
+    );
+    assert!(
+        PluralOrNominalCoordination::new(vec![plural_coordination_member("Artifact")]).is_none()
+    );
+    assert!(
+        PluralAndOrNominalCoordination::new(vec![plural_coordination_member("Artifact")]).is_none()
+    );
+    let targeted = TargetedNounPhrase::SingularTargetedNounPhrase(SingularTargetedNounPhrase {
+        nominal: nominal("Artifact"),
+    });
+    assert!(FullAndNounPhraseCoordination::new(vec![targeted.clone()]).is_none());
+    assert!(FullOrNounPhraseCoordination::new(vec![targeted.clone()]).is_none());
+    assert!(FullAndOrNounPhraseCoordination::new(vec![targeted]).is_none());
+
+    let context = context("Context Card");
+    for (text, noun_phrase_path, agreement_summary) in [
+        (
+            "Target creature or planeswalker gains 2 life.",
+            "NounPhraseOrdinarySingularReference",
+            "agreement: ThirdPersonSingular",
+        ),
+        (
+            "Target creatures or planeswalkers gain 2 life.",
+            "NounPhraseOrdinaryPluralReference",
+            "agreement: Bare",
+        ),
+        (
+            "Target creature and target planeswalker gain 2 life.",
+            "NounPhraseCoordinatedNounPhrase",
+            "agreement: Bare",
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let parsed = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
+        let decision = analysis.decision().expect("selected parse has a decision");
+        assert_eq!(
+            decision.candidates().len(),
+            1,
+            "candidate census for {text:?}"
+        );
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
+        assert_eq!(decision.selected(), Some(0));
+        assert!(
+            decision.candidates()[0]
+                .construction_path()
+                .iter()
+                .any(|node| node == noun_phrase_path),
+            "derived Number must retain its exact noun-phrase scope for {text:?}",
+        );
+        let claims = analysis
+            .ownership()
+            .expect("selected agreement probe owns its lexical leaves")
+            .parsed_claims();
+        assert!(
+            claims
+                .iter()
+                .any(|claim| claim.semantic_summary().contains(agreement_summary)),
+            "derived Agreement evidence changed for {text:?}: {claims:?}",
+        );
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+    }
+    for text in [
+        "Target creature or planeswalker gain 2 life.",
+        "Target creatures or planeswalkers gains 2 life.",
+        "Target creature and target planeswalker gains 2 life.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "{text:?} carries inconsistent shared-selector/full-NP agreement",
+        );
+    }
+}

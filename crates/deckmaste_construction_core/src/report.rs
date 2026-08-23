@@ -1,8 +1,12 @@
+use std::collections::HashSet;
+
 use crate::model::TerminalBindingKind;
+use crate::semantic::FixedSurfaceAtomPlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::SeparatorPlan;
 use crate::semantic::StructuralFieldKindPlan;
 use crate::semantic::TerminalPlan;
+use crate::semantic::ValueKindPlan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TerminalBindingDeclarationKind {
@@ -217,7 +221,7 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
     let mut uniform_separators = Vec::new();
     let mut positional_separator_tables = Vec::new();
     let mut terminators = Vec::new();
-    let stored_separator_fields = Vec::new();
+    let mut stored_separator_fields = Vec::new();
     let mut structural_owners = plan
         .products()
         .iter()
@@ -249,12 +253,41 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
         }))
         .collect::<Vec<_>>();
     structural_owners.sort_by_key(|(source_index, _, _)| *source_index);
+    let separator_terminals = structural_owners
+        .iter()
+        .flat_map(|(_, _, fields)| fields)
+        .filter_map(|(_, kind)| match kind {
+            StructuralFieldKindPlan::Sequence { surface, .. } => surface.separator(),
+            StructuralFieldKindPlan::Required(_) | StructuralFieldKindPlan::Optional(_) => None,
+        })
+        .flat_map(|separator| match separator {
+            SeparatorPlan::Uniform(surface) => vec![surface],
+            SeparatorPlan::Positional(rows) => rows
+                .iter()
+                .map(crate::semantic::PositionalSeparatorPlan::surface)
+                .collect::<Vec<_>>(),
+        })
+        .flat_map(crate::semantic::FixedSurfacePlan::atoms)
+        .filter_map(|atom| match atom {
+            FixedSurfaceAtomPlan::Lex { terminal, .. } => Some(terminal.as_str()),
+            FixedSurfaceAtomPlan::Literal(_) => None,
+        })
+        .collect::<HashSet<_>>();
     for (_, owner, fields) in structural_owners {
         for (field, kind) in fields {
             let role = format!("{owner}.{field}");
             match kind {
-                StructuralFieldKindPlan::Required(_) => {}
-                StructuralFieldKindPlan::Optional(_) => optional_roles.push(role),
+                StructuralFieldKindPlan::Required(value) => {
+                    if stored_value_uses_separator_terminal(value, &separator_terminals) {
+                        stored_separator_fields.push(role);
+                    }
+                }
+                StructuralFieldKindPlan::Optional(value) => {
+                    if stored_value_uses_separator_terminal(value, &separator_terminals) {
+                        stored_separator_fields.push(role.clone());
+                    }
+                    optional_roles.push(role);
+                }
                 StructuralFieldKindPlan::Sequence { surface, .. } => {
                     sequence_roles.push(role.clone());
                     match surface.separator() {
@@ -283,6 +316,13 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
         terminators,
         stored_separator_fields,
     }
+}
+
+fn stored_value_uses_separator_terminal(
+    value: &ValueKindPlan,
+    separator_terminals: &HashSet<&str>,
+) -> bool {
+    matches!(value, ValueKindPlan::Lex(terminal) if separator_terminals.contains(terminal.as_str()))
 }
 
 pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatchReport> {
@@ -470,6 +510,31 @@ mod tests {
         assert_eq!(report.positional_separator_tables(), ["Holder.items"]);
         assert_eq!(report.terminators(), ["Holder.items"]);
         assert!(report.stored_separator_fields().is_empty());
+    }
+
+    #[test]
+    fn separator_terminal_reused_by_a_stored_ast_field_is_reported() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab SeparatorWord { And = "and", }
+                construction node: Node {
+                    element NodeValue {}
+                    form node = "node";
+                }
+                abstract sum Choice { node: Node, }
+                abstract product Holder {
+                    separator: lex SeparatorWord,
+                    items: seq Choice separated by " " lex(SeparatorWord::And),
+                }
+                root Node { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("separator leakage fixture parses"),
+        )
+        .expect("separator leakage fixture validates")
+        .into_semantic();
+        let report = super::escape_hatch_report(&semantic).expect("sealed report");
+
+        assert_eq!(report.stored_separator_fields(), ["Holder.separator"]);
     }
 
     #[test]
