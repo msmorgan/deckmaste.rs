@@ -434,7 +434,7 @@ public export
 theVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbName) -> (w : NounWord) ->
                            (m : VerbedMarking) -> countVerbed v w bs = 1 ->
                            VerbedMarkingOk v m -> Noun bs (kindOfW w)
-theVerbedReadsOnlyPrefix bs v w m ok mk = TheVerbed v w {bs} {marking = m} {ok} {mk}
+theVerbedReadsOnlyPrefix bs v w m ok mk = TheVerbed v w m {bs} {ok} {mk}
 
 public export
 theVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbName) -> (w : NounWord) ->
@@ -451,7 +451,7 @@ thoseVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbName) -> (w : NounWord)
                              (m : VerbedMarking) -> countManyVerbed v w bs = 1 ->
                              VerbedMarkingOk v m -> Noun bs (kindOfW w)
 thoseVerbedReadsOnlyPrefix bs v w m ok mk =
-  ThoseVerbed v w {bs} {marking = m} {ok} {mk}
+  ThoseVerbed v w m {bs} {ok} {mk}
 
 public export
 thoseVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbName) -> (w : NounWord) ->
@@ -890,7 +890,7 @@ public export
 onlyWhileThreadsPrefix : (bs : Bindings) -> (se : StaticEffect bs) ->
                          (c : Condition (staticIntro se)) -> NotConditional se ->
                          MarkingOk AsLongAs c -> StaticEffect bs
-onlyWhileThreadsPrefix bs se c nn mk = OnlyWhile se c {marking = AsLongAs} {nn} {mk}
+onlyWhileThreadsPrefix bs se c nn mk = OnlyWhile se c AsLongAs {nn} {mk}
 
 ||| The "this way" trigger reads the enclosure's settled post-state, a
 ||| narrowing of what came before rather than an addition from after.

@@ -128,7 +128,7 @@ badScaleToArtifact ObjectTakes impossible
 ||| The phrase names a prevention, and no prevention happened at a damage event either.
 public export
 badPreventedThisWayAfterDamageEvent : Unspellable Ability (\ok =>
-  Triggered Whenever (IsDealtDamage Macros.thisCreature)
+  Triggered Whenever (IsDealtDamage Macros.thisCreature) Nothing Nothing Nothing Nothing
             (DealDamage It (PreventedThisWay {ok = ok}) (Macros.target Macros.anyTarget)))
 badPreventedThisWayAfterDamageEvent Refl impossible
 
@@ -137,7 +137,7 @@ badPreventedThisWayAfterDamageEvent Refl impossible
 ||| A death announces no magnitude, so the anaphor has nothing to point at.
 public export
 badThatMuchAfterDeath : Unspellable Ability (\ok =>
-  Triggered Whenever (Dies (Macros.a Macros.creature))
+  Triggered Whenever (Dies (Macros.a Macros.creature)) Nothing Nothing Nothing Nothing
             (DealDamage Macros.thisCreature (ThatMuch {ok = ok})
                         (Macros.target Macros.anyTarget)))
 badThatMuchAfterDeath Refl impossible
@@ -147,7 +147,7 @@ badThatMuchAfterDeath Refl impossible
 ||| The demonstrative screen at a fourth minting site: it never picks out the speaker.
 public export
 badThatCreatureIsDamagedSelf : Unspellable Ability (\ok =>
-  Triggered Whenever (IsDealtDamage Macros.thisCreature)
+  Triggered Whenever (IsDealtDamage Macros.thisCreature) Nothing Nothing Nothing Nothing
             (DealDamage (That (TypeW Creature) {ok = ok}) ThatMuch
                         (Macros.target Macros.anyTarget)))
 badThatCreatureIsDamagedSelf Refl impossible
@@ -196,7 +196,7 @@ badReaderBeforeChooser : Unspellable Card (\ok =>
        [ Static (Gets (AllOf (And [Macros.creature,
                                    OfChosen CreatureType {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1)))
-       , Static (EntersChoice Macros.thisEnchantment CreatureType) ]
+       , Static (EntersChoice Macros.thisEnchantment CreatureType Nothing) ]
        Nothing)
 badReaderBeforeChooser Refl impossible
 
@@ -206,8 +206,8 @@ badReaderBeforeChooser Refl impossible
 public export
 badTwoChoosersOneSortRead : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (EntersChoice Macros.thisEnchantment CreatureType)
-       , Static (EntersChoice Macros.thisEnchantment CreatureType)
+       [ Static (EntersChoice Macros.thisEnchantment CreatureType Nothing)
+       , Static (EntersChoice Macros.thisEnchantment CreatureType Nothing)
        , Static (Gets (AllOf (And [Macros.creature,
                                    OfChosen CreatureType {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
@@ -220,7 +220,7 @@ badTwoChoosersOneSortRead Refl impossible
 public export
 badChosenReadWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (EntersChoice Macros.thisEnchantment Color)
+       [ Static (EntersChoice Macros.thisEnchantment Color Nothing)
        , Static (Gets (AllOf (And [Macros.creature,
                                    OfChosen CreatureType {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
@@ -234,9 +234,8 @@ public export
 badChosenProtectionBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [Angel] [Creature])
        [ Static (Gains Macros.thisCreature
-                       (KeywordAbility Protection
-                          {param = Just (ParamQuality (OfChosen Color {ok = ok}))}))
-       , Static (EntersChoice Macros.thisCreature Color) ]
+                       (KeywordAbility Protection (Just (ParamQuality (OfChosen Color {ok = ok})))))
+       , Static (EntersChoice Macros.thisCreature Color Nothing) ]
        (Just (2, 2)))
 badChosenProtectionBeforeChoice Refl impossible
 
@@ -249,7 +248,7 @@ badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
        [ Static (AddsChosenQuality
                    (AllOf (And [Macros.creature, ControlledBy You]))
                    (OfChosen CreatureType {ok = ok}))
-       , Static (EntersChoice Macros.thisEnchantment CreatureType) ]
+       , Static (EntersChoice Macros.thisEnchantment CreatureType Nothing) ]
        Nothing)
 badAscribedQualityBeforeChoice Refl impossible
 
@@ -273,8 +272,8 @@ badNameMatchBeforeChooser : Unspellable Card (\ok =>
        [ Activated (Mana [Macros.pip Blue])
                    (Macros.counterSpell
                       (Macros.target (And [Macros.spell,
-                                           Named (ChosenName {ok = ok})])))
-       , Static (EntersChoice Macros.thisEnchantment CardName) ]
+                                           Named (ChosenName {ok = ok})]))) Nothing Nothing Nothing
+       , Static (EntersChoice Macros.thisEnchantment CardName Nothing) ]
        Nothing)
 badNameMatchBeforeChooser Refl impossible
 
@@ -284,11 +283,11 @@ badNameMatchBeforeChooser Refl impossible
 public export
 badNameMatchWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (EntersChoice Macros.thisEnchantment Color)
+       [ Static (EntersChoice Macros.thisEnchantment Color Nothing)
        , Activated (Mana [Macros.pip Blue])
                    (Macros.counterSpell
                       (Macros.target (And [Macros.spell,
-                                           Named (ChosenName {ok = ok})]))) ]
+                                           Named (ChosenName {ok = ok})]))) Nothing Nothing Nothing ]
        Nothing)
 badNameMatchWrongSort Refl impossible
 
@@ -323,7 +322,7 @@ badCounteredInGraveyard Oh impossible
 public export
 badChapterOnNonSaga : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Enchantment])
-       [ Triggered When (ChapterMark [ChapterI]) Macros.drawACard ]
+       [ Triggered When (ChapterMark [ChapterI]) Nothing Nothing Nothing Nothing Macros.drawACard ]
        Nothing {ch = ok})
 badChapterOnNonSaga Oh impossible
 
@@ -332,7 +331,7 @@ badChapterOnNonSaga Oh impossible
 ||| A chapter symbol is its numeral [CR#107.15], so a marker with none is no marker.
 public export
 badEmptyChapterMark : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [] {cm = ok}) Macros.drawACard)
+  Triggered When (ChapterMark [] {cm = ok}) Nothing Nothing Nothing Nothing Macros.drawACard)
 badEmptyChapterMark Oh impossible
 
 
@@ -340,7 +339,7 @@ badEmptyChapterMark Oh impossible
 ||| [CR#107.15b] expands the joined marker into one ability per numeral, so a repeat prints one twice.
 public export
 badRepeatedChapterMark : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterII, ChapterII] {cm = ok}) Macros.drawACard)
+  Triggered When (ChapterMark [ChapterII, ChapterII] {cm = ok}) Nothing Nothing Nothing Nothing Macros.drawACard)
 badRepeatedChapterMark Oh impossible
 
 
@@ -348,7 +347,7 @@ badRepeatedChapterMark Oh impossible
 ||| [CR#714.2b] writes the whole header, so the printed line has nowhere for a rider.
 public export
 badChapterLimit : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterI]) {limit = Just OncePerTurn}
+  Triggered When (ChapterMark [ChapterI]) Nothing Nothing (Just OncePerTurn) Nothing
     Macros.drawACard {cd = ok})
 badChapterLimit Oh impossible
 
@@ -357,8 +356,7 @@ badChapterLimit Oh impossible
 ||| [CR#714.2b]'s expansion already carries the intervening "if" over the lore tally.
 public export
 badChapterIntervening : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterI])
-    {intervening = Just (Exists (And [Macros.creature, ControlledBy You]))}
+  Triggered When (ChapterMark [ChapterI]) Nothing Nothing Nothing (Just (Exists (And [Macros.creature, ControlledBy You])))
     Macros.drawACard {cd = ok})
 badChapterIntervening Oh impossible
 
@@ -376,8 +374,7 @@ badChapterReplacement Oh impossible
 ||| A permission's complement is named by what the object will become [CR#701.5b], not by a battlefield word.
 public export
 badFlashPermissionOnPermanent : Unspellable (StaticEffect []) (\ok =>
-  MayPlay You (AllOf Macros.creatureYouControl)
-          {verb = Cast} {asThough = Just HadFlash} {pz = ok})
+  MayPlay You (AllOf Macros.creatureYouControl) Cast Nothing (Just HadFlash) Nothing Nothing {pz = ok})
 badFlashPermissionOnPermanent MkPlaySource impossible
 
 
@@ -412,7 +409,7 @@ badEveryBasicLandTypeOnCreature Oh impossible
 public export
 badDeicticTurnWithoutIntroducer : Unspellable (Effect []) (\ok =>
   Sequentially [Draw You (Lit 1),
-                Delayed (BeginningOf EndStep (ByWord ThatTurns) {td = ok})
+                Delayed (BeginningOf EndStep (ByWord ThatTurns) {td = ok}) Nothing
                         (Concludes LoseGame You)])
 badDeicticTurnWithoutIntroducer (NoTurnDeixis) impossible
 badDeicticTurnWithoutIntroducer (TurnInScope) impossible
@@ -422,7 +419,7 @@ badDeicticTurnWithoutIntroducer (TurnInScope) impossible
 ||| [CR#500.8] adds a phase to a turn and [CR#500.9] a step to a phase; a turn is neither [CR#500.1].
 public export
 badAdditionalTurn : Unspellable (Effect []) (\ok =>
-  AdditionalPart Turn (Just Combat) (Lit 1) {ad = ok})
+  AdditionalPart Turn (Just Combat) (Lit 1) Nothing {ad = ok})
 badAdditionalTurn Oh impossible
 
 
@@ -506,7 +503,7 @@ public export
 badChosenColorNoChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Land])
        [ Activated TapSymbol
-           (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []) ]
+           (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []) Nothing Nothing Nothing ]
        Nothing)
 badChosenColorNoChooser Refl impossible
 
@@ -529,7 +526,7 @@ badLastChosenBeforeChooser : Unspellable Card (\ok =>
                           (Just (AllOf (And [Macros.source,
                                              OfLastChosenColor {ok = ok}])))
                           Nothing)
-       , Static (EntersChoice Macros.thisEnchantment Color) ]
+       , Static (EntersChoice Macros.thisEnchantment Color Nothing) ]
        Nothing)
 badLastChosenBeforeChooser ChoiceMade impossible
 
@@ -539,7 +536,7 @@ badLastChosenBeforeChooser ChoiceMade impossible
 public export
 badLastChosenWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (EntersChoice Macros.thisEnchantment CreatureType)
+       [ Static (EntersChoice Macros.thisEnchantment CreatureType Nothing)
        , Static (Prevents AnyDamage AllOfIt
                           (Macros.shieldingIt You)
                           (Just (AllOf (And [Macros.source,

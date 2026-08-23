@@ -40,24 +40,24 @@ mutual
   data ZoneExpr : Bindings -> Type where
     ZoneAt : (z : Zone) -> ZoneScope bs z -> ZoneExpr bs
     LibraryAt : (place : LibPlace bs) -> (ord : Maybe Arrangement) ->
-                {default Nothing off : Maybe LibOrdinal} ->
+                (off : Maybe LibOrdinal) ->
                 {auto 0 af : PlaceArrangementFits place ord} ->
                 ZoneScope bs Library -> ZoneExpr bs
 
   public export
   zoneSort : ZoneExpr bs -> Zone
   zoneSort (ZoneAt z _) = z
-  zoneSort (LibraryAt _ _ _) = Library
+  zoneSort (LibraryAt _ _ _ _) = Library
 
   public export
   zoneArrangement : ZoneExpr bs -> Maybe Arrangement
   zoneArrangement (ZoneAt _ _) = Nothing
-  zoneArrangement (LibraryAt _ ord _) = ord
+  zoneArrangement (LibraryAt _ ord _ _) = ord
 
   public export
   zoneOrdinal : ZoneExpr bs -> Maybe LibOrdinal
   zoneOrdinal (ZoneAt _ _) = Nothing
-  zoneOrdinal (LibraryAt _ _ {off} _) = off
+  zoneOrdinal (LibraryAt _ _ off _) = off
 
   public export
   data NameSource : Bindings -> Type where
@@ -133,7 +133,7 @@ mutual
     AnyPlayer : Predicate bs Player                      -- head noun "player" (any player, [CR#102.1])
     Opponent : Predicate bs Player                       -- head noun "opponent" (of You — team form [CR#102.3] deferred)
     QualityNoun : (q : QualitySort) ->
-                  {default Nothing dom : Maybe (ChoiceDomain q)} ->
+                  (dom : Maybe (ChoiceDomain q)) ->
                   Predicate bs (Quality q)
     -- reads the unique chosen quality; the choice was made at
     -- resolution by another clause [CR#608.2d].
@@ -165,7 +165,7 @@ mutual
                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
                 Predicate bs Object
     HappenedTo : {k : Kind} -> (ev : EventName) -> (w : Lookback) ->
-                 {default Nothing what : Maybe (EventComplement bs ev k)} ->
+                 (what : Maybe (EventComplement bs ev k)) ->
                  {auto 0 cw : ComplementWritten what} ->
                  {auto 0 sb : LookbackSubject ev k} -> Predicate bs k
     ColorIs : (c : Chroma.Color) -> Predicate bs Object
@@ -291,7 +291,7 @@ mutual
   seedZone Blocking = Just Battlefield
   seedZone (BlockerOf _) = Just Battlefield
   seedZone (BlockedBy _) = Just Battlefield
-  seedZone (HappenedTo _ _) = Nothing
+  seedZone (HappenedTo _ _ _) = Nothing
   seedZone (ColorIs _) = Nothing
   seedZone IsColorless = Nothing
   seedZone Multicolored = Nothing
@@ -365,7 +365,7 @@ mutual
   seedType Blocking = Just Creature
   seedType (BlockerOf _) = Just Creature
   seedType (BlockedBy _) = Just Creature
-  seedType (HappenedTo _ _) = Nothing
+  seedType (HappenedTo _ _ _) = Nothing
   seedType (ColorIs _) = Nothing
   seedType IsColorless = Nothing
   seedType Multicolored = Nothing
@@ -419,7 +419,7 @@ mutual
   hasHead (HasSubtype _) = True
   hasHead AnyPlayer = True
   hasHead Opponent = True
-  hasHead (QualityNoun _) = True
+  hasHead (QualityNoun _ _) = True
   hasHead (OfChosen _) = False
   hasHead OfLastChosenColor = False
   hasHead (OfYourChoice _) = False
@@ -435,7 +435,7 @@ mutual
   hasHead Blocking = False
   hasHead (BlockerOf _) = False
   hasHead (BlockedBy _) = False
-  hasHead (HappenedTo _ _) = False
+  hasHead (HappenedTo _ _ _) = False
   hasHead (CastFrom _) = False
   hasHead (ColorIs _) = False
   hasHead IsColorless = False
@@ -562,8 +562,8 @@ mutual
   predEq AnyPlayer _ = False
   predEq Opponent Opponent = True
   predEq Opponent _ = False
-  predEq (QualityNoun a {dom = d}) (QualityNoun a {dom = e}) = sameDomainOpt d e
-  predEq (QualityNoun _) _ = False
+  predEq (QualityNoun a d) (QualityNoun a e) = sameDomainOpt d e
+  predEq (QualityNoun _ _) _ = False
   predEq (OfChosen a) (OfChosen b) = a == b
   predEq (OfChosen _) _ = False
   predEq OfLastChosenColor OfLastChosenColor = True
@@ -598,9 +598,9 @@ mutual
   predEq (BlockedBy _) _ = False
   -- both arguments are closed words, so this row compares wholly rather
   -- than conservatively.
-  predEq (HappenedTo a v {what = Nothing}) (HappenedTo b w {what = Nothing}) =
+  predEq (HappenedTo a v Nothing) (HappenedTo b w Nothing) =
     sameEventName a b && sameLookback v w
-  predEq (HappenedTo _ _) _ = False
+  predEq (HappenedTo _ _ _) _ = False
   predEq (ColorIs a) (ColorIs b) = a == b
   predEq (ColorIs _) _ = False
   predEq IsColorless IsColorless = True
@@ -994,7 +994,7 @@ mutual
   public export
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable AnyPlayer = False
-  negatable (QualityNoun _) = False
+  negatable (QualityNoun _ _) = False
   negatable IsSource = False
   negatable _ = True
 
@@ -1008,7 +1008,7 @@ mutual
   predSays (HasSubtype _) = True
   predSays AnyPlayer = True
   predSays Opponent = True
-  predSays (QualityNoun _) = True
+  predSays (QualityNoun _ _) = True
   predSays (OfChosen _) = True
   predSays OfLastChosenColor = True
   predSays (OfYourChoice _) = True
@@ -1025,7 +1025,7 @@ mutual
   predSays Blocking = True
   predSays (BlockerOf _) = True
   predSays (BlockedBy _) = True
-  predSays (HappenedTo _ _) = True
+  predSays (HappenedTo _ _ _) = True
   predSays (CastFrom _) = True
   predSays (ColorIs _) = True
   predSays IsColorless = True
@@ -1064,7 +1064,7 @@ mutual
   predNegFree (HasSubtype _) = True
   predNegFree AnyPlayer = True
   predNegFree Opponent = True
-  predNegFree (QualityNoun _) = True
+  predNegFree (QualityNoun _ _) = True
   predNegFree (OfChosen _) = True
   predNegFree OfLastChosenColor = True
   predNegFree (OfYourChoice _) = True
@@ -1081,7 +1081,7 @@ mutual
   predNegFree Blocking = True
   predNegFree (BlockerOf _) = True
   predNegFree (BlockedBy _) = True
-  predNegFree (HappenedTo _ _) = True
+  predNegFree (HappenedTo _ _ _) = True
   predNegFree (CastFrom _) = True
   predNegFree (ColorIs _) = True
   predNegFree IsColorless = True
@@ -1156,7 +1156,7 @@ mutual
   data Noun : Bindings -> Kind -> Type where
     This : Noun bs Object       -- the source, by self-name or "this spell" [CR#113.7]
     AsType : (t : CardType) -> (n : Noun bs Object) ->
-             {default Nothing sub : Maybe Subtype} ->
+             (sub : Maybe Subtype) ->
              {auto 0 asc : Ascribable n} ->
              {auto 0 way : So (ascriptionOk t sub)} -> Noun bs Object
     You : Noun bs Player        -- "you" [CR#109.5]
@@ -1206,11 +1206,11 @@ mutual
     AttachHost : (w : AttachWord) -> (h : NounWord) ->
                  {auto 0 ok : AttachHeadOk w h} -> Noun bs (kindOfW h)
     TheVerbed : (v : VerbName) -> (w : NounWord) ->
-                {default Attributive marking : VerbedMarking} ->
+                (marking : VerbedMarking) ->
                 {auto 0 ok : countVerbed v w bs = 1} ->
                 {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
     ThoseVerbed : (v : VerbName) -> (w : NounWord) ->
-                  {default Attributive marking : VerbedMarking} ->
+                  (marking : VerbedMarking) ->
                   {auto 0 ok : countManyVerbed v w bs = 1} ->
                   {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
     ControllerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
@@ -1230,7 +1230,7 @@ mutual
   nounEqRef : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Noun bs k -> Bool
   nounEqRef This This = True
   nounEqRef This _ = False
-  nounEqRef (AsType _ _) _ = False
+  nounEqRef (AsType _ _ _) _ = False
   nounEqRef You You = True
   nounEqRef You _ = False
   nounEqRef (PlayerGroup v) (PlayerGroup w) = v == w
@@ -1254,8 +1254,8 @@ mutual
   nounEqRef (Those _) _ = False
   nounEqRef (That _) _ = False
   nounEqRef (AttachHost _ _) _ = False
-  nounEqRef (TheVerbed _ _) _ = False
-  nounEqRef (ThoseVerbed _ _) _ = False
+  nounEqRef (TheVerbed _ _ _) _ = False
+  nounEqRef (ThoseVerbed _ _ _) _ = False
   nounEqRef (ControllerOf _) _ = False
   nounEqRef (OwnerOf _) _ = False
   nounEqRef (Designated _ _) _ = False
@@ -1272,7 +1272,7 @@ mutual
     HandOkBare : DestOk (ZoneAt Hand Bare)
     GraveyardOkBare : DestOk (ZoneAt Graveyard Bare)
     LibraryPosOk : {auto 0 af : PlaceArrangementFits place arrg} ->
-                   DestOk (LibraryAt place arrg {off = offs} {af} Bare)
+                   DestOk (LibraryAt place arrg offs {af} Bare)
 
   public export
   orderOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Bool
@@ -1287,7 +1287,7 @@ mutual
   public export
   nounDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
   nounDelta This = []
-  nounDelta (AsType t n) = nounDelta n
+  nounDelta (AsType t n _) = nounDelta n
   nounDelta You = []
   nounDelta (PlayerGroup _) = []
   nounDelta (Each p {ph}) = bindFor EachD ManyOf ph p :: predDelta p
@@ -1312,8 +1312,8 @@ mutual
   nounDelta (That w) = []
   nounDelta (AttachHost _ _) = []
   nounDelta (Those w) = []
-  nounDelta (TheVerbed v w) = []
-  nounDelta (ThoseVerbed v w) = []
+  nounDelta (TheVerbed v w _) = []
+  nounDelta (ThoseVerbed v w _) = []
   nounDelta (ControllerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
   nounDelta (OwnerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
   nounDelta (Designated _ _) = []
@@ -1332,7 +1332,7 @@ mutual
   predDelta (CastBy n) = nounDelta n
   predDelta (BlockerOf m) = nounDelta m
   predDelta (BlockedBy m) = nounDelta m
-  predDelta (HappenedTo _ _ {what}) = complementDelta what
+  predDelta (HappenedTo _ _ what) = complementDelta what
   predDelta (CastFrom z) = zoneDelta z
   predDelta (ColorIs _) = []
   predDelta IsColorless = []
@@ -1367,8 +1367,8 @@ mutual
   zoneDelta : {bs : Bindings} -> ZoneExpr bs -> List Binding
   zoneDelta (ZoneAt z (OwnedBy n)) = nounDelta n
   zoneDelta (ZoneAt z Bare) = []
-  zoneDelta (LibraryAt pl _ (OwnedBy n)) = placeDelta pl ++ nounDelta n
-  zoneDelta (LibraryAt pl _ Bare) = placeDelta pl
+  zoneDelta (LibraryAt pl _ _ (OwnedBy n)) = placeDelta pl ++ nounDelta n
+  zoneDelta (LibraryAt pl _ _ Bare) = placeDelta pl
 
   ||| What a search clause names: one zone, or the graveyard-hand-library
   ||| sweep written once against its possessor and shared by both name
@@ -1417,8 +1417,8 @@ mutual
                  {auto 0 one : nounPlur holder = OneOf} -> Amount bs
     EventCount : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
                  (w : Lookback) ->
-                 {default Nothing what :
-                    Maybe (EventComplement (nomIntro who) ev k)} ->
+                 (what :
+                    Maybe (EventComplement (nomIntro who) ev k)) ->
                  {auto 0 cw : ComplementWritten what} ->
                  {auto 0 sb : LookbackSubject ev k} -> Amount bs
     Times : (per : Nat) -> (a : Amount bs) ->
@@ -1440,7 +1440,7 @@ mutual
   amtDelta (StatOf _ nom) = nounDelta nom
   amtDelta (PlayerStatOf _ nom) = nounDelta nom
   amtDelta (CountersOn _ holder) = nounDelta holder
-  amtDelta (EventCount _ who _ {what}) = nounDelta who ++ complementDelta what
+  amtDelta (EventCount _ who _ what) = nounDelta who ++ complementDelta what
   amtDelta (CountOf p) = predDelta p
   amtDelta (Aggregate _ _ p) = predDelta p
   amtDelta (Times _ a) = amtDelta a
@@ -1459,7 +1459,7 @@ mutual
   amtIntro (StatOf c nom) = nomIntro nom
   amtIntro (PlayerStatOf w nom) = nomIntro nom
   amtIntro (CountersOn _ holder) = nomIntro holder
-  amtIntro (EventCount _ who _ {what}) = complementDelta what ++ nomIntro who
+  amtIntro (EventCount _ who _ what) = complementDelta what ++ nomIntro who
   amtIntro (CountOf p) = predDelta p ++ bs
   amtIntro (Aggregate _ _ p) = predDelta p ++ bs
   amtIntro (Times per a) = amtIntro a
@@ -1486,7 +1486,7 @@ mutual
   amtPlur (StatOf _ _) = ManyOf
   amtPlur (PlayerStatOf _ _) = ManyOf
   amtPlur (CountersOn _ _) = ManyOf
-  amtPlur (EventCount _ _ _) = ManyOf
+  amtPlur (EventCount _ _ _ _) = ManyOf
   amtPlur (CountOf _) = ManyOf
   amtPlur (Aggregate _ _ _) = ManyOf
   amtPlur (Times _ _) = ManyOf
@@ -1505,7 +1505,7 @@ mutual
   writtenBound (StatOf _ _) = False
   writtenBound (PlayerStatOf _ _) = False
   writtenBound (CountersOn _ _) = False
-  writtenBound (EventCount _ _ _) = False
+  writtenBound (EventCount _ _ _ _) = False
   writtenBound (CountOf _) = False
   writtenBound (Aggregate _ _ _) = False
   writtenBound (Times _ _) = False
@@ -1542,7 +1542,7 @@ mutual
   readAmount (StatOf _ _) = True
   readAmount (PlayerStatOf _ _) = True
   readAmount (CountersOn _ _) = True
-  readAmount (EventCount _ _ _) = True
+  readAmount (EventCount _ _ _ _) = True
   readAmount (CountOf _) = True
   readAmount (Aggregate _ _ _) = True
   readAmount (Times _ _) = False
@@ -1566,7 +1566,7 @@ mutual
   public export
   anchorPhrase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   anchorPhrase This = True
-  anchorPhrase (AsType t n) = anchorPhrase n
+  anchorPhrase (AsType t n _) = anchorPhrase n
   anchorPhrase You = True
   anchorPhrase (PlayerGroup _) = True
   anchorPhrase (Each _) = False
@@ -1586,8 +1586,8 @@ mutual
   anchorPhrase (Those _) = True
   anchorPhrase (That _) = True
   anchorPhrase (AttachHost _ _) = True
-  anchorPhrase (TheVerbed _ _) = True
-  anchorPhrase (ThoseVerbed _ _) = True
+  anchorPhrase (TheVerbed _ _ _) = True
+  anchorPhrase (ThoseVerbed _ _ _) = True
   anchorPhrase (ControllerOf _) = True
   anchorPhrase (OwnerOf _) = True
   anchorPhrase (Designated _ _) = True
@@ -1603,12 +1603,12 @@ mutual
     SelfLinked : LinkSource This
     SortedSelfLinked : {0 t : CardType} -> {0 asc : Ascribable This} ->
                        {0 way : So (ascriptionOk t Nothing)} ->
-                       LinkSource (AsType t This {sub = Nothing} {asc} {way})
+                       LinkSource (AsType t This Nothing {asc} {way})
 
   public export
   choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   choosable This = False
-  choosable (AsType _ _) = False
+  choosable (AsType _ _ _) = False
   choosable You = False
   choosable (PlayerGroup _) = False
   choosable (Each _) = False
@@ -1628,8 +1628,8 @@ mutual
   choosable (Those _) = False
   choosable (That _) = False
   choosable (AttachHost _ _) = False
-  choosable (TheVerbed _ _) = False
-  choosable (ThoseVerbed _ _) = False
+  choosable (TheVerbed _ _ _) = False
+  choosable (ThoseVerbed _ _ _) = False
   choosable (ControllerOf _) = False
   choosable (OwnerOf _) = False
   choosable (Designated _ _) = False
@@ -1658,7 +1658,7 @@ mutual
   groupMention Them = True
   groupMention (Those _) = True
   groupMention This = False
-  groupMention (AsType _ _) = False
+  groupMention (AsType _ _ _) = False
   groupMention You = False
   groupMention (PlayerGroup _) = False
   groupMention (Each _) = False
@@ -1675,8 +1675,8 @@ mutual
   groupMention They = False
   groupMention (That _) = False
   groupMention (AttachHost _ _) = False
-  groupMention (TheVerbed _ _) = False
-  groupMention (ThoseVerbed _ _) = True
+  groupMention (TheVerbed _ _ _) = False
+  groupMention (ThoseVerbed _ _ _) = True
   groupMention (ControllerOf _) = False
   groupMention (OwnerOf _) = False
   groupMention (Designated _ _) = False
@@ -1759,7 +1759,7 @@ mutual
   public export
   selfDefinedOk : {bs : Bindings} -> Noun bs Object -> Bool
   selfDefinedOk This = True
-  selfDefinedOk (AsType _ n) = selfDefinedOk n
+  selfDefinedOk (AsType _ n _) = selfDefinedOk n
   selfDefinedOk _ = False
 
   public export
@@ -1772,8 +1772,8 @@ mutual
              Condition bs
     Happened : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
                (w : Lookback) ->
-               {default Nothing what :
-                  Maybe (EventComplement (nomIntro who) ev k)} ->
+               (what :
+                  Maybe (EventComplement (nomIntro who) ev k)) ->
                {auto 0 cw : ComplementWritten what} ->
                {auto 0 sb : LookbackSubject ev k} -> Condition bs
     GameIs : (d : Designation) ->
@@ -1826,7 +1826,7 @@ mutual
   public export
   condNegated : {0 bs : Bindings} -> Condition bs -> Bool
   condNegated (Exists _) = False
-  condNegated (Happened _ _ _) = False
+  condNegated (Happened _ _ _ _) = False
   condNegated (GameIs _) = False
   -- atomic: the absence is the condition's own content, not a marked
   -- negation of one.
@@ -1856,10 +1856,10 @@ mutual
   public export
   condDelta : {bs : Bindings} -> Condition bs -> List Binding
   condDelta (Exists _) = []
-  condDelta (Happened _ _ _) = []
+  condDelta (Happened _ _ _ _) = []
   condDelta (GameIs _) = []
   condDelta (NoHolder _) = []
-  condDelta (Matches (AsType t This) _) =
+  condDelta (Matches (AsType t This _) _) =
     [MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
   condDelta (Matches (AttachHost _ (TypeW t)) _) =
     [MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
@@ -2013,7 +2013,7 @@ mutual
     Enters : (n : Noun bs Object) ->
              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     Attacks : (n : Noun bs Object) ->
-              {default Nothing whom : Maybe (Noun (nomIntro n) Player)} ->
+              (whom : Maybe (Noun (nomIntro n) Player)) ->
               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
               {auto 0 df : AttackDefender whom} -> GameEvent bs
     Blocks : (n : Noun bs Object) ->
@@ -2041,26 +2041,26 @@ mutual
                   {auto 0 at : StatusEventVal v} -> GameEvent bs
     DayNightShift : GameEvent bs
     LastCounterRemoved : (kind : CounterKind) -> (n : Noun bs Object) ->
-                         {default Nothing by : Maybe (Noun bs Player)} ->
+                         (by : Maybe (Noun bs Player)) ->
                          {auto 0 sc : counterScope kind = Object} ->
                          {auto 0 ag : EventAgent by} -> GameEvent bs
     PutInto : (n : Noun bs Object) -> (to : ZoneExpr bs) ->
-              {default Nothing from : Maybe (EventSource bs)} ->
+              (from : Maybe (EventSource bs)) ->
               {auto 0 dk : PutDest to} ->
               {auto 0 sk : PutSource from} ->
               {auto 0 zn : ZoneFits (nounZone n) (sourceZone from)} -> GameEvent bs
     CounterEvent : (dir : CounterMove) -> (kind : CounterKind) ->
                    (n : Noun bs Object) ->
-                   {default ManyCounters many : CounterBatch} ->
-                   {default Nothing by : Maybe (Noun bs Player)} ->
-                   {default Nothing cause : Maybe Causer} ->
+                   (many : CounterBatch) ->
+                   (by : Maybe (Noun bs Player)) ->
+                   (cause : Maybe Causer) ->
                    {auto 0 sc : counterScope kind = Object} ->
                    {auto 0 ag : EventAgent by} ->
                    {auto 0 cz : CausedBy cause by} -> GameEvent bs
     TokensCreated : (n : Noun bs Object) ->
-                    {default Nothing cause : Maybe Causer} ->
-                    {default Nothing by : Maybe (Noun bs Player)} ->
-                    {default Nothing under : Maybe (Noun bs Player)} ->
+                    (cause : Maybe Causer) ->
+                    (by : Maybe (Noun bs Player)) ->
+                    (under : Maybe (Noun bs Player)) ->
                     {auto 0 tk : TokenPhrase n} ->
                     {auto 0 vo : CreationVoice cause by under} -> GameEvent bs
     ChapterMark : (ns : List ChapterNumber) ->
@@ -2090,7 +2090,7 @@ mutual
   eventName (Draws _) = CardDrawn
   eventName (LosesGame _) = GameLoss
   eventName (Enters _) = Entry
-  eventName (Attacks _) = AttackDeclaration
+  eventName (Attacks _ _) = AttackDeclaration
   eventName (Blocks _ _) = BlockDeclaration
   eventName (BecomesBlocked _ _) = BlockedDeclaration
   eventName (DealsCombatDamage _ _) = CombatDamage
@@ -2098,10 +2098,10 @@ mutual
   eventName (Casts _ _) = SpellCast
   eventName (StatusEvent {c} _ _) = statusEventName c
   eventName DayNightShift = TimeShift
-  eventName (LastCounterRemoved _ _) = LastCounterRemoval
-  eventName (PutInto _ _) = Placement
-  eventName (CounterEvent dir _ _) = counterEventName dir
-  eventName (TokensCreated _) = TokenCreation
+  eventName (LastCounterRemoved _ _ _) = LastCounterRemoval
+  eventName (PutInto _ _ _) = Placement
+  eventName (CounterEvent dir _ _ _ _ _) = counterEventName dir
+  eventName (TokensCreated _ _ _ _) = TokenCreation
   eventName (ChapterMark _) = ChapterArrival
   eventName (Activates _ _) = AbilityActivation
   eventName (StatBecomes _ _ _) = StatValueChange
@@ -2119,8 +2119,8 @@ mutual
   eventIntro (Draws who) = nomIntro who
   eventIntro (LosesGame who) = nomIntro who
   eventIntro (Enters n) = nomIntro n
-  eventIntro (Attacks n {whom = Nothing}) = nomIntro n
-  eventIntro (Attacks _ {whom = Just whom}) = nomIntro whom
+  eventIntro (Attacks n Nothing) = nomIntro n
+  eventIntro (Attacks _ (Just whom)) = nomIntro whom
   eventIntro (Blocks n Nothing) = nomIntro n
   eventIntro (Blocks _ (Just what)) = nomIntro what
   eventIntro (BecomesBlocked n Nothing) = nomIntro n
@@ -2130,12 +2130,12 @@ mutual
   eventIntro (Casts _ what) = nomIntro what
   eventIntro (StatusEvent n _) = nomIntro n
   eventIntro DayNightShift = bs
-  eventIntro (LastCounterRemoved _ n) = nomIntro n
-  eventIntro (PutInto n _) = nomIntro n
-  eventIntro (CounterEvent _ _ n {many = OneCounter}) = nomIntro n
-  eventIntro (CounterEvent _ _ n {many = ManyCounters}) =
+  eventIntro (LastCounterRemoved _ n _) = nomIntro n
+  eventIntro (PutInto n _ _) = nomIntro n
+  eventIntro (CounterEvent _ _ n OneCounter _ _) = nomIntro n
+  eventIntro (CounterEvent _ _ n ManyCounters _ _) =
     outcomeB CountersPut :: nomIntro n
-  eventIntro (TokensCreated n) = nomIntro n
+  eventIntro (TokensCreated n _ _ _) = nomIntro n
   eventIntro (ChapterMark _) = bs
   eventIntro (Activates _ what) = nomIntro what
   eventIntro (StatBecomes _ _ v) = amtIntro v
@@ -2143,7 +2143,7 @@ mutual
 
   public export
   selfSubjIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
-  selfSubjIntro (AsType t This) =
+  selfSubjIntro (AsType t This _) =
     MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing) :: bs
   selfSubjIntro (AttachHost _ (TypeW t)) =
     MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing) :: bs
@@ -2176,8 +2176,8 @@ mutual
   eventAfter (Draws who) = nomIntro who
   eventAfter (LosesGame who) = nomIntro who
   eventAfter (Enters n) = moveIntro Nothing n (Just Battlefield)
-  eventAfter (Attacks n {whom = Nothing}) = selfSubjIntro n
-  eventAfter (Attacks n {whom = Just whom}) = nounDelta whom ++ selfSubjIntro n
+  eventAfter (Attacks n Nothing) = selfSubjIntro n
+  eventAfter (Attacks n (Just whom)) = nounDelta whom ++ selfSubjIntro n
   eventAfter (Blocks n Nothing) = selfSubjIntro n
   eventAfter (Blocks _ (Just what)) = nomIntro what
   eventAfter (BecomesBlocked n Nothing) = selfSubjIntro n
@@ -2187,12 +2187,12 @@ mutual
   eventAfter (BeginningOf _ whose) = possessorIntro whose
   eventAfter (StatusEvent n _) = selfSubjIntro n
   eventAfter DayNightShift = bs
-  eventAfter (LastCounterRemoved _ n) = selfSubjIntro n
-  eventAfter (PutInto n to) = moveIntro Nothing n (Just (zoneSort to))
-  eventAfter (CounterEvent _ _ n {many = OneCounter}) = selfSubjIntro n
-  eventAfter (CounterEvent _ _ n {many = ManyCounters}) =
+  eventAfter (LastCounterRemoved _ n _) = selfSubjIntro n
+  eventAfter (PutInto n to _) = moveIntro Nothing n (Just (zoneSort to))
+  eventAfter (CounterEvent _ _ n OneCounter _ _) = selfSubjIntro n
+  eventAfter (CounterEvent _ _ n ManyCounters _ _) =
     outcomeB CountersPut :: selfSubjIntro n
-  eventAfter (TokensCreated n) = nomIntro n
+  eventAfter (TokensCreated n _ _ _) = nomIntro n
   eventAfter (ChapterMark _) = bs
   eventAfter (Activates _ what) = nomIntro what
   eventAfter (StatBecomes n _ v) = amtDelta v ++ selfSubjIntro n
@@ -2207,7 +2207,7 @@ mutual
   eventSubjectPlur (Draws who) = nounPlur who
   eventSubjectPlur (LosesGame who) = nounPlur who
   eventSubjectPlur (Enters n) = nounPlur n
-  eventSubjectPlur (Attacks n) = nounPlur n
+  eventSubjectPlur (Attacks n _) = nounPlur n
   eventSubjectPlur (Blocks n _) = nounPlur n
   eventSubjectPlur (BecomesBlocked n _) = nounPlur n
   eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
@@ -2215,10 +2215,10 @@ mutual
   eventSubjectPlur (Casts _ what) = nounPlur what
   eventSubjectPlur (StatusEvent n _) = nounPlur n
   eventSubjectPlur DayNightShift = OneOf
-  eventSubjectPlur (LastCounterRemoved _ n) = nounPlur n
-  eventSubjectPlur (PutInto n _) = nounPlur n
-  eventSubjectPlur (CounterEvent _ _ n) = nounPlur n
-  eventSubjectPlur (TokensCreated n) = nounPlur n
+  eventSubjectPlur (LastCounterRemoved _ n _) = nounPlur n
+  eventSubjectPlur (PutInto n _ _) = nounPlur n
+  eventSubjectPlur (CounterEvent _ _ n _ _ _) = nounPlur n
+  eventSubjectPlur (TokensCreated n _ _ _) = nounPlur n
   eventSubjectPlur (ChapterMark _) = OneOf
   eventSubjectPlur (Activates who _) = nounPlur who
   eventSubjectPlur (StatBecomes n _ _) = nounPlur n
@@ -2570,7 +2570,7 @@ mutual
     CantPrevent : (kind : DamageKind) -> (scope : DamageScope bs) ->
                   (by : Maybe (Noun (scopeIntro scope) Object)) -> StaticEffect bs
     Conditionally : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
-                    {default AsLongAs marking : CondMarking} ->
+                    (marking : CondMarking) ->
                     {auto 0 nn : NotConditional se} ->
                     {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
     ||| The postposed static conditional, "[se] as long as [c]" / "[se]
@@ -2582,15 +2582,15 @@ mutual
     ||| -- spelling: "[se] as long as [c]"; under `NotCond` with `Unless`,
     ||| "[se] unless [c]".
     OnlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
-                {default AsLongAs marking : CondMarking} ->
+                (marking : CondMarking) ->
                 {auto 0 nn : NotConditional se} ->
                 {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
     MayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-              {default Play verb : PlayVerb} ->
-              {default Nothing from : Maybe (ZoneExpr (nomIntro what))} ->
-              {default Nothing asThough : Maybe PlayAsThough} ->
-              {default Nothing limit : Maybe PlayLimit} ->
-              {default Nothing window : Maybe PlayWindow} ->
+              (verb : PlayVerb) ->
+              (from : Maybe (ZoneExpr (nomIntro what))) ->
+              (asThough : Maybe PlayAsThough) ->
+              (limit : Maybe PlayLimit) ->
+              (window : Maybe PlayWindow) ->
               {auto 0 pz : PlaySource (nounZone what) from asThough} ->
               {auto 0 cv : CastableTy verb (nounTy what)} -> StaticEffect bs
     Visibility : (v : ExposeVerb) -> (who : Noun bs Player) ->
@@ -2606,10 +2606,10 @@ mutual
                   StaticEffect bs
     EntersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
                          (kind : CounterKind) ->
-                         {default Fresh mark : EntryCounterMark} ->
+                         (mark : EntryCounterMark) ->
                          StaticEffect bs
     EntersChoice : (n : Noun bs Object) -> (q : QualitySort) ->
-                   {default Nothing dom : Maybe (ChoiceDomain q)} ->
+                   (dom : Maybe (ChoiceDomain q)) ->
                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                    StaticEffect bs
     AndAlso : {0 n : Nat} -> StaticParts n bs ->
@@ -2636,8 +2636,8 @@ mutual
 
   public export
   notConditional : {0 bs : Bindings} -> StaticEffect bs -> Bool
-  notConditional (Conditionally _ _) = False
-  notConditional (OnlyWhile _ _) = False
+  notConditional (Conditionally _ _ _) = False
+  notConditional (OnlyWhile _ _ _) = False
   notConditional _ = True
 
 
@@ -2768,15 +2768,15 @@ mutual
   staticKind (Redirects _ _ _ _ _) = Replacement
   staticKind (RedirectsFrom _ _ _ _ _) = Replacement
   staticKind (Scales _ _ _ _ _) = Replacement
-  staticKind (Conditionally _ _) = Conditional
-  staticKind (OnlyWhile _ _) = Conditional
+  staticKind (Conditionally _ _ _) = Conditional
+  staticKind (OnlyWhile _ _ _) = Conditional
   staticKind (AlsoOffBattlefield se) = staticKind se
-  staticKind (MayPlay _ _) = PlayPermission
+  staticKind (MayPlay _ _ _ _ _ _ _) = PlayPermission
   staticKind (Visibility _ _ _) = VisibilityRider
   staticKind (MayPlayAdditionalLands _ _) = LandAllowance
   staticKind (EntersRider _ _) = EntryRider
-  staticKind (EntersWithCounters _ _ _) = EntryRider
-  staticKind (EntersChoice _ _) = EntryRider
+  staticKind (EntersWithCounters _ _ _ _) = EntryRider
+  staticKind (EntersChoice _ _ _) = EntryRider
   staticKind (AndAlso _) = Coordination
 
 
@@ -2814,20 +2814,20 @@ mutual
   staticIntro (Redirects kind size scope by to) = nomIntro to
   staticIntro (RedirectsFrom kind src scope to use) = nomIntro to
   staticIntro (Scales kind src scope op use) = scaleIntro op
-  staticIntro (Conditionally c se) = staticIntro se
-  staticIntro (OnlyWhile se c) = staticIntro se
+  staticIntro (Conditionally c se _) = staticIntro se
+  staticIntro (OnlyWhile se c _) = staticIntro se
   staticIntro (AlsoOffBattlefield se) = staticIntro se
-  staticIntro (MayPlay who what) = selfSubjIntro what
+  staticIntro (MayPlay who what _ _ _ _ _) = selfSubjIntro what
   staticIntro (Visibility _ who _) = nomIntro who
   staticIntro (MayPlayAdditionalLands who _) = nomIntro who
   staticIntro (EntersRider n _) = selfSubjIntro n
-  staticIntro (EntersWithCounters n _ _) = selfSubjIntro n
-  staticIntro (EntersChoice n _) = selfSubjIntro n
+  staticIntro (EntersWithCounters n _ _ _) = selfSubjIntro n
+  staticIntro (EntersChoice n _ _) = selfSubjIntro n
   staticIntro (AndAlso parts) = partsIntro parts
 
   public export
   staticChoiceIntro : {bs : Bindings} -> StaticEffect bs -> Bindings
-  staticChoiceIntro (EntersChoice _ q) = qualityB q :: bs
+  staticChoiceIntro (EntersChoice _ q _) = qualityB q :: bs
   staticChoiceIntro _ = bs
 
   public export
@@ -2873,7 +2873,7 @@ mutual
   data MoveRiders : Bindings -> Type where
     MkMoveRiders : (entry : List TokenRider) ->
                    (ctrl : Maybe (Noun bs Player)) ->
-                   {default Nothing counters : Maybe (CounterRider bs)} ->
+                   (counters : Maybe (CounterRider bs)) ->
                    {auto 0 one : CtrlSingular ctrl} -> MoveRiders bs
 
   public export
@@ -2884,13 +2884,13 @@ mutual
 
   public export
   fieldRidersWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
-  fieldRidersWritten (MkMoveRiders [] Nothing) = False
+  fieldRidersWritten (MkMoveRiders [] Nothing _) = False
   fieldRidersWritten _ = True
 
   public export
   counterRiderWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
-  counterRiderWritten (MkMoveRiders _ _ {counters = Nothing}) = False
-  counterRiderWritten (MkMoveRiders _ _ {counters = Just _}) = True
+  counterRiderWritten (MkMoveRiders _ _ Nothing) = False
+  counterRiderWritten (MkMoveRiders _ _ (Just _)) = True
 
   public export
   ridersWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
@@ -3034,7 +3034,7 @@ mutual
     ||| [CR#701.37a,702.112a].
     GainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->
                        (w : GivingWarrant d) ->
-                       {default Nothing span : Maybe (Duration (nomIntro n))} ->
+                       (span : Maybe (Duration (nomIntro n))) ->
                        {auto 0 sc : designationScope d = HeldBy k} ->
                        {auto 0 zn : DesignationHolder d (nounZone n)} -> Effect bs
     GameBecomes : (d : Designation) ->
@@ -3043,10 +3043,10 @@ mutual
     Concludes : (v : OutcomeVerb) -> (who : Noun bs Player) -> Effect bs
     GameDrawn : Effect bs
     Choose : {k : Kind} -> (n : Noun bs k) ->
-             {default Nothing by : Maybe (Noun bs Player)} ->
+             (by : Maybe (Noun bs Player)) ->
              {auto 0 ch : ChoiceClause by n} -> Effect bs
     Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
-           {default (MkMoveRiders [] Nothing) riders : MoveRiders (nomIntro what)} ->
+           (riders : MoveRiders (nomIntro what)) ->
            {auto 0 ok : DestOk to} ->
            {auto 0 arr : ArrangementOk (nounPlur what) to} ->
            {auto 0 pl : Placeable (nounTy what) (zoneSort to)} ->
@@ -3106,7 +3106,7 @@ mutual
     ||| leaving it unwritten is the "all" spelling rather than the only
     ||| reading available.
     LosesCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
-                    {default Nothing amt : Maybe (Amount (nomIntro who))} ->
+                    (amt : Maybe (Amount (nomIntro who))) ->
                     {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
     Composite : (v : VerbName) -> (e : Effect bs) ->
                 {auto 0 ok : TagBody v e} -> {auto 0 na : NonAgentive v} -> Effect bs
@@ -3163,7 +3163,7 @@ mutual
             {auto 0 mf : ModesFit q (modeCount modes)} ->
             {auto 0 dm : So (distinctModes modes)} -> Effect bs
     Delayed : (ev : GameEvent bs) ->
-              {default Nothing span : Maybe (Duration bs)} ->
+              (span : Maybe (Duration bs)) ->
               Effect (delayedCtx ev) ->
               {auto 0 so : DelaySpanOk span} -> Effect bs
     InsteadOf : (replaced : Effect bs) -> (repl : Effect (replacedCtx replaced)) ->
@@ -3191,7 +3191,7 @@ mutual
     ExtraTurn : (who : Noun bs Player) -> (count : Amount bs) -> Effect bs
     AdditionalPart : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
                      (count : Amount bs) ->
-                     {default Nothing followedBy : Maybe TurnPart} ->
+                     (followedBy : Maybe TurnPart) ->
                      {auto 0 ad : AddedPart part} ->
                      {auto 0 an : AnchorPart anchor} ->
                      {auto 0 fb : FollowerPart followedBy} -> Effect bs
@@ -3206,7 +3206,7 @@ mutual
   heldUntilOk (DoesntUntapNext _ _) = False
   heldUntilOk (SkipsNext _ _ _) = False
   heldUntilOk (ExtraTurn _ _) = False
-  heldUntilOk (AdditionalPart _ _ _) = False
+  heldUntilOk (AdditionalPart _ _ _ _) = False
   heldUntilOk (Distribute _ _ _) = False
   heldUntilOk (Fights _ _) = False
   -- [CR#610.4]: "until" also rides a permanent phasing out, and the
@@ -3214,19 +3214,19 @@ mutual
   heldUntilOk (SetStatus PhasedOut _) = True
   heldUntilOk (SetStatus _ _) = False
   heldUntilOk (GetsCounters _ _ _) = False
-  heldUntilOk (LosesCounters _ _) = False
+  heldUntilOk (LosesCounters _ _ _) = False
   heldUntilOk (RemoveFromCombat _) = False
   heldUntilOk (Regenerate _) = False
   heldUntilOk (CantBe _ _ _) = False
-  heldUntilOk (GainsDesignation _ _ _) = False
+  heldUntilOk (GainsDesignation _ _ _ _) = False
   heldUntilOk (GameBecomes _) = False
   heldUntilOk (Concludes _ _) = False
   heldUntilOk GameDrawn = False
   heldUntilOk (CounterSpell _) = False
   heldUntilOk (CopyStack _ _ _ _) = False
   heldUntilOk (ChooseNewTargets _) = False
-  heldUntilOk (Choose _) = False
-  heldUntilOk (Move _ _) = True
+  heldUntilOk (Choose _ _) = False
+  heldUntilOk (Move _ _ _) = True
   heldUntilOk (ChangeLife _ _) = False
   heldUntilOk (AddMana _ _ _ _) = False
   heldUntilOk (Draw _ _) = False
@@ -3238,7 +3238,7 @@ mutual
   heldUntilOk (GetsEmblem _ _) = False
   heldUntilOk (PutCounters _ _ _) = False
   heldUntilOk (RemoveCounters _ _ _) = False
-  heldUntilOk (Composite _ (Move _ _)) = True
+  heldUntilOk (Composite _ (Move _ _ _)) = True
   heldUntilOk (Composite _ _) = False
   heldUntilOk (Does _ _ _) = False
   heldUntilOk (Pay _ _) = False
@@ -3252,7 +3252,7 @@ mutual
   heldUntilOk (Sequentially _) = False
   heldUntilOk (Simultaneously _) = False
   heldUntilOk (Modal _ _) = False
-  heldUntilOk (Delayed _ _) = False
+  heldUntilOk (Delayed _ _ _) = False
   heldUntilOk (InsteadOf _ _) = False
   heldUntilOk (HeldUntil _ _) = False
   heldUntilOk (Reflexively _ _) = False
@@ -3280,7 +3280,7 @@ mutual
   reflexEncloseUse (DoesntUntapNext _ _) = EncAgentless
   reflexEncloseUse (SkipsNext _ _ _) = EncNotYetTaken
   reflexEncloseUse (ExtraTurn _ _) = EncNotYetTaken
-  reflexEncloseUse (AdditionalPart _ _ _) = EncAgentless
+  reflexEncloseUse (AdditionalPart _ _ _ _) = EncAgentless
   reflexEncloseUse (Distribute _ _ _) = EncAgentless
   reflexEncloseUse (Fights _ _) = EncAgentless
   reflexEncloseUse (ChangeLife _ _) = EncAgentless
@@ -3293,11 +3293,11 @@ mutual
   -- agent form has no subject to inflect.
   reflexEncloseUse (SetStatus _ _) = EncAgentless
   reflexEncloseUse (GetsCounters _ _ _) = EncAgentless
-  reflexEncloseUse (LosesCounters _ _) = EncAgentless
+  reflexEncloseUse (LosesCounters _ _ _) = EncAgentless
   reflexEncloseUse (RemoveFromCombat _) = EncAgentless
   reflexEncloseUse (Regenerate _) = EncAgentless
   reflexEncloseUse (CantBe _ _ _) = EncAgentless
-  reflexEncloseUse (GainsDesignation _ _ _) = EncAgentless
+  reflexEncloseUse (GainsDesignation _ _ _ _) = EncAgentless
   reflexEncloseUse (GameBecomes _) = EncAgentless
   reflexEncloseUse (Concludes _ _) = EncAgentless
   reflexEncloseUse GameDrawn = EncAgentless
@@ -3308,11 +3308,11 @@ mutual
   reflexEncloseUse (GetsEmblem _ _) = EncAgentless
   reflexEncloseUse (PutCounters _ _ _) = EncReflexive    -- 8
   reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive -- 7
-  reflexEncloseUse (Move _ _) = EncReflexive       -- 3
+  reflexEncloseUse (Move _ _ _) = EncReflexive       -- 3
   reflexEncloseUse (Expose _ _ _) = EncReflexive   -- 2
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
   reflexEncloseUse (Draw _ _) = EncReflexive       -- 1 ([CR#121.1]: a PLAYER draws)
-  reflexEncloseUse (Choose _) = EncReflexive       -- 1
+  reflexEncloseUse (Choose _ _) = EncReflexive       -- 1
   reflexEncloseUse (Search _ _ _) = EncReflexive
   reflexEncloseUse (Shuffle _) = EncReflexive
   -- [CR#603.12] writes the reflexive over what a player did or didn't
@@ -3331,7 +3331,7 @@ mutual
   reflexEncloseUse (InsteadOf _ _) = EncNotOneAction
   reflexEncloseUse (Reflexively _ _) = EncNotOneAction
   reflexEncloseUse (ThisWay _ _ _) = EncNotOneAction
-  reflexEncloseUse (Delayed _ _) = EncNotYetTaken
+  reflexEncloseUse (Delayed _ _ _) = EncNotYetTaken
   reflexEncloseUse (HeldUntil _ _) = EncNotYetTaken
 
   public export
@@ -3356,32 +3356,32 @@ mutual
   ||| enclosure is fine here.
   public export
   thisWayOutcomeOk : {0 bs : Bindings} -> Effect bs -> Bool
-  thisWayOutcomeOk (Delayed _ _) = False
+  thisWayOutcomeOk (Delayed _ _ _) = False
   -- an offer's outcome is its body's; the arms are separate sentences.
   thisWayOutcomeOk (May _ body _ _) = thisWayOutcomeOk body
   thisWayOutcomeOk (DoesntUntapNext _ _) = True
   thisWayOutcomeOk (SkipsNext _ _ _) = True
   thisWayOutcomeOk (ExtraTurn _ _) = True
-  thisWayOutcomeOk (AdditionalPart _ _ _) = True
+  thisWayOutcomeOk (AdditionalPart _ _ _ _) = True
   thisWayOutcomeOk (HeldUntil _ _) = True
   thisWayOutcomeOk (DealDamage _ _ _) = True
   thisWayOutcomeOk (Distribute _ _ _) = True
   thisWayOutcomeOk (Fights _ _) = True
   thisWayOutcomeOk (SetStatus _ _) = True
   thisWayOutcomeOk (GetsCounters _ _ _) = True
-  thisWayOutcomeOk (LosesCounters _ _) = True
+  thisWayOutcomeOk (LosesCounters _ _ _) = True
   thisWayOutcomeOk (RemoveFromCombat _) = True
   thisWayOutcomeOk (Regenerate _) = True
   thisWayOutcomeOk (CantBe _ _ _) = True
-  thisWayOutcomeOk (GainsDesignation _ _ _) = True
+  thisWayOutcomeOk (GainsDesignation _ _ _ _) = True
   thisWayOutcomeOk (GameBecomes _) = True
   thisWayOutcomeOk (Concludes _ _) = True
   thisWayOutcomeOk GameDrawn = True
   thisWayOutcomeOk (CounterSpell _) = True
   thisWayOutcomeOk (CopyStack _ _ _ _) = True
   thisWayOutcomeOk (ChooseNewTargets _) = True
-  thisWayOutcomeOk (Choose _) = True
-  thisWayOutcomeOk (Move _ _) = True
+  thisWayOutcomeOk (Choose _ _) = True
+  thisWayOutcomeOk (Move _ _ _) = True
   thisWayOutcomeOk (ChangeLife _ _) = True
   thisWayOutcomeOk (AddMana _ _ _ _) = True
   thisWayOutcomeOk (Draw _ _) = True
@@ -3431,7 +3431,7 @@ mutual
   public export
   costNounOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   costNounOk This = True
-  costNounOk (AsType t n) = costNounOk n
+  costNounOk (AsType t n _) = costNounOk n
   costNounOk You = True
   costNounOk (PlayerGroup _) = True
   costNounOk (Each _) = True
@@ -3451,8 +3451,8 @@ mutual
   costNounOk (Those _) = True
   costNounOk (That _) = True
   costNounOk (AttachHost _ _) = True
-  costNounOk (TheVerbed _ _) = False
-  costNounOk (ThoseVerbed _ _) = False
+  costNounOk (TheVerbed _ _ _) = False
+  costNounOk (ThoseVerbed _ _ _) = False
   costNounOk (ControllerOf _) = True
   costNounOk (OwnerOf _) = True
   costNounOk (Designated _ _) = True
@@ -3462,7 +3462,7 @@ mutual
   nounIsYou You = True
   nounIsYou (PlayerGroup _) = False
   nounIsYou This = False
-  nounIsYou (AsType _ _) = False
+  nounIsYou (AsType _ _ _) = False
   nounIsYou (Each _) = False
   nounIsYou (Indefinite _ _) = False
   nounIsYou (Definite _) = False
@@ -3480,8 +3480,8 @@ mutual
   nounIsYou (Those _) = False
   nounIsYou (That _) = False
   nounIsYou (AttachHost _ _) = False
-  nounIsYou (TheVerbed _ _) = False
-  nounIsYou (ThoseVerbed _ _) = False
+  nounIsYou (TheVerbed _ _ _) = False
+  nounIsYou (ThoseVerbed _ _ _) = False
   nounIsYou (ControllerOf _) = False
   nounIsYou (OwnerOf _) = False
   nounIsYou (Designated _ _) = False
@@ -3499,24 +3499,24 @@ mutual
   costActionOk (DoesntUntapNext n _) = costNounOk n
   costActionOk (SkipsNext _ _ _) = False
   costActionOk (ExtraTurn who _) = costNounOk who
-  costActionOk (AdditionalPart _ _ _) = True
+  costActionOk (AdditionalPart _ _ _ _) = True
   costActionOk (Distribute _ _ among) = costNounOk among
   costActionOk (Fights a _) = costNounOk a
   costActionOk (SetStatus _ n) = costNounOk n
   costActionOk (GetsCounters who _ _) = costNounOk who
-  costActionOk (LosesCounters who _) = costNounOk who
+  costActionOk (LosesCounters who _ _) = costNounOk who
   costActionOk (RemoveFromCombat n) = costNounOk n
   costActionOk (Regenerate n) = costNounOk n
   costActionOk (CantBe e _ _) = costActionOk e
-  costActionOk (GainsDesignation n _ _) = costNounOk n
+  costActionOk (GainsDesignation n _ _ _) = costNounOk n
   costActionOk (GameBecomes _) = True
   costActionOk (Concludes _ _) = True
   costActionOk GameDrawn = True
   costActionOk (CounterSpell _) = True
   costActionOk (CopyStack _ what _ _) = costNounOk what
   costActionOk (ChooseNewTargets what) = costNounOk what
-  costActionOk (Choose n) = costNounOk n
-  costActionOk (Move what _) = costNounOk what
+  costActionOk (Choose n _) = costNounOk n
+  costActionOk (Move what _ _) = costNounOk what
   costActionOk (ChangeLife _ _) = True
   costActionOk (AddMana who _ _ _) = costNounOk who
   costActionOk (Draw _ _) = True
@@ -3543,7 +3543,7 @@ mutual
   costActionOk (Sequentially _) = False
   costActionOk (Simultaneously _) = False
   costActionOk (Modal _ modes) = costActionsOk modes
-  costActionOk (Delayed _ _) = False
+  costActionOk (Delayed _ _ _) = False
   costActionOk (InsteadOf _ _) = False
   costActionOk (HeldUntil _ _) = False
   costActionOk (Reflexively _ _) = False
@@ -3591,24 +3591,24 @@ mutual
   effEq (SkipsNext _ _ _) _ = False
   effEq (ExtraTurn w c) (ExtraTurn x d) = nounEqRef w x && boundEq c d
   effEq (ExtraTurn _ _) _ = False
-  effEq (AdditionalPart p a c) (AdditionalPart q b d) =
+  effEq (AdditionalPart p a c _) (AdditionalPart q b d _) =
     p == q && a == b && boundEq c d
-  effEq (AdditionalPart _ _ _) _ = False
+  effEq (AdditionalPart _ _ _ _) _ = False
   effEq (Distribute _ _ _) _ = False
   effEq (Fights _ _) _ = False
   effEq (SetStatus v a) (SetStatus w b) = sameStatusVal v w && nounEqRef a b
   effEq (SetStatus _ _) _ = False
   effEq (GetsCounters _ _ _) _ = False
-  effEq (LosesCounters a Nothing) (LosesCounters b Nothing) = nounEqRef a b
-  effEq (LosesCounters a (Just j)) (LosesCounters b (Just l)) =
+  effEq (LosesCounters a Nothing _) (LosesCounters b Nothing _) = nounEqRef a b
+  effEq (LosesCounters a (Just j) _) (LosesCounters b (Just l) _) =
     nounEqRef a b && j == l
-  effEq (LosesCounters _ _) _ = False
+  effEq (LosesCounters _ _ _) _ = False
   effEq (RemoveFromCombat a) (RemoveFromCombat b) = nounEqRef a b
   effEq (RemoveFromCombat _) _ = False
   effEq (Regenerate a) (Regenerate b) = nounEqRef a b
   effEq (Regenerate _) _ = False
   effEq (CantBe _ _ _) _ = False
-  effEq (GainsDesignation _ _ _) _ = False
+  effEq (GainsDesignation _ _ _ _) _ = False
   effEq (GameBecomes a) (GameBecomes b) = a == b
   effEq (GameBecomes _) _ = False
   effEq (Concludes v a) (Concludes w b) = v == w && nounEqRef a b
@@ -3620,9 +3620,9 @@ mutual
   effEq (CopyStack _ _ _ _) _ = False
   effEq (ChooseNewTargets a) (ChooseNewTargets b) = nounEqRef a b
   effEq (ChooseNewTargets _) _ = False
-  effEq (Choose _) _ = False
-  effEq (Move a s) (Move b t) = nounEqRef a b && zoneSort s == zoneSort t
-  effEq (Move _ _) _ = False
+  effEq (Choose _ _) _ = False
+  effEq (Move a s _) (Move b t _) = nounEqRef a b && zoneSort s == zoneSort t
+  effEq (Move _ _ _) _ = False
   effEq (ChangeLife _ _) _ = False
   effEq (AddMana _ _ _ _) _ = False
   effEq (Draw You a) (Draw You b) = boundEq a b
@@ -3649,7 +3649,7 @@ mutual
   effEq (Sequentially _) _ = False
   effEq (Simultaneously _) _ = False
   effEq (Modal _ _) _ = False
-  effEq (Delayed _ _) _ = False
+  effEq (Delayed _ _ _) _ = False
   effEq (InsteadOf _ _) _ = False
   effEq (HeldUntil _ _) _ = False
   effEq (Reflexively _ _) _ = False
@@ -3683,7 +3683,7 @@ mutual
   nounTargeted (TargetGroup _ _) = True
   nounTargeted (CountedGroup _ _) = False
   nounTargeted This = False
-  nounTargeted (AsType _ n) = nounTargeted n
+  nounTargeted (AsType _ n _) = nounTargeted n
   nounTargeted You = False
   nounTargeted (PlayerGroup _) = False
   nounTargeted (Each _) = False
@@ -3701,8 +3701,8 @@ mutual
   nounTargeted (Those _) = False
   nounTargeted (That _) = False
   nounTargeted (AttachHost _ _) = False
-  nounTargeted (TheVerbed _ _) = False
-  nounTargeted (ThoseVerbed _ _) = False
+  nounTargeted (TheVerbed _ _ _) = False
+  nounTargeted (ThoseVerbed _ _ _) = False
   nounTargeted (ControllerOf _) = False
   nounTargeted (OwnerOf _) = False
   nounTargeted (Designated _ _) = False
@@ -3720,8 +3720,8 @@ mutual
   counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   counterMemoryOk It = not (stampMoves (provOfIt bs))
   counterMemoryOk Them = not (stampMoves (provOfThem bs))
-  counterMemoryOk (TheVerbed v _) = not (verbMoves v)
-  counterMemoryOk (ThoseVerbed v _) = not (verbMoves v)
+  counterMemoryOk (TheVerbed v _ _) = not (verbMoves v)
+  counterMemoryOk (ThoseVerbed v _ _) = not (verbMoves v)
   counterMemoryOk _ = True
 
   public export
@@ -3764,22 +3764,20 @@ mutual
   public export
   data TagBody : VerbName -> Effect bs -> Type where
     DestroyB : {auto 0 z : OnBattlefield (nounZone n)} ->
-               TagBody Destroy (Move n (ZoneAt Graveyard Bare))
+               TagBody Destroy (Move n (ZoneAt Graveyard Bare) (MkMoveRiders [] Nothing Nothing))
     SacrificeB : {auto 0 z : OnBattlefield (nounZone n)} ->
-                 TagBody Sacrifice (Move n (ZoneAt Graveyard Bare))
-    ExileB : TagBody Exile (Move n (ZoneAt Exile Bare))
+                 TagBody Sacrifice (Move n (ZoneAt Graveyard Bare) (MkMoveRiders [] Nothing Nothing))
+    ExileB : TagBody Exile (Move n (ZoneAt Exile Bare) (MkMoveRiders [] Nothing Nothing))
     ExileWithCountersB : {0 amt : Amount (nomIntro n)} ->
                          {0 kind : CounterKind} ->
                          TagBody Exile
-                                 (Move n (ZoneAt Exile Bare)
-                                       {riders = MkMoveRiders [] Nothing
-                                          {counters = Just (MkCounterRider amt kind)}})
+                                 (Move n (ZoneAt Exile Bare) (MkMoveRiders [] Nothing (Just (MkCounterRider amt kind))))
     DiscardB : {auto 0 d : DiscardOk n} ->
-               TagBody Discard (Move n (ZoneAt Graveyard Bare))
+               TagBody Discard (Move n (ZoneAt Graveyard Bare) (MkMoveRiders [] Nothing Nothing))
     MillB : {0 amt : Amount bs} -> {0 whose : Noun bs Player} ->
             {auto 0 sp : SlicePossessor whose} ->
             TagBody Mill (Move (LibrarySlice OnTop amt whose {sp})
-                               (ZoneAt Graveyard Bare))
+                               (ZoneAt Graveyard Bare) (MkMoveRiders [] Nothing Nothing))
     ||| [CR#701.22a] states one player twice over — the looker and the
     ||| owner of the library looked at are the same person — and says
     ||| nothing about WHICH player that is, so "target player scries 3"
@@ -3820,7 +3818,7 @@ mutual
     ||| Every Move admits: its own gates already bound the destination, and
     ||| the destination's possessive is rendering's business [CR#400.3].
     PutB :
-           TagBody Put (Move n to {riders} {ok} {arr} {pl} {rf})
+           TagBody Put (Move n to riders {ok} {arr} {pl} {rf})
 
   public export
   NonAgentive : VerbName -> Type
@@ -3914,11 +3912,11 @@ mutual
   moveIntro p Them z = setZoneThem p z bs
   moveIntro p (That w) z = setZoneThat p w z bs
   moveIntro p (Those w) z = setZoneThose p w z bs
-  moveIntro p (TheVerbed v w) z = setZoneVerbed p v w z bs
-  moveIntro p (ThoseVerbed v w) z = setZoneManyVerbed p v w z bs
+  moveIntro p (TheVerbed v w _) z = setZoneVerbed p v w z bs
+  moveIntro p (ThoseVerbed v w _) z = setZoneManyVerbed p v w z bs
   moveIntro p This z = bs
   moveIntro p (AttachHost _ _) z = bs
-  moveIntro p (AsType t n) z = MkBinding TheD Object OneOf (ObjectP (Just t) z (mkStamp p Nothing) Nothing) :: bs
+  moveIntro p (AsType t n _) z = MkBinding TheD Object OneOf (ObjectP (Just t) z (mkStamp p Nothing) Nothing) :: bs
   moveIntro p You z = bs
   moveIntro p (PlayerGroup _) z = bs
   moveIntro p They z = bs
@@ -3929,7 +3927,7 @@ mutual
   public export
   nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone
   nounZone This = Nothing
-  nounZone (AsType t n) = Just Battlefield
+  nounZone (AsType t n _) = Just Battlefield
   nounZone You = Nothing
   nounZone (PlayerGroup _) = Nothing
   nounZone (Each p) = phraseZone p
@@ -3949,8 +3947,8 @@ mutual
   nounZone (That w) = zoneOfThat w bs
   nounZone (AttachHost _ h) = attachHostZone h
   nounZone (Those w) = zoneOfThose w bs
-  nounZone (TheVerbed v w) = zoneOfVerbed v w bs
-  nounZone (ThoseVerbed v w) = zoneOfManyVerbed v w bs
+  nounZone (TheVerbed v w _) = zoneOfVerbed v w bs
+  nounZone (ThoseVerbed v w _) = zoneOfManyVerbed v w bs
   nounZone (ControllerOf n) = Nothing
   nounZone (OwnerOf n) = Nothing
   -- [CR#903.3]: the designation is an attribute of the card, so it
@@ -3960,7 +3958,7 @@ mutual
   public export
   nounTy : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe CardType
   nounTy This = Nothing
-  nounTy (AsType t n) = Just t
+  nounTy (AsType t n _) = Just t
   nounTy You = Nothing
   nounTy (PlayerGroup _) = Nothing
   nounTy (Each p) = seedTy p
@@ -3980,8 +3978,8 @@ mutual
   nounTy (That w) = tyOfThat w bs
   nounTy (AttachHost _ h) = attachHostTy h
   nounTy (Those w) = tyOfThose w bs
-  nounTy (TheVerbed v w) = tyOfVerbed v w bs
-  nounTy (ThoseVerbed v w) = tyOfManyVerbed v w bs
+  nounTy (TheVerbed v w _) = tyOfVerbed v w bs
+  nounTy (ThoseVerbed v w _) = tyOfManyVerbed v w bs
   nounTy (ControllerOf n) = Nothing
   nounTy (OwnerOf n) = Nothing
   nounTy (Designated _ _) = Nothing
@@ -3989,7 +3987,7 @@ mutual
   public export
   nounPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
   nounPlur This = OneOf
-  nounPlur (AsType t n) = nounPlur n
+  nounPlur (AsType t n _) = nounPlur n
   nounPlur You = OneOf
   nounPlur (PlayerGroup _) = ManyOf
   nounPlur (Each p) = ManyOf
@@ -4009,8 +4007,8 @@ mutual
   nounPlur (That w) = OneOf
   nounPlur (AttachHost _ _) = OneOf
   nounPlur (Those w) = ManyOf
-  nounPlur (TheVerbed v w) = OneOf
-  nounPlur (ThoseVerbed v w) = ManyOf
+  nounPlur (TheVerbed v w _) = OneOf
+  nounPlur (ThoseVerbed v w _) = ManyOf
   nounPlur (ControllerOf n) = OneOf
   nounPlur (OwnerOf n) = OneOf
   nounPlur (Designated _ _) = OneOf
@@ -4024,13 +4022,13 @@ mutual
   effIntro (DoesntUntapNext n _) = nomIntro n
   effIntro (SkipsNext w _ _) = nomIntro w
   effIntro (ExtraTurn w _) = turnRefB :: nomIntro w
-  effIntro (AdditionalPart _ _ _) = bs
+  effIntro (AdditionalPart _ _ _ _) = bs
   effIntro (GetsCounters who amt _) = amtIntro amt
-  effIntro (LosesCounters who _ {amt}) = optAmtIntro amt
+  effIntro (LosesCounters who _ amt) = optAmtIntro amt
   effIntro (RemoveFromCombat n) = nomIntro n
   effIntro (Regenerate n) = nomIntro n
   effIntro (CantBe e _ _) = effIntro e
-  effIntro (GainsDesignation n _ _) = nomIntro n
+  effIntro (GainsDesignation n _ _ _) = nomIntro n
   effIntro (GameBecomes _) = bs
   effIntro (Concludes _ who) = nomIntro who
   effIntro GameDrawn = bs
@@ -4040,9 +4038,9 @@ mutual
               (ObjectP (nounTy what) (Just Stack) Nothing (Just CopyOrigin))
       :: amtIntro times
   effIntro (ChooseNewTargets what) = nomIntro what
-  effIntro (Choose n {by = Nothing}) = nomIntro n
-  effIntro (Choose n {by = Just b}) = nounDelta b ++ nomIntro n
-  effIntro (Move what to) = moveIntro Nothing what (Just (zoneSort to))
+  effIntro (Choose n Nothing) = nomIntro n
+  effIntro (Choose n (Just b)) = nounDelta b ++ nomIntro n
+  effIntro (Move what to _) = moveIntro Nothing what (Just (zoneSort to))
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
   effIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
@@ -4063,9 +4061,9 @@ mutual
   effIntro (Distribute (DividedDamage _) amt among) = outcomeB DamageDealt :: nomIntro among
   effIntro (Distribute (DistributedCounters _) amt among) = nomIntro among
   effIntro (RemoveCounters amt kind from) = nomIntro from
-  effIntro (Composite v (Move what to)) = moveIntro (Just v) what (Just (zoneSort to))
+  effIntro (Composite v (Move what to _)) = moveIntro (Just v) what (Just (zoneSort to))
   effIntro (Composite _ e) = effIntro e
-  effIntro (Does s v (Move what to)) = moveIntro (Just v) what (Just (zoneSort to))
+  effIntro (Does s v (Move what to _)) = moveIntro (Just v) what (Just (zoneSort to))
   effIntro (Does s v e) = effIntro e
   effIntro (Pay who c) = costIntro c
   effIntro (May d body did notd) = mayIntro body did notd
@@ -4079,7 +4077,7 @@ mutual
   effIntro (Sequentially es) = effsIntro es
   effIntro (Simultaneously es) = simIntro es
   effIntro (Modal q modes) = bs
-  effIntro (Delayed ev e) = bs               -- a future clause mentions nothing NOW
+  effIntro (Delayed ev _ e) = bs               -- a future clause mentions nothing NOW
   effIntro (Reflexively body trig) = effIntro body
   effIntro (ThisWay body ev trig) = effIntro body
   effIntro (InsteadOf replaced repl) = annIntro replaced
@@ -4097,21 +4095,21 @@ mutual
   preIntro (DoesntUntapNext n _) = nomIntro n
   preIntro (SkipsNext w _ _) = nomIntro w
   preIntro (ExtraTurn w _) = nomIntro w
-  preIntro (AdditionalPart _ _ _) = bs
+  preIntro (AdditionalPart _ _ _ _) = bs
   preIntro (GetsCounters who amt _) = amtIntro amt
-  preIntro (LosesCounters who _ {amt}) = optAmtIntro amt
+  preIntro (LosesCounters who _ amt) = optAmtIntro amt
   preIntro (RemoveFromCombat n) = nomIntro n
   preIntro (Regenerate n) = nomIntro n
   preIntro (CantBe e _ _) = preIntro e
-  preIntro (GainsDesignation n _ _) = nomIntro n
+  preIntro (GainsDesignation n _ _ _) = nomIntro n
   preIntro (GameBecomes _) = bs
   preIntro (Concludes _ who) = nomIntro who
   preIntro GameDrawn = bs
   preIntro (CounterSpell what) = nomIntro what
   preIntro (CopyStack agent what times exc) = amtIntro times
   preIntro (ChooseNewTargets what) = nomIntro what
-  preIntro (Choose n) = nomIntro n
-  preIntro (Move what to) = nomIntro what
+  preIntro (Choose n _) = nomIntro n
+  preIntro (Move what to _) = nomIntro what
   preIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
   preIntro (ChangeLife who (Down a)) = lifeIntro (Down a)
   preIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
@@ -4125,9 +4123,9 @@ mutual
   preIntro (GetsEmblem who _) = nomIntro who
   preIntro (PutCounters amt kind on) = nomIntro on
   preIntro (RemoveCounters amt kind from) = nomIntro from
-  preIntro (Composite v (Move what to)) = nomIntro what
+  preIntro (Composite v (Move what to _)) = nomIntro what
   preIntro (Composite _ e) = preIntro e
-  preIntro (Does s v (Move what to)) = nomIntro what
+  preIntro (Does s v (Move what to _)) = nomIntro what
   preIntro (Does s v e) = preIntro e
   preIntro (Pay who c) = nomIntro who
   preIntro (May d body did notd) = mayIntro body did notd
@@ -4140,7 +4138,7 @@ mutual
   preIntro (Sequentially es) = preIntros es
   preIntro (Simultaneously es) = simPres es
   preIntro (Modal q modes) = bs
-  preIntro (Delayed ev e) = bs
+  preIntro (Delayed ev _ e) = bs
   preIntro (Reflexively body trig) = preIntro body
   preIntro (ThisWay body ev trig) = preIntro body
   preIntro (InsteadOf replaced repl) = annIntro replaced
@@ -4158,21 +4156,21 @@ mutual
   annIntro (DoesntUntapNext n _) = nomIntro n
   annIntro (SkipsNext w _ _) = nomIntro w
   annIntro (ExtraTurn w _) = turnRefB :: nomIntro w
-  annIntro (AdditionalPart _ _ _) = bs
+  annIntro (AdditionalPart _ _ _ _) = bs
   annIntro (GetsCounters who amt _) = amtIntro amt
-  annIntro (LosesCounters who _ {amt}) = optAmtIntro amt
+  annIntro (LosesCounters who _ amt) = optAmtIntro amt
   annIntro (RemoveFromCombat n) = nomIntro n
   annIntro (Regenerate n) = nomIntro n
   annIntro (CantBe e _ _) = annIntro e
-  annIntro (GainsDesignation n _ _) = nomIntro n
+  annIntro (GainsDesignation n _ _ _) = nomIntro n
   annIntro (GameBecomes _) = bs
   annIntro (Concludes _ who) = nomIntro who
   annIntro GameDrawn = bs
   annIntro (CounterSpell what) = nomIntro what
   annIntro (CopyStack agent what times exc) = amtIntro times
   annIntro (ChooseNewTargets what) = nomIntro what
-  annIntro (Choose n) = nomIntro n
-  annIntro (Move what to) = nomIntro what
+  annIntro (Choose n _) = nomIntro n
+  annIntro (Move what to _) = nomIntro what
   annIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
   annIntro (ChangeLife who (Down a)) = lifeIntro (Down a)
   annIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
@@ -4186,9 +4184,9 @@ mutual
   annIntro (GetsEmblem who _) = nomIntro who
   annIntro (PutCounters amt kind on) = nomIntro on
   annIntro (RemoveCounters amt kind from) = nomIntro from
-  annIntro (Composite v (Move what to)) = nomIntro what
+  annIntro (Composite v (Move what to _)) = nomIntro what
   annIntro (Composite _ e) = annIntro e
-  annIntro (Does s v (Move what to)) = nomIntro what
+  annIntro (Does s v (Move what to _)) = nomIntro what
   annIntro (Does s v e) = annIntro e
   annIntro (Pay who c) = nomIntro who
   annIntro (May d body did notd) = annIntro body
@@ -4201,7 +4199,7 @@ mutual
   annIntro (Sequentially es) = bs
   annIntro (Simultaneously es) = annSims es
   annIntro (Modal q modes) = bs
-  annIntro (Delayed ev e) = bs
+  annIntro (Delayed ev _ e) = bs
   annIntro (Reflexively body trig) = annIntro body
   annIntro (ThisWay body ev trig) = annIntro body
   annIntro (InsteadOf replaced repl) = annIntro replaced
@@ -4257,13 +4255,13 @@ mutual
   deedDelta (DoesntUntapNext _ _) = []
   deedDelta (SkipsNext _ _ _) = []
   deedDelta (ExtraTurn _ _) = []
-  deedDelta (AdditionalPart _ _ _) = []
+  deedDelta (AdditionalPart _ _ _ _) = []
   deedDelta (GetsCounters _ _ _) = []
-  deedDelta (LosesCounters _ _) = []
+  deedDelta (LosesCounters _ _ _) = []
   deedDelta (RemoveFromCombat _) = []
   deedDelta (Regenerate _) = []
   deedDelta (CantBe e _ _) = deedDelta e
-  deedDelta (GainsDesignation _ _ _) = []
+  deedDelta (GainsDesignation _ _ _ _) = []
   deedDelta (GameBecomes _) = []
   deedDelta (Concludes _ _) = []
   deedDelta GameDrawn = []
@@ -4272,8 +4270,8 @@ mutual
     [MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
                (ObjectP (nounTy what) (Just Stack) Nothing (Just CopyOrigin))]
   deedDelta (ChooseNewTargets _) = []
-  deedDelta (Choose n) = []
-  deedDelta (Move what to) = []
+  deedDelta (Choose n _) = []
+  deedDelta (Move what to _) = []
   deedDelta (ChangeLife who (Up a)) = [outcomeB LifeGained]
   deedDelta (ChangeLife who (Down a)) = [outcomeB LifeLost]
   deedDelta (ChangeLife who (Set a)) = []
@@ -4290,9 +4288,9 @@ mutual
   deedDelta (GetsEmblem _ _) = []
   deedDelta (PutCounters amt kind on) = []
   deedDelta (RemoveCounters amt kind from) = []
-  deedDelta (Composite v (Move what to)) = []
+  deedDelta (Composite v (Move what to _)) = []
   deedDelta (Composite _ e) = deedDelta e
-  deedDelta (Does s v (Move what to)) = []
+  deedDelta (Does s v (Move what to _)) = []
   deedDelta (Does s v e) = deedDelta e
   deedDelta (Pay who c) = []
   deedDelta (May d body did notd) = []
@@ -4305,7 +4303,7 @@ mutual
   deedDelta (Sequentially es) = []
   deedDelta (Simultaneously es) = []
   deedDelta (Modal q modes) = []
-  deedDelta (Delayed ev e) = []
+  deedDelta (Delayed ev _ e) = []
   deedDelta (Reflexively body trig) = deedDelta body
   deedDelta (ThisWay body ev trig) = deedDelta body
   deedDelta (InsteadOf replaced repl) = []
@@ -4457,21 +4455,21 @@ mutual
   public export
   data AbilityAt : Bindings -> Type where
     KeywordAbility : (k : Keyword) ->
-                     {default Nothing param : Maybe (KeywordParam bs)} ->
+                     (param : Maybe (KeywordParam bs)) ->
                      {auto 0 pf : KeywordParamFits k param} -> AbilityAt bs
     Activated : (cost : Cost bs) ->
                 (eff : Effect (publicOnly (costIntro cost))) ->
                 {auto 0 tp : CostTapOnce cost} ->
                 {auto 0 py : CostPaidByYou cost} ->
-                {default Nothing window : Maybe Timing} ->
-                {default Nothing limit : Maybe UsageLimit} ->
-                {default Nothing guard : Maybe (Condition bs)} ->
+                (window : Maybe Timing) ->
+                (limit : Maybe UsageLimit) ->
+                (guard : Maybe (Condition bs)) ->
                 AbilityAt bs
     Triggered : (word : TriggerWord) -> (ev : GameEvent bs) ->
-                {default Nothing alt : Maybe (GameEvent bs)} ->
-                {default Nothing window : Maybe TriggerWindow} ->
-                {default Nothing limit : Maybe UsageLimit} ->
-                {default Nothing intervening : Maybe (Condition (headerCtx alt ev))} ->
+                (alt : Maybe (GameEvent bs)) ->
+                (window : Maybe TriggerWindow) ->
+                (limit : Maybe UsageLimit) ->
+                (intervening : Maybe (Condition (headerCtx alt ev))) ->
                 (eff : Effect (interveningIntro intervening)) ->
                 {auto 0 hn : HeaderNontarget ev} ->
                 {auto 0 ae : AltEvent word alt} ->
@@ -4521,13 +4519,13 @@ mutual
   public export
   lineKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe Keyword
   lineKeyword (Static se) = statKeyword se
-  lineKeyword (Triggered _ _ eff) = effKeyword eff
+  lineKeyword (Triggered _ _ _ _ _ _ eff) = effKeyword eff
   lineKeyword _ = Nothing
 
   public export
   statKeyword : {0 bs : Bindings} -> StaticEffect bs -> Maybe Keyword
-  statKeyword (Conditionally _ se) = statKeyword se
-  statKeyword (OnlyWhile se _) = statKeyword se
+  statKeyword (Conditionally _ se _) = statKeyword se
+  statKeyword (OnlyWhile se _ _) = statKeyword se
   statKeyword (Gains _ ab) = grantedKeyword ab
   statKeyword _ = Nothing
 
@@ -4538,7 +4536,7 @@ mutual
 
   public export
   grantedKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe Keyword
-  grantedKeyword (KeywordAbility k {param = Nothing}) =
+  grantedKeyword (KeywordAbility k Nothing) =
     if keywordParamless k then Just k else Nothing
   grantedKeyword _ = Nothing
 
@@ -4587,9 +4585,9 @@ mutual
   ||| second ability.
   public export
   grantableAb : {0 bs : Bindings} -> AbilityAt bs -> Bool
-  grantableAb (KeywordAbility _) = True
-  grantableAb (Activated _ _) = True
-  grantableAb (Triggered _ _ _) = True
+  grantableAb (KeywordAbility _ _) = True
+  grantableAb (Activated _ _ _ _ _) = True
+  grantableAb (Triggered _ _ _ _ _ _ _) = True
   grantableAb (Static _) = True
   grantableAb (Spell _) = False
   grantableAb (AlsoForKeywords _ _) = False
@@ -4601,9 +4599,9 @@ mutual
 
   public export
   emblemAbilityOk : AbilityAt [] -> Bool
-  emblemAbilityOk (KeywordAbility _) = False
-  emblemAbilityOk (Activated _ _) = True
-  emblemAbilityOk (Triggered _ _ _) = True
+  emblemAbilityOk (KeywordAbility _ _) = False
+  emblemAbilityOk (Activated _ _ _ _ _) = True
+  emblemAbilityOk (Triggered _ _ _ _ _ _ _) = True
   emblemAbilityOk (Static _) = True
   emblemAbilityOk (AlsoForKeywords _ _) = False
   emblemAbilityOk (AbilityWord _ ab) = emblemAbilityOk ab
@@ -4666,9 +4664,9 @@ mutual
 
   public export
   abRegime : {0 bs : Bindings} -> AbilityAt bs -> Maybe StackRegime
-  abRegime (KeywordAbility k) = keywordStackRegime k
-  abRegime (Activated _ _) = Nothing
-  abRegime (Triggered _ _ _) = Nothing
+  abRegime (KeywordAbility k _) = keywordStackRegime k
+  abRegime (Activated _ _ _ _ _) = Nothing
+  abRegime (Triggered _ _ _ _ _ _ _) = Nothing
   abRegime (Static _) = Nothing
   abRegime (AlsoForKeywords ab _) = abRegime ab
   abRegime (AbilityWord _ ab) = abRegime ab
@@ -4702,9 +4700,9 @@ mutual
 
   public export
   abIntro : {bs : Bindings} -> AbilityAt bs -> Bindings
-  abIntro (KeywordAbility _) = bs
-  abIntro (Activated _ _) = bs
-  abIntro (Triggered _ _ _) = bs
+  abIntro (KeywordAbility _ _) = bs
+  abIntro (Activated _ _ _ _ _) = bs
+  abIntro (Triggered _ _ _ _ _ _ _) = bs
   abIntro (Static se) = staticChoiceIntro se
   abIntro (AlsoForKeywords ab _) = abIntro ab
   abIntro (AbilityWord _ ab) = abIntro ab
@@ -4985,22 +4983,22 @@ staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
 staticOnSpellCardOk (ObjectCant Countered _) = True
 staticOnSpellCardOk (ObjectCant Copied _) = True
 staticOnSpellCardOk (AltCost _) = True
-staticOnSpellCardOk (Conditionally _ se) = staticOnSpellCardOk se
-staticOnSpellCardOk (OnlyWhile se _) = staticOnSpellCardOk se
+staticOnSpellCardOk (Conditionally _ se _) = staticOnSpellCardOk se
+staticOnSpellCardOk (OnlyWhile se _ _) = staticOnSpellCardOk se
 staticOnSpellCardOk _ = False
 
 public export
 cardAbilityOk : {0 bs : Bindings} -> CardClass -> AbilityAt bs -> Bool
-cardAbilityOk PermanentCard (KeywordAbility k) = keywordCardOk PermanentCard k
-cardAbilityOk PermanentCard (Activated _ _) = True
-cardAbilityOk PermanentCard (Triggered _ _ _) = True
+cardAbilityOk PermanentCard (KeywordAbility k _) = keywordCardOk PermanentCard k
+cardAbilityOk PermanentCard (Activated _ _ _ _ _) = True
+cardAbilityOk PermanentCard (Triggered _ _ _ _ _ _ _) = True
 cardAbilityOk PermanentCard (Static _) = True
 cardAbilityOk PermanentCard (AlsoForKeywords ab _) = cardAbilityOk PermanentCard ab
 cardAbilityOk PermanentCard (Spell _) = False
 cardAbilityOk PermanentCard (AbilityWord _ ab) = cardAbilityOk PermanentCard ab
-cardAbilityOk SpellCard (KeywordAbility k) = keywordCardOk SpellCard k
-cardAbilityOk SpellCard (Activated c _) = costOffBattlefield c
-cardAbilityOk SpellCard (Triggered _ _ _) = True
+cardAbilityOk SpellCard (KeywordAbility k _) = keywordCardOk SpellCard k
+cardAbilityOk SpellCard (Activated c _ _ _ _) = costOffBattlefield c
+cardAbilityOk SpellCard (Triggered _ _ _ _ _ _ _) = True
 cardAbilityOk SpellCard (Static se) = staticOnSpellCardOk se
 cardAbilityOk SpellCard (AlsoForKeywords ab _) = cardAbilityOk SpellCard ab
 cardAbilityOk SpellCard (Spell _) = True
@@ -5013,7 +5011,7 @@ cardTextOk tys (a :: as) = cardAbilityOk (cardClassOf tys) a && cardTextOk tys a
 
 public export
 chapterLineOk : {0 bs : Bindings} -> List Subtype -> AbilityAt bs -> Bool
-chapterLineOk subs (Triggered _ (ChapterMark _) _) = elem Saga subs
+chapterLineOk subs (Triggered _ (ChapterMark _) _ _ _ _ _) = elem Saga subs
 chapterLineOk subs (AbilityWord _ ab) = chapterLineOk subs ab
 chapterLineOk subs (AlsoForKeywords ab _) = chapterLineOk subs ab
 chapterLineOk _ _ = True
@@ -5036,8 +5034,8 @@ public export
 staticDefinesPt : {0 bs : Bindings} -> StaticEffect bs -> Maybe DefinedSlots
 staticDefinesPt (DefinesPt _ sl _) = Just sl
 staticDefinesPt (WhereLetterStatic _ _ se) = staticDefinesPt se
-staticDefinesPt (Conditionally _ se) = staticDefinesPt se
-staticDefinesPt (OnlyWhile se _) = staticDefinesPt se
+staticDefinesPt (Conditionally _ se _) = staticDefinesPt se
+staticDefinesPt (OnlyWhile se _ _) = staticDefinesPt se
 staticDefinesPt _ = Nothing
 
 ||| [CR#207.2c] gives the ability word no rules meaning, so a characteristic-

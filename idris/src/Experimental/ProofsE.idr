@@ -14,7 +14,7 @@ import Experimental.Unspellable
 ||| Convoke functions only while the spell is on the stack [CR#702.51a], so a permanent grant does nothing.
 public export
 badBattlefieldConvoke : Unspellable (StaticEffect []) (\ok =>
-  Gains (AllOf Macros.creatureYouControl) (KeywordAbility Convoke) {ok})
+  Gains (AllOf Macros.creatureYouControl) (KeywordAbility Convoke Nothing) {ok})
 badBattlefieldConvoke Oh impossible
 
 ||| "Enchanted creature's power and toughness are each equal to your life total."
@@ -69,7 +69,7 @@ public export
 badChooseDefinite : Unspellable (Effect []) (\ok =>
   Choose (Definite (And [Macros.creature,
                          Superlative MinOf (CharAxis Toughness)
-                                     Macros.creatureYouControl])) {ch = ok})
+                                     Macros.creatureYouControl])) Nothing {ch = ok})
 badChooseDefinite BareChoice impossible
 
 
@@ -85,8 +85,7 @@ badLifeTotalSuperlative Refl impossible
 ||| The event's context accounting is its patient's, so an announcing agent would be dropped silently.
 public export
 badAnnouncingRemovalAgent : Unspellable (GameEvent []) (\ok =>
-  LastCounterRemoved Intervention Macros.thisEnchantment
-                     {by = Just (Macros.target AnyPlayer)}
+  LastCounterRemoved Intervention Macros.thisEnchantment (Just (Macros.target AnyPlayer))
                      {ag = AgentVoiced {bl = ok}})
 badAnnouncingRemovalAgent Refl impossible
 
@@ -103,7 +102,7 @@ badGetsChargeCounter Refl impossible
 ||| [CR#109.2] projects a type word with no zone word onto the battlefield, where an instant never is [CR#110.4a].
 public export
 badAscribeInstant : Unspellable (Noun [] Object) (\ok =>
-  AsType Instant This {way = ok})
+  AsType Instant This Nothing {way = ok})
 badAscribeInstant Oh impossible
 
 
@@ -111,7 +110,7 @@ badAscribeInstant Oh impossible
 ||| [CR#109.2] projects a type word with no zone word onto the battlefield, where a sorcery never is [CR#110.4].
 public export
 badAscribeSorcery : Unspellable (Noun [] Object) (\ok =>
-  AsType Sorcery This {way = ok})
+  AsType Sorcery This Nothing {way = ok})
 badAscribeSorcery Oh impossible
 
 
@@ -119,7 +118,7 @@ badAscribeSorcery Oh impossible
 ||| [CR#308.1] gives every kindred card another card type, so "kindred" is never the word a card names itself by.
 public export
 badAscribeKindred : Unspellable (Noun [] Object) (\ok =>
-  AsType Kindred This {way = ok})
+  AsType Kindred This Nothing {way = ok})
 badAscribeKindred Oh impossible
 
 
@@ -127,7 +126,7 @@ badAscribeKindred Oh impossible
 ||| [CR#205.1a] sorts subtypes into one set per card type, so an enchantment type carried by a land word names nothing.
 public export
 badAscribeForeignSubtype : Unspellable (Noun [] Object) (\ok =>
-  AsType Land This {sub = Just Aura} {way = ok})
+  AsType Land This (Just Aura) {way = ok})
 badAscribeForeignSubtype Oh impossible
 
 
@@ -143,7 +142,7 @@ badObjectMonarch Refl impossible
 ||| Goaded is a designation a permanent can have [CR#701.15b], so no player gains one.
 public export
 badGoadedPlayer : Unspellable (Effect []) (\ok =>
-  GainsDesignation You Goaded Instructed {sc = ok})
+  GainsDesignation You Goaded Instructed Nothing {sc = ok})
 badGoadedPlayer Refl impossible
 
 
@@ -153,7 +152,7 @@ public export
 badGoadInGraveyard : Unspellable (Effect []) (\ok =>
   GainsDesignation (Macros.target (And [Macros.creature,
                                         InZone (Macros.graveyardOf You)]))
-                   Goaded Instructed {zn = ok})
+                   Goaded Instructed Nothing {zn = ok})
 badGoadInGraveyard (HolderOnField {ok = OnField}) impossible
 
 
@@ -169,14 +168,14 @@ badUnflipInstruction Oh impossible
 ||| [CR#701.17a] mills from the top of the library, so a bottom slice is no mill.
 public export
 badBottomMill : Unspellable (Effect []) (\ok =>
-  Does You Mill (Move (LibrarySlice OnBottom (Lit 1) You) Macros.graveyardZ) {tb = ok})
+  Does You Mill (Move (LibrarySlice OnBottom (Lit 1) You) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {tb = ok})
 badBottomMill MillB impossible
 
 
 ||| "Ward" printed as a bare keyword line
 ||| A parameterized keyword may not shed its parameter: [CR#702.21a] writes the ability as "Ward [cost]".
 public export
-badBareWardLine : Unspellable Ability (\ok => KeywordAbility Ward {pf = ok})
+badBareWardLine : Unspellable Ability (\ok => KeywordAbility Ward Nothing {pf = ok})
 badBareWardLine Oh impossible
 
 
@@ -184,7 +183,7 @@ badBareWardLine Oh impossible
 ||| The parameter's type is the keyword's: [CR#702.21a] demands a cost, not a quality.
 public export
 badWardQuality : Unspellable Ability (\ok =>
-  KeywordAbility Ward {param = Just (ParamQuality (ColorIs Red))} {pf = ok})
+  KeywordAbility Ward (Just (ParamQuality (ColorIs Red))) {pf = ok})
 badWardQuality Oh impossible
 
 
@@ -192,7 +191,7 @@ badWardQuality Oh impossible
 ||| A keyword whose row takes no parameter refuses one rather than ignoring it.
 public export
 badParamOnNullaryKeyword : Unspellable Ability (\ok =>
-  KeywordAbility Flying {param = Just (ParamCost (Mana [Macros.generic 2]))} {pf = ok})
+  KeywordAbility Flying (Just (ParamCost (Mana [Macros.generic 2]))) {pf = ok})
 badParamOnNullaryKeyword Oh impossible
 
 
@@ -201,7 +200,7 @@ badParamOnNullaryKeyword Oh impossible
 public export
 badProtectionOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility Protection {param = Just (ParamQuality (ColorIs Red))}] Nothing {tx = ok})
+       [KeywordAbility Protection (Just (ParamQuality (ColorIs Red)))] Nothing {tx = ok})
 badProtectionOnInstant Oh impossible
 
 
@@ -209,7 +208,7 @@ badProtectionOnInstant Oh impossible
 ||| [CR#702.5a] writes enchant's slot as "[object or player]" where [CR#702.16a] writes protection's as "[quality]".
 public export
 badProtectionFromPlayerRestriction : Unspellable Ability (\ok =>
-  KeywordAbility Protection {param = Just (ParamSubject AnyPlayer)} {pf = ok})
+  KeywordAbility Protection (Just (ParamSubject AnyPlayer)) {pf = ok})
 badProtectionFromPlayerRestriction Oh impossible
 
 
@@ -218,7 +217,7 @@ badProtectionFromPlayerRestriction Oh impossible
 public export
 badEquipOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] [Sorcery])
-       [KeywordAbility Equip {param = Just (ParamCost (Mana [Macros.generic 2]))}]
+       [KeywordAbility Equip (Just (ParamCost (Mana [Macros.generic 2])))]
        Nothing {tx = ok})
 badEquipOnSorcery Oh impossible
 
@@ -244,7 +243,7 @@ badPartitiveOfCountedGroup Oh impossible
 ||| A creature attacks one defender: [CR#508.1b] announces which one each attacking creature attacks.
 public export
 badPluralAttackDefender : Unspellable (GameEvent []) (\ok =>
-  Attacks (Macros.a Macros.creature) {whom = Just (PlayerGroup YourOpponents)} {df = ok})
+  Attacks (Macros.a Macros.creature) (Just (PlayerGroup YourOpponents)) {df = ok})
 badPluralAttackDefender OneDefender impossible
 
 
@@ -253,8 +252,8 @@ badPluralAttackDefender OneDefender impossible
 public export
 badAgentChooseTheRest : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.lookAt (Macros.topCards 4)
-               , Move (Macros.oneOf Them) Macros.handZ
-               , Choose TheRest {by = Just (Macros.a Opponent)} {ch = ok} ])
+               , Move (Macros.oneOf Them) Macros.handZ (MkMoveRiders [] Nothing Nothing)
+               , Choose TheRest (Just (Macros.a Opponent)) {ch = ok} ])
 badAgentChooseTheRest AgentChoice impossible
 
 
@@ -262,7 +261,7 @@ badAgentChooseTheRest AgentChoice impossible
 ||| The history read names its destination, for which a subject-event-window query has no slot.
 public export
 badPlacementLookback : Unspellable (Condition []) (\ok =>
-  Happened Placement (Macros.a Macros.creature) ThisTurn {sb = ok})
+  Happened Placement (Macros.a Macros.creature) ThisTurn Nothing {sb = ok})
 badPlacementLookback MkLookbackSubject impossible
 
 
@@ -270,8 +269,7 @@ badPlacementLookback MkLookbackSubject impossible
 ||| A window with no possessor restricts nothing.
 public export
 badHeaderBareTurnWindow : Unspellable Ability (\ok =>
-  Triggered Whenever (Enters (Macros.a Macros.creature))
-            {window = Just (DuringWindow Turn Nothing {hw = ok})}
+  Triggered Whenever (Enters (Macros.a Macros.creature)) Nothing (Just (DuringWindow Turn Nothing {hw = ok})) Nothing Nothing
             Macros.drawACard)
 badHeaderBareTurnWindow Oh impossible
 
@@ -280,8 +278,7 @@ badHeaderBareTurnWindow Oh impossible
 ||| Only a token is ever created [CR#111.1]; the head word may be added to and never replaced.
 public export
 badNonTokenCreationSubject : Unspellable (GameEvent []) (\ok =>
-  TokensCreated (CountedGroup (Macros.atLeast 1) Macros.creature)
-                {under = Just You} {tk = ok})
+  TokensCreated (CountedGroup (Macros.atLeast 1) Macros.creature) Nothing Nothing (Just You) {tk = ok})
 badNonTokenCreationSubject CountedTokens impossible
 badNonTokenCreationSubject OneToken impossible
 
@@ -291,7 +288,7 @@ badNonTokenCreationSubject OneToken impossible
 public export
 badSingularCounterBatchSize : Unspellable (StaticEffect []) (\ok =>
   Intercepts (CounterEvent CounterPut Macros.plusOnePlusOne
-                           (Macros.a Macros.creatureYouControl) {many = OneCounter})
+                           (Macros.a Macros.creatureYouControl) OneCounter Nothing Nothing)
              (PutCounters (Plus (ThatMuch {ok}) (Lit 1))
                           Macros.plusOnePlusOne It)
              Repeatedly)
@@ -303,8 +300,7 @@ badSingularCounterBatchSize Refl impossible
 public export
 badCausedCounterWithAgent : Unspellable (GameEvent []) (\ok =>
   CounterEvent CounterPut Macros.plusOnePlusOne
-               (Macros.a Macros.creatureYouControl)
-               {by = Just You} {cause = Just AnEffect} {cz = ok})
+               (Macros.a Macros.creatureYouControl) ManyCounters (Just You) (Just AnEffect) {cz = ok})
 badCausedCounterWithAgent NotCaused impossible
 badCausedCounterWithAgent CausedByEffect impossible
 
@@ -344,9 +340,9 @@ public export
 badNestedCoordination : Unspellable (StaticEffect []) (\ok =>
   AndAlso (Coord.(::) (AndAlso [ Gets (Macros.target Macros.creature)
                                       (PtUp (Lit 1)) (PtUp (Lit 1))
-                               , Gains It (KeywordAbility Flying) ])
+                               , Gains It (KeywordAbility Flying Nothing) ])
                       {nc = ok}
-                      (Coord.(::) (Gains It (KeywordAbility Trample)) Coord.Nil)))
+                      (Coord.(::) (Gains It (KeywordAbility Trample Nothing)) Coord.Nil)))
 badNestedCoordination Oh impossible
 
 
@@ -363,7 +359,7 @@ badEmptyCoordination ItIsSucc impossible
 public export
 badThatCreatureIsStaticSubject : Unspellable Ability (\ok =>
   Static (AndAlso [ Gets Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Gains (That (TypeW Creature) {ok = ok}) (KeywordAbility Flying) ]))
+                  , Gains (That (TypeW Creature) {ok = ok}) (KeywordAbility Flying Nothing) ]))
 badThatCreatureIsStaticSubject Refl impossible
 
 
@@ -373,7 +369,7 @@ public export
 badCoordinatedHostPlural : Unspellable Ability (\ok =>
   Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
                          (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Gains (Them {ok = ok}) (KeywordAbility Flying) ]))
+                  , Gains (Them {ok = ok}) (KeywordAbility Flying Nothing) ]))
 badCoordinatedHostPlural Refl impossible
 
 
@@ -407,7 +403,7 @@ badFortifiedCreature Oh impossible
 ||| Flash functions where the card is played from and on the stack [CR#702.8a,113.6e], never on the battlefield.
 public export
 badBattlefieldFlash : Unspellable (StaticEffect []) (\ok =>
-  Gains (Macros.target Macros.creature) (KeywordAbility Flash) {ok})
+  Gains (Macros.target Macros.creature) (KeywordAbility Flash Nothing) {ok})
 badBattlefieldFlash Oh impossible
 
 
@@ -415,7 +411,7 @@ badBattlefieldFlash Oh impossible
 ||| [CR#702.12b] is about a permanent that can't be destroyed, and a spell is not one.
 public export
 badSpellIndestructible : Unspellable (StaticEffect []) (\ok =>
-  Gains (Macros.target Macros.spell) (KeywordAbility Indestructible) {ok})
+  Gains (Macros.target Macros.spell) (KeywordAbility Indestructible Nothing) {ok})
 badSpellIndestructible Oh impossible
 
 
@@ -425,7 +421,7 @@ public export
 badSiegeWithoutBattle : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) []
        (MkTypeLine [Siege] [Kindred, Enchantment])
-       [KeywordAbility Flying] Nothing {ln = ok})
+       [KeywordAbility Flying Nothing] Nothing {ln = ok})
 badSiegeWithoutBattle MkCardLine impossible
 
 
@@ -435,7 +431,7 @@ public export
 badKindredAlone : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) []
        (MkTypeLine [Merfolk] [Kindred])
-       [KeywordAbility Flying] Nothing {ln = ok})
+       [KeywordAbility Flying Nothing] Nothing {ln = ok})
 badKindredAlone MkCardLine impossible
 
 
@@ -463,7 +459,7 @@ badTokenSpellAbility Oh impossible
 public export
 badQuotedGrantOnSpell : Unspellable (StaticEffect []) (\ok =>
   Gains (AllOf (And [Macros.instantOrSorcery, Macros.spell, CastBy You]))
-        (Activated TapSymbol Macros.drawACard) {ok})
+        (Activated TapSymbol Macros.drawACard Nothing Nothing Nothing) {ok})
 badQuotedGrantOnSpell Oh impossible
 
 
@@ -471,7 +467,7 @@ badQuotedGrantOnSpell Oh impossible
 ||| [CR#114.3] leaves an emblem no types, mana cost or color, so a keyword names a subject it lacks.
 public export
 badKeywordEmblem : Unspellable (Effect []) (\ok =>
-  GetsEmblem You [KeywordAbility Flying] {ea = ok})
+  GetsEmblem You [KeywordAbility Flying Nothing] {ea = ok})
 badKeywordEmblem Oh impossible
 
 
@@ -497,7 +493,7 @@ public export
 badLoyaltySorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Loyalty Sorcery" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [Activated (LoyaltySymbol (LoyaltyUp 1)) Macros.drawACard] Nothing {tx = ok})
+       [Activated (LoyaltySymbol (LoyaltyUp 1)) Macros.drawACard Nothing Nothing Nothing] Nothing {tx = ok})
 badLoyaltySorcery Oh impossible
 
 

@@ -41,7 +41,7 @@ badStaticOnSorcery Oh impossible
 public export
 badKeywordOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility Flying] Nothing {tx = ok})
+       [KeywordAbility Flying Nothing] Nothing {tx = ok})
 badKeywordOnInstant Oh impossible
 
 
@@ -50,7 +50,7 @@ badKeywordOnInstant Oh impossible
 public export
 badTapSorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Tap Sorcery" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
-       [Activated TapSymbol Macros.drawACard] Nothing {tx = ok})
+       [Activated TapSymbol Macros.drawACard Nothing Nothing Nothing] Nothing {tx = ok})
 badTapSorcery Oh impossible
 
 
@@ -124,7 +124,7 @@ badCounterPermanent OnTheStack impossible
 ||| [CR#112.1] makes an object on the stack a spell, and a spell has already been cast.
 public export
 badPlayFromStack : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a Macros.spell) {pz = ok}) (Just Macros.thisTurn))
+  Continuously (MayPlay You (Macros.a Macros.spell) Play Nothing Nothing Nothing Nothing {pz = ok}) (Just Macros.thisTurn))
 badPlayFromStack MkPlaySource impossible
 
 
@@ -132,8 +132,7 @@ badPlayFromStack MkPlaySource impossible
 ||| A land card "can be played only as a land. It can't be cast as a spell" [CR#305.9].
 public export
 badCastALand : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)]))
-                           {verb = Cast} {cv = ok})
+  Continuously (MayPlay You (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)])) Cast Nothing Nothing Nothing Nothing {cv = ok})
                (Just Macros.thisTurn))
 badCastALand MkCastableTy impossible
 
@@ -142,8 +141,7 @@ badCastALand MkCastableTy impossible
 ||| A written source phrase must agree with the zone the complement already names.
 public export
 badPlayFromWrongZone : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a (And [Macros.creature, InZone Macros.exileZ]))
-                           {from = Just (Macros.graveyardOf You)} {pz = ok})
+  Continuously (MayPlay You (Macros.a (And [Macros.creature, InZone Macros.exileZ])) Play (Just (Macros.graveyardOf You)) Nothing Nothing Nothing {pz = ok})
                (Just Macros.thisTurn))
 badPlayFromWrongZone MkPlaySource impossible
 
@@ -152,7 +150,7 @@ badPlayFromWrongZone MkPlaySource impossible
 ||| [CR#601.2a] puts a card on the stack as part of casting, which is no placement.
 public export
 badMoveToStack : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) Macros.stackZ {ok})
+  Move (Macros.target Macros.creature) Macros.stackZ (MkMoveRiders [] Nothing Nothing) {ok})
 badMoveToStack BattlefieldOk impossible
 
 
@@ -169,8 +167,7 @@ badInstantOntoBattlefield Oh impossible
 public export
 badUnlessOnPositive : Unspellable Ability (\ok =>
   Static (Conditionally (Exists (And [Macros.artifact, ControlledBy You]))
-                        (Deontic Macros.thisCreature Forbid Attack Agent NoDeonticPatient)
-                        {marking = Unless} {mk = ok}))
+                        (Deontic Macros.thisCreature Forbid Attack Agent NoDeonticPatient) Unless {mk = ok}))
 badUnlessOnPositive MkMarkingOk impossible
 
 
@@ -178,7 +175,7 @@ badUnlessOnPositive MkMarkingOk impossible
 ||| Flipping is one-way [CR#710.4], so there is no transition to observe.
 public export
 badUnflipEvent : Unspellable Ability (\ok =>
-  Triggered Whenever (StatusEvent (Macros.a Permanent) Unflipped {at = ok}) Macros.drawACard)
+  Triggered Whenever (StatusEvent (Macros.a Permanent) Unflipped {at = ok}) Nothing Nothing Nothing Nothing Macros.drawACard)
 badUnflipEvent Oh impossible
 
 
@@ -208,8 +205,7 @@ badUntapNextAmbiguousIt Refl impossible
 ||| Status words are the battlefield's alone [CR#110.5,110.5b]; an exile writes the counter rider only.
 public export
 badExileTapped : Dependent.Unspellable (Effect []) (\x, y =>
-  Composite Exile (Move (Macros.target Macros.creature) Macros.exileZ
-                        {riders = MkMoveRiders [EntersTapped] Nothing}
+  Composite Exile (Move (Macros.target Macros.creature) Macros.exileZ (MkMoveRiders [EntersTapped] Nothing Nothing)
                         {rf = x})
                   {ok = y})
 badExileTapped (Oh ** _) impossible
@@ -278,7 +274,7 @@ badGetsBoostCounter Refl impossible
 ||| A named kind on the player's removal verb must be a player's kind [CR#122.1].
 public export
 badLosesAllBoostCounters : Unspellable (Effect []) (\ok =>
-  LosesCounters (Each Opponent) (Just Macros.plusOnePlusOne)
+  LosesCounters (Each Opponent) (Just Macros.plusOnePlusOne) Nothing
                    {pk = KindNamed {sc = ok}})
 badLosesAllBoostCounters Refl impossible
 
@@ -295,7 +291,7 @@ badCountersHeldByPlayer Refl impossible
 ||| The last-removal event watches an object's holding, and poison is a player's kind [CR#122.1].
 public export
 badLastPoisonCounterRemoved : Unspellable Ability (\ok =>
-  Triggered When (LastCounterRemoved Poison Macros.thisCreature {sc = ok}) Macros.drawACard)
+  Triggered When (LastCounterRemoved Poison Macros.thisCreature Nothing {sc = ok}) Nothing Nothing Nothing Nothing Macros.drawACard)
 badLastPoisonCounterRemoved Refl impossible
 
 
@@ -303,9 +299,8 @@ badLastPoisonCounterRemoved Refl impossible
 ||| The sorted self-word seeds the battlefield [CR#109.2], so it cannot be asked whether it is elsewhere.
 public export
 badExileCheckOnSortedSelf : Unspellable Ability (\ok =>
-  Triggered When (LastCounterRemoved Time Macros.thisCreature) Macros.drawACard
-            {intervening = Just (Matches Macros.thisCreature (InZone Macros.exileZ)
-                                         {zc = ok})})
+  Triggered When (LastCounterRemoved Time Macros.thisCreature Nothing) Nothing Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
+                                         {zc = ok})) Macros.drawACard)
 badExileCheckOnSortedSelf Oh impossible
 
 
@@ -313,8 +308,7 @@ badExileCheckOnSortedSelf Oh impossible
 ||| Each event names the sort its history subject takes, and dying is an object's.
 public export
 badLookbackPlayerDied : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature) Macros.drawACard
-            {intervening = Just (Happened Death You Lookback.ThisTurn {sb = ok})})
+  Triggered When (Enters Macros.thisCreature) Nothing Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) Macros.drawACard)
 badLookbackPlayerDied MkLookbackSubject impossible
 
 
@@ -322,9 +316,8 @@ badLookbackPlayerDied MkLookbackSubject impossible
 ||| The same table the other way: casting is read over a player [CR#601.2].
 public export
 badLookbackObjectCast : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature) Macros.drawACard
-            {intervening = Just (Happened SpellCast (Macros.a Macros.creature)
-                                          Lookback.ThisTurn {sb = ok})})
+  Triggered When (Enters Macros.thisCreature) Nothing Nothing Nothing (Just (Happened SpellCast (Macros.a Macros.creature)
+                                          Lookback.ThisTurn Nothing {sb = ok})) Macros.drawACard)
 badLookbackObjectCast MkLookbackSubject impossible
 
 
@@ -332,7 +325,7 @@ badLookbackObjectCast MkLookbackSubject impossible
 ||| The head noun is the history read's subject, and casting is a player's event [CR#601.2].
 public export
 badHappenedToObjectCast : Unspellable (Noun [] Object) (\ok =>
-  Macros.target (And [Macros.creature, HappenedTo SpellCast Lookback.ThisTurn {sb = ok}]))
+  Macros.target (And [Macros.creature, HappenedTo SpellCast Lookback.ThisTurn Nothing {sb = ok}]))
 badHappenedToObjectCast MkLookbackSubject impossible
 
 
@@ -340,7 +333,7 @@ badHappenedToObjectCast MkLookbackSubject impossible
 ||| The same table at its second reader: dying is an object's event, so a player head cannot ask it.
 public export
 badHappenedToPlayerDied : Unspellable (Noun [] Player) (\ok =>
-  Each (And [Opponent, HappenedTo Death Lookback.ThisTurn {sb = ok}]))
+  Each (And [Opponent, HappenedTo Death Lookback.ThisTurn Nothing {sb = ok}]))
 badHappenedToPlayerDied MkLookbackSubject impossible
 
 
@@ -356,8 +349,7 @@ badColorlessWhite Oh impossible
 ||| An activation restriction introduces no turn, so the deictic possessor reaches no antecedent.
 public export
 badThatTurnsPartWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) Macros.drawACard
-            {window = Just (DuringPart EndStep (Just ThatTurns) {wk = ok})})
+  Activated (Mana [Macros.generic 2]) Macros.drawACard (Just (DuringPart EndStep (Just ThatTurns) {wk = ok})) Nothing Nothing)
 badThatTurnsPartWindow Oh impossible
 
 
@@ -365,8 +357,7 @@ badThatTurnsPartWindow Oh impossible
 ||| An activation restriction introduces no turn, so the deictic possessor reaches no antecedent.
 public export
 badThatTurnsAttackWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) Macros.drawACard
-            {window = Just (BeforePoint AttackersDeclared (Just ThatTurns) {pk = ok})})
+  Activated (Mana [Macros.generic 2]) Macros.drawACard (Just (BeforePoint AttackersDeclared (Just ThatTurns) {pk = ok})) Nothing Nothing)
 badThatTurnsAttackWindow Oh impossible
 
 
@@ -392,7 +383,7 @@ badRingBearerInGraveyard Oh impossible
 ||| English's demonstratives skip the speaker: "that creature" never picks out the trigger's own subject.
 public export
 badThatCreatureIsSelf : Unspellable Ability (\ok =>
-  Triggered Whenever (Attacks Macros.thisCreature)
+  Triggered Whenever (Attacks Macros.thisCreature Nothing) Nothing Nothing Nothing Nothing
             (Macros.gets (That (TypeW Creature) {ok = ok}) (PtUp (Lit 2)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn)))
 badThatCreatureIsSelf Refl impossible
 
@@ -478,9 +469,8 @@ badUnlicensedDifference Refl impossible
 ||| A condition that holds by no amount leaves no margin; only a comparison licenses one.
 public export
 badNonComparisonDifference : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature)
-            (Draw You (TheDifference {ok}))
-            {intervening = Just (Exists Macros.creatureYouControl)})
+  Triggered When (Enters Macros.thisCreature) Nothing Nothing Nothing (Just (Exists Macros.creatureYouControl))
+            (Draw You (TheDifference {ok})))
 badNonComparisonDifference Refl impossible
 
 

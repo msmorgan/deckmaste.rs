@@ -40,7 +40,7 @@ badPoisonCounterDescription Refl impossible
 ||| [CR#702.24a] states the keyword as "Cumulative upkeep [cost]", so the parameter is never absent.
 public export
 badBareCumulativeUpkeep : Unspellable Ability (\ok =>
-  KeywordAbility CumulativeUpkeep {pf = ok})
+  KeywordAbility CumulativeUpkeep Nothing {pf = ok})
 badBareCumulativeUpkeep Oh impossible
 
 
@@ -49,8 +49,7 @@ badBareCumulativeUpkeep Oh impossible
 public export
 badCumulativeUpkeepOnSpell : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
-       [KeywordAbility CumulativeUpkeep
-          {param = Just (ParamCost (Mana [Macros.generic 2]))}] Nothing {tx = ok})
+       [KeywordAbility CumulativeUpkeep (Just (ParamCost (Mana [Macros.generic 2])))] Nothing {tx = ok})
 badCumulativeUpkeepOnSpell Oh impossible
 
 
@@ -80,7 +79,7 @@ badEmptyKeywordList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword Flying]))
-                             (Gains Macros.thisCreature (KeywordAbility Flying))))
+                             (Gains Macros.thisCreature (KeywordAbility Flying Nothing)) AsLongAs))
                   [] {lk = ok})
 badEmptyKeywordList Oh impossible
 
@@ -92,7 +91,7 @@ badKeywordListRepeatingBase : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword Flying]))
-                             (Gains Macros.thisCreature (KeywordAbility Flying))))
+                             (Gains Macros.thisCreature (KeywordAbility Flying Nothing)) AsLongAs))
                   [Menace, Flying, Trample] {lk = ok})
 badKeywordListRepeatingBase Oh impossible
 
@@ -101,7 +100,7 @@ badKeywordListRepeatingBase Oh impossible
 ||| A creation is a creation of something: with no complement the clause names no event.
 public export
 badBareTokenCreationLookback : Unspellable (Condition []) (\ok =>
-  Happened TokenCreation You Lookback.ThisTurn {cw = LeftBare {ok = ok}})
+  Happened TokenCreation You Lookback.ThisTurn Nothing {cw = LeftBare {ok = ok}})
 badBareTokenCreationLookback Oh impossible
 
 
@@ -109,8 +108,7 @@ badBareTokenCreationLookback Oh impossible
 ||| A creature attacks and does not attack with anything, so the complement's sort refuses.
 public export
 badAttackerComplementOnObject : Unspellable (Predicate [] Object) (\ok =>
-  HappenedTo AttackDeclaration Lookback.ThisTurn
-    {what = Just (Involving Macros.thisCreature {cp = ok})})
+  HappenedTo AttackDeclaration Lookback.ThisTurn (Just (Involving Macros.thisCreature {cp = ok})))
 badAttackerComplementOnObject MkLookbackComplement impossible
 
 
@@ -118,8 +116,7 @@ badAttackerComplementOnObject MkLookbackComplement impossible
 ||| The complement has a sort and the cast's is an object: one does not cast a player.
 public export
 badPlayerCastComplement : Unspellable (Condition []) (\ok =>
-  Happened SpellCast You Lookback.ThisTurn
-    {what = Just (Involving Macros.anOpponent {cp = ok})})
+  Happened SpellCast You Lookback.ThisTurn (Just (Involving Macros.anOpponent {cp = ok})))
 badPlayerCastComplement MkLookbackComplement impossible
 
 
@@ -163,7 +160,7 @@ public export
 badUnlessConjunction : Unspellable (StaticEffect []) (\ok =>
   Conditionally (AndCond [ Exists (And [Macros.artifact, ControlledBy You])
                          , Exists (And [Macros.enchantment, ControlledBy You]) ])
-                (AltCost Nothing) {marking = Unless} {mk = ok})
+                (AltCost Nothing) Unless {mk = ok})
 badUnlessConjunction MkMarkingOk impossible
 
 
@@ -215,7 +212,7 @@ badSingletonForEach Refl impossible
 ||| An activation is an activation of something: with no complement the clause names no event.
 public export
 badBareActivationLookback : Unspellable (Condition []) (\ok =>
-  Happened AbilityActivation You Lookback.ThisTurn {cw = LeftBare {ok = ok}})
+  Happened AbilityActivation You Lookback.ThisTurn Nothing {cw = LeftBare {ok = ok}})
 badBareActivationLookback Oh impossible
 
 
@@ -223,7 +220,7 @@ badBareActivationLookback Oh impossible
 ||| The possessive slot takes the attachment anaphor; every other possessor is a word.
 public export
 badNounPossessorYou : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep (ByNoun You {pn = ok})) Macros.drawACard)
+  Triggered At (BeginningOf Upkeep (ByNoun You {pn = ok})) Nothing Nothing Nothing Nothing Macros.drawACard)
 badNounPossessorYou AttachedPossessor impossible
 
 
@@ -232,7 +229,7 @@ badNounPossessorYou AttachedPossessor impossible
 ||| one event, so the tag has no subjectless frame.
 public export
 badSubjectlessPut : Unspellable (Effect []) (\ok =>
-  Composite Put (Move (Macros.target Macros.creature) Macros.handZ) {na = ok})
+  Composite Put (Move (Macros.target Macros.creature) Macros.handZ (MkMoveRiders [] Nothing Nothing)) {na = ok})
 badSubjectlessPut Oh impossible
 
 
@@ -241,7 +238,7 @@ badSubjectlessPut Oh impossible
 ||| ends, so there is no single pile to order.
 public export
 badDisjunctionOrdered : Unspellable (ZoneExpr []) (\ok =>
-  LibraryAt (EitherEnd Nothing) (Just AnyOrder) {af = ok} Bare)
+  LibraryAt (EitherEnd Nothing) (Just AnyOrder) Nothing {af = ok} Bare)
 badDisjunctionOrdered Oh impossible
 
 
@@ -276,7 +273,7 @@ badPossessedMonarch Refl impossible
 ||| [CR#702.84a] states the keyword as "Unearth [cost]", so the parameter is never absent.
 public export
 badBareUnearth : Unspellable Ability (\ok =>
-  KeywordAbility Unearth {pf = ok})
+  KeywordAbility Unearth Nothing {pf = ok})
 badBareUnearth Oh impossible
 
 
@@ -284,7 +281,7 @@ badBareUnearth Oh impossible
 ||| [CR#702.81a] writes retrace bare, so no cost stands beside the word.
 public export
 badCostedRetrace : Unspellable Ability (\ok =>
-  KeywordAbility Retrace {param = Just (ParamCost (Mana [Macros.generic 1]))}
+  KeywordAbility Retrace (Just (ParamCost (Mana [Macros.generic 1])))
                  {pf = ok})
 badCostedRetrace Oh impossible
 
@@ -294,8 +291,7 @@ badCostedRetrace Oh impossible
 public export
 badUnearthOnSpellCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility Unearth
-          {param = Just (ParamCost (Mana [Macros.pip Black]))}] Nothing {tx = ok})
+       [KeywordAbility Unearth (Just (ParamCost (Mana [Macros.pip Black])))] Nothing {tx = ok})
 badUnearthOnSpellCard Oh impossible
 
 
@@ -305,8 +301,7 @@ public export
 badFlashbackOnPermanentCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Artifact])
-       [KeywordAbility Flashback
-          {param = Just (ParamCost (Mana [Macros.generic 2, Macros.pip Blue]))}]
+       [KeywordAbility Flashback (Just (ParamCost (Mana [Macros.generic 2, Macros.pip Blue])))]
        Nothing {tx = ok})
 badFlashbackOnPermanentCard Oh impossible
 

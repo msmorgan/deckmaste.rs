@@ -25,7 +25,7 @@ badChosenNumberRead Oh impossible
 ||| Two creatures have no single power [CR#208.1]; a fold word writes the group's.
 public export
 badGroupPower : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature),
+  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing,
                 Macros.gainsLife You (Macros.powerOf Them {one = ok})])
 badGroupPower Refl impossible
 
@@ -34,7 +34,7 @@ badGroupPower Refl impossible
 ||| Two cards need not share an owner [CR#108.3].
 public export
 badGroupOwner : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature),
+  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing,
                 Macros.losesLife (OwnerOf Them {one = ok}) (Lit 1)])
 badGroupOwner Refl impossible
 
@@ -79,7 +79,7 @@ badSliceOfGroupPossessor Oh impossible
 ||| names has a single spell and a plural complement names no casting.
 public export
 badCastsPluralComplement : Unspellable (Ability) (\ok =>
-  Triggered Whenever (Casts You (AllOf Macros.spell) {one = ok})
+  Triggered Whenever (Casts You (AllOf Macros.spell) {one = ok}) Nothing Nothing Nothing Nothing
             Macros.drawACard)
 badCastsPluralComplement Refl impossible
 
@@ -150,7 +150,7 @@ badTheyIt (Refl, _) impossible
 public export
 badStale : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-               Delayed (BeginningOf EndStep NoPossessor) (Macros.sacrifice You It {ok})])
+               Delayed (BeginningOf EndStep NoPossessor) Nothing (Macros.sacrifice You It {ok})])
 badStale OnField impossible
 
 
@@ -159,7 +159,7 @@ badStale OnField impossible
 public export
 badDelayedOther : Unspellable (Effect []) (\ok =>
   Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
-               Delayed (BeginningOf EndStep NoPossessor) (DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))])
+               Delayed (BeginningOf EndStep NoPossessor) Nothing (DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))])
 badDelayedOther Refl impossible
 
 
@@ -168,7 +168,7 @@ badDelayedOther Refl impossible
 public export
 badStaleCarrier : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
-               Move (That (TypeW Creature) {ok}) Macros.battlefieldZ])
+               Move (That (TypeW Creature) {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)])
 badStaleCarrier Refl impossible
 
 
@@ -177,8 +177,8 @@ badStaleCarrier Refl impossible
 ||| and [CR#400.7j] lets a cost's effects find it only in a PUBLIC zone.
 public export
 badHiddenCost : Unspellable Ability (\ok =>
-  Activated (Do (Move (Macros.a Macros.creature) Macros.handZ))
-            (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}))
+  Activated (Do (Move (Macros.a Macros.creature) Macros.handZ (MkMoveRiders [] Nothing Nothing)))
+            (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}) Nothing Nothing Nothing)
 badHiddenCost (Refl, _) impossible
 
 
@@ -188,7 +188,7 @@ public export
 badTwoCostMentions : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.discardsACard You),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Macros.exile (It {ok})))
+            (Macros.exile (It {ok})) Nothing Nothing Nothing)
 badTwoCostMentions Refl impossible
 
 
@@ -205,8 +205,8 @@ badSacrificeExiled OnField impossible
 ||| The death retag flips the carrier [CR#700.4,110.1], so "creature" no longer reads.
 public export
 badDeadCreatureRead : Unspellable (Effect []) (\ok =>
-  Delayed (Dies (Macros.target Macros.creature)) {span = Just ThisTurn}
-          (Move (That (TypeW Creature) {ok}) Macros.battlefieldZ))
+  Delayed (Dies (Macros.target Macros.creature)) (Just ThisTurn)
+          (Move (That (TypeW Creature) {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)))
 badDeadCreatureRead Refl impossible
 
 
@@ -223,8 +223,8 @@ badChosenWrongSort Refl impossible
 ||| Two group mentions leave "them" ambiguous.
 public export
 badThemAmbig : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature),
-               Choose (TargetGroup (Macros.exactly 2) Macros.creature),
+  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing,
+               Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing,
                SetStatus Tapped (Them {ok})])
 badThemAmbig Refl impossible
 
@@ -244,7 +244,7 @@ badInnerAmbig Refl impossible
 public export
 badVerbedWrongVerb : Unspellable Ability (\ok =>
   Activated (Do (Macros.discardsACard You))
-            (Move (TheVerbed Sacrifice CardW {ok}) Macros.battlefieldZ))
+            (Move (TheVerbed Sacrifice CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
 badVerbedWrongVerb Refl impossible
 
 
@@ -253,7 +253,7 @@ badVerbedWrongVerb Refl impossible
 public export
 badVerbedWrongNoun : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a (HasType Artifact))))
-            (Move (TheVerbed Sacrifice (TypeW Creature) {ok}) Macros.battlefieldZ))
+            (Move (TheVerbed Sacrifice (TypeW Creature) Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
 badVerbedWrongNoun Refl impossible
 
 
@@ -263,7 +263,7 @@ public export
 badVerbedAmbig : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Move (TheVerbed Sacrifice CardW {ok}) Macros.battlefieldZ))
+            (Move (TheVerbed Sacrifice CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
 badVerbedAmbig Refl impossible
 
 
@@ -273,7 +273,7 @@ public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You Macros.thisArtifact))
             (Sequentially [Macros.exile (Macros.target Macros.creature),
-                           Delayed (BeginningOf EndStep NoPossessor) (Move (That CardW {ok}) Macros.battlefieldZ)]))
+                           Delayed (BeginningOf EndStep NoPossessor) Nothing (Move (That CardW {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing))]) Nothing Nothing Nothing)
 badBareCardRead Refl impossible
 
 
@@ -381,8 +381,8 @@ badFightLand Fighter impossible
 ||| Dying is the battlefield-to-graveyard transition [CR#700.4]; a graveyard head contradicts it.
 public export
 badDiesInGraveyard : Unspellable (Effect []) (\ok =>
-  Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) {span = Just ThisTurn}
-          (Move (That CardW) Macros.battlefieldZ))
+  Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) (Just ThisTurn)
+          (Move (That CardW) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)))
 badDiesInGraveyard Oh impossible
 
 
@@ -399,7 +399,7 @@ badDamageGraveyardCard ObjectTakes impossible
 ||| A quality cannot take damage [CR#120.1].
 public export
 badDamageToColor : Unspellable (Effect []) (\ok =>
-  DealDamage This (Lit 1) (Macros.a (QualityNoun Color)) {rk = ok})
+  DealDamage This (Lit 1) (Macros.a (QualityNoun Color Nothing)) {rk = ok})
 badDamageToColor ObjectTakes impossible
 
 
@@ -416,7 +416,7 @@ badDamageArtifact ObjectTakes impossible
 ||| all five, so at kind `Quality Color` its complement is empty.
 public export
 badNegatedQualityHead : Unspellable (Predicate [] (Quality Color)) (\ok =>
-  Not (QualityNoun Color) {ng = ok})
+  Not (QualityNoun Color Nothing) {ng = ok})
 badNegatedQualityHead Oh impossible
 
 
@@ -450,7 +450,7 @@ badConflictingZones Oh impossible
 ||| Targets are objects and players [CR#115.1]; qualities are chosen.
 public export
 badTargetColor : Unspellable (Effect []) (\ok =>
-  Choose (Macros.target (QualityNoun Color) {tk = ok}))
+  Choose (Macros.target (QualityNoun Color Nothing) {tk = ok}) Nothing)
 badTargetColor ObjectTgt impossible
 
 
@@ -468,7 +468,7 @@ badGetsGraveyard Oh impossible
 ||| A card never enters another player's hand [CR#400.3].
 public export
 badMoveToTargetsHand : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) (Macros.handOf (Macros.target AnyPlayer)) {ok})
+  Move (Macros.target Macros.creature) (Macros.handOf (Macros.target AnyPlayer)) (MkMoveRiders [] Nothing Nothing) {ok})
 badMoveToTargetsHand HandOkBare impossible
 
 
@@ -492,7 +492,7 @@ badDiscardBattlefield DiscardTracked impossible
 ||| Tag and body must agree, or indestructible would cant an exile [CR#701.8b,702.12b].
 public export
 badDestroyTaggedExile : Unspellable (Effect []) (\ok =>
-  Composite Destroy (Move (Macros.target Macros.creature) Macros.exileZ) {ok})
+  Composite Destroy (Move (Macros.target Macros.creature) Macros.exileZ (MkMoveRiders [] Nothing Nothing)) {ok})
 badDestroyTaggedExile DestroyB impossible
 
 
@@ -500,7 +500,7 @@ badDestroyTaggedExile DestroyB impossible
 ||| The zone demand lives on the tag-body relation, so the raw spelling proves it too [CR#701.8a].
 public export
 badCompositeDestroyGraveyard : Unspellable (Effect []) (\ok =>
-  Composite Destroy (Move (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Macros.graveyardZ) {ok = DestroyB {z = ok}})
+  Composite Destroy (Move (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {ok = DestroyB {z = ok}})
 badCompositeDestroyGraveyard OnField impossible
 
 
@@ -508,7 +508,7 @@ badCompositeDestroyGraveyard OnField impossible
 ||| An agentive tag cannot shed its actor [CR#701.21a].
 public export
 badAgentlessSacrifice : Unspellable (Effect []) (\ok =>
-  Composite Sacrifice (Move (Macros.a Macros.creature) Macros.graveyardZ) {ok = SacrificeB} {na = ok})
+  Composite Sacrifice (Move (Macros.a Macros.creature) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {ok = SacrificeB} {na = ok})
 badAgentlessSacrifice Oh impossible
 
 
@@ -516,7 +516,7 @@ badAgentlessSacrifice Oh impossible
 ||| Discarding moves a hand card [CR#701.9a], and the demand rides the tag relation.
 public export
 badDoesDiscardBattlefield : Unspellable (Effect []) (\ok =>
-  Does You Discard (Move (Macros.a Macros.creature) Macros.graveyardZ) {tb = DiscardB {d = ok}})
+  Does You Discard (Move (Macros.a Macros.creature) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {tb = DiscardB {d = ok}})
 badDoesDiscardBattlefield DiscardTracked impossible
 
 
@@ -524,7 +524,7 @@ badDoesDiscardBattlefield DiscardTracked impossible
 ||| A written quantity permits at least one; the demand is on its MAXIMUM.
 public export
 badZeroGroup : Unspellable (Effect []) (\ok =>
-  Choose (TargetGroup (Macros.exactly 0) Macros.creature {nz = Builtin.fst ok} {wf = Builtin.snd ok}))
+  Choose (TargetGroup (Macros.exactly 0) Macros.creature {nz = Builtin.fst ok} {wf = Builtin.snd ok}) Nothing)
 badZeroGroup (MaxAtLeastOne, _) impossible
 
 
@@ -542,8 +542,8 @@ public export
 badDiscardedCreatureWord : Unspellable Ability (\ok =>
   Activated (Do (Macros.discards You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
             (DealDamage This
-                          (Macros.manaValueOf (TheVerbed Discard (TypeW Creature) {ok}))
-                          (Macros.target Macros.anyTarget)))
+                          (Macros.manaValueOf (TheVerbed Discard (TypeW Creature) Attributive {ok}))
+                          (Macros.target Macros.anyTarget)) Nothing Nothing Nothing)
 badDiscardedCreatureWord Refl impossible
 
 
@@ -626,7 +626,7 @@ badDiscardThisCreature DiscardTracked impossible
 ||| The ascription is the SOURCE's and only the source's; re-sorting a target spells nothing new.
 public export
 badAscribedTarget : Unspellable (Noun [] Object) (\ok =>
-  AsType Creature (Macros.target Macros.creature) {asc = ok})
+  AsType Creature (Macros.target Macros.creature) Nothing {asc = ok})
 badAscribedTarget AscribeThis impossible
 
 
