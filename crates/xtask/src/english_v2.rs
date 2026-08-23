@@ -58,6 +58,29 @@ fn catalog_surface_onset(surface: &str) -> Option<macro_ron::v2::Onset> {
     })
 }
 
+fn ensure_card_name_onset_override_inventory<'a>(
+    names: impl IntoIterator<Item = &'a str>,
+    overrides: &[(&str, macro_ron::v2::Onset)],
+) -> anyhow::Result<()> {
+    let derived_exceptional = names
+        .into_iter()
+        .filter(|name| macro_ron::v2::normalize_surface_onset(name, None).is_none())
+        .collect::<BTreeSet<_>>();
+    let reviewed_exceptional = overrides
+        .iter()
+        .map(|(name, _)| *name)
+        .collect::<BTreeSet<_>>();
+    ensure!(
+        reviewed_exceptional.len() == overrides.len(),
+        "card-name onset override inventory contains a duplicate surface",
+    );
+    ensure!(
+        derived_exceptional == reviewed_exceptional,
+        "card-name onset override inventory differs from generated catalog exceptions: derived {derived_exceptional:?}, reviewed {reviewed_exceptional:?}",
+    );
+    Ok(())
+}
+
 #[derive(Debug)]
 struct AdaptedCardNameCatalog {
     provider: CatalogProviderRows,
@@ -72,23 +95,10 @@ fn adapt_card_name_catalog_provider(catalog_root: &Path) -> anyhow::Result<Adapt
         )
     })?;
     let card_names = catalogs.get(deckmaste_catalogs::CatalogKind::CardNames);
-    let derived_exceptional = card_names
-        .iter()
-        .filter(|name| macro_ron::v2::normalize_surface_onset(name, None).is_none())
-        .map(String::as_str)
-        .collect::<BTreeSet<_>>();
-    let reviewed_exceptional = CARD_NAME_ONSET_OVERRIDES
-        .iter()
-        .map(|(name, _)| *name)
-        .collect::<BTreeSet<_>>();
-    ensure!(
-        reviewed_exceptional.len() == CARD_NAME_ONSET_OVERRIDES.len(),
-        "card-name onset override inventory contains a duplicate surface",
-    );
-    ensure!(
-        derived_exceptional == reviewed_exceptional,
-        "card-name onset override inventory differs from generated catalog exceptions: derived {derived_exceptional:?}, reviewed {reviewed_exceptional:?}",
-    );
+    ensure_card_name_onset_override_inventory(
+        card_names.iter().map(String::as_str),
+        &CARD_NAME_ONSET_OVERRIDES,
+    )?;
 
     let mut context_onsets = BTreeMap::new();
     let rows = card_names
@@ -162,6 +172,9 @@ mod catalog_adapter_tests {
     #[test]
     fn named_catalog_adapter_exception_inventory_is_closed_and_exact() {
         let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
+        let raw_names = std::fs::read_to_string(catalog_root.join("card-names.txt"))
+            .expect("raw generated card-name rows load independently");
+        let names = raw_names.lines().collect::<Vec<_>>();
         let expected_exceptional = EXPECTED_EXCEPTIONAL_ONSETS
             .iter()
             .map(|(name, _)| *name)
@@ -170,10 +183,15 @@ mod catalog_adapter_tests {
             .iter()
             .map(|(name, _)| *name)
             .collect::<std::collections::BTreeSet<_>>();
+        let actual_exceptional = names
+            .iter()
+            .copied()
+            .filter(|name| macro_ron::v2::normalize_surface_onset(name, None).is_none())
+            .collect::<std::collections::BTreeSet<_>>();
 
-        adapt_card_name_catalog_provider(&catalog_root)
-            .expect("production adapter proves catalog-derived and reviewed sets are equal");
-        assert_eq!(reviewed_exceptional, expected_exceptional);
+        assert_eq!(names.len(), 32_548, "every raw generated row is counted");
+        assert_eq!(actual_exceptional, expected_exceptional);
+        assert_eq!(actual_exceptional, reviewed_exceptional);
         assert_eq!(
             catalog_surface_onset("+3 Mace"),
             None,
@@ -184,6 +202,26 @@ mod catalog_adapter_tests {
             None,
             "an accented initial cannot become an unreviewed Unicode-class fallback",
         );
+    }
+
+    #[test]
+    fn production_inventory_guard_rejects_unreviewed_and_stale_exceptional_surfaces() {
+        let unreviewed = ensure_card_name_onset_override_inventory(
+            ["+2 Mace", "Éomer's Cousin"],
+            &[("+2 Mace", macro_ron::v2::Onset::Consonant)],
+        )
+        .expect_err("an unreviewed exceptional surface must fail the production guard");
+        assert!(format!("{unreviewed:#}").contains("Éomer's Cousin"));
+
+        let stale = ensure_card_name_onset_override_inventory(
+            ["+2 Mace"],
+            &[
+                ("+2 Mace", macro_ron::v2::Onset::Consonant),
+                ("Óin the Brave", macro_ron::v2::Onset::Vowel),
+            ],
+        )
+        .expect_err("a stale exceptional override must fail the production guard");
+        assert!(format!("{stale:#}").contains("Óin the Brave"));
     }
 
     #[test]

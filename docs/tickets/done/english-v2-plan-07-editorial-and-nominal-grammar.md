@@ -23,7 +23,7 @@ Completion evidence on the task-closed tree:
   compiled-consumer tests passed;
 - macro_ron: 190 library tests and 15 integration tests passed;
 - English v2: 129 library tests, 100 integration tests, and 2 doc tests passed;
-- xtask: 436 library tests passed, 1 ignored, and 12 CLI tests passed;
+- xtask: 437 library tests passed, 1 ignored, and 12 CLI tests passed;
 - strict five-crate Clippy, changed-file nightly formatting, the five-test
   Plan 04 authority audit, citation checks/audit, and
   expand/report/probe/inspect smokes passed;
